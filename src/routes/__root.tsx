@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { JourneyChrome } from "../components/journey/journey-chrome";
 
 function NotFoundComponent() {
   return (
@@ -133,8 +134,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      {/* Persistent journey chrome: header, progress and index never remount
+          between chapters — only the Outlet body swaps with a subtle transition. */}
+      <JourneyChrome>
+        <Outlet />
+      </JourneyChrome>
     </QueryClientProvider>
   );
 }
