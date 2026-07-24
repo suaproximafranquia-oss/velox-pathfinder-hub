@@ -186,9 +186,9 @@ export const CHAPTERS: Chapter[] = [
     index: 10,
     path: "/manual/perfil",
     eyebrow: "Capítulo 10 · Perfil ideal do franqueado",
-    title: "Franquia não é para todo mundo. E tudo bem.",
+    title: "Como identificar se este modelo combina com você.",
     subtitle:
-      "Antes de qualquer autoavaliação, uma leitura honesta sobre o perfil que costuma se dar bem — e sobre situações em que talvez não seja o momento.",
+      "Não existe um perfil único. Existem características que costumam favorecer a jornada de um franqueado — e reconhecê-las ajuda você a fazer uma avaliação honesta sobre o seu próprio momento.",
     minutesLeft: 2,
     seoTitle: "Perfil do franqueado — Manual do Investidor Velox",
     seoDescription:
@@ -239,9 +239,9 @@ export const CHAPTERS: Chapter[] = [
     index: 13,
     path: "/manual/proximos-passos",
     eyebrow: "Capítulo 13 · Convite para conversar",
-    title: "Você chegou até aqui. Isso já diz muito sobre você.",
+    title: "Você concluiu o Manual do Investidor Velox.",
     subtitle:
-      "A próxima conversa não é uma venda. É uma avaliação mútua — para você decidir com base em fatos, não em impressões.",
+      "Chegar até aqui já é, em si, um posicionamento. Significa que você preferiu entender antes de decidir — e agora tem, em suas próprias palavras, uma leitura estruturada sobre como funciona uma franquia Velox.",
     minutesLeft: 1,
     seoTitle: "Convite para conversar — Manual do Investidor Velox",
     seoDescription:
