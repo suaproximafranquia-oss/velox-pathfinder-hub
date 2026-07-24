@@ -144,11 +144,13 @@ function ModeloBody() {
   return (
     <>
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        A franquia Velox é um negócio de serviço financeiro, não de varejo.
-        Não existe mercadoria a comprar, um estoque para girar ou uma
-        vitrine para renovar. O que o franqueado oferece é orientação: a
-        capacidade de entender a necessidade de um cliente e conectá-la à
-        solução certa, dentro de um portfólio já homologado pela rede.
+        A Velox conecta clientes às soluções oferecidas por parceiros
+        homologados, atuando de forma consultiva durante todo o processo.
+        Na prática, é um negócio de serviço: não existe mercadoria a
+        comprar, estoque para girar ou vitrine para renovar. O que o
+        franqueado oferece é orientação — a capacidade de entender a
+        necessidade de um cliente e conectá-la à solução certa, dentro de
+        um portfólio já homologado pela rede.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <IconCard icon={Layers} title="Sem estoque">
@@ -162,9 +164,11 @@ function ModeloBody() {
           perfil e a estratégia de mercado de cada franqueado.
         </IconCard>
         <IconCard icon={ShieldCheck} title="Parceiros homologados">
-          Bancos, financeiras, seguradoras, administradoras de consórcio e
-          demais instituições passam por um processo interno de homologação
-          antes de compor o portfólio disponível para o franqueado.
+          A Velox atua por meio de uma ampla rede de parceiros homologados,
+          incluindo bancos, seguradoras, administradoras de consórcio,
+          empresas de energia solar, clubes de benefícios e outras
+          instituições especializadas — permitindo oferecer soluções
+          adequadas para diferentes perfis de clientes.
         </IconCard>
         <IconCard icon={HeartHandshake} title="Relação consultiva">
           O franqueado atua como consultor: primeiro entende o cenário do
