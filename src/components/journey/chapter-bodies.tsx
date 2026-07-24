@@ -626,8 +626,8 @@ function FaqBody() {
       a: "A evolução acontece pela combinação entre a formação continuada oferecida pela rede, o acompanhamento do consultor de negócios e a maturidade que a própria unidade conquista ao longo dos meses de operação.",
     },
     {
-      q: "O que exatamente está incluso na implantação?",
-      a: "Durante a apresentação comercial, um especialista Velox detalha item a item o que compõe o valor de implantação, para que você tenha total visibilidade antes de qualquer decisão — sem letras miúdas nem surpresas depois.",
+      q: "Como acontecem os primeiros atendimentos depois que a operação começa?",
+      a: "Logo após o treinamento, o franqueado inicia a operação já com o portfólio homologado disponível e com o consultor de negócios acompanhando de perto. Os primeiros atendimentos costumam vir do próprio círculo de relacionamento, de ações comerciais orientadas pela rede e da prospecção local — sempre dentro da metodologia consultiva ensinada durante o treinamento.",
     },
   ];
   return (
