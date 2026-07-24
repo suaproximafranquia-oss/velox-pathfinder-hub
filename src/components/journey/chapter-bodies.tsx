@@ -287,6 +287,18 @@ function ModeloBody() {
           cliente e, só então, apresenta a solução mais adequada — o que
           tende a gerar indicação e recompra ao longo do tempo.
         </IconCard>
+        <IconCard
+          icon={Briefcase}
+          title="Portfólio diversificado de soluções financeiras"
+        >
+          A Velox atua com um portfólio diversificado de soluções
+          financeiras, capaz de atender diferentes perfis e necessidades
+          de pessoas físicas e jurídicas. O diferencial do franqueado não
+          está em oferecer um único produto, mas em compreender a
+          realidade de cada cliente, realizar um diagnóstico consultivo e
+          direcioná-lo para a solução mais adequada dentro do ecossistema
+          da Velox e de seus parceiros homologados.
+        </IconCard>
       </div>
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
         A remuneração acompanha essa lógica. O franqueado é remunerado por
