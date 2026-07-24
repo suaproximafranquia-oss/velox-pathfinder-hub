@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
+import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ManualConcluidoRoute = ManualConcluidoRouteImport.update({
+  id: '/manual/concluido',
+  path: '/manual/concluido',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManualChapterRoute = ManualChapterRouteImport.update({
+  id: '/manual/$chapter',
+  path: '/manual/$chapter',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/manual/$chapter': typeof ManualChapterRoute
+  '/manual/concluido': typeof ManualConcluidoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/manual/$chapter': typeof ManualChapterRoute
+  '/manual/concluido': typeof ManualConcluidoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/manual/$chapter': typeof ManualChapterRoute
+  '/manual/concluido': typeof ManualConcluidoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/manual/$chapter' | '/manual/concluido'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/manual/$chapter' | '/manual/concluido'
+  id: '__root__' | '/' | '/manual/$chapter' | '/manual/concluido'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ManualChapterRoute: typeof ManualChapterRoute
+  ManualConcluidoRoute: typeof ManualConcluidoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +68,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/manual/concluido': {
+      id: '/manual/concluido'
+      path: '/manual/concluido'
+      fullPath: '/manual/concluido'
+      preLoaderRoute: typeof ManualConcluidoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual/$chapter': {
+      id: '/manual/$chapter'
+      path: '/manual/$chapter'
+      fullPath: '/manual/$chapter'
+      preLoaderRoute: typeof ManualChapterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ManualChapterRoute: ManualChapterRoute,
+  ManualConcluidoRoute: ManualConcluidoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
