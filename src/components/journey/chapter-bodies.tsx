@@ -144,11 +144,13 @@ function ModeloBody() {
   return (
     <>
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        A franquia Velox é um negócio de serviço financeiro, não de varejo.
-        Não existe mercadoria a comprar, um estoque para girar ou uma
-        vitrine para renovar. O que o franqueado oferece é orientação: a
-        capacidade de entender a necessidade de um cliente e conectá-la à
-        solução certa, dentro de um portfólio já homologado pela rede.
+        A Velox conecta clientes às soluções oferecidas por parceiros
+        homologados, atuando de forma consultiva durante todo o processo.
+        Na prática, é um negócio de serviço: não existe mercadoria a
+        comprar, estoque para girar ou vitrine para renovar. O que o
+        franqueado oferece é orientação — a capacidade de entender a
+        necessidade de um cliente e conectá-la à solução certa, dentro de
+        um portfólio já homologado pela rede.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <IconCard icon={Layers} title="Sem estoque">
@@ -162,9 +164,11 @@ function ModeloBody() {
           perfil e a estratégia de mercado de cada franqueado.
         </IconCard>
         <IconCard icon={ShieldCheck} title="Parceiros homologados">
-          Bancos, financeiras, seguradoras, administradoras de consórcio e
-          demais instituições passam por um processo interno de homologação
-          antes de compor o portfólio disponível para o franqueado.
+          A Velox atua por meio de uma ampla rede de parceiros homologados,
+          incluindo bancos, seguradoras, administradoras de consórcio,
+          empresas de energia solar, clubes de benefícios e outras
+          instituições especializadas — permitindo oferecer soluções
+          adequadas para diferentes perfis de clientes.
         </IconCard>
         <IconCard icon={HeartHandshake} title="Relação consultiva">
           O franqueado atua como consultor: primeiro entende o cenário do
@@ -228,9 +232,12 @@ function ProdutosBody() {
       ],
     },
     {
-      t: "Investimentos e planejamento",
-      d: "Para clientes que buscam organizar o próprio patrimônio, a rede encaminha soluções estruturadas oferecidas por parceiros especializados. Cada perfil é atendido de forma personalizada, sem promessas de rentabilidade e sempre respeitando as regras do mercado financeiro.",
-      ex: [],
+      t: "Energia solar e benefícios",
+      d: "Além das soluções financeiras tradicionais, o portfólio inclui produtos oferecidos por parceiros de outros segmentos homologados pela Velox — como empresas de energia solar e clubes de benefícios — que ampliam a capacidade do franqueado de atender diferentes necessidades a partir de uma mesma base de clientes.",
+      ex: [
+        "Sistemas de energia solar por meio de parceiros",
+        "Clubes de benefícios para pessoas físicas e empresas",
+      ],
     },
   ];
   return (
@@ -513,10 +520,11 @@ function PerfilBody() {
   return (
     <>
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        Não existe um perfil único de franqueado. Existem, sim, algumas
-        características que costumam favorecer a jornada de quem entra
-        nesse tipo de operação. A ideia deste capítulo é ajudar você a se
-        enxergar com honestidade — nem melhor, nem pior do que é.
+        A leitura a seguir reúne, de um lado, as características que
+        costumam favorecer quem entra nesse tipo de operação e, de outro,
+        pontos que merecem uma reflexão adicional antes de decidir. Não é
+        um teste de aprovação — é um convite para você se enxergar com
+        honestidade.
       </p>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--gold)]/5 p-6">
@@ -618,8 +626,8 @@ function FaqBody() {
       a: "A evolução acontece pela combinação entre a formação continuada oferecida pela rede, o acompanhamento do consultor de negócios e a maturidade que a própria unidade conquista ao longo dos meses de operação.",
     },
     {
-      q: "O que exatamente está incluso na implantação?",
-      a: "Durante a apresentação comercial, um especialista Velox detalha item a item o que compõe o valor de implantação, para que você tenha total visibilidade antes de qualquer decisão — sem letras miúdas nem surpresas depois.",
+      q: "Como acontecem os primeiros atendimentos depois que a operação começa?",
+      a: "Logo após o treinamento, o franqueado inicia a operação já com o portfólio homologado disponível e com o consultor de negócios acompanhando de perto. Os primeiros atendimentos costumam vir do próprio círculo de relacionamento, de ações comerciais orientadas pela rede e da prospecção local — sempre dentro da metodologia consultiva ensinada durante o treinamento.",
     },
   ];
   return (
