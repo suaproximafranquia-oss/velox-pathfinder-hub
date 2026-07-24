@@ -232,9 +232,12 @@ function ProdutosBody() {
       ],
     },
     {
-      t: "Investimentos e planejamento",
-      d: "Para clientes que buscam organizar o próprio patrimônio, a rede encaminha soluções estruturadas oferecidas por parceiros especializados. Cada perfil é atendido de forma personalizada, sem promessas de rentabilidade e sempre respeitando as regras do mercado financeiro.",
-      ex: [],
+      t: "Energia solar e benefícios",
+      d: "Além das soluções financeiras tradicionais, o portfólio inclui produtos oferecidos por parceiros de outros segmentos homologados pela Velox — como empresas de energia solar e clubes de benefícios — que ampliam a capacidade do franqueado de atender diferentes necessidades a partir de uma mesma base de clientes.",
+      ex: [
+        "Sistemas de energia solar por meio de parceiros",
+        "Clubes de benefícios para pessoas físicas e empresas",
+      ],
     },
   ];
   return (
