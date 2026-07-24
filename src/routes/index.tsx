@@ -261,7 +261,6 @@ function Journey() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ nome: "", whatsapp: "", cidade: "", objetivo: "" });
   const [started, setStarted] = useState(false);
-  const [concluded, setConcluded] = useState(false);
 
   const progress = useMemo(
     () => Math.round(((current + (started ? 1 : 0)) / total) * 100),
@@ -289,7 +288,6 @@ function Journey() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setConcluded(true);
     setCurrent(steps.length + 1);
   }
 
