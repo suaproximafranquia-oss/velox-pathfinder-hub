@@ -520,10 +520,11 @@ function PerfilBody() {
   return (
     <>
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        Não existe um perfil único de franqueado. Existem, sim, algumas
-        características que costumam favorecer a jornada de quem entra
-        nesse tipo de operação. A ideia deste capítulo é ajudar você a se
-        enxergar com honestidade — nem melhor, nem pior do que é.
+        A leitura a seguir reúne, de um lado, as características que
+        costumam favorecer quem entra nesse tipo de operação e, de outro,
+        pontos que merecem uma reflexão adicional antes de decidir. Não é
+        um teste de aprovação — é um convite para você se enxergar com
+        honestidade.
       </p>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--gold)]/5 p-6">
