@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { ChapterView } from "@/components/journey/chapter-view";
-import { ChapterBody } from "@/components/journey/chapter-bodies";
+import { ChapterBody, hidesContinueFor } from "@/components/journey/chapter-bodies";
 import { ContactForm } from "@/components/journey/contact-form";
 import { getChapter } from "@/lib/journey-data";
 
@@ -48,7 +48,7 @@ function ChapterRoute() {
   }
 
   return (
-    <ChapterView chapter={chapter}>
+    <ChapterView chapter={chapter} hideContinue={hidesContinueFor(slug)}>
       <ChapterBody slug={slug} />
     </ChapterView>
   );
