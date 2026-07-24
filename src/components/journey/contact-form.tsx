@@ -63,7 +63,6 @@ export function ContactForm() {
             <option>Qualquer horário</option>
             <option>Manhã</option>
             <option>Tarde</option>
-            <option>Noite</option>
           </select>
         </div>
       </div>

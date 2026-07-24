@@ -21,19 +21,19 @@ function Recepcao() {
     <ChapterView chapter={chapter}>
       <div className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--gold)]/5 px-6 py-5">
         <p className="text-sm leading-relaxed">
-          Você vai conhecer a Velox, entender como o modelo funciona, ver o
-          investimento envolvido e refletir se este é o seu momento.{" "}
-          <span className="text-[color:var(--gold)]">Nenhuma etapa pressiona você para uma decisão.</span>
+          Você vai conhecer a Velox, entender o modelo, ver os valores
+          oficiais e refletir sobre o seu momento.{" "}
+          <span className="text-[color:var(--gold)]">Nada aqui pressiona uma decisão.</span>
         </p>
       </div>
       <ul className="grid gap-3 sm:grid-cols-3 text-sm">
         <li className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3">
-          <span className="text-[color:var(--gold)] font-display text-lg">11</span>
+          <span className="text-[color:var(--gold)] font-display text-lg">13</span>
           <span className="block text-[color:var(--muted-foreground)] mt-1">capítulos curtos</span>
         </li>
         <li className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3">
-          <span className="text-[color:var(--gold)] font-display text-lg">~8</span>
-          <span className="block text-[color:var(--muted-foreground)] mt-1">minutos no total</span>
+          <span className="text-[color:var(--gold)] font-display text-lg">~10</span>
+          <span className="block text-[color:var(--muted-foreground)] mt-1">minutos de leitura</span>
         </li>
         <li className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3">
           <span className="text-[color:var(--gold)] font-display text-lg">0</span>

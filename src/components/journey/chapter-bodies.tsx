@@ -1,19 +1,18 @@
+import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
-  Building2,
-  Sparkles,
-  Handshake,
-  Users,
   GraduationCap,
   Cpu,
   ShieldCheck,
   Layers,
   CheckCircle2,
   XCircle,
-  CalendarDays,
-  Clock,
-  MapPin,
-  Sun,
-  Sunset,
+  BookOpen,
+  Compass,
+  HeartHandshake,
+  Users,
+  Building2,
+  ArrowRight,
 } from "lucide-react";
 import {
   Accordion,
@@ -49,64 +48,131 @@ function IconCard({
   );
 }
 
-// --- 2. Velox
+// --- 2. Propósito
+function PropositoBody() {
+  return (
+    <>
+      <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
+        Toda decisão de investimento carrega uma dose de incerteza. Quanto
+        maior a clareza sobre o negócio, menor essa incerteza — e mais
+        confortável fica a conversa que vem depois.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <IconCard icon={BookOpen} title="Leitura, não abordagem">
+          Você lê no seu ritmo. Nada aqui força uma resposta imediata.
+        </IconCard>
+        <IconCard icon={Compass} title="Orientação, não venda">
+          O material foi pensado para orientar — mesmo que a resposta seja não.
+        </IconCard>
+        <IconCard icon={HeartHandshake} title="Respeito ao seu tempo">
+          Cada capítulo cobre um único tema. Sem repetição, sem excesso.
+        </IconCard>
+      </div>
+      <div className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--gold)]/5 p-6">
+        <p className="text-sm leading-relaxed">
+          Ao final, se fizer sentido, existirá um convite para conversar com um
+          especialista. Se não fizer, você terá economizado horas de reuniões —
+          e essa também é uma vitória.
+        </p>
+      </div>
+    </>
+  );
+}
+
+// --- 3. Velox
 function VeloxBody() {
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat value="+10" label="anos conectando pessoas às soluções financeiras certas" />
-        <Stat value="+100" label="unidades franqueadas em operação no Brasil" />
-        <Stat value="+40" label="parceiros homologados no portfólio" />
+      <div className="grid gap-4 sm:grid-cols-1">
+        <Stat
+          value="+1.400"
+          label="unidades comercializadas em todo o Brasil"
+        />
       </div>
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
         A Velox nasceu para simplificar o acesso a soluções financeiras.
-        Conectamos pessoas e empresas aos produtos certos por meio de
-        parceiros homologados — bancos, seguradoras, financeiras e
-        cooperativas — sob uma metodologia própria de atendimento.
+        Conectamos pessoas e empresas a produtos oferecidos por parceiros
+        homologados, com uma metodologia própria de atendimento consultivo.
       </p>
       <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
         <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-3">
           Propósito
         </p>
         <p className="text-base leading-relaxed">
-          Democratizar o acesso a soluções financeiras com transparência,
-          orientação e proximidade — tratando cada cliente pelo nome.
+          Levar soluções financeiras a mais pessoas — com transparência,
+          orientação e proximidade.
         </p>
       </div>
     </>
   );
 }
 
-// --- 3. Mercado
-function MercadoBody() {
+// --- 4. Modelo
+function ModeloBody() {
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat value="R$ 4,2 tri" label="em crédito no Brasil em 2024 — mercado em expansão" />
-        <Stat value="65%" label="dos brasileiros ainda não têm um consultor financeiro de confiança" />
-        <Stat value="+7% a.a." label="de crescimento consistente no crédito consignado" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <IconCard icon={Layers} title="Sem estoque">
+          O produto é a solução financeira. Não há mercadoria a comprar,
+          armazenar ou revender.
+        </IconCard>
+        <IconCard icon={Building2} title="Formato flexível">
+          A operação pode ser conduzida em home office ou em loja física — o
+          formato acompanha o momento do franqueado.
+        </IconCard>
+        <IconCard icon={ShieldCheck} title="Parceiros homologados">
+          Bancos, seguradoras, financeiras e demais instituições passam por
+          homologação antes de integrar o portfólio.
+        </IconCard>
+        <IconCard icon={HeartHandshake} title="Relação consultiva">
+          O franqueado atua como consultor — escuta a necessidade e apresenta
+          a solução mais adequada dentre as disponíveis.
+        </IconCard>
       </div>
-      <p className="text-base leading-relaxed">
-        O brasileiro busca crédito, seguros e planejamento — mas tem
-        dificuldade em enxergar as opções. Não faltam produtos; falta
-        <span className="text-[color:var(--foreground)]"> orientação</span>.
-        É nesse ponto que uma franquia Velox se posiciona.
-      </p>
       <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed italic">
-        Fontes: dados públicos do Banco Central e ABEFIN (2024). Valores
-        contextualizados; peça ao consultor a versão detalhada.
+        O ativo do franqueado é o relacionamento e a confiança que constrói
+        com cada cliente ao longo do tempo.
       </p>
     </>
   );
 }
 
-// --- 4. Modelo
-function ModeloBody() {
+// --- 5. Produtos
+function ProdutosBody() {
+  const categorias = [
+    { t: "Crédito", d: "Diversas modalidades de crédito para pessoas físicas e jurídicas, oferecidas por instituições parceiras." },
+    { t: "Seguros", d: "Proteção patrimonial, pessoal e para pequenos negócios, dentro do portfólio homologado." },
+    { t: "Consórcios", d: "Alternativa de aquisição planejada, apresentada de forma consultiva ao cliente." },
+    { t: "Investimentos e planejamento", d: "Encaminhamento a soluções de planejamento financeiro por parceiros especializados." },
+  ];
+  return (
+    <>
+      <div className="space-y-3">
+        {categorias.map((c) => (
+          <div
+            key={c.t}
+            className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5"
+          >
+            <p className="font-display text-lg mb-1">{c.t}</p>
+            <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">{c.d}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed italic">
+        O portfólio é revisado continuamente — categorias específicas e
+        condições são apresentadas em detalhe na conversa com um especialista.
+      </p>
+    </>
+  );
+}
+
+// --- 6. Operação
+function OperacaoBody() {
   const steps = [
-    { n: "01", t: "Cliente chega", d: "Pessoa ou empresa precisando de uma solução financeira." },
-    { n: "02", t: "Franqueado escuta", d: "Diagnóstico consultivo — sem empurrar produto." },
-    { n: "03", t: "Velox direciona", d: "Metodologia + tecnologia identificam o melhor parceiro homologado." },
-    { n: "04", t: "Solução entregue", d: "Parceiro fecha a operação. Franqueado recebe comissão." },
+    { n: "01", t: "Cliente chega", d: "Uma pessoa ou empresa procura orientação para uma necessidade financeira." },
+    { n: "02", t: "Franqueado escuta", d: "Diagnóstico consultivo, sem induzir a nenhum produto específico." },
+    { n: "03", t: "Portfólio é consultado", d: "As soluções homologadas mais adequadas são identificadas para o caso." },
+    { n: "04", t: "Parceiro entrega", d: "A operação é concretizada com a instituição parceira. O franqueado é remunerado por operação." },
   ];
   return (
     <>
@@ -128,41 +194,136 @@ function ModeloBody() {
           </div>
         ))}
       </div>
-      <div className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--gold)]/5 p-5">
-        <p className="text-sm leading-relaxed">
-          <span className="text-[color:var(--gold)] font-medium">Sem estoque, sem loja física obrigatória.</span>{" "}
-          O produto é a solução financeira. O ativo é o relacionamento.
-        </p>
+      <p className="text-sm text-[color:var(--muted-foreground)] italic leading-relaxed">
+        Não existe uma rotina única. Cada operação possui sua própria
+        dinâmica, respeitando a realidade do franqueado e do seu mercado.
+      </p>
+    </>
+  );
+}
+
+// --- 7. Investimento
+function InvestimentoBody() {
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-[color:var(--gold)]/25 bg-[color:var(--gold)]/5 p-6">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-2">
+            Franquia Home Office
+          </p>
+          <p className="font-display text-3xl">R$ 17.900</p>
+          <p className="text-sm text-[color:var(--muted-foreground)] mt-3 leading-relaxed">
+            Formato inicial recomendado para quem começa sem a estrutura de um
+            ponto físico.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[color:var(--gold)]/25 bg-[color:var(--gold)]/5 p-6">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-2">
+            Franquia Loja Física
+          </p>
+          <p className="font-display text-3xl">R$ 29.900</p>
+          <p className="text-sm text-[color:var(--muted-foreground)] mt-3 leading-relaxed">
+            Formato para quem opta por operar com um ponto comercial próprio
+            desde o início.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[color:var(--border)] overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 sm:gap-6 p-5 bg-[color:var(--card)]/30">
+          <div>
+            <p className="font-medium">Implantação</p>
+            <p className="text-sm text-[color:var(--muted-foreground)] mt-1 leading-relaxed">
+              Investimento único, referente ao processo de implantação da
+              unidade. Durante a apresentação comercial, é detalhado tudo o
+              que está incluso nesta etapa.
+            </p>
+          </div>
+          <div className="text-sm text-[color:var(--gold)] font-medium sm:text-right sm:min-w-[140px]">
+            R$ 1.480
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 sm:gap-6 p-5 bg-[color:var(--card)]/30 border-t border-[color:var(--border)]">
+          <div>
+            <p className="font-medium">Royalties</p>
+            <p className="text-sm text-[color:var(--muted-foreground)] mt-1 leading-relaxed">
+              Valor fixo mensal, independentemente do faturamento — o que
+              torna o custo previsível para o franqueado.
+            </p>
+          </div>
+          <div className="text-sm text-[color:var(--gold)] font-medium sm:text-right sm:min-w-[140px]">
+            R$ 497 / mês
+          </div>
+        </div>
+      </div>
+
+      <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
+        Estes são os valores oficiais praticados. Condições comerciais
+        específicas, formas de pagamento e demais detalhes são apresentados
+        na conversa com um especialista.
+      </p>
+    </>
+  );
+}
+
+// --- 8. Treinamento
+function TreinamentoBody() {
+  const passos = [
+    { t: "Assinatura do contrato", d: "Formalização da relação entre a Velox e o novo franqueado." },
+    { t: "Implantação", d: "Preparação da unidade e organização dos elementos necessários para o início." },
+    { t: "Treinamento obrigatório", d: "Duas semanas de formação estruturada — condição para o início da operação." },
+    { t: "Início da operação", d: "Concluído o treinamento, o franqueado inicia oficialmente sua atuação." },
+  ];
+  return (
+    <>
+      <div className="relative pl-6">
+        <div className="absolute left-2 top-2 bottom-2 w-px bg-[color:var(--border)]" />
+        {passos.map((p, i) => (
+          <div key={p.t} className="relative pb-8 last:pb-0">
+            <div className="absolute -left-[19px] top-1.5 h-3 w-3 rounded-full bg-[color:var(--gold)] ring-4 ring-[color:var(--background)]" />
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)]">
+              Etapa {String(i + 1).padStart(2, "0")}
+            </p>
+            <p className="font-medium mt-1">{p.t}</p>
+            <p className="text-sm text-[color:var(--muted-foreground)] mt-1 leading-relaxed">{p.d}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-sm text-[color:var(--muted-foreground)] italic leading-relaxed">
+        O treinamento é condição para o início da operação — uma escolha da
+        Velox para preservar a qualidade do atendimento entregue ao cliente.
+      </p>
+    </>
+  );
+}
+
+// --- 9. Suporte
+function SuporteBody() {
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <IconCard icon={Users} title="Consultor de negócios">
+          Cada franqueado é acompanhado por um consultor de negócios, com
+          contato contínuo ao longo da operação.
+        </IconCard>
+        <IconCard icon={GraduationCap} title="Universidade Corporativa">
+          Trilhas de formação, atualizações e conteúdos técnicos disponíveis
+          para o desenvolvimento contínuo do franqueado.
+        </IconCard>
+        <IconCard icon={Cpu} title="Estrutura tecnológica">
+          Plataforma que apoia o dia a dia da operação e a relação com os
+          parceiros homologados.
+        </IconCard>
+        <IconCard icon={ShieldCheck} title="Rede de franqueados">
+          Comunidade ativa de franqueados que compartilha experiência,
+          práticas e aprendizados.
+        </IconCard>
       </div>
     </>
   );
 }
 
-// --- 5. Diferenciais
-function DiferenciaisBody() {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <IconCard icon={GraduationCap} title="Treinamento contínuo">
-        Universidade Velox com trilhas de formação, atualizações mensais e
-        mentoria de negócio ao longo da jornada.
-      </IconCard>
-      <IconCard icon={Cpu} title="Tecnologia proprietária">
-        Plataforma que conecta franqueado, cliente e parceiros — CRM,
-        simuladores e dashboard de performance.
-      </IconCard>
-      <IconCard icon={Layers} title="Portfólio amplo">
-        Consignado, financiamento, consórcio, seguros, energia solar e
-        capital de giro — a mesma base de clientes, várias frentes.
-      </IconCard>
-      <IconCard icon={ShieldCheck} title="Suporte próximo">
-        Consultoria de negócio dedicada, suporte operacional e uma rede de
-        franqueados que troca experiências toda semana.
-      </IconCard>
-    </div>
-  );
-}
-
-// --- 6. Perfil
+// --- 10. Perfil
 function PerfilBody() {
   return (
     <>
@@ -170,28 +331,28 @@ function PerfilBody() {
         <div className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--gold)]/5 p-6">
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-[color:var(--gold)]" />
-            <h3 className="font-display text-lg">Faz sentido para você se…</h3>
+            <h3 className="font-display text-lg">Costuma se dar bem quem…</h3>
           </div>
           <ul className="space-y-2.5 text-sm leading-relaxed">
             <li>• Gosta de conversar e construir relacionamentos.</li>
             <li>• Tem disciplina para seguir uma metodologia.</li>
-            <li>• Está disposto a aprender algo novo.</li>
+            <li>• Está disposto a aprender continuamente.</li>
             <li>• Entende que resultados vêm da dedicação.</li>
-            <li>• Quer construir um negócio de médio-longo prazo.</li>
+            <li>• Enxerga o negócio no médio e longo prazo.</li>
           </ul>
         </div>
         <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
           <div className="flex items-center gap-2 mb-4">
             <XCircle className="h-5 w-5 text-[color:var(--muted-foreground)]" />
             <h3 className="font-display text-lg text-[color:var(--muted-foreground)]">
-              Talvez ainda não seja o momento se…
+              Talvez não seja o momento se…
             </h3>
           </div>
           <ul className="space-y-2.5 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
             <li>• Busca retorno rápido e sem esforço.</li>
             <li>• Espera que a franquia opere sozinha.</li>
-            <li>• Não tem disponibilidade para aprender.</li>
-            <li>• Está passando por um momento financeiro apertado.</li>
+            <li>• Não tem disponibilidade para se preparar.</li>
+            <li>• Está passando por um momento financeiro delicado.</li>
           </ul>
         </div>
       </div>
@@ -203,126 +364,32 @@ function PerfilBody() {
   );
 }
 
-// --- 7. Investimento
-function InvestimentoBody() {
-  const rows = [
-    { item: "Taxa de franquia", value: "Sob consulta", desc: "Direito de operar a marca, metodologia e portfólio Velox." },
-    { item: "Implantação", value: "Sob consulta", desc: "Treinamento inicial, materiais e acompanhamento das primeiras semanas." },
-    { item: "Estrutura", value: "Flexível", desc: "Home office ou ponto físico — você escolhe o formato do seu momento." },
-    { item: "Capital de giro", value: "Recomendado", desc: "Reserva para os primeiros meses até a operação ganhar tração." },
-    { item: "Royalties", value: "Transparente", desc: "Percentual claro sobre resultado, apresentado antes de qualquer decisão." },
-  ];
-  return (
-    <>
-      <div className="rounded-2xl border border-[color:var(--border)] overflow-hidden">
-        {rows.map((r, i) => (
-          <div
-            key={r.item}
-            className={`grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 sm:gap-6 p-5 ${
-              i > 0 ? "border-t border-[color:var(--border)]" : ""
-            } bg-[color:var(--card)]/30`}
-          >
-            <div>
-              <p className="font-medium">{r.item}</p>
-              <p className="text-sm text-[color:var(--muted-foreground)] mt-1 leading-relaxed">
-                {r.desc}
-              </p>
-            </div>
-            <div className="text-sm text-[color:var(--gold)] font-medium sm:text-right sm:min-w-[140px]">
-              {r.value}
-            </div>
-          </div>
-        ))}
-      </div>
-      <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
-        Preferimos apresentar os valores exatos na conversa com o consultor —
-        junto com o simulador de retorno e as condições atualizadas de cada
-        formato. É a forma mais honesta de você entender o que se aplica ao
-        seu caso.
-      </p>
-    </>
-  );
-}
-
-// --- 8. Implantação
-function ImplantacaoBody() {
-  const weeks = [
-    { w: "Semana 1", t: "Alinhamento e setup", d: "Assinatura, acessos à plataforma, kit institucional e cronograma personalizado." },
-    { w: "Semana 2–3", t: "Treinamento inicial", d: "Imersão em produtos, metodologia de atendimento e uso das ferramentas." },
-    { w: "Semana 4", t: "Ativação de mercado", d: "Estratégia de captação, primeiros contatos assistidos e apoio consultivo." },
-    { w: "Mês 2 em diante", t: "Operação com suporte", d: "Ritmo de negócio, acompanhamento mensal e trilhas contínuas de evolução." },
-  ];
-  return (
-    <div className="relative pl-6">
-      <div className="absolute left-2 top-2 bottom-2 w-px bg-[color:var(--border)]" />
-      {weeks.map((w) => (
-        <div key={w.w} className="relative pb-8 last:pb-0">
-          <div className="absolute -left-[19px] top-1.5 h-3 w-3 rounded-full bg-[color:var(--gold)] ring-4 ring-[color:var(--background)]" />
-          <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)]">{w.w}</p>
-          <p className="font-medium mt-1">{w.t}</p>
-          <p className="text-sm text-[color:var(--muted-foreground)] mt-1 leading-relaxed">{w.d}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// --- 9. Rotina
-function RotinaBody() {
-  return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <IconCard icon={Sun} title="Manhã">
-          Análise de agenda, retorno de clientes ativos e reuniões consultivas
-          — presenciais ou por vídeo.
-        </IconCard>
-        <IconCard icon={Sunset} title="Tarde">
-          Prospecção qualificada, envio de propostas, acompanhamento de
-          operações em andamento com os parceiros.
-        </IconCard>
-        <IconCard icon={CalendarDays} title="Semana">
-          Encontro com a equipe de suporte Velox, treinamentos e
-          participações na comunidade de franqueados.
-        </IconCard>
-        <IconCard icon={Clock} title="Mês">
-          Fechamento de resultados, planejamento do próximo ciclo e ajustes de
-          rota com a consultoria de negócio.
-        </IconCard>
-      </div>
-      <p className="text-sm text-[color:var(--muted-foreground)] italic leading-relaxed">
-        Não é uma agenda mágica. É uma agenda real — que funciona quando
-        cumprida com consistência.
-      </p>
-    </>
-  );
-}
-
-// --- 10. FAQ
+// --- 11. FAQ
 function FaqBody() {
   const items = [
     {
       q: "Preciso entender de mercado financeiro para começar?",
-      a: "Não. A capacitação inicial da Universidade Velox foi desenhada exatamente para desenvolver esse conhecimento — inclusive para quem está começando do zero.",
+      a: "Não. O treinamento obrigatório foi desenhado para preparar franqueados de diferentes origens, inclusive quem nunca atuou neste mercado.",
     },
     {
       q: "Preciso largar meu emprego atual?",
-      a: "Não necessariamente. Muitos franqueados começam a operação como segunda fonte de renda e migram integralmente conforme o negócio ganha tração.",
+      a: "Não necessariamente. Muitos franqueados iniciam a operação em paralelo à ocupação atual e migram integralmente à medida que o negócio ganha maturidade.",
     },
     {
       q: "Existe garantia de faturamento?",
-      a: "Não. Nenhuma franquia séria garante resultado. O que a Velox garante é metodologia, suporte, tecnologia e portfólio. O desempenho depende da execução do franqueado.",
+      a: "Não. Nenhuma franquia séria garante resultado. O que a Velox oferece é metodologia, treinamento, portfólio homologado e suporte contínuo — o desempenho depende da execução do franqueado.",
     },
     {
       q: "Preciso de ponto físico?",
-      a: "Não é obrigatório. Você pode começar em home office e, conforme a operação crescer, avaliar uma estrutura física. A Velox orienta o formato mais adequado ao seu momento.",
+      a: "Não é obrigatório. Existe o formato home office e o formato loja física — a escolha acompanha o momento e o perfil do franqueado.",
     },
     {
-      q: "Como funciona o suporte no dia a dia?",
-      a: "Você tem um consultor de negócio dedicado, plataforma tecnológica com equipe de sustentação, e acesso à comunidade de franqueados para troca contínua de experiências.",
+      q: "Como funciona o suporte após o início da operação?",
+      a: "O franqueado é acompanhado por um consultor de negócios e tem acesso à Universidade Corporativa, ao suporte operacional e à comunidade de franqueados.",
     },
     {
-      q: "Qual o tempo médio para começar a operar?",
-      a: "Entre 30 e 45 dias entre a assinatura e a primeira operação assistida — desde que o cronograma de treinamento seja cumprido.",
+      q: "O que exatamente está incluso na implantação?",
+      a: "Durante a apresentação comercial, um especialista Velox detalha item a item o que compõe o valor de implantação — para que não reste nenhuma dúvida antes de qualquer decisão.",
     },
   ];
   return (
@@ -341,27 +408,156 @@ function FaqBody() {
   );
 }
 
+// --- 12. Autoavaliação
+const QUIZ = [
+  {
+    q: "Você está buscando construir um negócio de médio/longo prazo?",
+    opts: ["Sim, com essa clareza", "Ainda estou avaliando", "Busco retorno rápido"],
+  },
+  {
+    q: "Você tem disponibilidade para se dedicar ao treinamento de duas semanas?",
+    opts: ["Sim, sem restrições", "Com alguma organização, sim", "Hoje seria difícil"],
+  },
+  {
+    q: "Você se sente confortável em conduzir conversas consultivas com clientes?",
+    opts: ["Sim, é algo que gosto", "Posso desenvolver", "Não é meu perfil"],
+  },
+  {
+    q: "Seu momento financeiro permite iniciar um investimento com previsibilidade?",
+    opts: ["Sim, com tranquilidade", "Precisaria planejar", "Não neste momento"],
+  },
+  {
+    q: "Você está aberto a seguir uma metodologia estruturada?",
+    opts: ["Sim, faz sentido para mim", "Depende do formato", "Prefiro autonomia total"],
+  },
+] as const;
+
+function AutoavaliacaoBody() {
+  const [answers, setAnswers] = useState<(number | null)[]>(() => QUIZ.map(() => null));
+
+  const answeredCount = answers.filter((a) => a !== null).length;
+  const completed = answeredCount === QUIZ.length;
+
+  const score = useMemo(() => {
+    const total = answers.reduce<number>((acc, a) => acc + (a === 0 ? 2 : a === 1 ? 1 : 0), 0);
+    return total; // 0..10
+  }, [answers]);
+
+  const summary = useMemo(() => {
+    if (!completed) return null;
+    if (score >= 8)
+      return "Suas respostas indicam bastante aderência ao perfil que costuma se adaptar bem ao modelo Velox. Uma conversa com um especialista tende a ser produtiva.";
+    if (score >= 5)
+      return "Existem pontos de aderência importantes e outros que merecem ser conversados. Um especialista pode ajudar a esclarecer o que ainda restar de dúvida.";
+    return "Talvez este não seja o momento ideal para você — e reconhecer isso já é uma decisão consciente. Se quiser conversar mesmo assim, o convite segue aberto.";
+  }, [completed, score]);
+
+  return (
+    <>
+      <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
+        Nenhuma resposta é enviada. O objetivo é apenas oferecer uma leitura
+        pessoal antes de qualquer conversa.
+      </p>
+
+      <div className="space-y-6">
+        {QUIZ.map((item, qi) => (
+          <fieldset
+            key={qi}
+            className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5"
+          >
+            <legend className="px-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)]">
+              Pergunta {qi + 1}
+            </legend>
+            <p className="font-medium mb-4">{item.q}</p>
+            <div className="grid gap-2">
+              {item.opts.map((opt, oi) => {
+                const active = answers[qi] === oi;
+                return (
+                  <button
+                    key={oi}
+                    type="button"
+                    onClick={() =>
+                      setAnswers((prev) => {
+                        const next = [...prev];
+                        next[qi] = oi;
+                        return next;
+                      })
+                    }
+                    className={
+                      "text-left rounded-xl border px-4 py-3 text-sm transition-colors " +
+                      (active
+                        ? "border-[color:var(--gold)]/60 bg-[color:var(--gold)]/10 text-[color:var(--foreground)]"
+                        : "border-[color:var(--border)] bg-[color:var(--card)]/30 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/30")
+                    }
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-[color:var(--gold)]/25 bg-[color:var(--gold)]/5 p-6">
+        {completed ? (
+          <>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-2">
+              Sua leitura pessoal
+            </p>
+            <p className="text-base leading-relaxed">{summary}</p>
+            <div className="mt-5">
+              <Link
+                to="/manual/proximos-passos"
+                preload="intent"
+                className="group inline-flex items-center gap-3 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-6 py-3 text-sm font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition-all duration-300"
+              >
+                Ir para o capítulo final
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
+            Responda as {QUIZ.length} perguntas para ver sua leitura pessoal.
+            {answeredCount > 0 && ` (${answeredCount}/${QUIZ.length})`}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function ChapterBody({ slug }: { slug: string }) {
   switch (slug) {
+    case "proposito":
+      return <PropositoBody />;
     case "velox":
       return <VeloxBody />;
-    case "mercado":
-      return <MercadoBody />;
     case "modelo":
       return <ModeloBody />;
-    case "diferenciais":
-      return <DiferenciaisBody />;
-    case "perfil":
-      return <PerfilBody />;
+    case "produtos":
+      return <ProdutosBody />;
+    case "operacao":
+      return <OperacaoBody />;
     case "investimento":
       return <InvestimentoBody />;
-    case "implantacao":
-      return <ImplantacaoBody />;
-    case "rotina":
-      return <RotinaBody />;
+    case "treinamento":
+      return <TreinamentoBody />;
+    case "suporte":
+      return <SuporteBody />;
+    case "perfil":
+      return <PerfilBody />;
     case "faq":
       return <FaqBody />;
+    case "autoavaliacao":
+      return <AutoavaliacaoBody />;
     default:
       return null;
   }
+}
+
+// Sinaliza para a jornada que a autoavaliação controla seu próprio "continuar".
+export function hidesContinueFor(slug: string): boolean {
+  return slug === "autoavaliacao";
 }
