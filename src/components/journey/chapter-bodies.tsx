@@ -97,35 +97,146 @@ function PropositoBody() {
 
 // --- 3. Velox
 function VeloxBody() {
+  const timeline: { year: string; title: string; d: string }[] = [
+    {
+      year: "Origem",
+      title: "Fundação da Velox",
+      d: "A Velox nasce da visão de seu fundador, Mário Sérgio, com a proposta de aproximar pessoas e empresas das soluções financeiras disponíveis no mercado por meio de um atendimento consultivo e transparente.",
+    },
+    {
+      year: "Primeiros anos",
+      title: "Consolidação da operação",
+      d: "Estruturação do modelo de negócio, definição do portfólio de soluções e formação da base metodológica que orienta o atendimento ao cliente até hoje.",
+    },
+    {
+      year: "Crescimento",
+      title: "Expansão da rede de franquias",
+      d: "Início da expansão nacional por meio do modelo de franquias, levando o atendimento consultivo Velox a diferentes regiões do país.",
+    },
+    {
+      year: "Maturidade",
+      title: "Desenvolvimento do ecossistema",
+      d: "Ampliação do portfólio de parceiros homologados, fortalecimento da Universidade Corporativa, evolução da plataforma tecnológica e estruturação do suporte contínuo aos franqueados.",
+    },
+    {
+      year: "Hoje",
+      title: "+1.400 unidades comercializadas",
+      d: "Uma rede consolidada, com presença nacional e quase uma década de atuação sustentando cada nova unidade que entra na operação.",
+    },
+  ];
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-1">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Stat
           value="+1.400"
           label="unidades comercializadas em todo o Brasil"
         />
+        <Stat
+          value="~10 anos"
+          label="de atuação no mercado de soluções financeiras"
+        />
+        <Stat
+          value="Nacional"
+          label="presença por meio da rede de franquias"
+        />
       </div>
+
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        A Velox é uma rede de franquias de soluções financeiras. Na prática,
-        isso significa que atuamos como um ponto de encontro entre pessoas e
-        empresas que precisam de uma solução — crédito, seguro, consórcio,
-        planejamento — e instituições que oferecem esse tipo de produto no
-        mercado.
+        A Velox é uma rede de franquias de soluções financeiras. Conectamos
+        clientes — pessoas físicas e empresas — às soluções oferecidas por
+        parceiros homologados, atuando de forma consultiva do primeiro
+        contato até a concretização de cada operação.
       </p>
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        O que diferencia a rede é a forma de atender. Em vez de empurrar um
-        único produto, o franqueado escuta a necessidade do cliente e, com
-        apoio da estrutura da Velox, apresenta as opções mais adequadas
-        dentro de um portfólio homologado. É um modelo consultivo, pensado
-        para gerar confiança e recorrência ao longo do tempo.
+        Na prática, o franqueado escuta a necessidade do cliente, identifica
+        o cenário e direciona cada caso para a solução mais adequada dentro
+        do portfólio homologado da rede. É um modelo consultivo, pensado
+        para gerar proximidade, confiança e continuidade ao longo do tempo.
       </p>
-      <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        Os números acumulados ao longo dos anos são reflexo desse trabalho.
-        Mais de mil e quatrocentas unidades já foram comercializadas em
-        diferentes regiões do Brasil, o que sustenta a base operacional,
-        tecnológica e comercial que hoje ampara cada novo franqueado que
-        entra na rede.
-      </p>
+
+      <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-3">
+          Origem
+        </p>
+        <h3 className="font-display text-xl mb-3">Como a Velox nasceu</h3>
+        <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
+          A Velox nasceu da visão de seu fundador, Mário Sérgio, ao
+          identificar que grande parte das pessoas e empresas tomava
+          decisões financeiras sem acesso a uma orientação clara e
+          imparcial. A proposta desde o início foi organizar, em um único
+          lugar, um atendimento consultivo capaz de reunir diferentes
+          soluções por meio de parceiros especializados — sempre com o
+          cliente no centro da conversa.
+        </p>
+        <p className="mt-4 text-sm text-[color:var(--muted-foreground)] leading-relaxed">
+          Desde então, essa forma de trabalhar se traduziu em uma
+          metodologia, em uma rede de parceiros homologados e em uma
+          estrutura de suporte que hoje sustentam cada franqueado que
+          entra na operação.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-3">
+          Nossa trajetória
+        </p>
+        <h3 className="font-display text-xl mb-3">
+          Uma evolução construída no tempo
+        </h3>
+        <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
+          Ao longo de quase uma década, a Velox amadureceu como marca,
+          expandiu sua presença por diferentes regiões do país e
+          consolidou um ecossistema de tecnologia, capacitação e suporte
+          voltado para dar sustentação à operação de cada franqueado.
+        </p>
+        <ul className="mt-4 space-y-2 text-sm text-[color:var(--muted-foreground)] leading-relaxed">
+          <li className="flex gap-3">
+            <span className="text-[color:var(--gold)]">•</span>
+            Crescimento consistente da rede de franquias em âmbito nacional.
+          </li>
+          <li className="flex gap-3">
+            <span className="text-[color:var(--gold)]">•</span>
+            Consolidação da marca Velox como referência em atendimento
+            consultivo de soluções financeiras.
+          </li>
+          <li className="flex gap-3">
+            <span className="text-[color:var(--gold)]">•</span>
+            Ampliação do ecossistema de parceiros homologados, cobrindo
+            diferentes categorias de solução.
+          </li>
+          <li className="flex gap-3">
+            <span className="text-[color:var(--gold)]">•</span>
+            Evolução da plataforma tecnológica que apoia o dia a dia da
+            operação.
+          </li>
+          <li className="flex gap-3">
+            <span className="text-[color:var(--gold)]">•</span>
+            Fortalecimento da Universidade Corporativa e da estrutura de
+            suporte contínuo aos franqueados.
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-4">
+          Linha do tempo
+        </p>
+        <ol className="relative border-l border-[color:var(--gold)]/30 pl-6 space-y-6">
+          {timeline.map((m) => (
+            <li key={m.title} className="relative">
+              <span className="absolute -left-[29px] top-1.5 h-2.5 w-2.5 rounded-full bg-[color:var(--gold)]" />
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)]">
+                {m.year}
+              </p>
+              <p className="font-display text-lg mt-1">{m.title}</p>
+              <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed mt-1">
+                {m.d}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </div>
+
       <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
         <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-3">
           Propósito
