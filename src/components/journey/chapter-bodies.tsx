@@ -13,6 +13,7 @@ import {
   Users,
   Building2,
   ArrowRight,
+  Briefcase,
 } from "lucide-react";
 import {
   Accordion,
