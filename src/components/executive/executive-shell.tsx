@@ -37,14 +37,20 @@ export function ExecutiveShell({
       <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 gap-4">
           <div className="flex items-center gap-3">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--gold)]/40 text-[color:var(--gold)] font-display text-sm">
-              {WORKSPACE.monogram}
-            </span>
-            <div className="hidden sm:flex flex-col leading-tight">
-              <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                {WORKSPACE.platformName}
+            {WORKSPACE.workspaceLogoUrl ? (
+              <img
+                src={WORKSPACE.workspaceLogoUrl}
+                alt={WORKSPACE.workspaceName}
+                className="h-7 w-auto object-contain"
+              />
+            ) : null}
+            <div className="flex flex-col leading-tight">
+              <span className="font-display text-sm tracking-[0.18em] text-[color:var(--foreground)]">
+                {WORKSPACE.workspaceName}
               </span>
-              <span className="text-sm font-medium">{WORKSPACE.platformTagline}</span>
+              <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+                {WORKSPACE.workspaceTagline}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -103,7 +109,7 @@ export function ExecutiveShell({
 
       <footer className="border-t border-[color:var(--border)] bg-[color:var(--navy-deep)]/60">
         <div className="mx-auto max-w-6xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          <span>{WORKSPACE.platformName} · {WORKSPACE.platformTagline}</span>
+          <span>{WORKSPACE.workspaceName} · {WORKSPACE.workspaceTagline}</span>
           <span>{WORKSPACE.poweredBy}</span>
         </div>
       </footer>

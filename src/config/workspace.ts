@@ -8,22 +8,40 @@
  */
 
 export type WorkspaceBranding = {
-  /** Nome institucional da plataforma. Ex.: "Atlas Platform". */
-  platformName: string;
-  /** Subtítulo curto exibido junto ao nome. Ex.: "Corporate Workspace". */
-  platformTagline: string;
-  /** Rodapé institucional. Ex.: "Powered by Velox". */
-  poweredBy: string;
-  /** Nome do workspace ativo (primeira empresa cliente). */
+  /** Identificador estável do workspace (usado para isolamento de dados). */
+  id: string;
+  /** Nome de exibição do workspace (identidade principal no header). */
   workspaceName: string;
-  /** Iniciais exibidas no marcador visual do cabeçalho. */
-  monogram: string;
+  /** Subtítulo curto exibido junto ao nome. */
+  workspaceTagline: string;
+  /** Nome institucional da plataforma (usado no rodapé "Powered by"). */
+  platformName: string;
+  /** Subtítulo curto — mantido para compatibilidade com telas legadas. */
+  platformTagline: string;
+  /** Rodapé institucional. */
+  poweredBy: string;
+  /** URL opcional do logotipo do workspace (SVG/PNG). Quando ausente, o
+   *  header exibe apenas o nome do workspace. */
+  workspaceLogoUrl?: string;
 };
 
-export const WORKSPACE: WorkspaceBranding = {
-  platformName: "Atlas Platform",
-  platformTagline: "Corporate Workspace",
-  poweredBy: "Powered by Velox",
-  workspaceName: "Velox",
-  monogram: "A",
+/**
+ * Registro de workspaces disponíveis na plataforma. Preparado para
+ * evolução multi-tenant: no futuro, esta lista poderá ser carregada
+ * dinamicamente do Administrador Global da Atlas Platform.
+ */
+export const WORKSPACES: Record<string, WorkspaceBranding> = {
+  velox: {
+    id: "velox",
+    workspaceName: "VELOX",
+    workspaceTagline: "Corporate Workspace",
+    platformName: "Atlas Platform",
+    platformTagline: "Corporate Workspace",
+    poweredBy: "Powered by Atlas Platform",
+  },
 };
+
+/** Workspace ativo nesta implantação. */
+export const ACTIVE_WORKSPACE_ID = "velox";
+
+export const WORKSPACE: WorkspaceBranding = WORKSPACES[ACTIVE_WORKSPACE_ID];

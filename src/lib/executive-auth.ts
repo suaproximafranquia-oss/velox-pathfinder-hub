@@ -6,10 +6,16 @@
 
 export type ExecutiveRole = "super_admin" | "diretora" | "executivo";
 
+/**
+ * Perfis oficiais da plataforma. Mantemos os identificadores legados
+ * (super_admin, diretora, executivo) para compatibilidade interna,
+ * porém a superfície de gestão trabalha somente com dois perfis:
+ * Administrador (super_admin) e Executivo (executivo).
+ */
 export const ROLE_LABEL: Record<ExecutiveRole, string> = {
-  super_admin: "Super Administrador",
-  diretora: "Diretora de Expansão",
-  executivo: "Executivo de Expansão",
+  super_admin: "Administrador",
+  diretora: "Administrador",
+  executivo: "Executivo",
 };
 
 /**
@@ -49,79 +55,108 @@ export function canViewAllInvestors(role: ExecutiveRole): boolean {
   return role === "super_admin" || role === "diretora";
 }
 
+/**
+ * Estrutura do usuário — preparada para gestão dinâmica pelo Administrador
+ * do Workspace. Ao criar um novo usuário, a plataforma deverá provisionar
+ * automaticamente perfil, área individual, permissões e demais estruturas
+ * necessárias, sem necessidade de código.
+ */
 export type ExecutiveUser = {
   id: string;
+  /** Workspace ao qual o usuário pertence. Isolamento multi-tenant. */
+  workspaceId: string;
   name: string;
+  /** E-mail corporativo — identificador de login. */
+  email: string;
+  /** Mantido para compatibilidade com telas legadas; deriva do e-mail. */
   username: string;
+  /** Senha inicial (será substituída por hash no backend real). */
   password: string;
+  /** Slug interno da área individual do usuário. */
   slug: string;
   role: ExecutiveRole;
   status: "ativo" | "inativo";
 };
 
-const STORAGE_KEY = "velox:executive:session:v2";
-const USERS_KEY = "velox:executive:users:v2";
+const STORAGE_KEY = "atlas:session:v3";
+const USERS_KEY = "atlas:users:v3";
+
+const WORKSPACE_VELOX = "velox";
 
 export const SEED_USERS: ExecutiveUser[] = [
   {
     id: "usr_thiago",
+    workspaceId: WORKSPACE_VELOX,
     name: "Thiago Rodrigues",
-    username: "thiago",
-    password: "thiago123",
+    email: "thiago.rodrigues@veloxsolucoes.com.br",
+    username: "thiago.rodrigues",
+    password: "VLX_Th48",
     slug: "thiago-rodrigues",
     role: "super_admin",
     status: "ativo",
   },
   {
     id: "usr_larissa",
+    workspaceId: WORKSPACE_VELOX,
     name: "Larissa",
+    email: "larissa@velox.com.br",
     username: "larissa",
-    password: "larissa123",
+    password: "VLX_La73",
     slug: "larissa",
-    role: "diretora",
+    role: "executivo",
     status: "ativo",
   },
   {
     id: "usr_marton",
+    workspaceId: WORKSPACE_VELOX,
     name: "Marton",
+    email: "marton@velox.com.br",
     username: "marton",
-    password: "marton123",
+    password: "VLX_Ma61",
     slug: "marton",
     role: "executivo",
     status: "ativo",
   },
   {
     id: "usr_paulo",
+    workspaceId: WORKSPACE_VELOX,
     name: "Paulo",
+    email: "paulo@velox.com.br",
     username: "paulo",
-    password: "paulo123",
+    password: "VLX_Pa29",
     slug: "paulo",
     role: "executivo",
     status: "ativo",
   },
   {
     id: "usr_milton",
+    workspaceId: WORKSPACE_VELOX,
     name: "Milton",
+    email: "milton@velox.com.br",
     username: "milton",
-    password: "milton123",
+    password: "VLX_Mi54",
     slug: "milton",
     role: "executivo",
     status: "ativo",
   },
   {
     id: "usr_carlos",
+    workspaceId: WORKSPACE_VELOX,
     name: "Carlos",
+    email: "carlos@velox.com.br",
     username: "carlos",
-    password: "carlos123",
+    password: "VLX_Ca87",
     slug: "carlos",
     role: "executivo",
     status: "ativo",
   },
   {
     id: "usr_talita",
+    workspaceId: WORKSPACE_VELOX,
     name: "Talita",
+    email: "talita@velox.com.br",
     username: "talita",
-    password: "talita123",
+    password: "VLX_Ta36",
     slug: "talita",
     role: "executivo",
     status: "ativo",
@@ -135,12 +170,11 @@ export function loadUsers(): ExecutiveUser[] {
     if (!raw) return SEED_USERS;
     const arr = JSON.parse(raw) as ExecutiveUser[];
     if (!Array.isArray(arr) || arr.length === 0) return SEED_USERS;
-    // Garantir que todos os usuários oficiais existam (não podem ser removidos por
-    // dados antigos persistidos em localStorage de versões anteriores).
+    // Garante que os usuários oficiais existam e mantenham credenciais
+    // sincronizadas com o seed atual (previne conflitos com versões
+    // anteriores da estrutura persistida no localStorage).
     const byId = new Map(arr.map((u) => [u.id, u] as const));
-    for (const seed of SEED_USERS) {
-      if (!byId.has(seed.id)) byId.set(seed.id, seed);
-    }
+    for (const seed of SEED_USERS) byId.set(seed.id, seed);
     return Array.from(byId.values());
   } catch {
     return SEED_USERS;
@@ -154,8 +188,10 @@ export function saveUsers(users: ExecutiveUser[]) {
 
 export type ExecutiveSession = {
   userId: string;
+  workspaceId: string;
   role: ExecutiveRole;
   name: string;
+  email: string;
 };
 
 export function getSession(): ExecutiveSession | null {
@@ -171,22 +207,35 @@ export function getSession(): ExecutiveSession | null {
       window.localStorage.removeItem(STORAGE_KEY);
       return null;
     }
-    return { userId: u.id, role: u.role, name: u.name };
+    return {
+      userId: u.id,
+      workspaceId: u.workspaceId,
+      role: u.role,
+      name: u.name,
+      email: u.email,
+    };
   } catch {
     return null;
   }
 }
 
-export function signIn(username: string, password: string): ExecutiveSession | null {
+export function signIn(email: string, password: string): ExecutiveSession | null {
   const users = loadUsers();
+  const key = email.trim().toLowerCase();
   const u = users.find(
     (x) =>
-      x.username.toLowerCase() === username.trim().toLowerCase() &&
+      x.email.toLowerCase() === key &&
       x.password === password &&
       x.status === "ativo",
   );
   if (!u) return null;
-  const s: ExecutiveSession = { userId: u.id, role: u.role, name: u.name };
+  const s: ExecutiveSession = {
+    userId: u.id,
+    workspaceId: u.workspaceId,
+    role: u.role,
+    name: u.name,
+    email: u.email,
+  };
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
   }
