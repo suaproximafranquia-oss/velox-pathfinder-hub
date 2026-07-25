@@ -16,7 +16,7 @@ export const Route = createFileRoute("/executivo")({
 
 function ExecutiveLoginPage() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +28,7 @@ function ExecutiveLoginPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const s = signIn(username, password);
+    const s = signIn(email, password);
     if (!s) {
       setError("Credenciais inválidas. Verifique usuário e senha e tente novamente.");
       return;
@@ -49,13 +49,19 @@ function ExecutiveLoginPage() {
           </Link>
         </div>
         <div className="text-center mb-8">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--gold)]/40 text-[color:var(--gold)] font-display mb-4">
-            {WORKSPACE.monogram}
-          </span>
+          {WORKSPACE.workspaceLogoUrl ? (
+            <img
+              src={WORKSPACE.workspaceLogoUrl}
+              alt={WORKSPACE.workspaceName}
+              className="mx-auto mb-4 h-10 w-auto object-contain"
+            />
+          ) : null}
           <p className="text-[11px] uppercase tracking-[0.28em] text-[color:var(--gold)] mb-2">
-            {WORKSPACE.platformTagline}
+            {WORKSPACE.workspaceTagline}
           </p>
-          <h1 className="font-display text-2xl md:text-3xl">{WORKSPACE.platformName}</h1>
+          <h1 className="font-display text-2xl md:text-3xl tracking-wide">
+            {WORKSPACE.workspaceName}
+          </h1>
           <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
             Acesso corporativo restrito à equipe autorizada.
           </p>
@@ -66,14 +72,15 @@ function ExecutiveLoginPage() {
         >
           <div>
             <label className="block text-xs uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
-              Usuário
+              E-mail Corporativo
             </label>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-4 py-3 text-sm outline-none focus:border-[color:var(--gold)]/50"
-              autoComplete="username"
+              autoComplete="email"
+              placeholder="nome@empresa.com.br"
               required
             />
           </div>
