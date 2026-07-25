@@ -39,24 +39,24 @@ const ManualChapterRoute = ManualChapterRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
-  id: '/usuarios',
-  path: '/usuarios',
-  getParentRoute: () => ExecutivoRoute,
+  id: '/executivo/usuarios',
+  path: '/executivo/usuarios',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoInvestidoresRoute = ExecutivoInvestidoresRouteImport.update({
-  id: '/investidores',
-  path: '/investidores',
-  getParentRoute: () => ExecutivoRoute,
+  id: '/executivo/investidores',
+  path: '/executivo/investidores',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoHomeRoute = ExecutivoHomeRouteImport.update({
-  id: '/home',
-  path: '/home',
-  getParentRoute: () => ExecutivoRoute,
+  id: '/executivo/home',
+  path: '/executivo/home',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoDashboardRoute = ExecutivoDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => ExecutivoRoute,
+  id: '/executivo/dashboard',
+  path: '/executivo/dashboard',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -125,6 +125,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
+  ExecutivoHomeRoute: typeof ExecutivoHomeRoute
+  ExecutivoInvestidoresRoute: typeof ExecutivoInvestidoresRoute
+  ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   ManualChapterRoute: typeof ManualChapterRoute
   ManualConcluidoRoute: typeof ManualConcluidoRoute
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
@@ -162,37 +166,41 @@ declare module '@tanstack/react-router' {
     }
     '/executivo/usuarios': {
       id: '/executivo/usuarios'
-      path: '/usuarios'
+      path: '/executivo/usuarios'
       fullPath: '/executivo/usuarios'
       preLoaderRoute: typeof ExecutivoUsuariosRouteImport
-      parentRoute: typeof ExecutivoRoute
+      parentRoute: typeof rootRouteImport
     }
     '/executivo/investidores': {
       id: '/executivo/investidores'
-      path: '/investidores'
+      path: '/executivo/investidores'
       fullPath: '/executivo/investidores'
       preLoaderRoute: typeof ExecutivoInvestidoresRouteImport
-      parentRoute: typeof ExecutivoRoute
+      parentRoute: typeof rootRouteImport
     }
     '/executivo/home': {
       id: '/executivo/home'
-      path: '/home'
+      path: '/executivo/home'
       fullPath: '/executivo/home'
       preLoaderRoute: typeof ExecutivoHomeRouteImport
-      parentRoute: typeof ExecutivoRoute
+      parentRoute: typeof rootRouteImport
     }
     '/executivo/dashboard': {
       id: '/executivo/dashboard'
-      path: '/dashboard'
+      path: '/executivo/dashboard'
       fullPath: '/executivo/dashboard'
       preLoaderRoute: typeof ExecutivoDashboardRouteImport
-      parentRoute: typeof ExecutivoRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExecutivoDashboardRoute: ExecutivoDashboardRoute,
+  ExecutivoHomeRoute: ExecutivoHomeRoute,
+  ExecutivoInvestidoresRoute: ExecutivoInvestidoresRoute,
+  ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   ManualChapterRoute: ManualChapterRoute,
   ManualConcluidoRoute: ManualConcluidoRoute,
   ExecutivoIndexRoute: ExecutivoIndexRoute,
@@ -200,13 +208,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
