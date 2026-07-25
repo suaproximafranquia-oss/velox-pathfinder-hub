@@ -107,18 +107,19 @@ const COLOR_MUTED: [number, number, number] = [120, 128, 145];
 const COLOR_LINE: [number, number, number] = [220, 222, 230];
 
 function drawWatermark(doc: jsPDF, pageW: number, pageH: number) {
-  // Marca d'água institucional discreta — texto vertical na lateral,
-  // muito baixa opacidade, sem sobrepor o conteúdo central da página.
+  // Marca d'água institucional — diagonal, centralizada, muito baixa
+  // opacidade. Sempre desenhada ANTES do conteúdo para permanecer atrás
+  // de qualquer texto ou elemento gráfico.
   doc.saveGraphicsState();
   // @ts-expect-error - GState exists at runtime
-  doc.setGState(new doc.GState({ opacity: 0.04 }));
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(42);
+  doc.setGState(new doc.GState({ opacity: 0.05 }));
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(64);
   doc.setTextColor(...COLOR_NAVY);
-  doc.text("ATLAS PLATFORM", pageW - 10, pageH / 2 + 40, {
-    align: "left",
-    angle: 90,
-    charSpace: 4,
+  doc.text("ATLAS PLATFORM", pageW / 2, pageH / 2, {
+    align: "center",
+    angle: 32,
+    charSpace: 3,
   });
   doc.restoreGraphicsState();
   doc.setTextColor(...COLOR_TEXT);
