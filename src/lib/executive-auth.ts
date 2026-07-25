@@ -52,7 +52,38 @@ export function canViewPrivateLeads(role: ExecutiveRole): boolean {
 }
 
 export function canManageUsers(role: ExecutiveRole): boolean {
-  return role === "super_admin";
+  // Administradores e Gestores podem gerir usuários; Gestores com escopo
+  // restrito a Colaboradores (ver canManageTargetUser).
+  return role === "super_admin" || role === "diretora";
+}
+
+/**
+ * Verifica se o perfil `actor` pode alterar/excluir/promover um usuário
+ * cujo perfil atual é `target`. Aplica a matriz de permissões oficial:
+ *   Administrador → qualquer alvo, qualquer perfil.
+ *   Gestor       → apenas Colaboradores (não pode tocar em Administradores
+ *                  nem em outros Gestores existentes; pode PROMOVER
+ *                  Colaboradores a Gestor).
+ *   Colaborador  → nenhum alvo.
+ */
+export function canManageTargetUser(
+  actor: ExecutiveRole,
+  target: ExecutiveRole,
+): boolean {
+  if (actor === "super_admin") return true;
+  if (actor === "diretora") return target === "executivo";
+  return false;
+}
+
+/**
+ * Perfis que `actor` pode atribuir a um usuário (criação ou promoção).
+ * Gestor NÃO pode criar/atribuir Administradores.
+ */
+export function assignableRoles(actor: ExecutiveRole): ExecutiveRole[] {
+  if (actor === "super_admin")
+    return ["super_admin", "diretora", "executivo"];
+  if (actor === "diretora") return ["diretora", "executivo"];
+  return [];
 }
 
 export function canViewAllInvestors(role: ExecutiveRole): boolean {
