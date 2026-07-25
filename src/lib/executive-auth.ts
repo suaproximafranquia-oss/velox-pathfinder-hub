@@ -59,6 +59,30 @@ export function canViewAllInvestors(role: ExecutiveRole): boolean {
   return role === "super_admin" || role === "diretora";
 }
 
+/** Peso hierárquico usado para determinar quais perfis um usuário pode assumir. */
+const ROLE_WEIGHT: Record<ExecutiveRole, number> = {
+  super_admin: 3,
+  diretora: 2,
+  executivo: 1,
+};
+
+/**
+ * Perfis que um usuário pode assumir para navegação/teste. Um Administrador
+ * pode atuar como Gestor ou Colaborador; um Gestor pode atuar como Colaborador;
+ * um Colaborador só pode ser Colaborador.
+ */
+export function availableRoles(grantedRole: ExecutiveRole): ExecutiveRole[] {
+  const w = ROLE_WEIGHT[grantedRole];
+  return (Object.keys(ROLE_WEIGHT) as ExecutiveRole[]).filter(
+    (r) => ROLE_WEIGHT[r] <= w,
+  );
+}
+
+/** Retorna a permissão para acessar o módulo Central de Conhecimento. */
+export function canManageKnowledge(role: ExecutiveRole): boolean {
+  return role === "super_admin" || role === "diretora";
+}
+
 /**
  * Estrutura do usuário — preparada para gestão dinâmica pelo Administrador
  * do Workspace. Ao criar um novo usuário, a plataforma deverá provisionar
@@ -86,6 +110,7 @@ export type ExecutiveUser = {
 
 const STORAGE_KEY = "atlas:session:v3";
 const USERS_KEY = "atlas:users:v3";
+const ACTIVE_ROLE_KEY = "atlas:activeRole:v1";
 
 const WORKSPACE_VELOX = "velox";
 
