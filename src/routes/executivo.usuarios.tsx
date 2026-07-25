@@ -61,7 +61,7 @@ function UsuariosPage() {
       navigate({ to: "/executivo" });
       return;
     }
-    if (!canManageUsers(s.role)) {
+    if (!canManageUsers(s.activeRole)) {
       navigate({ to: "/executivo/dashboard" });
       return;
     }
