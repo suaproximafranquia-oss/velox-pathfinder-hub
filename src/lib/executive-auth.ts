@@ -59,6 +59,30 @@ export function canViewAllInvestors(role: ExecutiveRole): boolean {
   return role === "super_admin" || role === "diretora";
 }
 
+/** Peso hierárquico usado para determinar quais perfis um usuário pode assumir. */
+const ROLE_WEIGHT: Record<ExecutiveRole, number> = {
+  super_admin: 3,
+  diretora: 2,
+  executivo: 1,
+};
+
+/**
+ * Perfis que um usuário pode assumir para navegação/teste. Um Administrador
+ * pode atuar como Gestor ou Colaborador; um Gestor pode atuar como Colaborador;
+ * um Colaborador só pode ser Colaborador.
+ */
+export function availableRoles(grantedRole: ExecutiveRole): ExecutiveRole[] {
+  const w = ROLE_WEIGHT[grantedRole];
+  return (Object.keys(ROLE_WEIGHT) as ExecutiveRole[]).filter(
+    (r) => ROLE_WEIGHT[r] <= w,
+  );
+}
+
+/** Retorna a permissão para acessar o módulo Central de Conhecimento. */
+export function canManageKnowledge(role: ExecutiveRole): boolean {
+  return role === "super_admin" || role === "diretora";
+}
+
 /**
  * Estrutura do usuário — preparada para gestão dinâmica pelo Administrador
  * do Workspace. Ao criar um novo usuário, a plataforma deverá provisionar
@@ -86,6 +110,7 @@ export type ExecutiveUser = {
 
 const STORAGE_KEY = "atlas:session:v3";
 const USERS_KEY = "atlas:users:v3";
+const ACTIVE_ROLE_KEY = "atlas:activeRole:v1";
 
 const WORKSPACE_VELOX = "velox";
 
@@ -195,7 +220,10 @@ export function saveUsers(users: ExecutiveUser[]) {
 export type ExecutiveSession = {
   userId: string;
   workspaceId: string;
+  /** Perfil real concedido ao usuário (nunca muda no cliente). */
   role: ExecutiveRole;
+  /** Perfil ativo escolhido pelo usuário — sempre ≤ role. */
+  activeRole: ExecutiveRole;
   name: string;
   email: string;
 };
@@ -217,11 +245,26 @@ export function getSession(): ExecutiveSession | null {
       userId: u.id,
       workspaceId: u.workspaceId,
       role: u.role,
+      activeRole: readActiveRole(u.role),
       name: u.name,
       email: u.email,
     };
   } catch {
     return null;
+  }
+}
+
+function readActiveRole(granted: ExecutiveRole): ExecutiveRole {
+  if (typeof window === "undefined") return granted;
+  const raw = window.localStorage.getItem(ACTIVE_ROLE_KEY) as ExecutiveRole | null;
+  if (!raw) return granted;
+  return availableRoles(granted).includes(raw) ? raw : granted;
+}
+
+export function setActiveRole(session: ExecutiveSession, role: ExecutiveRole) {
+  if (!availableRoles(session.role).includes(role)) return;
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ACTIVE_ROLE_KEY, role);
   }
 }
 
@@ -239,11 +282,13 @@ export function signIn(email: string, password: string): ExecutiveSession | null
     userId: u.id,
     workspaceId: u.workspaceId,
     role: u.role,
+    activeRole: u.role,
     name: u.name,
     email: u.email,
   };
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    window.localStorage.removeItem(ACTIVE_ROLE_KEY);
   }
   return s;
 }
@@ -251,6 +296,7 @@ export function signIn(email: string, password: string): ExecutiveSession | null
 export function signOut() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(ACTIVE_ROLE_KEY);
 }
 
 export function newUserId(): string {

@@ -1,11 +1,26 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutGrid, LayoutDashboard, Users, UserCog, LogOut, ArrowLeft } from "lucide-react";
-import type { ReactNode } from "react";
+import {
+  LayoutGrid,
+  LayoutDashboard,
+  Users,
+  UserCog,
+  LogOut,
+  ArrowLeft,
+  Database,
+  Sparkles,
+  ChevronDown,
+  Check,
+} from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   getSession,
   signOut,
   canManageUsers,
+  canManageKnowledge,
+  availableRoles,
+  setActiveRole,
   ROLE_LABEL,
+  type ExecutiveRole,
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
@@ -27,7 +42,11 @@ export function ExecutiveShell({
     { to: "/executivo/home", label: "Home", icon: LayoutGrid },
     { to: "/executivo/dashboard", label: "Painel", icon: LayoutDashboard },
     { to: "/executivo/investidores", label: "Investidores", icon: Users },
-    ...(canManageUsers(session.role)
+    { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
+    ...(canManageKnowledge(session.activeRole)
+      ? [{ to: "/executivo/conhecimento", label: "Conhecimento", icon: Database }]
+      : []),
+    ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
   ];
@@ -54,9 +73,7 @@ export function ExecutiveShell({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden md:inline text-xs text-[color:var(--muted-foreground)]">
-              {session.name} · {ROLE_LABEL[session.role]}
-            </span>
+            <ProfileSwitcher session={session} />
             <Link
               to="/"
               title="Retornando ao Manual do Investidor"
@@ -120,4 +137,85 @@ export function ExecutiveShell({
 export function useRequireSession(): ExecutiveSession | null {
   if (typeof window === "undefined") return null;
   return getSession();
+}
+
+function ProfileSwitcher({ session }: { session: ExecutiveSession }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const roles = availableRoles(session.role);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  function choose(r: ExecutiveRole) {
+    setActiveRole(session, r);
+    setOpen(false);
+    // Recarrega a interface para refletir permissões e navegação.
+    if (typeof window !== "undefined") window.location.reload();
+  }
+
+  const canSwitch = roles.length > 1;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => canSwitch && setOpen((v) => !v)}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition",
+          canSwitch
+            ? "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40"
+            : "border-transparent text-[color:var(--muted-foreground)] cursor-default",
+        )}
+        title={canSwitch ? "Alternar perfil ativo" : "Perfil ativo"}
+      >
+        <span className="hidden sm:inline">{session.name.split(" ")[0]}</span>
+        <span className="rounded-full bg-[color:var(--accent)] px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-[color:var(--gold)]">
+          {ROLE_LABEL[session.activeRole]}
+        </span>
+        {canSwitch && <ChevronDown className="h-3.5 w-3.5" />}
+      </button>
+      {canSwitch && open && (
+        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-xl overflow-hidden z-50">
+          <div className="px-3 py-2 border-b border-[color:var(--border)]">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              Perfil ativo
+            </p>
+            <p className="text-xs text-[color:var(--foreground)] mt-0.5">
+              {session.name}
+            </p>
+          </div>
+          <div className="py-1">
+            {roles.map((r) => {
+              const active = r === session.activeRole;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => choose(r)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2 text-sm text-left transition",
+                    active
+                      ? "bg-[color:var(--accent)] text-[color:var(--foreground)]"
+                      : "text-[color:var(--muted-foreground)] hover:bg-[color:var(--accent)]/60 hover:text-[color:var(--foreground)]",
+                  )}
+                >
+                  <span>{ROLE_LABEL[r]}</span>
+                  {active && <Check className="h-3.5 w-3.5 text-[color:var(--gold)]" />}
+                </button>
+              );
+            })}
+          </div>
+          <div className="px-3 py-2 border-t border-[color:var(--border)] text-[10px] text-[color:var(--muted-foreground)] leading-relaxed">
+            A alternância é aplicada imediatamente a toda a plataforma.
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
