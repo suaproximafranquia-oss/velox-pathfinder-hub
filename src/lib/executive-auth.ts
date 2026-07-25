@@ -7,15 +7,19 @@
 export type ExecutiveRole = "super_admin" | "diretora" | "executivo";
 
 /**
- * Perfis oficiais da plataforma. Mantemos os identificadores legados
- * (super_admin, diretora, executivo) para compatibilidade interna,
- * porém a superfície de gestão trabalha somente com dois perfis:
- * Administrador (super_admin) e Executivo (executivo).
+ * Perfis oficiais da Atlas Platform. Mantemos os identificadores legados
+ * (super_admin, diretora, executivo) para compatibilidade interna com
+ * dados persistidos, mas a superfície de gestão trabalha apenas com os
+ * três perfis universais da plataforma:
+ *   Administrador (super_admin)
+ *   Gestor        (diretora)
+ *   Colaborador   (executivo)
+ * Estes perfis são universais e independem do organograma do workspace.
  */
 export const ROLE_LABEL: Record<ExecutiveRole, string> = {
   super_admin: "Administrador",
-  diretora: "Administrador",
-  executivo: "Executivo",
+  diretora: "Gestor",
+  executivo: "Colaborador",
 };
 
 /**
@@ -68,6 +72,8 @@ export type ExecutiveUser = {
   name: string;
   /** E-mail corporativo — identificador de login. */
   email: string;
+  /** Telefone corporativo (opcional). */
+  phone?: string;
   /** Mantido para compatibilidade com telas legadas; deriva do e-mail. */
   username: string;
   /** Senha inicial (será substituída por hash no backend real). */
