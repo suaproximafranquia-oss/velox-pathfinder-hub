@@ -220,7 +220,10 @@ export function saveUsers(users: ExecutiveUser[]) {
 export type ExecutiveSession = {
   userId: string;
   workspaceId: string;
+  /** Perfil real concedido ao usuário (nunca muda no cliente). */
   role: ExecutiveRole;
+  /** Perfil ativo escolhido pelo usuário — sempre ≤ role. */
+  activeRole: ExecutiveRole;
   name: string;
   email: string;
 };
@@ -242,11 +245,26 @@ export function getSession(): ExecutiveSession | null {
       userId: u.id,
       workspaceId: u.workspaceId,
       role: u.role,
+      activeRole: readActiveRole(u.role),
       name: u.name,
       email: u.email,
     };
   } catch {
     return null;
+  }
+}
+
+function readActiveRole(granted: ExecutiveRole): ExecutiveRole {
+  if (typeof window === "undefined") return granted;
+  const raw = window.localStorage.getItem(ACTIVE_ROLE_KEY) as ExecutiveRole | null;
+  if (!raw) return granted;
+  return availableRoles(granted).includes(raw) ? raw : granted;
+}
+
+export function setActiveRole(session: ExecutiveSession, role: ExecutiveRole) {
+  if (!availableRoles(session.role).includes(role)) return;
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ACTIVE_ROLE_KEY, role);
   }
 }
 
@@ -264,11 +282,13 @@ export function signIn(email: string, password: string): ExecutiveSession | null
     userId: u.id,
     workspaceId: u.workspaceId,
     role: u.role,
+    activeRole: u.role,
     name: u.name,
     email: u.email,
   };
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    window.localStorage.removeItem(ACTIVE_ROLE_KEY);
   }
   return s;
 }
@@ -276,6 +296,7 @@ export function signIn(email: string, password: string): ExecutiveSession | null
 export function signOut() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(ACTIVE_ROLE_KEY);
 }
 
 export function newUserId(): string {
