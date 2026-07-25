@@ -12,6 +12,7 @@ import {
   type ExecutiveSession,
   type ExecutiveUser,
 } from "@/lib/executive-auth";
+import { ACTIVE_WORKSPACE_ID } from "@/config/workspace";
 
 export const Route = createFileRoute("/executivo/usuarios")({
   head: () => ({
@@ -26,7 +27,9 @@ export const Route = createFileRoute("/executivo/usuarios")({
 type Draft = Omit<ExecutiveUser, "id"> & { id?: string };
 
 const emptyDraft: Draft = {
+  workspaceId: ACTIVE_WORKSPACE_ID,
   name: "",
+  email: "",
   username: "",
   password: "",
   slug: "",
