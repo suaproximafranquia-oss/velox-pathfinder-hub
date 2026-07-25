@@ -17,6 +17,7 @@ import {
   Download,
   UserCircle2,
   Settings,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,8 @@ export type PlatformModule = {
   /** URL externa quando o módulo aponta para a jornada pública. */
   href?: string;
   status: "ativo" | "em_breve";
+  /** Perfis mínimos com acesso. `undefined` = todos os perfis autenticados. */
+  requiresRole?: Array<"super_admin" | "diretora" | "executivo">;
 };
 
 export const PLATFORM_MODULES: PlatformModule[] = [
@@ -54,7 +57,18 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     name: "IA Corporativa",
     description: "Assistente corporativo para consultas guiadas ao ecossistema.",
     icon: Sparkles,
-    status: "em_breve",
+    to: "/executivo/ia",
+    status: "ativo",
+  },
+  {
+    id: "conhecimento",
+    name: "Central de Conhecimento",
+    description:
+      "Base Oficial do Workspace — documentos que alimentam a IA e os módulos.",
+    icon: Database,
+    to: "/executivo/conhecimento",
+    status: "ativo",
+    requiresRole: ["super_admin", "diretora"],
   },
   {
     id: "crm",
