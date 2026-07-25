@@ -28,6 +28,10 @@ function HomePage() {
 
   if (!session) return null;
 
+  const visibleModules = PLATFORM_MODULES.filter(
+    (m) => !m.requiresRole || m.requiresRole.includes(session.activeRole),
+  );
+
   return (
     <ExecutiveShell session={session} title={`Bem-vindo, ${session.name.split(" ")[0]}`}>
       <section className="mb-10 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-6 py-6">
@@ -41,7 +45,7 @@ function HomePage() {
           Ambiente corporativo unificado para operação, educação e relacionamento.
           Selecione um módulo abaixo para continuar. Você está autenticado como{" "}
           <span className="text-[color:var(--foreground)]">
-            {ROLE_LABEL[session.role]}
+            {ROLE_LABEL[session.activeRole]}
           </span>
           .
         </p>
@@ -51,11 +55,11 @@ function HomePage() {
         <div className="flex items-baseline justify-between mb-5">
           <h3 className="font-display text-lg">Módulos</h3>
           <span className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-            {PLATFORM_MODULES.length} disponíveis
+            {visibleModules.length} disponíveis
           </span>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PLATFORM_MODULES.map((mod) => (
+          {visibleModules.map((mod) => (
             <ModuleCard key={mod.id} module={mod} />
           ))}
         </div>
