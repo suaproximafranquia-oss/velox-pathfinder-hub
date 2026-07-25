@@ -17,38 +17,27 @@ import { cn } from "@/lib/utils";
  */
 
 /**
- * Diretrizes obrigatórias do Assistente Velox.
+ * Diretrizes obrigatórias do Assistente da Atlas Platform.
  *
- * Estas regras devem ser aplicadas em qualquer futura integração de IA.
- * Elas existem para garantir fidelidade absoluta ao ecossistema Velox:
+ * A plataforma é White Label: nenhuma regra pode referenciar uma empresa
+ * específica. Toda inteligência conectada aqui deve obedecer:
  *
- *  1. Responder exclusivamente assuntos relacionados ao ecossistema Velox,
- *     ao Manual do Investidor e à Base Oficial de Conhecimento.
- *  2. Nunca responder perguntas fora desse contexto. Se o usuário perguntar
- *     qualquer assunto externo, responder educadamente informando que o
- *     assistente é especializado exclusivamente nesses conteúdos.
- *  3. Nunca inventar respostas.
- *  4. Nunca utilizar conhecimento externo como se fosse conhecimento oficial
- *     da empresa.
- *  5. Nunca emitir opiniões.
- *  6. Nunca prometer ganhos financeiros.
- *  7. Nunca prometer resultados.
- *  8. Toda futura inteligência deverá utilizar exclusivamente a Base Oficial
- *     de Conhecimento da Velox.
+ *  1. Responder exclusivamente com base na Base Oficial de Conhecimento
+ *     do Workspace ativo.
+ *  2. Nunca utilizar conhecimento externo.
+ *  3. Nunca inventar respostas, opiniões, promessas ou previsões.
+ *  4. Quando a informação não estiver na Base Oficial, informar de forma
+ *     educada e sugerir continuar a leitura ou falar com um consultor.
  */
 export const ASSISTANT_GUIDELINES = [
-  "Responder apenas assuntos relacionados ao ecossistema Velox, ao Manual do Investidor e à Base Oficial de Conhecimento.",
-  "Nunca responder perguntas fora desse contexto — informar educadamente a especialização do assistente.",
-  "Nunca inventar respostas.",
-  "Nunca utilizar conhecimento externo como se fosse conhecimento oficial da Velox.",
-  "Nunca emitir opiniões.",
-  "Nunca prometer ganhos financeiros.",
-  "Nunca prometer resultados.",
-  "Utilizar exclusivamente a Base Oficial de Conhecimento da Velox.",
+  "Responder exclusivamente com base na Base Oficial de Conhecimento do Workspace ativo.",
+  "Nunca utilizar conhecimento externo como se fosse conteúdo oficial.",
+  "Nunca inventar respostas, opiniões, promessas ou previsões.",
+  "Quando não houver informação na Base Oficial, informar de forma educada e sugerir continuar a leitura ou falar com um consultor.",
 ] as const;
 
 export const OFF_TOPIC_REPLY =
-  "Este assistente é especializado exclusivamente em conteúdos relacionados à Velox, ao Manual do Investidor e à Base Oficial de Conhecimento. Para outros temas, recomendo uma fonte apropriada. Posso ajudar com qualquer dúvida sobre o ecossistema Velox?";
+  "Este assistente responde apenas com base na Base Oficial de Conhecimento deste Workspace. Para outros temas, recomendo uma fonte apropriada. Posso ajudar com alguma dúvida a partir do conteúdo oficial?";
 
 export type AssistantMessage = {
   id: string;
@@ -63,7 +52,7 @@ async function requestAssistantReply(
   _userMessage: string,
   _context: { chapterSlug?: string; chapterTitle?: string },
 ): Promise<string> {
-  return "Obrigado pela pergunta. Em breve, este assistente estará conectado à Base Oficial da Velox e poderá responder de forma detalhada. Enquanto isso, um especialista pode esclarecer este ponto pessoalmente ao final do Manual.";
+  return "Obrigado pela pergunta. Em breve, este assistente estará conectado à Base Oficial de Conhecimento deste Workspace e poderá responder de forma detalhada. Enquanto isso, um consultor pode esclarecer este ponto pessoalmente ao final da leitura.";
 }
 
 function chapterLabelFor(pathname: string): { title: string; hint: string } {
@@ -72,12 +61,12 @@ function chapterLabelFor(pathname: string): { title: string; hint: string } {
     const label = c.eyebrow.split("·")[1]?.trim() ?? c.eyebrow;
     return {
       title: label,
-      hint: `Você está visualizando o capítulo ${label}. Posso esclarecer dúvidas sobre este assunto ou qualquer outro tema relacionado à Velox.`,
+      hint: `Você está visualizando o capítulo ${label}. Posso esclarecer dúvidas com base na Base Oficial de Conhecimento deste Workspace.`,
     };
   }
   return {
-    title: "Manual do Investidor",
-    hint: "Posso esclarecer dúvidas sobre o Manual do Investidor ou qualquer tema relacionado à Velox.",
+    title: "Assistente",
+    hint: "Posso esclarecer dúvidas com base na Base Oficial de Conhecimento deste Workspace.",
   };
 }
 
