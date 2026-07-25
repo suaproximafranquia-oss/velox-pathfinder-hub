@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Plus,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
@@ -47,9 +48,15 @@ function KnowledgePage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [docs, setDocs] = useState<KnowledgeDocument[]>([]);
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<string>("");
   const [flash, setFlash] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
-  const [visibility, setVisibility] = useState<DocumentVisibility>("publico");
   const [resetOpen, setResetOpen] = useState(false);
+  const [pending, setPending] = useState<{
+    file: File;
+    name: string;
+    visibility: DocumentVisibility;
+    description: string;
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -66,50 +73,89 @@ function KnowledgePage() {
     setDocs(listDocuments(session!.workspaceId));
   }
 
-  async function handleFiles(files: FileList | null) {
+  function onPickFile(files: FileList | null) {
     if (!files || files.length === 0) return;
+    const file = files[0];
+    const lower = file.name.toLowerCase();
+    const ok = lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".txt");
+    if (!ok) {
+      setFlash({
+        type: "err",
+        msg: "Formato não suportado. Envie PDF, Word (.docx) ou TXT.",
+      });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setPending({
+      file,
+      name: file.name.replace(/\.[^.]+$/, ""),
+      visibility: "publico",
+      description: "",
+    });
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function submitPending() {
+    if (!pending || busy) return;
+    const { file, name, visibility, description } = pending;
+    const displayName = name.trim() || file.name;
+    setPending(null);
     setBusy(true);
     setFlash(null);
-    for (const file of Array.from(files)) {
-      const id = newDocumentId();
-      const now = new Date().toISOString();
-      const provisional: KnowledgeDocument = {
-        id,
-        workspaceId: session!.workspaceId,
-        name: file.name,
-        type: file.name.toLowerCase().endsWith(".pdf")
-          ? "pdf"
-          : file.name.toLowerCase().endsWith(".docx")
-            ? "docx"
-            : "txt",
-        visibility,
-        sizeBytes: file.size,
-        uploadedByUserId: session!.userId,
-        uploadedByName: session!.name,
-        uploadedAt: now,
-        updatedAt: now,
-        status: "processando",
-        chunks: [],
-      };
-      addDocument(provisional);
+    const id = newDocumentId();
+    const now = new Date().toISOString();
+    const provisional: KnowledgeDocument = {
+      id,
+      workspaceId: session!.workspaceId,
+      name: displayName,
+      type: file.name.toLowerCase().endsWith(".pdf")
+        ? "pdf"
+        : file.name.toLowerCase().endsWith(".docx")
+          ? "docx"
+          : "txt",
+      visibility,
+      description: description.trim() || undefined,
+      sizeBytes: file.size,
+      uploadedByUserId: session!.userId,
+      uploadedByName: session!.name,
+      uploadedAt: now,
+      updatedAt: now,
+      status: "processando",
+      chunks: [],
+    };
+    addDocument(provisional);
+    refresh();
+    try {
+      setStage("Analisando documento…");
+      const { text, type } = await extractTextFromFile(file);
+      setStage("Indexando conteúdo…");
+      // Cede o event loop para renderizar o estágio antes do chunking.
+      await new Promise((r) => setTimeout(r, 50));
+      const chunks = chunkText(text);
+      setStage("Atualizando Base Oficial…");
+      await new Promise((r) => setTimeout(r, 200));
+      updateDocument(id, {
+        chunks,
+        type,
+        status: chunks.length ? "ativo" : "erro",
+      });
       refresh();
-      try {
-        const { text, type } = await extractTextFromFile(file);
-        const chunks = chunkText(text);
-        updateDocument(id, { chunks, type, status: chunks.length ? "ativo" : "erro" });
-        refresh();
-      } catch (e) {
-        updateDocument(id, { status: "erro" });
-        refresh();
-        setFlash({
-          type: "err",
-          msg: `Falha ao processar "${file.name}": ${(e as Error).message}`,
-        });
-      }
+      setFlash(
+        chunks.length
+          ? { type: "ok", msg: `"${displayName}" foi indexado e está disponível.` }
+          : { type: "err", msg: `Não foi possível extrair texto de "${displayName}".` },
+      );
+    } catch (e) {
+      updateDocument(id, { status: "erro" });
+      refresh();
+      setFlash({
+        type: "err",
+        msg: `Falha ao processar "${displayName}": ${(e as Error).message}`,
+      });
+    } finally {
+      setBusy(false);
+      setStage("");
     }
-    setBusy(false);
-    setFlash((f) => f ?? { type: "ok", msg: "Documento(s) indexado(s) com sucesso." });
-    if (fileRef.current) fileRef.current.value = "";
   }
 
   function handleRemove(id: string) {
@@ -147,60 +193,30 @@ function KnowledgePage() {
           <h2 className="font-display text-lg">Enviar documento</h2>
         </div>
         <p className="text-xs text-[color:var(--muted-foreground)] mb-5">
-          Formatos aceitos: PDF, Word (.docx), TXT. Antes de enviar, defina a
-          visibilidade.
+          Formatos aceitos: PDF, Word (.docx) e TXT. Após selecionar o
+          arquivo, você poderá definir nome, visibilidade e descrição antes
+          do envio.
         </p>
-
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-          <div className="flex-1 w-full">
-            <label className="block text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
-              Visibilidade
-            </label>
-            <div className="flex gap-2">
-              {(["publico", "restrito"] as const).map((v) => {
-                const active = visibility === v;
-                const Icon = v === "publico" ? Eye : EyeOff;
-                return (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setVisibility(v)}
-                    className={
-                      "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs transition " +
-                      (active
-                        ? "border-[color:var(--gold)]/50 bg-[color:var(--accent)] text-[color:var(--foreground)]"
-                        : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]")
-                    }
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {VISIBILITY_LABEL[v]}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-              {visibility === "publico"
-                ? "Disponível para Investidores, Colaboradores, Gestores e Administradores."
-                : "Disponível apenas para Colaboradores, Gestores e Administradores."}
-            </p>
-          </div>
-          <div className="w-full sm:w-auto">
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.docx,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              multiple
-              disabled={busy}
-              onChange={(e) => handleFiles(e.target.files)}
-              className="block text-xs text-[color:var(--muted-foreground)] file:mr-4 file:rounded-full file:border file:border-[color:var(--gold)]/50 file:bg-[color:var(--gold)]/10 file:px-4 file:py-2 file:text-xs file:font-medium file:text-[color:var(--gold)] hover:file:bg-[color:var(--gold)]/20"
-            />
-          </div>
-        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.docx,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={(e) => onPickFile(e.target.files)}
+          className="hidden"
+        />
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-5 py-2.5 text-sm text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40"
+        >
+          <Plus className="h-4 w-4" /> Adicionar Documento
+        </button>
 
         {busy && (
-          <div className="mt-4 flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Processando e indexando…
+          <div className="mt-5 rounded-xl border border-[color:var(--border)] bg-[color:var(--accent)]/30 px-4 py-3 flex items-center gap-3 text-xs text-[color:var(--muted-foreground)]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
+            <span>{stage || "Processando…"}</span>
           </div>
         )}
         {flash && !busy && (
@@ -326,7 +342,132 @@ function KnowledgePage() {
           }}
         />
       )}
+
+      {pending && (
+        <UploadModal
+          pending={pending}
+          onChange={(p) => setPending(p)}
+          onCancel={() => setPending(null)}
+          onConfirm={submitPending}
+        />
+      )}
     </ExecutiveShell>
+  );
+}
+
+function UploadModal({
+  pending,
+  onChange,
+  onCancel,
+  onConfirm,
+}: {
+  pending: {
+    file: File;
+    name: string;
+    visibility: DocumentVisibility;
+    description: string;
+  };
+  onChange: (p: {
+    file: File;
+    name: string;
+    visibility: DocumentVisibility;
+    description: string;
+  }) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--navy-deep)]/80 backdrop-blur-sm px-4">
+      <div className="w-full max-w-lg rounded-2xl border border-[color:var(--border)] bg-[color:var(--navy)] p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <FileText className="h-5 w-5 text-[color:var(--gold)]" />
+          <h3 className="font-display text-lg">Novo documento</h3>
+        </div>
+        <p className="text-[11px] text-[color:var(--muted-foreground)] mb-4">
+          Arquivo selecionado:{" "}
+          <span className="text-[color:var(--foreground)]">{pending.file.name}</span>
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
+              Nome do documento
+            </label>
+            <input
+              type="text"
+              value={pending.name}
+              onChange={(e) => onChange({ ...pending, name: e.target.value })}
+              className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
+              Visibilidade
+            </label>
+            <div className="flex gap-2">
+              {(["publico", "restrito"] as const).map((v) => {
+                const active = pending.visibility === v;
+                const Icon = v === "publico" ? Eye : EyeOff;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => onChange({ ...pending, visibility: v })}
+                    className={
+                      "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs transition " +
+                      (active
+                        ? "border-[color:var(--gold)]/50 bg-[color:var(--accent)] text-[color:var(--foreground)]"
+                        : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]")
+                    }
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {VISIBILITY_LABEL[v]}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
+              {pending.visibility === "publico"
+                ? "Disponível para todos os perfis autenticados do Workspace."
+                : "Disponível apenas para Colaboradores, Gestores e Administradores."}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
+              Descrição (opcional)
+            </label>
+            <textarea
+              value={pending.description}
+              onChange={(e) => onChange({ ...pending, description: e.target.value })}
+              rows={3}
+              placeholder="Breve descrição do conteúdo, escopo ou finalidade do documento."
+              className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50 resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full border border-[color:var(--border)] px-4 py-2 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!pending.name.trim()}
+            className="rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-5 py-2 text-xs text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40"
+          >
+            Enviar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
