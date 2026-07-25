@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   getSession,
@@ -12,6 +12,7 @@ import {
   STATUS_LABEL,
   formatRelative,
 } from "@/lib/executive-data";
+import { generateInvestorReport } from "@/lib/investor-report";
 
 export const Route = createFileRoute("/executivo/investidores")({
   head: () => ({
@@ -114,9 +115,9 @@ function InvestidoresPage() {
                   <button
                     type="button"
                     className="inline-flex items-center gap-1 text-xs text-[color:var(--gold)] hover:underline"
-                    onClick={() => alert("Geração de relatório será implementada em etapa futura.")}
+                    onClick={() => generateInvestorReport(i)}
                   >
-                    <Download className="h-3.5 w-3.5" /> Baixar
+                    <FileText className="h-3.5 w-3.5" /> Gerar Relatório
                   </button>
                 </td>
               </tr>
