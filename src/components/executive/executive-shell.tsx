@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, UserCog, LogOut, ArrowLeft } from "lucide-react";
+import { LayoutGrid, LayoutDashboard, Users, UserCog, LogOut, ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   getSession,
@@ -8,6 +8,7 @@ import {
   ROLE_LABEL,
   type ExecutiveSession,
 } from "@/lib/executive-auth";
+import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
 
 export function ExecutiveShell({
@@ -23,6 +24,7 @@ export function ExecutiveShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const nav = [
+    { to: "/executivo/home", label: "Home", icon: LayoutGrid },
     { to: "/executivo/dashboard", label: "Painel", icon: LayoutDashboard },
     { to: "/executivo/investidores", label: "Investidores", icon: Users },
     ...(canManageUsers(session.role)
@@ -36,13 +38,13 @@ export function ExecutiveShell({
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 gap-4">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--gold)]/40 text-[color:var(--gold)] font-display text-sm">
-              V
+              {WORKSPACE.monogram}
             </span>
             <div className="hidden sm:flex flex-col leading-tight">
               <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                Velox
+                {WORKSPACE.platformName}
               </span>
-              <span className="text-sm font-medium">Central do Executivo</span>
+              <span className="text-sm font-medium">{WORKSPACE.platformTagline}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -98,6 +100,13 @@ export function ExecutiveShell({
           {children}
         </main>
       </div>
+
+      <footer className="border-t border-[color:var(--border)] bg-[color:var(--navy-deep)]/60">
+        <div className="mx-auto max-w-6xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+          <span>{WORKSPACE.platformName} · {WORKSPACE.platformTagline}</span>
+          <span>{WORKSPACE.poweredBy}</span>
+        </div>
+      </footer>
     </div>
   );
 }
