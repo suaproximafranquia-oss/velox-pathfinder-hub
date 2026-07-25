@@ -15,6 +15,7 @@ import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
 import { Route as ExecutivoInvestidoresRouteImport } from './routes/executivo.investidores'
+import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
 
 const ExecutivoRoute = ExecutivoRouteImport.update({
@@ -47,6 +48,11 @@ const ExecutivoInvestidoresRoute = ExecutivoInvestidoresRouteImport.update({
   path: '/investidores',
   getParentRoute: () => ExecutivoRoute,
 } as any)
+const ExecutivoHomeRoute = ExecutivoHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => ExecutivoRoute,
+} as any)
 const ExecutivoDashboardRoute = ExecutivoDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/executivo': typeof ExecutivoRouteWithChildren
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
+  '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/executivo': typeof ExecutivoRouteWithChildren
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
+  '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/executivo': typeof ExecutivoRouteWithChildren
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
+  '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/executivo'
     | '/executivo/dashboard'
+    | '/executivo/home'
     | '/executivo/investidores'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/executivo'
     | '/executivo/dashboard'
+    | '/executivo/home'
     | '/executivo/investidores'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/executivo'
     | '/executivo/dashboard'
+    | '/executivo/home'
     | '/executivo/investidores'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -162,6 +174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoInvestidoresRouteImport
       parentRoute: typeof ExecutivoRoute
     }
+    '/executivo/home': {
+      id: '/executivo/home'
+      path: '/home'
+      fullPath: '/executivo/home'
+      preLoaderRoute: typeof ExecutivoHomeRouteImport
+      parentRoute: typeof ExecutivoRoute
+    }
     '/executivo/dashboard': {
       id: '/executivo/dashboard'
       path: '/dashboard'
@@ -174,12 +193,14 @@ declare module '@tanstack/react-router' {
 
 interface ExecutivoRouteChildren {
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
+  ExecutivoHomeRoute: typeof ExecutivoHomeRoute
   ExecutivoInvestidoresRoute: typeof ExecutivoInvestidoresRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
 }
 
 const ExecutivoRouteChildren: ExecutivoRouteChildren = {
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
+  ExecutivoHomeRoute: ExecutivoHomeRoute,
   ExecutivoInvestidoresRoute: ExecutivoInvestidoresRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
 }
