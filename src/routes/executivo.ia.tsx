@@ -68,6 +68,18 @@ function IaPage() {
     try {
       const allDocs = listDocuments(session!.workspaceId);
       const scoped = visibleDocuments(allDocs, audience);
+      if (scoped.filter((d) => d.status === "ativo").length === 0) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content:
+              "A Base Oficial de Conhecimento deste Workspace ainda não possui documentos cadastrados.",
+          },
+        ]);
+        setBusy(false);
+        return;
+      }
       const passages = retrievePassages(q, scoped).map((p) => ({
         source: p.documentName,
         text: p.text,
@@ -77,7 +89,7 @@ function IaPage() {
         ...m,
         { role: "assistant", content: res.answer, sources: res.sources },
       ]);
-    } catch (e) {
+    } catch {
       setMessages((m) => [
         ...m,
         {
