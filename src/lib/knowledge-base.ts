@@ -117,15 +117,17 @@ export async function extractTextFromFile(file: File): Promise<{ text: string; t
     return { text: await file.text(), type: "txt" };
   }
   if (name.endsWith(".docx")) {
-    const mammoth = await import("mammoth/mammoth.browser");
+    // @ts-expect-error subpath sem tipos declarados
+    const mammoth = await import("mammoth/mammoth.browser.js");
     const arrayBuffer = await file.arrayBuffer();
     const { value } = await mammoth.extractRawText({ arrayBuffer });
     return { text: value, type: "docx" };
   }
   if (name.endsWith(".pdf")) {
     const pdfjs = await import("pdfjs-dist");
-    // @ts-expect-error worker resolvido pelo Vite
-    const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+    const workerUrl = (
+      await import("pdfjs-dist/build/pdf.worker.min.mjs?url")
+    ).default;
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
     const buf = await file.arrayBuffer();
     const doc = await pdfjs.getDocument({ data: buf }).promise;
