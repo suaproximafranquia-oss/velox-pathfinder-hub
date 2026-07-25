@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -131,14 +132,18 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isExecutive = pathname.startsWith("/executivo");
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Persistent journey chrome: header, progress and index never remount
-          between chapters — only the Outlet body swaps with a subtle transition. */}
-      <JourneyChrome>
+      {isExecutive ? (
         <Outlet />
-      </JourneyChrome>
+      ) : (
+        <JourneyChrome>
+          <Outlet />
+        </JourneyChrome>
+      )}
     </QueryClientProvider>
   );
 }

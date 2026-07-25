@@ -773,24 +773,67 @@ function FaqBody() {
 // --- 12. Autoavaliação
 const QUIZ = [
   {
-    q: "Você está buscando construir um negócio de médio/longo prazo?",
-    opts: ["Sim, com essa clareza", "Ainda estou avaliando", "Busco retorno rápido"],
+    tag: "objetivos",
+    q: "O que mais te aproxima da ideia de empreender com a Velox neste momento?",
+    opts: [
+      "Construir um negócio próprio com propósito de longo prazo",
+      "Diversificar minha atuação profissional",
+      "Ainda estou explorando possibilidades",
+    ],
   },
   {
-    q: "Você tem disponibilidade para se dedicar ao treinamento de duas semanas?",
-    opts: ["Sim, sem restrições", "Com alguma organização, sim", "Hoje seria difícil"],
+    tag: "implantacao",
+    q: "Como você enxerga a fase inicial de implantação e treinamento?",
+    opts: [
+      "Encaro como parte essencial da construção do negócio",
+      "Consigo me organizar para dedicar esse período",
+      "Precisaria conversar com um consultor para planejar melhor",
+    ],
   },
   {
-    q: "Você se sente confortável em conduzir conversas consultivas com clientes?",
-    opts: ["Sim, é algo que gosto", "Posso desenvolver", "Não é meu perfil"],
+    tag: "consultivo",
+    q: "Qual é a sua afinidade com um modelo de trabalho consultivo?",
+    opts: [
+      "Tenho boa afinidade com atendimento e relacionamento",
+      "Não tenho experiência, mas gostaria de desenvolver",
+      "Prefiro entender melhor antes de me posicionar",
+    ],
   },
   {
-    q: "Seu momento financeiro permite iniciar um investimento com previsibilidade?",
-    opts: ["Sim, com tranquilidade", "Precisaria planejar", "Não neste momento"],
+    tag: "metodologia",
+    q: "Como você se sente em seguir uma metodologia já estruturada?",
+    opts: [
+      "Faz total sentido para reduzir erros e ganhar tempo",
+      "Gosto de seguir método, adaptando ao meu estilo",
+      "Prefiro construir minha própria forma de trabalhar",
+    ],
   },
   {
-    q: "Você está aberto a seguir uma metodologia estruturada?",
-    opts: ["Sim, faz sentido para mim", "Depende do formato", "Prefiro autonomia total"],
+    tag: "patrimonio",
+    q: "Qual é a sua visão sobre construir patrimônio por meio de um negócio próprio?",
+    opts: [
+      "Vejo como um dos caminhos mais consistentes",
+      "É uma possibilidade que estou avaliando com calma",
+      "Ainda estou formando minha visão sobre isso",
+    ],
+  },
+  {
+    tag: "momento",
+    q: "Como você descreveria o seu momento atual para iniciar um investimento?",
+    opts: [
+      "Já é um momento adequado para dar um próximo passo",
+      "Preciso planejar alguns detalhes antes",
+      "Estou em fase de estudo e ainda sem definição",
+    ],
+  },
+  {
+    tag: "conversa",
+    q: "Após esta leitura, qual é o seu interesse em continuar a conversa?",
+    opts: [
+      "Gostaria de conversar com um especialista Velox",
+      "Gostaria de aprofundar mais alguns pontos antes",
+      "Ainda estou apenas conhecendo o modelo",
+    ],
   },
 ] as const;
 
@@ -800,19 +843,49 @@ function AutoavaliacaoBody() {
   const answeredCount = answers.filter((a) => a !== null).length;
   const completed = answeredCount === QUIZ.length;
 
-  const score = useMemo(() => {
-    const total = answers.reduce<number>((acc, a) => acc + (a === 0 ? 2 : a === 1 ? 1 : 0), 0);
-    return total; // 0..10
-  }, [answers]);
-
-  const summary = useMemo(() => {
+  const reading = useMemo(() => {
     if (!completed) return null;
-    if (score >= 8)
-      return "Suas respostas indicam bastante aderência ao perfil que costuma se adaptar bem ao modelo Velox. Uma conversa com um especialista tende a ser produtiva.";
-    if (score >= 5)
-      return "Existem pontos de aderência importantes e outros que merecem ser conversados. Um especialista pode ajudar a esclarecer o que ainda restar de dúvida.";
-    return "Talvez este não seja o momento ideal para você — e reconhecer isso já é uma decisão consciente. Se quiser conversar mesmo assim, o convite segue aberto.";
-  }, [completed, score]);
+    const tendencies: string[] = [];
+    const byTag = (tag: string) => {
+      const idx = QUIZ.findIndex((q) => q.tag === tag);
+      return answers[idx];
+    };
+    if (byTag("objetivos") === 0)
+      tendencies.push("uma visão de longo prazo sobre empreender");
+    else if (byTag("objetivos") === 1)
+      tendencies.push("o desejo de diversificar sua atuação profissional");
+    else tendencies.push("um momento saudável de exploração");
+    if (byTag("implantacao") !== 2)
+      tendencies.push("abertura para dedicar-se à fase inicial de preparação");
+    if (byTag("consultivo") === 0)
+      tendencies.push("afinidade natural com um modelo consultivo");
+    else if (byTag("consultivo") === 1)
+      tendencies.push("disposição para desenvolver o lado consultivo do negócio");
+    if (byTag("metodologia") !== 2)
+      tendencies.push("valorização por uma metodologia estruturada");
+    if (byTag("patrimonio") === 0)
+      tendencies.push("uma visão clara sobre construção de patrimônio");
+    if (byTag("momento") === 0)
+      tendencies.push("um momento que parece favorável para um próximo passo");
+    else if (byTag("momento") === 1)
+      tendencies.push("um momento que pede planejamento antes de decidir");
+
+    const opener =
+      "Sua leitura indica " +
+      (tendencies.length > 1
+        ? tendencies.slice(0, -1).join(", ") + " e " + tendencies[tendencies.length - 1]
+        : tendencies[0]) +
+      ".";
+
+    const closer =
+      byTag("conversa") === 0
+        ? "Como você já sinalizou interesse em conversar, um especialista Velox pode aprofundar exatamente os pontos que ainda merecem clareza."
+        : byTag("conversa") === 1
+          ? "Faz sentido aprofundar mais alguns pontos antes de decidir. Uma conversa consultiva pode ajudar exatamente nesse esclarecimento — sem qualquer compromisso."
+          : "Conhecer com calma faz parte do processo. Quando fizer sentido, uma conversa breve pode ajudar a organizar as próximas reflexões.";
+
+    return `${opener} Cada pessoa vive um momento diferente, e o objetivo aqui é apenas ajudar você a tomar uma decisão consciente. ${closer}`;
+  }, [answers, completed]);
 
   return (
     <>
@@ -865,9 +938,9 @@ function AutoavaliacaoBody() {
         {completed ? (
           <>
             <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-2">
-              Sua leitura pessoal
+              Sua leitura personalizada
             </p>
-            <p className="text-base leading-relaxed">{summary}</p>
+            <p className="text-base leading-relaxed">{reading}</p>
             <div className="mt-5">
               <Link
                 to="/manual/proximos-passos"
