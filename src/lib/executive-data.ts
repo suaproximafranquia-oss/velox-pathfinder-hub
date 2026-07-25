@@ -44,7 +44,7 @@ export const MOCK_INVESTORS: Investor[] = [
     lastActivity: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
     aiInteractions: 4,
     diagnostic: "em andamento",
-    assignedToUserId: "usr_002",
+    assignedToUserId: "usr_marton",
   },
   {
     id: "inv_002",
@@ -58,7 +58,7 @@ export const MOCK_INVESTORS: Investor[] = [
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
     aiInteractions: 9,
     diagnostic: "concluído",
-    assignedToUserId: "usr_002",
+    assignedToUserId: "usr_paulo",
   },
   {
     id: "inv_003",
@@ -72,7 +72,7 @@ export const MOCK_INVESTORS: Investor[] = [
     lastActivity: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     aiInteractions: 0,
     diagnostic: "não iniciado",
-    assignedToUserId: "usr_003",
+    assignedToUserId: "usr_milton",
   },
   {
     id: "inv_004",
@@ -86,7 +86,7 @@ export const MOCK_INVESTORS: Investor[] = [
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
     aiInteractions: 12,
     diagnostic: "concluído",
-    assignedToUserId: "usr_003",
+    assignedToUserId: "usr_carlos",
   },
   {
     id: "inv_005",
@@ -100,7 +100,7 @@ export const MOCK_INVESTORS: Investor[] = [
     lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
     aiInteractions: 2,
     diagnostic: "não iniciado",
-    assignedToUserId: "usr_002",
+    assignedToUserId: "usr_talita",
   },
 ];
 
