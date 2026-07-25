@@ -15,8 +15,10 @@ import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
 import { Route as ExecutivoInvestidoresRouteImport } from './routes/executivo.investidores'
+import { Route as ExecutivoIaRouteImport } from './routes/executivo.ia'
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
+import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.conhecimento'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -48,6 +50,11 @@ const ExecutivoInvestidoresRoute = ExecutivoInvestidoresRouteImport.update({
   path: '/executivo/investidores',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoIaRoute = ExecutivoIaRouteImport.update({
+  id: '/executivo/ia',
+  path: '/executivo/ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoHomeRoute = ExecutivoHomeRouteImport.update({
   id: '/executivo/home',
   path: '/executivo/home',
@@ -58,11 +65,18 @@ const ExecutivoDashboardRoute = ExecutivoDashboardRouteImport.update({
   path: '/executivo/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoConhecimentoRoute = ExecutivoConhecimentoRouteImport.update({
+  id: '/executivo/conhecimento',
+  path: '/executivo/conhecimento',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
+  '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -71,8 +85,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
+  '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -82,8 +98,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
+  '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -94,8 +112,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
+    | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -104,8 +124,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
+    | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -114,8 +136,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
+    | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -125,8 +149,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExecutivoConhecimentoRoute: typeof ExecutivoConhecimentoRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
+  ExecutivoIaRoute: typeof ExecutivoIaRoute
   ExecutivoInvestidoresRoute: typeof ExecutivoInvestidoresRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   ManualChapterRoute: typeof ManualChapterRoute
@@ -178,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoInvestidoresRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/ia': {
+      id: '/executivo/ia'
+      path: '/executivo/ia'
+      fullPath: '/executivo/ia'
+      preLoaderRoute: typeof ExecutivoIaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/home': {
       id: '/executivo/home'
       path: '/executivo/home'
@@ -192,13 +225,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/conhecimento': {
+      id: '/executivo/conhecimento'
+      path: '/executivo/conhecimento'
+      fullPath: '/executivo/conhecimento'
+      preLoaderRoute: typeof ExecutivoConhecimentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExecutivoConhecimentoRoute: ExecutivoConhecimentoRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
+  ExecutivoIaRoute: ExecutivoIaRoute,
   ExecutivoInvestidoresRoute: ExecutivoInvestidoresRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   ManualChapterRoute: ManualChapterRoute,
