@@ -109,7 +109,7 @@ export const SEED_USERS: ExecutiveUser[] = [
     username: "larissa",
     password: "VLX_La73",
     slug: "larissa",
-    role: "executivo",
+    role: "diretora",
     status: "ativo",
   },
   {
