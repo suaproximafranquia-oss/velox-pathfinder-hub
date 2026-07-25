@@ -19,6 +19,7 @@ export type KnowledgeDocument = {
   name: string;
   type: DocumentType;
   visibility: DocumentVisibility;
+  description?: string;
   sizeBytes: number;
   uploadedByUserId: string;
   uploadedByName: string;
