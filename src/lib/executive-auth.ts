@@ -135,7 +135,13 @@ export function loadUsers(): ExecutiveUser[] {
     if (!raw) return SEED_USERS;
     const arr = JSON.parse(raw) as ExecutiveUser[];
     if (!Array.isArray(arr) || arr.length === 0) return SEED_USERS;
-    return arr;
+    // Garantir que todos os usuários oficiais existam (não podem ser removidos por
+    // dados antigos persistidos em localStorage de versões anteriores).
+    const byId = new Map(arr.map((u) => [u.id, u] as const));
+    for (const seed of SEED_USERS) {
+      if (!byId.has(seed.id)) byId.set(seed.id, seed);
+    }
+    return Array.from(byId.values());
   } catch {
     return SEED_USERS;
   }
@@ -157,7 +163,15 @@ export function getSession(): ExecutiveSession | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as ExecutiveSession;
+    const s = JSON.parse(raw) as ExecutiveSession;
+    // Sessão só é válida se o usuário existir na base atual.
+    const users = loadUsers();
+    const u = users.find((x) => x.id === s.userId && x.status === "ativo");
+    if (!u) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return { userId: u.id, role: u.role, name: u.name };
   } catch {
     return null;
   }
