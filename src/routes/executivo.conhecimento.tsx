@@ -67,6 +67,15 @@ function KnowledgePage() {
     setDocs(listDocuments(s.workspaceId));
   }, [navigate]);
 
+  const stats = useMemo(() => {
+    return {
+      total: docs.length,
+      ativos: docs.filter((d) => d.status === "ativo").length,
+      publicos: docs.filter((d) => d.visibility === "publico").length,
+      restritos: docs.filter((d) => d.visibility === "restrito").length,
+    };
+  }, [docs]);
+
   if (!session) return null;
 
   function refresh() {
@@ -162,15 +171,6 @@ function KnowledgePage() {
     removeDocument(id);
     refresh();
   }
-
-  const stats = useMemo(() => {
-    return {
-      total: docs.length,
-      ativos: docs.filter((d) => d.status === "ativo").length,
-      publicos: docs.filter((d) => d.visibility === "publico").length,
-      restritos: docs.filter((d) => d.visibility === "restrito").length,
-    };
-  }, [docs]);
 
   return (
     <ExecutiveShell session={session} title="Central de Conhecimento">
