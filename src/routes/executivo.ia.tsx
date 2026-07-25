@@ -52,11 +52,11 @@ function IaPage() {
 
   if (!session) return null;
 
-  const isInternal =
-    session.activeRole === "super_admin" ||
-    session.activeRole === "diretora" ||
-    session.activeRole === "executivo";
-  const audience: "publico" | "interno" = isInternal ? "interno" : "publico";
+  // Somente Administrador e Gestor acessam documentos Restritos.
+  // Colaboradores consultam apenas documentos Públicos.
+  const canSeeRestricted =
+    session.activeRole === "super_admin" || session.activeRole === "diretora";
+  const audience: "publico" | "interno" = canSeeRestricted ? "interno" : "publico";
   const canManageBase = canManageKnowledge(session.activeRole);
 
   async function send() {
