@@ -8,9 +8,12 @@ import {
   saveUsers,
   newUserId,
   canManageUsers,
+  canManageTargetUser,
+  assignableRoles,
   ROLE_LABEL,
   type ExecutiveSession,
   type ExecutiveUser,
+  type ExecutiveRole,
 } from "@/lib/executive-auth";
 import { ACTIVE_WORKSPACE_ID } from "@/config/workspace";
 
@@ -75,6 +78,9 @@ function UsuariosPage() {
   }
 
   function toggleStatus(id: string) {
+    const target = users.find((u) => u.id === id);
+    if (!target || !session) return;
+    if (!canManageTargetUser(session.activeRole, target.role)) return;
     persist(
       users.map((u) =>
         u.id === id ? { ...u, status: u.status === "ativo" ? "inativo" : "ativo" } : u,
@@ -83,13 +89,23 @@ function UsuariosPage() {
   }
 
   function remove(id: string) {
+    const target = users.find((u) => u.id === id);
+    if (!target || !session) return;
+    if (!canManageTargetUser(session.activeRole, target.role)) return;
     if (!confirm("Excluir este usuário?")) return;
     persist(users.filter((u) => u.id !== id));
   }
 
   function saveDraft() {
-    if (!draft) return;
+    if (!draft || !session) return;
     if (!draft.name || !draft.email) return;
+    // Validação de perfil atribuído — Gestor não pode atribuir Administrador.
+    if (!assignableRoles(session.activeRole).includes(draft.role)) return;
+    if (draft.id) {
+      const existing = users.find((u) => u.id === draft.id);
+      if (!existing) return;
+      if (!canManageTargetUser(session.activeRole, existing.role)) return;
+    }
     const { username, slug } = slugifyEmail(draft.email);
     const complete: Draft = {
       ...draft,
@@ -111,12 +127,20 @@ function UsuariosPage() {
 
   if (!session) return null;
 
+  const actorRole: ExecutiveRole = session.activeRole;
+  const roleOptions = assignableRoles(actorRole);
+
   return (
     <ExecutiveShell session={session} title="Gestão de usuários">
       <div className="flex justify-end mb-5">
         <button
           type="button"
-          onClick={() => setDraft({ ...emptyDraft })}
+          onClick={() =>
+            setDraft({
+              ...emptyDraft,
+              role: roleOptions[roleOptions.length - 1] ?? "executivo",
+            })
+          }
           className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-4 py-2 text-sm text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition"
         >
           <Plus className="h-4 w-4" /> Adicionar usuário
@@ -154,27 +178,35 @@ function UsuariosPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <button
-                      onClick={() => setDraft({ ...u })}
-                      title="Editar"
-                      className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => toggleStatus(u.id)}
-                      title={u.status === "ativo" ? "Desativar" : "Ativar"}
-                      className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60"
-                    >
-                      <Power className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => remove(u.id)}
-                      title="Excluir"
-                      className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-red-400 hover:bg-[color:var(--accent)]/60"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canManageTargetUser(actorRole, u.role) ? (
+                      <>
+                        <button
+                          onClick={() => setDraft({ ...u })}
+                          title="Editar"
+                          className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => toggleStatus(u.id)}
+                          title={u.status === "ativo" ? "Desativar" : "Ativar"}
+                          className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60"
+                        >
+                          <Power className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => remove(u.id)}
+                          title="Excluir"
+                          className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-red-400 hover:bg-[color:var(--accent)]/60"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)] px-2">
+                        Somente Administrador
+                      </span>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -229,9 +261,11 @@ function UsuariosPage() {
                   }
                   className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none"
                 >
-                  <option value="super_admin">Administrador</option>
-                  <option value="diretora">Gestor</option>
-                  <option value="executivo">Colaborador</option>
+                  {roleOptions.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
