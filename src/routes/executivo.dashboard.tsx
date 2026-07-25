@@ -12,7 +12,7 @@ import { MOCK_INVESTORS, formatRelative } from "@/lib/executive-data";
 export const Route = createFileRoute("/executivo/dashboard")({
   head: () => ({
     meta: [
-      { title: "Painel — Central do Executivo Velox" },
+      { title: "Painel — Atlas Platform" },
       { name: "robots", content: "noindex" },
     ],
   }),

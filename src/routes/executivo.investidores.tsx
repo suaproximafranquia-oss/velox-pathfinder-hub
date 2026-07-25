@@ -16,7 +16,7 @@ import {
 export const Route = createFileRoute("/executivo/investidores")({
   head: () => ({
     meta: [
-      { title: "Investidores — Central do Executivo Velox" },
+      { title: "Investidores — Atlas Platform" },
       { name: "robots", content: "noindex" },
     ],
   }),

@@ -2,11 +2,12 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Lock, ArrowLeft } from "lucide-react";
 import { getSession, signIn } from "@/lib/executive-auth";
+import { WORKSPACE } from "@/config/workspace";
 
 export const Route = createFileRoute("/executivo")({
   head: () => ({
     meta: [
-      { title: "Central do Executivo — Velox" },
+      { title: "Atlas Platform — Acesso corporativo" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -21,7 +22,7 @@ function ExecutiveLoginPage() {
 
   useEffect(() => {
     const s = getSession();
-    if (s) navigate({ to: "/executivo/dashboard" });
+    if (s) navigate({ to: "/executivo/home" });
   }, [navigate]);
 
   function handleSubmit(e: React.FormEvent) {
@@ -29,10 +30,10 @@ function ExecutiveLoginPage() {
     setError(null);
     const s = signIn(username, password);
     if (!s) {
-      setError("Usuário ou senha inválidos.");
+      setError("Credenciais inválidas. Verifique usuário e senha e tente novamente.");
       return;
     }
-    navigate({ to: "/executivo/dashboard" });
+    navigate({ to: "/executivo/home" });
   }
 
   return (
@@ -49,14 +50,14 @@ function ExecutiveLoginPage() {
         </div>
         <div className="text-center mb-8">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--gold)]/40 text-[color:var(--gold)] font-display mb-4">
-            V
+            {WORKSPACE.monogram}
           </span>
           <p className="text-[11px] uppercase tracking-[0.28em] text-[color:var(--gold)] mb-2">
-            Acesso restrito
+            {WORKSPACE.platformTagline}
           </p>
-          <h1 className="font-display text-2xl md:text-3xl">Central do Executivo</h1>
+          <h1 className="font-display text-2xl md:text-3xl">{WORKSPACE.platformName}</h1>
           <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            Ambiente destinado à equipe Velox.
+            Acesso corporativo restrito à equipe autorizada.
           </p>
         </div>
         <form
@@ -89,7 +90,14 @@ function ExecutiveLoginPage() {
               required
             />
           </div>
-          {error && <p className="text-sm text-red-400/90">{error}</p>}
+          {error && (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-400/30 bg-red-400/5 px-4 py-3 text-sm text-red-300"
+            >
+              {error}
+            </div>
+          )}
           <button
             type="submit"
             className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-6 py-3 text-sm font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition"
@@ -97,9 +105,12 @@ function ExecutiveLoginPage() {
             <Lock className="h-4 w-4" /> Entrar
           </button>
           <p className="text-[11px] text-[color:var(--muted-foreground)]/70 text-center leading-relaxed">
-            Ambiente de demonstração — acesso restrito à equipe Velox.
+            Autenticação local — nenhum dado é enviado para servidores externos.
           </p>
         </form>
+        <p className="mt-8 text-center text-[10px] uppercase tracking-[0.28em] text-[color:var(--muted-foreground)]/70">
+          {WORKSPACE.poweredBy}
+        </p>
       </div>
     </div>
   );
