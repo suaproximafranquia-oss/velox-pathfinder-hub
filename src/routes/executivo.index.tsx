@@ -4,7 +4,7 @@ import { Lock, ArrowLeft } from "lucide-react";
 import { getSession, signIn } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
 
-export const Route = createFileRoute("/executivo")({
+export const Route = createFileRoute("/executivo/")({
   head: () => ({
     meta: [
       { title: "Atlas Platform — Acesso corporativo" },
