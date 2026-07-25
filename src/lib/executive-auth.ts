@@ -4,7 +4,50 @@
  * sem quebrar identificadores internos (o ID é permanente).
  */
 
-export type ExecutiveRole = "gestor" | "executivo";
+export type ExecutiveRole = "super_admin" | "diretora" | "executivo";
+
+export const ROLE_LABEL: Record<ExecutiveRole, string> = {
+  super_admin: "Super Administrador",
+  diretora: "Diretora de Expansão",
+  executivo: "Executivo de Expansão",
+};
+
+/**
+ * Origem dos leads — estrutura de dados preparada para futuras integrações.
+ * Nenhuma funcionalidade implementada nesta etapa.
+ */
+export type LeadOrigin =
+  | "greensales"
+  | "manual_publico"
+  | "trafego_pago"
+  | "indicacao"
+  | "teste"
+  | "lead_privado";
+
+export const LEAD_ORIGIN_LABEL: Record<LeadOrigin, string> = {
+  greensales: "GreenSales",
+  manual_publico: "Manual Público",
+  trafego_pago: "Tráfego Pago",
+  indicacao: "Indicação",
+  teste: "Teste",
+  lead_privado: "Lead Privado",
+};
+
+/**
+ * Permissões — apenas o Super Administrador pode visualizar Leads Privados.
+ * Estrutura preparada; nenhuma tela de Leads Privados é criada nesta etapa.
+ */
+export function canViewPrivateLeads(role: ExecutiveRole): boolean {
+  return role === "super_admin";
+}
+
+export function canManageUsers(role: ExecutiveRole): boolean {
+  return role === "super_admin";
+}
+
+export function canViewAllInvestors(role: ExecutiveRole): boolean {
+  return role === "super_admin" || role === "diretora";
+}
 
 export type ExecutiveUser = {
   id: string;
@@ -16,34 +59,70 @@ export type ExecutiveUser = {
   status: "ativo" | "inativo";
 };
 
-const STORAGE_KEY = "velox:executive:session:v1";
-const USERS_KEY = "velox:executive:users:v1";
+const STORAGE_KEY = "velox:executive:session:v2";
+const USERS_KEY = "velox:executive:users:v2";
 
 export const SEED_USERS: ExecutiveUser[] = [
   {
-    id: "usr_001",
-    name: "Maria Andrade",
-    username: "gestor",
-    password: "gestor123",
-    slug: "maria-andrade",
-    role: "gestor",
+    id: "usr_thiago",
+    name: "Thiago Rodrigues",
+    username: "thiago",
+    password: "thiago123",
+    slug: "thiago-rodrigues",
+    role: "super_admin",
     status: "ativo",
   },
   {
-    id: "usr_002",
-    name: "Rafael Torres",
-    username: "executivo",
-    password: "executivo123",
-    slug: "rafael-torres",
+    id: "usr_larissa",
+    name: "Larissa",
+    username: "larissa",
+    password: "larissa123",
+    slug: "larissa",
+    role: "diretora",
+    status: "ativo",
+  },
+  {
+    id: "usr_marton",
+    name: "Marton",
+    username: "marton",
+    password: "marton123",
+    slug: "marton",
     role: "executivo",
     status: "ativo",
   },
   {
-    id: "usr_003",
-    name: "Carla Menezes",
-    username: "carla",
-    password: "carla123",
-    slug: "carla-menezes",
+    id: "usr_paulo",
+    name: "Paulo",
+    username: "paulo",
+    password: "paulo123",
+    slug: "paulo",
+    role: "executivo",
+    status: "ativo",
+  },
+  {
+    id: "usr_milton",
+    name: "Milton",
+    username: "milton",
+    password: "milton123",
+    slug: "milton",
+    role: "executivo",
+    status: "ativo",
+  },
+  {
+    id: "usr_carlos",
+    name: "Carlos",
+    username: "carlos",
+    password: "carlos123",
+    slug: "carlos",
+    role: "executivo",
+    status: "ativo",
+  },
+  {
+    id: "usr_talita",
+    name: "Talita",
+    username: "talita",
+    password: "talita123",
+    slug: "talita",
     role: "executivo",
     status: "ativo",
   },

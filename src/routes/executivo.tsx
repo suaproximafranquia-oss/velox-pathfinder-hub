@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Lock } from "lucide-react";
+import { Lock, ArrowLeft } from "lucide-react";
 import { getSession, signIn } from "@/lib/executive-auth";
 
 export const Route = createFileRoute("/executivo")({
@@ -38,6 +38,15 @@ function ExecutiveLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[color:var(--background)] bg-grain px-6 py-16">
       <div className="w-full max-w-md">
+        <div className="mb-6 flex justify-center">
+          <Link
+            to="/"
+            title="Retornando ao Manual do Investidor"
+            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao Manual
+          </Link>
+        </div>
         <div className="text-center mb-8">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--gold)]/40 text-[color:var(--gold)] font-display mb-4">
             V
@@ -88,8 +97,7 @@ function ExecutiveLoginPage() {
             <Lock className="h-4 w-4" /> Entrar
           </button>
           <p className="text-[11px] text-[color:var(--muted-foreground)]/70 text-center leading-relaxed">
-            Usuários de teste: <span className="font-mono">gestor / gestor123</span> ·{" "}
-            <span className="font-mono">executivo / executivo123</span>
+            Ambiente de demonstração — acesso restrito à equipe Velox.
           </p>
         </form>
       </div>

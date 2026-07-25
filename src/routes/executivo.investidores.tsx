@@ -2,7 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Download, Search } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  getSession,
+  canViewAllInvestors,
+  type ExecutiveSession,
+} from "@/lib/executive-auth";
 import {
   MOCK_INVESTORS,
   STATUS_LABEL,
@@ -32,10 +36,9 @@ function InvestidoresPage() {
 
   const investors = useMemo(() => {
     if (!session) return [];
-    const base =
-      session.role === "gestor"
-        ? MOCK_INVESTORS
-        : MOCK_INVESTORS.filter((i) => i.assignedToUserId === session.userId);
+    const base = canViewAllInvestors(session.role)
+      ? MOCK_INVESTORS
+      : MOCK_INVESTORS.filter((i) => i.assignedToUserId === session.userId);
     const q = query.trim().toLowerCase();
     if (!q) return base;
     return base.filter(

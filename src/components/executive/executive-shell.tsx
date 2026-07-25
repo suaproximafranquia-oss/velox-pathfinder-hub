@@ -1,7 +1,13 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Users, UserCog, LogOut, ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
-import { getSession, signOut, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  getSession,
+  signOut,
+  canManageUsers,
+  ROLE_LABEL,
+  type ExecutiveSession,
+} from "@/lib/executive-auth";
 import { cn } from "@/lib/utils";
 
 export function ExecutiveShell({
@@ -19,7 +25,7 @@ export function ExecutiveShell({
   const nav = [
     { to: "/executivo/dashboard", label: "Painel", icon: LayoutDashboard },
     { to: "/executivo/investidores", label: "Investidores", icon: Users },
-    ...(session.role === "gestor"
+    ...(canManageUsers(session.role)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
   ];
@@ -41,13 +47,14 @@ export function ExecutiveShell({
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden md:inline text-xs text-[color:var(--muted-foreground)]">
-              {session.name} · {session.role === "gestor" ? "Gestor" : "Executivo"}
+              {session.name} · {ROLE_LABEL[session.role]}
             </span>
             <Link
               to="/"
+              title="Retornando ao Manual do Investidor"
               className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Manual
+              <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao Manual
             </Link>
             <button
               type="button"

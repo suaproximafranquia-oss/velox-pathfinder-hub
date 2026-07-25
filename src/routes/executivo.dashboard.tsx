@@ -2,7 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Users, BookOpen, Clock, CheckCircle2 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  getSession,
+  canViewAllInvestors,
+  type ExecutiveSession,
+} from "@/lib/executive-auth";
 import { MOCK_INVESTORS, formatRelative } from "@/lib/executive-data";
 
 export const Route = createFileRoute("/executivo/dashboard")({
@@ -27,7 +31,7 @@ function DashboardPage() {
 
   const investors = useMemo(() => {
     if (!session) return [];
-    return session.role === "gestor"
+    return canViewAllInvestors(session.role)
       ? MOCK_INVESTORS
       : MOCK_INVESTORS.filter((i) => i.assignedToUserId === session.userId);
   }, [session]);

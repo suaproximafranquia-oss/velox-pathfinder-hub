@@ -7,6 +7,8 @@ import {
   loadUsers,
   saveUsers,
   newUserId,
+  canManageUsers,
+  ROLE_LABEL,
   type ExecutiveSession,
   type ExecutiveUser,
 } from "@/lib/executive-auth";
@@ -44,7 +46,7 @@ function UsuariosPage() {
       navigate({ to: "/executivo" });
       return;
     }
-    if (s.role !== "gestor") {
+    if (!canManageUsers(s.role)) {
       navigate({ to: "/executivo/dashboard" });
       return;
     }
@@ -120,7 +122,7 @@ function UsuariosPage() {
                 <td className="px-4 py-3 text-[color:var(--muted-foreground)] font-mono text-xs">
                   /{u.slug}
                 </td>
-                <td className="px-4 py-3 capitalize">{u.role}</td>
+                <td className="px-4 py-3">{ROLE_LABEL[u.role]}</td>
                 <td className="px-4 py-3">
                   <span
                     className={
@@ -204,8 +206,9 @@ function UsuariosPage() {
                   }
                   className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none"
                 >
-                  <option value="executivo">Executivo</option>
-                  <option value="gestor">Gestor</option>
+                  <option value="executivo">Executivo de Expansão</option>
+                  <option value="diretora">Diretora de Expansão</option>
+                  <option value="super_admin">Super Administrador</option>
                 </select>
               </div>
               <div>
