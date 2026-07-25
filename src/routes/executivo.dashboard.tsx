@@ -31,7 +31,7 @@ function DashboardPage() {
 
   const investors = useMemo(() => {
     if (!session) return [];
-    return canViewAllInvestors(session.role)
+    return canViewAllInvestors(session.activeRole)
       ? MOCK_INVESTORS
       : MOCK_INVESTORS.filter((i) => i.assignedToUserId === session.userId);
   }, [session]);

@@ -37,7 +37,7 @@ function InvestidoresPage() {
 
   const investors = useMemo(() => {
     if (!session) return [];
-    const base = canViewAllInvestors(session.role)
+    const base = canViewAllInvestors(session.activeRole)
       ? MOCK_INVESTORS
       : MOCK_INVESTORS.filter((i) => i.assignedToUserId === session.userId);
     const q = query.trim().toLowerCase();
