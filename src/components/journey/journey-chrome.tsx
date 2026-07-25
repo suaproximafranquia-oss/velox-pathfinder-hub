@@ -61,7 +61,7 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
             <Link
               to="/executivo"
               className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition-colors"
-              title="Acesso restrito à equipe Velox"
+              title="Acesso corporativo à Atlas Platform"
             >
               <ShieldCheck className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Acesso Executivo</span>
