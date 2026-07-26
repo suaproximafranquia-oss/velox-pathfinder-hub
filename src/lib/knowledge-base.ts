@@ -262,8 +262,12 @@ export async function ingestFile(
       // Fundo branco melhora OCR em slides com fundo claro/colorido.
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // @ts-expect-error assinatura variando entre versões do pdfjs
-      await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+      await page.render({
+        canvasContext: ctx,
+        viewport,
+        // Novas versões do pdfjs exigem `canvas` no argumento.
+        canvas,
+      } as unknown as Parameters<typeof page.render>[0]).promise;
       return canvas.toDataURL("image/png");
     }
 
