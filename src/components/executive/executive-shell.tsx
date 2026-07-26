@@ -28,6 +28,7 @@ import {
 } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
+import { RecognitionHost } from "@/components/recognition/recognition-host";
 
 export function ExecutiveShell({
   session,
@@ -136,6 +137,7 @@ export function ExecutiveShell({
           <span>{WORKSPACE.poweredBy}</span>
         </div>
       </footer>
+      <RecognitionHost userId={session.userId} />
     </div>
   );
 }
