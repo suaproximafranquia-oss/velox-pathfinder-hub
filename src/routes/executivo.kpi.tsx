@@ -619,18 +619,23 @@ function KpiSpreadsheet({
           >
             Total
           </div>
-          {rows.map(({ ind, total }, i) => (
-            <div
-              key={ind.id}
-              className={cn(
-                "flex items-center justify-end pr-3 text-[12px] font-semibold tabular-nums border-b border-black/5 text-[color:var(--navy)]",
-                i % 2 === 1 && "bg-black/[0.015]",
-              )}
-              style={{ height: ROW_H }}
-            >
-              {formatValue(total, ind.unit)}
-            </div>
-          ))}
+          {rows.map(({ ind, total }, i) => {
+            const tier =
+              ind.id === SALES_VALUE_INDICATOR_ID ? campaignTierClass(total) : "";
+            return (
+              <div
+                key={ind.id}
+                className={cn(
+                  "flex items-center justify-end pr-3 text-[12px] font-semibold tabular-nums border-b border-black/5 text-[color:var(--navy)] transition-colors",
+                  i % 2 === 1 && !tier && "bg-black/[0.015]",
+                  tier,
+                )}
+                style={{ height: ROW_H }}
+              >
+                {formatValue(total, ind.unit)}
+              </div>
+            );
+          })}
         </div>
         <div className="border-l border-black/5" style={{ width: AVG_W }}>
           <div
