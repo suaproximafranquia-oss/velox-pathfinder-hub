@@ -331,6 +331,29 @@ body[data-shell="portal"] .portal-grid {
     linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px);
   background-size: 72px 72px;
 }
+@keyframes portal-hero-ken {
+  0%   { transform: scale(1.08) translate3d(0, 0, 0); }
+  100% { transform: scale(1.16) translate3d(-1.5%, -1%, 0); }
+}
+body[data-shell="portal"] .portal-hero-ken {
+  animation: portal-hero-ken 22s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes portal-hero-scroll {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50%      { transform: translateY(6px); opacity: 1; }
+}
+body[data-shell="portal"] .portal-hero-scroll {
+  display: inline-block;
+  width: 1px;
+  height: 28px;
+  background: color-mix(in oklab, var(--paper) 70%, transparent);
+  animation: portal-hero-scroll 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-shell="portal"] .portal-hero-ken,
+  body[data-shell="portal"] .portal-hero-scroll { animation: none !important; }
+}
 body[data-shell="portal"] .portal-rule {
   display: inline-block;
   height: 1px;

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, Compass, Building2, Newspaper, Sparkles, ShieldCheck, ArrowUpRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, Compass, Building2, Newspaper, Sparkles, ShieldCheck, ArrowUpRight, X } from "lucide-react";
 import heroImg from "@/assets/portal-hero.jpg.asset.json";
 import executivosImg from "@/assets/portal-executivos.png.asset.json";
 import sedeImg from "@/assets/portal-sede.jpg.asset.json";
@@ -38,7 +39,7 @@ type ModuleCard = {
   description: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   cover: string;
-  to?: string;
+  panelSrc?: string;
   href?: string;
   cta: string;
   status: "aberto" | "em-preparacao";
@@ -53,7 +54,7 @@ const MODULES: ModuleCard[] = [
       "Uma leitura editorial em 13 capítulos sobre a franquia Velox, seus valores e o modelo de negócio — sem pressão comercial.",
     icon: BookOpen,
     cover: recepcaoImg.url,
-    to: "/manual",
+    panelSrc: "/manual",
     cta: "Iniciar a leitura",
     status: "aberto",
   },
@@ -104,15 +105,30 @@ const MODULES: ModuleCard[] = [
 ];
 
 function PortalHome() {
+  const [openPanel, setOpenPanel] = useState<{ src: string; title: string } | null>(null);
+
+  useEffect(() => {
+    if (!openPanel) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenPanel(null);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [openPanel]);
+
   return (
     <div className="min-h-screen">
       <PortalHeader />
       <main>
         <Hero />
-        <ModulesGrid />
+        <ModulesGrid onOpen={(m) => m.panelSrc && setOpenPanel({ src: m.panelSrc, title: m.title })} />
         <ClosingBand />
       </main>
       <PortalFooter />
+      <ModulePanel panel={openPanel} onClose={() => setOpenPanel(null)} />
     </div>
   );
 }
@@ -134,12 +150,6 @@ function PortalHeader() {
           </span>
         </Link>
         <nav className="hidden items-center gap-8 md:flex">
-          <a href="#modulos" className="text-sm text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors">
-            Módulos
-          </a>
-          <Link to="/manual" className="text-sm text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors">
-            Manual
-          </Link>
           <Link
             to="/executivo"
             className="inline-flex items-center gap-1.5 border px-4 py-2 text-xs uppercase tracking-[0.22em] transition-colors"
@@ -164,90 +174,96 @@ function PortalHeader() {
 
 function Hero() {
   return (
-    <section className="relative isolate overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-0 portal-grid opacity-70" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-24 top-10 h-[36rem] w-[36rem] rounded-full opacity-30 blur-3xl"
-        style={{ background: "color-mix(in oklab, var(--brand-orange) 55%, transparent)" }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-32 bottom-0 h-[32rem] w-[32rem] rounded-full opacity-25 blur-3xl"
-        style={{ background: "color-mix(in oklab, var(--brand-blue) 55%, transparent)" }}
-      />
+    <section className="relative isolate overflow-hidden -mt-[88px]">
+      {/* Fotografia institucional como cenário integral */}
+      <div aria-hidden className="absolute inset-0">
+        <img
+          src={heroImg.url}
+          alt=""
+          className="h-full w-full object-cover portal-hero-ken"
+        />
+        {/* Camadas editoriais: profundidade, iluminação e vinheta */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, color-mix(in oklab, var(--ink) 55%, transparent) 0%, color-mix(in oklab, var(--ink) 20%, transparent) 40%, color-mix(in oklab, var(--ink) 78%, transparent) 100%)",
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(60% 55% at 25% 45%, color-mix(in oklab, var(--brand-orange) 18%, transparent), transparent 70%), radial-gradient(50% 50% at 90% 20%, color-mix(in oklab, var(--brand-blue) 22%, transparent), transparent 65%)",
+            mixBlendMode: "screen",
+          }}
+        />
+        <div aria-hidden className="absolute inset-0 portal-grid opacity-[0.08]" />
+      </div>
 
-      <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-20 pt-16 md:grid-cols-12 md:gap-16 md:px-10 md:pb-28 md:pt-24">
-        <div className="md:col-span-7">
+      <div className="relative mx-auto flex max-w-7xl flex-col justify-end px-6 pb-24 pt-40 md:px-10 md:pb-32 md:pt-52 min-h-[92vh]">
+        <div className="max-w-3xl">
           <div className="flex items-center gap-4">
-            <span className="portal-rule" aria-hidden />
-            <span className="portal-eyebrow">Ecossistema Velox · Edição MMXXVI</span>
+            <span
+              className="portal-rule"
+              aria-hidden
+              style={{ background: "var(--brand-orange)" }}
+            />
+            <span
+              className="portal-eyebrow"
+              style={{ color: "color-mix(in oklab, var(--paper) 78%, transparent)" }}
+            >
+              Ecossistema Velox · Edição MMXXVI
+            </span>
           </div>
           <h1
             className="portal-serif mt-8 text-balance"
-            style={{ fontSize: "clamp(2.75rem, 7vw, 6rem)" }}
+            style={{
+              fontSize: "clamp(3rem, 8vw, 7rem)",
+              color: "var(--paper)",
+              textShadow: "0 2px 32px color-mix(in oklab, var(--ink) 45%, transparent)",
+            }}
           >
             Portal <span style={{ color: "var(--brand-orange)" }}>Velox</span>.
           </h1>
-          <p className="portal-serif mt-6 italic text-[color:var(--muted-foreground)]" style={{ fontSize: "clamp(1.25rem, 2.4vw, 1.75rem)" }}>
-            Uma única plataforma para acessar tudo o que a Velox oferece.
-          </p>
-          <p className="mt-8 max-w-[56ch] text-base leading-relaxed text-[color:var(--muted-foreground)] md:text-lg">
-            O Portal Velox reúne, em um só lugar, o Manual do Investidor,
-            o Universo institucional, nossa sede, comunicados e experiências
-            da rede — além do acesso reservado à Área Executiva. Uma recepção
-            editorial construída para franqueados, investidores e parceiros.
-          </p>
-          <div className="mt-10 flex flex-wrap items-center gap-4">
-            <Link
-              to="/manual"
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm uppercase tracking-[0.2em] transition-transform hover:-translate-y-0.5"
-              style={{
-                background: "var(--brand-blue-deep)",
-                color: "var(--primary-foreground)",
-              }}
-            >
-              Ler o Manual do Investidor
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-            <a
-              href="#modulos"
-              className="inline-flex items-center gap-2 border px-6 py-3 text-sm uppercase tracking-[0.2em]"
-              style={{ borderColor: "var(--paper-edge)" }}
-            >
-              Explorar módulos
-            </a>
-          </div>
-        </div>
-
-        <div className="md:col-span-5">
-          <figure
-            className="relative overflow-hidden border"
+          <p
+            className="portal-serif mt-6 italic"
             style={{
-              borderColor: "var(--paper-edge)",
-              boxShadow: "0 40px 90px -32px color-mix(in oklab, var(--ink) 55%, transparent)",
+              fontSize: "clamp(1.25rem, 2.4vw, 1.75rem)",
+              color: "color-mix(in oklab, var(--paper) 88%, transparent)",
             }}
           >
-            <img
-              src={heroImg.url}
-              alt="Sede institucional Velox Soluções Financeiras"
-              className="h-full w-full object-cover"
-            />
-            <figcaption
-              className="absolute inset-x-0 bottom-0 flex items-center justify-between px-5 py-3 text-[11px] uppercase tracking-[0.24em]"
-              style={{ background: "color-mix(in oklab, var(--graphite) 78%, transparent)", color: "var(--paper)" }}
-            >
-              <span>Sede Velox</span>
-              <span>São José do Rio Preto · SP</span>
-            </figcaption>
-          </figure>
+            Uma única plataforma para acessar tudo o que a Velox oferece.
+          </p>
+          <p
+            className="mt-8 max-w-[56ch] text-base leading-relaxed md:text-lg"
+            style={{ color: "color-mix(in oklab, var(--paper) 78%, transparent)" }}
+          >
+            O Portal Velox reúne, em um só lugar, o Manual do Investidor,
+            o Universo institucional, nossa sede, comunicados e experiências
+            da rede — uma recepção editorial construída para franqueados,
+            investidores e parceiros.
+          </p>
+        </div>
+
+        {/* Rodapé editorial do Hero */}
+        <div
+          className="mt-20 flex flex-wrap items-end justify-between gap-6 border-t pt-6 text-[11px] uppercase tracking-[0.24em]"
+          style={{
+            borderColor: "color-mix(in oklab, var(--paper) 25%, transparent)",
+            color: "color-mix(in oklab, var(--paper) 70%, transparent)",
+          }}
+        >
+          <span>Sede Velox · São José do Rio Preto · SP</span>
+          <span className="hidden md:inline">Role para conhecer os módulos</span>
+          <span aria-hidden className="portal-hero-scroll" />
         </div>
       </div>
     </section>
   );
 }
 
-function ModulesGrid() {
+function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
   return (
     <section id="modulos" className="relative border-y" style={{ borderColor: "var(--paper-edge)" }}>
       <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
@@ -265,7 +281,7 @@ function ModulesGrid() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {MODULES.map((m) => (
-            <ModuleTile key={m.key} module={m} />
+            <ModuleTile key={m.key} module={m} onOpen={onOpen} />
           ))}
         </div>
       </div>
@@ -273,7 +289,7 @@ function ModulesGrid() {
   );
 }
 
-function ModuleTile({ module: m }: { module: ModuleCard }) {
+function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: ModuleCard) => void }) {
   const Icon = m.icon;
   const inner = (
     <article className="portal-card group flex h-full flex-col">
@@ -329,11 +345,16 @@ function ModuleTile({ module: m }: { module: ModuleCard }) {
     </article>
   );
 
-  if (m.to) {
+  if (m.panelSrc) {
     return (
-      <Link to={m.to} aria-label={m.title} className="block h-full focus:outline-none">
+      <button
+        type="button"
+        onClick={() => onOpen(m)}
+        aria-label={`Abrir ${m.title}`}
+        className="block h-full w-full text-left focus:outline-none"
+      >
         {inner}
-      </Link>
+      </button>
     );
   }
   if (m.href) {
@@ -346,6 +367,74 @@ function ModuleTile({ module: m }: { module: ModuleCard }) {
   return (
     <div aria-label={m.title} className="block h-full opacity-95">
       {inner}
+    </div>
+  );
+}
+
+function ModulePanel({
+  panel,
+  onClose,
+}: {
+  panel: { src: string; title: string } | null;
+  onClose: () => void;
+}) {
+  const open = Boolean(panel);
+  return (
+    <div
+      className={
+        "fixed inset-0 z-[70] transition-opacity duration-500 " +
+        (open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")
+      }
+      aria-hidden={!open}
+    >
+      {/* Backdrop com blur — mantém o Portal visível ao fundo */}
+      <button
+        type="button"
+        aria-label="Fechar painel"
+        onClick={onClose}
+        className="absolute inset-0"
+        style={{
+          background: "color-mix(in oklab, var(--ink) 55%, transparent)",
+          backdropFilter: "blur(14px)",
+        }}
+      />
+      {/* Painel central ~94% da tela */}
+      <div
+        className={
+          "absolute inset-x-[3vw] top-[3vh] bottom-[3vh] overflow-hidden rounded-2xl border shadow-2xl transition-all duration-500 " +
+          (open ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0")
+        }
+        style={{
+          borderColor: "color-mix(in oklab, var(--paper) 25%, transparent)",
+          background: "var(--paper)",
+          boxShadow: "0 60px 120px -30px color-mix(in oklab, var(--ink) 70%, transparent)",
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={panel?.title ?? ""}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fechar"
+          className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition hover:scale-105"
+          style={{
+            borderColor: "color-mix(in oklab, var(--paper) 40%, transparent)",
+            background: "color-mix(in oklab, var(--ink) 55%, transparent)",
+            color: "var(--paper)",
+          }}
+        >
+          <X className="h-5 w-5" />
+        </button>
+        {panel && (
+          <iframe
+            key={panel.src}
+            src={panel.src}
+            title={panel.title}
+            className="h-full w-full border-0"
+          />
+        )}
+      </div>
     </div>
   );
 }
