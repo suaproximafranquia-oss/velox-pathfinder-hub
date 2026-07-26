@@ -327,9 +327,9 @@ body[data-shell="portal"] .portal-eyebrow {
 }
 body[data-shell="portal"] .portal-grid {
   background-image:
-    linear-gradient(to right, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px);
-  background-size: 72px 72px;
+    linear-gradient(to right, color-mix(in oklab, var(--foreground) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 3%, transparent) 1px, transparent 1px);
+  background-size: 96px 96px;
 }
 @keyframes portal-hero-ken {
   0%   { transform: scale(1.08) translate3d(0, 0, 0); }
@@ -363,14 +363,40 @@ body[data-shell="portal"] .portal-rule {
 body[data-shell="portal"] .portal-card {
   background: var(--paper-2);
   border: 1px solid var(--paper-edge);
-  transition: transform 400ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    box-shadow 400ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    border-color 300ms;
+  position: relative;
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--paper) 60%, transparent) inset,
+    0 8px 24px -18px color-mix(in oklab, var(--ink) 45%, transparent);
+  transition: transform 500ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 500ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    border-color 400ms;
+}
+body[data-shell="portal"] .portal-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: 0 0 0 1px transparent inset;
+  opacity: 0;
+  transition: opacity 500ms ease;
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--brand-orange) 22%, transparent) 0%,
+    transparent 30%,
+    transparent 70%,
+    color-mix(in oklab, var(--brand-blue) 18%, transparent) 100%);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  padding: 1px;
+}
+body[data-shell="portal"] .portal-card:hover::after {
+  opacity: 1;
 }
 body[data-shell="portal"] .portal-card:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in oklab, var(--brand-orange) 55%, var(--paper-edge));
-  box-shadow: 0 30px 60px -30px color-mix(in oklab, var(--ink) 40%, transparent);
+  transform: translateY(-6px) scale(1.012);
+  border-color: color-mix(in oklab, var(--brand-orange) 40%, var(--paper-edge));
+  box-shadow: 0 40px 80px -30px color-mix(in oklab, var(--ink) 55%, transparent),
+    0 20px 40px -20px color-mix(in oklab, var(--brand-blue) 25%, transparent);
 }
 
 @layer base {
