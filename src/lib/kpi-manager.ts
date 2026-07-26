@@ -91,10 +91,14 @@ export type KpiIndicator = {
   group: "captacao" | "atividade" | "reunioes" | "fechamento" | "resultado";
   /** Contrato semântico consumido pelo Brain / IA. */
   brainKey: string;
+  /** Marcador lateral discreto para diferenciação visual de linhas. */
+  marker?: "green" | "gold";
 };
 
 export const INDICATORS: KpiIndicator[] = [
   { id: "leads",           label: "Leads",                              unit: "count",    group: "captacao",   brainKey: "leads" },
+  { id: "leadsJoao",       label: "Leads João",                         unit: "count",    group: "captacao",   brainKey: "leadsJoao",   marker: "green" },
+  { id: "leadsFelipe",     label: "Leads Felipe",                       unit: "count",    group: "captacao",   brainKey: "leadsFelipe", marker: "gold"  },
   { id: "calls",           label: "Ligações realizadas no dia",         unit: "count",    group: "atividade",  brainKey: "callsMade" },
   { id: "callsAnswered",   label: "Ligações atendidas no dia",          unit: "count",    group: "atividade",  brainKey: "callsAnswered" },
   { id: "presentations",   label: "Apresentações do dia",               unit: "count",    group: "reunioes",   brainKey: "presentations" },
@@ -134,6 +138,8 @@ type ProfileWeights = {
 
 const DEFAULT_RANGES: Record<IndicatorId, [number, number]> = {
   leads: [4, 12],
+  leadsJoao: [2, 6],
+  leadsFelipe: [2, 6],
   calls: [30, 70],
   callsAnswered: [12, 30],
   messages: [20, 60],
@@ -147,6 +153,20 @@ const DEFAULT_RANGES: Record<IndicatorId, [number, number]> = {
   salesValue: [0, 8500],
 };
 
+/**
+ * Alvos fictícios da Campanha Velox (Julho/2026). Após a semeadura, a linha
+ * `salesValue` é reescalonada para o total previsto — permitindo demonstrar
+ * visualmente todos os níveis da campanha (Mestre, Doutor, PhD, Supreme e
+ * um perfil ainda em progressão).
+ */
+const CAMPAIGN_DEMO_TARGETS: Record<string, number> = {
+  usr_thiago: 92000,   // PhD
+  usr_joao: 62000,     // Mestre
+  usr_felipe: 78000,   // Doutor
+  usr_carlos: 108000,  // Supreme
+  usr_larissa: 38000,  // abaixo de Mestre
+};
+
 const PROFILES: Record<string, ProfileWeights> = {
   usr_thiago:  { seed: 17,  intensity: 1.20, ranges: { salesValue: [1500, 12000] } },
   usr_larissa: { seed: 33,  intensity: 1.10, ranges: { presentations: [3, 7], contractsSigned: [1, 3] } },
@@ -155,6 +175,8 @@ const PROFILES: Record<string, ProfileWeights> = {
   usr_milton:  { seed: 79,  intensity: 0.90, ranges: { messages: [30, 80] } },
   usr_carlos:  { seed: 93,  intensity: 1.15, ranges: { videosDone: [2, 5] } },
   usr_talita:  { seed: 111, intensity: 1.00, ranges: { emails: [12, 32] } },
+  usr_joao:    { seed: 127, intensity: 1.05 },
+  usr_felipe:  { seed: 143, intensity: 1.10 },
 };
 
 /** Gerador determinístico (mulberry32). Garante estabilidade entre sessões. */
@@ -202,6 +224,26 @@ function seedMatrixFor(userId: string, m: KpiMonth): KpiMatrix {
         continue;
       }
       matrix[ind.id][d] = randRange(r, range, factor);
+    }
+  }
+
+  // Ajuste de demonstração da Campanha Velox — apenas em Julho/2026 e apenas
+  // para os usuários mapeados. Redistribui salesValue para atingir o alvo
+  // demonstrativo sem alterar contratos/vendas registrados.
+  const target = CAMPAIGN_DEMO_TARGETS[userId];
+  if (target != null && m.key === "2026-07") {
+    const row = matrix.salesValue;
+    let sum = 0;
+    for (const k in row) sum += row[k as unknown as number] || 0;
+    if (sum > 0) {
+      const scale = target / sum;
+      for (const k in row) row[k as unknown as number] = Math.round((row[k as unknown as number] || 0) * scale);
+    } else {
+      // Sem contratos assinados no mês: distribui o alvo apenas nos dias úteis.
+      const weekdays: number[] = [];
+      for (let d = 1; d <= days; d++) if (!isWeekend(m, d)) weekdays.push(d);
+      const per = Math.round(target / Math.max(1, weekdays.length));
+      for (const d of weekdays) row[d] = per;
     }
   }
   return matrix;
@@ -397,4 +439,41 @@ export function formatCurrency(v: number): string { return CURRENCY.format(v || 
 export function formatNumber(v: number): string { return NUMBER.format(Math.round(v || 0)); }
 export function formatPercent(v: number): string {
   return `${(v * 100).toFixed(1).replace(".", ",")}%`;
+}
+
+/* ---------------------- Campanha Velox ---------------------- */
+
+export type CampaignLevelKey = "mestre" | "doutor" | "phd" | "supreme";
+
+export type CampaignLevel = {
+  key: CampaignLevelKey;
+  label: string;
+  emoji: string;
+  /** Cor semântica CSS (hex ou var) para a barra e o badge. */
+  color: string;
+  /** Valor mínimo em BRL para atingir o nível. */
+  min: number;
+};
+
+export const CAMPAIGN_MAX = 100000;
+
+export const CAMPAIGN_LEVELS: CampaignLevel[] = [
+  { key: "mestre",  label: "Mestre",  emoji: "🥉", color: "#3B82F6", min: 55000 },
+  { key: "doutor",  label: "Doutor",  emoji: "🥈", color: "#EAB308", min: 70000 },
+  { key: "phd",     label: "PhD",     emoji: "🥇", color: "#1F2937", min: 90000 },
+  { key: "supreme", label: "Supreme", emoji: "👑", color: "#D4AF37", min: 100000 },
+];
+
+export type CampaignStatus = {
+  value: number;
+  percent: number;
+  level: CampaignLevel | null;
+};
+
+export function campaignStatus(value: number): CampaignStatus {
+  const v = Math.max(0, value || 0);
+  const percent = Math.min(100, (v / CAMPAIGN_MAX) * 100);
+  let level: CampaignLevel | null = null;
+  for (const lvl of CAMPAIGN_LEVELS) if (v >= lvl.min) level = lvl;
+  return { value: v, percent, level };
 }

@@ -22,6 +22,8 @@ const MEMBERSHIP: Record<string, string> = {
   usr_milton: "team_alpha",
   usr_carlos: "team_alpha",
   usr_talita: "team_alpha",
+  usr_joao: "team_alpha",
+  usr_felipe: "team_alpha",
 };
 
 export function teamOfUser(userId: string): Team | undefined {

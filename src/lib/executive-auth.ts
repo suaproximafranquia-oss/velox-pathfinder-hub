@@ -223,6 +223,28 @@ export const SEED_USERS: ExecutiveUser[] = [
     role: "executivo",
     status: "ativo",
   },
+  {
+    id: "usr_joao",
+    workspaceId: WORKSPACE_VELOX,
+    name: "João",
+    email: "joao@velox.com.br",
+    username: "joao",
+    password: "VLX_Jo42",
+    slug: "joao",
+    role: "executivo",
+    status: "ativo",
+  },
+  {
+    id: "usr_felipe",
+    workspaceId: WORKSPACE_VELOX,
+    name: "Felipe",
+    email: "felipe@velox.com.br",
+    username: "felipe",
+    password: "VLX_Fe58",
+    slug: "felipe",
+    role: "executivo",
+    status: "ativo",
+  },
 ];
 
 export function loadUsers(): ExecutiveUser[] {
