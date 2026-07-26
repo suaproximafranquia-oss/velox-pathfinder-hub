@@ -305,12 +305,14 @@ function MonthSelector({
   );
 }
 
-const ROW_H = 32;
-const HEADER_H = 34;
-const DAY_W = 76;
-const IND_W = 292;
-const TOTAL_W = 136;
-const AVG_W = 112;
+// Dimensões da planilha — reajustadas (+~15%) para dar respiro visual
+// mantendo a identidade compacta do KPI Manager.
+const ROW_H = 37;
+const HEADER_H = 40;
+const DAY_W = 88;
+const IND_W = 300;
+const TOTAL_W = 148;
+const AVG_W = 124;
 
 function KpiSpreadsheet({
   matrix,
@@ -337,7 +339,7 @@ function KpiSpreadsheet({
   });
 
   return (
-    <div className="flex w-full min-w-0 max-h-[560px] overflow-hidden">
+    <div className="flex w-full min-w-0 max-h-[640px] overflow-hidden">
       {/* Coluna Indicador — fixa à esquerda */}
       <div className="shrink-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]" style={{ width: IND_W }}>
         <div
@@ -380,7 +382,7 @@ function KpiSpreadsheet({
                 key={d}
                 className={cn(
                   "flex items-center justify-center text-[10px] font-medium tabular-nums border-r border-black/5",
-                  isWeekendDay(d) ? "text-[color:var(--navy)]/70 bg-[color:var(--navy)]/[0.10]" : "text-black/55",
+                  isWeekendDay(d) ? "text-[color:var(--navy)] bg-[color:var(--navy)]/[0.16]" : "text-black/55",
                 )}
                 style={{ width: DAY_W }}
               >
@@ -489,7 +491,7 @@ function Cell({
     <div
       className={cn(
         "border-r border-black/5 transition-colors",
-        weekend && "bg-[color:var(--navy)]/[0.07]",
+        weekend && "bg-[color:var(--navy)]/[0.11]",
         flash && "kpi-flash",
       )}
       style={{ width }}
