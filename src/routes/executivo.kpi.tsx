@@ -206,8 +206,11 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   }
 
   return (
-    <ExecutiveShell session={session} title="KPI Manager">
-      <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+    <ExecutiveShell session={session} title="KPI Manager" fullBleed>
+      <div
+        className="w-full min-w-0 max-w-full"
+        style={{ overflowX: "clip", contain: "inline-size" }}
+      >
       {/* Barra de contexto ------------------------------------------------- */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
