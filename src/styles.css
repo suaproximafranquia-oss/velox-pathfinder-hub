@@ -279,9 +279,10 @@
  * da plataforma (Manual, Área Executiva) para não gerar regressão.
  * ============================================================ */
 body[data-shell="portal"] {
-  --paper: oklch(0.945 0.014 78);
-  --paper-2: oklch(0.965 0.010 78);
-  --paper-edge: oklch(0.88 0.020 78);
+  /* Fundo institucional Velox — branco levemente azulado, dando continuidade ao Hero */
+  --paper: oklch(0.965 0.010 250);
+  --paper-2: oklch(0.985 0.006 250);
+  --paper-edge: oklch(0.90 0.018 250);
   --graphite: oklch(0.19 0.014 250);
   --graphite-2: oklch(0.23 0.016 250);
   --ink: oklch(0.24 0.11 260);
@@ -306,9 +307,13 @@ body[data-shell="portal"] {
 
   --font-editorial: "Cormorant Garamond", ui-serif, Georgia, serif;
 
-  background: radial-gradient(1100px 600px at 12% -8%, color-mix(in oklab, var(--brand-orange) 6%, transparent), transparent 60%),
-    radial-gradient(900px 700px at 100% 20%, color-mix(in oklab, var(--brand-blue) 5%, transparent), transparent 55%),
-    linear-gradient(180deg, var(--paper-2), var(--paper));
+  background:
+    radial-gradient(1100px 600px at 12% -8%, color-mix(in oklab, var(--brand-orange) 5%, transparent), transparent 60%),
+    radial-gradient(900px 700px at 100% 20%, color-mix(in oklab, var(--brand-blue) 6%, transparent), transparent 55%),
+    linear-gradient(180deg,
+      color-mix(in oklab, var(--brand-blue-deep) 8%, var(--paper)) 0%,
+      var(--paper) 30%,
+      var(--paper-2) 100%);
   color: var(--foreground);
 }
 body[data-shell="portal"] .portal-serif {
