@@ -81,6 +81,7 @@ function BrainPage() {
   }
 
   function chooseScope(mode: ScopeMode) {
+    if (!session) return;
     if (mode === "executive") {
       setScope({ mode, executiveId: executives[0]?.id ?? session.userId });
       return;
