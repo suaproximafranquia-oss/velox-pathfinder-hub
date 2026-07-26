@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   AVAILABLE_MONTHS,
@@ -121,8 +122,9 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
 
   return (
     <ExecutiveShell session={session} title="KPI Manager">
+     <div className="w-full min-w-0 overflow-x-hidden">
       {/* Barra de contexto ------------------------------------------------- */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
           <Gauge className="h-3.5 w-3.5 text-[color:var(--gold)]" />
           <span className="uppercase tracking-[0.22em]">
@@ -157,6 +159,9 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         </div>
       </div>
 
+      {/* Container dedicado do módulo KPI ---------------------------------- */}
+      <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/35 p-4 sm:p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset]">
+
       {/* KPIs superiores --------------------------------------------------- */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <SummaryCard icon={Users}         label="Leads"        value={formatNumber(summary.leads)} />
@@ -167,8 +172,13 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         <SummaryCard icon={HandCoins}     label="Valor Vendido" value={formatCurrency(summary.salesValue)} highlight />
       </div>
 
+      {/* Campanha Velox --------------------------------------------------- */}
+      <div className="mt-4">
+        <CampanhaVeloxCard salesValue={summary.salesValue} />
+      </div>
+
       {/* Cabeçalho da planilha -------------------------------------------- */}
-      <div className="mt-6 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 overflow-hidden">
+      <div className="mt-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/25 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 border-b border-[color:var(--border)]">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-[color:var(--gold)]" />
@@ -194,7 +204,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       {/* Rodapé: abas de colaboradores ------------------------------------ */}
-      <div className="mt-6 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 overflow-hidden">
+      <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/20 overflow-hidden">
         <div className="px-5 py-3 border-b border-[color:var(--border)] flex items-center gap-2">
           <Users className="h-4 w-4 text-[color:var(--gold)]" />
           <span className="text-xs uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
@@ -249,12 +259,15 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         </div>
       </div>
 
+      </div>
+
       <p className="mt-4 text-[11px] text-[color:var(--muted-foreground)] text-center max-w-2xl mx-auto">
         Dados fictícios de Julho/2026 para demonstração. A partir de Agosto/2026 a
         estrutura receberá lançamentos reais e alimentará automaticamente o Brain
         Analytics, os Relatórios e a IA Corporativa — respeitando as permissões do
         perfil ativo.
       </p>
+     </div>
     </ExecutiveShell>
   );
 }
