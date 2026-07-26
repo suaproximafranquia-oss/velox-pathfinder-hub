@@ -336,8 +336,8 @@ function Hero() {
               className="mt-10 text-balance font-serif leading-[1.02] on-dark"
               style={{ fontSize: "clamp(3rem, 8vw, 7.5rem)" }}
             >
-              Manual do<br />
-              <span style={{ color: "var(--brand-orange)" }}>Investidor</span>.
+              Material Institucional<br />
+              <span style={{ color: "var(--brand-orange)" }}>de Apresentação</span>.
             </h1>
           </Reveal>
           <Reveal delay={220}>
@@ -410,11 +410,12 @@ function Index() {
   const active = useScrollSpy(SECTIONS.map((s) => s.id));
 
   return (
-    <div className="min-h-dvh text-foreground">
-      <ReadingProgress />
-      <SiteNav sections={SECTIONS} activeId={active} />
-
-      <main id="conteudo">
+    <ModuleChrome
+      moduleName="Material Institucional de Apresentação"
+      sections={SECTIONS}
+      activeId={active}
+    >
+      <div id="conteudo">
         <Hero />
 
         {/* ==================================================== */}
@@ -719,7 +720,7 @@ function Index() {
           </div>
         </SectionShell>
 
-        <Pullquote surface="graphite" attribution="Velox · Manual do Investidor">
+        <Pullquote surface="graphite" attribution="Velox · Material Institucional de Apresentação">
           Grandes decisões começam com boas informações — e amadurecem no tempo certo de cada investidor.
         </Pullquote>
 
@@ -1071,7 +1072,7 @@ function Index() {
           </p>
         </FeaturePanel>
 
-        <Pullquote surface="ink" attribution="Manual do Investidor · Encerramento do Capítulo III">
+        <Pullquote surface="ink" attribution="Material Institucional de Apresentação · Encerramento do Capítulo III">
           Uma boa estrutura de suporte não substitui o esforço do empreendedor — mas transforma completamente o caminho que ele percorre.
         </Pullquote>
 
@@ -1334,7 +1335,7 @@ function Index() {
             </div>
           </div>
         </SectionShell>
-      </main>
+      </div>
 
       <footer className="surface-graphite relative isolate overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-grid-ink opacity-50" aria-hidden="true" />
@@ -1342,7 +1343,7 @@ function Index() {
           <div className="min-w-0">
             <div className="font-serif text-2xl on-dark">Velox Soluções Financeiras</div>
             <div className="mt-2 text-xs uppercase tracking-[0.24em] on-dark-muted">
-              © {new Date().getFullYear()} — Manual do Investidor · Edição Institucional
+              © {new Date().getFullYear()} — Material Institucional de Apresentação · Edição Institucional
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs uppercase tracking-[0.24em] on-dark-muted">
@@ -1353,6 +1354,6 @@ function Index() {
       </footer>
 
       <BackToTop />
-    </div>
+    </ModuleChrome>
   );
 }
