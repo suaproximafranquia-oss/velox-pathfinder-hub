@@ -105,9 +105,11 @@ function buildConsolidatedDataset(
 ): KpiDataset {
   const matrix: KpiDataset["matrix"] = {};
   for (const ind of INDICATORS) matrix[ind.id] = {};
+  let updatedAt = Date.now();
 
   for (const collaborator of collaborators) {
     const ds = loadDataset(collaborator.id, monthKey);
+    updatedAt = Math.max(updatedAt, ds.updatedAt);
     for (const ind of INDICATORS) {
       const row = ds.matrix[ind.id] ?? {};
       for (const dayKey in row) {
@@ -121,7 +123,7 @@ function buildConsolidatedDataset(
     userId: CONSOLIDATED_VIEW_ID,
     monthKey,
     matrix,
-    updatedAt: Math.max(Date.now(), ...collaborators.map((c) => loadDataset(c.id, monthKey).updatedAt)),
+    updatedAt,
   };
 }
 
@@ -425,14 +427,51 @@ function MonthSelector({
   );
 }
 
+function ConsolidatedSummaryCard({
+  summary,
+  collaboratorCount,
+}: {
+  summary: ReturnType<typeof summarize>;
+  collaboratorCount: number;
+}) {
+  const allIndicators =
+    summary.leads +
+    summary.calls +
+    summary.presentations +
+    summary.contractsSent +
+    summary.sales;
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-4">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
+          <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.6} />
+        </span>
+        <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+          Consolidado
+        </p>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-[color:var(--muted-foreground)]">
+        <span>Leads: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.leads.toLocaleString("pt-BR")}</strong></span>
+        <span>Ligações: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.calls.toLocaleString("pt-BR")}</strong></span>
+        <span>Contratos: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.contractsSent.toLocaleString("pt-BR")}</strong></span>
+        <span>Pagamentos: <strong className="text-[color:var(--foreground)] tabular-nums">{formatCurrency(summary.salesValue)}</strong></span>
+      </div>
+      <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+        {collaboratorCount} executivos · soma operacional: {allIndicators.toLocaleString("pt-BR")}
+      </p>
+    </section>
+  );
+}
+
 // Dimensões da planilha — reajustadas (+~15%) para dar respiro visual
 // mantendo a identidade compacta do KPI Manager.
-const ROW_H = 37;
-const HEADER_H = 40;
-const DAY_W = 88;
-const IND_W = 300;
-const TOTAL_W = 148;
-const AVG_W = 124;
+const ROW_H = 43;
+const HEADER_H = 46;
+const DAY_W = 96;
+const IND_W = 316;
+const TOTAL_W = 154;
+const AVG_W = 132;
 
 function KpiSpreadsheet({
   matrix,
@@ -440,12 +479,14 @@ function KpiSpreadsheet({
   isWeekendDay,
   onCommit,
   flashCell,
+  readOnly,
 }: {
   matrix: KpiDataset["matrix"];
   days: number;
   isWeekendDay: (d: number) => boolean;
   onCommit: (indicatorId: string, day: number, value: number) => void;
   flashCell: string | null;
+  readOnly: boolean;
 }) {
   const dayList = useMemo(
     () => Array.from({ length: days }, (_, i) => i + 1),
@@ -459,9 +500,12 @@ function KpiSpreadsheet({
   });
 
   return (
-    <div className="flex w-full min-w-0 max-h-[640px] overflow-hidden">
+    <div
+      className="grid w-full min-w-0 max-h-[720px] overflow-hidden"
+      style={{ gridTemplateColumns: `${IND_W}px minmax(0, 1fr) ${TOTAL_W + AVG_W}px` }}
+    >
       {/* Coluna Indicador — fixa à esquerda */}
-      <div className="shrink-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]" style={{ width: IND_W }}>
+      <div className="min-w-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]">
         <div
           className="flex items-center px-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] border-b border-black/20"
           style={{ height: HEADER_H }}
@@ -493,7 +537,7 @@ function KpiSpreadsheet({
       </div>
 
       {/* Área dos dias — única com rolagem horizontal */}
-      <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden kpi-scroll bg-[#F5F6F8]">
+      <div className="min-w-0 overflow-x-auto overflow-y-hidden kpi-scroll bg-[#F5F6F8]">
         <div style={{ width: dayList.length * DAY_W }}>
           {/* Cabeçalho dos dias */}
           <div className="flex border-b border-black/10 bg-white/70" style={{ height: HEADER_H }}>
@@ -527,6 +571,7 @@ function KpiSpreadsheet({
                     unit={ind.unit}
                     weekend={isWeekendDay(d)}
                     flash={flashCell === key}
+                    readOnly={readOnly}
                     onCommit={(v) => onCommit(ind.id, d, v)}
                   />
                 );
@@ -537,7 +582,7 @@ function KpiSpreadsheet({
       </div>
 
       {/* Total + Média — fixos à direita */}
-      <div className="shrink-0 flex border-l border-black/10 bg-white/70 text-[color:var(--navy-deep)]">
+      <div className="min-w-0 flex border-l border-black/10 bg-white/70 text-[color:var(--navy-deep)]">
         <div style={{ width: TOTAL_W }}>
           <div
             className="flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--navy)]/70 border-b border-black/10"
@@ -590,6 +635,7 @@ function Cell({
   unit,
   weekend,
   flash,
+  readOnly,
   width,
   onCommit,
 }: {
@@ -597,6 +643,7 @@ function Cell({
   unit: "count" | "currency";
   weekend: boolean;
   flash: boolean;
+  readOnly: boolean;
   width: number;
   onCommit: (v: number) => void;
 }) {
@@ -618,19 +665,22 @@ function Cell({
     >
       <input
         inputMode="numeric"
+        readOnly={readOnly}
+        aria-readonly={readOnly}
         value={draft}
         onFocus={(e) => {
           setFocused(true);
           e.currentTarget.select();
         }}
         onChange={(e) => {
+          if (readOnly) return;
           const raw = e.target.value.replace(/[^\d]/g, "");
           setDraft(raw);
         }}
         onBlur={() => {
           setFocused(false);
           const n = Number(draft || 0);
-          if (n !== value) onCommit(n);
+          if (!readOnly && n !== value) onCommit(n);
           setDraft(n ? String(n) : "");
         }}
         onKeyDown={(e) => {
