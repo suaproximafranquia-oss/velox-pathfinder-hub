@@ -20,6 +20,7 @@ import {
   Brain,
   Gauge,
   FileBarChart2,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -146,6 +147,16 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Integrações, identidade visual, permissões e preferências do workspace.",
     icon: Settings,
     to: "/executivo/configuracoes",
+    status: "ativo",
+    requiresRole: ["super_admin", "diretora"],
+  },
+  {
+    id: "auditoria",
+    name: "Central de Auditoria",
+    description:
+      "Registro completo de ações administrativas — usuários, KPI, investidores e conhecimento.",
+    icon: ShieldCheck,
+    to: "/executivo/auditoria",
     status: "ativo",
     requiresRole: ["super_admin", "diretora"],
   },

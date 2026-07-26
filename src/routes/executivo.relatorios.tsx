@@ -37,6 +37,9 @@ import {
 } from "@/lib/report-comparatives";
 import { exportReportPdf, exportReportExcel } from "@/lib/report-generators";
 import { FunnelCard } from "@/components/executive/brain/funnel-card";
+import { InfographicDashboard } from "@/components/executive/reports/infographic-dashboard";
+import { buildCampaignRows } from "@/components/executive/kpi/painel-campanhas";
+import { loadUsers } from "@/lib/executive-auth";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/executivo/relatorios")({
@@ -99,6 +102,13 @@ function ReportsPage() {
     () => (report ? brainSummaryFromReport(report) : ""),
     [report],
   );
+
+  const campaignRows = useMemo(() => {
+    if (!report) return [];
+    const ids = new Set(report.provenance.executivesConsidered);
+    const users = loadUsers().filter((u) => ids.has(u.id));
+    return buildCampaignRows(users, report.month.key);
+  }, [report]);
 
   if (!session || !selection || !report) return null;
 
@@ -181,8 +191,8 @@ function ReportsPage() {
           </div>
           <ExportActions
             onExport={(fmt) => {
-              if (fmt === "pdf") exportReportPdf(report, { brainSummary, comparatives });
-              else exportReportExcel(report, { brainSummary, comparatives });
+              if (fmt === "pdf") exportReportPdf(report, { brainSummary, comparatives, campaignRows });
+              else exportReportExcel(report, { brainSummary, comparatives, campaignRows });
             }}
           />
         </div>
@@ -217,6 +227,11 @@ function ReportsPage() {
           </span>
         </div>
         <p className="text-sm text-[color:var(--foreground)]/90 leading-relaxed">{brainSummary}</p>
+      </div>
+
+      {/* Infografia Executiva */}
+      <div className="mt-8">
+        <InfographicDashboard report={report} />
       </div>
 
       {/* Infográficos comparativos */}

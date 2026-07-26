@@ -28,6 +28,7 @@ import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.co
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
+import { Route as ExecutivoAuditoriaRouteImport } from './routes/executivo.auditoria'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -125,6 +126,11 @@ const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
   path: '/executivo/brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoAuditoriaRoute = ExecutivoAuditoriaRouteImport.update({
+  id: '/executivo/auditoria',
+  path: '/executivo/auditoria',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ESlugRoute = ESlugRouteImport.update({
   id: '/e/$slug',
   path: '/e/$slug',
@@ -134,6 +140,7 @@ const ESlugRoute = ESlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/e/$slug': typeof ESlugRoute
+  '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/e/$slug': typeof ESlugRoute
+  '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/e/$slug': typeof ESlugRoute
+  '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/e/$slug'
+    | '/executivo/auditoria'
     | '/executivo/brain'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/e/$slug'
+    | '/executivo/auditoria'
     | '/executivo/brain'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/e/$slug'
+    | '/executivo/auditoria'
     | '/executivo/brain'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
@@ -270,6 +282,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ESlugRoute: typeof ESlugRoute
+  ExecutivoAuditoriaRoute: typeof ExecutivoAuditoriaRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
   ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
@@ -425,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/auditoria': {
+      id: '/executivo/auditoria'
+      path: '/executivo/auditoria'
+      fullPath: '/executivo/auditoria'
+      preLoaderRoute: typeof ExecutivoAuditoriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/e/$slug': {
       id: '/e/$slug'
       path: '/e/$slug'
@@ -438,6 +458,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ESlugRoute: ESlugRoute,
+  ExecutivoAuditoriaRoute: ExecutivoAuditoriaRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
   ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
