@@ -36,7 +36,7 @@ type ModuleCard = {
   eyebrow: string;
   title: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   cover: string;
   to?: string;
   href?: string;
