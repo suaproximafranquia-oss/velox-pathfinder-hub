@@ -6,13 +6,8 @@ import {
   CheckCircle2,
   Gauge,
   HandCoins,
-  Handshake,
-  PhoneCall,
-  Presentation,
   RotateCcw,
-  TrendingUp,
   Users,
-  type LucideIcon,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
@@ -25,8 +20,6 @@ import {
   daysInMonth,
   findMonth,
   formatCurrency,
-  formatNumber,
-  formatPercent,
   formatValue,
   isWeekend,
   loadDataset,
