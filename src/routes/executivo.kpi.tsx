@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  BarChart3,
   CalendarDays,
   CheckCircle2,
   Gauge,
@@ -11,7 +12,12 @@ import {
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
-import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  getSession,
+  loadUsers,
+  type ExecutiveSession,
+  type ExecutiveUser,
+} from "@/lib/executive-auth";
 import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
@@ -34,10 +40,25 @@ import {
 import { visibleCollaborators } from "@/lib/teams";
 import { cn } from "@/lib/utils";
 
+const CONSOLIDATED_VIEW_ID = "__atlas_consolidated__";
+
 export const Route = createFileRoute("/executivo/kpi")({
   head: () => ({
     meta: [
       { title: "KPI Manager — Atlas Platform" },
+      {
+        name: "description",
+        content:
+          "Workspace operacional de indicadores, campanhas e consolidação executiva da Atlas Platform.",
+      },
+      { property: "og:title", content: "KPI Manager — Atlas Platform" },
+      {
+        property: "og:description",
+        content:
+          "Workspace operacional de indicadores, campanhas e consolidação executiva da Atlas Platform.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -56,21 +77,81 @@ function KpiManagerPage() {
   return <KpiManagerBody session={session} />;
 }
 
+function kpiCollaborators(session: ExecutiveSession): ExecutiveUser[] {
+  const visible = visibleCollaborators(session).filter(
+    (u) => u.id !== "usr_joao" && u.id !== "usr_felipe",
+  );
+  if (session.activeRole !== "super_admin") return visible;
+
+  const currentUser = loadUsers().find(
+    (u) => u.id === session.userId && u.status === "ativo",
+  );
+  if (!currentUser || visible.some((u) => u.id === currentUser.id)) return visible;
+  return [currentUser, ...visible];
+}
+
+function initialsFor(name: string): string {
+  return name
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function buildConsolidatedDataset(
+  collaborators: ExecutiveUser[],
+  monthKey: string,
+): KpiDataset {
+  const matrix: KpiDataset["matrix"] = {};
+  for (const ind of INDICATORS) matrix[ind.id] = {};
+  let updatedAt = Date.now();
+
+  for (const collaborator of collaborators) {
+    const ds = loadDataset(collaborator.id, monthKey);
+    updatedAt = Math.max(updatedAt, ds.updatedAt);
+    for (const ind of INDICATORS) {
+      const row = ds.matrix[ind.id] ?? {};
+      for (const dayKey in row) {
+        const day = Number(dayKey);
+        matrix[ind.id][day] = (matrix[ind.id][day] ?? 0) + (row[day] ?? 0);
+      }
+    }
+  }
+
+  return {
+    userId: CONSOLIDATED_VIEW_ID,
+    monthKey,
+    matrix,
+    updatedAt,
+  };
+}
+
 function KpiManagerBody({ session }: { session: ExecutiveSession }) {
-  const collaborators = useMemo(() => visibleCollaborators(session), [session]);
+  const collaborators = useMemo(() => kpiCollaborators(session), [session]);
+  const canUseConsolidated = session.activeRole !== "executivo";
+  const defaultViewId = canUseConsolidated ? CONSOLIDATED_VIEW_ID : session.userId;
+  const [viewId, setViewId] = useState(defaultViewId);
   const defaults = useMemo(
     () => ({
       monthKey: DEFAULT_MONTH_KEY,
-      collaboratorId: collaborators[0]?.id ?? session.userId,
+      collaboratorId: defaultViewId,
     }),
-    [collaborators, session],
+    [defaultViewId],
   );
   const { ctx, update } = useKpiContext(session, defaults);
 
   const activeMonth = findMonth(ctx.monthKey);
-  const activeCollab =
-    collaborators.find((c) => c.id === ctx.collaboratorId) ?? collaborators[0];
+  const isConsolidated = canUseConsolidated && viewId === CONSOLIDATED_VIEW_ID;
+  const activeCollab = isConsolidated
+    ? null
+    : collaborators.find((c) => c.id === viewId) ?? collaborators[0] ?? null;
   const activeUserId = activeCollab?.id ?? session.userId;
+  const activeLabel = isConsolidated
+    ? session.activeRole === "super_admin"
+      ? "Consolidado geral"
+      : "Consolidado da equipe"
+    : activeCollab?.name ?? session.name;
 
   const [dataset, setDataset] = useState<KpiDataset>(() =>
     loadDataset(activeUserId, activeMonth.key),
@@ -81,13 +162,23 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   const flashTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    setDataset(loadDataset(activeUserId, activeMonth.key));
-  }, [activeUserId, activeMonth.key]);
+    setViewId(defaultViewId);
+  }, [defaultViewId]);
+
+  useEffect(() => {
+    if (!isConsolidated) setDataset(loadDataset(activeUserId, activeMonth.key));
+  }, [activeUserId, activeMonth.key, isConsolidated]);
 
   const days = daysInMonth(activeMonth);
-  const summary = useMemo(() => summarize(dataset), [dataset]);
+  const consolidatedDataset = useMemo(
+    () => buildConsolidatedDataset(collaborators, activeMonth.key),
+    [collaborators, activeMonth.key],
+  );
+  const visibleDataset = isConsolidated ? consolidatedDataset : dataset;
+  const summary = useMemo(() => summarize(visibleDataset), [visibleDataset]);
 
   function commitCell(indicatorId: string, day: number, next: number) {
+    if (isConsolidated) return;
     setDataset((prev) => {
       const nextMatrix = { ...prev.matrix };
       nextMatrix[indicatorId] = { ...(nextMatrix[indicatorId] ?? {}), [day]: next };
@@ -108,6 +199,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   }
 
   function resetMonth() {
+    if (isConsolidated) return;
     if (!window.confirm(`Restaurar dados fictícios de ${activeMonth.label}?`)) return;
     const fresh = resetDataset(activeUserId, activeMonth.key);
     setDataset(fresh);
@@ -143,8 +235,14 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           <button
             type="button"
             onClick={resetMonth}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
-            title="Restaurar dados fictícios do mês ativo"
+            disabled={isConsolidated}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] transition",
+              isConsolidated
+                ? "cursor-not-allowed text-[color:var(--muted-foreground)]/40 opacity-60"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40",
+            )}
+            title={isConsolidated ? "Disponível apenas no KPI individual" : "Restaurar dados fictícios do mês ativo"}
           >
             <RotateCcw className="h-3 w-3" />
             Restaurar
@@ -160,7 +258,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-4">
           <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Competência</p>
           <p className="font-display text-lg mt-1">{activeMonth.label}</p>
-          <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{activeCollab?.name ?? "—"} · {days} dias</p>
+          <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{activeLabel} · {days} dias</p>
         </div>
         <div className="rounded-2xl border border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/10 to-transparent p-4">
           <div className="flex items-center gap-2">
@@ -171,7 +269,11 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           </div>
           <p className="font-display text-xl mt-2 tabular-nums text-[color:var(--gold)]">{formatCurrency(summary.salesValue)}</p>
         </div>
-        <CampanhaVeloxCard salesValue={summary.salesValue} />
+        {isConsolidated ? (
+          <ConsolidatedSummaryCard summary={summary} collaboratorCount={collaborators.length} />
+        ) : (
+          <CampanhaVeloxCard salesValue={summary.salesValue} />
+        )}
       </div>
 
       {/* Cabeçalho da planilha -------------------------------------------- */}
@@ -180,21 +282,22 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-[color:var(--navy)]" />
             <h2 className="font-display text-base leading-none">{activeMonth.label}</h2>
-            <span className="text-xs text-black/55">· {activeCollab?.name ?? "—"}</span>
+             <span className="text-xs text-black/55">· {activeLabel}</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-black/55">
             <Activity className="h-3.5 w-3.5" />
-            {days} dias · edite qualquer célula
+             {days} dias · {isConsolidated ? "modo consolidado" : "edite qualquer célula"}
           </div>
         </div>
 
         {/* Planilha */}
         <KpiSpreadsheet
-          matrix={dataset.matrix}
+          matrix={visibleDataset.matrix}
           days={days}
           isWeekendDay={(d) => isWeekend(activeMonth, d)}
           onCommit={commitCell}
           flashCell={flashCell}
+          readOnly={isConsolidated}
         />
       </div>
 
@@ -211,19 +314,38 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         </div>
         <div className="overflow-x-auto">
           <div className="flex min-w-max">
+            {canUseConsolidated && (
+              <button
+                key={CONSOLIDATED_VIEW_ID}
+                type="button"
+                onClick={() => setViewId(CONSOLIDATED_VIEW_ID)}
+                className={cn(
+                  "px-5 py-3 text-sm border-r border-[color:var(--border)] transition whitespace-nowrap flex items-center gap-2",
+                  isConsolidated
+                    ? "bg-[color:var(--accent)] text-[color:var(--foreground)] border-b-2 border-b-[color:var(--gold)]"
+                    : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] border-b-2 border-b-transparent",
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-medium",
+                    isConsolidated
+                      ? "bg-[color:var(--gold)]/15 text-[color:var(--gold)]"
+                      : "bg-[color:var(--card)]/60 text-[color:var(--muted-foreground)]",
+                  )}
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                </span>
+                {session.activeRole === "super_admin" ? "Geral" : "Equipe"}
+              </button>
+            )}
             {collaborators.map((c) => {
-              const active = c.id === ctx.collaboratorId;
-              const initials = c.name
-                .split(" ")
-                .map((s) => s[0])
-                .slice(0, 2)
-                .join("")
-                .toUpperCase();
+              const active = !isConsolidated && c.id === activeUserId;
               return (
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => update({ collaboratorId: c.id })}
+                  onClick={() => setViewId(c.id)}
                   className={cn(
                     "px-5 py-3 text-sm border-r border-[color:var(--border)] transition whitespace-nowrap flex items-center gap-2",
                     active
@@ -239,7 +361,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
                         : "bg-[color:var(--card)]/60 text-[color:var(--muted-foreground)]",
                     )}
                   >
-                    {initials}
+                    {initialsFor(c.name)}
                   </span>
                   {c.name.split(" ")[0]}
                 </button>
@@ -305,14 +427,51 @@ function MonthSelector({
   );
 }
 
+function ConsolidatedSummaryCard({
+  summary,
+  collaboratorCount,
+}: {
+  summary: ReturnType<typeof summarize>;
+  collaboratorCount: number;
+}) {
+  const allIndicators =
+    summary.leads +
+    summary.calls +
+    summary.presentations +
+    summary.contractsSent +
+    summary.sales;
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-4">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
+          <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.6} />
+        </span>
+        <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+          Consolidado
+        </p>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-[color:var(--muted-foreground)]">
+        <span>Leads: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.leads.toLocaleString("pt-BR")}</strong></span>
+        <span>Ligações: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.calls.toLocaleString("pt-BR")}</strong></span>
+        <span>Contratos: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.contractsSent.toLocaleString("pt-BR")}</strong></span>
+        <span>Pagamentos: <strong className="text-[color:var(--foreground)] tabular-nums">{formatCurrency(summary.salesValue)}</strong></span>
+      </div>
+      <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+        {collaboratorCount} executivos · soma operacional: {allIndicators.toLocaleString("pt-BR")}
+      </p>
+    </section>
+  );
+}
+
 // Dimensões da planilha — reajustadas (+~15%) para dar respiro visual
 // mantendo a identidade compacta do KPI Manager.
-const ROW_H = 37;
-const HEADER_H = 40;
-const DAY_W = 88;
-const IND_W = 300;
-const TOTAL_W = 148;
-const AVG_W = 124;
+const ROW_H = 43;
+const HEADER_H = 46;
+const DAY_W = 96;
+const IND_W = 316;
+const TOTAL_W = 154;
+const AVG_W = 132;
 
 function KpiSpreadsheet({
   matrix,
@@ -320,12 +479,14 @@ function KpiSpreadsheet({
   isWeekendDay,
   onCommit,
   flashCell,
+  readOnly,
 }: {
   matrix: KpiDataset["matrix"];
   days: number;
   isWeekendDay: (d: number) => boolean;
   onCommit: (indicatorId: string, day: number, value: number) => void;
   flashCell: string | null;
+  readOnly: boolean;
 }) {
   const dayList = useMemo(
     () => Array.from({ length: days }, (_, i) => i + 1),
@@ -339,9 +500,12 @@ function KpiSpreadsheet({
   });
 
   return (
-    <div className="flex w-full min-w-0 max-h-[640px] overflow-hidden">
+    <div
+      className="grid w-full min-w-0 max-h-[720px] overflow-hidden"
+      style={{ gridTemplateColumns: `${IND_W}px minmax(0, 1fr) ${TOTAL_W + AVG_W}px` }}
+    >
       {/* Coluna Indicador — fixa à esquerda */}
-      <div className="shrink-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]" style={{ width: IND_W }}>
+      <div className="min-w-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]">
         <div
           className="flex items-center px-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] border-b border-black/20"
           style={{ height: HEADER_H }}
@@ -373,7 +537,7 @@ function KpiSpreadsheet({
       </div>
 
       {/* Área dos dias — única com rolagem horizontal */}
-      <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden kpi-scroll bg-[#F5F6F8]">
+      <div className="min-w-0 overflow-x-auto overflow-y-hidden kpi-scroll bg-[#F5F6F8]">
         <div style={{ width: dayList.length * DAY_W }}>
           {/* Cabeçalho dos dias */}
           <div className="flex border-b border-black/10 bg-white/70" style={{ height: HEADER_H }}>
@@ -407,6 +571,7 @@ function KpiSpreadsheet({
                     unit={ind.unit}
                     weekend={isWeekendDay(d)}
                     flash={flashCell === key}
+                    readOnly={readOnly}
                     onCommit={(v) => onCommit(ind.id, d, v)}
                   />
                 );
@@ -417,7 +582,7 @@ function KpiSpreadsheet({
       </div>
 
       {/* Total + Média — fixos à direita */}
-      <div className="shrink-0 flex border-l border-black/10 bg-white/70 text-[color:var(--navy-deep)]">
+      <div className="min-w-0 flex border-l border-black/10 bg-white/70 text-[color:var(--navy-deep)]">
         <div style={{ width: TOTAL_W }}>
           <div
             className="flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--navy)]/70 border-b border-black/10"
@@ -470,6 +635,7 @@ function Cell({
   unit,
   weekend,
   flash,
+  readOnly,
   width,
   onCommit,
 }: {
@@ -477,6 +643,7 @@ function Cell({
   unit: "count" | "currency";
   weekend: boolean;
   flash: boolean;
+  readOnly: boolean;
   width: number;
   onCommit: (v: number) => void;
 }) {
@@ -498,19 +665,22 @@ function Cell({
     >
       <input
         inputMode="numeric"
+        readOnly={readOnly}
+        aria-readonly={readOnly}
         value={draft}
         onFocus={(e) => {
           setFocused(true);
           e.currentTarget.select();
         }}
         onChange={(e) => {
+          if (readOnly) return;
           const raw = e.target.value.replace(/[^\d]/g, "");
           setDraft(raw);
         }}
         onBlur={() => {
           setFocused(false);
           const n = Number(draft || 0);
-          if (n !== value) onCommit(n);
+          if (!readOnly && n !== value) onCommit(n);
           setDraft(n ? String(n) : "");
         }}
         onKeyDown={(e) => {

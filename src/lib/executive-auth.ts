@@ -144,6 +144,7 @@ const USERS_KEY = "atlas:users:v3";
 const ACTIVE_ROLE_KEY = "atlas:activeRole:v1";
 
 const WORKSPACE_VELOX = "velox";
+const LEAD_ORIGIN_ONLY_USER_IDS = new Set(["usr_joao", "usr_felipe"]);
 
 export const SEED_USERS: ExecutiveUser[] = [
   {
@@ -223,28 +224,6 @@ export const SEED_USERS: ExecutiveUser[] = [
     role: "executivo",
     status: "ativo",
   },
-  {
-    id: "usr_joao",
-    workspaceId: WORKSPACE_VELOX,
-    name: "João",
-    email: "joao@velox.com.br",
-    username: "joao",
-    password: "VLX_Jo42",
-    slug: "joao",
-    role: "executivo",
-    status: "ativo",
-  },
-  {
-    id: "usr_felipe",
-    workspaceId: WORKSPACE_VELOX,
-    name: "Felipe",
-    email: "felipe@velox.com.br",
-    username: "felipe",
-    password: "VLX_Fe58",
-    slug: "felipe",
-    role: "executivo",
-    status: "ativo",
-  },
 ];
 
 export function loadUsers(): ExecutiveUser[] {
@@ -257,7 +236,11 @@ export function loadUsers(): ExecutiveUser[] {
     // Garante que os usuários oficiais existam e mantenham credenciais
     // sincronizadas com o seed atual (previne conflitos com versões
     // anteriores da estrutura persistida no localStorage).
-    const byId = new Map(arr.map((u) => [u.id, u] as const));
+    const byId = new Map(
+      arr
+        .filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id))
+        .map((u) => [u.id, u] as const),
+    );
     for (const seed of SEED_USERS) byId.set(seed.id, seed);
     return Array.from(byId.values());
   } catch {
@@ -267,7 +250,10 @@ export function loadUsers(): ExecutiveUser[] {
 
 export function saveUsers(users: ExecutiveUser[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  window.localStorage.setItem(
+    USERS_KEY,
+    JSON.stringify(users.filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id))),
+  );
 }
 
 export type ExecutiveSession = {
