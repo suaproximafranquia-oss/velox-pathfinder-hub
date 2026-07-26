@@ -13,15 +13,25 @@ import {
 export type Team = { id: string; name: string; managerId: string };
 
 export const TEAMS: Team[] = [
-  { id: "team_alpha", name: "Equipe Alpha", managerId: "usr_larissa" },
+  { id: "team_operacional", name: "Equipe", managerId: "usr_larissa" },
 ];
 
+export const OPERATIONAL_EXECUTIVE_IDS = [
+  "usr_thiago",
+  "usr_marton",
+  "usr_paulo",
+  "usr_milton",
+  "usr_carlos",
+  "usr_talita",
+] as const;
+
 const MEMBERSHIP: Record<string, string> = {
-  usr_marton: "team_alpha",
-  usr_paulo: "team_alpha",
-  usr_milton: "team_alpha",
-  usr_carlos: "team_alpha",
-  usr_talita: "team_alpha",
+  usr_thiago: "team_operacional",
+  usr_marton: "team_operacional",
+  usr_paulo: "team_operacional",
+  usr_milton: "team_operacional",
+  usr_carlos: "team_operacional",
+  usr_talita: "team_operacional",
 };
 
 export function teamOfUser(userId: string): Team | undefined {
@@ -39,19 +49,16 @@ export function teamMembers(teamId: string): ExecutiveUser[] {
 export function visibleCollaborators(session: ExecutiveSession): ExecutiveUser[] {
   const users = loadUsers().filter((u) => u.status === "ativo");
   const role: ExecutiveRole = session.activeRole;
-  if (role === "super_admin") return users.filter((u) => u.role === "executivo");
-  if (role === "diretora") {
-    const managed = TEAMS.filter((t) => t.managerId === session.userId).map(
-      (t) => t.id,
-    );
-    return users.filter((u) => managed.includes(MEMBERSHIP[u.id] ?? ""));
+  if (role === "super_admin" || role === "diretora") {
+    return OPERATIONAL_EXECUTIVE_IDS.map((id) =>
+      users.find((u) => u.id === id),
+    ).filter((u): u is ExecutiveUser => Boolean(u));
   }
   return users.filter((u) => u.id === session.userId);
 }
 
 export function managedTeams(session: ExecutiveSession): Team[] {
-  if (session.activeRole === "super_admin") return TEAMS;
-  if (session.activeRole === "diretora")
-    return TEAMS.filter((t) => t.managerId === session.userId);
+  if (session.activeRole === "super_admin" || session.activeRole === "diretora")
+    return TEAMS;
   return [];
 }

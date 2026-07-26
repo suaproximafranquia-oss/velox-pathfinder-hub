@@ -1,28 +1,25 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity,
   BellRing,
+  CalendarRange,
   Check,
   ChevronDown,
   Copy,
   ExternalLink,
-  LineChart,
-  Sparkles,
-  TrendingUp,
+  UserSquare2,
   X,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
-  buildSnapshot,
+  buildOperationalSnapshot,
   CATEGORY_LABEL,
   dismissAlert,
   loadAlerts,
-  PERIOD_OPTIONS,
   PRIORITY_LABEL,
+  visibleAlertsFor,
   type BrainAlert,
-  type BrainPeriod,
 } from "@/lib/brain-data";
 import {
   availableScopes,
@@ -31,15 +28,29 @@ import {
   type ScopeMode,
   type ScopeSelection,
 } from "@/lib/brain/scopes";
+import { AVAILABLE_MONTHS, DEFAULT_MONTH_KEY } from "@/lib/kpi-manager";
+import { visibleCollaborators } from "@/lib/teams";
 import { KpiCard } from "@/components/executive/brain/kpi-card";
 import { FunnelCard } from "@/components/executive/brain/funnel-card";
-import { ChartCard } from "@/components/executive/brain/chart-card";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/executivo/brain")({
   head: () => ({
     meta: [
       { title: "Brain Analytics — Atlas Platform" },
+      {
+        name: "description",
+        content:
+          "Painel executivo com indicadores principais, funil operacional e alertas do KPI Manager.",
+      },
+      { property: "og:title", content: "Brain Analytics — Atlas Platform" },
+      {
+        property: "og:description",
+        content:
+          "Painel executivo com indicadores principais, funil operacional e alertas do KPI Manager.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -49,7 +60,7 @@ export const Route = createFileRoute("/executivo/brain")({
 function BrainPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
-  const [period, setPeriod] = useState<BrainPeriod>(30);
+  const [monthKey, setMonthKey] = useState(DEFAULT_MONTH_KEY);
   const [scope, setScope] = useState<ScopeSelection | null>(null);
   const [alerts, setAlerts] = useState<BrainAlert[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -61,22 +72,34 @@ function BrainPage() {
       return;
     }
     setSession(s);
-    setScope(defaultScope(s.activeRole));
+    setScope(defaultScope(s.activeRole, s.userId));
     setAlerts(loadAlerts());
   }, [navigate]);
 
   const snapshot = useMemo(
-    () => (scope ? buildSnapshot(period, scope) : null),
-    [period, scope],
+    () => (session && scope ? buildOperationalSnapshot(session, scope, monthKey) : null),
+    [session, scope, monthKey],
   );
 
   if (!session || !scope || !snapshot) return null;
 
-  const activeAlerts = alerts.filter((a) => !a.dismissed);
+  const activeAlerts = visibleAlertsFor(session, scope).filter((a) => !a.dismissed);
   const scopes = availableScopes(session.activeRole);
+  const executives = visibleCollaborators(session);
+  const canDismissAlerts = session.activeRole === "executivo";
 
   function handleDismiss(id: string) {
-    setAlerts(dismissAlert(id));
+    if (!session || !canDismissAlerts) return;
+    setAlerts(dismissAlert(id, session.userId));
+  }
+
+  function chooseScope(mode: ScopeMode) {
+    if (!session) return;
+    if (mode === "executive") {
+      setScope({ mode, executiveId: executives[0]?.id ?? session.userId });
+      return;
+    }
+    setScope({ mode });
   }
 
   async function handleCopy(a: BrainAlert) {
@@ -97,7 +120,7 @@ function BrainPage() {
             <button
               key={m}
               type="button"
-              onClick={() => setScope({ mode: m })}
+              onClick={() => chooseScope(m)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition",
                 scope.mode === m
@@ -108,24 +131,37 @@ function BrainPage() {
               {SCOPE_LABEL[m]}
             </button>
           ))}
+          {scope.mode === "executive" && (
+            <label className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-1.5 text-xs">
+              <UserSquare2 className="h-3.5 w-3.5 text-[color:var(--muted-foreground)]" />
+              <select
+                value={scope.executiveId ?? session.userId}
+                onChange={(e) => setScope({ mode: "executive", executiveId: e.target.value })}
+                className="bg-transparent outline-none text-[color:var(--foreground)]"
+              >
+                {executives.map((e) => (
+                  <option key={e.id} value={e.id} className="bg-[color:var(--navy)]">
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
-        <div className="inline-flex rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/40 p-1 text-xs">
-          {PERIOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setPeriod(opt.value)}
-              className={cn(
-                "px-3 py-1.5 rounded-full transition",
-                period === opt.value
-                  ? "bg-[color:var(--accent)] text-[color:var(--foreground)]"
-                  : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <label className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-1.5 text-xs">
+          <CalendarRange className="h-3.5 w-3.5 text-[color:var(--muted-foreground)]" />
+          <select
+            value={monthKey}
+            onChange={(e) => setMonthKey(e.target.value)}
+            className="bg-transparent outline-none text-[color:var(--foreground)]"
+          >
+            {AVAILABLE_MONTHS.map((m) => (
+              <option key={m.key} value={m.key} className="bg-[color:var(--navy)]">
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <ScopeBreadcrumb mode={scope.mode} />
@@ -141,42 +177,15 @@ function BrainPage() {
         <AlertsCenter
           alerts={activeAlerts}
           copiedId={copiedId}
+          canDismiss={canDismissAlerts}
           onDismiss={handleDismiss}
           onCopy={handleCopy}
         />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Conversao por etapa"
-          icon={Activity}
-          subtitle="Percentual de aproveitamento entre etapas do funil"
-          data={snapshot.conversion}
-          unit="%"
-        />
-        <ChartCard
-          title="Evolucao acumulada"
-          icon={TrendingUp}
-          subtitle="Volume acumulado no periodo"
-          data={snapshot.evolution}
-        />
-        <ChartCard
-          title="Distribuicao temporal"
-          icon={LineChart}
-          subtitle="Volume diario"
-          data={snapshot.temporal}
-        />
-        <ChartCard
-          title="Tendencia projetada"
-          icon={Sparkles}
-          subtitle="Projecao suavizada sobre o periodo"
-          data={snapshot.trend}
-        />
-      </div>
-
       <p className="mt-10 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-        Valores exibidos nesta versao sao simulados. A fonte oficial de
-        indicadores sera o KPI Manager, alimentando o Brain, dashboards e a IA.
+        Os indicadores desta tela consomem exclusivamente o KPI Manager. O Brain
+        prioriza decisões operacionais rápidas: volume, funil e alertas acionáveis.
       </p>
     </ExecutiveShell>
   );
@@ -195,11 +204,13 @@ function ScopeBreadcrumb({ mode }: { mode: ScopeMode }) {
 function AlertsCenter({
   alerts,
   copiedId,
+  canDismiss,
   onDismiss,
   onCopy,
 }: {
   alerts: BrainAlert[];
   copiedId: string | null;
+  canDismiss: boolean;
   onDismiss: (id: string) => void;
   onCopy: (a: BrainAlert) => void;
 }) {
@@ -271,16 +282,18 @@ function AlertsCenter({
                 >
                   {copiedId === a.id ? "Copiado" : "Copiar"}
                 </AlertBtn>
-                <AlertBtn onClick={() => onDismiss(a.id)} icon={X}>
-                  Fechar
-                </AlertBtn>
+                {canDismiss && (
+                  <AlertBtn onClick={() => onDismiss(a.id)} icon={X}>
+                    Fechar
+                  </AlertBtn>
+                )}
               </div>
             </li>
           ))}
         </ul>
       )}
       <p className="mt-4 text-[10px] text-[color:var(--muted-foreground)] leading-relaxed">
-        Alertas permanecem visiveis ate serem fechados manualmente.
+        Alertas pertencem ao executivo responsável. Apenas o próprio executivo pode encerrá-los.
       </p>
     </div>
   );

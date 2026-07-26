@@ -8,14 +8,12 @@ import {
   FileSpreadsheet,
   FileText,
   Info,
-  LineChart,
   Share2,
   ShieldCheck,
   Sparkles,
   TrendingUp,
   Users,
   UserSquare2,
-  Building2,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
@@ -23,7 +21,6 @@ import { AVAILABLE_MONTHS } from "@/lib/kpi-manager";
 import {
   availableExecutives,
   availableScopes,
-  availableTeams,
   buildReport,
   defaultSelection,
   REPORT_SCOPE_LABEL,
@@ -31,7 +28,6 @@ import {
   type ReportScope,
   type ReportSelection,
 } from "@/lib/reports";
-import { ChartCard } from "@/components/executive/brain/chart-card";
 import { FunnelCard } from "@/components/executive/brain/funnel-card";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +35,19 @@ export const Route = createFileRoute("/executivo/relatorios")({
   head: () => ({
     meta: [
       { title: "Relatórios Executivos — Atlas Platform" },
+      {
+        name: "description",
+        content:
+          "Relatórios de equipe e individuais com dados oficiais do KPI Manager.",
+      },
+      { property: "og:title", content: "Relatórios Executivos — Atlas Platform" },
+      {
+        property: "og:description",
+        content:
+          "Relatórios de equipe e individuais com dados oficiais do KPI Manager.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -48,7 +57,6 @@ export const Route = createFileRoute("/executivo/relatorios")({
 const SCOPE_ICON: Record<ReportScope, typeof UserSquare2> = {
   individual: UserSquare2,
   team: Users,
-  company: Building2,
 };
 
 function ReportsPage() {
@@ -75,7 +83,6 @@ function ReportsPage() {
 
   const scopes = availableScopes(session);
   const executives = availableExecutives(session);
-  const teams = availableTeams(session);
 
   function setScope(scope: ReportScope) {
     if (!session || !selection) return;
@@ -83,7 +90,6 @@ function ReportsPage() {
       ...selection,
       scope,
       executiveId: selection.executiveId ?? session.userId,
-      teamId: selection.teamId ?? teams[0]?.id,
     });
   }
 
@@ -119,14 +125,6 @@ function ReportsPage() {
               value={selection.executiveId ?? session.userId}
               onChange={(v) => setSelection({ ...selection, executiveId: v })}
               options={executives.map((e) => ({ value: e.id, label: e.name }))}
-            />
-          )}
-          {selection.scope === "team" && teams.length > 0 && (
-            <Select
-              icon={Users}
-              value={selection.teamId ?? teams[0].id}
-              onChange={(v) => setSelection({ ...selection, teamId: v })}
-              options={teams.map((t) => ({ value: t.id, label: t.name }))}
             />
           )}
           <Select
@@ -172,9 +170,10 @@ function ReportsPage() {
       </div>
 
       {/* Cards de resumo */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <SummaryCard label="Leads" value={report.summary.leads.toLocaleString("pt-BR")} icon={Activity} />
         <SummaryCard label="Apresentações" value={report.summary.presentations.toLocaleString("pt-BR")} icon={Sparkles} />
+        <SummaryCard label="COFs Enviadas" value={report.summary.contractsSent.toLocaleString("pt-BR")} icon={FileText} />
         <SummaryCard label="Vendas" value={report.summary.sales.toLocaleString("pt-BR")} icon={TrendingUp} />
         <SummaryCard
           label="Faturamento"
@@ -184,71 +183,9 @@ function ReportsPage() {
         />
       </div>
 
-      {/* Gráficos de evolução */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Evolução diária — Vendas"
-          subtitle="Vendas assinadas por dia da competência"
-          icon={LineChart}
-          data={report.daily["contractsSigned" as keyof typeof report.daily] ?? []}
-        />
-        <ChartCard
-          title="Evolução semanal — Vendas"
-          subtitle="Agrupamento semanal das vendas"
-          icon={TrendingUp}
-          data={report.weekly}
-        />
-        <ChartCard
-          title="Evolução mensal — Vendas"
-          subtitle="Comparativo entre as competências disponíveis"
-          icon={BarChart3}
-          data={report.monthly}
-        />
+      {/* Funil executivo */}
+      <div className="mt-8">
         <FunnelCard stages={report.funnel} />
-      </div>
-
-      {/* Comparativo entre períodos */}
-      <div className="mt-8 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="h-4 w-4 text-[color:var(--gold)]" />
-          <h3 className="font-display text-lg">Comparativo com a competência anterior</h3>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {report.comparison.map((c) => {
-            const positive = c.delta >= 0;
-            return (
-              <div
-                key={c.label}
-                className="rounded-xl border border-[color:var(--border)] bg-[color:var(--navy-deep)]/40 p-4"
-              >
-                <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                  {c.label}
-                </p>
-                <p className="font-display text-xl mt-1 tabular-nums">
-                  {c.label === "Faturamento"
-                    ? c.current.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
-                    : c.current.toLocaleString("pt-BR")}
-                </p>
-                <p className="text-[11px] mt-1 text-[color:var(--muted-foreground)]">
-                  Anterior:{" "}
-                  <span className="tabular-nums">
-                    {c.label === "Faturamento"
-                      ? c.previous.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
-                      : c.previous.toLocaleString("pt-BR")}
-                  </span>
-                </p>
-                <p
-                  className={cn(
-                    "mt-2 text-[11px] font-medium",
-                    positive ? "text-emerald-400" : "text-rose-400",
-                  )}
-                >
-                  {positive ? "▲" : "▼"} {Math.abs(c.delta).toFixed(1)}%
-                </p>
-              </div>
-            );
-          })}
-        </div>
       </div>
 
       {/* Tabela detalhada de indicadores */}

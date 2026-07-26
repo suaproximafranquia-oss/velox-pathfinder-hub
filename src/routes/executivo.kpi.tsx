@@ -207,7 +207,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
 
   return (
     <ExecutiveShell session={session} title="KPI Manager">
-     <div className="w-full min-w-0 overflow-x-hidden">
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden">
       {/* Barra de contexto ------------------------------------------------- */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
@@ -227,7 +227,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
             {savedFlash ? "Alterações salvas automaticamente" : "Auto save ativo"}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
           <MonthSelector
             currentKey={ctx.monthKey}
             onSelect={(k) => update({ monthKey: k })}
@@ -251,7 +251,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       {/* Container dedicado do módulo KPI ---------------------------------- */}
-      <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/55 p-4 sm:p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]">
+      <div className="max-w-full overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/55 p-4 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-5">
 
       {/* Resumo executivo do topo — apenas informações estratégicas ------- */}
       <div className="grid gap-3 md:grid-cols-3">
@@ -277,7 +277,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       {/* Cabeçalho da planilha -------------------------------------------- */}
-      <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[#F5F6F8] text-[color:var(--navy-deep)] overflow-hidden shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
+      <div className="mt-4 max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[#F5F6F8] text-[color:var(--navy-deep)] shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-black/10 bg-white/60">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-[color:var(--navy)]" />
@@ -312,8 +312,8 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
             Escopo respeitando permissões do perfil ativo
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <div className="flex min-w-max">
+        <div className="max-w-full overflow-x-auto kpi-scroll">
+          <div className="flex w-max min-w-full">
             {canUseConsolidated && (
               <button
                 key={CONSOLIDATED_VIEW_ID}
@@ -501,8 +501,8 @@ function KpiSpreadsheet({
 
   return (
     <div
-      className="grid w-full min-w-0 max-h-[720px] overflow-hidden"
-      style={{ gridTemplateColumns: `${IND_W}px minmax(0, 1fr) ${TOTAL_W + AVG_W}px` }}
+      className="grid w-full min-w-0 max-w-full max-h-[720px] overflow-hidden"
+      style={{ gridTemplateColumns: `minmax(240px, ${IND_W}px) minmax(0, 1fr) minmax(238px, ${TOTAL_W + AVG_W}px)` }}
     >
       {/* Coluna Indicador — fixa à esquerda */}
       <div className="min-w-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]">
