@@ -213,7 +213,10 @@ function Hero() {
             />
             <span
               className="portal-eyebrow"
-              style={{ color: "color-mix(in oklab, var(--paper) 78%, transparent)" }}
+            style={{
+              color: "rgba(255,255,255,0.95)",
+              textShadow: "0 1px 2px rgba(6,12,28,0.35)",
+            }}
             >
               Ecossistema Velox · Edição MMXXVI
             </span>
@@ -222,8 +225,9 @@ function Hero() {
             className="portal-serif mt-8 text-balance"
             style={{
               fontSize: "clamp(3rem, 8vw, 7rem)",
-              color: "var(--paper)",
-              textShadow: "0 2px 32px color-mix(in oklab, var(--ink) 45%, transparent)",
+            color: "#ffffff",
+            textShadow:
+              "0 2px 32px color-mix(in oklab, var(--ink) 45%, transparent), 0 1px 2px rgba(6,12,28,0.35)",
             }}
           >
             Portal <span style={{ color: "var(--brand-orange)" }}>Velox</span>.
@@ -232,14 +236,18 @@ function Hero() {
             className="portal-serif mt-6 italic"
             style={{
               fontSize: "clamp(1.25rem, 2.4vw, 1.75rem)",
-              color: "color-mix(in oklab, var(--paper) 88%, transparent)",
+            color: "rgba(255,255,255,0.98)",
+            textShadow: "0 1px 2px rgba(6,12,28,0.35)",
             }}
           >
             Uma única plataforma para acessar tudo o que a Velox oferece.
           </p>
           <p
             className="mt-8 max-w-[56ch] text-base leading-relaxed md:text-lg"
-            style={{ color: "color-mix(in oklab, var(--paper) 78%, transparent)" }}
+          style={{
+            color: "rgba(255,255,255,0.94)",
+            textShadow: "0 1px 2px rgba(6,12,28,0.3)",
+          }}
           >
             O Portal Velox reúne, em um só lugar, o Manual do Investidor,
             o Universo institucional, nossa sede, comunicados e experiências
@@ -252,8 +260,9 @@ function Hero() {
         <div
           className="mt-20 flex flex-wrap items-end justify-between gap-6 border-t pt-6 text-[11px] uppercase tracking-[0.24em]"
           style={{
-            borderColor: "color-mix(in oklab, var(--paper) 25%, transparent)",
-            color: "color-mix(in oklab, var(--paper) 70%, transparent)",
+            borderColor: "rgba(255,255,255,0.32)",
+            color: "rgba(255,255,255,0.9)",
+            textShadow: "0 1px 2px rgba(6,12,28,0.35)",
           }}
         >
           <span>Sede Velox · São José do Rio Preto · SP</span>
