@@ -34,18 +34,14 @@ import type { ExecutiveSession } from "./executive-auth";
 import { loadUsers, type ExecutiveUser } from "./executive-auth";
 import {
   managedTeams,
-  teamMembers,
   visibleCollaborators,
-  TEAMS,
-  type Team,
 } from "./teams";
 
-export type ReportScope = "individual" | "team" | "company";
+export type ReportScope = "individual" | "team";
 
 export const REPORT_SCOPE_LABEL: Record<ReportScope, string> = {
   individual: "Individual",
   team: "Equipe",
-  company: "Empresa",
 };
 
 export type ReportSelection = {
@@ -53,8 +49,6 @@ export type ReportSelection = {
   monthKey: string;
   /** Utilizado quando scope = "individual". */
   executiveId?: string;
-  /** Utilizado quando scope = "team". */
-  teamId?: string;
 };
 
 export type ReportSeriesPoint = { x: string; y: number };
@@ -79,9 +73,6 @@ export type ReportDataset = {
   sources: string[];
   summary: KpiSummary;
   indicators: ReportIndicator[];
-  daily: Record<IndicatorId, ReportSeriesPoint[]>;
-  weekly: ReportSeriesPoint[];
-  monthly: ReportSeriesPoint[];
   funnel: FunnelStage[];
   comparison: {
     label: string;
@@ -102,34 +93,25 @@ export type ReportDataset = {
 /* ---------------------- Descoberta de escopo ---------------------- */
 
 export function availableScopes(session: ExecutiveSession): ReportScope[] {
-  if (session.activeRole === "super_admin") return ["individual", "team", "company"];
-  if (session.activeRole === "diretora") return ["individual", "team"];
+  if (session.activeRole === "super_admin" || session.activeRole === "diretora")
+    return ["team", "individual"];
   return ["individual"];
 }
 
 export function defaultSelection(session: ExecutiveSession): ReportSelection {
   const scope: ReportScope =
-    session.activeRole === "super_admin"
-      ? "company"
-      : session.activeRole === "diretora"
+    session.activeRole === "super_admin" || session.activeRole === "diretora"
         ? "team"
         : "individual";
-  const teamId = managedTeams(session)[0]?.id;
   return {
     scope,
     monthKey: DEFAULT_MONTH_KEY,
     executiveId: session.userId,
-    teamId,
   };
 }
 
 export function availableExecutives(session: ExecutiveSession): ExecutiveUser[] {
   return visibleCollaborators(session);
-}
-
-export function availableTeams(session: ExecutiveSession): Team[] {
-  if (session.activeRole === "super_admin") return TEAMS;
-  return managedTeams(session);
 }
 
 /* ---------------------- Coleta de datasets ---------------------- */
@@ -146,18 +128,10 @@ function collectDatasets(
     const target = selection.executiveId ?? session.userId;
     if (!canAccessKpiOf(session, target, managedIds)) users = [];
     else users = all.filter((u) => u.id === target);
-  } else if (selection.scope === "team") {
-    const team = selection.teamId ?? managedTeams(session)[0]?.id;
-    if (!team) users = [];
-    else {
-      users = teamMembers(team).filter((u) =>
-        canAccessKpiOf(session, u.id, managedIds),
-      );
-    }
   } else {
-    // Empresa — apenas Administrador.
-    if (session.activeRole !== "super_admin") users = [];
-    else users = all.filter((u) => u.role === "executivo");
+    users = visibleCollaborators(session).filter((u) =>
+      canAccessKpiOf(session, u.id, managedIds),
+    );
   }
 
   const datasets = users.map((u) => loadDataset(u.id, selection.monthKey));
@@ -173,55 +147,13 @@ function aggregateMatrixTotal(
   return datasets.reduce((acc, ds) => acc + sumRow(ds.matrix, indicator), 0);
 }
 
-function aggregateDaily(
-  datasets: KpiDataset[],
-  indicator: IndicatorId,
-  month: KpiMonth,
-): ReportSeriesPoint[] {
-  const days = daysInMonth(month);
-  const out: ReportSeriesPoint[] = [];
-  for (let d = 1; d <= days; d++) {
-    let y = 0;
-    for (const ds of datasets) y += ds.matrix[indicator]?.[d] ?? 0;
-    out.push({ x: String(d).padStart(2, "0"), y });
-  }
-  return out;
-}
-
-function toWeekly(daily: ReportSeriesPoint[]): ReportSeriesPoint[] {
-  const out: ReportSeriesPoint[] = [];
-  for (let i = 0; i < daily.length; i += 7) {
-    const slice = daily.slice(i, i + 7);
-    const y = slice.reduce((a, p) => a + p.y, 0);
-    out.push({ x: `S${Math.floor(i / 7) + 1}`, y });
-  }
-  return out;
-}
-
-function toMonthlyComparative(
-  session: ExecutiveSession,
-  selection: ReportSelection,
-  indicator: IndicatorId,
-): ReportSeriesPoint[] {
-  // Série mensal — ancorada nos meses disponíveis (Julho..Dezembro/2026).
-  return AVAILABLE_MONTHS.map((m) => {
-    const partial = { ...selection, monthKey: m.key };
-    const { datasets } = collectDatasets(session, partial);
-    return { x: m.label.slice(0, 3), y: aggregateMatrixTotal(datasets, indicator) };
-  });
-}
-
 function buildFunnel(summary: KpiSummary, datasets: KpiDataset[]): FunnelStage[] {
-  const videosDone = datasets.reduce(
-    (a, ds) => a + sumRow(ds.matrix, "videosDone"),
-    0,
-  );
+  void datasets;
   return [
     { id: "leads", label: "Leads", value: summary.leads },
     { id: "calls", label: "Ligações", value: summary.calls },
     { id: "presentations", label: "Apresentações", value: summary.presentations },
-    { id: "videos", label: "Vídeo Conferências", value: videosDone },
-    { id: "sent", label: "Contratos Enviados", value: summary.contractsSent },
+    { id: "cofs", label: "COFs", value: summary.contractsSent },
     { id: "sales", label: "Vendas", value: summary.sales },
   ];
 }
@@ -243,9 +175,8 @@ function buildComparison(
     : null;
   const rows: [string, number, number][] = [
     ["Leads", currentSummary.leads, prev?.leads ?? 0],
-    ["Ligações", currentSummary.calls, prev?.calls ?? 0],
     ["Apresentações", currentSummary.presentations, prev?.presentations ?? 0],
-    ["Contratos", currentSummary.contractsSent, prev?.contractsSent ?? 0],
+    ["COFs Enviadas", currentSummary.contractsSent, prev?.contractsSent ?? 0],
     ["Vendas", currentSummary.sales, prev?.sales ?? 0],
     ["Faturamento", currentSummary.salesValue, prev?.salesValue ?? 0],
   ];
@@ -303,10 +234,8 @@ function buildNarrative(
   const prefix =
     scope === "individual"
       ? `Segundo os registros do KPI Manager, ${subjectName}`
-      : scope === "team"
-        ? `Com base nos dados oficiais do KPI Manager, a ${subjectName}`
-        : "De acordo com os indicadores registrados na plataforma, a operação";
-  return `${prefix} realizou ${formatNumber(summary.calls)} ligações, ${formatNumber(summary.presentations)} apresentações e ${formatNumber(summary.contractsSent)} contratos enviados em ${monthLabel}, resultando em ${formatNumber(summary.sales)} vendas (${conv} de conversão) e ${val} em pagamentos.`;
+      : `Com base nos dados oficiais do KPI Manager, a ${subjectName}`;
+  return `${prefix} registrou ${formatNumber(summary.leads)} leads, ${formatNumber(summary.presentations)} apresentações, ${formatNumber(summary.contractsSent)} COFs enviadas, ${formatNumber(summary.sales)} vendas e ${val} em faturamento em ${monthLabel}. Conversão geral registrada: ${conv}.`;
 }
 
 /* ---------------------- API pública ---------------------- */
@@ -319,7 +248,16 @@ export function buildReport(
   const { users, datasets } = collectDatasets(session, selection);
   const summary = summarizeMany(datasets);
 
-  const indicators: ReportIndicator[] = INDICATORS.map((ind) => {
+  const principalIds = new Set<IndicatorId>([
+    "leads",
+    "presentations",
+    "contractsSent",
+    "contractsSigned",
+    "salesValue",
+  ] as IndicatorId[]);
+  const indicators: ReportIndicator[] = INDICATORS.filter((ind) =>
+    principalIds.has(ind.id as IndicatorId),
+  ).map((ind) => {
     const total = aggregateMatrixTotal(datasets, ind.id as IndicatorId);
     const average =
       datasets.length === 0
@@ -339,28 +277,15 @@ export function buildReport(
     };
   });
 
-  const daily = {} as Record<IndicatorId, ReportSeriesPoint[]>;
-  for (const ind of INDICATORS)
-    daily[ind.id as IndicatorId] = aggregateDaily(datasets, ind.id as IndicatorId, month);
-
-  const salesDaily = daily["contractsSigned" as IndicatorId] ?? [];
-  const weekly = toWeekly(salesDaily);
-  const monthly = toMonthlyComparative(session, selection, "contractsSigned" as IndicatorId);
-
   const subjectName =
     selection.scope === "individual"
       ? users[0]?.name ?? "este executivo"
-      : selection.scope === "team"
-        ? availableTeams(session).find((t) => t.id === (selection.teamId ?? managedTeams(session)[0]?.id))
-            ?.name ?? "equipe"
-        : "empresa";
+      : "Equipe";
 
   const title =
     selection.scope === "individual"
       ? `Relatório Individual — ${subjectName}`
-      : selection.scope === "team"
-        ? `Relatório de Equipe — ${subjectName}`
-        : "Relatório Geral da Empresa";
+      : "Relatório de Equipe";
 
   return {
     selection,
@@ -370,9 +295,6 @@ export function buildReport(
     sources: ["KPI Manager"],
     summary,
     indicators,
-    daily,
-    weekly,
-    monthly,
     funnel: buildFunnel(summary, datasets),
     comparison: buildComparison(session, selection, summary),
     narrative: buildNarrative(selection.scope, month.label, subjectName, summary),
