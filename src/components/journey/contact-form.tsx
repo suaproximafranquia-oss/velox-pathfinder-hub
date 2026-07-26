@@ -1,12 +1,28 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
+import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import type { ExecutiveUser } from "@/lib/executive-auth";
 
 export function ContactForm() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", city: "", time: "Qualquer horário" });
+  const [responsible, setResponsible] = useState<{
+    executive: ExecutiveUser | null;
+    personalized: boolean;
+  }>({ executive: null, personalized: false });
+
+  useEffect(() => {
+    setResponsible(getResponsibleExecutive());
+  }, []);
+
+  const exec = responsible.executive;
+  const whatsappNumber = exec?.phone?.replace(/\D/g, "") || WHATSAPP_NUMBER;
+  const ctaLabel = responsible.personalized
+    ? "Quero voltar a falar com meu especialista"
+    : "Quero conversar com um especialista da Velox";
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -15,14 +31,24 @@ export function ContactForm() {
     e.preventDefault();
     if (!form.name || !form.phone) return;
     setSubmitting(true);
+    const salutation = responsible.personalized && exec
+      ? `Olá ${exec.name.split(" ")[0]}! Concluí o Manual do Investidor e gostaria de continuar nossa conversa. Tenho algumas dúvidas.`
+      : `Olá! Concluí o Manual do Investidor e gostaria de continuar nossa conversa. Tenho algumas dúvidas.`;
     const msg =
-      `Olá! Concluí o Manual do Investidor Velox e gostaria de conversar com um especialista.\n\n` +
+      `${salutation}\n\n` +
       `Nome: ${form.name}\nWhatsApp: ${form.phone}\nCidade: ${form.city || "—"}\n` +
       `Melhor horário: ${form.time}`;
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+    const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`;
     if (typeof window !== "undefined") {
       try {
-        window.localStorage.setItem("velox:manual:lead", JSON.stringify(form));
+        window.localStorage.setItem(
+          "velox:manual:lead",
+          JSON.stringify({
+            ...form,
+            responsibleExecutiveId: exec?.id ?? null,
+            personalized: responsible.personalized,
+          }),
+        );
       } catch { /* noop */ }
       window.open(url, "_blank");
     }
@@ -40,7 +66,9 @@ export function ContactForm() {
         </p>
         <h3 className="font-display text-2xl mb-1">Vamos conversar</h3>
         <p className="text-sm text-[color:var(--muted-foreground)]">
-          Preencha e nossa equipe entra em contato em até um dia útil.
+          {responsible.personalized && exec
+            ? `Você será atendido diretamente por ${exec.name}${exec.title ? ` — ${exec.title}` : ""}.`
+            : "Preencha e nossa equipe entra em contato em até um dia útil."}
         </p>
       </div>
 
@@ -77,7 +105,7 @@ export function ContactForm() {
         disabled={submitting}
         className="group inline-flex w-full sm:w-auto items-center justify-center gap-3 rounded-full bg-[color:var(--gold)] px-8 py-4 text-sm font-medium text-[color:var(--gold-foreground)] hover:shadow-[0_15px_50px_-15px_var(--gold)] transition-all duration-300 disabled:opacity-60"
       >
-        Quero conversar com um especialista da Velox
+        {ctaLabel}
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </button>
     </form>
