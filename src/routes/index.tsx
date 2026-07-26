@@ -176,19 +176,28 @@ function Hero() {
           className="h-full w-full object-cover portal-hero-ken"
         />
         {/* Camadas editoriais: profundidade, iluminação e vinheta */}
+        {/* Overlay institucional Velox — degradê navy + toque quente para leitura sem esconder a foto */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, color-mix(in oklab, var(--ink) 55%, transparent) 0%, color-mix(in oklab, var(--ink) 20%, transparent) 40%, color-mix(in oklab, var(--ink) 78%, transparent) 100%)",
+              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 40%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 12%, transparent) 42%, color-mix(in oklab, var(--brand-blue-deep) 32%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 62%, transparent) 100%)",
           }}
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(60% 55% at 25% 45%, color-mix(in oklab, var(--brand-orange) 18%, transparent), transparent 70%), radial-gradient(50% 50% at 90% 20%, color-mix(in oklab, var(--brand-blue) 22%, transparent), transparent 65%)",
-            mixBlendMode: "screen",
+              "radial-gradient(70% 60% at 18% 55%, color-mix(in oklab, var(--brand-blue-deep) 28%, transparent), transparent 72%), radial-gradient(55% 55% at 92% 18%, color-mix(in oklab, var(--brand-orange) 14%, transparent), transparent 65%)",
+          }}
+        />
+        {/* Faixa de continuidade — funde a base do Hero com o fundo institucional da Home */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-40"
+          style={{
+            background:
+              "linear-gradient(180deg, transparent 0%, color-mix(in oklab, var(--brand-blue-deep) 40%, transparent) 55%, var(--paper) 100%)",
           }}
         />
         <div aria-hidden className="absolute inset-0 portal-grid opacity-[0.08]" />
