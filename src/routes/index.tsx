@@ -6,7 +6,7 @@ import executivosImg from "@/assets/portal-executivos.png.asset.json";
 import sedeImg from "@/assets/portal-sede.jpg.asset.json";
 import recepcaoImg from "@/assets/portal-recepcao.jpg.asset.json";
 import experienciasImg from "@/assets/portal-experiencias.png.asset.json";
-import fundadorImg from "@/assets/portal-fundador.png.asset.json";
+import revistaImg from "@/assets/portal-revista.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -66,6 +66,7 @@ const MODULES: ModuleCard[] = [
       "O ecossistema de soluções, parceiros e frentes especializadas que compõem a operação Velox em todo o Brasil.",
     icon: Compass,
     cover: executivosImg.url,
+    panelSrc: "/manual/velox",
     cta: "Explorar o ecossistema",
     status: "aberto",
   },
@@ -87,7 +88,7 @@ const MODULES: ModuleCard[] = [
     description:
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
     icon: BookMarked,
-    cover: fundadorImg.url,
+    cover: revistaImg,
     cta: "Em breve",
     status: "em-preparacao",
   },
@@ -175,19 +176,28 @@ function Hero() {
           className="h-full w-full object-cover portal-hero-ken"
         />
         {/* Camadas editoriais: profundidade, iluminação e vinheta */}
+        {/* Overlay institucional Velox — degradê navy + toque quente para leitura sem esconder a foto */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, color-mix(in oklab, var(--ink) 55%, transparent) 0%, color-mix(in oklab, var(--ink) 20%, transparent) 40%, color-mix(in oklab, var(--ink) 78%, transparent) 100%)",
+              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 40%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 12%, transparent) 42%, color-mix(in oklab, var(--brand-blue-deep) 32%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 62%, transparent) 100%)",
           }}
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(60% 55% at 25% 45%, color-mix(in oklab, var(--brand-orange) 18%, transparent), transparent 70%), radial-gradient(50% 50% at 90% 20%, color-mix(in oklab, var(--brand-blue) 22%, transparent), transparent 65%)",
-            mixBlendMode: "screen",
+              "radial-gradient(70% 60% at 18% 55%, color-mix(in oklab, var(--brand-blue-deep) 28%, transparent), transparent 72%), radial-gradient(55% 55% at 92% 18%, color-mix(in oklab, var(--brand-orange) 14%, transparent), transparent 65%)",
+          }}
+        />
+        {/* Faixa de continuidade — funde a base do Hero com o fundo institucional da Home */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-40"
+          style={{
+            background:
+              "linear-gradient(180deg, transparent 0%, color-mix(in oklab, var(--brand-blue-deep) 40%, transparent) 55%, var(--paper) 100%)",
           }}
         />
         <div aria-hidden className="absolute inset-0 portal-grid opacity-[0.08]" />
@@ -257,7 +267,7 @@ function Hero() {
 
 function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
   return (
-    <section id="modulos" className="relative border-y" style={{ borderColor: "var(--paper-edge)" }}>
+    <section id="modulos" className="relative border-b" style={{ borderColor: "var(--paper-edge)" }}>
       <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
         <div className="mb-14 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
