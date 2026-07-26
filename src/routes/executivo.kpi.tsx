@@ -153,34 +153,36 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       {/* Container dedicado do módulo KPI ---------------------------------- */}
-      <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/35 p-4 sm:p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset]">
+      <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/55 p-4 sm:p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]">
 
-      {/* KPIs superiores --------------------------------------------------- */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard icon={Users}         label="Leads"        value={formatNumber(summary.leads)} />
-        <SummaryCard icon={PhoneCall}     label="Ligações"     value={formatNumber(summary.calls)} />
-        <SummaryCard icon={Presentation}  label="Apresentações" value={formatNumber(summary.presentations)} />
-        <SummaryCard icon={Handshake}     label="Contratos"     value={formatNumber(summary.contractsSent)} />
-        <SummaryCard icon={TrendingUp}    label="Conversão"     value={formatPercent(summary.conversion)} />
-        <SummaryCard icon={HandCoins}     label="Valor Vendido" value={formatCurrency(summary.salesValue)} highlight />
-      </div>
-
-      {/* Campanha Velox --------------------------------------------------- */}
-      <div className="mt-4">
+      {/* Resumo executivo do topo — apenas informações estratégicas ------- */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Competência</p>
+          <p className="font-display text-lg mt-1">{activeMonth.label}</p>
+          <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{activeCollab?.name ?? "—"} · {days} dias</p>
+        </div>
+        <div className="rounded-2xl border border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/10 to-transparent p-4">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[color:var(--gold)]/40 text-[color:var(--gold)]">
+              <HandCoins className="h-3.5 w-3.5" strokeWidth={1.6} />
+            </span>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Valor Vendido Acumulado</p>
+          </div>
+          <p className="font-display text-xl mt-2 tabular-nums text-[color:var(--gold)]">{formatCurrency(summary.salesValue)}</p>
+        </div>
         <CampanhaVeloxCard salesValue={summary.salesValue} />
       </div>
 
       {/* Cabeçalho da planilha -------------------------------------------- */}
-      <div className="mt-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/25 overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 border-b border-[color:var(--border)]">
+      <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[#F5F6F8] text-[color:var(--navy-deep)] overflow-hidden shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-black/10 bg-white/60">
           <div className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-[color:var(--gold)]" />
-            <h2 className="font-display text-lg leading-none">{activeMonth.label}</h2>
-            <span className="text-xs text-[color:var(--muted-foreground)]">
-              · {activeCollab?.name ?? "—"}
-            </span>
+            <CalendarDays className="h-4 w-4 text-[color:var(--navy)]" />
+            <h2 className="font-display text-base leading-none">{activeMonth.label}</h2>
+            <span className="text-xs text-black/55">· {activeCollab?.name ?? "—"}</span>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-[color:var(--muted-foreground)]">
+          <div className="flex items-center gap-2 text-[11px] text-black/55">
             <Activity className="h-3.5 w-3.5" />
             {days} dias · edite qualquer célula
           </div>
