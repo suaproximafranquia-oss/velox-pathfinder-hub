@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { SiteNav, type NavSection } from "@/components/site/SiteNav";
-import { ReadingProgress } from "@/components/site/ReadingProgress";
+import { ModuleChrome, type ModuleChromeSection } from "@/components/editorial/module-chrome";
 import { BackToTop } from "@/components/site/BackToTop";
 import { Reveal } from "@/components/site/Reveal";
 import { VMark } from "@/components/site/VMark";
@@ -45,7 +44,7 @@ export const Route = createFileRoute("/universo")({
   component: Index,
 });
 
-const SECTIONS: NavSection[] = [
+const SECTIONS: ModuleChromeSection[] = [
   { id: "capa", label: "Capa" },
   { id: "carta", label: "Carta de Boas-vindas" },
   { id: "manual", label: "Como utilizar este manual" },
