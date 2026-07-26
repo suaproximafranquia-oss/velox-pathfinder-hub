@@ -5,7 +5,6 @@ import {
   Users,
   UserCog,
   LogOut,
-  ArrowLeft,
   Database,
   Sparkles,
   Brain,
@@ -103,13 +102,6 @@ export function ExecutiveShell({
           </div>
           <div className="flex items-center gap-3">
             <ProfileSwitcher session={session} />
-            <Link
-              to="/"
-              title="Retornando ao Manual do Investidor"
-              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao Manual
-            </Link>
             <button
               type="button"
               onClick={() => {
@@ -126,9 +118,11 @@ export function ExecutiveShell({
 
       <div
         className={cn(
-          "mx-auto px-6 pt-24 md:pt-28 pb-16 grid gap-8 md:grid-cols-[220px_minmax(0,1fr)]",
+          "mx-auto px-6 grid gap-8 md:grid-cols-[220px_minmax(0,1fr)]",
+          fullBleed ? "pt-20 md:pt-24 pb-4" : "pt-24 md:pt-28 pb-16",
           fullBleed ? "max-w-none" : "max-w-6xl",
         )}
+        style={fullBleed ? ({ ["--atlas-shell-offset" as never]: "196px" } as React.CSSProperties) : undefined}
       >
         <aside className="md:sticky md:top-28 h-fit">
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
@@ -153,7 +147,7 @@ export function ExecutiveShell({
           </nav>
         </aside>
         <main className="min-w-0" style={{ overflowX: "clip" }}>
-          <h1 className="font-display text-2xl md:text-3xl mb-8">{title}</h1>
+          <h1 className={cn("font-display text-2xl md:text-3xl", fullBleed ? "mb-3" : "mb-8")}>{title}</h1>
           {children}
         </main>
       </div>
