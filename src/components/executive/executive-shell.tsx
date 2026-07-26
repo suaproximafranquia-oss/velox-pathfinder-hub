@@ -58,7 +58,7 @@ export function ExecutiveShell({
   ];
 
   return (
-    <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] bg-grain">
+    <div className="min-h-screen overflow-x-hidden bg-[color:var(--background)] text-[color:var(--foreground)] bg-grain">
       <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 gap-4">
           <div className="flex items-center gap-3">
@@ -101,7 +101,7 @@ export function ExecutiveShell({
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-6 pt-24 md:pt-28 pb-16 grid gap-8 md:grid-cols-[220px_1fr]">
+      <div className="mx-auto max-w-6xl px-6 pt-24 md:pt-28 pb-16 grid gap-8 md:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="md:sticky md:top-28 h-fit">
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
             {nav.map((n) => {
@@ -124,7 +124,7 @@ export function ExecutiveShell({
             })}
           </nav>
         </aside>
-        <main>
+        <main className="min-w-0">
           <h1 className="font-display text-2xl md:text-3xl mb-8">{title}</h1>
           {children}
         </main>

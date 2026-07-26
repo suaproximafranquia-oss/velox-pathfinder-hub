@@ -305,12 +305,12 @@ function MonthSelector({
   );
 }
 
-const ROW_H = 30;
+const ROW_H = 32;
 const HEADER_H = 34;
-const DAY_W = 44;
-const IND_W = 200;
-const TOTAL_W = 104;
-const AVG_W = 84;
+const DAY_W = 76;
+const IND_W = 292;
+const TOTAL_W = 136;
+const AVG_W = 112;
 
 function KpiSpreadsheet({
   matrix,
@@ -358,11 +358,14 @@ function KpiSpreadsheet({
             {ind.marker && (
               <span
                 aria-hidden
-                className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r"
-                style={{ backgroundColor: ind.marker === "green" ? "#16A34A" : "#B8894A" }}
+                className="absolute left-0 top-0 bottom-0 w-[5px]"
+                style={{
+                  backgroundColor: ind.marker === "green" ? "#16A34A" : "#D4AF37",
+                  boxShadow: `0 0 0 1px ${ind.marker === "green" ? "rgba(22,163,74,0.45)" : "rgba(212,175,55,0.45)"}`,
+                }}
               />
             )}
-            <span className="truncate text-[12px] font-medium">{ind.label}</span>
+            <span className={cn("text-[12px] font-medium leading-tight", ind.marker && "pl-2")}>{ind.label}</span>
           </div>
         ))}
       </div>
@@ -377,7 +380,7 @@ function KpiSpreadsheet({
                 key={d}
                 className={cn(
                   "flex items-center justify-center text-[10px] font-medium tabular-nums border-r border-black/5",
-                  isWeekendDay(d) ? "text-[color:var(--navy)]/60 bg-black/[0.03]" : "text-black/55",
+                  isWeekendDay(d) ? "text-[color:var(--navy)]/70 bg-[color:var(--navy)]/[0.10]" : "text-black/55",
                 )}
                 style={{ width: DAY_W }}
               >
@@ -486,7 +489,7 @@ function Cell({
     <div
       className={cn(
         "border-r border-black/5 transition-colors",
-        weekend && "bg-black/[0.035]",
+        weekend && "bg-[color:var(--navy)]/[0.07]",
         flash && "kpi-flash",
       )}
       style={{ width }}
