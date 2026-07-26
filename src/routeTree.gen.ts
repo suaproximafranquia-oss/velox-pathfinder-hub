@@ -22,6 +22,7 @@ import { Route as ExecutivoIaRouteImport } from './routes/executivo.ia'
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
 import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.conhecimento'
+import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
 
 const IndexRoute = IndexRouteImport.update({
@@ -89,6 +90,11 @@ const ExecutivoConhecimentoRoute = ExecutivoConhecimentoRouteImport.update({
   path: '/executivo/conhecimento',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoConfiguracoesRoute = ExecutivoConfiguracoesRouteImport.update({
+  id: '/executivo/configuracoes',
+  path: '/executivo/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
   id: '/executivo/brain',
   path: '/executivo/brain',
@@ -98,6 +104,7 @@ const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/executivo/brain'
+    | '/executivo/configuracoes'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/executivo/brain'
+    | '/executivo/configuracoes'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/executivo/brain'
+    | '/executivo/configuracoes'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
+  ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoConhecimentoRoute: typeof ExecutivoConhecimentoRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
@@ -305,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoConhecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/configuracoes': {
+      id: '/executivo/configuracoes'
+      path: '/executivo/configuracoes'
+      fullPath: '/executivo/configuracoes'
+      preLoaderRoute: typeof ExecutivoConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/brain': {
       id: '/executivo/brain'
       path: '/executivo/brain'
@@ -318,6 +338,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
+  ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoConhecimentoRoute: ExecutivoConhecimentoRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
