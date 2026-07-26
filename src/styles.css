@@ -222,8 +222,27 @@
 
 /* Scrollbar sutil para a planilha do KPI Manager */
 @utility kpi-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--gold) 35%, transparent) transparent;
+  scrollbar-width: auto;
+  scrollbar-color: color-mix(in oklab, var(--gold) 75%, #000 15%) rgba(0,0,0,0.08);
+}
+.kpi-scroll::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+.kpi-scroll::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.06);
+  border-radius: 999px;
+}
+.kpi-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--gold) 75%, #000 15%);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.kpi-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+  background-clip: padding-box;
+  border: 2px solid transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
