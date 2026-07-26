@@ -245,6 +245,17 @@
   border: 2px solid transparent;
 }
 
+/* --------- Faixas da Campanha Velox (célula "Total" — Valor Vendido) --------- */
+/* Cores derivadas do valor acumulado; sem estado adicional. */
+.kpi-tier-mestre  { background: #1e3a8a; color: #fff !important; }
+.kpi-tier-doutor  { background: #6d28d9; color: #fff !important; }
+.kpi-tier-phd     { background: #0b0f19; color: #fff !important; }
+.kpi-tier-supreme {
+  background: linear-gradient(135deg, #b8860b, #d4af37 55%, #fff2c2);
+  color: #1a1204 !important;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-chapter-enter { animation: chapter-enter-still 200ms ease both !important; }
   .animate-soft-pulse { animation: none !important; }
