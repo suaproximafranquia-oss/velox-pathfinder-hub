@@ -1,6 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { UserCircle2, Mail, Briefcase, Phone, Calendar, Shield, Pencil, Check, X } from "lucide-react";
+import {
+  UserCircle2,
+  Mail,
+  Briefcase,
+  Phone,
+  MessageCircle,
+  Calendar,
+  Shield,
+  Pencil,
+  Check,
+  X,
+  Lock,
+} from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   getSession,
@@ -50,14 +62,20 @@ function PerfilPage() {
     <ExecutiveShell session={session} title="Meu Perfil">
       <div className="max-w-3xl">
         <p className="text-sm text-[color:var(--muted-foreground)] mb-8 leading-relaxed">
-          Seus dados pessoais alimentam os módulos de reconhecimento, notificações
-          e comunicação corporativa. Utilize o botão “Editar Perfil” para
-          atualizar telefone, WhatsApp, admissão e informações pessoais.
+          Este perfil é a fonte única dos seus dados na plataforma. Nome,
+          e-mail, telefone, WhatsApp e data de admissão utilizados por
+          qualquer módulo (Manual personalizado, Recognition, IA, etc.) vêm
+          diretamente daqui. Para alterá-los, utilize o botão “Editar
+          Perfil”.
         </p>
         <ProfileFields
           session={session}
           user={user}
-          onChange={(u) => setUser(u)}
+          onChange={(u) => {
+            setUser(u);
+            const s = getSession();
+            if (s) setSession(s);
+          }}
         />
         <IntegrationsSection />
       </div>
@@ -76,15 +94,19 @@ function ProfileFields({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
+    name: user?.name ?? session.name,
+    email: user?.email ?? session.email,
     phone: user?.phone ?? "",
-    title: user?.title ?? "",
+    whatsapp: user?.whatsapp ?? user?.phone ?? "",
     admissionDate: user?.admissionDate ?? "",
   });
 
   function startEdit() {
     setDraft({
+      name: user?.name ?? session.name,
+      email: user?.email ?? session.email,
       phone: user?.phone ?? "",
-      title: user?.title ?? "",
+      whatsapp: user?.whatsapp ?? user?.phone ?? "",
       admissionDate: user?.admissionDate ?? "",
     });
     setEditing(true);
@@ -96,8 +118,10 @@ function ProfileFields({
     if (!user) return;
     const updated: ExecutiveUser = {
       ...user,
+      name: draft.name.trim() || user.name,
+      email: draft.email.trim().toLowerCase() || user.email,
       phone: draft.phone.trim() || undefined,
-      title: draft.title.trim() || undefined,
+      whatsapp: draft.whatsapp.trim() || undefined,
       admissionDate: draft.admissionDate || undefined,
     };
     const all = loadUsers().map((u) => (u.id === updated.id ? updated : u));
@@ -106,20 +130,36 @@ function ProfileFields({
     setEditing(false);
   }
 
-  const rows = [
-    { icon: UserCircle2, label: "Nome completo", value: session.name },
-    { icon: Mail, label: "E-mail corporativo", value: user?.email ?? "—" },
+  type EditableKey = "name" | "email" | "phone" | "whatsapp" | "admissionDate";
+  const rows: Array<{
+    icon: typeof UserCircle2;
+    label: string;
+    value: string;
+    editable?: EditableKey;
+    inputType?: string;
+    locked?: boolean;
+  }> = [
+    { icon: UserCircle2, label: "Nome completo", value: user?.name ?? session.name, editable: "name" },
+    { icon: Mail, label: "E-mail corporativo", value: user?.email ?? "—", editable: "email", inputType: "email" },
     {
       icon: Briefcase,
       label: "Cargo",
-      value: user?.title ?? "A cadastrar",
-      editable: "title" as const,
+      value: user?.title ?? "—",
+      locked: true,
     },
     {
       icon: Phone,
-      label: "Telefone / WhatsApp",
+      label: "Telefone",
       value: user?.phone ?? "A cadastrar",
-      editable: "phone" as const,
+      editable: "phone",
+      inputType: "tel",
+    },
+    {
+      icon: MessageCircle,
+      label: "WhatsApp",
+      value: user?.whatsapp ?? user?.phone ?? "A cadastrar",
+      editable: "whatsapp",
+      inputType: "tel",
     },
     {
       icon: Calendar,
@@ -127,7 +167,8 @@ function ProfileFields({
       value: user?.admissionDate
         ? new Date(user.admissionDate).toLocaleDateString("pt-BR")
         : "A cadastrar",
-      editable: "admissionDate" as const,
+      editable: "admissionDate",
+      inputType: "date",
     },
     {
       icon: Shield,
@@ -171,22 +212,25 @@ function ProfileFields({
       <div className="divide-y divide-[color:var(--border)]/60">
       {rows.map((r) => {
         const Icon = r.icon;
-        const isEditing = editing && "editable" in r && r.editable;
+        const isEditing = editing && !!r.editable;
         return (
           <div key={r.label} className="flex items-center gap-4 px-5 py-4">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
               <Icon className="h-4 w-4" strokeWidth={1.6} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] flex items-center gap-1.5">
                 {r.label}
+                {editing && r.locked && (
+                  <Lock className="h-3 w-3 text-[color:var(--muted-foreground)]/60" />
+                )}
               </p>
-              {isEditing ? (
+              {isEditing && r.editable ? (
                 <input
-                  type={r.editable === "admissionDate" ? "date" : "text"}
+                  type={r.inputType ?? "text"}
                   value={draft[r.editable]}
                   onChange={(e) =>
-                    setDraft((d) => ({ ...d, [r.editable as string]: e.target.value }))
+                    setDraft((d) => ({ ...d, [r.editable as EditableKey]: e.target.value }))
                   }
                   className="mt-0.5 w-full bg-transparent border-b border-[color:var(--gold)]/40 text-sm outline-none py-0.5"
                 />
