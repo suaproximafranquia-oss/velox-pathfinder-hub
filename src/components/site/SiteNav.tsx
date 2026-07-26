@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import veloxLogo from "@/assets/velox-logo.png.asset.json";
+import veloxLogo from "@/assets/editorial/velox-logo.png.asset.json";
 
 export type NavSection = { id: string; label: string };
 
