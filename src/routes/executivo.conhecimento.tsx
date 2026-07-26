@@ -21,7 +21,8 @@ import {
 import {
   addDocument,
   chunkText,
-  extractTextFromFile,
+  ingestFile,
+  type IngestLog,
   listDocuments,
   newDocumentId,
   removeDocument,
@@ -49,6 +50,7 @@ function KnowledgePage() {
   const [docs, setDocs] = useState<KnowledgeDocument[]>([]);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<string>("");
+  const [logs, setLogs] = useState<IngestLog[]>([]);
   const [flash, setFlash] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [pending, setPending] = useState<{
@@ -111,6 +113,7 @@ function KnowledgePage() {
     setPending(null);
     setBusy(true);
     setFlash(null);
+    setLogs([]);
     const id = newDocumentId();
     const now = new Date().toISOString();
     const provisional: KnowledgeDocument = {
@@ -136,24 +139,40 @@ function KnowledgePage() {
     refresh();
     try {
       setStage("Analisando documento…");
-      const { text, type } = await extractTextFromFile(file);
+      const result = await ingestFile(file, (entry) => {
+        setLogs((prev) => [...prev, entry]);
+        setStage(entry.msg);
+        // cede o event loop para o React repintar o painel de logs.
+        return new Promise<void>((r) => setTimeout(r, 0)) as unknown as void;
+      });
       setStage("Indexando conteúdo…");
-      // Cede o event loop para renderizar o estágio antes do chunking.
       await new Promise((r) => setTimeout(r, 50));
-      const chunks = chunkText(text);
+      const chunks = chunkText(result.text);
       setStage("Atualizando Base Oficial…");
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 150));
+      // Nunca descartar conteúdo parcial: se houver qualquer chunk, ativa.
       updateDocument(id, {
         chunks,
-        type,
+        type: result.type,
         status: chunks.length ? "ativo" : "erro",
       });
       refresh();
-      setFlash(
-        chunks.length
-          ? { type: "ok", msg: `"${displayName}" foi indexado e está disponível.` }
-          : { type: "err", msg: `Não foi possível extrair texto de "${displayName}".` },
-      );
+      if (chunks.length) {
+        const suffix = result.usedOcr
+          ? result.partial
+            ? ` — indexado parcialmente via OCR (${result.pagesProcessed}/${result.pagesTotal} páginas).`
+            : ` — indexado via OCR (${result.pagesProcessed}/${result.pagesTotal} páginas).`
+          : ".";
+        setFlash({
+          type: "ok",
+          msg: `"${displayName}" foi indexado e está disponível${suffix}`,
+        });
+      } else {
+        setFlash({
+          type: "err",
+          msg: `Não foi possível reconhecer conteúdo em "${displayName}", mesmo após OCR.`,
+        });
+      }
     } catch (e) {
       updateDocument(id, { status: "erro" });
       refresh();
@@ -214,9 +233,23 @@ function KnowledgePage() {
         </button>
 
         {busy && (
-          <div className="mt-5 rounded-xl border border-[color:var(--border)] bg-[color:var(--accent)]/30 px-4 py-3 flex items-center gap-3 text-xs text-[color:var(--muted-foreground)]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
-            <span>{stage || "Processando…"}</span>
+          <div className="mt-5 rounded-xl border border-[color:var(--border)] bg-[color:var(--accent)]/30 px-4 py-3 text-xs text-[color:var(--muted-foreground)]">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
+              <span>{stage || "Processando…"}</span>
+            </div>
+            {logs.length > 0 && (
+              <ul className="mt-3 max-h-40 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed">
+                {logs.map((l, i) => (
+                  <li
+                    key={i}
+                    className={l.ok ? "text-emerald-300/90" : "text-amber-300/90"}
+                  >
+                    {l.ok ? "✓" : "✖"} {l.msg}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
         {flash && !busy && (
