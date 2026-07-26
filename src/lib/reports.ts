@@ -270,25 +270,35 @@ export function buildReport(
 
 /* ---------------------- Preparação de exportação ---------------------- */
 
-export type ExportFormat = "pdf" | "excel" | "share";
+export type ExportFormat = "pdf" | "excel";
 
 export const EXPORT_LABEL: Record<ExportFormat, string> = {
   pdf: "Exportar PDF",
   excel: "Exportar Excel",
-  share: "Compartilhar",
 };
 
 /**
- * Interface reservada para a próxima Sprint. A implementação definitiva
- * usará jsPDF/SheetJS e a Web Share API. Nesta versão apenas registra
- * intenção — nenhum arquivo é gerado.
+ * Gera um resumo automatizado, no estilo "Análise Brain", a partir do
+ * relatório oficial. Segue a governança da IA: nenhum dado é inventado
+ * e a linguagem é interpretativa, nunca prescritiva.
  */
-export function requestExport(_report: ReportDataset, _format: ExportFormat): {
-  status: "prepared";
-  format: ExportFormat;
-  scheduledFor: "next-sprint";
-} {
-  return { status: "prepared", format: _format, scheduledFor: "next-sprint" };
+export function brainSummaryFromReport(report: ReportDataset): string {
+  const s = report.summary;
+  const empty = s.leads + s.presentations + s.contractsSent + s.sales === 0;
+  if (empty) {
+    return `Nenhum registro operacional foi localizado para ${report.month.label}. A análise será atualizada assim que o KPI Manager receber lançamentos.`;
+  }
+  const conv = formatPercent(s.conversion);
+  const pres = s.leads > 0 ? formatPercent(s.presentations / s.leads) : "sem base";
+  const cofs = s.presentations > 0 ? formatPercent(s.contractsSent / s.presentations) : "sem base";
+  const closing = s.contractsSent > 0 ? formatPercent(s.sales / s.contractsSent) : "sem base";
+  const ticket = s.sales > 0 ? formatCurrency(s.salesValue / s.sales) : "n/d";
+  return (
+    `Análise operacional de ${report.month.label}: dos ${formatNumber(s.leads)} leads captados, ` +
+    `${pres} avançaram para apresentação, ${cofs} evoluíram para COF enviada e ${closing} converteram em venda ` +
+    `(conversão final ${conv}). Ticket médio ${ticket}. Faturamento consolidado ${formatCurrency(s.salesValue)}. ` +
+    `Interpretação automática — não substitui análise humana.`
+  );
 }
 
 /* ---------------------- Preparação Brain Analytics ---------------------- */
