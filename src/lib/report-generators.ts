@@ -10,6 +10,8 @@ import { WORKSPACE } from "@/config/workspace";
 import { formatCurrency, formatNumber } from "./kpi-manager";
 import type { ReportDataset } from "./reports";
 import type { ComparativeReport } from "./report-comparatives";
+import type { CampaignRow } from "@/components/executive/kpi/painel-campanhas";
+import { CAMPAIGN_LEVELS } from "./kpi-manager";
 
 const NAVY: [number, number, number] = [12, 22, 44];
 const GOLD: [number, number, number] = [176, 141, 87];
@@ -59,6 +61,7 @@ export function exportReportPdf(
   extras: {
     brainSummary: string;
     comparatives: ComparativeReport[];
+    campaignRows?: CampaignRow[];
   },
 ): void {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -176,6 +179,33 @@ export function exportReportPdf(
     y += 4;
   }
 
+  // Painel de Campanhas
+  if (extras.campaignRows && extras.campaignRows.length > 0) {
+    y = ensureRoom(doc, y, 20, w, h);
+    y = sectionTitle(doc, "Painel de Campanhas", y);
+    doc.setFontSize(9); doc.setTextColor(...MUTED);
+    doc.text("Executivo", 22, y);
+    doc.text("Unidades", w - 100, y, { align: "right" });
+    doc.text("Valor entregue", w - 55, y, { align: "right" });
+    doc.text("Nível", w - 22, y, { align: "right" });
+    y += 4; doc.setDrawColor(...LINE); doc.line(22, y, w - 22, y); y += 5;
+    for (let i = 0; i < extras.campaignRows.length; i++) {
+      const row = extras.campaignRows[i];
+      y = ensureRoom(doc, y, 8, w, h);
+      const level = CAMPAIGN_LEVELS
+        .slice()
+        .reverse()
+        .find((lv) => row.value >= lv.min);
+      doc.setFontSize(10); doc.setTextColor(...TEXT);
+      doc.text(`${i + 1}. ${row.user.name}`, 22, y);
+      doc.text(formatNumber(row.units), w - 100, y, { align: "right" });
+      doc.text(formatCurrency(row.value), w - 55, y, { align: "right" });
+      doc.setTextColor(...GOLD);
+      doc.text(level ? level.label : "Em progressão", w - 22, y, { align: "right" });
+      y += 6.5;
+    }
+  }
+
   // Tabela detalhada
   y = ensureRoom(doc, y, 20, w, h);
   y = sectionTitle(doc, "Indicadores do Mês (KPI Manager)", y);
@@ -204,7 +234,7 @@ export function exportReportPdf(
 
 export function exportReportExcel(
   report: ReportDataset,
-  extras: { comparatives: ComparativeReport[]; brainSummary: string },
+  extras: { comparatives: ComparativeReport[]; brainSummary: string; campaignRows?: CampaignRow[] },
 ): void {
   const wb = XLSX.utils.book_new();
 
@@ -263,6 +293,18 @@ export function exportReportExcel(
   const ws4 = XLSX.utils.aoa_to_sheet(comp);
   ws4["!cols"] = [{ wch: 24 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 10 }];
   XLSX.utils.book_append_sheet(wb, ws4, "Comparativos");
+
+  // Aba 5 — Painel de Campanhas
+  if (extras.campaignRows && extras.campaignRows.length > 0) {
+    const camp: (string | number)[][] = [["Posição", "Executivo", "Unidades", "Valor entregue (R$)", "Nível"]];
+    extras.campaignRows.forEach((row, i) => {
+      const level = CAMPAIGN_LEVELS.slice().reverse().find((lv) => row.value >= lv.min);
+      camp.push([i + 1, row.user.name, row.units, row.value, level ? level.label : "Em progressão"]);
+    });
+    const ws5 = XLSX.utils.aoa_to_sheet(camp);
+    ws5["!cols"] = [{ wch: 8 }, { wch: 28 }, { wch: 12 }, { wch: 18 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws5, "Campanhas");
+  }
 
   const scope = report.selection.scope === "team" ? "equipe" : "individual";
   const subj = report.selection.scope === "individual" ? slugify(report.title.replace(/^.*—\s*/, "")) : "equipe";
