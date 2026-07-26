@@ -23,6 +23,15 @@ export type WorkspaceBranding = {
   /** URL opcional do logotipo do workspace (SVG/PNG). Quando ausente, o
    *  header exibe apenas o nome do workspace. */
   workspaceLogoUrl?: string;
+  /**
+   * Executivo Padrão do workspace — utilizado quando um visitante conclui o
+   * Manual pelo link público (sem executivo específico atribuído). Este
+   * parâmetro será administrado pela futura tela "Configurações da
+   * Plataforma"; enquanto ela não existe, deixamos vazio e o resolver
+   * cai automaticamente para o primeiro Administrador ativo apenas para
+   * fins de demonstração — sem hard-code de nome pessoal.
+   */
+  defaultExecutiveId?: string;
 };
 
 /**
@@ -38,6 +47,9 @@ export const WORKSPACES: Record<string, WorkspaceBranding> = {
     platformName: "Atlas Platform",
     platformTagline: "Corporate Workspace",
     poweredBy: "Powered by Atlas Platform",
+    // Vazio por padrão. A tela de Configurações da Plataforma preencherá
+    // este valor futuramente; até lá o resolver usa o primeiro Administrador.
+    defaultExecutiveId: undefined,
   },
 };
 
