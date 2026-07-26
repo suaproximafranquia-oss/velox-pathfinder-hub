@@ -88,7 +88,7 @@ const MODULES: ModuleCard[] = [
     description:
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
     icon: BookMarked,
-    cover: revistaImg,
+    cover: revistaImg.url,
     cta: "Em breve",
     status: "em-preparacao",
   },
