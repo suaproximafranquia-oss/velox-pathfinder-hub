@@ -94,7 +94,6 @@ export type KpiIndicator = {
 };
 
 export const INDICATORS: KpiIndicator[] = [
-export const INDICATORS: KpiIndicator[] = [
   { id: "leads",           label: "Leads",                              unit: "count",    group: "captacao",   brainKey: "leads" },
   { id: "calls",           label: "Ligações realizadas no dia",         unit: "count",    group: "atividade",  brainKey: "callsMade" },
   { id: "callsAnswered",   label: "Ligações atendidas no dia",          unit: "count",    group: "atividade",  brainKey: "callsAnswered" },
