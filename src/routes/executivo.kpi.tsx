@@ -6,13 +6,8 @@ import {
   CheckCircle2,
   Gauge,
   HandCoins,
-  Handshake,
-  PhoneCall,
-  Presentation,
   RotateCcw,
-  TrendingUp,
   Users,
-  type LucideIcon,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
@@ -25,8 +20,6 @@ import {
   daysInMonth,
   findMonth,
   formatCurrency,
-  formatNumber,
-  formatPercent,
   formatValue,
   isWeekend,
   loadDataset,
@@ -160,34 +153,36 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       {/* Container dedicado do módulo KPI ---------------------------------- */}
-      <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/35 p-4 sm:p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset]">
+      <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/55 p-4 sm:p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]">
 
-      {/* KPIs superiores --------------------------------------------------- */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard icon={Users}         label="Leads"        value={formatNumber(summary.leads)} />
-        <SummaryCard icon={PhoneCall}     label="Ligações"     value={formatNumber(summary.calls)} />
-        <SummaryCard icon={Presentation}  label="Apresentações" value={formatNumber(summary.presentations)} />
-        <SummaryCard icon={Handshake}     label="Contratos"     value={formatNumber(summary.contractsSent)} />
-        <SummaryCard icon={TrendingUp}    label="Conversão"     value={formatPercent(summary.conversion)} />
-        <SummaryCard icon={HandCoins}     label="Valor Vendido" value={formatCurrency(summary.salesValue)} highlight />
-      </div>
-
-      {/* Campanha Velox --------------------------------------------------- */}
-      <div className="mt-4">
+      {/* Resumo executivo do topo — apenas informações estratégicas ------- */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Competência</p>
+          <p className="font-display text-lg mt-1">{activeMonth.label}</p>
+          <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{activeCollab?.name ?? "—"} · {days} dias</p>
+        </div>
+        <div className="rounded-2xl border border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/10 to-transparent p-4">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[color:var(--gold)]/40 text-[color:var(--gold)]">
+              <HandCoins className="h-3.5 w-3.5" strokeWidth={1.6} />
+            </span>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Valor Vendido Acumulado</p>
+          </div>
+          <p className="font-display text-xl mt-2 tabular-nums text-[color:var(--gold)]">{formatCurrency(summary.salesValue)}</p>
+        </div>
         <CampanhaVeloxCard salesValue={summary.salesValue} />
       </div>
 
       {/* Cabeçalho da planilha -------------------------------------------- */}
-      <div className="mt-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/25 overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 border-b border-[color:var(--border)]">
+      <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[#F5F6F8] text-[color:var(--navy-deep)] overflow-hidden shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-black/10 bg-white/60">
           <div className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-[color:var(--gold)]" />
-            <h2 className="font-display text-lg leading-none">{activeMonth.label}</h2>
-            <span className="text-xs text-[color:var(--muted-foreground)]">
-              · {activeCollab?.name ?? "—"}
-            </span>
+            <CalendarDays className="h-4 w-4 text-[color:var(--navy)]" />
+            <h2 className="font-display text-base leading-none">{activeMonth.label}</h2>
+            <span className="text-xs text-black/55">· {activeCollab?.name ?? "—"}</span>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-[color:var(--muted-foreground)]">
+          <div className="flex items-center gap-2 text-[11px] text-black/55">
             <Activity className="h-3.5 w-3.5" />
             {days} dias · edite qualquer célula
           </div>
@@ -274,46 +269,6 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
 
 /* ---------------------- Componentes internos ---------------------- */
 
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  highlight = false,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border p-4 transition-colors",
-        highlight
-          ? "border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/10 to-transparent"
-          : "border-[color:var(--border)] bg-[color:var(--card)]/40 hover:border-[color:var(--gold)]/30",
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className={cn(
-            "inline-flex h-8 w-8 items-center justify-center rounded-lg border",
-            highlight
-              ? "border-[color:var(--gold)]/40 bg-[color:var(--background)]/40 text-[color:var(--gold)]"
-              : "border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]",
-          )}
-        >
-          <Icon className="h-4 w-4" strokeWidth={1.6} />
-        </span>
-      </div>
-      <p className="mt-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-        {label}
-      </p>
-      <p className="font-display text-xl mt-1 tabular-nums">{value}</p>
-    </div>
-  );
-}
-
 function MonthSelector({
   currentKey,
   onSelect,
@@ -350,6 +305,13 @@ function MonthSelector({
   );
 }
 
+const ROW_H = 30;
+const HEADER_H = 34;
+const DAY_W = 44;
+const IND_W = 200;
+const TOTAL_W = 104;
+const AVG_W = 84;
+
 function KpiSpreadsheet({
   matrix,
   days,
@@ -368,92 +330,132 @@ function KpiSpreadsheet({
     [days],
   );
 
+  const rows = INDICATORS.map((ind) => {
+    const total = sumRow(matrix, ind.id);
+    const avg = days === 0 ? 0 : total / days;
+    return { ind, total, avg };
+  });
+
   return (
-    <div className="relative overflow-auto max-h-[560px] kpi-scroll">
-      <table className="w-full border-separate border-spacing-0 text-sm">
-        <thead>
-          <tr>
-            <th
-              className="sticky left-0 top-0 z-30 bg-[color:var(--navy-deep)] text-left px-4 py-2.5 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] border-b border-r border-[color:var(--border)]"
-              style={{ minWidth: 220 }}
-            >
-              Indicador
-            </th>
+    <div className="flex w-full min-w-0 max-h-[560px] overflow-hidden">
+      {/* Coluna Indicador — fixa à esquerda */}
+      <div className="shrink-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]" style={{ width: IND_W }}>
+        <div
+          className="flex items-center px-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] border-b border-black/20"
+          style={{ height: HEADER_H }}
+        >
+          Indicador
+        </div>
+        {rows.map(({ ind }, i) => (
+          <div
+            key={ind.id}
+            className={cn(
+              "relative flex items-center pl-3 pr-2 border-b border-white/5",
+              i % 2 === 1 && "bg-white/[0.02]",
+            )}
+            style={{ height: ROW_H }}
+          >
+            {ind.marker && (
+              <span
+                aria-hidden
+                className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r"
+                style={{ backgroundColor: ind.marker === "green" ? "#16A34A" : "#B8894A" }}
+              />
+            )}
+            <span className="truncate text-[12px] font-medium">{ind.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Área dos dias — única com rolagem horizontal */}
+      <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden kpi-scroll bg-[#F5F6F8]">
+        <div style={{ width: dayList.length * DAY_W }}>
+          {/* Cabeçalho dos dias */}
+          <div className="flex border-b border-black/10 bg-white/70" style={{ height: HEADER_H }}>
             {dayList.map((d) => (
-              <th
+              <div
                 key={d}
                 className={cn(
-                  "sticky top-0 z-20 px-2 py-2.5 text-center text-[10px] font-medium border-b border-[color:var(--border)] tabular-nums",
-                  isWeekendDay(d)
-                    ? "bg-[color:var(--navy)]/80 text-[color:var(--gold)]/70"
-                    : "bg-[color:var(--navy-deep)] text-[color:var(--muted-foreground)]",
+                  "flex items-center justify-center text-[10px] font-medium tabular-nums border-r border-black/5",
+                  isWeekendDay(d) ? "text-[color:var(--navy)]/60 bg-black/[0.03]" : "text-black/55",
                 )}
-                style={{ minWidth: 52 }}
+                style={{ width: DAY_W }}
               >
                 {String(d).padStart(2, "0")}
-              </th>
+              </div>
             ))}
-            <th className="sticky top-0 right-0 z-30 bg-[color:var(--navy-deep)] px-3 py-2.5 text-right text-[10px] uppercase tracking-[0.22em] text-[color:var(--gold)] border-b border-l border-[color:var(--border)]" style={{ minWidth: 110 }}>
-              Total
-            </th>
-            <th className="sticky top-0 z-20 bg-[color:var(--navy-deep)] px-3 py-2.5 text-right text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] border-b border-[color:var(--border)]" style={{ minWidth: 90 }}>
-              Média
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {INDICATORS.map((ind, rowIdx) => {
-            const total = sumRow(matrix, ind.id);
-            const avg = days === 0 ? 0 : total / days;
-            return (
-              <tr key={ind.id} className={rowIdx % 2 === 0 ? "bg-transparent" : "bg-[color:var(--card)]/20"}>
-                <th
-                  scope="row"
-                  className="sticky left-0 z-10 bg-[color:var(--navy-deep)]/95 text-left pl-4 pr-4 py-1.5 text-[12px] font-medium text-[color:var(--foreground)] border-b border-r border-[color:var(--border)] whitespace-nowrap relative"
-                >
-                  {ind.marker && (
-                    <span
-                      aria-hidden
-                      className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r"
-                      style={{
-                        backgroundColor:
-                          ind.marker === "green" ? "#16A34A" : "#B8894A",
-                      }}
-                    />
-                  )}
-                  <div className="flex flex-col">
-                    <span>{ind.label}</span>
-                    <span className="text-[9px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
-                      {groupLabel(ind.group)}
-                    </span>
-                  </div>
-                </th>
-                {dayList.map((d) => {
-                  const key = `${ind.id}-${d}`;
-                  return (
-                    <Cell
-                      key={key}
-                      value={matrix[ind.id]?.[d] ?? 0}
-                      unit={ind.unit}
-                      weekend={isWeekendDay(d)}
-                      flash={flashCell === key}
-                      onCommit={(v) => onCommit(ind.id, d, v)}
-                    />
-                  );
-                })}
-                <td className="sticky right-0 z-10 px-3 py-1.5 text-right text-[12px] font-semibold tabular-nums text-[color:var(--gold)] bg-[color:var(--navy-deep)]/95 border-b border-l border-[color:var(--border)]">
-                  {formatValue(total, ind.unit)}
-                </td>
-                <td className="px-3 py-1.5 text-right text-[11px] tabular-nums text-[color:var(--muted-foreground)] border-b border-[color:var(--border)]">
-                  {ind.unit === "currency"
-                    ? formatCurrency(avg)
-                    : avg.toFixed(1).replace(".", ",")}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+          </div>
+          {/* Linhas */}
+          {rows.map(({ ind }, i) => (
+            <div
+              key={ind.id}
+              className={cn("flex border-b border-black/5", i % 2 === 1 && "bg-black/[0.015]")}
+              style={{ height: ROW_H }}
+            >
+              {dayList.map((d) => {
+                const key = `${ind.id}-${d}`;
+                return (
+                  <Cell
+                    key={key}
+                    width={DAY_W}
+                    value={matrix[ind.id]?.[d] ?? 0}
+                    unit={ind.unit}
+                    weekend={isWeekendDay(d)}
+                    flash={flashCell === key}
+                    onCommit={(v) => onCommit(ind.id, d, v)}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Total + Média — fixos à direita */}
+      <div className="shrink-0 flex border-l border-black/10 bg-white/70 text-[color:var(--navy-deep)]">
+        <div style={{ width: TOTAL_W }}>
+          <div
+            className="flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--navy)]/70 border-b border-black/10"
+            style={{ height: HEADER_H }}
+          >
+            Total
+          </div>
+          {rows.map(({ ind, total }, i) => (
+            <div
+              key={ind.id}
+              className={cn(
+                "flex items-center justify-end pr-3 text-[12px] font-semibold tabular-nums border-b border-black/5 text-[color:var(--navy)]",
+                i % 2 === 1 && "bg-black/[0.015]",
+              )}
+              style={{ height: ROW_H }}
+            >
+              {formatValue(total, ind.unit)}
+            </div>
+          ))}
+        </div>
+        <div className="border-l border-black/5" style={{ width: AVG_W }}>
+          <div
+            className="flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.22em] text-black/45 border-b border-black/10"
+            style={{ height: HEADER_H }}
+          >
+            Média
+          </div>
+          {rows.map(({ ind, avg }, i) => (
+            <div
+              key={ind.id}
+              className={cn(
+                "flex items-center justify-end pr-3 text-[11px] tabular-nums text-black/55 border-b border-black/5",
+                i % 2 === 1 && "bg-black/[0.015]",
+              )}
+              style={{ height: ROW_H }}
+            >
+              {ind.unit === "currency"
+                ? formatCurrency(avg)
+                : avg.toFixed(1).replace(".", ",")}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -463,12 +465,14 @@ function Cell({
   unit,
   weekend,
   flash,
+  width,
   onCommit,
 }: {
   value: number;
   unit: "count" | "currency";
   weekend: boolean;
   flash: boolean;
+  width: number;
   onCommit: (v: number) => void;
 }) {
   const [draft, setDraft] = useState<string>(String(value || ""));
@@ -479,12 +483,13 @@ function Cell({
   }, [value, focused]);
 
   return (
-    <td
+    <div
       className={cn(
-        "border-b border-[color:var(--border)]/60 p-0 transition-colors",
-        weekend && "bg-[color:var(--navy)]/40",
+        "border-r border-black/5 transition-colors",
+        weekend && "bg-black/[0.035]",
         flash && "kpi-flash",
       )}
+      style={{ width }}
     >
       <input
         inputMode="numeric"
@@ -508,14 +513,15 @@ function Cell({
         }}
         placeholder={unit === "currency" ? "0" : "—"}
         className={cn(
-          "w-full h-9 bg-transparent text-center tabular-nums text-[12px] outline-none",
-          "text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)]/40",
-          "focus:bg-[color:var(--accent)] focus:ring-1 focus:ring-[color:var(--gold)]/40",
-          value === 0 && "text-[color:var(--muted-foreground)]/50",
+          "w-full h-full bg-transparent text-center tabular-nums text-[12px] outline-none px-1",
+          "text-[color:var(--navy-deep)] placeholder:text-black/25",
+          "focus:bg-white focus:ring-1 focus:ring-[color:var(--gold)]/60",
+          value === 0 && "text-black/30",
         )}
+        style={{ height: ROW_H }}
         aria-label="Valor do dia"
       />
-    </td>
+    </div>
   );
 }
 

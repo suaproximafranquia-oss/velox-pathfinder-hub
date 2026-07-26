@@ -7,7 +7,12 @@
  * histórico de conquistas, sem alteração da API deste componente.
  */
 import { Trophy } from "lucide-react";
-import { CAMPAIGN_MAX, campaignStatus, formatCurrency } from "@/lib/kpi-manager";
+import {
+  CAMPAIGN_LEVELS,
+  CAMPAIGN_MAX,
+  campaignStatus,
+  formatCurrency,
+} from "@/lib/kpi-manager";
 import { cn } from "@/lib/utils";
 
 export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
@@ -15,6 +20,9 @@ export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
   const barColor = level?.color ?? "rgba(148, 163, 184, 0.55)"; // slate-400/55 neutro
   const trackColor = "rgba(148, 163, 184, 0.14)";
   const percentLabel = `${percent.toFixed(1).replace(".", ",")}%`;
+  const nextLevel = CAMPAIGN_LEVELS.find((l) => value < l.min) ?? null;
+  const remaining = nextLevel ? Math.max(0, nextLevel.min - value) : 0;
+  const isSupreme = level?.key === "supreme";
 
   return (
     <section
@@ -84,6 +92,14 @@ export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
             </span>
           </div>
         </div>
+
+        <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+          {isSupreme
+            ? "Nível máximo da campanha atingido."
+            : nextLevel
+              ? `Faltam ${formatCurrency(remaining)} para atingir ${nextLevel.label}.`
+              : ""}
+        </p>
       </div>
     </section>
   );
