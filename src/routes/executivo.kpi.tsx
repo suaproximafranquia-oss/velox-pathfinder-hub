@@ -40,6 +40,8 @@ import {
 import { visibleCollaborators } from "@/lib/teams";
 import { cn } from "@/lib/utils";
 
+const CONSOLIDATED_VIEW_ID = "__atlas_consolidated__";
+
 export const Route = createFileRoute("/executivo/kpi")({
   head: () => ({
     meta: [
@@ -76,20 +78,30 @@ function KpiManagerPage() {
 }
 
 function KpiManagerBody({ session }: { session: ExecutiveSession }) {
-  const collaborators = useMemo(() => visibleCollaborators(session), [session]);
+  const collaborators = useMemo(() => kpiCollaborators(session), [session]);
+  const canUseConsolidated = session.activeRole !== "executivo";
+  const defaultViewId = canUseConsolidated ? CONSOLIDATED_VIEW_ID : session.userId;
+  const [viewId, setViewId] = useState(defaultViewId);
   const defaults = useMemo(
     () => ({
       monthKey: DEFAULT_MONTH_KEY,
-      collaboratorId: collaborators[0]?.id ?? session.userId,
+      collaboratorId: defaultViewId,
     }),
-    [collaborators, session],
+    [defaultViewId],
   );
   const { ctx, update } = useKpiContext(session, defaults);
 
   const activeMonth = findMonth(ctx.monthKey);
-  const activeCollab =
-    collaborators.find((c) => c.id === ctx.collaboratorId) ?? collaborators[0];
+  const isConsolidated = canUseConsolidated && viewId === CONSOLIDATED_VIEW_ID;
+  const activeCollab = isConsolidated
+    ? null
+    : collaborators.find((c) => c.id === viewId) ?? collaborators[0] ?? null;
   const activeUserId = activeCollab?.id ?? session.userId;
+  const activeLabel = isConsolidated
+    ? session.activeRole === "super_admin"
+      ? "Consolidado geral"
+      : "Consolidado da equipe"
+    : activeCollab?.name ?? session.name;
 
   const [dataset, setDataset] = useState<KpiDataset>(() =>
     loadDataset(activeUserId, activeMonth.key),
@@ -100,13 +112,23 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   const flashTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    setDataset(loadDataset(activeUserId, activeMonth.key));
-  }, [activeUserId, activeMonth.key]);
+    setViewId(defaultViewId);
+  }, [defaultViewId]);
+
+  useEffect(() => {
+    if (!isConsolidated) setDataset(loadDataset(activeUserId, activeMonth.key));
+  }, [activeUserId, activeMonth.key, isConsolidated]);
 
   const days = daysInMonth(activeMonth);
-  const summary = useMemo(() => summarize(dataset), [dataset]);
+  const consolidatedDataset = useMemo(
+    () => buildConsolidatedDataset(collaborators, activeMonth.key),
+    [collaborators, activeMonth.key],
+  );
+  const visibleDataset = isConsolidated ? consolidatedDataset : dataset;
+  const summary = useMemo(() => summarize(visibleDataset), [visibleDataset]);
 
   function commitCell(indicatorId: string, day: number, next: number) {
+    if (isConsolidated) return;
     setDataset((prev) => {
       const nextMatrix = { ...prev.matrix };
       nextMatrix[indicatorId] = { ...(nextMatrix[indicatorId] ?? {}), [day]: next };
@@ -127,6 +149,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   }
 
   function resetMonth() {
+    if (isConsolidated) return;
     if (!window.confirm(`Restaurar dados fictícios de ${activeMonth.label}?`)) return;
     const fresh = resetDataset(activeUserId, activeMonth.key);
     setDataset(fresh);
@@ -162,8 +185,14 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           <button
             type="button"
             onClick={resetMonth}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
-            title="Restaurar dados fictícios do mês ativo"
+            disabled={isConsolidated}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] transition",
+              isConsolidated
+                ? "cursor-not-allowed text-[color:var(--muted-foreground)]/40 opacity-60"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40",
+            )}
+            title={isConsolidated ? "Disponível apenas no KPI individual" : "Restaurar dados fictícios do mês ativo"}
           >
             <RotateCcw className="h-3 w-3" />
             Restaurar
@@ -179,7 +208,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-4">
           <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Competência</p>
           <p className="font-display text-lg mt-1">{activeMonth.label}</p>
-          <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{activeCollab?.name ?? "—"} · {days} dias</p>
+          <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{activeLabel} · {days} dias</p>
         </div>
         <div className="rounded-2xl border border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/10 to-transparent p-4">
           <div className="flex items-center gap-2">
@@ -190,7 +219,11 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           </div>
           <p className="font-display text-xl mt-2 tabular-nums text-[color:var(--gold)]">{formatCurrency(summary.salesValue)}</p>
         </div>
-        <CampanhaVeloxCard salesValue={summary.salesValue} />
+        {isConsolidated ? (
+          <ConsolidatedSummaryCard summary={summary} collaboratorCount={collaborators.length} />
+        ) : (
+          <CampanhaVeloxCard salesValue={summary.salesValue} />
+        )}
       </div>
 
       {/* Cabeçalho da planilha -------------------------------------------- */}
@@ -199,21 +232,22 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-[color:var(--navy)]" />
             <h2 className="font-display text-base leading-none">{activeMonth.label}</h2>
-            <span className="text-xs text-black/55">· {activeCollab?.name ?? "—"}</span>
+             <span className="text-xs text-black/55">· {activeLabel}</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-black/55">
             <Activity className="h-3.5 w-3.5" />
-            {days} dias · edite qualquer célula
+             {days} dias · {isConsolidated ? "modo consolidado" : "edite qualquer célula"}
           </div>
         </div>
 
         {/* Planilha */}
         <KpiSpreadsheet
-          matrix={dataset.matrix}
+          matrix={visibleDataset.matrix}
           days={days}
           isWeekendDay={(d) => isWeekend(activeMonth, d)}
           onCommit={commitCell}
           flashCell={flashCell}
+          readOnly={isConsolidated}
         />
       </div>
 
@@ -230,19 +264,38 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         </div>
         <div className="overflow-x-auto">
           <div className="flex min-w-max">
+            {canUseConsolidated && (
+              <button
+                key={CONSOLIDATED_VIEW_ID}
+                type="button"
+                onClick={() => setViewId(CONSOLIDATED_VIEW_ID)}
+                className={cn(
+                  "px-5 py-3 text-sm border-r border-[color:var(--border)] transition whitespace-nowrap flex items-center gap-2",
+                  isConsolidated
+                    ? "bg-[color:var(--accent)] text-[color:var(--foreground)] border-b-2 border-b-[color:var(--gold)]"
+                    : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] border-b-2 border-b-transparent",
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-medium",
+                    isConsolidated
+                      ? "bg-[color:var(--gold)]/15 text-[color:var(--gold)]"
+                      : "bg-[color:var(--card)]/60 text-[color:var(--muted-foreground)]",
+                  )}
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                </span>
+                {session.activeRole === "super_admin" ? "Geral" : "Equipe"}
+              </button>
+            )}
             {collaborators.map((c) => {
-              const active = c.id === ctx.collaboratorId;
-              const initials = c.name
-                .split(" ")
-                .map((s) => s[0])
-                .slice(0, 2)
-                .join("")
-                .toUpperCase();
+              const active = !isConsolidated && c.id === activeUserId;
               return (
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => update({ collaboratorId: c.id })}
+                  onClick={() => setViewId(c.id)}
                   className={cn(
                     "px-5 py-3 text-sm border-r border-[color:var(--border)] transition whitespace-nowrap flex items-center gap-2",
                     active
@@ -258,7 +311,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
                         : "bg-[color:var(--card)]/60 text-[color:var(--muted-foreground)]",
                     )}
                   >
-                    {initials}
+                    {initialsFor(c.name)}
                   </span>
                   {c.name.split(" ")[0]}
                 </button>
