@@ -94,18 +94,18 @@ export type KpiIndicator = {
 };
 
 export const INDICATORS: KpiIndicator[] = [
-  { id: "leads",         label: "Leads Recebidos",     unit: "count",    group: "captacao",   brainKey: "leads" },
-  { id: "calls",         label: "Ligações Realizadas", unit: "count",    group: "atividade",  brainKey: "callsMade" },
-  { id: "callsAnswered", label: "Ligações Atendidas",  unit: "count",    group: "atividade",  brainKey: "callsAnswered" },
-  { id: "messages",      label: "Mensagens",           unit: "count",    group: "atividade",  brainKey: "messages" },
-  { id: "emails",        label: "E-mails",             unit: "count",    group: "atividade",  brainKey: "emails" },
-  { id: "presentations", label: "Apresentações",       unit: "count",    group: "reunioes",   brainKey: "presentations" },
-  { id: "videosScheduled", label: "Vídeos Agendados", unit: "count",    group: "reunioes",   brainKey: "videosScheduled" },
-  { id: "videosDone",    label: "Vídeos Realizados",   unit: "count",    group: "reunioes",   brainKey: "videosDone" },
-  { id: "contractsSent", label: "Contratos Enviados",  unit: "count",    group: "fechamento", brainKey: "contractsSent" },
-  { id: "contractsSigned", label: "Contratos Assinados", unit: "count",  group: "fechamento", brainKey: "contractsSigned" },
-  { id: "dropouts",      label: "Desistências",        unit: "count",    group: "fechamento", brainKey: "dropouts" },
-  { id: "salesValue",    label: "Valor Vendido",       unit: "currency", group: "resultado",  brainKey: "salesValue" },
+  { id: "leads",           label: "Leads",                              unit: "count",    group: "captacao",   brainKey: "leads" },
+  { id: "calls",           label: "Ligações realizadas no dia",         unit: "count",    group: "atividade",  brainKey: "callsMade" },
+  { id: "callsAnswered",   label: "Ligações atendidas no dia",          unit: "count",    group: "atividade",  brainKey: "callsAnswered" },
+  { id: "presentations",   label: "Apresentações do dia",               unit: "count",    group: "reunioes",   brainKey: "presentations" },
+  { id: "messages",        label: "Mensagens enviadas do dia",          unit: "count",    group: "atividade",  brainKey: "messages" },
+  { id: "emails",          label: "E-mails enviados no dia",            unit: "count",    group: "atividade",  brainKey: "emails" },
+  { id: "videosScheduled", label: "Vídeo conferências agendadas do dia",unit: "count",    group: "reunioes",   brainKey: "videosScheduled" },
+  { id: "videosDone",      label: "Vídeo conferências feitas no dia",   unit: "count",    group: "reunioes",   brainKey: "videosDone" },
+  { id: "contractsSent",   label: "Contratos feitos (enviados)",        unit: "count",    group: "fechamento", brainKey: "contractsSent" },
+  { id: "dropouts",        label: "Desistências do dia",                unit: "count",    group: "fechamento", brainKey: "dropouts" },
+  { id: "contractsSigned", label: "Vendas feitas no dia",               unit: "count",    group: "fechamento", brainKey: "contractsSigned" },
+  { id: "salesValue",      label: "Pagamentos em R$ feitos no dia",     unit: "currency", group: "resultado",  brainKey: "salesValue" },
 ];
 
 export type IndicatorId = (typeof INDICATORS)[number]["id"];
@@ -280,9 +280,10 @@ export type KpiSummary = {
   leads: number;
   calls: number;
   presentations: number;
-  contractsSigned: number;
+  contractsSent: number;
+  sales: number;
   salesValue: number;
-  /** Contratos assinados ÷ Leads recebidos. */
+  /** Vendas feitas ÷ Leads recebidos. */
   conversion: number;
 };
 
@@ -290,10 +291,11 @@ export function summarize(ds: KpiDataset): KpiSummary {
   const leads = sumRow(ds.matrix, "leads");
   const calls = sumRow(ds.matrix, "calls");
   const presentations = sumRow(ds.matrix, "presentations");
-  const contractsSigned = sumRow(ds.matrix, "contractsSigned");
+  const contractsSent = sumRow(ds.matrix, "contractsSent");
+  const sales = sumRow(ds.matrix, "contractsSigned");
   const salesValue = sumRow(ds.matrix, "salesValue");
-  const conversion = leads > 0 ? contractsSigned / leads : 0;
-  return { leads, calls, presentations, contractsSigned, salesValue, conversion };
+  const conversion = leads > 0 ? sales / leads : 0;
+  return { leads, calls, presentations, contractsSent, sales, salesValue, conversion };
 }
 
 /* ---------------------- Adaptador Brain (preparação) ---------------------- */
