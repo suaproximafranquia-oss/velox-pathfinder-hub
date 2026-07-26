@@ -42,6 +42,22 @@ import { cn } from "@/lib/utils";
 
 const CONSOLIDATED_VIEW_ID = "__atlas_consolidated__";
 
+/**
+ * Faixa da campanha por valor vendido acumulado. Retorna a classe utilitária
+ * aplicada à célula "Total" do indicador principal (Valor Vendido) — mantém
+ * a UX imediata e sem estado extra: a classe deriva do valor a cada render.
+ */
+function campaignTierClass(value: number): string {
+  if (value >= 100000) return "kpi-tier-supreme";
+  if (value >= 90000) return "kpi-tier-phd";
+  if (value >= 70000) return "kpi-tier-doutor";
+  if (value >= 55000) return "kpi-tier-mestre";
+  return "";
+}
+
+/** Identificador do indicador oficial "Valor Vendido" (coluna Total colorida). */
+const SALES_VALUE_INDICATOR_ID = "salesValue";
+
 export const Route = createFileRoute("/executivo/kpi")({
   head: () => ({
     meta: [
@@ -208,8 +224,14 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   return (
     <ExecutiveShell session={session} title="KPI Manager" fullBleed>
       <div
-        className="w-full min-w-0 max-w-full"
-        style={{ overflowX: "clip", contain: "inline-size" }}
+        className="w-full min-w-0 max-w-full flex flex-col"
+        style={{
+          overflowX: "clip",
+          contain: "inline-size",
+          // Viewport próprio do KPI: preenche a área útil abaixo do header
+          // do shell e nunca faz a página inteira rolar.
+          height: "calc(100vh - var(--atlas-shell-offset, 96px))",
+        }}
       >
       {/* Barra de contexto ------------------------------------------------- */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -597,18 +619,23 @@ function KpiSpreadsheet({
           >
             Total
           </div>
-          {rows.map(({ ind, total }, i) => (
-            <div
-              key={ind.id}
-              className={cn(
-                "flex items-center justify-end pr-3 text-[12px] font-semibold tabular-nums border-b border-black/5 text-[color:var(--navy)]",
-                i % 2 === 1 && "bg-black/[0.015]",
-              )}
-              style={{ height: ROW_H }}
-            >
-              {formatValue(total, ind.unit)}
-            </div>
-          ))}
+          {rows.map(({ ind, total }, i) => {
+            const tier =
+              ind.id === SALES_VALUE_INDICATOR_ID ? campaignTierClass(total) : "";
+            return (
+              <div
+                key={ind.id}
+                className={cn(
+                  "flex items-center justify-end pr-3 text-[12px] font-semibold tabular-nums border-b border-black/5 text-[color:var(--navy)] transition-colors",
+                  i % 2 === 1 && !tier && "bg-black/[0.015]",
+                  tier,
+                )}
+                style={{ height: ROW_H }}
+              >
+                {formatValue(total, ind.unit)}
+              </div>
+            );
+          })}
         </div>
         <div className="border-l border-black/5" style={{ width: AVG_W }}>
           <div

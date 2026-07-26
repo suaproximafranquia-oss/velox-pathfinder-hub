@@ -129,6 +129,12 @@ export type ExecutiveUser = {
   email: string;
   /** Telefone corporativo (opcional). */
   phone?: string;
+  /** Cargo institucional exibido em perfil e Manual personalizado. */
+  title?: string;
+  /** Data de admissão (ISO). Origem única para Recognition e Perfil. */
+  admissionDate?: string;
+  /** Gestor direto — referência para hierarquia visual (opcional). */
+  gestorId?: string;
   /** Mantido para compatibilidade com telas legadas; deriva do e-mail. */
   username: string;
   /** Senha inicial (será substituída por hash no backend real). */
@@ -152,6 +158,9 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Thiago Rodrigues",
     email: "thiago.rodrigues@veloxsolucoes.com.br",
+    phone: "5517997727337",
+    title: "Administrador Geral",
+    admissionDate: "2020-01-15",
     username: "thiago.rodrigues",
     password: "VLX_Th48",
     slug: "thiago-rodrigues",
@@ -163,6 +172,10 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Larissa",
     email: "larissa@velox.com.br",
+    phone: "5517997727337",
+    title: "Diretora Comercial",
+    admissionDate: "2021-03-10",
+    gestorId: "usr_thiago",
     username: "larissa",
     password: "VLX_La73",
     slug: "larissa",
@@ -174,6 +187,10 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Marton",
     email: "marton@velox.com.br",
+    phone: "5517997727337",
+    title: "Executivo de Negócios",
+    admissionDate: "2023-05-02",
+    gestorId: "usr_larissa",
     username: "marton",
     password: "VLX_Ma61",
     slug: "marton",
@@ -185,6 +202,10 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Paulo",
     email: "paulo@velox.com.br",
+    phone: "5517997727337",
+    title: "Executivo de Negócios",
+    admissionDate: "2023-08-14",
+    gestorId: "usr_larissa",
     username: "paulo",
     password: "VLX_Pa29",
     slug: "paulo",
@@ -196,6 +217,10 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Milton",
     email: "milton@velox.com.br",
+    phone: "5517997727337",
+    title: "Executivo de Negócios",
+    admissionDate: "2024-02-01",
+    gestorId: "usr_larissa",
     username: "milton",
     password: "VLX_Mi54",
     slug: "milton",
@@ -207,6 +232,10 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Carlos",
     email: "carlos@velox.com.br",
+    phone: "5517997727337",
+    title: "Executivo de Negócios",
+    admissionDate: "2024-06-20",
+    gestorId: "usr_larissa",
     username: "carlos",
     password: "VLX_Ca87",
     slug: "carlos",
@@ -218,6 +247,10 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Talita",
     email: "talita@velox.com.br",
+    phone: "5517997727337",
+    title: "Executiva de Negócios",
+    admissionDate: "2025-01-08",
+    gestorId: "usr_larissa",
     username: "talita",
     password: "VLX_Ta36",
     slug: "talita",
@@ -340,4 +373,35 @@ export function signOut() {
 
 export function newUserId(): string {
   return `usr_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/* ---------------------- Resolução do Executivo Responsável ---------------------- */
+
+import { WORKSPACE } from "@/config/workspace";
+
+/**
+ * Retorna o Executivo Padrão do workspace ativo. A ordem de resolução é:
+ *   1. `WORKSPACE.defaultExecutiveId` — quando a tela "Configurações da
+ *      Plataforma" preencher esse parâmetro no futuro.
+ *   2. Primeiro Administrador (`super_admin`) ativo — fallback temporário
+ *      para demonstração. Nenhum nome é fixado em código.
+ *   3. `null` — se o workspace ficar sem nenhum usuário elegível.
+ */
+export function getDefaultExecutive(): ExecutiveUser | null {
+  const users = loadUsers().filter((u) => u.status === "ativo");
+  const configured = WORKSPACE.defaultExecutiveId
+    ? users.find((u) => u.id === WORKSPACE.defaultExecutiveId)
+    : null;
+  if (configured) return configured;
+  return users.find((u) => u.role === "super_admin") ?? users[0] ?? null;
+}
+
+/** Localiza um executivo ativo pelo slug do link personalizado. */
+export function getExecutiveBySlug(slug: string): ExecutiveUser | null {
+  const key = slug.trim().toLowerCase();
+  if (!key) return null;
+  return (
+    loadUsers().find((u) => u.slug.toLowerCase() === key && u.status === "ativo") ??
+    null
+  );
 }

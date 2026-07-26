@@ -222,8 +222,38 @@
 
 /* Scrollbar sutil para a planilha do KPI Manager */
 @utility kpi-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--gold) 35%, transparent) transparent;
+  scrollbar-width: auto;
+  scrollbar-color: color-mix(in oklab, var(--gold) 75%, #000 15%) rgba(0,0,0,0.08);
+}
+.kpi-scroll::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+.kpi-scroll::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.06);
+  border-radius: 999px;
+}
+.kpi-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--gold) 75%, #000 15%);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.kpi-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+/* --------- Faixas da Campanha Velox (célula "Total" — Valor Vendido) --------- */
+/* Cores derivadas do valor acumulado; sem estado adicional. */
+.kpi-tier-mestre  { background: #1e3a8a; color: #fff !important; }
+.kpi-tier-doutor  { background: #6d28d9; color: #fff !important; }
+.kpi-tier-phd     { background: #0b0f19; color: #fff !important; }
+.kpi-tier-supreme {
+  background: linear-gradient(135deg, #b8860b, #d4af37 55%, #fff2c2);
+  color: #1a1204 !important;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
 }
 
 @media (prefers-reduced-motion: reduce) {

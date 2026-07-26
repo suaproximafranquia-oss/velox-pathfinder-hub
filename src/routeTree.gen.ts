@@ -24,6 +24,7 @@ import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashb
 import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.conhecimento'
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
+import { Route as ESlugRouteImport } from './routes/e.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -100,9 +101,15 @@ const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
   path: '/executivo/brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ESlugRoute = ESlugRouteImport.update({
+  id: '/e/$slug',
+  path: '/e/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/e/$slug': typeof ESlugRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/e/$slug': typeof ESlugRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -138,6 +146,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/e/$slug': typeof ESlugRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/e/$slug'
     | '/executivo/brain'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/e/$slug'
     | '/executivo/brain'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/e/$slug'
     | '/executivo/brain'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -209,6 +221,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ESlugRoute: typeof ESlugRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoConhecimentoRoute: typeof ExecutivoConhecimentoRoute
@@ -332,11 +345,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/e/$slug': {
+      id: '/e/$slug'
+      path: '/e/$slug'
+      fullPath: '/e/$slug'
+      preLoaderRoute: typeof ESlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ESlugRoute: ESlugRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoConhecimentoRoute: ExecutivoConhecimentoRoute,
