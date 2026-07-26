@@ -15,6 +15,7 @@ import {
   UserCircle2,
   Settings,
   FlaskConical,
+  ShieldCheck,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -61,6 +62,9 @@ export function ExecutiveShell({
       : []),
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
+      : []),
+    ...(canManageUsers(session.activeRole)
+      ? [{ to: "/executivo/auditoria", label: "Central de Auditoria", icon: ShieldCheck }]
       : []),
     { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
     ...(canManageUsers(session.activeRole)
