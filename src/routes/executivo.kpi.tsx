@@ -504,7 +504,19 @@ function KpiSpreadsheet({
 
   return (
     <div
-      className="grid w-full min-w-0 max-w-full max-h-[720px] overflow-hidden"
+      className="grid w-full min-w-0 max-w-full max-h-[720px]"
+      style={{
+        overflow: "hidden",
+        gridTemplateColumns: `minmax(240px, ${IND_W}px) minmax(0, 1fr) minmax(238px, ${TOTAL_W + AVG_W}px)`,
+        contain: "inline-size",
+      }}
+    >
+      {/* NB: contain:inline-size garante que a coluna central (minmax 0,1fr)
+          nunca amplie a grade além do contêiner — a rolagem passa a ser
+          integralmente da área dos dias, jamais da página. */}
+      <StyleGuardBlock />
+      {/* eslint-disable-next-line react/jsx-no-comment-textnodes */}
+      <_gridInner
       style={{ gridTemplateColumns: `minmax(240px, ${IND_W}px) minmax(0, 1fr) minmax(238px, ${TOTAL_W + AVG_W}px)` }}
     >
       {/* Coluna Indicador — fixa à esquerda */}
