@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
+import { PainelCampanhas } from "@/components/executive/kpi/painel-campanhas";
+import { generateKpiIndividualReport } from "@/lib/kpi-report";
 import {
   getSession,
   loadUsers,
@@ -232,8 +234,9 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           overflowX: "clip",
           contain: "inline-size",
           // Viewport próprio do KPI: preenche a área útil abaixo do header
-          // do shell e nunca faz a página inteira rolar.
-          height: "calc(100vh - var(--atlas-shell-offset, 96px))",
+          // do shell sem gerar barra de rolagem interna. O Painel de
+          // Campanhas fica abaixo, no fluxo natural da página.
+          minHeight: "calc(100vh - var(--atlas-shell-offset, 96px))",
         }}
       >
       {/* Barra de contexto ------------------------------------------------- */}
@@ -405,6 +408,18 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         perfil ativo.
       </p>
      </div>
+
+      {/* Painel de Campanhas — ranking Velox alimentado pelo KPI Manager. */}
+      <div className="mt-8">
+        <PainelCampanhas
+          users={collaborators}
+          monthKey={activeMonth.key}
+          onDownload={(userId) => {
+            const user = collaborators.find((c) => c.id === userId);
+            if (user) generateKpiIndividualReport(user, activeMonth.key);
+          }}
+        />
+      </div>
     </ExecutiveShell>
   );
 }
