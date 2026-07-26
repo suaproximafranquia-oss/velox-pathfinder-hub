@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   ShieldCheck,
   Search,
@@ -202,9 +202,8 @@ function AuditPage() {
                 entries.map((e) => {
                   const open = expanded === e.id;
                   return (
-                    <>
+                    <Fragment key={e.id}>
                       <tr
-                        key={e.id}
                         onClick={() => setExpanded(open ? null : e.id)}
                         className="border-t border-[color:var(--border)]/60 hover:bg-[color:var(--accent)]/30 cursor-pointer transition-colors"
                       >
@@ -232,7 +231,7 @@ function AuditPage() {
                         </td>
                       </tr>
                       {open && (
-                        <tr key={`${e.id}-x`} className="bg-[color:var(--background)]/40">
+                        <tr className="bg-[color:var(--background)]/40">
                           <td colSpan={7} className="px-5 py-4 text-xs text-[color:var(--muted-foreground)] leading-relaxed">
                             <div className="grid gap-2 sm:grid-cols-2">
                               <div>
@@ -247,7 +246,7 @@ function AuditPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })
               )}
