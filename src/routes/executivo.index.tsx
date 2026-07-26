@@ -40,13 +40,15 @@ function ExecutiveLoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[color:var(--background)] bg-grain px-6 py-16">
       <div className="w-full max-w-md">
         <div className="mb-6 flex justify-center">
-          <Link
-            to="/"
-            title="Retornando ao Manual do Investidor"
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir Portal Velox em nova aba"
             className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao Manual
-          </Link>
+            <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao Portal Velox
+          </a>
         </div>
         <div className="text-center mb-8">
           {WORKSPACE.workspaceLogoUrl ? (
