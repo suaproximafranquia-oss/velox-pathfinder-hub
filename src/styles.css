@@ -280,9 +280,9 @@
  * ============================================================ */
 body[data-shell="portal"] {
   /* Fundo institucional Velox — branco levemente azulado, dando continuidade ao Hero */
-  --paper: oklch(0.965 0.010 250);
-  --paper-2: oklch(0.985 0.006 250);
-  --paper-edge: oklch(0.90 0.018 250);
+  --paper: oklch(0.955 0.014 252);
+  --paper-2: oklch(0.978 0.010 252);
+  --paper-edge: oklch(0.88 0.020 252);
   --graphite: oklch(0.19 0.014 250);
   --graphite-2: oklch(0.23 0.016 250);
   --ink: oklch(0.24 0.11 260);
@@ -307,13 +307,19 @@ body[data-shell="portal"] {
 
   --font-editorial: "Cormorant Garamond", ui-serif, Georgia, serif;
 
-  background:
-    radial-gradient(1100px 600px at 12% -8%, color-mix(in oklab, var(--brand-orange) 5%, transparent), transparent 60%),
-    radial-gradient(900px 700px at 100% 20%, color-mix(in oklab, var(--brand-blue) 6%, transparent), transparent 55%),
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(1200px 700px at 8% -6%, color-mix(in oklab, var(--brand-blue-deep) 14%, transparent), transparent 60%),
+    radial-gradient(1000px 800px at 100% 12%, color-mix(in oklab, var(--brand-orange) 9%, transparent), transparent 58%),
+    radial-gradient(900px 900px at 50% 110%, color-mix(in oklab, var(--brand-blue) 12%, transparent), transparent 65%),
+    radial-gradient(color-mix(in oklab, var(--brand-blue-deep) 20%, transparent) 1px, transparent 1.2px),
     linear-gradient(180deg,
-      color-mix(in oklab, var(--brand-blue-deep) 8%, var(--paper)) 0%,
-      var(--paper) 30%,
-      var(--paper-2) 100%);
+      color-mix(in oklab, var(--brand-blue-deep) 10%, var(--paper)) 0%,
+      var(--paper) 34%,
+      color-mix(in oklab, var(--brand-blue) 6%, var(--paper-2)) 100%);
+  background-size: auto, auto, auto, 26px 26px, auto;
+  background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-attachment: fixed, fixed, fixed, fixed, fixed;
   color: var(--foreground);
 }
 body[data-shell="portal"] .portal-serif {
@@ -341,7 +347,7 @@ body[data-shell="portal"] .portal-grid {
   100% { transform: scale(1.16) translate3d(-1.5%, -1%, 0); }
 }
 body[data-shell="portal"] .portal-hero-ken {
-  animation: portal-hero-ken 22s ease-in-out infinite alternate;
+  animation: portal-hero-ken 18s ease-in-out infinite alternate;
   will-change: transform;
 }
 @keyframes portal-hero-scroll {
@@ -366,11 +372,22 @@ body[data-shell="portal"] .portal-rule {
   background: var(--brand-orange);
 }
 body[data-shell="portal"] .portal-card {
-  background: var(--paper-2);
-  border: 1px solid var(--paper-edge);
+  background:
+    linear-gradient(180deg,
+      color-mix(in oklab, var(--paper-2) 92%, white) 0%,
+      var(--paper-2) 55%,
+      color-mix(in oklab, var(--brand-blue) 5%, var(--paper-2)) 100%);
+  border: 1px solid color-mix(in oklab, var(--brand-blue-deep) 10%, var(--paper-edge));
+  border-radius: 18px;
+  overflow: hidden;
   position: relative;
-  box-shadow: 0 1px 0 color-mix(in oklab, var(--paper) 60%, transparent) inset,
-    0 8px 24px -18px color-mix(in oklab, var(--ink) 45%, transparent);
+  backdrop-filter: saturate(1.05);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, white 70%, transparent) inset,
+    0 0 0 1px color-mix(in oklab, var(--brand-blue-deep) 4%, transparent),
+    0 2px 4px -2px color-mix(in oklab, var(--ink) 25%, transparent),
+    0 18px 40px -24px color-mix(in oklab, var(--brand-blue-deep) 55%, transparent),
+    0 40px 80px -50px color-mix(in oklab, var(--ink) 65%, transparent);
   transition: transform 500ms cubic-bezier(0.22, 0.61, 0.36, 1),
     box-shadow 500ms cubic-bezier(0.22, 0.61, 0.36, 1),
     border-color 400ms;
@@ -385,10 +402,10 @@ body[data-shell="portal"] .portal-card::after {
   opacity: 0;
   transition: opacity 500ms ease;
   background: linear-gradient(135deg,
-    color-mix(in oklab, var(--brand-orange) 22%, transparent) 0%,
+    color-mix(in oklab, var(--brand-orange) 32%, transparent) 0%,
     transparent 30%,
     transparent 70%,
-    color-mix(in oklab, var(--brand-blue) 18%, transparent) 100%);
+    color-mix(in oklab, var(--brand-blue) 28%, transparent) 100%);
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -398,10 +415,13 @@ body[data-shell="portal"] .portal-card:hover::after {
   opacity: 1;
 }
 body[data-shell="portal"] .portal-card:hover {
-  transform: translateY(-6px) scale(1.012);
-  border-color: color-mix(in oklab, var(--brand-orange) 40%, var(--paper-edge));
-  box-shadow: 0 40px 80px -30px color-mix(in oklab, var(--ink) 55%, transparent),
-    0 20px 40px -20px color-mix(in oklab, var(--brand-blue) 25%, transparent);
+  transform: translateY(-8px) scale(1.014);
+  border-color: color-mix(in oklab, var(--brand-orange) 45%, var(--paper-edge));
+  box-shadow:
+    0 1px 0 color-mix(in oklab, white 80%, transparent) inset,
+    0 50px 100px -30px color-mix(in oklab, var(--ink) 60%, transparent),
+    0 30px 60px -25px color-mix(in oklab, var(--brand-blue-deep) 45%, transparent),
+    0 10px 24px -12px color-mix(in oklab, var(--brand-orange) 30%, transparent);
 }
 
 @layer base {
