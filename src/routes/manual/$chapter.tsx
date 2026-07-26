@@ -1,9 +1,11 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { ChapterView } from "@/components/journey/chapter-view";
 import { ChapterBody, hidesContinueFor } from "@/components/journey/chapter-bodies";
 import { ContactForm } from "@/components/journey/contact-form";
 import { CheckCircle2 } from "lucide-react";
 import { getChapter } from "@/lib/journey-data";
+import { getExecutiveBySlug } from "@/lib/executive-auth";
+import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 
 export const Route = createFileRoute("/manual/$chapter")({
   head: ({ params }) => {
@@ -27,7 +29,17 @@ export const Route = createFileRoute("/manual/$chapter")({
   },
   loader: ({ params }) => {
     const c = getChapter(params.chapter);
-    if (!c) throw notFound();
+    if (!c) {
+      // Se o segmento não é um capítulo mas corresponde a um executivo
+      // ativo, tratamos como link personalizado (`/manual/{executivo}`):
+      // persiste o responsável e redireciona para a recepção do Manual.
+      const exec = getExecutiveBySlug(params.chapter);
+      if (exec) {
+        setResponsibleExecutiveSlug(exec.slug);
+        throw redirect({ to: "/" });
+      }
+      throw notFound();
+    }
     return { slug: params.chapter };
   },
   component: ChapterRoute,
