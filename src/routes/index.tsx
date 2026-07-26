@@ -6,7 +6,7 @@ import executivosImg from "@/assets/portal-executivos.png.asset.json";
 import sedeImg from "@/assets/portal-sede.jpg.asset.json";
 import recepcaoImg from "@/assets/portal-recepcao.jpg.asset.json";
 import experienciasImg from "@/assets/portal-experiencias.png.asset.json";
-import fundadorImg from "@/assets/portal-fundador.png.asset.json";
+import revistaImg from "@/assets/portal-revista.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -66,6 +66,7 @@ const MODULES: ModuleCard[] = [
       "O ecossistema de soluções, parceiros e frentes especializadas que compõem a operação Velox em todo o Brasil.",
     icon: Compass,
     cover: executivosImg.url,
+    panelSrc: "/manual/velox",
     cta: "Explorar o ecossistema",
     status: "aberto",
   },
@@ -87,7 +88,7 @@ const MODULES: ModuleCard[] = [
     description:
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
     icon: BookMarked,
-    cover: fundadorImg.url,
+    cover: revistaImg,
     cta: "Em breve",
     status: "em-preparacao",
   },
