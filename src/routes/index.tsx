@@ -66,7 +66,7 @@ const MODULES: ModuleCard[] = [
       "O ecossistema de soluções, parceiros e frentes especializadas que compõem a operação Velox em todo o Brasil.",
     icon: Compass,
     cover: executivosImg.url,
-    panelSrc: "/manual/velox",
+    panelSrc: "/universo",
     cta: "Explorar o ecossistema",
     status: "aberto",
   },

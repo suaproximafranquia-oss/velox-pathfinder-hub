@@ -139,16 +139,23 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isExecutive = pathname.startsWith("/executivo");
   const isPortal = pathname === "/";
+  const isUniverso = pathname.startsWith("/universo");
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const shell = isPortal ? "portal" : isExecutive ? "executive" : "manual";
+    const shell = isPortal
+      ? "portal"
+      : isExecutive
+        ? "executive"
+        : isUniverso
+          ? "universo"
+          : "manual";
     document.body.setAttribute("data-shell", shell);
-  }, [isPortal, isExecutive]);
+  }, [isPortal, isExecutive, isUniverso]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isExecutive || isPortal ? (
+      {isExecutive || isPortal || isUniverso ? (
         <Outlet />
       ) : (
         <JourneyChrome>
