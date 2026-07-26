@@ -126,9 +126,10 @@ export type KpiDataset = {
  * Cada colaborador possui um perfil distinto para tornar os dados
  * fictícios de Julho/2026 mais interessantes durante apresentações.
  */
-type ProfileWeights = Partial<Record<IndicatorId, [number, number]>> & {
+type ProfileWeights = {
   seed: number;
   intensity: number;
+  ranges?: Partial<Record<IndicatorId, [number, number]>>;
 };
 
 const DEFAULT_RANGES: Record<IndicatorId, [number, number]> = {
@@ -147,13 +148,13 @@ const DEFAULT_RANGES: Record<IndicatorId, [number, number]> = {
 };
 
 const PROFILES: Record<string, ProfileWeights> = {
-  usr_thiago:  { seed: 17,  intensity: 1.20, salesValue: [1500, 12000] },
-  usr_larissa: { seed: 33,  intensity: 1.10, presentations: [3, 7], contractsSigned: [1, 3] },
+  usr_thiago:  { seed: 17,  intensity: 1.20, ranges: { salesValue: [1500, 12000] } },
+  usr_larissa: { seed: 33,  intensity: 1.10, ranges: { presentations: [3, 7], contractsSigned: [1, 3] } },
   usr_marton:  { seed: 47,  intensity: 0.95 },
-  usr_paulo:   { seed: 61,  intensity: 1.05, calls: [40, 85] },
-  usr_milton:  { seed: 79,  intensity: 0.90, messages: [30, 80] },
-  usr_carlos:  { seed: 93,  intensity: 1.15, videosDone: [2, 5] },
-  usr_talita:  { seed: 111, intensity: 1.00, emails: [12, 32] },
+  usr_paulo:   { seed: 61,  intensity: 1.05, ranges: { calls: [40, 85] } },
+  usr_milton:  { seed: 79,  intensity: 0.90, ranges: { messages: [30, 80] } },
+  usr_carlos:  { seed: 93,  intensity: 1.15, ranges: { videosDone: [2, 5] } },
+  usr_talita:  { seed: 111, intensity: 1.00, ranges: { emails: [12, 32] } },
 };
 
 /** Gerador determinístico (mulberry32). Garante estabilidade entre sessões. */
@@ -181,7 +182,7 @@ function seedMatrixFor(userId: string, m: KpiMonth): KpiMatrix {
   const matrix: KpiMatrix = {};
 
   for (const ind of INDICATORS) {
-    const range = profile[ind.id] ?? DEFAULT_RANGES[ind.id];
+    const range = profile.ranges?.[ind.id as IndicatorId] ?? DEFAULT_RANGES[ind.id as IndicatorId];
     matrix[ind.id] = {};
     for (let d = 1; d <= days; d++) {
       // Finais de semana: atividade cai significativamente.
