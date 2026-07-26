@@ -56,7 +56,7 @@ function campaignTierClass(value: number): string {
 }
 
 /** Identificador do indicador oficial "Valor Vendido" (coluna Total colorida). */
-const SALES_VALUE_INDICATOR_ID = "sales_value";
+const SALES_VALUE_INDICATOR_ID = "salesValue";
 
 export const Route = createFileRoute("/executivo/kpi")({
   head: () => ({
