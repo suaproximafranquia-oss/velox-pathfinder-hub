@@ -77,6 +77,54 @@ function KpiManagerPage() {
   return <KpiManagerBody session={session} />;
 }
 
+function kpiCollaborators(session: ExecutiveSession): ExecutiveUser[] {
+  const visible = visibleCollaborators(session).filter(
+    (u) => u.id !== "usr_joao" && u.id !== "usr_felipe",
+  );
+  if (session.activeRole !== "super_admin") return visible;
+
+  const currentUser = loadUsers().find(
+    (u) => u.id === session.userId && u.status === "ativo",
+  );
+  if (!currentUser || visible.some((u) => u.id === currentUser.id)) return visible;
+  return [currentUser, ...visible];
+}
+
+function initialsFor(name: string): string {
+  return name
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function buildConsolidatedDataset(
+  collaborators: ExecutiveUser[],
+  monthKey: string,
+): KpiDataset {
+  const matrix: KpiDataset["matrix"] = {};
+  for (const ind of INDICATORS) matrix[ind.id] = {};
+
+  for (const collaborator of collaborators) {
+    const ds = loadDataset(collaborator.id, monthKey);
+    for (const ind of INDICATORS) {
+      const row = ds.matrix[ind.id] ?? {};
+      for (const dayKey in row) {
+        const day = Number(dayKey);
+        matrix[ind.id][day] = (matrix[ind.id][day] ?? 0) + (row[day] ?? 0);
+      }
+    }
+  }
+
+  return {
+    userId: CONSOLIDATED_VIEW_ID,
+    monthKey,
+    matrix,
+    updatedAt: Math.max(Date.now(), ...collaborators.map((c) => loadDataset(c.id, monthKey).updatedAt)),
+  };
+}
+
 function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   const collaborators = useMemo(() => kpiCollaborators(session), [session]);
   const canUseConsolidated = session.activeRole !== "executivo";
