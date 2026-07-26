@@ -24,6 +24,13 @@ export function RecognitionHost({ userId }: { userId: string }) {
   }, [userId]);
 
   if (!event) return null;
+  // Aniversário de empresa possui tela dedicada — encaminha antes do modal.
+  if (event.type === "company_anniversary") {
+    if (typeof window !== "undefined") {
+      navigate({ to: "/executivo/celebracao" });
+    }
+    return null;
+  }
   return (
     <RecognitionModal
       event={event}

@@ -62,6 +62,27 @@ const DEFAULTS: Record<RecognitionType, RecognitionTemplate> = {
       "Alguns indicadores do dia anterior ainda não foram lançados. Sempre que puder, atualize — ajuda o time a enxergar o cenário com clareza.",
     ctaLabel: "Abrir KPI Manager",
   },
+  first_month: {
+    emoji: "🌱",
+    title: "Seu primeiro mês com a gente",
+    message:
+      "Foi um mês de descobertas, ajustes e primeiros passos. Obrigado pela dedicação em aprender o nosso jeito de trabalhar.\n\nQue os próximos ciclos sejam de crescimento tranquilo.",
+    ctaLabel: "Continuar",
+  },
+  company_anniversary: {
+    emoji: "🎂",
+    title: "Um novo aniversário de casa",
+    message:
+      "Mais um ciclo caminhando ao nosso lado. Preparamos uma tela para revisitar o que essa trajetória construiu.",
+    ctaLabel: "Abrir celebração",
+  },
+  tenure_milestone: {
+    emoji: "🌳",
+    title: "Um marco importante da sua trajetória",
+    message:
+      "Anos de dedicação constroem histórias que valem ser lembradas. Obrigado por seguir caminhando com a gente com o mesmo cuidado.",
+    ctaLabel: "Continuar",
+  },
   custom: {
     emoji: "✨",
     title: "Reconhecimento",

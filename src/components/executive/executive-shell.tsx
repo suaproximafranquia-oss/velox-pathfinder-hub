@@ -15,6 +15,7 @@ import {
   Check,
   UserCircle2,
   Settings,
+  FlaskConical,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -65,6 +66,9 @@ export function ExecutiveShell({
     { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
+      : []),
+    ...(session.activeRole === "super_admin"
+      ? [{ to: "/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical }]
       : []),
   ];
 
