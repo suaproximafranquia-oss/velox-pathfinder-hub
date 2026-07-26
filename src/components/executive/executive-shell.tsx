@@ -122,7 +122,7 @@ export function ExecutiveShell({
           fullBleed ? "pt-20 md:pt-24 pb-4" : "pt-24 md:pt-28 pb-16",
           fullBleed ? "max-w-none" : "max-w-6xl",
         )}
-        style={fullBleed ? ({ ["--atlas-shell-offset" as never]: "196px" } as React.CSSProperties) : undefined}
+        style={fullBleed ? ({ ["--atlas-shell-offset" as never]: "224px" } as React.CSSProperties) : undefined}
       >
         <aside className="md:sticky md:top-28 h-fit">
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
