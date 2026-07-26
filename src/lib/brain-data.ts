@@ -53,6 +53,7 @@ function summarizeMany(datasets: KpiDataset[]) {
       acc.contractsSent += s.contractsSent;
       acc.sales += s.sales;
       acc.salesValue += s.salesValue;
+      acc.videosDone += sumRow(ds.matrix, "videosDone");
       return acc;
     },
     {
@@ -62,17 +63,19 @@ function summarizeMany(datasets: KpiDataset[]) {
       contractsSent: 0,
       sales: 0,
       salesValue: 0,
+      videosDone: 0,
     },
   );
 }
 
 function buildOperationalFunnel(totals: ReturnType<typeof summarizeMany>): FunnelStage[] {
   return [
-    { id: "leads", label: "Leads", value: totals.leads },
-    { id: "calls", label: "Ligações", value: totals.calls },
-    { id: "presentations", label: "Apresentações", value: totals.presentations },
-    { id: "cofs", label: "COFs", value: totals.contractsSent },
-    { id: "sales", label: "Vendas", value: totals.sales },
+    { id: "leads", label: "Lead", value: totals.leads },
+    { id: "presentations", label: "Apresentação", value: totals.presentations },
+    { id: "videos", label: "Videoconferência", value: totals.videosDone },
+    { id: "cofs", label: "COF enviada", value: totals.contractsSent },
+    { id: "sales", label: "Venda", value: totals.sales },
+    { id: "revenue", label: "Faturamento", value: totals.salesValue },
   ];
 }
 
@@ -88,10 +91,7 @@ export function buildOperationalSnapshot(
       : collaborators;
   const datasets = selectedUsers.map((u) => loadDataset(u.id, monthKey));
   const totals = summarizeMany(datasets);
-  const videosDone = datasets.reduce(
-    (acc, ds) => acc + sumRow(ds.matrix, "videosDone"),
-    0,
-  );
+  const videosDone = totals.videosDone;
 
   const kpis: BrainKpi[] = [
     {

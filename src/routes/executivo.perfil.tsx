@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { UserCircle2, Mail, Briefcase, Phone, Calendar, Shield } from "lucide-react";
+import { UserCircle2, Mail, Briefcase, Phone, Calendar, Shield, Pencil, Check, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   getSession,
   loadUsers,
+  saveUsers,
   ROLE_LABEL,
   type ExecutiveSession,
   type ExecutiveUser,
@@ -35,22 +36,29 @@ export const Route = createFileRoute("/executivo/perfil")({
 function PerfilPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [user, setUser] = useState<ExecutiveUser | null>(null);
   useEffect(() => {
     const s = getSession();
     if (!s) navigate({ to: "/executivo" });
-    else setSession(s);
+    else {
+      setSession(s);
+      setUser(loadUsers().find((u) => u.id === s.userId) ?? null);
+    }
   }, [navigate]);
   if (!session) return null;
-  const user = loadUsers().find((u) => u.id === session.userId) ?? null;
   return (
     <ExecutiveShell session={session} title="Meu Perfil">
       <div className="max-w-3xl">
         <p className="text-sm text-[color:var(--muted-foreground)] mb-8 leading-relaxed">
           Seus dados pessoais alimentam os módulos de reconhecimento, notificações
-          e comunicação corporativa. Nesta versão os campos são somente leitura —
-          a edição será liberada junto com o módulo de Configurações.
+          e comunicação corporativa. Utilize o botão “Editar Perfil” para
+          atualizar telefone, WhatsApp, admissão e informações pessoais.
         </p>
-        <ProfileFields session={session} user={user} />
+        <ProfileFields
+          session={session}
+          user={user}
+          onChange={(u) => setUser(u)}
+        />
         <IntegrationsSection />
       </div>
     </ExecutiveShell>
@@ -60,23 +68,66 @@ function PerfilPage() {
 function ProfileFields({
   session,
   user,
+  onChange,
 }: {
   session: ExecutiveSession;
   user: ExecutiveUser | null;
+  onChange: (u: ExecutiveUser) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({
+    phone: user?.phone ?? "",
+    title: user?.title ?? "",
+    admissionDate: user?.admissionDate ?? "",
+  });
+
+  function startEdit() {
+    setDraft({
+      phone: user?.phone ?? "",
+      title: user?.title ?? "",
+      admissionDate: user?.admissionDate ?? "",
+    });
+    setEditing(true);
+  }
+  function cancel() {
+    setEditing(false);
+  }
+  function save() {
+    if (!user) return;
+    const updated: ExecutiveUser = {
+      ...user,
+      phone: draft.phone.trim() || undefined,
+      title: draft.title.trim() || undefined,
+      admissionDate: draft.admissionDate || undefined,
+    };
+    const all = loadUsers().map((u) => (u.id === updated.id ? updated : u));
+    saveUsers(all);
+    onChange(updated);
+    setEditing(false);
+  }
+
   const rows = [
     { icon: UserCircle2, label: "Nome completo", value: session.name },
     { icon: Mail, label: "E-mail corporativo", value: user?.email ?? "—" },
     {
       icon: Briefcase,
-      label: "Cargo / Perfil",
-      value: ROLE_LABEL[session.activeRole],
+      label: "Cargo",
+      value: user?.title ?? "A cadastrar",
+      editable: "title" as const,
     },
-    { icon: Phone, label: "Telefone / WhatsApp", value: "A cadastrar" },
+    {
+      icon: Phone,
+      label: "Telefone / WhatsApp",
+      value: user?.phone ?? "A cadastrar",
+      editable: "phone" as const,
+    },
     {
       icon: Calendar,
-      label: "Data de aniversário",
-      value: "A cadastrar (usado pelo Achievement Engine)",
+      label: "Data de admissão",
+      value: user?.admissionDate
+        ? new Date(user.admissionDate).toLocaleDateString("pt-BR")
+        : "A cadastrar",
+      editable: "admissionDate" as const,
     },
     {
       icon: Shield,
@@ -85,9 +136,42 @@ function ProfileFields({
     },
   ];
   return (
-    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 divide-y divide-[color:var(--border)]/60">
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[color:var(--border)]/60">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+          Dados do colaborador
+        </p>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
+          >
+            <Pencil className="h-3 w-3" /> Editar Perfil
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={cancel}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition"
+            >
+              <X className="h-3 w-3" /> Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--gold)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--navy-deep)] hover:bg-[color:var(--gold)]/90 transition"
+            >
+              <Check className="h-3 w-3" /> Salvar
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="divide-y divide-[color:var(--border)]/60">
       {rows.map((r) => {
         const Icon = r.icon;
+        const isEditing = editing && "editable" in r && r.editable;
         return (
           <div key={r.label} className="flex items-center gap-4 px-5 py-4">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
@@ -97,11 +181,23 @@ function ProfileFields({
               <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
                 {r.label}
               </p>
-              <p className="text-sm mt-0.5">{r.value}</p>
+              {isEditing ? (
+                <input
+                  type={r.editable === "admissionDate" ? "date" : "text"}
+                  value={draft[r.editable]}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, [r.editable as string]: e.target.value }))
+                  }
+                  className="mt-0.5 w-full bg-transparent border-b border-[color:var(--gold)]/40 text-sm outline-none py-0.5"
+                />
+              ) : (
+                <p className="text-sm mt-0.5">{r.value}</p>
+              )}
             </div>
           </div>
         );
       })}
+      </div>
     </section>
   );
 }

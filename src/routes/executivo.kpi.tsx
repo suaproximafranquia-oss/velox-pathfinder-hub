@@ -3,6 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   BarChart3,
+  CircleAlert,
+  CircleCheck,
+  CircleDashed,
   CalendarDays,
   CheckCircle2,
   Gauge,
@@ -287,7 +290,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         </div>
         <TotalVendidoCard value={summary.salesValue} />
         {isConsolidated ? (
-          <ConsolidatedSummaryCard summary={summary} collaboratorCount={collaborators.length} />
+          <KpiStatusCard collaborators={collaborators} monthKey={activeMonth.key} />
         ) : (
           <CampanhaVeloxCard salesValue={summary.salesValue} />
         )}
@@ -444,39 +447,85 @@ function MonthSelector({
   );
 }
 
-function ConsolidatedSummaryCard({
-  summary,
-  collaboratorCount,
+/**
+ * Card "Status do KPI" — substitui o antigo Consolidado no topo da tela.
+ * Reflete automaticamente o preenchimento do dia útil mais recente do mês
+ * ativo para os colaboradores no escopo. Sem inventar métricas: usa apenas
+ * os lançamentos reais do KPI Manager.
+ */
+function KpiStatusCard({
+  collaborators,
+  monthKey,
 }: {
-  summary: ReturnType<typeof summarize>;
-  collaboratorCount: number;
+  collaborators: ExecutiveUser[];
+  monthKey: string;
 }) {
-  const allIndicators =
-    summary.leads +
-    summary.calls +
-    summary.presentations +
-    summary.contractsSent +
-    summary.sales;
+  const month = findMonth(monthKey);
+  const totalDays = daysInMonth(month);
+  // dia de referência: hoje se estivermos no mês corrente; caso contrário
+  // o último dia útil do mês. Mantemos leitura consistente para dados
+  // fictícios ou reais.
+  const now = new Date();
+  const inMonth =
+    now.getFullYear() === Number(month.key.slice(0, 4)) &&
+    now.getMonth() + 1 === Number(month.key.slice(5, 7));
+  const refDay = Math.min(inMonth ? now.getDate() : totalDays, totalDays);
+
+  let latestUpdate = 0;
+  const pending: string[] = [];
+  for (const c of collaborators) {
+    const ds = loadDataset(c.id, monthKey);
+    if (ds.updatedAt > latestUpdate) latestUpdate = ds.updatedAt;
+    const hasEntry = INDICATORS.some((ind) => {
+      const v = ds.matrix[ind.id]?.[refDay];
+      return typeof v === "number" && v > 0;
+    });
+    if (!hasEntry) pending.push(c.name.split(" ")[0]);
+  }
+
+  let tone: "ok" | "warn" | "alert" = "ok";
+  let title = "Todos os KPI's atualizados";
+  if (pending.length === collaborators.length && collaborators.length > 0) {
+    tone = "alert";
+    title = "KPI do dia anterior ainda incompleto";
+  } else if (pending.length > 0) {
+    tone = "warn";
+    title = `${pending.length} executivo${pending.length > 1 ? "s" : ""} pendente${pending.length > 1 ? "s" : ""}`;
+  }
+
+  const Icon = tone === "ok" ? CircleCheck : tone === "warn" ? CircleDashed : CircleAlert;
+  const dotColor =
+    tone === "ok" ? "text-emerald-400" : tone === "warn" ? "text-amber-400" : "text-rose-400";
+  const bulletEmoji = tone === "ok" ? "🟢" : tone === "warn" ? "🟡" : "🔴";
 
   return (
     <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-4">
       <div className="flex items-center gap-2">
         <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
-          <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.6} />
+          <Icon className={cn("h-3.5 w-3.5", dotColor)} strokeWidth={1.8} />
         </span>
         <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          Consolidado
+          Status do KPI
         </p>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-[color:var(--muted-foreground)]">
-        <span>Leads: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.leads.toLocaleString("pt-BR")}</strong></span>
-        <span>Ligações: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.calls.toLocaleString("pt-BR")}</strong></span>
-        <span>Contratos: <strong className="text-[color:var(--foreground)] tabular-nums">{summary.contractsSent.toLocaleString("pt-BR")}</strong></span>
-        <span>Pagamentos: <strong className="text-[color:var(--foreground)] tabular-nums">{formatCurrency(summary.salesValue)}</strong></span>
-      </div>
-      <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
-        {collaboratorCount} executivos · soma operacional: {allIndicators.toLocaleString("pt-BR")}
+      <p className="mt-2 text-[13px] leading-snug text-[color:var(--foreground)]">
+        <span className="mr-1" aria-hidden>{bulletEmoji}</span>
+        {title}
       </p>
+      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-[color:var(--muted-foreground)]">
+        <span>
+          Última atualização:{" "}
+          <strong className="text-[color:var(--foreground)] tabular-nums">
+            {latestUpdate ? new Date(latestUpdate).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+          </strong>
+        </span>
+        <span className="truncate" title={pending.join(", ") || "Nenhum"}>
+          Pendentes:{" "}
+          <strong className="text-[color:var(--foreground)]">
+            {pending.length === 0 ? "Nenhum" : pending.join(", ")}
+          </strong>
+        </span>
+      </div>
     </section>
   );
 }
@@ -529,10 +578,11 @@ function TotalVendidoCard({ value }: { value: number }) {
   );
 }
 
-// Dimensões da planilha — reajustadas (+~15%) para dar respiro visual
-// mantendo a identidade compacta do KPI Manager.
-const ROW_H = 43;
-const HEADER_H = 46;
+// Dimensões da planilha — compactas o suficiente para caber praticamente
+// todos os indicadores em Full HD sem rolagem vertical, mantendo a
+// legibilidade de células editáveis.
+const ROW_H = 40;
+const HEADER_H = 42;
 const DAY_W = 96;
 const IND_W = 316;
 const TOTAL_W = 154;

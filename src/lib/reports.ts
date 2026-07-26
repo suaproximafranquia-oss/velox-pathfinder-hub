@@ -136,13 +136,17 @@ function aggregateMatrixTotal(
 }
 
 function buildFunnel(summary: KpiSummary, datasets: KpiDataset[]): FunnelStage[] {
-  void datasets;
+  const videosDone = datasets.reduce(
+    (acc, ds) => acc + sumRow(ds.matrix, "videosDone"),
+    0,
+  );
   return [
-    { id: "leads", label: "Leads", value: summary.leads },
-    { id: "calls", label: "Ligações", value: summary.calls },
-    { id: "presentations", label: "Apresentações", value: summary.presentations },
-    { id: "cofs", label: "COFs", value: summary.contractsSent },
-    { id: "sales", label: "Vendas", value: summary.sales },
+    { id: "leads", label: "Lead", value: summary.leads },
+    { id: "presentations", label: "Apresentação", value: summary.presentations },
+    { id: "videos", label: "Videoconferência", value: videosDone },
+    { id: "cofs", label: "COF enviada", value: summary.contractsSent },
+    { id: "sales", label: "Venda", value: summary.sales },
+    { id: "revenue", label: "Faturamento", value: summary.salesValue },
   ];
 }
 
