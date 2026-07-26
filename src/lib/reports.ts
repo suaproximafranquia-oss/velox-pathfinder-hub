@@ -336,7 +336,6 @@ export const AI_GOVERNANCE = {
   officialSources: [
     "KPI Manager",
     "CRM",
-    "Agenda",
     "Pipeline",
     "Relatórios",
     "Brain Analytics",
