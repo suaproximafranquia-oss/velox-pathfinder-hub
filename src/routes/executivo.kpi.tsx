@@ -224,8 +224,14 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   return (
     <ExecutiveShell session={session} title="KPI Manager" fullBleed>
       <div
-        className="w-full min-w-0 max-w-full"
-        style={{ overflowX: "clip", contain: "inline-size" }}
+        className="w-full min-w-0 max-w-full flex flex-col"
+        style={{
+          overflowX: "clip",
+          contain: "inline-size",
+          // Viewport próprio do KPI: preenche a área útil abaixo do header
+          // do shell e nunca faz a página inteira rolar.
+          height: "calc(100vh - var(--atlas-shell-offset, 96px))",
+        }}
       >
       {/* Barra de contexto ------------------------------------------------- */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
