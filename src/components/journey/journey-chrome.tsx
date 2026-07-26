@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { List, X, ShieldCheck } from "lucide-react";
+import { List, X } from "lucide-react";
 import { CHAPTERS, getChapterByPath, TOTAL_CHAPTERS } from "@/lib/journey-data";
 import { useJourneyProgress } from "@/hooks/use-journey-progress";
 import { AiAssistant } from "@/components/ai-assistant";
@@ -58,14 +58,6 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
             <span className="hidden md:inline text-xs text-[color:var(--muted-foreground)] truncate">
               {label}
             </span>
-            <Link
-              to="/executivo"
-              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition-colors"
-              title="Acesso corporativo à Atlas Platform"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Acesso Executivo</span>
-            </Link>
             <button
               type="button"
               onClick={() => setIndexOpen(true)}
