@@ -27,10 +27,12 @@ export function Confetti({ active }: { active: boolean }) {
 
   useEffect(() => {
     if (!active) return;
-    const canvas = ref.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const canvasEl = ref.current;
+    if (!canvasEl) return;
+    const ctx2d = canvasEl.getContext("2d");
+    if (!ctx2d) return;
+    const canvas: HTMLCanvasElement = canvasEl;
+    const ctx: CanvasRenderingContext2D = ctx2d;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     function resize() {
