@@ -5,6 +5,7 @@ import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   getSession,
   canViewAllInvestors,
+  loadUsers,
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import {
@@ -34,6 +35,12 @@ function InvestidoresPage() {
     if (!s) navigate({ to: "/executivo" });
     else setSession(s);
   }, [navigate]);
+
+  const userNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of loadUsers()) map.set(u.id, u.name);
+    return map;
+  }, []);
 
   const investors = useMemo(() => {
     if (!session) return [];
@@ -72,6 +79,7 @@ function InvestidoresPage() {
               <th className="text-left px-4 py-3 font-normal">Nome</th>
               <th className="text-left px-4 py-3 font-normal">Cidade</th>
               <th className="text-left px-4 py-3 font-normal">Telefone</th>
+              <th className="text-left px-4 py-3 font-normal">Executivo Responsável</th>
               <th className="text-left px-4 py-3 font-normal">Status</th>
               <th className="text-left px-4 py-3 font-normal">Leitura</th>
               <th className="text-left px-4 py-3 font-normal">Capítulo atual</th>
@@ -87,6 +95,9 @@ function InvestidoresPage() {
                 <td className="px-4 py-3">{i.name}</td>
                 <td className="px-4 py-3 text-[color:var(--muted-foreground)]">{i.city}</td>
                 <td className="px-4 py-3 text-[color:var(--muted-foreground)]">{i.phone}</td>
+                <td className="px-4 py-3 text-[color:var(--foreground)]">
+                  {userNameById.get(i.assignedToUserId) ?? "—"}
+                </td>
                 <td className="px-4 py-3">
                   <span className="inline-flex items-center rounded-full border border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 px-2.5 py-0.5 text-xs text-[color:var(--gold)]">
                     {STATUS_LABEL[i.status]}
@@ -124,7 +135,7 @@ function InvestidoresPage() {
             ))}
             {investors.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-[color:var(--muted-foreground)]">
+                <td colSpan={11} className="px-4 py-8 text-center text-[color:var(--muted-foreground)]">
                   Nenhum investidor encontrado.
                 </td>
               </tr>
