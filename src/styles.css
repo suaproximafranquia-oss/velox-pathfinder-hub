@@ -274,11 +274,14 @@
 }
 
 /* ============================================================
- * Portal Velox — Editorial scope
- * Aplicado apenas em body[data-shell="portal"]. Isolado do resto
- * da plataforma (Manual, Área Executiva) para não gerar regressão.
+ * Ecossistema Editorial Velox — Design System unificado
+ * Aplicado a Portal, Manual e Universo (e a todos os módulos
+ * editoriais futuros) para que o usuário sinta um único produto.
+ * A Área Executiva permanece isolada e sem alterações.
  * ============================================================ */
-body[data-shell="portal"] {
+body[data-shell="portal"],
+body[data-shell="manual"],
+body[data-shell="universo"] {
   /* Fundo institucional Velox — branco levemente azulado, dando continuidade ao Hero */
   --paper: oklch(0.955 0.014 252);
   --paper-2: oklch(0.978 0.010 252);
