@@ -276,24 +276,16 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       {/* Container dedicado do módulo KPI ---------------------------------- */}
-      <div className="max-w-full overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/55 p-4 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-5">
+      <div className="flex-1 min-h-0 max-w-full overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/55 p-4 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-5 flex flex-col">
 
       {/* Resumo executivo do topo — apenas informações estratégicas ------- */}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-3 shrink-0">
         <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-4">
           <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Competência</p>
           <p className="font-display text-lg mt-1">{activeMonth.label}</p>
           <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{activeLabel} · {days} dias</p>
         </div>
-        <div className="rounded-2xl border border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/10 to-transparent p-4">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[color:var(--gold)]/40 text-[color:var(--gold)]">
-              <HandCoins className="h-3.5 w-3.5" strokeWidth={1.6} />
-            </span>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Valor Vendido Acumulado</p>
-          </div>
-          <p className="font-display text-xl mt-2 tabular-nums text-[color:var(--gold)]">{formatCurrency(summary.salesValue)}</p>
-        </div>
+        <TotalVendidoCard value={summary.salesValue} />
         {isConsolidated ? (
           <ConsolidatedSummaryCard summary={summary} collaboratorCount={collaborators.length} />
         ) : (
@@ -302,8 +294,8 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       {/* Cabeçalho da planilha -------------------------------------------- */}
-      <div className="mt-4 max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[#F5F6F8] text-[color:var(--navy-deep)] shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-black/10 bg-white/60">
+      <div className="mt-4 flex-1 min-h-0 max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[#F5F6F8] text-[color:var(--navy-deep)] shadow-[0_1px_0_0_rgba(0,0,0,0.04)] flex flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-black/10 bg-white/60 shrink-0">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-[color:var(--navy)]" />
             <h2 className="font-display text-base leading-none">{activeMonth.label}</h2>
@@ -327,7 +319,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       {/* Rodapé: abas de colaboradores ------------------------------------ */}
-      <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/20 overflow-hidden">
+      <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/20 overflow-hidden shrink-0">
         <div className="px-5 py-3 border-b border-[color:var(--border)] flex items-center gap-2">
           <Users className="h-4 w-4 text-[color:var(--gold)]" />
           <span className="text-xs uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
@@ -403,7 +395,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
 
       </div>
 
-      <p className="mt-4 text-[11px] text-[color:var(--muted-foreground)] text-center max-w-2xl mx-auto">
+      <p className="mt-3 text-[11px] text-[color:var(--muted-foreground)] text-center max-w-2xl mx-auto shrink-0">
         Dados fictícios de Julho/2026 para demonstração. A partir de Agosto/2026 a
         estrutura receberá lançamentos reais e alimentará automaticamente o Brain
         Analytics, os Relatórios e a IA Corporativa — respeitando as permissões do
@@ -526,9 +518,10 @@ function KpiSpreadsheet({
 
   return (
     <div
-      className="grid w-full min-w-0 max-w-full max-h-[720px]"
+      className="grid w-full min-w-0 max-w-full flex-1 min-h-0 kpi-scroll"
       style={{
-        overflow: "hidden",
+        overflowX: "hidden",
+        overflowY: "auto",
         gridTemplateColumns: `minmax(240px, ${IND_W}px) minmax(0, 1fr) minmax(238px, ${TOTAL_W + AVG_W}px)`,
         contain: "inline-size",
       }}
@@ -536,7 +529,7 @@ function KpiSpreadsheet({
       {/* Coluna Indicador — fixa à esquerda */}
       <div className="min-w-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]">
         <div
-          className="flex items-center px-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] border-b border-black/20"
+          className="sticky top-0 z-10 flex items-center px-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] border-b border-black/20 bg-[color:var(--navy-deep)]"
           style={{ height: HEADER_H }}
         >
           Indicador
@@ -569,7 +562,7 @@ function KpiSpreadsheet({
       <div className="min-w-0 overflow-x-auto overflow-y-hidden kpi-scroll bg-[#F5F6F8]">
         <div style={{ width: dayList.length * DAY_W }}>
           {/* Cabeçalho dos dias */}
-          <div className="flex border-b border-black/10 bg-white/70" style={{ height: HEADER_H }}>
+          <div className="sticky top-0 z-10 flex border-b border-black/10 bg-white" style={{ height: HEADER_H }}>
             {dayList.map((d) => (
               <div
                 key={d}
@@ -614,32 +607,27 @@ function KpiSpreadsheet({
       <div className="min-w-0 flex border-l border-black/10 bg-white/70 text-[color:var(--navy-deep)]">
         <div style={{ width: TOTAL_W }}>
           <div
-            className="flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--navy)]/70 border-b border-black/10"
+            className="sticky top-0 z-10 flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--navy)]/70 border-b border-black/10 bg-white"
             style={{ height: HEADER_H }}
           >
             Total
           </div>
-          {rows.map(({ ind, total }, i) => {
-            const tier =
-              ind.id === SALES_VALUE_INDICATOR_ID ? campaignTierClass(total) : "";
-            return (
-              <div
-                key={ind.id}
-                className={cn(
-                  "flex items-center justify-end pr-3 text-[12px] font-semibold tabular-nums border-b border-black/5 text-[color:var(--navy)] transition-colors",
-                  i % 2 === 1 && !tier && "bg-black/[0.015]",
-                  tier,
-                )}
-                style={{ height: ROW_H }}
-              >
-                {formatValue(total, ind.unit)}
-              </div>
-            );
-          })}
+          {rows.map(({ ind, total }, i) => (
+            <div
+              key={ind.id}
+              className={cn(
+                "flex items-center justify-end pr-3 text-[12px] font-semibold tabular-nums border-b border-black/5 text-[color:var(--navy)]",
+                i % 2 === 1 && "bg-black/[0.015]",
+              )}
+              style={{ height: ROW_H }}
+            >
+              {formatValue(total, ind.unit)}
+            </div>
+          ))}
         </div>
         <div className="border-l border-black/5" style={{ width: AVG_W }}>
           <div
-            className="flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.22em] text-black/45 border-b border-black/10"
+            className="sticky top-0 z-10 flex items-center justify-end pr-3 text-[10px] uppercase tracking-[0.22em] text-black/45 border-b border-black/10 bg-white"
             style={{ height: HEADER_H }}
           >
             Média
