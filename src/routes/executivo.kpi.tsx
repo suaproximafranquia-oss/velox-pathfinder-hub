@@ -269,46 +269,6 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
 
 /* ---------------------- Componentes internos ---------------------- */
 
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  highlight = false,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border p-4 transition-colors",
-        highlight
-          ? "border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/10 to-transparent"
-          : "border-[color:var(--border)] bg-[color:var(--card)]/40 hover:border-[color:var(--gold)]/30",
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className={cn(
-            "inline-flex h-8 w-8 items-center justify-center rounded-lg border",
-            highlight
-              ? "border-[color:var(--gold)]/40 bg-[color:var(--background)]/40 text-[color:var(--gold)]"
-              : "border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]",
-          )}
-        >
-          <Icon className="h-4 w-4" strokeWidth={1.6} />
-        </span>
-      </div>
-      <p className="mt-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-        {label}
-      </p>
-      <p className="font-display text-xl mt-1 tabular-nums">{value}</p>
-    </div>
-  );
-}
-
 function MonthSelector({
   currentKey,
   onSelect,
