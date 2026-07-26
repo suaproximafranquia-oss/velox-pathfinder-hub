@@ -55,6 +55,13 @@ const DEFAULTS: Record<RecognitionType, RecognitionTemplate> = {
     message: "Você atingiu um novo nível da campanha. Excelente trabalho.",
     ctaLabel: "Continuar",
   },
+  kpi_pending: {
+    emoji: "📋",
+    title: "Você tem indicadores pendentes",
+    message:
+      "Identificamos que alguns indicadores do dia anterior ainda não foram registrados no KPI Manager.\n\nMantê-los atualizados fortalece a análise da equipe e a precisão do Brain.",
+    ctaLabel: "Abrir KPI Manager",
+  },
   custom: {
     emoji: "✨",
     title: "Reconhecimento",
