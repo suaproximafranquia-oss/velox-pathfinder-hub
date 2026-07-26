@@ -491,7 +491,7 @@ function Cell({
     <div
       className={cn(
         "border-r border-black/5 transition-colors",
-        weekend && "bg-[color:var(--navy)]/[0.07]",
+        weekend && "bg-[color:var(--navy)]/[0.11]",
         flash && "kpi-flash",
       )}
       style={{ width }}
