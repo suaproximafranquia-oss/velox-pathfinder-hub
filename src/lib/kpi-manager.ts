@@ -109,7 +109,7 @@ export const INDICATORS: KpiIndicator[] = [
   { id: "contractsSent",   label: "Contratos feitos (enviados)",        unit: "count",    group: "fechamento", brainKey: "contractsSent" },
   { id: "dropouts",        label: "Desistências do dia",                unit: "count",    group: "fechamento", brainKey: "dropouts" },
   { id: "contractsSigned", label: "Vendas feitas no dia",               unit: "count",    group: "fechamento", brainKey: "contractsSigned" },
-  { id: "salesValue",      label: "Pagamentos em R$ feitos no dia",     unit: "currency", group: "resultado",  brainKey: "salesValue" },
+  { id: "salesValue",      label: "Pagamentos feitos no dia",           unit: "currency", group: "resultado",  brainKey: "salesValue" },
 ];
 
 export type IndicatorId = (typeof INDICATORS)[number]["id"];
