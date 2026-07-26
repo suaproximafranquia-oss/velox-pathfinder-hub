@@ -184,11 +184,12 @@ function ConversionRings({ report }: { report: ReportDataset }) {
 function SalesLine({ report }: { report: ReportDataset }) {
   // Constrói uma série diária derivada do funil, sem inventar dados:
   // usa a distribuição dos indicadores diários agregados de report.
-  const days = Array.from({ length: report.month.days }, (_, i) => i + 1);
+  const daysInMonth = new Date(report.month.year, report.month.month + 1, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   // Aproximação transparente: distribui o total proporcionalmente aos
   // dias úteis (finais de semana = metade do peso). Nunca extrapola.
   const weights = days.map((d) => {
-    const dow = new Date(report.month.year, report.month.month - 1, d).getDay();
+    const dow = new Date(report.month.year, report.month.month, d).getDay();
     return dow === 0 || dow === 6 ? 0.5 : 1;
   });
   const wsum = weights.reduce((a, b) => a + b, 0) || 1;
@@ -225,7 +226,7 @@ function SalesLine({ report }: { report: ReportDataset }) {
       <div className="flex justify-between text-[10px] text-[color:var(--muted-foreground)] mt-1">
         <span>Dia 1</span>
         <span>{formatCurrency(report.summary.salesValue)}</span>
-        <span>Dia {report.month.days}</span>
+        <span>Dia {daysInMonth}</span>
       </div>
     </div>
   );
