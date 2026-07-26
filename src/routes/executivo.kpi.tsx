@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  BarChart3,
   CalendarDays,
   CheckCircle2,
   Gauge,
@@ -11,7 +12,12 @@ import {
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
-import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  getSession,
+  loadUsers,
+  type ExecutiveSession,
+  type ExecutiveUser,
+} from "@/lib/executive-auth";
 import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
@@ -38,6 +44,19 @@ export const Route = createFileRoute("/executivo/kpi")({
   head: () => ({
     meta: [
       { title: "KPI Manager — Atlas Platform" },
+      {
+        name: "description",
+        content:
+          "Workspace operacional de indicadores, campanhas e consolidação executiva da Atlas Platform.",
+      },
+      { property: "og:title", content: "KPI Manager — Atlas Platform" },
+      {
+        property: "og:description",
+        content:
+          "Workspace operacional de indicadores, campanhas e consolidação executiva da Atlas Platform.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
