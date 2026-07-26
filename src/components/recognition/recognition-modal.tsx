@@ -16,6 +16,57 @@ export function RecognitionModal({
 }) {
   const tpl = templateFor(event);
   const message = tpl.message.split("\n\n");
+  const quiet = tpl.variant === "quiet";
+
+  if (quiet) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="recognition-title"
+        className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+      >
+        <div className="absolute inset-0 bg-[color:var(--navy-deep)]/60 backdrop-blur-sm animate-[fade-in_0.25s_ease-out]" />
+        <div className="relative z-10 w-full max-w-md rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/95 p-7 text-left shadow-xl animate-[fade-in_0.3s_ease-out]">
+          <div className="flex items-center gap-3">
+            <span
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/60 text-lg"
+              aria-hidden
+            >
+              {tpl.emoji}
+            </span>
+            <h2
+              id="recognition-title"
+              className="font-display text-lg text-[color:var(--foreground)]"
+            >
+              {tpl.title}
+            </h2>
+          </div>
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+            {message.map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
+          </div>
+          <div className="mt-6 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onContinue}
+              className="inline-flex items-center justify-center rounded-full border border-[color:var(--border)] px-4 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
+            >
+              Depois
+            </button>
+            <button
+              type="button"
+              onClick={onContinue}
+              className="inline-flex items-center justify-center rounded-full bg-[color:var(--gold)] px-5 py-1.5 text-xs font-medium text-[color:var(--navy-deep)] hover:bg-[color:var(--gold)]/90 transition"
+            >
+              {tpl.ctaLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

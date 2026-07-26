@@ -206,7 +206,7 @@ const SEED_ALERTS: BrainAlert[] = [
     id: "alert_novos",
     ownerUserId: "usr_thiago",
     category: "contato",
-    title: "Voce possui 12 novos investidores aguardando contato",
+    title: "⚠ 12 novos investidores aguardando contato",
     description:
       "Registros recebidos recentemente ainda nao tiveram primeiro contato.",
     priority: "alta",
@@ -218,7 +218,7 @@ const SEED_ALERTS: BrainAlert[] = [
     id: "alert_followup",
     ownerUserId: "usr_marton",
     category: "followup",
-    title: "Existem 5 follow-ups programados para hoje",
+    title: "📅 5 follow-ups programados para hoje",
     description: "Interacoes agendadas com investidores em avaliacao.",
     priority: "media",
     date: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
@@ -229,19 +229,19 @@ const SEED_ALERTS: BrainAlert[] = [
     id: "alert_portal",
     ownerUserId: "usr_paulo",
     category: "portal",
-    title: "Um investidor retornou recentemente ao Portal",
+    title: "📋 Um investidor concluiu o Manual",
     description:
-      "Retomada de leitura detectada — momento oportuno para reengajamento.",
+      "Investidor finalizou os 13 capitulos do Manual — momento ideal para o primeiro contato consultivo.",
     priority: "baixa",
     date: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
     copyTemplate:
-      "Ola. Percebi que voce voltou recentemente ao nosso Portal. Caso ainda tenha interesse em continuar sua jornada, fico a disposicao.",
+      "Ola. Vi que voce concluiu o Manual do Investidor. Posso separar um horario para conversarmos sobre os proximos passos?",
   },
   {
     id: "alert_contratos",
     ownerUserId: "usr_milton",
     category: "contrato",
-    title: "Existem contratos aguardando retorno",
+    title: "⚠ Contratos aguardando retorno",
     description: "Propostas enviadas ha mais de 48h sem resposta.",
     priority: "alta",
     date: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString(),
@@ -252,7 +252,7 @@ const SEED_ALERTS: BrainAlert[] = [
     id: "alert_reuniao",
     ownerUserId: "usr_carlos",
     category: "reuniao",
-    title: "Existe uma videoconferencia agendada",
+    title: "📅 Videoconferencia agendada em breve",
     description: "Reuniao consultiva marcada para as proximas horas.",
     priority: "media",
     date: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
@@ -263,13 +263,84 @@ const SEED_ALERTS: BrainAlert[] = [
     id: "alert_oportunidade",
     ownerUserId: "usr_talita",
     category: "oportunidade",
-    title: "Oportunidades sem atualizacao ha mais de sete dias",
+    title: "⚠ Oportunidades paradas ha mais de 7 dias",
     description:
       "Registros parados na esteira consultiva sem novas interacoes.",
     priority: "media",
     date: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
     copyTemplate:
       "Ola. Notei que faz alguns dias desde nossa ultima conversa. Posso te ajudar com alguma pendencia?",
+  },
+  {
+    id: "alert_aniversario",
+    ownerUserId: "usr_thiago",
+    category: "contato",
+    title: "🎂 Aniversario de investidor hoje",
+    description:
+      "Um investidor da sua carteira comemora aniversario hoje — uma mensagem gera conexao.",
+    priority: "baixa",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+    copyTemplate:
+      "Ola. Passando aqui apenas para desejar um feliz aniversario. Que seja um ciclo novo bonito para voce.",
+  },
+  {
+    id: "alert_kpi",
+    ownerUserId: "usr_marton",
+    category: "oportunidade",
+    title: "📊 KPI de ontem ainda pendente",
+    description:
+      "Indicadores do dia util anterior ainda nao foram lancados — atualize quando puder.",
+    priority: "media",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+    copyTemplate:
+      "Lembrete interno: registrar no KPI Manager os indicadores do dia util anterior.",
+  },
+  {
+    id: "alert_campanha",
+    ownerUserId: "usr_carlos",
+    category: "oportunidade",
+    title: "🏆 Voce esta a um passo do proximo nivel da Campanha Velox",
+    description:
+      "Faltam poucos pagamentos para atingir o proximo patamar da campanha.",
+    priority: "media",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
+    copyTemplate:
+      "Meta pessoal: sustentar o ritmo desta semana para consolidar o proximo patamar da Campanha Velox.",
+  },
+  {
+    id: "alert_manual_concluido_2",
+    ownerUserId: "usr_larissa",
+    category: "portal",
+    title: "📋 Investidora concluiu o Manual",
+    description:
+      "Investidora vinculada finalizou o Manual — momento oportuno para conversa consultiva.",
+    priority: "media",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    copyTemplate:
+      "Ola. Vi que voce finalizou o Manual. Posso separar um horario esta semana para conversarmos com calma?",
+  },
+  {
+    id: "alert_reuniao_2",
+    ownerUserId: "usr_paulo",
+    category: "reuniao",
+    title: "📅 Reuniao consultiva confirmada para amanha",
+    description: "Reuniao com investidor em estagio final de avaliacao.",
+    priority: "alta",
+    date: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    copyTemplate:
+      "Ola. Confirmando nossa reuniao de amanha. Se preferir remarcar, me avise que ajusto a agenda.",
+  },
+  {
+    id: "alert_aguardando_2",
+    ownerUserId: "usr_talita",
+    category: "contato",
+    title: "⚠ Investidor aguardando retorno ha 2 dias",
+    description:
+      "Investidor pediu contato e ainda nao houve retorno registrado.",
+    priority: "alta",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 40).toISOString(),
+    copyTemplate:
+      "Ola. Desculpe a demora em retornar. Sigo a disposicao para conversar quando fizer sentido para voce.",
   },
 ];
 
