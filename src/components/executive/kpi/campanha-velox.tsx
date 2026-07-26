@@ -1,0 +1,90 @@
+/**
+ * Campanha Velox — representação visual do progresso do executivo.
+ *
+ * Escopo desta sprint: apenas o visual (barra + badge + números).
+ * A arquitetura fica preparada para receber futuramente o sistema de
+ * reconhecimento, conquistas, pop-ups, confetes, aniversários e o
+ * histórico de conquistas, sem alteração da API deste componente.
+ */
+import { Trophy } from "lucide-react";
+import { CAMPAIGN_MAX, campaignStatus, formatCurrency } from "@/lib/kpi-manager";
+import { cn } from "@/lib/utils";
+
+export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
+  const { value, percent, level } = campaignStatus(salesValue);
+  const barColor = level?.color ?? "rgba(148, 163, 184, 0.55)"; // slate-400/55 neutro
+  const trackColor = "rgba(148, 163, 184, 0.14)";
+  const percentLabel = `${percent.toFixed(1).replace(".", ",")}%`;
+
+  return (
+    <section
+      aria-label="Campanha Velox"
+      className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-5"
+    >
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)] shrink-0">
+            <Trophy className="h-3.5 w-3.5" strokeWidth={1.6} />
+          </span>
+          <h3 className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--muted-foreground)] truncate">
+            Campanha Velox
+          </h3>
+        </div>
+        {level ? (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
+            style={{
+              borderColor: `${level.color}55`,
+              backgroundColor: `${level.color}18`,
+              color: level.color,
+            }}
+          >
+            <span aria-hidden>{level.emoji}</span>
+            <span className="text-[color:var(--foreground)]/90">{level.label}</span>
+          </span>
+        ) : (
+          <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]/70">
+            Em progressão
+          </span>
+        )}
+      </header>
+
+      <div className="mt-4">
+        <div
+          className="relative h-2.5 w-full overflow-hidden rounded-full"
+          style={{ backgroundColor: trackColor }}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={CAMPAIGN_MAX}
+          aria-valuenow={Math.round(value)}
+          aria-valuetext={percentLabel}
+        >
+          <div
+            className={cn(
+              "h-full rounded-full",
+              "transition-[width,background-color] duration-500 ease-out",
+            )}
+            style={{
+              width: `${percent}%`,
+              backgroundColor: barColor,
+            }}
+          />
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <span className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+            Acumulado
+          </span>
+          <div className="flex items-baseline gap-3 tabular-nums">
+            <span className="text-[color:var(--foreground)] font-medium">
+              {formatCurrency(value)}
+            </span>
+            <span className="text-[11px] text-[color:var(--muted-foreground)]">
+              {percentLabel} de {formatCurrency(CAMPAIGN_MAX)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
