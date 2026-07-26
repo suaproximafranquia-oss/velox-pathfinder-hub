@@ -212,6 +212,20 @@
   background-size: 3px 3px;
 }
 
+@keyframes kpi-flash {
+  0%   { background-color: color-mix(in oklab, var(--gold) 30%, transparent); }
+  100% { background-color: transparent; }
+}
+@utility kpi-flash {
+  animation: kpi-flash 900ms ease-out;
+}
+
+/* Scrollbar sutil para a planilha do KPI Manager */
+@utility kpi-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--gold) 35%, transparent) transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-chapter-enter { animation: chapter-enter-still 200ms ease both !important; }
   .animate-soft-pulse { animation: none !important; }
