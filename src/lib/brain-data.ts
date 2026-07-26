@@ -14,15 +14,6 @@ import {
 } from "./kpi-manager";
 import { visibleCollaborators } from "./teams";
 
-export type BrainPeriod = 7 | 14 | 30 | 90;
-
-export const PERIOD_OPTIONS: { value: BrainPeriod; label: string }[] = [
-  { value: 7, label: "7 dias" },
-  { value: 14, label: "14 dias" },
-  { value: 30, label: "30 dias" },
-  { value: 90, label: "90 dias" },
-];
-
 export type BrainKpi = {
   id: string;
   label: string;
@@ -46,7 +37,7 @@ export type FunnelStage = { id: string; label: string; value: number };
 export type SeriesPoint = { x: string; y: number };
 
 export type BrainSnapshot = {
-  period: BrainPeriod;
+  period: 30;
   scope: ScopeSelection;
   kpis: BrainKpi[];
   funnel: FunnelStage[];
@@ -171,159 +162,7 @@ export function buildOperationalSnapshot(
   };
 }
 
-function seeded(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-}
-
 const fmtInt = (n: number) => new Intl.NumberFormat("pt-BR").format(Math.round(n));
-const fmtPct = (n: number) => `${n.toFixed(1)}%`;
-
-function scopeMultiplier(scope: ScopeSelection): number {
-  switch (scope.mode) {
-    case "company":
-      return 1;
-    case "team":
-      return 0.55;
-    case "executive":
-      return 0.18;
-    case "personal":
-      return 0.15;
-    case "comparison":
-      return 0.6;
-  }
-}
-
-/**
- * Snapshot simulado. A assinatura (period, scope) e a superficie
- * estavel para a futura fonte real de dados.
- */
-export function buildSnapshot(
-  period: BrainPeriod,
-  scope: ScopeSelection,
-): BrainSnapshot {
-  const rnd = seeded(period * 137 + scope.mode.length * 31);
-  const scale = (period / 30) * scopeMultiplier(scope);
-
-  const novos = Math.round(140 * scale + rnd() * 40);
-  const oportunidades = Math.round(novos * 0.62);
-  const videos = Math.round(oportunidades * 0.55);
-  const cofs = Math.round(videos * 0.48);
-  const contratos = Math.round(cofs * 0.7);
-  const vendas = Math.round(contratos * 0.82);
-  const conv = (vendas / Math.max(novos, 1)) * 100;
-  const tempoDias = 12 + rnd() * 8;
-
-  const kpis: BrainKpi[] = [
-    {
-      id: "novos",
-      label: "Novos Investidores",
-      value: fmtInt(novos),
-      delta: 6.4,
-      description: "Entradas no periodo",
-      tooltip: "Registros novos recebidos no periodo selecionado.",
-      icon: "users",
-    },
-    {
-      id: "oport",
-      label: "Oportunidades",
-      value: fmtInt(oportunidades),
-      delta: 4.1,
-      description: "Qualificacao positiva",
-      tooltip: "Registros qualificados como oportunidades ativas.",
-      icon: "sparkles",
-    },
-    {
-      id: "video",
-      label: "Video Chamadas",
-      value: fmtInt(videos),
-      delta: 2.8,
-      description: "Reunioes realizadas",
-      tooltip: "Encontros consultivos concluidos.",
-      icon: "video",
-    },
-    {
-      id: "cof",
-      label: "COFs Enviadas",
-      value: fmtInt(cofs),
-      delta: -1.2,
-      description: "Propostas ativas",
-      tooltip: "Confirmacoes formais de oferta enviadas.",
-      icon: "fileCheck",
-    },
-    {
-      id: "contratos",
-      label: "Contratos",
-      value: fmtInt(contratos),
-      delta: 3.6,
-      description: "Assinaturas em curso",
-      tooltip: "Contratos gerados a partir das COFs enviadas.",
-      icon: "handshake",
-    },
-    {
-      id: "vendas",
-      label: "Vendas",
-      value: fmtInt(vendas),
-      delta: 5.9,
-      description: "Fechamentos concluidos",
-      tooltip: "Contratos convertidos em venda efetiva.",
-      icon: "trophy",
-    },
-    {
-      id: "conv",
-      label: "Conversao Geral",
-      value: fmtPct(conv),
-      delta: 0.8,
-      description: "Do primeiro contato a venda",
-      tooltip: "Percentual de conversao ao longo do funil completo.",
-      icon: "activity",
-    },
-    {
-      id: "tempo",
-      label: "Tempo Medio de Evolucao",
-      value: `${tempoDias.toFixed(1)} d`,
-      delta: -1.4,
-      description: "Ciclo medio da jornada",
-      tooltip: "Tempo medio entre primeiro contato e fechamento.",
-      icon: "clock",
-    },
-  ];
-
-  const funnel: FunnelStage[] = [
-    { id: "novo", label: "Novo", value: novos },
-    { id: "contato", label: "Primeiro Contato", value: Math.round(novos * 0.78) },
-    { id: "oport", label: "Oportunidade", value: oportunidades },
-    { id: "video", label: "Video", value: videos },
-    { id: "cof", label: "COF", value: cofs },
-    { id: "venda", label: "Venda", value: vendas },
-  ];
-
-  const days = period;
-  const temporal: SeriesPoint[] = Array.from({ length: days }).map((_, i) => {
-    const base = 6 + rnd() * 8;
-    const wave = Math.sin(i / 3) * 3;
-    return { x: `D-${days - i}`, y: Math.max(1, Math.round(base + wave)) };
-  });
-
-  let acc = 0;
-  const evolution: SeriesPoint[] = temporal.map((p) => {
-    acc += p.y;
-    return { x: p.x, y: acc };
-  });
-
-  const trend: SeriesPoint[] = temporal.map((p, i) => ({
-    x: p.x,
-    y: Math.round(p.y * (1 + i / (days * 2))),
-  }));
-
-  void temporal;
-  void evolution;
-  void trend;
-  return { period, scope, kpis, funnel };
-}
 
 // ---------- Alertas persistentes ----------
 
