@@ -2,11 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { BookOpen, Compass, Building2, BookMarked, Users, Layers, ArrowUpRight, X } from "lucide-react";
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
-import executivosImg from "@/assets/portal-executivos.png.asset.json";
-import sedeImg from "@/assets/portal-sede.jpg.asset.json";
-import recepcaoImg from "@/assets/portal-recepcao.jpg.asset.json";
+import manualCoverImg from "@/assets/portal-manual-cover.png.asset.json";
+import materialInstitucionalImg from "@/assets/portal-material-institucional.png.asset.json";
+import sedeFachadaImg from "@/assets/portal-sede-fachada.png.asset.json";
+import revistaImg from "@/assets/portal-revista-velox.png.asset.json";
 import experienciasImg from "@/assets/portal-experiencias.png.asset.json";
-import revistaImg from "@/assets/portal-revista.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,7 +53,7 @@ const MODULES: ModuleCard[] = [
     description:
       "Uma leitura editorial, em treze capítulos, sobre a franquia Velox, seus valores e o modelo de negócio — no ritmo do leitor, sem pressão comercial.",
     icon: BookOpen,
-    cover: recepcaoImg.url,
+    cover: manualCoverImg.url,
     panelSrc: "/manual",
     cta: "Iniciar a leitura",
     status: "aberto",
@@ -61,13 +61,13 @@ const MODULES: ModuleCard[] = [
   {
     key: "universo",
     eyebrow: "Módulo II",
-    title: "Universo Velox",
+    title: "Material Institucional de Apresentação",
     description:
-      "O ecossistema de soluções, parceiros e frentes especializadas que compõem a operação Velox em todo o Brasil.",
+      "Apresentação institucional completa da Velox: história, modelo de negócio, ecossistema de soluções, parceiros e frentes especializadas em todo o Brasil.",
     icon: Compass,
-    cover: executivosImg.url,
+    cover: materialInstitucionalImg.url,
     panelSrc: "/universo",
-    cta: "Explorar o ecossistema",
+    cta: "Iniciar leitura",
     status: "aberto",
   },
   {
@@ -77,7 +77,7 @@ const MODULES: ModuleCard[] = [
     description:
       "Um convite para conhecer, em imagens e vídeo, a sede da Velox e as unidades que sustentam a rede em todo o país.",
     icon: Building2,
-    cover: sedeImg.url,
+    cover: sedeFachadaImg.url,
     cta: "Em breve",
     status: "em-preparacao",
   },
@@ -88,7 +88,7 @@ const MODULES: ModuleCard[] = [
     description:
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
     icon: BookMarked,
-    cover: revistaImg,
+    cover: revistaImg.url,
     cta: "Em breve",
     status: "em-preparacao",
   },
@@ -110,7 +110,7 @@ const MODULES: ModuleCard[] = [
     description:
       "Um novo espaço editorial está sendo preparado para compor o Portal Velox. Em breve, mais uma frente do nosso ecossistema.",
     icon: Layers,
-    cover: sedeImg.url,
+    cover: sedeFachadaImg.url,
     cta: "Em desenvolvimento",
     status: "em-desenvolvimento",
   },
