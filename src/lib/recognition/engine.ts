@@ -18,6 +18,7 @@ export type RecognitionType =
   | "best_month"
   | "promotion"
   | "campaign_level"
+  | "kpi_pending"
   | "custom";
 
 export type RecognitionStatus = "pending" | "viewed" | "dismissed";
@@ -159,4 +160,40 @@ export function evaluateForLogin(userId: string): RecognitionEvent[] {
     );
   }
   return created;
+}
+
+/**
+ * Regra "KPI Pendente": no primeiro login do dia, avalia se o usuário
+ * deixou algum indicador do dia útil anterior sem lançamento. Registra
+ * um evento informativo (não punitivo). Import dinâmico evita ciclo
+ * com o KPI Manager.
+ */
+export function evaluateKpiPending(userId: string): RecognitionEvent | null {
+  if (typeof window === "undefined") return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const kpi = require("@/lib/kpi-manager") as typeof import("@/lib/kpi-manager");
+    const today = new Date();
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    if (yesterday.getMonth() !== today.getMonth()) return null;
+    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const month = kpi.findMonth(monthKey);
+    if (month.key !== monthKey) return null;
+    const day = yesterday.getDate();
+    const ds = kpi.loadDataset(userId, monthKey);
+    const missing = kpi.INDICATORS.filter((ind) => {
+      const v = ds.matrix[ind.id]?.[day];
+      return v === undefined || v === null;
+    });
+    if (missing.length === 0) return null;
+    return registerEvent({
+      userId,
+      type: "kpi_pending",
+      occurrence: `pending:${monthKey}:${day}`,
+      date: yesterday.toISOString(),
+      payload: { missing: missing.length, day, monthLabel: month.label },
+    });
+  } catch {
+    return null;
+  }
 }
