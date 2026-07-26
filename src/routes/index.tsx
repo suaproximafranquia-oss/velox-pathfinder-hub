@@ -267,7 +267,7 @@ function Hero() {
 
 function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
   return (
-    <section id="modulos" className="relative border-y" style={{ borderColor: "var(--paper-edge)" }}>
+    <section id="modulos" className="relative border-b" style={{ borderColor: "var(--paper-edge)" }}>
       <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
         <div className="mb-14 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
