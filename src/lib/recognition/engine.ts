@@ -19,6 +19,9 @@ export type RecognitionType =
   | "promotion"
   | "campaign_level"
   | "kpi_pending"
+  | "first_month"
+  | "company_anniversary"
+  | "tenure_milestone"
   | "custom";
 
 export type RecognitionStatus = "pending" | "viewed" | "dismissed";
@@ -40,6 +43,7 @@ export type RecognitionEvent = {
 
 const EVENTS_KEY = "atlas:recognition:events:v1";
 const HOMOLOG_KEY = "atlas:recognition:homolog:v1";
+const SCHEDULED_KEY = "atlas:recognition:scheduled:v1";
 
 /* ---------------------- Persistência ---------------------- */
 
@@ -159,7 +163,70 @@ export function evaluateForLogin(userId: string): RecognitionEvent[] {
       }),
     );
   }
+  // Simulações do Laboratório Atlas: se houver evento agendado para este
+  // usuário, promove-o a evento real e remove do buffer de agendados.
+  const scheduled = consumeScheduled(userId);
+  for (const s of scheduled) {
+    created.push(
+      registerEvent({
+        userId,
+        type: s.type,
+        occurrence: s.occurrence,
+        date: new Date().toISOString(),
+        payload: { ...(s.payload ?? {}), source: "laboratorio" },
+      }),
+    );
+  }
   return created;
+}
+
+/* ---------------------- Laboratório Atlas — agendamento ---------------------- */
+
+export type ScheduledRecognition = {
+  userId: string;
+  type: RecognitionType;
+  occurrence: string;
+  payload?: Record<string, unknown>;
+};
+
+function readScheduled(): ScheduledRecognition[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(SCHEDULED_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as ScheduledRecognition[];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeScheduled(list: ScheduledRecognition[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SCHEDULED_KEY, JSON.stringify(list));
+}
+
+/**
+ * Agenda uma simulação — não exibe imediatamente. Será promovida a evento
+ * real no próximo `evaluateForLogin` daquele usuário (após logout/login).
+ */
+export function scheduleEvent(item: ScheduledRecognition) {
+  const list = readScheduled();
+  list.push(item);
+  writeScheduled(list);
+}
+
+/** Remove e retorna as simulações pendentes para o usuário informado. */
+export function consumeScheduled(userId: string): ScheduledRecognition[] {
+  const list = readScheduled();
+  const mine = list.filter((s) => s.userId === userId);
+  if (mine.length === 0) return [];
+  writeScheduled(list.filter((s) => s.userId !== userId));
+  return mine;
+}
+
+export function listScheduled(): ScheduledRecognition[] {
+  return readScheduled();
 }
 
 /**
