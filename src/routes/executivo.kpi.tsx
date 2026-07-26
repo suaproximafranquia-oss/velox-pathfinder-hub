@@ -305,12 +305,13 @@ function MonthSelector({
   );
 }
 
-const ROW_H = 30;
+const ROW_H = 32;
 const HEADER_H = 34;
-const DAY_W = 44;
-const IND_W = 200;
-const TOTAL_W = 104;
-const AVG_W = 84;
+const DAY_W_COUNT = 48;
+const DAY_W_CURRENCY = 96;
+const IND_W = 288;
+const TOTAL_W = 132;
+const AVG_W = 108;
 
 function KpiSpreadsheet({
   matrix,
