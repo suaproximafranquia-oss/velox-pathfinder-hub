@@ -634,7 +634,7 @@ function KpiSpreadsheet({
       className="grid w-full min-w-0 max-w-full flex-1 min-h-0 kpi-scroll"
       style={{
         overflowX: "hidden",
-        overflowY: "auto",
+        overflowY: "hidden",
         gridTemplateColumns: `minmax(240px, ${IND_W}px) minmax(0, 1fr) minmax(238px, ${TOTAL_W + AVG_W}px)`,
         contain: "inline-size",
       }}
