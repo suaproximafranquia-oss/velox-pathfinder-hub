@@ -307,11 +307,10 @@ function MonthSelector({
 
 const ROW_H = 32;
 const HEADER_H = 34;
-const DAY_W_COUNT = 48;
-const DAY_W_CURRENCY = 96;
-const IND_W = 288;
-const TOTAL_W = 132;
-const AVG_W = 108;
+const DAY_W = 76;
+const IND_W = 292;
+const TOTAL_W = 136;
+const AVG_W = 112;
 
 function KpiSpreadsheet({
   matrix,
