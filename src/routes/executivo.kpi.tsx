@@ -409,8 +409,18 @@ function KpiSpreadsheet({
               <tr key={ind.id} className={rowIdx % 2 === 0 ? "bg-transparent" : "bg-[color:var(--card)]/20"}>
                 <th
                   scope="row"
-                  className="sticky left-0 z-10 bg-[color:var(--navy-deep)]/95 text-left px-4 py-1.5 text-[12px] font-medium text-[color:var(--foreground)] border-b border-r border-[color:var(--border)] whitespace-nowrap"
+                  className="sticky left-0 z-10 bg-[color:var(--navy-deep)]/95 text-left pl-4 pr-4 py-1.5 text-[12px] font-medium text-[color:var(--foreground)] border-b border-r border-[color:var(--border)] whitespace-nowrap relative"
                 >
+                  {ind.marker && (
+                    <span
+                      aria-hidden
+                      className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r"
+                      style={{
+                        backgroundColor:
+                          ind.marker === "green" ? "#16A34A" : "#B8894A",
+                      }}
+                    />
+                  )}
                   <div className="flex flex-col">
                     <span>{ind.label}</span>
                     <span className="text-[9px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
