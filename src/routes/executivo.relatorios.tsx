@@ -2,13 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  ArrowDownRight,
+  ArrowUpRight,
   BarChart3,
+  Brain,
   CalendarRange,
-  Download,
   FileSpreadsheet,
   FileText,
   Info,
-  Share2,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -17,17 +18,24 @@ import {
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import { AVAILABLE_MONTHS } from "@/lib/kpi-manager";
+import { AVAILABLE_MONTHS, formatCurrency, formatNumber } from "@/lib/kpi-manager";
 import {
   availableExecutives,
   availableScopes,
+  brainSummaryFromReport,
   buildReport,
   defaultSelection,
   REPORT_SCOPE_LABEL,
-  requestExport,
   type ReportScope,
   type ReportSelection,
 } from "@/lib/reports";
+import {
+  buildComparative,
+  narrativeFromComparative,
+  type ComparativeAxis,
+  type ComparativeReport,
+} from "@/lib/report-comparatives";
+import { exportReportPdf, exportReportExcel } from "@/lib/report-generators";
 import { FunnelCard } from "@/components/executive/brain/funnel-card";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +85,19 @@ function ReportsPage() {
   const report = useMemo(
     () => (session && selection ? buildReport(session, selection) : null),
     [session, selection],
+  );
+
+  const comparatives = useMemo<ComparativeReport[]>(() => {
+    if (!session || !selection || !report) return [];
+    const ids = report.provenance.executivesConsidered;
+    if (ids.length === 0) return [];
+    const axes: ComparativeAxis[] = ["annual", "previous", "historical"];
+    return axes.map((a) => buildComparative(ids, selection.monthKey, a));
+  }, [session, selection, report]);
+
+  const brainSummary = useMemo(
+    () => (report ? brainSummaryFromReport(report) : ""),
+    [report],
   );
 
   if (!session || !selection || !report) return null;
@@ -160,10 +181,8 @@ function ReportsPage() {
           </div>
           <ExportActions
             onExport={(fmt) => {
-              const r = requestExport(report, fmt);
-              window.alert(
-                `Preparação concluída (${r.format}). A geração definitiva será liberada na próxima Sprint.`,
-              );
+              if (fmt === "pdf") exportReportPdf(report, { brainSummary, comparatives });
+              else exportReportExcel(report, { brainSummary, comparatives });
             }}
           />
         </div>
@@ -186,6 +205,41 @@ function ReportsPage() {
       {/* Funil executivo */}
       <div className="mt-8">
         <FunnelCard stages={report.funnel} />
+      </div>
+
+      {/* Análise Brain automática */}
+      <div className="mt-8 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Brain className="h-4 w-4 text-[color:var(--gold)]" />
+          <h3 className="font-display text-lg">Análise Brain</h3>
+          <span className="ml-auto text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+            Interpretação automática
+          </span>
+        </div>
+        <p className="text-sm text-[color:var(--foreground)]/90 leading-relaxed">{brainSummary}</p>
+      </div>
+
+      {/* Infográficos comparativos */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="h-4 w-4 text-[color:var(--gold)]" />
+          <h3 className="font-display text-lg">Comparativos</h3>
+          <span className="ml-auto text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+            Base: KPI Manager
+          </span>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {comparatives.map((cmp) => (
+            <ComparativeCard
+              key={cmp.axis}
+              cmp={cmp}
+              narrative={narrativeFromComparative(
+                report.selection.scope === "team" ? "A equipe" : report.title.replace(/^.*—\s*/, ""),
+                cmp,
+              )}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Tabela detalhada de indicadores */}
@@ -306,7 +360,7 @@ function Select({
   );
 }
 
-function ExportActions({ onExport }: { onExport: (fmt: "pdf" | "excel" | "share") => void }) {
+function ExportActions({ onExport }: { onExport: (fmt: "pdf" | "excel") => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ExportBtn icon={FileText} onClick={() => onExport("pdf")}>
@@ -314,9 +368,6 @@ function ExportActions({ onExport }: { onExport: (fmt: "pdf" | "excel" | "share"
       </ExportBtn>
       <ExportBtn icon={FileSpreadsheet} onClick={() => onExport("excel")}>
         Excel
-      </ExportBtn>
-      <ExportBtn icon={Share2} onClick={() => onExport("share")}>
-        Compartilhar
       </ExportBtn>
     </div>
   );
@@ -327,7 +378,7 @@ function ExportBtn({
   onClick,
   children,
 }: {
-  icon: typeof Download;
+  icon: typeof FileText;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -340,5 +391,56 @@ function ExportBtn({
       <Icon className="h-3.5 w-3.5" />
       {children}
     </button>
+  );
+}
+
+function ComparativeCard({
+  cmp,
+  narrative,
+}: {
+  cmp: ComparativeReport;
+  narrative: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-5">
+      <div className="flex items-center gap-2">
+        <BarChart3 className="h-4 w-4 text-[color:var(--gold)]" />
+        <h4 className="font-display text-sm">{cmp.axisLabel}</h4>
+      </div>
+      <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{cmp.hint}</p>
+      <div className="mt-4 space-y-2">
+        {cmp.cells.map((c) => {
+          const up = c.delta >= 0;
+          const pct = c.deltaPercent === null
+            ? "—"
+            : `${up ? "+" : ""}${(c.deltaPercent * 100).toFixed(1).replace(".", ",")}%`;
+          const cur = c.unit === "currency" ? formatCurrency(c.value) : formatNumber(c.value);
+          return (
+            <div key={c.label} className="flex items-center justify-between text-xs">
+              <span className="text-[color:var(--muted-foreground)]">{c.label}</span>
+              <span className="flex items-center gap-2">
+                <span className="tabular-nums text-[color:var(--foreground)]">{cur}</span>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px]",
+                    !cmp.hasReference || c.deltaPercent === null
+                      ? "bg-[color:var(--accent)]/40 text-[color:var(--muted-foreground)]"
+                      : up
+                        ? "bg-emerald-400/10 text-emerald-300"
+                        : "bg-rose-400/10 text-rose-300",
+                  )}
+                >
+                  {c.deltaPercent !== null && (up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />)}
+                  {pct}
+                </span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-4 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed border-t border-[color:var(--border)]/60 pt-3">
+        {narrative}
+      </p>
+    </div>
   );
 }
