@@ -18,6 +18,7 @@ import {
   UserCircle2,
   Settings,
   Database,
+  Brain,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,15 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     description: "Assistente corporativo para consultas guiadas ao ecossistema.",
     icon: Sparkles,
     to: "/executivo/ia",
+    status: "ativo",
+  },
+  {
+    id: "brain",
+    name: "Brain Analytics",
+    description:
+      "Indicadores executivos consolidados a partir dos módulos da plataforma.",
+    icon: Brain,
+    to: "/executivo/brain",
     status: "ativo",
   },
   {
