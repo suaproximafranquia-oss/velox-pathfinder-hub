@@ -13,6 +13,11 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { JourneyChrome } from "../components/journey/journey-chrome";
+import {
+  EditorialShell,
+  ExecutiveShellMarker,
+  type EditorialVariant,
+} from "../components/editorial/editorial-shell";
 
 function NotFoundComponent() {
   return (
@@ -141,27 +146,38 @@ function RootComponent() {
   const isPortal = pathname === "/";
   const isUniverso = pathname.startsWith("/universo");
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const shell = isPortal
-      ? "portal"
-      : isExecutive
-        ? "executive"
-        : isUniverso
-          ? "universo"
-          : "manual";
-    document.body.setAttribute("data-shell", shell);
-  }, [isPortal, isExecutive, isUniverso]);
+  // Área Executiva permanece isolada do Design System editorial.
+  if (isExecutive) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ExecutiveShellMarker>
+          <Outlet />
+        </ExecutiveShellMarker>
+      </QueryClientProvider>
+    );
+  }
+
+  // Todos os módulos editoriais herdam o mesmo tema através do
+  // componente <EditorialShell>. Novos módulos (Sede, Revista,
+  // Experiências, Biblioteca, FAQ, …) recebem a variante correta
+  // adicionando uma entrada abaixo — nenhum estilo é duplicado.
+  const variant: EditorialVariant = isPortal
+    ? "portal"
+    : isUniverso
+      ? "universo"
+      : "manual";
+
+  const content = isPortal || isUniverso ? (
+    <Outlet />
+  ) : (
+    <JourneyChrome>
+      <Outlet />
+    </JourneyChrome>
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isExecutive || isPortal || isUniverso ? (
-        <Outlet />
-      ) : (
-        <JourneyChrome>
-          <Outlet />
-        </JourneyChrome>
-      )}
+      <EditorialShell variant={variant}>{content}</EditorialShell>
     </QueryClientProvider>
   );
 }
