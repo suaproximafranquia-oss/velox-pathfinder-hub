@@ -162,7 +162,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
         <SummaryCard icon={Users}         label="Leads"        value={formatNumber(summary.leads)} />
         <SummaryCard icon={PhoneCall}     label="Ligações"     value={formatNumber(summary.calls)} />
         <SummaryCard icon={Presentation}  label="Apresentações" value={formatNumber(summary.presentations)} />
-        <SummaryCard icon={Handshake}     label="Contratos"     value={formatNumber(summary.contractsSigned)} />
+        <SummaryCard icon={Handshake}     label="Contratos"     value={formatNumber(summary.contractsSent)} />
         <SummaryCard icon={TrendingUp}    label="Conversão"     value={formatPercent(summary.conversion)} />
         <SummaryCard icon={HandCoins}     label="Valor Vendido" value={formatCurrency(summary.salesValue)} highlight />
       </div>
