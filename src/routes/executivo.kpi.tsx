@@ -511,14 +511,6 @@ function KpiSpreadsheet({
         contain: "inline-size",
       }}
     >
-      {/* NB: contain:inline-size garante que a coluna central (minmax 0,1fr)
-          nunca amplie a grade além do contêiner — a rolagem passa a ser
-          integralmente da área dos dias, jamais da página. */}
-      <StyleGuardBlock />
-      {/* eslint-disable-next-line react/jsx-no-comment-textnodes */}
-      <_gridInner
-      style={{ gridTemplateColumns: `minmax(240px, ${IND_W}px) minmax(0, 1fr) minmax(238px, ${TOTAL_W + AVG_W}px)` }}
-    >
       {/* Coluna Indicador — fixa à esquerda */}
       <div className="min-w-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]">
         <div
