@@ -15,12 +15,14 @@ import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
 import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
+import { Route as ExecutivoPerfilRouteImport } from './routes/executivo.perfil'
 import { Route as ExecutivoKpiRouteImport } from './routes/executivo.kpi'
 import { Route as ExecutivoInvestidoresRouteImport } from './routes/executivo.investidores'
 import { Route as ExecutivoIaRouteImport } from './routes/executivo.ia'
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
 import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.conhecimento'
+import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +55,11 @@ const ExecutivoRelatoriosRoute = ExecutivoRelatoriosRouteImport.update({
   path: '/executivo/relatorios',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoPerfilRoute = ExecutivoPerfilRouteImport.update({
+  id: '/executivo/perfil',
+  path: '/executivo/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoKpiRoute = ExecutivoKpiRouteImport.update({
   id: '/executivo/kpi',
   path: '/executivo/kpi',
@@ -83,6 +90,11 @@ const ExecutivoConhecimentoRoute = ExecutivoConhecimentoRouteImport.update({
   path: '/executivo/conhecimento',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoConfiguracoesRoute = ExecutivoConfiguracoesRouteImport.update({
+  id: '/executivo/configuracoes',
+  path: '/executivo/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
   id: '/executivo/brain',
   path: '/executivo/brain',
@@ -92,12 +104,14 @@ const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
+  '/executivo/perfil': typeof ExecutivoPerfilRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -107,12 +121,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
+  '/executivo/perfil': typeof ExecutivoPerfilRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -123,12 +139,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
+  '/executivo/perfil': typeof ExecutivoPerfilRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -140,12 +158,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/executivo/brain'
+    | '/executivo/configuracoes'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
     | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/kpi'
+    | '/executivo/perfil'
     | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -155,12 +175,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/executivo/brain'
+    | '/executivo/configuracoes'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
     | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/kpi'
+    | '/executivo/perfil'
     | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -170,12 +192,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/executivo/brain'
+    | '/executivo/configuracoes'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
     | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/kpi'
+    | '/executivo/perfil'
     | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
@@ -186,12 +210,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
+  ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoConhecimentoRoute: typeof ExecutivoConhecimentoRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
   ExecutivoIaRoute: typeof ExecutivoIaRoute
   ExecutivoInvestidoresRoute: typeof ExecutivoInvestidoresRoute
   ExecutivoKpiRoute: typeof ExecutivoKpiRoute
+  ExecutivoPerfilRoute: typeof ExecutivoPerfilRoute
   ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   ManualChapterRoute: typeof ManualChapterRoute
@@ -243,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoRelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/perfil': {
+      id: '/executivo/perfil'
+      path: '/executivo/perfil'
+      fullPath: '/executivo/perfil'
+      preLoaderRoute: typeof ExecutivoPerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/kpi': {
       id: '/executivo/kpi'
       path: '/executivo/kpi'
@@ -285,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoConhecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/configuracoes': {
+      id: '/executivo/configuracoes'
+      path: '/executivo/configuracoes'
+      fullPath: '/executivo/configuracoes'
+      preLoaderRoute: typeof ExecutivoConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/brain': {
       id: '/executivo/brain'
       path: '/executivo/brain'
@@ -298,12 +338,14 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
+  ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoConhecimentoRoute: ExecutivoConhecimentoRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
   ExecutivoIaRoute: ExecutivoIaRoute,
   ExecutivoInvestidoresRoute: ExecutivoInvestidoresRoute,
   ExecutivoKpiRoute: ExecutivoKpiRoute,
+  ExecutivoPerfilRoute: ExecutivoPerfilRoute,
   ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   ManualChapterRoute: ManualChapterRoute,

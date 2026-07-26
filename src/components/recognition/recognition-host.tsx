@@ -3,6 +3,7 @@
  * Deve ser incluído uma única vez na shell autenticada.
  */
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   evaluateForLogin,
   markViewed,
@@ -13,6 +14,7 @@ import { RecognitionModal } from "./recognition-modal";
 
 export function RecognitionHost({ userId }: { userId: string }) {
   const [event, setEvent] = useState<RecognitionEvent | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -26,8 +28,10 @@ export function RecognitionHost({ userId }: { userId: string }) {
     <RecognitionModal
       event={event}
       onContinue={() => {
+        const wasKpiPending = event.type === "kpi_pending";
         markViewed(event.id);
         setEvent(nextPendingEvent(userId));
+        if (wasKpiPending) navigate({ to: "/executivo/kpi" });
       }}
     />
   );

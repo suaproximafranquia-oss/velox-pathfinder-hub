@@ -206,8 +206,11 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   }
 
   return (
-    <ExecutiveShell session={session} title="KPI Manager">
-      <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+    <ExecutiveShell session={session} title="KPI Manager" fullBleed>
+      <div
+        className="w-full min-w-0 max-w-full"
+        style={{ overflowX: "clip", contain: "inline-size" }}
+      >
       {/* Barra de contexto ------------------------------------------------- */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
@@ -501,8 +504,12 @@ function KpiSpreadsheet({
 
   return (
     <div
-      className="grid w-full min-w-0 max-w-full max-h-[720px] overflow-hidden"
-      style={{ gridTemplateColumns: `minmax(240px, ${IND_W}px) minmax(0, 1fr) minmax(238px, ${TOTAL_W + AVG_W}px)` }}
+      className="grid w-full min-w-0 max-w-full max-h-[720px]"
+      style={{
+        overflow: "hidden",
+        gridTemplateColumns: `minmax(240px, ${IND_W}px) minmax(0, 1fr) minmax(238px, ${TOTAL_W + AVG_W}px)`,
+        contain: "inline-size",
+      }}
     >
       {/* Coluna Indicador — fixa à esquerda */}
       <div className="min-w-0 border-r border-black/10 bg-[color:var(--navy-deep)] text-[color:var(--foreground)]">

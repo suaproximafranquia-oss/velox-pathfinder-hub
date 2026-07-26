@@ -33,7 +33,7 @@ export type WorkspaceBranding = {
 export const WORKSPACES: Record<string, WorkspaceBranding> = {
   velox: {
     id: "velox",
-    workspaceName: "VELOX",
+    workspaceName: "Velox Soluções Financeiras",
     workspaceTagline: "Corporate Workspace",
     platformName: "Atlas Platform",
     platformTagline: "Corporate Workspace",

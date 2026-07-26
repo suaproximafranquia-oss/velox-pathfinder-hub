@@ -13,6 +13,8 @@ import {
   FileBarChart2,
   ChevronDown,
   Check,
+  UserCircle2,
+  Settings,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -34,10 +36,14 @@ export function ExecutiveShell({
   session,
   children,
   title,
+  fullBleed = false,
 }: {
   session: ExecutiveSession;
   children: ReactNode;
   title: string;
+  /** Quando true, remove o max-width central e transforma o conteúdo em um
+   *  workspace independente (usado pelo KPI Manager). */
+  fullBleed?: boolean;
 }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -56,12 +62,24 @@ export function ExecutiveShell({
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
+    { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
+    ...(canManageUsers(session.activeRole)
+      ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
+      : []),
   ];
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[color:var(--background)] text-[color:var(--foreground)] bg-grain">
+    <div
+      className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] bg-grain"
+      style={{ overflowX: "clip" }}
+    >
       <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 gap-4">
+        <div
+          className={cn(
+            "mx-auto flex items-center justify-between px-6 py-4 gap-4",
+            fullBleed ? "max-w-none" : "max-w-6xl",
+          )}
+        >
           <div className="flex items-center gap-3">
             {WORKSPACE.workspaceLogoUrl ? (
               <img
@@ -102,7 +120,12 @@ export function ExecutiveShell({
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-6 pt-24 md:pt-28 pb-16 grid gap-8 md:grid-cols-[220px_minmax(0,1fr)]">
+      <div
+        className={cn(
+          "mx-auto px-6 pt-24 md:pt-28 pb-16 grid gap-8 md:grid-cols-[220px_minmax(0,1fr)]",
+          fullBleed ? "max-w-none" : "max-w-6xl",
+        )}
+      >
         <aside className="md:sticky md:top-28 h-fit">
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
             {nav.map((n) => {
@@ -125,14 +148,19 @@ export function ExecutiveShell({
             })}
           </nav>
         </aside>
-        <main className="min-w-0">
+        <main className="min-w-0" style={{ overflowX: "clip" }}>
           <h1 className="font-display text-2xl md:text-3xl mb-8">{title}</h1>
           {children}
         </main>
       </div>
 
       <footer className="border-t border-[color:var(--border)] bg-[color:var(--navy-deep)]/60">
-        <div className="mx-auto max-w-6xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+        <div
+          className={cn(
+            "mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]",
+            fullBleed ? "max-w-none" : "max-w-6xl",
+          )}
+        >
           <span>{WORKSPACE.workspaceName} · {WORKSPACE.workspaceTagline}</span>
           <span>{WORKSPACE.poweredBy}</span>
         </div>
