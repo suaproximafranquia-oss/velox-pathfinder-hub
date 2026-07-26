@@ -10,6 +10,7 @@ import {
   Sparkles,
   Brain,
   Gauge,
+  FileBarChart2,
   ChevronDown,
   Check,
 } from "lucide-react";
@@ -45,6 +46,7 @@ export function ExecutiveShell({
     { to: "/executivo/dashboard", label: "Painel", icon: LayoutDashboard },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
+    { to: "/executivo/relatorios", label: "Relatórios", icon: FileBarChart2 },
     { to: "/executivo/investidores", label: "Investidores", icon: Users },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     ...(canManageKnowledge(session.activeRole)

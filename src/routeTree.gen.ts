@@ -14,6 +14,7 @@ import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
+import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
 import { Route as ExecutivoKpiRouteImport } from './routes/executivo.kpi'
 import { Route as ExecutivoInvestidoresRouteImport } from './routes/executivo.investidores'
 import { Route as ExecutivoIaRouteImport } from './routes/executivo.ia'
@@ -45,6 +46,11 @@ const ManualChapterRoute = ManualChapterRouteImport.update({
 const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
   id: '/executivo/usuarios',
   path: '/executivo/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecutivoRelatoriosRoute = ExecutivoRelatoriosRouteImport.update({
+  id: '/executivo/relatorios',
+  path: '/executivo/relatorios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoKpiRoute = ExecutivoKpiRouteImport.update({
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
+  '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/concluido': typeof ManualConcluidoRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
+  '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/concluido': typeof ManualConcluidoRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/executivo/ia': typeof ExecutivoIaRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
+  '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/concluido': typeof ManualConcluidoRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/kpi'
+    | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
     | '/manual/concluido'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/kpi'
+    | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
     | '/manual/concluido'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/executivo/ia'
     | '/executivo/investidores'
     | '/executivo/kpi'
+    | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
     | '/manual/concluido'
@@ -180,6 +192,7 @@ export interface RootRouteChildren {
   ExecutivoIaRoute: typeof ExecutivoIaRoute
   ExecutivoInvestidoresRoute: typeof ExecutivoInvestidoresRoute
   ExecutivoKpiRoute: typeof ExecutivoKpiRoute
+  ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   ManualChapterRoute: typeof ManualChapterRoute
   ManualConcluidoRoute: typeof ManualConcluidoRoute
@@ -221,6 +234,13 @@ declare module '@tanstack/react-router' {
       path: '/executivo/usuarios'
       fullPath: '/executivo/usuarios'
       preLoaderRoute: typeof ExecutivoUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/executivo/relatorios': {
+      id: '/executivo/relatorios'
+      path: '/executivo/relatorios'
+      fullPath: '/executivo/relatorios'
+      preLoaderRoute: typeof ExecutivoRelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/kpi': {
@@ -284,6 +304,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoIaRoute: ExecutivoIaRoute,
   ExecutivoInvestidoresRoute: ExecutivoInvestidoresRoute,
   ExecutivoKpiRoute: ExecutivoKpiRoute,
+  ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   ManualChapterRoute: ManualChapterRoute,
   ManualConcluidoRoute: ManualConcluidoRoute,
