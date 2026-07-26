@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ExternalLink } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, ROLE_LABEL, type ExecutiveSession } from "@/lib/executive-auth";
 import { PLATFORM_MODULES, type PlatformModule } from "@/config/modules";
@@ -34,20 +34,23 @@ function HomePage() {
 
   return (
     <ExecutiveShell session={session} title={`Bem-vindo, ${session.name.split(" ")[0]}`}>
-      <section className="mb-10 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-6 py-6">
+      <section className="mb-10 rounded-2xl border border-[color:var(--gold)]/25 bg-gradient-to-br from-[color:var(--card)]/60 via-[color:var(--card)]/40 to-transparent px-6 py-7">
         <p className="text-[11px] uppercase tracking-[0.28em] text-[color:var(--gold)] mb-2">
-          {WORKSPACE.platformName}
+          {WORKSPACE.workspaceTagline}
         </p>
-        <h2 className="font-display text-xl md:text-2xl mb-2">
-          {WORKSPACE.platformTagline}
+        <h2 className="font-display text-2xl md:text-3xl mb-3 leading-tight">
+          {WORKSPACE.workspaceName}
         </h2>
         <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed max-w-2xl">
           Ambiente corporativo unificado para operação, educação e relacionamento.
-          Selecione um módulo abaixo para continuar. Você está autenticado como{" "}
+          Você está autenticado como{" "}
           <span className="text-[color:var(--foreground)]">
             {ROLE_LABEL[session.activeRole]}
           </span>
           .
+        </p>
+        <p className="mt-3 text-[10px] uppercase tracking-[0.24em] text-[color:var(--muted-foreground)]/70">
+          {WORKSPACE.poweredBy}
         </p>
       </section>
 
@@ -86,13 +89,20 @@ function ModuleCard({ module: mod }: { module: PlatformModule }) {
           <Icon className="h-5 w-5" strokeWidth={1.5} />
         </span>
         {isActive ? (
-          <ArrowUpRight
-            className="h-4 w-4 text-[color:var(--muted-foreground)] group-hover:text-[color:var(--gold)] transition"
-            strokeWidth={1.5}
-          />
+          mod.external ? (
+            <ExternalLink
+              className="h-4 w-4 text-[color:var(--muted-foreground)] group-hover:text-[color:var(--gold)] transition"
+              strokeWidth={1.5}
+            />
+          ) : (
+            <ArrowUpRight
+              className="h-4 w-4 text-[color:var(--muted-foreground)] group-hover:text-[color:var(--gold)] transition"
+              strokeWidth={1.5}
+            />
+          )
         ) : (
           <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-            Em breve
+            Em desenvolvimento
           </span>
         )}
       </div>
@@ -104,8 +114,13 @@ function ModuleCard({ module: mod }: { module: PlatformModule }) {
   );
 
   if (isActive && mod.href) {
+    const isExternal = mod.external === true;
     return (
-      <a href={mod.href} className="block">
+      <a
+        href={mod.href}
+        className="block"
+        {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      >
         {body}
       </a>
     );
