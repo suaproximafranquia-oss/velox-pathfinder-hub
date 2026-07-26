@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { BookOpen, Compass, Building2, BookMarked, Users, Layers, ArrowUpRight, X } from "lucide-react";
-import heroImg from "@/assets/portal-hero.jpg.asset.json";
+import heroImg from "@/assets/velox-sede-hero.png.asset.json";
 import executivosImg from "@/assets/portal-executivos.png.asset.json";
 import sedeImg from "@/assets/portal-sede.jpg.asset.json";
 import recepcaoImg from "@/assets/portal-recepcao.jpg.asset.json";
