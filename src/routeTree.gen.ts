@@ -19,6 +19,7 @@ import { Route as ExecutivoIaRouteImport } from './routes/executivo.ia'
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
 import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.conhecimento'
+import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,9 +71,15 @@ const ExecutivoConhecimentoRoute = ExecutivoConhecimentoRouteImport.update({
   path: '/executivo/conhecimento',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
+  id: '/executivo/brain',
+  path: '/executivo/brain',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/executivo/brain'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/executivo/brain'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/executivo/brain'
     | '/executivo/conhecimento'
     | '/executivo/dashboard'
     | '/executivo/home'
@@ -149,6 +161,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExecutivoBrainRoute: typeof ExecutivoBrainRoute
   ExecutivoConhecimentoRoute: typeof ExecutivoConhecimentoRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
@@ -232,11 +245,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoConhecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/brain': {
+      id: '/executivo/brain'
+      path: '/executivo/brain'
+      fullPath: '/executivo/brain'
+      preLoaderRoute: typeof ExecutivoBrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExecutivoBrainRoute: ExecutivoBrainRoute,
   ExecutivoConhecimentoRoute: ExecutivoConhecimentoRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
