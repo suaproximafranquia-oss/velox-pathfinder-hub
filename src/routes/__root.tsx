@@ -108,6 +108,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap",
       },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -134,10 +138,17 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isExecutive = pathname.startsWith("/executivo");
+  const isPortal = pathname === "/";
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const shell = isPortal ? "portal" : isExecutive ? "executive" : "manual";
+    document.body.setAttribute("data-shell", shell);
+  }, [isPortal, isExecutive]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isExecutive ? (
+      {isExecutive || isPortal ? (
         <Outlet />
       ) : (
         <JourneyChrome>
