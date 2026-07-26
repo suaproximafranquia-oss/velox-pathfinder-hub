@@ -296,11 +296,11 @@ body[data-shell="universo"] {
   --brand-orange-soft: oklch(0.80 0.16 58);
 
   --background: var(--paper);
-  --foreground: oklch(0.14 0.04 260);
+  --foreground: oklch(0.12 0.05 260);
   --card: var(--paper-2);
-  --card-foreground: oklch(0.14 0.04 260);
+  --card-foreground: oklch(0.12 0.05 260);
   --muted: oklch(0.905 0.016 78);
-  --muted-foreground: oklch(0.34 0.03 260);
+  --muted-foreground: oklch(0.30 0.04 260);
   --border: var(--paper-edge);
   --primary: var(--brand-blue-deep);
   --primary-foreground: oklch(0.98 0.006 85);
@@ -315,6 +315,24 @@ body[data-shell="universo"] {
   --gold-foreground: oklch(0.12 0.02 260);
 
   --font-editorial: "Cormorant Garamond", ui-serif, Georgia, serif;
+
+  /* -----------------------------------------------------------------
+   * Editorial Type Scale — hierarquia tipográfica permanente,
+   * herdada por Portal, Manual, Universo e todos os módulos futuros.
+   * Toda tela editorial deve compor tipografia a partir destes tokens.
+   * ----------------------------------------------------------------- */
+  --type-display: clamp(2.75rem, 5.2vw, 4.5rem);   /* Título Principal */
+  --type-h1:      clamp(2.1rem, 3.6vw, 3rem);       /* Título Secundário */
+  --type-h2:      clamp(1.5rem, 2.2vw, 1.9rem);     /* Subtítulo */
+  --type-h3:      clamp(1.15rem, 1.6vw, 1.3rem);    /* Intertítulo */
+  --type-body:    1.0625rem;                        /* Corpo do texto */
+  --type-small:   0.9375rem;                        /* Legendas */
+  --type-caption: 0.8125rem;                        /* Observações */
+  --type-eyebrow: 0.72rem;                          /* Eyebrow institucional */
+  --leading-display: 1.04;
+  --leading-heading: 1.14;
+  --leading-body: 1.72;
+  --leading-caption: 1.55;
 
   background-color: var(--paper);
   background-image:
@@ -539,4 +557,252 @@ body[data-shell="universo"] .portal-card:hover {
 .reveal.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* =====================================================================
+ * Editorial Design System — Padrão Permanente
+ * Classes utilitárias reutilizáveis por Portal, Manual, Universo, Sede,
+ * Revista, Experiências e qualquer módulo editorial futuro. Todo módulo
+ * deve compor com estas classes para herdar automaticamente tipografia,
+ * contraste, cores e componentes oficiais.
+ * ===================================================================*/
+body[data-shell="portal"],
+body[data-shell="manual"],
+body[data-shell="universo"] {
+  /* Type hierarchy — reutilizáveis por qualquer módulo editorial */
+}
+
+body[data-shell="portal"] .ed-display,
+body[data-shell="manual"] .ed-display,
+body[data-shell="universo"] .ed-display {
+  font-family: var(--font-editorial);
+  font-size: var(--type-display);
+  line-height: var(--leading-display);
+  letter-spacing: -0.022em;
+  font-weight: 500;
+  color: var(--foreground);
+}
+body[data-shell="portal"] .ed-h1,
+body[data-shell="manual"] .ed-h1,
+body[data-shell="universo"] .ed-h1 {
+  font-family: var(--font-editorial);
+  font-size: var(--type-h1);
+  line-height: var(--leading-heading);
+  letter-spacing: -0.018em;
+  font-weight: 500;
+  color: var(--foreground);
+}
+body[data-shell="portal"] .ed-h2,
+body[data-shell="manual"] .ed-h2,
+body[data-shell="universo"] .ed-h2 {
+  font-family: var(--font-editorial);
+  font-size: var(--type-h2);
+  line-height: var(--leading-heading);
+  letter-spacing: -0.012em;
+  font-weight: 500;
+  color: var(--foreground);
+}
+body[data-shell="portal"] .ed-h3,
+body[data-shell="manual"] .ed-h3,
+body[data-shell="universo"] .ed-h3 {
+  font-family: var(--font-sans);
+  font-size: var(--type-h3);
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  font-weight: 600;
+  color: var(--foreground);
+}
+body[data-shell="portal"] .ed-body,
+body[data-shell="manual"] .ed-body,
+body[data-shell="universo"] .ed-body {
+  font-family: var(--font-sans);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  color: color-mix(in oklab, var(--foreground) 92%, transparent);
+}
+body[data-shell="portal"] .ed-small,
+body[data-shell="manual"] .ed-small,
+body[data-shell="universo"] .ed-small {
+  font-family: var(--font-sans);
+  font-size: var(--type-small);
+  line-height: var(--leading-caption);
+  color: var(--muted-foreground);
+}
+body[data-shell="portal"] .ed-caption,
+body[data-shell="manual"] .ed-caption,
+body[data-shell="universo"] .ed-caption {
+  font-family: var(--font-sans);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+  letter-spacing: 0.005em;
+  color: var(--muted-foreground);
+}
+body[data-shell="portal"] .ed-eyebrow,
+body[data-shell="manual"] .ed-eyebrow,
+body[data-shell="universo"] .ed-eyebrow {
+  font-family: var(--font-editorial);
+  font-size: var(--type-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.36em;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+/* Componentes editoriais — botões, cartões, quotes, listas, tabelas */
+body[data-shell="portal"] .ed-btn-primary,
+body[data-shell="manual"] .ed-btn-primary,
+body[data-shell="universo"] .ed-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 999px;
+  background: var(--brand-orange);
+  color: oklch(0.12 0.02 260);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid color-mix(in oklab, var(--brand-orange) 70%, black 10%);
+  box-shadow: 0 12px 28px -14px color-mix(in oklab, var(--brand-orange) 60%, transparent);
+  transition: transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 300ms, background 300ms;
+}
+body[data-shell="portal"] .ed-btn-primary:hover,
+body[data-shell="manual"] .ed-btn-primary:hover,
+body[data-shell="universo"] .ed-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px -14px color-mix(in oklab, var(--brand-orange) 70%, transparent);
+}
+body[data-shell="portal"] .ed-btn-ghost,
+body[data-shell="manual"] .ed-btn-ghost,
+body[data-shell="universo"] .ed-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--brand-blue-deep) 22%, var(--paper-edge));
+  color: var(--foreground);
+  background: transparent;
+  transition: background 300ms, border-color 300ms, color 300ms;
+}
+body[data-shell="portal"] .ed-btn-ghost:hover,
+body[data-shell="manual"] .ed-btn-ghost:hover,
+body[data-shell="universo"] .ed-btn-ghost:hover {
+  border-color: color-mix(in oklab, var(--brand-orange) 55%, var(--paper-edge));
+  color: var(--brand-blue-deep);
+  background: color-mix(in oklab, var(--brand-orange) 6%, transparent);
+}
+
+body[data-shell="portal"] .ed-callout,
+body[data-shell="manual"] .ed-callout,
+body[data-shell="universo"] .ed-callout {
+  border-left: 3px solid var(--brand-orange);
+  padding: 1.1rem 1.4rem;
+  background: color-mix(in oklab, var(--brand-orange) 6%, var(--paper-2));
+  border-radius: 0 12px 12px 0;
+  color: var(--foreground);
+}
+
+body[data-shell="portal"] .ed-quote,
+body[data-shell="manual"] .ed-quote,
+body[data-shell="universo"] .ed-quote {
+  font-family: var(--font-editorial);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.28;
+  letter-spacing: -0.012em;
+  color: var(--brand-blue-deep);
+  border-left: 2px solid var(--brand-orange);
+  padding-left: 1.25rem;
+}
+
+body[data-shell="portal"] .ed-link,
+body[data-shell="manual"] .ed-link,
+body[data-shell="universo"] .ed-link {
+  color: var(--brand-blue-deep);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--brand-orange) 65%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+  transition: color 200ms, text-decoration-color 200ms;
+}
+body[data-shell="portal"] .ed-link:hover,
+body[data-shell="manual"] .ed-link:hover,
+body[data-shell="universo"] .ed-link:hover {
+  color: var(--brand-orange);
+  text-decoration-color: var(--brand-orange);
+}
+
+body[data-shell="portal"] .ed-list,
+body[data-shell="manual"] .ed-list,
+body[data-shell="universo"] .ed-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+body[data-shell="portal"] .ed-list > li,
+body[data-shell="manual"] .ed-list > li,
+body[data-shell="universo"] .ed-list > li {
+  position: relative;
+  padding-left: 1.3rem;
+  color: color-mix(in oklab, var(--foreground) 92%, transparent);
+  line-height: var(--leading-body);
+}
+body[data-shell="portal"] .ed-list > li::before,
+body[data-shell="manual"] .ed-list > li::before,
+body[data-shell="universo"] .ed-list > li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.72em;
+  width: 0.5rem;
+  height: 1px;
+  background: var(--brand-orange);
+}
+
+body[data-shell="portal"] .ed-table,
+body[data-shell="manual"] .ed-table,
+body[data-shell="universo"] .ed-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-small);
+}
+body[data-shell="portal"] .ed-table th,
+body[data-shell="manual"] .ed-table th,
+body[data-shell="universo"] .ed-table th {
+  text-align: left;
+  font-family: var(--font-editorial);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--paper-edge);
+}
+body[data-shell="portal"] .ed-table td,
+body[data-shell="manual"] .ed-table td,
+body[data-shell="universo"] .ed-table td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--paper-edge) 60%, transparent);
+  color: var(--foreground);
+}
+
+body[data-shell="portal"] .ed-frame,
+body[data-shell="manual"] .ed-frame,
+body[data-shell="universo"] .ed-frame {
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-frame);
+  border: 1px solid var(--paper-edge);
+  background: var(--paper-2);
+}
+
+/* Foco visível padrão institucional */
+body[data-shell="portal"] :focus-visible,
+body[data-shell="manual"] :focus-visible,
+body[data-shell="universo"] :focus-visible {
+  outline: 2px solid var(--brand-orange);
+  outline-offset: 3px;
+  border-radius: 6px;
 }
