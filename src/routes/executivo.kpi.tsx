@@ -42,6 +42,22 @@ import { cn } from "@/lib/utils";
 
 const CONSOLIDATED_VIEW_ID = "__atlas_consolidated__";
 
+/**
+ * Faixa da campanha por valor vendido acumulado. Retorna a classe utilitária
+ * aplicada à célula "Total" do indicador principal (Valor Vendido) — mantém
+ * a UX imediata e sem estado extra: a classe deriva do valor a cada render.
+ */
+function campaignTierClass(value: number): string {
+  if (value >= 100000) return "kpi-tier-supreme";
+  if (value >= 90000) return "kpi-tier-phd";
+  if (value >= 70000) return "kpi-tier-doutor";
+  if (value >= 55000) return "kpi-tier-mestre";
+  return "";
+}
+
+/** Identificador do indicador oficial "Valor Vendido" (coluna Total colorida). */
+const SALES_VALUE_INDICATOR_ID = "sales_value";
+
 export const Route = createFileRoute("/executivo/kpi")({
   head: () => ({
     meta: [
