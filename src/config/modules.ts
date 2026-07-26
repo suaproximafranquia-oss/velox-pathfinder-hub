@@ -11,15 +11,15 @@ import {
   Library,
   Sparkles,
   Users2,
-  Calendar,
   Video,
   BarChart3,
-  Download,
+  FolderOpen,
   UserCircle2,
   Settings,
   Database,
   Brain,
   Gauge,
+  FileBarChart2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,8 +30,10 @@ export type PlatformModule = {
   icon: LucideIcon;
   /** Rota interna quando o módulo já está disponível. */
   to?: string;
-  /** URL externa quando o módulo aponta para a jornada pública. */
+  /** URL externa (jornada pública ou integração de terceiros). */
   href?: string;
+  /** Quando true, abre `href` em nova aba (integração externa). */
+  external?: boolean;
   status: "ativo" | "em_breve";
   /** Perfis mínimos com acesso. `undefined` = todos os perfis autenticados. */
   requiresRole?: Array<"super_admin" | "diretora" | "executivo">;
@@ -93,50 +95,62 @@ export const PLATFORM_MODULES: PlatformModule[] = [
   {
     id: "crm",
     name: "CRM",
-    description: "Gestão comercial e relacionamento com investidores e clientes.",
+    description:
+      "Gestão comercial e relacionamento com investidores. Abre o Green Sales em nova aba.",
     icon: Users2,
-    status: "em_breve",
-  },
-  {
-    id: "agenda",
-    name: "Agenda",
-    description: "Organização de compromissos e agendamentos corporativos.",
-    icon: Calendar,
-    status: "em_breve",
+    href: "https://adm.greennsales.com.br/velox/home",
+    external: true,
+    status: "ativo",
   },
   {
     id: "reunioes",
     name: "Reuniões",
-    description: "Sala virtual integrada para encontros consultivos e internos.",
+    description:
+      "Sala virtual integrada. Abre o Google Meet em nova aba até a integração definitiva.",
     icon: Video,
-    status: "em_breve",
+    href: "https://meet.google.com/landing?authuser=0",
+    external: true,
+    status: "ativo",
   },
   {
     id: "relatorios",
     name: "Relatórios",
     description: "Indicadores e relatórios operacionais consolidados.",
-    icon: BarChart3,
-    status: "em_breve",
+    icon: FileBarChart2,
+    to: "/executivo/relatorios",
+    status: "ativo",
   },
   {
-    id: "downloads",
-    name: "Downloads",
-    description: "Central de arquivos e materiais disponibilizados pelo workspace.",
-    icon: Download,
-    status: "em_breve",
+    id: "drive",
+    name: "Drive Corporativo",
+    description:
+      "Central de arquivos do workspace. Abre em nova aba — integração com Google Drive prevista.",
+    icon: FolderOpen,
+    href: "https://drive.google.com/",
+    external: true,
+    status: "ativo",
   },
   {
     id: "perfil",
     name: "Meu Perfil",
-    description: "Preferências pessoais, dados de acesso e ajustes individuais.",
+    description:
+      "Dados pessoais, contato e aniversário — usados por reconhecimentos e notificações.",
     icon: UserCircle2,
-    status: "em_breve",
+    to: "/executivo/perfil",
+    status: "ativo",
   },
   {
     id: "configuracoes",
     name: "Configurações",
-    description: "Parâmetros administrativos e preferências do workspace.",
+    description:
+      "Integrações, identidade visual, permissões e preferências do workspace.",
     icon: Settings,
-    status: "em_breve",
+    to: "/executivo/configuracoes",
+    status: "ativo",
+    requiresRole: ["super_admin", "diretora"],
   },
 ];
+
+// Alusão explícita — `BarChart3` foi substituído por `FileBarChart2` para
+// Relatórios; mantemos apenas os ícones efetivamente utilizados acima.
+void BarChart3;
