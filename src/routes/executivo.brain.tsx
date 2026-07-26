@@ -215,8 +215,11 @@ function AlertsCenter({
   onCopy: (a: BrainAlert) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div
+      className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-5 flex flex-col"
+      style={{ height: "min(560px, calc(100vh - 220px))" }}
+    >
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <div className="flex items-center gap-2">
           <BellRing className="h-4 w-4 text-[color:var(--gold)]" />
           <h2 className="font-display text-lg">Central de Alertas</h2>
@@ -225,6 +228,7 @@ function AlertsCenter({
           {alerts.length} ativos
         </span>
       </div>
+      <div className="flex-1 min-h-0 overflow-y-auto kpi-scroll pr-1 -mr-1">
       {alerts.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[color:var(--border)] p-6 text-center text-xs text-[color:var(--muted-foreground)]">
           Nenhum alerta pendente no momento.
@@ -292,7 +296,8 @@ function AlertsCenter({
           ))}
         </ul>
       )}
-      <p className="mt-4 text-[10px] text-[color:var(--muted-foreground)] leading-relaxed">
+      </div>
+      <p className="mt-4 text-[10px] text-[color:var(--muted-foreground)] leading-relaxed shrink-0">
         Alertas pertencem ao executivo responsável. Apenas o próprio executivo pode encerrá-los.
       </p>
     </div>
