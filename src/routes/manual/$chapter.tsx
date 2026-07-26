@@ -2,10 +2,13 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { ChapterView } from "@/components/journey/chapter-view";
 import { ChapterBody, hidesContinueFor } from "@/components/journey/chapter-bodies";
 import { ContactForm } from "@/components/journey/contact-form";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ArrowRight } from "lucide-react";
 import { getChapter } from "@/lib/journey-data";
-import { getExecutiveBySlug } from "@/lib/executive-auth";
+import { getExecutiveBySlug, type ExecutiveUser } from "@/lib/executive-auth";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
+import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { useEffect, useState } from "react";
+import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 
 export const Route = createFileRoute("/manual/$chapter")({
   head: ({ params }) => {
@@ -76,6 +79,13 @@ function FinalClosing() {
     { t: "O suporte", d: "O acompanhamento contínuo por consultor de negócios, Universidade Corporativa, plataforma tecnológica e estrutura da rede." },
     { t: "O perfil esperado", d: "As características que costumam favorecer a jornada de um franqueado — e os pontos que merecem uma reflexão honesta." },
   ];
+  const [responsible, setResponsible] = useState<{
+    executive: ExecutiveUser | null;
+    personalized: boolean;
+  }>({ executive: null, personalized: false });
+  useEffect(() => {
+    setResponsible(getResponsibleExecutive());
+  }, []);
   return (
     <div className="mt-10 space-y-10">
       <section className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--card)]/50 p-6 sm:p-8">
@@ -118,7 +128,54 @@ function FinalClosing() {
         </p>
       </section>
 
-      <ContactForm />
+      {responsible.personalized && responsible.executive ? (
+        <PersonalizedCta executive={responsible.executive} />
+      ) : (
+        <ContactForm />
+      )}
     </div>
+  );
+}
+
+/**
+ * CTA único do fluxo personalizado: abre o WhatsApp cadastrado do
+ * executivo responsável, sem repetir o formulário de contato. Usa como
+ * fonte única os dados atuais do perfil (whatsapp > phone). Se o
+ * executivo alterar seus dados em "Meu Perfil", o link personalizado
+ * passa a usar automaticamente os novos números — nenhum valor fica
+ * fixo em código.
+ */
+function PersonalizedCta({ executive }: { executive: ExecutiveUser }) {
+  const raw = executive.whatsapp || executive.phone || WHATSAPP_NUMBER;
+  const number = raw.replace(/\D/g, "");
+  const firstName = executive.name.split(" ")[0];
+  const url = `https://wa.me/${number}?text=${encodeURIComponent(
+    `Olá ${firstName}! Concluí o Manual do Investidor e gostaria de voltar a falar com você.`,
+  )}`;
+  return (
+    <section className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--card)]/50 p-6 sm:p-8">
+      <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-2">
+        Seu especialista
+      </p>
+      <h3 className="font-display text-2xl mb-1">{executive.name}</h3>
+      {executive.title && (
+        <p className="text-sm text-[color:var(--muted-foreground)] mb-5">
+          {executive.title}
+        </p>
+      )}
+      <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed mb-6">
+        Você já está acompanhado por {firstName}. Ao clicar abaixo, a conversa
+        continua diretamente no WhatsApp dele(a).
+      </p>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group inline-flex items-center justify-center gap-3 rounded-full bg-[color:var(--gold)] px-8 py-4 text-sm font-medium text-[color:var(--gold-foreground)] hover:shadow-[0_15px_50px_-15px_var(--gold)] transition-all duration-300"
+      >
+        Voltar a falar com meu especialista
+        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+      </a>
+    </section>
   );
 }

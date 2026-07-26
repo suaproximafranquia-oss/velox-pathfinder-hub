@@ -113,6 +113,15 @@ export function buildOperationalSnapshot(
       icon: "sparkles",
     },
     {
+      id: "videos",
+      label: "Videoconferências",
+      value: fmtInt(videosDone),
+      delta: 0,
+      description: "Reuniões realizadas",
+      tooltip: "Videoconferências realizadas no período.",
+      icon: "video",
+    },
+    {
       id: "cofs",
       label: "COFs Enviadas",
       value: fmtInt(totals.contractsSent),
@@ -142,15 +151,6 @@ export function buildOperationalSnapshot(
       description: "Pagamentos registrados",
       tooltip: "Soma de pagamentos feitos no dia no KPI Manager.",
       icon: "handshake",
-    },
-    {
-      id: "videos",
-      label: "Vídeo Conferências",
-      value: fmtInt(videosDone),
-      delta: 0,
-      description: "Reuniões realizadas",
-      tooltip: "Vídeo conferências feitas no período.",
-      icon: "video",
     },
   ];
 

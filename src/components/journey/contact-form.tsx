@@ -19,7 +19,8 @@ export function ContactForm() {
   }, []);
 
   const exec = responsible.executive;
-  const whatsappNumber = exec?.phone?.replace(/\D/g, "") || WHATSAPP_NUMBER;
+  const whatsappNumber =
+    (exec?.whatsapp || exec?.phone || "").replace(/\D/g, "") || WHATSAPP_NUMBER;
   const ctaLabel = responsible.personalized
     ? "Quero voltar a falar com meu especialista"
     : "Quero conversar com um especialista da Velox";

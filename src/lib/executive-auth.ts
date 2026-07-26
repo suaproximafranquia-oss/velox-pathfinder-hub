@@ -129,6 +129,8 @@ export type ExecutiveUser = {
   email: string;
   /** Telefone corporativo (opcional). */
   phone?: string;
+  /** WhatsApp corporativo (opcional). Quando ausente, cai em `phone`. */
+  whatsapp?: string;
   /** Cargo institucional exibido em perfil e Manual personalizado. */
   title?: string;
   /** Data de admissão (ISO). Origem única para Recognition e Perfil. */
