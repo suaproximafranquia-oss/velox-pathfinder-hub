@@ -22,24 +22,22 @@ export type ScopeSelection = {
 };
 
 export const SCOPE_LABEL: Record<ScopeMode, string> = {
-  personal: "Meu Painel",
+  personal: "Individual",
   team: "Minha Equipe",
-  company: "Empresa",
-  executive: "Executivo Especifico",
-  comparison: "Comparacao entre Executivos",
+  company: "Equipe",
+  executive: "Executivo Específico",
+  comparison: "Executivo Específico",
 };
 
 export function availableScopes(role: ExecutiveRole): ScopeMode[] {
-  if (role === "super_admin")
-    return ["company", "team", "executive", "comparison", "personal"];
-  if (role === "diretora") return ["team", "executive", "personal"];
-  return ["personal"];
+  if (role === "super_admin" || role === "diretora") return ["team", "executive"];
+  return ["executive"];
 }
 
-export function defaultScope(role: ExecutiveRole): ScopeSelection {
-  if (role === "super_admin") return { mode: "company" };
+export function defaultScope(role: ExecutiveRole, userId?: string): ScopeSelection {
+  if (role === "super_admin") return { mode: "team" };
   if (role === "diretora") return { mode: "team" };
-  return { mode: "personal" };
+  return { mode: "executive", executiveId: userId };
 }
 
 /**
@@ -54,10 +52,10 @@ export function scopeSummary(session: ExecutiveSession, scope: ScopeSelection): 
     case "team":
       return "Equipe";
     case "company":
-      return "Empresa";
+      return "Equipe";
     case "executive":
       return "Executivo selecionado";
     case "comparison":
-      return "Comparacao";
+      return "Executivo selecionado";
   }
 }
