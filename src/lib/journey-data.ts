@@ -22,7 +22,7 @@ export const CHAPTERS: Chapter[] = [
   {
     slug: "recepcao",
     index: 1,
-    path: "/",
+    path: "/manual",
     eyebrow: "Capítulo 1 · Boas-vindas",
     title: "Bem-vindo ao Manual do Investidor Velox.",
     subtitle:
@@ -51,7 +51,7 @@ export const CHAPTERS: Chapter[] = [
     transitionFromPrev: "Antes de falar sobre a Velox, uma palavra sobre o próprio Manual.",
     completionLine: "Você compreende a intenção deste material.",
     nextTeaser: "A seguir: quem é a Velox.",
-    prevPath: "/",
+    prevPath: "/manual",
     nextPath: "/manual/velox",
   },
   {

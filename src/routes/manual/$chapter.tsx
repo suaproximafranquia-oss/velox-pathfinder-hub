@@ -39,7 +39,7 @@ export const Route = createFileRoute("/manual/$chapter")({
       const exec = getExecutiveBySlug(params.chapter);
       if (exec) {
         setResponsibleExecutiveSlug(exec.slug);
-        throw redirect({ to: "/" });
+        throw redirect({ to: "/manual" });
       }
       throw notFound();
     }

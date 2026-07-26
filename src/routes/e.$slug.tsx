@@ -20,7 +20,7 @@ export const Route = createFileRoute("/e/$slug")({
       const exec = getExecutiveBySlug(params.slug);
       if (exec) setResponsibleExecutiveSlug(exec.slug);
     }
-    throw redirect({ to: "/" });
+    throw redirect({ to: "/manual" });
   },
   component: () => null,
 });
