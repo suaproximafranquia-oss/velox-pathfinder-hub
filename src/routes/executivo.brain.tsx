@@ -38,6 +38,19 @@ export const Route = createFileRoute("/executivo/brain")({
   head: () => ({
     meta: [
       { title: "Brain Analytics — Atlas Platform" },
+      {
+        name: "description",
+        content:
+          "Painel executivo com indicadores principais, funil operacional e alertas do KPI Manager.",
+      },
+      { property: "og:title", content: "Brain Analytics — Atlas Platform" },
+      {
+        property: "og:description",
+        content:
+          "Painel executivo com indicadores principais, funil operacional e alertas do KPI Manager.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

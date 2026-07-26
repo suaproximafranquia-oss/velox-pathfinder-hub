@@ -35,6 +35,19 @@ export const Route = createFileRoute("/executivo/relatorios")({
   head: () => ({
     meta: [
       { title: "Relatórios Executivos — Atlas Platform" },
+      {
+        name: "description",
+        content:
+          "Relatórios de equipe e individuais com dados oficiais do KPI Manager.",
+      },
+      { property: "og:title", content: "Relatórios Executivos — Atlas Platform" },
+      {
+        property: "og:description",
+        content:
+          "Relatórios de equipe e individuais com dados oficiais do KPI Manager.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

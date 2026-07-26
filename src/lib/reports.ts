@@ -17,7 +17,6 @@ import {
   INDICATORS,
   averageRow,
   canAccessKpiOf,
-  daysInMonth,
   findMonth,
   formatCurrency,
   formatNumber,
@@ -32,10 +31,7 @@ import {
 } from "./kpi-manager";
 import type { ExecutiveSession } from "./executive-auth";
 import { loadUsers, type ExecutiveUser } from "./executive-auth";
-import {
-  managedTeams,
-  visibleCollaborators,
-} from "./teams";
+import { visibleCollaborators } from "./teams";
 
 export type ReportScope = "individual" | "team";
 
@@ -50,8 +46,6 @@ export type ReportSelection = {
   /** Utilizado quando scope = "individual". */
   executiveId?: string;
 };
-
-export type ReportSeriesPoint = { x: string; y: number };
 
 export type ReportIndicator = {
   id: IndicatorId;
