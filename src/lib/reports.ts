@@ -68,12 +68,6 @@ export type ReportDataset = {
   summary: KpiSummary;
   indicators: ReportIndicator[];
   funnel: FunnelStage[];
-  comparison: {
-    label: string;
-    current: number;
-    previous: number;
-    delta: number;
-  }[];
   narrative: string;
   /** Marcador de rastreabilidade para IA. */
   provenance: {
@@ -150,36 +144,6 @@ function buildFunnel(summary: KpiSummary, datasets: KpiDataset[]): FunnelStage[]
     { id: "cofs", label: "COFs", value: summary.contractsSent },
     { id: "sales", label: "Vendas", value: summary.sales },
   ];
-}
-
-function previousMonthKey(monthKey: string): string | null {
-  const idx = AVAILABLE_MONTHS.findIndex((m) => m.key === monthKey);
-  if (idx <= 0) return null;
-  return AVAILABLE_MONTHS[idx - 1].key;
-}
-
-function buildComparison(
-  session: ExecutiveSession,
-  selection: ReportSelection,
-  currentSummary: KpiSummary,
-): ReportDataset["comparison"] {
-  const prevKey = previousMonthKey(selection.monthKey);
-  const prev: KpiSummary | null = prevKey
-    ? summarizeMany(collectDatasets(session, { ...selection, monthKey: prevKey }).datasets)
-    : null;
-  const rows: [string, number, number][] = [
-    ["Leads", currentSummary.leads, prev?.leads ?? 0],
-    ["Apresentações", currentSummary.presentations, prev?.presentations ?? 0],
-    ["COFs Enviadas", currentSummary.contractsSent, prev?.contractsSent ?? 0],
-    ["Vendas", currentSummary.sales, prev?.sales ?? 0],
-    ["Faturamento", currentSummary.salesValue, prev?.salesValue ?? 0],
-  ];
-  return rows.map(([label, current, previous]) => ({
-    label,
-    current,
-    previous,
-    delta: previous > 0 ? ((current - previous) / previous) * 100 : 0,
-  }));
 }
 
 function summarizeMany(datasets: KpiDataset[]): KpiSummary {
@@ -290,7 +254,6 @@ export function buildReport(
     summary,
     indicators,
     funnel: buildFunnel(summary, datasets),
-    comparison: buildComparison(session, selection, summary),
     narrative: buildNarrative(selection.scope, month.label, subjectName, summary),
     provenance: {
       module: "KPI Manager",

@@ -188,50 +188,6 @@ function ReportsPage() {
         <FunnelCard stages={report.funnel} />
       </div>
 
-      {/* Comparativo entre períodos */}
-      <div className="mt-8 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="h-4 w-4 text-[color:var(--gold)]" />
-          <h3 className="font-display text-lg">Comparativo com a competência anterior</h3>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {report.comparison.map((c) => {
-            const positive = c.delta >= 0;
-            return (
-              <div
-                key={c.label}
-                className="rounded-xl border border-[color:var(--border)] bg-[color:var(--navy-deep)]/40 p-4"
-              >
-                <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                  {c.label}
-                </p>
-                <p className="font-display text-xl mt-1 tabular-nums">
-                  {c.label === "Faturamento"
-                    ? c.current.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
-                    : c.current.toLocaleString("pt-BR")}
-                </p>
-                <p className="text-[11px] mt-1 text-[color:var(--muted-foreground)]">
-                  Anterior:{" "}
-                  <span className="tabular-nums">
-                    {c.label === "Faturamento"
-                      ? c.previous.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
-                      : c.previous.toLocaleString("pt-BR")}
-                  </span>
-                </p>
-                <p
-                  className={cn(
-                    "mt-2 text-[11px] font-medium",
-                    positive ? "text-emerald-400" : "text-rose-400",
-                  )}
-                >
-                  {positive ? "▲" : "▼"} {Math.abs(c.delta).toFixed(1)}%
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Tabela detalhada de indicadores */}
       <div className="mt-8 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[color:var(--border)]">
