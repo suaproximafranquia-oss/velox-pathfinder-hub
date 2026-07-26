@@ -10,8 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ManualIndexRouteImport } from './routes/manual/index'
 import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
+import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
 import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
@@ -33,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ManualIndexRoute = ManualIndexRouteImport.update({
+  id: '/manual/',
+  path: '/manual/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoIndexRoute = ExecutivoIndexRouteImport.update({
   id: '/executivo/',
   path: '/executivo/',
@@ -41,6 +48,11 @@ const ExecutivoIndexRoute = ExecutivoIndexRouteImport.update({
 const ManualConcluidoRoute = ManualConcluidoRouteImport.update({
   id: '/manual/concluido',
   path: '/manual/concluido',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManualAnuncioRoute = ManualAnuncioRouteImport.update({
+  id: '/manual/anuncio',
+  path: '/manual/anuncio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManualChapterRoute = ManualChapterRouteImport.update({
@@ -136,8 +148,10 @@ export interface FileRoutesByFullPath {
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
+  '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
   '/executivo/': typeof ExecutivoIndexRoute
+  '/manual/': typeof ManualIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -156,8 +170,10 @@ export interface FileRoutesByTo {
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
+  '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
   '/executivo': typeof ExecutivoIndexRoute
+  '/manual': typeof ManualIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -177,8 +193,10 @@ export interface FileRoutesById {
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
+  '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
   '/executivo/': typeof ExecutivoIndexRoute
+  '/manual/': typeof ManualIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -199,8 +217,10 @@ export interface FileRouteTypes {
     | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
+    | '/manual/anuncio'
     | '/manual/concluido'
     | '/executivo/'
+    | '/manual/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -219,8 +239,10 @@ export interface FileRouteTypes {
     | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
+    | '/manual/anuncio'
     | '/manual/concluido'
     | '/executivo'
+    | '/manual'
   id:
     | '__root__'
     | '/'
@@ -239,8 +261,10 @@ export interface FileRouteTypes {
     | '/executivo/relatorios'
     | '/executivo/usuarios'
     | '/manual/$chapter'
+    | '/manual/anuncio'
     | '/manual/concluido'
     | '/executivo/'
+    | '/manual/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -260,8 +284,10 @@ export interface RootRouteChildren {
   ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   ManualChapterRoute: typeof ManualChapterRoute
+  ManualAnuncioRoute: typeof ManualAnuncioRoute
   ManualConcluidoRoute: typeof ManualConcluidoRoute
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
+  ManualIndexRoute: typeof ManualIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -271,6 +297,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual/': {
+      id: '/manual/'
+      path: '/manual'
+      fullPath: '/manual/'
+      preLoaderRoute: typeof ManualIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/': {
@@ -285,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/manual/concluido'
       fullPath: '/manual/concluido'
       preLoaderRoute: typeof ManualConcluidoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual/anuncio': {
+      id: '/manual/anuncio'
+      path: '/manual/anuncio'
+      fullPath: '/manual/anuncio'
+      preLoaderRoute: typeof ManualAnuncioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manual/$chapter': {
@@ -412,8 +452,10 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   ManualChapterRoute: ManualChapterRoute,
+  ManualAnuncioRoute: ManualAnuncioRoute,
   ManualConcluidoRoute: ManualConcluidoRoute,
   ExecutivoIndexRoute: ExecutivoIndexRoute,
+  ManualIndexRoute: ManualIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
