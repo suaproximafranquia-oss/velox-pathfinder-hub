@@ -296,11 +296,11 @@ body[data-shell="universo"] {
   --brand-orange-soft: oklch(0.80 0.16 58);
 
   --background: var(--paper);
-  --foreground: oklch(0.14 0.04 260);
+  --foreground: oklch(0.12 0.05 260);
   --card: var(--paper-2);
-  --card-foreground: oklch(0.14 0.04 260);
+  --card-foreground: oklch(0.12 0.05 260);
   --muted: oklch(0.905 0.016 78);
-  --muted-foreground: oklch(0.34 0.03 260);
+  --muted-foreground: oklch(0.30 0.04 260);
   --border: var(--paper-edge);
   --primary: var(--brand-blue-deep);
   --primary-foreground: oklch(0.98 0.006 85);
@@ -315,6 +315,24 @@ body[data-shell="universo"] {
   --gold-foreground: oklch(0.12 0.02 260);
 
   --font-editorial: "Cormorant Garamond", ui-serif, Georgia, serif;
+
+  /* -----------------------------------------------------------------
+   * Editorial Type Scale — hierarquia tipográfica permanente,
+   * herdada por Portal, Manual, Universo e todos os módulos futuros.
+   * Toda tela editorial deve compor tipografia a partir destes tokens.
+   * ----------------------------------------------------------------- */
+  --type-display: clamp(2.75rem, 5.2vw, 4.5rem);   /* Título Principal */
+  --type-h1:      clamp(2.1rem, 3.6vw, 3rem);       /* Título Secundário */
+  --type-h2:      clamp(1.5rem, 2.2vw, 1.9rem);     /* Subtítulo */
+  --type-h3:      clamp(1.15rem, 1.6vw, 1.3rem);    /* Intertítulo */
+  --type-body:    1.0625rem;                        /* Corpo do texto */
+  --type-small:   0.9375rem;                        /* Legendas */
+  --type-caption: 0.8125rem;                        /* Observações */
+  --type-eyebrow: 0.72rem;                          /* Eyebrow institucional */
+  --leading-display: 1.04;
+  --leading-heading: 1.14;
+  --leading-body: 1.72;
+  --leading-caption: 1.55;
 
   background-color: var(--paper);
   background-image:
