@@ -9,6 +9,7 @@ import {
   Database,
   Sparkles,
   Brain,
+  Gauge,
   ChevronDown,
   Check,
 } from "lucide-react";
@@ -43,6 +44,7 @@ export function ExecutiveShell({
     { to: "/executivo/home", label: "Home", icon: LayoutGrid },
     { to: "/executivo/dashboard", label: "Painel", icon: LayoutDashboard },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
+    { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
     { to: "/executivo/investidores", label: "Investidores", icon: Users },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     ...(canManageKnowledge(session.activeRole)

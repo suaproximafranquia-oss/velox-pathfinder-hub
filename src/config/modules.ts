@@ -19,6 +19,7 @@ import {
   Settings,
   Database,
   Brain,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 
@@ -68,6 +69,15 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Indicadores executivos consolidados a partir dos módulos da plataforma.",
     icon: Brain,
     to: "/executivo/brain",
+    status: "ativo",
+  },
+  {
+    id: "kpi",
+    name: "KPI Manager",
+    description:
+      "Fonte oficial de indicadores. Alimenta o Brain, dashboards e a IA.",
+    icon: Gauge,
+    to: "/executivo/kpi",
     status: "ativo",
   },
   {

@@ -1,48 +1,53 @@
 /**
- * Brain Analytics — dados simulados.
- * Toda a estrutura desta camada existe apenas para viabilizar a
- * experiência de navegação. Nenhum número aqui é real. Futuramente
- * será substituída por conectores externos (CRM, GreenSales etc.).
- * Nenhuma regra desta camada pode depender de um workspace específico.
+ * Brain Analytics — camada de dados simulados.
+ * Os componentes consomem apenas os tipos e funcoes deste arquivo.
+ * A substituicao futura por dados reais nao exige alteracao visual.
+ * Nenhuma regra pode depender de um workspace especifico.
  */
+import type { ScopeSelection } from "./brain/scopes";
 
 export type BrainPeriod = 7 | 14 | 30 | 90;
 
 export const PERIOD_OPTIONS: { value: BrainPeriod; label: string }[] = [
-  { value: 7, label: "Últimos 7 dias" },
-  { value: 14, label: "Últimos 14 dias" },
-  { value: 30, label: "Últimos 30 dias" },
-  { value: 90, label: "Últimos 90 dias" },
+  { value: 7, label: "7 dias" },
+  { value: 14, label: "14 dias" },
+  { value: 30, label: "30 dias" },
+  { value: 90, label: "90 dias" },
 ];
 
 export type BrainKpi = {
   id: string;
   label: string;
   value: string;
-  delta: number; // variação percentual simulada
-  hint?: string;
+  delta: number;
+  description: string;
+  tooltip: string;
+  /** Chave semantica do icone; o componente mapeia para Lucide. */
+  icon:
+    | "users"
+    | "sparkles"
+    | "video"
+    | "fileCheck"
+    | "handshake"
+    | "trophy"
+    | "activity"
+    | "clock";
 };
 
-export type FunnelStage = {
-  id: string;
-  label: string;
-  value: number;
-};
-
+export type FunnelStage = { id: string; label: string; value: number };
 export type SeriesPoint = { x: string; y: number };
 
 export type BrainSnapshot = {
   period: BrainPeriod;
+  scope: ScopeSelection;
   kpis: BrainKpi[];
   funnel: FunnelStage[];
-  conversion: SeriesPoint[]; // taxas por etapa
-  evolution: SeriesPoint[]; // evolução acumulada
-  temporal: SeriesPoint[]; // volumes por dia
-  trend: SeriesPoint[]; // tendência projetada
+  conversion: SeriesPoint[];
+  evolution: SeriesPoint[];
+  temporal: SeriesPoint[];
+  trend: SeriesPoint[];
 };
 
-// Gerador determinístico simples para que o mesmo período retorne
-// sempre os mesmos valores durante a sessão.
 function seeded(seed: number) {
   let s = seed;
   return () => {
@@ -51,17 +56,34 @@ function seeded(seed: number) {
   };
 }
 
-function fmtInt(n: number): string {
-  return new Intl.NumberFormat("pt-BR").format(Math.round(n));
+const fmtInt = (n: number) => new Intl.NumberFormat("pt-BR").format(Math.round(n));
+const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+
+function scopeMultiplier(scope: ScopeSelection): number {
+  switch (scope.mode) {
+    case "company":
+      return 1;
+    case "team":
+      return 0.55;
+    case "executive":
+      return 0.18;
+    case "personal":
+      return 0.15;
+    case "comparison":
+      return 0.6;
+  }
 }
 
-function fmtPct(n: number): string {
-  return `${n.toFixed(1)}%`;
-}
-
-export function buildSnapshot(period: BrainPeriod): BrainSnapshot {
-  const rnd = seeded(period * 137);
-  const scale = period / 30;
+/**
+ * Snapshot simulado. A assinatura (period, scope) e a superficie
+ * estavel para a futura fonte real de dados.
+ */
+export function buildSnapshot(
+  period: BrainPeriod,
+  scope: ScopeSelection,
+): BrainSnapshot {
+  const rnd = seeded(period * 137 + scope.mode.length * 31);
+  const scale = (period / 30) * scopeMultiplier(scope);
 
   const novos = Math.round(140 * scale + rnd() * 40);
   const oportunidades = Math.round(novos * 0.62);
@@ -73,19 +95,77 @@ export function buildSnapshot(period: BrainPeriod): BrainSnapshot {
   const tempoDias = 12 + rnd() * 8;
 
   const kpis: BrainKpi[] = [
-    { id: "novos", label: "Novos Investidores", value: fmtInt(novos), delta: +6.4 },
-    { id: "oport", label: "Oportunidades", value: fmtInt(oportunidades), delta: +4.1 },
-    { id: "video", label: "Vídeo Chamadas", value: fmtInt(videos), delta: +2.8 },
-    { id: "cof", label: "COFs Enviadas", value: fmtInt(cofs), delta: -1.2 },
-    { id: "contratos", label: "Contratos", value: fmtInt(contratos), delta: +3.6 },
-    { id: "vendas", label: "Vendas", value: fmtInt(vendas), delta: +5.9 },
-    { id: "conv", label: "Conversão Geral", value: fmtPct(conv), delta: +0.8 },
+    {
+      id: "novos",
+      label: "Novos Investidores",
+      value: fmtInt(novos),
+      delta: 6.4,
+      description: "Entradas no periodo",
+      tooltip: "Registros novos recebidos no periodo selecionado.",
+      icon: "users",
+    },
+    {
+      id: "oport",
+      label: "Oportunidades",
+      value: fmtInt(oportunidades),
+      delta: 4.1,
+      description: "Qualificacao positiva",
+      tooltip: "Registros qualificados como oportunidades ativas.",
+      icon: "sparkles",
+    },
+    {
+      id: "video",
+      label: "Video Chamadas",
+      value: fmtInt(videos),
+      delta: 2.8,
+      description: "Reunioes realizadas",
+      tooltip: "Encontros consultivos concluidos.",
+      icon: "video",
+    },
+    {
+      id: "cof",
+      label: "COFs Enviadas",
+      value: fmtInt(cofs),
+      delta: -1.2,
+      description: "Propostas ativas",
+      tooltip: "Confirmacoes formais de oferta enviadas.",
+      icon: "fileCheck",
+    },
+    {
+      id: "contratos",
+      label: "Contratos",
+      value: fmtInt(contratos),
+      delta: 3.6,
+      description: "Assinaturas em curso",
+      tooltip: "Contratos gerados a partir das COFs enviadas.",
+      icon: "handshake",
+    },
+    {
+      id: "vendas",
+      label: "Vendas",
+      value: fmtInt(vendas),
+      delta: 5.9,
+      description: "Fechamentos concluidos",
+      tooltip: "Contratos convertidos em venda efetiva.",
+      icon: "trophy",
+    },
+    {
+      id: "conv",
+      label: "Conversao Geral",
+      value: fmtPct(conv),
+      delta: 0.8,
+      description: "Do primeiro contato a venda",
+      tooltip: "Percentual de conversao ao longo do funil completo.",
+      icon: "activity",
+    },
     {
       id: "tempo",
-      label: "Tempo Médio de Evolução",
+      label: "Tempo Medio de Evolucao",
       value: `${tempoDias.toFixed(1)} d`,
       delta: -1.4,
-      hint: "Do primeiro contato à venda",
+      description: "Ciclo medio da jornada",
+      tooltip: "Tempo medio entre primeiro contato e fechamento.",
+      icon: "clock",
     },
   ];
 
@@ -93,7 +173,7 @@ export function buildSnapshot(period: BrainPeriod): BrainSnapshot {
     { id: "novo", label: "Novo", value: novos },
     { id: "contato", label: "Primeiro Contato", value: Math.round(novos * 0.78) },
     { id: "oport", label: "Oportunidade", value: oportunidades },
-    { id: "video", label: "Vídeo", value: videos },
+    { id: "video", label: "Video", value: videos },
     { id: "cof", label: "COF", value: cofs },
     { id: "venda", label: "Venda", value: vendas },
   ];
@@ -121,54 +201,108 @@ export function buildSnapshot(period: BrainPeriod): BrainSnapshot {
     y: Math.round(p.y * (1 + i / (days * 2))),
   }));
 
-  return { period, kpis, funnel, conversion, evolution, temporal, trend };
+  return { period, scope, kpis, funnel, conversion, evolution, temporal, trend };
 }
 
 // ---------- Alertas persistentes ----------
 
 export type AlertPriority = "alta" | "media" | "baixa";
 
+export type AlertCategory =
+  | "contato"
+  | "followup"
+  | "portal"
+  | "contrato"
+  | "reuniao"
+  | "oportunidade";
+
+export const CATEGORY_LABEL: Record<AlertCategory, string> = {
+  contato: "Contato",
+  followup: "Follow-up",
+  portal: "Portal",
+  contrato: "Contrato",
+  reuniao: "Reuniao",
+  oportunidade: "Oportunidade",
+};
+
 export type BrainAlert = {
   id: string;
+  category: AlertCategory;
   title: string;
   description: string;
   priority: AlertPriority;
-  date: string; // ISO
+  /** ISO datetime — data + hora ficam na mesma origem. */
+  date: string;
+  /** Mensagem sugerida para o botao Copiar. */
+  copyTemplate: string;
   dismissed?: boolean;
 };
 
-const ALERTS_KEY = "atlas:brain:alerts:v1";
+const ALERTS_KEY = "atlas:brain:alerts:v2";
 
 const SEED_ALERTS: BrainAlert[] = [
   {
     id: "alert_novos",
-    title: "8 novos investidores aguardando contato",
+    category: "contato",
+    title: "Voce possui 12 novos investidores aguardando contato",
     description:
-      "Registros recebidos nas últimas horas ainda não tiveram primeiro contato.",
+      "Registros recebidos recentemente ainda nao tiveram primeiro contato.",
     priority: "alta",
     date: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    copyTemplate:
+      "Ola. Vi que voce chegou recentemente ao nosso Portal e quero me apresentar como seu consultor. Fico a disposicao para conversar quando fizer sentido para voce.",
   },
   {
     id: "alert_followup",
-    title: "3 follow-ups programados para hoje",
-    description: "Interações agendadas com investidores em avaliação.",
+    category: "followup",
+    title: "Existem 5 follow-ups programados para hoje",
+    description: "Interacoes agendadas com investidores em avaliacao.",
     priority: "media",
     date: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    copyTemplate:
+      "Ola. Retomando nossa conversa: separei alguns pontos que podem ajudar na sua decisao. Posso te ligar hoje?",
   },
   {
-    id: "alert_cof",
-    title: "2 COFs aguardando retorno",
-    description: "Propostas enviadas há mais de 48h sem resposta.",
-    priority: "alta",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-  },
-  {
-    id: "alert_retorno",
-    title: "Um investidor retornou ao Portal recentemente",
+    id: "alert_portal",
+    category: "portal",
+    title: "Um investidor retornou recentemente ao Portal",
     description:
       "Retomada de leitura detectada — momento oportuno para reengajamento.",
     priority: "baixa",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    copyTemplate:
+      "Ola. Percebi que voce voltou recentemente ao nosso Portal. Caso ainda tenha interesse em continuar sua jornada, fico a disposicao.",
+  },
+  {
+    id: "alert_contratos",
+    category: "contrato",
+    title: "Existem contratos aguardando retorno",
+    description: "Propostas enviadas ha mais de 48h sem resposta.",
+    priority: "alta",
     date: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString(),
+    copyTemplate:
+      "Ola. Passando aqui para confirmar se voce recebeu o contrato e se posso esclarecer alguma duvida.",
+  },
+  {
+    id: "alert_reuniao",
+    category: "reuniao",
+    title: "Existe uma videoconferencia agendada",
+    description: "Reuniao consultiva marcada para as proximas horas.",
+    priority: "media",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    copyTemplate:
+      "Ola. Confirmando nossa videoconferencia. Assim que estiver pronto, envio o link de acesso.",
+  },
+  {
+    id: "alert_oportunidade",
+    category: "oportunidade",
+    title: "Oportunidades sem atualizacao ha mais de sete dias",
+    description:
+      "Registros parados na esteira consultiva sem novas interacoes.",
+    priority: "media",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
+    copyTemplate:
+      "Ola. Notei que faz alguns dias desde nossa ultima conversa. Posso te ajudar com alguma pendencia?",
   },
 ];
 
@@ -203,6 +337,6 @@ export function dismissAlert(id: string): BrainAlert[] {
 
 export const PRIORITY_LABEL: Record<AlertPriority, string> = {
   alta: "Alta",
-  media: "Média",
+  media: "Media",
   baixa: "Baixa",
 };
