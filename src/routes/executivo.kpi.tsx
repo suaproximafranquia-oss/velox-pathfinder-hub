@@ -481,6 +481,54 @@ function ConsolidatedSummaryCard({
   );
 }
 
+/**
+ * Card "Total Vendido" — único ponto da UI onde as faixas da Campanha
+ * Velox se manifestam visualmente. As demais colunas (incluindo o Total
+ * do próprio indicador) permanecem neutras, conforme diretriz.
+ */
+function TotalVendidoCard({ value }: { value: number }) {
+  const tier = campaignTierClass(value);
+  return (
+    <div
+      className={cn(
+        "relative rounded-2xl border p-4 overflow-hidden transition-colors",
+        tier
+          ? cn("border-transparent", tier)
+          : "border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/10 to-transparent",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex h-7 w-7 items-center justify-center rounded-lg border",
+            tier
+              ? "border-white/25 text-white/95 bg-white/10"
+              : "border-[color:var(--gold)]/40 text-[color:var(--gold)]",
+          )}
+        >
+          <HandCoins className="h-3.5 w-3.5" strokeWidth={1.6} />
+        </span>
+        <p
+          className={cn(
+            "text-[10px] uppercase tracking-[0.22em]",
+            tier ? "text-white/70" : "text-[color:var(--muted-foreground)]",
+          )}
+        >
+          Total Vendido
+        </p>
+      </div>
+      <p
+        className={cn(
+          "font-display text-xl mt-2 tabular-nums",
+          tier ? "text-white" : "text-[color:var(--gold)]",
+        )}
+      >
+        {formatCurrency(value)}
+      </p>
+    </div>
+  );
+}
+
 // Dimensões da planilha — reajustadas (+~15%) para dar respiro visual
 // mantendo a identidade compacta do KPI Manager.
 const ROW_H = 43;
