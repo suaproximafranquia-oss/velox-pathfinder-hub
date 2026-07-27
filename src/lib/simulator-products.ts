@@ -30,6 +30,13 @@ export type SimulatorProduct = {
   avgTicket: number;
   /** Comissão recorrente mensal (percentual sobre volume mantido). */
   recurring?: boolean;
+  /**
+   * Modelo de precificação usado na Etapa 2 do simulador.
+   * - "volume": usuário informa o VOLUME FINANCEIRO mensal (R$) da produção.
+   * - "quantity": usuário informa a QUANTIDADE de contratos/operações mensais
+   *   (para produtos recorrentes: seguros, benefícios, POS).
+   */
+  pricingModel: "volume" | "quantity";
 };
 
 export const SIMULATOR_PRODUCTS: SimulatorProduct[] = [
