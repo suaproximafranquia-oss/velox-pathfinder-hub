@@ -119,12 +119,14 @@ export function KpiAiAssistant({
 
   function exportPdf(msg: ChatMessage) {
     if (!msg.question) return;
+    const snapshot = buildKpiInsightSnapshot(session, monthKey);
     generateKpiInsightPdf({
       question: msg.question,
       answer: msg.content,
       monthLabel,
       scopeLabel,
       actorName: `${session.name} · ${ROLE_LABEL[session.activeRole]}`,
+      snapshot,
     });
   }
 

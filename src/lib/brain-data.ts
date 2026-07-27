@@ -174,7 +174,12 @@ export type AlertCategory =
   | "portal"
   | "contrato"
   | "reuniao"
-  | "oportunidade";
+  | "oportunidade"
+  | "desempenho"
+  | "meta"
+  | "documento"
+  | "inatividade"
+  | "crescimento";
 
 export const CATEGORY_LABEL: Record<AlertCategory, string> = {
   contato: "Contato",
@@ -183,6 +188,11 @@ export const CATEGORY_LABEL: Record<AlertCategory, string> = {
   contrato: "Contrato",
   reuniao: "Reuniao",
   oportunidade: "Oportunidade",
+  desempenho: "Desempenho",
+  meta: "Meta",
+  documento: "Documento",
+  inatividade: "Inatividade",
+  crescimento: "Crescimento",
 };
 
 export type BrainAlert = {
@@ -199,7 +209,7 @@ export type BrainAlert = {
   dismissed?: boolean;
 };
 
-const ALERTS_KEY = "atlas:brain:alerts:v2";
+const ALERTS_KEY = "atlas:brain:alerts:v3";
 
 const SEED_ALERTS: BrainAlert[] = [
   {
@@ -341,6 +351,67 @@ const SEED_ALERTS: BrainAlert[] = [
     date: new Date(Date.now() - 1000 * 60 * 60 * 40).toISOString(),
     copyTemplate:
       "Ola. Desculpe a demora em retornar. Sigo a disposicao para conversar quando fizer sentido para voce.",
+  },
+  // ---- Alertas demonstrativos de plataforma ----
+  {
+    id: "alert_conversao_baixa",
+    ownerUserId: "usr_marton",
+    category: "desempenho",
+    title: "📉 Conversao Lead → Venda abaixo da media da equipe",
+    description:
+      "A conversao do executivo esta 18% abaixo da media dos ultimos 30 dias.",
+    priority: "alta",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+    copyTemplate:
+      "Reforcar cadencia de follow-up e revisar qualificacao dos leads em aberto nesta semana.",
+  },
+  {
+    id: "alert_meta_atingida",
+    ownerUserId: "usr_thiago",
+    category: "meta",
+    title: "🏁 Meta mensal atingida",
+    description:
+      "Executivo alcancou 100% da meta antes do fechamento — momento de celebrar e sustentar ritmo.",
+    priority: "media",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString(),
+    copyTemplate:
+      "Parabenizacao interna: meta do mes concluida. Manter esteira ativa para superar o objetivo.",
+  },
+  {
+    id: "alert_sem_vendas",
+    ownerUserId: "usr_paulo",
+    category: "inatividade",
+    title: "⏱ Executivo sem vendas ha 6 dias",
+    description:
+      "Sequencia sem fechamento acima do padrao — recomenda-se revisao da carteira ativa.",
+    priority: "alta",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 11).toISOString(),
+    copyTemplate:
+      "Revisar carteira ativa, retomar contatos frios e priorizar oportunidades com COF enviada.",
+  },
+  {
+    id: "alert_doc_publicado",
+    ownerUserId: "usr_larissa",
+    category: "documento",
+    title: "📚 Novo documento publicado na Central de Conhecimento",
+    description:
+      "Guia atualizado disponivel para consulta e uso pela IA Corporativa.",
+    priority: "baixa",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    copyTemplate:
+      "Novo material oficial publicado na Central de Conhecimento — consulte antes das proximas reunioes consultivas.",
+  },
+  {
+    id: "alert_crescimento",
+    ownerUserId: "usr_carlos",
+    category: "crescimento",
+    title: "📈 Crescimento acima da media da equipe",
+    description:
+      "Volume de apresentacoes 32% acima da media dos ultimos 30 dias.",
+    priority: "media",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    copyTemplate:
+      "Reconhecer publicamente o desempenho e replicar praticas com o restante da equipe.",
   },
 ];
 

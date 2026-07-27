@@ -47,7 +47,8 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     description:
       "Material educativo para preparar o investidor antes do contato consultivo.",
     icon: BookOpen,
-    href: "/",
+    href: "/manual",
+    external: true,
     status: "ativo",
   },
   {
