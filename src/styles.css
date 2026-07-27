@@ -488,6 +488,25 @@ body[data-shell="universo"] .portal-card:hover {
 }
 
 /* =====================================================================
+ * Estabilidade de scroll — Corporate Workspace
+ * Elimina piscadas/saltos ao rolar em qualquer módulo. Reserva a
+ * calha do scrollbar para evitar reflow quando a página cresce/encolhe.
+ * ===================================================================*/
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+  overscroll-behavior-y: none;
+}
+html, body { min-height: 100%; }
+body { overflow-x: hidden; }
+/* Evita reinício de animações de entrada durante o scroll */
+.reveal.is-visible,
+[data-animate-once].is-visible {
+  animation-iteration-count: 1 !important;
+  animation-fill-mode: forwards !important;
+}
+
+/* =====================================================================
  * Universo Velox (Editorial Experience) — tokens & utilities
  * Added for the /universo module. Scoped to the classes below to avoid
  * side-effects on other Portal surfaces.
