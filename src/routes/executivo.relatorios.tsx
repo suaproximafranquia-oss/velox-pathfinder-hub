@@ -41,6 +41,7 @@ import { InfographicDashboard } from "@/components/executive/reports/infographic
 import { buildCampaignRows } from "@/components/executive/kpi/painel-campanhas";
 import { loadUsers } from "@/lib/executive-auth";
 import { cn } from "@/lib/utils";
+import { KpiAiAssistant } from "@/components/executive/kpi-ai-assistant";
 
 export const Route = createFileRoute("/executivo/relatorios")({
   head: () => ({
@@ -309,6 +310,7 @@ function ReportsPage() {
           preservando a rastreabilidade e as permissões do usuário autenticado.
         </div>
       </div>
+      <KpiAiAssistant session={session} monthKey={selection.monthKey} origin="reports" />
     </ExecutiveShell>
   );
 }
