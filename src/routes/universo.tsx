@@ -75,40 +75,16 @@ const SECTIONS: ModuleChromeSection[] = [
 
 const PRODUCTS: Product[] = [
   {
-    name: "FGTS · Antecipação",
-    description:
-      "Antecipação do saque-aniversário para trabalhadores CLT com saldo disponível. Costuma ser a porta de entrada para clientes que buscam liquidez imediata sem comprometer o orçamento mensal.",
-    commission: "Comissão até 25%",
-  },
-  {
-    name: "Cartão de Crédito Consignado",
-    description:
-      "Solução voltada a aposentados, pensionistas e servidores, com desconto em folha. Oferece limite dedicado, portabilidade de dívida e uma das maiores rentabilidades do portfólio para a rede.",
-    commission: "Comissão até 40%",
-  },
-  {
-    name: "Financiamento Imobiliário",
-    description:
-      "Linhas de crédito para aquisição de imóveis, integrando mais de dez instituições financeiras. Estruturado em prazos longos, com condições ajustadas ao perfil e à capacidade de pagamento de cada cliente.",
-    commission: "Comissão até 2,5%",
-  },
-  {
-    name: "Home Equity",
-    description:
-      "Crédito com garantia de imóvel, indicado para reestruturação de dívidas, capital para negócios ou realização de projetos de maior porte. Combina prazos alongados e taxas mais acessíveis que o crédito tradicional.",
-    commission: "Comissão até 5%",
-  },
-  {
-    name: "Financiamento e Refin de Veículos",
-    description:
-      "Aquisição, refinanciamento e portabilidade de contratos de veículos leves, motos, patinetes elétricos e caminhões. Atende tanto o consumidor final quanto frotistas e pequenas empresas.",
-    commission: "Comissão até 2,5%",
-  },
-  {
     name: "Consórcios",
     description:
       "Aquisição planejada de imóveis, veículos, caminhões, motos, aeronaves e até serviços como viagens, cirurgias e casamentos. Alternativa organizada ao crédito tradicional, com juros mais acessíveis.",
     commission: "Comissão até 6%",
+  },
+  {
+    name: "Seguros",
+    description:
+      "Mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Compõem a base de qualquer planejamento financeiro consistente ao mitigar riscos.",
+    commission: "Comissão até 80%",
   },
   {
     name: "Energia Solar & Renováveis",
@@ -123,22 +99,46 @@ const PRODUCTS: Product[] = [
     commission: "Comissão até 1%",
   },
   {
+    name: "Financiamento Imobiliário",
+    description:
+      "Linhas de crédito para aquisição de imóveis, integrando mais de dez instituições financeiras. Estruturado em prazos longos, com condições ajustadas ao perfil e à capacidade de pagamento de cada cliente.",
+    commission: "Comissão até 2,5%",
+  },
+  {
+    name: "Financiamento e Refin de Veículos",
+    description:
+      "Aquisição, refinanciamento e portabilidade de contratos de veículos leves, motos, patinetes elétricos e caminhões. Atende tanto o consumidor final quanto frotistas e pequenas empresas.",
+    commission: "Comissão até 2,5%",
+  },
+  {
+    name: "Home Equity",
+    description:
+      "Crédito com garantia de imóvel, indicado para reestruturação de dívidas, capital para negócios ou realização de projetos de maior porte. Combina prazos alongados e taxas mais acessíveis que o crédito tradicional.",
+    commission: "Comissão até 5%",
+  },
+  {
     name: "Crédito Rural & Agronegócio",
     description:
       "Compra de propriedades, maquinário, empréstimos com garantia rural e estruturação de projetos para o campo. Apoia custeio, investimento e comercialização em toda a cadeia produtiva.",
     commission: "Comissão até 1%",
   },
   {
-    name: "Seguros",
-    description:
-      "Mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Compõem a base de qualquer planejamento financeiro consistente ao mitigar riscos.",
-    commission: "Comissão até 80%",
-  },
-  {
     name: "Maquininhas & Meios de Pagamento",
     description:
       "P.O.S. para estabelecimentos comerciais, com remuneração recorrente conforme o faturamento do cliente. Fortalece a base de receita mensal previsível da unidade.",
     commission: "Recorrência 0,10% a 0,50%",
+  },
+  {
+    name: "FGTS · Antecipação",
+    description:
+      "Antecipação do saque-aniversário para trabalhadores CLT com saldo disponível. Solução de liquidez imediata sem comprometer o orçamento mensal.",
+    commission: "Comissão até 25%",
+  },
+  {
+    name: "Cartão de Crédito Consignado",
+    description:
+      "Solução voltada a aposentados, pensionistas e servidores, com desconto em folha. Oferece limite dedicado, portabilidade de dívida e uma das maiores rentabilidades do portfólio para a rede.",
+    commission: "Comissão até 40%",
   },
   {
     name: "Crédito Consignado",
