@@ -321,11 +321,11 @@ function StepSelectProducts({
 
 function StepQuantities({
   products,
-  quantities,
+  inputs,
   onChange,
 }: {
   products: SimulatorProduct[];
-  quantities: Record<string, number>;
+  inputs: Record<string, number>;
   onChange: (id: string, q: number) => void;
 }) {
   return (
@@ -333,61 +333,25 @@ function StepQuantities({
       <div className="mb-8 max-w-3xl">
         <span className="portal-eyebrow">Etapa 2 · Expectativa de produção</span>
         <h2 className="portal-serif mt-3 text-3xl md:text-4xl" style={{ color: "var(--brand-blue-deep)" }}>
-          Quantas operações mensais você acredita realizar?
+          Qual sua expectativa de produção mensal?
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-          Considere seu networking, relacionamento e expectativa comercial.
-          Ajuste livremente — a projeção é atualizada a partir das quantidades informadas.
+          Para operações financeiras, informe o <strong>valor mensal estimado</strong> em reais.
+          Para produtos recorrentes (Seguros, Benefícios e POS), informe a <strong>quantidade de contratos</strong> por mês.
+          Os botões + e − ajudam a ajustar rapidamente o valor informado.
         </p>
       </div>
 
       <div className="space-y-2">
         {products.map((p) => {
-          const q = quantities[p.id] ?? 0;
+          const value = inputs[p.id] ?? 0;
           return (
-            <div
+            <ProductInputRow
               key={p.id}
-              className="flex flex-wrap items-center justify-between gap-4 rounded-xl border px-5 py-4"
-              style={{ borderColor: "var(--paper-edge)", background: "var(--paper-2, #fff)" }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="h-2 w-2 rounded-full" style={{ background: CATEGORY_COLORS[p.category] }} />
-                <div>
-                  <div className="text-[15px] font-medium" style={{ color: "var(--brand-blue-deep)" }}>{p.name}</div>
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">{p.category}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onChange(p.id, Math.max(0, q - 1))}
-                  aria-label={`Diminuir ${p.name}`}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-lg transition hover:bg-black/5"
-                  style={{ borderColor: "var(--paper-edge)", color: "var(--brand-blue-deep)" }}
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={q}
-                  onChange={(e) => onChange(p.id, Math.max(0, parseInt(e.target.value || "0", 10) || 0))}
-                  className="h-10 w-20 rounded-lg border text-center text-[15px] font-semibold outline-none focus:border-[color:var(--brand-orange)]"
-                  style={{ borderColor: "var(--paper-edge)", color: "var(--brand-blue-deep)" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => onChange(p.id, q + 1)}
-                  aria-label={`Aumentar ${p.name}`}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-lg transition hover:bg-black/5"
-                  style={{ borderColor: "var(--paper-edge)", color: "var(--brand-blue-deep)" }}
-                >
-                  +
-                </button>
-                <span className="ml-2 hidden text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] sm:inline">operações / mês</span>
-              </div>
-            </div>
+              product={p}
+              value={value}
+              onChange={(v) => onChange(p.id, v)}
+            />
           );
         })}
       </div>
@@ -395,7 +359,82 @@ function StepQuantities({
   );
 }
 
-type ResultRow = { product: SimulatorProduct; quantity: number; revenue: number };
+function ProductInputRow({
+  product,
+  value,
+  onChange,
+}: {
+  product: SimulatorProduct;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const isVolume = product.pricingModel === "volume";
+  // Passo dinâmico para volume: 10% do valor, arredondado para o milhar, mínimo R$ 1.000.
+  const volumeStep = Math.max(1000, Math.round((value * 0.1) / 1000) * 1000 || 1000);
+  const dec = () =>
+    onChange(isVolume ? Math.max(0, value - volumeStep) : Math.max(0, value - 1));
+  const inc = () => onChange(isVolume ? value + volumeStep : value + 1);
+
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between gap-4 rounded-xl border px-5 py-4"
+      style={{ borderColor: "var(--paper-edge)", background: "var(--paper-2, #fff)" }}
+    >
+      <div className="flex items-center gap-3">
+        <span className="h-2 w-2 rounded-full" style={{ background: CATEGORY_COLORS[product.category] }} />
+        <div>
+          <div className="text-[15px] font-medium" style={{ color: "var(--brand-blue-deep)" }}>{product.name}</div>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+            {product.category} · {isVolume ? "Volume mensal (R$)" : "Contratos / mês"}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={dec}
+          aria-label={`Diminuir ${product.name}`}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-lg transition hover:bg-black/5"
+          style={{ borderColor: "var(--paper-edge)", color: "var(--brand-blue-deep)" }}
+        >
+          −
+        </button>
+        {isVolume ? (
+          <input
+            type="text"
+            inputMode="numeric"
+            value={value > 0 ? formatBRLInput(value) : ""}
+            placeholder="R$ 0"
+            onChange={(e) => onChange(parseBRLInput(e.target.value))}
+            className="h-10 w-40 rounded-lg border px-3 text-right text-[15px] font-semibold outline-none focus:border-[color:var(--brand-orange)]"
+            style={{ borderColor: "var(--paper-edge)", color: "var(--brand-blue-deep)" }}
+          />
+        ) : (
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={value}
+            onChange={(e) => onChange(Math.max(0, parseInt(e.target.value || "0", 10) || 0))}
+            className="h-10 w-24 rounded-lg border text-center text-[15px] font-semibold outline-none focus:border-[color:var(--brand-orange)]"
+            style={{ borderColor: "var(--paper-edge)", color: "var(--brand-blue-deep)" }}
+          />
+        )}
+        <button
+          type="button"
+          onClick={inc}
+          aria-label={`Aumentar ${product.name}`}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-lg transition hover:bg-black/5"
+          style={{ borderColor: "var(--paper-edge)", color: "var(--brand-blue-deep)" }}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type ResultRow = { product: SimulatorProduct; input: number; volume: number; revenue: number };
 
 function StepResults({
   rows,
@@ -410,7 +449,7 @@ function StepResults({
   onRestart: () => void;
   onTalk: () => void;
 }) {
-  const active = rows.filter((r) => r.quantity > 0);
+  const active = rows.filter((r) => r.input > 0);
   const annual = total * 12;
   const catEntries = Array.from(byCategory.entries()).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
 
@@ -446,9 +485,9 @@ function StepResults({
               <tr className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
                 <th className="px-5 py-3 font-medium">Produto</th>
                 <th className="px-5 py-3 font-medium">Categoria</th>
-                <th className="px-5 py-3 font-medium">Comissão média</th>
-                <th className="px-5 py-3 text-right font-medium">Operações / mês</th>
-                <th className="px-5 py-3 text-right font-medium">Receita mensal</th>
+                <th className="px-5 py-3 font-medium">Comissão utilizada</th>
+                <th className="px-5 py-3 text-right font-medium">Volume Mensal (R$)</th>
+                <th className="px-5 py-3 text-right font-medium">Receita estimada</th>
               </tr>
             </thead>
             <tbody>
@@ -466,7 +505,14 @@ function StepResults({
                     </span>
                   </td>
                   <td className="px-5 py-3 text-[13px]" style={{ color: "var(--muted-foreground)" }}>{r.product.commissionLabel}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{r.quantity}</td>
+                  <td className="px-5 py-3 text-right tabular-nums" style={{ color: "var(--brand-blue-deep)" }}>
+                    {formatBRL(r.volume)}
+                    {r.product.pricingModel === "quantity" && (
+                      <span className="ml-1 text-[11px] text-[color:var(--muted-foreground)]">
+                        ({r.input} {r.input === 1 ? "contrato" : "contratos"})
+                      </span>
+                    )}
+                  </td>
                   <td className="px-5 py-3 text-right font-semibold tabular-nums" style={{ color: "var(--brand-blue-deep)" }}>{formatBRL(r.revenue)}</td>
                 </tr>
               ))}
