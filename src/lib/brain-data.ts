@@ -174,7 +174,12 @@ export type AlertCategory =
   | "portal"
   | "contrato"
   | "reuniao"
-  | "oportunidade";
+  | "oportunidade"
+  | "desempenho"
+  | "meta"
+  | "documento"
+  | "inatividade"
+  | "crescimento";
 
 export const CATEGORY_LABEL: Record<AlertCategory, string> = {
   contato: "Contato",
@@ -183,6 +188,11 @@ export const CATEGORY_LABEL: Record<AlertCategory, string> = {
   contrato: "Contrato",
   reuniao: "Reuniao",
   oportunidade: "Oportunidade",
+  desempenho: "Desempenho",
+  meta: "Meta",
+  documento: "Documento",
+  inatividade: "Inatividade",
+  crescimento: "Crescimento",
 };
 
 export type BrainAlert = {
