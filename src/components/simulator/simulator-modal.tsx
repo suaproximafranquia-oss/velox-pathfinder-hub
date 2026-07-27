@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { X, ArrowRight, ArrowLeft, Check, Calculator, Sparkles, RotateCcw, MessageCircle } from "lucide-react";
 import {
   SIMULATOR_PRODUCTS,
-  estimateMonthlyRevenue,
+  estimateRevenue,
   formatBRL,
+  parseBRLInput,
+  formatBRLInput,
   type ProductCategory,
   type SimulatorProduct,
 } from "@/lib/simulator-products";
@@ -38,7 +40,9 @@ const CATEGORY_COLORS: Record<ProductCategory, string> = {
 export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [step, setStep] = useState<Step>(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  // Para produtos "volume": valor em R$ mensal informado.
+  // Para produtos "quantity": quantidade de contratos mensais.
+  const [inputs, setInputs] = useState<Record<string, number>>({});
   const [contactOpen, setContactOpen] = useState(false);
 
   useEffect(() => {
@@ -56,7 +60,7 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
   const reset = () => {
     setStep(1);
     setSelected(new Set());
-    setQuantities({});
+    setInputs({});
   };
 
   const toggle = (id: string) =>
@@ -82,9 +86,9 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
 
   const results = useMemo(() => {
     const rows = selectedProducts.map((p) => {
-      const qty = Math.max(0, quantities[p.id] ?? 0);
-      const revenue = estimateMonthlyRevenue(p, qty);
-      return { product: p, quantity: qty, revenue };
+      const input = Math.max(0, inputs[p.id] ?? 0);
+      const { revenue, volume } = estimateRevenue(p, input);
+      return { product: p, input, volume, revenue };
     });
     const total = rows.reduce((sum, r) => sum + r.revenue, 0);
     const byCategory = new Map<ProductCategory, number>();
@@ -92,10 +96,10 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
       byCategory.set(r.product.category, (byCategory.get(r.product.category) ?? 0) + r.revenue);
     }
     return { rows, total, byCategory };
-  }, [selectedProducts, quantities]);
+  }, [selectedProducts, inputs]);
 
   const canAdvance = selected.size > 0;
-  const canCalculate = selectedProducts.some((p) => (quantities[p.id] ?? 0) > 0);
+  const canCalculate = selectedProducts.some((p) => (inputs[p.id] ?? 0) > 0);
 
   return (
     <div
@@ -139,8 +143,8 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
           {step === 2 && (
             <StepQuantities
               products={selectedProducts}
-              quantities={quantities}
-              onChange={(id, q) => setQuantities((s) => ({ ...s, [id]: q }))}
+              inputs={inputs}
+              onChange={(id, v) => setInputs((s) => ({ ...s, [id]: v }))}
             />
           )}
           {step === 3 && (
