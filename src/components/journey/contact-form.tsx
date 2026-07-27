@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import type { ExecutiveUser } from "@/lib/executive-auth";
+import { registerLead } from "@/lib/leads";
 
 export function ContactForm() {
   const navigate = useNavigate();
@@ -41,16 +42,16 @@ export function ContactForm() {
       `Melhor horário: ${form.time}`;
     const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`;
     if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(
-          "velox:manual:lead",
-          JSON.stringify({
-            ...form,
-            responsibleExecutiveId: exec?.id ?? null,
-            personalized: responsible.personalized,
-          }),
-        );
-      } catch { /* noop */ }
+      registerLead({
+        identity: {
+          name: form.name,
+          whatsapp: form.phone,
+          email: "",
+          city: form.city,
+        },
+        material: "Manual do Investidor",
+        origin: `Manual · Formulário final · ${form.time}`,
+      });
       window.open(url, "_blank");
     }
     navigate({ to: "/manual/concluido" });
