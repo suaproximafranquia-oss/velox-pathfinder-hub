@@ -1155,6 +1155,8 @@ function Index() {
                 {
                   n: "01",
                   name: "Home Office",
+                  price: "R$ 17.900",
+                  priceNote: "Investimento inicial oficial",
                   img: homeOfficeImg.url,
                   alt: "Estação de trabalho de operação Home Office",
                   copy: "Formato de operação enxuta, indicado para quem deseja iniciar com estrutura leve, custos reduzidos e foco na consolidação da carteira. Preserva a mesma padronização e o mesmo suporte oferecidos aos demais modelos da rede.",
@@ -1164,6 +1166,8 @@ function Index() {
                 {
                   n: "02",
                   name: "Loja Física",
+                  price: "R$ 29.900",
+                  priceNote: "Investimento inicial oficial",
                   img: lojaFachada2Img.url,
                   alt: "Loja física Velox — fachada institucional",
                   copy: "Formato com ponto comercial dedicado, voltado à construção de presença regional e ao fortalecimento da marca. Amplia a capacidade de atendimento presencial e favorece a percepção de solidez pelo cliente.",
@@ -1185,6 +1189,23 @@ function Index() {
                       </div>
                     </div>
                     <div className="p-8 md:p-10">
+                      <div
+                        className="mb-6 flex items-baseline justify-between border-b pb-6"
+                        style={{ borderColor: "var(--on-dark-border)" }}
+                      >
+                        <div>
+                          <div className="eyebrow eyebrow-on-dark">{m.priceNote}</div>
+                          <div
+                            className="mt-2 font-serif text-4xl md:text-5xl"
+                            style={{ color: "var(--brand-orange)" }}
+                          >
+                            {m.price}
+                          </div>
+                        </div>
+                        <div className="text-right text-xs uppercase tracking-[0.24em] on-dark-muted">
+                          Royalties<br />R$ 497 · fixo
+                        </div>
+                      </div>
                       <p className="text-base leading-relaxed on-dark-muted">{m.copy}</p>
                       <dl className="mt-8 grid gap-4 border-t pt-6" style={{ borderColor: "var(--on-dark-border)" }}>
                         <div>
@@ -1203,7 +1224,7 @@ function Index() {
             </div>
             <Reveal delay={200}>
               <p className="mt-12 text-center text-sm on-dark-muted">
-                Investimento, royalties e prazos contratuais são apresentados diretamente pela equipe, com os documentos institucionais previstos pela Lei de Franquias.
+                Valores oficiais de investimento inicial. Royalties, taxa de publicidade e prazos contratuais são detalhados em conversa com nossa equipe, acompanhados dos documentos institucionais previstos pela Lei de Franquias.
               </p>
             </Reveal>
           </div>
