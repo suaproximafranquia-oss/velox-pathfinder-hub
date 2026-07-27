@@ -493,9 +493,9 @@ body[data-shell="universo"] .portal-card:hover {
  * side-effects on other Portal surfaces.
  * ===================================================================*/
 :root {
-  --on-dark: oklch(0.97 0.008 82);
-  --on-dark-muted: oklch(0.86 0.02 250);
-  --on-dark-border: oklch(1 0 0 / 0.12);
+  --on-dark: oklch(0.985 0.006 82);
+  --on-dark-muted: oklch(0.93 0.014 82);
+  --on-dark-border: oklch(1 0 0 / 0.16);
   --font-serif: "Cormorant Garamond", ui-serif, Georgia, serif;
   --grad-paper: radial-gradient(1100px 600px at 12% -8%, color-mix(in oklab, var(--brand-orange) 6%, transparent), transparent 60%),
     radial-gradient(900px 700px at 100% 20%, color-mix(in oklab, var(--brand-blue) 5%, transparent), transparent 55%),
@@ -513,13 +513,47 @@ body[data-shell="universo"] .portal-card:hover {
   --shadow-panel: 0 60px 120px -40px oklch(0.15 0.09 260 / 0.55);
 }
 
+/* Superfícies escuras editoriais — fundo opaco navy garantido (fallback
+ * sólido antes do gradiente, para os casos em que a variável --grad-* não
+ * é resolvida no contexto do body[data-shell]). Todo texto herda um branco
+ * de alto contraste. */
 .surface-paper    { background: var(--grad-paper); color: var(--foreground); }
-.surface-graphite { background: var(--grad-graphite); color: var(--on-dark); }
-.surface-ink      { background: var(--grad-ink); color: var(--on-dark); }
-.surface-blue     { background: var(--grad-blue); color: var(--on-dark); }
+.surface-graphite {
+  background-color: oklch(0.19 0.02 258);
+  background-image: var(--grad-graphite);
+  color: var(--on-dark);
+}
+.surface-ink {
+  background-color: oklch(0.14 0.08 260);
+  background-image: var(--grad-ink);
+  color: var(--on-dark);
+}
+.surface-blue {
+  background-color: oklch(0.22 0.14 260);
+  background-image: var(--grad-blue);
+  color: var(--on-dark);
+}
 .surface-orange   { background: var(--grad-orange); color: oklch(0.16 0.02 260); }
 
-.on-dark, .on-dark p, .on-dark li { color: var(--on-dark); }
+.surface-ink, .surface-graphite, .surface-blue,
+.surface-ink *, .surface-graphite *, .surface-blue * {
+  /* Impede que classes utilitárias do editorial base pintem títulos com
+   * o mesmo azul do fundo — dentro de superfícies escuras tudo herda
+   * o branco de alto contraste. */
+}
+.surface-ink h1, .surface-ink h2, .surface-ink h3, .surface-ink h4,
+.surface-graphite h1, .surface-graphite h2, .surface-graphite h3, .surface-graphite h4,
+.surface-blue h1, .surface-blue h2, .surface-blue h3, .surface-blue h4 {
+  color: var(--on-dark);
+}
+.surface-ink p, .surface-ink li, .surface-ink blockquote,
+.surface-graphite p, .surface-graphite li, .surface-graphite blockquote,
+.surface-blue p, .surface-blue li, .surface-blue blockquote {
+  color: var(--on-dark);
+}
+
+.on-dark, .on-dark p, .on-dark li, .on-dark h1, .on-dark h2, .on-dark h3, .on-dark h4 { color: var(--on-dark); }
+.on-dark-muted { color: var(--on-dark-muted); }
 .on-dark .eyebrow, .eyebrow-on-dark { color: var(--on-dark-muted); }
 
 .font-serif { font-family: var(--font-serif); }
