@@ -871,27 +871,67 @@ function Index() {
             <div className="mx-auto max-w-3xl text-center">
               <Reveal>
                 <div className="font-serif text-sm italic on-dark-muted">Capítulo II · O Mercado</div>
-                <div className="mt-4 flex justify-center"><Eyebrow tone="dark">Parceiros estratégicos</Eyebrow></div>
+                <div className="mt-4 flex justify-center"><Eyebrow tone="dark">Marketplace de parceiros</Eyebrow></div>
                 <h2 id="parceiros-title" className="mt-6 text-balance text-4xl leading-[1.08] on-dark sm:text-5xl md:text-6xl">
-                  Instituições que caminham conosco.
+                  Um ecossistema financeiro <em style={{ color: "var(--brand-orange)" }}>de alcance nacional.</em>
                 </h2>
                 <p className="mt-8 text-lg leading-relaxed on-dark-muted">
-                  Mais de 50 instituições financeiras — bancos, seguradoras, administradoras de consórcio, fintechs e fundos — compõem a base de parcerias que sustentam o portfólio oferecido pela rede.
+                  Bancos, seguradoras, administradoras, fintechs e fundos que sustentam o portfólio da rede e ampliam, todos os dias, as oportunidades entregues aos nossos clientes.
                 </p>
               </Reveal>
             </div>
-            <Reveal delay={160}>
-              <figure className="mt-16 overflow-hidden border shadow-[var(--shadow-panel)]" style={{ borderColor: "var(--on-dark-border)", background: "var(--paper)" }}>
+
+            {/* Stat trio — grandeza institucional */}
+            <Reveal delay={120}>
+              <div
+                className="mt-16 grid gap-px overflow-hidden border"
+                style={{
+                  background: "var(--on-dark-border)",
+                  borderColor: "var(--on-dark-border)",
+                  gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
+                }}
+              >
+                <div className="grid gap-px sm:grid-cols-3" style={{ background: "var(--on-dark-border)" }}>
+                  {[
+                    { value: "+200", label: "Parceiros estratégicos", note: "Bancos, seguradoras e fintechs" },
+                    { value: "+150", label: "Produtos financeiros", note: "Portfólio ativo e em expansão" },
+                    { value: "BR",   label: "Cobertura nacional",    note: "Presença em todas as regiões" },
+                  ].map((it) => (
+                    <div key={it.label} className="surface-ink flex h-full flex-col p-8 md:p-10">
+                      <span
+                        className="num text-5xl leading-none md:text-6xl"
+                        style={{ color: "var(--brand-orange)" }}
+                      >
+                        {it.value}
+                      </span>
+                      <span className="mt-6 font-serif text-lg leading-snug on-dark md:text-xl">
+                        {it.label}
+                      </span>
+                      <span className="mt-3 text-xs uppercase tracking-[0.24em] on-dark-muted">
+                        {it.note}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+
+            {/* Marketplace — imagem oficial */}
+            <Reveal delay={200}>
+              <figure
+                className="mt-12 overflow-hidden border shadow-[var(--shadow-panel)]"
+                style={{ borderColor: "var(--on-dark-border)", background: "var(--paper)" }}
+              >
                 <img
                   src={parceirosImg.url}
-                  alt="Marketplace de parceiros Velox — logotipos de bancos, seguradoras e instituições financeiras"
+                  alt="Marketplace Velox — mais de 200 parceiros estratégicos entre bancos, seguradoras, administradoras, fintechs e fundos"
                   loading="lazy"
                   decoding="async"
                   className="block h-auto w-full object-contain"
                 />
               </figure>
               <p className="mt-6 text-center text-xs uppercase tracking-[0.24em] on-dark-muted">
-                Marcas exibidas em caráter ilustrativo · Marketplace de parceiros Velox
+                Marcas exibidas em caráter ilustrativo · Marketplace oficial de parceiros Velox
               </p>
             </Reveal>
           </div>
