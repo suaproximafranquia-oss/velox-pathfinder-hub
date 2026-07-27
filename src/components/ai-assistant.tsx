@@ -134,11 +134,11 @@ export function AiAssistant() {
         onClick={() => setOpen(true)}
         aria-label="Abrir assistente"
         className={cn(
-          "fixed z-40 bottom-6 right-6 group inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/40 bg-[color:var(--navy)]/90 backdrop-blur-md px-4 py-3 text-sm text-[color:var(--foreground)] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)] hover:border-[color:var(--gold)] hover:text-[color:var(--gold)] transition-all",
+          "fixed z-40 bottom-6 right-6 group inline-flex items-center gap-2 rounded-full border border-[color:var(--brand-orange)]/60 bg-[color:var(--brand-blue-deep)] px-5 py-3 text-sm font-medium text-white shadow-[0_16px_48px_-12px_rgba(6,12,28,0.55)] hover:bg-[color:var(--brand-orange)] hover:text-white hover:border-[color:var(--brand-orange)] transition-all",
           open && "opacity-0 pointer-events-none",
         )}
       >
-        <MessageCircle className="h-4 w-4 text-[color:var(--gold)]" />
+        <MessageCircle className="h-4 w-4 text-[color:var(--brand-orange)] group-hover:text-white transition-colors" />
         <span className="hidden sm:inline">Tirar uma dúvida</span>
       </button>
 
@@ -156,23 +156,23 @@ export function AiAssistant() {
         />
         <aside
           className={cn(
-            "absolute right-0 top-0 h-full w-full sm:max-w-md border-l border-[color:var(--border)] bg-[color:var(--navy)] shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.22,0.61,0.36,1)] flex flex-col",
+            "absolute right-0 top-0 h-full w-full sm:max-w-md border-l border-white/10 bg-[color:var(--brand-blue-deep)] text-white shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.22,0.61,0.36,1)] flex flex-col",
             open ? "translate-x-0" : "translate-x-full",
           )}
           aria-label="Assistente do Manual"
         >
-          <header className="flex items-start justify-between px-6 py-5 border-b border-[color:var(--border)]">
+          <header className="flex items-start justify-between px-6 py-5 border-b border-white/10">
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] flex items-center gap-2">
-                <Sparkles className="h-3 w-3 text-[color:var(--gold)]" />
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/70 flex items-center gap-2">
+                <Sparkles className="h-3 w-3 text-[color:var(--brand-orange)]" />
                 Assistente do Manual
               </p>
-              <p className="text-sm mt-1 truncate">{ctx.title}</p>
+              <p className="text-sm mt-1 truncate text-white">{ctx.title}</p>
             </div>
             <button
               onClick={() => setOpen(false)}
               aria-label="Fechar assistente"
-              className="rounded-full p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)] transition"
+              className="rounded-full p-2 text-white/70 hover:text-white hover:bg-white/10 transition"
             >
               <X className="h-4 w-4" />
             </button>
@@ -182,7 +182,7 @@ export function AiAssistant() {
             ref={scrollRef}
             className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
           >
-            <div className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--gold)]/5 px-4 py-3 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+            <div className="rounded-2xl border border-[color:var(--brand-orange)]/30 bg-[color:var(--brand-orange)]/10 px-4 py-3 text-sm leading-relaxed text-white/85">
               {ctx.hint}
             </div>
 
@@ -198,8 +198,8 @@ export function AiAssistant() {
                   className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
                     m.role === "user"
-                      ? "bg-[color:var(--gold)]/10 border border-[color:var(--gold)]/30 text-[color:var(--foreground)]"
-                      : "bg-[color:var(--card)]/60 border border-[color:var(--border)] text-[color:var(--foreground)]",
+                      ? "bg-[color:var(--brand-orange)]/20 border border-[color:var(--brand-orange)]/40 text-white"
+                      : "bg-white/5 border border-white/10 text-white",
                   )}
                 >
                   {m.content}
@@ -209,19 +209,19 @@ export function AiAssistant() {
 
             {pending && (
               <div className="flex justify-start">
-                <div className="rounded-2xl px-4 py-3 text-sm bg-[color:var(--card)]/60 border border-[color:var(--border)] text-[color:var(--muted-foreground)]">
+                <div className="rounded-2xl px-4 py-3 text-sm bg-white/5 border border-white/10 text-white/70">
                   <span className="inline-flex gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--gold)] animate-pulse" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--gold)] animate-pulse [animation-delay:0.15s]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--gold)] animate-pulse [animation-delay:0.3s]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--brand-orange)] animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--brand-orange)] animate-pulse [animation-delay:0.15s]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--brand-orange)] animate-pulse [animation-delay:0.3s]" />
                   </span>
                 </div>
               </div>
             )}
           </div>
 
-          <footer className="border-t border-[color:var(--border)] p-4">
-            <div className="flex items-end gap-2 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-2 focus-within:border-[color:var(--gold)]/40 transition-colors">
+          <footer className="border-t border-white/10 p-4">
+            <div className="flex items-end gap-2 rounded-2xl border border-white/15 bg-white/5 px-3 py-2 focus-within:border-[color:var(--brand-orange)]/60 transition-colors">
               <textarea
                 ref={inputRef}
                 rows={1}
@@ -234,19 +234,19 @@ export function AiAssistant() {
                   }
                 }}
                 placeholder="Escreva sua dúvida..."
-                className="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-[color:var(--muted-foreground)]/60 max-h-32"
+                className="flex-1 resize-none bg-transparent text-sm leading-relaxed text-white outline-none placeholder:text-white/50 max-h-32"
               />
               <button
                 type="button"
                 onClick={handleSend}
                 disabled={!input.trim() || pending}
                 aria-label="Enviar"
-                className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-[color:var(--gold-foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--brand-orange)] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition"
               >
                 <Send className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-2 text-[10px] text-[color:var(--muted-foreground)]/70 text-center">
+            <p className="mt-2 text-[10px] text-white/60 text-center">
               O assistente é um apoio opcional durante a leitura.
             </p>
           </footer>
