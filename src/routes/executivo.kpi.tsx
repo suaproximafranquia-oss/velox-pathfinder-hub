@@ -44,6 +44,7 @@ import {
 } from "@/lib/kpi-manager";
 import { visibleCollaborators } from "@/lib/teams";
 import { cn } from "@/lib/utils";
+import { KpiAiAssistant } from "@/components/executive/kpi-ai-assistant";
 
 const CONSOLIDATED_VIEW_ID = "__atlas_consolidated__";
 
@@ -420,6 +421,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           }}
         />
       </div>
+      <KpiAiAssistant session={session} monthKey={activeMonth.key} origin="kpi" />
     </ExecutiveShell>
   );
 }
