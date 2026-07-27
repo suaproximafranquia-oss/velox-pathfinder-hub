@@ -4,6 +4,8 @@ import { ModuleChrome, type ModuleChromeSection } from "@/components/editorial/m
 import { BackToTop } from "@/components/site/BackToTop";
 import { Reveal } from "@/components/site/Reveal";
 import { VMark } from "@/components/site/VMark";
+import { AiAssistant } from "@/components/ai-assistant";
+import { ExecutiveContactDialog } from "@/components/shared/executive-contact-dialog";
 import {
   ChapterCover,
   EditorialSection,
@@ -408,6 +410,7 @@ function Hero() {
 /* ================================================================ */
 function Index() {
   const active = useScrollSpy(SECTIONS.map((s) => s.id));
+  const [contactOpen, setContactOpen] = useState(false);
 
   return (
     <ModuleChrome
@@ -1316,15 +1319,16 @@ function Index() {
               </Reveal>
               <Reveal delay={360}>
                 <div className="mt-14 flex justify-center">
-                  <a
-                    href="#contato"
-                    aria-label="Iniciar uma conversa com a equipe da Velox"
-                    className="group inline-flex min-h-11 items-center gap-4 border px-10 py-5 text-xs uppercase tracking-[0.28em] transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => setContactOpen(true)}
+                    aria-label="Conversar com o executivo responsável"
+                    className="group inline-flex min-h-11 items-center gap-4 border px-10 py-5 text-xs font-medium uppercase tracking-[0.28em] transition-colors hover:bg-[color:var(--brand-orange)] hover:text-white"
                     style={{ borderColor: "var(--brand-orange)", color: "var(--on-dark)" }}
                   >
-                    Iniciar uma conversa
-                    <span className="h-px w-8 transition-all group-hover:w-14" style={{ background: "var(--brand-orange)" }} />
-                  </a>
+                    Conversar com o Executivo
+                    <span className="h-px w-8 transition-all group-hover:w-14 group-hover:bg-white" style={{ background: "var(--brand-orange)" }} />
+                  </button>
                 </div>
               </Reveal>
               <Reveal delay={420}>
@@ -1354,6 +1358,13 @@ function Index() {
       </footer>
 
       <BackToTop />
+      <AiAssistant />
+      <ExecutiveContactDialog
+        open={contactOpen}
+        onClose={() => setContactOpen(false)}
+        material="Material Institucional de Apresentação"
+        triggerLabel="CTA · Encerramento"
+      />
     </ModuleChrome>
   );
 }

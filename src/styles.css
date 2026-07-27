@@ -494,7 +494,7 @@ body[data-shell="universo"] .portal-card:hover {
  * ===================================================================*/
 :root {
   --on-dark: oklch(0.97 0.008 82);
-  --on-dark-muted: oklch(0.76 0.026 250);
+  --on-dark-muted: oklch(0.86 0.02 250);
   --on-dark-border: oklch(1 0 0 / 0.12);
   --font-serif: "Cormorant Garamond", ui-serif, Georgia, serif;
   --grad-paper: radial-gradient(1100px 600px at 12% -8%, color-mix(in oklab, var(--brand-orange) 6%, transparent), transparent 60%),
