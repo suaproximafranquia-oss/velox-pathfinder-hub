@@ -181,14 +181,14 @@ function Hero() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 40%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 12%, transparent) 42%, color-mix(in oklab, var(--brand-blue-deep) 32%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 62%, transparent) 100%)",
+              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 62%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 48%, transparent) 45%, color-mix(in oklab, var(--brand-blue-deep) 55%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 78%, transparent) 100%)",
           }}
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(70% 60% at 18% 55%, color-mix(in oklab, var(--brand-blue-deep) 28%, transparent), transparent 72%), radial-gradient(55% 55% at 92% 18%, color-mix(in oklab, var(--brand-orange) 14%, transparent), transparent 65%)",
+              "radial-gradient(75% 70% at 15% 62%, color-mix(in oklab, var(--ink) 62%, transparent), transparent 75%), radial-gradient(55% 55% at 92% 18%, color-mix(in oklab, var(--brand-orange) 14%, transparent), transparent 65%)",
           }}
         />
         {/* Faixa de continuidade — funde a base do Hero com o fundo institucional da Home */}
