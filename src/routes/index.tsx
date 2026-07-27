@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { BookOpen, Compass, Building2, BookMarked, Users, Layers, ArrowUpRight, X } from "lucide-react";
+import { BookOpen, Compass, Building2, BookMarked, Users, Calculator, ArrowUpRight, X } from "lucide-react";
+import { SimulatorModal } from "@/components/simulator/simulator-modal";
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
 import manualCoverImg from "@/assets/portal-manual-cover.png.asset.json";
 import materialInstitucionalImg from "@/assets/portal-material-institucional.png.asset.json";
@@ -43,6 +44,7 @@ type ModuleCard = {
   href?: string;
   cta: string;
   status: "aberto" | "em-preparacao" | "em-desenvolvimento";
+  action?: "simulator";
 };
 
 const MODULES: ModuleCard[] = [
@@ -106,18 +108,20 @@ const MODULES: ModuleCard[] = [
   {
     key: "modulo-vi",
     eyebrow: "Módulo VI",
-    title: "Novo módulo institucional",
+    title: "Simulador Inteligente de Potencial de Receita",
     description:
-      "Um novo espaço editorial está sendo preparado para compor o Portal Velox. Em breve, mais uma frente do nosso ecossistema.",
-    icon: Layers,
+      "Monte diferentes cenários comerciais e descubra uma estimativa do potencial de receita da sua futura operação.",
+    icon: Calculator,
     cover: sedeFachadaImg.url,
-    cta: "Em desenvolvimento",
-    status: "em-desenvolvimento",
+    cta: "Iniciar simulação",
+    status: "aberto",
+    action: "simulator",
   },
 ];
 
 function PortalHome() {
   const [openPanel, setOpenPanel] = useState<{ src: string; title: string } | null>(null);
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
 
   useEffect(() => {
     if (!openPanel) return;
@@ -136,10 +140,16 @@ function PortalHome() {
       <PortalHeader />
       <main>
         <Hero />
-        <ModulesGrid onOpen={(m) => m.panelSrc && setOpenPanel({ src: m.panelSrc, title: m.title })} />
+        <ModulesGrid
+          onOpen={(m) => {
+            if (m.action === "simulator") setSimulatorOpen(true);
+            else if (m.panelSrc) setOpenPanel({ src: m.panelSrc, title: m.title });
+          }}
+        />
       </main>
       <PortalFooter />
       <ModulePanel panel={openPanel} onClose={() => setOpenPanel(null)} />
+      <SimulatorModal open={simulatorOpen} onClose={() => setSimulatorOpen(false)} />
     </div>
   );
 }
@@ -361,6 +371,18 @@ function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: Mod
   );
 
   if (m.panelSrc) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen(m)}
+        aria-label={`Abrir ${m.title}`}
+        className="block h-full w-full text-left focus:outline-none"
+      >
+        {inner}
+      </button>
+    );
+  }
+  if (m.action) {
     return (
       <button
         type="button"
