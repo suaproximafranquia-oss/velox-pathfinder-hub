@@ -38,7 +38,7 @@ import techImg from "@/assets/editorial/tech.jpg.asset.json";
 import closingImg from "@/assets/editorial/closing.jpg.asset.json";
 import executivosImg from "@/assets/editorial/velox-executivos.png.asset.json";
 import larissaImg from "@/assets/editorial/velox-larissa.png.asset.json";
-import parceirosImg from "@/assets/editorial/velox-parceiros.png.asset.json";
+import parceirosImg from "@/assets/editorial/velox-marketplace-parceiros.png.asset.json";
 import marioConsultoresImg from "@/assets/editorial/velox-mario-consultores.png.asset.json";
 import homeOfficeImg from "@/assets/editorial/velox-home-office.jpg.asset.json";
 
