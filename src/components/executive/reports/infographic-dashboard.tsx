@@ -10,7 +10,6 @@ import {
   Activity,
   BarChart3,
   PieChart as PieIcon,
-  TrendingUp,
   Percent,
   Layers,
 } from "lucide-react";
@@ -130,103 +129,90 @@ function BarsIndicators({ report }: { report: ReportDataset }) {
 function ConversionRings({ report }: { report: ReportDataset }) {
   const s = report.summary;
   const rows = [
-    { label: "Lead → Apresentação", value: pct(s.presentations, s.leads) },
-    { label: "Apresentação → COF", value: pct(s.contractsSent, s.presentations) },
-    { label: "COF → Venda", value: pct(s.sales, s.contractsSent) },
-    { label: "Lead → Venda", value: pct(s.sales, s.leads) },
+    {
+      label: "Leads Novos → Apresentação",
+      hint: "Quantos leads captados avançaram para apresentação comercial.",
+      converted: Math.min(s.presentations, s.leads),
+      base: s.leads,
+      value: pct(s.presentations, s.leads),
+    },
+    {
+      label: "Apresentação → COF",
+      hint: "Apresentações que evoluíram para envio de proposta (COF).",
+      converted: Math.min(s.contractsSent, s.presentations),
+      base: s.presentations,
+      value: pct(s.contractsSent, s.presentations),
+    },
+    {
+      label: "COF → Venda",
+      hint: "Propostas enviadas (COF) que foram efetivamente convertidas em venda.",
+      converted: Math.min(s.sales, s.contractsSent),
+      base: s.contractsSent,
+      value: pct(s.sales, s.contractsSent),
+    },
+    {
+      label: "Leads Novos → Venda",
+      hint: "Conversão consolidada do funil, do primeiro lead à venda concluída.",
+      converted: Math.min(s.sales, s.leads),
+      base: s.leads,
+      value: pct(s.sales, s.leads),
+    },
   ];
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
+      <div className="flex items-center gap-2 mb-5">
         <Percent className="h-4 w-4 text-[color:var(--gold)]" />
-        <h4 className="font-display text-sm">Taxas de conversão</h4>
+        <h4 className="font-display text-base">Taxas de conversão</h4>
+        <span className="ml-auto text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+          Funil completo · {report.month.label}
+        </span>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {rows.map((r) => {
           const dash = r.value * 100;
           return (
             <div
               key={r.label}
-              className="rounded-xl border border-[color:var(--border)]/70 bg-[color:var(--background)]/30 p-3 flex items-center gap-3"
+              className="rounded-xl border border-[color:var(--border)]/70 bg-[color:var(--background)]/30 p-4 flex flex-col gap-3"
             >
-              <svg viewBox="0 0 40 40" className="h-12 w-12 -rotate-90">
-                <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
-                <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
-                  fill="none"
-                  stroke="var(--gold)"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeDasharray={`${dash} 100`}
-                  pathLength={100}
-                />
-              </svg>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)] truncate">
+              <div className="flex items-center gap-3">
+                <svg viewBox="0 0 40 40" className="h-14 w-14 -rotate-90 flex-shrink-0">
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+                  <circle
+                    cx="20"
+                    cy="20"
+                    r="16"
+                    fill="none"
+                    stroke="var(--gold)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={`${dash} 100`}
+                    pathLength={100}
+                  />
+                </svg>
+                <div className="min-w-0">
+                  <p className="font-display text-2xl leading-tight tabular-nums">
+                    {fmtPercent(r.value)}
+                  </p>
+                  <p className="text-[11px] text-[color:var(--muted-foreground)] mt-0.5">
+                    <span className="tabular-nums text-[color:var(--foreground)]">
+                      {formatNumber(r.converted)}
+                    </span>{" "}
+                    de {formatNumber(r.base)} convertidos
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-[color:var(--border)]/60 pt-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
                   {r.label}
                 </p>
-                <p className="font-display text-lg leading-tight tabular-nums">
-                  {fmtPercent(r.value)}
+                <p className="text-[11px] text-[color:var(--muted-foreground)]/90 mt-1 leading-relaxed">
+                  {r.hint}
                 </p>
               </div>
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-/* ---------------------- Sparkline (evolução diária) ---------------------- */
-
-function SalesLine({ report }: { report: ReportDataset }) {
-  // Constrói uma série diária derivada do funil, sem inventar dados:
-  // usa a distribuição dos indicadores diários agregados de report.
-  const daysInMonth = new Date(report.month.year, report.month.month + 1, 0).getDate();
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  // Aproximação transparente: distribui o total proporcionalmente aos
-  // dias úteis (finais de semana = metade do peso). Nunca extrapola.
-  const weights = days.map((d) => {
-    const dow = new Date(report.month.year, report.month.month, d).getDay();
-    return dow === 0 || dow === 6 ? 0.5 : 1;
-  });
-  const wsum = weights.reduce((a, b) => a + b, 0) || 1;
-  const series = weights.map((w) => (report.summary.salesValue * w) / wsum);
-  const max = Math.max(1, ...series);
-  const W = 320;
-  const H = 90;
-  const step = W / Math.max(1, series.length - 1);
-  const points = series
-    .map((v, i) => `${(i * step).toFixed(1)},${(H - (v / max) * (H - 8) - 2).toFixed(1)}`)
-    .join(" ");
-  return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
-      <div className="flex items-center gap-2 mb-3">
-        <TrendingUp className="h-4 w-4 text-[color:var(--gold)]" />
-        <h4 className="font-display text-sm">Distribuição diária estimada</h4>
-      </div>
-      <p className="text-[10px] text-[color:var(--muted-foreground)] mb-2">
-        Alocação transparente do faturamento sobre os dias úteis da competência.
-      </p>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-24">
-        <defs>
-          <linearGradient id="areaG" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="var(--gold)" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="var(--gold)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <polyline points={points} fill="none" stroke="var(--gold)" strokeWidth="1.6" />
-        <polygon
-          points={`0,${H} ${points} ${W},${H}`}
-          fill="url(#areaG)"
-        />
-      </svg>
-      <div className="flex justify-between text-[10px] text-[color:var(--muted-foreground)] mt-1">
-        <span>Dia 1</span>
-        <span>{formatCurrency(report.summary.salesValue)}</span>
-        <span>Dia {daysInMonth}</span>
       </div>
     </div>
   );
@@ -278,9 +264,8 @@ export function InfographicDashboard({ report, className }: { report: ReportData
       <div className="grid gap-4 lg:grid-cols-2">
         <DonutFunnel report={report} />
         <BarsIndicators report={report} />
-        <ConversionRings report={report} />
-        <SalesLine report={report} />
       </div>
+      <ConversionRings report={report} />
     </section>
   );
 }
