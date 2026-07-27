@@ -31,7 +31,6 @@ import {
 import { AVAILABLE_MONTHS, DEFAULT_MONTH_KEY } from "@/lib/kpi-manager";
 import { visibleCollaborators } from "@/lib/teams";
 import { KpiCard } from "@/components/executive/brain/kpi-card";
-import { FunnelCard } from "@/components/executive/brain/funnel-card";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/executivo/brain")({
@@ -166,14 +165,12 @@ function BrainPage() {
 
       <ScopeBreadcrumb mode={scope.mode} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {snapshot.kpis.map((k) => (
-          <KpiCard key={k.id} kpi={k} />
-        ))}
-      </div>
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-        <FunnelCard stages={snapshot.funnel} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] items-start">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {snapshot.kpis.map((k) => (
+            <KpiCard key={k.id} kpi={k} />
+          ))}
+        </div>
         <AlertsCenter
           alerts={activeAlerts}
           copiedId={copiedId}
@@ -217,16 +214,21 @@ function AlertsCenter({
   return (
     <div
       className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-5 flex flex-col"
-      style={{ height: "min(560px, calc(100vh - 220px))" }}
+      style={{ height: "min(720px, calc(100vh - 200px))" }}
     >
-      <div className="flex items-center justify-between mb-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <BellRing className="h-4 w-4 text-[color:var(--gold)]" />
-          <h2 className="font-display text-lg">Central de Alertas</h2>
+      <div className="mb-4 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BellRing className="h-4 w-4 text-[color:var(--gold)]" />
+            <h2 className="font-display text-lg">Central de Alertas</h2>
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+            {alerts.length} ativos
+          </span>
         </div>
-        <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          {alerts.length} ativos
-        </span>
+        <p className="mt-2 rounded-md border border-[color:var(--gold)]/25 bg-[color:var(--gold)]/5 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[color:var(--gold)]">
+          Dados ficticios · demonstracao da plataforma
+        </p>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto kpi-scroll pr-1 -mr-1">
       {alerts.length === 0 ? (
