@@ -5,6 +5,8 @@
  */
 import { jsPDF } from "jspdf";
 import { WORKSPACE } from "@/config/workspace";
+import type { KpiInsightSnapshot } from "./kpi-ai";
+import { formatCurrency, formatNumber, formatPercent, type KpiSummary } from "./kpi-manager";
 
 const NAVY: [number, number, number] = [12, 22, 44];
 const GOLD: [number, number, number] = [176, 141, 87];
@@ -307,6 +309,7 @@ export function generateKpiInsightPdf(input: {
   monthLabel: string;
   scopeLabel: string;
   actorName: string;
+  snapshot?: KpiInsightSnapshot;
 }): void {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const w = doc.internal.pageSize.getWidth();
@@ -360,7 +363,16 @@ export function generateKpiInsightPdf(input: {
   doc.setTextColor(200, 200, 210);
   doc.text(WORKSPACE.poweredBy, 22, h - 22, { charSpace: 1.2 });
 
-  // Pagina 2 — Pergunta + Resposta estruturada
+  // ============================================================
+  // Paginas de dados quantitativos (quando o snapshot esta disponivel)
+  // ============================================================
+  if (input.snapshot) {
+    renderExecutiveSummary(doc, w, h, input.snapshot);
+    renderComparativesAndTables(doc, w, h, input.snapshot);
+    renderExecutivesChart(doc, w, h, input.snapshot);
+  }
+
+  // Pagina — Pergunta + Insights da IA
   doc.addPage();
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -380,7 +392,7 @@ export function generateKpiInsightPdf(input: {
   }
   y += 6;
 
-  y = sectionTitle(doc, "Analise Executiva", y);
+  y = sectionTitle(doc, "Insights da IA Gerencial", y);
   // Remove o disclaimer padrao (renderizado ao final) e converte a
   // resposta bruta em blocos estruturados (H1/H2/H3, listas, tabelas).
   const disclaimerIdx = input.answer.indexOf("---\nResposta gerada por Inteligência Artificial");
@@ -389,7 +401,7 @@ export function generateKpiInsightPdf(input: {
   y = renderBlocks(doc, blocks, y, w, h);
 
   y = ensureRoom(doc, y + 6, 24, w, h);
-  y = sectionTitle(doc, "Consideracoes Finais", y);
+  y = sectionTitle(doc, "Conclusao", y);
   doc.setFont("helvetica", "italic");
   doc.setFontSize(9);
   doc.setTextColor(...MUTED);
@@ -401,4 +413,179 @@ export function generateKpiInsightPdf(input: {
   footer(doc, w, h);
 
   doc.save(`relatorio-ia-gerencial-${Date.now()}.pdf`);
+}
+
+/* =====================================================================
+ * Secoes quantitativas: Resumo Executivo, Comparativos, Tabelas, Grafico
+ * ===================================================================*/
+function newContentPage(doc: jsPDF): number {
+  doc.addPage();
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  doc.text("ATLAS PLATFORM · IA GERENCIAL", 22, 18, { charSpace: 1.2 });
+  return 40;
+}
+
+function pct(curr: number, prev: number): string {
+  if (prev === 0) return curr === 0 ? "0,0%" : "—";
+  const d = ((curr - prev) / prev) * 100;
+  const sign = d > 0 ? "+" : "";
+  return `${sign}${d.toFixed(1).replace(".", ",")}%`;
+}
+
+function renderExecutiveSummary(
+  doc: jsPDF,
+  w: number,
+  h: number,
+  snap: KpiInsightSnapshot,
+): void {
+  let y = newContentPage(doc);
+  y = sectionTitle(doc, "Resumo Executivo", y);
+
+  const s = snap.team.current;
+  const p = snap.team.previous;
+  const totalExec = snap.executives.length;
+  const highlights: string[] = [
+    `Competencia analisada: ${snap.month.label}${snap.previousMonth ? ` · Comparativo com ${snap.previousMonth.label}` : ""}.`,
+    `Escopo consolidado: ${totalExec} ${totalExec === 1 ? "executivo" : "executivos"} sob a permissao do solicitante.`,
+    `Leads captados: ${formatNumber(s.leads)} · Apresentacoes: ${formatNumber(s.presentations)} · COFs enviadas: ${formatNumber(s.contractsSent)}.`,
+    `Vendas concluidas: ${formatNumber(s.sales)} · Faturamento total: ${formatCurrency(s.salesValue)}.`,
+    `Conversao Lead → Venda: ${formatPercent(s.conversion)}${p ? ` (mes anterior: ${formatPercent(p.conversion)})` : ""}.`,
+  ];
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10.5);
+  doc.setTextColor(...TEXT);
+  for (const item of highlights) {
+    const lines = doc.splitTextToSize(item, w - 50) as string[];
+    for (let li = 0; li < lines.length; li++) {
+      y = ensureRoom(doc, y, 6, w, h);
+      if (li === 0) {
+        doc.setTextColor(...GOLD);
+        doc.text("•", 24, y);
+        doc.setTextColor(...TEXT);
+      }
+      doc.text(lines[li], 30, y);
+      y += 5.2;
+    }
+    y += 1.5;
+  }
+
+  footer(doc, w, h);
+}
+
+function renderComparativesAndTables(
+  doc: jsPDF,
+  w: number,
+  h: number,
+  snap: KpiInsightSnapshot,
+): void {
+  let y = newContentPage(doc);
+  y = sectionTitle(doc, "Comparativos de Periodo", y);
+
+  const c = snap.team.current;
+  const p = snap.team.previous;
+  const j: KpiSummary = snap.team.last90Days;
+
+  const cmpHead = ["Indicador", "Mes atual", snap.previousMonth ? "Mes anterior" : "Ultimos 90 dias", "Variacao %"];
+  const baseline = p ?? j;
+  const cmpRows: string[][] = [
+    ["Leads", formatNumber(c.leads), formatNumber(baseline.leads), pct(c.leads, baseline.leads)],
+    ["Apresentacoes", formatNumber(c.presentations), formatNumber(baseline.presentations), pct(c.presentations, baseline.presentations)],
+    ["COFs enviadas", formatNumber(c.contractsSent), formatNumber(baseline.contractsSent), pct(c.contractsSent, baseline.contractsSent)],
+    ["Vendas", formatNumber(c.sales), formatNumber(baseline.sales), pct(c.sales, baseline.sales)],
+    ["Faturamento", formatCurrency(c.salesValue), formatCurrency(baseline.salesValue), pct(c.salesValue, baseline.salesValue)],
+    ["Conversao L→V", formatPercent(c.conversion), formatPercent(baseline.conversion), pct(c.conversion * 100, baseline.conversion * 100)],
+  ];
+  y = renderTable(doc, cmpHead, cmpRows, y, w, h);
+
+  y = ensureRoom(doc, y + 6, 20, w, h);
+  y = sectionTitle(doc, "Detalhamento por Executivo", y);
+
+  const execHead = ["Executivo", "Leads", "Apres.", "COFs", "Vendas", "Faturamento"];
+  const execRows: string[][] = snap.executives.map((e) => [
+    e.name,
+    formatNumber(e.current.leads),
+    formatNumber(e.current.presentations),
+    formatNumber(e.current.contractsSent),
+    formatNumber(e.current.sales),
+    formatCurrency(e.current.salesValue),
+  ]);
+  if (execRows.length > 0) {
+    y = renderTable(doc, execHead, execRows, y, w, h);
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(10);
+    doc.setTextColor(...MUTED);
+    doc.text("Nenhum executivo dentro do escopo selecionado.", 22, y);
+  }
+
+  footer(doc, w, h);
+}
+
+function renderExecutivesChart(
+  doc: jsPDF,
+  w: number,
+  h: number,
+  snap: KpiInsightSnapshot,
+): void {
+  const active = snap.executives.filter((e) => e.current.salesValue > 0 || e.current.sales > 0);
+  if (active.length === 0) return;
+
+  let y = newContentPage(doc);
+  y = sectionTitle(doc, "Grafico · Faturamento por Executivo", y);
+
+  const marginX = 22;
+  const chartW = w - marginX * 2;
+  const rowH = 9;
+  const gap = 4;
+  const nameW = 52;
+  const valueW = 40;
+  const barMax = chartW - nameW - valueW - 6;
+  const max = Math.max(...active.map((e) => e.current.salesValue), 1);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+
+  for (const e of active) {
+    y = ensureRoom(doc, y, rowH + gap, w, h);
+    // Nome
+    doc.setTextColor(...TEXT);
+    doc.text(doc.splitTextToSize(e.name, nameW - 2)[0] as string, marginX, y + 5);
+    // Trilha
+    doc.setFillColor(...ROW_ALT);
+    doc.rect(marginX + nameW, y, barMax, rowH, "F");
+    // Barra
+    const barW = Math.max(1, (e.current.salesValue / max) * barMax);
+    doc.setFillColor(...GOLD);
+    doc.rect(marginX + nameW, y, barW, rowH, "F");
+    // Valor
+    doc.setTextColor(...NAVY);
+    doc.text(
+      formatCurrency(e.current.salesValue),
+      marginX + nameW + barMax + 4,
+      y + 5,
+    );
+    y += rowH + gap;
+  }
+
+  y = ensureRoom(doc, y + 4, 14, w, h);
+  y = sectionTitle(doc, "Grafico · Vendas Realizadas", y);
+  const maxSales = Math.max(...active.map((e) => e.current.sales), 1);
+  for (const e of active) {
+    y = ensureRoom(doc, y, rowH + gap, w, h);
+    doc.setTextColor(...TEXT);
+    doc.text(doc.splitTextToSize(e.name, nameW - 2)[0] as string, marginX, y + 5);
+    doc.setFillColor(...ROW_ALT);
+    doc.rect(marginX + nameW, y, barMax, rowH, "F");
+    const barW = Math.max(1, (e.current.sales / maxSales) * barMax);
+    doc.setFillColor(...TABLE_HEAD);
+    doc.rect(marginX + nameW, y, barW, rowH, "F");
+    doc.setTextColor(...NAVY);
+    doc.text(formatNumber(e.current.sales), marginX + nameW + barMax + 4, y + 5);
+    y += rowH + gap;
+  }
+
+  footer(doc, w, h);
 }
