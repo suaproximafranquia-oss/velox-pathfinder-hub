@@ -210,6 +210,10 @@
 @utility bg-grain {
   background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 0);
   background-size: 3px 3px;
+  /* Fixa o padrão em relação ao viewport para eliminar repaint do
+   * background em cada frame de scroll (causa raiz do flickering
+   * percebido em todo o Corporate Workspace). */
+  background-attachment: fixed;
 }
 
 @keyframes kpi-flash {
