@@ -1084,6 +1084,125 @@ function Index() {
           </p>
         </FeaturePanel>
 
+        {/* 17.5 · Marketing e Geração de Clientes */}
+        <SectionShell
+          id="marketing"
+          labelledBy="marketing-title"
+          surface="ink"
+          pattern="grid"
+          watermark
+          className="py-28 md:py-40"
+        >
+          <div className="relative mx-auto max-w-6xl px-6 md:px-10">
+            <div className="max-w-3xl">
+              <Reveal>
+                <div className="font-serif text-sm italic on-dark-muted">
+                  Capítulo III · Suporte ao Franqueado
+                </div>
+                <div className="mt-4">
+                  <Eyebrow tone="dark">Marketing e Geração de Clientes</Eyebrow>
+                </div>
+                <h2
+                  id="marketing-title"
+                  className="mt-6 text-balance text-4xl leading-[1.08] on-dark sm:text-5xl md:text-6xl"
+                >
+                  Uma estrutura completa para <em style={{ color: "var(--brand-orange)" }}>desenvolver a marca, conquistar clientes e crescer.</em>
+                </h2>
+                <p className="mt-8 max-w-[62ch] text-lg leading-relaxed on-dark-muted">
+                  A Velox não entrega apenas uma franquia. Entrega uma estrutura preparada para acelerar o crescimento do franqueado — do posicionamento pessoal ao tráfego pago, do material comercial à conversão de leads em clientes.
+                </p>
+              </Reveal>
+            </div>
+
+            <div
+              className="mt-16 grid gap-px overflow-hidden border md:grid-cols-2"
+              style={{ background: "var(--on-dark-border)", borderColor: "var(--on-dark-border)" }}
+            >
+              {[
+                {
+                  n: "01",
+                  title: "Marca Pessoal",
+                  lead: "Apoio para construir autoridade profissional.",
+                  items: [
+                    "Posicionamento e identidade profissional",
+                    "Presença digital estruturada",
+                    "Relacionamento com clientes",
+                    "Fortalecimento da imagem pessoal",
+                  ],
+                },
+                {
+                  n: "02",
+                  title: "Suporte de Marketing",
+                  lead: "Materiais prontos para o dia a dia da unidade.",
+                  items: [
+                    "Landing pages e materiais institucionais",
+                    "Criativos, artes e campanhas",
+                    "Conteúdo para redes sociais",
+                    "Identidade visual e material comercial",
+                  ],
+                },
+                {
+                  n: "03",
+                  title: "Geração de Clientes",
+                  lead: "Estrutura completa para gerar oportunidades.",
+                  items: [
+                    "Estratégias de prospecção",
+                    "Geração de leads qualificados",
+                    "Campanhas digitais e tráfego pago",
+                    "Ferramentas de conversão e apoio comercial",
+                  ],
+                },
+                {
+                  n: "04",
+                  title: "Capacitação",
+                  lead: "O franqueado aprende a operar tudo isso.",
+                  items: [
+                    "Treinamentos práticos e continuados",
+                    "Curso de marketing e tráfego pago",
+                    "Suporte contínuo da equipe",
+                    "Acompanhamento e mentoria",
+                  ],
+                },
+              ].map((c) => (
+                <Reveal key={c.n}>
+                  <div className="flex h-full flex-col p-8 md:p-10" style={{ background: "var(--ink)" }}>
+                    <div className="flex items-center gap-4">
+                      <span className="num text-xs on-dark-muted">{c.n}</span>
+                      <span
+                        aria-hidden="true"
+                        className="h-px w-10"
+                        style={{ background: "var(--brand-orange)" }}
+                      />
+                    </div>
+                    <h3 className="mt-6 font-serif text-2xl leading-snug on-dark md:text-3xl">
+                      {c.title}
+                    </h3>
+                    <p className="mt-4 font-serif text-base italic on-dark-muted">{c.lead}</p>
+                    <ul className="mt-6 space-y-3 text-sm leading-relaxed on-dark-muted">
+                      {c.items.map((it) => (
+                        <li key={it} className="flex items-start gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ background: "var(--brand-orange)" }}
+                          />
+                          <span>{it}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+
+            <Reveal delay={200}>
+              <p className="mx-auto mt-14 max-w-3xl text-center font-serif text-lg italic leading-relaxed on-dark-muted">
+                O franqueado não caminha sozinho. Existe uma estrutura preparada para acelerar sua marca, sua carteira de clientes e sua geração de negócios — desde o primeiro dia.
+              </p>
+            </Reveal>
+          </div>
+        </SectionShell>
+
         {/* 18 · Comunidade */}
         <FeaturePanel
           id="comunidade"
