@@ -57,13 +57,14 @@ const SECTIONS: ModuleChromeSection[] = [
   { id: "mercado", label: "Panorama do mercado" },
   { id: "consumidor", label: "Evolução do consumidor" },
   { id: "ecossistema", label: "Ecossistema Velox" },
-  { id: "especialidades", label: "Frentes especializadas" },
+  { id: "especialidades", label: "Três franquias em uma" },
   { id: "parceiros", label: "Parceiros estratégicos" },
   { id: "implantacao", label: "Processo de implantação" },
   { id: "equipe", label: "Equipe de suporte" },
   { id: "consultoria", label: "Consultoria de negócios" },
   { id: "universidade", label: "Universidade Corporativa" },
   { id: "tecnologia", label: "Plataforma tecnológica" },
+  { id: "marketing", label: "Marketing e Geração de Clientes" },
   { id: "comunidade", label: "Comunidade de franqueados" },
   { id: "franquia", label: "Modelos de franquia" },
   { id: "investimento", label: "Investimento" },
@@ -74,40 +75,16 @@ const SECTIONS: ModuleChromeSection[] = [
 
 const PRODUCTS: Product[] = [
   {
-    name: "FGTS · Antecipação",
-    description:
-      "Antecipação do saque-aniversário para trabalhadores CLT com saldo disponível. Costuma ser a porta de entrada para clientes que buscam liquidez imediata sem comprometer o orçamento mensal.",
-    commission: "Comissão até 25%",
-  },
-  {
-    name: "Cartão de Crédito Consignado",
-    description:
-      "Solução voltada a aposentados, pensionistas e servidores, com desconto em folha. Oferece limite dedicado, portabilidade de dívida e uma das maiores rentabilidades do portfólio para a rede.",
-    commission: "Comissão até 40%",
-  },
-  {
-    name: "Financiamento Imobiliário",
-    description:
-      "Linhas de crédito para aquisição de imóveis, integrando mais de dez instituições financeiras. Estruturado em prazos longos, com condições ajustadas ao perfil e à capacidade de pagamento de cada cliente.",
-    commission: "Comissão até 2,5%",
-  },
-  {
-    name: "Home Equity",
-    description:
-      "Crédito com garantia de imóvel, indicado para reestruturação de dívidas, capital para negócios ou realização de projetos de maior porte. Combina prazos alongados e taxas mais acessíveis que o crédito tradicional.",
-    commission: "Comissão até 5%",
-  },
-  {
-    name: "Financiamento e Refin de Veículos",
-    description:
-      "Aquisição, refinanciamento e portabilidade de contratos de veículos leves, motos, patinetes elétricos e caminhões. Atende tanto o consumidor final quanto frotistas e pequenas empresas.",
-    commission: "Comissão até 2,5%",
-  },
-  {
     name: "Consórcios",
     description:
       "Aquisição planejada de imóveis, veículos, caminhões, motos, aeronaves e até serviços como viagens, cirurgias e casamentos. Alternativa organizada ao crédito tradicional, com juros mais acessíveis.",
     commission: "Comissão até 6%",
+  },
+  {
+    name: "Seguros",
+    description:
+      "Mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Compõem a base de qualquer planejamento financeiro consistente ao mitigar riscos.",
+    commission: "Comissão até 80%",
   },
   {
     name: "Energia Solar & Renováveis",
@@ -122,22 +99,46 @@ const PRODUCTS: Product[] = [
     commission: "Comissão até 1%",
   },
   {
+    name: "Financiamento Imobiliário",
+    description:
+      "Linhas de crédito para aquisição de imóveis, integrando mais de dez instituições financeiras. Estruturado em prazos longos, com condições ajustadas ao perfil e à capacidade de pagamento de cada cliente.",
+    commission: "Comissão até 2,5%",
+  },
+  {
+    name: "Financiamento e Refin de Veículos",
+    description:
+      "Aquisição, refinanciamento e portabilidade de contratos de veículos leves, motos, patinetes elétricos e caminhões. Atende tanto o consumidor final quanto frotistas e pequenas empresas.",
+    commission: "Comissão até 2,5%",
+  },
+  {
+    name: "Home Equity",
+    description:
+      "Crédito com garantia de imóvel, indicado para reestruturação de dívidas, capital para negócios ou realização de projetos de maior porte. Combina prazos alongados e taxas mais acessíveis que o crédito tradicional.",
+    commission: "Comissão até 5%",
+  },
+  {
     name: "Crédito Rural & Agronegócio",
     description:
       "Compra de propriedades, maquinário, empréstimos com garantia rural e estruturação de projetos para o campo. Apoia custeio, investimento e comercialização em toda a cadeia produtiva.",
     commission: "Comissão até 1%",
   },
   {
-    name: "Seguros",
-    description:
-      "Mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Compõem a base de qualquer planejamento financeiro consistente ao mitigar riscos.",
-    commission: "Comissão até 80%",
-  },
-  {
     name: "Maquininhas & Meios de Pagamento",
     description:
       "P.O.S. para estabelecimentos comerciais, com remuneração recorrente conforme o faturamento do cliente. Fortalece a base de receita mensal previsível da unidade.",
     commission: "Recorrência 0,10% a 0,50%",
+  },
+  {
+    name: "FGTS · Antecipação",
+    description:
+      "Antecipação do saque-aniversário para trabalhadores CLT com saldo disponível. Solução de liquidez imediata sem comprometer o orçamento mensal.",
+    commission: "Comissão até 25%",
+  },
+  {
+    name: "Cartão de Crédito Consignado",
+    description:
+      "Solução voltada a aposentados, pensionistas e servidores, com desconto em folha. Oferece limite dedicado, portabilidade de dívida e uma das maiores rentabilidades do portfólio para a rede.",
+    commission: "Comissão até 40%",
   },
   {
     name: "Crédito Consignado",
@@ -154,32 +155,25 @@ const SPECIALTIES: {
   highlight: string;
 }[] = [
   {
-    eyebrow: "Frente institucional",
-    name: "Velox Asset",
+    eyebrow: "Franquia 01",
+    name: "Velox Financeira",
     description:
-      "Escritório de finanças e investimentos ligado aos principais FIDCs do Brasil. Estrutura operações de crédito e antecipação de recebíveis para empresas com faturamento anual mínimo de R$ 10 milhões e transações a partir de R$ 500 mil, atendendo indústria, saúde, serviços, agronegócio, infraestrutura e construção civil.",
-    highlight: "Comissão de 1% a 4% · Operações em CRI, CRA, CCB e capital de giro",
+      "O núcleo da operação. Consórcios, crédito empresarial, capital de giro, financiamentos, home equity, antecipações, agronegócio, maquininhas, FGTS e consignado — mais de 200 produtos financeiros conectados a bancos, fintechs, fundos e administradoras de todo o país.",
+    highlight: "+200 produtos e serviços · +200 parceiros estratégicos",
   },
   {
-    eyebrow: "Frente institucional",
-    name: "Velox Precatórios",
+    eyebrow: "Franquia 02",
+    name: "Velox Solar",
     description:
-      "Intermediação profissional entre credores de precatórios e fundos especializados. A plataforma cuida da análise jurídica, elaboração da escritura, negociação com fundos e liberação do pagamento — o franqueado conduz a prospecção, o cadastro e a proposta ao cliente. Ciclo de operação entre 10 e 20 dias úteis.",
-    highlight: "Comissão de 1% a 5% · Mercado com estoque superior a R$ 200 bilhões",
+      "Frente dedicada à transição energética. Projetos fotovoltaicos residenciais, comerciais e rurais, usinas de investimento e crédito de carbono. Atende famílias, empresas e produtores que buscam previsibilidade de custos e sustentabilidade de longo prazo.",
+    highlight: "Portfólio completo em energia renovável · Cobertura nacional",
   },
   {
-    eyebrow: "Frente institucional",
-    name: "Fundo Velox (Advance)",
+    eyebrow: "Franquia 03",
+    name: "Velox Seguros",
     description:
-      "Financiamento estruturado para projetos de grande porte no Brasil, Paraguai e Uruguai. Atende agronegócio (aquisição de fazendas, irrigação, silos, maquinário), construção civil, energia sustentável (fotovoltaica, PCHs, eólica), saúde, indústria, óleo & gás e infraestrutura privada (portos, ferrovias, rodovias).",
-    highlight: "Soluções customizadas · Presença internacional no Mercosul",
-  },
-  {
-    eyebrow: "Frente institucional",
-    name: "Hulp Benefícios",
-    description:
-      "Cartão de benefícios com planos Prata, Ouro e Platinum: cobertura para morte natural e acidental, invalidez, auxílio funeral com translado nacional, sorteios mensais, telemedicina ilimitada e descontos de até 40% em medicamentos em mais de 40 mil farmácias. Voltado a famílias e empresas que valorizam o bem-estar dos colaboradores.",
-    highlight: "Recorrência de 0,30% a 1,20% · Rede com mais de 40 mil farmácias",
+      "Corretora integrada com mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Vida, patrimonial, empresarial, frota, agro, saúde e benefícios — a base de qualquer planejamento financeiro consistente.",
+    highlight: "+180 tipos de seguros · +30 categorias · Recorrência mensal",
   },
 ];
 
@@ -363,31 +357,28 @@ function Hero() {
             >
               <div>
                 <div className="eyebrow eyebrow-on-dark">Sumário</div>
-                <div className="mt-6 space-y-4 font-serif text-xl italic on-dark md:text-2xl">
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">I</span>
-                    <span>Apresentação</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">II</span>
-                    <span>O Mercado</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">III</span>
-                    <span>Suporte ao Franqueado</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">IV</span>
-                    <span>Modelos de Franquia</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">V</span>
-                    <span>Próximos Passos</span>
-                  </div>
+                <div className="mt-6 space-y-3 font-serif text-lg italic on-dark md:text-xl">
+                  {[
+                    ["I", "Apresentação · Quem é a Velox"],
+                    ["II", "Ecossistema Velox"],
+                    ["III", "Produtos Financeiros"],
+                    ["IV", "Três Franquias em Uma"],
+                    ["V", "Marketplace de Parceiros"],
+                    ["VI", "Suporte ao Franqueado"],
+                    ["VII", "Marketing e Geração de Clientes"],
+                    ["VIII", "Tecnologia"],
+                    ["IX", "Modelos de Franquia · Investimento"],
+                    ["X", "Próximos Passos"],
+                  ].map(([n, label]) => (
+                    <div key={n} className="flex items-baseline gap-4">
+                      <span className="num text-xs opacity-60" style={{ minWidth: "2ch" }}>{n}</span>
+                      <span>{label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="flex items-center justify-between border-t pt-6 text-[0.7rem] uppercase tracking-[0.3em] on-dark-muted" style={{ borderColor: "var(--on-dark-border)" }}>
-                <span>V Capítulos</span>
+                <span>X Seções</span>
                 <span>MMXXVI</span>
               </div>
             </div>
@@ -745,10 +736,10 @@ function Index() {
           eyebrow="A rede em números"
           title="Uma estrutura ampla, integrada e em constante expansão."
           items={[
-            { value: "5", label: "Frentes de atuação reunidas sob a mesma marca", note: "Modelo integrado" },
-            { value: "+200", label: "Soluções e serviços financeiros ativos", note: "Portfólio em expansão" },
-            { value: "+50", label: "Instituições financeiras parceiras", note: "Bancos, seguradoras, fundos" },
-            { value: "+40k", label: "Farmácias na rede Hulp Benefícios", note: "Cobertura nacional" },
+            { value: "3", label: "Franquias em uma: Financeira, Solar e Seguros", note: "Modelo integrado" },
+            { value: "+200", label: "Produtos e serviços financeiros ativos", note: "Portfólio em expansão" },
+            { value: "+200", label: "Parceiros estratégicos entre bancos, seguradoras e fintechs", note: "Instituições parceiras" },
+            { value: "BR", label: "Cobertura nacional em todas as regiões", note: "Presença consolidada" },
           ]}
         />
 
@@ -825,12 +816,12 @@ function Index() {
             <div className="max-w-3xl">
               <Reveal>
                 <div className="font-serif text-sm italic text-muted-foreground">Capítulo II · O Mercado</div>
-                <div className="mt-4"><Eyebrow>Frentes especializadas</Eyebrow></div>
+                <div className="mt-4"><Eyebrow>Três franquias em uma</Eyebrow></div>
                 <h2 id="especialidades-title" className="mt-6 text-balance text-4xl leading-[1.08] sm:text-5xl md:text-6xl">
-                  Quatro estruturas dedicadas <em style={{ color: "var(--brand-orange)" }}>dentro de uma única franquia.</em>
+                  Três franquias em uma, <em style={{ color: "var(--brand-orange)" }}>sob a mesma marca.</em>
                 </h2>
                 <p className="mt-8 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">
-                  Além do portfólio bancário tradicional, o franqueado Velox opera frentes institucionais especializadas — cada uma com processos, times técnicos e parceiros próprios — desenhadas para ampliar as fontes de receita da unidade.
+                  Com uma única unidade, o franqueado Velox opera três frentes complementares — Velox Financeira, Velox Solar e Velox Seguros. Cada uma com portfólio próprio, parceiros dedicados e fontes de receita distintas, ampliando o alcance comercial e a previsibilidade da operação.
                 </p>
               </Reveal>
             </div>
@@ -894,7 +885,7 @@ function Index() {
                 <div className="grid gap-px sm:grid-cols-3" style={{ background: "var(--on-dark-border)" }}>
                   {[
                     { value: "+200", label: "Parceiros estratégicos", note: "Bancos, seguradoras e fintechs" },
-                    { value: "+150", label: "Produtos financeiros", note: "Portfólio ativo e em expansão" },
+                    { value: "+200", label: "Produtos e serviços financeiros", note: "Portfólio ativo e em expansão" },
                     { value: "BR",   label: "Cobertura nacional",    note: "Presença em todas as regiões" },
                   ].map((it) => (
                     <div key={it.label} className="surface-ink flex h-full flex-col p-8 md:p-10">
@@ -1093,6 +1084,125 @@ function Index() {
           </p>
         </FeaturePanel>
 
+        {/* 17.5 · Marketing e Geração de Clientes */}
+        <SectionShell
+          id="marketing"
+          labelledBy="marketing-title"
+          surface="ink"
+          pattern="grid"
+          watermark
+          className="py-28 md:py-40"
+        >
+          <div className="relative mx-auto max-w-6xl px-6 md:px-10">
+            <div className="max-w-3xl">
+              <Reveal>
+                <div className="font-serif text-sm italic on-dark-muted">
+                  Capítulo III · Suporte ao Franqueado
+                </div>
+                <div className="mt-4">
+                  <Eyebrow tone="dark">Marketing e Geração de Clientes</Eyebrow>
+                </div>
+                <h2
+                  id="marketing-title"
+                  className="mt-6 text-balance text-4xl leading-[1.08] on-dark sm:text-5xl md:text-6xl"
+                >
+                  Uma estrutura completa para <em style={{ color: "var(--brand-orange)" }}>desenvolver a marca, conquistar clientes e crescer.</em>
+                </h2>
+                <p className="mt-8 max-w-[62ch] text-lg leading-relaxed on-dark-muted">
+                  A Velox não entrega apenas uma franquia. Entrega uma estrutura preparada para acelerar o crescimento do franqueado — do posicionamento pessoal ao tráfego pago, do material comercial à conversão de leads em clientes.
+                </p>
+              </Reveal>
+            </div>
+
+            <div
+              className="mt-16 grid gap-px overflow-hidden border md:grid-cols-2"
+              style={{ background: "var(--on-dark-border)", borderColor: "var(--on-dark-border)" }}
+            >
+              {[
+                {
+                  n: "01",
+                  title: "Marca Pessoal",
+                  lead: "Apoio para construir autoridade profissional.",
+                  items: [
+                    "Posicionamento e identidade profissional",
+                    "Presença digital estruturada",
+                    "Relacionamento com clientes",
+                    "Fortalecimento da imagem pessoal",
+                  ],
+                },
+                {
+                  n: "02",
+                  title: "Suporte de Marketing",
+                  lead: "Materiais prontos para o dia a dia da unidade.",
+                  items: [
+                    "Landing pages e materiais institucionais",
+                    "Criativos, artes e campanhas",
+                    "Conteúdo para redes sociais",
+                    "Identidade visual e material comercial",
+                  ],
+                },
+                {
+                  n: "03",
+                  title: "Geração de Clientes",
+                  lead: "Estrutura completa para gerar oportunidades.",
+                  items: [
+                    "Estratégias de prospecção",
+                    "Geração de leads qualificados",
+                    "Campanhas digitais e tráfego pago",
+                    "Ferramentas de conversão e apoio comercial",
+                  ],
+                },
+                {
+                  n: "04",
+                  title: "Capacitação",
+                  lead: "O franqueado aprende a operar tudo isso.",
+                  items: [
+                    "Treinamentos práticos e continuados",
+                    "Curso de marketing e tráfego pago",
+                    "Suporte contínuo da equipe",
+                    "Acompanhamento e mentoria",
+                  ],
+                },
+              ].map((c) => (
+                <Reveal key={c.n}>
+                  <div className="flex h-full flex-col p-8 md:p-10" style={{ background: "var(--ink)" }}>
+                    <div className="flex items-center gap-4">
+                      <span className="num text-xs on-dark-muted">{c.n}</span>
+                      <span
+                        aria-hidden="true"
+                        className="h-px w-10"
+                        style={{ background: "var(--brand-orange)" }}
+                      />
+                    </div>
+                    <h3 className="mt-6 font-serif text-2xl leading-snug on-dark md:text-3xl">
+                      {c.title}
+                    </h3>
+                    <p className="mt-4 font-serif text-base italic on-dark-muted">{c.lead}</p>
+                    <ul className="mt-6 space-y-3 text-sm leading-relaxed on-dark-muted">
+                      {c.items.map((it) => (
+                        <li key={it} className="flex items-start gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ background: "var(--brand-orange)" }}
+                          />
+                          <span>{it}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+
+            <Reveal delay={200}>
+              <p className="mx-auto mt-14 max-w-3xl text-center font-serif text-lg italic leading-relaxed on-dark-muted">
+                O franqueado não caminha sozinho. Existe uma estrutura preparada para acelerar sua marca, sua carteira de clientes e sua geração de negócios — desde o primeiro dia.
+              </p>
+            </Reveal>
+          </div>
+        </SectionShell>
+
         {/* 18 · Comunidade */}
         <FeaturePanel
           id="comunidade"
@@ -1164,6 +1274,8 @@ function Index() {
                 {
                   n: "01",
                   name: "Home Office",
+                  price: "R$ 17.900",
+                  priceNote: "Investimento inicial oficial",
                   img: homeOfficeImg.url,
                   alt: "Estação de trabalho de operação Home Office",
                   copy: "Formato de operação enxuta, indicado para quem deseja iniciar com estrutura leve, custos reduzidos e foco na consolidação da carteira. Preserva a mesma padronização e o mesmo suporte oferecidos aos demais modelos da rede.",
@@ -1173,6 +1285,8 @@ function Index() {
                 {
                   n: "02",
                   name: "Loja Física",
+                  price: "R$ 29.900",
+                  priceNote: "Investimento inicial oficial",
                   img: lojaFachada2Img.url,
                   alt: "Loja física Velox — fachada institucional",
                   copy: "Formato com ponto comercial dedicado, voltado à construção de presença regional e ao fortalecimento da marca. Amplia a capacidade de atendimento presencial e favorece a percepção de solidez pelo cliente.",
@@ -1194,6 +1308,23 @@ function Index() {
                       </div>
                     </div>
                     <div className="p-8 md:p-10">
+                      <div
+                        className="mb-6 flex items-baseline justify-between border-b pb-6"
+                        style={{ borderColor: "var(--on-dark-border)" }}
+                      >
+                        <div>
+                          <div className="eyebrow eyebrow-on-dark">{m.priceNote}</div>
+                          <div
+                            className="mt-2 font-serif text-4xl md:text-5xl"
+                            style={{ color: "var(--brand-orange)" }}
+                          >
+                            {m.price}
+                          </div>
+                        </div>
+                        <div className="text-right text-xs uppercase tracking-[0.24em] on-dark-muted">
+                          Royalties<br />R$ 497 · fixo
+                        </div>
+                      </div>
                       <p className="text-base leading-relaxed on-dark-muted">{m.copy}</p>
                       <dl className="mt-8 grid gap-4 border-t pt-6" style={{ borderColor: "var(--on-dark-border)" }}>
                         <div>
@@ -1212,7 +1343,7 @@ function Index() {
             </div>
             <Reveal delay={200}>
               <p className="mt-12 text-center text-sm on-dark-muted">
-                Investimento, royalties e prazos contratuais são apresentados diretamente pela equipe, com os documentos institucionais previstos pela Lei de Franquias.
+                Valores oficiais de investimento inicial. Royalties, taxa de publicidade e prazos contratuais são detalhados em conversa com nossa equipe, acompanhados dos documentos institucionais previstos pela Lei de Franquias.
               </p>
             </Reveal>
           </div>
