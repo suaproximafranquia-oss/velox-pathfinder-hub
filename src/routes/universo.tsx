@@ -155,32 +155,25 @@ const SPECIALTIES: {
   highlight: string;
 }[] = [
   {
-    eyebrow: "Frente institucional",
-    name: "Velox Asset",
+    eyebrow: "Franquia 01",
+    name: "Velox Financeira",
     description:
-      "Escritório de finanças e investimentos ligado aos principais FIDCs do Brasil. Estrutura operações de crédito e antecipação de recebíveis para empresas com faturamento anual mínimo de R$ 10 milhões e transações a partir de R$ 500 mil, atendendo indústria, saúde, serviços, agronegócio, infraestrutura e construção civil.",
-    highlight: "Comissão de 1% a 4% · Operações em CRI, CRA, CCB e capital de giro",
+      "O núcleo da operação. Consórcios, crédito empresarial, capital de giro, financiamentos, home equity, antecipações, agronegócio, maquininhas, FGTS e consignado — mais de 200 produtos financeiros conectados a bancos, fintechs, fundos e administradoras de todo o país.",
+    highlight: "+200 produtos e serviços · +200 parceiros estratégicos",
   },
   {
-    eyebrow: "Frente institucional",
-    name: "Velox Precatórios",
+    eyebrow: "Franquia 02",
+    name: "Velox Solar",
     description:
-      "Intermediação profissional entre credores de precatórios e fundos especializados. A plataforma cuida da análise jurídica, elaboração da escritura, negociação com fundos e liberação do pagamento — o franqueado conduz a prospecção, o cadastro e a proposta ao cliente. Ciclo de operação entre 10 e 20 dias úteis.",
-    highlight: "Comissão de 1% a 5% · Mercado com estoque superior a R$ 200 bilhões",
+      "Frente dedicada à transição energética. Projetos fotovoltaicos residenciais, comerciais e rurais, usinas de investimento e crédito de carbono. Atende famílias, empresas e produtores que buscam previsibilidade de custos e sustentabilidade de longo prazo.",
+    highlight: "Portfólio completo em energia renovável · Cobertura nacional",
   },
   {
-    eyebrow: "Frente institucional",
-    name: "Fundo Velox (Advance)",
+    eyebrow: "Franquia 03",
+    name: "Velox Seguros",
     description:
-      "Financiamento estruturado para projetos de grande porte no Brasil, Paraguai e Uruguai. Atende agronegócio (aquisição de fazendas, irrigação, silos, maquinário), construção civil, energia sustentável (fotovoltaica, PCHs, eólica), saúde, indústria, óleo & gás e infraestrutura privada (portos, ferrovias, rodovias).",
-    highlight: "Soluções customizadas · Presença internacional no Mercosul",
-  },
-  {
-    eyebrow: "Frente institucional",
-    name: "Hulp Benefícios",
-    description:
-      "Cartão de benefícios com planos Prata, Ouro e Platinum: cobertura para morte natural e acidental, invalidez, auxílio funeral com translado nacional, sorteios mensais, telemedicina ilimitada e descontos de até 40% em medicamentos em mais de 40 mil farmácias. Voltado a famílias e empresas que valorizam o bem-estar dos colaboradores.",
-    highlight: "Recorrência de 0,30% a 1,20% · Rede com mais de 40 mil farmácias",
+      "Corretora integrada com mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Vida, patrimonial, empresarial, frota, agro, saúde e benefícios — a base de qualquer planejamento financeiro consistente.",
+    highlight: "+180 tipos de seguros · +30 categorias · Recorrência mensal",
   },
 ];
 
