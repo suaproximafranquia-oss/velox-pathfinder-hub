@@ -6,6 +6,9 @@ export type AskResult = { answer: string; sources: string[] };
 const NO_INFO =
   "Não encontrei essa informação na Base Oficial de Conhecimento do Workspace.";
 
+const CORPORATE_DISCLAIMER =
+  "\n\n---\nResposta gerada por Inteligência Artificial com base na documentação oficial disponível. Embora utilize exclusivamente os materiais enviados para a Central de Conhecimento, esta resposta pode conter interpretações inerentes ao modelo de IA e não substitui a orientação de um Executivo de Expansão.";
+
 /**
  * IA Corporativa — responde exclusivamente a partir dos trechos fornecidos
  * pela Base Oficial. Nunca usa conhecimento externo, nunca supõe. Se a
@@ -35,14 +38,20 @@ export const askKnowledge = createServerFn({ method: "POST" })
 
     const system = `Você é a IA Corporativa da Atlas Platform.
 Regras invioláveis, aplicadas a TODA resposta:
-1. Utilize EXCLUSIVAMENTE os trechos da Base Oficial abaixo.
-2. Nunca utilize conhecimento externo. Nunca faça suposições. Nunca invente conteúdo.
-3. Se a resposta não estiver claramente contida nos trechos, responda EXATAMENTE: "${NO_INFO}"
-4. Nunca ofereça opiniões, previsões, promessas de retorno ou aconselhamento financeiro pessoal.
-5. Ao final, cite as fontes utilizadas no formato:
-   "Fonte: <nome do documento>"
+1. Utilize EXCLUSIVAMENTE os trechos da Base Oficial abaixo como fonte de fatos.
+2. Interprete os documentos de forma semântica: compreenda o contexto geral,
+   relacione trechos e responda em linguagem natural, mesmo quando a pergunta
+   do usuário não repetir literalmente as palavras dos documentos.
+3. Nunca utilize conhecimento externo. Nunca invente dados, números, nomes,
+   promessas ou previsões que não estejam sustentados pelos trechos.
+4. Se os trechos oferecerem apenas base parcial, responda com o que é possível
+   afirmar e sinalize com transparência o que não está coberto pela base.
+5. Se realmente não houver base suficiente nos trechos, responda EXATAMENTE:
+   "${NO_INFO}"
+6. Nunca ofereça opiniões pessoais, aconselhamento financeiro ou promessa de retorno.
+7. Ao final, cite as fontes utilizadas no formato "Fonte: <nome do documento>".
    Quando útil, informe também capítulo/página se estiver explícito no trecho.
-6. Tom corporativo, direto e didático. Português do Brasil.
+8. Tom corporativo, direto e didático. Português do Brasil.
 
 BASE OFICIAL:
 ${context}`;
@@ -91,7 +100,8 @@ ${context}`;
     const j = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
     };
-    const answer = j.choices?.[0]?.message?.content?.trim() || NO_INFO;
+    const raw = j.choices?.[0]?.message?.content?.trim() || NO_INFO;
+    const answer = raw === NO_INFO ? raw : `${raw}${CORPORATE_DISCLAIMER}`;
     const uniqueSources = Array.from(new Set(data.passages.map((p) => p.source)));
     return { answer, sources: uniqueSources };
   });
