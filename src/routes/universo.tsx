@@ -816,12 +816,12 @@ function Index() {
             <div className="max-w-3xl">
               <Reveal>
                 <div className="font-serif text-sm italic text-muted-foreground">Capítulo II · O Mercado</div>
-                <div className="mt-4"><Eyebrow>Frentes especializadas</Eyebrow></div>
+                <div className="mt-4"><Eyebrow>Três franquias em uma</Eyebrow></div>
                 <h2 id="especialidades-title" className="mt-6 text-balance text-4xl leading-[1.08] sm:text-5xl md:text-6xl">
-                  Quatro estruturas dedicadas <em style={{ color: "var(--brand-orange)" }}>dentro de uma única franquia.</em>
+                  Três franquias em uma, <em style={{ color: "var(--brand-orange)" }}>sob a mesma marca.</em>
                 </h2>
                 <p className="mt-8 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">
-                  Além do portfólio bancário tradicional, o franqueado Velox opera frentes institucionais especializadas — cada uma com processos, times técnicos e parceiros próprios — desenhadas para ampliar as fontes de receita da unidade.
+                  Com uma única unidade, o franqueado Velox opera três frentes complementares — Velox Financeira, Velox Solar e Velox Seguros. Cada uma com portfólio próprio, parceiros dedicados e fontes de receita distintas, ampliando o alcance comercial e a previsibilidade da operação.
                 </p>
               </Reveal>
             </div>
