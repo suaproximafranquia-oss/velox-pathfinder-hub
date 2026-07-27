@@ -357,31 +357,28 @@ function Hero() {
             >
               <div>
                 <div className="eyebrow eyebrow-on-dark">Sumário</div>
-                <div className="mt-6 space-y-4 font-serif text-xl italic on-dark md:text-2xl">
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">I</span>
-                    <span>Apresentação</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">II</span>
-                    <span>O Mercado</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">III</span>
-                    <span>Suporte ao Franqueado</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">IV</span>
-                    <span>Modelos de Franquia</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <span className="num text-sm opacity-60">V</span>
-                    <span>Próximos Passos</span>
-                  </div>
+                <div className="mt-6 space-y-3 font-serif text-lg italic on-dark md:text-xl">
+                  {[
+                    ["I", "Apresentação · Quem é a Velox"],
+                    ["II", "Ecossistema Velox"],
+                    ["III", "Produtos Financeiros"],
+                    ["IV", "Três Franquias em Uma"],
+                    ["V", "Marketplace de Parceiros"],
+                    ["VI", "Suporte ao Franqueado"],
+                    ["VII", "Marketing e Geração de Clientes"],
+                    ["VIII", "Tecnologia"],
+                    ["IX", "Modelos de Franquia · Investimento"],
+                    ["X", "Próximos Passos"],
+                  ].map(([n, label]) => (
+                    <div key={n} className="flex items-baseline gap-4">
+                      <span className="num text-xs opacity-60" style={{ minWidth: "2ch" }}>{n}</span>
+                      <span>{label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="flex items-center justify-between border-t pt-6 text-[0.7rem] uppercase tracking-[0.3em] on-dark-muted" style={{ borderColor: "var(--on-dark-border)" }}>
-                <span>V Capítulos</span>
+                <span>X Seções</span>
                 <span>MMXXVI</span>
               </div>
             </div>
