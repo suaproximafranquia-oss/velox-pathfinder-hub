@@ -155,7 +155,7 @@ function AuditPage() {
             icon={UserIcon}
             value={actor}
             onChange={setActor}
-            options={[{ value: "all", label: "Todos os atores" }, ...actors.map((a) => ({ value: a.id, label: a.name }))]}
+            options={[{ value: "all", label: "Todos os autores" }, ...actors.map((a) => ({ value: a.id, label: a.name }))]}
           />
           <FilterSelect
             icon={AlertTriangle}
@@ -178,17 +178,26 @@ function AuditPage() {
 
       {/* Tabela */}
       <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div>
+          <table className="w-full text-sm table-fixed">
+            <colgroup>
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "22%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "3%" }} />
+            </colgroup>
             <thead>
               <tr className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
-                <th className="text-left px-5 py-3 font-normal">Quando</th>
-                <th className="text-left px-5 py-3 font-normal">Ator</th>
-                <th className="text-left px-5 py-3 font-normal">Módulo</th>
-                <th className="text-left px-5 py-3 font-normal">Ação</th>
-                <th className="text-left px-5 py-3 font-normal">Alvo</th>
-                <th className="text-left px-5 py-3 font-normal">Severidade</th>
-                <th className="w-8" />
+                <th className="text-left px-3 py-3 font-normal">Quando</th>
+                <th className="text-left px-3 py-3 font-normal">Autor</th>
+                <th className="text-left px-3 py-3 font-normal">Módulo</th>
+                <th className="text-left px-3 py-3 font-normal">Ação</th>
+                <th className="text-left px-3 py-3 font-normal">Alvo</th>
+                <th className="text-left px-3 py-3 font-normal">Severidade</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -207,10 +216,10 @@ function AuditPage() {
                         onClick={() => setExpanded(open ? null : e.id)}
                         className="border-t border-[color:var(--border)]/60 hover:bg-[color:var(--accent)]/30 cursor-pointer transition-colors"
                       >
-                        <td className="px-5 py-3 text-[color:var(--muted-foreground)] tabular-nums whitespace-nowrap">
+                        <td className="px-3 py-3 text-[color:var(--muted-foreground)] tabular-nums align-top">
                           {formatAuditTime(e.timestamp)}
                         </td>
-                        <td className="px-5 py-3">
+                        <td className="px-3 py-3 align-top">
                           <div className="flex flex-col leading-tight">
                             <span className="text-[color:var(--foreground)]">{e.actorName}</span>
                             <span className="text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
@@ -218,15 +227,15 @@ function AuditPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-5 py-3">
+                        <td className="px-3 py-3 align-top">
                           <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
                             {AUDIT_MODULE_LABEL[e.module]}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-[color:var(--foreground)]">{e.action}</td>
-                        <td className="px-5 py-3 text-[color:var(--muted-foreground)]">{e.target ?? "—"}</td>
-                        <td className="px-5 py-3"><SeverityBadge level={e.severity} /></td>
-                        <td className="px-3 py-3 text-[color:var(--muted-foreground)]">
+                        <td className="px-3 py-3 text-[color:var(--foreground)] align-top break-words">{e.action}</td>
+                        <td className="px-3 py-3 text-[color:var(--muted-foreground)] align-top break-words">{e.target ?? "—"}</td>
+                        <td className="px-3 py-3 align-top"><SeverityBadge level={e.severity} /></td>
+                        <td className="px-2 py-3 text-[color:var(--muted-foreground)] align-top">
                           <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
                         </td>
                       </tr>

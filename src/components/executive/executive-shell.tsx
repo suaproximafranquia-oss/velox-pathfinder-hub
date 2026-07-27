@@ -80,7 +80,16 @@ export function ExecutiveShell({
       className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] bg-grain"
       style={{ overflowX: "clip" }}
     >
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]/85 backdrop-blur-xl">
+      <header
+        className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]"
+        style={{
+          // Isola o header em uma layer própria e evita repaint da faixa
+          // fixa durante o scroll (causa raiz do flickering global).
+          contain: "layout paint style",
+          transform: "translateZ(0)",
+          willChange: "transform",
+        }}
+      >
         <div
           className={cn(
             "mx-auto flex items-center justify-between px-6 py-4 gap-4",
@@ -128,7 +137,10 @@ export function ExecutiveShell({
         )}
         style={fullBleed ? ({ ["--atlas-shell-offset" as never]: "224px" } as React.CSSProperties) : undefined}
       >
-        <aside className="md:sticky md:top-28 h-fit">
+        <aside
+          className="md:sticky md:top-28 h-fit"
+          style={{ contain: "layout paint style" }}
+        >
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
             {nav.map((n) => {
               const active = pathname.startsWith(n.to);
