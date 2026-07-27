@@ -736,10 +736,10 @@ function Index() {
           eyebrow="A rede em números"
           title="Uma estrutura ampla, integrada e em constante expansão."
           items={[
-            { value: "5", label: "Frentes de atuação reunidas sob a mesma marca", note: "Modelo integrado" },
-            { value: "+200", label: "Soluções e serviços financeiros ativos", note: "Portfólio em expansão" },
-            { value: "+50", label: "Instituições financeiras parceiras", note: "Bancos, seguradoras, fundos" },
-            { value: "+40k", label: "Farmácias na rede Hulp Benefícios", note: "Cobertura nacional" },
+            { value: "3", label: "Franquias em uma: Financeira, Solar e Seguros", note: "Modelo integrado" },
+            { value: "+200", label: "Produtos e serviços financeiros ativos", note: "Portfólio em expansão" },
+            { value: "+200", label: "Parceiros estratégicos entre bancos, seguradoras e fintechs", note: "Instituições parceiras" },
+            { value: "BR", label: "Cobertura nacional em todas as regiões", note: "Presença consolidada" },
           ]}
         />
 
