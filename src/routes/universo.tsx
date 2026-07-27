@@ -885,7 +885,7 @@ function Index() {
                 <div className="grid gap-px sm:grid-cols-3" style={{ background: "var(--on-dark-border)" }}>
                   {[
                     { value: "+200", label: "Parceiros estratégicos", note: "Bancos, seguradoras e fintechs" },
-                    { value: "+150", label: "Produtos financeiros", note: "Portfólio ativo e em expansão" },
+                    { value: "+200", label: "Produtos e serviços financeiros", note: "Portfólio ativo e em expansão" },
                     { value: "BR",   label: "Cobertura nacional",    note: "Presença em todas as regiões" },
                   ].map((it) => (
                     <div key={it.label} className="surface-ink flex h-full flex-col p-8 md:p-10">
