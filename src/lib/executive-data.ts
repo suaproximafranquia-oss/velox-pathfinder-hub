@@ -166,6 +166,9 @@ export function listAllInvestors(): Investor[] {
           ? "em_leitura"
           : "novo";
 
+    const lastEvent = [...events].sort((a, b) => (a.at < b.at ? 1 : -1))[0];
+    const lastEventLabel = lastEvent ? EVENT_LABEL[lastEvent.type] : undefined;
+
     return {
       id: lead.id,
       name: lead.name,
@@ -184,6 +187,7 @@ export function listAllInvestors(): Investor[] {
       assignedToUserId: lead.responsibleExecutiveId ?? fallbackExecutiveId,
       origin: "portal",
       priority: simulatorDone ? "high" : interestsCaptured ? "medium" : "none",
+      lastEventLabel,
     };
   });
 
@@ -192,6 +196,28 @@ export function listAllInvestors(): Investor[] {
   for (const investor of portalInvestors) byId.set(investor.id, investor);
   return Array.from(byId.values());
 }
+
+/**
+ * Mapa oficial de rótulos para eventos reais do bus.
+ * Usado para representar no card sempre o último evento efetivamente
+ * registrado (nunca inferir eventos que não ocorreram).
+ */
+const EVENT_LABEL: Record<string, string> = {
+  "journey.started": "Iniciou a jornada",
+  "manual.started": "Iniciou o Manual",
+  "manual.chapter.completed": "Avançou no Manual",
+  "manual.completed": "Concluiu o Manual",
+  "material.viewed": "Acessou Material Institucional",
+  "simulator.started": "Iniciou simulação",
+  "simulator.completed": "Realizou simulação",
+  "meeting.created": "Solicitou reunião",
+  "meeting.rescheduled": "Reagendou reunião",
+  "meeting.completed": "Reunião concluída",
+  "meeting.cancelled": "Reunião cancelada",
+  "profile.updated": "Atualizou o perfil",
+  "profile.interests.captured": "Preencheu perfil comercial",
+  "whatsapp.requested": "Solicitou atendimento via WhatsApp",
+};
 
 export function formatRelative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
