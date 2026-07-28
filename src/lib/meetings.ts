@@ -206,6 +206,34 @@ export function addMeetingNote(
   return all[idx];
 }
 
+export function deleteMeeting(
+  id: string,
+  actor?: { actorId: string; actorName: string },
+): boolean {
+  const all = safeRead();
+  const idx = all.findIndex((m) => m.id === id);
+  if (idx < 0) return false;
+  const [removed] = all.splice(idx, 1);
+  safeWrite(all);
+  emitEvent({
+    type: "meeting.deleted",
+    actorId: actor?.actorId ?? removed.executiveId,
+    investorId: removed.investorId,
+    payload: { meetingId: removed.id, scheduledAt: removed.scheduledAt },
+  });
+  logAudit({
+    actorId: actor?.actorId ?? removed.executiveId,
+    actorName: actor?.actorName ?? removed.executiveName,
+    actorRole: "Executivo",
+    module: "investidores",
+    action: "Reunião excluída",
+    target: removed.investorName,
+    details: `Reunião de ${new Date(removed.scheduledAt).toLocaleString("pt-BR")} removida permanentemente.`,
+    severity: "warning",
+  });
+  return true;
+}
+
 export const MEETING_STATUS_TONE: Record<MeetingStatus, string> = {
   Agendada: "var(--gold)",
   Confirmada: "#4A7C59",
