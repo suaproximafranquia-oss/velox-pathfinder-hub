@@ -709,7 +709,7 @@ function TabComentarios({
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Registre uma observação interna sobre este investidor…"
+          placeholder="Registre uma nota interna: follow-up, ligação, informação importante…"
           rows={3}
           className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-[color:var(--muted-foreground)]/60"
         />
@@ -720,13 +720,13 @@ function TabComentarios({
             disabled={!body.trim()}
             className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-3.5 py-2 text-xs hover:border-[color:var(--gold)] transition disabled:opacity-40"
           >
-            <MessageSquarePlus className="h-3.5 w-3.5" /> Adicionar comentário
+            <MessageSquarePlus className="h-3.5 w-3.5" /> Registrar nota
           </button>
         </div>
       </div>
 
       {items.length === 0 ? (
-        <EmptyState icon={MessageSquarePlus} text="Nenhum comentário registrado ainda." />
+        <EmptyState icon={MessageSquarePlus} text="Nenhuma nota interna registrada ainda." />
       ) : (
         <ul className="space-y-2">
           {items.map((c) => (
