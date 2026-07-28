@@ -409,21 +409,22 @@ function MeetingsPage() {
                        >
                          {m.investorName}
                        </button>
+                       <ProviderBadge meeting={m} />
                        <GoogleSyncBadge state={m.googleSync ?? "none"} error={m.googleSyncError} />
                      </div>
                      <div className="mt-1">
-                       {m.meetUrl ? (
+                       {resolveMeetingUrl(m) ? (
                          <a
-                           href={m.meetUrl}
+                           href={resolveMeetingUrl(m)}
                            target="_blank"
                            rel="noreferrer"
                            className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)]/40 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-[color:var(--foreground)] hover:bg-[color:var(--accent)]"
                          >
                            <Video className="h-3 w-3 text-[color:var(--gold)]" /> Entrar na reunião
                          </a>
-                       ) : m.googleSync === "pending" ? (
+                       ) : resolveMeetingProvider(m).id === "google_meet" ? (
                          <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
-                           Aguardando geração do Google Meet.
+                           Aguardando configuração da integração Google Meet.
                          </span>
                        ) : (
                          <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
