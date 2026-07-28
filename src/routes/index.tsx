@@ -18,7 +18,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Portal Velox: a porta de entrada do ecossistema Velox — Manual do Investidor, Universo Velox, Nossa Sede, Notícias, Experiências e Área Executiva em uma única plataforma.",
+          "Portal Velox: a porta de entrada do ecossistema Velox — Manual do Investidor, Universo Velox, Nossa Estrutura, Notícias, Experiências e Área Executiva em uma única plataforma.",
       },
       { property: "og:title", content: "Portal Velox — Ecossistema institucional" },
       {
@@ -89,9 +89,9 @@ const MODULES: ModuleCard[] = [
   {
     key: "sede",
     eyebrow: "Módulo IV",
-    title: "Nossa Sede",
+    title: "Nossa Estrutura",
     description:
-      "Um convite para conhecer, em imagens e vídeo, a sede da Velox e as unidades que sustentam a rede em todo o país.",
+      "Um panorama institucional da Velox: a matriz, os bastidores, os vídeos e as unidades da rede que sustentam nossa operação em todo o país.",
     icon: Building2,
     cover: sedeFachadaImg.url,
     cta: "Em breve",
