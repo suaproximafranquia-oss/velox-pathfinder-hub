@@ -10,6 +10,8 @@ import {
   type SimulatorProduct,
 } from "@/lib/simulator-products";
 import { ExecutiveContactDialog } from "@/components/shared/executive-contact-dialog";
+import { emitEvent } from "@/lib/events/bus";
+import { getVisitorIdentity } from "@/lib/leads";
 
 type Step = 1 | 2 | 3;
 
@@ -100,6 +102,30 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
 
   const canAdvance = selected.size > 0;
   const canCalculate = selectedProducts.some((p) => (inputs[p.id] ?? 0) > 0);
+
+  useEffect(() => {
+    if (!open) return;
+    const visitor = getVisitorIdentity();
+    emitEvent({
+      type: "simulator.started",
+      investorId: visitor?.whatsapp ?? null,
+    });
+  }, [open]);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    const visitor = getVisitorIdentity();
+    emitEvent({
+      type: "simulator.completed",
+      investorId: visitor?.whatsapp ?? null,
+      payload: {
+        total: results.total,
+        annual: results.total * 12,
+        products: results.rows.map((r) => ({ id: r.product.id, volume: r.volume, revenue: r.revenue })),
+      },
+    });
+  }, [step, results.total, results.rows]);
+
 
   return (
     <div
