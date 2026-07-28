@@ -262,45 +262,10 @@ function MeetingsPage() {
     <ExecutiveShell session={session} title="Central de Reuniões">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 mb-5 sm:flex sm:flex-wrap sm:justify-between">
         <p className="text-sm text-[color:var(--muted-foreground)] max-w-2xl min-w-0">
-          Gestão dos encontros com sua carteira. Toda reunião alimenta automaticamente o
-          Perfil Inteligente do Investidor e a Central de Notificações.
+          Painel de acompanhamento das reuniões da sua carteira. As reuniões são
+          criadas exclusivamente a partir do Lead no Workspace — esta Central
+          apenas consulta, acompanha, cancela e registra.
         </p>
-        <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={syncing || !googleConnected}
-          title={
-            googleConnected
-              ? "Sincronizar reuniões pendentes com o Google Calendar"
-              : "Conecte sua conta Google para sincronizar"
-          }
-          onClick={async () => {
-            if (!session) return;
-            setSyncing(true);
-            try {
-              await syncPending({
-                userId: session.userId,
-                userName: session.name,
-                userRole: "Executivo",
-              });
-            } finally {
-              setSyncing(false);
-              refresh();
-            }
-          }}
-          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm text-[color:var(--foreground)] hover:bg-[color:var(--accent)] disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Sincronizando..." : "Sincronizar agora"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[color:var(--gold)]/40 px-4 py-2 text-sm text-[color:var(--foreground)] hover:bg-[color:var(--accent)]"
-        >
-          <Plus className="h-4 w-4" /> Nova reunião
-        </button>
-        </div>
       </div>
 
       <SummaryPanel
@@ -309,7 +274,6 @@ function MeetingsPage() {
         todayRemaining={todayRemaining}
         nextMeeting={nextMeeting}
         onOpenNext={() => nextMeeting && setDetailsFor(nextMeeting)}
-        pendings={pendings}
         stats={stats}
         onOpen={(m) => setDetailsFor(m)}
       />
@@ -504,17 +468,6 @@ function MeetingsPage() {
 
       {tab === "historico" && (
         <HistoryView executiveId={session.userId} items={items} />
-      )}
-
-      {creating && (
-        <NewMeetingDialog
-          session={session}
-          onClose={() => setCreating(false)}
-          onCreated={() => {
-            setCreating(false);
-            refresh();
-          }}
-        />
       )}
 
       {notesFor && (
