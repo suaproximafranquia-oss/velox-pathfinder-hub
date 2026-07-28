@@ -466,17 +466,25 @@ function ActionButton({
   label,
   onClick,
   count,
+  tone,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   onClick: () => void;
   count?: number;
+  tone?: "default" | "danger";
 }) {
+  const danger = tone === "danger";
   return (
     <button
       type="button"
       onClick={onClick}
       title={label}
+      className={
+        danger
+          ? "relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#C53030]/40 text-[#C53030] hover:bg-[rgba(197,48,48,0.1)] transition"
+          : undefined
+      }
       aria-label={label}
       className="inline-flex items-center gap-1 rounded-md border border-[color:var(--border)] px-2 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]"
     >
