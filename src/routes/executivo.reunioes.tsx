@@ -18,6 +18,10 @@ import {
   ListChecks,
   LayoutGrid,
   Trash2,
+  Cloud,
+  CloudOff,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
@@ -30,11 +34,21 @@ import {
   deleteMeeting,
   type Meeting,
   type MeetingStatus,
+  type GoogleSyncState,
 } from "@/lib/meetings";
 import { loadLeads } from "@/lib/leads";
 import { InvestorProfilePanel } from "@/components/executive/investor-profile-panel";
 import { logAudit } from "@/lib/audit-log";
 import { listEvents, onEvent, type PortalEvent } from "@/lib/events/bus";
+import {
+  trySyncCreate,
+  trySyncUpdate,
+  trySyncDelete,
+  syncPending,
+  checkConflicts,
+  DEFAULT_TIMEZONE,
+} from "@/lib/google-calendar";
+import { getGoogleStore, subscribeGoogleStore } from "@/lib/google-workspace";
 
 export const Route = createFileRoute("/executivo/reunioes")({
   head: () => ({
@@ -73,6 +87,27 @@ function isOverdue(m: Meeting): boolean {
   return new Date(m.scheduledAt).getTime() < Date.now();
 }
 
+const GOOGLE_SYNC_STYLES: Record<GoogleSyncState, { label: string; fg: string; bg: string; border: string; Icon: typeof Cloud }> = {
+  synced:  { label: "Google sincronizado", fg: "#2C7A4B", bg: "rgba(44,122,75,0.14)",  border: "#2C7A4B", Icon: CheckCircle2 },
+  pending: { label: "Google pendente",     fg: "#B08D57", bg: "rgba(176,141,87,0.16)", border: "#B08D57", Icon: Cloud },
+  failed:  { label: "Erro de sincronização", fg: "#C53030", bg: "rgba(197,48,48,0.14)",border: "#C53030", Icon: XCircle },
+  none:    { label: "Sem integração",      fg: "#4A5568", bg: "rgba(74,85,104,0.14)",  border: "#4A5568", Icon: CloudOff },
+};
+
+function GoogleSyncBadge({ state, error }: { state: GoogleSyncState; error?: string }) {
+  const s = GOOGLE_SYNC_STYLES[state];
+  const Icon = s.Icon;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.22em]"
+      style={{ color: s.fg, background: s.bg, border: `1px solid ${s.border}` }}
+      title={error || s.label}
+    >
+      <Icon className="h-3 w-3" /> {s.label}
+    </span>
+  );
+}
+
 function ymd(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -96,6 +131,18 @@ function MeetingsPage() {
   const [agendaDate, setAgendaDate] = useState<string>(() => ymd(new Date()));
   const [calMonth, setCalMonth] = useState<Date>(() => { const d = new Date(); d.setDate(1); return d; });
   const [tick, setTick] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [googleTick, setGoogleTick] = useState(0);
+
+  useEffect(() => {
+    if (!session) return;
+    const off = subscribeGoogleStore(session.userId, () => setGoogleTick((t) => t + 1));
+    return () => off();
+  }, [session?.userId]);
+
+  const googleStore = session ? getGoogleStore(session.userId) : null;
+  void googleTick;
+  const googleConnected = googleStore?.state === "connected";
 
   useEffect(() => {
     const s = getSession();
@@ -195,6 +242,34 @@ function MeetingsPage() {
           Gestão dos encontros com sua carteira. Toda reunião alimenta automaticamente o
           Perfil Inteligente do Investidor e a Central de Notificações.
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={syncing || !googleConnected}
+          title={
+            googleConnected
+              ? "Sincronizar reuniões pendentes com o Google Calendar"
+              : "Conecte sua conta Google para sincronizar"
+          }
+          onClick={async () => {
+            if (!session) return;
+            setSyncing(true);
+            try {
+              await syncPending({
+                userId: session.userId,
+                userName: session.name,
+                userRole: "Executivo",
+              });
+            } finally {
+              setSyncing(false);
+              refresh();
+            }
+          }}
+          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm text-[color:var(--foreground)] hover:bg-[color:var(--accent)] disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Sincronizando..." : "Sincronizar agora"}
+        </button>
         <button
           type="button"
           onClick={() => setCreating(true)}
@@ -202,6 +277,7 @@ function MeetingsPage() {
         >
           <Plus className="h-4 w-4" /> Nova reunião
         </button>
+        </div>
       </div>
 
       <SummaryPanel
@@ -301,29 +377,37 @@ function MeetingsPage() {
                 <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_auto_auto] md:items-center">
                   {/* Coluna 1 — Investidor */}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar className="h-4 w-4 shrink-0 text-[color:var(--gold)]" />
-                      <button
-                        type="button"
-                        onClick={() => setProfileOpen(m.investorId)}
-                        className="truncate font-display text-base text-left hover:text-[color:var(--gold)]"
-                      >
-                        {m.investorName}
-                      </button>
-                      {m.meetUrl ? (
-                        <a
-                          href={m.meetUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="Abrir videoconferência"
-                          className="inline-flex items-center gap-1 text-[color:var(--gold)] hover:opacity-80"
-                        >
-                          <Video className="h-3.5 w-3.5" />
-                        </a>
-                      ) : (
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">Sem link</span>
-                      )}
-                    </div>
+                     <div className="flex items-center gap-2 mb-1">
+                       <Calendar className="h-4 w-4 shrink-0 text-[color:var(--gold)]" />
+                       <button
+                         type="button"
+                         onClick={() => setProfileOpen(m.investorId)}
+                         className="truncate font-display text-base text-left hover:text-[color:var(--gold)]"
+                       >
+                         {m.investorName}
+                       </button>
+                       <GoogleSyncBadge state={m.googleSync ?? "none"} error={m.googleSyncError} />
+                     </div>
+                     <div className="mt-1">
+                       {m.meetUrl ? (
+                         <a
+                           href={m.meetUrl}
+                           target="_blank"
+                           rel="noreferrer"
+                           className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)]/40 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-[color:var(--foreground)] hover:bg-[color:var(--accent)]"
+                         >
+                           <Video className="h-3 w-3 text-[color:var(--gold)]" /> Entrar na reunião
+                         </a>
+                       ) : m.googleSync === "pending" ? (
+                         <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+                           Aguardando geração do Google Meet.
+                         </span>
+                       ) : (
+                         <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+                           Sem link
+                         </span>
+                       )}
+                     </div>
                     <p className="text-xs text-[color:var(--muted-foreground)]">
                       {when.toLocaleDateString("pt-BR")} · {when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                     </p>
@@ -528,7 +612,12 @@ function DeleteDialog({
           </button>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
+              await trySyncDelete(meeting, {
+                userId: session.userId,
+                userName: session.name,
+                userRole: "Executivo",
+              });
               deleteMeeting(meeting.id, { actorId: session.userId, actorName: session.name });
               onDeleted();
             }}
@@ -557,30 +646,65 @@ function NewMeetingDialog({
   );
   const [investorId, setInvestorId] = useState(leads[0]?.id ?? "");
   const [customName, setCustomName] = useState("");
+  const [customEmail, setCustomEmail] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [meetUrl, setMeetUrl] = useState("");
+  const [conflicts, setConflicts] = useState<{ summary: string; start: string; end: string }[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit() {
-    if (!date || !time) return;
+  const googleStore = getGoogleStore(session.userId);
+  const googleConnected = googleStore.state === "connected";
+
+  async function submit(force = false) {
+    if (!date || !time || submitting) return;
     const iso = new Date(`${date}T${time}:00`).toISOString();
+    const endIso = new Date(new Date(iso).getTime() + 60 * 60_000).toISOString();
+    if (!force && googleConnected) {
+      const found = checkConflicts(session.userId, iso, endIso);
+      if (found.length > 0) {
+        setConflicts(
+          found.map((e) => ({ summary: e.summary, start: e.start, end: e.end })),
+        );
+        return;
+      }
+    }
     const lead = leads.find((l) => l.id === investorId);
     const inv = lead
-      ? { investorId: lead.id, investorName: lead.name }
-      : { investorId: `inv_${Date.now().toString(36)}`, investorName: customName || "Investidor" };
-    createMeeting({
+      ? { investorId: lead.id, investorName: lead.name, investorEmail: lead.email }
+      : {
+          investorId: `inv_${Date.now().toString(36)}`,
+          investorName: customName || "Investidor",
+          investorEmail: customEmail || undefined,
+        };
+    setSubmitting(true);
+    const created = createMeeting({
       ...inv,
       executiveId: session.userId,
       executiveName: session.name,
       scheduledAt: iso,
+      durationMin: 60,
       meetUrl: meetUrl || undefined,
     });
+    await trySyncCreate(created, {
+      userId: session.userId,
+      userName: session.name,
+      userRole: "Executivo",
+    });
+    setSubmitting(false);
     onCreated();
   }
 
   return (
     <Overlay onClose={onClose} title="Nova reunião">
       <div className="space-y-3 text-sm">
+        <div className="flex items-center gap-2 rounded-md border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-2 text-[11px] text-[color:var(--muted-foreground)]">
+          {googleConnected ? (
+            <><Cloud className="h-3.5 w-3.5 text-[color:var(--gold)]" /> Evento será criado no Google Calendar ({DEFAULT_TIMEZONE}) com Google Meet e convites automáticos.</>
+          ) : (
+            <><CloudOff className="h-3.5 w-3.5" /> Sem sincronização Google — a reunião será salva apenas internamente.</>
+          )}
+        </div>
         {leads.length > 0 ? (
           <label className="block">
             <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Investidor</span>
@@ -595,14 +719,26 @@ function NewMeetingDialog({
           </label>
         ) : null}
         {(leads.length === 0 || !investorId) && (
-          <label className="block">
-            <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Nome do investidor</span>
-            <input
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
-            />
-          </label>
+          <>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Nome do investidor</span>
+              <input
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Email do investidor (opcional)</span>
+              <input
+                type="email"
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                placeholder="convidado@exemplo.com"
+                className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+              />
+            </label>
+          </>
         )}
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -615,7 +751,9 @@ function NewMeetingDialog({
           </label>
         </div>
         <label className="block">
-          <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Link (opcional)</span>
+          <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">
+            {googleConnected ? "Link (opcional — gerado automaticamente se vazio)" : "Link (opcional)"}
+          </span>
           <input
             value={meetUrl}
             onChange={(e) => setMeetUrl(e.target.value)}
@@ -623,13 +761,41 @@ function NewMeetingDialog({
             className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
           />
         </label>
-        <button
-          type="button"
-          onClick={submit}
-          className="w-full rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium"
-        >
-          Agendar reunião
-        </button>
+        {conflicts.length > 0 && (
+          <div className="rounded-md border border-[#C53030]/40 bg-[rgba(197,48,48,0.08)] px-3 py-2 text-[11px] text-[#C53030]">
+            <p className="flex items-center gap-1 font-medium mb-1">
+              <AlertTriangle className="h-3 w-3" /> Conflito de agenda detectado
+            </p>
+            <ul className="space-y-0.5">
+              {conflicts.map((c, i) => (
+                <li key={i}>
+                  · {c.summary} — {new Date(c.start).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}–{new Date(c.end).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-[color:var(--muted-foreground)]">Escolha outro horário ou confirme para agendar mesmo assim.</p>
+          </div>
+        )}
+        <div className="flex gap-2">
+          {conflicts.length > 0 && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => submit(true)}
+              className="flex-1 rounded-full border border-[#C53030] px-4 py-2 text-sm text-[#C53030]"
+            >
+              Agendar mesmo assim
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => submit(false)}
+            className="flex-1 rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium disabled:opacity-50"
+          >
+            {submitting ? "Agendando..." : "Agendar reunião"}
+          </button>
+        </div>
       </div>
     </Overlay>
   );
@@ -802,9 +968,16 @@ function EditDialog({
           <button
             type="button"
             disabled={!date || !time}
-            onClick={() => {
+            onClick={async () => {
               const iso = new Date(`${date}T${time}:00`).toISOString();
-              updateMeeting(meeting.id, { scheduledAt: iso, meetUrl }, { actorId: session.userId, actorName: session.name });
+              const updated = updateMeeting(meeting.id, { scheduledAt: iso, meetUrl }, { actorId: session.userId, actorName: session.name });
+              if (updated) {
+                await trySyncUpdate(updated, {
+                  userId: session.userId,
+                  userName: session.name,
+                  userRole: "Executivo",
+                });
+              }
               onSaved();
             }}
             className="flex-1 rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium disabled:opacity-50"
@@ -843,7 +1016,7 @@ function StatusDialog({
     (status === "Cancelada" && !reason.trim()) ||
     (status === "Reagendada" && (!date || !time));
 
-  function submit() {
+  async function submit() {
     if (invalid) return;
     const extra: Parameters<typeof updateMeetingStatus>[2] = {
       actorId: session.userId,
@@ -851,7 +1024,15 @@ function StatusDialog({
     };
     if (status === "Cancelada") extra.cancelReason = reason.trim();
     if (status === "Reagendada") extra.scheduledAt = new Date(`${date}T${time}:00`).toISOString();
-    updateMeetingStatus(meeting.id, status, extra);
+    const updated = updateMeetingStatus(meeting.id, status, extra);
+    if (updated) {
+      const actor = { userId: session.userId, userName: session.name, userRole: "Executivo" };
+      if (status === "Cancelada" && updated.googleEventId) {
+        await trySyncDelete(updated, actor);
+      } else if (status === "Reagendada") {
+        await trySyncUpdate(updated, actor);
+      }
+    }
     logAudit({
       actorId: session.userId,
       actorName: session.name,
