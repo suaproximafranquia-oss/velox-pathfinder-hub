@@ -110,6 +110,18 @@ function MeetingsPage() {
   const [agendaDate, setAgendaDate] = useState<string>(() => ymd(new Date()));
   const [calMonth, setCalMonth] = useState<Date>(() => { const d = new Date(); d.setDate(1); return d; });
   const [tick, setTick] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [googleTick, setGoogleTick] = useState(0);
+
+  useEffect(() => {
+    if (!session) return;
+    const off = subscribeGoogleStore(session.userId, () => setGoogleTick((t) => t + 1));
+    return () => off();
+  }, [session?.userId]);
+
+  const googleStore = session ? getGoogleStore(session.userId) : null;
+  void googleTick;
+  const googleConnected = googleStore?.state === "connected";
 
   useEffect(() => {
     const s = getSession();
