@@ -8,6 +8,7 @@ import materialInstitucionalImg from "@/assets/portal-material-institucional.png
 import sedeFachadaImg from "@/assets/portal-sede-fachada.png.asset.json";
 import revistaImg from "@/assets/portal-revista-velox.png.asset.json";
 import experienciasImg from "@/assets/portal-experiencias.png.asset.json";
+import simuladorImg from "@/assets/portal-simulador.jpg.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -73,8 +74,20 @@ const MODULES: ModuleCard[] = [
     status: "aberto",
   },
   {
-    key: "sede",
+    key: "modulo-vi",
     eyebrow: "Módulo III",
+    title: "Simulador Inteligente de Potencial de Receita",
+    description:
+      "Monte diferentes cenários comerciais e descubra uma estimativa do potencial de receita da sua futura operação.",
+    icon: Calculator,
+    cover: simuladorImg.url,
+    cta: "Iniciar simulação",
+    status: "aberto",
+    action: "simulator",
+  },
+  {
+    key: "sede",
+    eyebrow: "Módulo IV",
     title: "Nossa Sede",
     description:
       "Um convite para conhecer, em imagens e vídeo, a sede da Velox e as unidades que sustentam a rede em todo o país.",
@@ -85,7 +98,7 @@ const MODULES: ModuleCard[] = [
   },
   {
     key: "revista",
-    eyebrow: "Módulo IV",
+    eyebrow: "Módulo V",
     title: "Revista Velox",
     description:
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
@@ -96,7 +109,7 @@ const MODULES: ModuleCard[] = [
   },
   {
     key: "cultura",
-    eyebrow: "Módulo V",
+    eyebrow: "Módulo VI",
     title: "Cultura Velox",
     description:
       "As pessoas, os encontros e os momentos que constroem a identidade da Velox e a jornada de quem faz parte da rede.",
@@ -104,18 +117,6 @@ const MODULES: ModuleCard[] = [
     cover: experienciasImg.url,
     cta: "Em breve",
     status: "em-preparacao",
-  },
-  {
-    key: "modulo-vi",
-    eyebrow: "Módulo VI",
-    title: "Simulador Inteligente de Potencial de Receita",
-    description:
-      "Monte diferentes cenários comerciais e descubra uma estimativa do potencial de receita da sua futura operação.",
-    icon: Calculator,
-    cover: sedeFachadaImg.url,
-    cta: "Iniciar simulação",
-    status: "aberto",
-    action: "simulator",
   },
 ];
 
