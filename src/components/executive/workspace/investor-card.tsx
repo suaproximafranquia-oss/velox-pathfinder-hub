@@ -1,5 +1,6 @@
 import { Calendar, User as UserIcon, MessageSquarePlus, MoreHorizontal } from "lucide-react";
 import type { Investor, InvestorOrigin, InvestorPriority } from "@/lib/executive-data";
+import { formatRelative } from "@/lib/executive-data";
 import { cn } from "@/lib/utils";
 
 const ORIGIN_META: Record<InvestorOrigin, { label: string; dot: string }> = {
@@ -42,6 +43,7 @@ export function InvestorCard({
   const origin = ORIGIN_META[investor.origin ?? "manual"];
   const priority = PRIORITY_META[investor.priority ?? "none"];
   const contact = investor.email || investor.phone;
+  const contextLine = buildContextLine(investor);
   const initials = investor.name
     .split(" ")
     .filter(Boolean)
@@ -100,6 +102,11 @@ export function InvestorCard({
             {origin.label}
           </span>
         </div>
+
+        {/* Linha contextual — sinal leve sobre o momento do investidor */}
+        <p className="mt-2 text-[10.5px] leading-snug text-[color:var(--muted-foreground)]/90 truncate">
+          {contextLine}
+        </p>
       </button>
 
       {/* Ações rápidas — aparecem em hover/focus */}
@@ -151,6 +158,15 @@ function QuickAction({
       {children}
     </button>
   );
+}
+
+function buildContextLine(inv: Investor): string {
+  if (inv.status === "conversando") return "Solicitou reunião";
+  if (inv.status === "novo") return "Aguardando contato";
+  if (inv.status === "concluido") return "Leitura concluída · pronto para conversar";
+  if (inv.readingPct > 0)
+    return `Manual ${inv.readingPct}% · ${formatRelative(inv.lastActivity)}`;
+  return `Última atividade ${formatRelative(inv.lastActivity)}`;
 }
 
 function formatMeetingLabel(iso: string): string {
