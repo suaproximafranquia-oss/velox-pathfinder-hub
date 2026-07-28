@@ -34,6 +34,7 @@ const emptyDraft: Draft = {
   name: "",
   email: "",
   phone: "",
+  birthDate: "",
   username: "",
   password: "",
   slug: "",
@@ -231,6 +232,7 @@ function UsuariosPage() {
                 ["name", "Nome", "text", "Ex.: Ana Souza"],
                 ["email", "E-mail Corporativo", "email", "nome@empresa.com.br"],
                 ["phone", "Telefone", "tel", "(11) 90000-0000"],
+                ["birthDate", "Data de nascimento", "date", ""],
                 ["password", "Senha Inicial", "text", "Definir senha temporária"],
               ] as const
             ).map(([field, label, type, placeholder]) => (
