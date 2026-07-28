@@ -18,6 +18,10 @@ import {
   ListChecks,
   LayoutGrid,
   Trash2,
+  Cloud,
+  CloudOff,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
@@ -30,11 +34,21 @@ import {
   deleteMeeting,
   type Meeting,
   type MeetingStatus,
+  type GoogleSyncState,
 } from "@/lib/meetings";
 import { loadLeads } from "@/lib/leads";
 import { InvestorProfilePanel } from "@/components/executive/investor-profile-panel";
 import { logAudit } from "@/lib/audit-log";
 import { listEvents, onEvent, type PortalEvent } from "@/lib/events/bus";
+import {
+  trySyncCreate,
+  trySyncUpdate,
+  trySyncDelete,
+  syncPending,
+  checkConflicts,
+  DEFAULT_TIMEZONE,
+} from "@/lib/google-calendar";
+import { getGoogleStore, subscribeGoogleStore } from "@/lib/google-workspace";
 
 export const Route = createFileRoute("/executivo/reunioes")({
   head: () => ({
