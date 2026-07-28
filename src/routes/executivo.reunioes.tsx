@@ -735,9 +735,6 @@ function EditDialog({
   return (
     <Overlay onClose={onClose} title={`Editar reunião · ${meeting.investorName}`}>
       <div className="space-y-3 text-sm">
-        <div className="rounded-md border border-[color:var(--border)] px-3 py-2 text-xs text-[color:var(--muted-foreground)]">
-          Investidor e executivo permanecem inalterados.
-        </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Data</span>
