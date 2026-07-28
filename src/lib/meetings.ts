@@ -27,6 +27,8 @@ export type MeetingNote = {
 
 export type GoogleSyncState = "none" | "synced" | "pending" | "failed";
 
+import type { MeetingProviderId, MeetingProviderStatus } from "@/lib/meeting-providers";
+
 export type Meeting = {
   id: string;
   investorId: string;
@@ -44,6 +46,11 @@ export type Meeting = {
   googleSync?: GoogleSyncState;
   googleSyncError?: string;
   googleSyncedAt?: string;
+  // Meeting Providers (Bloco 1B) — provedor de videoconferência intercambiável.
+  meetingProvider?: MeetingProviderId;
+  meetingProviderStatus?: MeetingProviderStatus;
+  meetingProviderMeetingId?: string;
+  meetingProviderUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
