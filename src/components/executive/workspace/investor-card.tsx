@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Calendar, User as UserIcon, MessageSquarePlus, MoreVertical, Trash2 } from "lucide-react";
 import type { Investor, InvestorOrigin, InvestorPriority } from "@/lib/executive-data";
 import { formatRelative } from "@/lib/executive-data";
+import {
+  getPortalLeadStatus,
+  PORTAL_LEAD_STATUS_META,
+} from "@/lib/portal-lead-status";
+import { onEvent } from "@/lib/events/bus";
 import { cn } from "@/lib/utils";
 
 const ORIGIN_META: Record<
@@ -60,6 +65,20 @@ export function InvestorCard({
   const priority = PRIORITY_META[investor.priority ?? "none"];
   const contact = investor.email || investor.phone;
   const contextLine = buildContextLine(investor);
+  const isPortal = investor.origin === "portal";
+  const [portalStatus, setPortalStatus] = useState(() =>
+    isPortal ? getPortalLeadStatus(investor.id) : null,
+  );
+  useEffect(() => {
+    if (!isPortal) return;
+    setPortalStatus(getPortalLeadStatus(investor.id));
+    return onEvent((e) => {
+      if (e.type === "lead.status.changed" && e.investorId === investor.id) {
+        setPortalStatus(getPortalLeadStatus(investor.id));
+      }
+    });
+  }, [investor.id, isPortal]);
+  const portalMeta = portalStatus ? PORTAL_LEAD_STATUS_META[portalStatus] : null;
   const initials = investor.name
     .split(" ")
     .filter(Boolean)
@@ -114,6 +133,18 @@ export function InvestorCard({
             <p className="mt-1 text-[12px] text-[color:var(--muted-foreground)] truncate">
               {contact}
             </p>
+            {portalMeta && (
+              <span
+                className={cn(
+                  "mt-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]",
+                  portalMeta.border,
+                  portalMeta.text,
+                )}
+              >
+                <span className={cn("h-1.5 w-1.5 rounded-full", portalMeta.dot)} />
+                {portalMeta.label}
+              </span>
+            )}
           </div>
         </div>
 

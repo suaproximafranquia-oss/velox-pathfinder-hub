@@ -45,6 +45,7 @@ function fmt(e: PortalEvent): TimelineEntry {
     "profile.updated": "Perfil atualizado",
     "profile.interests.captured": "Perfil comercial preenchido",
     "whatsapp.requested": "Solicitou atendimento via WhatsApp.",
+    "lead.status.changed": "Status do Lead atualizado",
   };
   return {
     id: e.id,

@@ -217,6 +217,7 @@ const EVENT_LABEL: Record<string, string> = {
   "profile.updated": "Atualizou o perfil",
   "profile.interests.captured": "Preencheu perfil comercial",
   "whatsapp.requested": "Solicitou atendimento via WhatsApp",
+  "lead.status.changed": "Status do Lead atualizado",
 };
 
 export function formatRelative(iso: string): string {
