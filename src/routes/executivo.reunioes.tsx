@@ -49,6 +49,16 @@ import {
   DEFAULT_TIMEZONE,
 } from "@/lib/google-calendar";
 import { getGoogleStore, subscribeGoogleStore } from "@/lib/google-workspace";
+import {
+  MEETING_PROVIDERS,
+  getDefaultProviderForExecutive,
+  getProvider,
+  resolveMeetingProvider,
+  resolveMeetingUrl,
+  tryGenerateProviderLink,
+  type MeetingProviderId,
+  type MeetingProviderStatus,
+} from "@/lib/meeting-providers";
 
 export const Route = createFileRoute("/executivo/reunioes")({
   head: () => ({
@@ -104,6 +114,19 @@ function GoogleSyncBadge({ state, error }: { state: GoogleSyncState; error?: str
       title={error || s.label}
     >
       <Icon className="h-3 w-3" /> {s.label}
+    </span>
+  );
+}
+
+function ProviderBadge({ meeting }: { meeting: Meeting }) {
+  const p = resolveMeetingProvider(meeting);
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.22em]"
+      style={{ color: p.color, background: `${p.color}1F`, border: `1px solid ${p.color}66` }}
+      title={`Provedor: ${p.label}`}
+    >
+      <Video className="h-3 w-3" /> {p.shortLabel}
     </span>
   );
 }
