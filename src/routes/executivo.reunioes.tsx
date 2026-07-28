@@ -1154,19 +1154,18 @@ function Overlay({ onClose, title, children, wide }: { onClose: () => void; titl
 function SummaryPanel({
   todayCount, todayDone, todayRemaining,
   nextMeeting, onOpenNext,
-  pendings, stats, onOpen,
+  stats, onOpen,
 }: {
   todayCount: number;
   todayDone: number;
   todayRemaining: number;
   nextMeeting: Meeting | null;
   onOpenNext: () => void;
-  pendings: { noNotes: Meeting[]; rescheduled: Meeting[]; noLink: Meeting[] };
   stats: Record<MeetingStatus, number>;
   onOpen: (m: Meeting) => void;
 }) {
   return (
-    <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <PanelCard title="Reuniões de hoje">
         <p className="font-display text-3xl">{todayCount}</p>
         <p className="text-xs text-[color:var(--muted-foreground)] mt-1">
@@ -1192,14 +1191,6 @@ function SummaryPanel({
         ) : (
           <p className="text-sm text-[color:var(--muted-foreground)]">Nenhuma reunião programada.</p>
         )}
-      </PanelCard>
-
-      <PanelCard title="Pendências">
-        <ul className="space-y-1 text-xs">
-          <PendingLine label="Sem observações" items={pendings.noNotes} onOpen={onOpen} />
-          <PendingLine label="Reagendadas" items={pendings.rescheduled} onOpen={onOpen} />
-          <PendingLine label="Confirmadas sem link" items={pendings.noLink} onOpen={onOpen} />
-        </ul>
       </PanelCard>
 
       <PanelCard title="Estatísticas">
