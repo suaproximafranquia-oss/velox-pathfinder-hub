@@ -36,7 +36,7 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] bg-grain">
       {/* Fixed premium header */}
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]/85 backdrop-blur-xl">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 gap-4">
           <Link
             to="/"
@@ -47,21 +47,23 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
               V
             </span>
             <span className="hidden sm:flex flex-col leading-tight">
-              <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--gold)]/80">
                 Velox
               </span>
-              <span className="text-sm font-medium">Manual do Investidor</span>
+              <span className="text-sm font-medium text-[color:var(--foreground)]">
+                Manual do Investidor
+              </span>
             </span>
           </Link>
 
           <div className="flex items-center gap-3 min-w-0">
-            <span className="hidden md:inline text-xs text-[color:var(--muted-foreground)] truncate">
+            <span className="hidden md:inline text-xs text-[color:var(--foreground)]/70 truncate">
               {label}
             </span>
             <button
               type="button"
               onClick={() => setIndexOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition-colors"
+              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-3.5 py-1.5 text-xs font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)]/20 hover:border-[color:var(--gold)]/60 transition-colors"
             >
               <List className="h-3.5 w-3.5" />
               Índice

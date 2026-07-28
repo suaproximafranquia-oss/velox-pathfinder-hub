@@ -63,6 +63,36 @@ export function loadLeads(): LeadRecord[] {
 }
 
 /**
+ * Remove um lead da base local pelo seu id. Não afeta a base de eventos
+ * (a Timeline pode manter o histórico anônimo se desejado).
+ */
+export function deleteLead(id: string): void {
+  const all = loadLeads().filter((l) => l.id !== id);
+  safeWrite(LEADS_KEY, all);
+}
+
+/**
+ * Atualiza campos específicos de um lead existente (ex.: WhatsApp após
+ * conclusão do Manual). Mantém a mesma identidade — nunca cria outro
+ * registro.
+ */
+export function updateLead(id: string, patch: Partial<VisitorIdentity>): LeadRecord | null {
+  const all = loadLeads();
+  const idx = all.findIndex((l) => l.id === id);
+  if (idx < 0) return null;
+  const merged: LeadRecord = { ...all[idx], ...patch };
+  all[idx] = merged;
+  safeWrite(LEADS_KEY, all);
+  saveVisitorIdentity({
+    name: merged.name,
+    email: merged.email,
+    whatsapp: merged.whatsapp,
+    city: merged.city,
+  });
+  return merged;
+}
+
+/**
  * Grava um novo lead na base local. Retorna o executivo responsável
  * resolvido pela lógica oficial (link personalizado ou padrão).
  */

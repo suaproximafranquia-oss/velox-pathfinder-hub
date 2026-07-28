@@ -305,6 +305,12 @@ function ModeloBody() {
           direcioná-lo para a solução mais adequada dentro do ecossistema
           da Velox e de seus parceiros homologados.
         </IconCard>
+        <IconCard icon={ShieldCheck} title="Suporte contínuo da rede">
+          O franqueado nunca opera sozinho. A Velox oferece consultoria
+          de negócios dedicada, Universidade Corporativa, tecnologia
+          proprietária e uma comunidade ativa de franqueados —
+          sustentando a evolução da operação em cada fase.
+        </IconCard>
       </div>
       <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
         A remuneração acompanha essa lógica. O franqueado é remunerado por

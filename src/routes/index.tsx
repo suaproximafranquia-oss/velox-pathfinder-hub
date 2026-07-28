@@ -209,7 +209,7 @@ function Hero() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 62%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 48%, transparent) 45%, color-mix(in oklab, var(--brand-blue-deep) 55%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 78%, transparent) 100%)",
+              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 46%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 36%, transparent) 45%, color-mix(in oklab, var(--brand-blue-deep) 42%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 58%, transparent) 100%)",
           }}
         />
         <div
@@ -225,7 +225,7 @@ function Hero() {
           className="absolute inset-x-0 bottom-0 h-40"
           style={{
             background:
-              "linear-gradient(180deg, transparent 0%, color-mix(in oklab, var(--brand-blue-deep) 40%, transparent) 55%, var(--paper) 100%)",
+              "linear-gradient(180deg, transparent 0%, color-mix(in oklab, var(--brand-blue-deep) 55%, transparent) 55%, color-mix(in oklab, var(--brand-blue-deep) 85%, transparent) 100%)",
           }}
         />
         <div aria-hidden className="absolute inset-0 portal-grid opacity-[0.08]" />

@@ -1,4 +1,5 @@
-import { Calendar, User as UserIcon, MessageSquarePlus, MoreHorizontal } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Calendar, User as UserIcon, MessageSquarePlus, MoreVertical, Trash2 } from "lucide-react";
 import type { Investor, InvestorOrigin, InvestorPriority } from "@/lib/executive-data";
 import { formatRelative } from "@/lib/executive-data";
 import { cn } from "@/lib/utils";
@@ -32,13 +33,13 @@ export function InvestorCard({
   onOpen,
   onNewMeeting,
   onComment,
-  onMore,
+  onDelete,
 }: {
   investor: InvestorCardData;
   onOpen: (id: string) => void;
   onNewMeeting: (id: string) => void;
   onComment: (id: string) => void;
-  onMore: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const origin = ORIGIN_META[investor.origin ?? "manual"];
   const priority = PRIORITY_META[investor.priority ?? "none"];
@@ -50,6 +51,16 @@ export function InvestorCard({
     .slice(0, 2)
     .map((n) => n[0]?.toUpperCase())
     .join("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
 
   return (
     <div className="group relative">
@@ -58,20 +69,20 @@ export function InvestorCard({
         onClick={() => onOpen(investor.id)}
         className={cn(
           "block w-full text-left rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50",
-          "p-4 transition-all duration-200",
+          "p-6 min-h-[220px] transition-all duration-200",
           "hover:border-[color:var(--gold)]/40 hover:bg-[color:var(--card)]/80",
           "hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_rgba(0,0,0,0.6)]",
           priority.ring,
         )}
       >
         {/* Header — avatar + prioridade */}
-        <div className="flex items-start gap-3 min-w-0">
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[11px] font-medium tracking-wider text-[color:var(--gold)]">
+        <div className="flex items-start gap-3 min-w-0 pr-8">
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[13px] font-medium tracking-wider text-[color:var(--gold)]">
             {initials || "•"}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="font-display text-[15px] leading-tight truncate">{investor.name}</p>
-            <p className="mt-0.5 text-[11px] text-[color:var(--muted-foreground)] truncate">
+            <p className="font-display text-[17px] leading-tight truncate">{investor.name}</p>
+            <p className="mt-1 text-[12px] text-[color:var(--muted-foreground)] truncate">
               {contact}
             </p>
           </div>
@@ -85,9 +96,9 @@ export function InvestorCard({
         </div>
 
         {/* Meta — próxima reunião + origem */}
-        <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
+        <div className="mt-5 flex items-center justify-between gap-2 text-[12px]">
           <span className="inline-flex items-center gap-1.5 text-[color:var(--muted-foreground)] min-w-0 truncate">
-            <Calendar className="h-3 w-3 shrink-0 text-[color:var(--gold)]/70" />
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-[color:var(--gold)]/70" />
             <span className="truncate">
               {investor.nextMeetingAt
                 ? formatMeetingLabel(investor.nextMeetingAt)
@@ -96,7 +107,7 @@ export function InvestorCard({
           </span>
           <span
             title={`Origem: ${origin.label}`}
-            className="inline-flex items-center gap-1.5 shrink-0 rounded-full border border-[color:var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[color:var(--muted-foreground)]"
+            className="inline-flex items-center gap-1.5 shrink-0 rounded-full border border-[color:var(--border)] px-2.5 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[color:var(--muted-foreground)]"
           >
             <span className={cn("h-1.5 w-1.5 rounded-full", origin.dot)} />
             {origin.label}
@@ -104,10 +115,43 @@ export function InvestorCard({
         </div>
 
         {/* Linha contextual — sinal leve sobre o momento do investidor */}
-        <p className="mt-2 text-[10.5px] leading-snug text-[color:var(--muted-foreground)]/90 truncate">
+        <p className="mt-3 text-[12px] leading-snug text-[color:var(--muted-foreground)]/90 line-clamp-2">
           {contextLine}
         </p>
       </button>
+
+      {/* Menu (⋮) — sempre visível no topo direito */}
+      <div ref={menuRef} className="absolute right-3 top-3 z-10">
+        <button
+          type="button"
+          aria-label="Mais opções"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((v) => !v);
+          }}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)] transition"
+        >
+          <MoreVertical className="h-4 w-4" />
+        </button>
+        {menuOpen && (
+          <div className="absolute right-0 mt-1 w-44 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-xl">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                if (typeof window !== "undefined" &&
+                  window.confirm(`Excluir o lead "${investor.name}"?`)) {
+                  onDelete(investor.id);
+                }
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-red-300 hover:bg-red-500/10 transition"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Excluir Lead
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Ações rápidas — aparecem em hover/focus */}
       <div
@@ -126,9 +170,6 @@ export function InvestorCard({
         </QuickAction>
         <QuickAction label="Comentário" onClick={() => onComment(investor.id)}>
           <MessageSquarePlus className="h-3.5 w-3.5" />
-        </QuickAction>
-        <QuickAction label="Mais opções" onClick={() => onMore(investor.id)}>
-          <MoreHorizontal className="h-3.5 w-3.5" />
         </QuickAction>
       </div>
     </div>

@@ -4,12 +4,14 @@ import { ArrowRight } from "lucide-react";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import type { ExecutiveUser } from "@/lib/executive-auth";
-import { registerLead } from "@/lib/leads";
+import { registerLead, updateLead } from "@/lib/leads";
+import { getPortalSession } from "@/lib/portal-session";
 
 export function ContactForm() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", city: "", time: "Qualquer horário" });
+  const [gatewayLeadId, setGatewayLeadId] = useState<string | null>(null);
   const [responsible, setResponsible] = useState<{
     executive: ExecutiveUser | null;
     personalized: boolean;
@@ -17,6 +19,11 @@ export function ContactForm() {
 
   useEffect(() => {
     setResponsible(getResponsibleExecutive());
+    const session = getPortalSession();
+    if (session) {
+      setGatewayLeadId(session.investorId);
+      setForm((f) => ({ ...f, name: session.name || f.name }));
+    }
   }, []);
 
   const exec = responsible.executive;
@@ -31,7 +38,8 @@ export function ContactForm() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.phone) return;
+    if (!form.phone) return;
+    if (!gatewayLeadId && !form.name) return;
     setSubmitting(true);
     const salutation = responsible.personalized && exec
       ? `Olá ${exec.name.split(" ")[0]}! Concluí o Manual do Investidor e gostaria de continuar nossa conversa. Tenho algumas dúvidas.`
@@ -42,16 +50,25 @@ export function ContactForm() {
       `Melhor horário: ${form.time}`;
     const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`;
     if (typeof window !== "undefined") {
-      registerLead({
-        identity: {
-          name: form.name,
+      if (gatewayLeadId) {
+        // Atualiza o MESMO lead criado pelo Gateway — nunca cria outro.
+        updateLead(gatewayLeadId, {
           whatsapp: form.phone,
-          email: "",
-          city: form.city,
-        },
-        material: "Manual do Investidor",
-        origin: `Manual · Formulário final · ${form.time}`,
-      });
+          city: form.city || undefined as unknown as string,
+          name: form.name || undefined as unknown as string,
+        });
+      } else {
+        registerLead({
+          identity: {
+            name: form.name,
+            whatsapp: form.phone,
+            email: "",
+            city: form.city,
+          },
+          material: "Manual do Investidor",
+          origin: `Manual · Formulário final · ${form.time}`,
+        });
+      }
       window.open(url, "_blank");
     }
     navigate({ to: "/manual/concluido" });
@@ -59,6 +76,8 @@ export function ContactForm() {
 
   const field =
     "w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3 text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)]/60 focus:outline-none focus:border-[color:var(--gold)]/60 focus:ring-2 focus:ring-[color:var(--gold)]/20 transition";
+
+  const gatewayMode = Boolean(gatewayLeadId);
 
   return (
     <form onSubmit={onSubmit} className="rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--card)]/50 p-6 sm:p-8 space-y-5">
@@ -70,32 +89,51 @@ export function ContactForm() {
         <p className="text-sm text-[color:var(--muted-foreground)]">
           {responsible.personalized && exec
             ? `Você será atendido diretamente por ${exec.name}${exec.title ? ` — ${exec.title}` : ""}.`
-            : "Preencha e nossa equipe entra em contato em até um dia útil."}
+            : gatewayMode
+              ? "Só falta o seu WhatsApp para conectarmos você ao executivo responsável."
+              : "Preencha e nossa equipe entra em contato em até um dia útil."}
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">Seu nome</label>
-          <input required value={form.name} onChange={set("name")} className={field} placeholder="Nome completo" />
+      {gatewayMode ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">WhatsApp</label>
+            <input required value={form.phone} onChange={set("phone")} className={field} placeholder="(00) 00000-0000" inputMode="tel" />
+          </div>
+          <div>
+            <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">Melhor horário</label>
+            <select value={form.time} onChange={set("time")} className={field}>
+              <option>Qualquer horário</option>
+              <option>Manhã</option>
+              <option>Tarde</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">WhatsApp</label>
-          <input required value={form.phone} onChange={set("phone")} className={field} placeholder="(00) 00000-0000" inputMode="tel" />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">Seu nome</label>
+            <input required value={form.name} onChange={set("name")} className={field} placeholder="Nome completo" />
+          </div>
+          <div>
+            <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">WhatsApp</label>
+            <input required value={form.phone} onChange={set("phone")} className={field} placeholder="(00) 00000-0000" inputMode="tel" />
+          </div>
+          <div>
+            <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">Cidade</label>
+            <input value={form.city} onChange={set("city")} className={field} placeholder="Onde você está" />
+          </div>
+          <div>
+            <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">Melhor horário</label>
+            <select value={form.time} onChange={set("time")} className={field}>
+              <option>Qualquer horário</option>
+              <option>Manhã</option>
+              <option>Tarde</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">Cidade</label>
-          <input value={form.city} onChange={set("city")} className={field} placeholder="Onde você está" />
-        </div>
-        <div>
-          <label className="block text-xs text-[color:var(--muted-foreground)] mb-1.5">Melhor horário</label>
-          <select value={form.time} onChange={set("time")} className={field}>
-            <option>Qualquer horário</option>
-            <option>Manhã</option>
-            <option>Tarde</option>
-          </select>
-        </div>
-      </div>
+      )}
 
       <p className="text-[11px] text-[color:var(--muted-foreground)]/80 leading-relaxed">
         Ao enviar, você concorda com o uso dos seus dados exclusivamente para
