@@ -224,6 +224,9 @@ function QuickAction({
 }
 
 function buildContextLine(inv: Investor): string {
+  if (inv.lastEventLabel) {
+    return `${inv.lastEventLabel} · ${formatRelative(inv.lastActivity)}`;
+  }
   if (inv.status === "conversando") return "Solicitou reunião";
   if (inv.status === "novo") return "Aguardando contato";
   if (inv.status === "concluido") return "Leitura concluída · pronto para conversar";
