@@ -20,6 +20,7 @@ import {
   type EditorialVariant,
 } from "../components/editorial/editorial-shell";
 import { hasPortalSession } from "../lib/portal-session";
+import { WhatsAppFloating } from "../components/shared/whatsapp-floating";
 
 function NotFoundComponent() {
   return (
@@ -190,6 +191,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <EditorialShell variant={variant}>{content}</EditorialShell>
+      {!isGateway && <WhatsAppFloating />}
     </QueryClientProvider>
   );
 }
