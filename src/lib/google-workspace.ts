@@ -44,6 +44,15 @@ export const GOOGLE_SCOPES: readonly string[] = [
   "https://www.googleapis.com/auth/userinfo.email",
 ];
 
+/**
+ * Sinaliza se a integração OAuth real com o Google Workspace já foi
+ * provisionada. Enquanto `false`, `startConnect` NÃO simula uma conta
+ * conectada — apenas registra o estado neutro "Integração não
+ * configurada". A UI (card e indicador) já se comporta em estado neutro
+ * independentemente deste sinalizador, garantindo consistência.
+ */
+export const GOOGLE_INTEGRATION_CONFIGURED = false;
+
 const STORAGE_PREFIX = "velox:google-workspace:v1:";
 const TOKEN_TTL_MS = 55 * 60 * 1000; // 55 min ≈ Google access-token
 
@@ -124,6 +133,18 @@ export async function startConnect(actor: {
   userRole: string;
 }): Promise<GoogleStore> {
   const owner = actor.userId;
+  if (!GOOGLE_INTEGRATION_CONFIGURED) {
+    // Nunca criar conta fictícia. Mantém o estado neutro.
+    const cleared: GoogleStore = {
+      ownerId: owner,
+      state: "idle",
+      account: null,
+      error: "Integração ainda não configurada.",
+      updatedAt: new Date().toISOString(),
+    };
+    safeWrite(cleared);
+    return cleared;
+  }
   const current = safeRead(owner);
   if (current.state === "connecting") return current;
   const connecting: GoogleStore = {
