@@ -4,11 +4,7 @@ import {
   Calendar,
   FileText,
   MessageSquarePlus,
-  Send,
-  Share2,
   Sparkles,
-  Phone,
-  Mail,
   MapPin,
   User as UserIcon,
   Clock,
@@ -23,6 +19,7 @@ import { buildInvestorProfile, type InvestorProfile } from "@/lib/investor-profi
 import { onEvent } from "@/lib/events/bus";
 import { addComment, listComments, type InvestorComment } from "@/lib/investor-comments";
 import { generateInvestorReport } from "@/lib/investor-report";
+import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import { cn } from "@/lib/utils";
 
 type TabKey =
@@ -63,16 +60,16 @@ export function InvestorProfileView({
   investor,
   session,
   onBack,
-  onNewMeeting,
 }: {
   investor: Investor;
   session: ExecutiveSession;
   onBack: () => void;
-  onNewMeeting: () => void;
 }) {
   const [tab, setTab] = useState<TabKey>("geral");
   const [profile, setProfile] = useState<InvestorProfile | null>(null);
   const [tick, setTick] = useState(0);
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const openNewMeeting = () => setMeetingOpen(true);
 
   useEffect(() => {
     setProfile(buildInvestorProfile(investor.id));
@@ -143,10 +140,7 @@ export function InvestorProfileView({
 
           {/* Ações rápidas */}
           <div className="flex flex-wrap gap-2 md:justify-end">
-            <QuickBtn icon={Calendar} label="Nova reunião" onClick={onNewMeeting} primary />
-            <QuickBtn icon={Send} label="Enviar material" />
-            <QuickBtn icon={Share2} label="Compartilhar link" />
-            <QuickBtn icon={Phone} label="WhatsApp" />
+            <QuickBtn icon={Calendar} label="Nova reunião" onClick={openNewMeeting} primary />
             <QuickBtn
               icon={FileText}
               label="Gerar PDF"
@@ -184,12 +178,24 @@ export function InvestorProfileView({
         {tab === "jornada" && <TabJornada investor={investor} />}
         {tab === "timeline" && <TabTimeline profile={profile} />}
         {tab === "reunioes" && (
-          <TabReunioes profile={profile} onNewMeeting={onNewMeeting} tick={tick} />
+          <TabReunioes profile={profile} onNewMeeting={openNewMeeting} tick={tick} />
         )}
         {tab === "comentarios" && <TabComentarios investor={investor} session={session} />}
         {tab === "ia" && <TabIA profile={profile} investor={investor} />}
         {tab === "relatorio" && <TabRelatorio investor={investor} profile={profile} />}
       </section>
+
+      {meetingOpen && (
+        <InvestorMeetingDialog
+          investor={investor}
+          session={session}
+          onClose={() => setMeetingOpen(false)}
+          onCreated={() => {
+            setMeetingOpen(false);
+            setProfile(buildInvestorProfile(investor.id));
+          }}
+        />
+      )}
     </div>
   );
 }

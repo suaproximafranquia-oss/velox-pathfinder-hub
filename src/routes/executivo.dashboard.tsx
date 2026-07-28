@@ -132,7 +132,6 @@ function WorkspacePage() {
           investor={activeInvestor}
           session={session}
           onBack={closeProfile}
-          onNewMeeting={() => navigate({ to: "/executivo/reunioes" })}
         />
       ) : (
         <>
