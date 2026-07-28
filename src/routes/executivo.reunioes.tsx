@@ -968,9 +968,16 @@ function EditDialog({
           <button
             type="button"
             disabled={!date || !time}
-            onClick={() => {
+            onClick={async () => {
               const iso = new Date(`${date}T${time}:00`).toISOString();
-              updateMeeting(meeting.id, { scheduledAt: iso, meetUrl }, { actorId: session.userId, actorName: session.name });
+              const updated = updateMeeting(meeting.id, { scheduledAt: iso, meetUrl }, { actorId: session.userId, actorName: session.name });
+              if (updated) {
+                await trySyncUpdate(updated, {
+                  userId: session.userId,
+                  userName: session.name,
+                  userRole: "Executivo",
+                });
+              }
               onSaved();
             }}
             className="flex-1 rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium disabled:opacity-50"
