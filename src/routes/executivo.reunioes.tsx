@@ -676,15 +676,26 @@ function NewMeetingDialog({
   const [meetUrl, setMeetUrl] = useState("");
   const [conflicts, setConflicts] = useState<{ summary: string; start: string; end: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [providerId, setProviderId] = useState<MeetingProviderId>(
+    () => getDefaultProviderForExecutive(session.userId),
+  );
+  const [providerError, setProviderError] = useState<string | null>(null);
 
   const googleStore = getGoogleStore(session.userId);
   const googleConnected = googleStore.state === "connected";
+  const provider = getProvider(providerId);
 
   async function submit(force = false) {
     if (!date || !time || submitting) return;
+    setProviderError(null);
+    // Provider Manual exige link.
+    if (provider.id === "manual" && !meetUrl.trim()) {
+      setProviderError("Informe o link da reunião.");
+      return;
+    }
     const iso = new Date(`${date}T${time}:00`).toISOString();
     const endIso = new Date(new Date(iso).getTime() + 60 * 60_000).toISOString();
-    if (!force && googleConnected) {
+    if (!force && googleConnected && provider.id === "google_meet") {
       const found = checkConflicts(session.userId, iso, endIso);
       if (found.length > 0) {
         setConflicts(
@@ -701,6 +712,11 @@ function NewMeetingDialog({
           investorName: customName || "Investidor",
           investorEmail: customEmail || undefined,
         };
+    // Gera link via provider (nunca lança).
+    const gen = tryGenerateProviderLink(provider.id, {
+      executiveId: session.userId,
+      manualUrl: meetUrl,
+    });
     setSubmitting(true);
     const created = createMeeting({
       ...inv,
@@ -708,13 +724,19 @@ function NewMeetingDialog({
       executiveName: session.name,
       scheduledAt: iso,
       durationMin: 60,
-      meetUrl: meetUrl || undefined,
+      meetUrl: gen.url || undefined,
+      meetingProvider: provider.id,
+      meetingProviderStatus: gen.status,
+      meetingProviderUrl: gen.url || undefined,
     });
-    await trySyncCreate(created, {
-      userId: session.userId,
-      userName: session.name,
-      userRole: "Executivo",
-    });
+    // Reutiliza Calendar sync apenas para google_meet quando conectado.
+    if (provider.id === "google_meet" && googleConnected) {
+      await trySyncCreate(created, {
+        userId: session.userId,
+        userName: session.name,
+        userRole: "Executivo",
+      });
+    }
     setSubmitting(false);
     onCreated();
   }
@@ -722,13 +744,25 @@ function NewMeetingDialog({
   return (
     <Overlay onClose={onClose} title="Nova reunião">
       <div className="space-y-3 text-sm">
-        <div className="flex items-center gap-2 rounded-md border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-2 text-[11px] text-[color:var(--muted-foreground)]">
-          {googleConnected ? (
-            <><Cloud className="h-3.5 w-3.5 text-[color:var(--gold)]" /> Evento será criado no Google Calendar ({DEFAULT_TIMEZONE}) com Google Meet e convites automáticos.</>
-          ) : (
-            <><CloudOff className="h-3.5 w-3.5" /> Sem sincronização Google — a reunião será salva apenas internamente.</>
-          )}
-        </div>
+        <label className="block">
+          <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">
+            Provedor da reunião
+          </span>
+          <select
+            value={providerId}
+            onChange={(e) => setProviderId(e.target.value as MeetingProviderId)}
+            className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+          >
+            {MEETING_PROVIDERS.map((p) => (
+              <option key={p.id} value={p.id} disabled={!p.enabled}>
+                {p.label}{p.comingSoon ? " (em breve)" : ""}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-[10px] text-[color:var(--muted-foreground)]">
+            Padrão do executivo: {getProvider(getDefaultProviderForExecutive(session.userId)).label}. Alterável apenas nesta reunião.
+          </span>
+        </label>
         {leads.length > 0 ? (
           <label className="block">
             <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Investidor</span>
@@ -774,17 +808,43 @@ function NewMeetingDialog({
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
           </label>
         </div>
-        <label className="block">
-          <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">
-            {googleConnected ? "Link (opcional — gerado automaticamente se vazio)" : "Link (opcional)"}
-          </span>
-          <input
-            value={meetUrl}
-            onChange={(e) => setMeetUrl(e.target.value)}
-            placeholder="https://meet.google.com/..."
-            className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
-          />
-        </label>
+        {provider.id === "manual" ? (
+          <label className="block">
+            <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">
+              Link da reunião *
+            </span>
+            <input
+              value={meetUrl}
+              onChange={(e) => setMeetUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+            />
+            {providerError && (
+              <span className="mt-1 block text-[11px] text-[#C53030]">{providerError}</span>
+            )}
+          </label>
+        ) : provider.id === "google_meet" ? (
+          <div className="block">
+            <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">
+              Link Google Meet
+            </span>
+            <input
+              readOnly
+              value=""
+              placeholder="Aguardando geração..."
+              className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-[color:var(--muted-foreground)]"
+            />
+            <span className="mt-1 block text-[10px] text-[color:var(--muted-foreground)]">
+              {googleConnected
+                ? `Evento será criado no Google Calendar (${DEFAULT_TIMEZONE}) com Meet e convites automáticos.`
+                : "O link será gerado automaticamente quando a integração estiver disponível."}
+            </span>
+          </div>
+        ) : (
+          <div className="rounded-md border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-2 text-[11px] text-[color:var(--muted-foreground)]">
+            {provider.label} — aguardando configuração da integração.
+          </div>
+        )}
         {conflicts.length > 0 && (
           <div className="rounded-md border border-[#C53030]/40 bg-[rgba(197,48,48,0.08)] px-3 py-2 text-[11px] text-[#C53030]">
             <p className="flex items-center gap-1 font-medium mb-1">
