@@ -17,6 +17,7 @@ import {
   History,
   ListChecks,
   LayoutGrid,
+  Trash2,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
@@ -26,6 +27,7 @@ import {
   listMeetings,
   updateMeetingStatus,
   updateMeeting,
+  deleteMeeting,
   type Meeting,
   type MeetingStatus,
 } from "@/lib/meetings";
@@ -85,6 +87,7 @@ function MeetingsPage() {
   const [detailsFor, setDetailsFor] = useState<Meeting | null>(null);
   const [editFor, setEditFor] = useState<Meeting | null>(null);
   const [statusFor, setStatusFor] = useState<Meeting | null>(null);
+  const [deleteFor, setDeleteFor] = useState<Meeting | null>(null);
   const [profileOpen, setProfileOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("recent");
@@ -356,6 +359,12 @@ function MeetingsPage() {
                       count={m.notes.length}
                       onClick={() => setNotesFor(m)}
                     />
+                    <ActionButton
+                      icon={Trash2}
+                      label="Excluir reunião"
+                      onClick={() => setDeleteFor(m)}
+                      tone="danger"
+                    />
                   </div>
                 </div>
               </li>
@@ -431,6 +440,15 @@ function MeetingsPage() {
           session={session}
           onClose={() => setStatusFor(null)}
           onSaved={() => { refresh(); setStatusFor(null); }}
+        />
+      )}
+
+      {deleteFor && (
+        <DeleteDialog
+          meeting={deleteFor}
+          session={session}
+          onClose={() => setDeleteFor(null)}
+          onDeleted={() => { setDeleteFor(null); refresh(); }}
         />
       )}
 
