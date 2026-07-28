@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Share2, Link2, Check } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
@@ -11,7 +11,7 @@ import { MOCK_INVESTORS } from "@/lib/executive-data";
 import { listMeetings } from "@/lib/meetings";
 import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
-import { InvestorProfilePanel } from "@/components/executive/investor-profile-panel";
+import { InvestorProfileView } from "@/components/executive/workspace/investor-profile-view";
 
 export const Route = createFileRoute("/executivo/dashboard")({
   head: () => ({
@@ -34,6 +34,7 @@ function WorkspacePage() {
   const [query, setQuery] = useState("");
   const [openProfileId, setOpenProfileId] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const scrollRef = useRef(0);
 
   useEffect(() => {
     const s = getSession();
@@ -95,38 +96,57 @@ function WorkspacePage() {
   if (!session) return null;
 
   const personalLink = buildPersonalLink(session);
+  const activeInvestor =
+    openProfileId ? MOCK_INVESTORS.find((i) => i.id === openProfileId) ?? null : null;
+
+  const openProfile = (id: string) => {
+    scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
+    setOpenProfileId(id);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  };
+  const closeProfile = () => {
+    setOpenProfileId(null);
+    requestAnimationFrame(() => {
+      if (typeof window !== "undefined")
+        window.scrollTo({ top: scrollRef.current, behavior: "instant" as ScrollBehavior });
+    });
+  };
 
   return (
     <ExecutiveShell session={session} title="Workspace do Executivo">
-      <WorkspaceHeader
-        query={query}
-        onQuery={setQuery}
-        total={cards.length}
-        personalLink={personalLink}
-      />
-
-      {cards.length === 0 ? (
-        <EmptyState query={query} personalLink={personalLink} />
+      {activeInvestor ? (
+        <InvestorProfileView
+          investor={activeInvestor}
+          session={session}
+          onBack={closeProfile}
+          onNewMeeting={() => navigate({ to: "/executivo/reunioes" })}
+        />
       ) : (
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {cards.map((c) => (
-            <InvestorCard
-              key={c.id}
-              investor={c}
-              onOpen={setOpenProfileId}
-              onNewMeeting={() => navigate({ to: "/executivo/reunioes" })}
-              onComment={setOpenProfileId}
-              onMore={setOpenProfileId}
-            />
-          ))}
-        </div>
-      )}
+        <>
+          <WorkspaceHeader
+            query={query}
+            onQuery={setQuery}
+            personalLink={personalLink}
+          />
 
-      <InvestorProfilePanel
-        investorId={openProfileId}
-        open={Boolean(openProfileId)}
-        onClose={() => setOpenProfileId(null)}
-      />
+          {cards.length === 0 ? (
+            <EmptyState query={query} personalLink={personalLink} />
+          ) : (
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {cards.map((c) => (
+                <InvestorCard
+                  key={c.id}
+                  investor={c}
+                  onOpen={openProfile}
+                  onNewMeeting={() => navigate({ to: "/executivo/reunioes" })}
+                  onComment={openProfile}
+                  onMore={openProfile}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </ExecutiveShell>
   );
 }
@@ -134,12 +154,10 @@ function WorkspacePage() {
 function WorkspaceHeader({
   query,
   onQuery,
-  total,
   personalLink,
 }: {
   query: string;
   onQuery: (v: string) => void;
-  total: number;
   personalLink: string;
 }) {
   return (
@@ -154,9 +172,6 @@ function WorkspaceHeader({
           className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-[color:var(--muted-foreground)]/60"
           aria-label="Pesquisar na carteira"
         />
-        <span className="shrink-0 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          {total} {total === 1 ? "investidor" : "investidores"}
-        </span>
       </div>
       <CopyLinkButton link={personalLink} />
     </div>
