@@ -16,6 +16,9 @@ export type AuditModule =
   | "kpi"
   | "investidores"
   | "conhecimento"
+  | "recursos"
+  | "administracao"
+  | "ia"
   | "sistema";
 
 export const AUDIT_MODULE_LABEL: Record<AuditModule, string> = {
@@ -23,6 +26,9 @@ export const AUDIT_MODULE_LABEL: Record<AuditModule, string> = {
   kpi: "KPI Manager",
   investidores: "Investidores",
   conhecimento: "Central de Conhecimento",
+  recursos: "Centro de Recursos",
+  administracao: "Administração",
+  ia: "IA Corporativa",
   sistema: "Sistema",
 };
 
