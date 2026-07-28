@@ -85,9 +85,10 @@ export function ExecutiveShell({
       <header
         className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]"
         style={{
-          // Isola o header em uma layer própria e evita repaint da faixa
-          // fixa durante o scroll (causa raiz do flickering global).
-          contain: "layout paint style",
+          // Isola o header em layer própria evitando flickering global.
+          // IMPORTANTE: NÃO usar `contain: paint` — ele clipa dropdowns que
+          // saem do header (ex.: seletor de perfil), tornando-os invisíveis.
+          contain: "layout style",
           transform: "translateZ(0)",
           willChange: "transform",
         }}
@@ -235,7 +236,7 @@ function ProfileSwitcher({ session }: { session: ExecutiveSession }) {
         {canSwitch && <ChevronDown className="h-3.5 w-3.5" />}
       </button>
       {canSwitch && open && (
-        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-xl overflow-hidden z-50">
+        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-2xl overflow-hidden z-[100]">
           <div className="px-3 py-2 border-b border-[color:var(--border)]">
             <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
               Perfil ativo
