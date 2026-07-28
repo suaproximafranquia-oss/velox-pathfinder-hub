@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { X, ArrowRight, ArrowLeft, Check, Calculator, Sparkles, RotateCcw, MessageCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X, ArrowRight, ArrowLeft, Check, Calculator, RotateCcw, MessageCircle, FileCheck2 } from "lucide-react";
 import {
   SIMULATOR_PRODUCTS,
   estimateRevenue,
@@ -9,9 +9,11 @@ import {
   type ProductCategory,
   type SimulatorProduct,
 } from "@/lib/simulator-products";
-import { ExecutiveContactDialog } from "@/components/shared/executive-contact-dialog";
 import { emitEvent } from "@/lib/events/bus";
-import { getCurrentInvestorId } from "@/lib/portal-session";
+import { getCurrentInvestorId, getPortalSession } from "@/lib/portal-session";
+import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { generateSimulatorPdf } from "@/lib/simulator-report";
+import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 
 type Step = 1 | 2 | 3;
 
@@ -45,7 +47,6 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
   // Para produtos "volume": valor em R$ mensal informado.
   // Para produtos "quantity": quantidade de contratos mensais.
   const [inputs, setInputs] = useState<Record<string, number>>({});
-  const [contactOpen, setContactOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -112,9 +113,32 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
     });
   }, [open]);
 
+  // A conclusão emite o evento e gera o PDF UMA única vez por sessão de
+  // simulação (evita reprocessar em re-renderizações do step 3).
+  const completedRef = useRef(false);
+  const [pdfInfo, setPdfInfo] = useState<{ filename: string } | null>(null);
   useEffect(() => {
-    if (step !== 3) return;
+    if (step !== 3) {
+      completedRef.current = false;
+      setPdfInfo(null);
+      return;
+    }
+    if (completedRef.current) return;
+    completedRef.current = true;
     const investorId = getCurrentInvestorId();
+    const session = getPortalSession();
+    let pdf: { filename: string } | null = null;
+    try {
+      pdf = generateSimulatorPdf({
+        investorName: session?.name ?? "Investidor",
+        rows: results.rows,
+        total: results.total,
+        byCategory: results.byCategory,
+      });
+    } catch {
+      /* mantém confirmação mesmo se PDF falhar */
+    }
+    setPdfInfo(pdf);
     emitEvent({
       type: "simulator.completed",
       investorId,
@@ -122,9 +146,10 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
         total: results.total,
         annual: results.total * 12,
         products: results.rows.map((r) => ({ id: r.product.id, volume: r.volume, revenue: r.revenue })),
+        pdf: pdf?.filename ?? null,
       },
     });
-  }, [step, results.total, results.rows]);
+  }, [step, results.total, results.rows, results.byCategory]);
 
 
   return (
@@ -174,12 +199,10 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
             />
           )}
           {step === 3 && (
-            <StepResults
-              rows={results.rows}
-              total={results.total}
-              byCategory={results.byCategory}
+            <StepConfirmation
+              pdfFilename={pdfInfo?.filename ?? null}
               onRestart={reset}
-              onTalk={() => setContactOpen(true)}
+              onClose={onClose}
             />
           )}
         </div>
@@ -196,19 +219,12 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
           hidden={step === 3}
         />
       </div>
-
-      <ExecutiveContactDialog
-        open={contactOpen}
-        onClose={() => setContactOpen(false)}
-        material="Simulador de Potencial de Receita"
-        triggerLabel="Conversar com Executivo de Expansão"
-      />
     </div>
   );
 }
 
 function SimulatorHeader({ step, onClose }: { step: Step; onClose: () => void }) {
-  const labels = ["Produtos", "Expectativa", "Resultado"];
+  const labels = ["Produtos", "Expectativa", "Confirmação"];
   return (
     <div
       className="flex items-center justify-between gap-6 border-b px-6 py-5 md:px-10"
