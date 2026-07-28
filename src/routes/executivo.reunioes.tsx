@@ -356,29 +356,37 @@ function MeetingsPage() {
                 <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_auto_auto] md:items-center">
                   {/* Coluna 1 — Investidor */}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar className="h-4 w-4 shrink-0 text-[color:var(--gold)]" />
-                      <button
-                        type="button"
-                        onClick={() => setProfileOpen(m.investorId)}
-                        className="truncate font-display text-base text-left hover:text-[color:var(--gold)]"
-                      >
-                        {m.investorName}
-                      </button>
-                      {m.meetUrl ? (
-                        <a
-                          href={m.meetUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="Abrir videoconferência"
-                          className="inline-flex items-center gap-1 text-[color:var(--gold)] hover:opacity-80"
-                        >
-                          <Video className="h-3.5 w-3.5" />
-                        </a>
-                      ) : (
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">Sem link</span>
-                      )}
-                    </div>
+                     <div className="flex items-center gap-2 mb-1">
+                       <Calendar className="h-4 w-4 shrink-0 text-[color:var(--gold)]" />
+                       <button
+                         type="button"
+                         onClick={() => setProfileOpen(m.investorId)}
+                         className="truncate font-display text-base text-left hover:text-[color:var(--gold)]"
+                       >
+                         {m.investorName}
+                       </button>
+                       <GoogleSyncBadge state={m.googleSync ?? "none"} error={m.googleSyncError} />
+                     </div>
+                     <div className="mt-1">
+                       {m.meetUrl ? (
+                         <a
+                           href={m.meetUrl}
+                           target="_blank"
+                           rel="noreferrer"
+                           className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)]/40 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-[color:var(--foreground)] hover:bg-[color:var(--accent)]"
+                         >
+                           <Video className="h-3 w-3 text-[color:var(--gold)]" /> Entrar na reunião
+                         </a>
+                       ) : m.googleSync === "pending" ? (
+                         <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+                           Aguardando geração do Google Meet.
+                         </span>
+                       ) : (
+                         <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+                           Sem link
+                         </span>
+                       )}
+                     </div>
                     <p className="text-xs text-[color:var(--muted-foreground)]">
                       {when.toLocaleDateString("pt-BR")} · {when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                     </p>
