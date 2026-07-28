@@ -209,23 +209,23 @@ function Hero() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 46%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 36%, transparent) 45%, color-mix(in oklab, var(--brand-blue-deep) 42%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 58%, transparent) 100%)",
+              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 34%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 26%, transparent) 45%, color-mix(in oklab, var(--brand-blue-deep) 32%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 62%, transparent) 100%)",
           }}
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(75% 70% at 15% 62%, color-mix(in oklab, var(--ink) 62%, transparent), transparent 75%), radial-gradient(55% 55% at 92% 18%, color-mix(in oklab, var(--brand-orange) 14%, transparent), transparent 65%)",
+              "radial-gradient(75% 70% at 15% 62%, color-mix(in oklab, var(--ink) 48%, transparent), transparent 75%), radial-gradient(55% 55% at 92% 18%, color-mix(in oklab, var(--brand-orange) 12%, transparent), transparent 65%)",
           }}
         />
         {/* Faixa de continuidade — funde a base do Hero com o fundo institucional da Home */}
         <div
           aria-hidden
-          className="absolute inset-x-0 bottom-0 h-40"
+          className="absolute inset-x-0 bottom-0 h-56"
           style={{
             background:
-              "linear-gradient(180deg, transparent 0%, color-mix(in oklab, var(--brand-blue-deep) 55%, transparent) 55%, color-mix(in oklab, var(--brand-blue-deep) 85%, transparent) 100%)",
+              "linear-gradient(180deg, transparent 0%, color-mix(in oklab, var(--brand-blue-deep) 45%, transparent) 45%, color-mix(in oklab, var(--brand-blue-deep) 88%, transparent) 82%, var(--brand-blue-deep) 100%)",
           }}
         />
         <div aria-hidden className="absolute inset-0 portal-grid opacity-[0.08]" />
