@@ -246,6 +246,79 @@ function QuickBtn({
   );
 }
 
+function PortalStatusSelector({
+  investorId,
+  actorId,
+}: {
+  investorId: string;
+  actorId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<PortalLeadStatus>(() =>
+    getPortalLeadStatus(investorId),
+  );
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setStatus(getPortalLeadStatus(investorId));
+  }, [investorId]);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const meta = PORTAL_LEAD_STATUS_META[status];
+  const options: PortalLeadStatus[] = ["novo", "em_andamento", "encerrado"];
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs transition",
+          meta.border,
+          meta.text,
+          "hover:brightness-125",
+        )}
+      >
+        <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
+        {meta.label}
+        <span className="text-[color:var(--muted-foreground)]">▾</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 w-52 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-2xl">
+          {options.map((opt) => {
+            const m = PORTAL_LEAD_STATUS_META[opt];
+            const active = opt === status;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  setPortalLeadStatus(investorId, opt, actorId);
+                  setStatus(opt);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition",
+                  active
+                    ? "bg-[color:var(--accent)] text-[color:var(--foreground)]"
+                    : "text-[color:var(--muted-foreground)] hover:bg-[color:var(--accent)]/60 hover:text-[color:var(--foreground)]",
+                )}
+              >
+                <span className={cn("h-2 w-2 rounded-full", m.dot)} />
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Aba Geral ---------- */
 function TabGeral({ investor, executive }: { investor: Investor; executive?: string }) {
   const originLabel = ORIGIN_LABEL[investor.origin ?? "manual"] ?? "—";
