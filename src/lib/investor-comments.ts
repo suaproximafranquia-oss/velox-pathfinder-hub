@@ -55,6 +55,10 @@ export function addComment(input: {
   const list = read();
   list.push(comment);
   write(list);
-  emitEvent("profile.updated", { investorId: input.investorId }, { investorId: input.investorId });
+  emitEvent({
+    type: "profile.updated",
+    investorId: input.investorId,
+    payload: { commentId: comment.id },
+  });
   return comment;
 }
