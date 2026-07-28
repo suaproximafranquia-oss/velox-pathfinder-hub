@@ -150,6 +150,41 @@ export function updateMeetingStatus(
   return next;
 }
 
+export function updateMeeting(
+  id: string,
+  patch: { scheduledAt?: string; meetUrl?: string },
+  actor?: { actorId: string; actorName: string },
+): Meeting | null {
+  const all = safeRead();
+  const idx = all.findIndex((m) => m.id === id);
+  if (idx < 0) return null;
+  const prev = all[idx];
+  const next: Meeting = {
+    ...prev,
+    scheduledAt: patch.scheduledAt ?? prev.scheduledAt,
+    meetUrl: patch.meetUrl !== undefined ? patch.meetUrl || undefined : prev.meetUrl,
+    updatedAt: new Date().toISOString(),
+  };
+  all[idx] = next;
+  safeWrite(all);
+  emitEvent({
+    type: "meeting.rescheduled",
+    actorId: actor?.actorId ?? next.executiveId,
+    investorId: next.investorId,
+    payload: { meetingId: next.id, scheduledAt: next.scheduledAt },
+  });
+  logAudit({
+    actorId: actor?.actorId ?? next.executiveId,
+    actorName: actor?.actorName ?? next.executiveName,
+    actorRole: "Executivo",
+    module: "investidores",
+    action: "Reunião editada",
+    target: next.investorName,
+    severity: "info",
+  });
+  return next;
+}
+
 export function addMeetingNote(
   id: string,
   note: { authorId: string; authorName: string; text: string },
