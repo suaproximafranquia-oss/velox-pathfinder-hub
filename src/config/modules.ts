@@ -22,6 +22,7 @@ import {
   FileBarChart2,
   ShieldCheck,
   Calendar,
+  Sliders,
   type LucideIcon,
 } from "lucide-react";
 
@@ -92,6 +93,26 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Base Oficial do Workspace — documentos que alimentam a IA e os módulos.",
     icon: Database,
     to: "/executivo/conhecimento",
+    status: "ativo",
+    requiresRole: ["super_admin", "diretora"],
+  },
+  {
+    id: "recursos",
+    name: "Centro de Recursos",
+    description:
+      "Ativos institucionais reutilizáveis — apresentações, PDFs, vídeos e treinamentos.",
+    icon: FolderOpen,
+    to: "/executivo/recursos",
+    status: "ativo",
+    requiresRole: ["super_admin", "diretora"],
+  },
+  {
+    id: "administracao",
+    name: "Administração",
+    description:
+      "Central única de governança: configurações gerais, campos personalizados e permissões.",
+    icon: Sliders,
+    to: "/executivo/administracao",
     status: "ativo",
     requiresRole: ["super_admin", "diretora"],
   },
