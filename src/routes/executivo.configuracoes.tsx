@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings, Palette, Plug, Shield, Bell } from "lucide-react";
+import { Settings, Palette, Plug, Shield, Bell, Video } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   canManageUsers,
@@ -8,6 +8,12 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
+import {
+  MEETING_PROVIDERS,
+  getDefaultProviderForExecutive,
+  setDefaultProviderForExecutive,
+  type MeetingProviderId,
+} from "@/lib/meeting-providers";
 
 export const Route = createFileRoute("/executivo/configuracoes")({
   head: () => ({
@@ -90,6 +96,7 @@ function ConfiguracoesPage() {
           preparadas para receberem edição na próxima sprint.
         </p>
         <div className="grid gap-4">
+          <VideoconferenciaSection session={session} />
           {sections.map((s) => {
             const Icon = s.icon;
             return (
