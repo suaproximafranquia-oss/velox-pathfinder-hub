@@ -9,6 +9,21 @@ export type InvestorStatus =
   | "concluido"
   | "conversando";
 
+/**
+ * Origem do investidor — apenas estrutura visual nesta etapa.
+ *  - green_sales: reconhecido via integração Green Sales
+ *  - portal:      originado diretamente pelo Portal Velox
+ *  - manual:      cadastro manual pelo executivo
+ */
+export type InvestorOrigin = "green_sales" | "portal" | "manual";
+
+/**
+ * Prioridade sinalizada pelo Portal — "o Portal identificou uma
+ * oportunidade que merece atenção do executivo". Estrutura visual;
+ * a lógica será implementada em outro bloco.
+ */
+export type InvestorPriority = "high" | "medium" | "none";
+
 export type Investor = {
   id: string;
   name: string;
@@ -22,6 +37,8 @@ export type Investor = {
   aiInteractions: number;
   diagnostic: "não iniciado" | "em andamento" | "concluído";
   assignedToUserId: string; // FK -> ExecutiveUser.id
+  origin?: InvestorOrigin;
+  priority?: InvestorPriority;
 };
 
 export const STATUS_LABEL: Record<InvestorStatus, string> = {
