@@ -12,8 +12,14 @@ import { listMeetings } from "@/lib/meetings";
 import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
 import { InvestorProfileView } from "@/components/executive/workspace/investor-profile-view";
+import { deleteLead } from "@/lib/leads";
+
+type DashboardSearch = { perfil?: string };
 
 export const Route = createFileRoute("/executivo/dashboard")({
+  validateSearch: (s: Record<string, unknown>): DashboardSearch => ({
+    perfil: typeof s.perfil === "string" ? s.perfil : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Workspace — Atlas Platform" },
@@ -30,11 +36,12 @@ export const Route = createFileRoute("/executivo/dashboard")({
  */
 function WorkspacePage() {
   const navigate = useNavigate();
+  const search = Route.useSearch() as DashboardSearch;
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [query, setQuery] = useState("");
-  const [openProfileId, setOpenProfileId] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const scrollRef = useRef(0);
+  const openProfileId = search.perfil ?? null;
 
   useEffect(() => {
     const s = getSession();
@@ -102,15 +109,20 @@ function WorkspacePage() {
 
   const openProfile = (id: string) => {
     scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
-    setOpenProfileId(id);
+    navigate({ to: "/executivo/dashboard", search: { perfil: id } });
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   };
   const closeProfile = () => {
-    setOpenProfileId(null);
+    navigate({ to: "/executivo/dashboard", search: {} });
     requestAnimationFrame(() => {
       if (typeof window !== "undefined")
         window.scrollTo({ top: scrollRef.current, behavior: "instant" as ScrollBehavior });
     });
+  };
+
+  const removeLead = (id: string) => {
+    deleteLead(id);
+    setTick((v) => v + 1);
   };
 
   return (
@@ -133,7 +145,7 @@ function WorkspacePage() {
           {cards.length === 0 ? (
             <EmptyState query={query} personalLink={personalLink} />
           ) : (
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {cards.map((c) => (
                 <InvestorCard
                   key={c.id}
@@ -141,7 +153,7 @@ function WorkspacePage() {
                   onOpen={openProfile}
                   onNewMeeting={() => navigate({ to: "/executivo/reunioes" })}
                   onComment={openProfile}
-                  onMore={openProfile}
+                  onDelete={removeLead}
                 />
               ))}
             </div>
