@@ -1,96 +1,83 @@
+# Portal Velox — Implementação Mestra, Parte 1/3
 
-# Sprint 02.5 + 02.6 + 02.8 — Plano de Execução (v2)
+Objetivo: consolidar a arquitetura já homologada — sem reconstruir nada — introduzindo apenas as camadas mínimas que a Parte 1 pede (Perfil Inteligente, Linha do Tempo, Pendências, Central de Notificações e Central de Reuniões) e preparando o terreno para o Motor de Eventos da Parte 2.
 
-Escopo grande. Implementação em 3 blocos, preservando toda a arquitetura já construída. Nada será removido; apenas evoluído.
+## Princípios aplicados
 
----
+- Zero mudanças em auth, rotas, overlays, permissões, atribuição investidor↔executivo, KPI Manager e Manual.
+- Reuso máximo: `ExecutiveShell`, `executive-auth`, `teams`, `leads`, `investor-report`, `audit-log`, `simulator-modal`, `ai-assistant`, `journey-progress`.
+- Baixo acoplamento: eventos passam por um único emissor central, módulos não se conhecem entre si.
 
-## BLOCO A — Sprint 02.5 (Estrutura e regras operacionais)
+## Escopo desta Parte 1
 
-**A1. Validação dos usuários (obrigatório)**
-- Auditar `src/lib/executive-auth.ts`: garantir autenticação, perfil, role e senha funcionando para todos os seeds (Thiago, Larissa, Marton, Paulo, Milton, Carlos, Talita).
-- Smoke test via preview antes de fechar a sprint.
+### 1. Motor de Eventos (semente, não implementação completa)
+- Novo `src/lib/events/bus.ts`: emissor tipado leve (pub/sub em memória + persistência opcional em `localStorage`) com tipos:
+  `journey.started | manual.completed | material.viewed | simulator.started | simulator.completed | meeting.created | meeting.rescheduled | meeting.completed | meeting.cancelled | profile.updated`.
+- Sem lógica de negócio dentro do bus. Cada módulo apenas emite. Parte 2 conecta consumidores reais.
 
-**A2. Proprietário do Investidor**
-- Adicionar `ownerUserId` ao modelo de Investidor.
-- Exibir "Executivo Responsável" em cadastro, lista, detalhes e relatórios.
-- Filtro por role: Admin=todos · Gestor=equipe · Executivo=próprios.
+### 2. Perfil Inteligente do Investidor + Linha do Tempo
+- Novo `src/lib/investor-profile.ts`: agrega, para um `leadId`/investidor, dados já existentes (lead capturado, progresso da jornada, simulações, reuniões) numa estrutura única `InvestorProfile { identity, journey, timeline[], pendings[] }`.
+- Novo componente `src/components/executive/investor-profile-panel.tsx` renderizado como overlay (padrão modal-sobre-modal já usado).
+- Linha do tempo: consome `bus` + histórico persistido; ordem cronológica, sem exclusão.
 
-**A3. Dados reais do executivo (fonte única)**
-- Ampliar `ExecutiveUser` com nome, e-mail, telefone, cargo, data de admissão, gestorId.
-- Refatorar consumidores (perfil, contatos, WhatsApp, manual personalizado) para ler do cadastro. Zero duplicação.
+### 3. Pendências inteligentes
+- Novo `src/lib/pendings.ts`: deriva pendências a partir do estado atual (jornada interrompida, simulação não finalizada, reunião próxima, retorno pendente). Puro/derivado — sem tabela nova.
+- Card "Pendências" na Central do Executivo (`executivo.home.tsx`), respeitando permissões via `visibleCollaborators`.
 
-**A4. Data de admissão + Recognition**
-- Campo `admissionDate` no perfil.
-- Novos tipos: `first_month`, `company_anniversary`, `tenure_milestone`.
-- Cálculo automático em `evaluateForLogin`.
+### 4. Central de Notificações
+- Novo `src/lib/notifications.ts`: consome eventos do bus, mantém lista persistida por usuário, contador de não lidas.
+- Novo `src/components/executive/notifications-bell.tsx` no header do `ExecutiveShell` (ícone + badge + popover cronológico, acesso rápido ao Perfil Inteligente).
+- Não interrompe fluxo: sem toasts obrigatórios.
 
-**A5. Laboratório Atlas** (nova rota `/executivo/laboratorio`, só Admin)
-- Botões: Simular Aniversário · KPI Pendente · Conquista de Campanha · Aniversário de Empresa.
-- Evento aplicado apenas no próximo login; auto-remoção após exibição.
+### 5. Central de Reuniões
+- Novo `src/lib/meetings.ts`: modelo `Meeting { id, investorId, executiveId, scheduledAt, status, notes[], postMeeting? }` com status `Agendada | Confirmada | Reagendada | Em andamento | Concluída | Cancelada`. Persistência local; arquitetura pronta para backend/Meet futuros.
+- Nova rota `src/routes/executivo.reunioes.tsx` (não altera rotas existentes; apenas adiciona).
+- Registro pós-reunião aditivo (nunca sobrescreve). Cancelamento preserva motivo.
+- Emite eventos no bus → alimenta Linha do Tempo e Notificações automaticamente.
+- Novo módulo em `src/config/modules.ts` ("Central de Reuniões"), respeitando padrão de card existente. O card externo "Reuniões" (Google Meet) permanece intacto.
 
-**A6. Recognition — tom humanizado**
-- Reescrever templates: sem comparações, sem pressão, sem culpa, sem foco em lucro.
-- Arrays de variações → nunca repete texto exato.
+### 6. Simulador — apenas ajustes de nomenclatura e integração
+- Renomear rótulos visíveis para "Simulador Inteligente de Potencial de Receita" onde ainda houver variação (auditar `simulator-modal.tsx`, `modules.ts`, `universo.tsx`, textos do Portal). Nenhuma mudança de UX/cálculo.
+- Ao concluir simulação: emitir `simulator.completed` no bus com payload mínimo (produtos, volume total, receita estimada, leadId quando existir). Isso já alimenta Perfil, Timeline, Notificações e Pendências sem acoplamento.
 
-**A7. Aniversário de Empresa — tela comemorativa**
-- Rota dedicada de celebração (full-screen) em vez do modal padrão.
-- Consome apenas dados reais existentes; omite seções vazias; nunca inventa.
+### 7. Dashboard Executivo
+- Sem reconstrução. Apenas adicionar seções derivadas: "Pendências" e atalho "Notificações recentes" reutilizando os módulos acima.
+- Indicadores continuam do KPI Manager (segregação Portal ↔ KPI preservada — nenhum cruzamento novo).
 
----
+### 8. Auditoria
+- Reusar `src/lib/audit-log.ts`. Ações relevantes de reuniões e simulações registram entrada de auditoria via o mesmo helper.
 
-## BLOCO B — Sprint 02.6 (Fluxo Manual do Investidor)
+## O que NÃO muda
 
-**B0. Parâmetro "Executivo Padrão" da plataforma** *(novo)*
-- Criar setting persistido `atlas:settings:defaultExecutiveId` (localStorage) lido por um único helper `getDefaultExecutive()`.
-- Fallback temporário para demonstração: o **primeiro usuário com role Administrador** (não fixar Thiago). Sem código hard-coded por nome.
-- Preparado para uma futura tela "Configurações da Plataforma" alterar o valor sem mudar código.
+- `src/routes/__root.tsx`, shells editoriais, Manual, Material Institucional, KPI Manager, Brain, IA (prompt), login, permissões, atribuição de executivos, identidade visual, URLs, integrações externas.
+- Nenhum componente homologado é substituído.
 
-**B1. Dois modos de acesso**
-- `/` = Modo Público. CTA final: "Quero conversar com um especialista da Velox." → cria Investidor atribuído ao **Executivo Padrão** (via B0).
-- `/manual/$executiveSlug` = Modo Personalizado. CTA: "Quero voltar a falar com meu especialista." Investidor atribuído ao executivo do slug.
+## Estrutura de arquivos (novos)
 
-**B2. Botão final → WhatsApp dinâmico**
-- Telefone lido do cadastro do executivo proprietário. Nunca número fixo.
-- Mensagem: "Olá! Concluí o Manual do Investidor e gostaria de continuar nossa conversa. Tenho algumas dúvidas."
+```text
+src/lib/
+  events/bus.ts
+  investor-profile.ts
+  pendings.ts
+  notifications.ts
+  meetings.ts
+src/components/executive/
+  investor-profile-panel.tsx
+  notifications-bell.tsx
+  pendings-card.tsx
+  meetings/
+    meetings-list.tsx
+    meeting-dialog.tsx
+src/routes/
+  executivo.reunioes.tsx
+```
 
-**B3. Dados do executivo em links personalizados**
-- Header/rodapé do manual personalizado exibe nome, cargo, telefone, e-mail lidos do cadastro.
+## Validação ao final
 
-**B4. Relatório sob demanda**
-- Ao concluir manual: salvar respostas no registro do Investidor. Sem PDF automático. Sem WhatsApp com PDF.
-- Botão "Gerar Relatório" no detalhe do investidor usa `investor-report.ts`.
+- Typecheck limpo.
+- `/`, `/manual`, `/universo`, `/executivo/*` existentes inalterados visualmente.
+- Simulador segue funcionando idêntico; agora emite evento.
+- Novo bell aparece no header executivo; nova rota `/executivo/reunioes` acessível; Perfil Inteligente abre em overlay a partir da lista de investidores.
+- Nenhuma dependência externa nova é obrigatória.
 
-**B5. Propriedade permanente**
-- `ownerUserId` do Investidor criado via link personalizado é imutável.
-
----
-
-## BLOCO C — Sprint 02.8 (UX do KPI Manager)
-
-**C1. Janela interna com altura fixa**
-- Shell do KPI com `calc(100vh - offset)`; página principal não rola por causa do KPI. Rolagem H+V confinada.
-
-**C2. Scrollbar de alto contraste**
-- CSS `.kpi-scroll`: thumb claro/dourado, largura ~12px, hover reforçado, aparência elegante.
-
-**C3. Cor da coluna "Total Vendido" por campanha**
-- Helper `campaignTierFromValue(total)`:
-  - < R$55k → padrão
-  - Mestre (R$55k–69.999) → azul, texto branco
-  - Doutor (R$70k–89.999) → identidade Doutor existente
-  - PhD (R$90k–99.999) → preto, texto branco
-  - Supreme (≥R$100k) → identidade Supreme existente
-
-**C4. Reatividade automática**
-- Classe derivada do valor; atualiza sem estado extra.
-
----
-
-## Ordem de execução
-
-1. Bloco A (fundação: usuários, ownership, admissão, executivo padrão).
-2. Bloco B (Manual dois modos, WhatsApp dinâmico, relatório sob demanda).
-3. Bloco C (UX KPI).
-
-Aprovar para iniciar?
+Ao aprovar, executo tudo em uma sequência de edits paralelas e valido typecheck antes de encerrar.
