@@ -20,7 +20,19 @@ export type PortalEventType =
   | "meeting.rescheduled"
   | "meeting.completed"
   | "meeting.cancelled"
-  | "profile.updated";
+  | "profile.updated"
+  // Etapa 2 — eventos administrativos e de governança.
+  | "admin.settings.updated"
+  | "admin.customField.created"
+  | "admin.customField.updated"
+  | "admin.customField.removed"
+  | "knowledge.document.published"
+  | "knowledge.document.updated"
+  | "knowledge.document.removed"
+  | "resource.created"
+  | "resource.updated"
+  | "resource.removed"
+  | "ai.query.answered";
 
 export type PortalEvent<T = Record<string, unknown>> = {
   id: string;
