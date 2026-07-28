@@ -612,7 +612,12 @@ function DeleteDialog({
           </button>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
+              await trySyncDelete(meeting, {
+                userId: session.userId,
+                userName: session.name,
+                userRole: "Executivo",
+              });
               deleteMeeting(meeting.id, { actorId: session.userId, actorName: session.name });
               onDeleted();
             }}
