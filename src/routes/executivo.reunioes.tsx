@@ -10,6 +10,13 @@ import {
   RefreshCw,
   Search,
   Video,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  Clock,
+  History,
+  ListChecks,
+  LayoutGrid,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
@@ -25,6 +32,7 @@ import {
 import { loadLeads } from "@/lib/leads";
 import { InvestorProfilePanel } from "@/components/executive/investor-profile-panel";
 import { logAudit } from "@/lib/audit-log";
+import { listEvents, onEvent, type PortalEvent } from "@/lib/events/bus";
 
 export const Route = createFileRoute("/executivo/reunioes")({
   head: () => ({
