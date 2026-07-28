@@ -41,6 +41,7 @@ function fmt(e: PortalEvent): TimelineEntry {
     "meeting.completed": "Reunião concluída",
     "meeting.cancelled": "Reunião cancelada",
     "profile.updated": "Perfil atualizado",
+    "profile.interests.captured": "Perfil comercial preenchido",
   };
   return {
     id: e.id,

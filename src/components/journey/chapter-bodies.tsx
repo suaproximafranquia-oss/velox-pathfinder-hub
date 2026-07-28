@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   GraduationCap,
   Cpu,
@@ -21,6 +22,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  getInterestsProfile,
+  saveInterestsProfile,
+  type AudienceProfile,
+} from "@/lib/interests-profile";
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
@@ -319,17 +325,14 @@ function ModeloBody() {
 function ProdutosBody() {
   const categorias: { t: string; d: string; ex: string[] }[] = [
     {
-      t: "Crédito",
-      d: "O portfólio de crédito é o mais amplo da operação. Ele reúne modalidades para pessoas físicas e jurídicas, com condições e prazos que variam conforme o perfil de cada cliente e a instituição parceira.",
+      t: "Consórcios",
+      d: "O consórcio é apresentado como uma alternativa de aquisição planejada, útil para clientes que preferem organizar a compra ao longo do tempo, sem os custos de uma operação de crédito tradicional.",
       ex: [
-        "Crédito consignado",
-        "Crédito para servidores públicos",
-        "Crédito CLT",
-        "Crédito pessoal",
-        "Capital de giro",
-        "Antecipação de recebíveis",
-        "Financiamentos",
-        "Operações estruturadas",
+        "Imóveis",
+        "Veículos",
+        "Máquinas",
+        "Equipamentos",
+        "Serviços",
       ],
     },
     {
@@ -345,22 +348,24 @@ function ProdutosBody() {
       ],
     },
     {
-      t: "Consórcios",
-      d: "O consórcio é apresentado como uma alternativa de aquisição planejada, útil para clientes que preferem organizar a compra ao longo do tempo, sem os custos de uma operação de crédito tradicional.",
-      ex: [
-        "Imóveis",
-        "Veículos",
-        "Máquinas",
-        "Equipamentos",
-        "Serviços",
-      ],
-    },
-    {
       t: "Energia solar e benefícios",
       d: "Além das soluções financeiras tradicionais, o portfólio inclui produtos oferecidos por parceiros de outros segmentos homologados pela Velox — como empresas de energia solar e clubes de benefícios — que ampliam a capacidade do franqueado de atender diferentes necessidades a partir de uma mesma base de clientes.",
       ex: [
         "Sistemas de energia solar por meio de parceiros",
         "Clubes de benefícios para pessoas físicas e empresas",
+      ],
+    },
+    {
+      t: "Crédito",
+      d: "O portfólio de crédito é o mais amplo da operação. Ele reúne modalidades para pessoas físicas e jurídicas, com condições e prazos que variam conforme o perfil de cada cliente e a instituição parceira.",
+      ex: [
+        "Financiamentos",
+        "Refinanciamentos",
+        "Capital de giro",
+        "Antecipação de recebíveis",
+        "Crédito consignado",
+        "Antecipação do FGTS",
+        "Demais operações de crédito para PF e PJ",
       ],
     },
   ];
@@ -973,6 +978,8 @@ export function ChapterBody({ slug }: { slug: string }) {
       return <ModeloBody />;
     case "produtos":
       return <ProdutosBody />;
+    case "personalizando-sua-jornada":
+      return <PersonalizandoJornadaBody />;
     case "operacao":
       return <OperacaoBody />;
     case "investimento":
@@ -992,7 +999,216 @@ export function ChapterBody({ slug }: { slug: string }) {
   }
 }
 
-// Sinaliza para a jornada que a autoavaliação controla seu próprio "continuar".
+// Sinaliza para a jornada capítulos que controlam seu próprio "continuar".
 export function hidesContinueFor(slug: string): boolean {
-  return slug === "autoavaliacao";
+  return slug === "autoavaliacao" || slug === "personalizando-sua-jornada";
+}
+
+// --- 6. Personalizando sua jornada
+const PRODUCT_GROUPS: { title: string; items: string[] }[] = [
+  {
+    title: "Pessoa Física",
+    items: [
+      "Crédito Consignado",
+      "Crédito Pessoal",
+      "Financiamento de Veículo",
+      "Financiamento Imobiliário",
+      "Consórcio de Imóvel",
+      "Consórcio de Veículo",
+      "Seguro de Vida",
+      "Seguro Automóvel",
+      "Seguro Residencial",
+      "Energia Solar Residencial",
+      "Antecipação do FGTS",
+      "Investimentos e Previdência",
+    ],
+  },
+  {
+    title: "Pessoa Jurídica",
+    items: [
+      "Capital de Giro",
+      "Antecipação de Recebíveis",
+      "Crédito Empresarial",
+      "Consórcio Empresarial",
+      "Seguro Empresarial",
+      "Energia Solar Empresarial",
+      "Máquinas de Cartão",
+      "Planos de Saúde Empresarial",
+    ],
+  },
+  {
+    title: "Outros interesses",
+    items: [
+      "Planejamento Financeiro",
+      "Educação Financeira",
+      "Clube de Benefícios",
+      "Ainda estou explorando",
+    ],
+  },
+];
+
+function PersonalizandoJornadaBody() {
+  const navigate = useNavigate();
+  const [audience, setAudience] = useState<AudienceProfile | null>(null);
+  const [interests, setInterests] = useState<string[]>([]);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const existing = getInterestsProfile();
+    if (existing) {
+      setAudience(existing.audience);
+      setInterests(existing.interests);
+      setSaved(true);
+    }
+  }, []);
+
+  const toggle = (item: string) => {
+    setInterests((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item],
+    );
+    setSaved(false);
+  };
+
+  const chooseAudience = (a: AudienceProfile) => {
+    setAudience(a);
+    setSaved(false);
+  };
+
+  const handleContinue = () => {
+    saveInterestsProfile({ audience, interests });
+    setSaved(true);
+    navigate({ to: "/manual/operacao" });
+  };
+
+  const audienceOptions: { value: AudienceProfile; label: string; d: string }[] = [
+    { value: "pf", label: "Pessoa Física", d: "Atendimento consultivo para indivíduos e famílias." },
+    { value: "pj", label: "Pessoa Jurídica", d: "Soluções voltadas ao dia a dia da sua empresa." },
+    { value: "ambos", label: "Ambos", d: "Interesse tanto no perfil pessoal quanto empresarial." },
+  ];
+
+  return (
+    <>
+      <p className="text-base leading-relaxed text-[color:var(--muted-foreground)]">
+        Nada aqui é obrigatório. As respostas ficam guardadas discretamente
+        para que o especialista Velox chegue à conversa já entendendo o que
+        despertou seu interesse — evitando repetir informações e otimizando
+        seu tempo.
+      </p>
+
+      <section className="space-y-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-2">
+            Pergunta 1
+          </p>
+          <h3 className="font-display text-xl">
+            Você tem interesse em soluções para qual perfil?
+          </h3>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {audienceOptions.map((opt) => {
+            const active = audience === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => chooseAudience(opt.value)}
+                className={`text-left rounded-2xl border p-5 transition-all ${
+                  active
+                    ? "border-[color:var(--gold)] bg-[color:var(--gold)]/10 shadow-[0_10px_30px_-15px_var(--gold)]"
+                    : "border-[color:var(--border)] bg-[color:var(--card)]/40 hover:border-[color:var(--gold)]/50"
+                }`}
+              >
+                <p className="font-display text-lg mb-1">{opt.label}</p>
+                <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
+                  {opt.d}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-2">
+            Pergunta 2
+          </p>
+          <h3 className="font-display text-xl">
+            Quais soluções despertaram mais o seu interesse?
+          </h3>
+          <p className="text-sm text-[color:var(--muted-foreground)] mt-1">
+            Selecione quantas quiser. Você pode alterar depois.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {PRODUCT_GROUPS.map((group) => (
+            <div
+              key={group.title}
+              className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5"
+            >
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-3">
+                {group.title}
+              </p>
+              <ul className="space-y-2">
+                {group.items.map((item) => {
+                  const active = interests.includes(item);
+                  return (
+                    <li key={item}>
+                      <button
+                        type="button"
+                        onClick={() => toggle(item)}
+                        className={`w-full text-left flex items-start gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                          active
+                            ? "bg-[color:var(--gold)]/15 text-[color:var(--foreground)]"
+                            : "hover:bg-[color:var(--card)]/60 text-[color:var(--foreground)]/85"
+                        }`}
+                      >
+                        <span
+                          className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
+                            active
+                              ? "bg-[color:var(--gold)] border-[color:var(--gold)]"
+                              : "border-[color:var(--border)]"
+                          }`}
+                          aria-hidden
+                        >
+                          {active && (
+                            <CheckCircle2 className="h-3 w-3 text-[color:var(--gold-foreground)]" />
+                          )}
+                        </span>
+                        <span className="leading-snug">{item}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {saved && (
+        <p className="text-sm text-[color:var(--gold)] italic">
+          Preferências registradas. Você pode continuar quando quiser.
+        </p>
+      )}
+
+      <div className="mt-10 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4">
+        <Link
+          to="/manual/produtos"
+          preload="intent"
+          className="inline-flex items-center gap-2 text-sm text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors self-start"
+        >
+          ← Voltar ao capítulo anterior
+        </Link>
+        <button
+          type="button"
+          onClick={handleContinue}
+          className="group inline-flex items-center justify-center gap-3 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-7 py-3.5 text-sm font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition-all duration-300 hover:shadow-[0_10px_40px_-10px_var(--gold)]"
+        >
+          {audience || interests.length > 0 ? "Salvar e continuar" : "Pular e continuar"}
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      </div>
+    </>
+  );
 }

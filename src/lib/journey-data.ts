@@ -104,15 +104,33 @@ export const CHAPTERS: Chapter[] = [
       "As categorias de soluções financeiras oferecidas por uma franquia Velox — sempre por meio de parceiros homologados.",
     transitionFromPrev: "Modelo entendido. Agora, o que existe dentro do portfólio.",
     completionLine: "Você conhece as principais categorias de solução.",
-    nextTeaser: "A seguir: como a operação acontece.",
+    nextTeaser: "A seguir: personalize sua jornada.",
     prevPath: "/manual/modelo",
+    nextPath: "/manual/personalizando-sua-jornada",
+  },
+  {
+    slug: "personalizando-sua-jornada",
+    index: 6,
+    path: "/manual/personalizando-sua-jornada",
+    eyebrow: "Capítulo 6 · Personalizando sua jornada",
+    title: "Personalize a leitura de acordo com o seu interesse.",
+    subtitle:
+      "Agora que você conheceu o portfólio da Velox, queremos entender um pouco melhor quais soluções despertaram sua curiosidade. Não existe resposta certa ou errada — essas informações servirão apenas para que seu especialista prepare uma conversa mais objetiva e alinhada ao seu perfil.",
+    minutesLeft: 6,
+    seoTitle: "Personalizando sua jornada — Manual do Investidor Velox",
+    seoDescription:
+      "Sinalize os interesses que mais fazem sentido para você e receba uma conversa personalizada com o especialista Velox.",
+    transitionFromPrev: "Portfólio apresentado. Agora, uma personalização discreta.",
+    completionLine: "Suas preferências foram registradas com carinho.",
+    nextTeaser: "A seguir: como acontece a operação.",
+    prevPath: "/manual/produtos",
     nextPath: "/manual/operacao",
   },
   {
     slug: "operacao",
-    index: 6,
+    index: 7,
     path: "/manual/operacao",
-    eyebrow: "Capítulo 6 · Como acontece a operação",
+    eyebrow: "Capítulo 7 · Como acontece a operação",
     title: "Do primeiro contato à solução entregue.",
     subtitle:
       "O fluxo entre cliente, franqueado, Velox e parceiros homologados — apresentado em passos simples, sem prescrever uma rotina única para todos.",
@@ -120,18 +138,18 @@ export const CHAPTERS: Chapter[] = [
     seoTitle: "Como acontece a operação — Manual do Investidor Velox",
     seoDescription:
       "O fluxo consultivo de uma operação Velox — do contato inicial à concretização junto ao parceiro.",
-    transitionFromPrev: "Do portfólio para a prática.",
+    transitionFromPrev: "Preferências registradas. Agora, a prática.",
     completionLine: "Você compreende como uma operação se realiza.",
     nextTeaser: "A seguir: o investimento para começar.",
-    prevPath: "/manual/produtos",
+    prevPath: "/manual/personalizando-sua-jornada",
     nextPath: "/manual/investimento",
     hasVideo: true,
   },
   {
     slug: "investimento",
-    index: 7,
+    index: 8,
     path: "/manual/investimento",
-    eyebrow: "Capítulo 7 · Investimento",
+    eyebrow: "Capítulo 8 · Investimento",
     title: "Os valores, apresentados com clareza.",
     subtitle:
       "Preferimos mostrar os números antes da conversa comercial. Assim, você avalia com tranquilidade se faz sentido para o seu momento.",
@@ -147,9 +165,9 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     slug: "treinamento",
-    index: 8,
+    index: 9,
     path: "/manual/treinamento",
-    eyebrow: "Capítulo 8 · Treinamento",
+    eyebrow: "Capítulo 9 · Treinamento",
     title: "Do contrato ao início da operação.",
     subtitle:
       "Após a assinatura, acontece a implantação. Em seguida, o treinamento obrigatório com duração de duas semanas. Concluído o treinamento, o franqueado inicia sua operação.",
@@ -165,9 +183,9 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     slug: "suporte",
-    index: 9,
+    index: 10,
     path: "/manual/suporte",
-    eyebrow: "Capítulo 9 · Suporte contínuo",
+    eyebrow: "Capítulo 10 · Suporte contínuo",
     title: "O franqueado nunca opera sozinho.",
     subtitle:
       "Após o início da operação, cada franqueado é acompanhado por um consultor de negócios e conta com a Universidade Corporativa e o suporte estruturado da rede.",
@@ -183,9 +201,9 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     slug: "perfil",
-    index: 10,
+    index: 11,
     path: "/manual/perfil",
-    eyebrow: "Capítulo 10 · Perfil ideal do franqueado",
+    eyebrow: "Capítulo 11 · Perfil ideal do franqueado",
     title: "Como identificar se este modelo combina com você.",
     subtitle:
       "Não existe um perfil único. Existem características que costumam favorecer a jornada de um franqueado — e reconhecê-las ajuda você a fazer uma avaliação honesta sobre o seu próprio momento.",
@@ -201,9 +219,9 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     slug: "faq",
-    index: 11,
+    index: 12,
     path: "/manual/faq",
-    eyebrow: "Capítulo 11 · Perguntas frequentes",
+    eyebrow: "Capítulo 12 · Perguntas frequentes",
     title: "As perguntas que ainda podem estar na sua cabeça.",
     subtitle: "Respostas curtas, diretas e honestas — sem rodeios comerciais.",
     minutesLeft: 2,
@@ -218,9 +236,9 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     slug: "autoavaliacao",
-    index: 12,
+    index: 13,
     path: "/manual/autoavaliacao",
-    eyebrow: "Capítulo 12 · Autoavaliação",
+    eyebrow: "Capítulo 13 · Autoavaliação",
     title: "Um momento honesto — só com você.",
     subtitle:
       "Cinco perguntas curtas para você refletir sobre o próprio momento. Nada é enviado nem registrado; a reflexão é o resultado.",
@@ -236,9 +254,9 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     slug: "proximos-passos",
-    index: 13,
+    index: 14,
     path: "/manual/proximos-passos",
-    eyebrow: "Capítulo 13 · Convite para conversar",
+    eyebrow: "Capítulo 14 · Convite para conversar",
     title: "Você concluiu o Manual do Investidor Velox.",
     subtitle:
       "Chegar até aqui já é, em si, um posicionamento. Significa que você preferiu entender antes de decidir — e agora tem, em suas próprias palavras, uma leitura estruturada sobre como funciona uma franquia Velox.",
