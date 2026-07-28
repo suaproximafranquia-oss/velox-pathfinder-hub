@@ -9,6 +9,21 @@ export type InvestorStatus =
   | "concluido"
   | "conversando";
 
+/**
+ * Origem do investidor — apenas estrutura visual nesta etapa.
+ *  - green_sales: reconhecido via integração Green Sales
+ *  - portal:      originado diretamente pelo Portal Velox
+ *  - manual:      cadastro manual pelo executivo
+ */
+export type InvestorOrigin = "green_sales" | "portal" | "manual";
+
+/**
+ * Prioridade sinalizada pelo Portal — "o Portal identificou uma
+ * oportunidade que merece atenção do executivo". Estrutura visual;
+ * a lógica será implementada em outro bloco.
+ */
+export type InvestorPriority = "high" | "medium" | "none";
+
 export type Investor = {
   id: string;
   name: string;
@@ -22,6 +37,8 @@ export type Investor = {
   aiInteractions: number;
   diagnostic: "não iniciado" | "em andamento" | "concluído";
   assignedToUserId: string; // FK -> ExecutiveUser.id
+  origin?: InvestorOrigin;
+  priority?: InvestorPriority;
 };
 
 export const STATUS_LABEL: Record<InvestorStatus, string> = {
@@ -45,6 +62,8 @@ export const MOCK_INVESTORS: Investor[] = [
     aiInteractions: 4,
     diagnostic: "em andamento",
     assignedToUserId: "usr_marton",
+    origin: "green_sales",
+    priority: "high",
   },
   {
     id: "inv_002",
@@ -59,6 +78,8 @@ export const MOCK_INVESTORS: Investor[] = [
     aiInteractions: 9,
     diagnostic: "concluído",
     assignedToUserId: "usr_paulo",
+    origin: "portal",
+    priority: "medium",
   },
   {
     id: "inv_003",
@@ -73,6 +94,8 @@ export const MOCK_INVESTORS: Investor[] = [
     aiInteractions: 0,
     diagnostic: "não iniciado",
     assignedToUserId: "usr_milton",
+    origin: "portal",
+    priority: "high",
   },
   {
     id: "inv_004",
@@ -87,6 +110,8 @@ export const MOCK_INVESTORS: Investor[] = [
     aiInteractions: 12,
     diagnostic: "concluído",
     assignedToUserId: "usr_carlos",
+    origin: "manual",
+    priority: "none",
   },
   {
     id: "inv_005",
@@ -101,6 +126,8 @@ export const MOCK_INVESTORS: Investor[] = [
     aiInteractions: 2,
     diagnostic: "não iniciado",
     assignedToUserId: "usr_talita",
+    origin: "green_sales",
+    priority: "medium",
   },
 ];
 

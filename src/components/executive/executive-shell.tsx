@@ -2,7 +2,6 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutGrid,
   LayoutDashboard,
-  Users,
   UserCog,
   LogOut,
   Database,
@@ -54,11 +53,10 @@ export function ExecutiveShell({
 
   const nav = [
     { to: "/executivo/home", label: "Home", icon: LayoutGrid },
-    { to: "/executivo/dashboard", label: "Painel", icon: LayoutDashboard },
+    { to: "/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
     { to: "/executivo/relatorios", label: "Relatórios", icon: FileBarChart2 },
-    { to: "/executivo/investidores", label: "Investidores", icon: Users },
     { to: "/executivo/reunioes", label: "Reuniões", icon: Calendar },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     ...(canManageKnowledge(session.activeRole)
