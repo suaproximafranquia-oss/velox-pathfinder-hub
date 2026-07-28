@@ -125,3 +125,49 @@ function ConfiguracoesPage() {
     </ExecutiveShell>
   );
 }
+
+function VideoconferenciaSection({ session }: { session: ExecutiveSession }) {
+  const [providerId, setProviderId] = useState<MeetingProviderId>(
+    () => getDefaultProviderForExecutive(session.userId),
+  );
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
+          <Video className="h-4 w-4" strokeWidth={1.6} />
+        </span>
+        <h2 className="font-display text-base">Videoconferência</h2>
+      </div>
+      <p className="text-xs text-[color:var(--muted-foreground)] mb-3 leading-relaxed">
+        Provedor padrão utilizado ao criar novas reuniões. É possível alterar por reunião no formulário de criação.
+      </p>
+      <label className="block text-sm">
+        <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">
+          Provedor padrão
+        </span>
+        <select
+          value={providerId}
+          onChange={(e) => {
+            const next = e.target.value as MeetingProviderId;
+            setProviderId(next);
+            setDefaultProviderForExecutive(session.userId, next);
+          }}
+          className="w-full max-w-sm rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+        >
+          {MEETING_PROVIDERS.map((p) => (
+            <option key={p.id} value={p.id} disabled={!p.enabled}>
+              {p.label}{p.comingSoon ? " — em breve" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <ul className="mt-3 space-y-1 text-[11px] text-[color:var(--muted-foreground)]">
+        {MEETING_PROVIDERS.map((p) => (
+          <li key={p.id}>
+            · {p.label} — {p.enabled ? "disponível" : "em breve"}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
