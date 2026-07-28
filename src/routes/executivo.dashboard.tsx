@@ -13,12 +13,22 @@ import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
 import { InvestorProfileView } from "@/components/executive/workspace/investor-profile-view";
 import { deleteLead } from "@/lib/leads";
+import {
+  canAccessPortalWorkspace,
+  WORKSPACE_SCOPE_LABEL,
+  type WorkspaceScope,
+} from "@/lib/portal-workspace";
+import { cn } from "@/lib/utils";
 
-type DashboardSearch = { perfil?: string };
+type DashboardSearch = { perfil?: string; escopo?: WorkspaceScope };
 
 export const Route = createFileRoute("/executivo/dashboard")({
   validateSearch: (s: Record<string, unknown>): DashboardSearch => ({
     perfil: typeof s.perfil === "string" ? s.perfil : undefined,
+    escopo:
+      s.escopo === "portal" || s.escopo === "green_sales"
+        ? (s.escopo as WorkspaceScope)
+        : undefined,
   }),
   head: () => ({
     meta: [
@@ -42,6 +52,12 @@ function WorkspacePage() {
   const [tick, setTick] = useState(0);
   const scrollRef = useRef(0);
   const openProfileId = search.perfil ?? null;
+  const portalEnabled = session
+    ? canAccessPortalWorkspace(session.userId, session.activeRole)
+    : false;
+  const scope: WorkspaceScope = portalEnabled
+    ? (search.escopo ?? "green_sales")
+    : "green_sales";
 
   useEffect(() => {
     const s = getSession();
@@ -71,9 +87,15 @@ function WorkspacePage() {
   const cards: InvestorCardData[] = useMemo(() => {
     if (!session) return [];
     const allInvestors = listAllInvestors();
-    const base = canViewAllInvestors(session.activeRole)
+    const visible = canViewAllInvestors(session.activeRole)
       ? allInvestors
       : allInvestors.filter((i) => i.assignedToUserId === session.userId);
+    // Isolamento absoluto por escopo: Portal jamais mistura com Green Sales.
+    const base = portalEnabled
+      ? visible.filter((i) =>
+          scope === "portal" ? i.origin === "portal" : i.origin !== "portal",
+        )
+      : visible;
 
     const q = query.trim().toLowerCase();
     const filtered = q
@@ -99,7 +121,7 @@ function WorkspacePage() {
         if (am !== bm) return am - bm;
         return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
       });
-  }, [session, query, nextMeetingByInvestor]);
+  }, [session, query, nextMeetingByInvestor, portalEnabled, scope]);
 
   if (!session) return null;
 
@@ -109,15 +131,19 @@ function WorkspacePage() {
 
   const openProfile = (id: string) => {
     scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
-    navigate({ to: "/executivo/dashboard", search: { perfil: id } });
+    navigate({ to: "/executivo/dashboard", search: { perfil: id, escopo: scope } });
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   };
   const closeProfile = () => {
-    navigate({ to: "/executivo/dashboard", search: {} });
+    navigate({ to: "/executivo/dashboard", search: { escopo: scope } });
     requestAnimationFrame(() => {
       if (typeof window !== "undefined")
         window.scrollTo({ top: scrollRef.current, behavior: "instant" as ScrollBehavior });
     });
+  };
+
+  const changeScope = (next: WorkspaceScope) => {
+    navigate({ to: "/executivo/dashboard", search: { escopo: next } });
   };
 
   const removeLead = (id: string) => {
@@ -135,6 +161,9 @@ function WorkspacePage() {
         />
       ) : (
         <>
+          {portalEnabled && (
+            <ScopeTabs current={scope} onChange={changeScope} />
+          )}
           <WorkspaceHeader
             query={query}
             onQuery={setQuery}
