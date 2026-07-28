@@ -503,6 +503,7 @@ function NewMeetingDialog({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  // moved below — kept in place.
   const leads = useMemo(
     () => loadLeads().filter((l) => !l.responsibleExecutiveId || l.responsibleExecutiveId === session.userId),
     [session.userId],
