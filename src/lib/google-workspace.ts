@@ -66,7 +66,13 @@ function safeRead(ownerId: string): GoogleStore {
     const raw = window.localStorage.getItem(storageKey(ownerId));
     if (!raw) return empty(ownerId);
     const parsed = JSON.parse(raw) as GoogleStore;
-    return { ...empty(ownerId), ...parsed };
+    const merged = { ...empty(ownerId), ...parsed };
+    // Enquanto a integração real não estiver provisionada, jamais
+    // devolvemos uma conta "conectada" persistida por versões anteriores.
+    if (!GOOGLE_INTEGRATION_CONFIGURED && merged.account) {
+      return empty(ownerId);
+    }
+    return merged;
   } catch {
     return empty(ownerId);
   }
