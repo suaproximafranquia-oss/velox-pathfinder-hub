@@ -1016,7 +1016,7 @@ function StatusDialog({
     (status === "Cancelada" && !reason.trim()) ||
     (status === "Reagendada" && (!date || !time));
 
-  function submit() {
+  async function submit() {
     if (invalid) return;
     const extra: Parameters<typeof updateMeetingStatus>[2] = {
       actorId: session.userId,
@@ -1024,7 +1024,15 @@ function StatusDialog({
     };
     if (status === "Cancelada") extra.cancelReason = reason.trim();
     if (status === "Reagendada") extra.scheduledAt = new Date(`${date}T${time}:00`).toISOString();
-    updateMeetingStatus(meeting.id, status, extra);
+    const updated = updateMeetingStatus(meeting.id, status, extra);
+    if (updated) {
+      const actor = { userId: session.userId, userName: session.name, userRole: "Executivo" };
+      if (status === "Cancelada" && updated.googleEventId) {
+        await trySyncDelete(updated, actor);
+      } else if (status === "Reagendada") {
+        await trySyncUpdate(updated, actor);
+      }
+    }
     logAudit({
       actorId: session.userId,
       actorName: session.name,
