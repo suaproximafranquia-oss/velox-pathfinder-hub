@@ -5,6 +5,7 @@ import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, ROLE_LABEL, type ExecutiveSession } from "@/lib/executive-auth";
 import { PLATFORM_MODULES, type PlatformModule } from "@/config/modules";
 import { WORKSPACE } from "@/config/workspace";
+import { PendingsCard } from "@/components/executive/pendings-card";
 
 export const Route = createFileRoute("/executivo/home")({
   head: () => ({
@@ -66,6 +67,10 @@ function HomePage() {
             <ModuleCard key={mod.id} module={mod} />
           ))}
         </div>
+      </section>
+
+      <section className="mt-10">
+        <PendingsCard executiveId={session.userId} />
       </section>
     </ExecutiveShell>
   );
