@@ -130,11 +130,9 @@ export function InvestorProfileView({
                   <MapPin className="h-3 w-3" /> {investor.city || "—"}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <UserIcon className="h-3 w-3" /> Executivo: {executive?.name ?? "—"}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3" /> Origem:{" "}
+                  <Sparkles className="h-3 w-3" />
                   {ORIGIN_LABEL[investor.origin ?? "manual"] ?? "—"}
+                  {executive?.name ? ` · ${executive.name}` : ""}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-3 w-3" /> Entrada há {formatRelative(investor.lastActivity)}
@@ -238,14 +236,18 @@ function QuickBtn({
 
 /* ---------- Aba Geral ---------- */
 function TabGeral({ investor, executive }: { investor: Investor; executive?: string }) {
+  const originLabel = ORIGIN_LABEL[investor.origin ?? "manual"] ?? "—";
+  const originValue = executive
+    ? `${originLabel} · ${executive}${
+        investor.origin !== "portal" ? ` (/manual/${slugify(executive)})` : ""
+      }`
+    : originLabel;
   const rows: [string, React.ReactNode][] = [
     ["Nome completo", investor.name],
     ["Telefone", investor.phone || "—"],
     ["Email", investor.email || "—"],
     ["Cidade", investor.city || "—"],
-    ["Origem", ORIGIN_LABEL[investor.origin ?? "manual"] ?? "—"],
-    ["Executivo responsável", executive ?? "—"],
-    ["Link personalizado", executive ? `/manual/${slugify(executive)}` : "—"],
+    ["Origem / Executivo", originValue],
     ["Status atual", STATUS_LABEL[investor.status]],
     ["Diagnóstico", investor.diagnostic],
     ["Interações com IA", String(investor.aiInteractions)],
