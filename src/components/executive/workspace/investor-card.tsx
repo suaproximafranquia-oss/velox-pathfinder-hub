@@ -99,7 +99,7 @@ export function InvestorCard({
             <div className="flex items-center gap-2 min-w-0">
               <p
                 title={investor.name}
-                className="font-display text-[18px] md:text-[19px] leading-tight truncate flex-1 min-w-0"
+                className="font-display text-[18px] md:text-[19px] leading-tight flex-1 min-w-0 break-words line-clamp-2"
               >
                 {investor.name}
               </p>
