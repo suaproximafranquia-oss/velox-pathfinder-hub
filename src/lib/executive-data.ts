@@ -42,6 +42,8 @@ export type Investor = {
   assignedToUserId: string; // FK -> ExecutiveUser.id
   origin?: InvestorOrigin;
   priority?: InvestorPriority;
+  /** Rótulo do último evento real registrado no bus (para exibição no card). */
+  lastEventLabel?: string;
 };
 
 export const STATUS_LABEL: Record<InvestorStatus, string> = {
