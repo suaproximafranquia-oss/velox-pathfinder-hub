@@ -2,6 +2,9 @@
  * Central do Executivo — dados fictícios de investidores.
  * Substituir por integração com o Manual em etapa futura.
  */
+import { listEvents } from "@/lib/events/bus";
+import { loadLeads } from "@/lib/leads";
+import { getDefaultExecutive } from "@/lib/executive-auth";
 
 export type InvestorStatus =
   | "novo"
@@ -130,6 +133,63 @@ export const MOCK_INVESTORS: Investor[] = [
     priority: "medium",
   },
 ];
+
+function latestIso(values: string[]): string {
+  const valid = values.filter(Boolean);
+  if (valid.length === 0) return new Date().toISOString();
+  return valid.sort((a, b) => (a < b ? 1 : -1))[0] ?? new Date().toISOString();
+}
+
+export function listAllInvestors(): Investor[] {
+  const fallbackExecutiveId = getDefaultExecutive()?.id ?? "usr_thiago";
+  const portalInvestors = loadLeads().map<Investor>((lead) => {
+    const events = listEvents({ investorId: lead.id });
+    const manualEvents = events.filter((event) => event.type === "manual.chapter.completed");
+    const manualDone = events.some((event) => event.type === "manual.completed");
+    const simulatorDone = events.some((event) => event.type === "simulator.completed");
+    const interestsCaptured = events.some((event) => event.type === "profile.interests.captured");
+    const latestManual = manualEvents.sort((a, b) => (a.at < b.at ? 1 : -1))[0];
+    const latestManualPayload = latestManual?.payload as
+      | { chapterTitle?: string; index?: number; total?: number }
+      | undefined;
+    const calculatedPct = latestManualPayload?.index && latestManualPayload?.total
+      ? Math.min(100, Math.round((latestManualPayload.index / latestManualPayload.total) * 100))
+      : 0;
+    const readingPct = manualDone ? 100 : calculatedPct;
+    const status: InvestorStatus = simulatorDone
+      ? "conversando"
+      : manualDone
+        ? "concluido"
+        : readingPct > 0
+          ? "em_leitura"
+          : "novo";
+
+    return {
+      id: lead.id,
+      name: lead.name,
+      city: lead.city || "—",
+      phone: lead.whatsapp || "—",
+      email: lead.email,
+      status,
+      readingPct,
+      currentChapter: manualDone
+        ? "Convite para conversar"
+        : latestManualPayload?.chapterTitle ?? lead.material,
+      lastActivity: latestIso([lead.createdAt, ...events.map((event) => event.at)]),
+      aiInteractions: events.filter((event) => event.type === "ai.query.answered").length +
+        (interestsCaptured ? 1 : 0),
+      diagnostic: simulatorDone || interestsCaptured ? "em andamento" : "não iniciado",
+      assignedToUserId: lead.responsibleExecutiveId ?? fallbackExecutiveId,
+      origin: "portal",
+      priority: simulatorDone ? "high" : interestsCaptured ? "medium" : "none",
+    };
+  });
+
+  const byId = new Map<string, Investor>();
+  for (const investor of MOCK_INVESTORS) byId.set(investor.id, investor);
+  for (const investor of portalInvestors) byId.set(investor.id, investor);
+  return Array.from(byId.values());
+}
 
 export function formatRelative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();

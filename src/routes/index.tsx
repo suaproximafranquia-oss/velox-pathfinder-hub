@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { BookOpen, Compass, Building2, BookMarked, Users, Calculator, ArrowUpRight, X } from "lucide-react";
 import { SimulatorModal } from "@/components/simulator/simulator-modal";
@@ -9,6 +9,7 @@ import sedeFachadaImg from "@/assets/portal-sede-fachada.png.asset.json";
 import revistaImg from "@/assets/portal-revista-velox.png.asset.json";
 import experienciasImg from "@/assets/portal-experiencias.png.asset.json";
 import simuladorImg from "@/assets/portal-simulador.jpg.asset.json";
+import { hasPortalSession } from "@/lib/portal-session";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -121,8 +122,17 @@ const MODULES: ModuleCard[] = [
 ];
 
 function PortalHome() {
+  const navigate = useNavigate();
   const [openPanel, setOpenPanel] = useState<{ src: string; title: string } | null>(null);
   const [simulatorOpen, setSimulatorOpen] = useState(false);
+
+  useEffect(() => {
+    if (!hasPortalSession()) return;
+    const intent = window.localStorage.getItem("velox:portal:postGatewayIntent");
+    if (intent !== "simulator") return;
+    window.localStorage.removeItem("velox:portal:postGatewayIntent");
+    setSimulatorOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!openPanel) return;
@@ -143,6 +153,13 @@ function PortalHome() {
         <Hero />
         <ModulesGrid
           onOpen={(m) => {
+            if ((m.panelSrc || m.action === "simulator") && !hasPortalSession()) {
+              if (m.action === "simulator") {
+                window.localStorage.setItem("velox:portal:postGatewayIntent", "simulator");
+              }
+              navigate({ to: "/entrar", search: { next: m.panelSrc ?? "/" } });
+              return;
+            }
             if (m.action === "simulator") setSimulatorOpen(true);
             else if (m.panelSrc) setOpenPanel({ src: m.panelSrc, title: m.title });
           }}

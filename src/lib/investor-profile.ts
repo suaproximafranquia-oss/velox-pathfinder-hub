@@ -32,6 +32,8 @@ export type InvestorProfile = {
 function fmt(e: PortalEvent): TimelineEntry {
   const map: Record<string, string> = {
     "journey.started": "Jornada iniciada",
+    "manual.started": "Manual iniciado",
+    "manual.chapter.completed": "Capítulo do Manual concluído",
     "manual.completed": "Manual concluído",
     "material.viewed": "Material acessado",
     "simulator.started": "Simulação iniciada",

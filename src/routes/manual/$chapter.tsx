@@ -38,8 +38,10 @@ export const Route = createFileRoute("/manual/$chapter")({
       // persiste o responsável e redireciona para a recepção do Manual.
       const exec = getExecutiveBySlug(params.chapter);
       if (exec) {
-        setResponsibleExecutiveSlug(exec.slug);
-        throw redirect({ to: "/manual" });
+        throw redirect({
+          to: "/entrar",
+          search: { next: "/manual", executive: exec.slug },
+        });
       }
       throw notFound();
     }
