@@ -21,6 +21,12 @@ import { addComment, listComments, type InvestorComment } from "@/lib/investor-c
 import { generateInvestorReport } from "@/lib/investor-report";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
+  getPortalLeadStatus,
+  setPortalLeadStatus,
+  PORTAL_LEAD_STATUS_META,
+  type PortalLeadStatus,
+} from "@/lib/portal-lead-status";
+import {
   listSimulations,
   getLastSimulation,
   openSimulationPdf,
@@ -44,7 +50,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "jornada", label: "Jornada" },
   { key: "timeline", label: "Linha do Tempo" },
   { key: "reunioes", label: "Reuniões" },
-  { key: "comentarios", label: "Comentários" },
+  { key: "comentarios", label: "Notas do Executivo" },
   { key: "ia", label: "IA Corporativa" },
   { key: "relatorio", label: "Relatório" },
 ];
@@ -146,6 +152,12 @@ export function InvestorProfileView({
 
           {/* Ações rápidas */}
           <div className="flex flex-wrap gap-2 md:justify-end">
+            {investor.origin === "portal" && (
+              <PortalStatusSelector
+                investorId={investor.id}
+                actorId={session.userId}
+              />
+            )}
             <QuickBtn icon={Calendar} label="Nova reunião" onClick={openNewMeeting} primary />
             <QuickBtn
               icon={FileText}
