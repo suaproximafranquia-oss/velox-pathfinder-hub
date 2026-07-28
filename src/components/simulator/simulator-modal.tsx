@@ -478,144 +478,52 @@ function ProductInputRow({
 
 type ResultRow = { product: SimulatorProduct; input: number; volume: number; revenue: number };
 
-function StepResults({
-  rows,
-  total,
-  byCategory,
+function StepConfirmation({
+  pdfFilename,
   onRestart,
-  onTalk,
+  onClose,
 }: {
-  rows: ResultRow[];
-  total: number;
-  byCategory: Map<ProductCategory, number>;
+  pdfFilename: string | null;
   onRestart: () => void;
-  onTalk: () => void;
+  onClose: () => void;
 }) {
-  const active = rows.filter((r) => r.input > 0);
-  const annual = total * 12;
-  const catEntries = Array.from(byCategory.entries()).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const responsible = getResponsibleExecutive();
+  const exec = responsible.executive;
+  const rawWhats = (exec?.whatsapp || exec?.phone || "").replace(/\D/g, "") || WHATSAPP_NUMBER;
+  const firstName = exec?.name?.split(" ")[0] ?? "";
+  const message =
+    responsible.personalized && firstName
+      ? `Olá ${firstName}! Concluí a simulação de potencial de receita e gostaria de continuar nossa conversa.`
+      : "Olá! Concluí a simulação de potencial de receita no Portal Velox e gostaria de conversar.";
+  const whatsUrl = `https://wa.me/${rawWhats}?text=${encodeURIComponent(message)}`;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8 md:px-10 md:py-10">
-      <div className="mb-8 max-w-3xl">
-        <span className="portal-eyebrow">Etapa 3 · Resultado da simulação</span>
-        <h2 className="portal-serif mt-3 text-3xl md:text-4xl" style={{ color: "var(--brand-blue-deep)" }}>
-          Seu cenário de potencial de receita.
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-          Uma visão consolidada da projeção mensal e anual, com o detalhamento por produto e a
-          participação de cada categoria no total.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <HighlightCard label="Receita potencial mensal" value={formatBRL(total)} accent tone="orange" />
-        <HighlightCard label="Receita potencial anual" value={formatBRL(annual)} tone="navy" />
-      </div>
-
-      <section className="mt-10">
-        <div className="mb-3 flex items-center gap-3">
-          <Sparkles className="h-4 w-4" style={{ color: "var(--brand-orange)" }} />
-          <span className="text-[11px] uppercase tracking-[0.28em]" style={{ color: "var(--brand-blue-deep)" }}>
-            Detalhamento por produto
-          </span>
-          <span className="h-px flex-1" style={{ background: "var(--paper-edge)" }} />
-        </div>
-        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--paper-edge)", background: "var(--paper-2, #fff)" }}>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                <th className="px-5 py-3 font-medium">Produto</th>
-                <th className="px-5 py-3 font-medium">Categoria</th>
-                <th className="px-5 py-3 font-medium">Comissão utilizada</th>
-                <th className="px-5 py-3 text-right font-medium">Volume Mensal (R$)</th>
-                <th className="px-5 py-3 text-right font-medium">Receita estimada</th>
-              </tr>
-            </thead>
-            <tbody>
-              {active.map((r, i) => (
-                <tr
-                  key={r.product.id}
-                  className="border-t"
-                  style={{ borderColor: "var(--paper-edge)", background: i % 2 ? "color-mix(in oklab, var(--brand-blue-deep) 3%, transparent)" : "transparent" }}
-                >
-                  <td className="px-5 py-3 font-medium" style={{ color: "var(--brand-blue-deep)" }}>{r.product.name}</td>
-                  <td className="px-5 py-3">
-                    <span className="inline-flex items-center gap-2 text-[12px]" style={{ color: "var(--muted-foreground)" }}>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: CATEGORY_COLORS[r.product.category] }} />
-                      {r.product.category}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-[13px]" style={{ color: "var(--muted-foreground)" }}>{r.product.commissionLabel}</td>
-                  <td className="px-5 py-3 text-right tabular-nums" style={{ color: "var(--brand-blue-deep)" }}>
-                    {formatBRL(r.volume)}
-                    {r.product.pricingModel === "quantity" && (
-                      <span className="ml-1 text-[11px] text-[color:var(--muted-foreground)]">
-                        ({r.input} {r.input === 1 ? "contrato" : "contratos"})
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-right font-semibold tabular-nums" style={{ color: "var(--brand-blue-deep)" }}>{formatBRL(r.revenue)}</td>
-                </tr>
-              ))}
-              <tr className="border-t-2" style={{ borderColor: "var(--brand-blue-deep)", background: "color-mix(in oklab, var(--brand-blue-deep) 6%, transparent)" }}>
-                <td className="px-5 py-4 font-semibold" colSpan={4} style={{ color: "var(--brand-blue-deep)" }}>
-                  Receita total estimada
-                </td>
-                <td className="px-5 py-4 text-right text-lg font-semibold tabular-nums" style={{ color: "var(--brand-orange)" }}>
-                  {formatBRL(total)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mt-10">
-        <div className="mb-3 flex items-center gap-3">
-          <span className="text-[11px] uppercase tracking-[0.28em]" style={{ color: "var(--brand-blue-deep)" }}>
-            Participação por categoria
-          </span>
-          <span className="h-px flex-1" style={{ background: "var(--paper-edge)" }} />
-        </div>
-        <div className="space-y-3 rounded-xl border p-5" style={{ borderColor: "var(--paper-edge)", background: "var(--paper-2, #fff)" }}>
-          {catEntries.map(([cat, value]) => {
-            const pct = total > 0 ? (value / total) * 100 : 0;
-            return (
-              <div key={cat}>
-                <div className="mb-1 flex items-center justify-between text-[13px]">
-                  <span className="flex items-center gap-2" style={{ color: "var(--brand-blue-deep)" }}>
-                    <span className="h-2 w-2 rounded-full" style={{ background: CATEGORY_COLORS[cat] }} />
-                    {cat}
-                  </span>
-                  <span className="tabular-nums text-[color:var(--muted-foreground)]">
-                    {formatBRL(value)} · {pct.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: "color-mix(in oklab, var(--brand-blue-deep) 8%, transparent)" }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${pct}%`, background: CATEGORY_COLORS[cat] }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <p
-        className="mt-10 rounded-xl border px-5 py-4 text-[12px] leading-relaxed"
-        style={{ borderColor: "var(--paper-edge)", background: "color-mix(in oklab, var(--brand-orange) 6%, transparent)", color: "var(--brand-blue-deep)" }}
+    <div className="mx-auto max-w-2xl px-6 py-16 md:py-24 text-center">
+      <div
+        className="mx-auto mb-8 flex h-16 w-16 items-center justify-center rounded-full"
+        style={{
+          background: "color-mix(in oklab, var(--brand-orange) 14%, transparent)",
+          color: "var(--brand-orange)",
+        }}
       >
-        <strong>Aviso:</strong> Esta simulação possui caráter exclusivamente ilustrativo e educacional.
-        Os percentuais utilizados representam parâmetros médios definidos apenas para fins de simulação.
-        As comissões reais podem variar conforme instituição financeira, produto comercializado, taxas negociadas,
-        campanhas vigentes, prazo da operação, perfil do cliente e desempenho comercial do franqueado.
-        Esta ferramenta não representa promessa ou garantia de faturamento.
+        <FileCheck2 className="h-7 w-7" />
+      </div>
+      <span className="portal-eyebrow" style={{ color: "var(--brand-orange)" }}>
+        Simulação concluída
+      </span>
+      <h2
+        className="portal-serif mt-4 text-3xl md:text-4xl leading-tight text-balance"
+        style={{ color: "var(--brand-blue-deep)" }}
+      >
+        Seu relatório foi gerado com sucesso e já está disponível para o Executivo responsável.
+      </h2>
+      <p className="mt-5 text-sm md:text-base leading-relaxed text-[color:var(--muted-foreground)]">
+        Uma cópia do PDF{pdfFilename ? ` (${pdfFilename})` : ""} foi baixada no seu dispositivo e
+        registrada na sua jornada no Portal Velox — pronta para acompanhar a próxima conversa
+        com {responsible.personalized && firstName ? firstName : "seu Executivo de Expansão"}.
       </p>
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
         <button
           type="button"
           onClick={onRestart}
@@ -623,41 +531,18 @@ function StepResults({
           style={{ borderColor: "var(--brand-blue-deep)", color: "var(--brand-blue-deep)" }}
         >
           <RotateCcw className="h-4 w-4" />
-          Realizar nova simulação
+          Nova Simulação
         </button>
-        <button
-          type="button"
-          onClick={onTalk}
+        <a
+          href={whatsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => setTimeout(onClose, 200)}
           className="ed-btn-primary inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium"
         >
           <MessageCircle className="h-4 w-4" />
-          Conversar com um Executivo de Expansão
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function HighlightCard({ label, value, accent, tone }: { label: string; value: string; accent?: boolean; tone: "orange" | "navy" }) {
-  const isOrange = tone === "orange";
-  return (
-    <div
-      className="relative overflow-hidden rounded-2xl border p-6"
-      style={{
-        borderColor: isOrange ? "color-mix(in oklab, var(--brand-orange) 40%, transparent)" : "var(--paper-edge)",
-        background: isOrange
-          ? "linear-gradient(135deg, color-mix(in oklab, var(--brand-orange) 14%, var(--paper)) 0%, var(--paper-2, #fff) 100%)"
-          : "linear-gradient(135deg, color-mix(in oklab, var(--brand-blue-deep) 8%, var(--paper)) 0%, var(--paper-2, #fff) 100%)",
-      }}
-    >
-      <div className="portal-eyebrow" style={{ color: isOrange ? "var(--brand-orange)" : "var(--brand-blue-deep)" }}>
-        {label}
-      </div>
-      <div
-        className="portal-serif mt-3 text-4xl md:text-5xl tabular-nums"
-        style={{ color: accent ? "var(--brand-orange)" : "var(--brand-blue-deep)" }}
-      >
-        {value}
+          Conversar com meu Executivo
+        </a>
       </div>
     </div>
   );
