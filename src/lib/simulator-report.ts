@@ -25,7 +25,7 @@ export function generateSimulatorPdf(input: {
   executiveTitle?: string | null;
   audienceLabel?: string | null;
   interests?: string[];
-}): { filename: string } {
+}): { filename: string; dataUri: string } {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -214,8 +214,12 @@ export function generateSimulatorPdf(input: {
   }
 
   const filename = `simulador-velox-${Date.now()}.pdf`;
-  doc.save(filename);
-  return { filename };
+  // IMPORTANTE: o relatório NÃO é baixado automaticamente. Retornamos
+  // apenas o data URI para que a camada superior (histórico de
+  // simulações) armazene-o vinculado ao Lead. Somente o Executivo
+  // acessa/abre o PDF no Perfil Inteligente.
+  const dataUri = doc.output("datauristring", { filename });
+  return { filename, dataUri };
 }
 
 function truncate(s: string, n: number): string {
