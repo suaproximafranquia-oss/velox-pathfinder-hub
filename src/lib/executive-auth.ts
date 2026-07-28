@@ -135,6 +135,8 @@ export type ExecutiveUser = {
   title?: string;
   /** Data de admissão (ISO). Origem única para Recognition e Perfil. */
   admissionDate?: string;
+  /** Data de nascimento (ISO). Utilizada por notificações e automações internas. */
+  birthDate?: string;
   /** Gestor direto — referência para hierarquia visual (opcional). */
   gestorId?: string;
   /** Mantido para compatibilidade com telas legadas; deriva do e-mail. */
