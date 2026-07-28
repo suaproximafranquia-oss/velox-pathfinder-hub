@@ -9,7 +9,7 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import {
-  MOCK_INVESTORS,
+  listAllInvestors,
   STATUS_LABEL,
   formatRelative,
 } from "@/lib/executive-data";
@@ -44,9 +44,10 @@ function InvestidoresPage() {
 
   const investors = useMemo(() => {
     if (!session) return [];
+    const allInvestors = listAllInvestors();
     const base = canViewAllInvestors(session.activeRole)
-      ? MOCK_INVESTORS
-      : MOCK_INVESTORS.filter((i) => i.assignedToUserId === session.userId);
+      ? allInvestors
+      : allInvestors.filter((i) => i.assignedToUserId === session.userId);
     const q = query.trim().toLowerCase();
     if (!q) return base;
     return base.filter(

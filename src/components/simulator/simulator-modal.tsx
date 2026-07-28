@@ -11,7 +11,7 @@ import {
 } from "@/lib/simulator-products";
 import { ExecutiveContactDialog } from "@/components/shared/executive-contact-dialog";
 import { emitEvent } from "@/lib/events/bus";
-import { getVisitorIdentity } from "@/lib/leads";
+import { getCurrentInvestorId } from "@/lib/portal-session";
 
 type Step = 1 | 2 | 3;
 
@@ -105,19 +105,19 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
 
   useEffect(() => {
     if (!open) return;
-    const visitor = getVisitorIdentity();
+    const investorId = getCurrentInvestorId();
     emitEvent({
       type: "simulator.started",
-      investorId: visitor?.whatsapp ?? null,
+      investorId,
     });
   }, [open]);
 
   useEffect(() => {
     if (step !== 3) return;
-    const visitor = getVisitorIdentity();
+    const investorId = getCurrentInvestorId();
     emitEvent({
       type: "simulator.completed",
-      investorId: visitor?.whatsapp ?? null,
+      investorId,
       payload: {
         total: results.total,
         annual: results.total * 12,

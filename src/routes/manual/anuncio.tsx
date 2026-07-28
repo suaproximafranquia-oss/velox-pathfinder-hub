@@ -9,7 +9,7 @@ import { clearResponsibleExecutive } from "@/lib/responsible-executive";
 export const Route = createFileRoute("/manual/anuncio")({
   beforeLoad: () => {
     if (typeof window !== "undefined") clearResponsibleExecutive();
-    throw redirect({ to: "/manual" });
+    throw redirect({ to: "/entrar", search: { next: "/manual", origin: "anuncio" } });
   },
   component: () => null,
 });

@@ -1,7 +1,11 @@
 import { Link } from "@tanstack/react-router";
+import { useEffect, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import type { Chapter } from "@/lib/journey-data";
+import { TOTAL_CHAPTERS } from "@/lib/journey-data";
 import { VideoSlot } from "./video-slot";
+import { emitEvent } from "@/lib/events/bus";
+import { getCurrentInvestorId } from "@/lib/portal-session";
 
 export function ChapterView({
   chapter,
@@ -10,10 +14,39 @@ export function ChapterView({
   completionOverride,
 }: {
   chapter: Chapter;
-  children?: React.ReactNode;
+  children?: ReactNode;
   hideContinue?: boolean;
-  completionOverride?: React.ReactNode;
+  completionOverride?: ReactNode;
 }) {
+  useEffect(() => {
+    const investorId = getCurrentInvestorId();
+    if (!investorId) return;
+    if (chapter.index === 1) {
+      emitEvent({
+        type: "manual.started",
+        investorId,
+        payload: { chapterSlug: chapter.slug, chapterTitle: chapter.title },
+      });
+    }
+    emitEvent({
+      type: "manual.chapter.completed",
+      investorId,
+      payload: {
+        chapterSlug: chapter.slug,
+        chapterTitle: chapter.title,
+        index: chapter.index,
+        total: TOTAL_CHAPTERS,
+      },
+    });
+    if (chapter.isFinal) {
+      emitEvent({
+        type: "manual.completed",
+        investorId,
+        payload: { total: TOTAL_CHAPTERS },
+      });
+    }
+  }, [chapter.index, chapter.isFinal, chapter.slug, chapter.title]);
+
   return (
     <article
       key={chapter.slug}

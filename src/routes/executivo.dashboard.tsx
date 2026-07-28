@@ -7,7 +7,7 @@ import {
   canViewAllInvestors,
   type ExecutiveSession,
 } from "@/lib/executive-auth";
-import { MOCK_INVESTORS } from "@/lib/executive-data";
+import { listAllInvestors } from "@/lib/executive-data";
 import { listMeetings } from "@/lib/meetings";
 import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
@@ -63,9 +63,10 @@ function WorkspacePage() {
 
   const cards: InvestorCardData[] = useMemo(() => {
     if (!session) return [];
+    const allInvestors = listAllInvestors();
     const base = canViewAllInvestors(session.activeRole)
-      ? MOCK_INVESTORS
-      : MOCK_INVESTORS.filter((i) => i.assignedToUserId === session.userId);
+      ? allInvestors
+      : allInvestors.filter((i) => i.assignedToUserId === session.userId);
 
     const q = query.trim().toLowerCase();
     const filtered = q
@@ -97,7 +98,7 @@ function WorkspacePage() {
 
   const personalLink = buildPersonalLink(session);
   const activeInvestor =
-    openProfileId ? MOCK_INVESTORS.find((i) => i.id === openProfileId) ?? null : null;
+    openProfileId ? listAllInvestors().find((i) => i.id === openProfileId) ?? null : null;
 
   const openProfile = (id: string) => {
     scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;

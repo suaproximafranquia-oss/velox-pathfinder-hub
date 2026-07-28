@@ -3,6 +3,7 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  useNavigate,
   useRouter,
   useRouterState,
   HeadContent,
@@ -18,6 +19,7 @@ import {
   ExecutiveShellMarker,
   type EditorialVariant,
 } from "../components/editorial/editorial-shell";
+import { hasPortalSession } from "../lib/portal-session";
 
 function NotFoundComponent() {
   return (
@@ -141,10 +143,20 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isExecutive = pathname.startsWith("/executivo");
   const isPortal = pathname === "/";
   const isUniverso = pathname.startsWith("/universo");
+  const isGateway = pathname === "/entrar";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (isExecutive || isPortal || isGateway) return;
+    const protectedPublicRoute = pathname.startsWith("/manual") || pathname.startsWith("/universo");
+    if (!protectedPublicRoute || hasPortalSession()) return;
+    navigate({ to: "/entrar", search: { next: pathname }, replace: true });
+  }, [isExecutive, isGateway, isPortal, navigate, pathname]);
 
   // Área Executiva permanece isolada do Design System editorial.
   if (isExecutive) {
@@ -167,7 +179,7 @@ function RootComponent() {
       ? "universo"
       : "manual";
 
-  const content = isPortal || isUniverso ? (
+  const content = isPortal || isUniverso || isGateway ? (
     <Outlet />
   ) : (
     <JourneyChrome>

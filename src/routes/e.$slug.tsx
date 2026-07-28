@@ -1,6 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getExecutiveBySlug } from "@/lib/executive-auth";
-import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 
 /**
  * Rota de entrada personalizada do Manual (`/e/$slug`).
@@ -16,11 +15,11 @@ export const Route = createFileRoute("/e/$slug")({
     ],
   }),
   beforeLoad: ({ params }) => {
-    if (typeof window !== "undefined") {
-      const exec = getExecutiveBySlug(params.slug);
-      if (exec) setResponsibleExecutiveSlug(exec.slug);
-    }
-    throw redirect({ to: "/manual" });
+    const exec = getExecutiveBySlug(params.slug);
+    throw redirect({
+      to: "/entrar",
+      search: { next: "/manual", executive: exec?.slug ?? params.slug },
+    });
   },
   component: () => null,
 });

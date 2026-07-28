@@ -12,6 +12,8 @@
 
 export type PortalEventType =
   | "journey.started"
+  | "manual.started"
+  | "manual.chapter.completed"
   | "manual.completed"
   | "material.viewed"
   | "simulator.started"

@@ -10,6 +10,7 @@
 import { emitEvent } from "@/lib/events/bus";
 import { addComment } from "@/lib/investor-comments";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { getCurrentInvestorId } from "@/lib/portal-session";
 
 export type AudienceProfile = "pf" | "pj" | "ambos";
 
@@ -56,7 +57,7 @@ function writeAll(list: InterestsProfile[]) {
 }
 
 export function getInterestsProfile(investorId?: string): InterestsProfile | null {
-  const id = investorId ?? ensureVisitorId();
+  const id = investorId ?? getCurrentInvestorId() ?? ensureVisitorId();
   return readAll().find((p) => p.investorId === id) ?? null;
 }
 
@@ -103,7 +104,7 @@ export function saveInterestsProfile(input: {
   audience: AudienceProfile | null;
   interests: string[];
 }): InterestsProfile {
-  const investorId = ensureVisitorId();
+  const investorId = getCurrentInvestorId() ?? ensureVisitorId();
   const responsible = getResponsibleExecutive();
   const summary = buildSummary(input.audience, input.interests);
   const now = new Date().toISOString();
