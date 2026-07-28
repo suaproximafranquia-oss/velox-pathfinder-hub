@@ -4,7 +4,6 @@ import {
   UserCircle2,
   Mail,
   Briefcase,
-  Phone,
   MessageCircle,
   Calendar,
   Cake,
@@ -65,10 +64,10 @@ function PerfilPage() {
       <div className="max-w-3xl">
         <p className="text-sm text-[color:var(--muted-foreground)] mb-8 leading-relaxed">
           Este perfil é a fonte única dos seus dados na plataforma. Nome,
-          e-mail, telefone, WhatsApp e data de admissão utilizados por
-          qualquer módulo (Manual personalizado, Recognition, IA, etc.) vêm
-          diretamente daqui. Para alterá-los, utilize o botão “Editar
-          Perfil”.
+          e-mail, WhatsApp, data de nascimento e data de admissão
+          utilizados por qualquer módulo (Manual personalizado,
+          Recognition, IA, etc.) vêm diretamente daqui. Para alterá-los,
+          utilize o botão “Editar Perfil”.
         </p>
         <ProfileFields
           session={session}
@@ -99,7 +98,6 @@ function ProfileFields({
   const [draft, setDraft] = useState({
     name: user?.name ?? session.name,
     email: user?.email ?? session.email,
-    phone: user?.phone ?? "",
     whatsapp: user?.whatsapp ?? user?.phone ?? "",
     admissionDate: user?.admissionDate ?? "",
     birthDate: user?.birthDate ?? "",
@@ -109,7 +107,6 @@ function ProfileFields({
     setDraft({
       name: user?.name ?? session.name,
       email: user?.email ?? session.email,
-      phone: user?.phone ?? "",
       whatsapp: user?.whatsapp ?? user?.phone ?? "",
       admissionDate: user?.admissionDate ?? "",
       birthDate: user?.birthDate ?? "",
@@ -125,7 +122,6 @@ function ProfileFields({
       ...user,
       name: draft.name.trim() || user.name,
       email: draft.email.trim().toLowerCase() || user.email,
-      phone: draft.phone.trim() || undefined,
       whatsapp: draft.whatsapp.trim() || undefined,
       admissionDate: draft.admissionDate || undefined,
       birthDate: draft.birthDate || undefined,
@@ -139,7 +135,6 @@ function ProfileFields({
   type EditableKey =
     | "name"
     | "email"
-    | "phone"
     | "whatsapp"
     | "admissionDate"
     | "birthDate";
@@ -160,27 +155,11 @@ function ProfileFields({
       locked: true,
     },
     {
-      icon: Phone,
-      label: "Telefone",
-      value: user?.phone ?? "A cadastrar",
-      editable: "phone",
-      inputType: "tel",
-    },
-    {
       icon: MessageCircle,
       label: "WhatsApp",
       value: user?.whatsapp ?? user?.phone ?? "A cadastrar",
       editable: "whatsapp",
       inputType: "tel",
-    },
-    {
-      icon: Calendar,
-      label: "Data de admissão",
-      value: user?.admissionDate
-        ? new Date(user.admissionDate).toLocaleDateString("pt-BR")
-        : "A cadastrar",
-      editable: "admissionDate",
-      inputType: "date",
     },
     {
       icon: Cake,
@@ -189,6 +168,15 @@ function ProfileFields({
         ? new Date(user.birthDate).toLocaleDateString("pt-BR")
         : "A cadastrar",
       editable: "birthDate",
+      inputType: "date",
+    },
+    {
+      icon: Calendar,
+      label: "Data de admissão",
+      value: user?.admissionDate
+        ? new Date(user.admissionDate).toLocaleDateString("pt-BR")
+        : "A cadastrar",
+      editable: "admissionDate",
       inputType: "date",
     },
     {
