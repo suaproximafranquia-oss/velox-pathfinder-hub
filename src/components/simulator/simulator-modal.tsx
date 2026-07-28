@@ -14,6 +14,7 @@ import { getCurrentInvestorId, getPortalSession } from "@/lib/portal-session";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { generateSimulatorPdf } from "@/lib/simulator-report";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
+import { getInterestsProfile } from "@/lib/interests-profile";
 
 type Step = 1 | 2 | 3;
 
@@ -127,6 +128,14 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
     completedRef.current = true;
     const investorId = getCurrentInvestorId();
     const session = getPortalSession();
+    const responsible = getResponsibleExecutive();
+    const exec = responsible.executive;
+    const interestsProfile = getInterestsProfile(investorId ?? undefined);
+    const audienceMap: Record<string, string> = {
+      pf: "Foco em Pessoa Física",
+      pj: "Foco em Pessoa Jurídica",
+      ambos: "Atendimento para PF e PJ",
+    };
     let pdf: { filename: string } | null = null;
     try {
       pdf = generateSimulatorPdf({
@@ -134,6 +143,12 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
         rows: results.rows,
         total: results.total,
         byCategory: results.byCategory,
+        executiveName: exec?.name ?? null,
+        executiveTitle: exec?.title ?? null,
+        audienceLabel: interestsProfile?.audience
+          ? audienceMap[interestsProfile.audience]
+          : null,
+        interests: interestsProfile?.interests ?? [],
       });
     } catch {
       /* mantém confirmação mesmo se PDF falhar */
@@ -515,12 +530,14 @@ function StepConfirmation({
         className="portal-serif mt-4 text-3xl md:text-4xl leading-tight text-balance"
         style={{ color: "var(--brand-blue-deep)" }}
       >
-        Seu relatório foi gerado com sucesso e já está disponível para o Executivo responsável.
+        Sua simulação foi concluída com sucesso.
       </h2>
       <p className="mt-5 text-sm md:text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        Uma cópia do PDF{pdfFilename ? ` (${pdfFilename})` : ""} foi baixada no seu dispositivo e
-        registrada na sua jornada no Portal Velox — pronta para acompanhar a próxima conversa
-        com {responsible.personalized && firstName ? firstName : "seu Executivo de Expansão"}.
+        Seu relatório já foi gerado automaticamente e está disponível para o
+        Executivo responsável pelo seu atendimento.
+        <br />
+        Continue sua jornada conversando com{" "}
+        {responsible.personalized && firstName ? firstName : "seu Executivo de Expansão"}.
       </p>
 
       <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
