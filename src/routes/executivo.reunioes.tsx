@@ -480,13 +480,12 @@ function ActionButton({
       type="button"
       onClick={onClick}
       title={label}
+      aria-label={label}
       className={
         danger
-          ? "relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#C53030]/40 text-[#C53030] hover:bg-[rgba(197,48,48,0.1)] transition"
-          : undefined
+          ? "inline-flex items-center gap-1 rounded-md border border-[#C53030]/50 px-2 py-1.5 text-xs text-[#C53030] hover:bg-[rgba(197,48,48,0.1)]"
+          : "inline-flex items-center gap-1 rounded-md border border-[color:var(--border)] px-2 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]"
       }
-      aria-label={label}
-      className="inline-flex items-center gap-1 rounded-md border border-[color:var(--border)] px-2 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]"
     >
       <Icon className="h-3.5 w-3.5" />
       {typeof count === "number" && <span>{count}</span>}
