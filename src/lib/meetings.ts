@@ -25,17 +25,25 @@ export type MeetingNote = {
   text: string;
 };
 
+export type GoogleSyncState = "none" | "synced" | "pending" | "failed";
+
 export type Meeting = {
   id: string;
   investorId: string;
   investorName: string;
+  investorEmail?: string;
   executiveId: string;
   executiveName: string;
   scheduledAt: string; // ISO
+  durationMin?: number;
   status: MeetingStatus;
   meetUrl?: string;
   notes: MeetingNote[];
   cancelReason?: string;
+  googleEventId?: string;
+  googleSync?: GoogleSyncState;
+  googleSyncError?: string;
+  googleSyncedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -81,17 +89,21 @@ export function listMeetings(filter?: {
 export function createMeeting(input: {
   investorId: string;
   investorName: string;
+  investorEmail?: string;
   executiveId: string;
   executiveName: string;
   scheduledAt: string;
+  durationMin?: number;
   meetUrl?: string;
 }): Meeting {
   const now = new Date().toISOString();
   const meeting: Meeting = {
     id: newId("mt"),
     ...input,
+    durationMin: input.durationMin ?? 60,
     status: "Agendada",
     notes: [],
+    googleSync: "none",
     createdAt: now,
     updatedAt: now,
   };
@@ -114,6 +126,39 @@ export function createMeeting(input: {
     severity: "info",
   });
   return meeting;
+}
+
+/** Aplica dados de sincronização Google (evento/meet) numa reunião. */
+export function applyGoogleSyncPatch(
+  id: string,
+  patch: {
+    googleEventId?: string | null;
+    meetUrl?: string | null;
+    googleSync?: GoogleSyncState;
+    googleSyncError?: string | null;
+    googleSyncedAt?: string | null;
+  },
+): Meeting | null {
+  const all = safeRead();
+  const idx = all.findIndex((m) => m.id === id);
+  if (idx < 0) return null;
+  const prev = all[idx];
+  const next: Meeting = {
+    ...prev,
+    googleEventId:
+      patch.googleEventId === null ? undefined : patch.googleEventId ?? prev.googleEventId,
+    meetUrl:
+      patch.meetUrl === null ? undefined : patch.meetUrl ?? prev.meetUrl,
+    googleSync: patch.googleSync ?? prev.googleSync,
+    googleSyncError:
+      patch.googleSyncError === null ? undefined : patch.googleSyncError ?? prev.googleSyncError,
+    googleSyncedAt:
+      patch.googleSyncedAt === null ? undefined : patch.googleSyncedAt ?? prev.googleSyncedAt,
+    updatedAt: new Date().toISOString(),
+  };
+  all[idx] = next;
+  safeWrite(all);
+  return next;
 }
 
 export function updateMeetingStatus(
