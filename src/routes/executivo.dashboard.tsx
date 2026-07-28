@@ -219,6 +219,44 @@ function WorkspaceHeader({
   );
 }
 
+function ScopeTabs({
+  current,
+  onChange,
+}: {
+  current: WorkspaceScope;
+  onChange: (s: WorkspaceScope) => void;
+}) {
+  const items: WorkspaceScope[] = ["green_sales", "portal"];
+  return (
+    <div
+      role="tablist"
+      aria-label="Escopo do Workspace"
+      className="mb-5 inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/50 p-1"
+    >
+      {items.map((s) => {
+        const active = s === current;
+        return (
+          <button
+            key={s}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(s)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-xs uppercase tracking-[0.16em] transition",
+              active
+                ? "bg-[color:var(--accent)] text-[color:var(--foreground)] border border-[color:var(--gold)]/50"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
+            )}
+          >
+            {WORKSPACE_SCOPE_LABEL[s]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function CopyLinkButton({ link }: { link: string }) {
   const [copied, setCopied] = useState(false);
   return (
