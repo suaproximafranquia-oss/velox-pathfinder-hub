@@ -14,6 +14,7 @@ import {
   Lock,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { GoogleWorkspaceCard } from "@/components/executive/google-workspace-card";
 import {
   getSession,
   loadUsers,
@@ -78,6 +79,7 @@ function PerfilPage() {
           }}
         />
         <IntegrationsSection />
+        <GoogleWorkspaceCard session={session} />
       </div>
     </ExecutiveShell>
   );
