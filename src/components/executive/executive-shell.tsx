@@ -34,6 +34,7 @@ import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
 import { NotificationsBell } from "@/components/executive/notifications-bell";
+import { GoogleStatusIndicator } from "@/components/executive/google-status-indicator";
 
 export function ExecutiveShell({
   session,
@@ -118,6 +119,7 @@ export function ExecutiveShell({
           </div>
           <div className="flex items-center gap-3">
             <NotificationsBell />
+            <GoogleStatusIndicator session={session} />
             <ProfileSwitcher session={session} />
             <button
               type="button"

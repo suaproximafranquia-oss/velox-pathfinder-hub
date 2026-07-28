@@ -20,6 +20,7 @@ export type PortalEventType =
   | "meeting.rescheduled"
   | "meeting.completed"
   | "meeting.cancelled"
+  | "meeting.deleted"
   | "profile.updated"
   // Etapa 2 — eventos administrativos e de governança.
   | "admin.settings.updated"
@@ -32,7 +33,12 @@ export type PortalEventType =
   | "resource.created"
   | "resource.updated"
   | "resource.removed"
-  | "ai.query.answered";
+  | "ai.query.answered"
+  // Etapa 2 — Google Workspace.
+  | "google.connected"
+  | "google.disconnected"
+  | "google.token.renewed"
+  | "google.token.failed";
 
 export type PortalEvent<T = Record<string, unknown>> = {
   id: string;
