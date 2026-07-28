@@ -236,7 +236,7 @@ function ProfileSwitcher({ session }: { session: ExecutiveSession }) {
         {canSwitch && <ChevronDown className="h-3.5 w-3.5" />}
       </button>
       {canSwitch && open && (
-        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-xl overflow-hidden z-50">
+        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-2xl overflow-hidden z-[100]">
           <div className="px-3 py-2 border-b border-[color:var(--border)]">
             <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
               Perfil ativo
