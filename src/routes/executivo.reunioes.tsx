@@ -87,6 +87,27 @@ function isOverdue(m: Meeting): boolean {
   return new Date(m.scheduledAt).getTime() < Date.now();
 }
 
+const GOOGLE_SYNC_STYLES: Record<GoogleSyncState, { label: string; fg: string; bg: string; border: string; Icon: typeof Cloud }> = {
+  synced:  { label: "Google sincronizado", fg: "#2C7A4B", bg: "rgba(44,122,75,0.14)",  border: "#2C7A4B", Icon: CheckCircle2 },
+  pending: { label: "Google pendente",     fg: "#B08D57", bg: "rgba(176,141,87,0.16)", border: "#B08D57", Icon: Cloud },
+  failed:  { label: "Erro de sincronização", fg: "#C53030", bg: "rgba(197,48,48,0.14)",border: "#C53030", Icon: XCircle },
+  none:    { label: "Sem integração",      fg: "#4A5568", bg: "rgba(74,85,104,0.14)",  border: "#4A5568", Icon: CloudOff },
+};
+
+function GoogleSyncBadge({ state, error }: { state: GoogleSyncState; error?: string }) {
+  const s = GOOGLE_SYNC_STYLES[state];
+  const Icon = s.Icon;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.22em]"
+      style={{ color: s.fg, background: s.bg, border: `1px solid ${s.border}` }}
+      title={error || s.label}
+    >
+      <Icon className="h-3 w-3" /> {s.label}
+    </span>
+  );
+}
+
 function ymd(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
