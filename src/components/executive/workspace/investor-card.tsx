@@ -90,24 +90,31 @@ export function InvestorCard({
           priority.ring,
         )}
       >
-        {/* Header — avatar + prioridade */}
-        <div className="flex items-start gap-3 min-w-0 pr-8">
-          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[13px] font-medium tracking-wider text-[color:var(--gold)]">
+        {/* Header — nome com prioridade visual absoluta */}
+        <div className="flex items-start gap-3 min-w-0 pr-10">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[12px] font-medium tracking-wider text-[color:var(--gold)]">
             {initials || "•"}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="font-display text-[17px] leading-tight truncate">{investor.name}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <p
+                title={investor.name}
+                className="font-display text-[18px] md:text-[19px] leading-tight truncate flex-1 min-w-0"
+              >
+                {investor.name}
+              </p>
+              {investor.priority && investor.priority !== "none" ? (
+                <span
+                  aria-label={priority.label}
+                  title={priority.label}
+                  className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full", priority.dot)}
+                />
+              ) : null}
+            </div>
             <p className="mt-1 text-[12px] text-[color:var(--muted-foreground)] truncate">
               {contact}
             </p>
           </div>
-          {investor.priority && investor.priority !== "none" ? (
-            <span
-              aria-label={priority.label}
-              title={priority.label}
-              className={cn("mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full", priority.dot)}
-            />
-          ) : null}
         </div>
 
         {/* Meta — próxima reunião + origem */}

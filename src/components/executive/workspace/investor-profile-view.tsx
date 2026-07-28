@@ -20,6 +20,14 @@ import { onEvent } from "@/lib/events/bus";
 import { addComment, listComments, type InvestorComment } from "@/lib/investor-comments";
 import { generateInvestorReport } from "@/lib/investor-report";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
+import {
+  listSimulations,
+  getLastSimulation,
+  openSimulationPdf,
+  formatSimulationDate,
+  type SimulationRecord,
+} from "@/lib/simulator-history";
+import { formatBRL } from "@/lib/simulator-products";
 import { cn } from "@/lib/utils";
 
 type TabKey =
@@ -262,10 +270,21 @@ function TabGeral({ investor, executive }: { investor: Investor; executive?: str
 /* ---------- Aba Jornada ---------- */
 function TabJornada({ investor }: { investor: Investor }) {
   const progresses = deriveModuleProgress(investor);
+  const [simOpen, setSimOpen] = useState(false);
+  const [sims, setSims] = useState<SimulationRecord[]>([]);
+  useEffect(() => {
+    setSims(listSimulations(investor.id));
+  }, [investor.id, simOpen]);
+  const last = sims[0] ?? getLastSimulation(investor.id);
+  const simulatorStatus = last
+    ? `Última simulação realizada em ${formatSimulationDate(last.createdAt)}.`
+    : "Nenhuma simulação realizada.";
   return (
+    <>
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {MODULES.map((m) => {
         const p = progresses[m.key];
+        const isSim = m.key === "simulador";
         return (
           <article
             key={m.key}
@@ -295,21 +314,139 @@ function TabJornada({ investor }: { investor: Investor }) {
                     : "Não iniciado"}
               </span>
             </div>
-            <div className="mt-4">
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--accent)]">
-                <div
-                  className="h-full rounded-full bg-[color:var(--gold)] transition-all"
-                  style={{ width: `${p.pct}%` }}
-                />
+            {isSim ? (
+              <div className="mt-4 space-y-3">
+                <p className="text-[12px] leading-relaxed text-[color:var(--muted-foreground)]">
+                  {simulatorStatus}
+                </p>
+                {sims.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSimOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-3.5 py-2 text-xs hover:border-[color:var(--gold)] transition"
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Ver Simulações
+                    <span className="rounded-full bg-[color:var(--gold)]/20 px-2 py-0.5 text-[10px] text-[color:var(--gold)]">
+                      {sims.length}
+                    </span>
+                  </button>
+                )}
               </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
-                <span>{p.pct}% concluído</span>
-                <span>{p.lastActivity}</span>
+            ) : (
+              <div className="mt-4">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--accent)]">
+                  <div
+                    className="h-full rounded-full bg-[color:var(--gold)] transition-all"
+                    style={{ width: `${p.pct}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
+                  <span>{p.pct}% concluído</span>
+                  <span>{p.lastActivity}</span>
+                </div>
               </div>
-            </div>
+            )}
           </article>
         );
       })}
+    </div>
+      {simOpen && (
+        <SimulationsHistoryDialog
+          simulations={sims}
+          onClose={() => setSimOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function SimulationsHistoryDialog({
+  simulations,
+  onClose,
+}: {
+  simulations: SimulationRecord[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        aria-label="Fechar"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
+      <div className="absolute inset-x-4 top-[6vh] bottom-[6vh] mx-auto flex max-w-3xl flex-col overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-2xl">
+        <header className="flex items-center justify-between border-b border-[color:var(--border)] px-6 py-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              Histórico de simulações
+            </p>
+            <h3 className="font-display text-lg">Simulador Inteligente</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--border)] hover:border-[color:var(--gold)]/60 transition"
+          >
+            ×
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {simulations.length === 0 ? (
+            <EmptyState icon={FileText} text="Nenhuma simulação registrada." />
+          ) : (
+            <ul className="space-y-3">
+              {simulations.map((s) => (
+                <li
+                  key={s.id}
+                  className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/60 px-5 py-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+                        {formatSimulationDate(s.createdAt)}
+                      </p>
+                      <p className="mt-1 font-display text-base">
+                        {formatBRL(s.total)}{" "}
+                        <span className="text-xs font-normal text-[color:var(--muted-foreground)]">
+                          / mês · {formatBRL(s.annual)} / ano
+                        </span>
+                      </p>
+                      <p className="mt-1 text-[12px] text-[color:var(--muted-foreground)]">
+                        {s.products.length} produto(s):{" "}
+                        {s.products
+                          .slice(0, 4)
+                          .map((p) => p.name)
+                          .join(", ")}
+                        {s.products.length > 4 ? "…" : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openSimulationPdf(s)}
+                      className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-3.5 py-2 text-xs hover:border-[color:var(--gold)] transition"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Abrir Relatório
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -25,6 +25,7 @@ export type PortalEventType =
   | "meeting.deleted"
   | "profile.updated"
   | "profile.interests.captured"
+  | "whatsapp.requested"
   // Etapa 2 — eventos administrativos e de governança.
   | "admin.settings.updated"
   | "admin.customField.created"
