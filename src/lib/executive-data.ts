@@ -2,6 +2,9 @@
  * Central do Executivo — dados fictícios de investidores.
  * Substituir por integração com o Manual em etapa futura.
  */
+import { listEvents } from "@/lib/events/bus";
+import { loadLeads } from "@/lib/leads";
+import { getDefaultExecutive } from "@/lib/executive-auth";
 
 export type InvestorStatus =
   | "novo"
@@ -40,10 +43,6 @@ export type Investor = {
   origin?: InvestorOrigin;
   priority?: InvestorPriority;
 };
-
-import { listEvents } from "@/lib/events/bus";
-import { loadLeads } from "@/lib/leads";
-import { getDefaultExecutive } from "@/lib/executive-auth";
 
 export const STATUS_LABEL: Record<InvestorStatus, string> = {
   novo: "Novo",

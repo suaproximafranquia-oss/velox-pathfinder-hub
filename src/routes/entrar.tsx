@@ -12,6 +12,11 @@ type GatewaySearch = {
 };
 
 export const Route = createFileRoute("/entrar")({
+  validateSearch: (search: Record<string, unknown>): GatewaySearch => ({
+    next: typeof search.next === "string" ? search.next : undefined,
+    executive: typeof search.executive === "string" ? search.executive : undefined,
+    origin: typeof search.origin === "string" ? search.origin : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Identificação — Portal Velox" },
