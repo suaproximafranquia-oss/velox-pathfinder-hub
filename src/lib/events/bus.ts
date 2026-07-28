@@ -22,6 +22,7 @@ export type PortalEventType =
   | "meeting.cancelled"
   | "meeting.deleted"
   | "profile.updated"
+  | "profile.interests.captured"
   // Etapa 2 — eventos administrativos e de governança.
   | "admin.settings.updated"
   | "admin.customField.created"
