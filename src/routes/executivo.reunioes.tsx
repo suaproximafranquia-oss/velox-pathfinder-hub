@@ -646,30 +646,65 @@ function NewMeetingDialog({
   );
   const [investorId, setInvestorId] = useState(leads[0]?.id ?? "");
   const [customName, setCustomName] = useState("");
+  const [customEmail, setCustomEmail] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [meetUrl, setMeetUrl] = useState("");
+  const [conflicts, setConflicts] = useState<{ summary: string; start: string; end: string }[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit() {
-    if (!date || !time) return;
+  const googleStore = getGoogleStore(session.userId);
+  const googleConnected = googleStore.state === "connected";
+
+  async function submit(force = false) {
+    if (!date || !time || submitting) return;
     const iso = new Date(`${date}T${time}:00`).toISOString();
+    const endIso = new Date(new Date(iso).getTime() + 60 * 60_000).toISOString();
+    if (!force && googleConnected) {
+      const found = checkConflicts(session.userId, iso, endIso);
+      if (found.length > 0) {
+        setConflicts(
+          found.map((e) => ({ summary: e.summary, start: e.start, end: e.end })),
+        );
+        return;
+      }
+    }
     const lead = leads.find((l) => l.id === investorId);
     const inv = lead
-      ? { investorId: lead.id, investorName: lead.name }
-      : { investorId: `inv_${Date.now().toString(36)}`, investorName: customName || "Investidor" };
-    createMeeting({
+      ? { investorId: lead.id, investorName: lead.name, investorEmail: lead.email }
+      : {
+          investorId: `inv_${Date.now().toString(36)}`,
+          investorName: customName || "Investidor",
+          investorEmail: customEmail || undefined,
+        };
+    setSubmitting(true);
+    const created = createMeeting({
       ...inv,
       executiveId: session.userId,
       executiveName: session.name,
       scheduledAt: iso,
+      durationMin: 60,
       meetUrl: meetUrl || undefined,
     });
+    await trySyncCreate(created, {
+      userId: session.userId,
+      userName: session.name,
+      userRole: "Executivo",
+    });
+    setSubmitting(false);
     onCreated();
   }
 
   return (
     <Overlay onClose={onClose} title="Nova reunião">
       <div className="space-y-3 text-sm">
+        <div className="flex items-center gap-2 rounded-md border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-2 text-[11px] text-[color:var(--muted-foreground)]">
+          {googleConnected ? (
+            <><Cloud className="h-3.5 w-3.5 text-[color:var(--gold)]" /> Evento será criado no Google Calendar ({DEFAULT_TIMEZONE}) com Google Meet e convites automáticos.</>
+          ) : (
+            <><CloudOff className="h-3.5 w-3.5" /> Sem sincronização Google — a reunião será salva apenas internamente.</>
+          )}
+        </div>
         {leads.length > 0 ? (
           <label className="block">
             <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Investidor</span>
@@ -684,14 +719,26 @@ function NewMeetingDialog({
           </label>
         ) : null}
         {(leads.length === 0 || !investorId) && (
-          <label className="block">
-            <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Nome do investidor</span>
-            <input
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
-            />
-          </label>
+          <>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Nome do investidor</span>
+              <input
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Email do investidor (opcional)</span>
+              <input
+                type="email"
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                placeholder="convidado@exemplo.com"
+                className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+              />
+            </label>
+          </>
         )}
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -704,7 +751,9 @@ function NewMeetingDialog({
           </label>
         </div>
         <label className="block">
-          <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Link (opcional)</span>
+          <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">
+            {googleConnected ? "Link (opcional — gerado automaticamente se vazio)" : "Link (opcional)"}
+          </span>
           <input
             value={meetUrl}
             onChange={(e) => setMeetUrl(e.target.value)}
@@ -712,13 +761,41 @@ function NewMeetingDialog({
             className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
           />
         </label>
-        <button
-          type="button"
-          onClick={submit}
-          className="w-full rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium"
-        >
-          Agendar reunião
-        </button>
+        {conflicts.length > 0 && (
+          <div className="rounded-md border border-[#C53030]/40 bg-[rgba(197,48,48,0.08)] px-3 py-2 text-[11px] text-[#C53030]">
+            <p className="flex items-center gap-1 font-medium mb-1">
+              <AlertTriangle className="h-3 w-3" /> Conflito de agenda detectado
+            </p>
+            <ul className="space-y-0.5">
+              {conflicts.map((c, i) => (
+                <li key={i}>
+                  · {c.summary} — {new Date(c.start).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}–{new Date(c.end).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-[color:var(--muted-foreground)]">Escolha outro horário ou confirme para agendar mesmo assim.</p>
+          </div>
+        )}
+        <div className="flex gap-2">
+          {conflicts.length > 0 && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => submit(true)}
+              className="flex-1 rounded-full border border-[#C53030] px-4 py-2 text-sm text-[#C53030]"
+            >
+              Agendar mesmo assim
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => submit(false)}
+            className="flex-1 rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium disabled:opacity-50"
+          >
+            {submitting ? "Agendando..." : "Agendar reunião"}
+          </button>
+        </div>
       </div>
     </Overlay>
   );
