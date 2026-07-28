@@ -21,6 +21,7 @@ import {
   Gauge,
   FileBarChart2,
   ShieldCheck,
+  Calendar,
   type LucideIcon,
 } from "lucide-react";
 
@@ -112,6 +113,15 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     icon: Video,
     href: "https://meet.google.com/landing?authuser=0",
     external: true,
+    status: "ativo",
+  },
+  {
+    id: "central-reunioes",
+    name: "Central de Reuniões",
+    description:
+      "Gestão dos encontros da sua carteira — histórico, status e registros pós-reunião.",
+    icon: Calendar,
+    to: "/executivo/reunioes",
     status: "ativo",
   },
   {

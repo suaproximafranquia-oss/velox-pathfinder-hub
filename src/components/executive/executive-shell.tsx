@@ -10,6 +10,7 @@ import {
   Brain,
   Gauge,
   FileBarChart2,
+  Calendar,
   ChevronDown,
   Check,
   UserCircle2,
@@ -32,6 +33,7 @@ import {
 import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
+import { NotificationsBell } from "@/components/executive/notifications-bell";
 
 export function ExecutiveShell({
   session,
@@ -56,6 +58,7 @@ export function ExecutiveShell({
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
     { to: "/executivo/relatorios", label: "Relatórios", icon: FileBarChart2 },
     { to: "/executivo/investidores", label: "Investidores", icon: Users },
+    { to: "/executivo/reunioes", label: "Reuniões", icon: Calendar },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     ...(canManageKnowledge(session.activeRole)
       ? [{ to: "/executivo/conhecimento", label: "Conhecimento", icon: Database }]
@@ -114,6 +117,7 @@ export function ExecutiveShell({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationsBell />
             <ProfileSwitcher session={session} />
             <button
               type="button"

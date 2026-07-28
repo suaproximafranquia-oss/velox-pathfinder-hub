@@ -17,6 +17,7 @@ import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
+import { Route as ExecutivoReunioesRouteImport } from './routes/executivo.reunioes'
 import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
 import { Route as ExecutivoPerfilRouteImport } from './routes/executivo.perfil'
 import { Route as ExecutivoLaboratorioRouteImport } from './routes/executivo.laboratorio'
@@ -70,6 +71,11 @@ const ManualChapterRoute = ManualChapterRouteImport.update({
 const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
   id: '/executivo/usuarios',
   path: '/executivo/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecutivoReunioesRoute = ExecutivoReunioesRouteImport.update({
+  id: '/executivo/reunioes',
+  path: '/executivo/reunioes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoRelatoriosRoute = ExecutivoRelatoriosRouteImport.update({
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
   '/executivo/perfil': typeof ExecutivoPerfilRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
+  '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
   '/executivo/perfil': typeof ExecutivoPerfilRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
+  '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
   '/executivo/perfil': typeof ExecutivoPerfilRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
+  '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
@@ -235,6 +244,7 @@ export interface FileRouteTypes {
     | '/executivo/laboratorio'
     | '/executivo/perfil'
     | '/executivo/relatorios'
+    | '/executivo/reunioes'
     | '/executivo/usuarios'
     | '/manual/$chapter'
     | '/manual/anuncio'
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/executivo/laboratorio'
     | '/executivo/perfil'
     | '/executivo/relatorios'
+    | '/executivo/reunioes'
     | '/executivo/usuarios'
     | '/manual/$chapter'
     | '/manual/anuncio'
@@ -283,6 +294,7 @@ export interface FileRouteTypes {
     | '/executivo/laboratorio'
     | '/executivo/perfil'
     | '/executivo/relatorios'
+    | '/executivo/reunioes'
     | '/executivo/usuarios'
     | '/manual/$chapter'
     | '/manual/anuncio'
@@ -308,6 +320,7 @@ export interface RootRouteChildren {
   ExecutivoLaboratorioRoute: typeof ExecutivoLaboratorioRoute
   ExecutivoPerfilRoute: typeof ExecutivoPerfilRoute
   ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
+  ExecutivoReunioesRoute: typeof ExecutivoReunioesRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   ManualChapterRoute: typeof ManualChapterRoute
   ManualAnuncioRoute: typeof ManualAnuncioRoute
@@ -372,6 +385,13 @@ declare module '@tanstack/react-router' {
       path: '/executivo/usuarios'
       fullPath: '/executivo/usuarios'
       preLoaderRoute: typeof ExecutivoUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/executivo/reunioes': {
+      id: '/executivo/reunioes'
+      path: '/executivo/reunioes'
+      fullPath: '/executivo/reunioes'
+      preLoaderRoute: typeof ExecutivoReunioesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/relatorios': {
@@ -492,6 +512,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoLaboratorioRoute: ExecutivoLaboratorioRoute,
   ExecutivoPerfilRoute: ExecutivoPerfilRoute,
   ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
+  ExecutivoReunioesRoute: ExecutivoReunioesRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   ManualChapterRoute: ManualChapterRoute,
   ManualAnuncioRoute: ManualAnuncioRoute,
@@ -502,13 +523,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
