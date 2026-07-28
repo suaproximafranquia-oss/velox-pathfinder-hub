@@ -4,10 +4,25 @@ import type { Investor, InvestorOrigin, InvestorPriority } from "@/lib/executive
 import { formatRelative } from "@/lib/executive-data";
 import { cn } from "@/lib/utils";
 
-const ORIGIN_META: Record<InvestorOrigin, { label: string; dot: string }> = {
-  green_sales: { label: "Green Sales", dot: "bg-emerald-500" },
-  portal: { label: "Portal Velox", dot: "bg-sky-500" },
-  manual: { label: "Manual", dot: "bg-violet-500" },
+const ORIGIN_META: Record<
+  InvestorOrigin,
+  { label: string; dot: string; hover: string }
+> = {
+  green_sales: {
+    label: "Green Sales",
+    dot: "bg-emerald-500",
+    hover: "hover:border-emerald-500/60 hover:shadow-[0_18px_40px_-24px_rgba(16,185,129,0.55)]",
+  },
+  portal: {
+    label: "Portal Velox",
+    dot: "bg-sky-500",
+    hover: "hover:border-sky-500/60 hover:shadow-[0_18px_40px_-24px_rgba(14,165,233,0.55)]",
+  },
+  manual: {
+    label: "Manual",
+    dot: "bg-violet-500",
+    hover: "hover:border-[color:var(--gold)]/40 hover:shadow-[0_18px_40px_-24px_rgba(0,0,0,0.6)]",
+  },
 };
 
 const PRIORITY_META: Record<InvestorPriority, { label: string; ring: string; dot: string }> = {
@@ -70,8 +85,8 @@ export function InvestorCard({
         className={cn(
           "block w-full text-left rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50",
           "p-6 min-h-[220px] transition-all duration-200",
-          "hover:border-[color:var(--gold)]/40 hover:bg-[color:var(--card)]/80",
-          "hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_rgba(0,0,0,0.6)]",
+          "hover:bg-[color:var(--card)]/80 hover:-translate-y-0.5",
+          origin.hover,
           priority.ring,
         )}
       >
