@@ -44,6 +44,7 @@ function fmt(e: PortalEvent): TimelineEntry {
     "meeting.cancelled": "Reunião cancelada",
     "profile.updated": "Perfil atualizado",
     "profile.interests.captured": "Perfil comercial preenchido",
+    "whatsapp.requested": "Solicitou atendimento via WhatsApp.",
   };
   return {
     id: e.id,

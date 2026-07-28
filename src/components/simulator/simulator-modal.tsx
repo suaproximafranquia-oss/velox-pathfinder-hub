@@ -13,6 +13,7 @@ import { emitEvent } from "@/lib/events/bus";
 import { getCurrentInvestorId, getPortalSession } from "@/lib/portal-session";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { generateSimulatorPdf } from "@/lib/simulator-report";
+import { addSimulation } from "@/lib/simulator-history";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { getInterestsProfile } from "@/lib/interests-profile";
 
@@ -136,7 +137,7 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
       pj: "Foco em Pessoa Jurídica",
       ambos: "Atendimento para PF e PJ",
     };
-    let pdf: { filename: string } | null = null;
+    let pdf: { filename: string; dataUri: string } | null = null;
     try {
       pdf = generateSimulatorPdf({
         investorName: session?.name ?? "Investidor",
@@ -154,6 +155,34 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
       /* mantém confirmação mesmo se PDF falhar */
     }
     setPdfInfo(pdf);
+    // Armazena a simulação vinculada ao Lead — apenas o Executivo
+    // poderá visualizar/abrir o relatório institucional (nunca é
+    // baixado no dispositivo do investidor).
+    if (pdf && investorId) {
+      try {
+        addSimulation({
+          investorId,
+          filename: pdf.filename,
+          pdfDataUri: pdf.dataUri,
+          total: results.total,
+          annual: results.total * 12,
+          products: results.rows
+            .filter((r) => r.input > 0)
+            .map((r) => ({
+              id: r.product.id,
+              name: r.product.name,
+              category: r.product.category,
+              volume: r.volume,
+              revenue: r.revenue,
+            })),
+          executiveName: exec?.name ?? null,
+          audienceLabel: interestsProfile?.audience ? audienceMap[interestsProfile.audience] : null,
+          interests: interestsProfile?.interests ?? [],
+        });
+      } catch {
+        /* histórico é best-effort */
+      }
+    }
     emitEvent({
       type: "simulator.completed",
       investorId,
