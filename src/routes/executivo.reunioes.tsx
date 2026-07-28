@@ -221,6 +221,34 @@ function MeetingsPage() {
           Gestão dos encontros com sua carteira. Toda reunião alimenta automaticamente o
           Perfil Inteligente do Investidor e a Central de Notificações.
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={syncing || !googleConnected}
+          title={
+            googleConnected
+              ? "Sincronizar reuniões pendentes com o Google Calendar"
+              : "Conecte sua conta Google para sincronizar"
+          }
+          onClick={async () => {
+            if (!session) return;
+            setSyncing(true);
+            try {
+              await syncPending({
+                userId: session.userId,
+                userName: session.name,
+                userRole: "Executivo",
+              });
+            } finally {
+              setSyncing(false);
+              refresh();
+            }
+          }}
+          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm text-[color:var(--foreground)] hover:bg-[color:var(--accent)] disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Sincronizando..." : "Sincronizar agora"}
+        </button>
         <button
           type="button"
           onClick={() => setCreating(true)}
@@ -228,6 +256,7 @@ function MeetingsPage() {
         >
           <Plus className="h-4 w-4" /> Nova reunião
         </button>
+        </div>
       </div>
 
       <SummaryPanel
