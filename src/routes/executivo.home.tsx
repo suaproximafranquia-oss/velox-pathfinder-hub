@@ -3,21 +3,29 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   ExternalLink,
-  BookOpen,
-  Compass,
   Calculator,
   LayoutDashboard,
   Sparkles,
   ArrowRight,
-  Check,
+  CalendarClock,
+  Users,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { getSession, ROLE_LABEL, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  getSession,
+  ROLE_LABEL,
+  canViewAllInvestors,
+  type ExecutiveSession,
+} from "@/lib/executive-auth";
 import { PLATFORM_MODULES, type PlatformModule } from "@/config/modules";
 import { WORKSPACE } from "@/config/workspace";
 import { PendingsCard } from "@/components/executive/pendings-card";
 import { SimulatorModal } from "@/components/simulator/simulator-modal";
 import { derivePendings } from "@/lib/pendings";
+import { listMeetings, MEETING_STATUS_TONE, type Meeting } from "@/lib/meetings";
+import { MOCK_INVESTORS, STATUS_LABEL, formatRelative } from "@/lib/executive-data";
 
 export const Route = createFileRoute("/executivo/home")({
   head: () => ({
@@ -28,69 +36,6 @@ export const Route = createFileRoute("/executivo/home")({
   }),
   component: HomePage,
 });
-
-type JourneyStep = {
-  index: number;
-  id: string;
-  label: string;
-  title: string;
-  description: string;
-  icon: typeof BookOpen;
-  cta: string;
-  action:
-    | { kind: "external"; href: string }
-    | { kind: "internal"; to: string }
-    | { kind: "simulator" };
-  featured?: boolean;
-};
-
-const JOURNEY: JourneyStep[] = [
-  {
-    index: 1,
-    id: "manual",
-    label: "Educação",
-    title: "Manual do Investidor",
-    description:
-      "Recepcione o investidor com conteúdo consultivo, transparente e sem pressão comercial.",
-    icon: BookOpen,
-    cta: "Abrir manual",
-    action: { kind: "external", href: "/manual" },
-  },
-  {
-    index: 2,
-    id: "universo",
-    label: "Autoridade",
-    title: "Material Institucional",
-    description:
-      "Apresente o ecossistema Velox — história, modelo, produtos e cobertura nacional.",
-    icon: Compass,
-    cta: "Apresentar Velox",
-    action: { kind: "external", href: "/universo" },
-  },
-  {
-    index: 3,
-    id: "simulador",
-    label: "Valor",
-    title: "Simulador Inteligente",
-    description:
-      "Traduza a conversa em números. Projete receita mensal e anual com base em cenários reais.",
-    icon: Calculator,
-    cta: "Iniciar simulação",
-    action: { kind: "simulator" },
-    featured: true,
-  },
-  {
-    index: 4,
-    id: "central",
-    label: "Operação",
-    title: "Central do Executivo",
-    description:
-      "Acompanhe pendências, agenda, indicadores e o histórico completo da sua carteira.",
-    icon: LayoutDashboard,
-    cta: "Abrir central",
-    action: { kind: "internal", to: "/executivo/dashboard" },
-  },
-];
 
 function HomePage() {
   const navigate = useNavigate();
@@ -105,42 +50,22 @@ function HomePage() {
 
   if (!session) return null;
 
-  const journeyIds = new Set(["manual", "universo"]);
   const visibleModules = PLATFORM_MODULES.filter(
-    (m) =>
-      (!m.requiresRole || m.requiresRole.includes(session.activeRole)) &&
-      !journeyIds.has(m.id),
+    (m) => !m.requiresRole || m.requiresRole.includes(session.activeRole),
   );
 
   return (
     <ExecutiveShell session={session} title={`Bem-vindo, ${session.name.split(" ")[0]}`}>
-      <GreetingHero session={session} onSimulate={() => setSimulatorOpen(true)} />
+      <ExecutiveBriefing session={session} onSimulate={() => setSimulatorOpen(true)} />
 
-      <section className="mb-12">
-        <SectionHeader
-          eyebrow="Jornada principal"
-          title="Conduza o investidor em quatro passos"
-          subtitle="Educação, autoridade, valor e operação — na sequência natural de uma conversa consultiva."
-        />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {JOURNEY.map((step, i) => (
-            <JourneyCard
-              key={step.id}
-              step={step}
-              isLast={i === JOURNEY.length - 1}
-              onSimulate={() => setSimulatorOpen(true)}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="mb-12">
-        <SimulatorSpotlight onStart={() => setSimulatorOpen(true)} />
+      <section className="mb-12 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <TodayAgenda session={session} />
+        <PendingsCard executiveId={session.userId} />
       </section>
 
       <section className="mb-12 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <NextStepCard session={session} onSimulate={() => setSimulatorOpen(true)} />
-        <PendingsCard executiveId={session.userId} />
+        <PortfolioSnapshot session={session} />
+        <SimulatorAside onStart={() => setSimulatorOpen(true)} />
       </section>
 
       <section>
@@ -170,17 +95,79 @@ function greeting(name: string) {
   return `${period}, ${name.split(" ")[0]}`;
 }
 
-function GreetingHero({
+function useExecutiveScope(session: ExecutiveSession) {
+  return useMemo(() => {
+    const all = canViewAllInvestors(session.activeRole);
+    const investors = all
+      ? MOCK_INVESTORS
+      : MOCK_INVESTORS.filter((i) => i.assignedToUserId === session.userId);
+    const meetings = listMeetings(all ? {} : { executiveId: session.userId });
+    const pendings = derivePendings({ executiveId: session.userId });
+    return { investors, meetings, pendings, viewAll: all };
+  }, [session.userId, session.activeRole]);
+}
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfToday() {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function ExecutiveBriefing({
   session,
   onSimulate,
 }: {
   session: ExecutiveSession;
   onSimulate: () => void;
 }) {
-  const pendingCount = useMemo(
-    () => derivePendings({ executiveId: session.userId }).length,
-    [session.userId],
-  );
+  const { investors, meetings, pendings } = useExecutiveScope(session);
+  const today = startOfToday().getTime();
+  const tomorrow = today + 24 * 3600 * 1000;
+
+  const meetingsToday = meetings.filter((m) => {
+    const t = new Date(m.scheduledAt).getTime();
+    return t >= today && t < tomorrow && m.status !== "Cancelada" && m.status !== "Concluída";
+  }).length;
+  const awaiting = investors.filter(
+    (i) => i.status === "novo" || i.status === "conversando",
+  ).length;
+  const lastActivity = investors
+    .slice()
+    .sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())[0];
+
+  const chips = [
+    {
+      icon: CalendarClock,
+      label: "Reuniões hoje",
+      value: meetingsToday,
+      hint: meetingsToday === 0 ? "Agenda livre" : "Confirme e prepare",
+    },
+    {
+      icon: AlertCircle,
+      label: "Pendências",
+      value: pendings.length,
+      hint: pendings.length === 0 ? "Carteira em dia" : "Requer sua atenção",
+    },
+    {
+      icon: Users,
+      label: "Investidores aguardando",
+      value: awaiting,
+      hint: awaiting === 0 ? "Sem retornos pendentes" : "Retomar contato",
+    },
+    {
+      icon: Clock,
+      label: "Última atividade",
+      value: lastActivity ? formatRelative(lastActivity.lastActivity) : "—",
+      hint: lastActivity ? lastActivity.name : "Nenhum registro recente",
+    },
+  ];
+
   return (
     <section className="relative mb-12 overflow-hidden rounded-3xl border border-[color:var(--gold)]/25 bg-gradient-to-br from-[color:var(--card)]/70 via-[color:var(--card)]/40 to-transparent px-7 py-9 md:px-10 md:py-12">
       <div
@@ -188,36 +175,56 @@ function GreetingHero({
         className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-40 blur-3xl"
         style={{ background: "radial-gradient(circle, var(--gold) 0%, transparent 70%)" }}
       />
-      <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <div className="relative flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="max-w-2xl">
           <p className="mb-3 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[color:var(--gold)]">
             <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Assistente executivo Velox
+            Sua rotina de hoje
           </p>
           <h2 className="font-display text-3xl leading-tight md:text-4xl">
             {greeting(session.name)}.
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-[color:var(--muted-foreground)] md:text-base">
-            Sua jornada consultiva começa aqui. Prepare o investidor, apresente o ecossistema
-            e transforme a conversa em uma projeção clara de receita.
+            Este é o resumo executivo do seu dia — reuniões, pendências, investidores
+            aguardando retorno e a última atividade da sua carteira.
           </p>
         </div>
-        <div className="flex flex-col items-start gap-3 md:items-end">
+        <div className="flex flex-col items-start gap-2 md:items-end">
           <button
             type="button"
             onClick={onSimulate}
-            className="group inline-flex items-center gap-2 rounded-full bg-[color:var(--gold)] px-5 py-3 text-sm font-medium text-[color:var(--background)] shadow-lg shadow-[color:var(--gold)]/20 transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-4 py-2 text-xs uppercase tracking-[0.22em] text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20"
           >
-            <Calculator className="h-4 w-4" strokeWidth={1.75} />
-            Iniciar nova simulação
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            <Calculator className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Nova simulação
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </button>
-          <p className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--muted-foreground)]">
-            {pendingCount > 0
-              ? `${pendingCount} ${pendingCount === 1 ? "pendência" : "pendências"} · sua atenção`
-              : "Carteira em dia"}
-          </p>
+          <Link
+            to="/executivo/dashboard"
+            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-4 py-2 text-xs uppercase tracking-[0.22em] text-[color:var(--foreground)]/80 transition hover:border-[color:var(--gold)]/40"
+          >
+            <LayoutDashboard className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Abrir central
+          </Link>
         </div>
+      </div>
+
+      <div className="relative mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {chips.map((c) => (
+          <div
+            key={c.label}
+            className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/40 p-4"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--muted-foreground)]">
+                {c.label}
+              </p>
+              <c.icon className="h-4 w-4 text-[color:var(--gold)]" strokeWidth={1.5} />
+            </div>
+            <p className="mt-2 font-display text-2xl leading-none">{c.value}</p>
+            <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">{c.hint}</p>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -245,204 +252,157 @@ function SectionHeader({
   );
 }
 
-function JourneyCard({
-  step,
-  isLast,
-  onSimulate,
-}: {
-  step: JourneyStep;
-  isLast: boolean;
-  onSimulate: () => void;
-}) {
-  const Icon = step.icon;
-  const num = String(step.index).padStart(2, "0");
+function TodayAgenda({ session }: { session: ExecutiveSession }) {
+  const { meetings } = useExecutiveScope(session);
+  const upcoming = useMemo(() => {
+    const now = Date.now();
+    const end = endOfToday().getTime();
+    const todayList = meetings
+      .filter((m) => {
+        const t = new Date(m.scheduledAt).getTime();
+        return t >= now - 3600 * 1000 && t <= end &&
+          m.status !== "Cancelada" && m.status !== "Concluída";
+      })
+      .sort((a, b) => +new Date(a.scheduledAt) - +new Date(b.scheduledAt));
+    if (todayList.length > 0) return { list: todayList, scope: "hoje" as const };
+    const future = meetings
+      .filter(
+        (m) =>
+          new Date(m.scheduledAt).getTime() > end &&
+          m.status !== "Cancelada" &&
+          m.status !== "Concluída",
+      )
+      .sort((a, b) => +new Date(a.scheduledAt) - +new Date(b.scheduledAt))
+      .slice(0, 4);
+    return { list: future, scope: "proximas" as const };
+  }, [meetings]);
 
-  const inner = (
-    <div
-      className={
-        "group relative flex h-full flex-col rounded-2xl border p-5 transition-all duration-300 " +
-        (step.featured
-          ? "border-[color:var(--gold)]/60 bg-gradient-to-br from-[color:var(--gold)]/10 via-[color:var(--card)]/50 to-transparent shadow-lg shadow-[color:var(--gold)]/10 hover:-translate-y-0.5 hover:border-[color:var(--gold)]"
-          : "border-[color:var(--border)] bg-[color:var(--card)]/40 hover:-translate-y-0.5 hover:border-[color:var(--gold)]/40 hover:bg-[color:var(--card)]/60")
-      }
-    >
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
       <div className="mb-4 flex items-center justify-between">
-        <span
-          className={
-            "font-display text-2xl " +
-            (step.featured ? "text-[color:var(--gold)]" : "text-[color:var(--muted-foreground)]/50")
-          }
-        >
-          {num}
-        </span>
-        <span
-          className={
-            "inline-flex h-10 w-10 items-center justify-center rounded-xl border transition " +
-            (step.featured
-              ? "border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 text-[color:var(--gold)]"
-              : "border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]")
-          }
-        >
-          <Icon className="h-5 w-5" strokeWidth={1.5} />
-        </span>
-      </div>
-      <p className="mb-1 text-[10px] uppercase tracking-[0.24em] text-[color:var(--muted-foreground)]">
-        {step.label}
-      </p>
-      <p className="font-display text-base leading-snug">{step.title}</p>
-      <p className="mt-2 flex-1 text-xs leading-relaxed text-[color:var(--muted-foreground)]">
-        {step.description}
-      </p>
-      <div className="mt-4 flex items-center justify-between border-t border-[color:var(--border)]/60 pt-3">
-        <span
-          className={
-            "text-[11px] uppercase tracking-[0.22em] " +
-            (step.featured ? "text-[color:var(--gold)]" : "text-[color:var(--foreground)]/80")
-          }
-        >
-          {step.cta}
-        </span>
-        <ArrowUpRight
-          className={
-            "h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 " +
-            (step.featured ? "text-[color:var(--gold)]" : "text-[color:var(--muted-foreground)]")
-          }
-          strokeWidth={1.5}
-        />
-      </div>
-      {!isLast && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -right-2 top-1/2 hidden h-px w-4 -translate-y-1/2 bg-[color:var(--gold)]/30 xl:block"
-        />
-      )}
-    </div>
-  );
-
-  if (step.action.kind === "simulator") {
-    return (
-      <button type="button" onClick={onSimulate} className="block h-full w-full text-left">
-        {inner}
-      </button>
-    );
-  }
-  if (step.action.kind === "internal") {
-    return (
-      <Link to={step.action.to} className="block h-full">
-        {inner}
-      </Link>
-    );
-  }
-  return (
-    <a
-      href={step.action.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block h-full"
-    >
-      {inner}
-    </a>
-  );
-}
-
-function SimulatorSpotlight({ onStart }: { onStart: () => void }) {
-  const highlights = [
-    "Cenários financeiros com base em produtos reais",
-    "Projeção de receita mensal e anual",
-    "Relatório executivo pronto para a conversa",
-  ];
-  return (
-    <button
-      type="button"
-      onClick={onStart}
-      className="group relative block w-full overflow-hidden rounded-3xl border border-[color:var(--gold)]/40 bg-gradient-to-br from-[color:var(--gold)]/15 via-[color:var(--card)]/60 to-[color:var(--background)]/20 p-8 text-left transition hover:border-[color:var(--gold)] md:p-10"
-    >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-16 -bottom-16 h-64 w-64 rounded-full opacity-40 blur-3xl"
-        style={{ background: "radial-gradient(circle, var(--gold) 0%, transparent 70%)" }}
-      />
-      <div className="relative flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-        <div className="max-w-xl">
-          <p className="mb-3 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[color:var(--gold)]">
-            <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Diferencial competitivo
-          </p>
-          <h3 className="font-display text-2xl leading-tight md:text-3xl">
-            Transforme cada conversa em uma projeção de receita concreta.
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-[color:var(--gold)]" strokeWidth={1.5} />
+          <h3 className="font-display text-base">
+            {upcoming.scope === "hoje" ? "Agenda de hoje" : "Próximas reuniões"}
           </h3>
-          <p className="mt-3 text-sm leading-relaxed text-[color:var(--muted-foreground)] md:text-base">
-            O Simulador Inteligente combina produtos, volume e comissões oficiais para
-            entregar, em minutos, um relatório executivo que sustenta a decisão do investidor.
-          </p>
-          <ul className="mt-5 space-y-2">
-            {highlights.map((h) => (
-              <li key={h} className="flex items-start gap-2 text-sm text-[color:var(--foreground)]/85">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--gold)]" strokeWidth={2} />
-                {h}
-              </li>
-            ))}
-          </ul>
         </div>
-        <div className="flex flex-col items-start gap-3 md:items-end">
-          <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--gold)] px-5 py-3 text-sm font-medium text-[color:var(--background)] shadow-lg shadow-[color:var(--gold)]/20 transition group-hover:brightness-110">
-            <Calculator className="h-4 w-4" strokeWidth={1.75} />
-            Iniciar simulação agora
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </span>
-          <p className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--muted-foreground)]">
-            Leva menos de 3 minutos
-          </p>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function NextStepCard({
-  session,
-  onSimulate,
-}: {
-  session: ExecutiveSession;
-  onSimulate: () => void;
-}) {
-  const pendings = useMemo(
-    () => derivePendings({ executiveId: session.userId }),
-    [session.userId],
-  );
-  const hasPending = pendings.length > 0;
-  return (
-    <section className="flex flex-col justify-between rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
-      <div>
-        <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-[color:var(--gold)]">
-          Próximo passo
-        </p>
-        <h3 className="font-display text-xl leading-snug">
-          {hasPending
-            ? "Resolva o que exige sua atenção antes de avançar."
-            : "Sua carteira está em dia — hora de gerar valor."}
-        </h3>
-        <p className="mt-3 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-          {hasPending
-            ? "Priorize as pendências ao lado e volte à jornada consultiva."
-            : "Convide um investidor para uma simulação e transforme a conversa em uma projeção clara de receita."}
-        </p>
-      </div>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={onSimulate}
-          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-4 py-2 text-xs uppercase tracking-[0.22em] text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20"
-        >
-          <Calculator className="h-3.5 w-3.5" strokeWidth={1.75} /> Nova simulação
-        </button>
         <Link
-          to="/executivo/dashboard"
-          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-4 py-2 text-xs uppercase tracking-[0.22em] text-[color:var(--foreground)]/80 transition hover:border-[color:var(--gold)]/40"
+          to="/executivo/reunioes"
+          className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--muted-foreground)] transition hover:text-[color:var(--gold)]"
         >
-          <LayoutDashboard className="h-3.5 w-3.5" strokeWidth={1.75} /> Abrir central
+          Central de reuniões
         </Link>
       </div>
+      {upcoming.list.length === 0 ? (
+        <p className="text-xs text-[color:var(--muted-foreground)]">
+          Nenhuma reunião programada. Agende um encontro a partir da ficha do investidor.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {upcoming.list.slice(0, 5).map((m) => (
+            <MeetingRow key={m.id} meeting={m} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function MeetingRow({ meeting }: { meeting: Meeting }) {
+  const when = new Date(meeting.scheduledAt);
+  const time = when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const day = when.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  const isToday = when.toDateString() === new Date().toDateString();
+  return (
+    <li className="flex items-start justify-between gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/30 px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-sm text-[color:var(--foreground)]">{meeting.investorName}</p>
+        <p className="text-[11px] text-[color:var(--muted-foreground)]">
+          {isToday ? `Hoje · ${time}` : `${day} · ${time}`}
+        </p>
+      </div>
+      <span
+        className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.2em]"
+        style={{
+          color: MEETING_STATUS_TONE[meeting.status],
+          borderColor: MEETING_STATUS_TONE[meeting.status] + "55",
+        }}
+      >
+        {meeting.status}
+      </span>
+    </li>
+  );
+}
+
+function PortfolioSnapshot({ session }: { session: ExecutiveSession }) {
+  const { investors } = useExecutiveScope(session);
+  const recent = investors
+    .slice()
+    .sort((a, b) => +new Date(b.lastActivity) - +new Date(a.lastActivity))
+    .slice(0, 5);
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-[color:var(--gold)]" strokeWidth={1.5} />
+          <h3 className="font-display text-base">Sua carteira</h3>
+        </div>
+        <Link
+          to="/executivo/investidores"
+          className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--muted-foreground)] transition hover:text-[color:var(--gold)]"
+        >
+          Ver todos ({investors.length})
+        </Link>
+      </div>
+      {recent.length === 0 ? (
+        <p className="text-xs text-[color:var(--muted-foreground)]">
+          Nenhum investidor vinculado no momento.
+        </p>
+      ) : (
+        <ul className="divide-y divide-[color:var(--border)]/60">
+          {recent.map((i) => (
+            <li key={i.id} className="flex items-center justify-between py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-sm text-[color:var(--foreground)]">{i.name}</p>
+                <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                  {STATUS_LABEL[i.status]} · {i.currentChapter} · {i.readingPct}%
+                </p>
+              </div>
+              <span className="shrink-0 text-[11px] text-[color:var(--muted-foreground)]">
+                {formatRelative(i.lastActivity)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function SimulatorAside({ onStart }: { onStart: () => void }) {
+  return (
+    <section className="flex flex-col justify-between rounded-2xl border border-[color:var(--gold)]/30 bg-gradient-to-br from-[color:var(--gold)]/10 via-[color:var(--card)]/50 to-transparent p-6">
+      <div>
+        <p className="mb-2 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-[color:var(--gold)]">
+          <Calculator className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Ferramenta consultiva
+        </p>
+        <h3 className="font-display text-lg leading-snug">
+          Precisa preparar uma projeção para uma conversa?
+        </h3>
+        <p className="mt-2 text-xs leading-relaxed text-[color:var(--muted-foreground)]">
+          Abra o Simulador Inteligente e monte cenários com produtos, volume e comissões
+          oficiais em minutos.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onStart}
+        className="mt-5 inline-flex items-center justify-center gap-2 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/15 px-4 py-2 text-xs uppercase tracking-[0.22em] text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/25"
+      >
+        Nova simulação
+        <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </button>
     </section>
   );
 }
