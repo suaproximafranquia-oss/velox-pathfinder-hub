@@ -5,6 +5,7 @@ import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   getSession,
   canViewAllInvestors,
+  loadUsers,
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { listAllInvestors } from "@/lib/executive-data";
