@@ -64,6 +64,17 @@ const STATUS_STYLES: Record<MeetingStatus, { bg: string; fg: string; border: str
 
 type SortKey = "recent" | "oldest" | "upcoming" | "past";
 type StatusFilter = "all" | MeetingStatus;
+type TabKey = "lista" | "calendario" | "agenda" | "historico";
+
+function isOverdue(m: Meeting): boolean {
+  if (m.status !== "Agendada" && m.status !== "Confirmada") return false;
+  return new Date(m.scheduledAt).getTime() < Date.now();
+}
+
+function ymd(d: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 function MeetingsPage() {
   const navigate = useNavigate();
@@ -78,6 +89,10 @@ function MeetingsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("recent");
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<TabKey>("lista");
+  const [agendaDate, setAgendaDate] = useState<string>(() => ymd(new Date()));
+  const [calMonth, setCalMonth] = useState<Date>(() => { const d = new Date(); d.setDate(1); return d; });
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const s = getSession();
@@ -93,6 +108,45 @@ function MeetingsPage() {
   useEffect(() => {
     if (session) refresh();
   }, [session]);
+
+  // Auto-refresh: assina eventos de reunião no bus e re-renderiza a cada minuto
+  // para atualizar o indicador de "Horário ultrapassado".
+  useEffect(() => {
+    const off = onEvent((ev) => {
+      if (ev.type.startsWith("meeting.")) refresh();
+    });
+    const t = window.setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => { off(); window.clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // Painel superior — recomputa quando items mudam.
+  const today = ymd(new Date());
+  const todayItems = useMemo(
+    () => items.filter((m) => ymd(new Date(m.scheduledAt)) === today),
+    [items, today, tick],
+  );
+  const todayDone = todayItems.filter((m) => m.status === "Concluída").length;
+  const todayRemaining = todayItems.length - todayDone;
+  const nextMeeting = useMemo(() => {
+    const now = Date.now();
+    return [...items]
+      .filter((m) => new Date(m.scheduledAt).getTime() >= now && m.status !== "Cancelada" && m.status !== "Concluída")
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0] ?? null;
+  }, [items, tick]);
+  const pendings = useMemo(() => {
+    const noNotes = items.filter((m) => m.notes.length === 0 && m.status === "Concluída");
+    const rescheduled = items.filter((m) => m.status === "Reagendada");
+    const noLink = items.filter((m) => m.status === "Confirmada" && !m.meetUrl);
+    return { noNotes, rescheduled, noLink };
+  }, [items]);
+  const stats = useMemo(() => {
+    const s: Record<MeetingStatus, number> = {
+      Agendada: 0, Confirmada: 0, Reagendada: 0, "Em andamento": 0, Concluída: 0, Cancelada: 0,
+    };
+    for (const m of items) s[m.status]++;
+    return s;
+  }, [items]);
 
   const filtered = useMemo(() => {
     const now = Date.now();
