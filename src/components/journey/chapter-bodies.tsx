@@ -319,17 +319,14 @@ function ModeloBody() {
 function ProdutosBody() {
   const categorias: { t: string; d: string; ex: string[] }[] = [
     {
-      t: "Crédito",
-      d: "O portfólio de crédito é o mais amplo da operação. Ele reúne modalidades para pessoas físicas e jurídicas, com condições e prazos que variam conforme o perfil de cada cliente e a instituição parceira.",
+      t: "Consórcios",
+      d: "O consórcio é apresentado como uma alternativa de aquisição planejada, útil para clientes que preferem organizar a compra ao longo do tempo, sem os custos de uma operação de crédito tradicional.",
       ex: [
-        "Crédito consignado",
-        "Crédito para servidores públicos",
-        "Crédito CLT",
-        "Crédito pessoal",
-        "Capital de giro",
-        "Antecipação de recebíveis",
-        "Financiamentos",
-        "Operações estruturadas",
+        "Imóveis",
+        "Veículos",
+        "Máquinas",
+        "Equipamentos",
+        "Serviços",
       ],
     },
     {
@@ -345,22 +342,24 @@ function ProdutosBody() {
       ],
     },
     {
-      t: "Consórcios",
-      d: "O consórcio é apresentado como uma alternativa de aquisição planejada, útil para clientes que preferem organizar a compra ao longo do tempo, sem os custos de uma operação de crédito tradicional.",
-      ex: [
-        "Imóveis",
-        "Veículos",
-        "Máquinas",
-        "Equipamentos",
-        "Serviços",
-      ],
-    },
-    {
       t: "Energia solar e benefícios",
       d: "Além das soluções financeiras tradicionais, o portfólio inclui produtos oferecidos por parceiros de outros segmentos homologados pela Velox — como empresas de energia solar e clubes de benefícios — que ampliam a capacidade do franqueado de atender diferentes necessidades a partir de uma mesma base de clientes.",
       ex: [
         "Sistemas de energia solar por meio de parceiros",
         "Clubes de benefícios para pessoas físicas e empresas",
+      ],
+    },
+    {
+      t: "Crédito",
+      d: "O portfólio de crédito é o mais amplo da operação. Ele reúne modalidades para pessoas físicas e jurídicas, com condições e prazos que variam conforme o perfil de cada cliente e a instituição parceira.",
+      ex: [
+        "Financiamentos",
+        "Refinanciamentos",
+        "Capital de giro",
+        "Antecipação de recebíveis",
+        "Crédito consignado",
+        "Antecipação do FGTS",
+        "Demais operações de crédito para PF e PJ",
       ],
     },
   ];
