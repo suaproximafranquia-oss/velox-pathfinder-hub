@@ -860,3 +860,338 @@ function Overlay({ onClose, title, children, wide }: { onClose: () => void; titl
     </div>
   );
 }
+
+/* ---------- Painel superior ---------- */
+
+function SummaryPanel({
+  todayCount, todayDone, todayRemaining,
+  nextMeeting, onOpenNext,
+  pendings, stats, onOpen,
+}: {
+  todayCount: number;
+  todayDone: number;
+  todayRemaining: number;
+  nextMeeting: Meeting | null;
+  onOpenNext: () => void;
+  pendings: { noNotes: Meeting[]; rescheduled: Meeting[]; noLink: Meeting[] };
+  stats: Record<MeetingStatus, number>;
+  onOpen: (m: Meeting) => void;
+}) {
+  return (
+    <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <PanelCard title="Reuniões de hoje">
+        <p className="font-display text-3xl">{todayCount}</p>
+        <p className="text-xs text-[color:var(--muted-foreground)] mt-1">
+          {todayDone} concluída{todayDone === 1 ? "" : "s"} · {todayRemaining} restante{todayRemaining === 1 ? "" : "s"}
+        </p>
+      </PanelCard>
+
+      <PanelCard title="Próxima reunião">
+        {nextMeeting ? (
+          <div className="space-y-1">
+            <p className="font-display text-base truncate">{nextMeeting.investorName}</p>
+            <p className="text-xs text-[color:var(--muted-foreground)]">
+              {new Date(nextMeeting.scheduledAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+            </p>
+            <span className="inline-block text-[10px] uppercase tracking-[0.2em] rounded-full px-2 py-0.5 mt-1"
+              style={{ color: STATUS_STYLES[nextMeeting.status].fg, background: STATUS_STYLES[nextMeeting.status].bg, border: `1px solid ${STATUS_STYLES[nextMeeting.status].border}` }}>
+              {nextMeeting.status}
+            </span>
+            <div>
+              <button type="button" onClick={onOpenNext} className="mt-2 text-xs text-[color:var(--gold)] hover:underline">Abrir detalhes</button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[color:var(--muted-foreground)]">Nenhuma reunião programada.</p>
+        )}
+      </PanelCard>
+
+      <PanelCard title="Pendências">
+        <ul className="space-y-1 text-xs">
+          <PendingLine label="Sem observações" items={pendings.noNotes} onOpen={onOpen} />
+          <PendingLine label="Reagendadas" items={pendings.rescheduled} onOpen={onOpen} />
+          <PendingLine label="Confirmadas sem link" items={pendings.noLink} onOpen={onOpen} />
+        </ul>
+      </PanelCard>
+
+      <PanelCard title="Estatísticas">
+        <ul className="text-xs space-y-1">
+          {STATUS_FLOW.map((s) => (
+            <li key={s} className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full" style={{ background: STATUS_STYLES[s].border }} />
+                {s}
+              </span>
+              <span className="tabular-nums text-[color:var(--muted-foreground)]">{stats[s]}</span>
+            </li>
+          ))}
+        </ul>
+      </PanelCard>
+    </div>
+  );
+}
+
+function PanelCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-4">
+      <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function PendingLine({ label, items, onOpen }: { label: string; items: Meeting[]; onOpen: (m: Meeting) => void }) {
+  return (
+    <li>
+      <div className="flex items-center justify-between">
+        <span className="text-[color:var(--muted-foreground)]">{label}</span>
+        <span className="tabular-nums">{items.length}</span>
+      </div>
+      {items.length > 0 && (
+        <ul className="mt-1 space-y-0.5 pl-2">
+          {items.slice(0, 2).map((m) => (
+            <li key={m.id}>
+              <button type="button" onClick={() => onOpen(m)} className="truncate text-[11px] text-[color:var(--gold)] hover:underline text-left">
+                · {m.investorName}
+              </button>
+            </li>
+          ))}
+          {items.length > 2 && <li className="text-[11px] text-[color:var(--muted-foreground)] pl-2">+{items.length - 2}</li>}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+/* ---------- Calendário ---------- */
+
+function CalendarView({
+  month, items, onPrev, onNext, onOpen,
+}: {
+  month: Date;
+  items: Meeting[];
+  onPrev: () => void;
+  onNext: () => void;
+  onOpen: (m: Meeting) => void;
+}) {
+  const year = month.getFullYear();
+  const m = month.getMonth();
+  const firstDay = new Date(year, m, 1);
+  const startWeekday = firstDay.getDay(); // 0-6, dom-sab
+  const daysInMonth = new Date(year, m + 1, 0).getDate();
+  const today = ymd(new Date());
+
+  const byDay: Record<string, Meeting[]> = {};
+  for (const it of items) {
+    const d = new Date(it.scheduledAt);
+    if (d.getFullYear() === year && d.getMonth() === m) {
+      const key = ymd(d);
+      (byDay[key] ??= []).push(it);
+    }
+  }
+  for (const k in byDay) {
+    byDay[k].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+  }
+
+  const cells: Array<{ day: number | null; key?: string }> = [];
+  for (let i = 0; i < startWeekday; i++) cells.push({ day: null });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = ymd(new Date(year, m, d));
+    cells.push({ day: d, key });
+  }
+
+  const monthLabel = firstDay.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  return (
+    <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <button type="button" onClick={onPrev} aria-label="Mês anterior" className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--border)]">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <p className="font-display text-base capitalize">{monthLabel}</p>
+        <button type="button" onClick={onNext} aria-label="Próximo mês" className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--border)]">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)] mb-1">
+        {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((w) => (
+          <div key={w} className="px-2 py-1">{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((c, i) => {
+          if (c.day === null) return <div key={i} className="min-h-[80px] rounded-md" />;
+          const isToday = c.key === today;
+          const dayMeetings = c.key ? byDay[c.key] ?? [] : [];
+          return (
+            <div
+              key={i}
+              className={`min-h-[80px] rounded-md border p-1 text-[11px] ${isToday ? "border-[color:var(--gold)] bg-[color:var(--gold)]/5" : "border-[color:var(--border)]"}`}
+            >
+              <div className={`px-1 mb-1 ${isToday ? "text-[color:var(--gold)] font-semibold" : "text-[color:var(--muted-foreground)]"}`}>
+                {c.day}
+              </div>
+              <ul className="space-y-0.5">
+                {dayMeetings.slice(0, 3).map((mt) => {
+                  const st = STATUS_STYLES[mt.status];
+                  const hh = new Date(mt.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                  return (
+                    <li key={mt.id}>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(mt)}
+                        className="w-full truncate rounded px-1 py-0.5 text-left"
+                        style={{ background: st.bg, color: st.fg, border: `1px solid ${st.border}` }}
+                        title={`${hh} · ${mt.investorName}`}
+                      >
+                        {hh} {mt.investorName}
+                      </button>
+                    </li>
+                  );
+                })}
+                {dayMeetings.length > 3 && (
+                  <li className="text-[10px] text-[color:var(--muted-foreground)] px-1">+{dayMeetings.length - 3}</li>
+                )}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Agenda diária ---------- */
+
+function AgendaView({
+  date, onDateChange, items, onOpen,
+}: {
+  date: string;
+  onDateChange: (d: string) => void;
+  items: Meeting[];
+  onOpen: (m: Meeting) => void;
+}) {
+  const dayItems = items
+    .filter((m) => ymd(new Date(m.scheduledAt)) === date)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <label className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">Data</label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => onDateChange(e.target.value)}
+          className="rounded-md border border-[color:var(--border)] bg-transparent px-3 py-1.5 text-sm"
+        />
+      </div>
+      {dayItems.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[color:var(--border)] p-8 text-center text-sm text-[color:var(--muted-foreground)]">
+          Nenhuma reunião agendada para esta data.
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {dayItems.map((m) => {
+            const st = STATUS_STYLES[m.status];
+            const hh = new Date(m.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            return (
+              <li key={m.id} className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-3 md:p-4">
+                <div className="grid gap-3 md:grid-cols-[80px_minmax(0,1fr)_auto_auto] md:items-center">
+                  <p className="font-display text-lg tabular-nums">{hh}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-sm">{m.investorName}</p>
+                    <p className="text-[11px] text-[color:var(--muted-foreground)] truncate">Executivo: {m.executiveName}</p>
+                  </div>
+                  <span
+                    className="text-[10px] uppercase tracking-[0.22em] rounded-full px-3 py-1 justify-self-start md:justify-self-auto"
+                    style={{ color: st.fg, background: st.bg, border: `1px solid ${st.border}` }}
+                  >
+                    {st.label}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpen(m)}
+                    className="inline-flex items-center gap-1 rounded-md border border-[color:var(--border)] px-3 py-1.5 text-xs hover:bg-[color:var(--accent)]"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Abrir
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Histórico ---------- */
+
+function HistoryView({ executiveId, items }: { executiveId: string; items: Meeting[] }) {
+  const allowedInvestors = new Set(items.map((m) => m.investorId));
+  const investorNames = new Map(items.map((m) => [m.investorId, m.investorName]));
+
+  const events: PortalEvent[] = listEvents({
+    types: [
+      "meeting.created",
+      "meeting.rescheduled",
+      "meeting.completed",
+      "meeting.cancelled",
+    ],
+  })
+    .filter((e) => !e.investorId || allowedInvestors.has(e.investorId))
+    .sort((a, b) => (a.at < b.at ? 1 : -1));
+
+  const describe = (e: PortalEvent): string => {
+    const inv = e.investorId ? investorNames.get(e.investorId) ?? "reunião" : "reunião";
+    switch (e.type) {
+      case "meeting.created": return `Criou reunião com ${inv}.`;
+      case "meeting.rescheduled": return `Reagendou/atualizou reunião com ${inv}.`;
+      case "meeting.completed": return `Concluiu reunião com ${inv}.`;
+      case "meeting.cancelled": return `Cancelou reunião com ${inv}.`;
+      default: return `Ação em ${inv}.`;
+    }
+  };
+
+  // Deriva também as observações a partir do estado atual (o bus não guarda notes).
+  const noteEntries = items.flatMap((m) =>
+    m.notes.map((n) => ({
+      id: n.id,
+      at: n.at,
+      authorName: n.authorName,
+      text: `Adicionou observação em reunião com ${m.investorName}.`,
+    })),
+  );
+
+  type Row = { id: string; at: string; who: string; desc: string };
+  const rows: Row[] = [
+    ...events.map<Row>((e) => ({ id: e.id, at: e.at, who: e.actorId === executiveId ? "Você" : "Executivo", desc: describe(e) })),
+    ...noteEntries.map<Row>((n) => ({ id: n.id, at: n.at, who: n.authorName, desc: n.text })),
+  ].sort((a, b) => (a.at < b.at ? 1 : -1));
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-[color:var(--border)] p-8 text-center text-sm text-[color:var(--muted-foreground)]">
+        Nenhum evento registrado.
+      </div>
+    );
+  }
+
+  return (
+    <ol className="relative border-l border-[color:var(--border)] pl-4 space-y-3">
+      {rows.map((r) => {
+        const d = new Date(r.at);
+        return (
+          <li key={r.id} className="relative">
+            <span className="absolute -left-[22px] top-1.5 h-2 w-2 rounded-full bg-[color:var(--gold)]" />
+            <p className="text-xs text-[color:var(--muted-foreground)]">
+              {d.toLocaleDateString("pt-BR")} · {d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · {r.who}
+            </p>
+            <p className="text-sm">{r.desc}</p>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
