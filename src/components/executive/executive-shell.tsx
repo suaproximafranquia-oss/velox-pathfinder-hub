@@ -85,9 +85,10 @@ export function ExecutiveShell({
       <header
         className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]"
         style={{
-          // Isola o header em uma layer própria e evita repaint da faixa
-          // fixa durante o scroll (causa raiz do flickering global).
-          contain: "layout paint style",
+          // Isola o header em layer própria evitando flickering global.
+          // IMPORTANTE: NÃO usar `contain: paint` — ele clipa dropdowns que
+          // saem do header (ex.: seletor de perfil), tornando-os invisíveis.
+          contain: "layout style",
           transform: "translateZ(0)",
           willChange: "transform",
         }}
