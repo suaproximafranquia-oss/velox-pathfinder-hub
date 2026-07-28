@@ -51,7 +51,7 @@ const MODULES = [
   { key: "manual", label: "Manual do Investidor" },
   { key: "material", label: "Material Institucional" },
   { key: "simulador", label: "Simulador Inteligente" },
-  { key: "sede", label: "Nossa Sede" },
+  { key: "sede", label: "Nossa Estrutura" },
   { key: "revista", label: "Revista Velox" },
   { key: "cultura", label: "Cultura Velox" },
 ] as const;

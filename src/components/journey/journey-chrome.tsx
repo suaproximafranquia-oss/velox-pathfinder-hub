@@ -57,13 +57,13 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-3 min-w-0">
-            <span className="hidden md:inline text-xs text-[color:var(--foreground)]/70 truncate">
+            <span className="hidden md:inline text-xs font-medium text-[color:var(--foreground)]/90 truncate">
               {label}
             </span>
             <button
               type="button"
               onClick={() => setIndexOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-3.5 py-1.5 text-xs font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)]/20 hover:border-[color:var(--gold)]/60 transition-colors"
+              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--gold)]/15 px-3.5 py-1.5 text-xs font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)]/25 hover:border-[color:var(--gold)] transition-colors"
             >
               <List className="h-3.5 w-3.5" />
               Índice
@@ -78,7 +78,7 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <div className="md:hidden mx-auto max-w-5xl px-6 pb-2 pt-1 text-[11px] text-[color:var(--muted-foreground)] text-right">
+        <div className="md:hidden mx-auto max-w-5xl px-6 pb-2 pt-1 text-[11px] font-medium text-[color:var(--foreground)]/85 text-right">
           {label}
         </div>
       </header>
@@ -146,12 +146,21 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
                           ? "text-[color:var(--gold)]"
                           : visited
                             ? "text-[color:var(--foreground)]"
-                            : "text-[color:var(--muted-foreground)]",
+                            : "text-[color:var(--foreground)]/70",
                       )}
                     >
                       {String(c.index).padStart(2, "0")}
                     </span>
-                    <span className="text-sm leading-tight">{c.eyebrow.split("·")[1]?.trim() ?? c.eyebrow}</span>
+                    <span className={cn(
+                      "text-sm leading-tight",
+                      current
+                        ? "text-[color:var(--foreground)]"
+                        : visited
+                          ? "text-[color:var(--foreground)]/95"
+                          : "text-[color:var(--foreground)]/80",
+                    )}>
+                      {c.eyebrow.split("·")[1]?.trim() ?? c.eyebrow}
+                    </span>
                   </div>
                 </Link>
               );
