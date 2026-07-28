@@ -312,16 +312,14 @@ function EmptyState({ query, personalLink }: { query: string; personalLink: stri
 }
 
 function buildPersonalLink(session: ExecutiveSession): string {
-  const slug =
-    session.name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .split(" ")
-      .filter(Boolean)[0] ?? session.userId;
+  // Utiliza o identificador técnico permanente (`user.slug`) definido no
+  // cadastro do colaborador. Nunca deriva do nome exibido — renomear o
+  // usuário não pode quebrar o link personalizado.
+  const user = loadUsers().find((u) => u.id === session.userId);
+  const slug = user?.slug ?? session.userId;
   const base =
     typeof window !== "undefined" && window.location?.origin
       ? window.location.origin
       : "https://portal.velox.com.br";
-  return `${base}/i/${slug}`;
+  return `${base}/e/${slug}`;
 }
