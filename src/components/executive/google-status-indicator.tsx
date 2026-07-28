@@ -1,10 +1,4 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import {
-  getGoogleStore,
-  subscribeGoogleStore,
-  type GoogleStore,
-} from "@/lib/google-workspace";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 
 function GoogleGlyph({ tone }: { tone: string }) {
@@ -18,24 +12,16 @@ function GoogleGlyph({ tone }: { tone: string }) {
   );
 }
 
-export function GoogleStatusIndicator({ session }: { session: ExecutiveSession }) {
+/**
+ * Indicador global do Google Workspace no shell. Enquanto a integração
+ * OAuth real não estiver provisionada, o indicador exibe apenas um
+ * estado neutro ("Integração não configurada"). Nunca reflete uma conta
+ * conectada simulada.
+ */
+export function GoogleStatusIndicator({ session: _session }: { session: ExecutiveSession }) {
   const navigate = useNavigate();
-  const [store, setStore] = useState<GoogleStore>(() => getGoogleStore(session.userId));
-
-  useEffect(() => {
-    setStore(getGoogleStore(session.userId));
-    return subscribeGoogleStore(session.userId, () => setStore(getGoogleStore(session.userId)));
-  }, [session.userId]);
-
-  const tone =
-    store.state === "connected" ? "#4A7C59" :
-    store.state === "error" ? "#C53030" :
-    "#8A94A6";
-  const label =
-    store.state === "connected" ? `Google · ${store.account?.email ?? "conectado"}` :
-    store.state === "error" ? "Google · erro de sincronização" :
-    "Google · conta desconectada";
-
+  const tone = "#8A94A6";
+  const label = "Google · integração não configurada";
   return (
     <button
       type="button"

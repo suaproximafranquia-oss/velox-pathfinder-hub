@@ -1,17 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, LogOut, RefreshCw } from "lucide-react";
+import { Info } from "lucide-react";
 import type { ExecutiveSession } from "@/lib/executive-auth";
-import { ROLE_LABEL } from "@/lib/executive-auth";
-import {
-  disconnect,
-  ensureFreshToken,
-  getGoogleStore,
-  GOOGLE_SCOPES,
-  isExpired,
-  startConnect,
-  subscribeGoogleStore,
-  type GoogleStore,
-} from "@/lib/google-workspace";
+import { GOOGLE_SCOPES } from "@/lib/google-workspace";
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -24,43 +13,16 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) {
-  const [store, setStore] = useState<GoogleStore>(() => getGoogleStore(session.userId));
-  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
-
-  const sync = useCallback(() => setStore(getGoogleStore(session.userId)), [session.userId]);
-
-  useEffect(() => {
-    sync();
-    return subscribeGoogleStore(session.userId, sync);
-  }, [session.userId, sync]);
-
-  // Renovação automática: se expirou, tenta refresh silencioso.
-  useEffect(() => {
-    if (store.state !== "connected") return;
-    if (!isExpired(store)) return;
-    void ensureFreshToken(session.userId);
-  }, [store, session.userId]);
-
-  async function onConnect() {
-    await startConnect({
-      userId: session.userId,
-      userName: session.name,
-      userRole: ROLE_LABEL[session.activeRole],
-    });
-  }
-
-  function onDisconnect() {
-    disconnect({
-      userId: session.userId,
-      userName: session.name,
-      userRole: ROLE_LABEL[session.activeRole],
-    });
-    setConfirmingDisconnect(false);
-  }
-
-  const account = store.account;
-
+/**
+ * Google Workspace — estado neutro oficial.
+ *
+ * A integração OAuth real com Google Calendar/Meet/Drive ainda não está
+ * configurada nesta versão do Portal Velox. Enquanto as credenciais
+ * oficiais não forem provisionadas, apresentamos apenas um estado neutro
+ * ("Integração não configurada"). Nunca simulamos uma conta conectada
+ * nem geramos dados fictícios de usuário.
+ */
+export function GoogleWorkspaceCard({ session: _session }: { session: ExecutiveSession }) {
   return (
     <section className="mt-10">
       <h2 className="font-display text-lg mb-3">Google Workspace</h2>
@@ -72,140 +34,35 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
           <div className="min-w-0">
             <p className="font-display text-base">Conta Google</p>
             <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed mt-1">
-              Conecte sua conta Google para utilizar o Google Calendar, Google Meet e demais integrações do Portal Velox.
+              A integração oficial com Google Calendar, Google Meet e Google
+              Drive será habilitada assim que as credenciais OAuth do Portal
+              Velox forem provisionadas.
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {store.state === "connected" && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4A7C59]/50 bg-[rgba(74,124,89,0.15)] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[#4A7C59]">
-                <CheckCircle2 className="h-3 w-3" /> Conectado
-              </span>
-            )}
-            {store.state === "error" && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#C53030]/50 bg-[rgba(197,48,48,0.15)] px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[#C53030]">
-                <AlertTriangle className="h-3 w-3" /> Erro
-              </span>
-            )}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] bg-[color:var(--background)]/60 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              <Info className="h-3 w-3" /> Integração não configurada
+            </span>
           </div>
         </div>
 
         <div className="mt-5 border-t border-[color:var(--border)]/60 pt-5">
-          {store.state === "idle" && !account && (
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-              <p className="text-sm text-[color:var(--muted-foreground)]">
-                Nenhuma conta conectada.
-              </p>
-              <button
-                type="button"
-                onClick={onConnect}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--background)] px-4 py-2 text-sm hover:border-[color:var(--gold)]/60 transition"
-              >
-                <GoogleIcon className="h-4 w-4" /> Conectar com Google
-              </button>
-            </div>
-          )}
-
-          {store.state === "connecting" && (
-            <div className="flex items-center gap-3 text-sm text-[color:var(--muted-foreground)]">
-              <Loader2 className="h-4 w-4 animate-spin text-[color:var(--gold)]" />
-              Conectando sua conta...
-            </div>
-          )}
-
-          {store.state === "connected" && account && (
-            <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--background)]/60 overflow-hidden">
-                {account.picture ? (
-                  <img src={account.picture} alt={account.name} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-sm font-medium text-[color:var(--gold)]">
-                    {account.name.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm truncate">{account.name}</p>
-                <p className="text-xs text-[color:var(--muted-foreground)] truncate">{account.email}</p>
-                <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">
-                  Conectada em {new Date(account.connectedAt).toLocaleString("pt-BR")}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                <button
-                  type="button"
-                  onClick={() => void ensureFreshToken(session.userId)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition"
-                  title="Renovar token"
-                >
-                  <RefreshCw className="h-3 w-3" /> Renovar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDisconnect(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#C53030]/50 px-3 py-1.5 text-[11px] text-[#C53030] hover:bg-[rgba(197,48,48,0.1)] transition"
-                >
-                  <LogOut className="h-3 w-3" /> Desconectar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {store.state === "error" && (
-            <div className="grid gap-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#C53030]/50 bg-[rgba(197,48,48,0.1)] text-[#C53030]">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-              <p className="text-sm text-[color:var(--foreground)]">
-                {store.error ?? "Falha na autenticação com o Google."}
-              </p>
-              <button
-                type="button"
-                onClick={onConnect}
-                className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm hover:border-[color:var(--gold)]/60 transition"
-              >
-                <RefreshCw className="h-4 w-4" /> Tentar novamente
-              </button>
-            </div>
-          )}
+          <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
+            Nenhuma conta conectada. O botão de autenticação será
+            disponibilizado assim que o Portal Velox concluir o
+            provisionamento oficial das credenciais Google. Até lá, não é
+            possível vincular contas, criar eventos no Calendar nem gerar
+            links do Google Meet a partir desta tela.
+          </p>
         </div>
 
         <p className="mt-4 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          Escopos: Google Calendar · Google Meet · Perfil · E-mail
+          Escopos previstos: Google Calendar · Google Meet · Perfil · E-mail
         </p>
         <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-          {GOOGLE_SCOPES.length} permissões solicitadas — nenhuma além do necessário para as integrações do Portal.
+          {GOOGLE_SCOPES.length} permissões serão solicitadas — nenhuma além do necessário para as integrações do Portal.
         </p>
       </div>
-
-      {confirmingDisconnect && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6 shadow-2xl">
-            <h3 className="font-display text-lg mb-2">Desconectar conta Google</h3>
-            <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
-              Deseja remover esta conta Google do Portal Velox?
-            </p>
-            <p className="text-[11px] text-[color:var(--muted-foreground)] mt-3">
-              As reuniões existentes não serão excluídas.
-            </p>
-            <div className="flex gap-2 mt-5">
-              <button
-                type="button"
-                onClick={() => setConfirmingDisconnect(false)}
-                className="flex-1 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={onDisconnect}
-                className="flex-1 rounded-full bg-[#C53030] px-4 py-2 text-sm text-white font-medium"
-              >
-                Desconectar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

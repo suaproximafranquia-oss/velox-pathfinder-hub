@@ -7,6 +7,7 @@ import {
   Phone,
   MessageCircle,
   Calendar,
+  Cake,
   Shield,
   Pencil,
   Check,
@@ -101,6 +102,7 @@ function ProfileFields({
     phone: user?.phone ?? "",
     whatsapp: user?.whatsapp ?? user?.phone ?? "",
     admissionDate: user?.admissionDate ?? "",
+    birthDate: user?.birthDate ?? "",
   });
 
   function startEdit() {
@@ -110,6 +112,7 @@ function ProfileFields({
       phone: user?.phone ?? "",
       whatsapp: user?.whatsapp ?? user?.phone ?? "",
       admissionDate: user?.admissionDate ?? "",
+      birthDate: user?.birthDate ?? "",
     });
     setEditing(true);
   }
@@ -125,6 +128,7 @@ function ProfileFields({
       phone: draft.phone.trim() || undefined,
       whatsapp: draft.whatsapp.trim() || undefined,
       admissionDate: draft.admissionDate || undefined,
+      birthDate: draft.birthDate || undefined,
     };
     const all = loadUsers().map((u) => (u.id === updated.id ? updated : u));
     saveUsers(all);
@@ -132,7 +136,13 @@ function ProfileFields({
     setEditing(false);
   }
 
-  type EditableKey = "name" | "email" | "phone" | "whatsapp" | "admissionDate";
+  type EditableKey =
+    | "name"
+    | "email"
+    | "phone"
+    | "whatsapp"
+    | "admissionDate"
+    | "birthDate";
   const rows: Array<{
     icon: typeof UserCircle2;
     label: string;
@@ -170,6 +180,15 @@ function ProfileFields({
         ? new Date(user.admissionDate).toLocaleDateString("pt-BR")
         : "A cadastrar",
       editable: "admissionDate",
+      inputType: "date",
+    },
+    {
+      icon: Cake,
+      label: "Data de nascimento",
+      value: user?.birthDate
+        ? new Date(user.birthDate).toLocaleDateString("pt-BR")
+        : "A cadastrar",
+      editable: "birthDate",
       inputType: "date",
     },
     {
