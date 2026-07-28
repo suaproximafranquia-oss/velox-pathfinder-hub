@@ -201,6 +201,41 @@ function MeetingsPage() {
         </button>
       </div>
 
+      <SummaryPanel
+        todayCount={todayItems.length}
+        todayDone={todayDone}
+        todayRemaining={todayRemaining}
+        nextMeeting={nextMeeting}
+        onOpenNext={() => nextMeeting && setDetailsFor(nextMeeting)}
+        pendings={pendings}
+        stats={stats}
+        onOpen={(m) => setDetailsFor(m)}
+      />
+
+      <div className="mb-4 flex flex-wrap gap-1 border-b border-[color:var(--border)]">
+        {([
+          ["lista", "Lista", ListChecks],
+          ["calendario", "Calendário", LayoutGrid],
+          ["agenda", "Agenda", Clock],
+          ["historico", "Histórico", History],
+        ] as [TabKey, string, typeof ListChecks][]).map(([key, label, Icon]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm border-b-2 -mb-px ${
+              tab === key
+                ? "border-[color:var(--gold)] text-[color:var(--foreground)]"
+                : "border-transparent text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+            }`}
+          >
+            <Icon className="h-4 w-4" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "lista" && (
+      <>
       <div className="mb-4 grid gap-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
         <label className="relative block min-w-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted-foreground)]" />
@@ -254,6 +289,7 @@ function MeetingsPage() {
           {filtered.map((m) => {
             const st = STATUS_STYLES[m.status];
             const when = new Date(m.scheduledAt);
+            const overdue = isOverdue(m);
             return (
               <li
                 key={m.id}
@@ -271,6 +307,19 @@ function MeetingsPage() {
                       >
                         {m.investorName}
                       </button>
+                      {m.meetUrl ? (
+                        <a
+                          href={m.meetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Abrir videoconferência"
+                          className="inline-flex items-center gap-1 text-[color:var(--gold)] hover:opacity-80"
+                        >
+                          <Video className="h-3.5 w-3.5" />
+                        </a>
+                      ) : (
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">Sem link</span>
+                      )}
                     </div>
                     <p className="text-xs text-[color:var(--muted-foreground)]">
                       {when.toLocaleDateString("pt-BR")} · {when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
@@ -281,13 +330,19 @@ function MeetingsPage() {
                   </div>
 
                   {/* Coluna 2 — Status */}
-                  <div className="flex md:justify-center">
+                  <div className="flex flex-wrap gap-1.5 md:justify-center">
                     <span
                       className="text-[10px] uppercase tracking-[0.22em] rounded-full px-3 py-1"
                       style={{ color: st.fg, background: st.bg, border: `1px solid ${st.border}` }}
                     >
                       {st.label}
                     </span>
+                    {overdue && (
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.22em] rounded-full px-2 py-1"
+                        style={{ color: "#C53030", background: "rgba(197,48,48,0.15)", border: "1px solid #C53030" }}>
+                        <AlertTriangle className="h-3 w-3" /> Horário ultrapassado
+                      </span>
+                    )}
                   </div>
 
                   {/* Coluna 3 — Ações */}
@@ -307,6 +362,31 @@ function MeetingsPage() {
             );
           })}
         </ul>
+      )}
+      </>
+      )}
+
+      {tab === "calendario" && (
+        <CalendarView
+          month={calMonth}
+          items={items}
+          onPrev={() => setCalMonth((d) => { const n = new Date(d); n.setMonth(n.getMonth() - 1); return n; })}
+          onNext={() => setCalMonth((d) => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n; })}
+          onOpen={(m) => setDetailsFor(m)}
+        />
+      )}
+
+      {tab === "agenda" && (
+        <AgendaView
+          date={agendaDate}
+          onDateChange={setAgendaDate}
+          items={items}
+          onOpen={(m) => setDetailsFor(m)}
+        />
+      )}
+
+      {tab === "historico" && (
+        <HistoryView executiveId={session.userId} items={items} />
       )}
 
       {creating && (
