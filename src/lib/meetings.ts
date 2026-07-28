@@ -27,6 +27,8 @@ export type MeetingNote = {
 
 export type GoogleSyncState = "none" | "synced" | "pending" | "failed";
 
+import type { MeetingProviderId, MeetingProviderStatus } from "@/lib/meeting-providers";
+
 export type Meeting = {
   id: string;
   investorId: string;
@@ -44,6 +46,11 @@ export type Meeting = {
   googleSync?: GoogleSyncState;
   googleSyncError?: string;
   googleSyncedAt?: string;
+  // Meeting Providers (Bloco 1B) — provedor de videoconferência intercambiável.
+  meetingProvider?: MeetingProviderId;
+  meetingProviderStatus?: MeetingProviderStatus;
+  meetingProviderMeetingId?: string;
+  meetingProviderUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -95,6 +102,9 @@ export function createMeeting(input: {
   scheduledAt: string;
   durationMin?: number;
   meetUrl?: string;
+  meetingProvider?: import("@/lib/meeting-providers").MeetingProviderId;
+  meetingProviderStatus?: import("@/lib/meeting-providers").MeetingProviderStatus;
+  meetingProviderUrl?: string;
 }): Meeting {
   const now = new Date().toISOString();
   const meeting: Meeting = {
@@ -197,7 +207,13 @@ export function updateMeetingStatus(
 
 export function updateMeeting(
   id: string,
-  patch: { scheduledAt?: string; meetUrl?: string },
+  patch: {
+    scheduledAt?: string;
+    meetUrl?: string;
+    meetingProvider?: import("@/lib/meeting-providers").MeetingProviderId;
+    meetingProviderStatus?: import("@/lib/meeting-providers").MeetingProviderStatus;
+    meetingProviderUrl?: string;
+  },
   actor?: { actorId: string; actorName: string },
 ): Meeting | null {
   const all = safeRead();
@@ -208,6 +224,12 @@ export function updateMeeting(
     ...prev,
     scheduledAt: patch.scheduledAt ?? prev.scheduledAt,
     meetUrl: patch.meetUrl !== undefined ? patch.meetUrl || undefined : prev.meetUrl,
+    meetingProvider: patch.meetingProvider ?? prev.meetingProvider,
+    meetingProviderStatus: patch.meetingProviderStatus ?? prev.meetingProviderStatus,
+    meetingProviderUrl:
+      patch.meetingProviderUrl !== undefined
+        ? patch.meetingProviderUrl || undefined
+        : prev.meetingProviderUrl,
     updatedAt: new Date().toISOString(),
   };
   all[idx] = next;
