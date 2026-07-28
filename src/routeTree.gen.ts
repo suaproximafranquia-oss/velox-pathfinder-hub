@@ -31,6 +31,7 @@ import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.c
 import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
 import { Route as ExecutivoAuditoriaRouteImport } from './routes/executivo.auditoria'
+import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.administracao'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 
 const UniversoRoute = UniversoRouteImport.update({
@@ -143,6 +144,11 @@ const ExecutivoAuditoriaRoute = ExecutivoAuditoriaRouteImport.update({
   path: '/executivo/auditoria',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoAdministracaoRoute = ExecutivoAdministracaoRouteImport.update({
+  id: '/executivo/administracao',
+  path: '/executivo/administracao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ESlugRoute = ESlugRouteImport.update({
   id: '/e/$slug',
   path: '/e/$slug',
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
+  '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
@@ -178,6 +185,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
+  '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
+  '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/'
     | '/universo'
     | '/e/$slug'
+    | '/executivo/administracao'
     | '/executivo/auditoria'
     | '/executivo/brain'
     | '/executivo/celebracao'
@@ -256,6 +266,7 @@ export interface FileRouteTypes {
     | '/'
     | '/universo'
     | '/e/$slug'
+    | '/executivo/administracao'
     | '/executivo/auditoria'
     | '/executivo/brain'
     | '/executivo/celebracao'
@@ -281,6 +292,7 @@ export interface FileRouteTypes {
     | '/'
     | '/universo'
     | '/e/$slug'
+    | '/executivo/administracao'
     | '/executivo/auditoria'
     | '/executivo/brain'
     | '/executivo/celebracao'
@@ -307,6 +319,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
+  ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
   ExecutivoAuditoriaRoute: typeof ExecutivoAuditoriaRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
   ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
@@ -485,6 +498,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoAuditoriaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/administracao': {
+      id: '/executivo/administracao'
+      path: '/executivo/administracao'
+      fullPath: '/executivo/administracao'
+      preLoaderRoute: typeof ExecutivoAdministracaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/e/$slug': {
       id: '/e/$slug'
       path: '/e/$slug'
@@ -499,6 +519,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
+  ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
   ExecutivoAuditoriaRoute: ExecutivoAuditoriaRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
   ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,

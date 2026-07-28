@@ -64,7 +64,7 @@ function AdministracaoPage() {
 
   if (!can(role, "admin.settings.manage") && !can(role, "admin.customFields.manage")) {
     return (
-      <ExecutiveShell session={session}>
+      <ExecutiveShell session={session} title="Administração">
         <div className="max-w-2xl mx-auto py-16 text-center text-[color:var(--muted-foreground)]">
           <ShieldCheck className="mx-auto h-8 w-8 mb-3 text-[color:var(--gold)]" />
           Acesso restrito a Administradores e Gestores.
@@ -74,7 +74,7 @@ function AdministracaoPage() {
   }
 
   return (
-    <ExecutiveShell session={session}>
+    <ExecutiveShell session={session} title="Administração">
       <div className="mx-auto max-w-6xl px-6 py-10 space-y-10">
         <header className="flex items-start gap-3">
           <Settings className="h-6 w-6 text-[color:var(--gold)] mt-1" />
