@@ -38,7 +38,13 @@ export type PortalEventType =
   | "google.connected"
   | "google.disconnected"
   | "google.token.renewed"
-  | "google.token.failed";
+  | "google.token.failed"
+  // Etapa 2 — Google Calendar / Meet.
+  | "meeting.google.created"
+  | "meeting.google.updated"
+  | "meeting.google.deleted"
+  | "meeting.google.synced"
+  | "meeting.google.failed";
 
 export type PortalEvent<T = Record<string, unknown>> = {
   id: string;
