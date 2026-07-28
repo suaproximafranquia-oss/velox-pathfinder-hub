@@ -19,6 +19,7 @@ import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
 import { Route as ExecutivoReunioesRouteImport } from './routes/executivo.reunioes'
 import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
+import { Route as ExecutivoRecursosRouteImport } from './routes/executivo.recursos'
 import { Route as ExecutivoPerfilRouteImport } from './routes/executivo.perfil'
 import { Route as ExecutivoLaboratorioRouteImport } from './routes/executivo.laboratorio'
 import { Route as ExecutivoKpiRouteImport } from './routes/executivo.kpi'
@@ -82,6 +83,11 @@ const ExecutivoReunioesRoute = ExecutivoReunioesRouteImport.update({
 const ExecutivoRelatoriosRoute = ExecutivoRelatoriosRouteImport.update({
   id: '/executivo/relatorios',
   path: '/executivo/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecutivoRecursosRoute = ExecutivoRecursosRouteImport.update({
+  id: '/executivo/recursos',
+  path: '/executivo/recursos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoPerfilRoute = ExecutivoPerfilRouteImport.update({
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/executivo/kpi': typeof ExecutivoKpiRoute
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
   '/executivo/perfil': typeof ExecutivoPerfilRoute
+  '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/executivo/kpi': typeof ExecutivoKpiRoute
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
   '/executivo/perfil': typeof ExecutivoPerfilRoute
+  '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/executivo/kpi': typeof ExecutivoKpiRoute
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
   '/executivo/perfil': typeof ExecutivoPerfilRoute
+  '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/executivo/kpi'
     | '/executivo/laboratorio'
     | '/executivo/perfil'
+    | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
     | '/executivo/usuarios'
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/executivo/kpi'
     | '/executivo/laboratorio'
     | '/executivo/perfil'
+    | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
     | '/executivo/usuarios'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/executivo/kpi'
     | '/executivo/laboratorio'
     | '/executivo/perfil'
+    | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
     | '/executivo/usuarios'
@@ -332,6 +344,7 @@ export interface RootRouteChildren {
   ExecutivoKpiRoute: typeof ExecutivoKpiRoute
   ExecutivoLaboratorioRoute: typeof ExecutivoLaboratorioRoute
   ExecutivoPerfilRoute: typeof ExecutivoPerfilRoute
+  ExecutivoRecursosRoute: typeof ExecutivoRecursosRoute
   ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
   ExecutivoReunioesRoute: typeof ExecutivoReunioesRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
@@ -412,6 +425,13 @@ declare module '@tanstack/react-router' {
       path: '/executivo/relatorios'
       fullPath: '/executivo/relatorios'
       preLoaderRoute: typeof ExecutivoRelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/executivo/recursos': {
+      id: '/executivo/recursos'
+      path: '/executivo/recursos'
+      fullPath: '/executivo/recursos'
+      preLoaderRoute: typeof ExecutivoRecursosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/perfil': {
@@ -532,6 +552,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoKpiRoute: ExecutivoKpiRoute,
   ExecutivoLaboratorioRoute: ExecutivoLaboratorioRoute,
   ExecutivoPerfilRoute: ExecutivoPerfilRoute,
+  ExecutivoRecursosRoute: ExecutivoRecursosRoute,
   ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
   ExecutivoReunioesRoute: ExecutivoReunioesRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,

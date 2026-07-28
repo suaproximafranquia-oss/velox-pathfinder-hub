@@ -70,28 +70,28 @@ function RecursosPage() {
     });
   }, [session, query, kind]);
 
-  if (!session) return null;
-  const role = session.activeRole;
-  const mayManage = can(role, "resources.manage");
-
-  function add() {
-    if (!mayManage) return;
+  function add(activeSession: ExecutiveSession) {
+    if (!can(activeSession.activeRole, "resources.manage")) return;
     const clean = title.trim();
     if (!clean) return;
     createResource(
       {
-        workspaceId: session.workspaceId,
+        workspaceId: activeSession.workspaceId,
         title: clean,
         description: description.trim() || undefined,
         kind: newKind,
         version: version.trim() || "1.0",
-        author: session.name,
+        author: activeSession.name,
         keywords: keywords.split(",").map((k) => k.trim()).filter(Boolean),
         url: url.trim() || undefined,
         visibility,
         category: category.trim() || undefined,
       },
-      { id: session.userId, name: session.name, role },
+      {
+        id: activeSession.userId,
+        name: activeSession.name,
+        role: activeSession.activeRole,
+      },
     );
     setTitle("");
     setDescription("");
@@ -99,6 +99,11 @@ function RecursosPage() {
     setKeywords("");
     setCategory("");
   }
+
+  if (!session) return null;
+  const role = session.activeRole;
+  const mayManage = can(role, "resources.manage");
+  const activeSession = session;
 
   return (
     <ExecutiveShell session={session} title="Centro de Recursos">
@@ -204,7 +209,7 @@ function RecursosPage() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={add}
+                onClick={() => add(activeSession)}
                 className="inline-flex items-center gap-1 rounded-full bg-[color:var(--gold)] px-5 py-2 text-sm font-medium text-[color:var(--brand-blue-deep)] hover:brightness-105"
               >
                 <Plus className="h-4 w-4" /> Publicar recurso
