@@ -55,7 +55,9 @@ export function ExecutiveShell({
     { to: "/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
+    { to: "/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
+    { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     ...(canManageKnowledge(session.activeRole)
       ? [{ to: "/executivo/conhecimento", label: "Conhecimento", icon: Database }]
