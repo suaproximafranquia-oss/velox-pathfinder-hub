@@ -59,7 +59,7 @@ function CampaignsPage() {
   }, [navigate]);
 
   const collaborators = useMemo(
-    () => (session ? visibleCollaborators(session).filter((u) => u.active !== false) : []),
+    () => (session ? visibleCollaborators(session) : []),
     [session],
   );
 
