@@ -8,7 +8,6 @@
  *  2. leitura + tempo real no Workspace, sem recarregar a página;
  *  3. persistência após reload (a verdade passa a ser o servidor).
  */
-import { supabase } from "@/integrations/supabase/client";
 import { syncPortalLead, listPortalLeads, deletePortalLead } from "@/lib/portal-leads.functions";
 import { resolveLeadScope } from "@/lib/lead-routing";
 import { loadLeads, replaceLeads, type LeadRecord } from "@/lib/leads";
@@ -103,17 +102,34 @@ export async function removeLeadEverywhere(id: string): Promise<void> {
   }
 }
 
-/** Assina alterações em tempo real da carteira. */
+/**
+ * Assina alterações em tempo real da carteira.
+ *
+ * O cliente de tempo real é carregado sob demanda: só o Workspace do
+ * executivo precisa dele, então o investidor nunca paga esse download.
+ */
 export function subscribeLeads(onChange: () => void): () => void {
-  const channel = supabase
-    .channel("portal-leads-workspace")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "portal_leads" },
-      () => onChange(),
-    )
-    .subscribe();
+  let dispose: (() => void) | null = null;
+  let cancelled = false;
+
+  void (async () => {
+    const { supabase } = await import("@/integrations/supabase/client");
+    if (cancelled) return;
+    const channel = supabase
+      .channel("portal-leads-workspace")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "portal_leads" },
+        () => onChange(),
+      )
+      .subscribe();
+    dispose = () => {
+      void supabase.removeChannel(channel);
+    };
+  })();
+
   return () => {
-    void supabase.removeChannel(channel);
+    cancelled = true;
+    dispose?.();
   };
 }
