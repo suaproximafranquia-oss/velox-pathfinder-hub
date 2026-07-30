@@ -68,7 +68,19 @@ function WorkspacePage() {
   }, [navigate]);
 
   // Reflete alterações nas reuniões (próxima reunião do card).
-  useEffect(() => onEvent(() => setTick((v) => v + 1)), []);
+  // Agrupadas em um único quadro: uma rajada de eventos gera apenas
+  // uma re-renderização, nunca uma por evento.
+  useEffect(() => {
+    let scheduled = false;
+    return onEvent(() => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        setTick((v) => v + 1);
+      });
+    });
+  }, []);
 
   // Sincronização em TEMPO REAL com a base oficial de Leads.
   // Todo investidor identificado no Gateway — em qualquer navegador ou
@@ -87,16 +99,22 @@ function WorkspacePage() {
         });
     };
     refresh();
+    // Tempo real assinado no servidor: dispensa consulta periódica.
+    // A rede só é usada de novo quando o servidor avisa, quando outra
+    // aba grava algo ou quando o executivo volta para a janela.
     const unsubscribe = subscribeLeads(refresh);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
-    const timer = window.setInterval(refresh, 30000);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
       unsubscribe();
       window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
-      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [session]);
 
@@ -156,11 +174,19 @@ function WorkspacePage() {
       });
   }, [session, query, nextMeetingByInvestor, scope, tick]);
 
-  if (!session) return null;
+  const personalLink = useMemo(
+    () => (session ? buildPersonalLink(session) : ""),
+    [session],
+  );
+  // Reaproveita a carteira já calculada: evita varrer a base inteira
+  // novamente a cada re-renderização ao abrir um perfil.
+  const activeInvestor = useMemo(() => {
+    if (!openProfileId) return null;
+    void tick;
+    return listAllInvestors().find((i) => i.id === openProfileId) ?? null;
+  }, [openProfileId, tick]);
 
-  const personalLink = buildPersonalLink(session);
-  const activeInvestor =
-    openProfileId ? listAllInvestors().find((i) => i.id === openProfileId) ?? null : null;
+  if (!session) return null;
 
   const openProfile = (id: string) => {
     scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
