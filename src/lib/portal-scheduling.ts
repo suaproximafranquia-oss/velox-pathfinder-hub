@@ -135,7 +135,12 @@ export async function requestInvestorMeeting(input: {
   });
 
   try {
-    meeting = await trySyncCreate(meeting, { id: executive.id, name: executive.name });
+    meeting = await trySyncCreate(meeting, {
+      userId: executive.id,
+      userName: executive.name,
+      userRole: "Executivo",
+      email: executive.email,
+    });
   } catch {
     /* a integração externa nunca bloqueia o agendamento */
   }
@@ -146,7 +151,7 @@ export async function requestInvestorMeeting(input: {
   });
 
   emitEvent({
-    type: "meeting.requested",
+    type: "meeting.created",
     investorId: session.investorId,
     actorId: executive.id,
     payload: {
