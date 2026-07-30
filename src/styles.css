@@ -386,7 +386,7 @@ body[data-shell="universo"] .portal-grid {
   100% { transform: scale(1.11) translate3d(0, -0.6%, 0); }
 }
 body[data-shell="portal"] .portal-hero-ken {
-  animation: portal-hero-ken 18s ease-in-out infinite alternate;
+  animation: portal-hero-ken 16s ease-in-out infinite alternate;
   will-change: transform;
 }
 @keyframes portal-hero-scroll {
