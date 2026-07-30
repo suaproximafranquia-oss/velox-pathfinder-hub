@@ -1,21 +1,23 @@
 /**
- * Funil Comercial Visual — componente gráfico nativo do Brain Analytics.
+ * Funil Comercial 3D — componente premium nativo do Brain Analytics.
  *
- * Não usa barras horizontais, listas ou cards empilhados: cada etapa é
- * desenhada como uma faixa afunilada (trapézio) via clip-path, respeitando
- * a identidade visual do Portal. Alimentado automaticamente pelos dados
- * do KPI Manager.
+ * Cada nível é uma peça independente do funil: disco superior elíptico,
+ * corpo afunilado com gradiente e sombreamento lateral, e disco inferior
+ * em sombra — criando profundidade e perspectiva reais, sem imagem,
+ * sem barra e sem trapézio simples.
+ *
+ * Cada peça comunica apenas: Nome · Quantidade · Percentual.
  */
 import type { FunnelStage } from "@/lib/brain-data";
-import { cn } from "@/lib/utils";
 
-const TONE: string[] = [
-  "from-[color:var(--gold)] to-[color:var(--gold)]/70",
-  "from-amber-400 to-amber-500/70",
-  "from-sky-400 to-sky-500/70",
-  "from-teal-400 to-teal-500/70",
-  "from-indigo-400 to-indigo-500/70",
-  "from-emerald-400 to-emerald-500/70",
+/** Paleta Velox — do dourado (topo) ao navy profundo (base). */
+const PALETTE: { light: string; mid: string; dark: string; ink: string }[] = [
+  { light: "#F4DFA6", mid: "#D8B45C", dark: "#A9862F", ink: "#2A1F06" },
+  { light: "#E7D19A", mid: "#C3A257", dark: "#8E7228", ink: "#241B06" },
+  { light: "#BFC9DE", mid: "#8496BC", dark: "#4E5F86", ink: "#101A2E" },
+  { light: "#96A9CE", mid: "#5D77A8", dark: "#324A78", ink: "#0B1striped" },
+  { light: "#6E88BA", mid: "#3D5B93", dark: "#22375F", ink: "#F4F7FF" },
+  { light: "#405F9B", mid: "#22406F", dark: "#132646", ink: "#F4F7FF" },
 ];
 
 const brl = (n: number) =>
@@ -27,68 +29,101 @@ const brl = (n: number) =>
 
 export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
   const top = stages[0]?.value ?? 0;
+  const n = Math.max(stages.length, 1);
 
   return (
     <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-6">
-      <div className="mb-5">
+      <div className="mb-6">
         <h2 className="font-display text-lg">Funil comercial</h2>
-        <p className="text-xs text-[color:var(--muted-foreground)] mt-0.5">
+        <p className="mt-0.5 text-xs text-[color:var(--muted-foreground)]">
           Da captação ao faturamento — conversão real entre etapas
         </p>
       </div>
 
-      <div className="mx-auto w-full max-w-xl">
+      <div
+        className="mx-auto w-full max-w-2xl pb-6"
+        style={{ perspective: "1100px" }}
+      >
         {stages.map((s, i) => {
+          const tone = PALETTE[i % PALETTE.length];
           const isRevenue = s.id === "revenue";
-          const prev = i > 0 ? stages[i - 1] : null;
-          const stepRate =
-            prev && prev.value > 0 && !isRevenue ? s.value / prev.value : null;
-          const totalRate = top > 0 && !isRevenue ? s.value / top : null;
-
-          // Largura afunilada: topo largo, base estreita.
-          const wTop = 100 - i * (60 / Math.max(stages.length - 1, 1));
-          const wBottom = 100 - (i + 1) * (60 / Math.max(stages.length - 1, 1));
-          const inset = (100 - wTop) / 2;
-          const insetB = (100 - wBottom) / 2;
+          const wTop = 100 - i * (58 / Math.max(n - 1, 1));
+          const wBottom = 100 - (i + 1) * (58 / Math.max(n - 1, 1));
+          const pct = top > 0 ? (s.value / top) * 100 : 0;
+          const insetB = ((wTop - wBottom) / wTop) * 50;
 
           return (
-            <div key={s.id} className="relative">
+            <div
+              key={s.id}
+              className="relative mx-auto"
+              style={{ width: `${wTop}%`, marginBottom: 14 }}
+            >
+              {/* Disco superior — dá a sensação tridimensional da peça */}
               <div
-                className={cn(
-                  "relative h-[68px] w-full bg-gradient-to-b",
-                  TONE[i % TONE.length],
-                )}
+                aria-hidden
+                className="absolute left-0 right-0"
                 style={{
-                  clipPath: `polygon(${inset}% 0%, ${100 - inset}% 0%, ${100 - insetB}% 100%, ${insetB}% 100%)`,
+                  top: -11,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: `linear-gradient(180deg, ${tone.light} 0%, ${tone.mid} 100%)`,
+                  boxShadow: `inset 0 -2px 6px rgba(0,0,0,0.22)`,
+                }}
+              />
+
+              {/* Corpo afunilado da peça */}
+              <div
+                className="relative h-[74px] w-full"
+                style={{
+                  clipPath: `polygon(0% 0%, 100% 0%, ${100 - insetB}% 100%, ${insetB}% 100%)`,
+                  background: `linear-gradient(90deg, ${tone.dark} 0%, ${tone.mid} 26%, ${tone.light} 48%, ${tone.mid} 72%, ${tone.dark} 100%)`,
+                  boxShadow: "0 14px 22px -14px rgba(0,0,0,0.65)",
                 }}
               >
-                <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-                  <span className="text-[11px] md:text-xs font-medium uppercase tracking-[0.14em] text-[color:var(--navy-deep)]">
+                <div
+                  aria-hidden
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0) 38%, rgba(0,0,0,0.28) 100%)",
+                  }}
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
+                  <span
+                    className="text-[10px] md:text-[11px] font-medium uppercase tracking-[0.18em]"
+                    style={{ color: tone.ink, opacity: 0.85 }}
+                  >
                     {s.label}
                   </span>
-                  <span className="font-display text-base md:text-lg tabular-nums leading-tight text-[color:var(--navy-deep)]">
+                  <span
+                    className="font-display text-[17px] md:text-[19px] leading-tight tabular-nums"
+                    style={{ color: tone.ink }}
+                  >
                     {isRevenue ? brl(s.value) : s.value.toLocaleString("pt-BR")}
+                  </span>
+                  <span
+                    className="text-[11px] tabular-nums"
+                    style={{ color: tone.ink, opacity: 0.75 }}
+                  >
+                    {pct.toFixed(1).replace(".", ",")}%
                   </span>
                 </div>
               </div>
 
-              {/* Percentual de conversão da etapa */}
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center">
-                <span className="text-[10px] tabular-nums text-[color:var(--muted-foreground)]">
-                  {isRevenue
-                    ? "Resultado"
-                    : stepRate === null
-                      ? "100%"
-                      : `${(stepRate * 100).toFixed(1).replace(".", ",")}% da etapa anterior`}
-                </span>
-              </div>
-              {totalRate !== null && i > 0 ? (
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center">
-                  <span className="text-[10px] tabular-nums text-[color:var(--muted-foreground)]">
-                    {(totalRate * 100).toFixed(1).replace(".", ",")}% do topo
-                  </span>
-                </div>
-              ) : null}
+              {/* Disco inferior em sombra — separa visualmente os níveis */}
+              <div
+                aria-hidden
+                className="absolute mx-auto"
+                style={{
+                  left: `${insetB}%`,
+                  right: `${insetB}%`,
+                  bottom: -9,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: `linear-gradient(180deg, ${tone.dark} 0%, rgba(0,0,0,0.55) 100%)`,
+                  filter: "blur(0.2px)",
+                }}
+              />
             </div>
           );
         })}
