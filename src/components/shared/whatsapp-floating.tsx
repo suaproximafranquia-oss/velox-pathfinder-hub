@@ -25,10 +25,15 @@ export function WhatsAppFloating() {
     personalized: boolean;
   }>({ executive: null, personalized: false });
   const [modalOpen, setModalOpen] = useState(false);
+  /** Dentro de um overlay (iframe) o botão da Home já está visível. */
+  const [insideOverlay, setInsideOverlay] = useState(false);
 
   useEffect(() => {
     setResolved(getResponsibleExecutive());
+    setInsideOverlay(typeof window !== "undefined" && window.self !== window.top);
   }, []);
+
+  if (insideOverlay) return null;
 
   const label = resolved.personalized ? "Chame seu Executivo" : "Falar com a Velox";
 
