@@ -17,7 +17,13 @@ import { listAllInvestors, formatRelative, type Investor } from "@/lib/executive
 import { listMeetings } from "@/lib/meetings";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 
-export type WorkspaceAlertCategory = "movimentacao" | "reuniao";
+export type WorkspaceAlertCategory =
+  | "movimentacao"
+  | "reuniao"
+  | "reuniao_solicitada"
+  | "reuniao_confirmada"
+  | "reuniao_cancelada"
+  | "reuniao_alterada";
 
 export type WorkspaceAlert = {
   id: string;
@@ -33,6 +39,10 @@ export type WorkspaceAlert = {
 export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, string> = {
   movimentacao: "Movimentação do Investidor",
   reuniao: "Lembrete de Reunião",
+  reuniao_solicitada: "Nova Solicitação de Reunião",
+  reuniao_confirmada: "Reunião Confirmada",
+  reuniao_cancelada: "Reunião Cancelada",
+  reuniao_alterada: "Alteração de Horário",
 };
 
 const ALERTS_KEY = "atlas:workspace-alerts:v1";
