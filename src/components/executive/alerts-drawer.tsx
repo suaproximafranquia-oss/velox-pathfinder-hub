@@ -1,11 +1,16 @@
 /**
- * Central de Alertas — painel lateral GLOBAL do Workspace.
- * Nunca navega para outra página: preserva o contexto do executivo.
- * Duas categorias apenas: Movimentação do Investidor e Lembretes de Reunião.
- * Interação simples: clique expande/recolhe, X arquiva.
+ * Central de Alertas — Drawer lateral FLUTUANTE e GLOBAL do Workspace.
+ *
+ * Regras oficiais (Prompt 6E):
+ *  • fixo na lateral direita, acompanha toda a rolagem da página;
+ *  • pode ser expandido e recolhido, sem trocar de rota;
+ *  • nunca substitui conteúdo nem abre nova página;
+ *  • atualiza automaticamente a cada evento do sistema.
+ *
+ * Disponível em todas as telas do Workspace — exceto o KPI Manager.
  */
 import { useEffect, useState } from "react";
-import { Bell, X } from "lucide-react";
+import { Bell, ChevronRight, X } from "lucide-react";
 import {
   archiveWorkspaceAlert,
   listWorkspaceAlerts,
@@ -23,10 +28,19 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    runWorkspaceAlertEvaluation(session);
-    setAlerts(listWorkspaceAlerts(session));
-    const off = onEvent(() => setAlerts(listWorkspaceAlerts(session)));
-    return off;
+    function refresh() {
+      runWorkspaceAlertEvaluation(session);
+      setAlerts(listWorkspaceAlerts(session));
+    }
+    refresh();
+    // Atualização automática: qualquer evento do barramento re-avalia os alertas
+    // (novo lead, lead atualizado, retorno do investidor, reuniões, operacionais).
+    const off = onEvent(() => refresh());
+    const timer = window.setInterval(refresh, 60_000);
+    return () => {
+      off();
+      window.clearInterval(timer);
+    };
   }, [session]);
 
   function handleArchive(id: string) {
@@ -35,28 +49,40 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Central de Alertas"
-        className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
-      >
-        <Bell className="h-4 w-4" />
-        {alerts.length > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-[color:var(--gold)] text-[10px] font-medium text-[color:var(--navy-deep)] flex items-center justify-center px-1">
-            {alerts.length > 9 ? "9+" : alerts.length}
+    <div className="pointer-events-none fixed right-0 top-1/2 z-[70] -translate-y-1/2">
+      <div className="pointer-events-auto flex items-start">
+        {/* Aba fixa — sempre visível, acompanha a rolagem */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Central de Alertas"
+          aria-expanded={open}
+          className={cn(
+            "relative flex h-24 w-9 flex-col items-center justify-center gap-1 rounded-l-2xl border border-r-0",
+            "border-[color:var(--border)] bg-[color:var(--navy)]/95 backdrop-blur shadow-xl transition",
+            "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40",
+            open && "text-[color:var(--gold)]",
+          )}
+        >
+          {open ? <ChevronRight className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+          <span className="text-[9px] uppercase tracking-[0.2em] [writing-mode:vertical-rl] rotate-180">
+            Alertas
           </span>
-        )}
-      </button>
+          {alerts.length > 0 && !open && (
+            <span className="absolute -left-1.5 top-2 min-w-[16px] h-[16px] rounded-full bg-[color:var(--gold)] text-[10px] font-medium text-[color:var(--navy-deep)] flex items-center justify-center px-1">
+              {alerts.length > 9 ? "9+" : alerts.length}
+            </span>
+          )}
+        </button>
 
-      {open && (
-        <div className="fixed inset-0 z-[80]">
-          <div
-            className="absolute inset-0 bg-[color:var(--navy-deep)]/60 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          />
-          <div className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-[color:var(--border)] bg-[color:var(--navy)] shadow-2xl flex flex-col">
+        {/* Painel — expande/recolhe sem alterar rota */}
+        <div
+          className={cn(
+            "overflow-hidden transition-[width,opacity] duration-300 ease-out",
+            open ? "w-[min(360px,92vw)] opacity-100" : "w-0 opacity-0",
+          )}
+        >
+          <div className="flex max-h-[78vh] w-[min(360px,92vw)] flex-col rounded-l-2xl border border-r-0 border-[color:var(--border)] bg-[color:var(--navy)]/98 backdrop-blur shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[color:var(--border)]">
               <div>
                 <h2 className="font-display text-base">Central de Alertas</h2>
@@ -67,7 +93,7 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Fechar"
+                aria-label="Recolher"
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)] transition"
               >
                 <X className="h-4 w-4" />
@@ -109,24 +135,27 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
                                 })}
                               </p>
                             </div>
-                            <button
-                              type="button"
+                            <span
+                              role="button"
+                              tabIndex={0}
                               aria-label="Arquivar"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleArchive(a.id);
                               }}
-                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)] transition"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.stopPropagation();
+                                  handleArchive(a.id);
+                                }
+                              }}
+                              className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)] transition"
                             >
                               <X className="h-3.5 w-3.5" />
-                            </button>
+                            </span>
                           </div>
                           {expanded && (
-                            <p
-                              className={cn(
-                                "mt-2.5 text-xs text-[color:var(--muted-foreground)] leading-relaxed border-t border-[color:var(--border)]/60 pt-2.5",
-                              )}
-                            >
+                            <p className="mt-2.5 text-xs text-[color:var(--muted-foreground)] leading-relaxed border-t border-[color:var(--border)]/60 pt-2.5">
                               {a.description}
                             </p>
                           )}
@@ -139,7 +168,7 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
             </div>
           </div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
