@@ -530,12 +530,6 @@ function MeetingsPage() {
   );
 }
 
-function ActionButton({
-  ...actionButtonProps
-}: Parameters<typeof ActionButtonImpl>[0]) {
-  return <ActionButtonImpl {...actionButtonProps} />;
-}
-
 /**
  * Solicitações do Portal aguardando confirmação do executivo responsável.
  * Ao confirmar, o evento do Google Calendar e o Meet são criados automaticamente.
@@ -658,7 +652,7 @@ function PendingRequestsPanel({
   );
 }
 
-function ActionButtonImpl({
+function ActionButton({
   icon: Icon,
   label,
   onClick,
