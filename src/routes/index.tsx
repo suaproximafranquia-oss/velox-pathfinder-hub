@@ -1,6 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Compass, Building2, BookMarked, Users, Calculator, ArrowUpRight, X } from "lucide-react";
+import {
+  BookOpen,
+  Compass,
+  Building2,
+  BookMarked,
+  Users,
+  Calculator,
+  CalendarDays,
+  ArrowUpRight,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
 import { SimulatorModal } from "@/components/simulator/simulator-modal";
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
 import manualCoverImg from "@/assets/portal-manual-cover.png.asset.json";
@@ -13,11 +24,14 @@ import {
   hasPortalSession,
   setJourneyStatus,
   trackSessionNavigation,
+  getResumePoint,
 } from "@/lib/portal-session";
 import { GatewayOverlay } from "@/components/portal/gateway-overlay";
+import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
+import { SchedulingOverlay } from "@/components/portal/scheduling-overlay";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
-import { closeOverlay, setActiveOverlay } from "@/lib/portal-overlay";
+import { setActiveOverlay } from "@/lib/portal-overlay";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { clearResponsibleExecutive } from "@/lib/responsible-executive";
 
