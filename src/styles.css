@@ -863,3 +863,22 @@ body[data-shell="universo"] :focus-visible {
   outline-offset: 3px;
   border-radius: 6px;
 }
+
+/* Central de Alertas — pulso discreto na aba do Drawer quando há alerta novo. */
+@keyframes atlas-alert-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 0%, transparent);
+  }
+}
+.alert-pulse {
+  animation: atlas-alert-pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .alert-pulse {
+    animation: none;
+  }
+}
