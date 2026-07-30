@@ -7,7 +7,7 @@
  * rotas internas correspondentes (usadas apenas para proteger acessos
  * diretos por URL).
  */
-export type PortalModuleKey = "manual" | "universo" | "simulador";
+export type PortalModuleKey = "manual" | "universo" | "simulador" | "agenda";
 
 export type PortalModuleDef = {
   key: PortalModuleKey;
@@ -15,7 +15,7 @@ export type PortalModuleDef = {
   /** Conteúdo interno carregado dentro do overlay (quando aplicável). */
   panelSrc?: string;
   /** Módulos que abrem um componente próprio (ex.: Simulador). */
-  action?: "simulator";
+  action?: "simulator" | "scheduling";
   /** Prefixos de rota interna protegidos contra acesso público direto. */
   guardedPaths: string[];
 };
@@ -32,6 +32,12 @@ export const PORTAL_MODULES: PortalModuleDef[] = [
     key: "simulador",
     title: "Simulador Inteligente de Potencial de Receita",
     action: "simulator",
+    guardedPaths: [],
+  },
+  {
+    key: "agenda",
+    title: "Agendar conversa com um executivo",
+    action: "scheduling",
     guardedPaths: [],
   },
 ];

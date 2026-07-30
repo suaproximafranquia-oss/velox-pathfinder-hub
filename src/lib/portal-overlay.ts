@@ -9,7 +9,13 @@
  * • enquanto houver overlay ativo, o FAB global da Home desaparece —
  *   ao fechar, ele é restaurado automaticamente.
  */
-export type OverlayKey = "gateway" | "manual" | "universo" | "simulador" | null;
+export type OverlayKey =
+  | "gateway"
+  | "manual"
+  | "universo"
+  | "simulador"
+  | "agenda"
+  | null;
 
 let active: OverlayKey = null;
 const listeners = new Set<(key: OverlayKey) => void>();
