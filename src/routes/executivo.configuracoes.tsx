@@ -60,15 +60,6 @@ function ConfiguracoesPage() {
       ],
     },
     {
-      icon: Plug,
-      title: "Integrações",
-      lines: [
-        "CRM · Green Sales — redirecionamento externo ativo",
-        "Reuniões · Google Meet — redirecionamento externo ativo",
-        "Drive · Google Drive — redirecionamento externo ativo",
-      ],
-    },
-    {
       icon: Shield,
       title: "Permissões",
       lines: [
@@ -92,11 +83,12 @@ function ConfiguracoesPage() {
       <div className="max-w-3xl">
         <p className="text-sm text-[color:var(--muted-foreground)] mb-8 leading-relaxed flex items-center gap-2">
           <Settings className="h-4 w-4 text-[color:var(--gold)]" />
-          Painel administrativo. Nesta versão as seções são somente leitura —
-          preparadas para receberem edição na próxima sprint.
+          Painel administrativo. Videoconferência e Integrações são editáveis; as
+          demais seções permanecem informativas nesta versão.
         </p>
         <div className="grid gap-4">
           <VideoconferenciaSection session={session} />
+          <IntegracoesSection />
           {sections.map((s) => {
             const Icon = s.icon;
             return (
