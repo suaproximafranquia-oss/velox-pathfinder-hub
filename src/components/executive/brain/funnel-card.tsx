@@ -15,7 +15,7 @@ const PALETTE: { light: string; mid: string; dark: string; ink: string }[] = [
   { light: "#F4DFA6", mid: "#D8B45C", dark: "#A9862F", ink: "#2A1F06" },
   { light: "#E7D19A", mid: "#C3A257", dark: "#8E7228", ink: "#241B06" },
   { light: "#BFC9DE", mid: "#8496BC", dark: "#4E5F86", ink: "#101A2E" },
-  { light: "#96A9CE", mid: "#5D77A8", dark: "#324A78", ink: "#0B1striped" },
+  { light: "#96A9CE", mid: "#5D77A8", dark: "#324A78", ink: "#0B1428" },
   { light: "#6E88BA", mid: "#3D5B93", dark: "#22375F", ink: "#F4F7FF" },
   { light: "#405F9B", mid: "#22406F", dark: "#132646", ink: "#F4F7FF" },
 ];
