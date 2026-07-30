@@ -5,6 +5,7 @@
 import { listEvents } from "@/lib/events/bus";
 import { loadLeads } from "@/lib/leads";
 import { getDefaultExecutive } from "@/lib/executive-auth";
+import { resolveLeadScope } from "@/lib/lead-routing";
 
 export type InvestorStatus =
   | "novo"
@@ -185,7 +186,16 @@ export function listAllInvestors(): Investor[] {
         (interestsCaptured ? 1 : 0),
       diagnostic: simulatorDone || interestsCaptured ? "em andamento" : "não iniciado",
       assignedToUserId: lead.responsibleExecutiveId ?? fallbackExecutiveId,
-      origin: "portal",
+      // Origem oficial: link personalizado → Green Sales; acesso
+      // institucional → Portal. Ver `lead-routing.ts`.
+      origin:
+        (lead.scope ??
+          resolveLeadScope({
+            personalized: lead.personalized,
+            responsibleExecutiveId: lead.responsibleExecutiveId,
+          })) === "green_sales"
+          ? "green_sales"
+          : "portal",
       priority: simulatorDone ? "high" : interestsCaptured ? "medium" : "none",
       lastEventLabel,
     };

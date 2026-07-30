@@ -179,8 +179,13 @@ export function startPortalSession(input: {
     investorId: lead.id,
     name: lead.name,
     email: lead.email,
-    responsibleExecutiveId: lead.responsibleExecutiveId ?? responsible.executive?.id ?? null,
-    responsibleExecutiveSlug: responsible.executive?.slug ?? entry.executiveSlug ?? null,
+    // Vínculo individual apenas quando houve link personalizado.
+    responsibleExecutiveId:
+      lead.responsibleExecutiveId ??
+      (responsible.personalized ? (responsible.executive?.id ?? null) : null),
+    responsibleExecutiveSlug: responsible.personalized
+      ? (responsible.executive?.slug ?? entry.executiveSlug ?? null)
+      : null,
     unit: entry.unit,
     origin: input.origin ?? entry.origin ?? "Portal Velox",
     campaign: entry.campaign,
