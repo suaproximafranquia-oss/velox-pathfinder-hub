@@ -280,6 +280,12 @@ function MeetingsPage() {
         onOpen={(m) => setDetailsFor(m)}
       />
 
+      <PendingRequestsPanel
+        requests={items.filter((m) => m.status === "Solicitada")}
+        session={session}
+        onChanged={refresh}
+      />
+
       <div className="mb-4 flex flex-wrap gap-1 border-b border-[color:var(--border)]">
         {([
           ["lista", "Lista", ListChecks],
