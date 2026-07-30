@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   Calendar,
   User as UserIcon,
@@ -59,7 +59,7 @@ export type InvestorCardData = Investor & {
   nextMeetingAt?: string; // ISO
 };
 
-export function InvestorCard({
+function InvestorCardBase({
   investor,
   onOpen,
   onNewMeeting,
