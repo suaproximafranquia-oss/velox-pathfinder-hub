@@ -1,14 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  CalendarRange,
-  ChevronDown,
-  UserSquare2,
-  TrendingUp,
-  Users,
-  Wallet,
-  LineChart,
-} from "lucide-react";
+import { CalendarRange, ChevronDown, UserSquare2 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { buildOperationalSnapshot } from "@/lib/brain-data";
@@ -23,14 +15,12 @@ import {
 import { AVAILABLE_MONTHS, DEFAULT_MONTH_KEY } from "@/lib/kpi-manager";
 import { visibleCollaborators } from "@/lib/teams";
 import { KpiCard } from "@/components/executive/brain/kpi-card";
-import { ChartCard } from "@/components/executive/brain/chart-card";
 import { FunnelCard } from "@/components/executive/brain/funnel-card";
 import {
   BlockTitle,
   ClosingSummary,
-  ComparativeTable,
+  ComparisonTable,
   ConversionGrid,
-  DistributionCard,
   ExecutiveIntro,
   InsightList,
 } from "@/components/executive/brain/analytics-blocks";
@@ -175,46 +165,11 @@ function BrainPage() {
 
         <section>
           <BlockTitle
-            eyebrow="Evolução"
-            title="Gráficos históricos e evolução operacional"
-            description="Comportamento diário da captação, dos fechamentos e do faturamento, além da evolução mês a mês."
-          />
-          <div className="grid gap-3 xl:grid-cols-2">
-            <ChartCard
-              title="Leads por dia"
-              subtitle="Volume diário de entradas"
-              icon={Users}
-              data={analytics.series.leads}
-            />
-            <ChartCard
-              title="Contratos assinados"
-              subtitle="Fechamentos diários"
-              icon={TrendingUp}
-              data={analytics.series.sales}
-            />
-            <ChartCard
-              title="Faturamento diário"
-              subtitle="Valor gerado por dia"
-              icon={Wallet}
-              data={analytics.series.revenue}
-              unit="R$"
-            />
-            <ChartCard
-              title="Evolução mensal"
-              subtitle="Contratos assinados por competência"
-              icon={LineChart}
-              data={analytics.evolution}
-            />
-          </div>
-        </section>
-
-        <section>
-          <BlockTitle
             eyebrow="Funil e conversões"
             title="Esteira comercial ponta a ponta"
-            description="Volume por etapa e as taxas de conversão entre cada estágio da operação."
+            description="Funil visual do Lead ao faturamento, com a conversão real entre cada estágio."
           />
-          <div className="space-y-3">
+          <div className="space-y-4">
             <FunnelCard stages={snapshot.funnel} />
             <ConversionGrid items={analytics.conversions} />
           </div>
@@ -222,36 +177,11 @@ function BrainPage() {
 
         <section>
           <BlockTitle
-            eyebrow="Carteira"
-            title="Distribuição dos Leads"
-            description="Estados operacionais automáticos e origem dos investidores sob responsabilidade do escopo."
-          />
-          <div className="grid gap-3 lg:grid-cols-2">
-            <DistributionCard
-              title="Estado operacional"
-              subtitle="Verde: movimentação não visualizada · Amarelo: em acompanhamento · Cinza: encerrado"
-              slices={analytics.leadStates}
-            />
-            <DistributionCard
-              title="Origem"
-              subtitle="De onde vieram os investidores da carteira"
-              slices={analytics.leadOrigins}
-            />
-          </div>
-        </section>
-
-        <section>
-          <BlockTitle
             eyebrow="Comparativos e tendências"
             title="Competência atual frente à referência"
-            description="Leitura comparativa dos indicadores oficiais entre períodos."
+            description="Cada indicador lido em três referências: competência atual, mês anterior e média anual."
           />
-          <div className="space-y-3">
-            <ComparativeTable report={analytics.comparative} />
-            <p className="text-xs leading-relaxed text-[color:var(--muted-foreground)]">
-              {analytics.comparativeNarrative}
-            </p>
-          </div>
+          <ComparisonTable report={analytics.comparison} />
         </section>
 
         <section>
@@ -266,10 +196,10 @@ function BrainPage() {
         <ClosingSummary text={analytics.closing} />
 
         <p className="text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-          O Brain Analytics é o painel executivo definitivo: incorpora integralmente o
-          conteúdo da antiga aba Relatórios e consome exclusivamente o KPI Manager e a base
-          real de investidores. Os alertas operacionais ficam concentrados na Central de
-          Alertas, disponível em qualquer tela do workspace.
+          O Brain Analytics é o painel executivo definitivo: leitura estratégica sobre os
+          dados oficiais do KPI Manager, sem repetição de indicadores. Os alertas
+          operacionais ficam concentrados na Central de Alertas, disponível em qualquer
+          tela do workspace.
         </p>
       </div>
     </ExecutiveShell>
