@@ -10,6 +10,7 @@ import { emitEvent } from "@/lib/events/bus";
 import { logAudit } from "@/lib/audit-log";
 
 export type MeetingStatus =
+  | "Solicitada"
   | "Agendada"
   | "Confirmada"
   | "Reagendada"
@@ -42,6 +43,15 @@ export type Meeting = {
   meetUrl?: string;
   notes: MeetingNote[];
   cancelReason?: string;
+  /**
+   * Solicitações do Portal: horários preferenciais informados pelo investidor.
+   * O executivo confirma um deles — nunca cria reunião para outro executivo.
+   */
+  requestedSlots?: string[];
+  /** Assunto/tema declarado pelo investidor na solicitação. */
+  topic?: string;
+  /** Origem do registro — preparado para o CRM Inteligente. */
+  origin?: "portal" | "executivo";
   googleEventId?: string;
   googleSync?: GoogleSyncState;
   googleSyncError?: string;
