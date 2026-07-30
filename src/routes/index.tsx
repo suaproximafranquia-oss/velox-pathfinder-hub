@@ -183,38 +183,43 @@ const MODULES: ModuleCard[] = [
 function PortalHome() {
   const navigate = useNavigate();
   const search = Route.useSearch() as HomeSearch;
-  const [openPanel, setOpenPanel] = useState<{ src: string; title: string } | null>(null);
-  const [simulatorOpen, setSimulatorOpen] = useState(false);
-  const [gatewayOpen, setGatewayOpen] = useState(false);
+  /** Único overlay ativo por vez — regra oficial do Portal. */
+  const [active, setActive] = useState<{
+    key: "gateway" | PortalModuleKey;
+    title: string;
+    src?: string;
+  } | null>(null);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
+  const [resume, setResume] = useState<{ module: PortalModuleKey; title: string } | null>(null);
+
+  const closeActive = useCallback(() => {
+    setActive(null);
+    setActiveOverlay(null);
+  }, []);
 
   /** Abre um módulo interno como overlay — a URL permanece na Home. */
   const openModule = useCallback((key: PortalModuleKey) => {
     const mod = getPortalModule(key);
     if (!mod) return;
     writeEntryContext({ pendingModule: null });
-    // Regra oficial: apenas um overlay ativo por vez.
-    setGatewayOpen(false);
-    if (mod.action === "simulator") {
-      setOpenPanel(null);
-      setSimulatorOpen(true);
-      setActiveOverlay("simulador");
-      setJourneyStatus("simulador");
-    } else if (mod.panelSrc) {
-      setSimulatorOpen(false);
-      setOpenPanel({ src: mod.panelSrc, title: mod.title });
-      setActiveOverlay(key === "manual" ? "manual" : "universo");
-      setJourneyStatus(key === "manual" ? "manual" : "portal");
-    }
+    setActive({ key, title: mod.title, src: mod.panelSrc });
+    setActiveOverlay(key);
+    setJourneyStatus(
+      key === "simulador"
+        ? "simulador"
+        : key === "agenda"
+          ? "contato"
+          : key === "manual"
+            ? "manual"
+            : "portal",
+    );
     trackSessionNavigation(key, mod.title);
   }, []);
 
   /** Abre o Gateway encerrando qualquer outro overlay ativo. */
   const openGateway = useCallback((title: string | null) => {
-    setOpenPanel(null);
-    setSimulatorOpen(false);
     setPendingTitle(title);
-    setGatewayOpen(true);
+    setActive({ key: "gateway", title: "Identificação do investidor" });
     setActiveOverlay("gateway");
   }, []);
 
@@ -251,30 +256,29 @@ function PortalHome() {
     }
   }, [navigate, openGateway, openModule, search]);
 
+  /** Continuidade: retoma o contexto da jornada anterior. */
+  useEffect(() => {
+    if (!hasPortalSession()) return;
+    const point = getResumePoint();
+    const mod = getPortalModule(point?.module);
+    if (mod) setResume({ module: mod.key, title: mod.title });
+  }, []);
+
   // Ao desmontar a Home, nenhum overlay pode permanecer registrado.
   useEffect(() => () => setActiveOverlay(null), []);
-
-  useEffect(() => {
-    if (!openPanel) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpenPanel(null);
-      closeOverlay();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [openPanel]);
 
   return (
     <div className="min-h-screen">
       <PortalHeader />
       <main>
         <Hero />
+        {resume && !active && (
+          <ResumeBanner
+            title={resume.title}
+            onResume={() => openModule(resume.module)}
+            onDismiss={() => setResume(null)}
+          />
+        )}
         <ModulesGrid
           onOpen={(m) => {
             const mod = getPortalModule(m.moduleKey);
@@ -290,34 +294,63 @@ function PortalHome() {
       </main>
       <PortalFooter />
       <ModulePanel
-        panel={openPanel}
-        onClose={() => {
-          setOpenPanel(null);
-          closeOverlay();
-        }}
+        panel={active?.src ? { src: active.src, title: active.title } : null}
+        onClose={closeActive}
       />
-      <SimulatorModal
-        open={simulatorOpen}
-        onClose={() => {
-          setSimulatorOpen(false);
-          closeOverlay();
-        }}
-      />
+      <SimulatorModal open={active?.key === "simulador"} onClose={closeActive} />
+      <SchedulingOverlay open={active?.key === "agenda"} onClose={closeActive} />
       <GatewayOverlay
-        open={gatewayOpen}
+        open={active?.key === "gateway"}
         moduleTitle={pendingTitle}
         onClose={() => {
-          setGatewayOpen(false);
-          closeOverlay("gateway");
+          closeActive();
           writeEntryContext({ pendingModule: null });
         }}
         onDone={() => {
-          setGatewayOpen(false);
           const pending = readEntryContext().pendingModule ?? "manual";
           openModule(pending);
         }}
       />
     </div>
+  );
+}
+
+function ResumeBanner({
+  title,
+  onResume,
+  onDismiss,
+}: {
+  title: string;
+  onResume: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <section className="border-b" style={{ borderColor: "var(--paper-edge)" }}>
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-6 md:flex-row md:items-center md:justify-between md:px-10">
+        <p className="text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+          <span className="portal-eyebrow mr-3">Continuar jornada</span>
+          Você estava em <strong className="font-medium">{title}</strong>.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onResume}
+            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium"
+            style={{ background: "var(--brand-orange)", color: "#fff" }}
+          >
+            Retomar
+            <ArrowRight className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="text-xs uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]"
+          >
+            Agora não
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
