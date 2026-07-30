@@ -61,23 +61,23 @@ export function ModuleChrome({
               V
             </span>
             <span className="hidden sm:flex flex-col leading-tight">
-              <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--navy-foreground)]/70">
                 Velox
               </span>
-              <span className="text-sm font-medium">{moduleName}</span>
+              <span className="text-sm font-medium text-[color:var(--navy-foreground)]">{moduleName}</span>
             </span>
           </Link>
 
           <div className="flex items-center gap-3 min-w-0">
             {label && (
-              <span className="hidden md:inline text-xs text-[color:var(--muted-foreground)] truncate">
+              <span className="hidden md:inline text-xs text-[color:var(--navy-foreground)]/80 truncate">
                 {label}
               </span>
             )}
             <button
               type="button"
               onClick={() => setIndexOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition-colors"
+              className="inline-flex items-center gap-2 rounded-full border border-white/25 px-3 py-1.5 text-xs text-[color:var(--navy-foreground)]/85 hover:text-[color:var(--navy-foreground)] hover:border-[color:var(--gold)]/60 transition-colors"
             >
               <List className="h-3.5 w-3.5" />
               Índice
@@ -92,7 +92,7 @@ export function ModuleChrome({
           />
         </div>
         {label && (
-          <div className="md:hidden mx-auto max-w-5xl px-6 pb-2 pt-1 text-[11px] text-[color:var(--muted-foreground)] text-right">
+          <div className="md:hidden mx-auto max-w-5xl px-6 pb-2 pt-1 text-[11px] text-[color:var(--navy-foreground)]/80 text-right">
             {label}
           </div>
         )}
@@ -120,15 +120,15 @@ export function ModuleChrome({
         >
           <div className="flex items-center justify-between px-6 py-5 border-b border-[color:var(--border)]">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--navy-foreground)]/70">
                 {moduleName}
               </p>
-              <p className="text-sm mt-1">Índice</p>
+              <p className="text-sm mt-1 text-[color:var(--navy-foreground)]">Índice</p>
             </div>
             <button
               onClick={() => setIndexOpen(false)}
               aria-label="Fechar índice"
-              className="rounded-full p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)] transition"
+              className="rounded-full p-2 text-[color:var(--navy-foreground)]/70 hover:text-[color:var(--navy-foreground)] hover:bg-white/10 transition"
             >
               <X className="h-4 w-4" />
             </button>
@@ -144,8 +144,8 @@ export function ModuleChrome({
                   className={cn(
                     "w-full text-left block rounded-xl px-4 py-3 transition-colors border border-transparent",
                     current
-                      ? "border-[color:var(--gold)]/30 bg-[color:var(--accent)]"
-                      : "hover:bg-[color:var(--accent)]/60",
+                      ? "border-[color:var(--gold)]/30 bg-white/10"
+                      : "hover:bg-white/5",
                   )}
                 >
                   <div className="flex items-baseline gap-3">
@@ -154,12 +154,12 @@ export function ModuleChrome({
                         "font-display text-xs w-6 shrink-0",
                         current
                           ? "text-[color:var(--gold)]"
-                          : "text-[color:var(--muted-foreground)]",
+                          : "text-[color:var(--navy-foreground)]/60",
                       )}
                     >
                       {String(i + 1).padStart(2, "0")}
                     </span>
-                    <span className="text-sm leading-tight">{s.label}</span>
+                    <span className="text-sm leading-tight text-[color:var(--navy-foreground)]">{s.label}</span>
                   </div>
                 </button>
               );

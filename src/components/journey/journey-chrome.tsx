@@ -50,14 +50,14 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
               <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--gold)]/80">
                 Velox
               </span>
-              <span className="text-sm font-medium text-[color:var(--foreground)]">
+              <span className="text-sm font-medium text-[color:var(--navy-foreground)]">
                 Manual do Investidor
               </span>
             </span>
           </Link>
 
           <div className="flex items-center gap-3 min-w-0">
-            <span className="hidden md:inline text-xs font-medium text-[color:var(--foreground)]/90 truncate">
+            <span className="hidden md:inline text-xs font-medium text-[color:var(--navy-foreground)]/85 truncate">
               {label}
             </span>
             <button
@@ -78,7 +78,7 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <div className="md:hidden mx-auto max-w-5xl px-6 pb-2 pt-1 text-[11px] font-medium text-[color:var(--foreground)]/85 text-right">
+        <div className="md:hidden mx-auto max-w-5xl px-6 pb-2 pt-1 text-[11px] font-medium text-[color:var(--navy-foreground)]/85 text-right">
           {label}
         </div>
       </header>
@@ -109,15 +109,15 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
         >
           <div className="flex items-center justify-between px-6 py-5 border-b border-[color:var(--border)]">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--navy-foreground)]/70">
                 Sua jornada
               </p>
-              <p className="text-sm mt-1">{progressPct}% concluído</p>
+              <p className="text-sm mt-1 text-[color:var(--navy-foreground)]">{progressPct}% concluído</p>
             </div>
             <button
               onClick={() => setIndexOpen(false)}
               aria-label="Fechar índice"
-              className="rounded-full p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)] transition"
+              className="rounded-full p-2 text-[color:var(--navy-foreground)]/70 hover:text-[color:var(--navy-foreground)] hover:bg-white/10 transition"
             >
               <X className="h-4 w-4" />
             </button>
@@ -134,8 +134,8 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
                   className={cn(
                     "block rounded-xl px-4 py-3 transition-colors border border-transparent",
                     current
-                      ? "border-[color:var(--gold)]/30 bg-[color:var(--accent)]"
-                      : "hover:bg-[color:var(--accent)]/60",
+                      ? "border-[color:var(--gold)]/30 bg-white/10"
+                      : "hover:bg-white/5",
                   )}
                 >
                   <div className="flex items-baseline gap-3">
@@ -145,8 +145,8 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
                         current
                           ? "text-[color:var(--gold)]"
                           : visited
-                            ? "text-[color:var(--foreground)]"
-                            : "text-[color:var(--foreground)]/70",
+                            ? "text-[color:var(--navy-foreground)]"
+                            : "text-[color:var(--navy-foreground)]/60",
                       )}
                     >
                       {String(c.index).padStart(2, "0")}
@@ -154,10 +154,10 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
                     <span className={cn(
                       "text-sm leading-tight",
                       current
-                        ? "text-[color:var(--foreground)]"
+                        ? "text-[color:var(--navy-foreground)]"
                         : visited
-                          ? "text-[color:var(--foreground)]/95"
-                          : "text-[color:var(--foreground)]/80",
+                          ? "text-[color:var(--navy-foreground)]/90"
+                          : "text-[color:var(--navy-foreground)]/70",
                     )}>
                       {c.eyebrow.split("·")[1]?.trim() ?? c.eyebrow}
                     </span>

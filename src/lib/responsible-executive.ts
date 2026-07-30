@@ -27,6 +27,23 @@ export function clearResponsibleExecutive() {
   window.localStorage.removeItem(KEY);
 }
 
+/**
+ * Título comercial exibido ao investidor — nunca o cargo interno.
+ * Mapeia por papel (role) para uma denominação voltada à expansão
+ * comercial, independentemente do título administrativo cadastrado.
+ */
+export function getCommercialTitle(executive: ExecutiveUser): string {
+  switch (executive.role) {
+    case "super_admin":
+      return "Gerente de Expansão";
+    case "diretora":
+      return "Diretora de Expansão";
+    case "executivo":
+    default:
+      return "Consultor de Expansão";
+  }
+}
+
 export function getResponsibleExecutive(): {
   executive: ExecutiveUser | null;
   personalized: boolean;

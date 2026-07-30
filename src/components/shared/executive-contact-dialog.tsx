@@ -2,45 +2,54 @@ import { useEffect, useState } from "react";
 import { X, ArrowRight, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
-import {
-  getVisitorIdentity,
-  registerLead,
-  type VisitorIdentity,
-} from "@/lib/leads";
+import { registerLead, updateLead } from "@/lib/leads";
+import { getPortalSession } from "@/lib/portal-session";
+import { emitEvent } from "@/lib/events/bus";
+import { addComment } from "@/lib/investor-comments";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   /** Nome amigável do material acessado (ex.: "Material Institucional"). */
   material: string;
-  /** Rótulo do CTA que originou a abertura (para relatórios internos). */
-  triggerLabel?: string;
 };
 
+const INVESTMENT_RANGES = [
+  "Até R$ 300 mil",
+  "Entre R$ 300 mil e R$ 800 mil",
+  "Acima de R$ 800 mil",
+] as const;
+
 /**
- * Diálogo reutilizável "Conversar com o Executivo".
+ * Modal Inteligente — usado apenas ao final da jornada, quando não há
+ * um Executivo Responsável já vinculado ao visitante.
  *
- * - Se o visitante já se identificou anteriormente, reutiliza os dados
- *   salvos e vai direto para o WhatsApp.
- * - Caso contrário, coleta Nome, WhatsApp, E-mail e Cidade, grava o
- *   lead com origem/data/horário/material/executivo responsável e só
- *   depois abre o WhatsApp.
- * - Não altera a lógica de atribuição de executivos: continua usando
- *   `getResponsibleExecutive()` internamente através de `registerLead()`.
+ * Nome e e-mail são obtidos da sessão do Portal e não são solicitados
+ * novamente. É pedido apenas o essencial para qualificar o lead:
+ * WhatsApp, Pretensão de Investimento (faixas de finalidade consultiva),
+ * dois horários preferenciais de contato e uma mensagem opcional.
+ *
+ * Não cria reunião automaticamente: gera um Lead qualificado através
+ * da infraestrutura existente (leads, eventos e comentários internos).
  */
-export function ExecutiveContactDialog({ open, onClose, material, triggerLabel }: Props) {
-  const [form, setForm] = useState<VisitorIdentity>({
-    name: "",
-    whatsapp: "",
-    email: "",
-    city: "",
-  });
+export function ExecutiveContactDialog({ open, onClose, material }: Props) {
+  const session = getPortalSession();
+  const [whatsapp, setWhatsapp] = useState("");
+  const [investmentRange, setInvestmentRange] = useState<string>(INVESTMENT_RANGES[0]);
+  const [time1, setTime1] = useState("");
+  const [time2, setTime2] = useState("");
+  const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    const existing = getVisitorIdentity();
-    if (existing) setForm(existing);
+    setDone(false);
+    setWhatsapp("");
+    setInvestmentRange(INVESTMENT_RANGES[0]);
+    setTime1("");
+    setTime2("");
+    setMessage("");
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -51,53 +60,64 @@ export function ExecutiveContactDialog({ open, onClose, material, triggerLabel }
     };
   }, [open, onClose]);
 
-  const set =
-    (k: keyof VisitorIdentity) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((f) => ({ ...f, [k]: e.target.value }));
+  const name = session?.name?.trim() || "Visitante Velox";
+  const email = session?.email?.trim() || "";
 
-  const canSubmit =
-    form.name.trim().length > 1 &&
-    form.whatsapp.replace(/\D/g, "").length >= 10 &&
-    /.+@.+\..+/.test(form.email) &&
-    form.city.trim().length > 1;
+  const canSubmit = whatsapp.replace(/\D/g, "").length >= 10 && time1.trim().length > 1 && time2.trim().length > 1;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || submitting) return;
     setSubmitting(true);
-    const { executive, personalized } = registerLead({
-      identity: form,
-      material,
-      origin: triggerLabel
-        ? `${material} · ${triggerLabel}`
-        : material,
-    });
 
-    const number =
-      (executive?.whatsapp || executive?.phone || "").replace(/\D/g, "") ||
-      WHATSAPP_NUMBER;
-    const salutation =
-      personalized && executive
-        ? `Olá ${executive.name.split(" ")[0]}! Sou ${form.name} e acabei de acessar o ${material} da Velox. Gostaria de continuar nossa conversa.`
-        : `Olá! Sou ${form.name} e acabei de acessar o ${material} da Velox. Gostaria de conversar com um especialista.`;
+    const identity = { name, email, whatsapp, city: "" };
+    const { lead } = session?.investorId
+      ? { lead: updateLead(session.investorId, { whatsapp }) }
+      : registerLead({ identity, material, origin: material });
+
+    const investorId = lead?.id ?? session?.investorId ?? null;
+
+    if (investorId) {
+      emitEvent({
+        type: "lead.status.changed",
+        investorId,
+        payload: {
+          stage: "qualificado",
+          material,
+          investmentRange,
+          preferredTimes: [time1, time2],
+          message: message.trim() || undefined,
+        },
+      });
+
+      addComment({
+        investorId,
+        authorId: "ai_corporate",
+        authorName: "IA Corporativa",
+        body:
+          `Lead qualificado a partir de ${material}. ` +
+          `Pretensão de Investimento: ${investmentRange}. ` +
+          `Horários preferenciais: ${time1} e ${time2}.` +
+          (message.trim() ? ` Mensagem: "${message.trim()}"` : ""),
+      });
+    }
+
     const msg =
-      `${salutation}\n\n` +
-      `Nome: ${form.name}\n` +
-      `WhatsApp: ${form.whatsapp}\n` +
-      `E-mail: ${form.email}\n` +
-      `Cidade: ${form.city}`;
-    const url = `https://wa.me/${number}?text=${encodeURIComponent(msg)}`;
+      `Olá! Sou ${name} e gostaria de conversar com um especialista da Velox.\n\n` +
+      `WhatsApp: ${whatsapp}\n` +
+      `Pretensão de Investimento: ${investmentRange}\n` +
+      `Horários preferenciais: ${time1} / ${time2}` +
+      (message.trim() ? `\nMensagem: ${message.trim()}` : "");
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 
-    // Lead já persistido antes de abrir o WhatsApp — se o visitante
-    // fechar a conversa, o registro permanece.
-    if (typeof window !== "undefined") window.open(url, "_blank");
     setSubmitting(false);
-    onClose();
+    setDone(true);
+    if (typeof window !== "undefined") window.open(url, "_blank");
   };
 
   const field =
     "w-full rounded-xl border border-[color:var(--paper-edge)] bg-white px-4 py-3 text-[15px] text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)] focus:outline-none focus:border-[color:var(--brand-orange)] focus:ring-2 focus:ring-[color:var(--brand-orange)]/25 transition";
+  const label = "block text-xs font-medium text-[color:var(--foreground)] mb-1.5";
 
   return (
     <div
@@ -117,7 +137,7 @@ export function ExecutiveContactDialog({ open, onClose, material, triggerLabel }
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div
           className={cn(
-            "relative w-full max-w-lg overflow-hidden rounded-2xl border border-[color:var(--paper-edge)] bg-[color:var(--paper-2)] shadow-2xl transition-all duration-300",
+            "relative w-full max-w-lg overflow-hidden rounded-2xl border border-[color:var(--paper-edge)] bg-[color:var(--paper-2)] shadow-2xl transition-all duration-300 max-h-[90vh] overflow-y-auto",
             open ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
           )}
         >
@@ -130,66 +150,139 @@ export function ExecutiveContactDialog({ open, onClose, material, triggerLabel }
             <X className="h-4 w-4" />
           </button>
 
-          <div className="px-8 pt-8 pb-2">
-            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[color:var(--brand-orange)]">
-              <MessageCircle className="h-3.5 w-3.5" />
-              Conversar com o Executivo
+          {done ? (
+            <div className="px-8 py-14 text-center">
+              <div
+                className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full"
+                style={{
+                  background: "color-mix(in oklab, var(--brand-orange) 14%, transparent)",
+                  color: "var(--brand-orange)",
+                }}
+              >
+                <MessageCircle className="h-6 w-6" />
+              </div>
+              <h2 className="font-[var(--font-editorial)] text-2xl text-[color:var(--brand-blue-deep)]">
+                Recebemos suas informações.
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+                Um especialista Velox entrará em contato nos horários indicados. Você também foi
+                direcionado ao WhatsApp para adiantar essa conversa, se preferir.
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="ed-btn-primary mt-8 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium"
+              >
+                Fechar
+              </button>
             </div>
-            <h2
-              id="exec-dialog-title"
-              className="mt-3 font-[var(--font-editorial)] text-3xl leading-tight text-[color:var(--brand-blue-deep)]"
-            >
-              Antes de continuarmos.
-            </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-[color:var(--muted-foreground)]">
-              Nos conte com quem estamos falando. Vamos direcionar sua conversa
-              ao especialista responsável e manter o histórico do seu contato.
-            </p>
-          </div>
+          ) : (
+            <>
+              <div className="px-8 pt-8 pb-2">
+                <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[color:var(--brand-orange)]">
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Conversar com um Especialista
+                </div>
+                <h2
+                  id="exec-dialog-title"
+                  className="mt-3 font-[var(--font-editorial)] text-3xl leading-tight text-[color:var(--brand-blue-deep)]"
+                >
+                  Vamos entender seu momento.
+                </h2>
+                <p className="mt-3 text-[15px] leading-relaxed text-[color:var(--muted-foreground)]">
+                  Uma conversa consultiva de aproximadamente 45 minutos para compreender seu
+                  momento, esclarecer dúvidas e avaliar se existe aderência entre seus objetivos
+                  e o modelo de expansão da Velox.
+                </p>
+                {(name || email) && (
+                  <p className="mt-4 text-xs uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
+                    {name}
+                    {email ? ` · ${email}` : ""}
+                  </p>
+                )}
+              </div>
 
-          <form onSubmit={handleSubmit} className="px-8 pb-8 pt-6 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-[color:var(--foreground)] mb-1.5">
-                  Nome completo
-                </label>
-                <input required value={form.name} onChange={set("name")} className={field} placeholder="Como podemos te chamar" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[color:var(--foreground)] mb-1.5">
-                  WhatsApp
-                </label>
-                <input required value={form.whatsapp} onChange={set("whatsapp")} className={field} placeholder="(00) 00000-0000" inputMode="tel" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[color:var(--foreground)] mb-1.5">
-                  E-mail
-                </label>
-                <input required type="email" value={form.email} onChange={set("email")} className={field} placeholder="seu@email.com" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-[color:var(--foreground)] mb-1.5">
-                  Cidade
-                </label>
-                <input required value={form.city} onChange={set("city")} className={field} placeholder="Onde você está" />
-              </div>
-            </div>
+              <form onSubmit={handleSubmit} className="px-8 pb-8 pt-6 space-y-4">
+                <div>
+                  <label className={label}>WhatsApp</label>
+                  <input
+                    required
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(e.target.value)}
+                    className={field}
+                    placeholder="(00) 00000-0000"
+                    inputMode="tel"
+                  />
+                </div>
 
-            <p className="text-[11px] leading-relaxed text-[color:var(--muted-foreground)]">
-              Seus dados serão utilizados exclusivamente para esta conversa
-              comercial, conforme a LGPD. Ao continuar, você será encaminhado
-              para o WhatsApp do executivo responsável.
-            </p>
+                <div>
+                  <label className={label}>Pretensão de Investimento</label>
+                  <select
+                    value={investmentRange}
+                    onChange={(e) => setInvestmentRange(e.target.value)}
+                    className={field}
+                  >
+                    {INVESTMENT_RANGES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-[color:var(--muted-foreground)]">
+                    Referência apenas consultiva, para direcionar melhor a conversa.
+                  </p>
+                </div>
 
-            <button
-              type="submit"
-              disabled={!canSubmit || submitting}
-              className="ed-btn-primary w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? "Enviando..." : "Continuar no WhatsApp"}
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </form>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={label}>1º horário preferencial</label>
+                    <input
+                      required
+                      value={time1}
+                      onChange={(e) => setTime1(e.target.value)}
+                      className={field}
+                      placeholder="Ex.: Terça, à tarde"
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>2º horário preferencial</label>
+                    <input
+                      required
+                      value={time2}
+                      onChange={(e) => setTime2(e.target.value)}
+                      className={field}
+                      placeholder="Ex.: Quinta, pela manhã"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={label}>Mensagem (opcional)</label>
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    rows={3}
+                    className={field}
+                    placeholder="Conte um pouco do que gostaria de conversar"
+                  />
+                </div>
+
+                <p className="text-[11px] leading-relaxed text-[color:var(--muted-foreground)]">
+                  Seus dados serão utilizados exclusivamente para esta conversa consultiva,
+                  conforme a LGPD.
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={!canSubmit || submitting}
+                  className="ed-btn-primary w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? "Enviando..." : "Solicitar conversa"}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </div>
     </div>
