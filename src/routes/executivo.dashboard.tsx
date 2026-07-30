@@ -14,6 +14,7 @@ import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
 import { InvestorProfileView } from "@/components/executive/workspace/investor-profile-view";
 import { deleteLead } from "@/lib/leads";
+import { pullLeads, subscribeLeads, removeLeadEverywhere } from "@/lib/portal-leads-sync";
 import {
   canAccessPortalWorkspace,
   WORKSPACE_SCOPE_LABEL,
@@ -69,20 +70,35 @@ function WorkspacePage() {
   // Reflete alterações nas reuniões (próxima reunião do card).
   useEffect(() => onEvent(() => setTick((v) => v + 1)), []);
 
-  // Sincronização imediata com jornadas iniciadas em outra aba/janela:
-  // todo Lead criado pelo Gateway aparece no Workspace sem recarregar.
+  // Sincronização em TEMPO REAL com a base oficial de Leads.
+  // Todo investidor identificado no Gateway — em qualquer navegador ou
+  // dispositivo — vira Card aqui no mesmo instante, sem recarregar a
+  // página, sem trocar de aba e sem novo login.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const bump = () => setTick((v) => v + 1);
-    window.addEventListener("storage", bump);
-    window.addEventListener("focus", bump);
-    const timer = window.setInterval(bump, 20000);
+    if (typeof window === "undefined" || !session) return;
+    let active = true;
+    const refresh = () => {
+      void pullLeads()
+        .then(() => {
+          if (active) setTick((v) => v + 1);
+        })
+        .catch(() => {
+          if (active) setTick((v) => v + 1);
+        });
+    };
+    refresh();
+    const unsubscribe = subscribeLeads(refresh);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(refresh, 30000);
     return () => {
-      window.removeEventListener("storage", bump);
-      window.removeEventListener("focus", bump);
+      active = false;
+      unsubscribe();
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
       window.clearInterval(timer);
     };
-  }, []);
+  }, [session]);
 
   const nextMeetingByInvestor = useMemo(() => {
     void tick;
@@ -165,6 +181,7 @@ function WorkspacePage() {
 
   const removeLead = (id: string) => {
     deleteLead(id);
+    void removeLeadEverywhere(id);
     setTick((v) => v + 1);
   };
 
