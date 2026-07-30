@@ -47,6 +47,7 @@ export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, stri
 
 const ALERTS_KEY = "atlas:workspace-alerts:v1";
 const LAST_SEEN_KEY = "atlas:investor-last-seen:v1";
+const READ_KEY = "atlas:workspace-alerts-read:v1";
 
 type LastSeenMap = Record<string, string>;
 
@@ -238,6 +239,47 @@ export function listWorkspaceAlerts(session: ExecutiveSession): WorkspaceAlert[]
 export function archiveWorkspaceAlert(id: string) {
   const next = readAlerts().map((a) => (a.id === id ? { ...a, archived: true } : a));
   writeAlerts(next);
+}
+
+/**
+ * Histórico completo (inclusive arquivados) — consumido pela Central de
+ * Alertas. Mesma fonte de dados do Drawer, sem duplicação de lógica.
+ */
+export function listWorkspaceAlertHistory(session: ExecutiveSession): WorkspaceAlert[] {
+  return readAlerts()
+    .filter((a) => a.ownerUserId === session.userId)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+/* ----------------------- Estado de leitura (não lidos) --------------------- */
+
+function readReadIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(READ_KEY);
+    const arr = raw ? (JSON.parse(raw) as string[]) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+export function isAlertRead(id: string): boolean {
+  return readReadIds().includes(id);
+}
+
+/** Alertas ativos ainda não lidos pelo executivo. */
+export function unreadWorkspaceAlerts(session: ExecutiveSession): WorkspaceAlert[] {
+  const read = new Set(readReadIds());
+  return listWorkspaceAlerts(session).filter((a) => !read.has(a.id));
+}
+
+/** Marca como lidos todos os alertas ativos do executivo. */
+export function markWorkspaceAlertsRead(session: ExecutiveSession) {
+  if (typeof window === "undefined") return;
+  const ids = new Set(readReadIds());
+  for (const a of listWorkspaceAlerts(session)) ids.add(a.id);
+  window.localStorage.setItem(READ_KEY, JSON.stringify([...ids].slice(-500)));
 }
 
 export function onWorkspaceAlertsChange(cb: () => void) {
