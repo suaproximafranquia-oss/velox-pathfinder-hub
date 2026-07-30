@@ -240,13 +240,11 @@ function VideoconferenciaSectionInner({ session }: { session: ExecutiveSession }
           ))}
         </select>
       </label>
-      <ul className="mt-3 space-y-1 text-[11px] text-[color:var(--muted-foreground)]">
-        {MEETING_PROVIDERS.map((p) => (
-          <li key={p.id}>
-            · {p.label} — {p.enabled ? "disponível" : "em breve"}
-          </li>
-        ))}
-      </ul>
+      <p className="mt-3 text-[11px] leading-relaxed text-[color:var(--muted-foreground)]">
+        Google Meet gera o link automaticamente quando a integração Google
+        Workspace estiver conectada. Enquanto isso, o link pode ser informado
+        manualmente na própria reunião.
+      </p>
     </section>
   );
 }
