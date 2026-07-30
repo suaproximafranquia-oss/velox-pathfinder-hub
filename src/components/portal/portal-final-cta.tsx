@@ -47,10 +47,16 @@ export function PortalFinalCta({
         <h3 className="portal-serif mt-4 text-2xl md:text-3xl" style={{ color: "var(--brand-blue-deep)" }}>
           {executive.name}
         </h3>
-        <p className="mt-1 text-xs uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+        <p
+          className="mt-1 text-xs uppercase tracking-[0.22em]"
+          style={{ color: "color-mix(in oklab, var(--brand-blue-deep) 62%, transparent)" }}
+        >
           {title}
         </p>
-        <p className="mx-auto mt-6 max-w-[52ch] text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+        <p
+          className="mx-auto mt-6 max-w-[52ch] text-sm leading-relaxed"
+          style={{ color: "color-mix(in oklab, var(--brand-blue-deep) 78%, transparent)" }}
+        >
           Sua jornada até aqui já foi acompanhada por {firstName}. Sempre que fizer sentido para
           você, é uma satisfação retomar essa conversa e avançar no seu ritmo.
         </p>
@@ -78,7 +84,10 @@ export function PortalFinalCta({
       <h3 className="portal-serif mt-4 text-2xl md:text-3xl" style={{ color: "var(--brand-blue-deep)" }}>
         Fale com um especialista Velox.
       </h3>
-      <p className="mx-auto mt-6 max-w-[52ch] text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+      <p
+        className="mx-auto mt-6 max-w-[52ch] text-sm leading-relaxed"
+        style={{ color: "color-mix(in oklab, var(--brand-blue-deep) 78%, transparent)" }}
+      >
         Uma conversa consultiva de aproximadamente 45 minutos para compreender seu momento,
         esclarecer dúvidas e avaliar se existe aderência entre seus objetivos e o modelo de
         expansão da Velox.
