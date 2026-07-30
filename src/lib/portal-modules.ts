@@ -34,10 +34,6 @@ export const PORTAL_MODULES: PortalModuleDef[] = [
     action: "simulator",
     guardedPaths: [],
   },
-  {
-    key: "agenda",
-    title: "Agendar conversa com um executivo",
-    action: "scheduling",
     guardedPaths: [],
   },
 ];
