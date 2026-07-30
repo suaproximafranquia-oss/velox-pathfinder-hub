@@ -139,24 +139,28 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
       pj: "Foco em Pessoa Jurídica",
       ambos: "Atendimento para PF e PJ",
     };
-    let pdf: { filename: string; dataUri: string } | null = null;
-    try {
-      pdf = generateSimulatorPdf({
-        investorName: session?.name ?? "Investidor",
-        rows: results.rows,
-        total: results.total,
-        byCategory: results.byCategory,
-        executiveName: exec?.name ?? null,
-        executiveTitle: exec?.title ?? null,
-        audienceLabel: interestsProfile?.audience
-          ? audienceMap[interestsProfile.audience]
-          : null,
-        interests: interestsProfile?.interests ?? [],
-      });
-    } catch {
-      /* mantém confirmação mesmo se PDF falhar */
-    }
-    setPdfInfo(pdf);
+    // O motor de PDF (pesado) só é baixado no instante da conclusão —
+    // nunca no carregamento inicial do Portal.
+    void (async () => {
+      let pdf: { filename: string; dataUri: string } | null = null;
+      try {
+        const { generateSimulatorPdf } = await import("@/lib/simulator-report");
+        pdf = generateSimulatorPdf({
+          investorName: session?.name ?? "Investidor",
+          rows: results.rows,
+          total: results.total,
+          byCategory: results.byCategory,
+          executiveName: exec?.name ?? null,
+          executiveTitle: exec?.title ?? null,
+          audienceLabel: interestsProfile?.audience
+            ? audienceMap[interestsProfile.audience]
+            : null,
+          interests: interestsProfile?.interests ?? [],
+        });
+      } catch {
+        /* mantém confirmação mesmo se PDF falhar */
+      }
+      setPdfInfo(pdf);
     // Armazena a simulação vinculada ao Lead — apenas o Executivo
     // poderá visualizar/abrir o relatório institucional (nunca é
     // baixado no dispositivo do investidor).
@@ -185,17 +189,18 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
         /* histórico é best-effort */
       }
     }
-    trackJourney({
-      type: "simulator.completed",
-      investorId,
-      detail: "Concluiu uma simulação",
-      payload: {
-        total: results.total,
-        annual: results.total * 12,
-        products: results.rows.map((r) => ({ id: r.product.id, volume: r.volume, revenue: r.revenue })),
-        pdf: pdf?.filename ?? null,
-      },
-    });
+      trackJourney({
+        type: "simulator.completed",
+        investorId,
+        detail: "Concluiu uma simulação",
+        payload: {
+          total: results.total,
+          annual: results.total * 12,
+          products: results.rows.map((r) => ({ id: r.product.id, volume: r.volume, revenue: r.revenue })),
+          pdf: pdf?.filename ?? null,
+        },
+      });
+    })();
   }, [step, results.total, results.rows, results.byCategory]);
 
 
