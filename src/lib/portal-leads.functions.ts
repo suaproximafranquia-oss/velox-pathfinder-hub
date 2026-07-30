@@ -53,7 +53,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         device: data.device ?? null,
         created_at: data.createdAt ?? new Date().toISOString(),
         last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
-        journey: data.journey ?? {},
+        journey: (data.journey ?? {}) as never,
       },
       { onConflict: "id" },
     );
