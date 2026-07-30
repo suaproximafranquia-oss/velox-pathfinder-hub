@@ -184,6 +184,19 @@ function PortalHome() {
   } | null>(null);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
   const [resume, setResume] = useState<{ module: PortalModuleKey; title: string } | null>(null);
+  /** Overlays secundários entram em cena assim que a Home fica ociosa. */
+  const [overlaysReady, setOverlaysReady] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(() => setOverlaysReady(true), { timeout: 2000 })
+      : window.setTimeout(() => setOverlaysReady(true), 600);
+    return () => {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle as number);
+      else window.clearTimeout(idle as number);
+    };
+  }, []);
 
   const closeActive = useCallback(() => {
     setActive(null);
@@ -289,19 +302,25 @@ function PortalHome() {
         panel={active?.src ? { src: active.src, title: active.title } : null}
         onClose={closeActive}
       />
-      <SimulatorModal open={active?.key === "simulador"} onClose={closeActive} />
-      <GatewayOverlay
-        open={active?.key === "gateway"}
-        moduleTitle={pendingTitle}
-        onClose={() => {
-          closeActive();
-          writeEntryContext({ pendingModule: null });
-        }}
-        onDone={() => {
-          const pending = readEntryContext().pendingModule ?? "manual";
-          openModule(pending);
-        }}
-      />
+      <Suspense fallback={null}>
+        {(overlaysReady || active?.key === "simulador") && (
+          <SimulatorModal open={active?.key === "simulador"} onClose={closeActive} />
+        )}
+        {(overlaysReady || active?.key === "gateway") && (
+          <GatewayOverlay
+            open={active?.key === "gateway"}
+            moduleTitle={pendingTitle}
+            onClose={() => {
+              closeActive();
+              writeEntryContext({ pendingModule: null });
+            }}
+            onDone={() => {
+              const pending = readEntryContext().pendingModule ?? "manual";
+              openModule(pending);
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
