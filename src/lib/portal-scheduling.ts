@@ -9,7 +9,6 @@
  */
 import { createMeeting, listMeetings, type Meeting } from "@/lib/meetings";
 import { addComment } from "@/lib/investor-comments";
-import { emitEvent } from "@/lib/events/bus";
 import { getPortalSession, setJourneyStatus, trackSessionNavigation } from "@/lib/portal-session";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import type { ExecutiveUser } from "@/lib/executive-auth";
