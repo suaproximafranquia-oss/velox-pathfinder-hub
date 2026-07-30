@@ -68,6 +68,55 @@ export function loadLeads(): LeadRecord[] {
 }
 
 /**
+ * Substitui integralmente a base local — usada pelo espelho da base real
+ * (Lovable Cloud) no Workspace do Executivo.
+ */
+export function replaceLeads(leads: LeadRecord[]): void {
+  safeWrite(LEADS_KEY, leads);
+}
+
+/**
+ * Sincronização com o servidor sem criar dependência circular
+ * (`portal-leads-sync` importa este módulo).
+ */
+function syncToCloud(lead: LeadRecord) {
+  if (typeof window === "undefined") return;
+  void import("@/lib/portal-leads-sync")
+    .then((m) => m.pushLead(lead))
+    .catch(() => {});
+}
+
+/**
+ * Reaplica o roteamento obrigatório a um Lead já existente. Um investidor
+ * recorrente que retorna por link personalizado passa a pertencer ao
+ * Green Sales daquele executivo; sem link continua no Portal.
+ */
+export function applyLeadRouting(
+  id: string,
+  input: { personalized: boolean; responsibleExecutiveId: string | null },
+): LeadRecord | null {
+  const all = loadLeads();
+  const idx = all.findIndex((l) => l.id === id);
+  if (idx < 0) return null;
+  const personalized = input.personalized && Boolean(input.responsibleExecutiveId);
+  // O vínculo, uma vez estabelecido, é permanente: nunca rebaixa para Portal.
+  if (!personalized && all[idx].scope === "green_sales") {
+    syncToCloud(all[idx]);
+    return all[idx];
+  }
+  const merged: LeadRecord = {
+    ...all[idx],
+    personalized,
+    responsibleExecutiveId: personalized ? input.responsibleExecutiveId : null,
+    scope: personalized ? "green_sales" : "portal",
+  };
+  all[idx] = merged;
+  safeWrite(LEADS_KEY, all);
+  syncToCloud(merged);
+  return merged;
+}
+
+/**
  * Remove um lead da base local pelo seu id. Não afeta a base de eventos
  * (a Timeline pode manter o histórico anônimo se desejado).
  */
@@ -88,6 +137,7 @@ export function updateLead(id: string, patch: Partial<VisitorIdentity>): LeadRec
   const merged: LeadRecord = { ...all[idx], ...patch };
   all[idx] = merged;
   safeWrite(LEADS_KEY, all);
+  syncToCloud(merged);
   saveVisitorIdentity({
     name: merged.name,
     email: merged.email,
@@ -129,5 +179,8 @@ export function registerLead(input: {
   all.push(lead);
   safeWrite(LEADS_KEY, all);
   saveVisitorIdentity(input.identity);
+  // Criação IMEDIATA do Card no Workspace: o Lead é enviado ao servidor no
+  // mesmo instante da identificação, sem aguardar qualquer outra ação.
+  syncToCloud(lead);
   return { lead, executive: responsible.executive, personalized: responsible.personalized };
 }
