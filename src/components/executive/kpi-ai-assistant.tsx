@@ -7,7 +7,6 @@ import {
   buildKpiInsightSnapshot,
   serializeSnapshotForPrompt,
 } from "@/lib/kpi-ai";
-import { generateKpiInsightPdf } from "@/lib/kpi-ai-report";
 import { findMonth } from "@/lib/kpi-manager";
 import { cn } from "@/lib/utils";
 
@@ -117,9 +116,11 @@ export function KpiAiAssistant({
     }
   }
 
-  function exportPdf(msg: ChatMessage) {
+  async function exportPdf(msg: ChatMessage) {
     if (!msg.question) return;
     const snapshot = buildKpiInsightSnapshot(session, monthKey);
+    // Motor de PDF carregado sob demanda (não pesa no KPI Manager).
+    const { generateKpiInsightPdf } = await import("@/lib/kpi-ai-report");
     generateKpiInsightPdf({
       question: msg.question,
       answer: msg.content,

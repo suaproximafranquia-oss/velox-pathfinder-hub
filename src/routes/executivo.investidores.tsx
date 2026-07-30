@@ -13,7 +13,7 @@ import {
   STATUS_LABEL,
   formatRelative,
 } from "@/lib/executive-data";
-import { generateInvestorReport } from "@/lib/investor-report";
+import { openInvestorReport } from "@/lib/investor-report-lazy";
 
 export const Route = createFileRoute("/executivo/investidores")({
   head: () => ({
@@ -127,7 +127,7 @@ function InvestidoresPage() {
                   <button
                     type="button"
                     className="inline-flex items-center gap-1 text-xs text-[color:var(--gold)] hover:underline"
-                    onClick={() => generateInvestorReport(i)}
+                    onClick={() => openInvestorReport(i)}
                   >
                     <FileText className="h-3.5 w-3.5" /> Gerar Relatório
                   </button>

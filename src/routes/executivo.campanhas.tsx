@@ -17,7 +17,6 @@ import {
   loadDataset,
   summarize,
 } from "@/lib/kpi-manager";
-import { generateKpiIndividualReport } from "@/lib/kpi-report";
 import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
 import { PainelCampanhas } from "@/components/executive/kpi/painel-campanhas";
 import { cn } from "@/lib/utils";
@@ -112,7 +111,11 @@ function CampaignsPage() {
           monthKey={monthKey}
           onDownload={(userId) => {
             const user = collaborators.find((c) => c.id === userId);
-            if (user) generateKpiIndividualReport(user, monthKey);
+            if (!user) return;
+            // Motor de PDF carregado apenas no clique.
+            void import("@/lib/kpi-report").then(({ generateKpiIndividualReport }) =>
+              generateKpiIndividualReport(user, monthKey),
+            );
           }}
         />
       </div>
