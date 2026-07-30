@@ -606,63 +606,30 @@ function ModulePanel({
   onClose: () => void;
 }) {
   const open = Boolean(panel);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [panel?.src]);
+
   return (
-    <div
-      className={
-        "fixed inset-0 z-[70] transition-opacity duration-500 " +
-        (open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")
-      }
-      aria-hidden={!open}
-    >
-      {/* Backdrop com blur — mantém o Portal visível ao fundo */}
-      <button
-        type="button"
-        aria-label="Fechar painel"
-        onClick={onClose}
-        className="absolute inset-0"
-        style={{
-          background: "color-mix(in oklab, var(--ink) 55%, transparent)",
-          backdropFilter: "blur(14px)",
-        }}
-      />
-      {/* Painel central ~94% da tela */}
-      <div
-        className={
-          "absolute inset-x-[3vw] top-[3vh] bottom-[3vh] overflow-hidden rounded-2xl border shadow-2xl transition-all duration-500 " +
-          (open ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0")
-        }
-        style={{
-          borderColor: "color-mix(in oklab, var(--paper) 25%, transparent)",
-          background: "var(--paper)",
-          boxShadow: "0 60px 120px -30px color-mix(in oklab, var(--ink) 70%, transparent)",
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-label={panel?.title ?? ""}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fechar"
-          className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition hover:scale-105"
-          style={{
-            borderColor: "color-mix(in oklab, var(--paper) 40%, transparent)",
-            background: "color-mix(in oklab, var(--ink) 55%, transparent)",
-            color: "var(--paper)",
-          }}
-        >
-          <X className="h-5 w-5" />
-        </button>
-        {panel && (
-          <iframe
-            key={panel.src}
-            src={panel.src}
-            title={panel.title}
-            className="h-full w-full border-0"
-          />
-        )}
-      </div>
-    </div>
+    <PortalOverlayShell open={open} title={panel?.title ?? ""} onClose={onClose}>
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center gap-3 text-sm text-[color:var(--muted-foreground)]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Carregando {panel?.title ?? "módulo"}...
+        </div>
+      )}
+      {panel && (
+        <iframe
+          key={panel.src}
+          src={panel.src}
+          title={panel.title}
+          onLoad={() => setLoaded(true)}
+          className={"h-full w-full border-0 transition-opacity duration-500 " + (loaded ? "opacity-100" : "opacity-0")}
+        />
+      )}
+    </PortalOverlayShell>
   );
 }
 
