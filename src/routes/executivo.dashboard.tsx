@@ -186,8 +186,6 @@ function WorkspacePage() {
     return listAllInvestors().find((i) => i.id === openProfileId) ?? null;
   }, [openProfileId, tick]);
 
-  if (!session) return null;
-
   const openProfile = useCallback(
     (id: string) => {
       scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
@@ -218,6 +216,8 @@ function WorkspacePage() {
   const goToMeetings = useCallback(() => {
     navigate({ to: "/executivo/reunioes" });
   }, [navigate]);
+
+  if (!session) return null;
 
   return (
     <ExecutiveShell session={session} title="Workspace do Executivo">
