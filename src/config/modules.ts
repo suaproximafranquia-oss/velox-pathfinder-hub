@@ -107,16 +107,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     requiresRole: ["super_admin", "diretora"],
   },
   {
-    id: "administracao",
-    name: "Administração",
-    description:
-      "Central única de governança: configurações gerais, campos personalizados e permissões.",
-    icon: Sliders,
-    to: "/executivo/administracao",
-    status: "ativo",
-    requiresRole: ["super_admin", "diretora"],
-  },
-  {
     id: "crm",
     name: "CRM",
     description:
@@ -143,14 +133,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Gestão dos encontros da sua carteira — histórico, status e registros pós-reunião.",
     icon: Calendar,
     to: "/executivo/reunioes",
-    status: "ativo",
-  },
-  {
-    id: "relatorios",
-    name: "Relatórios",
-    description: "Indicadores e relatórios operacionais consolidados.",
-    icon: FileBarChart2,
-    to: "/executivo/relatorios",
     status: "ativo",
   },
   {

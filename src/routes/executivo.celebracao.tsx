@@ -162,15 +162,10 @@ function CelebracaoPage() {
 }
 
 function MilestonesPlaceholder() {
-  // Marcos históricos (melhor mês, campanha mais alta, recordes) só serão
-  // exibidos quando o Brain Analytics fornecer essas séries por colaborador.
-  // Enquanto os dados reais não existem, seguimos a regra: nunca inventar.
-  return (
-    <p className="mt-8 text-xs text-[color:var(--muted-foreground)]/80 italic">
-      Marcos operacionais (melhor mês, campanha mais alta, treinamentos) serão
-      exibidos aqui assim que o histórico consolidado estiver disponível.
-    </p>
-  );
+  // Marcos históricos (melhor mês, campanha mais alta, recordes) só são
+  // exibidos quando existem dados reais suficientes. Sem dados, nada é
+  // renderizado — nunca inventamos conteúdo nem exibimos texto de espera.
+  return null;
 }
 
 function yearsSince(iso: string): number {

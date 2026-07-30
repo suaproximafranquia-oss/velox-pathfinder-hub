@@ -8,7 +8,6 @@ import {
   Sparkles,
   Brain,
   Gauge,
-  FileBarChart2,
   Calendar,
   ChevronDown,
   Check,
@@ -32,7 +31,7 @@ import {
 import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
-import { NotificationsBell } from "@/components/executive/notifications-bell";
+import { AlertsDrawer } from "@/components/executive/alerts-drawer";
 import { GoogleStatusIndicator } from "@/components/executive/google-status-indicator";
 
 export function ExecutiveShell({
@@ -56,7 +55,6 @@ export function ExecutiveShell({
     { to: "/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
-    { to: "/executivo/relatorios", label: "Relatórios", icon: FileBarChart2 },
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     ...(canManageKnowledge(session.activeRole)
@@ -117,7 +115,7 @@ export function ExecutiveShell({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <NotificationsBell />
+            <AlertsDrawer session={session} />
             <GoogleStatusIndicator session={session} />
             <ProfileSwitcher session={session} />
             <button
