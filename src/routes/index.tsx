@@ -7,7 +7,6 @@ import {
   BookMarked,
   Users,
   Calculator,
-  CalendarDays,
   ArrowUpRight,
   ArrowRight,
   Loader2,
@@ -28,7 +27,6 @@ import {
 } from "@/lib/portal-session";
 import { GatewayOverlay } from "@/components/portal/gateway-overlay";
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
-import { SchedulingOverlay } from "@/components/portal/scheduling-overlay";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
 import { setActiveOverlay } from "@/lib/portal-overlay";
@@ -134,20 +132,8 @@ const MODULES: ModuleCard[] = [
     status: "aberto",
   },
   {
-    key: "agenda",
-    eyebrow: "Módulo IV",
-    title: "Agendar conversa com um executivo",
-    description:
-      "Escolha um dia e um horário para uma conversa consultiva com o executivo responsável pela sua jornada, no seu ritmo.",
-    icon: CalendarDays,
-    cover: sedeFachadaImg.url,
-    moduleKey: "agenda",
-    cta: "Escolher horário",
-    status: "aberto",
-  },
-  {
     key: "sede",
-    eyebrow: "Módulo V",
+    eyebrow: "Módulo IV",
     title: "Nossa Estrutura",
     description:
       "Um panorama institucional da Velox: a matriz, os bastidores, os vídeos e as unidades da rede que sustentam nossa operação em todo o país.",
@@ -158,7 +144,7 @@ const MODULES: ModuleCard[] = [
   },
   {
     key: "revista",
-    eyebrow: "Módulo VI",
+    eyebrow: "Módulo V",
     title: "Revista Velox",
     description:
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
@@ -169,7 +155,7 @@ const MODULES: ModuleCard[] = [
   },
   {
     key: "cultura",
-    eyebrow: "Módulo VII",
+    eyebrow: "Módulo VI",
     title: "Cultura Velox",
     description:
       "As pessoas, os encontros e os momentos que constroem a identidade da Velox e a jornada de quem faz parte da rede.",
@@ -210,13 +196,7 @@ function PortalHome() {
     setActive({ key, title: mod.title, src: mod.panelSrc });
     setActiveOverlay(key);
     setJourneyStatus(
-      key === "simulador"
-        ? "simulador"
-        : key === "agenda"
-          ? "contato"
-          : key === "manual"
-            ? "manual"
-            : "portal",
+      key === "simulador" ? "simulador" : key === "manual" ? "manual" : "portal",
     );
     trackSessionNavigation(key, mod.title);
   }, []);
@@ -303,7 +283,6 @@ function PortalHome() {
         onClose={closeActive}
       />
       <SimulatorModal open={active?.key === "simulador"} onClose={closeActive} />
-      <SchedulingOverlay open={active?.key === "agenda"} onClose={closeActive} />
       <GatewayOverlay
         open={active?.key === "gateway"}
         moduleTitle={pendingTitle}
