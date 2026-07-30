@@ -161,6 +161,7 @@ export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
   evaluateInvestorMovement();
   try {
     evaluateMeetingReminders(session);
+    evaluateMeetingLifecycle(session);
   } catch {
     /* Central de Reuniões pode não estar disponível em todos os contextos. */
   }
