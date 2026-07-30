@@ -195,6 +195,11 @@ function PortalHome() {
   const closeActive = useCallback(() => {
     setActive(null);
     setActiveOverlay(null);
+    // Continuidade: ao voltar para a Home, o último módulo fica disponível
+    // para retomada imediata.
+    const point = getResumePoint();
+    const mod = getPortalModule(point?.module);
+    setResume(mod ? { module: mod.key, title: mod.title } : null);
   }, []);
 
   /** Abre um módulo interno como overlay — a URL permanece na Home. */
