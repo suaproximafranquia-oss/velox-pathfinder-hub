@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   BookOpen,
   Compass,
@@ -11,7 +11,15 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
-import { SimulatorModal } from "@/components/simulator/simulator-modal";
+// Overlays pesados (Simulador e Identificação) saem do pacote inicial da
+// Home: o navegador baixa o Hero primeiro e busca estes módulos em segundo
+// plano, assim que a página fica ociosa. Comportamento idêntico ao anterior.
+const SimulatorModal = lazy(() =>
+  import("@/components/simulator/simulator-modal").then((m) => ({ default: m.SimulatorModal })),
+);
+const GatewayOverlay = lazy(() =>
+  import("@/components/portal/gateway-overlay").then((m) => ({ default: m.GatewayOverlay })),
+);
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
 import manualCoverImg from "@/assets/portal-manual-cover.png.asset.json";
 import materialInstitucionalImg from "@/assets/portal-material-institucional.png.asset.json";
@@ -25,7 +33,6 @@ import {
   trackSessionNavigation,
   getResumePoint,
 } from "@/lib/portal-session";
-import { GatewayOverlay } from "@/components/portal/gateway-overlay";
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
