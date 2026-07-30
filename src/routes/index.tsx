@@ -134,8 +134,20 @@ const MODULES: ModuleCard[] = [
     status: "aberto",
   },
   {
-    key: "sede",
+    key: "agenda",
     eyebrow: "Módulo IV",
+    title: "Agendar conversa com um executivo",
+    description:
+      "Escolha um dia e um horário para conversar com o executivo responsável pela sua jornada — sem compromisso, no seu tempo.",
+    icon: CalendarDays,
+    cover: sedeFachadaImg.url,
+    moduleKey: "agenda",
+    cta: "Escolher horário",
+    status: "aberto",
+  },
+  {
+    key: "sede",
+    eyebrow: "Módulo V",
     title: "Nossa Estrutura",
     description:
       "Um panorama institucional da Velox: a matriz, os bastidores, os vídeos e as unidades da rede que sustentam nossa operação em todo o país.",
@@ -146,7 +158,7 @@ const MODULES: ModuleCard[] = [
   },
   {
     key: "revista",
-    eyebrow: "Módulo V",
+    eyebrow: "Módulo VI",
     title: "Revista Velox",
     description:
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
@@ -157,7 +169,7 @@ const MODULES: ModuleCard[] = [
   },
   {
     key: "cultura",
-    eyebrow: "Módulo VI",
+    eyebrow: "Módulo VII",
     title: "Cultura Velox",
     description:
       "As pessoas, os encontros e os momentos que constroem a identidade da Velox e a jornada de quem faz parte da rede.",
