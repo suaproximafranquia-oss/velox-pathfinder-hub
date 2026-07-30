@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { BEHAVIOR_LABEL, journeySummary } from "@/lib/journey/insights";
 import {
   ArrowLeft,
   Calendar,
@@ -526,11 +527,50 @@ function deriveModuleProgress(inv: Investor): Record<
 
 /* ---------- Aba Linha do Tempo ---------- */
 function TabTimeline({ profile }: { profile: InvestorProfile | null }) {
-  if (!profile || profile.timeline.length === 0) {
+  const journey = profile ? journeySummary(profile.id) : null;
+  if (!profile || (profile.timeline.length === 0 && !journey)) {
     return <EmptyState icon={Clock} text="Nenhuma atividade registrada até o momento." />;
   }
   return (
-    <ol className="space-y-3 border-l border-[color:var(--border)] pl-5">
+    <div className="space-y-5">
+      {journey && (
+        /* Inteligência interna do Journey Engine — nunca exibida ao investidor. */
+        <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/60 px-4 py-4">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
+            Leitura interna da jornada
+          </p>
+          <p className="mt-1 text-sm">{journey.autoSummary}</p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <JourneyStat label="Estágio" value={journey.stageLabel} />
+            <JourneyStat label="Engajamento" value={`${journey.engagementScore} · ${journey.engagementLabel}`} />
+            <JourneyStat label="Sessões" value={`${journey.sessions} (${journey.returns} retornos)`} />
+            <JourneyStat label="Tempo efetivo" value={`${journey.effectiveMinutes} min`} />
+          </div>
+          {journey.behaviors.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {journey.behaviors.map((b) => (
+                <span
+                  key={b}
+                  className="rounded-full border border-[color:var(--border)] px-2.5 py-1 text-[11px] text-[color:var(--muted-foreground)]"
+                >
+                  {BEHAVIOR_LABEL[b]}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">
+            {journey.contactReadiness.ready
+              ? `Momento favorável para contato. ${journey.contactReadiness.reason}`
+              : journey.contactReadiness.reason}
+          </p>
+          {journey.lastSessionSummary && (
+            <p className="mt-2 text-xs text-[color:var(--muted-foreground)]">
+              Última sessão: {journey.lastSessionSummary}
+            </p>
+          )}
+        </div>
+      )}
+      <ol className="space-y-3 border-l border-[color:var(--border)] pl-5">
       {profile.timeline.map((t) => (
         <li key={`${t.kind}_${t.id}`} className="relative">
           <span className="absolute -left-[27px] top-1.5 h-2.5 w-2.5 rounded-full bg-[color:var(--gold)]" />
@@ -547,7 +587,19 @@ function TabTimeline({ profile }: { profile: InvestorProfile | null }) {
           </div>
         </li>
       ))}
-    </ol>
+      </ol>
+    </div>
+  );
+}
+
+function JourneyStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
+        {label}
+      </p>
+      <p className="mt-0.5 text-sm">{value}</p>
+    </div>
   );
 }
 

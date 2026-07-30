@@ -16,9 +16,16 @@ import { getReactivationWindowMs } from "@/lib/platform-settings";
 import { listAllInvestors, formatRelative, type Investor } from "@/lib/executive-data";
 import { listMeetings } from "@/lib/meetings";
 import type { ExecutiveSession } from "@/lib/executive-auth";
+import { listJourneys } from "@/lib/journey/engine";
+import { summarizeJourney } from "@/lib/journey/insights";
 
 export type WorkspaceAlertCategory =
   | "movimentacao"
+  | "novo_lead"
+  | "manual_concluido"
+  | "simulacao"
+  | "contato_whatsapp"
+  | "engajamento_alto"
   | "reuniao"
   | "reuniao_solicitada"
   | "reuniao_confirmada"
@@ -38,6 +45,11 @@ export type WorkspaceAlert = {
 
 export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, string> = {
   movimentacao: "Movimentação do Investidor",
+  novo_lead: "Novo Investidor Identificado",
+  manual_concluido: "Manual Concluído",
+  simulacao: "Simulação Realizada",
+  contato_whatsapp: "Contato Solicitado",
+  engajamento_alto: "Engajamento Elevado",
   reuniao: "Lembrete de Reunião",
   reuniao_solicitada: "Nova Solicitação de Reunião",
   reuniao_confirmada: "Reunião Confirmada",
@@ -220,8 +232,79 @@ export function evaluateMeetingLifecycle(session: ExecutiveSession) {
   }
 }
 
+/**
+ * Alertas automáticos derivados do Journey Engine. Cada marco relevante
+ * da jornada vira um alerta para o executivo responsável.
+ */
+export function evaluateJourneyAlerts(session: ExecutiveSession) {
+  for (const record of listJourneys()) {
+    const owner = record.executiveId ?? session.userId;
+    if (owner !== session.userId) continue;
+    const s = summarizeJourney(record);
+
+    pushAlert({
+      ownerUserId: owner,
+      category: "novo_lead",
+      title: `${record.name} iniciou a jornada`,
+      description: `Origem: ${record.origin}${record.campaign ? ` · Campanha: ${record.campaign}` : ""}.`,
+      investorId: record.investorId,
+      date: record.createdAt,
+    });
+
+    if (record.progress.percent >= 100) {
+      pushAlert({
+        ownerUserId: owner,
+        category: "manual_concluido",
+        title: `${record.name} concluiu o Manual`,
+        description: `${s.effectiveMinutes} min efetivos de leitura · engajamento ${s.engagementLabel}.`,
+        investorId: record.investorId,
+        date: record.lastActivityAt,
+      });
+    }
+
+    if (record.counters.simulations > 0) {
+      pushAlert({
+        ownerUserId: owner,
+        category: "simulacao",
+        title: `${record.name} simulou potencial de receita`,
+        description: `${record.counters.simulations} simulação(ões) registrada(s).`,
+        investorId: record.investorId,
+        date: record.lastActivityAt,
+      });
+    }
+
+    if (record.counters.whatsapp > 0) {
+      pushAlert({
+        ownerUserId: owner,
+        category: "contato_whatsapp",
+        title: `${record.name} pediu contato`,
+        description: "Solicitou atendimento pelo WhatsApp.",
+        investorId: record.investorId,
+        date: record.lastActivityAt,
+      });
+    }
+
+    if (s.contactReadiness.ready) {
+      pushAlert({
+        ownerUserId: owner,
+        category: "engajamento_alto",
+        title: `${record.name} está no momento ideal para contato`,
+        description: s.contactReadiness.reason,
+        investorId: record.investorId,
+        date: record.lastActivityAt,
+      });
+    }
+  }
+}
+
 export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
+  /**
+   * Alertas automáticos do Journey Engine — todo evento relevante da
+   * jornada gera um alerta para o executivo responsável, sem qualquer
+   * dado fictício.
+   */
   evaluateInvestorMovement();
+  evaluateJourneyAlerts(session);
   try {
     evaluateMeetingReminders(session);
     evaluateMeetingLifecycle(session);

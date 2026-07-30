@@ -107,7 +107,7 @@ export function GatewayOverlay({
 
         <form onSubmit={submit} className="p-7 md:p-9">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--gold)]">
-            Gateway de entrada
+            Sua jornada Velox
           </p>
           <h2 className="portal-serif mt-3 text-3xl leading-tight">
             Antes de iniciar, vamos identificar sua jornada.

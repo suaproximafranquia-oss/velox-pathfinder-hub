@@ -4,7 +4,7 @@ import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
 import { getPortalSession } from "@/lib/portal-session";
 import { registerLead, updateLead, loadLeads, type VisitorIdentity } from "@/lib/leads";
-import { emitEvent } from "@/lib/events/bus";
+import { trackJourney } from "@/lib/journey/engine";
 import { getActiveOverlay, subscribeOverlay } from "@/lib/portal-overlay";
 
 /**
@@ -55,9 +55,10 @@ export function WhatsAppFloating() {
     const msg = session?.name
       ? `Olá ${first}! Sou ${session.name} e gostaria de continuar nossa conversa sobre a Velox.`
       : `Olá ${first}! Gostaria de conversar sobre a Velox.`;
-    emitEvent({
+    trackJourney({
       type: "whatsapp.requested",
       investorId: session?.investorId ?? null,
+      detail: "Solicitou atendimento pelo WhatsApp",
       payload: { executiveId: exec.id, personalized: true },
     });
     window.open(`https://wa.me/${raw}?text=${encodeURIComponent(msg)}`, "_blank");
@@ -151,9 +152,10 @@ function WhatsAppLeadModal({
     const first = defaultExec?.name?.split(" ")[0] ?? "Velox";
     const msg = `Olá ${first}! Sou ${form.name} e gostaria de conversar com a Velox.`;
 
-    emitEvent({
+    trackJourney({
       type: "whatsapp.requested",
       investorId,
+      detail: "Solicitou atendimento pelo WhatsApp",
       payload: { executiveId: defaultExec?.id ?? null, personalized: false },
     });
 

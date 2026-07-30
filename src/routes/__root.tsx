@@ -23,6 +23,7 @@ import { hasPortalSession } from "../lib/portal-session";
 import { moduleForPath } from "../lib/portal-modules";
 import { writeEntryContext } from "../lib/portal-entry";
 import { WhatsAppFloating } from "../components/shared/whatsapp-floating";
+import { JourneyTracker } from "../components/journey/journey-tracker";
 
 function NotFoundComponent() {
   return (
@@ -221,6 +222,8 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <EditorialShell variant={variant}>{content}</EditorialShell>
       {!isGateway && <WhatsAppFloating />}
+      {/* Registro silencioso da jornada — nunca interfere na navegação. */}
+      <JourneyTracker />
     </QueryClientProvider>
   );
 }

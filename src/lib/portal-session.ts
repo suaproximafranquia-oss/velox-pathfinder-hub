@@ -23,6 +23,7 @@ import {
 } from "@/lib/portal-identity";
 import { readEntryContext } from "@/lib/portal-entry";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { registerJourney, trackJourney } from "@/lib/journey/engine";
 
 const SESSION_KEY = "velox:portal:session:v1";
 
@@ -115,6 +116,11 @@ export function trackSessionNavigation(module: string, detail?: string): PortalS
   const session = getPortalSession();
   if (!session) return null;
   const history = [...(session.history ?? []), { at: new Date().toISOString(), module, detail }];
+  trackJourney({
+    investorId: session.investorId,
+    type: "journey.module.opened",
+    detail: detail ?? module,
+  });
   return persist({
     ...session,
     history: history.slice(-100),
@@ -189,6 +195,29 @@ export function startPortalSession(input: {
 
   attachSessionToIdentity(identity.id, session.sessionId);
   persist(session);
+
+  /**
+   * Correção obrigatória (Épico 7A): todo investidor identificado passa a
+   * existir IMEDIATAMENTE no Green Sales — sem aguardar WhatsApp,
+   * Simulador ou conclusão do Manual. O Journey Engine registra o Lead e
+   * abre a sessão inteligente no mesmo instante.
+   */
+  registerJourney({
+    investorId: lead.id,
+    identityId: identity.id,
+    name: lead.name,
+    email: lead.email,
+    phone: lead.whatsapp || null,
+    executiveId: session.responsibleExecutiveId,
+    executiveSlug: session.responsibleExecutiveSlug,
+    unit: session.unit,
+    origin: session.origin,
+    campaign: session.campaign,
+    link: session.responsibleExecutiveSlug ? `/e/${session.responsibleExecutiveSlug}` : null,
+    personalized: session.personalized,
+    device: session.device,
+    restored: Boolean(existing),
+  });
 
   saveVisitorIdentity({
     name: lead.name,
