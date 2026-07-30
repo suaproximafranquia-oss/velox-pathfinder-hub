@@ -225,6 +225,8 @@ export function applyGoogleSyncPatch(
     googleSync?: GoogleSyncState;
     googleSyncError?: string | null;
     googleSyncedAt?: string | null;
+    /** Novo horário quando a alteração veio do próprio Google Agenda. */
+    scheduledAt?: string;
   },
 ): Meeting | null {
   const all = safeRead();
@@ -233,6 +235,7 @@ export function applyGoogleSyncPatch(
   const prev = all[idx];
   const next: Meeting = {
     ...prev,
+    scheduledAt: patch.scheduledAt ?? prev.scheduledAt,
     googleEventId:
       patch.googleEventId === null ? undefined : patch.googleEventId ?? prev.googleEventId,
     meetUrl:

@@ -1,43 +1,39 @@
 /**
- * Google Calendar / Meet — Integração (Etapa 2 · Bloco 1A · Parte 2/2).
+ * Google Calendar / Meet — integração real (Épico 8).
  *
- * Consome a infraestrutura de autenticação existente (`google-workspace.ts`),
- * o modelo de reuniões (`meetings.ts`), o barramento de eventos e a auditoria.
- *
- * Enquanto a credencial OAuth real do App User Connector não estiver
- * provisionada, as chamadas para o Google são simuladas por um "espelho"
- * local persistido em `velox:google-calendar:v1`, preservando ids de
- * evento, links do Meet e detecção de conflitos. A troca pela chamada
- * real acontece sem alterar a superfície pública deste módulo.
+ * As operações são executadas no servidor com a credencial individual do
+ * executivo (App User Connector). O espelho local guarda apenas dados não
+ * sensíveis dos eventos criados, usados para detectar conflitos de agenda
+ * de forma instantânea na interface.
  */
 import { emitEvent } from "@/lib/events/bus";
 import { logAudit } from "@/lib/audit-log";
+import { getGoogleStore, isConnectorConnected } from "@/lib/google-workspace";
 import {
-  ensureFreshToken,
-  getGoogleStore,
-} from "@/lib/google-workspace";
-import {
-  applyGoogleSyncPatch,
-  listMeetings,
-  type Meeting,
-} from "@/lib/meetings";
+  cancelGoogleEvent,
+  createGoogleEvent,
+  listGoogleEvents,
+  updateGoogleEvent,
+} from "@/lib/google-calendar.functions";
+import { applyGoogleSyncPatch, listMeetings, type Meeting } from "@/lib/meetings";
 
 export type GoogleCalendarEvent = {
   id: string;
   ownerId: string;
   summary: string;
   description: string;
-  start: string; // ISO
-  end: string; // ISO
+  start: string;
+  end: string;
   timeZone: string;
   attendees: string[];
   meetUrl: string;
   meetingId: string;
   updatedAt: string;
   cancelled?: boolean;
+  htmlLink?: string;
 };
 
-const STORAGE_KEY = "velox:google-calendar:v1";
+const STORAGE_KEY = "velox:google-calendar:v2";
 
 export const DEFAULT_TIMEZONE = "America/Sao_Paulo";
 
@@ -62,15 +58,12 @@ function safeWrite(list: GoogleCalendarEvent[]) {
   }
 }
 
-function randomMeetCode(): string {
-  const alphabet = "abcdefghijkmnopqrstuvwxyz";
-  const pick = (n: number) =>
-    Array.from({ length: n }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
-  return `${pick(3)}-${pick(4)}-${pick(3)}`;
-}
-
-function newEventId(): string {
-  return `gce_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+function upsertMirror(event: GoogleCalendarEvent) {
+  const all = safeRead();
+  const idx = all.findIndex((e) => e.id === event.id);
+  if (idx >= 0) all[idx] = event;
+  else all.push(event);
+  safeWrite(all);
 }
 
 function endOf(meeting: Meeting): string {
@@ -101,7 +94,7 @@ function attendeesOf(meeting: Meeting, executiveEmail?: string): string[] {
   return [...out];
 }
 
-/** Conflitos: eventos do executivo com sobreposição temporal. */
+/** Conflitos conhecidos na agenda do executivo (espelho local). */
 export function checkConflicts(
   ownerId: string,
   startIso: string,
@@ -120,21 +113,34 @@ export function checkConflicts(
   });
 }
 
-async function requireToken(actor: Actor): Promise<string> {
-  const token = await ensureFreshToken(actor.userId);
-  if (!token) throw new Error("Conta Google desconectada.");
-  return token;
+function requireConnected(actor: Actor) {
+  const store = getGoogleStore(actor.userId);
+  if (!isConnectorConnected(store, "google_calendar")) {
+    throw new Error("Conta Google desconectada.");
+  }
+  return store;
 }
 
-/** Cria um evento no Calendar (com Meet) e vincula ao registro interno. */
+/** Cria o evento real no Calendar com link oficial do Google Meet. */
 export async function syncCreate(meeting: Meeting, actor: Actor): Promise<Meeting> {
-  await requireToken(actor);
-  const store = getGoogleStore(actor.userId);
+  const store = requireConnected(actor);
   const executiveEmail = actor.email ?? store.account?.email;
   const start = meeting.scheduledAt;
   const end = endOf(meeting);
-  const event: GoogleCalendarEvent = {
-    id: newEventId(),
+  const created = await createGoogleEvent({
+    data: {
+      summary: summaryOf(meeting),
+      description: descriptionOf(meeting),
+      startIso: start,
+      endIso: end,
+      attendees: attendeesOf(meeting, executiveEmail),
+      internalId: meeting.id,
+      withMeet: true,
+    },
+  });
+  const updatedAt = new Date().toISOString();
+  upsertMirror({
+    id: created.eventId,
     ownerId: actor.userId,
     summary: summaryOf(meeting),
     description: descriptionOf(meeting),
@@ -142,25 +148,24 @@ export async function syncCreate(meeting: Meeting, actor: Actor): Promise<Meetin
     end,
     timeZone: DEFAULT_TIMEZONE,
     attendees: attendeesOf(meeting, executiveEmail),
-    meetUrl: `https://meet.google.com/${randomMeetCode()}`,
+    meetUrl: created.meetUrl ?? "",
     meetingId: meeting.id,
-    updatedAt: new Date().toISOString(),
-  };
-  const all = safeRead();
-  all.push(event);
-  safeWrite(all);
-  const patched = applyGoogleSyncPatch(meeting.id, {
-    googleEventId: event.id,
-    meetUrl: event.meetUrl,
-    googleSync: "synced",
-    googleSyncError: null,
-    googleSyncedAt: event.updatedAt,
-  }) ?? meeting;
+    updatedAt,
+    htmlLink: created.htmlLink ?? undefined,
+  });
+  const patched =
+    applyGoogleSyncPatch(meeting.id, {
+      googleEventId: created.eventId,
+      meetUrl: created.meetUrl ?? undefined,
+      googleSync: "synced",
+      googleSyncError: null,
+      googleSyncedAt: updatedAt,
+    }) ?? meeting;
   emitEvent({
     type: "meeting.google.created",
     actorId: actor.userId,
     investorId: meeting.investorId,
-    payload: { meetingId: meeting.id, googleEventId: event.id, meetUrl: event.meetUrl },
+    payload: { meetingId: meeting.id, googleEventId: created.eventId, meetUrl: created.meetUrl },
   });
   logAudit({
     actorId: actor.userId,
@@ -169,44 +174,57 @@ export async function syncCreate(meeting: Meeting, actor: Actor): Promise<Meetin
     module: "investidores",
     action: "Google Calendar · evento criado",
     target: meeting.investorName,
-    details: `Evento ${event.id} · Meet ${event.meetUrl} · ID interno ${meeting.id}`,
+    details: `Evento ${created.eventId} · Meet ${created.meetUrl ?? "—"} · convites enviados por e-mail · ID interno ${meeting.id}`,
     severity: "success",
   });
   return patched;
 }
 
-/** Atualiza data/hora/descrição/participantes do evento existente. */
+/** Atualiza data/hora/descrição/participantes do evento real. */
 export async function syncUpdate(meeting: Meeting, actor: Actor): Promise<Meeting> {
   if (!meeting.googleEventId) return syncCreate(meeting, actor);
-  await requireToken(actor);
-  const store = getGoogleStore(actor.userId);
+  const store = requireConnected(actor);
   const executiveEmail = actor.email ?? store.account?.email;
-  const all = safeRead();
-  const idx = all.findIndex((e) => e.id === meeting.googleEventId);
-  if (idx < 0) return syncCreate(meeting, actor);
-  const prev = all[idx];
-  const next: GoogleCalendarEvent = {
-    ...prev,
+  const start = meeting.scheduledAt;
+  const end = endOf(meeting);
+  const updated = await updateGoogleEvent({
+    data: {
+      eventId: meeting.googleEventId,
+      summary: summaryOf(meeting),
+      description: descriptionOf(meeting),
+      startIso: start,
+      endIso: end,
+      attendees: attendeesOf(meeting, executiveEmail),
+      internalId: meeting.id,
+    },
+  });
+  const updatedAt = new Date().toISOString();
+  upsertMirror({
+    id: updated.eventId || meeting.googleEventId,
+    ownerId: actor.userId,
     summary: summaryOf(meeting),
     description: descriptionOf(meeting),
-    start: meeting.scheduledAt,
-    end: endOf(meeting),
+    start,
+    end,
+    timeZone: DEFAULT_TIMEZONE,
     attendees: attendeesOf(meeting, executiveEmail),
+    meetUrl: updated.meetUrl ?? meeting.meetUrl ?? "",
+    meetingId: meeting.id,
+    updatedAt,
     cancelled: false,
-    updatedAt: new Date().toISOString(),
-  };
-  all[idx] = next;
-  safeWrite(all);
-  const patched = applyGoogleSyncPatch(meeting.id, {
-    googleSync: "synced",
-    googleSyncError: null,
-    googleSyncedAt: next.updatedAt,
-  }) ?? meeting;
+  });
+  const patched =
+    applyGoogleSyncPatch(meeting.id, {
+      meetUrl: updated.meetUrl ?? meeting.meetUrl ?? undefined,
+      googleSync: "synced",
+      googleSyncError: null,
+      googleSyncedAt: updatedAt,
+    }) ?? meeting;
   emitEvent({
     type: "meeting.google.updated",
     actorId: actor.userId,
     investorId: meeting.investorId,
-    payload: { meetingId: meeting.id, googleEventId: next.id },
+    payload: { meetingId: meeting.id, googleEventId: meeting.googleEventId },
   });
   logAudit({
     actorId: actor.userId,
@@ -215,26 +233,28 @@ export async function syncUpdate(meeting: Meeting, actor: Actor): Promise<Meetin
     module: "investidores",
     action: "Google Calendar · evento atualizado",
     target: meeting.investorName,
-    details: `Evento ${next.id} · ID interno ${meeting.id}`,
+    details: `Evento ${meeting.googleEventId} · ID interno ${meeting.id}`,
     severity: "info",
   });
   return patched;
 }
 
-/** Cancela o evento Google (e o Meet). */
+/** Cancela o evento real (e o Meet), notificando os participantes. */
 export async function syncDelete(meeting: Meeting, actor: Actor): Promise<void> {
   if (!meeting.googleEventId) return;
   try {
-    await requireToken(actor);
+    requireConnected(actor);
+    await cancelGoogleEvent({ data: { eventId: meeting.googleEventId } });
   } catch (err) {
     markFailure(meeting, actor, err);
     return;
   }
   const all = safeRead();
   const idx = all.findIndex((e) => e.id === meeting.googleEventId);
-  if (idx < 0) return;
-  all[idx] = { ...all[idx], cancelled: true, updatedAt: new Date().toISOString() };
-  safeWrite(all);
+  if (idx >= 0) {
+    all[idx] = { ...all[idx], cancelled: true, updatedAt: new Date().toISOString() };
+    safeWrite(all);
+  }
   emitEvent({
     type: "meeting.google.deleted",
     actorId: actor.userId,
@@ -248,17 +268,24 @@ export async function syncDelete(meeting: Meeting, actor: Actor): Promise<void> 
     module: "investidores",
     action: "Google Calendar · evento cancelado",
     target: meeting.investorName,
-    details: `Evento ${meeting.googleEventId} cancelado · Meet encerrado.`,
+    details: `Evento ${meeting.googleEventId} cancelado · participantes notificados.`,
     severity: "warning",
   });
 }
 
+function friendlyError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : "Falha desconhecida.";
+  if (raw.startsWith("GOOGLE_NOT_CONNECTED")) return "Conta Google desconectada.";
+  if (raw.startsWith("GOOGLE_API_ERROR")) {
+    const [, status] = raw.split(":");
+    return `O Google recusou a operação (código ${status}).`;
+  }
+  return raw;
+}
+
 function markFailure(meeting: Meeting, actor: Actor, err: unknown): void {
-  const message = err instanceof Error ? err.message : "Falha desconhecida.";
-  applyGoogleSyncPatch(meeting.id, {
-    googleSync: "failed",
-    googleSyncError: message,
-  });
+  const message = friendlyError(err);
+  applyGoogleSyncPatch(meeting.id, { googleSync: "failed", googleSyncError: message });
   emitEvent({
     type: "meeting.google.failed",
     actorId: actor.userId,
@@ -277,13 +304,12 @@ function markFailure(meeting: Meeting, actor: Actor, err: unknown): void {
   });
 }
 
-/**
- * Orquestração: chamada pela UI após criar/atualizar/excluir uma reunião.
- * Nunca lança — apenas registra falha e mantém o registro interno.
- */
+function connected(actor: Actor): boolean {
+  return isConnectorConnected(getGoogleStore(actor.userId), "google_calendar");
+}
+
 export async function trySyncCreate(meeting: Meeting, actor: Actor): Promise<Meeting> {
-  const store = getGoogleStore(actor.userId);
-  if (store.state !== "connected" || !store.account) {
+  if (!connected(actor)) {
     applyGoogleSyncPatch(meeting.id, { googleSync: "none" });
     return meeting;
   }
@@ -297,8 +323,7 @@ export async function trySyncCreate(meeting: Meeting, actor: Actor): Promise<Mee
 }
 
 export async function trySyncUpdate(meeting: Meeting, actor: Actor): Promise<Meeting> {
-  const store = getGoogleStore(actor.userId);
-  if (store.state !== "connected" || !store.account) {
+  if (!connected(actor)) {
     applyGoogleSyncPatch(meeting.id, { googleSync: "none" });
     return meeting;
   }
@@ -312,8 +337,7 @@ export async function trySyncUpdate(meeting: Meeting, actor: Actor): Promise<Mee
 }
 
 export async function trySyncDelete(meeting: Meeting, actor: Actor): Promise<void> {
-  const store = getGoogleStore(actor.userId);
-  if (store.state !== "connected" || !meeting.googleEventId) return;
+  if (!connected(actor) || !meeting.googleEventId) return;
   try {
     await syncDelete(meeting, actor);
   } catch (err) {
@@ -321,46 +345,83 @@ export async function trySyncDelete(meeting: Meeting, actor: Actor): Promise<voi
   }
 }
 
-/** Sincroniza todas as reuniões pendentes ou com falha do executivo. */
-export async function syncPending(actor: Actor): Promise<{ synced: number; failed: number; skipped: number }> {
-  const store = getGoogleStore(actor.userId);
-  if (store.state !== "connected") return { synced: 0, failed: 0, skipped: 0 };
-  const pending = listMeetings({ executiveId: actor.userId }).filter(
+/**
+ * Sincronização bidirecional: envia o que está pendente e traz de volta
+ * horários/links alterados diretamente no Google Agenda.
+ */
+export async function syncPending(
+  actor: Actor,
+): Promise<{ synced: number; failed: number; skipped: number }> {
+  if (!connected(actor)) return { synced: 0, failed: 0, skipped: 0 };
+  const meetings = listMeetings({ executiveId: actor.userId }).filter(
+    (m) => m.status !== "Cancelada" && m.status !== "Concluída",
+  );
+  const pending = meetings.filter(
     (m) =>
-      m.status !== "Cancelada" &&
-      m.status !== "Concluída" &&
-      (!m.googleEventId || m.googleSync === "pending" || m.googleSync === "failed" || m.googleSync === "none"),
+      !m.googleEventId ||
+      m.googleSync === "pending" ||
+      m.googleSync === "failed" ||
+      m.googleSync === "none",
   );
   let synced = 0;
   let failed = 0;
   for (const m of pending) {
-    const before = m.googleSync;
-    const result = m.googleEventId
-      ? await trySyncUpdate(m, actor)
-      : await trySyncCreate(m, actor);
+    const result = m.googleEventId ? await trySyncUpdate(m, actor) : await trySyncCreate(m, actor);
     if (result.googleSync === "synced") synced += 1;
     else if (result.googleSync === "failed") failed += 1;
-    else if (before === result.googleSync) failed += 0;
   }
+
+  // Retorno do Google → Portal (mudanças feitas diretamente na agenda).
+  let pulled = 0;
+  try {
+    const now = Date.now();
+    const remote = await listGoogleEvents({
+      data: {
+        timeMinIso: new Date(now - 30 * 24 * 3600_000).toISOString(),
+        timeMaxIso: new Date(now + 180 * 24 * 3600_000).toISOString(),
+      },
+    });
+    for (const ev of remote) {
+      const meeting = meetings.find(
+        (m) => m.googleEventId === ev.eventId || (ev.internalId && m.id === ev.internalId),
+      );
+      if (!meeting || !ev.start) continue;
+      const changedTime = new Date(ev.start).toISOString() !== new Date(meeting.scheduledAt).toISOString();
+      const changedLink = Boolean(ev.meetUrl) && ev.meetUrl !== meeting.meetUrl;
+      if (!changedTime && !changedLink) continue;
+      applyGoogleSyncPatch(meeting.id, {
+        googleEventId: ev.eventId,
+        meetUrl: ev.meetUrl ?? meeting.meetUrl ?? undefined,
+        scheduledAt: changedTime ? new Date(ev.start).toISOString() : undefined,
+        googleSync: "synced",
+        googleSyncError: null,
+        googleSyncedAt: new Date().toISOString(),
+      });
+      pulled += 1;
+    }
+  } catch {
+    /* a leitura reversa nunca invalida o envio */
+  }
+
   emitEvent({
     type: "meeting.google.synced",
     actorId: actor.userId,
-    payload: { synced, failed, total: pending.length },
+    payload: { synced, failed, pulled, total: pending.length },
   });
   logAudit({
     actorId: actor.userId,
     actorName: actor.userName,
     actorRole: actor.userRole,
     module: "investidores",
-    action: "Google Calendar · sincronização manual",
+    action: "Google Calendar · sincronização bidirecional",
     target: `${pending.length} reunião(ões)`,
-    details: `Sincronizadas: ${synced} · Falhas: ${failed}.`,
+    details: `Enviadas: ${synced} · Falhas: ${failed} · Atualizadas pelo Google: ${pulled}.`,
     severity: failed > 0 ? "warning" : "info",
   });
-  return { synced, failed, skipped: 0 };
+  return { synced, failed, skipped: pulled };
 }
 
-/** Recupera o evento associado (para debug/timeline). */
+/** Evento espelhado localmente (timeline/debug). */
 export function getEvent(eventId: string | undefined | null): GoogleCalendarEvent | null {
   if (!eventId) return null;
   return safeRead().find((e) => e.id === eventId) ?? null;

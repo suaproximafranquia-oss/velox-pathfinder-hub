@@ -1,6 +1,18 @@
-import { Info } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { CheckCircle2, Info, Loader2, LogOut, RefreshCw } from "lucide-react";
 import type { ExecutiveSession } from "@/lib/executive-auth";
-import { GOOGLE_SCOPES } from "@/lib/google-workspace";
+import {
+  CONNECTOR_LABEL,
+  GOOGLE_SCOPES,
+  disconnect,
+  getGoogleStore,
+  isConnectorConnected,
+  refreshGoogleStore,
+  startConnect,
+  subscribeGoogleStore,
+  type GoogleConnectorKey,
+  type GoogleStore,
+} from "@/lib/google-workspace";
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -13,16 +25,68 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+const CONNECTORS: { id: GoogleConnectorKey; description: string }[] = [
+  {
+    id: "google_calendar",
+    description:
+      "Cria os eventos reais na sua agenda, gera o link oficial do Google Meet e envia os convites por e-mail.",
+  },
+  {
+    id: "google_drive",
+    description:
+      "Organiza os documentos do investidor em pastas dedicadas dentro de \u201cPortal Velox\u201d.",
+  },
+  {
+    id: "google_mail",
+    description: "Permite enviar comunicações do Portal a partir do seu próprio e-mail.",
+  },
+];
+
 /**
- * Google Workspace — estado neutro oficial.
- *
- * A integração OAuth real com Google Calendar/Meet/Drive ainda não está
- * configurada nesta versão do Portal Velox. Enquanto as credenciais
- * oficiais não forem provisionadas, apresentamos apenas um estado neutro
- * ("Integração não configurada"). Nunca simulamos uma conta conectada
- * nem geramos dados fictícios de usuário.
+ * Google Workspace — conexão OAuth 2.0 oficial por executivo.
+ * As credenciais ficam apenas no servidor, criptografadas.
  */
-export function GoogleWorkspaceCard({ session: _session }: { session: ExecutiveSession }) {
+export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) {
+  const [store, setStore] = useState<GoogleStore>(() => getGoogleStore(session.userId));
+  const [busy, setBusy] = useState<GoogleConnectorKey | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const sync = useCallback(() => setStore(getGoogleStore(session.userId)), [session.userId]);
+
+  useEffect(() => {
+    const off = subscribeGoogleStore(session.userId, sync);
+    void refreshGoogleStore(session.userId);
+    return off;
+  }, [session.userId, sync]);
+
+  const actor = {
+    userId: session.userId,
+    userName: session.name,
+    userRole: session.activeRole,
+  };
+
+  async function handleConnect(connectorId: GoogleConnectorKey) {
+    setMessage(null);
+    setBusy(connectorId);
+    try {
+      const next = await startConnect(actor, connectorId);
+      if (next.state === "error") setMessage(next.error);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleDisconnect(connectorId: GoogleConnectorKey) {
+    setBusy(connectorId);
+    try {
+      await disconnect(actor, connectorId);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const connectedEmail = store.account?.email ?? null;
+
   return (
     <section className="mt-10">
       <h2 className="font-display text-lg mb-3">Google Workspace</h2>
@@ -34,33 +98,84 @@ export function GoogleWorkspaceCard({ session: _session }: { session: ExecutiveS
           <div className="min-w-0">
             <p className="font-display text-base">Conta Google</p>
             <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed mt-1">
-              A integração oficial com Google Calendar, Google Meet e Google
-              Drive será habilitada assim que as credenciais OAuth do Portal
-              Velox forem provisionadas.
+              {connectedEmail
+                ? `Conectada como ${connectedEmail}. As reuniões confirmadas passam a criar eventos e links do Meet automaticamente.`
+                : "Conecte sua conta para criar eventos no Calendar, gerar links do Meet e enviar convites automaticamente."}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] bg-[color:var(--background)]/60 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-              <Info className="h-3 w-3" /> Integração não configurada
+              {connectedEmail ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Conectada
+                </>
+              ) : (
+                <>
+                  <Info className="h-3 w-3" /> Não conectada
+                </>
+              )}
             </span>
+            <button
+              type="button"
+              onClick={() => void refreshGoogleStore(session.userId)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1 text-[11px] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40 transition"
+            >
+              <RefreshCw className="h-3 w-3" /> Atualizar
+            </button>
           </div>
         </div>
 
-        <div className="mt-5 border-t border-[color:var(--border)]/60 pt-5">
-          <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
-            Nenhuma conta conectada. O botão de autenticação será
-            disponibilizado assim que o Portal Velox concluir o
-            provisionamento oficial das credenciais Google. Até lá, não é
-            possível vincular contas, criar eventos no Calendar nem gerar
-            links do Google Meet a partir desta tela.
-          </p>
+        <div className="mt-5 grid gap-3 border-t border-[color:var(--border)]/60 pt-5">
+          {CONNECTORS.map((item) => {
+            const isConnected = isConnectorConnected(store, item.id);
+            const isBusy = busy === item.id;
+            return (
+              <div
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color:var(--border)]/60 bg-[color:var(--background)]/40 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm">{CONNECTOR_LABEL[item.id]}</p>
+                  <p className="text-[11px] text-[color:var(--muted-foreground)] leading-relaxed mt-0.5">
+                    {item.description}
+                  </p>
+                </div>
+                {isConnected ? (
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void handleDisconnect(item.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:border-red-400/50 hover:text-red-400 transition disabled:opacity-50"
+                  >
+                    {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <LogOut className="h-3 w-3" />}
+                    Desconectar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void handleConnect(item.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-4 py-1.5 text-[11px] text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-50"
+                  >
+                    {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <GoogleIcon className="h-3 w-3" />}
+                    Conectar
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
+        {(message || store.error) && (
+          <p className="mt-4 text-[11px] text-red-400">{message ?? store.error}</p>
+        )}
+
         <p className="mt-4 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          Escopos previstos: Google Calendar · Google Meet · Perfil · E-mail
+          Escopos: Calendar · Meet · Drive · Gmail · Perfil · E-mail
         </p>
         <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-          {GOOGLE_SCOPES.length} permissões serão solicitadas — nenhuma além do necessário para as integrações do Portal.
+          {GOOGLE_SCOPES.length} permissões — nenhuma além do necessário. Os tokens ficam
+          exclusivamente no servidor, criptografados e vinculados ao seu acesso.
         </p>
       </div>
     </section>
