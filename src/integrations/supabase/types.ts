@@ -71,6 +71,66 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_leads: {
+        Row: {
+          campaign: string | null
+          city: string
+          created_at: string
+          device: string | null
+          email: string
+          id: string
+          journey: Json
+          last_activity_at: string
+          material: string
+          name: string
+          origin: string
+          personalized: boolean
+          responsible_executive_id: string | null
+          responsible_executive_slug: string | null
+          scope: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          campaign?: string | null
+          city?: string
+          created_at?: string
+          device?: string | null
+          email: string
+          id: string
+          journey?: Json
+          last_activity_at?: string
+          material?: string
+          name: string
+          origin?: string
+          personalized?: boolean
+          responsible_executive_id?: string | null
+          responsible_executive_slug?: string | null
+          scope?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Update: {
+          campaign?: string | null
+          city?: string
+          created_at?: string
+          device?: string | null
+          email?: string
+          id?: string
+          journey?: Json
+          last_activity_at?: string
+          material?: string
+          name?: string
+          origin?: string
+          personalized?: boolean
+          responsible_executive_id?: string | null
+          responsible_executive_slug?: string | null
+          scope?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
