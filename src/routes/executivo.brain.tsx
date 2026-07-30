@@ -165,24 +165,16 @@ function BrainPage() {
 
       <ScopeBreadcrumb mode={scope.mode} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] items-start">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {snapshot.kpis.map((k) => (
-            <KpiCard key={k.id} kpi={k} />
-          ))}
-        </div>
-        <AlertsCenter
-          alerts={activeAlerts}
-          copiedId={copiedId}
-          canDismiss={canDismissAlerts}
-          onDismiss={handleDismiss}
-          onCopy={handleCopy}
-        />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 items-start">
+        {snapshot.kpis.map((k) => (
+          <KpiCard key={k.id} kpi={k} />
+        ))}
       </div>
 
       <p className="mt-10 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-        Os indicadores desta tela consomem exclusivamente o KPI Manager. O Brain
-        prioriza decisões operacionais rápidas: volume, funil e alertas acionáveis.
+        Os indicadores desta tela consomem exclusivamente o KPI Manager. Os alertas
+        operacionais ficam concentrados na Central de Alertas, disponível no topo do
+        workspace em qualquer tela.
       </p>
     </ExecutiveShell>
   );
