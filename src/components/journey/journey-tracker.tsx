@@ -35,6 +35,13 @@ export function JourneyTracker() {
       module: moduleRef.current,
       detail: `Abriu ${moduleRef.current}`,
     });
+    if (moduleRef.current === "material") {
+      trackJourney({
+        investorId,
+        type: "material.viewed",
+        detail: "Acessou o Material Institucional",
+      });
+    }
   }, [pathname]);
 
   // Sinais de vida: contam apenas quando a aba está visível e houve
