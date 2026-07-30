@@ -85,7 +85,6 @@ export function InvestorCard({
       if (!id || id === investor.id) setLeadState(resolveLeadState(investor));
     });
   }, [investor]);
-  const stateMeta = LEAD_STATE_META[leadState];
   const initials = investor.name
     .split(" ")
     .filter(Boolean)
