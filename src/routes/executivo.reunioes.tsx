@@ -531,6 +531,134 @@ function MeetingsPage() {
 }
 
 function ActionButton({
+  ...actionButtonProps
+}: Parameters<typeof ActionButtonImpl>[0]) {
+  return <ActionButtonImpl {...actionButtonProps} />;
+}
+
+/**
+ * Solicitações do Portal aguardando confirmação do executivo responsável.
+ * Ao confirmar, o evento do Google Calendar e o Meet são criados automaticamente.
+ */
+function PendingRequestsPanel({
+  requests,
+  session,
+  onChanged,
+}: {
+  requests: Meeting[];
+  session: ExecutiveSession;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (requests.length === 0) return null;
+
+  async function confirm(meeting: Meeting, iso: string) {
+    setBusy(meeting.id);
+    setError(null);
+    setFeedback(null);
+    const outcome = await confirmRequest(meeting.id, iso, {
+      userId: session.userId,
+      userName: session.name,
+      email: session.email,
+    });
+    setBusy(null);
+    if (!outcome.ok) {
+      setError(outcome.message);
+      onChanged();
+      return;
+    }
+    setFeedback(
+      outcome.googleNotice ??
+        `Reunião confirmada e convite criado${outcome.meeting.meetUrl ? " com link do Meet" : ""}.`,
+    );
+    onChanged();
+  }
+
+  async function decline(meeting: Meeting) {
+    setBusy(meeting.id);
+    await declineRequest(
+      meeting,
+      { userId: session.userId, userName: session.name, email: session.email },
+      "Solicitação recusada pelo executivo",
+    );
+    setBusy(null);
+    setFeedback("Solicitação recusada. O investidor pode escolher novos horários.");
+    onChanged();
+  }
+
+  return (
+    <section
+      className="mb-6 rounded-xl border p-5"
+      style={{ borderColor: "var(--gold)", background: "color-mix(in oklab, var(--gold) 6%, transparent)" }}
+    >
+      <h2 className="text-sm font-medium">
+        Solicitações de reunião ({requests.length})
+      </h2>
+      <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+        Investidores escolheram horários preferenciais. Confirme um deles para gerar o convite e o
+        link da reunião.
+      </p>
+      <ul className="mt-4 space-y-3">
+        {requests.map((m) => {
+          const options = m.requestedSlots?.length ? m.requestedSlots : [m.scheduledAt];
+          return (
+            <li
+              key={m.id}
+              className="rounded-lg border p-4"
+              style={{ borderColor: "var(--border)", background: "var(--card)" }}
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-sm font-medium">{m.investorName}</span>
+                <span className="text-xs text-[color:var(--muted-foreground)]">
+                  Solicitado em {new Date(m.createdAt).toLocaleString("pt-BR")}
+                </span>
+              </div>
+              {m.topic && (
+                <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+                  Assunto: {m.topic}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {options.map((iso) => (
+                  <button
+                    key={iso}
+                    type="button"
+                    disabled={busy === m.id}
+                    onClick={() => confirm(m, iso)}
+                    className="rounded-full px-4 py-2 text-xs font-medium disabled:opacity-50"
+                    style={{ background: "var(--gold)", color: "#10233A" }}
+                  >
+                    Confirmar {new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={busy === m.id}
+                  onClick={() => decline(m)}
+                  className="rounded-full border px-4 py-2 text-xs disabled:opacity-50"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  Recusar
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {feedback && <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">{feedback}</p>}
+      {error && (
+        <p className="mt-3 text-xs" style={{ color: "var(--destructive)" }}>
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function ActionButtonImpl({
   icon: Icon,
   label,
   onClick,
