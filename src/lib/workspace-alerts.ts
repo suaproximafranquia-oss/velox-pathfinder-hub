@@ -233,6 +233,72 @@ export function evaluateMeetingLifecycle(session: ExecutiveSession) {
 }
 
 export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
+/**
+ * Alertas automáticos derivados do Journey Engine. Cada marco relevante
+ * da jornada vira um alerta para o executivo responsável.
+ */
+export function evaluateJourneyAlerts(session: ExecutiveSession) {
+  for (const record of listJourneys()) {
+    const owner = record.executiveId ?? session.userId;
+    if (owner !== session.userId) continue;
+    const s = summarizeJourney(record);
+
+    pushAlert({
+      ownerUserId: owner,
+      category: "novo_lead",
+      title: `${record.name} iniciou a jornada`,
+      description: `Origem: ${record.origin}${record.campaign ? ` · Campanha: ${record.campaign}` : ""}.`,
+      investorId: record.investorId,
+      date: record.createdAt,
+    });
+
+    if (record.progress.percent >= 100) {
+      pushAlert({
+        ownerUserId: owner,
+        category: "manual_concluido",
+        title: `${record.name} concluiu o Manual`,
+        description: `${s.effectiveMinutes} min efetivos de leitura · engajamento ${s.engagementLabel}.`,
+        investorId: record.investorId,
+        date: record.lastActivityAt,
+      });
+    }
+
+    if (record.counters.simulations > 0) {
+      pushAlert({
+        ownerUserId: owner,
+        category: "simulacao",
+        title: `${record.name} simulou potencial de receita`,
+        description: `${record.counters.simulations} simulação(ões) registrada(s).`,
+        investorId: record.investorId,
+        date: record.lastActivityAt,
+      });
+    }
+
+    if (record.counters.whatsapp > 0) {
+      pushAlert({
+        ownerUserId: owner,
+        category: "contato_whatsapp",
+        title: `${record.name} pediu contato`,
+        description: "Solicitou atendimento pelo WhatsApp.",
+        investorId: record.investorId,
+        date: record.lastActivityAt,
+      });
+    }
+
+    if (s.contactReadiness.ready) {
+      pushAlert({
+        ownerUserId: owner,
+        category: "engajamento_alto",
+        title: `${record.name} está no momento ideal para contato`,
+        description: s.contactReadiness.reason,
+        investorId: record.investorId,
+        date: record.lastActivityAt,
+      });
+    }
+  }
+}
+
+export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
   /**
    * Alertas automáticos do Journey Engine — todo evento relevante da
    * jornada gera um alerta para o executivo responsável, sem qualquer
