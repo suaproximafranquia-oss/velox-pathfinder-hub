@@ -221,6 +221,8 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <EditorialShell variant={variant}>{content}</EditorialShell>
       {!isGateway && <WhatsAppFloating />}
+      {/* Registro silencioso da jornada — nunca interfere na navegação. */}
+      <JourneyTracker />
     </QueryClientProvider>
   );
 }
