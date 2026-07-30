@@ -312,6 +312,7 @@ export function deleteMeeting(
 }
 
 export const MEETING_STATUS_TONE: Record<MeetingStatus, string> = {
+  Solicitada: "#B08D57",
   Agendada: "var(--gold)",
   Confirmada: "#4A7C59",
   Reagendada: "#B08D57",

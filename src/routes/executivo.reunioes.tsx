@@ -71,6 +71,7 @@ export const Route = createFileRoute("/executivo/reunioes")({
 });
 
 const STATUS_FLOW: MeetingStatus[] = [
+  "Solicitada",
   "Agendada",
   "Confirmada",
   "Reagendada",
@@ -80,6 +81,7 @@ const STATUS_FLOW: MeetingStatus[] = [
 ];
 
 const STATUS_STYLES: Record<MeetingStatus, { bg: string; fg: string; border: string; label: string }> = {
+  Solicitada: { bg: "rgba(176,141,87,0.18)", fg: "#B08D57", border: "#B08D57", label: "Solicitada" },
   Agendada: { bg: "rgba(59,126,161,0.15)", fg: "#3B7EA1", border: "#3B7EA1", label: "Agendada" },
   Confirmada: { bg: "rgba(74,124,89,0.15)", fg: "#4A7C59", border: "#4A7C59", label: "Confirmada" },
   Reagendada: { bg: "rgba(214,180,72,0.18)", fg: "#B08D57", border: "#B08D57", label: "Reagendada" },
@@ -215,7 +217,7 @@ function MeetingsPage() {
   }, [items]);
   const stats = useMemo(() => {
     const s: Record<MeetingStatus, number> = {
-      Agendada: 0, Confirmada: 0, Reagendada: 0, "Em andamento": 0, Concluída: 0, Cancelada: 0,
+      Solicitada: 0, Agendada: 0, Confirmada: 0, Reagendada: 0, "Em andamento": 0, Concluída: 0, Cancelada: 0,
     };
     for (const m of items) s[m.status]++;
     return s;
