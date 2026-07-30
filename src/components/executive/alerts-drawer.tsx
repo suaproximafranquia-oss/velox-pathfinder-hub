@@ -10,7 +10,7 @@
  * Disponível em todas as telas do Workspace — exceto o KPI Manager.
  */
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight, X } from "lucide-react";
+import { Bell, BellRing, ChevronRight, X } from "lucide-react";
 import {
   archiveWorkspaceAlert,
   listWorkspaceAlerts,
