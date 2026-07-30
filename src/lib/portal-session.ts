@@ -170,6 +170,17 @@ export function startPortalSession(input: {
       origin: input.origin ?? entry.origin ?? "Portal Velox",
     }).lead;
 
+  // Roteamento obrigatório também para investidor recorrente: quem volta
+  // por link personalizado é reconduzido ao Green Sales do executivo.
+  const routedLead = existing
+    ? (applyLeadRouting(existing.id, {
+        personalized: responsible.personalized,
+        responsibleExecutiveId: responsible.personalized
+          ? (responsible.executive?.id ?? null)
+          : null,
+      }) ?? existing)
+    : lead;
+
   attachLeadToIdentity(identity.id, lead.id);
 
   const now = new Date().toISOString();
