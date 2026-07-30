@@ -9,13 +9,7 @@
 import type { Meeting } from "@/lib/meetings";
 import { getGoogleStore } from "@/lib/google-workspace";
 
-export type MeetingProviderId =
-  | "google_meet"
-  | "manual"
-  | "teams"
-  | "zoom"
-  | "jitsi"
-  | "whereby";
+export type MeetingProviderId = "google_meet" | "manual";
 
 export type MeetingProviderStatus =
   | "manual"
@@ -35,12 +29,8 @@ export type MeetingProviderDescriptor = {
 };
 
 export const MEETING_PROVIDERS: readonly MeetingProviderDescriptor[] = [
-  { id: "google_meet", label: "Google Meet", shortLabel: "Meet",     enabled: true,  comingSoon: false, requiresManualUrl: false, color: "#1A73E8" },
-  { id: "manual",      label: "Manual",      shortLabel: "Manual",   enabled: true,  comingSoon: false, requiresManualUrl: true,  color: "#B08D57" },
-  { id: "teams",       label: "Microsoft Teams", shortLabel: "Teams",enabled: false, comingSoon: true,  requiresManualUrl: false, color: "#5059C9" },
-  { id: "zoom",        label: "Zoom",        shortLabel: "Zoom",     enabled: false, comingSoon: true,  requiresManualUrl: false, color: "#2D8CFF" },
-  { id: "jitsi",       label: "Jitsi",       shortLabel: "Jitsi",    enabled: false, comingSoon: true,  requiresManualUrl: false, color: "#1D76BB" },
-  { id: "whereby",     label: "Whereby",     shortLabel: "Whereby",  enabled: false, comingSoon: true,  requiresManualUrl: false, color: "#3B7EA1" },
+  { id: "google_meet", label: "Google Meet", shortLabel: "Meet",   enabled: true, comingSoon: false, requiresManualUrl: false, color: "#1A73E8" },
+  { id: "manual",      label: "Manual",      shortLabel: "Manual", enabled: true, comingSoon: false, requiresManualUrl: true,  color: "#B08D57" },
 ];
 
 export function getProvider(id: MeetingProviderId | undefined | null): MeetingProviderDescriptor {

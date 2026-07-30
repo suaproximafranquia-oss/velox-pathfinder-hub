@@ -1,26 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  BellRing,
-  CalendarRange,
-  Check,
-  ChevronDown,
-  Copy,
-  ExternalLink,
-  UserSquare2,
-  X,
-} from "lucide-react";
+import { CalendarRange, ChevronDown, UserSquare2 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import {
-  buildOperationalSnapshot,
-  CATEGORY_LABEL,
-  dismissAlert,
-  loadAlerts,
-  PRIORITY_LABEL,
-  visibleAlertsFor,
-  type BrainAlert,
-} from "@/lib/brain-data";
+import { buildOperationalSnapshot } from "@/lib/brain-data";
 import {
   availableScopes,
   defaultScope,
@@ -61,8 +44,6 @@ function BrainPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [monthKey, setMonthKey] = useState(DEFAULT_MONTH_KEY);
   const [scope, setScope] = useState<ScopeSelection | null>(null);
-  const [alerts, setAlerts] = useState<BrainAlert[]>([]);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     const s = getSession();
@@ -72,7 +53,6 @@ function BrainPage() {
     }
     setSession(s);
     setScope(defaultScope(s.activeRole, s.userId));
-    setAlerts(loadAlerts());
   }, [navigate]);
 
   const snapshot = useMemo(
@@ -82,15 +62,8 @@ function BrainPage() {
 
   if (!session || !scope || !snapshot) return null;
 
-  const activeAlerts = visibleAlertsFor(session, scope).filter((a) => !a.dismissed);
   const scopes = availableScopes(session.activeRole);
   const executives = visibleCollaborators(session);
-  const canDismissAlerts = session.activeRole === "executivo";
-
-  function handleDismiss(id: string) {
-    if (!session || !canDismissAlerts) return;
-    setAlerts(dismissAlert(id, session.userId));
-  }
 
   function chooseScope(mode: ScopeMode) {
     if (!session) return;
@@ -99,16 +72,6 @@ function BrainPage() {
       return;
     }
     setScope({ mode });
-  }
-
-  async function handleCopy(a: BrainAlert) {
-    try {
-      await navigator.clipboard.writeText(a.copyTemplate);
-      setCopiedId(a.id);
-      setTimeout(() => setCopiedId((c) => (c === a.id ? null : c)), 1500);
-    } catch {
-      /* silencioso */
-    }
   }
 
   return (
@@ -165,24 +128,16 @@ function BrainPage() {
 
       <ScopeBreadcrumb mode={scope.mode} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] items-start">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {snapshot.kpis.map((k) => (
-            <KpiCard key={k.id} kpi={k} />
-          ))}
-        </div>
-        <AlertsCenter
-          alerts={activeAlerts}
-          copiedId={copiedId}
-          canDismiss={canDismissAlerts}
-          onDismiss={handleDismiss}
-          onCopy={handleCopy}
-        />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 items-start">
+        {snapshot.kpis.map((k) => (
+          <KpiCard key={k.id} kpi={k} />
+        ))}
       </div>
 
       <p className="mt-10 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-        Os indicadores desta tela consomem exclusivamente o KPI Manager. O Brain
-        prioriza decisões operacionais rápidas: volume, funil e alertas acionáveis.
+        Os indicadores desta tela consomem exclusivamente o KPI Manager. Os alertas
+        operacionais ficam concentrados na Central de Alertas, disponível no topo do
+        workspace em qualquer tela.
       </p>
     </ExecutiveShell>
   );
@@ -195,154 +150,5 @@ function ScopeBreadcrumb({ mode }: { mode: ScopeMode }) {
       <ChevronDown className="h-3 w-3 -rotate-90" />
       <span className="text-[color:var(--gold)]">{SCOPE_LABEL[mode]}</span>
     </div>
-  );
-}
-
-function AlertsCenter({
-  alerts,
-  copiedId,
-  canDismiss,
-  onDismiss,
-  onCopy,
-}: {
-  alerts: BrainAlert[];
-  copiedId: string | null;
-  canDismiss: boolean;
-  onDismiss: (id: string) => void;
-  onCopy: (a: BrainAlert) => void;
-}) {
-  return (
-    <div
-      className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-5 flex flex-col"
-      style={{ height: "min(720px, calc(100vh - 200px))" }}
-    >
-      <div className="mb-4 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BellRing className="h-4 w-4 text-[color:var(--gold)]" />
-            <h2 className="font-display text-lg">Central de Alertas</h2>
-          </div>
-          <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-            {alerts.length} ativos
-          </span>
-        </div>
-        <p className="mt-2 rounded-md border border-[color:var(--gold)]/25 bg-[color:var(--gold)]/5 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[color:var(--gold)]">
-          Dados ficticios · demonstracao da plataforma
-        </p>
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto kpi-scroll pr-1 -mr-1">
-      {alerts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[color:var(--border)] p-6 text-center text-xs text-[color:var(--muted-foreground)]">
-          Nenhum alerta pendente no momento.
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {alerts.map((a) => (
-            <li
-              key={a.id}
-              className="rounded-xl border border-[color:var(--border)] bg-[color:var(--navy-deep)]/40 p-3.5"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2.5">
-                  <PriorityDot priority={a.priority} />
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="rounded-full border border-[color:var(--border)] px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
-                        {CATEGORY_LABEL[a.category]}
-                      </span>
-                      <span className="text-[9px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                        {PRIORITY_LABEL[a.priority]}
-                      </span>
-                    </div>
-                    <p className="text-sm text-[color:var(--foreground)] leading-snug mt-1.5">
-                      {a.title}
-                    </p>
-                    <p className="text-xs text-[color:var(--muted-foreground)] mt-1">
-                      {a.description}
-                    </p>
-                    <p className="text-[10px] text-[color:var(--muted-foreground)] mt-2">
-                      {new Date(a.date).toLocaleString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center gap-1.5">
-                <AlertBtn
-                  onClick={() =>
-                    window.alert(
-                      "Em breve: acao direta a partir deste alerta.",
-                    )
-                  }
-                  icon={ExternalLink}
-                >
-                  Abrir
-                </AlertBtn>
-                <AlertBtn
-                  onClick={() => onCopy(a)}
-                  icon={copiedId === a.id ? Check : Copy}
-                >
-                  {copiedId === a.id ? "Copiado" : "Copiar"}
-                </AlertBtn>
-                {canDismiss && (
-                  <AlertBtn onClick={() => onDismiss(a.id)} icon={X}>
-                    Fechar
-                  </AlertBtn>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      </div>
-      <p className="mt-4 text-[10px] text-[color:var(--muted-foreground)] leading-relaxed shrink-0">
-        Alertas pertencem ao executivo responsável. Apenas o próprio executivo pode encerrá-los.
-      </p>
-    </div>
-  );
-}
-
-function PriorityDot({ priority }: { priority: BrainAlert["priority"] }) {
-  const color =
-    priority === "alta"
-      ? "bg-rose-400"
-      : priority === "media"
-        ? "bg-amber-400"
-        : "bg-emerald-400";
-  return (
-    <span className="mt-1 relative flex h-2 w-2">
-      <span
-        className={cn(
-          "absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping",
-          color,
-        )}
-      />
-      <span className={cn("relative inline-flex rounded-full h-2 w-2", color)} />
-    </span>
-  );
-}
-
-function AlertBtn({
-  onClick,
-  icon: Icon,
-  children,
-}: {
-  onClick: () => void;
-  icon: typeof Copy;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] px-2.5 py-1 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
-    >
-      <Icon className="h-3 w-3" />
-      {children}
-    </button>
   );
 }

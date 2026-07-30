@@ -10,9 +10,9 @@ import { emitEvent } from "@/lib/events/bus";
 export type PortalLeadStatus = "novo" | "em_andamento" | "encerrado";
 
 export const PORTAL_LEAD_STATUS_LABEL: Record<PortalLeadStatus, string> = {
-  novo: "Novo",
-  em_andamento: "Em andamento",
-  encerrado: "Encerrado",
+  novo: "Ativo",
+  em_andamento: "Em acompanhamento",
+  encerrado: "Negociação interrompida",
 };
 
 export const PORTAL_LEAD_STATUS_META: Record<
@@ -20,24 +20,31 @@ export const PORTAL_LEAD_STATUS_META: Record<
   { label: string; dot: string; text: string; border: string }
 > = {
   novo: {
-    label: "Novo",
+    label: "Ativo",
     dot: "bg-emerald-500",
     text: "text-emerald-400",
     border: "border-emerald-500/40",
   },
   em_andamento: {
-    label: "Em andamento",
+    label: "Em acompanhamento",
     dot: "bg-amber-500",
     text: "text-amber-400",
     border: "border-amber-500/40",
   },
   encerrado: {
-    label: "Encerrado",
-    dot: "bg-neutral-500",
-    text: "text-neutral-400",
-    border: "border-neutral-500/40",
+    label: "Negociação interrompida",
+    dot: "bg-rose-500",
+    text: "text-rose-400",
+    border: "border-rose-500/40",
   },
 };
+
+/** Ordem cíclica usada pelo controle manual clicável no card do investidor. */
+export const PORTAL_LEAD_STATUS_CYCLE: PortalLeadStatus[] = [
+  "novo",
+  "em_andamento",
+  "encerrado",
+];
 
 const KEY = "velox:portal-lead-status:v1";
 

@@ -5,6 +5,8 @@ import { formatRelative } from "@/lib/executive-data";
 import {
   getPortalLeadStatus,
   PORTAL_LEAD_STATUS_META,
+  PORTAL_LEAD_STATUS_CYCLE,
+  setPortalLeadStatus,
 } from "@/lib/portal-lead-status";
 import { onEvent } from "@/lib/events/bus";
 import { cn } from "@/lib/utils";
@@ -110,8 +112,8 @@ export function InvestorCard({
         )}
       >
         {/* Header — nome com prioridade visual absoluta */}
-        <div className="flex items-start gap-3 min-w-0 pr-10">
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[12px] font-medium tracking-wider text-[color:var(--gold)]">
+        <div className="flex items-start gap-2.5 min-w-0 pr-9">
+          <span className="mt-1 -ml-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[12px] font-medium tracking-wider text-[color:var(--gold)]">
             {initials || "•"}
           </span>
           <div className="min-w-0 flex-1">
@@ -133,18 +135,6 @@ export function InvestorCard({
             <p className="mt-1 text-[12px] text-[color:var(--muted-foreground)] truncate">
               {contact}
             </p>
-            {portalMeta && (
-              <span
-                className={cn(
-                  "mt-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]",
-                  portalMeta.border,
-                  portalMeta.text,
-                )}
-              >
-                <span className={cn("h-1.5 w-1.5 rounded-full", portalMeta.dot)} />
-                {portalMeta.label}
-              </span>
-            )}
           </div>
         </div>
 
@@ -205,6 +195,26 @@ export function InvestorCard({
           </div>
         )}
       </div>
+
+      {/* Indicador de status — exatamente abaixo do menu de três pontos */}
+      {portalMeta && portalStatus && (
+        <button
+          type="button"
+          title={`Status: ${portalMeta.label} — clique para alterar`}
+          aria-label={`Status: ${portalMeta.label}. Clique para alterar.`}
+          onClick={(e) => {
+            e.stopPropagation();
+            const index = PORTAL_LEAD_STATUS_CYCLE.indexOf(portalStatus);
+            const next =
+              PORTAL_LEAD_STATUS_CYCLE[(index + 1) % PORTAL_LEAD_STATUS_CYCLE.length];
+            setPortalLeadStatus(investor.id, next);
+            setPortalStatus(next);
+          }}
+          className="absolute right-3 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-[color:var(--accent)]"
+        >
+          <span className={cn("h-3 w-3 rounded-full", portalMeta.dot)} />
+        </button>
+      )}
 
       {/* Ações rápidas — aparecem em hover/focus */}
       <div

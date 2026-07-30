@@ -5,7 +5,7 @@ import { BackToTop } from "@/components/site/BackToTop";
 import { Reveal } from "@/components/site/Reveal";
 import { VMark } from "@/components/site/VMark";
 import { AiAssistant } from "@/components/ai-assistant";
-import { ExecutiveContactDialog } from "@/components/shared/executive-contact-dialog";
+import { PortalFinalCta } from "@/components/portal/portal-final-cta";
 import {
   ChapterCover,
   EditorialSection,
@@ -401,7 +401,6 @@ function Hero() {
 /* ================================================================ */
 function Index() {
   const active = useScrollSpy(SECTIONS.map((s) => s.id));
-  const [contactOpen, setContactOpen] = useState(false);
 
   return (
     <ModuleChrome
@@ -1475,31 +1474,8 @@ function Index() {
                 </div>
               </Reveal>
               <Reveal delay={300}>
-                <div className="mx-auto mt-14 grid max-w-2xl gap-px overflow-hidden border sm:grid-cols-3" style={{ borderColor: "var(--on-dark-border)", background: "var(--on-dark-border)" }}>
-                  {[
-                    { label: "Telefone", value: "[Inserir informação institucional oficial]" },
-                    { label: "E-mail", value: "[Inserir informação institucional oficial]" },
-                    { label: "Endereço", value: "[Inserir informação institucional oficial]" },
-                  ].map((item) => (
-                    <div key={item.label} className="p-6 text-left" style={{ background: "var(--ink)" }}>
-                      <div className="eyebrow eyebrow-on-dark">{item.label}</div>
-                      <div className="mt-3 font-serif text-base on-dark">{item.value}</div>
-                    </div>
-                  ))}
-                </div>
-              </Reveal>
-              <Reveal delay={360}>
-                <div className="mt-14 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setContactOpen(true)}
-                    aria-label="Conversar com o executivo responsável"
-                    className="group inline-flex min-h-11 items-center gap-4 border px-10 py-5 text-xs font-medium uppercase tracking-[0.28em] transition-colors hover:bg-[color:var(--brand-orange)] hover:text-white"
-                    style={{ borderColor: "var(--brand-orange)", color: "var(--on-dark)" }}
-                  >
-                    Conversar com o Executivo
-                    <span className="h-px w-8 transition-all group-hover:w-14 group-hover:bg-white" style={{ background: "var(--brand-orange)" }} />
-                  </button>
+                <div className="mt-14">
+                  <PortalFinalCta context="Material Institucional de Apresentação" />
                 </div>
               </Reveal>
               <Reveal delay={420}>
@@ -1530,12 +1506,6 @@ function Index() {
 
       <BackToTop />
       <AiAssistant />
-      <ExecutiveContactDialog
-        open={contactOpen}
-        onClose={() => setContactOpen(false)}
-        material="Material Institucional de Apresentação"
-        triggerLabel="CTA · Encerramento"
-      />
     </ModuleChrome>
   );
 }

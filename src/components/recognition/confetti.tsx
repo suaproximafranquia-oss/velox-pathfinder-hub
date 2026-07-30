@@ -46,16 +46,16 @@ export function Confetti({ active }: { active: boolean }) {
     window.addEventListener("resize", resize);
 
     function spawn(now: number) {
-      if (now - lastSpawn.current < 90) return;
+      if (now - lastSpawn.current < 40) return;
       lastSpawn.current = now;
-      const count = 6;
+      const count = 10;
       const W = window.innerWidth;
       for (let i = 0; i < count; i++) {
         particlesRef.current.push({
           x: Math.random() * W,
           y: -10,
           vx: (Math.random() - 0.5) * 0.6,
-          vy: 0.8 + Math.random() * 1.2,
+          vy: 1.6 + Math.random() * 2.2,
           size: 4 + Math.random() * 5,
           rot: Math.random() * Math.PI,
           vr: (Math.random() - 0.5) * 0.08,
@@ -73,7 +73,7 @@ export function Confetti({ active }: { active: boolean }) {
       for (const p of particlesRef.current) {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.012;
+        p.vy += 0.05;
         p.rot += p.vr;
         if (p.y < H + 20) alive.push(p);
         ctx.save();

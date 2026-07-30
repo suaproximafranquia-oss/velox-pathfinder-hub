@@ -16,6 +16,13 @@ export type PlatformFeatureFlags = {
   auditoriaExpandida: boolean;
 };
 
+export type IntegrationSettings = {
+  googleDriveFolderUrl: string;
+  googleCalendarUrl: string;
+  crmUrl: string;
+  crmName: string;
+};
+
 export type PlatformSettings = {
   workspaceId: string;
   institutionalName: string;
@@ -23,6 +30,10 @@ export type PlatformSettings = {
   aiTagline: string;
   aiDisclaimer: string;
   features: PlatformFeatureFlags;
+  /** Janela de reativação (em horas) para considerar retorno do investidor
+   * ao Portal como "movimentação" digna de alerta. Editável em Configurações. */
+  reactivationWindowHours: number;
+  integrations: IntegrationSettings;
   updatedAt: string;
 };
 
@@ -41,6 +52,13 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     centroRecursos: true,
     camposPersonalizados: true,
     auditoriaExpandida: true,
+  },
+  reactivationWindowHours: 6,
+  integrations: {
+    googleDriveFolderUrl: "https://drive.google.com/",
+    googleCalendarUrl: "https://calendar.google.com/",
+    crmUrl: "https://adm.greennsales.com.br/velox/home",
+    crmName: "Green Sales",
   },
   updatedAt: new Date(0).toISOString(),
 };
@@ -62,7 +80,20 @@ function writeAll(map: Record<string, PlatformSettings>) {
 
 export function getSettings(workspaceId = "velox"): PlatformSettings {
   const map = readAll();
-  return { ...DEFAULT_SETTINGS, ...(map[workspaceId] ?? {}), workspaceId };
+  const stored = map[workspaceId] ?? {};
+  return {
+    ...DEFAULT_SETTINGS,
+    ...stored,
+    features: { ...DEFAULT_SETTINGS.features, ...(stored.features ?? {}) },
+    integrations: { ...DEFAULT_SETTINGS.integrations, ...(stored.integrations ?? {}) },
+    workspaceId,
+  };
+}
+
+/** Janela de reativação configurada, em milissegundos. */
+export function getReactivationWindowMs(workspaceId = "velox"): number {
+  const hours = getSettings(workspaceId).reactivationWindowHours ?? 6;
+  return Math.max(1, hours) * 60 * 60 * 1000;
 }
 
 export function updateSettings(

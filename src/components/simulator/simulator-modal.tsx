@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, ArrowRight, ArrowLeft, Check, Calculator, RotateCcw, MessageCircle, FileCheck2 } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Check, Calculator, RotateCcw, FileCheck2 } from "lucide-react";
 import {
   SIMULATOR_PRODUCTS,
   estimateRevenue,
@@ -16,6 +16,7 @@ import { generateSimulatorPdf } from "@/lib/simulator-report";
 import { addSimulation } from "@/lib/simulator-history";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { getInterestsProfile } from "@/lib/interests-profile";
+import { PortalFinalCta } from "@/components/portal/portal-final-cta";
 
 type Step = 1 | 2 | 3;
 
@@ -531,16 +532,6 @@ function StepConfirmation({
   onRestart: () => void;
   onClose: () => void;
 }) {
-  const responsible = getResponsibleExecutive();
-  const exec = responsible.executive;
-  const rawWhats = (exec?.whatsapp || exec?.phone || "").replace(/\D/g, "") || WHATSAPP_NUMBER;
-  const firstName = exec?.name?.split(" ")[0] ?? "";
-  const message =
-    responsible.personalized && firstName
-      ? `Olá ${firstName}! Concluí a simulação de potencial de receita e gostaria de continuar nossa conversa.`
-      : "Olá! Concluí a simulação de potencial de receita no Portal Velox e gostaria de conversar.";
-  const whatsUrl = `https://wa.me/${rawWhats}?text=${encodeURIComponent(message)}`;
-
   return (
     <div className="mx-auto max-w-2xl px-6 py-16 md:py-24 text-center">
       <div
@@ -562,14 +553,18 @@ function StepConfirmation({
         Sua simulação foi concluída com sucesso.
       </h2>
       <p className="mt-5 text-sm md:text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        Seu relatório já foi gerado automaticamente e está disponível para o
-        Executivo responsável pelo seu atendimento.
-        <br />
-        Continue sua jornada conversando com{" "}
-        {responsible.personalized && firstName ? firstName : "seu Executivo de Expansão"}.
+        Seu relatório já foi gerado automaticamente e está disponível para o Executivo responsável
+        pelo seu atendimento.
       </p>
 
-      <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
+      <div className="mt-10">
+        <PortalFinalCta
+          context="Calculadora de Potencial"
+          whatsappMessage="Olá! Concluí a simulação de potencial de receita no Portal Velox e gostaria de continuar nossa conversa."
+        />
+      </div>
+
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
         <button
           type="button"
           onClick={onRestart}
@@ -579,16 +574,14 @@ function StepConfirmation({
           <RotateCcw className="h-4 w-4" />
           Nova Simulação
         </button>
-        <a
-          href={whatsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => setTimeout(onClose, 200)}
-          className="ed-btn-primary inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium"
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 text-sm font-medium transition hover:bg-black/5"
+          style={{ borderColor: "var(--paper-edge)", color: "var(--muted-foreground)" }}
         >
-          <MessageCircle className="h-4 w-4" />
-          Conversar com meu Executivo
-        </a>
+          Voltar ao Portal
+        </button>
       </div>
     </div>
   );

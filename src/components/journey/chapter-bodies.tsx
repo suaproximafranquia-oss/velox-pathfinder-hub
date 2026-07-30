@@ -954,7 +954,8 @@ function AutoavaliacaoBody() {
             <p className="text-base leading-relaxed">{reading}</p>
             <div className="mt-5">
               <Link
-                to="/manual/proximos-passos"
+                to="/manual/$chapter"
+                params={{ chapter: "proximos-passos" }}
                 preload="intent"
                 className="group inline-flex items-center gap-3 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-6 py-3 text-sm font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition-all duration-300"
               >
@@ -1083,7 +1084,7 @@ function PersonalizandoJornadaBody() {
   const handleContinue = () => {
     saveInterestsProfile({ audience, interests });
     setSaved(true);
-    navigate({ to: "/manual/operacao" });
+    navigate({ to: "/manual/$chapter", params: { chapter: "operacao" } });
   };
 
   const audienceOptions: { value: AudienceProfile; label: string; d: string }[] = [
@@ -1200,7 +1201,8 @@ function PersonalizandoJornadaBody() {
 
       <div className="mt-10 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4">
         <Link
-          to="/manual/produtos"
+          to="/manual/$chapter"
+          params={{ chapter: "produtos" }}
           preload="intent"
           className="inline-flex items-center gap-2 text-sm text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors self-start"
         >
