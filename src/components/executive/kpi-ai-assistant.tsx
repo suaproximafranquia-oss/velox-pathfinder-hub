@@ -7,7 +7,6 @@ import {
   buildKpiInsightSnapshot,
   serializeSnapshotForPrompt,
 } from "@/lib/kpi-ai";
-import { generateKpiInsightPdf } from "@/lib/kpi-ai-report";
 import { findMonth } from "@/lib/kpi-manager";
 import { cn } from "@/lib/utils";
 
@@ -117,9 +116,11 @@ export function KpiAiAssistant({
     }
   }
 
-  function exportPdf(msg: ChatMessage) {
+  async function exportPdf(msg: ChatMessage) {
     if (!msg.question) return;
     const snapshot = buildKpiInsightSnapshot(session, monthKey);
+    // Motor de PDF carregado sob demanda (não pesa no KPI Manager).
+    const { generateKpiInsightPdf } = await import("@/lib/kpi-ai-report");
     generateKpiInsightPdf({
       question: msg.question,
       answer: msg.content,
@@ -243,7 +244,7 @@ export function KpiAiAssistant({
                       <div className="mt-3 pt-3 border-t border-white/10 flex justify-end">
                         <button
                           type="button"
-                          onClick={() => exportPdf(m)}
+                          onClick={() => void exportPdf(m)}
                           className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)]/50 px-3 py-1.5 text-[11px] text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition"
                         >
                           <FileDown className="h-3.5 w-3.5" />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   Calendar,
   User as UserIcon,
@@ -59,7 +59,7 @@ export type InvestorCardData = Investor & {
   nextMeetingAt?: string; // ISO
 };
 
-export function InvestorCard({
+function InvestorCardBase({
   investor,
   onOpen,
   onNewMeeting,
@@ -301,3 +301,37 @@ function formatMeetingLabel(iso: string): string {
   if (diffDays > 1 && diffDays < 7) return `Em ${diffDays} dias · ${time}`;
   return `${date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · ${time}`;
 }
+/**
+ * O card só volta a desenhar quando algo visível muda.
+ *
+ * O Workspace recalcula a carteira a cada sinal do servidor; sem esta
+ * comparação todos os cards eram redesenhados a cada atualização, mesmo
+ * sem nenhuma alteração de conteúdo.
+ */
+export const InvestorCard = memo(InvestorCardBase, (prev, next) => {
+  if (
+    prev.onOpen !== next.onOpen ||
+    prev.onNewMeeting !== next.onNewMeeting ||
+    prev.onComment !== next.onComment ||
+    prev.onDelete !== next.onDelete
+  ) {
+    return false;
+  }
+  const a = prev.investor;
+  const b = next.investor;
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.email === b.email &&
+    a.phone === b.phone &&
+    a.city === b.city &&
+    a.origin === b.origin &&
+    a.status === b.status &&
+    a.priority === b.priority &&
+    a.readingPct === b.readingPct &&
+    a.lastActivity === b.lastActivity &&
+    a.lastEventLabel === b.lastEventLabel &&
+    a.assignedToUserId === b.assignedToUserId &&
+    a.nextMeetingAt === b.nextMeetingAt
+  );
+});

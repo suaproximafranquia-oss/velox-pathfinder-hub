@@ -19,7 +19,7 @@ import { loadUsers, type ExecutiveSession } from "@/lib/executive-auth";
 import { buildInvestorProfile, type InvestorProfile } from "@/lib/investor-profile";
 import { onEvent } from "@/lib/events/bus";
 import { addComment, listComments, type InvestorComment } from "@/lib/investor-comments";
-import { generateInvestorReport } from "@/lib/investor-report";
+import { openInvestorReport } from "@/lib/investor-report-lazy";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
   LEAD_STATE_META,
@@ -159,7 +159,7 @@ export function InvestorProfileView({
             <QuickBtn
               icon={FileText}
               label="Gerar PDF"
-              onClick={() => generateInvestorReport(investor)}
+              onClick={() => void openInvestorReport(investor)}
             />
           </div>
         </div>
@@ -867,7 +867,7 @@ function TabRelatorio({
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={() => generateInvestorReport(investor)}
+          onClick={() => void openInvestorReport(investor)}
           className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-4 py-2.5 text-xs hover:border-[color:var(--gold)] transition"
         >
           <FileText className="h-3.5 w-3.5" /> Gerar PDF
