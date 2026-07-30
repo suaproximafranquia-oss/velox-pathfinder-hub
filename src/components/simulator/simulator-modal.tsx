@@ -9,7 +9,7 @@ import {
   type ProductCategory,
   type SimulatorProduct,
 } from "@/lib/simulator-products";
-import { emitEvent } from "@/lib/events/bus";
+import { trackJourney } from "@/lib/journey/engine";
 import { getCurrentInvestorId, getPortalSession } from "@/lib/portal-session";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { generateSimulatorPdf } from "@/lib/simulator-report";
@@ -110,9 +110,10 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
   useEffect(() => {
     if (!open) return;
     const investorId = getCurrentInvestorId();
-    emitEvent({
+    trackJourney({
       type: "simulator.started",
       investorId,
+      detail: "Iniciou o Simulador",
     });
   }, [open]);
 
@@ -184,9 +185,10 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
         /* histórico é best-effort */
       }
     }
-    emitEvent({
+    trackJourney({
       type: "simulator.completed",
       investorId,
+      detail: "Concluiu uma simulação",
       payload: {
         total: results.total,
         annual: results.total * 12,
