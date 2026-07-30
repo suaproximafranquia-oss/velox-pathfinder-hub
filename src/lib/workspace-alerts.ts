@@ -16,9 +16,16 @@ import { getReactivationWindowMs } from "@/lib/platform-settings";
 import { listAllInvestors, formatRelative, type Investor } from "@/lib/executive-data";
 import { listMeetings } from "@/lib/meetings";
 import type { ExecutiveSession } from "@/lib/executive-auth";
+import { listJourneys } from "@/lib/journey/engine";
+import { summarizeJourney } from "@/lib/journey/insights";
 
 export type WorkspaceAlertCategory =
   | "movimentacao"
+  | "novo_lead"
+  | "manual_concluido"
+  | "simulacao"
+  | "contato_whatsapp"
+  | "engajamento_alto"
   | "reuniao"
   | "reuniao_solicitada"
   | "reuniao_confirmada"
@@ -38,6 +45,11 @@ export type WorkspaceAlert = {
 
 export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, string> = {
   movimentacao: "Movimentação do Investidor",
+  novo_lead: "Novo Investidor Identificado",
+  manual_concluido: "Manual Concluído",
+  simulacao: "Simulação Realizada",
+  contato_whatsapp: "Contato Solicitado",
+  engajamento_alto: "Engajamento Elevado",
   reuniao: "Lembrete de Reunião",
   reuniao_solicitada: "Nova Solicitação de Reunião",
   reuniao_confirmada: "Reunião Confirmada",
@@ -222,6 +234,7 @@ export function evaluateMeetingLifecycle(session: ExecutiveSession) {
 
 export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
   evaluateInvestorMovement();
+  evaluateJourneyAlerts(session);
   try {
     evaluateMeetingReminders(session);
     evaluateMeetingLifecycle(session);
