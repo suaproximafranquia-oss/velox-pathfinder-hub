@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, Share2, Link2, Check } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
@@ -188,11 +188,15 @@ function WorkspacePage() {
 
   if (!session) return null;
 
-  const openProfile = (id: string) => {
-    scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
-    navigate({ to: "/executivo/dashboard", search: { perfil: id, escopo: scope } });
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-  };
+  const openProfile = useCallback(
+    (id: string) => {
+      scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
+      navigate({ to: "/executivo/dashboard", search: { perfil: id, escopo: scope } });
+      if (typeof window !== "undefined")
+        window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    },
+    [navigate, scope],
+  );
   const closeProfile = () => {
     navigate({ to: "/executivo/dashboard", search: { escopo: scope } });
     requestAnimationFrame(() => {
@@ -205,11 +209,15 @@ function WorkspacePage() {
     navigate({ to: "/executivo/dashboard", search: { escopo: next } });
   };
 
-  const removeLead = (id: string) => {
+  const removeLead = useCallback((id: string) => {
     deleteLead(id);
     void removeLeadEverywhere(id);
     setTick((v) => v + 1);
-  };
+  }, []);
+
+  const goToMeetings = useCallback(() => {
+    navigate({ to: "/executivo/reunioes" });
+  }, [navigate]);
 
   return (
     <ExecutiveShell session={session} title="Workspace do Executivo">
@@ -239,7 +247,7 @@ function WorkspacePage() {
                   key={c.id}
                   investor={c}
                   onOpen={openProfile}
-                  onNewMeeting={() => navigate({ to: "/executivo/reunioes" })}
+                  onNewMeeting={goToMeetings}
                   onComment={openProfile}
                   onDelete={removeLead}
                 />
