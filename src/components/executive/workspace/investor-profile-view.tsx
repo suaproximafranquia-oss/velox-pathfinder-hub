@@ -21,11 +21,12 @@ import { addComment, listComments, type InvestorComment } from "@/lib/investor-c
 import { generateInvestorReport } from "@/lib/investor-report";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
-  getPortalLeadStatus,
-  setPortalLeadStatus,
-  PORTAL_LEAD_STATUS_META,
-  type PortalLeadStatus,
-} from "@/lib/portal-lead-status";
+  LEAD_STATE_META,
+  markLeadViewed,
+  onLeadStateChange,
+  resolveLeadState,
+  type LeadState,
+} from "@/lib/lead-state";
 import {
   listSimulations,
   getLastSimulation,
@@ -152,12 +153,7 @@ export function InvestorProfileView({
 
           {/* Ações rápidas */}
           <div className="flex flex-wrap gap-2 md:justify-end">
-            {investor.origin === "portal" && (
-              <PortalStatusSelector
-                investorId={investor.id}
-                actorId={session.userId}
-              />
-            )}
+            <LeadStateBadge investor={investor} actorId={session.userId} />
             <QuickBtn icon={Calendar} label="Nova reunião" onClick={openNewMeeting} primary />
             <QuickBtn
               icon={FileText}
