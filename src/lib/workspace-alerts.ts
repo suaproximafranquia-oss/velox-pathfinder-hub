@@ -158,7 +158,6 @@ export function evaluateMeetingReminders(session: ExecutiveSession) {
 }
 
 export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
-  /* ver evaluateMeetingLifecycle abaixo */
   evaluateInvestorMovement();
   try {
     evaluateMeetingReminders(session);
