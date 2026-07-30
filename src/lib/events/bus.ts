@@ -12,6 +12,14 @@
 
 export type PortalEventType =
   | "journey.started"
+  // Épico 7 — Journey Engine (padrão único de eventos da plataforma).
+  | "journey.lead.created"
+  | "journey.session.started"
+  | "journey.session.ended"
+  | "journey.returned"
+  | "journey.module.opened"
+  | "journey.progress"
+  | "journey.completed"
   | "manual.started"
   | "manual.chapter.completed"
   | "manual.completed"
