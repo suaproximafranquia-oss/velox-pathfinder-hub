@@ -472,19 +472,7 @@ function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: Mod
     </article>
   );
 
-  if (m.panelSrc) {
-    return (
-      <button
-        type="button"
-        onClick={() => onOpen(m)}
-        aria-label={`Abrir ${m.title}`}
-        className="block h-full w-full text-left focus:outline-none"
-      >
-        {inner}
-      </button>
-    );
-  }
-  if (m.action) {
+  if (m.moduleKey) {
     return (
       <button
         type="button"
