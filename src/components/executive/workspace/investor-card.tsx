@@ -11,7 +11,6 @@ import {
 import type { Investor, InvestorOrigin, InvestorPriority } from "@/lib/executive-data";
 import { formatRelative } from "@/lib/executive-data";
 import {
-  LEAD_STATE_META,
   closeLead,
   markLeadViewed,
   onLeadStateChange,
