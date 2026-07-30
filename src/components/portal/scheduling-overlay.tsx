@@ -97,8 +97,8 @@ export function SchedulingOverlay({ open, onClose }: { open: boolean; onClose: (
             </h2>
             <p className="mt-3 max-w-[52ch] text-sm leading-relaxed text-[color:var(--muted-foreground)]">
               {executive
-                ? `${executive.name} conduzirá a conversa — ${DEFAULT_DURATION_MIN} minutos, sem compromisso, para esclarecer o que ainda ficou em aberto.`
-                : `Uma conversa de ${DEFAULT_DURATION_MIN} minutos, sem compromisso, para esclarecer o que ainda ficou em aberto.`}
+                ? `${executive.name} conduzirá uma conversa consultiva de aproximadamente ${DEFAULT_DURATION_MIN} minutos para compreender seu momento, esclarecer dúvidas e avaliar se existe aderência entre seus objetivos e o modelo de expansão da Velox.`
+                : `Uma conversa consultiva de aproximadamente ${DEFAULT_DURATION_MIN} minutos para compreender seu momento, esclarecer dúvidas e avaliar se existe aderência entre seus objetivos e o modelo de expansão da Velox.`}
             </p>
 
             {upcoming.length > 0 && (
