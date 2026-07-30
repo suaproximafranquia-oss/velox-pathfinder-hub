@@ -29,6 +29,11 @@ export type LeadRecord = VisitorIdentity & {
   createdAt: string;
   responsibleExecutiveId: string | null;
   personalized: boolean;
+  /**
+   * Escopo permanente do Lead no Workspace ("green_sales" quando veio de
+   * link personalizado; "portal" quando veio do acesso institucional).
+   */
+  scope?: "green_sales" | "portal";
 };
 
 function safeRead<T>(key: string): T | null {
@@ -105,14 +110,20 @@ export function registerLead(input: {
   const origin =
     input.origin ??
     (typeof window !== "undefined" ? window.location.pathname : "direct");
+  // Vínculo individual existe SOMENTE em link personalizado. Acesso
+  // institucional gera Lead do Portal, sem dono.
+  const responsibleExecutiveId = responsible.personalized
+    ? (responsible.executive?.id ?? null)
+    : null;
   const lead: LeadRecord = {
     id: `ld_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     ...input.identity,
     origin,
     material: input.material,
     createdAt: new Date().toISOString(),
-    responsibleExecutiveId: responsible.executive?.id ?? null,
+    responsibleExecutiveId,
     personalized: responsible.personalized,
+    scope: responsible.personalized && responsibleExecutiveId ? "green_sales" : "portal",
   };
   const all = loadLeads();
   all.push(lead);

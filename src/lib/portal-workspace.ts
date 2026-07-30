@@ -11,21 +11,17 @@
  */
 import type { ExecutiveRole } from "@/lib/executive-auth";
 
-/** IDs técnicos autorizados a visualizar o Workspace Portal. */
-const AUTHORIZED_USER_IDS = new Set<string>([
-  "usr_thiago", // Thiago Rodrigues — Administrador Geral
-]);
-
 /**
- * Regra oficial: administradores sempre têm acesso; demais colaboradores
- * precisam constar da lista técnica. Nome exibido nunca é utilizado.
+ * Regra oficial (Prompt 7C): apenas o perfil Administrador enxerga a aba
+ * "Portal". Gestores e Colaboradores operam exclusivamente no escopo
+ * Green Sales, com os Leads vinculados ao seu próprio link.
+ * O nome exibido nunca é utilizado — apenas o perfil técnico.
  */
 export function canAccessPortalWorkspace(
-  userId: string,
+  _userId: string,
   role: ExecutiveRole,
 ): boolean {
-  if (role === "super_admin") return true;
-  return AUTHORIZED_USER_IDS.has(userId);
+  return role === "super_admin";
 }
 
 export type WorkspaceScope = "green_sales" | "portal";
