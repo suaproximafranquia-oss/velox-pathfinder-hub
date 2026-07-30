@@ -35,6 +35,7 @@ import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
 import { Route as ExecutivoAuditoriaRouteImport } from './routes/executivo.auditoria'
 import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.administracao'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
+import { Route as ERouteImport } from './routes/e.'
 
 const UniversoRoute = UniversoRouteImport.update({
   id: '/universo',
@@ -166,11 +167,17 @@ const ESlugRoute = ESlugRouteImport.update({
   path: '/e/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ERoute = ERouteImport.update({
+  id: '/e/',
+  path: '/e/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/universo': typeof UniversoRoute
+  '/e/': typeof ERoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/universo': typeof UniversoRoute
+  '/e': typeof ERoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/universo': typeof UniversoRoute
+  '/e/': typeof ERoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/universo'
+    | '/e/'
     | '/e/$slug'
     | '/executivo/administracao'
     | '/executivo/auditoria'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/universo'
+    | '/e'
     | '/e/$slug'
     | '/executivo/administracao'
     | '/executivo/auditoria'
@@ -314,6 +325,7 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/universo'
+    | '/e/'
     | '/e/$slug'
     | '/executivo/administracao'
     | '/executivo/auditoria'
@@ -343,6 +355,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EntrarRoute: typeof EntrarRoute
   UniversoRoute: typeof UniversoRoute
+  ERoute: typeof ERoute
   ESlugRoute: typeof ESlugRoute
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
   ExecutivoAuditoriaRoute: typeof ExecutivoAuditoriaRoute
@@ -552,6 +565,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ESlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/e/': {
+      id: '/e/'
+      path: '/e'
+      fullPath: '/e/'
+      preLoaderRoute: typeof ERouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -559,6 +579,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EntrarRoute: EntrarRoute,
   UniversoRoute: UniversoRoute,
+  ERoute: ERoute,
   ESlugRoute: ESlugRoute,
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
   ExecutivoAuditoriaRoute: ExecutivoAuditoriaRoute,

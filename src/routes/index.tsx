@@ -18,6 +18,7 @@ import { GatewayOverlay } from "@/components/portal/gateway-overlay";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
+import { clearResponsibleExecutive } from "@/lib/responsible-executive";
 
 type HomeSearch = {
   /** Executivo responsável (link personalizado). */
@@ -191,6 +192,9 @@ function PortalHome() {
           (getPortalModule(search.m)?.key ?? (search.e ? "manual" : null)) as PortalModuleKey | null,
       });
       if (ctx.executiveSlug) setResponsibleExecutiveSlug(ctx.executiveSlug);
+      // Campanhas patrocinadas não são personalizadas: o lead pertence ao
+      // Executivo Padrão do workspace.
+      if (ctx.campaign === "anuncio" && !search.e) clearResponsibleExecutive();
       navigate({ to: "/", search: {}, replace: true });
       return;
     }
