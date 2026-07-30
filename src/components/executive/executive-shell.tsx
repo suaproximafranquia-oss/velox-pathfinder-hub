@@ -15,6 +15,8 @@ import {
   Settings,
   FlaskConical,
   ShieldCheck,
+  Trophy,
+  Bell,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
