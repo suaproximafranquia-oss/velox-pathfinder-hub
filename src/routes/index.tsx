@@ -1,6 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Compass, Building2, BookMarked, Users, Calculator, ArrowUpRight, X } from "lucide-react";
+import {
+  BookOpen,
+  Compass,
+  Building2,
+  BookMarked,
+  Users,
+  Calculator,
+  CalendarDays,
+  ArrowUpRight,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
 import { SimulatorModal } from "@/components/simulator/simulator-modal";
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
 import manualCoverImg from "@/assets/portal-manual-cover.png.asset.json";
@@ -13,11 +24,14 @@ import {
   hasPortalSession,
   setJourneyStatus,
   trackSessionNavigation,
+  getResumePoint,
 } from "@/lib/portal-session";
 import { GatewayOverlay } from "@/components/portal/gateway-overlay";
+import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
+import { SchedulingOverlay } from "@/components/portal/scheduling-overlay";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
-import { closeOverlay, setActiveOverlay } from "@/lib/portal-overlay";
+import { setActiveOverlay } from "@/lib/portal-overlay";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { clearResponsibleExecutive } from "@/lib/responsible-executive";
 
@@ -120,8 +134,20 @@ const MODULES: ModuleCard[] = [
     status: "aberto",
   },
   {
-    key: "sede",
+    key: "agenda",
     eyebrow: "Módulo IV",
+    title: "Agendar conversa com um executivo",
+    description:
+      "Escolha um dia e um horário para conversar com o executivo responsável pela sua jornada — sem compromisso, no seu tempo.",
+    icon: CalendarDays,
+    cover: sedeFachadaImg.url,
+    moduleKey: "agenda",
+    cta: "Escolher horário",
+    status: "aberto",
+  },
+  {
+    key: "sede",
+    eyebrow: "Módulo V",
     title: "Nossa Estrutura",
     description:
       "Um panorama institucional da Velox: a matriz, os bastidores, os vídeos e as unidades da rede que sustentam nossa operação em todo o país.",
@@ -132,7 +158,7 @@ const MODULES: ModuleCard[] = [
   },
   {
     key: "revista",
-    eyebrow: "Módulo V",
+    eyebrow: "Módulo VI",
     title: "Revista Velox",
     description:
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
@@ -143,7 +169,7 @@ const MODULES: ModuleCard[] = [
   },
   {
     key: "cultura",
-    eyebrow: "Módulo VI",
+    eyebrow: "Módulo VII",
     title: "Cultura Velox",
     description:
       "As pessoas, os encontros e os momentos que constroem a identidade da Velox e a jornada de quem faz parte da rede.",
@@ -157,38 +183,48 @@ const MODULES: ModuleCard[] = [
 function PortalHome() {
   const navigate = useNavigate();
   const search = Route.useSearch() as HomeSearch;
-  const [openPanel, setOpenPanel] = useState<{ src: string; title: string } | null>(null);
-  const [simulatorOpen, setSimulatorOpen] = useState(false);
-  const [gatewayOpen, setGatewayOpen] = useState(false);
+  /** Único overlay ativo por vez — regra oficial do Portal. */
+  const [active, setActive] = useState<{
+    key: "gateway" | PortalModuleKey;
+    title: string;
+    src?: string;
+  } | null>(null);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
+  const [resume, setResume] = useState<{ module: PortalModuleKey; title: string } | null>(null);
+
+  const closeActive = useCallback(() => {
+    setActive(null);
+    setActiveOverlay(null);
+    // Continuidade: ao voltar para a Home, o último módulo fica disponível
+    // para retomada imediata.
+    const point = getResumePoint();
+    const mod = getPortalModule(point?.module);
+    setResume(mod ? { module: mod.key, title: mod.title } : null);
+  }, []);
 
   /** Abre um módulo interno como overlay — a URL permanece na Home. */
   const openModule = useCallback((key: PortalModuleKey) => {
     const mod = getPortalModule(key);
     if (!mod) return;
     writeEntryContext({ pendingModule: null });
-    // Regra oficial: apenas um overlay ativo por vez.
-    setGatewayOpen(false);
-    if (mod.action === "simulator") {
-      setOpenPanel(null);
-      setSimulatorOpen(true);
-      setActiveOverlay("simulador");
-      setJourneyStatus("simulador");
-    } else if (mod.panelSrc) {
-      setSimulatorOpen(false);
-      setOpenPanel({ src: mod.panelSrc, title: mod.title });
-      setActiveOverlay(key === "manual" ? "manual" : "universo");
-      setJourneyStatus(key === "manual" ? "manual" : "portal");
-    }
+    setActive({ key, title: mod.title, src: mod.panelSrc });
+    setActiveOverlay(key);
+    setJourneyStatus(
+      key === "simulador"
+        ? "simulador"
+        : key === "agenda"
+          ? "contato"
+          : key === "manual"
+            ? "manual"
+            : "portal",
+    );
     trackSessionNavigation(key, mod.title);
   }, []);
 
   /** Abre o Gateway encerrando qualquer outro overlay ativo. */
   const openGateway = useCallback((title: string | null) => {
-    setOpenPanel(null);
-    setSimulatorOpen(false);
     setPendingTitle(title);
-    setGatewayOpen(true);
+    setActive({ key: "gateway", title: "Identificação do investidor" });
     setActiveOverlay("gateway");
   }, []);
 
@@ -205,8 +241,8 @@ function PortalHome() {
         unit: search.u ?? readEntryContext().unit,
         origin: search.o ?? readEntryContext().origin,
         campaign: search.c ?? readEntryContext().campaign,
-        pendingModule:
-          (getPortalModule(search.m)?.key ?? (search.e ? "manual" : null)) as PortalModuleKey | null,
+        pendingModule: (getPortalModule(search.m)?.key ??
+          (search.e ? "manual" : null)) as PortalModuleKey | null,
       });
       if (ctx.executiveSlug) setResponsibleExecutiveSlug(ctx.executiveSlug);
       // Campanhas patrocinadas não são personalizadas: o lead pertence ao
@@ -225,30 +261,29 @@ function PortalHome() {
     }
   }, [navigate, openGateway, openModule, search]);
 
+  /** Continuidade: retoma o contexto da jornada anterior. */
+  useEffect(() => {
+    if (!hasPortalSession()) return;
+    const point = getResumePoint();
+    const mod = getPortalModule(point?.module);
+    if (mod) setResume({ module: mod.key, title: mod.title });
+  }, []);
+
   // Ao desmontar a Home, nenhum overlay pode permanecer registrado.
   useEffect(() => () => setActiveOverlay(null), []);
-
-  useEffect(() => {
-    if (!openPanel) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpenPanel(null);
-      closeOverlay();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [openPanel]);
 
   return (
     <div className="min-h-screen">
       <PortalHeader />
       <main>
         <Hero />
+        {resume && !active && (
+          <ResumeBanner
+            title={resume.title}
+            onResume={() => openModule(resume.module)}
+            onDismiss={() => setResume(null)}
+          />
+        )}
         <ModulesGrid
           onOpen={(m) => {
             const mod = getPortalModule(m.moduleKey);
@@ -264,34 +299,63 @@ function PortalHome() {
       </main>
       <PortalFooter />
       <ModulePanel
-        panel={openPanel}
-        onClose={() => {
-          setOpenPanel(null);
-          closeOverlay();
-        }}
+        panel={active?.src ? { src: active.src, title: active.title } : null}
+        onClose={closeActive}
       />
-      <SimulatorModal
-        open={simulatorOpen}
-        onClose={() => {
-          setSimulatorOpen(false);
-          closeOverlay();
-        }}
-      />
+      <SimulatorModal open={active?.key === "simulador"} onClose={closeActive} />
+      <SchedulingOverlay open={active?.key === "agenda"} onClose={closeActive} />
       <GatewayOverlay
-        open={gatewayOpen}
+        open={active?.key === "gateway"}
         moduleTitle={pendingTitle}
         onClose={() => {
-          setGatewayOpen(false);
-          closeOverlay("gateway");
+          closeActive();
           writeEntryContext({ pendingModule: null });
         }}
         onDone={() => {
-          setGatewayOpen(false);
           const pending = readEntryContext().pendingModule ?? "manual";
           openModule(pending);
         }}
       />
     </div>
+  );
+}
+
+function ResumeBanner({
+  title,
+  onResume,
+  onDismiss,
+}: {
+  title: string;
+  onResume: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <section className="border-b" style={{ borderColor: "var(--paper-edge)" }}>
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-6 md:flex-row md:items-center md:justify-between md:px-10">
+        <p className="text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+          <span className="portal-eyebrow mr-3">Continuar jornada</span>
+          Você estava em <strong className="font-medium">{title}</strong>.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onResume}
+            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium"
+            style={{ background: "var(--brand-orange)", color: "#fff" }}
+          >
+            Retomar
+            <ArrowRight className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="text-xs uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]"
+          >
+            Agora não
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -366,10 +430,10 @@ function Hero() {
             />
             <span
               className="portal-eyebrow"
-            style={{
-              color: "rgba(255,255,255,0.95)",
-              textShadow: "0 1px 2px rgba(6,12,28,0.35)",
-            }}
+              style={{
+                color: "rgba(255,255,255,0.95)",
+                textShadow: "0 1px 2px rgba(6,12,28,0.35)",
+              }}
             >
               Ecossistema Velox · Edição MMXXVI
             </span>
@@ -378,9 +442,9 @@ function Hero() {
             className="portal-serif mt-8 text-balance"
             style={{
               fontSize: "clamp(3rem, 8vw, 7rem)",
-            color: "#ffffff",
-            textShadow:
-              "0 2px 32px color-mix(in oklab, var(--ink) 45%, transparent), 0 1px 2px rgba(6,12,28,0.35)",
+              color: "#ffffff",
+              textShadow:
+                "0 2px 32px color-mix(in oklab, var(--ink) 45%, transparent), 0 1px 2px rgba(6,12,28,0.35)",
             }}
           >
             Portal <span style={{ color: "var(--brand-orange)" }}>Velox</span>.
@@ -389,23 +453,22 @@ function Hero() {
             className="portal-serif mt-6 italic"
             style={{
               fontSize: "clamp(1.25rem, 2.4vw, 1.75rem)",
-            color: "rgba(255,255,255,0.98)",
-            textShadow: "0 1px 2px rgba(6,12,28,0.35)",
+              color: "rgba(255,255,255,0.98)",
+              textShadow: "0 1px 2px rgba(6,12,28,0.35)",
             }}
           >
             Uma única plataforma para acessar tudo o que a Velox oferece.
           </p>
           <p
             className="mt-8 max-w-[56ch] text-base leading-relaxed md:text-lg"
-          style={{
-            color: "rgba(255,255,255,0.94)",
-            textShadow: "0 1px 2px rgba(6,12,28,0.3)",
-          }}
+            style={{
+              color: "rgba(255,255,255,0.94)",
+              textShadow: "0 1px 2px rgba(6,12,28,0.3)",
+            }}
           >
-            O Portal Velox reúne, em um só lugar, o Manual do Investidor,
-            o Universo institucional, nossa sede, comunicados e experiências
-            da rede — uma recepção editorial construída para franqueados,
-            investidores e parceiros.
+            O Portal Velox reúne, em um só lugar, o Manual do Investidor, o Universo institucional,
+            nossa sede, comunicados e experiências da rede — uma recepção editorial construída para
+            franqueados, investidores e parceiros.
           </p>
         </div>
 
@@ -429,7 +492,11 @@ function Hero() {
 
 function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
   return (
-    <section id="modulos" className="relative border-b" style={{ borderColor: "var(--paper-edge)" }}>
+    <section
+      id="modulos"
+      className="relative border-b"
+      style={{ borderColor: "var(--paper-edge)" }}
+    >
       <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
         <div className="mb-14 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -437,9 +504,9 @@ function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
             <h2 className="portal-serif mt-3 text-4xl md:text-5xl">Por onde você quer começar.</h2>
           </div>
           <p className="max-w-md text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-            Reunimos aqui as diferentes portas de entrada do universo Velox.
-            Escolha o que faz sentido para o seu momento — cada espaço foi
-            pensado para receber você com clareza e sem pressa.
+            Reunimos aqui as diferentes portas de entrada do universo Velox. Escolha o que faz
+            sentido para o seu momento — cada espaço foi pensado para receber você com clareza e sem
+            pressa.
           </p>
         </div>
 
@@ -453,12 +520,20 @@ function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
   );
 }
 
-function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: ModuleCard) => void }) {
+function ModuleTile({
+  module: m,
+  onOpen,
+}: {
+  module: ModuleCard;
+  onOpen: (m: ModuleCard) => void;
+}) {
   const Icon = m.icon;
   const badge =
-    m.status === "em-preparacao" ? "Em preparação" :
-    m.status === "em-desenvolvimento" ? "Em desenvolvimento" :
-    null;
+    m.status === "em-preparacao"
+      ? "Em preparação"
+      : m.status === "em-desenvolvimento"
+        ? "Em desenvolvimento"
+        : null;
   const inner = (
     <article className="portal-card group flex h-full flex-col">
       <div className="relative aspect-[16/10] overflow-hidden">
@@ -476,16 +551,16 @@ function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: Mod
           }}
         />
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-5 py-3">
-          <span
-            className="portal-eyebrow"
-            style={{ color: "var(--paper)" }}
-          >
+          <span className="portal-eyebrow" style={{ color: "var(--paper)" }}>
             {m.eyebrow}
           </span>
           {badge && (
             <span
               className="border px-2 py-1 text-[10px] uppercase tracking-[0.22em]"
-              style={{ borderColor: "color-mix(in oklab, var(--paper) 40%, transparent)", color: "var(--paper)" }}
+              style={{
+                borderColor: "color-mix(in oklab, var(--paper) 40%, transparent)",
+                color: "var(--paper)",
+              }}
             >
               {badge}
             </span>
@@ -501,12 +576,19 @@ function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: Mod
           {m.description}
         </p>
         <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="text-xs uppercase tracking-[0.22em]" style={{ color: m.status === "aberto" ? "var(--brand-blue-deep)" : "var(--muted-foreground)" }}>
+          <span
+            className="text-xs uppercase tracking-[0.22em]"
+            style={{
+              color: m.status === "aberto" ? "var(--brand-blue-deep)" : "var(--muted-foreground)",
+            }}
+          >
             {m.cta}
           </span>
           <ArrowUpRight
             className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            style={{ color: m.status === "aberto" ? "var(--brand-orange)" : "var(--muted-foreground)" }}
+            style={{
+              color: m.status === "aberto" ? "var(--brand-orange)" : "var(--muted-foreground)",
+            }}
           />
         </div>
       </div>
@@ -547,63 +629,33 @@ function ModulePanel({
   onClose: () => void;
 }) {
   const open = Boolean(panel);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [panel?.src]);
+
   return (
-    <div
-      className={
-        "fixed inset-0 z-[70] transition-opacity duration-500 " +
-        (open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")
-      }
-      aria-hidden={!open}
-    >
-      {/* Backdrop com blur — mantém o Portal visível ao fundo */}
-      <button
-        type="button"
-        aria-label="Fechar painel"
-        onClick={onClose}
-        className="absolute inset-0"
-        style={{
-          background: "color-mix(in oklab, var(--ink) 55%, transparent)",
-          backdropFilter: "blur(14px)",
-        }}
-      />
-      {/* Painel central ~94% da tela */}
-      <div
-        className={
-          "absolute inset-x-[3vw] top-[3vh] bottom-[3vh] overflow-hidden rounded-2xl border shadow-2xl transition-all duration-500 " +
-          (open ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0")
-        }
-        style={{
-          borderColor: "color-mix(in oklab, var(--paper) 25%, transparent)",
-          background: "var(--paper)",
-          boxShadow: "0 60px 120px -30px color-mix(in oklab, var(--ink) 70%, transparent)",
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-label={panel?.title ?? ""}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fechar"
-          className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition hover:scale-105"
-          style={{
-            borderColor: "color-mix(in oklab, var(--paper) 40%, transparent)",
-            background: "color-mix(in oklab, var(--ink) 55%, transparent)",
-            color: "var(--paper)",
-          }}
-        >
-          <X className="h-5 w-5" />
-        </button>
-        {panel && (
-          <iframe
-            key={panel.src}
-            src={panel.src}
-            title={panel.title}
-            className="h-full w-full border-0"
-          />
-        )}
-      </div>
-    </div>
+    <PortalOverlayShell open={open} title={panel?.title ?? ""} onClose={onClose}>
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center gap-3 text-sm text-[color:var(--muted-foreground)]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Carregando {panel?.title ?? "módulo"}...
+        </div>
+      )}
+      {panel && (
+        <iframe
+          key={panel.src}
+          src={panel.src}
+          title={panel.title}
+          onLoad={() => setLoaded(true)}
+          className={
+            "h-full w-full border-0 transition-opacity duration-500 " +
+            (loaded ? "opacity-100" : "opacity-0")
+          }
+        />
+      )}
+    </PortalOverlayShell>
   );
 }
 
