@@ -247,9 +247,11 @@ export function onWorkspaceAlertsChange(cb: () => void) {
     if (
       e.type === "investor.reactivated" ||
       e.type === "meeting.created" ||
-      e.type === "meeting.updated" ||
-      e.type === "lead.created" ||
-      e.type === "lead.updated" ||
+      e.type === "meeting.requested" ||
+      e.type === "meeting.confirmed" ||
+      e.type === "meeting.rescheduled" ||
+      e.type === "meeting.cancelled" ||
+      e.type === "profile.updated" ||
       e.type === "lead.status.changed"
     ) {
       cb();
