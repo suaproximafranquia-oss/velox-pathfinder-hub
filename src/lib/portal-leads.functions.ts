@@ -61,8 +61,12 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     return { ok: true as const, scope };
   });
 
-/** Leitura da carteira — somente equipe autenticada. */
-export const listPortalLeads = createServerFn({ method: "GET" })
+/**
+ * Leitura da carteira — somente equipe autenticada.
+ * Usa POST de propósito: leituras GET podem ser servidas do cache do
+ * navegador e congelariam o Workspace em um estado antigo.
+ */
+export const listPortalLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
