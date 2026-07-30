@@ -166,13 +166,27 @@ function RootComponent() {
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";
 
+  /**
+   * Arquitetura oficial: a Home é a única porta pública do Portal.
+   * Qualquer rota interna acessada diretamente pelo navegador devolve o
+   * visitante à Home, que executa o Gateway e reabre o módulo
+   * solicitado como overlay. Dentro do overlay (iframe) a navegação
+   * interna segue normal.
+   */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isExecutive || isPortal || isGateway) return;
-    const protectedPublicRoute = pathname.startsWith("/manual") || pathname.startsWith("/universo");
-    if (!protectedPublicRoute || hasPortalSession()) return;
-    navigate({ to: "/entrar", search: { next: pathname }, replace: true });
-  }, [isExecutive, isGateway, isPortal, navigate, pathname]);
+    if (isExecutive || isPortal) return;
+    const insideOverlay = window.self !== window.top;
+    const mod = moduleForPath(pathname);
+    if (!mod) return;
+    if (insideOverlay && hasPortalSession()) return;
+    writeEntryContext({ pendingModule: mod.key });
+    if (insideOverlay) {
+      window.top?.location.replace(`/?m=${mod.key}`);
+      return;
+    }
+    navigate({ to: "/", search: { m: mod.key }, replace: true });
+  }, [isExecutive, isPortal, navigate, pathname]);
 
   // Área Executiva permanece isolada do Design System editorial.
   if (isExecutive) {
