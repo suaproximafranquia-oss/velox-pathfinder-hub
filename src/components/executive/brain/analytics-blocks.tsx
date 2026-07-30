@@ -4,10 +4,9 @@
  */
 import type {
   BrainInsight,
+  ComparisonReport,
   ConversionRate,
-  DistributionSlice,
 } from "@/lib/brain-analytics";
-import type { ComparativeReport } from "@/lib/report-comparatives";
 import { cn } from "@/lib/utils";
 
 export function BlockTitle({
@@ -97,58 +96,7 @@ export function ConversionGrid({ items }: { items: ConversionRate[] }) {
   );
 }
 
-export function DistributionCard({
-  title,
-  subtitle,
-  slices,
-}: {
-  title: string;
-  subtitle: string;
-  slices: DistributionSlice[];
-}) {
-  const total = slices.reduce((s, x) => s + x.value, 0);
-  return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-6">
-      <h3 className="font-display text-base">{title}</h3>
-      <p className="text-xs text-[color:var(--muted-foreground)] mt-0.5 mb-4">{subtitle}</p>
-      {total === 0 ? (
-        <p className="text-xs text-[color:var(--muted-foreground)]">
-          Nenhum registro no escopo selecionado.
-        </p>
-      ) : (
-        <>
-          <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-[color:var(--border)]/40">
-            {slices.map((s) =>
-              s.value > 0 ? (
-                <span
-                  key={s.id}
-                  title={`${s.label}: ${s.value}`}
-                  className={cn("h-full", s.tone)}
-                  style={{ width: `${(s.value / total) * 100}%` }}
-                />
-              ) : null,
-            )}
-          </div>
-          <ul className="mt-4 space-y-2">
-            {slices.map((s) => (
-              <li key={s.id} className="flex items-center justify-between text-xs">
-                <span className="inline-flex items-center gap-2 text-[color:var(--muted-foreground)]">
-                  <span className={cn("h-2 w-2 rounded-full", s.tone)} />
-                  {s.label}
-                </span>
-                <span className="tabular-nums text-[color:var(--foreground)]">
-                  {s.value} · {total > 0 ? Math.round((s.value / total) * 100) : 0}%
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
-  );
-}
-
-export function ComparativeTable({ report }: { report: ComparativeReport }) {
+export function ComparisonTable({ report }: { report: ComparisonReport }) {
   const fmt = (v: number, unit: "count" | "currency") =>
     unit === "currency"
       ? new Intl.NumberFormat("pt-BR", {
@@ -157,43 +105,60 @@ export function ComparativeTable({ report }: { report: ComparativeReport }) {
           maximumFractionDigits: 0,
         }).format(v)
       : new Intl.NumberFormat("pt-BR").format(Math.round(v));
+
+  const Delta = ({ value }: { value: number | null }) => (
+    <span
+      className={cn(
+        "tabular-nums",
+        value === null
+          ? "text-[color:var(--muted-foreground)]"
+          : value > 0
+            ? "text-emerald-400"
+            : value < 0
+              ? "text-rose-400"
+              : "text-[color:var(--muted-foreground)]",
+      )}
+    >
+      {value === null
+        ? "—"
+        : `${value > 0 ? "+" : ""}${(value * 100).toFixed(1).replace(".", ",")}%`}
+    </span>
+  );
+
   return (
     <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-6">
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <h3 className="font-display text-base">Comparativo · {report.axisLabel}</h3>
-      </div>
-      <p className="text-xs text-[color:var(--muted-foreground)] mb-4">{report.hint}</p>
+      <h3 className="font-display text-base">Comparativo executivo</h3>
+      <p className="text-xs text-[color:var(--muted-foreground)] mb-4 mt-0.5">
+        Competência atual · {report.previousLabel} · {report.annualLabel}
+      </p>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full text-xs min-w-[560px]">
           <thead>
             <tr className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
               <th className="text-left font-normal pb-2">Indicador</th>
               <th className="text-right font-normal pb-2">Atual</th>
-              <th className="text-right font-normal pb-2">Referência</th>
-              <th className="text-right font-normal pb-2">Variação</th>
+              <th className="text-right font-normal pb-2">Mês anterior</th>
+              <th className="text-right font-normal pb-2">Média anual</th>
+              <th className="text-right font-normal pb-2">vs. anterior</th>
+              <th className="text-right font-normal pb-2">vs. média</th>
             </tr>
           </thead>
           <tbody>
-            {report.cells.map((c) => (
-              <tr key={c.label} className="border-t border-[color:var(--border)]/50">
-                <td className="py-2 text-[color:var(--foreground)]">{c.label}</td>
-                <td className="py-2 text-right tabular-nums">{fmt(c.value, c.unit)}</td>
+            {report.rows.map((r) => (
+              <tr key={r.id} className="border-t border-[color:var(--border)]/50">
+                <td className="py-2 text-[color:var(--foreground)]">{r.label}</td>
+                <td className="py-2 text-right tabular-nums">{fmt(r.current, r.unit)}</td>
                 <td className="py-2 text-right tabular-nums text-[color:var(--muted-foreground)]">
-                  {fmt(c.reference, c.unit)}
+                  {report.hasPrevious ? fmt(r.previous, r.unit) : "—"}
                 </td>
-                <td
-                  className={cn(
-                    "py-2 text-right tabular-nums",
-                    c.delta > 0
-                      ? "text-emerald-400"
-                      : c.delta < 0
-                        ? "text-rose-400"
-                        : "text-[color:var(--muted-foreground)]",
-                  )}
-                >
-                  {c.deltaPercent === null
-                    ? "—"
-                    : `${c.delta > 0 ? "+" : ""}${(c.deltaPercent * 100).toFixed(1).replace(".", ",")}%`}
+                <td className="py-2 text-right tabular-nums text-[color:var(--muted-foreground)]">
+                  {fmt(r.annualAverage, r.unit)}
+                </td>
+                <td className="py-2 text-right">
+                  <Delta value={report.hasPrevious ? r.vsPrevious : null} />
+                </td>
+                <td className="py-2 text-right">
+                  <Delta value={r.vsAnnual} />
                 </td>
               </tr>
             ))}
