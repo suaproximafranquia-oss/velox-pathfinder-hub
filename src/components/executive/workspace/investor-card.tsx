@@ -111,35 +111,33 @@ export function InvestorCard({
           priority.ring,
         )}
       >
-        {/* Header — nome com prioridade visual absoluta */}
-        <div className="flex items-start gap-2.5 min-w-0 pr-9">
-          <span className="mt-1 -ml-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[12px] font-medium tracking-wider text-[color:var(--gold)]">
-            {initials || "•"}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <p
-                title={investor.name}
-                className="font-display text-[18px] md:text-[19px] leading-tight flex-1 min-w-0 break-words line-clamp-2"
-              >
-                {investor.name}
-              </p>
-              {investor.priority && investor.priority !== "none" ? (
-                <span
-                  aria-label={priority.label}
-                  title={priority.label}
-                  className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full", priority.dot)}
-                />
-              ) : null}
-            </div>
-            <p className="mt-1 text-[12px] text-[color:var(--muted-foreground)] truncate">
+        {/* Header — o nome ocupa a largura útil integral do card */}
+        <div className="min-w-0 pr-10">
+          <p
+            title={investor.name}
+            className="font-display text-[19px] md:text-[20px] leading-[1.2] break-words line-clamp-2"
+          >
+            {investor.name}
+          </p>
+          <div className="mt-2 flex items-center gap-2 min-w-0">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[11px] font-medium tracking-wider text-[color:var(--gold)]">
+              {initials || "•"}
+            </span>
+            <p className="min-w-0 flex-1 text-[12px] text-[color:var(--muted-foreground)] truncate">
               {contact}
             </p>
+            {investor.priority && investor.priority !== "none" ? (
+              <span
+                aria-label={priority.label}
+                title={priority.label}
+                className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full", priority.dot)}
+              />
+            ) : null}
           </div>
         </div>
 
         {/* Meta — próxima reunião + origem */}
-        <div className="mt-5 flex items-center justify-between gap-2 text-[12px]">
+        <div className="mt-4 flex items-center justify-between gap-2 text-[12px]">
           <span className="inline-flex items-center gap-1.5 text-[color:var(--muted-foreground)] min-w-0 truncate">
             <Calendar className="h-3.5 w-3.5 shrink-0 text-[color:var(--gold)]/70" />
             <span className="truncate">
