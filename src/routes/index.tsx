@@ -72,11 +72,11 @@ type ModuleCard = {
   description: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   cover: string;
-  panelSrc?: string;
+  /** Módulo interno correspondente no registro oficial do Portal. */
+  moduleKey?: PortalModuleKey;
   href?: string;
   cta: string;
   status: "aberto" | "em-preparacao" | "em-desenvolvimento";
-  action?: "simulator";
 };
 
 const MODULES: ModuleCard[] = [
@@ -88,7 +88,7 @@ const MODULES: ModuleCard[] = [
       "Uma leitura editorial, em treze capítulos, sobre a franquia Velox, seus valores e o modelo de negócio — no ritmo do leitor, sem pressão comercial.",
     icon: BookOpen,
     cover: manualCoverImg.url,
-    panelSrc: "/manual",
+    moduleKey: "manual",
     cta: "Iniciar a leitura",
     status: "aberto",
   },
@@ -100,7 +100,7 @@ const MODULES: ModuleCard[] = [
       "Apresentação institucional completa da Velox: história, modelo de negócio, ecossistema de soluções, parceiros e frentes especializadas em todo o Brasil.",
     icon: Compass,
     cover: materialInstitucionalImg.url,
-    panelSrc: "/universo",
+    moduleKey: "universo",
     cta: "Iniciar leitura",
     status: "aberto",
   },
@@ -112,9 +112,9 @@ const MODULES: ModuleCard[] = [
       "Monte diferentes cenários comerciais e descubra uma estimativa do potencial de receita da sua futura operação.",
     icon: Calculator,
     cover: simuladorImg.url,
+    moduleKey: "simulador",
     cta: "Iniciar simulação",
     status: "aberto",
-    action: "simulator",
   },
   {
     key: "sede",
