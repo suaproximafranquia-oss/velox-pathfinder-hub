@@ -232,7 +232,6 @@ export function evaluateMeetingLifecycle(session: ExecutiveSession) {
   }
 }
 
-export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
 /**
  * Alertas automáticos derivados do Journey Engine. Cada marco relevante
  * da jornada vira um alerta para o executivo responsável.
