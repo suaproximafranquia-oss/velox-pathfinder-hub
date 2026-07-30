@@ -17,7 +17,13 @@ import { listAllInvestors, formatRelative, type Investor } from "@/lib/executive
 import { listMeetings } from "@/lib/meetings";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 
-export type WorkspaceAlertCategory = "movimentacao" | "reuniao";
+export type WorkspaceAlertCategory =
+  | "movimentacao"
+  | "reuniao"
+  | "reuniao_solicitada"
+  | "reuniao_confirmada"
+  | "reuniao_cancelada"
+  | "reuniao_alterada";
 
 export type WorkspaceAlert = {
   id: string;
@@ -33,6 +39,10 @@ export type WorkspaceAlert = {
 export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, string> = {
   movimentacao: "Movimentação do Investidor",
   reuniao: "Lembrete de Reunião",
+  reuniao_solicitada: "Nova Solicitação de Reunião",
+  reuniao_confirmada: "Reunião Confirmada",
+  reuniao_cancelada: "Reunião Cancelada",
+  reuniao_alterada: "Alteração de Horário",
 };
 
 const ALERTS_KEY = "atlas:workspace-alerts:v1";
@@ -147,10 +157,73 @@ export function evaluateMeetingReminders(session: ExecutiveSession) {
   }
 }
 
+/**
+ * Ciclo de vida comercial das reuniões do executivo: solicitação,
+ * confirmação, alteração de horário e cancelamento.
+ */
+export function evaluateMeetingLifecycle(session: ExecutiveSession) {
+  const meetings = listMeetings({ executiveId: session.userId });
+  for (const m of meetings) {
+    const when = new Date(m.scheduledAt).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    if (m.status === "Solicitada") {
+      const options = (m.requestedSlots?.length ? m.requestedSlots : [m.scheduledAt])
+        .map((iso) =>
+          new Date(iso).toLocaleString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        )
+        .join(" ou ");
+      pushAlert({
+        ownerUserId: session.userId,
+        category: "reuniao_solicitada",
+        title: `${m.investorName} solicitou uma conversa`,
+        description: `Horários preferenciais: ${options}. Confirme um deles na Central de Reuniões.`,
+        investorId: m.investorId,
+        date: m.createdAt,
+      });
+      continue;
+    }
+    const category: WorkspaceAlertCategory | null =
+      m.status === "Confirmada"
+        ? "reuniao_confirmada"
+        : m.status === "Reagendada"
+          ? "reuniao_alterada"
+          : m.status === "Cancelada"
+            ? "reuniao_cancelada"
+            : null;
+    if (!category) continue;
+    pushAlert({
+      ownerUserId: session.userId,
+      category,
+      title:
+        category === "reuniao_confirmada"
+          ? `Reunião confirmada com ${m.investorName}`
+          : category === "reuniao_alterada"
+            ? `Horário alterado — ${m.investorName}`
+            : `Reunião cancelada — ${m.investorName}`,
+      description:
+        category === "reuniao_cancelada"
+          ? `Encontro de ${when} cancelado.${m.cancelReason ? ` Motivo: ${m.cancelReason}.` : ""}`
+          : `${when}${m.meetUrl ? ` · ${m.meetUrl}` : ""}`,
+      investorId: m.investorId,
+      date: m.updatedAt,
+    });
+  }
+}
+
 export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
   evaluateInvestorMovement();
   try {
     evaluateMeetingReminders(session);
+    evaluateMeetingLifecycle(session);
   } catch {
     /* Central de Reuniões pode não estar disponível em todos os contextos. */
   }

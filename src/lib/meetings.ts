@@ -10,6 +10,7 @@ import { emitEvent } from "@/lib/events/bus";
 import { logAudit } from "@/lib/audit-log";
 
 export type MeetingStatus =
+  | "Solicitada"
   | "Agendada"
   | "Confirmada"
   | "Reagendada"
@@ -42,6 +43,15 @@ export type Meeting = {
   meetUrl?: string;
   notes: MeetingNote[];
   cancelReason?: string;
+  /**
+   * Solicitações do Portal: horários preferenciais informados pelo investidor.
+   * O executivo confirma um deles — nunca cria reunião para outro executivo.
+   */
+  requestedSlots?: string[];
+  /** Assunto/tema declarado pelo investidor na solicitação. */
+  topic?: string;
+  /** Origem do registro — preparado para o CRM Inteligente. */
+  origin?: "portal" | "executivo";
   googleEventId?: string;
   googleSync?: GoogleSyncState;
   googleSyncError?: string;
@@ -105,13 +115,18 @@ export function createMeeting(input: {
   meetingProvider?: import("@/lib/meeting-providers").MeetingProviderId;
   meetingProviderStatus?: import("@/lib/meeting-providers").MeetingProviderStatus;
   meetingProviderUrl?: string;
+  status?: MeetingStatus;
+  requestedSlots?: string[];
+  topic?: string;
+  origin?: "portal" | "executivo";
 }): Meeting {
   const now = new Date().toISOString();
   const meeting: Meeting = {
     id: newId("mt"),
     ...input,
     durationMin: input.durationMin ?? 60,
-    status: "Agendada",
+    status: input.status ?? "Agendada",
+    origin: input.origin ?? "executivo",
     notes: [],
     googleSync: "none",
     createdAt: now,
@@ -121,21 +136,84 @@ export function createMeeting(input: {
   all.push(meeting);
   safeWrite(all);
   emitEvent({
-    type: "meeting.created",
+    type: meeting.status === "Solicitada" ? "meeting.requested" : "meeting.created",
     actorId: input.executiveId,
     investorId: input.investorId,
-    payload: { meetingId: meeting.id, scheduledAt: input.scheduledAt },
+    payload: {
+      meetingId: meeting.id,
+      scheduledAt: input.scheduledAt,
+      requestedSlots: meeting.requestedSlots ?? null,
+      origin: meeting.origin,
+    },
   });
   logAudit({
     actorId: input.executiveId,
     actorName: input.executiveName,
     actorRole: "Executivo",
     module: "investidores",
-    action: "Reunião agendada",
+    action: meeting.status === "Solicitada" ? "Reunião solicitada pelo investidor" : "Reunião agendada",
     target: input.investorName,
     severity: "info",
   });
   return meeting;
+}
+
+/**
+ * Confirma uma solicitação do Portal em um dos horários preferenciais.
+ * Valida horário, conflito de agenda e a titularidade do executivo.
+ */
+export function confirmMeetingRequest(
+  id: string,
+  chosenIso: string,
+  actor: { actorId: string; actorName: string },
+):
+  | { ok: true; meeting: Meeting }
+  | { ok: false; reason: "not-found" | "not-owner" | "invalid-slot" | "conflict" | "already-confirmed" } {
+  const all = safeRead();
+  const idx = all.findIndex((m) => m.id === id);
+  if (idx < 0) return { ok: false, reason: "not-found" };
+  const prev = all[idx];
+  if (prev.executiveId !== actor.actorId) return { ok: false, reason: "not-owner" };
+  if (prev.status !== "Solicitada") return { ok: false, reason: "already-confirmed" };
+  const options = prev.requestedSlots?.length ? prev.requestedSlots : [prev.scheduledAt];
+  if (!options.includes(chosenIso)) return { ok: false, reason: "invalid-slot" };
+  if (Number.isNaN(Date.parse(chosenIso))) return { ok: false, reason: "invalid-slot" };
+
+  const conflict = all.some(
+    (m) =>
+      m.id !== id &&
+      m.executiveId === prev.executiveId &&
+      m.status !== "Cancelada" &&
+      m.status !== "Solicitada" &&
+      m.scheduledAt === chosenIso,
+  );
+  if (conflict) return { ok: false, reason: "conflict" };
+
+  const next: Meeting = {
+    ...prev,
+    scheduledAt: chosenIso,
+    status: "Confirmada",
+    updatedAt: new Date().toISOString(),
+  };
+  all[idx] = next;
+  safeWrite(all);
+  emitEvent({
+    type: "meeting.confirmed",
+    actorId: actor.actorId,
+    investorId: next.investorId,
+    payload: { meetingId: next.id, scheduledAt: next.scheduledAt },
+  });
+  logAudit({
+    actorId: actor.actorId,
+    actorName: actor.actorName,
+    actorRole: "Executivo",
+    module: "investidores",
+    action: "Reunião confirmada",
+    target: next.investorName,
+    details: `Horário confirmado: ${new Date(chosenIso).toLocaleString("pt-BR")}.`,
+    severity: "success",
+  });
+  return { ok: true, meeting: next };
 }
 
 /** Aplica dados de sincronização Google (evento/meet) numa reunião. */
@@ -302,6 +380,7 @@ export function deleteMeeting(
 }
 
 export const MEETING_STATUS_TONE: Record<MeetingStatus, string> = {
+  Solicitada: "#B08D57",
   Agendada: "var(--gold)",
   Confirmada: "#4A7C59",
   Reagendada: "#B08D57",

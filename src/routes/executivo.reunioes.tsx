@@ -37,6 +37,7 @@ import {
   type GoogleSyncState,
 } from "@/lib/meetings";
 import { loadLeads } from "@/lib/leads";
+import { confirmRequest, declineRequest } from "@/lib/scheduling-flow";
 import { InvestorProfilePanel } from "@/components/executive/investor-profile-panel";
 import { logAudit } from "@/lib/audit-log";
 import { listEvents, onEvent, type PortalEvent } from "@/lib/events/bus";
@@ -71,6 +72,7 @@ export const Route = createFileRoute("/executivo/reunioes")({
 });
 
 const STATUS_FLOW: MeetingStatus[] = [
+  "Solicitada",
   "Agendada",
   "Confirmada",
   "Reagendada",
@@ -80,6 +82,7 @@ const STATUS_FLOW: MeetingStatus[] = [
 ];
 
 const STATUS_STYLES: Record<MeetingStatus, { bg: string; fg: string; border: string; label: string }> = {
+  Solicitada: { bg: "rgba(176,141,87,0.18)", fg: "#B08D57", border: "#B08D57", label: "Solicitada" },
   Agendada: { bg: "rgba(59,126,161,0.15)", fg: "#3B7EA1", border: "#3B7EA1", label: "Agendada" },
   Confirmada: { bg: "rgba(74,124,89,0.15)", fg: "#4A7C59", border: "#4A7C59", label: "Confirmada" },
   Reagendada: { bg: "rgba(214,180,72,0.18)", fg: "#B08D57", border: "#B08D57", label: "Reagendada" },
@@ -215,7 +218,7 @@ function MeetingsPage() {
   }, [items]);
   const stats = useMemo(() => {
     const s: Record<MeetingStatus, number> = {
-      Agendada: 0, Confirmada: 0, Reagendada: 0, "Em andamento": 0, Concluída: 0, Cancelada: 0,
+      Solicitada: 0, Agendada: 0, Confirmada: 0, Reagendada: 0, "Em andamento": 0, Concluída: 0, Cancelada: 0,
     };
     for (const m of items) s[m.status]++;
     return s;
@@ -276,6 +279,12 @@ function MeetingsPage() {
         onOpenNext={() => nextMeeting && setDetailsFor(nextMeeting)}
         stats={stats}
         onOpen={(m) => setDetailsFor(m)}
+      />
+
+      <PendingRequestsPanel
+        requests={items.filter((m) => m.status === "Solicitada")}
+        session={session}
+        onChanged={refresh}
       />
 
       <div className="mb-4 flex flex-wrap gap-1 border-b border-[color:var(--border)]">
@@ -519,6 +528,128 @@ function MeetingsPage() {
         onClose={() => setProfileOpen(null)}
       />
     </ExecutiveShell>
+  );
+}
+
+/**
+ * Solicitações do Portal aguardando confirmação do executivo responsável.
+ * Ao confirmar, o evento do Google Calendar e o Meet são criados automaticamente.
+ */
+function PendingRequestsPanel({
+  requests,
+  session,
+  onChanged,
+}: {
+  requests: Meeting[];
+  session: ExecutiveSession;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (requests.length === 0) return null;
+
+  async function confirm(meeting: Meeting, iso: string) {
+    setBusy(meeting.id);
+    setError(null);
+    setFeedback(null);
+    const outcome = await confirmRequest(meeting.id, iso, {
+      userId: session.userId,
+      userName: session.name,
+      email: session.email,
+    });
+    setBusy(null);
+    if (!outcome.ok) {
+      setError(outcome.message);
+      onChanged();
+      return;
+    }
+    setFeedback(
+      outcome.googleNotice ??
+        `Reunião confirmada e convite criado${outcome.meeting.meetUrl ? " com link do Meet" : ""}.`,
+    );
+    onChanged();
+  }
+
+  async function decline(meeting: Meeting) {
+    setBusy(meeting.id);
+    await declineRequest(
+      meeting,
+      { userId: session.userId, userName: session.name, email: session.email },
+      "Solicitação recusada pelo executivo",
+    );
+    setBusy(null);
+    setFeedback("Solicitação recusada. O investidor pode escolher novos horários.");
+    onChanged();
+  }
+
+  return (
+    <section
+      className="mb-6 rounded-xl border p-5"
+      style={{ borderColor: "var(--gold)", background: "color-mix(in oklab, var(--gold) 6%, transparent)" }}
+    >
+      <h2 className="text-sm font-medium">
+        Solicitações de reunião ({requests.length})
+      </h2>
+      <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+        Investidores escolheram horários preferenciais. Confirme um deles para gerar o convite e o
+        link da reunião.
+      </p>
+      <ul className="mt-4 space-y-3">
+        {requests.map((m) => {
+          const options = m.requestedSlots?.length ? m.requestedSlots : [m.scheduledAt];
+          return (
+            <li
+              key={m.id}
+              className="rounded-lg border p-4"
+              style={{ borderColor: "var(--border)", background: "var(--card)" }}
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-sm font-medium">{m.investorName}</span>
+                <span className="text-xs text-[color:var(--muted-foreground)]">
+                  Solicitado em {new Date(m.createdAt).toLocaleString("pt-BR")}
+                </span>
+              </div>
+              {m.topic && (
+                <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+                  Assunto: {m.topic}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {options.map((iso) => (
+                  <button
+                    key={iso}
+                    type="button"
+                    disabled={busy === m.id}
+                    onClick={() => confirm(m, iso)}
+                    className="rounded-full px-4 py-2 text-xs font-medium disabled:opacity-50"
+                    style={{ background: "var(--gold)", color: "#10233A" }}
+                  >
+                    Confirmar {new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={busy === m.id}
+                  onClick={() => decline(m)}
+                  className="rounded-full border px-4 py-2 text-xs disabled:opacity-50"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  Recusar
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {feedback && <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">{feedback}</p>}
+      {error && (
+        <p className="mt-3 text-xs" style={{ color: "var(--destructive)" }}>
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 

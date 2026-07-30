@@ -8,9 +8,7 @@
  * o investidor de concluir o agendamento.
  */
 import { createMeeting, listMeetings, type Meeting } from "@/lib/meetings";
-import { trySyncCreate } from "@/lib/google-calendar";
 import { addComment } from "@/lib/investor-comments";
-import { emitEvent } from "@/lib/events/bus";
 import { getPortalSession, setJourneyStatus, trackSessionNavigation } from "@/lib/portal-session";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import type { ExecutiveUser } from "@/lib/executive-auth";
@@ -104,14 +102,89 @@ export function listInvestorMeetings(): Meeting[] {
 
 export type ScheduleResult =
   | { ok: true; meeting: Meeting }
-  | { ok: false; reason: "no-session" | "no-executive" | "slot-taken" };
+  | {
+      ok: false;
+      reason:
+        | "no-session"
+        | "no-executive"
+        | "slot-taken"
+        | "invalid-slots"
+        | "duplicate-request";
+    };
+
+/* ------------------------------------------------------------------ *
+ * Continuidade — rascunho do formulário de agendamento
+ * ------------------------------------------------------------------ */
+
+const DRAFT_KEY = "velox:scheduling-draft:v1";
+
+export type SchedulingDraft = {
+  investorId: string;
+  slots: string[];
+  topic: string;
+  updatedAt: string;
+};
+
+/** Salva o rascunho do investidor da sessão (horários + assunto). */
+export function saveSchedulingDraft(input: { slots: string[]; topic: string }): void {
+  const session = getPortalSession();
+  if (!session || typeof window === "undefined") return;
+  try {
+    const draft: SchedulingDraft = {
+      investorId: session.investorId,
+      slots: input.slots,
+      topic: input.topic,
+      updatedAt: new Date().toISOString(),
+    };
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    /* noop */
+  }
+}
+
+/** Recupera o rascunho da sessão atual, descartando horários já vencidos. */
+export function getSchedulingDraft(): SchedulingDraft | null {
+  const session = getPortalSession();
+  if (!session || typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as SchedulingDraft;
+    if (draft.investorId !== session.investorId) return null;
+    const now = Date.now();
+    return { ...draft, slots: (draft.slots ?? []).filter((iso) => Date.parse(iso) > now) };
+  } catch {
+    return null;
+  }
+}
+
+export function clearSchedulingDraft(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
+/** Solicitação em aberto (aguardando confirmação do executivo). */
+export function getOpenRequest(): Meeting | null {
+  const session = getPortalSession();
+  if (!session) return null;
+  return (
+    listMeetings({ investorId: session.investorId, status: ["Solicitada"] }).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    )[0] ?? null
+  );
+}
 
 /**
- * Cria a reunião solicitada pelo investidor, registra na jornada e tenta
- * sincronizar com o Google Calendar quando disponível.
+ * Registra a solicitação do investidor com até dois horários preferenciais.
+ * O evento do Google Calendar e o link do Meet só são gerados quando o
+ * executivo responsável confirma um dos horários.
  */
 export async function requestInvestorMeeting(input: {
-  scheduledAt: string;
+  slots: string[];
   topic?: string;
 }): Promise<ScheduleResult> {
   const session = getPortalSession();
@@ -119,10 +192,19 @@ export async function requestInvestorMeeting(input: {
   const executive = getSchedulingExecutive();
   if (!executive) return { ok: false, reason: "no-executive" };
 
-  const conflict = listMeetings({ executiveId: executive.id }).some(
-    (m) => m.status !== "Cancelada" && m.scheduledAt === input.scheduledAt,
+  const now = Date.now();
+  const slots = [...new Set(input.slots)].filter(
+    (iso) => !Number.isNaN(Date.parse(iso)) && Date.parse(iso) > now,
   );
-  if (conflict) return { ok: false, reason: "slot-taken" };
+  if (slots.length < 1 || slots.length > 2) return { ok: false, reason: "invalid-slots" };
+
+  if (getOpenRequest()) return { ok: false, reason: "duplicate-request" };
+
+  const executiveMeetings = listMeetings({ executiveId: executive.id }).filter(
+    (m) => m.status !== "Cancelada" && m.status !== "Solicitada",
+  );
+  const free = slots.filter((iso) => !executiveMeetings.some((m) => m.scheduledAt === iso));
+  if (free.length === 0) return { ok: false, reason: "slot-taken" };
 
   let meeting = createMeeting({
     investorId: session.investorId,
@@ -130,37 +212,19 @@ export async function requestInvestorMeeting(input: {
     investorEmail: session.email,
     executiveId: executive.id,
     executiveName: executive.name,
-    scheduledAt: input.scheduledAt,
+    scheduledAt: free[0],
+    requestedSlots: free,
+    topic: input.topic,
+    status: "Solicitada",
+    origin: "portal",
     durationMin: DEFAULT_DURATION_MIN,
   });
 
-  try {
-    meeting = await trySyncCreate(meeting, {
-      userId: executive.id,
-      userName: executive.name,
-      userRole: "Executivo",
-      email: executive.email,
-    });
-  } catch {
-    /* a integração externa nunca bloqueia o agendamento */
-  }
-
-  const when = new Date(input.scheduledAt).toLocaleString("pt-BR", {
-    dateStyle: "long",
-    timeStyle: "short",
-  });
-
-  emitEvent({
-    type: "meeting.created",
-    investorId: session.investorId,
-    actorId: executive.id,
-    payload: {
-      meetingId: meeting.id,
-      scheduledAt: input.scheduledAt,
-      topic: input.topic ?? null,
-      source: "portal",
-    },
-  });
+  const when = free
+    .map((iso) =>
+      new Date(iso).toLocaleString("pt-BR", { dateStyle: "long", timeStyle: "short" }),
+    )
+    .join(" ou ");
 
   addComment({
     investorId: session.investorId,
@@ -173,6 +237,7 @@ export async function requestInvestorMeeting(input: {
 
   trackSessionNavigation("agenda", `Reunião solicitada para ${when}`);
   setJourneyStatus("contato");
+  clearSchedulingDraft();
 
   return { ok: true, meeting };
 }

@@ -19,6 +19,8 @@ export type PortalEventType =
   | "simulator.started"
   | "simulator.completed"
   | "meeting.created"
+  | "meeting.requested"
+  | "meeting.confirmed"
   | "meeting.rescheduled"
   | "meeting.completed"
   | "meeting.cancelled"
