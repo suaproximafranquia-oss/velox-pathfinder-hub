@@ -128,6 +128,19 @@ export function setJourneyStatus(status: JourneyStatus): PortalSession | null {
   return persist({ ...session, journeyStatus: status, lastSeenAt: new Date().toISOString() });
 }
 
+/**
+ * Continuidade da jornada: último módulo consumido pelo investidor.
+ * Permite retomar exatamente de onde parou ao voltar ao Portal.
+ */
+export function getResumePoint(): { module: string; detail?: string; at: string } | null {
+  const session = getPortalSession();
+  if (!session) return null;
+  const last = [...(session.history ?? [])]
+    .reverse()
+    .find((entry) => entry.module !== "gateway");
+  return last ? { module: last.module, detail: last.detail, at: last.at } : null;
+}
+
 export function startPortalSession(input: {
   name: string;
   email: string;
