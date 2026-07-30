@@ -67,7 +67,7 @@ export function SchedulingOverlay({ open, onClose }: { open: boolean; onClose: (
 
   return (
     <PortalOverlayShell open={open} title="Agendar conversa" size="dialog" onClose={onClose}>
-      <div className="h-full overflow-y-auto px-6 py-8 md:px-10 md:py-10">
+      <div className="h-full overflow-y-auto px-6 pr-16 py-8 md:px-10 md:pr-16 md:py-10">
         {confirmed ? (
           <ConfirmationView meeting={confirmed} executiveName={executive?.name ?? "Velox"} onClose={onClose} />
         ) : (
