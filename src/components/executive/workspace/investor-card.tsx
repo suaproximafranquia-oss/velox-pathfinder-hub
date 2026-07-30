@@ -196,6 +196,26 @@ export function InvestorCard({
         )}
       </div>
 
+      {/* Indicador de status — exatamente abaixo do menu de três pontos */}
+      {portalMeta && portalStatus && (
+        <button
+          type="button"
+          title={`Status: ${portalMeta.label} — clique para alterar`}
+          aria-label={`Status: ${portalMeta.label}. Clique para alterar.`}
+          onClick={(e) => {
+            e.stopPropagation();
+            const index = PORTAL_LEAD_STATUS_CYCLE.indexOf(portalStatus);
+            const next =
+              PORTAL_LEAD_STATUS_CYCLE[(index + 1) % PORTAL_LEAD_STATUS_CYCLE.length];
+            setPortalLeadStatus(investor.id, next);
+            setPortalStatus(next);
+          }}
+          className="absolute right-3 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-[color:var(--accent)]"
+        >
+          <span className={cn("h-3 w-3 rounded-full", portalMeta.dot)} />
+        </button>
+      )}
+
       {/* Ações rápidas — aparecem em hover/focus */}
       <div
         className={cn(
