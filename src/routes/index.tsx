@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Compass, Building2, BookMarked, Users, Calculator, ArrowUpRight, X } from "lucide-react";
 import { SimulatorModal } from "@/components/simulator/simulator-modal";
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
@@ -9,9 +9,39 @@ import sedeFachadaImg from "@/assets/portal-sede-fachada.png.asset.json";
 import revistaImg from "@/assets/portal-revista-velox.png.asset.json";
 import experienciasImg from "@/assets/portal-experiencias.png.asset.json";
 import simuladorImg from "@/assets/portal-simulador.jpg.asset.json";
-import { hasPortalSession } from "@/lib/portal-session";
+import {
+  hasPortalSession,
+  setJourneyStatus,
+  trackSessionNavigation,
+} from "@/lib/portal-session";
+import { GatewayOverlay } from "@/components/portal/gateway-overlay";
+import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
+import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
+import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
+
+type HomeSearch = {
+  /** Executivo responsável (link personalizado). */
+  e?: string;
+  /** Módulo a abrir sobre a Home após o Gateway. */
+  m?: string;
+  /** Origem da visita. */
+  o?: string;
+  /** Unidade. */
+  u?: string;
+  /** Campanha. */
+  c?: string;
+};
+
+const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): HomeSearch => ({
+    e: str(search.e),
+    m: str(search.m),
+    o: str(search.o),
+    u: str(search.u),
+    c: str(search.c),
+  }),
   head: () => ({
     meta: [
       { title: "Portal Velox — Ecossistema institucional Velox Soluções Financeiras" },
