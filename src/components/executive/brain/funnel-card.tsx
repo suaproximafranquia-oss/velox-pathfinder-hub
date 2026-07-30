@@ -101,12 +101,14 @@ export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
                   >
                     {isRevenue ? brl(s.value) : s.value.toLocaleString("pt-BR")}
                   </span>
-                  <span
-                    className="text-[11px] tabular-nums"
-                    style={{ color: tone.ink, opacity: 0.75 }}
-                  >
-                    {pct.toFixed(1).replace(".", ",")}%
-                  </span>
+                  {isRevenue ? null : (
+                    <span
+                      className="text-[11px] tabular-nums"
+                      style={{ color: tone.ink, opacity: 0.75 }}
+                    >
+                      {pct.toFixed(1).replace(".", ",")}%
+                    </span>
+                  )}
                 </div>
               </div>
 
