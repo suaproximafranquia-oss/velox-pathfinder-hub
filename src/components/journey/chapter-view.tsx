@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import type { Chapter } from "@/lib/journey-data";
 import { TOTAL_CHAPTERS } from "@/lib/journey-data";
 import { VideoSlot } from "./video-slot";
-import { emitEvent } from "@/lib/events/bus";
+import { trackJourney } from "@/lib/journey/engine";
 import { getCurrentInvestorId } from "@/lib/portal-session";
 
 export function ChapterView({
@@ -22,15 +22,17 @@ export function ChapterView({
     const investorId = getCurrentInvestorId();
     if (!investorId) return;
     if (chapter.index === 1) {
-      emitEvent({
+      trackJourney({
         type: "manual.started",
         investorId,
+        detail: "Iniciou o Manual",
         payload: { chapterSlug: chapter.slug, chapterTitle: chapter.title },
       });
     }
-    emitEvent({
+    trackJourney({
       type: "manual.chapter.completed",
       investorId,
+      detail: `Capítulo ${chapter.index} — ${chapter.title}`,
       payload: {
         chapterSlug: chapter.slug,
         chapterTitle: chapter.title,
@@ -39,9 +41,10 @@ export function ChapterView({
       },
     });
     if (chapter.isFinal) {
-      emitEvent({
+      trackJourney({
         type: "manual.completed",
         investorId,
+        detail: "Concluiu o Manual",
         payload: { total: TOTAL_CHAPTERS },
       });
     }
