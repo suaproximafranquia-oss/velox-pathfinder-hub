@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { BEHAVIOR_LABEL, journeySummary } from "@/lib/journey/insights";
 import {
   ArrowLeft,
   Calendar,
