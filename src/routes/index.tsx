@@ -17,6 +17,7 @@ import {
 import { GatewayOverlay } from "@/components/portal/gateway-overlay";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
+import { closeOverlay, setActiveOverlay } from "@/lib/portal-overlay";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { clearResponsibleExecutive } from "@/lib/responsible-executive";
 
@@ -166,14 +167,29 @@ function PortalHome() {
     const mod = getPortalModule(key);
     if (!mod) return;
     writeEntryContext({ pendingModule: null });
+    // Regra oficial: apenas um overlay ativo por vez.
+    setGatewayOpen(false);
     if (mod.action === "simulator") {
+      setOpenPanel(null);
       setSimulatorOpen(true);
+      setActiveOverlay("simulador");
       setJourneyStatus("simulador");
     } else if (mod.panelSrc) {
+      setSimulatorOpen(false);
       setOpenPanel({ src: mod.panelSrc, title: mod.title });
+      setActiveOverlay(key === "manual" ? "manual" : "universo");
       setJourneyStatus(key === "manual" ? "manual" : "portal");
     }
     trackSessionNavigation(key, mod.title);
+  }, []);
+
+  /** Abre o Gateway encerrando qualquer outro overlay ativo. */
+  const openGateway = useCallback((title: string | null) => {
+    setOpenPanel(null);
+    setSimulatorOpen(false);
+    setPendingTitle(title);
+    setGatewayOpen(true);
+    setActiveOverlay("gateway");
   }, []);
 
   /**
@@ -205,16 +221,22 @@ function PortalHome() {
     if (hasPortalSession()) {
       openModule(ctx.pendingModule);
     } else {
-      setPendingTitle(getPortalModule(ctx.pendingModule)?.title ?? null);
-      setGatewayOpen(true);
+      openGateway(getPortalModule(ctx.pendingModule)?.title ?? null);
     }
-  }, [navigate, openModule, search]);
+  }, [navigate, openGateway, openModule, search]);
+
+  // Ao desmontar a Home, nenhum overlay pode permanecer registrado.
+  useEffect(() => () => setActiveOverlay(null), []);
 
   useEffect(() => {
     if (!openPanel) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenPanel(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpenPanel(null);
+      closeOverlay();
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
@@ -233,8 +255,7 @@ function PortalHome() {
             if (!mod) return;
             if (!hasPortalSession()) {
               writeEntryContext({ pendingModule: mod.key });
-              setPendingTitle(mod.title);
-              setGatewayOpen(true);
+              openGateway(mod.title);
               return;
             }
             openModule(mod.key);
@@ -242,13 +263,26 @@ function PortalHome() {
         />
       </main>
       <PortalFooter />
-      <ModulePanel panel={openPanel} onClose={() => setOpenPanel(null)} />
-      <SimulatorModal open={simulatorOpen} onClose={() => setSimulatorOpen(false)} />
+      <ModulePanel
+        panel={openPanel}
+        onClose={() => {
+          setOpenPanel(null);
+          closeOverlay();
+        }}
+      />
+      <SimulatorModal
+        open={simulatorOpen}
+        onClose={() => {
+          setSimulatorOpen(false);
+          closeOverlay();
+        }}
+      />
       <GatewayOverlay
         open={gatewayOpen}
         moduleTitle={pendingTitle}
         onClose={() => {
           setGatewayOpen(false);
+          closeOverlay("gateway");
           writeEntryContext({ pendingModule: null });
         }}
         onDone={() => {
