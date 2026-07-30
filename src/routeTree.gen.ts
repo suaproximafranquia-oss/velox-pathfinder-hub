@@ -31,6 +31,7 @@ import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashb
 import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.conhecimento'
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
+import { Route as ExecutivoCampanhasRouteImport } from './routes/executivo.campanhas'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
 import { Route as ExecutivoAuditoriaRouteImport } from './routes/executivo.auditoria'
 import { Route as ExecutivoAlertasRouteImport } from './routes/executivo.alertas'
@@ -147,6 +148,11 @@ const ExecutivoCelebracaoRoute = ExecutivoCelebracaoRouteImport.update({
   path: '/executivo/celebracao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoCampanhasRoute = ExecutivoCampanhasRouteImport.update({
+  id: '/executivo/campanhas',
+  path: '/executivo/campanhas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
   id: '/executivo/brain',
   path: '/executivo/brain',
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/executivo/alertas'
     | '/executivo/auditoria'
     | '/executivo/brain'
+    | '/executivo/campanhas'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/executivo/alertas'
     | '/executivo/auditoria'
     | '/executivo/brain'
+    | '/executivo/campanhas'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/executivo/alertas'
     | '/executivo/auditoria'
     | '/executivo/brain'
+    | '/executivo/campanhas'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -360,6 +372,7 @@ export interface RootRouteChildren {
   ExecutivoAlertasRoute: typeof ExecutivoAlertasRoute
   ExecutivoAuditoriaRoute: typeof ExecutivoAuditoriaRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
+  ExecutivoCampanhasRoute: typeof ExecutivoCampanhasRoute
   ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoConhecimentoRoute: typeof ExecutivoConhecimentoRoute
@@ -537,6 +550,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoCelebracaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/campanhas': {
+      id: '/executivo/campanhas'
+      path: '/executivo/campanhas'
+      fullPath: '/executivo/campanhas'
+      preLoaderRoute: typeof ExecutivoCampanhasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/brain': {
       id: '/executivo/brain'
       path: '/executivo/brain'
@@ -584,6 +604,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoAlertasRoute: ExecutivoAlertasRoute,
   ExecutivoAuditoriaRoute: ExecutivoAuditoriaRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
+  ExecutivoCampanhasRoute: ExecutivoCampanhasRoute,
   ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoConhecimentoRoute: ExecutivoConhecimentoRoute,
