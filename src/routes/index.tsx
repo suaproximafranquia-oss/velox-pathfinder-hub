@@ -62,6 +62,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: heroImg.url },
     ],
+    links: [{ rel: "preload", as: "image", href: heroImg.url }],
   }),
   component: PortalHome,
 });
@@ -289,6 +290,8 @@ function Hero() {
         <img
           src={heroImg.url}
           alt=""
+          fetchPriority="high"
+          decoding="sync"
           className="h-full w-full object-cover portal-hero-ken"
         />
         {/* Camadas editoriais: profundidade, iluminação e vinheta */}
