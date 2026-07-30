@@ -115,8 +115,6 @@ export function ExecutiveShell({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Central de Alertas fica oculta no KPI Manager (tela de trabalho densa). */}
-            {!pathname.startsWith("/executivo/kpi") && <AlertsDrawer session={session} />}
             <GoogleStatusIndicator session={session} />
             <ProfileSwitcher session={session} />
             <button
@@ -184,6 +182,9 @@ export function ExecutiveShell({
         </div>
       </footer>
       <RecognitionHost userId={session.userId} />
+      {/* Central de Alertas — Drawer lateral flutuante, presente em todas as telas
+          do Workspace. Única exceção: o KPI Manager (tela densa de indicadores). */}
+      {!pathname.startsWith("/executivo/kpi") && <AlertsDrawer session={session} />}
     </div>
   );
 }
