@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Compass, Building2, BookMarked, Users, Calculator, ArrowUpRight, X } from "lucide-react";
 import { SimulatorModal } from "@/components/simulator/simulator-modal";
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
@@ -9,9 +9,40 @@ import sedeFachadaImg from "@/assets/portal-sede-fachada.png.asset.json";
 import revistaImg from "@/assets/portal-revista-velox.png.asset.json";
 import experienciasImg from "@/assets/portal-experiencias.png.asset.json";
 import simuladorImg from "@/assets/portal-simulador.jpg.asset.json";
-import { hasPortalSession } from "@/lib/portal-session";
+import {
+  hasPortalSession,
+  setJourneyStatus,
+  trackSessionNavigation,
+} from "@/lib/portal-session";
+import { GatewayOverlay } from "@/components/portal/gateway-overlay";
+import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
+import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
+import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
+import { clearResponsibleExecutive } from "@/lib/responsible-executive";
+
+type HomeSearch = {
+  /** Executivo responsável (link personalizado). */
+  e?: string;
+  /** Módulo a abrir sobre a Home após o Gateway. */
+  m?: string;
+  /** Origem da visita. */
+  o?: string;
+  /** Unidade. */
+  u?: string;
+  /** Campanha. */
+  c?: string;
+};
+
+const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): HomeSearch => ({
+    e: str(search.e),
+    m: str(search.m),
+    o: str(search.o),
+    u: str(search.u),
+    c: str(search.c),
+  }),
   head: () => ({
     meta: [
       { title: "Portal Velox — Ecossistema institucional Velox Soluções Financeiras" },
@@ -31,6 +62,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: heroImg.url },
     ],
+    links: [{ rel: "preload", as: "image", href: heroImg.url }],
   }),
   component: PortalHome,
 });
@@ -42,11 +74,11 @@ type ModuleCard = {
   description: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   cover: string;
-  panelSrc?: string;
+  /** Módulo interno correspondente no registro oficial do Portal. */
+  moduleKey?: PortalModuleKey;
   href?: string;
   cta: string;
   status: "aberto" | "em-preparacao" | "em-desenvolvimento";
-  action?: "simulator";
 };
 
 const MODULES: ModuleCard[] = [
@@ -58,7 +90,7 @@ const MODULES: ModuleCard[] = [
       "Uma leitura editorial, em treze capítulos, sobre a franquia Velox, seus valores e o modelo de negócio — no ritmo do leitor, sem pressão comercial.",
     icon: BookOpen,
     cover: manualCoverImg.url,
-    panelSrc: "/manual",
+    moduleKey: "manual",
     cta: "Iniciar a leitura",
     status: "aberto",
   },
@@ -70,7 +102,7 @@ const MODULES: ModuleCard[] = [
       "Apresentação institucional completa da Velox: história, modelo de negócio, ecossistema de soluções, parceiros e frentes especializadas em todo o Brasil.",
     icon: Compass,
     cover: materialInstitucionalImg.url,
-    panelSrc: "/universo",
+    moduleKey: "universo",
     cta: "Iniciar leitura",
     status: "aberto",
   },
@@ -82,9 +114,9 @@ const MODULES: ModuleCard[] = [
       "Monte diferentes cenários comerciais e descubra uma estimativa do potencial de receita da sua futura operação.",
     icon: Calculator,
     cover: simuladorImg.url,
+    moduleKey: "simulador",
     cta: "Iniciar simulação",
     status: "aberto",
-    action: "simulator",
   },
   {
     key: "sede",
@@ -123,16 +155,60 @@ const MODULES: ModuleCard[] = [
 
 function PortalHome() {
   const navigate = useNavigate();
+  const search = Route.useSearch() as HomeSearch;
   const [openPanel, setOpenPanel] = useState<{ src: string; title: string } | null>(null);
   const [simulatorOpen, setSimulatorOpen] = useState(false);
+  const [gatewayOpen, setGatewayOpen] = useState(false);
+  const [pendingTitle, setPendingTitle] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!hasPortalSession()) return;
-    const intent = window.localStorage.getItem("velox:portal:postGatewayIntent");
-    if (intent !== "simulator") return;
-    window.localStorage.removeItem("velox:portal:postGatewayIntent");
-    setSimulatorOpen(true);
+  /** Abre um módulo interno como overlay — a URL permanece na Home. */
+  const openModule = useCallback((key: PortalModuleKey) => {
+    const mod = getPortalModule(key);
+    if (!mod) return;
+    writeEntryContext({ pendingModule: null });
+    if (mod.action === "simulator") {
+      setSimulatorOpen(true);
+      setJourneyStatus("simulador");
+    } else if (mod.panelSrc) {
+      setOpenPanel({ src: mod.panelSrc, title: mod.title });
+      setJourneyStatus(key === "manual" ? "manual" : "portal");
+    }
+    trackSessionNavigation(key, mod.title);
   }, []);
+
+  /**
+   * Contexto de entrada (link personalizado, campanha, QR Code ou rota
+   * interna acessada diretamente): apenas define contexto e módulo
+   * pendente — nunca navegação. Em seguida a URL volta a ser a Home.
+   */
+  useEffect(() => {
+    const hasParams = Boolean(search.e || search.m || search.o || search.u || search.c);
+    if (hasParams) {
+      const ctx = writeEntryContext({
+        executiveSlug: search.e ?? readEntryContext().executiveSlug,
+        unit: search.u ?? readEntryContext().unit,
+        origin: search.o ?? readEntryContext().origin,
+        campaign: search.c ?? readEntryContext().campaign,
+        pendingModule:
+          (getPortalModule(search.m)?.key ?? (search.e ? "manual" : null)) as PortalModuleKey | null,
+      });
+      if (ctx.executiveSlug) setResponsibleExecutiveSlug(ctx.executiveSlug);
+      // Campanhas patrocinadas não são personalizadas: o lead pertence ao
+      // Executivo Padrão do workspace.
+      if (ctx.campaign === "anuncio" && !search.e) clearResponsibleExecutive();
+      navigate({ to: "/", search: {}, replace: true });
+      return;
+    }
+
+    const ctx = readEntryContext();
+    if (!ctx.pendingModule) return;
+    if (hasPortalSession()) {
+      openModule(ctx.pendingModule);
+    } else {
+      setPendingTitle(getPortalModule(ctx.pendingModule)?.title ?? null);
+      setGatewayOpen(true);
+    }
+  }, [navigate, openModule, search]);
 
   useEffect(() => {
     if (!openPanel) return;
@@ -153,21 +229,34 @@ function PortalHome() {
         <Hero />
         <ModulesGrid
           onOpen={(m) => {
-            if ((m.panelSrc || m.action === "simulator") && !hasPortalSession()) {
-              if (m.action === "simulator") {
-                window.localStorage.setItem("velox:portal:postGatewayIntent", "simulator");
-              }
-              navigate({ to: "/entrar", search: { next: m.panelSrc ?? "/" } });
+            const mod = getPortalModule(m.moduleKey);
+            if (!mod) return;
+            if (!hasPortalSession()) {
+              writeEntryContext({ pendingModule: mod.key });
+              setPendingTitle(mod.title);
+              setGatewayOpen(true);
               return;
             }
-            if (m.action === "simulator") setSimulatorOpen(true);
-            else if (m.panelSrc) setOpenPanel({ src: m.panelSrc, title: m.title });
+            openModule(mod.key);
           }}
         />
       </main>
       <PortalFooter />
       <ModulePanel panel={openPanel} onClose={() => setOpenPanel(null)} />
       <SimulatorModal open={simulatorOpen} onClose={() => setSimulatorOpen(false)} />
+      <GatewayOverlay
+        open={gatewayOpen}
+        moduleTitle={pendingTitle}
+        onClose={() => {
+          setGatewayOpen(false);
+          writeEntryContext({ pendingModule: null });
+        }}
+        onDone={() => {
+          setGatewayOpen(false);
+          const pending = readEntryContext().pendingModule ?? "manual";
+          openModule(pending);
+        }}
+      />
     </div>
   );
 }
@@ -201,6 +290,8 @@ function Hero() {
         <img
           src={heroImg.url}
           alt=""
+          fetchPriority="high"
+          decoding="sync"
           className="h-full w-full object-cover portal-hero-ken"
         />
         {/* Camadas editoriais: profundidade, iluminação e vinheta */}
@@ -388,19 +479,7 @@ function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: Mod
     </article>
   );
 
-  if (m.panelSrc) {
-    return (
-      <button
-        type="button"
-        onClick={() => onOpen(m)}
-        aria-label={`Abrir ${m.title}`}
-        className="block h-full w-full text-left focus:outline-none"
-      >
-        {inner}
-      </button>
-    );
-  }
-  if (m.action) {
+  if (m.moduleKey) {
     return (
       <button
         type="button"

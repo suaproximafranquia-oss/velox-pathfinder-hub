@@ -1,15 +1,16 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { clearResponsibleExecutive } from "@/lib/responsible-executive";
 
 /**
- * Manual de Tráfego Pago (`/manual/anuncio`) — entrada por campanhas
- * patrocinadas. Também não é personalizado: leads pertencem ao Executivo
- * Padrão do workspace.
+ * Entrada por campanhas patrocinadas. Define apenas o contexto de
+ * origem — a navegação segue o fluxo oficial pela Home.
  */
 export const Route = createFileRoute("/manual/anuncio")({
   beforeLoad: () => {
-    if (typeof window !== "undefined") clearResponsibleExecutive();
-    throw redirect({ to: "/entrar", search: { next: "/manual", origin: "anuncio" } });
+    throw redirect({
+      to: "/",
+      replace: true,
+      search: { m: "manual", o: "anuncio", c: "anuncio" },
+    });
   },
   component: () => null,
 });

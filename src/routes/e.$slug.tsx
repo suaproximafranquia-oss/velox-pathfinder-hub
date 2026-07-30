@@ -1,24 +1,18 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { getExecutiveBySlug } from "@/lib/executive-auth";
 
 /**
- * Rota de entrada personalizada do Manual (`/e/$slug`).
- * Persiste o executivo responsável e leva o visitante ao Capítulo 1.
- * A propriedade é permanente durante a jornada — nunca é sobrescrita
- * pelo Executivo Padrão do workspace.
+ * Link personalizado (`/e/$slug`).
+ *
+ * Não abre módulo algum: sua única responsabilidade é informar o
+ * contexto inicial da sessão (executivo responsável). O fluxo oficial
+ * segue sempre Home → Gateway → Sessão → Manual → Portal.
  */
 export const Route = createFileRoute("/e/$slug")({
-  head: () => ({
-    meta: [
-      { title: "Manual do Investidor Velox" },
-      { name: "robots", content: "noindex" },
-    ],
-  }),
   beforeLoad: ({ params }) => {
-    const exec = getExecutiveBySlug(params.slug);
     throw redirect({
-      to: "/entrar",
-      search: { next: "/manual", executive: exec?.slug ?? params.slug },
+      to: "/",
+      replace: true,
+      search: { e: params.slug, m: "manual", o: "Link personalizado" },
     });
   },
   component: () => null,
