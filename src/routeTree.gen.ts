@@ -31,8 +31,10 @@ import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashb
 import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.conhecimento'
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
+import { Route as ExecutivoCampanhasRouteImport } from './routes/executivo.campanhas'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
 import { Route as ExecutivoAuditoriaRouteImport } from './routes/executivo.auditoria'
+import { Route as ExecutivoAlertasRouteImport } from './routes/executivo.alertas'
 import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.administracao'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 
@@ -146,6 +148,11 @@ const ExecutivoCelebracaoRoute = ExecutivoCelebracaoRouteImport.update({
   path: '/executivo/celebracao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoCampanhasRoute = ExecutivoCampanhasRouteImport.update({
+  id: '/executivo/campanhas',
+  path: '/executivo/campanhas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
   id: '/executivo/brain',
   path: '/executivo/brain',
@@ -154,6 +161,11 @@ const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
 const ExecutivoAuditoriaRoute = ExecutivoAuditoriaRouteImport.update({
   id: '/executivo/auditoria',
   path: '/executivo/auditoria',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecutivoAlertasRoute = ExecutivoAlertasRouteImport.update({
+  id: '/executivo/alertas',
+  path: '/executivo/alertas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoAdministracaoRoute = ExecutivoAdministracaoRouteImport.update({
@@ -173,8 +185,10 @@ export interface FileRoutesByFullPath {
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
+  '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -201,8 +215,10 @@ export interface FileRoutesByTo {
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
+  '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -230,8 +246,10 @@ export interface FileRoutesById {
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
+  '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/auditoria': typeof ExecutivoAuditoriaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
+  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
@@ -260,8 +278,10 @@ export interface FileRouteTypes {
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
+    | '/executivo/alertas'
     | '/executivo/auditoria'
     | '/executivo/brain'
+    | '/executivo/campanhas'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -288,8 +308,10 @@ export interface FileRouteTypes {
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
+    | '/executivo/alertas'
     | '/executivo/auditoria'
     | '/executivo/brain'
+    | '/executivo/campanhas'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -316,8 +338,10 @@ export interface FileRouteTypes {
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
+    | '/executivo/alertas'
     | '/executivo/auditoria'
     | '/executivo/brain'
+    | '/executivo/campanhas'
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
@@ -345,8 +369,10 @@ export interface RootRouteChildren {
   UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
+  ExecutivoAlertasRoute: typeof ExecutivoAlertasRoute
   ExecutivoAuditoriaRoute: typeof ExecutivoAuditoriaRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
+  ExecutivoCampanhasRoute: typeof ExecutivoCampanhasRoute
   ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoConhecimentoRoute: typeof ExecutivoConhecimentoRoute
@@ -524,6 +550,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoCelebracaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/campanhas': {
+      id: '/executivo/campanhas'
+      path: '/executivo/campanhas'
+      fullPath: '/executivo/campanhas'
+      preLoaderRoute: typeof ExecutivoCampanhasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/brain': {
       id: '/executivo/brain'
       path: '/executivo/brain'
@@ -536,6 +569,13 @@ declare module '@tanstack/react-router' {
       path: '/executivo/auditoria'
       fullPath: '/executivo/auditoria'
       preLoaderRoute: typeof ExecutivoAuditoriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/executivo/alertas': {
+      id: '/executivo/alertas'
+      path: '/executivo/alertas'
+      fullPath: '/executivo/alertas'
+      preLoaderRoute: typeof ExecutivoAlertasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/administracao': {
@@ -561,8 +601,10 @@ const rootRouteChildren: RootRouteChildren = {
   UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
+  ExecutivoAlertasRoute: ExecutivoAlertasRoute,
   ExecutivoAuditoriaRoute: ExecutivoAuditoriaRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
+  ExecutivoCampanhasRoute: ExecutivoCampanhasRoute,
   ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoConhecimentoRoute: ExecutivoConhecimentoRoute,

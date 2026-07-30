@@ -14,9 +14,6 @@ import {
   Users,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
-import { PainelCampanhas } from "@/components/executive/kpi/painel-campanhas";
-import { generateKpiIndividualReport } from "@/lib/kpi-report";
 import {
   getSession,
   loadUsers,
@@ -293,11 +290,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{activeLabel} · {days} dias</p>
         </div>
         <TotalVendidoCard value={summary.salesValue} />
-        {isConsolidated ? (
-          <KpiStatusCard collaborators={collaborators} monthKey={activeMonth.key} />
-        ) : (
-          <CampanhaVeloxCard salesValue={summary.salesValue} />
-        )}
+        <KpiStatusCard collaborators={collaborators} monthKey={activeMonth.key} />
       </div>
 
       {/* Cabeçalho da planilha -------------------------------------------- */}
@@ -410,17 +403,8 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </p>
      </div>
 
-      {/* Painel de Campanhas — ranking Velox alimentado pelo KPI Manager. */}
-      <div className="mt-8">
-        <PainelCampanhas
-          users={collaborators}
-          monthKey={activeMonth.key}
-          onDownload={(userId) => {
-            const user = collaborators.find((c) => c.id === userId);
-            if (user) generateKpiIndividualReport(user, activeMonth.key);
-          }}
-        />
-      </div>
+      {/* Indicadores de campanha migraram para o módulo "Painel de Campanhas".
+          O KPI Manager responde apenas pelos indicadores operacionais. */}
       <KpiAiAssistant session={session} monthKey={activeMonth.key} origin="kpi" />
     </ExecutiveShell>
   );

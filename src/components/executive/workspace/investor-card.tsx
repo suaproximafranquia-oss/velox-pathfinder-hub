@@ -11,7 +11,6 @@ import {
 import type { Investor, InvestorOrigin, InvestorPriority } from "@/lib/executive-data";
 import { formatRelative } from "@/lib/executive-data";
 import {
-  LEAD_STATE_META,
   closeLead,
   markLeadViewed,
   onLeadStateChange,
@@ -85,7 +84,6 @@ export function InvestorCard({
       if (!id || id === investor.id) setLeadState(resolveLeadState(investor));
     });
   }, [investor]);
-  const stateMeta = LEAD_STATE_META[leadState];
   const initials = investor.name
     .split(" ")
     .filter(Boolean)
@@ -124,12 +122,8 @@ export function InvestorCard({
         {/* Header — o nome ocupa a largura útil integral do card */}
         <div className="min-w-0 pr-10">
           <div className="flex items-start gap-2">
-            {/* Indicador ÚNICO de estado — automático, sem interação */}
-            <span
-              aria-label={`Estado: ${stateMeta.label}`}
-              title={stateMeta.hint}
-              className={cn("mt-2 inline-block h-2.5 w-2.5 shrink-0 rounded-full", stateMeta.dot)}
-            />
+            {/* Sem indicador visual de estado (Prompt 6F) — o estado do Lead
+                permanece apenas na camada lógica do sistema. */}
             <p
               title={investor.name}
               className="font-display text-[19px] md:text-[20px] leading-[1.2] break-words line-clamp-2"

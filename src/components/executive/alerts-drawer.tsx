@@ -10,11 +10,13 @@
  * Disponível em todas as telas do Workspace — exceto o KPI Manager.
  */
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight, X } from "lucide-react";
+import { Bell, BellRing, ChevronRight, X } from "lucide-react";
 import {
   archiveWorkspaceAlert,
   listWorkspaceAlerts,
+  markWorkspaceAlertsRead,
   runWorkspaceAlertEvaluation,
+  unreadWorkspaceAlerts,
   WORKSPACE_ALERT_CATEGORY_LABEL,
   type WorkspaceAlert,
 } from "@/lib/workspace-alerts";
@@ -25,12 +27,14 @@ import { cn } from "@/lib/utils";
 export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState<WorkspaceAlert[]>([]);
+  const [unread, setUnread] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     function refresh() {
       runWorkspaceAlertEvaluation(session);
       setAlerts(listWorkspaceAlerts(session));
+      setUnread(unreadWorkspaceAlerts(session).length);
     }
     refresh();
     // Atualização automática: qualquer evento do barramento re-avalia os alertas
@@ -46,7 +50,22 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
   function handleArchive(id: string) {
     archiveWorkspaceAlert(id);
     setAlerts(listWorkspaceAlerts(session));
+    setUnread(unreadWorkspaceAlerts(session).length);
   }
+
+  function toggle() {
+    setOpen((v) => {
+      const next = !v;
+      if (next) {
+        // Abrir = leitura: a animação para imediatamente e o contador zera.
+        markWorkspaceAlertsRead(session);
+        setUnread(0);
+      }
+      return next;
+    });
+  }
+
+  const pulsing = !open && unread > 0;
 
   return (
     <div className="pointer-events-none fixed right-0 top-1/2 z-[70] -translate-y-1/2">
@@ -54,7 +73,7 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
         {/* Aba fixa — sempre visível, acompanha a rolagem */}
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggle}
           aria-label="Central de Alertas"
           aria-expanded={open}
           className={cn(
@@ -62,15 +81,22 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
             "border-[color:var(--border)] bg-[color:var(--navy)]/95 backdrop-blur shadow-xl transition",
             "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40",
             open && "text-[color:var(--gold)]",
+            pulsing && "alert-pulse border-[color:var(--gold)]/50 text-[color:var(--gold)]",
           )}
         >
-          {open ? <ChevronRight className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+          {open ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : pulsing ? (
+            <BellRing className="h-4 w-4 text-[color:var(--gold)]" />
+          ) : (
+            <Bell className="h-4 w-4" />
+          )}
           <span className="text-[9px] uppercase tracking-[0.2em] [writing-mode:vertical-rl] rotate-180">
             Alertas
           </span>
-          {alerts.length > 0 && !open && (
+          {unread > 0 && !open && (
             <span className="absolute -left-1.5 top-2 min-w-[16px] h-[16px] rounded-full bg-[color:var(--gold)] text-[10px] font-medium text-[color:var(--navy-deep)] flex items-center justify-center px-1">
-              {alerts.length > 9 ? "9+" : alerts.length}
+              {unread > 9 ? "9+" : unread}
             </span>
           )}
         </button>
