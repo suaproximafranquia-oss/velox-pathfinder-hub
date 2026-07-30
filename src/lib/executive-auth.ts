@@ -373,6 +373,37 @@ export function signOut() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
   window.localStorage.removeItem(ACTIVE_ROLE_KEY);
+  // Encerra também a sessão real no backend (usada pelas integrações Google).
+  void import("@/integrations/supabase/client")
+    .then(({ supabase }) => supabase.auth.signOut())
+    .catch(() => undefined);
+}
+
+/**
+ * Login oficial: valida as credenciais do workspace e abre, em paralelo,
+ * a sessão autenticada no backend — necessária para as integrações
+ * Google (Calendar, Meet, Drive e Gmail) operarem com credencial própria
+ * de cada executivo.
+ */
+export async function signInWithCloud(
+  email: string,
+  password: string,
+): Promise<ExecutiveSession | null> {
+  const session = signIn(email, password);
+  if (!session) return null;
+  try {
+    const [{ supabase }, { ensureExecutiveAuthUser }] = await Promise.all([
+      import("@/integrations/supabase/client"),
+      import("@/lib/executive-auth.functions"),
+    ]);
+    const provisioned = await ensureExecutiveAuthUser({ data: { email, password } });
+    if (provisioned.ok) {
+      await supabase.auth.signInWithPassword({ email, password });
+    }
+  } catch {
+    /* o acesso ao workspace nunca é bloqueado por indisponibilidade externa */
+  }
+  return session;
 }
 
 export function newUserId(): string {

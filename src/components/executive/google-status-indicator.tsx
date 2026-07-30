@@ -1,5 +1,12 @@
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import type { ExecutiveSession } from "@/lib/executive-auth";
+import {
+  getGoogleStore,
+  refreshGoogleStore,
+  subscribeGoogleStore,
+  type GoogleStore,
+} from "@/lib/google-workspace";
 
 function GoogleGlyph({ tone }: { tone: string }) {
   return (
@@ -13,15 +20,28 @@ function GoogleGlyph({ tone }: { tone: string }) {
 }
 
 /**
- * Indicador global do Google Workspace no shell. Enquanto a integração
- * OAuth real não estiver provisionada, o indicador exibe apenas um
- * estado neutro ("Integração não configurada"). Nunca reflete uma conta
- * conectada simulada.
+ * Indicador global do Google Workspace no shell — reflete o estado real
+ * da conta conectada do executivo (Calendar, Meet, Drive e Gmail).
  */
-export function GoogleStatusIndicator({ session: _session }: { session: ExecutiveSession }) {
+export function GoogleStatusIndicator({ session }: { session: ExecutiveSession }) {
   const navigate = useNavigate();
-  const tone = "#8A94A6";
-  const label = "Google · integração não configurada";
+  const [store, setStore] = useState<GoogleStore>(() => getGoogleStore(session.userId));
+  const sync = useCallback(() => setStore(getGoogleStore(session.userId)), [session.userId]);
+
+  useEffect(() => {
+    const off = subscribeGoogleStore(session.userId, sync);
+    void refreshGoogleStore(session.userId);
+    return off;
+  }, [session.userId, sync]);
+
+  const tone =
+    store.state === "connected" ? "#34A853" : store.state === "error" ? "#E0A458" : "#8A94A6";
+  const label =
+    store.state === "connected"
+      ? `Google conectado${store.account?.email ? ` · ${store.account.email}` : ""}`
+      : store.state === "error"
+        ? "Google · reconectar conta"
+        : "Google · conta não conectada";
   return (
     <button
       type="button"

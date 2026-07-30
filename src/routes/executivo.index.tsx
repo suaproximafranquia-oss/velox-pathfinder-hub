@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Lock, ArrowLeft } from "lucide-react";
-import { getSession, signIn } from "@/lib/executive-auth";
+import { getSession, signInWithCloud } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
 
 export const Route = createFileRoute("/executivo/")({
@@ -19,21 +19,27 @@ function ExecutiveLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const s = getSession();
     if (s) navigate({ to: "/executivo/home" });
   }, [navigate]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const s = signIn(email, password);
-    if (!s) {
-      setError("Credenciais inválidas. Verifique usuário e senha e tente novamente.");
-      return;
+    setBusy(true);
+    try {
+      const s = await signInWithCloud(email, password);
+      if (!s) {
+        setError("Credenciais inválidas. Verifique usuário e senha e tente novamente.");
+        return;
+      }
+      navigate({ to: "/executivo/home" });
+    } finally {
+      setBusy(false);
     }
-    navigate({ to: "/executivo/home" });
   }
 
   return (
@@ -109,9 +115,10 @@ function ExecutiveLoginPage() {
           )}
           <button
             type="submit"
+            disabled={busy}
             className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-6 py-3 text-sm font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition"
           >
-            <Lock className="h-4 w-4" /> Entrar
+            <Lock className="h-4 w-4" /> {busy ? "Entrando…" : "Entrar"}
           </button>
           <p className="text-[11px] text-[color:var(--muted-foreground)]/70 text-center leading-relaxed">
             Autenticação local — nenhum dado é enviado para servidores externos.
