@@ -14,7 +14,6 @@ import {
   Users,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { generateKpiIndividualReport } from "@/lib/kpi-report";
 import {
   getSession,
   loadUsers,
