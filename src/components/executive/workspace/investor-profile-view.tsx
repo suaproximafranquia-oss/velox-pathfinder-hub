@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -21,11 +21,12 @@ import { addComment, listComments, type InvestorComment } from "@/lib/investor-c
 import { generateInvestorReport } from "@/lib/investor-report";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
-  getPortalLeadStatus,
-  setPortalLeadStatus,
-  PORTAL_LEAD_STATUS_META,
-  type PortalLeadStatus,
-} from "@/lib/portal-lead-status";
+  LEAD_STATE_META,
+  markLeadViewed,
+  onLeadStateChange,
+  resolveLeadState,
+  type LeadState,
+} from "@/lib/lead-state";
 import {
   listSimulations,
   getLastSimulation,
@@ -152,12 +153,7 @@ export function InvestorProfileView({
 
           {/* Ações rápidas */}
           <div className="flex flex-wrap gap-2 md:justify-end">
-            {investor.origin === "portal" && (
-              <PortalStatusSelector
-                investorId={investor.id}
-                actorId={session.userId}
-              />
-            )}
+            <LeadStateBadge investor={investor} actorId={session.userId} />
             <QuickBtn icon={Calendar} label="Nova reunião" onClick={openNewMeeting} primary />
             <QuickBtn
               icon={FileText}
@@ -246,76 +242,35 @@ function QuickBtn({
   );
 }
 
-function PortalStatusSelector({
-  investorId,
+function LeadStateBadge({
+  investor,
   actorId,
 }: {
-  investorId: string;
+  investor: Investor;
   actorId: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<PortalLeadStatus>(() =>
-    getPortalLeadStatus(investorId),
-  );
-  const ref = useRef<HTMLDivElement>(null);
+  const [state, setState] = useState<LeadState>(() => resolveLeadState(investor));
   useEffect(() => {
-    setStatus(getPortalLeadStatus(investorId));
-  }, [investorId]);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
-  const meta = PORTAL_LEAD_STATUS_META[status];
-  const options: PortalLeadStatus[] = ["novo", "em_andamento", "encerrado"];
+    // Abrir o perfil já caracteriza visualização: verde → amarelo.
+    markLeadViewed(investor.id, actorId);
+    setState(resolveLeadState({ id: investor.id }));
+    return onLeadStateChange((id) => {
+      if (!id || id === investor.id) setState(resolveLeadState({ id: investor.id }));
+    });
+  }, [investor.id, actorId]);
+  const meta = LEAD_STATE_META[state];
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs transition",
-          meta.border,
-          meta.text,
-          "hover:brightness-125",
-        )}
-      >
-        <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
-        {meta.label}
-        <span className="text-[color:var(--muted-foreground)]">▾</span>
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-30 w-52 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-2xl">
-          {options.map((opt) => {
-            const m = PORTAL_LEAD_STATUS_META[opt];
-            const active = opt === status;
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => {
-                  setPortalLeadStatus(investorId, opt, actorId);
-                  setStatus(opt);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition",
-                  active
-                    ? "bg-[color:var(--accent)] text-[color:var(--foreground)]"
-                    : "text-[color:var(--muted-foreground)] hover:bg-[color:var(--accent)]/60 hover:text-[color:var(--foreground)]",
-                )}
-              >
-                <span className={cn("h-2 w-2 rounded-full", m.dot)} />
-                {m.label}
-              </button>
-            );
-          })}
-        </div>
+    <span
+      title={meta.hint}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs",
+        meta.border,
+        meta.text,
       )}
-    </div>
+    >
+      <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
+      {meta.label}
+    </span>
   );
 }
 

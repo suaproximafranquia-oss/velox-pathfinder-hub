@@ -242,6 +242,19 @@ export function archiveWorkspaceAlert(id: string) {
 
 export function onWorkspaceAlertsChange(cb: () => void) {
   return onEvent((e) => {
-    if (e.type === "investor.reactivated" || e.type === "meeting.created") cb();
+    // Atualização automática: novos leads, atualizações de lead, retornos
+    // ao Portal e movimentações de reunião.
+    if (
+      e.type === "investor.reactivated" ||
+      e.type === "meeting.created" ||
+      e.type === "meeting.requested" ||
+      e.type === "meeting.confirmed" ||
+      e.type === "meeting.rescheduled" ||
+      e.type === "meeting.cancelled" ||
+      e.type === "profile.updated" ||
+      e.type === "lead.status.changed"
+    ) {
+      cb();
+    }
   });
 }

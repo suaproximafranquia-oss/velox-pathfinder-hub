@@ -1,14 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { Calendar, User as UserIcon, MessageSquarePlus, MoreVertical, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  User as UserIcon,
+  MessageSquarePlus,
+  MoreVertical,
+  Trash2,
+  CircleSlash,
+  RotateCcw,
+} from "lucide-react";
 import type { Investor, InvestorOrigin, InvestorPriority } from "@/lib/executive-data";
 import { formatRelative } from "@/lib/executive-data";
 import {
-  getPortalLeadStatus,
-  PORTAL_LEAD_STATUS_META,
-  PORTAL_LEAD_STATUS_CYCLE,
-  setPortalLeadStatus,
-} from "@/lib/portal-lead-status";
-import { onEvent } from "@/lib/events/bus";
+  LEAD_STATE_META,
+  closeLead,
+  markLeadViewed,
+  onLeadStateChange,
+  reopenLead,
+  resolveLeadState,
+  type LeadState,
+} from "@/lib/lead-state";
 import { cn } from "@/lib/utils";
 
 const ORIGIN_META: Record<
@@ -67,20 +77,15 @@ export function InvestorCard({
   const priority = PRIORITY_META[investor.priority ?? "none"];
   const contact = investor.email || investor.phone;
   const contextLine = buildContextLine(investor);
-  const isPortal = investor.origin === "portal";
-  const [portalStatus, setPortalStatus] = useState(() =>
-    isPortal ? getPortalLeadStatus(investor.id) : null,
-  );
+  // Estado automático — idêntico no Portal e no Green Sales.
+  const [leadState, setLeadState] = useState<LeadState>(() => resolveLeadState(investor));
   useEffect(() => {
-    if (!isPortal) return;
-    setPortalStatus(getPortalLeadStatus(investor.id));
-    return onEvent((e) => {
-      if (e.type === "lead.status.changed" && e.investorId === investor.id) {
-        setPortalStatus(getPortalLeadStatus(investor.id));
-      }
+    setLeadState(resolveLeadState(investor));
+    return onLeadStateChange((id) => {
+      if (!id || id === investor.id) setLeadState(resolveLeadState(investor));
     });
-  }, [investor.id, isPortal]);
-  const portalMeta = portalStatus ? PORTAL_LEAD_STATUS_META[portalStatus] : null;
+  }, [investor]);
+  const stateMeta = LEAD_STATE_META[leadState];
   const initials = investor.name
     .split(" ")
     .filter(Boolean)
@@ -102,13 +107,18 @@ export function InvestorCard({
     <div className="group relative">
       <button
         type="button"
-        onClick={() => onOpen(investor.id)}
+        onClick={() => {
+          markLeadViewed(investor.id);
+          setLeadState(resolveLeadState({ ...investor, lastActivity: undefined }));
+          onOpen(investor.id);
+        }}
         className={cn(
           "block w-full text-left rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50",
           "p-6 min-h-[220px] transition-all duration-200",
           "hover:bg-[color:var(--card)]/80 hover:-translate-y-0.5",
           origin.hover,
           priority.ring,
+          leadState === "encerrado" && "opacity-70",
         )}
       >
         {/* Header — o nome ocupa a largura útil integral do card */}
@@ -176,6 +186,31 @@ export function InvestorCard({
         </button>
         {menuOpen && (
           <div className="absolute right-0 mt-1 w-44 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-xl">
+            {leadState === "encerrado" ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  reopenLead(investor.id);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-[color:var(--muted-foreground)] hover:bg-[color:var(--accent)] hover:text-[color:var(--foreground)] transition"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Reabrir Lead
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  closeLead(investor.id);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-[color:var(--muted-foreground)] hover:bg-[color:var(--accent)] hover:text-[color:var(--foreground)] transition"
+              >
+                <CircleSlash className="h-3.5 w-3.5" /> Encerrar negociação
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => {
@@ -194,25 +229,14 @@ export function InvestorCard({
         )}
       </div>
 
-      {/* Indicador de status — exatamente abaixo do menu de três pontos */}
-      {portalMeta && portalStatus && (
-        <button
-          type="button"
-          title={`Status: ${portalMeta.label} — clique para alterar`}
-          aria-label={`Status: ${portalMeta.label}. Clique para alterar.`}
-          onClick={(e) => {
-            e.stopPropagation();
-            const index = PORTAL_LEAD_STATUS_CYCLE.indexOf(portalStatus);
-            const next =
-              PORTAL_LEAD_STATUS_CYCLE[(index + 1) % PORTAL_LEAD_STATUS_CYCLE.length];
-            setPortalLeadStatus(investor.id, next);
-            setPortalStatus(next);
-          }}
-          className="absolute right-3 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-[color:var(--accent)]"
-        >
-          <span className={cn("h-3 w-3 rounded-full", portalMeta.dot)} />
-        </button>
-      )}
+      {/* Indicador automático — abaixo do menu de três pontos, sem interação */}
+      <span
+        aria-label={`Estado: ${stateMeta.label}`}
+        title={stateMeta.hint}
+        className="pointer-events-none absolute right-3 top-12 z-10 inline-flex h-8 w-8 items-center justify-center"
+      >
+        <span className={cn("h-3 w-3 rounded-full", stateMeta.dot)} />
+      </span>
 
       {/* Ações rápidas — aparecem em hover/focus */}
       <div
