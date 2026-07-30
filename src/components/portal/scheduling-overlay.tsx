@@ -5,7 +5,14 @@
  * confirmação com os dados da reunião e o executivo responsável.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, CalendarDays, CheckCircle2, Clock, Loader2, MessageCircle } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  MessageCircle,
+} from "lucide-react";
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import {
   DEFAULT_DURATION_MIN,
@@ -46,7 +53,10 @@ export function SchedulingOverlay({ open, onClose }: { open: boolean; onClose: (
     if (!slotIso || submitting) return;
     setSubmitting(true);
     setError(null);
-    const result = await requestInvestorMeeting({ scheduledAt: slotIso, topic: topic.trim() || undefined });
+    const result = await requestInvestorMeeting({
+      scheduledAt: slotIso,
+      topic: topic.trim() || undefined,
+    });
     setSubmitting(false);
     if (!result.ok) {
       setError(
@@ -69,10 +79,17 @@ export function SchedulingOverlay({ open, onClose }: { open: boolean; onClose: (
     <PortalOverlayShell open={open} title="Agendar conversa" size="dialog" onClose={onClose}>
       <div className="h-full overflow-y-auto px-6 pr-16 py-8 md:px-10 md:pr-16 md:py-10">
         {confirmed ? (
-          <ConfirmationView meeting={confirmed} executiveName={executive?.name ?? "Velox"} onClose={onClose} />
+          <ConfirmationView
+            meeting={confirmed}
+            executiveName={executive?.name ?? "Velox"}
+            onClose={onClose}
+          />
         ) : (
           <>
-            <p className="text-[11px] uppercase tracking-[0.24em]" style={{ color: "var(--brand-orange)" }}>
+            <p
+              className="text-[11px] uppercase tracking-[0.24em]"
+              style={{ color: "var(--brand-orange)" }}
+            >
               Conversa com um executivo
             </p>
             <h2 className="portal-serif mt-3 text-3xl leading-tight">
@@ -147,7 +164,8 @@ export function SchedulingOverlay({ open, onClose }: { open: boolean; onClose: (
                     onClick={() => setSlotIso(slot.iso)}
                     className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm transition disabled:cursor-not-allowed disabled:opacity-40"
                     style={{
-                      borderColor: slotIso === slot.iso ? "var(--brand-orange)" : "var(--paper-edge)",
+                      borderColor:
+                        slotIso === slot.iso ? "var(--brand-orange)" : "var(--paper-edge)",
                       background:
                         slotIso === slot.iso
                           ? "color-mix(in oklab, var(--brand-orange) 12%, transparent)"
@@ -175,7 +193,11 @@ export function SchedulingOverlay({ open, onClose }: { open: boolean; onClose: (
               />
             </label>
 
-            {error && <p className="mt-4 text-sm" style={{ color: "var(--destructive)" }}>{error}</p>}
+            {error && (
+              <p className="mt-4 text-sm" style={{ color: "var(--destructive)" }}>
+                {error}
+              </p>
+            )}
 
             <button
               type="button"
@@ -217,7 +239,10 @@ function ConfirmationView({
         {executiveName} foi notificado e conduzirá o encontro. Você pode fechar esta janela e
         continuar explorando o Portal — sua jornada permanece salva.
       </p>
-      <dl className="mt-7 w-full space-y-3 rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--paper-edge)" }}>
+      <dl
+        className="mt-7 w-full space-y-3 rounded-2xl border p-5 text-sm"
+        style={{ borderColor: "var(--paper-edge)" }}
+      >
         <Row label="Data e horário" value={formatWhen(meeting.scheduledAt)} />
         <Row label="Duração" value={`${meeting.durationMin ?? DEFAULT_DURATION_MIN} minutos`} />
         <Row label="Executivo responsável" value={meeting.executiveName} />
@@ -236,7 +261,10 @@ function ConfirmationView({
           Voltar ao Portal
           <ArrowRight className="h-4 w-4" />
         </button>
-        <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border px-6 py-3.5 text-xs text-[color:var(--muted-foreground)]" style={{ borderColor: "var(--paper-edge)" }}>
+        <span
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border px-6 py-3.5 text-xs text-[color:var(--muted-foreground)]"
+          style={{ borderColor: "var(--paper-edge)" }}
+        >
           <MessageCircle className="h-4 w-4" />
           Precisa antecipar? Use o botão de WhatsApp.
         </span>
@@ -248,7 +276,9 @@ function ConfirmationView({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-2">
-      <dt className="text-[11px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">{label}</dt>
+      <dt className="text-[11px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+        {label}
+      </dt>
       <dd className="text-right">{value}</dd>
     </div>
   );

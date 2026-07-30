@@ -64,8 +64,7 @@ export function GatewayOverlay({
       name: trimmedName,
       email: trimmedEmail,
       origin:
-        entry.origin ??
-        (executive ? `Link personalizado · ${executive.name}` : "Portal Velox"),
+        entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox"),
     });
     setError("");
     onDone();
@@ -115,16 +114,14 @@ export function GatewayOverlay({
           </h2>
           {executive ? (
             <p className="mt-3 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-              Você está entrando pelo link de {executive.name}. O vínculo será
-              preservado durante toda a jornada.
+              Você está entrando pelo link de {executive.name}. O vínculo será preservado durante
+              toda a jornada.
             </p>
           ) : (
             <p className="mt-3 text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-              {moduleTitle
-                ? `Para abrir ${moduleTitle}, identifique-se. `
-                : ""}
-              Se já existir um perfil com este e-mail, seu progresso será
-              restaurado automaticamente.
+              {moduleTitle ? `Para abrir ${moduleTitle}, identifique-se. ` : ""}
+              Se já existir um perfil com este e-mail, seu progresso será restaurado
+              automaticamente.
             </p>
           )}
 
@@ -170,9 +167,9 @@ export function GatewayOverlay({
           <div className="mt-6 flex gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/60 p-4">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--gold)]" />
             <p className="text-xs leading-relaxed text-[color:var(--muted-foreground)]">
-              Seus dados são usados para restaurar o progresso e vincular sua
-              jornada ao executivo responsável. O contato comercial continua
-              disponível apenas quando você decidir avançar.
+              Seus dados são usados para restaurar o progresso e vincular sua jornada ao executivo
+              responsável. O contato comercial continua disponível apenas quando você decidir
+              avançar.
             </p>
           </div>
         </form>

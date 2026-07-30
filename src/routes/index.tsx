@@ -241,8 +241,8 @@ function PortalHome() {
         unit: search.u ?? readEntryContext().unit,
         origin: search.o ?? readEntryContext().origin,
         campaign: search.c ?? readEntryContext().campaign,
-        pendingModule:
-          (getPortalModule(search.m)?.key ?? (search.e ? "manual" : null)) as PortalModuleKey | null,
+        pendingModule: (getPortalModule(search.m)?.key ??
+          (search.e ? "manual" : null)) as PortalModuleKey | null,
       });
       if (ctx.executiveSlug) setResponsibleExecutiveSlug(ctx.executiveSlug);
       // Campanhas patrocinadas não são personalizadas: o lead pertence ao
@@ -430,10 +430,10 @@ function Hero() {
             />
             <span
               className="portal-eyebrow"
-            style={{
-              color: "rgba(255,255,255,0.95)",
-              textShadow: "0 1px 2px rgba(6,12,28,0.35)",
-            }}
+              style={{
+                color: "rgba(255,255,255,0.95)",
+                textShadow: "0 1px 2px rgba(6,12,28,0.35)",
+              }}
             >
               Ecossistema Velox · Edição MMXXVI
             </span>
@@ -442,9 +442,9 @@ function Hero() {
             className="portal-serif mt-8 text-balance"
             style={{
               fontSize: "clamp(3rem, 8vw, 7rem)",
-            color: "#ffffff",
-            textShadow:
-              "0 2px 32px color-mix(in oklab, var(--ink) 45%, transparent), 0 1px 2px rgba(6,12,28,0.35)",
+              color: "#ffffff",
+              textShadow:
+                "0 2px 32px color-mix(in oklab, var(--ink) 45%, transparent), 0 1px 2px rgba(6,12,28,0.35)",
             }}
           >
             Portal <span style={{ color: "var(--brand-orange)" }}>Velox</span>.
@@ -453,23 +453,22 @@ function Hero() {
             className="portal-serif mt-6 italic"
             style={{
               fontSize: "clamp(1.25rem, 2.4vw, 1.75rem)",
-            color: "rgba(255,255,255,0.98)",
-            textShadow: "0 1px 2px rgba(6,12,28,0.35)",
+              color: "rgba(255,255,255,0.98)",
+              textShadow: "0 1px 2px rgba(6,12,28,0.35)",
             }}
           >
             Uma única plataforma para acessar tudo o que a Velox oferece.
           </p>
           <p
             className="mt-8 max-w-[56ch] text-base leading-relaxed md:text-lg"
-          style={{
-            color: "rgba(255,255,255,0.94)",
-            textShadow: "0 1px 2px rgba(6,12,28,0.3)",
-          }}
+            style={{
+              color: "rgba(255,255,255,0.94)",
+              textShadow: "0 1px 2px rgba(6,12,28,0.3)",
+            }}
           >
-            O Portal Velox reúne, em um só lugar, o Manual do Investidor,
-            o Universo institucional, nossa sede, comunicados e experiências
-            da rede — uma recepção editorial construída para franqueados,
-            investidores e parceiros.
+            O Portal Velox reúne, em um só lugar, o Manual do Investidor, o Universo institucional,
+            nossa sede, comunicados e experiências da rede — uma recepção editorial construída para
+            franqueados, investidores e parceiros.
           </p>
         </div>
 
@@ -493,7 +492,11 @@ function Hero() {
 
 function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
   return (
-    <section id="modulos" className="relative border-b" style={{ borderColor: "var(--paper-edge)" }}>
+    <section
+      id="modulos"
+      className="relative border-b"
+      style={{ borderColor: "var(--paper-edge)" }}
+    >
       <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
         <div className="mb-14 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -501,9 +504,9 @@ function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
             <h2 className="portal-serif mt-3 text-4xl md:text-5xl">Por onde você quer começar.</h2>
           </div>
           <p className="max-w-md text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-            Reunimos aqui as diferentes portas de entrada do universo Velox.
-            Escolha o que faz sentido para o seu momento — cada espaço foi
-            pensado para receber você com clareza e sem pressa.
+            Reunimos aqui as diferentes portas de entrada do universo Velox. Escolha o que faz
+            sentido para o seu momento — cada espaço foi pensado para receber você com clareza e sem
+            pressa.
           </p>
         </div>
 
@@ -517,12 +520,20 @@ function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
   );
 }
 
-function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: ModuleCard) => void }) {
+function ModuleTile({
+  module: m,
+  onOpen,
+}: {
+  module: ModuleCard;
+  onOpen: (m: ModuleCard) => void;
+}) {
   const Icon = m.icon;
   const badge =
-    m.status === "em-preparacao" ? "Em preparação" :
-    m.status === "em-desenvolvimento" ? "Em desenvolvimento" :
-    null;
+    m.status === "em-preparacao"
+      ? "Em preparação"
+      : m.status === "em-desenvolvimento"
+        ? "Em desenvolvimento"
+        : null;
   const inner = (
     <article className="portal-card group flex h-full flex-col">
       <div className="relative aspect-[16/10] overflow-hidden">
@@ -540,16 +551,16 @@ function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: Mod
           }}
         />
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-5 py-3">
-          <span
-            className="portal-eyebrow"
-            style={{ color: "var(--paper)" }}
-          >
+          <span className="portal-eyebrow" style={{ color: "var(--paper)" }}>
             {m.eyebrow}
           </span>
           {badge && (
             <span
               className="border px-2 py-1 text-[10px] uppercase tracking-[0.22em]"
-              style={{ borderColor: "color-mix(in oklab, var(--paper) 40%, transparent)", color: "var(--paper)" }}
+              style={{
+                borderColor: "color-mix(in oklab, var(--paper) 40%, transparent)",
+                color: "var(--paper)",
+              }}
             >
               {badge}
             </span>
@@ -565,12 +576,19 @@ function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: (m: Mod
           {m.description}
         </p>
         <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="text-xs uppercase tracking-[0.22em]" style={{ color: m.status === "aberto" ? "var(--brand-blue-deep)" : "var(--muted-foreground)" }}>
+          <span
+            className="text-xs uppercase tracking-[0.22em]"
+            style={{
+              color: m.status === "aberto" ? "var(--brand-blue-deep)" : "var(--muted-foreground)",
+            }}
+          >
             {m.cta}
           </span>
           <ArrowUpRight
             className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            style={{ color: m.status === "aberto" ? "var(--brand-orange)" : "var(--muted-foreground)" }}
+            style={{
+              color: m.status === "aberto" ? "var(--brand-orange)" : "var(--muted-foreground)",
+            }}
           />
         </div>
       </div>
@@ -631,7 +649,10 @@ function ModulePanel({
           src={panel.src}
           title={panel.title}
           onLoad={() => setLoaded(true)}
-          className={"h-full w-full border-0 transition-opacity duration-500 " + (loaded ? "opacity-100" : "opacity-0")}
+          className={
+            "h-full w-full border-0 transition-opacity duration-500 " +
+            (loaded ? "opacity-100" : "opacity-0")
+          }
         />
       )}
     </PortalOverlayShell>
