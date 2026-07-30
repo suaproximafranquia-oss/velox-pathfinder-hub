@@ -138,7 +138,7 @@ const MODULES: ModuleCard[] = [
     eyebrow: "Módulo IV",
     title: "Agendar conversa com um executivo",
     description:
-      "Escolha um dia e um horário para conversar com o executivo responsável pela sua jornada — sem compromisso, no seu tempo.",
+      "Escolha um dia e um horário para uma conversa consultiva com o executivo responsável pela sua jornada, no seu ritmo.",
     icon: CalendarDays,
     cover: sedeFachadaImg.url,
     moduleKey: "agenda",
