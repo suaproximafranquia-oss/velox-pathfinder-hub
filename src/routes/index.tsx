@@ -391,6 +391,7 @@ function Hero() {
           fetchPriority="high"
           decoding="sync"
           className="h-full w-full object-cover portal-hero-ken"
+          style={{ objectPosition: "46% 68%" }}
         />
         {/* Camadas editoriais: profundidade, iluminação e vinheta */}
         {/* Overlay institucional Velox — degradê navy + toque quente para leitura sem esconder a foto */}
