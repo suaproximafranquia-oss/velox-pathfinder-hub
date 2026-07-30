@@ -11,6 +11,7 @@ import {
   loadLeads,
   registerLead,
   saveVisitorIdentity,
+  applyLeadRouting,
   type LeadRecord,
 } from "@/lib/leads";
 import { addComment } from "@/lib/investor-comments";
@@ -157,7 +158,7 @@ export function startPortalSession(input: {
   const responsible = getResponsibleExecutive();
   const identity = resolveIdentity({ name: input.name, email: input.email });
   const existing = findLeadByEmail(input.email);
-  const lead =
+  const baseLead =
     existing ??
     registerLead({
       identity: {
@@ -172,14 +173,14 @@ export function startPortalSession(input: {
 
   // Roteamento obrigatório também para investidor recorrente: quem volta
   // por link personalizado é reconduzido ao Green Sales do executivo.
-  const routedLead = existing
+  const lead = existing
     ? (applyLeadRouting(existing.id, {
         personalized: responsible.personalized,
         responsibleExecutiveId: responsible.personalized
           ? (responsible.executive?.id ?? null)
           : null,
       }) ?? existing)
-    : lead;
+    : baseLead;
 
   attachLeadToIdentity(identity.id, lead.id);
 
