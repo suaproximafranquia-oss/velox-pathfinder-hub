@@ -20,6 +20,8 @@ import {
   type EditorialVariant,
 } from "../components/editorial/editorial-shell";
 import { hasPortalSession } from "../lib/portal-session";
+import { moduleForPath } from "../lib/portal-modules";
+import { writeEntryContext } from "../lib/portal-entry";
 import { WhatsAppFloating } from "../components/shared/whatsapp-floating";
 
 function NotFoundComponent() {
@@ -128,13 +130,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+function resolveShell(pathname: string): EditorialVariant | "executive" {
+  if (pathname.startsWith("/executivo")) return "executive";
+  if (pathname.startsWith("/universo")) return "universo";
+  if (pathname === "/") return "portal";
+  return "manual";
+}
+
 function RootShell({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
-      <body>
+      {/*
+        O tema editorial é aplicado já no HTML servido (primeiro frame),
+        evitando qualquer troca visual perceptível — como a película azul
+        do Hero da Home aparecendo depois da imagem.
+      */}
+      <body data-shell={resolveShell(pathname)}>
         {children}
         <Scripts />
       </body>
