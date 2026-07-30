@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, ArrowRight, ArrowLeft, Check, Calculator, RotateCcw, MessageCircle, FileCheck2 } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Check, Calculator, RotateCcw, FileCheck2 } from "lucide-react";
 import {
   SIMULATOR_PRODUCTS,
   estimateRevenue,
@@ -16,6 +16,7 @@ import { generateSimulatorPdf } from "@/lib/simulator-report";
 import { addSimulation } from "@/lib/simulator-history";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { getInterestsProfile } from "@/lib/interests-profile";
+import { PortalFinalCta } from "@/components/portal/portal-final-cta";
 
 type Step = 1 | 2 | 3;
 
