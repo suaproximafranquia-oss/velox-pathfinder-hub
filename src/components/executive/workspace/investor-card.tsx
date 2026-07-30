@@ -123,12 +123,20 @@ export function InvestorCard({
       >
         {/* Header — o nome ocupa a largura útil integral do card */}
         <div className="min-w-0 pr-10">
-          <p
-            title={investor.name}
-            className="font-display text-[19px] md:text-[20px] leading-[1.2] break-words line-clamp-2"
-          >
-            {investor.name}
-          </p>
+          <div className="flex items-start gap-2">
+            {/* Indicador ÚNICO de estado — automático, sem interação */}
+            <span
+              aria-label={`Estado: ${stateMeta.label}`}
+              title={stateMeta.hint}
+              className={cn("mt-2 inline-block h-2.5 w-2.5 shrink-0 rounded-full", stateMeta.dot)}
+            />
+            <p
+              title={investor.name}
+              className="font-display text-[19px] md:text-[20px] leading-[1.2] break-words line-clamp-2"
+            >
+              {investor.name}
+            </p>
+          </div>
           <div className="mt-2 flex items-center gap-2 min-w-0">
             <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[11px] font-medium tracking-wider text-[color:var(--gold)]">
               {initials || "•"}
@@ -228,15 +236,6 @@ export function InvestorCard({
           </div>
         )}
       </div>
-
-      {/* Indicador automático — abaixo do menu de três pontos, sem interação */}
-      <span
-        aria-label={`Estado: ${stateMeta.label}`}
-        title={stateMeta.hint}
-        className="pointer-events-none absolute right-3 top-12 z-10 inline-flex h-8 w-8 items-center justify-center"
-      >
-        <span className={cn("h-3 w-3 rounded-full", stateMeta.dot)} />
-      </span>
 
       {/* Ações rápidas — aparecem em hover/focus */}
       <div
