@@ -153,16 +153,57 @@ const MODULES: ModuleCard[] = [
 
 function PortalHome() {
   const navigate = useNavigate();
+  const search = Route.useSearch() as HomeSearch;
   const [openPanel, setOpenPanel] = useState<{ src: string; title: string } | null>(null);
   const [simulatorOpen, setSimulatorOpen] = useState(false);
+  const [gatewayOpen, setGatewayOpen] = useState(false);
+  const [pendingTitle, setPendingTitle] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!hasPortalSession()) return;
-    const intent = window.localStorage.getItem("velox:portal:postGatewayIntent");
-    if (intent !== "simulator") return;
-    window.localStorage.removeItem("velox:portal:postGatewayIntent");
-    setSimulatorOpen(true);
+  /** Abre um módulo interno como overlay — a URL permanece na Home. */
+  const openModule = useCallback((key: PortalModuleKey) => {
+    const mod = getPortalModule(key);
+    if (!mod) return;
+    writeEntryContext({ pendingModule: null });
+    if (mod.action === "simulator") {
+      setSimulatorOpen(true);
+      setJourneyStatus("simulador");
+    } else if (mod.panelSrc) {
+      setOpenPanel({ src: mod.panelSrc, title: mod.title });
+      setJourneyStatus(key === "manual" ? "manual" : "portal");
+    }
+    trackSessionNavigation(key, mod.title);
   }, []);
+
+  /**
+   * Contexto de entrada (link personalizado, campanha, QR Code ou rota
+   * interna acessada diretamente): apenas define contexto e módulo
+   * pendente — nunca navegação. Em seguida a URL volta a ser a Home.
+   */
+  useEffect(() => {
+    const hasParams = Boolean(search.e || search.m || search.o || search.u || search.c);
+    if (hasParams) {
+      const ctx = writeEntryContext({
+        executiveSlug: search.e ?? readEntryContext().executiveSlug,
+        unit: search.u ?? readEntryContext().unit,
+        origin: search.o ?? readEntryContext().origin,
+        campaign: search.c ?? readEntryContext().campaign,
+        pendingModule:
+          (getPortalModule(search.m)?.key ?? (search.e ? "manual" : null)) as PortalModuleKey | null,
+      });
+      if (ctx.executiveSlug) setResponsibleExecutiveSlug(ctx.executiveSlug);
+      navigate({ to: "/", search: {}, replace: true });
+      return;
+    }
+
+    const ctx = readEntryContext();
+    if (!ctx.pendingModule) return;
+    if (hasPortalSession()) {
+      openModule(ctx.pendingModule);
+    } else {
+      setPendingTitle(getPortalModule(ctx.pendingModule)?.title ?? null);
+      setGatewayOpen(true);
+    }
+  }, [navigate, openModule, search]);
 
   useEffect(() => {
     if (!openPanel) return;
@@ -183,21 +224,34 @@ function PortalHome() {
         <Hero />
         <ModulesGrid
           onOpen={(m) => {
-            if ((m.panelSrc || m.action === "simulator") && !hasPortalSession()) {
-              if (m.action === "simulator") {
-                window.localStorage.setItem("velox:portal:postGatewayIntent", "simulator");
-              }
-              navigate({ to: "/entrar", search: { next: m.panelSrc ?? "/" } });
+            const mod = getPortalModule(m.moduleKey);
+            if (!mod) return;
+            if (!hasPortalSession()) {
+              writeEntryContext({ pendingModule: mod.key });
+              setPendingTitle(mod.title);
+              setGatewayOpen(true);
               return;
             }
-            if (m.action === "simulator") setSimulatorOpen(true);
-            else if (m.panelSrc) setOpenPanel({ src: m.panelSrc, title: m.title });
+            openModule(mod.key);
           }}
         />
       </main>
       <PortalFooter />
       <ModulePanel panel={openPanel} onClose={() => setOpenPanel(null)} />
       <SimulatorModal open={simulatorOpen} onClose={() => setSimulatorOpen(false)} />
+      <GatewayOverlay
+        open={gatewayOpen}
+        moduleTitle={pendingTitle}
+        onClose={() => {
+          setGatewayOpen(false);
+          writeEntryContext({ pendingModule: null });
+        }}
+        onDone={() => {
+          setGatewayOpen(false);
+          const pending = readEntryContext().pendingModule ?? "manual";
+          openModule(pending);
+        }}
+      />
     </div>
   );
 }
