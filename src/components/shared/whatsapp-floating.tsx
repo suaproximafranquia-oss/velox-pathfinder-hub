@@ -5,6 +5,7 @@ import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
 import { getPortalSession } from "@/lib/portal-session";
 import { registerLead, updateLead, loadLeads, type VisitorIdentity } from "@/lib/leads";
 import { emitEvent } from "@/lib/events/bus";
+import { getActiveOverlay, subscribeOverlay } from "@/lib/portal-overlay";
 
 /**
  * Botão flutuante de WhatsApp — fixo em toda a navegação do Portal,
@@ -27,13 +28,20 @@ export function WhatsAppFloating() {
   const [modalOpen, setModalOpen] = useState(false);
   /** Dentro de um overlay (iframe) o botão da Home já está visível. */
   const [insideOverlay, setInsideOverlay] = useState(false);
+  /** Enquanto um módulo estiver aberto sobre a Home, o FAB global some. */
+  const [overlayActive, setOverlayActive] = useState(false);
 
   useEffect(() => {
     setResolved(getResponsibleExecutive());
     setInsideOverlay(typeof window !== "undefined" && window.self !== window.top);
   }, []);
 
-  if (insideOverlay) return null;
+  useEffect(() => {
+    setOverlayActive(getActiveOverlay() !== null);
+    return subscribeOverlay((key) => setOverlayActive(key !== null));
+  }, []);
+
+  if (insideOverlay || overlayActive) return null;
 
   const label = resolved.personalized ? "Chame seu Executivo" : "Falar com a Velox";
 
