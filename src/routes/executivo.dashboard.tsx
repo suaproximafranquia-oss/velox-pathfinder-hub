@@ -69,6 +69,21 @@ function WorkspacePage() {
   // Reflete alterações nas reuniões (próxima reunião do card).
   useEffect(() => onEvent(() => setTick((v) => v + 1)), []);
 
+  // Sincronização imediata com jornadas iniciadas em outra aba/janela:
+  // todo Lead criado pelo Gateway aparece no Workspace sem recarregar.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const bump = () => setTick((v) => v + 1);
+    window.addEventListener("storage", bump);
+    window.addEventListener("focus", bump);
+    const timer = window.setInterval(bump, 20000);
+    return () => {
+      window.removeEventListener("storage", bump);
+      window.removeEventListener("focus", bump);
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const nextMeetingByInvestor = useMemo(() => {
     void tick;
     const map = new Map<string, string>();
@@ -86,17 +101,18 @@ function WorkspacePage() {
   }, [tick]);
 
   const cards: InvestorCardData[] = useMemo(() => {
+    void tick;
     if (!session) return [];
     const allInvestors = listAllInvestors();
     const visible = canViewAllInvestors(session.activeRole)
       ? allInvestors
       : allInvestors.filter((i) => i.assignedToUserId === session.userId);
-    // Isolamento absoluto por escopo: Portal jamais mistura com Green Sales.
-    const base = portalEnabled
-      ? visible.filter((i) =>
-          scope === "portal" ? i.origin === "portal" : i.origin !== "portal",
-        )
-      : visible;
+    // Isolamento absoluto por escopo: Portal jamais mistura com Green
+    // Sales — inclusive para quem não tem acesso à aba Portal, que vê
+    // exclusivamente Leads de link personalizado (Green Sales).
+    const base = visible.filter((i) =>
+      scope === "portal" ? i.origin === "portal" : i.origin !== "portal",
+    );
 
     const q = query.trim().toLowerCase();
     const filtered = q
@@ -122,7 +138,7 @@ function WorkspacePage() {
         if (am !== bm) return am - bm;
         return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
       });
-  }, [session, query, nextMeetingByInvestor, portalEnabled, scope]);
+  }, [session, query, nextMeetingByInvestor, scope, tick]);
 
   if (!session) return null;
 
