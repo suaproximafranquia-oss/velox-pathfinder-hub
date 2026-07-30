@@ -172,12 +172,3 @@ function Section({
     </section>
   );
 }
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/executivo/alertas')({
-  component: RouteComponent,
-})
-
-function RouteComponent() {
-  return <div>Hello "/executivo/alertas"!</div>
-}
