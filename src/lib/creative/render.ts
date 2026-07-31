@@ -11,8 +11,9 @@ let logoCache: string | null | undefined;
 export async function officialLogoHref(): Promise<string | null> {
   if (logoCache !== undefined) return logoCache;
   try {
-    const mod = await import("@/assets/editorial/velox-logo.png");
-    const res = await fetch(mod.default as unknown as string);
+    const mod = await import("@/assets/editorial/velox-logo.png.asset.json");
+    const src = (mod.default as { url: string }).url;
+    const res = await fetch(src);
     const blob = await res.blob();
     logoCache = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
