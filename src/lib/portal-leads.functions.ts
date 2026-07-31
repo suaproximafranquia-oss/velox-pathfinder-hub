@@ -81,9 +81,10 @@ export const listPortalLeads = createServerFn({ method: "POST" })
 export const deletePortalLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { id: string }) => data)
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("portal_leads").delete().eq("id", data.id);
+  .handler(async ({ data, context }) => {
+    // A exclusão respeita as políticas de acesso: apenas o executivo
+    // responsável pelo Lead ou um Administrador consegue removê-lo.
+    const { error } = await context.supabase.from("portal_leads").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
