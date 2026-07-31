@@ -253,7 +253,7 @@ export function evaluateNewLeads(session: ExecutiveSession) {
     manual: "Manual do Investidor",
   };
   for (const inv of mine) {
-    const created = inv.createdAt ?? inv.lastActivity;
+    const created = inv.lastActivity;
     if (!created || Number.isNaN(Date.parse(created))) continue;
     const when = new Date(created);
     pushAlert({
