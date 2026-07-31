@@ -6,6 +6,7 @@ import {
   LogOut,
   Database,
   Sparkles,
+  Wand2,
   Brain,
   Gauge,
   Calendar,
