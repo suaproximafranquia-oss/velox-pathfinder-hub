@@ -70,9 +70,17 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     status: "ativo",
   },
   {
+    id: "ia-criativa",
+    name: "IA Criativa",
+    description:
+      "Produção automática de materiais oficiais dentro da identidade visual aprovada.",
+    icon: Wand2,
+    to: "/executivo/criativa",
+    status: "ativo",
+  },
+  {
     id: "brain",
     name: "Brain Analytics",
-*** placeholder
     description:
       "Indicadores executivos consolidados a partir dos módulos da plataforma.",
     icon: Brain,
