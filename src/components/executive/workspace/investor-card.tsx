@@ -122,8 +122,6 @@ function InvestorCardBase({
         {/* Header — o nome ocupa a largura útil integral do card */}
         <div className="min-w-0 pr-10">
           <div className="flex items-start gap-2">
-            {/* Sem indicador visual de estado (Prompt 6F) — o estado do Lead
-                permanece apenas na camada lógica do sistema. */}
             <p
               title={investor.name}
               className="font-display text-[19px] md:text-[20px] leading-[1.2] break-words line-clamp-2"
@@ -131,6 +129,14 @@ function InvestorCardBase({
               {investor.name}
             </p>
           </div>
+          {leadState === "novo" ? (
+            <span
+              title="Lead novo ou com atualização ainda não visualizada."
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.16em] text-emerald-300"
+            >
+              Novo
+            </span>
+          ) : null}
           <div className="mt-2 flex items-center gap-2 min-w-0">
             <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[11px] font-medium tracking-wider text-[color:var(--gold)]">
               {initials || "•"}
