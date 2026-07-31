@@ -159,18 +159,26 @@ function WorkspacePage() {
         )
       : base;
 
-    // Ordenação inteligente (versão inicial): prioridade > próxima reunião
-    // mais próxima > atividade mais recente. Nunca alfabética.
+    // Ordenação inteligente em tempo real: o movimento manda.
+    // Leads novos/atualizados primeiro, depois atividade mais recente,
+    // e só então prioridade e proximidade da reunião. Nunca alfabética.
     const priorityScore = (p?: string) => (p === "high" ? 2 : p === "medium" ? 1 : 0);
+    const stateScore = (i: InvestorCardData) => {
+      const s = resolveLeadState(i);
+      return s === "novo" ? 2 : s === "em_andamento" ? 1 : 0;
+    };
     return filtered
       .map<InvestorCardData>((i) => ({ ...i, nextMeetingAt: nextMeetingByInvestor.get(i.id) }))
       .sort((a, b) => {
+        const sd = stateScore(b) - stateScore(a);
+        if (sd !== 0) return sd;
+        const ad = new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+        if (ad !== 0) return ad;
         const pd = priorityScore(b.priority) - priorityScore(a.priority);
         if (pd !== 0) return pd;
         const am = a.nextMeetingAt ? new Date(a.nextMeetingAt).getTime() : Infinity;
         const bm = b.nextMeetingAt ? new Date(b.nextMeetingAt).getTime() : Infinity;
-        if (am !== bm) return am - bm;
-        return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+        return am - bm;
       });
   }, [session, query, nextMeetingByInvestor, scope, tick]);
 
