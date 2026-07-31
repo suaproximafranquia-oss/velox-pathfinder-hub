@@ -14,6 +14,7 @@ import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
 import { InvestorProfileView } from "@/components/executive/workspace/investor-profile-view";
 import { deleteLead } from "@/lib/leads";
+import { resolveLeadState } from "@/lib/lead-state";
 import { pullLeads, subscribeLeads, removeLeadEverywhere } from "@/lib/portal-leads-sync";
 import {
   canAccessPortalWorkspace,
