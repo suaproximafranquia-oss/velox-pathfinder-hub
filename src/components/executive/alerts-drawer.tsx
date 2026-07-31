@@ -10,7 +10,7 @@
  * Disponível em todas as telas do Workspace — exceto o KPI Manager.
  */
 import { useEffect, useState } from "react";
-import { Bell, BellRing, ChevronRight, ExternalLink, X } from "lucide-react";
+import { Bell, BellRing, ChevronRight, ExternalLink, Video, X } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   archiveWorkspaceAlert,
@@ -187,6 +187,17 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
                               <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
                                 {a.description}
                               </p>
+                              {a.actionUrl ? (
+                                <a
+                                  href={a.actionUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="mt-3 mr-2 inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[color:var(--foreground)] hover:border-[color:var(--gold)] transition"
+                                >
+                                  <Video className="h-3 w-3 text-[color:var(--gold)]" /> Entrar na reunião
+                                </a>
+                              ) : null}
                               {a.investorId ? (
                                 <span
                                   role="button"
