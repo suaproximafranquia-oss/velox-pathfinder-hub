@@ -236,6 +236,39 @@ export function evaluateMeetingLifecycle(session: ExecutiveSession) {
  * Alertas automáticos derivados do Journey Engine. Cada marco relevante
  * da jornada vira um alerta para o executivo responsável.
  */
+/**
+ * Novo Lead identificado — vale para qualquer Lead da carteira visível,
+ * inclusive os que chegam de outro dispositivo e ainda não possuem
+ * jornada registrada neste navegador. Nome, origem, data e hora vêm
+ * sempre da base real.
+ */
+export function evaluateNewLeads(session: ExecutiveSession) {
+  const all = listAllInvestors();
+  const mine = canViewAllInvestors(session.activeRole)
+    ? all
+    : all.filter((i) => i.assignedToUserId === session.userId);
+  const originLabel: Record<string, string> = {
+    green_sales: "Link personalizado (Green Sales)",
+    portal: "Portal Velox",
+    manual: "Manual do Investidor",
+  };
+  for (const inv of mine) {
+    const created = inv.createdAt ?? inv.lastActivity;
+    if (!created || Number.isNaN(Date.parse(created))) continue;
+    const when = new Date(created);
+    pushAlert({
+      ownerUserId: session.userId,
+      category: "novo_lead",
+      title: `Novo investidor: ${inv.name}`,
+      description: `${originLabel[inv.origin ?? "manual"] ?? "Origem não informada"} · ${when.toLocaleDateString(
+        "pt-BR",
+      )} às ${when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`,
+      investorId: inv.id,
+      date: when.toISOString(),
+    });
+  }
+}
+
 export function evaluateJourneyAlerts(session: ExecutiveSession) {
   for (const record of listJourneys()) {
     const owner = record.executiveId ?? session.userId;
