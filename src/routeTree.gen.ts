@@ -28,6 +28,7 @@ import { Route as ExecutivoInvestidoresRouteImport } from './routes/executivo.in
 import { Route as ExecutivoIaRouteImport } from './routes/executivo.ia'
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
+import { Route as ExecutivoCriativaRouteImport } from './routes/executivo.criativa'
 import { Route as ExecutivoConhecimentoRouteImport } from './routes/executivo.conhecimento'
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
@@ -134,6 +135,11 @@ const ExecutivoDashboardRoute = ExecutivoDashboardRouteImport.update({
   path: '/executivo/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoCriativaRoute = ExecutivoCriativaRouteImport.update({
+  id: '/executivo/criativa',
+  path: '/executivo/criativa',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoConhecimentoRoute = ExecutivoConhecimentoRouteImport.update({
   id: '/executivo/conhecimento',
   path: '/executivo/conhecimento',
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
+  '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/ia': typeof ExecutivoIaRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
+  '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/ia': typeof ExecutivoIaRoute
@@ -261,6 +269,7 @@ export interface FileRoutesById {
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/conhecimento': typeof ExecutivoConhecimentoRoute
+  '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/ia': typeof ExecutivoIaRoute
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
+    | '/executivo/criativa'
     | '/executivo/dashboard'
     | '/executivo/home'
     | '/executivo/ia'
@@ -325,6 +335,7 @@ export interface FileRouteTypes {
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
+    | '/executivo/criativa'
     | '/executivo/dashboard'
     | '/executivo/home'
     | '/executivo/ia'
@@ -356,6 +367,7 @@ export interface FileRouteTypes {
     | '/executivo/celebracao'
     | '/executivo/configuracoes'
     | '/executivo/conhecimento'
+    | '/executivo/criativa'
     | '/executivo/dashboard'
     | '/executivo/home'
     | '/executivo/ia'
@@ -388,6 +400,7 @@ export interface RootRouteChildren {
   ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoConhecimentoRoute: typeof ExecutivoConhecimentoRoute
+  ExecutivoCriativaRoute: typeof ExecutivoCriativaRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
   ExecutivoIaRoute: typeof ExecutivoIaRoute
@@ -542,6 +555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/criativa': {
+      id: '/executivo/criativa'
+      path: '/executivo/criativa'
+      fullPath: '/executivo/criativa'
+      preLoaderRoute: typeof ExecutivoCriativaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/conhecimento': {
       id: '/executivo/conhecimento'
       path: '/executivo/conhecimento'
@@ -628,6 +648,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoConhecimentoRoute: ExecutivoConhecimentoRoute,
+  ExecutivoCriativaRoute: ExecutivoCriativaRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
   ExecutivoIaRoute: ExecutivoIaRoute,

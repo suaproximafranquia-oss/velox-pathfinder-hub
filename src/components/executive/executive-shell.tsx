@@ -6,6 +6,7 @@ import {
   LogOut,
   Database,
   Sparkles,
+  Wand2,
   Brain,
   Gauge,
   Calendar,
@@ -61,6 +62,7 @@ export function ExecutiveShell({
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
+    { to: "/executivo/criativa", label: "IA Criativa", icon: Wand2 },
     ...(canManageKnowledge(session.activeRole)
       ? [{ to: "/executivo/conhecimento", label: "Conhecimento", icon: Database }]
       : []),

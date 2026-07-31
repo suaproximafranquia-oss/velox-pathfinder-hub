@@ -69,6 +69,93 @@ export async function uploadDocument(
     contentBase64: string;
   },
 ): Promise<{ id: string; webViewLink: string | null }> {
+  return uploadDocumentInternal(userId, params);
+}
+
+/**
+ * Biblioteca oficial da IA Criativa.
+ * Estrutura: Portal Velox / IA Criativa / {Templates, Logos, Referências,
+ * Artes aprovadas, Artes geradas, Histórico}. Idempotente — nunca duplica.
+ */
+export async function ensureCreativeFolders(userId: string): Promise<{
+  rootId: string;
+  libraryId: string;
+  templatesId: string;
+  logosId: string;
+  referencesId: string;
+  approvedId: string;
+  generatedId: string;
+  historyId: string;
+}> {
+  const rootId = await ensureFolder(userId, "Portal Velox");
+  const libraryId = await ensureFolder(userId, "IA Criativa", rootId);
+  const [templatesId, logosId, referencesId, approvedId, generatedId, historyId] =
+    await Promise.all([
+      ensureFolder(userId, "Templates", libraryId),
+      ensureFolder(userId, "Logos", libraryId),
+      ensureFolder(userId, "Referências", libraryId),
+      ensureFolder(userId, "Artes aprovadas", libraryId),
+      ensureFolder(userId, "Artes geradas", libraryId),
+      ensureFolder(userId, "Histórico", libraryId),
+    ]);
+  return {
+    rootId,
+    libraryId,
+    templatesId,
+    logosId,
+    referencesId,
+    approvedId,
+    generatedId,
+    historyId,
+  };
+}
+
+async function findFileInFolder(
+  userId: string,
+  folderId: string,
+  name: string,
+): Promise<DriveFile | null> {
+  const escaped = name.replace(/'/g, "\\'");
+  const query = new URLSearchParams({
+    q: `name = '${escaped}' and '${folderId}' in parents and trashed = false`,
+    fields: "files(id,name,webViewLink)",
+    pageSize: "1",
+  });
+  const data = (await googleFetch(
+    userId,
+    "google_drive",
+    `/drive/v3/files?${query.toString()}`,
+  )) as { files?: DriveFile[] } | null;
+  return data?.files?.[0] ?? null;
+}
+
+/** Envio idempotente: se já existir arquivo com o mesmo nome, reaproveita. */
+export async function uploadUniqueDocument(
+  userId: string,
+  params: {
+    folderId: string;
+    name: string;
+    mimeType: string;
+    contentBase64: string;
+  },
+): Promise<{ id: string; webViewLink: string | null; reused: boolean }> {
+  const existing = await findFileInFolder(userId, params.folderId, params.name);
+  if (existing?.id) {
+    return { id: existing.id, webViewLink: existing.webViewLink ?? null, reused: true };
+  }
+  const created = await uploadDocumentInternal(userId, params);
+  return { ...created, reused: false };
+}
+
+async function uploadDocumentInternal(
+  userId: string,
+  params: {
+    folderId: string;
+    name: string;
+    mimeType: string;
+    contentBase64: string;
+  },
+): Promise<{ id: string; webViewLink: string | null }> {
   const boundary = `velox${Math.random().toString(36).slice(2)}`;
   const metadata = JSON.stringify({ name: params.name, parents: [params.folderId] });
   const multipart =

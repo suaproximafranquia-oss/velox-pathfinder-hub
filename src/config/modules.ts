@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   Calendar,
   Sliders,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,6 +67,15 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     description: "Assistente corporativo para consultas guiadas ao ecossistema.",
     icon: Sparkles,
     to: "/executivo/ia",
+    status: "ativo",
+  },
+  {
+    id: "ia-criativa",
+    name: "IA Criativa",
+    description:
+      "Produção automática de materiais oficiais dentro da identidade visual aprovada.",
+    icon: Wand2,
+    to: "/executivo/criativa",
     status: "ativo",
   },
   {
