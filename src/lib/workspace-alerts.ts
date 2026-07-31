@@ -94,8 +94,8 @@ function writeLastSeen(map: LastSeenMap) {
   window.localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(map));
 }
 
-function pushAlert(alert: Omit<WorkspaceAlert, "id">) {
-  const id = `wa_${alert.category}_${alert.investorId ?? "x"}_${Date.parse(alert.date)}`;
+function pushAlert(alert: Omit<WorkspaceAlert, "id">, stableId?: string) {
+  const id = stableId ?? `wa_${alert.category}_${alert.investorId ?? "x"}_${Date.parse(alert.date)}`;
   const list = readAlerts();
   if (list.some((a) => a.id === id)) return;
   list.push({ ...alert, id });
