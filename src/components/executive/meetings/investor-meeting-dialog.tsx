@@ -38,7 +38,7 @@ export function InvestorMeetingDialog({
   // executivo da sessão. Ambos permanecem editáveis antes do envio.
   const [investorEmail, setInvestorEmail] = useState(investor.email ?? "");
   const [executiveEmail, setExecutiveEmail] = useState(
-    session.email ?? googleAccountEmail(session.userId),
+    () => session.email ?? getGoogleStore(session.userId).account?.email ?? "",
   );
   const [conflicts, setConflicts] = useState<{ summary: string; start: string; end: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
