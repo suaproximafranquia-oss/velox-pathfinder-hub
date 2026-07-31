@@ -40,6 +40,8 @@ export type WorkspaceAlert = {
   description: string;
   investorId?: string;
   date: string; // ISO
+  /** Link direto de ação (ex.: entrar na reunião). */
+  actionUrl?: string;
   archived?: boolean;
 };
 
@@ -166,6 +168,7 @@ export function evaluateMeetingReminders(session: ExecutiveSession) {
       })}.`,
       investorId: m.investorId,
       date: m.scheduledAt,
+      actionUrl: m.meetUrl || m.meetingProviderUrl || undefined,
     });
   }
 }
