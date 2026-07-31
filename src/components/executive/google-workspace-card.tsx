@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Info, Loader2, LogOut, RefreshCw } from "lucide-react";
+import { CheckCircle2, Info, Loader2, LogOut } from "lucide-react";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import {
-  CONNECTOR_LABEL,
-  GOOGLE_SCOPES,
-  disconnect,
+  connectGoogleAccount,
+  disconnectGoogleAccount,
   getGoogleStore,
-  isConnectorConnected,
+  isGoogleAccountConnected,
   refreshGoogleStore,
-  startConnect,
   subscribeGoogleStore,
-  type GoogleConnectorKey,
   type GoogleStore,
 } from "@/lib/google-workspace";
 
@@ -25,30 +22,23 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-const CONNECTORS: { id: GoogleConnectorKey; description: string }[] = [
-  {
-    id: "google_calendar",
-    description:
-      "Cria os eventos reais na sua agenda, gera o link oficial do Google Meet e envia os convites por e-mail.",
-  },
-  {
-    id: "google_drive",
-    description:
-      "Organiza os documentos do investidor em pastas dedicadas dentro de \u201cPortal Velox\u201d.",
-  },
-  {
-    id: "google_mail",
-    description: "Permite enviar comunicações do Portal a partir do seu próprio e-mail.",
-  },
-];
+function formatSync(value: string | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
 
 /**
- * Google Workspace — conexão OAuth 2.0 oficial por executivo.
- * As credenciais ficam apenas no servidor, criptografadas.
+ * CONTA GOOGLE — cartão único.
+ *
+ * Calendar, Meet, Drive e Gmail pertencem à mesma conta: o pareamento é
+ * feito uma única vez e permanece ativo. Nenhuma mensagem técnica é
+ * exibida — apenas o estado da conta em linguagem natural.
  */
 export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) {
   const [store, setStore] = useState<GoogleStore>(() => getGoogleStore(session.userId));
-  const [busy, setBusy] = useState<GoogleConnectorKey | null>(null);
+  const [busy, setBusy] = useState<"connect" | "disconnect" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const sync = useCallback(() => setStore(getGoogleStore(session.userId)), [session.userId]);
@@ -59,53 +49,61 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
     return off;
   }, [session.userId, sync]);
 
-  const actor = {
-    userId: session.userId,
-    userName: session.name,
-    userRole: session.activeRole,
-  };
+  const actor = { userId: session.userId, userName: session.name, userRole: session.activeRole };
+  const connected = isGoogleAccountConnected(store);
+  const email = store.account?.email ?? null;
 
-  async function handleConnect(connectorId: GoogleConnectorKey) {
+  async function handleConnect() {
     setMessage(null);
-    setBusy(connectorId);
+    setBusy("connect");
     try {
-      const next = await startConnect(actor, connectorId);
-      if (next.state === "error") setMessage(next.error);
+      const next = await connectGoogleAccount(actor);
+      if (next.state === "error") {
+        setMessage("Não foi possível concluir a conexão com o Google. Tente novamente.");
+      }
+    } catch {
+      setMessage("Não foi possível concluir a conexão com o Google. Tente novamente.");
     } finally {
       setBusy(null);
     }
   }
 
-  async function handleDisconnect(connectorId: GoogleConnectorKey) {
-    setBusy(connectorId);
+  async function handleDisconnect() {
+    setMessage(null);
+    setBusy("disconnect");
     try {
-      await disconnect(actor, connectorId);
+      await disconnectGoogleAccount(actor);
+    } catch {
+      setMessage("Não foi possível desconectar a conta agora. Tente novamente.");
     } finally {
       setBusy(null);
     }
   }
-
-  const connectedEmail = store.account?.email ?? null;
 
   return (
     <section className="mt-10">
-      <h2 className="font-display text-lg mb-3">Google Workspace</h2>
+      <h2 className="font-display text-lg mb-3">Conta Google</h2>
       <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
         <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/60">
             <GoogleIcon className="h-6 w-6" />
           </div>
           <div className="min-w-0">
-            <p className="font-display text-base">Conta Google</p>
+            <p className="font-display text-base">
+              {connected ? (email ?? "Conta Google conectada") : "Nenhuma conta conectada"}
+            </p>
             <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed mt-1">
-              {connectedEmail
-                ? `Conectada como ${connectedEmail}. As reuniões confirmadas passam a criar eventos e links do Meet automaticamente.`
-                : "Conecte sua conta para criar eventos no Calendar, gerar links do Meet e enviar convites automaticamente."}
+              {connected
+                ? "Agenda, reuniões, documentos e e-mails do Portal usam esta conta automaticamente."
+                : "Conecte sua conta para que agenda, reuniões, documentos e e-mails funcionem automaticamente."}
+            </p>
+            <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+              Última sincronização: {formatSync(store.updatedAt)}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] bg-[color:var(--background)]/60 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-              {connectedEmail ? (
+              {connected ? (
                 <>
                   <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Conectada
                 </>
@@ -115,67 +113,58 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
                 </>
               )}
             </span>
-            <button
-              type="button"
-              onClick={() => void refreshGoogleStore(session.userId)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1 text-[11px] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40 transition"
-            >
-              <RefreshCw className="h-3 w-3" /> Atualizar
-            </button>
+            {connected ? (
+              <>
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void handleConnect()}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-4 py-1.5 text-[11px] text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-50"
+                >
+                  {busy === "connect" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <GoogleIcon className="h-3 w-3" />
+                  )}
+                  Trocar conta
+                </button>
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void handleDisconnect()}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:border-red-400/50 hover:text-red-400 transition disabled:opacity-50"
+                >
+                  {busy === "disconnect" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <LogOut className="h-3 w-3" />
+                  )}
+                  Desconectar
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void handleConnect()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-4 py-1.5 text-[11px] text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-50"
+              >
+                {busy === "connect" ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <GoogleIcon className="h-3 w-3" />
+                )}
+                Conectar conta Google
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 border-t border-[color:var(--border)]/60 pt-5">
-          {CONNECTORS.map((item) => {
-            const isConnected = isConnectorConnected(store, item.id);
-            const isBusy = busy === item.id;
-            return (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color:var(--border)]/60 bg-[color:var(--background)]/40 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm">{CONNECTOR_LABEL[item.id]}</p>
-                  <p className="text-[11px] text-[color:var(--muted-foreground)] leading-relaxed mt-0.5">
-                    {item.description}
-                  </p>
-                </div>
-                {isConnected ? (
-                  <button
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => void handleDisconnect(item.id)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:border-red-400/50 hover:text-red-400 transition disabled:opacity-50"
-                  >
-                    {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <LogOut className="h-3 w-3" />}
-                    Desconectar
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => void handleConnect(item.id)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-4 py-1.5 text-[11px] text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-50"
-                  >
-                    {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <GoogleIcon className="h-3 w-3" />}
-                    Conectar
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {message && <p className="mt-4 text-[11px] text-amber-400">{message}</p>}
 
-        {(message || store.error) && (
-          <p className="mt-4 text-[11px] text-red-400">{message ?? store.error}</p>
-        )}
-
-        <p className="mt-4 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          Escopos: Calendar · Meet · Drive · Gmail · Perfil · E-mail
-        </p>
-        <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-          {GOOGLE_SCOPES.length} permissões — nenhuma além do necessário. Os tokens ficam
-          exclusivamente no servidor, criptografados e vinculados ao seu acesso.
+        <p className="mt-4 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
+          A autorização é feita uma única vez e permanece ativa. Só será solicitada
+          novamente se você revogar o acesso ou alterar as permissões da conta.
         </p>
       </div>
     </section>
