@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import { TIME_INPUT_PROPS, isValidTimeValue, sanitizeTimeValue } from "@/lib/time-input";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
@@ -939,7 +940,7 @@ function NewMeetingDialog({
           </label>
           <label className="block">
             <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Hora</span>
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
+            <input {...TIME_INPUT_PROPS} value={time} onChange={(e) => setTime(sanitizeTimeValue(e.target.value))} aria-invalid={time !== "" && !isValidTimeValue(time)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
           </label>
         </div>
         {provider.id === "manual" ? (
@@ -1174,7 +1175,7 @@ function EditDialog({
           </label>
           <label className="block">
             <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Hora</span>
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
+            <input {...TIME_INPUT_PROPS} value={time} onChange={(e) => setTime(sanitizeTimeValue(e.target.value))} aria-invalid={time !== "" && !isValidTimeValue(time)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
           </label>
         </div>
         <label className="block">
@@ -1185,7 +1186,7 @@ function EditDialog({
           <button type="button" onClick={onClose} className="flex-1 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm">Cancelar</button>
           <button
             type="button"
-            disabled={!date || !time}
+            disabled={!date || !isValidTimeValue(time)}
             onClick={async () => {
               const iso = new Date(`${date}T${time}:00`).toISOString();
               const updated = updateMeeting(meeting.id, { scheduledAt: iso, meetUrl }, { actorId: session.userId, actorName: session.name });
@@ -1292,7 +1293,7 @@ function StatusDialog({
             </label>
             <label className="block">
               <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Nova hora *</span>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
+              <input {...TIME_INPUT_PROPS} value={time} onChange={(e) => setTime(sanitizeTimeValue(e.target.value))} aria-invalid={time !== "" && !isValidTimeValue(time)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
             </label>
           </div>
         )}
