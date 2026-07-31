@@ -32,7 +32,7 @@ export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
   const n = Math.max(stages.length, 1);
 
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-6">
+    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/30 p-6 shadow-[0_18px_44px_-30px_rgba(0,0,0,0.85)]">
       <div className="mb-6">
         <h2 className="font-display text-lg">Funil comercial</h2>
         <p className="mt-0.5 text-xs text-[color:var(--muted-foreground)]">
@@ -67,7 +67,8 @@ export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
                   height: 22,
                   borderRadius: "50%",
                   background: `linear-gradient(180deg, ${tone.light} 0%, ${tone.mid} 100%)`,
-                  boxShadow: `inset 0 -2px 6px rgba(0,0,0,0.22)`,
+                  boxShadow:
+                    "inset 0 -3px 8px rgba(0,0,0,0.28), inset 0 2px 3px rgba(255,255,255,0.35)",
                 }}
               />
 
@@ -77,7 +78,8 @@ export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
                 style={{
                   clipPath: `polygon(0% 0%, 100% 0%, ${100 - insetB}% 100%, ${insetB}% 100%)`,
                   background: `linear-gradient(90deg, ${tone.dark} 0%, ${tone.mid} 26%, ${tone.light} 48%, ${tone.mid} 72%, ${tone.dark} 100%)`,
-                  boxShadow: "0 14px 22px -14px rgba(0,0,0,0.65)",
+                  boxShadow:
+                    "0 20px 30px -16px rgba(0,0,0,0.75), 0 2px 0 rgba(255,255,255,0.10) inset",
                 }}
               >
                 <div
@@ -85,26 +87,26 @@ export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
                   className="absolute inset-0"
                   style={{
                     background:
-                      "linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0) 38%, rgba(0,0,0,0.28) 100%)",
+                      "linear-gradient(180deg, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.04) 40%, rgba(0,0,0,0.34) 100%)",
                   }}
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
                   <span
                     className="text-[10px] md:text-[11px] font-medium uppercase tracking-[0.18em]"
-                    style={{ color: tone.ink, opacity: 0.85 }}
+                    style={{ color: tone.ink, opacity: 0.92 }}
                   >
                     {s.label}
                   </span>
                   <span
                     className="font-display text-[17px] md:text-[19px] leading-tight tabular-nums"
-                    style={{ color: tone.ink }}
+                    style={{ color: tone.ink, textShadow: "0 1px 1px rgba(0,0,0,0.18)" }}
                   >
                     {isRevenue ? brl(s.value) : s.value.toLocaleString("pt-BR")}
                   </span>
                   {isRevenue ? null : (
                     <span
                       className="text-[11px] tabular-nums"
-                      style={{ color: tone.ink, opacity: 0.75 }}
+                      style={{ color: tone.ink, opacity: 0.82 }}
                     >
                       {pct.toFixed(1).replace(".", ",")}%
                     </span>
@@ -122,8 +124,9 @@ export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
                   bottom: -9,
                   height: 18,
                   borderRadius: "50%",
-                  background: `linear-gradient(180deg, ${tone.dark} 0%, rgba(0,0,0,0.55) 100%)`,
-                  filter: "blur(0.2px)",
+                  background: `linear-gradient(180deg, ${tone.dark} 0%, rgba(0,0,0,0.6) 100%)`,
+                  filter: "blur(0.6px)",
+                  opacity: 0.92,
                 }}
               />
             </div>

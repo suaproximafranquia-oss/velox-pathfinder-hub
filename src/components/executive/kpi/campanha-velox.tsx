@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
   const { value, percent, level } = campaignStatus(salesValue);
   const barColor = level?.color ?? "rgba(148, 163, 184, 0.55)"; // slate-400/55 neutro
-  const trackColor = "rgba(148, 163, 184, 0.14)";
+  const trackColor = "rgba(148, 163, 184, 0.28)";
   const percentLabel = `${percent.toFixed(1).replace(".", ",")}%`;
   const nextLevel = CAMPAIGN_LEVELS.find((l) => value < l.min) ?? null;
   const remaining = nextLevel ? Math.max(0, nextLevel.min - value) : 0;
@@ -59,8 +59,11 @@ export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
 
       <div className="mt-4">
         <div
-          className="relative h-2.5 w-full overflow-hidden rounded-full"
-          style={{ backgroundColor: trackColor }}
+          className="relative h-3.5 w-full overflow-hidden rounded-full border border-white/10"
+          style={{
+            backgroundColor: trackColor,
+            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.35)",
+          }}
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={CAMPAIGN_MAX}
@@ -75,8 +78,12 @@ export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
             style={{
               width: `${percent}%`,
               backgroundColor: barColor,
+              boxShadow: `0 0 14px -2px ${barColor}`,
             }}
           />
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums tracking-wide text-[color:var(--foreground)] drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
+            {percentLabel}
+          </span>
         </div>
 
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
