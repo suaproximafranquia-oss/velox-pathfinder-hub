@@ -56,6 +56,24 @@ export const CONNECTOR_LABEL: Record<GoogleConnectorKey, string> = {
   google_mail: "Gmail",
 };
 
+/** Serviços da mesma Conta Google — nunca conectados individualmente. */
+export const GOOGLE_ACCOUNT_CONNECTORS: GoogleConnectorKey[] = [
+  "google_calendar",
+  "google_drive",
+  "google_mail",
+];
+
+/**
+ * Mensagens amigáveis: nenhum detalhe técnico (token, OAuth, callback,
+ * stacktrace, Unauthorized) chega à tela do executivo.
+ */
+export function friendlyGoogleMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/pop-?up/i.test(raw)) return "Permita janelas pop-up para conectar sua Conta Google.";
+  if (/fechada|closed/i.test(raw)) return "A conexão foi interrompida antes de ser concluída.";
+  return "Não foi possível concluir a conexão com o Google. Tente novamente.";
+}
+
 const CACHE_PREFIX = "velox:google-workspace:v2:";
 const CHANGED_EVENT = "velox:google-workspace:changed";
 
