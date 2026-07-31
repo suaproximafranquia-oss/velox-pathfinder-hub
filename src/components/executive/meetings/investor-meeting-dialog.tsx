@@ -12,6 +12,7 @@ import {
 } from "@/lib/meeting-providers";
 import { trySyncCreate, checkConflicts, DEFAULT_TIMEZONE } from "@/lib/google-calendar";
 import { getGoogleStore } from "@/lib/google-workspace";
+import { TIME_INPUT_PROPS, isValidTimeValue, sanitizeTimeValue } from "@/lib/time-input";
 
 /**
  * Diálogo de criação de reunião a partir do Perfil do Investidor.
@@ -51,6 +52,10 @@ export function InvestorMeetingDialog({
   async function submit(force = false) {
     if (!date || !time || submitting) return;
     setError(null);
+    if (!isValidTimeValue(time)) {
+      setError("Informe um horário válido (hora entre 00 e 23, minutos entre 00 e 59).");
+      return;
+    }
     if (provider.id === "manual" && !meetUrl.trim()) {
       setError("Informe o link da reunião.");
       return;
@@ -145,7 +150,13 @@ export function InvestorMeetingDialog({
             </label>
             <label className="block">
               <span className="mb-1 block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Hora</span>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
+              <input
+                {...TIME_INPUT_PROPS}
+                value={time}
+                onChange={(e) => setTime(sanitizeTimeValue(e.target.value))}
+                aria-invalid={time !== "" && !isValidTimeValue(time)}
+                className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+              />
             </label>
           </div>
 
@@ -223,7 +234,7 @@ export function InvestorMeetingDialog({
             </button>
             <button
               type="button"
-              disabled={submitting || !date || !time}
+              disabled={submitting || !date || !isValidTimeValue(time)}
               onClick={() => submit(conflicts.length > 0)}
               className="flex-1 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-4 py-2 text-sm text-[color:var(--foreground)] hover:border-[color:var(--gold)] disabled:opacity-40"
             >
