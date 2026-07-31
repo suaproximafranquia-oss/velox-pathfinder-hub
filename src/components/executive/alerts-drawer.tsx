@@ -10,7 +10,8 @@
  * Disponível em todas as telas do Workspace — exceto o KPI Manager.
  */
 import { useEffect, useState } from "react";
-import { Bell, BellRing, ChevronRight, X } from "lucide-react";
+import { Bell, BellRing, ChevronRight, ExternalLink, X } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   archiveWorkspaceAlert,
   listWorkspaceAlerts,
@@ -25,6 +26,7 @@ import type { ExecutiveSession } from "@/lib/executive-auth";
 import { cn } from "@/lib/utils";
 
 export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState<WorkspaceAlert[]>([]);
   const [unread, setUnread] = useState(0);
@@ -181,9 +183,38 @@ export function AlertsDrawer({ session }: { session: ExecutiveSession }) {
                             </span>
                           </div>
                           {expanded && (
-                            <p className="mt-2.5 text-xs text-[color:var(--muted-foreground)] leading-relaxed border-t border-[color:var(--border)]/60 pt-2.5">
-                              {a.description}
-                            </p>
+                            <div className="mt-2.5 border-t border-[color:var(--border)]/60 pt-2.5">
+                              <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
+                                {a.description}
+                              </p>
+                              {a.investorId ? (
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpen(false);
+                                    void navigate({
+                                      to: "/executivo/dashboard",
+                                      search: { perfil: a.investorId },
+                                    });
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.stopPropagation();
+                                      setOpen(false);
+                                      void navigate({
+                                        to: "/executivo/dashboard",
+                                        search: { perfil: a.investorId },
+                                      });
+                                    }
+                                  }}
+                                  className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--gold)]/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[color:var(--foreground)] hover:bg-[color:var(--accent)] transition"
+                                >
+                                  <ExternalLink className="h-3 w-3 text-[color:var(--gold)]" /> Abrir card
+                                </span>
+                              ) : null}
+                            </div>
                           )}
                         </button>
                       </li>
