@@ -20,6 +20,8 @@ import {
   Trash2,
   Cloud,
   CloudOff,
+  Link2,
+  Send,
   CheckCircle2,
   XCircle,
 } from "lucide-react";
@@ -143,7 +145,6 @@ function MeetingsPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [items, setItems] = useState<Meeting[]>([]);
-  const [creating, setCreating] = useState(false);
   const [notesFor, setNotesFor] = useState<Meeting | null>(null);
   const [detailsFor, setDetailsFor] = useState<Meeting | null>(null);
   const [editFor, setEditFor] = useState<Meeting | null>(null);
@@ -158,6 +159,42 @@ function MeetingsPage() {
   const [calMonth, setCalMonth] = useState<Date>(() => { const d = new Date(); d.setDate(1); return d; });
   const [tick, setTick] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [inviteBusy, setInviteBusy] = useState<string | null>(null);
+  const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
+
+  /** Reenvia o convite do Google (evento existente = novo e-mail para todos). */
+  async function resendInvite(m: Meeting) {
+    if (!session) return;
+    setInviteBusy(m.id);
+    setInviteFeedback(null);
+    const actor = {
+      userId: session.userId,
+      userName: session.name,
+      userRole: "Executivo",
+      email: session.email,
+    };
+    const result = m.googleEventId
+      ? await trySyncUpdate(m, actor)
+      : await trySyncCreate(m, actor);
+    setInviteBusy(null);
+    refresh();
+    setInviteFeedback(
+      result.googleSync === "synced"
+        ? `Convite reenviado para os participantes de ${m.investorName}.`
+        : "Conecte sua conta Google em Configurações para enviar convites automaticamente.",
+    );
+  }
+
+  async function copyMeetingLink(m: Meeting) {
+    const url = resolveMeetingUrl(m);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setInviteFeedback("Link da reunião copiado.");
+    } catch {
+      setInviteFeedback("Não foi possível copiar o link.");
+    }
+  }
   const [googleTick, setGoogleTick] = useState(0);
 
   useEffect(() => {
@@ -341,9 +378,14 @@ function MeetingsPage() {
         </select>
       </div>
 
+      {inviteFeedback && (
+        <p className="mb-3 text-xs text-[color:var(--muted-foreground)]">{inviteFeedback}</p>
+      )}
+
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[color:var(--border)] p-10 text-center text-sm text-[color:var(--muted-foreground)]">
-          Nenhuma reunião registrada. Clique em "Nova reunião" para começar.
+          Nenhuma reunião registrada. As reuniões nascem no card do investidor,
+          dentro do Workspace.
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[color:var(--border)] p-10 text-center">
@@ -433,6 +475,14 @@ function MeetingsPage() {
                   <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
                     <ActionButton icon={Eye} label="Ver detalhes" onClick={() => setDetailsFor(m)} />
                     <ActionButton icon={Pencil} label="Editar" onClick={() => setEditFor(m)} />
+                    {resolveMeetingUrl(m) && (
+                      <ActionButton icon={Link2} label="Copiar link" onClick={() => void copyMeetingLink(m)} />
+                    )}
+                    <ActionButton
+                      icon={Send}
+                      label={inviteBusy === m.id ? "Enviando..." : "Reenviar convite"}
+                      onClick={() => void resendInvite(m)}
+                    />
                     <ActionButton icon={RefreshCw} label="Alterar Status" onClick={() => setStatusFor(m)} />
                     <ActionButton
                       icon={MessageSquare}

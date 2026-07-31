@@ -15,7 +15,7 @@ import { emitEvent, onEvent } from "@/lib/events/bus";
 import { getReactivationWindowMs } from "@/lib/platform-settings";
 import { listAllInvestors, formatRelative, type Investor } from "@/lib/executive-data";
 import { listMeetings } from "@/lib/meetings";
-import type { ExecutiveSession } from "@/lib/executive-auth";
+import { canViewAllInvestors, type ExecutiveSession } from "@/lib/executive-auth";
 import { listJourneys } from "@/lib/journey/engine";
 import { summarizeJourney } from "@/lib/journey/insights";
 
@@ -40,6 +40,8 @@ export type WorkspaceAlert = {
   description: string;
   investorId?: string;
   date: string; // ISO
+  /** Link direto de ação (ex.: entrar na reunião). */
+  actionUrl?: string;
   archived?: boolean;
 };
 
@@ -94,8 +96,8 @@ function writeLastSeen(map: LastSeenMap) {
   window.localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(map));
 }
 
-function pushAlert(alert: Omit<WorkspaceAlert, "id">) {
-  const id = `wa_${alert.category}_${alert.investorId ?? "x"}_${Date.parse(alert.date)}`;
+function pushAlert(alert: Omit<WorkspaceAlert, "id">, stableId?: string) {
+  const id = stableId ?? `wa_${alert.category}_${alert.investorId ?? "x"}_${Date.parse(alert.date)}`;
   const list = readAlerts();
   if (list.some((a) => a.id === id)) return;
   list.push({ ...alert, id });
@@ -166,6 +168,7 @@ export function evaluateMeetingReminders(session: ExecutiveSession) {
       })}.`,
       investorId: m.investorId,
       date: m.scheduledAt,
+      actionUrl: m.meetUrl || m.meetingProviderUrl || undefined,
     });
   }
 }
@@ -236,6 +239,43 @@ export function evaluateMeetingLifecycle(session: ExecutiveSession) {
  * Alertas automáticos derivados do Journey Engine. Cada marco relevante
  * da jornada vira um alerta para o executivo responsável.
  */
+/**
+ * Novo Lead identificado — vale para qualquer Lead da carteira visível,
+ * inclusive os que chegam de outro dispositivo e ainda não possuem
+ * jornada registrada neste navegador. Nome, origem, data e hora vêm
+ * sempre da base real.
+ */
+export function evaluateNewLeads(session: ExecutiveSession) {
+  const all = listAllInvestors();
+  const mine = canViewAllInvestors(session.activeRole)
+    ? all
+    : all.filter((i) => i.assignedToUserId === session.userId);
+  const originLabel: Record<string, string> = {
+    green_sales: "Link personalizado (Green Sales)",
+    portal: "Portal Velox",
+    manual: "Manual do Investidor",
+  };
+  for (const inv of mine) {
+    const created = inv.lastActivity;
+    if (!created || Number.isNaN(Date.parse(created))) continue;
+    const when = new Date(created);
+    pushAlert(
+      {
+        ownerUserId: session.userId,
+        category: "novo_lead",
+        title: `Novo investidor: ${inv.name}`,
+        description: `${originLabel[inv.origin ?? "manual"] ?? "Origem não informada"} · ${when.toLocaleDateString(
+          "pt-BR",
+        )} às ${when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`,
+        investorId: inv.id,
+        date: when.toISOString(),
+      },
+      // Um único alerta por Lead — a atividade seguinte não duplica o aviso.
+      `wa_novo_lead_${inv.id}`,
+    );
+  }
+}
+
 export function evaluateJourneyAlerts(session: ExecutiveSession) {
   for (const record of listJourneys()) {
     const owner = record.executiveId ?? session.userId;
@@ -304,6 +344,7 @@ export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
    * dado fictício.
    */
   evaluateInvestorMovement();
+  evaluateNewLeads(session);
   evaluateJourneyAlerts(session);
   try {
     evaluateMeetingReminders(session);

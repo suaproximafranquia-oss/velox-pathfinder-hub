@@ -34,6 +34,12 @@ export function InvestorMeetingDialog({
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [meetUrl, setMeetUrl] = useState("");
+  // Preenchimento automático: o e-mail do investidor vem do cadastro e o do
+  // executivo da sessão. Ambos permanecem editáveis antes do envio.
+  const [investorEmail, setInvestorEmail] = useState(investor.email ?? "");
+  const [executiveEmail, setExecutiveEmail] = useState(
+    () => session.email ?? getGoogleStore(session.userId).account?.email ?? "",
+  );
   const [conflicts, setConflicts] = useState<{ summary: string; start: string; end: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +56,14 @@ export function InvestorMeetingDialog({
       return;
     }
     const iso = new Date(`${date}T${time}:00`).toISOString();
+    if (Number.isNaN(Date.parse(iso))) {
+      setError("Data ou horário inválido.");
+      return;
+    }
+    if (new Date(iso).getTime() < Date.now()) {
+      setError("Escolha uma data e um horário futuros.");
+      return;
+    }
     const endIso = new Date(new Date(iso).getTime() + 60 * 60_000).toISOString();
     if (!force && googleConnected && provider.id === "google_meet") {
       const found = checkConflicts(session.userId, iso, endIso);
@@ -66,7 +80,7 @@ export function InvestorMeetingDialog({
     const created = createMeeting({
       investorId: investor.id,
       investorName: investor.name,
-      investorEmail: investor.email || undefined,
+      investorEmail: investorEmail.trim() || undefined,
       executiveId: session.userId,
       executiveName: session.name,
       scheduledAt: iso,
@@ -81,6 +95,7 @@ export function InvestorMeetingDialog({
         userId: session.userId,
         userName: session.name,
         userRole: "Executivo",
+        email: executiveEmail.trim() || undefined,
       });
     }
     setSubmitting(false);
@@ -131,6 +146,33 @@ export function InvestorMeetingDialog({
             <label className="block">
               <span className="mb-1 block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Hora</span>
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+                E-mail do investidor
+              </span>
+              <input
+                type="email"
+                value={investorEmail}
+                onChange={(e) => setInvestorEmail(e.target.value)}
+                placeholder="investidor@email.com"
+                className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+                Seu e-mail
+              </span>
+              <input
+                type="email"
+                value={executiveEmail}
+                onChange={(e) => setExecutiveEmail(e.target.value)}
+                placeholder="executivo@velox.com.br"
+                className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
+              />
             </label>
           </div>
 
