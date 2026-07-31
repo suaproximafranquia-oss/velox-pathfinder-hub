@@ -15,7 +15,7 @@ import { emitEvent, onEvent } from "@/lib/events/bus";
 import { getReactivationWindowMs } from "@/lib/platform-settings";
 import { listAllInvestors, formatRelative, type Investor } from "@/lib/executive-data";
 import { listMeetings } from "@/lib/meetings";
-import type { ExecutiveSession } from "@/lib/executive-auth";
+import { canViewAllInvestors, type ExecutiveSession } from "@/lib/executive-auth";
 import { listJourneys } from "@/lib/journey/engine";
 import { summarizeJourney } from "@/lib/journey/insights";
 
@@ -304,6 +304,7 @@ export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
    * dado fictício.
    */
   evaluateInvestorMovement();
+  evaluateNewLeads(session);
   evaluateJourneyAlerts(session);
   try {
     evaluateMeetingReminders(session);
