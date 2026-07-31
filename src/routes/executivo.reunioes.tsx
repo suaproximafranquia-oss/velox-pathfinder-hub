@@ -20,6 +20,8 @@ import {
   Trash2,
   Cloud,
   CloudOff,
+  Link2,
+  Send,
   CheckCircle2,
   XCircle,
 } from "lucide-react";
