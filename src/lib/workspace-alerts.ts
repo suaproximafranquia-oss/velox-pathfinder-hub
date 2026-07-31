@@ -256,16 +256,20 @@ export function evaluateNewLeads(session: ExecutiveSession) {
     const created = inv.lastActivity;
     if (!created || Number.isNaN(Date.parse(created))) continue;
     const when = new Date(created);
-    pushAlert({
-      ownerUserId: session.userId,
-      category: "novo_lead",
-      title: `Novo investidor: ${inv.name}`,
-      description: `${originLabel[inv.origin ?? "manual"] ?? "Origem não informada"} · ${when.toLocaleDateString(
-        "pt-BR",
-      )} às ${when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`,
-      investorId: inv.id,
-      date: when.toISOString(),
-    });
+    pushAlert(
+      {
+        ownerUserId: session.userId,
+        category: "novo_lead",
+        title: `Novo investidor: ${inv.name}`,
+        description: `${originLabel[inv.origin ?? "manual"] ?? "Origem não informada"} · ${when.toLocaleDateString(
+          "pt-BR",
+        )} às ${when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`,
+        investorId: inv.id,
+        date: when.toISOString(),
+      },
+      // Um único alerta por Lead — a atividade seguinte não duplica o aviso.
+      `wa_novo_lead_${inv.id}`,
+    );
   }
 }
 
