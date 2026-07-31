@@ -56,6 +56,24 @@ export const CONNECTOR_LABEL: Record<GoogleConnectorKey, string> = {
   google_mail: "Gmail",
 };
 
+/** Serviços da mesma Conta Google — nunca conectados individualmente. */
+export const GOOGLE_ACCOUNT_CONNECTORS: GoogleConnectorKey[] = [
+  "google_calendar",
+  "google_drive",
+  "google_mail",
+];
+
+/**
+ * Mensagens amigáveis: nenhum detalhe técnico (token, OAuth, callback,
+ * stacktrace, Unauthorized) chega à tela do executivo.
+ */
+export function friendlyGoogleMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/pop-?up/i.test(raw)) return "Permita janelas pop-up para conectar sua Conta Google.";
+  if (/fechada|closed/i.test(raw)) return "A conexão foi interrompida antes de ser concluída.";
+  return "Não foi possível concluir a conexão com o Google. Tente novamente.";
+}
+
 const CACHE_PREFIX = "velox:google-workspace:v2:";
 const CHANGED_EVENT = "velox:google-workspace:changed";
 
@@ -139,11 +157,22 @@ export async function refreshGoogleStore(ownerId: string): Promise<GoogleStore> 
     write(next);
     return next;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Falha ao consultar a conta Google.";
+    const message = "Não foi possível verificar sua Conta Google agora.";
+    void err;
     const next: GoogleStore = { ...getGoogleStore(ownerId), state: "error", error: message };
     write(next);
     return next;
   }
+}
+
+/** Conta Google conectada quando os serviços essenciais respondem. */
+export function isGoogleAccountConnected(store: GoogleStore): boolean {
+  return store.connectors.some((c) => c.connected);
+}
+
+/** Serviços da conta que ainda não foram autorizados. */
+export function missingGoogleConnectors(store: GoogleStore): GoogleConnectorKey[] {
+  return GOOGLE_ACCOUNT_CONNECTORS.filter((id) => !isConnectorConnected(store, id));
 }
 
 export function isConnectorConnected(store: GoogleStore, connectorId: GoogleConnectorKey): boolean {
@@ -202,8 +231,7 @@ export async function startConnect(
     await completion;
   } catch (err) {
     popup.close();
-    const message = err instanceof Error ? err.message : "Falha ao conectar a conta Google.";
-    return setConnectError(owner, message);
+    return setConnectError(owner, friendlyGoogleMessage(err));
   }
 
   const store = await refreshGoogleStore(owner);
@@ -261,4 +289,30 @@ export async function disconnect(
 export function isExpired(_store: GoogleStore): boolean {
   // A renovação de tokens é responsabilidade do gateway seguro da Lovable.
   return false;
+}
+
+/**
+ * Pareamento único da CONTA GOOGLE: autoriza, em sequência, todos os
+ * serviços da mesma conta (Calendar/Meet, Drive e Gmail). Depois do
+ * primeiro pareamento a credencial permanece válida — a renovação por
+ * refresh token é feita pelo gateway seguro, sem novo login.
+ */
+export async function connectGoogleAccount(actor: ConnectActor): Promise<GoogleStore> {
+  let store = await refreshGoogleStore(actor.userId);
+  for (const connectorId of missingGoogleConnectors(store)) {
+    store = await startConnect(actor, connectorId);
+    if (store.state === "error") return store;
+  }
+  return store;
+}
+
+/** Desfaz o pareamento completo da Conta Google. */
+export async function disconnectGoogleAccount(actor: ConnectActor): Promise<GoogleStore> {
+  let store = getGoogleStore(actor.userId);
+  for (const connectorId of GOOGLE_ACCOUNT_CONNECTORS) {
+    if (isConnectorConnected(store, connectorId)) {
+      store = await disconnect(actor, connectorId);
+    }
+  }
+  return refreshGoogleStore(actor.userId);
 }

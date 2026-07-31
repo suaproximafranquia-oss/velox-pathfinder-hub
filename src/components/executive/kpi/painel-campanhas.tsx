@@ -114,13 +114,13 @@ export function PainelCampanhas({
             <tr className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
               <th className="text-left font-normal px-3 py-2 w-14">#</th>
               <th className="text-left font-normal px-3 py-2">Executivo</th>
-              <th className="text-right font-normal px-3 py-2">Unidades</th>
+              <th className="text-right font-normal px-2 py-2 w-[68px]" title="Unidades">Unid.</th>
               <th className="text-right font-normal px-3 py-2">Valor entregue</th>
               <th className="text-right font-normal px-3 py-2">Falta p/ Mestre</th>
               <th className="text-right font-normal px-3 py-2">Falta p/ Doutor</th>
               <th className="text-right font-normal px-3 py-2">Falta p/ PhD</th>
               <th className="text-right font-normal px-3 py-2">Falta p/ Supreme</th>
-              <th className="text-center font-normal px-3 py-2">Nível</th>
+              <th className="text-center font-normal px-4 py-2 w-[140px]">Nível</th>
               {onDownload && (
                 <th className="text-center font-normal px-3 py-2 w-14"> </th>
               )}
@@ -151,7 +151,9 @@ export function PainelCampanhas({
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{r.units.toLocaleString("pt-BR")}</td>
+                  <td className="px-2 py-2 text-right tabular-nums w-[68px]">
+                    {r.units.toLocaleString("pt-BR")}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums text-[color:var(--foreground)] font-medium">
                     {formatCurrency(r.value)}
                   </td>
@@ -173,10 +175,10 @@ export function PainelCampanhas({
                       </td>
                     );
                   })}
-                  <td className="px-3 py-2">
+                  <td className="px-4 py-2 text-center">
                     <span
                       className={cn(
-                        "inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium min-w-[104px]",
+                        "inline-flex items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium min-w-[116px] whitespace-nowrap",
                         tCls,
                       )}
                     >

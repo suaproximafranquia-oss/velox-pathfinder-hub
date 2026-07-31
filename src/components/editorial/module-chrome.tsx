@@ -41,10 +41,20 @@ export function ModuleChrome({
     };
   }, [indexOpen]);
 
+  /**
+   * Navegação direta: o índice abre a seção imediatamente, sem rolagem
+   * longa. O conteúdo permanece exatamente o mesmo — muda apenas a forma
+   * de chegar até ele.
+   */
   const go = (id: string) => {
     setIndexOpen(false);
     requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "auto", block: "start" });
+      if (window.history?.replaceState) {
+        window.history.replaceState(null, "", `#${id}`);
+      }
     });
   };
 
