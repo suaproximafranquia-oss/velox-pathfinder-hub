@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   Calendar,
   Sliders,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -71,6 +72,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
   {
     id: "brain",
     name: "Brain Analytics",
+*** placeholder
     description:
       "Indicadores executivos consolidados a partir dos módulos da plataforma.",
     icon: Brain,
