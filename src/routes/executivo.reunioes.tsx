@@ -1233,7 +1233,7 @@ function StatusDialog({
 
   const invalid =
     (status === "Cancelada" && !reason.trim()) ||
-    (status === "Reagendada" && (!date || !time));
+    (status === "Reagendada" && (!date || !isValidTimeValue(time)));
 
   async function submit() {
     if (invalid) return;
