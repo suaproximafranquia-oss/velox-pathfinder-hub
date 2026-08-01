@@ -287,16 +287,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     setOpenedIds((prev) => (prev.includes(selected.id) ? prev : [...prev, selected.id]));
   }, [selected?.id]);
 
-  // Alertas ATIVOS do investidor aberto. O histórico permanente continua
-  // exclusivamente na Central de Alertas — o CRM nunca a substitui.
-  const investorAlerts = useMemo(
-    () =>
-      selected && privateOk
-        ? listWorkspaceAlerts(session).filter((a) => a.investorId === selected.id)
-        : [],
-    [selected?.id, privateOk, session, tick],
-  );
-
   // Próxima reunião — apenas a mais próxima ainda válida.
   const nextMeeting = useMemo(() => {
     if (!selected || !privateOk) return null;
