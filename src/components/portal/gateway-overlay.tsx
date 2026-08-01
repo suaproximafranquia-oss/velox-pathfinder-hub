@@ -11,6 +11,7 @@ import { getExecutiveBySlug } from "@/lib/executive-auth";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { readEntryContext } from "@/lib/portal-entry";
 import { startPortalSession } from "@/lib/portal-session";
+import { getVisitorIdentity } from "@/lib/leads";
 
 export function GatewayOverlay({
   open,
@@ -25,6 +26,7 @@ export function GatewayOverlay({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
 
   const executive = useMemo(() => {
@@ -32,6 +34,19 @@ export function GatewayOverlay({
     const slug = readEntryContext().executiveSlug;
     return slug ? (getExecutiveBySlug(slug) ?? null) : null;
   }, [open]);
+
+  /**
+   * DEF 2.4.11 — quem chega pelo link personalizado do Executivo (ou já
+   * foi identificado antes) nunca é questionado novamente: apenas
+   * recebe a confirmação de continuidade da experiência.
+   */
+  const known = useMemo(() => {
+    if (!open) return null;
+    const identity = getVisitorIdentity();
+    if (!identity?.name || !identity?.email) return null;
+    return identity;
+  }, [open]);
+  const welcomeBack = Boolean(known);
 
   useEffect(() => {
     if (!open) return;
@@ -63,10 +78,26 @@ export function GatewayOverlay({
     startPortalSession({
       name: trimmedName,
       email: trimmedEmail,
+      phone: phone.trim(),
       origin:
         entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox"),
     });
     setError("");
+    onDone();
+  };
+
+  /** Retorno reconhecido: continuidade imediata, sem qualquer formulário. */
+  const continueKnown = () => {
+    if (!known) return;
+    const entry = readEntryContext();
+    if (executive) setResponsibleExecutiveSlug(executive.slug);
+    startPortalSession({
+      name: known.name,
+      email: known.email,
+      phone: known.whatsapp,
+      origin:
+        entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox"),
+    });
     onDone();
   };
 
