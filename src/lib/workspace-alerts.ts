@@ -21,6 +21,7 @@ import { summarizeJourney } from "@/lib/journey/insights";
 
 export type WorkspaceAlertCategory =
   | "movimentacao"
+  | "atividade_portal"
   | "novo_lead"
   | "manual_concluido"
   | "simulacao"
@@ -47,6 +48,7 @@ export type WorkspaceAlert = {
 
 export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, string> = {
   movimentacao: "Movimentação do Investidor",
+  atividade_portal: "Atividade no Portal",
   novo_lead: "Novo Investidor Identificado",
   manual_concluido: "Manual Concluído",
   simulacao: "Simulação Realizada",
@@ -428,6 +430,34 @@ export function recordReactivationAlert(input: {
       date: input.dateIso,
     },
     `wa_crm_reativacao_${input.investorId}_${Date.parse(input.dateIso)}`,
+  );
+}
+
+/**
+ * Atividade do investidor no Portal (DEF 2.4.10 §2): Manual, Material,
+ * Calculadora, Workspace ou retorno ao Portal. Idempotente por
+ * investidor + instante da atividade.
+ */
+export function recordPortalActivityAlert(input: {
+  ownerUserId: string;
+  investorId: string;
+  investorName: string;
+  title: string;
+  description: string;
+  dateIso: string;
+}) {
+  const at = Date.parse(input.dateIso);
+  if (!Number.isFinite(at)) return;
+  pushAlert(
+    {
+      ownerUserId: input.ownerUserId,
+      category: "atividade_portal",
+      title: input.title,
+      description: input.description,
+      investorId: input.investorId,
+      date: input.dateIso,
+    },
+    `wa_crm_atividade_${input.investorId}_${at}`,
   );
 }
 
