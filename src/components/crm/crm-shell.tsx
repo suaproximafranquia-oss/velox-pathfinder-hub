@@ -82,7 +82,7 @@ export function CrmShell({
   return (
     <div
       style={themeVars}
-      className="flex h-screen w-full flex-col overflow-hidden bg-[color:var(--crm-background)] text-[color:var(--crm-foreground)]"
+      className="crm-root flex h-screen w-full flex-col overflow-hidden bg-[color:var(--crm-background)] text-[color:var(--crm-foreground)]"
     >
       <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-4">
         <div className="flex min-w-0 items-center gap-2.5">
