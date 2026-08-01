@@ -30,6 +30,7 @@ import {
 } from "@/lib/crm/relationship-state";
 import { recordReactivationAlert } from "@/lib/workspace-alerts";
 import { getJourney } from "@/lib/journey/engine";
+import { isJourneyOnly, getCommercial } from "@/lib/crm/commercial";
 /**
  * WhatsApp do investidor (DEF 2.4.10 §4): sempre que o número existir em
  * qualquer camada oficial (cadastro ou jornada) ele é exibido.
@@ -67,6 +68,13 @@ export type CrmConversation = {
   ownerId: string;
   /** Camada de permissão aplicada a este relacionamento. */
   access: CrmAccessMode;
+  /**
+   * Jornada Digital (DEF 2.4.11): conversa congelada, sem Lead comercial
+   * nem Card no Workspace. O envio manual permanece bloqueado.
+   */
+  journeyOnly: boolean;
+  /** Data/hora de criação do Relacionamento Comercial, quando existir. */
+  relationshipStartedAt?: string;
   /** Relacionamento ativo já existente com o mesmo telefone/e-mail. */
   duplicate?: CrmDuplicate & { ownerName: string; investorName: string };
   readingPct: number;
@@ -103,7 +111,8 @@ function summaryOf(i: Investor): string {
 export function listConversations(actor: CrmActor): CrmConversation[] {
   const users = loadUsers();
   const nameById = new Map(users.map((u) => [u.id, u.name]));
-  const all = listAllInvestors();
+  // O CRM enxerga também as Jornadas Digitais — o Workspace, não.
+  const all = listAllInvestors({ includeJourneyOnly: true });
   const nameByInvestorId = new Map(all.map((i) => [i.id, i.name]));
 
   // Base única: o vínculo oficial é garantido (e preservado) para todos.
@@ -131,6 +140,7 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
       const ownerId = officialOwnerId(i);
       const access = accessModeFor(actor, ownerId);
       const dup = findDuplicate(i, all);
+      const journeyOnly = isJourneyOnly(i.id);
       // Reativação: retorno ao Portal após inatividade gera alerta automático.
       if (isReactivated({ id: i.id, lastInvestorActivityIso: i.lastActivity })) {
         recordReactivationAlert({
@@ -173,6 +183,8 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
         ownerName: nameById.get(ownerId) ?? "—",
         ownerId,
         access,
+        journeyOnly,
+        relationshipStartedAt: getCommercial(i.id)?.startedAt,
         duplicate: dup
           ? {
               ...dup,
