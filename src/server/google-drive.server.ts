@@ -79,41 +79,48 @@ export async function uploadDocument(
 }
 
 /**
- * Biblioteca oficial da IA Criativa.
- * Estrutura: Portal Velox / IA Criativa / {Templates, Logos, Referências,
- * Artes aprovadas, Artes geradas, Histórico}. Idempotente — nunca duplica.
+ * Arquiva uma peça diretamente na pasta corporativa oficial.
+ * Nunca cria pastas novas e nunca pergunta o destino.
  */
-export async function ensureCreativeFolders(userId: string): Promise<{
-  rootId: string;
-  libraryId: string;
-  templatesId: string;
-  logosId: string;
-  referencesId: string;
-  approvedId: string;
-  generatedId: string;
-  historyId: string;
-}> {
-  const rootId = await ensureFolder(userId, "Portal Velox");
-  const libraryId = await ensureFolder(userId, "IA Criativa", rootId);
-  const [templatesId, logosId, referencesId, approvedId, generatedId, historyId] =
-    await Promise.all([
-      ensureFolder(userId, "Templates", libraryId),
-      ensureFolder(userId, "Logos", libraryId),
-      ensureFolder(userId, "Referências", libraryId),
-      ensureFolder(userId, "Artes aprovadas", libraryId),
-      ensureFolder(userId, "Artes geradas", libraryId),
-      ensureFolder(userId, "Histórico", libraryId),
-    ]);
-  return {
-    rootId,
-    libraryId,
-    templatesId,
-    logosId,
-    referencesId,
-    approvedId,
-    generatedId,
-    historyId,
-  };
+export async function saveToCorporateFolder(
+  userId: string,
+  params: { name: string; mimeType: string; contentBase64: string },
+): Promise<{ id: string; webViewLink: string | null }> {
+  return uploadDocumentInternal(userId, { ...params, folderId: CORPORATE_FOLDER_ID });
+}
+
+/**
+ * Modelo Oficial — arquivo único. Ao enviar um novo, o anterior é
+ * removido: nunca existe histórico nem versões paralelas.
+ */
+export async function replaceOfficialModel(
+  userId: string,
+  params: { name: string; mimeType: string; contentBase64: string },
+): Promise<{ id: string; webViewLink: string | null }> {
+  const ext = params.name.split(".").pop()?.toLowerCase() || "png";
+  const finalName = `modelo-oficial.${ext}`;
+  for (const candidate of ["png", "jpg", "jpeg", "pdf", "svg"]) {
+    const existing = await findFileInFolder(
+      userId,
+      CORPORATE_FOLDER_ID,
+      `modelo-oficial.${candidate}`,
+    );
+    if (existing?.id) {
+      try {
+        await googleFetch(userId, "google_drive", `/drive/v3/files/${existing.id}`, {
+          method: "DELETE",
+        });
+      } catch {
+        /* remoção é complementar — o novo modelo continua sendo enviado */
+      }
+    }
+  }
+  return uploadDocumentInternal(userId, {
+    folderId: CORPORATE_FOLDER_ID,
+    name: finalName,
+    mimeType: params.mimeType,
+    contentBase64: params.contentBase64,
+  });
 }
 
 async function findFileInFolder(
