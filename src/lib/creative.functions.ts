@@ -34,65 +34,41 @@ export const generateCreativeCopy = createServerFn({ method: "POST" })
     return buildCreativeCopy(data);
   });
 
-/** Garante a biblioteca oficial da IA Criativa no Drive corporativo. */
-export const ensureCreativeLibrary = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => data ?? {})
-  .handler(async ({ context }) => {
-    const { ensureCreativeFolders } = await import("@/server/google-drive.server");
-    return ensureCreativeFolders(context.userId);
+/** Fotografia institucional da cidade informada (Cidade + UF). */
+export const getCityPhoto = createServerFn({ method: "POST" })
+  .inputValidator((data: { city: string; state: string }) => data)
+  .handler(async ({ data }): Promise<{ dataUrl: string | null; credit: string | null }> => {
+    const { findCityPhoto } = await import("@/server/creative-photo.server");
+    return findCityPhoto(data.city, data.state);
   });
 
-/** Salva (sem duplicar) uma arte gerada na pasta oficial "Artes geradas". */
+/** Arquiva automaticamente a arte gerada na pasta corporativa oficial. */
 export const saveCreativeArt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     (data: { name: string; contentBase64: string; mimeType?: string }) => data,
   )
   .handler(async ({ data, context }) => {
-    const { ensureCreativeFolders, uploadUniqueDocument } = await import(
-      "@/server/google-drive.server"
-    );
-    const folders = await ensureCreativeFolders(context.userId);
-    return uploadUniqueDocument(context.userId, {
-      folderId: folders.generatedId,
+    const { saveToCorporateFolder } = await import("@/server/google-drive.server");
+    return saveToCorporateFolder(context.userId, {
       name: data.name,
       mimeType: data.mimeType || "image/png",
       contentBase64: data.contentBase64,
     });
   });
 
-/** Tipos de arquivo aceitos no bloco "Padrão oficial da marca". */
-export type BrandAssetKind = "logo" | "template" | "modelo" | "manual" | "referencia";
-
 /**
- * Envia um arquivo do padrão oficial para a pasta correta da biblioteca
- * no Drive corporativo. Esses arquivos são a única referência da IA.
+ * MODELO OFICIAL — arquivo único. Um novo envio substitui o anterior;
+ * nunca existem versões nem histórico.
  */
-export const saveBrandAsset = createServerFn({ method: "POST" })
+export const saveOfficialModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (data: {
-      kind: BrandAssetKind;
-      name: string;
-      contentBase64: string;
-      mimeType?: string;
-    }) => data,
+    (data: { name: string; contentBase64: string; mimeType?: string }) => data,
   )
   .handler(async ({ data, context }) => {
-    const { ensureCreativeFolders, uploadUniqueDocument } = await import(
-      "@/server/google-drive.server"
-    );
-    const folders = await ensureCreativeFolders(context.userId);
-    const target: Record<BrandAssetKind, string> = {
-      logo: folders.logosId,
-      template: folders.templatesId,
-      modelo: folders.approvedId,
-      manual: folders.referencesId,
-      referencia: folders.referencesId,
-    };
-    return uploadUniqueDocument(context.userId, {
-      folderId: target[data.kind] ?? folders.referencesId,
+    const { replaceOfficialModel } = await import("@/server/google-drive.server");
+    return replaceOfficialModel(context.userId, {
       name: data.name,
       mimeType: data.mimeType || "application/octet-stream",
       contentBase64: data.contentBase64,
