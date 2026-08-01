@@ -28,7 +28,9 @@ export type CrmTimelineEvent =
   | "relacionamento_arquivado"
   | "relacionamento_restaurado"
   | "retorno_identificado"
-  | "template_automatico";
+  | "template_automatico"
+  | "janela_reaberta"
+  | "portal_liberado";
 
 export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   relacionamento_oficial: "Relacionamento oficial definido",
@@ -53,6 +55,8 @@ export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   relacionamento_restaurado: "Conversa restaurada do Backup Portal",
   retorno_identificado: "Retorno do investidor identificado",
   template_automatico: "Template automático enviado pelo sistema",
+  janela_reaberta: "Janela de conversação reaberta por Template",
+  portal_liberado: "Portal do Investidor liberado manualmente",
 };
 
 export type CrmTimelineEntry = {
