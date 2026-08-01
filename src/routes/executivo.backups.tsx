@@ -144,6 +144,7 @@ function BackupsPage() {
               key={r.investorId}
               record={r}
               isAdmin={isAdmin}
+              adminId={session.userId}
               onOpen={() => setPending(r)}
               onShareChanged={() => setTick((v) => v + 1)}
             />
@@ -178,11 +179,13 @@ function BackupsPage() {
 function BackupCard({
   record,
   isAdmin,
+  adminId,
   onOpen,
   onShareChanged,
 }: {
   record: CrmBackupRecord;
   isAdmin: boolean;
+  adminId: string;
   onOpen: () => void;
   onShareChanged: () => void;
 }) {
@@ -228,7 +231,7 @@ function BackupCard({
             type="button"
             onClick={() => {
               if (grant) revokeBackupGrant(record.investorId);
-              else grantBackupToSupervisor(record.investorId, "admin");
+              else grantBackupToSupervisor(record.investorId, adminId);
               onShareChanged();
             }}
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] transition hover:text-[color:var(--foreground)]"
