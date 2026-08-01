@@ -200,12 +200,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [intakeId, setIntakeId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  // Relógio de baixa frequência para o contador da janela de sincronização.
+  // Relógio de baixa frequência: contador da janela de sincronização e da
+  // janela de 24 horas da conversa.
   useEffect(() => {
-    if (!isDistribuicao) return;
     const t = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(t);
-  }, [isDistribuicao]);
+  }, []);
 
   const intake = useMemo<CrmIntakeLead[]>(
     () => (isDistribuicao ? listIntakeLeads() : []),
