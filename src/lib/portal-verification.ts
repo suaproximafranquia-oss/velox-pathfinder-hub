@@ -14,6 +14,7 @@ import { recordCrmEvent } from "@/lib/crm/timeline";
 import { isPortalReleased } from "@/lib/crm/portal-release";
 import { sendWhatsApp } from "@/lib/integrations/whatsapp";
 import { updateLead } from "@/lib/leads";
+import { isJourneyId } from "@/lib/portal-journey";
 import { notifySync } from "@/lib/sync-bus";
 
 /** Número oficial que recebe as confirmações de identidade. */
@@ -63,6 +64,19 @@ export function getVerification(investorId: string): VerificationRecord | null {
   return read()[investorId] ?? null;
 }
 
+/**
+ * DEF 2.5.1 — ao promover a Jornada Digital a Relacionamento Comercial,
+ * a confirmação já realizada acompanha o novo identificador.
+ */
+export function transferVerification(fromId: string, toId: string): void {
+  const store = read();
+  const record = store[fromId];
+  if (!record || fromId === toId) return;
+  delete store[fromId];
+  store[toId] = { ...record, investorId: toId };
+  write(store);
+}
+
 /** Portal liberado = WhatsApp confirmado OU liberação manual (Admin/Gestora). */
 export function isPortalUnlocked(investorId: string | null | undefined): boolean {
   if (!investorId) return false;
@@ -108,6 +122,12 @@ export function requestWhatsappConfirmation(input: {
     text: `Confirmação de identidade — Portal do Investidor Velox.\nNome: ${input.investorName}\nWhatsApp: ${phone}\nCódigo de confirmação: ${record.code}`,
     reference: input.investorId,
   });
+
+  /**
+   * Jornada Digital ainda não é relacionamento: nenhuma Auditoria ou
+   * Timeline pode existir antes da confirmação do WhatsApp.
+   */
+  if (isJourneyId(input.investorId)) return record;
 
   logAudit({
     actorId: input.investorId,
@@ -166,6 +186,10 @@ export function confirmWhatsapp(input: {
     current[input.investorId] = { ...entry, confirmedIp: ip };
     write(current);
   });
+
+  // A Auditoria e a Timeline nascem junto com o Relacionamento Comercial,
+  // criado logo após esta confirmação (ver `promotePortalSession`).
+  if (isJourneyId(input.investorId)) return { ok: true, record: confirmed };
 
   logAudit({
     actorId: input.investorId,
