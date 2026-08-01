@@ -55,30 +55,33 @@ export function ExecutiveShell({
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  // Arquitetura do ecossistema: primeiro as ferramentas de uso diário,
-  // depois as Centrais (consulta, auditoria e histórico) agrupadas ao final.
+  /**
+   * DEF 2.4.17 §1 — ordem oficial do menu lateral. O CRM abre em nova aba
+   * (§3) para que o Executivo alterne entre Workspace e CRM sem perder o
+   * contexto. "Manual do Investidor", "Central de Recursos" e o antigo
+   * item "Reuniões" foram removidos definitivamente.
+   */
   const daily = [
     { to: "/executivo/home", label: "Home", icon: LayoutGrid },
     { to: "/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
-    { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
+    { to: "/crm", label: "CRM", icon: Contact, newTab: true },
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
     { to: "/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
+    { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     { to: "/executivo/criativa", label: "IA Criativa", icon: Wand2 },
-    { to: "/crm", label: "CRM", icon: Contact },
   ];
 
   const administrative = [
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
-    { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/auditoria", label: "Central de Auditoria", icon: ShieldCheck }]
       : []),
-    { to: "/executivo/recursos", label: "Biblioteca Corporativa", icon: FolderOpen },
     ...(canManageKnowledge(session.activeRole)
       ? [{ to: "/executivo/conhecimento", label: "Central de Conhecimento", icon: Database }]
       : []),
+    { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
@@ -91,19 +94,29 @@ export function ExecutiveShell({
       : []),
   ];
 
-  const renderLink = (n: { to: string; label: string; icon: typeof LayoutGrid }) => {
+  const renderLink = (n: {
+    to: string;
+    label: string;
+    icon: typeof LayoutGrid;
+    newTab?: boolean;
+  }) => {
     const active = pathname.startsWith(n.to);
+    const className = cn(
+      "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border transition-all duration-150 whitespace-nowrap cursor-pointer hover:translate-x-[1px]",
+      active
+        ? "border-[color:var(--gold)]/30 bg-[color:var(--accent)] text-[color:var(--foreground)]"
+        : "border-transparent text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60",
+    );
+    if (n.newTab) {
+      return (
+        <a key={n.to} href={n.to} target="_blank" rel="noreferrer" className={className}>
+          <n.icon className="h-4 w-4" />
+          {n.label}
+        </a>
+      );
+    }
     return (
-      <Link
-        key={n.to}
-        to={n.to}
-        className={cn(
-          "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border transition-colors whitespace-nowrap",
-          active
-            ? "border-[color:var(--gold)]/30 bg-[color:var(--accent)] text-[color:var(--foreground)]"
-            : "border-transparent text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60",
-        )}
-      >
+      <Link key={n.to} to={n.to} className={className}>
         <n.icon className="h-4 w-4" />
         {n.label}
       </Link>
