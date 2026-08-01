@@ -310,9 +310,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   <CrmRecordRow label="E-mail" value={selected.email} />
                   <CrmRecordRow label="Cidade" value={selected.city} />
                 </>
-              ) : (
-                <CrmRecordRow label="Acesso" value={CRM_ACCESS_LABEL[selected.access]} />
-              )}
+              ) : null}
             </CrmRecordSection>
 
             <CrmRecordSection title="Relacionamento">
