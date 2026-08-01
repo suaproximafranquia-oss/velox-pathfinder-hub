@@ -60,6 +60,10 @@ export const saveCreativeArt = createServerFn({ method: "POST" })
 /**
  * MODELO OFICIAL — arquivo único. Um novo envio substitui o anterior;
  * nunca existem versões nem histórico.
+ *
+ * A persistência é feita no banco corporativo (fonte da verdade), de modo
+ * que o arquivo permanece salvo mesmo sem a Conta Google conectada. O
+ * envio ao Drive é complementar e nunca invalida o upload.
  */
 export const saveOfficialModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -67,10 +71,64 @@ export const saveOfficialModel = createServerFn({ method: "POST" })
     (data: { name: string; contentBase64: string; mimeType?: string }) => data,
   )
   .handler(async ({ data, context }) => {
-    const { replaceOfficialModel } = await import("@/server/google-drive.server");
-    return replaceOfficialModel(context.userId, {
-      name: data.name,
-      mimeType: data.mimeType || "application/octet-stream",
-      contentBase64: data.contentBase64,
-    });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const mimeType = data.mimeType || "application/octet-stream";
+    const uploadedAt = new Date().toISOString();
+    const { error } = await supabaseAdmin.from("creative_official_model").upsert(
+      {
+        id: "official",
+        file_name: data.name,
+        mime_type: mimeType,
+        content_base64: data.contentBase64,
+        uploaded_by: context.userId,
+        uploaded_at: uploadedAt,
+      },
+      { onConflict: "id" },
+    );
+    if (error) throw new Error(error.message);
+
+    // Cópia no Drive corporativo — complementar, jamais bloqueante.
+    let driveLink: string | null = null;
+    try {
+      const { replaceOfficialModel } = await import("@/server/google-drive.server");
+      const saved = await replaceOfficialModel(context.userId, {
+        name: data.name,
+        mimeType,
+        contentBase64: data.contentBase64,
+      });
+      driveLink = saved.webViewLink ?? null;
+    } catch {
+      /* Drive indisponível — o Modelo Oficial já está salvo no banco. */
+    }
+    return { fileName: data.name, mimeType, uploadedAt, driveLink };
   });
+
+/** Modelo Oficial vigente — metadados (o conteúdo é devolvido sob demanda). */
+export const getOfficialModel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data?: { withContent?: boolean }) => data ?? {})
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{
+      fileName: string;
+      mimeType: string;
+      uploadedAt: string;
+      contentBase64?: string;
+    } | null> => {
+      const { data: row, error } = await context.supabase
+        .from("creative_official_model")
+        .select("file_name, mime_type, uploaded_at, content_base64")
+        .eq("id", "official")
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!row) return null;
+      return {
+        fileName: row.file_name,
+        mimeType: row.mime_type,
+        uploadedAt: row.uploaded_at,
+        ...(data.withContent ? { contentBase64: row.content_base64 } : {}),
+      };
+    },
+  );
