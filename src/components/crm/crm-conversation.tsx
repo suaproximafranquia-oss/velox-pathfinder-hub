@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Copy,
   Check,
+  Link2,
 } from "lucide-react";
 import { type CrmConversation } from "@/lib/crm/relationships";
 import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
