@@ -17,7 +17,11 @@ export type SyncChannel =
   | "meetings"
   | "messages"
   | "alerts"
-  | "audit";
+  | "audit"
+  | "timeline"
+  | "ownership"
+  | "notes"
+  | "status";
 
 const EVENT_NAME = "velox:sync";
 const PING_KEY = "velox:sync:ping";

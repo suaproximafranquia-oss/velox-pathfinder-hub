@@ -10,6 +10,7 @@
  * ou importações — NUNCA reatribuem automaticamente o relacionamento.
  */
 import type { Investor } from "@/lib/executive-data";
+import { notifySync } from "@/lib/sync-bus";
 
 export type CrmOwnershipRecord = {
   /** Identificador do investidor na base oficial (Portal do Executivo). */
@@ -55,6 +56,7 @@ function writeAll(records: CrmOwnershipRecord[]) {
   } catch {
     /* armazenamento indisponível — o vínculo é recalculado na próxima leitura */
   }
+  notifySync("ownership");
 }
 
 export function listOwnership(): CrmOwnershipRecord[] {
