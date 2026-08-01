@@ -1,18 +1,18 @@
 /**
- * Central de Alertas — histórico completo.
+ * Central de Alertas — repositório permanente.
  *
- * Consome exatamente a mesma fonte de dados do Drawer lateral
- * (`src/lib/workspace-alerts.ts`). O Drawer mostra o tempo real;
- * esta tela mostra o histórico, inclusive alertas arquivados.
+ * DF 2.4.2: a Central deixa de ser um ambiente operacional. Aqui nenhum
+ * alerta é excluído ou arquivado — apenas consultado. A operação dos
+ * alertas ativos acontece exclusivamente no CRM de Relacionamento.
+ * Estrutura preparada para pesquisa, filtros, períodos e exportação.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { BellRing, Archive } from "lucide-react";
+import { BellRing } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import {
-  archiveWorkspaceAlert,
   listWorkspaceAlertHistory,
   runWorkspaceAlertEvaluation,
   WORKSPACE_ALERT_CATEGORY_LABEL,
@@ -67,7 +67,7 @@ function AlertsCenterPage() {
   }, [session]);
 
   const active = useMemo(() => alerts.filter((a) => !a.archived), [alerts]);
-  const archived = useMemo(() => alerts.filter((a) => a.archived), [alerts]);
+  const resolved = useMemo(() => alerts.filter((a) => a.archived), [alerts]);
 
   if (!session) return null;
 
@@ -78,25 +78,18 @@ function AlertsCenterPage() {
           <BellRing className="h-4 w-4" />
         </span>
         <div>
-          <h1 className="font-display text-xl">Histórico de alertas</h1>
+          <h1 className="font-display text-xl">Repositório de alertas</h1>
           <p className="text-xs text-[color:var(--muted-foreground)] mt-1 max-w-2xl">
-            Mesma base do Drawer lateral. Aqui ficam registrados todos os alertas —
-            ativos e arquivados — do seu workspace.
+            Registro institucional permanente de todos os alertas gerados pelo
+            ecossistema. Nenhum alerta é excluído: quando deixa de ser ativo,
+            apenas muda de status. A operação acontece no CRM.
           </p>
         </div>
       </div>
 
-      <Section
-        title="Ativos"
-        count={active.length}
-        items={active}
-        onArchive={(id) => {
-          archiveWorkspaceAlert(id);
-          setAlerts(listWorkspaceAlertHistory(session));
-        }}
-      />
+      <Section title="Ativos" count={active.length} items={active} />
       <div className="mt-8">
-        <Section title="Arquivados" count={archived.length} items={archived} />
+        <Section title="Resolvidos" count={resolved.length} items={resolved} />
       </div>
     </ExecutiveShell>
   );
@@ -106,12 +99,10 @@ function Section({
   title,
   count,
   items,
-  onArchive,
 }: {
   title: string;
   count: number;
   items: WorkspaceAlert[];
-  onArchive?: (id: string) => void;
 }) {
   return (
     <section>
@@ -154,15 +145,9 @@ function Section({
                       minute: "2-digit",
                     })}
                   </span>
-                  {onArchive ? (
-                    <button
-                      type="button"
-                      onClick={() => onArchive(a.id)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-2.5 py-1 text-[10px] text-[color:var(--muted-foreground)] transition hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40"
-                    >
-                      <Archive className="h-3 w-3" /> Arquivar
-                    </button>
-                  ) : null}
+                  <span className="inline-flex items-center rounded-full border border-[color:var(--border)] px-2.5 py-1 text-[9px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
+                    {a.archived ? "Resolvido" : "Ativo"}
+                  </span>
                 </div>
               </div>
             </li>

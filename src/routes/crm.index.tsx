@@ -40,6 +40,10 @@ import { listConversations, filterConversations } from "@/lib/crm/relationships"
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
+import {
+  listWorkspaceAlerts,
+  WORKSPACE_ALERT_CATEGORY_LABEL,
+} from "@/lib/workspace-alerts";
 
 export const Route = createFileRoute("/crm/")({
   head: () => ({
@@ -180,6 +184,16 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const timeline = useMemo(
     () => (selected && privateOk ? listCrmTimeline(selected.id).slice(0, 6) : []),
     [selected?.id, privateOk, tick],
+  );
+
+  // Alertas ATIVOS do investidor aberto. O histórico permanente continua
+  // exclusivamente na Central de Alertas — o CRM nunca a substitui.
+  const investorAlerts = useMemo(
+    () =>
+      selected && privateOk
+        ? listWorkspaceAlerts(session).filter((a) => a.investorId === selected.id)
+        : [],
+    [selected?.id, privateOk, session, tick],
   );
 
   return (
@@ -374,8 +388,21 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             />
             <CrmRecordSection
               title="Alertas"
-              hint="Avisos e acionamentos vinculados a este investidor."
-            />
+              hint="Nenhum alerta ativo para este investidor."
+            >
+              {investorAlerts.length > 0 ? (
+                <ul className="space-y-2">
+                  {investorAlerts.map((a) => (
+                    <li key={a.id} className="text-xs leading-relaxed">
+                      <span className="block text-[color:var(--crm-muted)]">
+                        {WORKSPACE_ALERT_CATEGORY_LABEL[a.category]}
+                      </span>
+                      <span className="block">{a.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : undefined}
+            </CrmRecordSection>
           </div>
         ) : (
           <CrmPlaceholder
