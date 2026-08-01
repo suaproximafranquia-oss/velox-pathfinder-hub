@@ -206,6 +206,29 @@ export function startPortalSession(input: {
 
   attachLeadToIdentity(identity.id, lead.id);
 
+  /**
+   * DEF 2.4.11 — Jornada Digital.
+   *
+   * O visitante identificado NÃO gera Lead operacional, Card no Workspace
+   * nem Registro Comercial: ele existe apenas como conversa congelada no
+   * CRM. Investidor recorrente arquivado é restaurado automaticamente,
+   * mantendo Executivo responsável, histórico e jornada.
+   */
+  if (!existing) {
+    markJourneyOnly(lead.id);
+  } else if (isArchived(lead.id)) {
+    restoreRelationship({
+      investorId: lead.id,
+      investorName: lead.name,
+      actorId: "sistema",
+      actorName: "Sistema",
+      actorRole: "Automatizado",
+      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      origin: input.origin ?? entry.origin ?? "Portal Velox",
+      automatic: true,
+    });
+  }
+
   const now = new Date().toISOString();
   const session: PortalSession = {
     sessionId: `ses_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
@@ -264,6 +287,27 @@ export function startPortalSession(input: {
     whatsapp: lead.whatsapp,
     city: lead.city,
   });
+
+  // Template automático do sistema — única mensagem possível durante a
+  // Jornada Digital. Registrado uma única vez por relacionamento.
+  if (listCrmMessages(lead.id).length === 0) {
+    appendCrmMessage({
+      investorId: lead.id,
+      direction: "enviada",
+      body: existing
+        ? `Olá, ${lead.name}. Que bom ver você novamente. Seu progresso foi restaurado.`
+        : `Olá, ${lead.name}. Seja bem-vindo ao Portal Velox. Sua jornada foi iniciada e seu progresso ficará salvo.`,
+      authorId: "sistema",
+    });
+    recordCrmEvent({
+      investorId: lead.id,
+      event: "template_automatico",
+      origin: input.origin ?? entry.origin ?? "Portal Velox",
+      reason: "Mensagem automática de boas-vindas enviada pelo sistema.",
+      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      actorId: "sistema",
+    });
+  }
 
   emitEvent({
     type: "journey.started",
