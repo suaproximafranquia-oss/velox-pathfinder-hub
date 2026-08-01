@@ -12,6 +12,9 @@ import {
   Phone,
   Mail,
   MapPin,
+  Lock,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { CRM_STATE_DOT, type CrmConversation } from "@/lib/crm/relationships";
 
@@ -229,6 +232,68 @@ export function CrmRecordRow({ label, value }: { label: string; value: string })
     <div className="flex items-start justify-between gap-3">
       <span className="text-xs text-[color:var(--crm-muted)]">{label}</span>
       <span className="min-w-0 truncate text-xs">{value}</span>
+    </div>
+  );
+}
+
+/** Bloqueio: investidor pertencente a outro Executivo. */
+export function CrmBlockedRelationship({ item }: { item: CrmConversation }) {
+  return (
+    <div className="mx-auto flex h-full max-w-md flex-col items-center justify-center gap-3 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+        <Lock className="h-5 w-5" />
+      </span>
+      <p className="text-sm font-medium">
+        Este investidor já possui um relacionamento ativo.
+      </p>
+      <dl className="w-full space-y-1.5 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-4 py-3 text-left">
+        <CrmRecordRow label="Responsável" value={item.ownerName} />
+        <CrmRecordRow label="Origem" value={item.originLabel} />
+        <CrmRecordRow label="Status" value={item.statusLabel} />
+      </dl>
+      <p className="text-xs leading-relaxed text-[color:var(--crm-muted)]">
+        Solicite contato com o Executivo responsável para prosseguir. Nenhuma
+        informação privada deste relacionamento é exibida.
+      </p>
+    </div>
+  );
+}
+
+/** Visão administrativa do Gestor — sem qualquer conteúdo privado. */
+export function CrmSupervisionView({ item }: { item: CrmConversation }) {
+  return (
+    <div className="mx-auto flex h-full max-w-md flex-col items-center justify-center gap-3 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]">
+        <ShieldCheck className="h-5 w-5" />
+      </span>
+      <p className="text-sm font-medium">Visão administrativa</p>
+      <dl className="w-full space-y-1.5 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-4 py-3 text-left">
+        <CrmRecordRow label="Responsável" value={item.ownerName} />
+        <CrmRecordRow label="Origem" value={item.originLabel} />
+        <CrmRecordRow label="Status do relacionamento" value={item.statusLabel} />
+        <CrmRecordRow label="Situação operacional" value={item.stateLabel} />
+        <CrmRecordRow label="Última movimentação" value={item.lastActivityLabel} />
+        <CrmRecordRow label="Workspace" value={item.workspaceLabel} />
+      </dl>
+      <p className="text-xs leading-relaxed text-[color:var(--crm-muted)]">
+        Mensagens, notas, Timeline e demais conteúdos privados entre Executivo e
+        Investidor não são exibidos nesta visão.
+      </p>
+    </div>
+  );
+}
+
+/** Aviso de duplicidade detectada automaticamente. */
+export function CrmDuplicateNotice({ item }: { item: CrmConversation }) {
+  if (!item.duplicate) return null;
+  return (
+    <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-left">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+      <p className="text-xs leading-relaxed text-amber-900">
+        Duplicidade identificada por {item.duplicate.matchedBy}: já existe
+        relacionamento ativo de {item.duplicate.investorName} sob
+        responsabilidade de {item.duplicate.ownerName}.
+      </p>
     </div>
   );
 }

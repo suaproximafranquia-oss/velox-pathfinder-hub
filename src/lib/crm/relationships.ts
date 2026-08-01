@@ -138,7 +138,7 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
         lastActivityLabel: formatRelative(i.lastActivity),
         originLabel: ORIGIN_LABEL[i.origin ?? "portal"] ?? "Portal Velox",
         workspaceLabel: (i.origin ?? "portal") === "green_sales" ? "Green Sales" : "Portal",
-        ownerName: nameById.get(i.assignedToUserId) ?? "—",
+        ownerName: nameById.get(ownerId) ?? "—",
         ownerId,
         access,
         duplicate: dup
