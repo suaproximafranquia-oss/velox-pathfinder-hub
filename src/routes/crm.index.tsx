@@ -83,6 +83,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Conversas já abertas nesta sessão — o indicador some ao abrir.
+  const [openedIds, setOpenedIds] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
   const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
@@ -169,6 +171,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     });
   }, [selected?.id, selected?.access, actor.userId]);
 
+  // Ao selecionar, a conversa deixa de estar "nova".
+  useEffect(() => {
+    if (!selected) return;
+    setOpenedIds((prev) => (prev.includes(selected.id) ? prev : [...prev, selected.id]));
+  }, [selected?.id]);
+
   const timeline = useMemo(
     () => (selected && privateOk ? listCrmTimeline(selected.id).slice(0, 6) : []),
     [selected?.id, privateOk, tick],
@@ -194,6 +202,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   key={item.id}
                   item={item}
                   active={selected?.id === item.id}
+                  unread={item.state === "novo" && !openedIds.includes(item.id)}
                   onSelect={() => setSelectedId(item.id)}
                 />
               ))}
@@ -301,28 +310,26 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   <CrmRecordRow label="E-mail" value={selected.email} />
                   <CrmRecordRow label="Cidade" value={selected.city} />
                 </>
-              ) : (
-                <CrmRecordRow label="Acesso" value={CRM_ACCESS_LABEL[selected.access]} />
-              )}
+              ) : null}
             </CrmRecordSection>
 
             <CrmRecordSection title="Relacionamento">
-              <CrmRecordRow label="Situação" value={selected.stateLabel} />
-              <CrmRecordRow label="Status" value={selected.statusLabel} />
               <CrmRecordRow label="Origem" value={selected.originLabel} />
               <CrmRecordRow label="Executivo" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
+              <CrmRecordRow label="Acesso" value={CRM_ACCESS_LABEL[selected.access]} />
             </CrmRecordSection>
 
             {privateOk ? (
-              <CrmRecordSection title="Portal">
-                <CrmRecordRow label="Leitura do Manual" value={`${selected.readingPct}%`} />
-                <CrmRecordRow label="Última movimentação" value={selected.lastActivityLabel} />
-                <CrmRecordRow label="Último evento" value={selected.lastInteraction} />
+              <CrmRecordSection title="Portal do investidor">
+                <CrmRecordRow label="Manual" value={`${selected.readingPct}% concluído`} />
+                <CrmRecordRow label="Material" value="—" />
+                <CrmRecordRow label="Calculadora" value="—" />
+                <CrmRecordRow label="Último acesso" value={selected.lastActivityLabel} />
               </CrmRecordSection>
             ) : (
               <CrmRecordSection
-                title="Portal"
+                title="Portal do investidor"
                 hint="Conteúdo privado do relacionamento — visível apenas ao Executivo responsável."
               />
             )}
