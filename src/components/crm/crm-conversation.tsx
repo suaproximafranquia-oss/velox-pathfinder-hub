@@ -108,7 +108,7 @@ export function CrmConversationItem({
       onClick={onSelect}
       aria-current={active ? "true" : undefined}
       className={[
-        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors",
+        "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors duration-150",
         active
           ? "bg-[color:var(--crm-accent-soft)]"
           : "hover:bg-[color:var(--crm-hover)]",
@@ -162,9 +162,9 @@ export function CrmActionBar({
         aria-label="Ligação"
         aria-disabled={!digits}
         className={[
-          "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+          "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150",
           digits
-            ? "text-[color:var(--crm-muted)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
+            ? "cursor-pointer text-[color:var(--crm-muted)] hover:scale-105 hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:scale-100"
             : "pointer-events-none text-[color:var(--crm-muted)]/40",
         ].join(" ")}
       >
@@ -175,7 +175,7 @@ export function CrmActionBar({
         onClick={onSchedule}
         title="Agendar reunião"
         aria-label="Agendar reunião"
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
+        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-all duration-150 hover:scale-105 hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:scale-100"
       >
         <CalendarPlus className="h-4 w-4" />
       </button>
@@ -183,7 +183,7 @@ export function CrmActionBar({
         type="button"
         title="Integrações"
         aria-label="Integrações"
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
+        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-all duration-150 hover:scale-105 hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:scale-100"
       >
         <Plug className="h-4 w-4" />
       </button>
@@ -480,7 +480,7 @@ export function CrmCopyRow({ label, value }: { label: string; value?: string | n
             () => undefined,
           );
         }}
-        className="group flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium transition-colors hover:bg-[color:var(--crm-hover)]"
+        className="group flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)]"
       >
         <span className="min-w-0 truncate">{text}</span>
         {copied ? (
