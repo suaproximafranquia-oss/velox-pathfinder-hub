@@ -29,9 +29,18 @@ import {
   markJourneyOnly,
   isArchived,
   restoreRelationship,
+  startRelationship,
 } from "@/lib/crm/commercial";
 import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { recordCrmEvent } from "@/lib/crm/timeline";
+import {
+  clearDigitalJourney,
+  getDigitalJourney,
+  isJourneyId,
+  newJourneyId,
+  saveDigitalJourney,
+} from "@/lib/portal-journey";
+import { transferVerification } from "@/lib/portal-verification";
 
 const SESSION_KEY = "velox:portal:session:v1";
 
@@ -180,29 +189,65 @@ export function startPortalSession(input: {
   const responsible = getResponsibleExecutive();
   const identity = resolveIdentity({ name: input.name, email: input.email });
   const existing = findLeadByEmail(input.email) ?? findLeadByPhone(input.phone);
-  const baseLead =
-    existing ??
-    registerLead({
-      identity: {
-        name: input.name.trim(),
-        email: normalizeEmail(input.email),
-        whatsapp: input.phone?.trim() ?? "",
-        city: "",
-      },
-      material: "Gateway Portal Velox",
-      origin: input.origin ?? entry.origin ?? "Portal Velox",
-    }).lead;
+  const origin = input.origin ?? entry.origin ?? "Portal Velox";
+
+  /**
+   * DEF 2.5.1 §05 — visitante inédito gera EXCLUSIVAMENTE uma Jornada
+   * Digital: nenhum Lead, Card, Conversa, Timeline, Auditoria ou
+   * Registro Comercial é criado neste momento.
+   */
+  if (!existing) {
+    const journeyId = newJourneyId();
+    const now = new Date().toISOString();
+    saveDigitalJourney({
+      journeyId,
+      name: input.name.trim(),
+      email: normalizeEmail(input.email),
+      phone: input.phone?.trim() ?? "",
+      executiveSlug: responsible.personalized
+        ? (responsible.executive?.slug ?? entry.executiveSlug ?? null)
+        : null,
+      unit: entry.unit,
+      origin,
+      campaign: entry.campaign,
+      startedAt: now,
+    });
+    const journeySession: PortalSession = {
+      sessionId: `ses_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      identityId: identity.id,
+      investorId: journeyId,
+      name: input.name.trim(),
+      email: normalizeEmail(input.email),
+      responsibleExecutiveId: responsible.personalized
+        ? (responsible.executive?.id ?? null)
+        : null,
+      responsibleExecutiveSlug: responsible.personalized
+        ? (responsible.executive?.slug ?? entry.executiveSlug ?? null)
+        : null,
+      unit: entry.unit,
+      origin,
+      campaign: entry.campaign,
+      device: deviceFingerprint(),
+      personalized: responsible.personalized,
+      startedAt: now,
+      lastSeenAt: now,
+      journeyStatus: "identificado",
+      history: [{ at: now, module: "gateway", detail: "Jornada Digital iniciada" }],
+      restored: false,
+    };
+    attachSessionToIdentity(identity.id, journeySession.sessionId);
+    return persist(journeySession);
+  }
 
   // Roteamento obrigatório também para investidor recorrente: quem volta
   // por link personalizado é reconduzido ao Green Sales do executivo.
-  const lead = existing
-    ? (applyLeadRouting(existing.id, {
-        personalized: responsible.personalized,
-        responsibleExecutiveId: responsible.personalized
-          ? (responsible.executive?.id ?? null)
-          : null,
-      }) ?? existing)
-    : baseLead;
+  const lead =
+    applyLeadRouting(existing.id, {
+      personalized: responsible.personalized,
+      responsibleExecutiveId: responsible.personalized
+        ? (responsible.executive?.id ?? null)
+        : null,
+    }) ?? existing;
 
   attachLeadToIdentity(identity.id, lead.id);
 
@@ -214,9 +259,7 @@ export function startPortalSession(input: {
    * CRM. Investidor recorrente arquivado é restaurado automaticamente,
    * mantendo Executivo responsável, histórico e jornada.
    */
-  if (!existing) {
-    markJourneyOnly(lead.id);
-  } else if (isArchived(lead.id)) {
+  if (isArchived(lead.id)) {
     restoreRelationship({
       investorId: lead.id,
       investorName: lead.name,
@@ -224,7 +267,7 @@ export function startPortalSession(input: {
       actorName: "Sistema",
       actorRole: "Automatizado",
       ownerId: lead.responsibleExecutiveId ?? "sistema",
-      origin: input.origin ?? entry.origin ?? "Portal Velox",
+      origin,
       automatic: true,
     });
   }
