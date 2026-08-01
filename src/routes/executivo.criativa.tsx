@@ -461,38 +461,3 @@ function ArtCard({
     </article>
   );
 }
-
-function CategoriesRoadmap() {
-  return (
-    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
-      <div className="flex items-center gap-2">
-        <FolderTree className="h-4 w-4 text-[color:var(--gold)]" />
-        <h2 className="font-display text-lg">Categorias da biblioteca</h2>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CREATIVE_CATEGORIES.map((c) => (
-          <div
-            key={c.id}
-            className="rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-4 py-3"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm">{c.label}</span>
-              <span
-                className={
-                  c.status === "ativo"
-                    ? "rounded-full border border-[color:var(--gold)]/50 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[color:var(--gold)]"
-                    : "rounded-full border border-[color:var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]"
-                }
-              >
-                {c.status === "ativo" ? "Ativo" : "Previsto"}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-[color:var(--muted-foreground)] leading-relaxed">
-              {c.description}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
