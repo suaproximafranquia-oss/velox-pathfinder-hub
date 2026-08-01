@@ -12,16 +12,26 @@
 import type { ExecutiveRole } from "@/lib/executive-auth";
 
 /**
- * Regra oficial (Prompt 7C): apenas o perfil Administrador enxerga a aba
- * "Portal". Gestores e Colaboradores operam exclusivamente no escopo
- * Green Sales, com os Leads vinculados ao seu próprio link.
- * O nome exibido nunca é utilizado — apenas o perfil técnico.
+ * Identificadores técnicos com perfil híbrido (DEF 2.4.16 §10 / 2.4.17 §6):
+ * enxergam GreenSales e Portal em QUALQUER perfil ativo. O nome exibido
+ * jamais é utilizado — apenas o identificador técnico permanente.
+ */
+export const HYBRID_WORKSPACE_USER_IDS: readonly string[] = ["usr_thiago"];
+
+export function isHybridWorkspaceUser(userId: string): boolean {
+  return HYBRID_WORKSPACE_USER_IDS.includes(userId);
+}
+
+/**
+ * Regra oficial: o Administrador enxerga a aba "Portal"; os perfis
+ * híbridos também, independentemente do perfil ativo. Os demais
+ * Colaboradores operam exclusivamente no escopo Green Sales.
  */
 export function canAccessPortalWorkspace(
-  _userId: string,
+  userId: string,
   role: ExecutiveRole,
 ): boolean {
-  return role === "super_admin";
+  return role === "super_admin" || isHybridWorkspaceUser(userId);
 }
 
 export type WorkspaceScope = "green_sales" | "portal";

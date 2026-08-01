@@ -255,7 +255,7 @@ export function CrmConversationHeader({
             "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
             win.open
               ? "bg-emerald-50 text-emerald-700"
-              : "bg-[color:var(--crm-hover)] text-[color:var(--crm-muted)]",
+              : "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
           ].join(" ")}
         >
           <Clock3 className="h-3.5 w-3.5" />
