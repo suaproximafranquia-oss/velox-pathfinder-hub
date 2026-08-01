@@ -146,7 +146,11 @@ function LaboratorioPage() {
           </div>
         </div>
 
-        <HomologationResetCard actorName={session.user.name} actorRole={session.user.role} />
+        <HomologationResetCard
+          actorId={session.userId}
+          actorName={session.name}
+          actorRole={session.role}
+        />
 
         <section>
           <label className="block text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
