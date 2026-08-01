@@ -382,7 +382,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         title={current.label}
         header={
           isConversas && selected ? (
-            <CrmConversationHeader item={selected} window={chatWindow} />
+            <CrmConversationHeader
+              item={selected}
+              window={chatWindow}
+              windowAnchor={privateOk ? windowAnchorAt(selected.id) : null}
+            />
           ) : undefined
         }
         footer={
