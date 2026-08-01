@@ -9,6 +9,8 @@
 import { emitEvent } from "@/lib/events/bus";
 import { logAudit } from "@/lib/audit-log";
 
+import { notifySync } from "@/lib/sync-bus";
+
 export type MeetingStatus =
   | "Solicitada"
   | "Agendada"
@@ -84,6 +86,9 @@ function safeWrite(list: Meeting[]) {
   } catch {
     /* noop */
   }
+  // Reunião criada/alterada aparece na hora para Executivo, Gestora e
+  // Administrador, em qualquer módulo aberto.
+  notifySync("meetings");
 }
 
 function newId(prefix: string): string {

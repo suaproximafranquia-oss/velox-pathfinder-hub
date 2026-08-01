@@ -11,6 +11,7 @@
  */
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import type { ExecutiveUser } from "@/lib/executive-auth";
+import { notifySync } from "@/lib/sync-bus";
 
 const LEADS_KEY = "velox:leads:v1";
 const IDENTITY_KEY = "velox:visitor:identity:v1";
@@ -53,6 +54,7 @@ function safeWrite(key: string, value: unknown) {
   } catch {
     /* noop */
   }
+  if (key === LEADS_KEY) notifySync("leads");
 }
 
 export function getVisitorIdentity(): VisitorIdentity | null {
