@@ -54,6 +54,7 @@ import {
   DEFAULT_TIMEZONE,
 } from "@/lib/google-calendar";
 import { getGoogleStore, subscribeGoogleStore } from "@/lib/google-workspace";
+import { onSync } from "@/lib/sync-bus";
 import {
   MEETING_PROVIDERS,
   getDefaultProviderForExecutive,

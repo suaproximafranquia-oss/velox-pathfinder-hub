@@ -29,6 +29,7 @@ import {
   type AuditSeverity,
 } from "@/lib/audit-log";
 import { cn } from "@/lib/utils";
+import { onSync } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/executivo/auditoria")({
   head: () => ({

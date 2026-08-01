@@ -38,6 +38,7 @@ import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
 import { GoogleStatusIndicator } from "@/components/executive/google-status-indicator";
+import { onSync } from "@/lib/sync-bus";
 
 export function ExecutiveShell({
   session,

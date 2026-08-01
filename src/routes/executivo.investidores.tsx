@@ -14,6 +14,7 @@ import {
   formatRelative,
 } from "@/lib/executive-data";
 import { openInvestorReport } from "@/lib/investor-report-lazy";
+import { onSync } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/executivo/investidores")({
   head: () => ({

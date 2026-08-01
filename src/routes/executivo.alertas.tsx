@@ -19,6 +19,7 @@ import {
   type WorkspaceAlert,
 } from "@/lib/workspace-alerts";
 import { cn } from "@/lib/utils";
+import { onSync } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/executivo/alertas")({
   head: () => ({
