@@ -1,3 +1,4 @@
+import { notifySync } from "@/lib/sync-bus";
 /**
  * CRM de Relacionamento — Timeline automática do sistema.
  *
@@ -111,6 +112,7 @@ export function recordCrmEvent(entry: Omit<CrmTimelineEntry, "id" | "at">): void
   } catch {
     /* armazenamento indisponível */
   }
+  notifySync("timeline");
 }
 
 export function listCrmTimeline(investorId?: string): CrmTimelineEntry[] {

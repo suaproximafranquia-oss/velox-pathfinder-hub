@@ -11,6 +11,7 @@
  * Não existe alteração manual de cor: o indicador reflete a situação real.
  */
 import { emitEvent, onEvent } from "@/lib/events/bus";
+import { notifySync } from "@/lib/sync-bus";
 
 export type LeadState = "novo" | "em_andamento" | "encerrado";
 
@@ -64,6 +65,7 @@ function write(map: StateMap) {
   } catch {
     /* noop */
   }
+  notifySync("status");
 }
 
 export type LeadStateSubject = { id: string; lastActivity?: string };

@@ -3,6 +3,7 @@
  * Estrutura preparada para futura integração com backend.
  */
 import { emitEvent } from "@/lib/events/bus";
+import { notifySync } from "@/lib/sync-bus";
 
 export type InvestorComment = {
   id: string;
@@ -32,6 +33,7 @@ function write(list: InvestorComment[]) {
   } catch {
     /* noop */
   }
+  notifySync("notes");
 }
 
 export function listComments(investorId: string): InvestorComment[] {
