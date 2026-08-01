@@ -12,6 +12,7 @@ import {
   Search,
   PanelRightClose,
   PanelRightOpen,
+  Share2,
 } from "lucide-react";
 import type { CrmAreaKey } from "@/lib/crm/modules";
 
@@ -25,6 +26,7 @@ import type { CrmAreaKey } from "@/lib/crm/modules";
 
 const AREA_ICONS: Record<CrmAreaKey, typeof MessageSquare> = {
   conversas: MessageSquare,
+  distribuicao: Share2,
   timeline: Clock,
   alertas: Bell,
   templates: FileText,
