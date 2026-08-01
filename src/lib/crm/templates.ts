@@ -65,7 +65,7 @@ export function resolveCrmWindow(
   if (!Number.isFinite(at)) {
     return {
       open: false,
-      label: "Janela de Conversação Encerrada",
+      label: "Janela encerrada",
       hint: "Envio livre bloqueado. Selecione um Template aprovado para reabrir a conversa.",
     };
   }
@@ -73,15 +73,17 @@ export function resolveCrmWindow(
   if (remaining <= 0) {
     return {
       open: false,
-      label: "Janela de Conversação Encerrada",
+      label: "Janela encerrada",
       hint: "A janela de 24 horas expirou. Selecione um Template aprovado para reabrir a conversa.",
     };
   }
   const hours = Math.floor(remaining / 3_600_000);
   const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  const seconds = Math.floor((remaining % 60_000) / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
   return {
     open: true,
-    label: hours > 0 ? `Janela aberta · ${hours}h ${minutes}min` : `Janela aberta · ${minutes}min`,
+    label: `Janela aberta · ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`,
     hint: "Janela aberta: mensagens livres, anexos e emojis liberados.",
   };
 }
