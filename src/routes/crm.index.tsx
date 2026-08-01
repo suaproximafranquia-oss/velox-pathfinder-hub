@@ -63,6 +63,7 @@ import {
   listWorkspaceAlerts,
   WORKSPACE_ALERT_CATEGORY_LABEL,
 } from "@/lib/workspace-alerts";
+import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
 
 export const Route = createFileRoute("/crm/")({
   head: () => ({
@@ -314,12 +315,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmMainPane
         title={current.label}
         header={
-          isConversas && selected ? (
-            <CrmConversationHeader
-              item={selected}
-              onSchedule={privateOk ? () => setMeetingOpen(true) : undefined}
-            />
-          ) : undefined
+          isConversas && selected ? <CrmConversationHeader item={selected} /> : undefined
         }
         footer={
           isConversas && selected ? (
