@@ -256,7 +256,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               />
             )}
 
-            {privateOk ? null : null}
             <CrmRecordSection
               title="Agenda"
               hint="Reuniões e compromissos do investidor serão exibidos aqui."
