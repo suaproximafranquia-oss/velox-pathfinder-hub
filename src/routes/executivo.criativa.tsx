@@ -19,6 +19,7 @@ import {
   getCityPhoto,
   saveCreativeArt,
   saveOfficialModel,
+  getOfficialModel,
   type CreativeCopyPair,
 } from "@/lib/creative.functions";
 
