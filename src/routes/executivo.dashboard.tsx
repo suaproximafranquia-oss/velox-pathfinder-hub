@@ -14,9 +14,9 @@ import { listMeetings } from "@/lib/meetings";
 import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
 import { InvestorProfileView } from "@/components/executive/workspace/investor-profile-view";
-import { deleteLead } from "@/lib/leads";
 import { resolveLeadState } from "@/lib/lead-state";
-import { pullLeads, subscribeLeads, removeLeadEverywhere } from "@/lib/portal-leads-sync";
+import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
+import { archiveRelationship } from "@/lib/crm/commercial";
 import {
   canAccessPortalWorkspace,
   WORKSPACE_SCOPE_LABEL,
@@ -219,11 +219,28 @@ function WorkspacePage() {
     navigate({ to: "/executivo/dashboard", search: { escopo: next } });
   };
 
-  const removeLead = useCallback((id: string) => {
-    deleteLead(id);
-    void removeLeadEverywhere(id);
-    setTick((v) => v + 1);
-  }, []);
+  /**
+   * DEF 2.4.14 — a exclusão do Card é APENAS visual: o relacionamento é
+   * arquivado e permanece integralmente na Central de Backup, com
+   * histórico, jornada e auditoria preservados.
+   */
+  const removeLead = useCallback(
+    (id: string) => {
+      if (!session) return;
+      const investor = listAllInvestors({ includeArchived: true }).find((i) => i.id === id);
+      archiveRelationship({
+        investorId: id,
+        investorName: investor?.name ?? "Investidor",
+        actorId: session.userId,
+        actorName: session.name,
+        actorRole: session.activeRole,
+        ownerId: investor?.assignedToUserId,
+        origin: investor?.origin,
+      });
+      setTick((v) => v + 1);
+    },
+    [session],
+  );
 
   const goToMeetings = useCallback(() => {
     navigate({ to: "/executivo/reunioes" });

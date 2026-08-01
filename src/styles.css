@@ -938,3 +938,24 @@ body[data-shell="universo"] :focus-visible {
     animation: none;
   }
 }
+
+/* DEF 2.4.14 — Fundo institucional translúcido da conversa (estilo
+ * WhatsApp): malha discreta que dá profundidade sem competir com a
+ * leitura das mensagens. */
+.crm-chat-surface {
+  background-color: var(--crm-background);
+  background-image:
+    radial-gradient(
+      circle at 1px 1px,
+      color-mix(in srgb, var(--crm-muted) 16%, transparent) 1px,
+      transparent 0
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--crm-accent) 4%, transparent) 0%,
+      transparent 42%
+    );
+  background-size:
+    22px 22px,
+    100% 100%;
+}

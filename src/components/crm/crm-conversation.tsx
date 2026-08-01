@@ -10,6 +10,7 @@ import {
   Check,
   Link2,
 } from "lucide-react";
+import { FileText, Clock3 } from "lucide-react";
 import { type CrmConversation } from "@/lib/crm/relationships";
 import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
@@ -19,6 +20,7 @@ import {
   type CrmMessage,
 } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
+import { CRM_TEMPLATES, type CrmWindowStatus } from "@/lib/crm/templates";
 
 /**
  * Badge permanente da Jornada Digital (DEF 2.4.11): o investidor navega
@@ -221,7 +223,13 @@ export function CrmConversationItem({
  * exclusivamente na Ficha do Investidor. Aqui permanece apenas a
  * identificação e a presença — informação exclusiva da conversa.
  */
-export function CrmConversationHeader({ item }: { item: CrmConversation }) {
+export function CrmConversationHeader({
+  item,
+  window: win,
+}: {
+  item: CrmConversation;
+  window?: CrmWindowStatus;
+}) {
   const presence = whatsappPresence(item.id);
   return (
     <div key={item.id} className="crm-enter flex min-w-0 flex-1 items-center gap-3.5">
@@ -240,6 +248,20 @@ export function CrmConversationHeader({ item }: { item: CrmConversation }) {
           {presence.label}
         </span>
       </div>
+      {win ? (
+        <span
+          title={win.hint}
+          className={[
+            "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
+            win.open
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-[color:var(--crm-hover)] text-[color:var(--crm-muted)]",
+          ].join(" ")}
+        >
+          <Clock3 className="h-3.5 w-3.5" />
+          {win.label}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -252,12 +274,18 @@ export function CrmComposer({
   onSend,
   disabled = false,
   hint,
+  investorName = "",
+  window: win,
 }: {
   onSend: (text: string) => void;
   disabled?: boolean;
   hint?: string;
+  /** Nome usado na personalização dos templates. */
+  investorName?: string;
+  window?: CrmWindowStatus;
 }) {
   const [text, setText] = useState("");
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const submit = () => {
     if (disabled) return;
     const value = text.trim();
@@ -267,7 +295,50 @@ export function CrmComposer({
   };
   return (
     <div className="shrink-0 border-t border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3">
+      {win && !disabled ? (
+        <p
+          className={[
+            "mb-2 text-[11px]",
+            win.open ? "text-emerald-700" : "text-amber-700",
+          ].join(" ")}
+        >
+          {win.hint}
+        </p>
+      ) : null}
+      {templatesOpen && !disabled ? (
+        <div className="crm-enter mb-2 flex flex-wrap gap-1.5">
+          {CRM_TEMPLATES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setText(t.body(investorName));
+                setTemplatesOpen(false);
+              }}
+              className="cursor-pointer rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={disabled}
+          aria-expanded={templatesOpen}
+          aria-label="Templates de mensagem"
+          title="Templates de mensagem"
+          onClick={() => setTemplatesOpen((v) => !v)}
+          className={[
+            "inline-flex h-[42px] w-[42px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[color:var(--crm-border)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0",
+            templatesOpen
+              ? "bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
+              : "text-[color:var(--crm-muted)]",
+          ].join(" ")}
+        >
+          <FileText className="h-4 w-4" />
+        </button>
         <input
           value={text}
           disabled={disabled}

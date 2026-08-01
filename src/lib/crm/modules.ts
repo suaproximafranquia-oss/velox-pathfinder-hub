@@ -42,13 +42,6 @@ export const CRM_AREAS: CrmArea[] = [
     status: "planejado",
   },
   {
-    key: "timeline",
-    label: "Timeline de Eventos",
-    description: "Linha do tempo cronológica do relacionamento.",
-    path: "/crm/timeline",
-    status: "planejado",
-  },
-  {
     key: "alertas",
     label: "Alertas",
     description: "Avisos e acionamentos do relacionamento.",
