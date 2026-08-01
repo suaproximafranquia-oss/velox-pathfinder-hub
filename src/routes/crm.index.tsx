@@ -12,6 +12,7 @@ import {
   CrmConversationItem,
   CrmConversationHeader,
   CrmThread,
+  CrmComposer,
   CrmRecordSection,
   CrmRecordRow,
   CrmCopyRow,
@@ -29,8 +30,11 @@ import {
   BellRing,
   Video,
   Link2,
+  CalendarPlus,
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
+import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
+import { markOutboundMessage } from "@/lib/crm/relationship-state";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
 import {
@@ -105,6 +109,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [openedIds, setOpenedIds] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
   const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
 
@@ -290,10 +295,31 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmMainPane
         title={current.label}
         header={
-          isConversas && selected ? <CrmConversationHeader item={selected} /> : undefined
+          isConversas && selected ? (
+            <CrmConversationHeader
+              item={selected}
+              onSchedule={privateOk ? () => setMeetingOpen(true) : undefined}
+            />
+          ) : undefined
         }
-        detailsOpen={detailsOpen}
-        onToggleDetails={() => setDetailsOpen((v) => !v)}
+        footer={
+          isConversas && selected && privateOk ? (
+            <CrmComposer
+              onSend={() => {
+                markOutboundMessage(selected.id);
+                recordCrmEvent({
+                  investorId: selected.id,
+                  event: "mensagem_enviada",
+                  origin: selected.originLabel,
+                  reason: "Mensagem enviada pelo Executivo na conversa do CRM.",
+                  ownerId: selected.ownerId,
+                  actorId: actor.userId,
+                });
+                setTick((v) => v + 1);
+              }}
+            />
+          ) : undefined
+        }
       >
         {isConversas && selected ? (
           selected.access === "bloqueado" ? (
@@ -342,7 +368,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         )}
       </CrmMainPane>
 
-      <CrmDetailsPane open={detailsOpen} title="Ficha do investidor">
+      <CrmDetailsPane
+        open={detailsOpen}
+        title="Ficha do investidor"
+        onToggle={() => setDetailsOpen((v) => !v)}
+      >
         {selected ? (
           <div className="space-y-3">
             {/* Padronizada: todos os investidores exibem os mesmos campos. */}
@@ -370,7 +400,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   ) : null}
                   <div className="mt-2">
                     <CrmRedistributeRow
-                      executives={executives}
                       currentOwnerId={selected.ownerId}
                       onRedistribute={(executiveId) => {
                         redistributeLead({
@@ -441,6 +470,16 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   Nenhuma reunião agendada.
                 </p>
               )}
+              {privateOk ? (
+                <button
+                  type="button"
+                  onClick={() => setMeetingOpen(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[color:var(--crm-hover)]"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  Agendar
+                </button>
+              ) : null}
             </CrmRecordSection>
 
             <CrmRecordSection
@@ -481,6 +520,27 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           />
         )}
       </CrmDetailsPane>
+
+      {/* Agendamento já vinculado ao investidor aberto — sem seleção manual. */}
+      {meetingOpen && selected && privateOk ? (
+        <InvestorMeetingDialog
+          investor={selected.investor}
+          session={session}
+          onClose={() => setMeetingOpen(false)}
+          onCreated={() => {
+            setMeetingOpen(false);
+            recordCrmEvent({
+              investorId: selected.id,
+              event: "reuniao_agendada",
+              origin: selected.originLabel,
+              reason: "Reunião criada pelo CRM e vinculada à Central de Reuniões.",
+              ownerId: selected.ownerId,
+              actorId: actor.userId,
+            });
+            setTick((v) => v + 1);
+          }}
+        />
+      ) : null}
 
       {newLeadOpen ? (
         <CrmNewLeadDialog

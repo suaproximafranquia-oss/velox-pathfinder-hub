@@ -406,6 +406,31 @@ export function markWorkspaceAlertsRead(session: ExecutiveSession) {
   window.localStorage.setItem(READ_KEY, JSON.stringify([...ids].slice(-500)));
 }
 
+/**
+ * Alerta automático de reativação (DF 2.4.7 §4): o investidor voltou a
+ * acessar algum recurso do Portal (Manual, Material, Calculadora) após o
+ * período de inatividade. Idempotente por investidor + data do retorno.
+ */
+export function recordReactivationAlert(input: {
+  ownerUserId: string;
+  investorId: string;
+  investorName: string;
+  dateIso: string;
+}) {
+  pushAlert(
+    {
+      ownerUserId: input.ownerUserId,
+      category: "movimentacao",
+      title: `${input.investorName} voltou a acessar o Portal`,
+      description:
+        "Retorno registrado após período de inatividade — relacionamento reativado para Aguardando resposta.",
+      investorId: input.investorId,
+      date: input.dateIso,
+    },
+    `wa_crm_reativacao_${input.investorId}_${Date.parse(input.dateIso)}`,
+  );
+}
+
 export function onWorkspaceAlertsChange(cb: () => void) {
   return onEvent((e) => {
     // Atualização automática: novos leads, atualizações de lead, retornos

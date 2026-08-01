@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Upload, Sparkles, UserPlus, X, Loader2 } from "lucide-react";
 import { extractLeadFromImage } from "@/lib/crm/lead-import.functions";
 import { createCrmLead, type CrmLeadInput } from "@/lib/crm/lead-intake";
+import { nextRoundRobinOwner } from "@/lib/crm/round-robin";
 
 /**
  * Novo Lead (DF 2.4.5) — duas formas permanentes de criação:
@@ -257,44 +258,57 @@ export function CrmNewLeadDialog({
   );
 }
 
-/** Redistribuição manual — exclusiva da Gestora/Administrador. */
+/**
+ * Redistribuição automática (Round Robin) — exclusiva da Gestora e do
+ * Administrador. Nenhum usuário escolhe o Executivo: apenas confirma.
+ */
 export function CrmRedistributeRow({
-  executives,
   currentOwnerId,
   onRedistribute,
 }: {
-  executives: { id: string; name: string }[];
   currentOwnerId: string;
   onRedistribute: (executiveId: string) => void;
 }) {
-  const [value, setValue] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const next = nextRoundRobinOwner(currentOwnerId);
+  if (!next) return null;
   return (
     <div className="space-y-2">
-      <select
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="w-full rounded-lg border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-2.5 py-2 text-xs outline-none"
-      >
-        <option value="">Selecionar novo Executivo…</option>
-        {executives
-          .filter((e) => e.id !== currentOwnerId)
-          .map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-      </select>
-      <button
-        type="button"
-        disabled={!value}
-        onClick={() => {
-          onRedistribute(value);
-          setValue("");
-        }}
-        className="w-full rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-2 text-[11px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-      >
-        Redistribuir Lead
-      </button>
+      {confirming ? (
+        <div className="rounded-lg border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] px-2.5 py-2">
+          <p className="text-[11px] leading-relaxed text-[color:var(--crm-muted)]">
+            Confirmar a redistribuição automática deste Lead para{" "}
+            <span className="font-semibold text-[color:var(--crm-foreground)]">{next.name}</span>?
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="flex-1 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium hover:bg-[color:var(--crm-hover)]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onRedistribute(next.id);
+                setConfirming(false);
+              }}
+              className="flex-1 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="w-full rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-2 text-[11px] font-medium text-white transition-opacity hover:opacity-90"
+        >
+          Redistribuir Lead
+        </button>
+      )}
     </div>
   );
 }

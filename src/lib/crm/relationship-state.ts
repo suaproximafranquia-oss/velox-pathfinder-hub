@@ -63,7 +63,8 @@ type StateMap = Record<string, Entry>;
 
 const KEY = "velox:crm:relationship-state:v1";
 const CONFIG_KEY = "velox:crm:relationship-inactivity-days:v1";
-const DEFAULT_INACTIVITY_DAYS = 7;
+/** DF 2.4.7 — inatividade oficial: 10 dias sem interação. */
+const DEFAULT_INACTIVITY_DAYS = 10;
 
 function read(): StateMap {
   if (typeof window === "undefined") return {};
@@ -124,8 +125,14 @@ export type CrmRelationshipSubject = {
 };
 
 /**
- * Resolução automática do estágio. Toda interação do investidor posterior
- * ao último envio do Executivo é tratada como resposta.
+ * Resolução automática do estágio (DF 2.4.7 §1).
+ *
+ * Novo → Aguardando resposta (1º envio do Executivo) → Em atendimento
+ * (1ª resposta do investidor) → Inativo (10 dias sem interação).
+ *
+ * Reativação: se o investidor voltar a acessar o Portal (Manual, Material,
+ * Calculadora) após a janela de inatividade, o estágio volta
+ * automaticamente para "Aguardando resposta".
  */
 export function resolveRelationshipState(
   subject: CrmRelationshipSubject,
@@ -133,21 +140,30 @@ export function resolveRelationshipState(
 ): CrmRelationshipState {
   const entry = read()[subject.id] ?? {};
   const outbound = ts(entry.lastOutboundAt);
-  // Interação do investidor só conta como resposta quando ocorre após o
-  // envio do Executivo; respostas registradas explicitamente sempre contam.
-  const activity = ts(subject.lastInvestorActivityIso);
-  const inbound = Math.max(
-    ts(entry.lastInboundAt),
-    outbound > 0 && activity >= outbound ? activity : 0,
-  );
+  const inbound = ts(entry.lastInboundAt);
+  // Acesso ao Portal NÃO é resposta: serve apenas como sinal de reativação.
+  const portalActivity = ts(subject.lastInvestorActivityIso);
   const lastRelevant = Math.max(outbound, inbound);
   const limit = inactivityDays() * 86_400_000;
 
-  // Inatividade: nenhuma interação relevante dentro da janela configurada.
-  if (lastRelevant > 0 && now - lastRelevant > limit) return "inativo";
+  if (lastRelevant > 0 && now - lastRelevant > limit) {
+    // Investidor retornou ao Portal depois da inatividade → reativado.
+    return portalActivity > lastRelevant ? "aguardando_resposta" : "inativo";
+  }
 
-  // Resposta do investidor → conversa ativa (inclusive retorno de inativos).
   if (inbound > 0) return "em_atendimento";
   if (outbound > 0) return "aguardando_resposta";
   return "novo";
+}
+
+/**
+ * Reativação: verdadeira quando o investidor voltou a acessar o Portal
+ * após a janela de inatividade. Usada para gerar o alerta automático.
+ */
+export function isReactivated(subject: CrmRelationshipSubject, now = Date.now()): boolean {
+  const entry = read()[subject.id] ?? {};
+  const lastRelevant = Math.max(ts(entry.lastOutboundAt), ts(entry.lastInboundAt));
+  if (lastRelevant <= 0) return false;
+  if (now - lastRelevant <= inactivityDays() * 86_400_000) return false;
+  return ts(subject.lastInvestorActivityIso) > lastRelevant;
 }
