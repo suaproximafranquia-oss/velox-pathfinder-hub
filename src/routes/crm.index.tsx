@@ -29,8 +29,6 @@ import {
   Users,
   Compass,
   CalendarClock,
-  Sparkles,
-  BellRing,
   Video,
   CalendarPlus,
   Handshake,
@@ -69,10 +67,6 @@ import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
-import {
-  listWorkspaceAlerts,
-  WORKSPACE_ALERT_CATEGORY_LABEL,
-} from "@/lib/workspace-alerts";
 import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
 import { startRelationship, archiveRelationship } from "@/lib/crm/commercial";
 import { isPortalReleased, releasePortal } from "@/lib/crm/portal-release";
