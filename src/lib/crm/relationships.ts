@@ -25,8 +25,10 @@ import { accessModeFor, type CrmAccessMode } from "@/lib/crm/permissions";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import {
   resolveRelationshipState,
+  isReactivated,
   type CrmRelationshipState,
 } from "@/lib/crm/relationship-state";
+import { recordReactivationAlert } from "@/lib/workspace-alerts";
 
 export type CrmConversation = {
   id: string;
@@ -118,6 +120,15 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
       const ownerId = officialOwnerId(i);
       const access = accessModeFor(actor, ownerId);
       const dup = findDuplicate(i, all);
+      // Reativação: retorno ao Portal após inatividade gera alerta automático.
+      if (isReactivated({ id: i.id, lastInvestorActivityIso: i.lastActivity })) {
+        recordReactivationAlert({
+          ownerUserId: ownerId,
+          investorId: i.id,
+          investorName: i.name,
+          dateIso: i.lastActivity,
+        });
+      }
       if (dup) {
         recordCrmEvent({
           investorId: i.id,
