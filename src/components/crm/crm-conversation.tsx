@@ -257,7 +257,7 @@ export function CrmThread({
 
   let lastDay = "";
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-1.5 pb-1">
+    <div key={item.id} className="crm-enter mx-auto flex w-full max-w-2xl flex-col gap-1.5 pb-1">
       {messages.map((m) => {
         const day = formatCrmMessageDay(m.at);
         const showDay = day !== lastDay;
