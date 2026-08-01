@@ -8,6 +8,7 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { PLATFORM_MODULES, type PlatformModule } from "@/config/modules";
+import { getCorporateDriveLink } from "@/lib/google-drive.functions";
 import { WORKSPACE } from "@/config/workspace";
 
 export const Route = createFileRoute("/executivo/home")({
@@ -130,6 +131,7 @@ function ModuleCard({ module: mod }: { module: PlatformModule }) {
 
   if (isActive && mod.href) {
     const isExternal = mod.external === true;
+    if (mod.id === "drive") return <CorporateDriveCard>{body}</CorporateDriveCard>;
     return (
       <a
         href={mod.href}
