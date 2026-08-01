@@ -89,8 +89,16 @@ export async function pullLeads(): Promise<number> {
   const rows = (await listPortalLeads()) as unknown as RemoteLead[];
   const remote = rows.map(toLocal);
   const remoteIds = new Set(remote.map((l) => l.id));
-  const localOnly = loadLeads().filter((l) => !remoteIds.has(l.id));
-  replaceLeads([...remote, ...localOnly]);
+  const local = loadLeads();
+  const localById = new Map(local.map((l) => [l.id, l]));
+  // DEF 2.5.3 §6 — campos operacionais mantidos apenas no Workspace
+  // (ex.: Notas do Executivo) não podem ser perdidos ao espelhar a base.
+  const merged = remote.map((l) => {
+    const notes = localById.get(l.id)?.notes;
+    return notes ? { ...l, notes } : l;
+  });
+  const localOnly = local.filter((l) => !remoteIds.has(l.id));
+  replaceLeads([...merged, ...localOnly]);
   return remote.length;
 }
 
