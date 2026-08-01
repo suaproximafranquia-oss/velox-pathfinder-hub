@@ -282,6 +282,89 @@ function BriefForm({
   );
 }
 
+/**
+ * Padrão oficial da marca — envio de logotipos, templates, modelos
+ * aprovados e manuais direto para a biblioteca no Drive corporativo.
+ */
+const BRAND_UPLOADS: { kind: BrandAssetKind; label: string; accept: string }[] = [
+  { kind: "logo", label: "Logotipos oficiais", accept: "image/*,.svg" },
+  { kind: "template", label: "Templates de arte", accept: "image/*,.svg,.pdf,.psd,.ai" },
+  { kind: "modelo", label: "Modelos aprovados", accept: "image/*,.pdf" },
+  { kind: "manual", label: "Manual da marca / referências", accept: ".pdf,image/*" },
+];
+
+function BrandStandardUploads() {
+  const [busy, setBusy] = useState<BrandAssetKind | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function upload(kind: BrandAssetKind, file: File) {
+    setBusy(kind);
+    setStatus(null);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+        reader.onerror = () => reject(new Error("leitura"));
+        reader.readAsDataURL(file);
+      });
+      await saveBrandAsset({
+        data: {
+          kind,
+          name: file.name,
+          contentBase64: base64,
+          mimeType: file.type || "application/octet-stream",
+        },
+      });
+      setStatus(`“${file.name}” enviado para a biblioteca oficial.`);
+    } catch {
+      setStatus("Não foi possível enviar o arquivo agora. Tente novamente.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6 space-y-3">
+      <div className="flex items-center gap-2">
+        <Lock className="h-4 w-4 text-[color:var(--gold)]" />
+        <h3 className="font-display text-base">Padrão oficial da marca</h3>
+      </div>
+      <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
+        Envie aqui os arquivos oficiais. Eles ficam organizados na biblioteca
+        do Drive corporativo e são a única referência usada pela IA.
+      </p>
+      <div className="space-y-2">
+        {BRAND_UPLOADS.map((item) => (
+          <label
+            key={item.kind}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/50 px-3 py-2 text-xs hover:border-[color:var(--gold)]/50 transition"
+          >
+            <span className="text-[color:var(--muted-foreground)]">{item.label}</span>
+            {busy === item.kind ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
+            ) : (
+              <CloudUpload className="h-3.5 w-3.5 text-[color:var(--gold)]" />
+            )}
+            <input
+              type="file"
+              accept={item.accept}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void upload(item.kind, file);
+              }}
+            />
+          </label>
+        ))}
+      </div>
+      {status ? (
+        <p className="text-[11px] text-[color:var(--muted-foreground)]">{status}</p>
+      ) : null}
+    </section>
+  );
+}
+
 function ArtCard({
   model,
   svg,
