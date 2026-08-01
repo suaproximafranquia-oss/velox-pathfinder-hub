@@ -19,6 +19,16 @@ import {
   CrmDuplicateNotice,
 } from "@/components/crm/crm-conversation";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
+import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
+import {
+  listIntakeLeads,
+  assignLead,
+  setSyncWaitHours,
+  CRM_INTAKE_LABEL,
+  type CrmIntakeLead,
+} from "@/lib/crm/distribution";
+import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
+import { loadUsers } from "@/lib/executive-auth";
 import {
   recordCrmEvent,
   listCrmTimeline,
@@ -117,6 +127,31 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     null;
 
   const isConversas = area === "conversas";
+  const isDistribuicao = area === "distribuicao";
+  const canManageDistribution =
+    isCrmAdministrator(actor.role) || isCrmSupervisor(actor.role);
+  const [intakeId, setIntakeId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  // Relógio de baixa frequência para o contador da janela de sincronização.
+  useEffect(() => {
+    if (!isDistribuicao) return;
+    const t = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(t);
+  }, [isDistribuicao]);
+
+  const intake = useMemo<CrmIntakeLead[]>(
+    () => (isDistribuicao ? listIntakeLeads() : []),
+    [isDistribuicao, now, tick],
+  );
+  const selectedIntake =
+    intake.find((l) => l.id === intakeId) ?? intake[0] ?? null;
+  const executives = useMemo(
+    () => loadUsers().filter((u) => u.status === "ativo").map((u) => ({ id: u.id, name: u.name })),
+    [tick],
+  );
+  const executiveName = (id?: string) =>
+    executives.find((e) => e.id === id)?.name ?? "—";
   const privateOk = selected ? canSeePrivateContent(selected.access) : false;
 
   // Registro automático da ocorrência — sem interação do usuário.
@@ -147,7 +182,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmListPane
         title={isConversas ? "Conversas" : current.label}
         subtitle={isConversas ? "Investidores do seu Workspace" : current.description}
-        count={isConversas ? visible.length : undefined}
+        count={isConversas ? visible.length : isDistribuicao ? intake.length : undefined}
         query={isConversas ? query : undefined}
         onQueryChange={isConversas ? setQuery : undefined}
         searchPlaceholder="Buscar investidor"
@@ -172,6 +207,25 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   ? "Ajuste a busca para localizar o investidor desejado."
                   : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
               }
+            />
+          )
+        ) : isDistribuicao ? (
+          intake.length > 0 ? (
+            <div className="space-y-0.5">
+              {intake.map((lead) => (
+                <CrmIntakeItem
+                  key={lead.id}
+                  lead={lead}
+                  now={now}
+                  active={selectedIntake?.id === lead.id}
+                  onSelect={() => setIntakeId(lead.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <CrmPlaceholder
+              label="Nenhum contato aguardando"
+              hint="Novos contatos recebidos no número institucional aparecem aqui automaticamente."
             />
           )
         ) : (
@@ -201,13 +255,31 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               <CrmThread item={selected} />
             </>
           )
+        ) : isDistribuicao && selectedIntake ? (
+          <CrmIntakeDetail
+            lead={selectedIntake}
+            now={now}
+            executives={executives}
+            ownerName={executiveName(selectedIntake.ownerId)}
+            canManage={canManageDistribution}
+            onAssign={(executiveId) => {
+              assignLead(selectedIntake.id, executiveId, actor.userId);
+              setTick((v) => v + 1);
+            }}
+            onChangeWait={(h) => {
+              setSyncWaitHours(h);
+              setTick((v) => v + 1);
+            }}
+          />
         ) : (
           <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-4">
             <CrmPlaceholder
               label={
                 isConversas
                   ? "Selecione um investidor"
-                  : `${current.label} em preparação`
+                  : isDistribuicao
+                    ? "Nenhum Lead selecionado"
+                    : `${current.label} em preparação`
               }
               hint={
                 isConversas
