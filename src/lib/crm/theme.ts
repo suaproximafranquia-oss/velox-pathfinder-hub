@@ -29,6 +29,12 @@ export type CrmBranding = {
     foreground: string;
     muted: string;
     border: string;
+    /** Detalhe discreto para elementos ativos. */
+    accent: string;
+    /** Fundo suave do estado ativo/selecionado. */
+    accentSoft: string;
+    /** Fundo de passagem do ponteiro e campos discretos. */
+    hover: string;
   };
 };
 
@@ -47,6 +53,9 @@ export const DEFAULT_CRM_BRANDING: CrmBranding = {
     foreground: "#1f2329",
     muted: "#6b7280",
     border: "#e3e5e8",
+    accent: "#2f6feb",
+    accentSoft: "#eaf0fd",
+    hover: "#f1f2f4",
   },
 };
 
@@ -63,6 +72,9 @@ export function crmCssVars(branding: CrmBranding): Record<string, string> {
     "--crm-foreground": c.foreground,
     "--crm-muted": c.muted,
     "--crm-border": c.border,
+    "--crm-accent": c.accent,
+    "--crm-accent-soft": c.accentSoft,
+    "--crm-hover": c.hover,
   };
 }
 
