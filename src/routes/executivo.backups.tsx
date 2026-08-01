@@ -16,6 +16,7 @@ import {
   X,
   Share2,
   CheckCircle2,
+  RotateCcw,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
@@ -35,6 +36,11 @@ import {
 } from "@/lib/crm/backup-access";
 import { CRM_TIMELINE_LABEL, formatCrmTimestamp } from "@/lib/crm/timeline";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
+import { restoreRelationship } from "@/lib/crm/commercial";
+
+/** Abas oficiais da Central única de Backup (DEF 2.4.11). */
+const BACKUP_TABS = ["GreenSales", "Portal"] as const;
+type BackupTab = (typeof BACKUP_TABS)[number];
 
 export const Route = createFileRoute("/executivo/backups")({
   head: () => ({
@@ -65,6 +71,7 @@ function BackupsPage() {
   const [tick, setTick] = useState(0);
   const [pending, setPending] = useState<CrmBackupRecord | null>(null);
   const [open, setOpen] = useState<CrmBackupRecord | null>(null);
+  const [tab, setTab] = useState<BackupTab>("GreenSales");
 
   useEffect(() => {
     const s = getSession();
@@ -80,14 +87,25 @@ function BackupsPage() {
 
   const records = useMemo(() => {
     if (!session) return [];
-    const all = listConversationBackups();
+    const all = listConversationBackups().filter((r) =>
+      tab === "GreenSales"
+        ? r.workspaceKind === "green_sales" && !r.archived
+        : r.workspaceKind === "portal" && r.archived,
+    );
     // A Gestora nunca vê conversas automaticamente: apenas as cópias
     // temporárias autorizadas pelo Administrador (24 horas).
-    const scoped = isAdmin
-      ? all
-      : isSupervisor
-        ? all.filter((r) => Boolean(backupGrantFor(r.investorId)))
-        : all.filter((r) => r.executiveId === session.userId);
+    const scoped =
+      tab === "Portal"
+        ? // Backup Portal pertence ao Executivo responsável — restauração
+          // operacional, sem justificativa.
+          isAdmin
+          ? all
+          : all.filter((r) => r.executiveId === session.userId)
+        : isAdmin
+          ? all
+          : isSupervisor
+            ? all.filter((r) => Boolean(backupGrantFor(r.investorId)))
+            : all.filter((r) => r.executiveId === session.userId);
     const q = query.trim().toLowerCase();
     if (!q) return scoped;
     return scoped.filter(
@@ -97,7 +115,7 @@ function BackupsPage() {
         r.workspaceLabel.toLowerCase().includes(q),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, isAdmin, isSupervisor, query, tick]);
+  }, [session, isAdmin, isSupervisor, query, tick, tab]);
 
   if (!session) return null;
 
