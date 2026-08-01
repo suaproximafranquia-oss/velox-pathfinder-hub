@@ -169,11 +169,17 @@ export function CrmConversationItem({
   item,
   active,
   unread = false,
+  movement,
   onSelect,
 }: {
   item: CrmConversation;
   active: boolean;
   unread?: boolean;
+  /**
+   * DEF 2.4.15 §5 — nenhum alerta sobe a conversa sem informar o motivo.
+   * Quando presente, descreve a movimentação que trouxe a conversa ao topo.
+   */
+  movement?: string | null;
   onSelect: () => void;
 }) {
   return (
@@ -211,6 +217,16 @@ export function CrmConversationItem({
             />
           ) : null}
         </span>
+        {movement ? (
+          <span className="crm-enter mt-1.5 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[10px] leading-snug text-amber-800">
+            <AlertTriangle className="mt-[1px] h-3 w-3 shrink-0" />
+            <span className="min-w-0">
+              <span className="font-semibold">Movimentação identificada</span>
+              {" · "}
+              {movement}
+            </span>
+          </span>
+        ) : null}
       </span>
     </button>
   );
