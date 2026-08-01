@@ -109,20 +109,20 @@ export function PainelCampanhas({
       </header>
 
       <div className="overflow-x-auto kpi-scroll">
-        <table className="w-full min-w-[880px] text-sm">
+        <table className="w-full min-w-[900px] text-sm">
           <thead>
             <tr className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
-              <th className="text-left font-normal px-3 py-2 w-14">#</th>
-              <th className="text-left font-normal px-3 py-2">Executivo</th>
-              <th className="text-right font-normal px-2 py-2 w-[68px]" title="Unidades">Unid.</th>
-              <th className="text-right font-normal px-3 py-2">Valor entregue</th>
-              <th className="text-right font-normal px-3 py-2">Falta p/ Mestre</th>
-              <th className="text-right font-normal px-3 py-2">Falta p/ Doutor</th>
-              <th className="text-right font-normal px-3 py-2">Falta p/ PhD</th>
-              <th className="text-right font-normal px-3 py-2">Falta p/ Supreme</th>
-              <th className="text-center font-normal px-4 py-2 w-[140px]">Nível</th>
+              <th className="text-left font-normal px-3 py-2.5 w-14">#</th>
+              <th className="text-left font-normal px-3 py-2.5">Executivo</th>
+              <th className="text-right font-normal px-2 py-2.5 w-[62px]" title="Unidades">Unid.</th>
+              <th className="text-right font-normal px-3 py-2.5">Valor entregue</th>
+              <th className="text-right font-normal px-3 py-2.5">Falta p/ Mestre</th>
+              <th className="text-right font-normal px-3 py-2.5">Falta p/ Doutor</th>
+              <th className="text-right font-normal px-3 py-2.5">Falta p/ PhD</th>
+              <th className="text-right font-normal px-3 py-2.5">Falta p/ Supreme</th>
+              <th className="text-center font-normal px-4 py-2.5 w-[168px]">Nível</th>
               {onDownload && (
-                <th className="text-center font-normal px-3 py-2 w-14"> </th>
+                <th className="text-center font-normal px-3 py-2.5 w-14"> </th>
               )}
             </tr>
           </thead>
@@ -137,13 +137,13 @@ export function PainelCampanhas({
                   key={r.user.id}
                   className="border-t border-[color:var(--border)]/60 hover:bg-[color:var(--accent)]/25 transition-colors"
                 >
-                  <td className="px-3 py-2 tabular-nums">
+                  <td className="px-3 py-2.5 tabular-nums align-middle">
                     <span className="inline-flex items-center gap-1.5">
                       <span aria-hidden className="text-base leading-none">{medal(pos)}</span>
                       <span className={cn(pos <= 3 ? "text-[color:var(--foreground)] font-medium" : "text-[color:var(--muted-foreground)]")}>{pos}º</span>
                     </span>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5 align-middle">
                     <div className="flex flex-col leading-tight">
                       <span className="font-medium text-[color:var(--foreground)]">{r.user.name}</span>
                       <span className="text-[11px] text-[color:var(--muted-foreground)]">
@@ -151,10 +151,10 @@ export function PainelCampanhas({
                       </span>
                     </div>
                   </td>
-                  <td className="px-2 py-2 text-right tabular-nums w-[68px]">
+                  <td className="px-2 py-2.5 text-right tabular-nums align-middle w-[62px]">
                     {r.units.toLocaleString("pt-BR")}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-[color:var(--foreground)] font-medium">
+                  <td className="px-3 py-2.5 text-right tabular-nums align-middle text-[color:var(--foreground)] font-medium">
                     {formatCurrency(r.value)}
                   </td>
                   {LEVEL_ORDER.map((k) => {
@@ -164,7 +164,7 @@ export function PainelCampanhas({
                       <td
                         key={k}
                         className={cn(
-                          "px-3 py-2 text-right tabular-nums",
+                          "px-3 py-2.5 text-right tabular-nums align-middle",
                           achieved
                             ? "text-emerald-400"
                             : "text-rose-400 font-medium",
@@ -175,10 +175,10 @@ export function PainelCampanhas({
                       </td>
                     );
                   })}
-                  <td className="px-4 py-2 text-center">
+                  <td className="px-4 py-2.5 text-center align-middle w-[168px]">
                     <span
                       className={cn(
-                        "inline-flex items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium min-w-[116px] whitespace-nowrap",
+                        "inline-flex w-full max-w-[148px] items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium whitespace-nowrap",
                         tCls,
                       )}
                     >
@@ -186,7 +186,7 @@ export function PainelCampanhas({
                     </span>
                   </td>
                   {onDownload && (
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2.5 text-center align-middle">
                       <button
                         type="button"
                         onClick={() => onDownload(r.user.id)}
