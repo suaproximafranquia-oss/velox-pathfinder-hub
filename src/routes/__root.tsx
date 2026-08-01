@@ -20,6 +20,8 @@ import {
   type EditorialVariant,
 } from "../components/editorial/editorial-shell";
 import { hasPortalSession } from "../lib/portal-session";
+import { getPortalSession } from "../lib/portal-session";
+import { isPortalUnlocked } from "../lib/portal-verification";
 import { moduleForPath } from "../lib/portal-modules";
 import { writeEntryContext } from "../lib/portal-entry";
 import { WhatsAppFloating } from "../components/shared/whatsapp-floating";
@@ -183,7 +185,10 @@ function RootComponent() {
     const insideOverlay = window.self !== window.top;
     const mod = moduleForPath(pathname);
     if (!mod) return;
-    if (insideOverlay && hasPortalSession()) return;
+    // DEF 2.4.18 — acesso direto por URL nunca pode burlar o bloqueio:
+    // apenas o Manual é livre para o Visitante Identificado.
+    const unlocked = mod.key === "manual" || isPortalUnlocked(getPortalSession()?.investorId);
+    if (insideOverlay && hasPortalSession() && unlocked) return;
     writeEntryContext({ pendingModule: mod.key });
     if (insideOverlay) {
       window.top?.location.replace(`/?m=${mod.key}`);
