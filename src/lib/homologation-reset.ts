@@ -51,6 +51,12 @@ const OPERATIONAL_KEYS = [
   "atlas:recognition:events:v1",
   "atlas:recognition:homolog:v1",
   "atlas:recognition:scheduled:v1",
+  // Backups, KPI e demais registros temporários de homologação
+  "crm.backups.v1",
+  "atlas:backups:v1",
+  "velox:simulator:history:v1",
+  "velox:portal:activity:v1",
+  "velox:scheduling:v1",
 ] as const;
 
 /** Chaves jamais tocadas — estrutura, usuários, permissões e integrações. */
@@ -83,6 +89,12 @@ export function resetHomologationData(): ResetSummary {
     const key = window.localStorage.key(i);
     if (!key) continue;
     if (key.startsWith("velox:meeting-provider-default:v1:")) {
+      window.localStorage.removeItem(key);
+      removed.push(key);
+    }
+    // Lançamentos do KPI Manager e backups por escopo também são
+    // dados operacionais de homologação.
+    if (key.startsWith("atlas:kpi:v1:") || key.startsWith("crm.backup")) {
       window.localStorage.removeItem(key);
       removed.push(key);
     }

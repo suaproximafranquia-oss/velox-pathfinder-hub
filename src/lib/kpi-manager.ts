@@ -6,7 +6,7 @@
  * Analytics, os Relatórios e a IA Corporativa consultarão essa
  * mesma estrutura em sprints futuros — sem alteração de contrato.
  *
- * Nesta sprint os dados são fictícios (Julho/2026) e persistidos no
+ * Todos os lançamentos são reais e persistidos no
  * LocalStorage do próprio usuário. A superfície pública é estável:
  *   loadDataset(userId, monthKey) → KpiDataset
  *   saveDataset(dataset)          → void
@@ -124,130 +124,10 @@ export type KpiDataset = {
   updatedAt: number;
 };
 
-/* ---------------------- Perfis de produtividade ---------------------- */
-
-/**
- * Cada colaborador possui um perfil distinto para tornar os dados
- * fictícios de Julho/2026 mais interessantes durante apresentações.
- */
-type ProfileWeights = {
-  seed: number;
-  intensity: number;
-  ranges?: Partial<Record<IndicatorId, [number, number]>>;
-};
-
-const DEFAULT_RANGES: Record<IndicatorId, [number, number]> = {
-  leads: [4, 12],
-  leadsJoao: [2, 6],
-  leadsFelipe: [2, 6],
-  calls: [30, 70],
-  callsAnswered: [12, 30],
-  messages: [20, 60],
-  emails: [8, 25],
-  presentations: [2, 6],
-  videosScheduled: [1, 4],
-  videosDone: [1, 3],
-  contractsSent: [0, 3],
-  contractsSigned: [0, 2],
-  dropouts: [0, 1],
-  salesValue: [0, 8500],
-};
-
-/**
- * Alvos fictícios da Campanha Velox (Julho/2026). Após a semeadura, a linha
- * `salesValue` é reescalonada para o total previsto — permitindo demonstrar
- * visualmente todos os níveis da campanha (Mestre, Doutor, PhD, Supreme e
- * um perfil ainda em progressão).
- */
-const CAMPAIGN_DEMO_TARGETS: Record<string, number> = {
-  usr_thiago: 92000,   // PhD
-  usr_joao: 62000,     // Mestre
-  usr_felipe: 78000,   // Doutor
-  usr_carlos: 108000,  // Supreme
-  usr_larissa: 38000,  // abaixo de Mestre
-};
-
-const PROFILES: Record<string, ProfileWeights> = {
-  usr_thiago:  { seed: 17,  intensity: 1.20, ranges: { salesValue: [1500, 12000] } },
-  usr_larissa: { seed: 33,  intensity: 1.10, ranges: { presentations: [3, 7], contractsSigned: [1, 3] } },
-  usr_marton:  { seed: 47,  intensity: 0.95 },
-  usr_paulo:   { seed: 61,  intensity: 1.05, ranges: { calls: [40, 85] } },
-  usr_milton:  { seed: 79,  intensity: 0.90, ranges: { messages: [30, 80] } },
-  usr_carlos:  { seed: 93,  intensity: 1.15, ranges: { videosDone: [2, 5] } },
-  usr_talita:  { seed: 111, intensity: 1.00, ranges: { emails: [12, 32] } },
-  usr_joao:    { seed: 127, intensity: 1.05 },
-  usr_felipe:  { seed: 143, intensity: 1.10 },
-};
-
-/** Gerador determinístico (mulberry32). Garante estabilidade entre sessões. */
-function rng(seed: number) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function randRange(r: () => number, [lo, hi]: [number, number], factor = 1) {
-  const v = lo + r() * (hi - lo);
-  return Math.max(0, Math.round(v * factor));
-}
-
-function seedMatrixFor(userId: string, m: KpiMonth): KpiMatrix {
-  const profile: ProfileWeights =
-    PROFILES[userId] ?? { seed: 5, intensity: 1 };
-  const r = rng(profile.seed + m.year * 100 + (m.month + 1));
-  const days = daysInMonth(m);
-  const matrix: KpiMatrix = {};
-
-  for (const ind of INDICATORS) {
-    const range = profile.ranges?.[ind.id as IndicatorId] ?? DEFAULT_RANGES[ind.id as IndicatorId];
-    matrix[ind.id] = {};
-    for (let d = 1; d <= days; d++) {
-      // Finais de semana: atividade cai significativamente.
-      const weekend = isWeekend(m, d);
-      const factor = (weekend ? 0.15 : 1) * profile.intensity;
-      // Chance de dia zero para eventos raros (contratos/desistências).
-      const rare = ind.id.startsWith("contracts") || ind.id === "dropouts";
-      if (rare && r() < (weekend ? 0.85 : 0.55)) {
-        matrix[ind.id][d] = 0;
-        continue;
-      }
-      if (ind.id === "salesValue") {
-        // Valor vendido é aderente à assinatura de contrato.
-        const signed = matrix.contractsSigned?.[d] ?? 0;
-        if (signed === 0) { matrix[ind.id][d] = 0; continue; }
-        matrix[ind.id][d] = randRange(r, range, factor) * signed;
-        continue;
-      }
-      matrix[ind.id][d] = randRange(r, range, factor);
-    }
-  }
-
-  // Ajuste de demonstração da Campanha Velox — apenas em Julho/2026 e apenas
-  // para os usuários mapeados. Redistribui salesValue para atingir o alvo
-  // demonstrativo sem alterar contratos/vendas registrados.
-  const target = CAMPAIGN_DEMO_TARGETS[userId];
-  if (target != null && m.key === "2026-07") {
-    const row = matrix.salesValue;
-    let sum = 0;
-    for (const k in row) sum += row[k as unknown as number] || 0;
-    if (sum > 0) {
-      const scale = target / sum;
-      for (const k in row) row[k as unknown as number] = Math.round((row[k as unknown as number] || 0) * scale);
-    } else {
-      // Sem contratos assinados no mês: distribui o alvo apenas nos dias úteis.
-      const weekdays: number[] = [];
-      for (let d = 1; d <= days; d++) if (!isWeekend(m, d)) weekdays.push(d);
-      const per = Math.round(target / Math.max(1, weekdays.length));
-      for (const d of weekdays) row[d] = per;
-    }
-  }
-  return matrix;
-}
+/* ---------------------- DEF 2.4.RESET ----------------------
+ * Proibido gerar lançamentos fictícios. Todos os meses iniciam
+ * vazios e recebem exclusivamente lançamentos reais.
+ * ---------------------------------------------------------- */
 
 /* ---------------------- Persistência (LocalStorage) ---------------------- */
 
@@ -264,13 +144,10 @@ function emptyMatrix(): KpiMatrix {
 }
 
 export function loadDataset(userId: string, monthKey: string): KpiDataset {
-  const m = findMonth(monthKey);
-  // Apenas Julho/2026 possui semente fictícia; demais meses partem vazios.
-  const isSeeded = monthKey === DEFAULT_MONTH_KEY;
   const fallback: KpiDataset = {
     userId,
     monthKey,
-    matrix: isSeeded ? seedMatrixFor(userId, m) : emptyMatrix(),
+    matrix: emptyMatrix(),
     updatedAt: Date.now(),
   };
   if (typeof window === "undefined") return fallback;

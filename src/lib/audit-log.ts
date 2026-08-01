@@ -139,72 +139,11 @@ export function distinctActors(): { id: string; name: string }[] {
 }
 
 /**
- * Seed único de amostras para orientar a homologação. Nunca é aplicado
- * duas vezes — presença do flag impede re-execução.
+ * DEF 2.4.RESET — a Central de Auditoria nunca recebe registros de exemplo.
+ * Mantida apenas para compatibilidade de chamadas existentes.
  */
 export function seedAuditIfEmpty(): void {
-  if (typeof window === "undefined") return;
-  if (window.localStorage.getItem(SEED_FLAG)) return;
-  const now = Date.now();
-  const min = 60_000;
-  const seed: Omit<AuditEntry, "id">[] = [
-    {
-      timestamp: now - 5 * min,
-      actorId: "system",
-      actorName: "Sistema",
-      actorRole: "Automatizado",
-      module: "sistema",
-      action: "Central de Auditoria inicializada",
-      details: "Registro inicial gerado no primeiro acesso ao módulo.",
-      severity: "info",
-    },
-    {
-      timestamp: now - 42 * min,
-      actorId: "system",
-      actorName: "Sistema",
-      actorRole: "Automatizado",
-      module: "kpi",
-      action: "Sincronização diária do KPI Manager",
-      details: "Recalculo automático dos indicadores consolidados.",
-      severity: "success",
-    },
-    {
-      timestamp: now - 6 * 60 * min,
-      actorId: "u_thiago",
-      actorName: "Thiago Velox",
-      actorRole: "Administrador",
-      module: "usuarios",
-      action: "Perfil atualizado",
-      target: "Larissa Diretor",
-      details: "Cargo e telefone corporativo revisados.",
-      severity: "info",
-    },
-    {
-      timestamp: now - 26 * 60 * min,
-      actorId: "u_thiago",
-      actorName: "Thiago Velox",
-      actorRole: "Administrador",
-      module: "conhecimento",
-      action: "Documento publicado",
-      target: "Playbook Consultivo v3",
-      details: "Visibilidade: Público — disponível para todos os perfis.",
-      severity: "success",
-    },
-    {
-      timestamp: now - 3 * 24 * 60 * min,
-      actorId: "u_larissa",
-      actorName: "Larissa Diretor",
-      actorRole: "Gestor",
-      module: "investidores",
-      action: "Investidor vinculado",
-      target: "Investidor #4821",
-      details: "Executivo responsável definido.",
-      severity: "info",
-    },
-  ];
-  const entries: AuditEntry[] = seed.map((e) => ({ ...e, id: newId() }));
-  writeAll(entries);
-  window.localStorage.setItem(SEED_FLAG, "1");
+  /* no-op — proibido criar auditorias fictícias. */
 }
 
 /** Formata timestamp em pt-BR com precisão de minutos. */

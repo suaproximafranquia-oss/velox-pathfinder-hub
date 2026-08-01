@@ -219,7 +219,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
 
   function resetMonth() {
     if (isConsolidated) return;
-    if (!window.confirm(`Restaurar dados fictícios de ${activeMonth.label}?`)) return;
+    if (!window.confirm(`Limpar todos os lançamentos de ${activeMonth.label}?`)) return;
     const fresh = resetDataset(activeUserId, activeMonth.key);
     setDataset(fresh);
   }
@@ -271,10 +271,10 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
                 ? "cursor-not-allowed text-[color:var(--muted-foreground)]/40 opacity-60"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40",
             )}
-            title={isConsolidated ? "Disponível apenas no KPI individual" : "Restaurar dados fictícios do mês ativo"}
+            title={isConsolidated ? "Disponível apenas no KPI individual" : "Limpar os lançamentos do mês ativo"}
           >
             <RotateCcw className="h-3 w-3" />
-            Restaurar
+            Limpar
           </button>
         </div>
       </div>
@@ -396,10 +396,9 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
       </div>
 
       <p className="mt-3 text-[11px] text-[color:var(--muted-foreground)] text-center max-w-2xl mx-auto shrink-0">
-        Dados fictícios de Julho/2026 para demonstração. A partir de Agosto/2026 a
-        estrutura receberá lançamentos reais e alimentará automaticamente o Brain
-        Analytics, os Relatórios e a IA Corporativa — respeitando as permissões do
-        perfil ativo.
+        Ambiente operacional com dados exclusivamente reais. Cada lançamento
+        alimenta automaticamente o Brain Analytics, os Relatórios e a IA
+        Corporativa — respeitando as permissões do perfil ativo.
       </p>
      </div>
 
@@ -423,7 +422,6 @@ function MonthSelector({
     <div className="inline-flex items-center rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/40 p-0.5 overflow-x-auto max-w-full">
       {AVAILABLE_MONTHS.map((m) => {
         const active = m.key === currentKey;
-        const seeded = m.key === DEFAULT_MONTH_KEY;
         return (
           <button
             key={m.key}
@@ -435,12 +433,9 @@ function MonthSelector({
                 ? "bg-[color:var(--accent)] text-[color:var(--foreground)]"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
             )}
-            title={seeded ? "Mês com dados fictícios de demonstração" : "Aguardando lançamentos"}
+            title="Competência do KPI Manager"
           >
             {m.label}
-            {seeded && (
-              <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gold)]" />
-            )}
           </button>
         );
       })}
@@ -465,7 +460,7 @@ function KpiStatusCard({
   const totalDays = daysInMonth(month);
   // dia de referência: hoje se estivermos no mês corrente; caso contrário
   // o último dia útil do mês. Mantemos leitura consistente para dados
-  // fictícios ou reais.
+  // reais lançados no mês.
   const now = new Date();
   const inMonth =
     now.getFullYear() === Number(month.key.slice(0, 4)) &&
