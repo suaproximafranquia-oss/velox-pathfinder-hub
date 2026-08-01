@@ -140,52 +140,105 @@ export function CrmMainPane({
   title,
   header,
   children,
-  onToggleDetails,
-  detailsOpen,
+  footer,
 }: {
   title: string;
   header?: ReactNode;
   children?: ReactNode;
-  onToggleDetails: () => void;
-  detailsOpen: boolean;
+  /** Barra inferior de envio de mensagem. */
+  footer?: ReactNode;
 }) {
   return (
-    <section className="flex h-full min-w-0 flex-1 flex-col bg-[color:var(--crm-background)]">
+    <section className="relative flex h-full min-w-0 flex-1 flex-col bg-[color:var(--crm-background)]">
       <header className="flex items-center justify-between gap-4 border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3">
         {header ?? <h2 className="truncate text-sm font-medium">{title}</h2>}
-        <button
-          type="button"
-          onClick={onToggleDetails}
-          aria-label={detailsOpen ? "Ocultar painel de detalhes" : "Exibir painel de detalhes"}
-          className="hidden rounded-lg p-2 text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] lg:block"
-        >
-          {detailsOpen ? (
-            <PanelRightClose className="h-[18px] w-[18px]" />
-          ) : (
-            <PanelRightOpen className="h-[18px] w-[18px]" />
-          )}
-        </button>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+      <div className="relative min-h-0 flex-1 overflow-y-auto p-5">
+        <CrmWatermark />
+        <div className="relative h-full">{children}</div>
+      </div>
+      {footer}
     </section>
+  );
+}
+
+/**
+ * Marca d'água institucional — extremamente discreta, apenas para remover
+ * a sensação de tela vazia sem prejudicar a leitura.
+ */
+function CrmWatermark() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
+    >
+      <svg
+        viewBox="0 0 200 200"
+        className="h-[min(58%,420px)] w-auto text-[color:var(--crm-muted)] opacity-[0.035]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      >
+        <circle cx="100" cy="100" r="18" />
+        <circle cx="100" cy="100" r="46" strokeDasharray="3 6" />
+        <circle cx="100" cy="100" r="76" strokeDasharray="3 10" />
+        {[0, 60, 120, 180, 240, 300].map((deg) => {
+          const rad = (deg * Math.PI) / 180;
+          const x = 100 + Math.cos(rad) * 76;
+          const y = 100 + Math.sin(rad) * 76;
+          return (
+            <g key={deg}>
+              <line x1={100} y1={100} x2={x} y2={y} />
+              <circle cx={x} cy={y} r="9" fill="currentColor" stroke="none" />
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 }
 
 export function CrmDetailsPane({
   open,
   title,
+  onToggle,
   children,
 }: {
   open: boolean;
   title: string;
+  onToggle: () => void;
   children?: ReactNode;
 }) {
-  if (!open) return null;
+  if (!open) {
+    return (
+      <div className="hidden h-full shrink-0 items-start border-l border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] lg:flex">
+        <button
+          type="button"
+          onClick={onToggle}
+          title={title}
+          aria-label={`Exibir ${title}`}
+          className="mt-5 flex h-16 w-7 items-center justify-center rounded-l-lg text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
   return (
     <aside
       aria-label={title}
-      className="hidden h-full w-[330px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] lg:flex 2xl:w-[390px]"
+      className="relative hidden h-full w-[330px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] lg:flex 2xl:w-[390px]"
     >
+      {/* Controle na própria borda da ficha — nunca no cabeçalho da conversa. */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={`Recolher ${title}`}
+        title={`Recolher ${title}`}
+        className="absolute -left-3 top-5 z-10 flex h-7 w-6 items-center justify-center rounded-l-lg border border-r-0 border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-muted)] shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-colors hover:text-[color:var(--crm-foreground)]"
+      >
+        <ChevronRight className="h-3.5 w-3.5" />
+      </button>
       <header className="border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3.5">
         <h2 className="text-sm font-semibold tracking-[-0.01em]">{title}</h2>
       </header>
