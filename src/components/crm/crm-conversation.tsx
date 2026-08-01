@@ -2,8 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   MessageSquare,
   CalendarPlus,
-  Phone,
-  Plug,
   Send,
   Lock,
   ShieldCheck,
@@ -143,64 +141,16 @@ export function CrmConversationItem({
 }
 
 /**
- * Barra de ações — exclusivamente ações imediatas da conversa. Qualquer
- * informação já presente na Ficha do Investidor não aparece aqui.
+ * Cabeçalho da conversa (DEF 2.4.10 §7).
+ *
+ * Nenhum comando duplicado: agendamento, WhatsApp e ficha vivem
+ * exclusivamente na Ficha do Investidor. Aqui permanece apenas a
+ * identificação e a presença — informação exclusiva da conversa.
  */
-export function CrmActionBar({
-  phone,
-  onSchedule,
-}: {
-  phone?: string;
-  onSchedule?: () => void;
-}) {
-  const digits = (phone ?? "").replace(/\D/g, "");
-  return (
-    <div className="flex items-center gap-0.5" aria-label="Ações da conversa">
-      <a
-        href={digits ? `tel:+${digits}` : undefined}
-        title="Ligação"
-        aria-label="Ligação"
-        aria-disabled={!digits}
-        className={[
-          "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150",
-          digits
-            ? "cursor-pointer text-[color:var(--crm-muted)] hover:scale-105 hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:scale-100"
-            : "pointer-events-none text-[color:var(--crm-muted)]/40",
-        ].join(" ")}
-      >
-        <Phone className="h-4 w-4" />
-      </a>
-      <button
-        type="button"
-        onClick={onSchedule}
-        title="Agendar reunião"
-        aria-label="Agendar reunião"
-        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-all duration-150 hover:scale-105 hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:scale-100"
-      >
-        <CalendarPlus className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        title="Integrações"
-        aria-label="Integrações"
-        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-all duration-150 hover:scale-105 hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:scale-100"
-      >
-        <Plug className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-export function CrmConversationHeader({
-  item,
-  onSchedule,
-}: {
-  item: CrmConversation;
-  onSchedule?: () => void;
-}) {
+export function CrmConversationHeader({ item }: { item: CrmConversation }) {
   const presence = whatsappPresence(item.id);
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3.5">
+    <div key={item.id} className="crm-enter flex min-w-0 flex-1 items-center gap-3.5">
       <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={42} />
       <div className="flex min-w-0 flex-col gap-0.5">
         <h2 className="truncate text-[15px] font-semibold tracking-[-0.01em]">{item.name}</h2>
@@ -215,9 +165,6 @@ export function CrmConversationHeader({
           />
           {presence.label}
         </span>
-      </div>
-      <div className="ml-auto">
-        <CrmActionBar phone={item.phone} onSchedule={onSchedule} />
       </div>
     </div>
   );

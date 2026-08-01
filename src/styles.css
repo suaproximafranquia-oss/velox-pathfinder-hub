@@ -899,3 +899,42 @@ body[data-shell="universo"] :focus-visible {
   font-family: var(--font-sans);
   letter-spacing: 0;
 }
+
+/* Movimento discreto do ambiente operacional (DEF 2.4.10 §8): entrada da
+ * ficha, troca de investidor, alteração de estágio e novos alertas. */
+@keyframes crm-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes crm-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.crm-enter {
+  animation: crm-enter 0.22s ease-out both;
+}
+
+.crm-slide-in {
+  animation: crm-slide-in 0.24s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crm-enter,
+  .crm-slide-in {
+    animation: none;
+  }
+}
