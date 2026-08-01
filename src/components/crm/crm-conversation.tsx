@@ -15,7 +15,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { CRM_STATE_DOT, type CrmConversation } from "@/lib/crm/relationships";
+import { type CrmConversation } from "@/lib/crm/relationships";
 import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 
 /** Indicador padronizado do estágio automático do relacionamento. */
