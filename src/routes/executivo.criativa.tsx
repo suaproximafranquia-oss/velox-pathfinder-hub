@@ -390,6 +390,7 @@ function ArtCard({
   session,
   unit,
   city,
+  state,
   onSaved,
 }: {
   model: CreativeModel;
@@ -398,9 +399,10 @@ function ArtCard({
   session: ExecutiveSession;
   unit: string;
   city: string;
+  state: string;
   onSaved: () => void;
 }) {
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const preview = useMemo(() => svgToDataUrl(svg), [svg]);
@@ -409,43 +411,57 @@ function ArtCard({
   async function download() {
     const png = await svgToPngBase64(svg);
     downloadBase64(png, fileName);
-    recordCreative({
-      userId: session.userId,
-      category: "unidade",
-      model,
-      unit,
-      city,
-      fileName,
-    });
-    onSaved();
   }
 
-  async function saveToDrive() {
-    if (saving) return;
+  async function view() {
+    const png = await svgToPngBase64(svg);
+    openBase64InNewTab(png);
+  }
+
+  /**
+   * Arquivamento automático: assim que a peça é gerada ela vai para a pasta
+   * corporativa e entra no histórico — sem qualquer ação do usuário.
+   */
+  useEffect(() => {
+    let alive = true;
     setSaving(true);
+    setSaved(null);
     setFailed(null);
-    try {
-      const png = await svgToPngBase64(svg);
-      const res = await saveCreativeArt({
-        data: { name: fileName, contentBase64: png, mimeType: "image/png" },
-      });
-      setSaved(res.webViewLink ?? "");
+    void (async () => {
+      let driveLink: string | null = null;
+      try {
+        const png = await svgToPngBase64(svg);
+        const res = await saveCreativeArt({
+          data: { name: fileName, contentBase64: png, mimeType: "image/png" },
+        });
+        driveLink = res.webViewLink ?? null;
+        if (alive) setSaved(driveLink ?? "");
+      } catch {
+        if (alive)
+          setFailed(
+            "A peça foi gerada. O arquivamento automático no Drive será retomado assim que a Conta Google corporativa estiver conectada.",
+          );
+      }
       recordCreative({
         userId: session.userId,
         category: "unidade",
         model,
         unit,
         city,
+        state,
         fileName,
-        driveLink: res.webViewLink,
+        driveLink,
       });
-      onSaved();
-    } catch {
-      setFailed("Conecte sua conta corporativa nas Configurações para salvar no Drive.");
-    } finally {
-      setSaving(false);
-    }
-  }
+      if (alive) {
+        setSaving(false);
+        onSaved();
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svg, fileName]);
 
   const action =
     "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/50 transition";
@@ -469,22 +485,27 @@ function ArtCard({
         />
       </div>
       <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--border)] px-5 py-3">
-        <a href={preview} target="_blank" rel="noreferrer" className={action}>
+        <button type="button" onClick={() => void view()} className={action}>
           <Eye className="h-3.5 w-3.5" /> Visualizar
-        </a>
+        </button>
         <button type="button" onClick={() => void download()} className={action}>
           <Download className="h-3.5 w-3.5" /> Download
         </button>
-        <button type="button" onClick={() => void saveToDrive()} className={action} disabled={saving}>
+        <span className="inline-flex items-center gap-1.5 text-xs text-[color:var(--muted-foreground)]">
           {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Arquivando no Drive…
+            </>
           ) : saved !== null ? (
-            <Check className="h-3.5 w-3.5" />
+            <>
+              <Check className="h-3.5 w-3.5 text-[color:var(--gold)]" /> Salvo no Drive
+            </>
           ) : (
-            <CloudUpload className="h-3.5 w-3.5" />
+            <>
+              <CloudUpload className="h-3.5 w-3.5" /> Arquivamento pendente
+            </>
           )}
-          {saved !== null ? "Salvo no Drive" : "Salvar no Drive"}
-        </button>
+        </span>
         {failed ? (
           <p className="w-full text-[11px] text-[color:var(--muted-foreground)]">{failed}</p>
         ) : null}
