@@ -135,61 +135,63 @@ export function CrmConversationItem({
   );
 }
 
-const ACTIONS = [
-  { key: "portal", label: "Portal do Investidor", Icon: Compass },
-  { key: "timeline", label: "Timeline", Icon: Clock },
-  { key: "alertas", label: "Alertas", Icon: Bell },
-  { key: "ia", label: "IA", Icon: Sparkles },
-  { key: "reunioes", label: "Reuniões", Icon: CalendarDays },
-  { key: "templates", label: "Templates", Icon: FileText },
-  { key: "historico", label: "Histórico", Icon: History },
-  { key: "integracoes", label: "Integrações", Icon: Plug },
-] as const;
-
-/** Barra de ações — apenas ícones discretos, cada um com tooltip. */
-export function CrmActionBar() {
+/**
+ * Barra de ações — exclusivamente ações imediatas da conversa. Qualquer
+ * informação já presente na Ficha do Investidor não aparece aqui.
+ */
+export function CrmActionBar({
+  phone,
+  onSchedule,
+}: {
+  phone?: string;
+  onSchedule?: () => void;
+}) {
+  const digits = (phone ?? "").replace(/\D/g, "");
   return (
-    <div className="flex items-center gap-0.5" aria-label="Ações do relacionamento">
-      {ACTIONS.map(({ key, label, Icon }) => (
-        <button
-          key={key}
-          type="button"
-          title={label}
-          aria-label={label}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
-        >
-          <Icon className="h-4 w-4" />
-        </button>
-      ))}
+    <div className="flex items-center gap-0.5" aria-label="Ações da conversa">
+      <a
+        href={digits ? `tel:+${digits}` : undefined}
+        title="Ligação"
+        aria-label="Ligação"
+        aria-disabled={!digits}
+        className={[
+          "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+          digits
+            ? "text-[color:var(--crm-muted)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
+            : "pointer-events-none text-[color:var(--crm-muted)]/40",
+        ].join(" ")}
+      >
+        <Phone className="h-4 w-4" />
+      </a>
+      <button
+        type="button"
+        onClick={onSchedule}
+        title="Agendar reunião"
+        aria-label="Agendar reunião"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
+      >
+        <CalendarPlus className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        title="Integrações"
+        aria-label="Integrações"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
+      >
+        <Plug className="h-4 w-4" />
+      </button>
     </div>
   );
 }
 
-/**
- * Presença do WhatsApp — o cabeçalho jamais exibe dados do Portal do
- * Investidor. Apenas Online, "Visto por último" ou Offline.
- */
-function whatsappPresence(iso: string): { online: boolean; label: string } {
-  const ts = new Date(iso).getTime();
-  if (!Number.isFinite(ts)) return { online: false, label: "Offline" };
-  const diff = Date.now() - ts;
-  if (diff < 5 * 60 * 1000) return { online: true, label: "Online" };
-  const d = new Date(ts);
-  const hhmm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const sameDay = d.toDateString() === new Date().toDateString();
-  if (sameDay) return { online: false, label: `Visto por último hoje às ${hhmm}` };
-  const yesterday = new Date(Date.now() - 864e5).toDateString() === d.toDateString();
-  if (yesterday) return { online: false, label: `Visto por último ontem às ${hhmm}` };
-  if (diff < 30 * 864e5)
-    return {
-      online: false,
-      label: `Visto por último em ${d.toLocaleDateString("pt-BR")} às ${hhmm}`,
-    };
-  return { online: false, label: "Offline" };
-}
-
-export function CrmConversationHeader({ item }: { item: CrmConversation }) {
-  const presence = whatsappPresence(item.lastActivityIso);
+export function CrmConversationHeader({
+  item,
+  onSchedule,
+}: {
+  item: CrmConversation;
+  onSchedule?: () => void;
+}) {
+  const presence = whatsappPresence(item.id);
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3.5">
       <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={42} />
@@ -208,7 +210,46 @@ export function CrmConversationHeader({ item }: { item: CrmConversation }) {
         </span>
       </div>
       <div className="ml-auto">
-        <CrmActionBar />
+        <CrmActionBar phone={item.phone} onSchedule={onSchedule} />
+      </div>
+    </div>
+  );
+}
+
+/** Barra inferior de envio — layout definitivo, anterior à integração. */
+export function CrmComposer({ onSend }: { onSend: (text: string) => void }) {
+  const [text, setText] = useState("");
+  const submit = () => {
+    const value = text.trim();
+    if (!value) return;
+    onSend(value);
+    setText("");
+  };
+  return (
+    <div className="shrink-0 border-t border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3">
+      <div className="flex items-center gap-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder="Digite uma mensagem..."
+          aria-label="Digite uma mensagem"
+          className="min-w-0 flex-1 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-[color:var(--crm-muted)] focus:border-[color:var(--crm-accent)]"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!text.trim()}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[color:var(--crm-accent)] px-3.5 py-2.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+        >
+          <Send className="h-3.5 w-3.5" />
+          Enviar
+        </button>
       </div>
     </div>
   );
