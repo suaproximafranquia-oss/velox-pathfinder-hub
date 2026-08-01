@@ -14,11 +14,7 @@ import { FileText, Clock3 } from "lucide-react";
 import { type CrmConversation } from "@/lib/crm/relationships";
 import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
-import {
-  formatCrmMessageDay,
-  formatCrmMessageTime,
-  type CrmMessage,
-} from "@/lib/crm/messages";
+import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CRM_TEMPLATES, type CrmWindowStatus } from "@/lib/crm/templates";
 
@@ -33,8 +29,8 @@ export function CrmJourneyBadge() {
       <p className="text-[11px] leading-relaxed text-amber-800">
         <span className="font-semibold">Jornada Digital</span>
         <br />
-        Relacionamento ainda não iniciado. O histórico permanece visível e o
-        envio de mensagens fica bloqueado até o início do relacionamento.
+        Relacionamento ainda não iniciado. O histórico permanece visível e o envio de mensagens fica
+        bloqueado até o início do relacionamento.
       </p>
     </div>
   );
@@ -62,9 +58,7 @@ export function CrmStartRelationshipDialog({
         onClick={(e) => e.stopPropagation()}
         className="crm-enter w-full max-w-md rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-6"
       >
-        <h2 className="text-base font-semibold tracking-[-0.01em]">
-          Iniciar relacionamento?
-        </h2>
+        <h2 className="text-base font-semibold tracking-[-0.01em]">Iniciar relacionamento?</h2>
         <p className="mt-2 text-xs leading-relaxed text-[color:var(--crm-muted)]">
           Até este momento {name} utilizou apenas a Jornada Digital.
         </p>
@@ -189,17 +183,13 @@ export function CrmConversationItem({
       aria-current={active ? "true" : undefined}
       className={[
         "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors duration-150",
-        active
-          ? "bg-[color:var(--crm-accent-soft)]"
-          : "hover:bg-[color:var(--crm-hover)]",
+        active ? "bg-[color:var(--crm-accent-soft)]" : "hover:bg-[color:var(--crm-hover)]",
       ].join(" ")}
     >
       <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-2">
-          <span className="truncate text-[13px] font-semibold tracking-[-0.01em]">
-            {item.name}
-          </span>
+          <span className="truncate text-[13px] font-semibold tracking-[-0.01em]">{item.name}</span>
           <span className="shrink-0 text-[11px] tabular-nums text-[color:var(--crm-muted)]">
             {item.lastActivityLabel}
           </span>
@@ -311,8 +301,7 @@ export function CrmComposer({
    */
   const windowClosed = Boolean(win && !win.open);
   const typingBlocked = disabled || windowClosed;
-  const canSend =
-    !disabled && text.trim().length > 0 && (!windowClosed || armedTemplate);
+  const canSend = !disabled && text.trim().length > 0 && (!windowClosed || armedTemplate);
   const submit = () => {
     if (!canSend) return;
     const value = text.trim();
@@ -415,13 +404,7 @@ export function CrmComposer({
  * Histórico completo da conversa — ordem cronológica, rolagem automática
  * e separação visual entre mensagens enviadas e recebidas.
  */
-export function CrmThread({
-  item,
-  messages,
-}: {
-  item: CrmConversation;
-  messages: CrmMessage[];
-}) {
+export function CrmThread({ item, messages }: { item: CrmConversation; messages: CrmMessage[] }) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -430,17 +413,17 @@ export function CrmThread({
 
   if (messages.length === 0) {
     return (
-    <div className="mx-auto flex h-full max-w-xl flex-col items-center justify-center gap-3 text-center">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]">
-        <MessageSquare className="h-5 w-5" />
-      </span>
-      <p className="text-sm font-medium">
-        {item.name} ainda não possui histórico de relacionamento.
-      </p>
-      <p className="max-w-sm text-xs leading-relaxed text-[color:var(--crm-muted)]">
-        As mensagens desta conversa serão exibidas aqui.
-      </p>
-    </div>
+      <div className="mx-auto flex h-full max-w-xl flex-col items-center justify-center gap-3 text-center">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]">
+          <MessageSquare className="h-5 w-5" />
+        </span>
+        <p className="text-sm font-medium">
+          {item.name} ainda não possui histórico de relacionamento.
+        </p>
+        <p className="max-w-sm text-xs leading-relaxed text-[color:var(--crm-muted)]">
+          As mensagens desta conversa serão exibidas aqui.
+        </p>
+      </div>
     );
   }
 
@@ -461,13 +444,14 @@ export function CrmThread({
                 </span>
               </div>
             ) : null}
-            <div className={sent ? "flex justify-end" : "flex justify-start"}>
+            {/* DEF 2.4.22 §3 — Executivo à esquerda, Investidor à direita. */}
+            <div className={sent ? "flex justify-start" : "flex justify-end"}>
               <div
                 className={[
                   "max-w-[78%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed shadow-[0_1px_2px_rgba(16,24,40,0.05)]",
                   sent
-                    ? "rounded-br-md bg-[color:var(--crm-accent)] text-white"
-                    : "rounded-bl-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
+                    ? "rounded-bl-md bg-[color:var(--crm-accent)] text-white"
+                    : "rounded-br-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
                 ].join(" ")}
               >
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
@@ -636,17 +620,15 @@ export function CrmBlockedRelationship({ item }: { item: CrmConversation }) {
       <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
         <Lock className="h-5 w-5" />
       </span>
-      <p className="text-sm font-medium">
-        Este investidor já possui um relacionamento ativo.
-      </p>
+      <p className="text-sm font-medium">Este investidor já possui um relacionamento ativo.</p>
       <dl className="w-full space-y-1.5 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-4 py-3 text-left">
         <CrmRecordRow label="Responsável" value={item.ownerName} />
         <CrmRecordRow label="Origem" value={item.originLabel} />
         <CrmRecordRow label="Status" value={item.statusLabel} />
       </dl>
       <p className="text-xs leading-relaxed text-[color:var(--crm-muted)]">
-        Solicite contato com o Executivo responsável para prosseguir. Nenhuma
-        informação privada deste relacionamento é exibida.
+        Solicite contato com o Executivo responsável para prosseguir. Nenhuma informação privada
+        deste relacionamento é exibida.
       </p>
     </div>
   );
@@ -669,8 +651,8 @@ export function CrmSupervisionView({ item }: { item: CrmConversation }) {
         <CrmRecordRow label="Workspace" value={item.workspaceLabel} />
       </dl>
       <p className="text-xs leading-relaxed text-[color:var(--crm-muted)]">
-        Mensagens, notas, Timeline e demais conteúdos privados entre Executivo e
-        Investidor não são exibidos nesta visão.
+        Mensagens, notas, Timeline e demais conteúdos privados entre Executivo e Investidor não são
+        exibidos nesta visão.
       </p>
     </div>
   );
@@ -683,9 +665,8 @@ export function CrmDuplicateNotice({ item }: { item: CrmConversation }) {
     <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-left">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
       <p className="text-xs leading-relaxed text-amber-900">
-        Duplicidade identificada por {item.duplicate.matchedBy}: já existe
-        relacionamento ativo de {item.duplicate.investorName} sob
-        responsabilidade de {item.duplicate.ownerName}.
+        Duplicidade identificada por {item.duplicate.matchedBy}: já existe relacionamento ativo de{" "}
+        {item.duplicate.investorName} sob responsabilidade de {item.duplicate.ownerName}.
       </p>
     </div>
   );

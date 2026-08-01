@@ -20,6 +20,11 @@ const SimulatorModal = lazy(() =>
 const GatewayOverlay = lazy(() =>
   import("@/components/portal/gateway-overlay").then((m) => ({ default: m.GatewayOverlay })),
 );
+const WhatsappConfirmOverlay = lazy(() =>
+  import("@/components/portal/whatsapp-confirm-overlay").then((m) => ({
+    default: m.WhatsappConfirmOverlay,
+  })),
+);
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
 import manualCoverImg from "@/assets/portal-manual-cover.png.asset.json";
 import materialInstitucionalImg from "@/assets/portal-material-institucional.png.asset.json";
@@ -32,7 +37,16 @@ import {
   setJourneyStatus,
   trackSessionNavigation,
   getResumePoint,
+  getPortalSession,
 } from "@/lib/portal-session";
+import { isPortalUnlocked } from "@/lib/portal-verification";
+import { loadLeads } from "@/lib/leads";
+
+/** WhatsApp informado no Gateway — usado apenas para a confirmação. */
+function sessionPhone(investorId: string | null | undefined): string {
+  if (!investorId) return "";
+  return loadLeads().find((lead) => lead.id === investorId)?.whatsapp ?? "";
+}
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
@@ -186,6 +200,20 @@ function PortalHome() {
   const [resume, setResume] = useState<{ module: PortalModuleKey; title: string } | null>(null);
   /** Overlays secundários entram em cena assim que a Home fica ociosa. */
   const [overlaysReady, setOverlaysReady] = useState(false);
+  /**
+   * DEF 2.4.18 — enquanto o WhatsApp não for confirmado, o Visitante
+   * Identificado acessa exclusivamente o Manual do Investidor.
+   */
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+
+  const refreshUnlocked = useCallback(() => {
+    setUnlocked(isPortalUnlocked(getPortalSession()?.investorId ?? null));
+  }, []);
+
+  useEffect(() => {
+    refreshUnlocked();
+  }, [refreshUnlocked]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -212,12 +240,19 @@ function PortalHome() {
   const openModule = useCallback((key: PortalModuleKey) => {
     const mod = getPortalModule(key);
     if (!mod) return;
+    // Bloqueio oficial: qualquer módulo diferente do Manual exige a
+    // confirmação do WhatsApp.
+    if (key !== "manual" && !isPortalUnlocked(getPortalSession()?.investorId ?? null)) {
+      writeEntryContext({ pendingModule: key });
+      setActive(null);
+      setActiveOverlay(null);
+      setConfirmOpen(true);
+      return;
+    }
     writeEntryContext({ pendingModule: null });
     setActive({ key, title: mod.title, src: mod.panelSrc });
     setActiveOverlay(key);
-    setJourneyStatus(
-      key === "simulador" ? "simulador" : key === "manual" ? "manual" : "portal",
-    );
+    setJourneyStatus(key === "simulador" ? "simulador" : key === "manual" ? "manual" : "portal");
     trackSessionNavigation(key, mod.title);
   }, []);
 
@@ -285,6 +320,7 @@ function PortalHome() {
           />
         )}
         <ModulesGrid
+          unlocked={unlocked}
           onOpen={(m) => {
             const mod = getPortalModule(m.moduleKey);
             if (!mod) return;
@@ -316,7 +352,26 @@ function PortalHome() {
             }}
             onDone={() => {
               const pending = readEntryContext().pendingModule ?? "manual";
+              refreshUnlocked();
               openModule(pending);
+            }}
+          />
+        )}
+        {confirmOpen && (
+          <WhatsappConfirmOverlay
+            open={confirmOpen}
+            investorId={getPortalSession()?.investorId ?? ""}
+            investorName={getPortalSession()?.name ?? "Visitante"}
+            phone={sessionPhone(getPortalSession()?.investorId)}
+            onClose={() => {
+              setConfirmOpen(false);
+              writeEntryContext({ pendingModule: null });
+            }}
+            onConfirmed={() => {
+              setConfirmOpen(false);
+              setUnlocked(true);
+              const pending = readEntryContext().pendingModule;
+              if (pending) openModule(pending);
             }}
           />
         )}
@@ -496,7 +551,7 @@ function Hero() {
   );
 }
 
-function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
+function ModulesGrid({ onOpen, unlocked }: { onOpen: (m: ModuleCard) => void; unlocked: boolean }) {
   return (
     <section
       id="modulos"
@@ -518,7 +573,12 @@ function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {MODULES.map((m) => (
-            <ModuleTile key={m.key} module={m} onOpen={onOpen} />
+            <ModuleTile
+              key={m.key}
+              module={m}
+              onOpen={onOpen}
+              locked={Boolean(m.moduleKey) && m.moduleKey !== "manual" && !unlocked}
+            />
           ))}
         </div>
       </div>
@@ -529,13 +589,16 @@ function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
 function ModuleTile({
   module: m,
   onOpen,
+  locked = false,
 }: {
   module: ModuleCard;
   onOpen: (m: ModuleCard) => void;
+  locked?: boolean;
 }) {
   const Icon = m.icon;
-  const badge =
-    m.status === "em-preparacao"
+  const badge = locked
+    ? "Confirme seu WhatsApp"
+    : m.status === "em-preparacao"
       ? "Em preparação"
       : m.status === "em-desenvolvimento"
         ? "Em desenvolvimento"
