@@ -256,3 +256,90 @@ function LaboratorioPage() {
     </ExecutiveShell>
   );
 }
+/**
+ * DEF 2.4.19 §12 / 2.4.20 §13 — RESET do ambiente de homologação.
+ *
+ * Remove apenas dados operacionais de demonstração. Usuários,
+ * permissões, templates, estrutura, banco e integrações permanecem
+ * intactos.
+ */
+function HomologationResetCard({
+  actorId,
+  actorName,
+  actorRole,
+}: {
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [done, setDone] = useState<number | null>(null);
+
+  const run = () => {
+    const summary = resetHomologationData();
+    logAudit({
+      actorId,
+      actorName,
+      actorRole,
+      module: "sistema",
+      action: "RESET do ambiente de homologação executado",
+      details: `${summary.removed.length} bases operacionais limpas. Usuários, permissões, templates e integrações preservados.`,
+      severity: "critical",
+    });
+    setDone(summary.removed.length);
+    setConfirming(false);
+    if (typeof window !== "undefined") window.setTimeout(() => window.location.reload(), 900);
+  };
+
+  return (
+    <div className="rounded-2xl border border-[color:var(--destructive)]/35 bg-[color:var(--card)]/40 p-5">
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[color:var(--destructive)]/40 bg-[color:var(--destructive)]/10 text-[color:var(--destructive)]">
+          <Trash2 className="h-5 w-5" />
+        </span>
+        <div className="flex-1">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--destructive)]">
+            Homologação Release 2.4
+          </p>
+          <h2 className="font-display text-xl mt-1">RESET do ambiente de homologação</h2>
+          <p className="text-sm text-[color:var(--muted-foreground)] mt-2 leading-relaxed">
+            Remove definitivamente Leads, conversas, alertas, auditorias, reuniões, cards,
+            timeline, jornadas e eventos simulados. Usuários, permissões, templates, estrutura,
+            banco e integrações permanecem intactos. A partir do RESET a homologação utiliza
+            exclusivamente dados reais.
+          </p>
+          {done !== null ? (
+            <p className="mt-3 text-sm text-[color:var(--gold)]">
+              RESET concluído — {done} bases operacionais limpas. Recarregando…
+            </p>
+          ) : confirming ? (
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={run}
+                className="cursor-pointer rounded-xl border border-[color:var(--destructive)]/50 bg-[color:var(--destructive)]/15 px-4 py-2 text-sm transition hover:scale-[1.02]"
+              >
+                Confirmar RESET definitivo
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                className="cursor-pointer rounded-xl border border-[color:var(--border)] px-4 py-2 text-sm transition hover:scale-[1.02]"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              className="mt-4 cursor-pointer rounded-xl border border-[color:var(--destructive)]/40 px-4 py-2 text-sm transition hover:scale-[1.02] hover:bg-[color:var(--destructive)]/10"
+            >
+              Executar RESET
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
