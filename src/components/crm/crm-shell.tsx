@@ -26,7 +26,12 @@ export function CrmShell({
   const [ready, setReady] = useState(false);
   const branding = useMemo(() => resolveCrmBranding(), []);
   const themeVars = useMemo(
-    () => crmCssVars(branding) as React.CSSProperties,
+    () =>
+      ({
+        ...crmCssVars(branding),
+        fontFamily:
+          'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
+      }) as React.CSSProperties,
     [branding],
   );
 
