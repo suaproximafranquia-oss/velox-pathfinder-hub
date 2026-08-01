@@ -73,6 +73,10 @@ export function GatewayOverlay({
       setError("Informe um e-mail válido para restaurar ou criar seu perfil.");
       return;
     }
+    if (phone.replace(/\D/g, "").length < 10) {
+      setError("Informe um WhatsApp válido para identificar sua jornada.");
+      return;
+    }
     const entry = readEntryContext();
     if (executive) setResponsibleExecutiveSlug(executive.slug);
     startPortalSession({
