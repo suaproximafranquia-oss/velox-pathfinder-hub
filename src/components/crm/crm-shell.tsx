@@ -67,30 +67,42 @@ export function CrmShell({
     );
   }
 
+  const initials = session.name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+
   return (
     <div
       style={themeVars}
-      className="min-h-screen bg-[color:var(--crm-background)] text-[color:var(--crm-foreground)]"
+      className="flex h-screen w-full flex-col overflow-hidden bg-[color:var(--crm-background)] text-[color:var(--crm-foreground)]"
     >
-      <header className="border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            {branding.logoUrl ? (
-              <img src={branding.logoUrl} alt={branding.companyName} className="h-6 w-auto" />
-            ) : null}
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-medium tracking-wide">{title}</span>
-              <span className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--crm-muted)]">
-                {branding.tagline}
-              </span>
-            </div>
-          </div>
-          <span className="text-xs text-[color:var(--crm-muted)]">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt={branding.companyName} className="h-5 w-auto" />
+          ) : (
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[color:var(--crm-accent-soft)] text-[11px] font-semibold text-[color:var(--crm-accent)]">
+              C
+            </span>
+          )}
+          <span className="truncate text-sm font-medium">{title}</span>
+          <span className="hidden truncate text-xs text-[color:var(--crm-muted)] sm:inline">
+            · {branding.tagline}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden text-xs text-[color:var(--crm-muted)] sm:inline">
             {session.name}
+          </span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--crm-hover)] text-[11px] font-medium text-[color:var(--crm-muted)]">
+            {initials}
           </span>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-10">{children(session)}</main>
+      <div className="flex min-h-0 flex-1">{children(session)}</div>
     </div>
   );
 }
