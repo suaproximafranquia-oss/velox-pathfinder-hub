@@ -129,9 +129,10 @@ function BackupsPage() {
           <div>
             <h1 className="font-display text-xl">Backup de Conversas</h1>
             <p className="mt-1 max-w-2xl text-xs text-[color:var(--muted-foreground)]">
-              Registro permanente dos relacionamentos. Módulo somente leitura —
-              nenhuma ação operacional é executada aqui. Toda abertura exige
-              motivo declarado e fica registrada.
+              Central única de backup. A aba GreenSales é corporativa e somente
+              leitura, com motivo obrigatório e auditoria permanente. A aba
+              Portal pertence ao Executivo responsável e permite restauração
+              operacional das conversas arquivadas.
             </p>
           </div>
         </div>
@@ -146,11 +147,31 @@ function BackupsPage() {
         </label>
       </div>
 
+      <nav className="mb-5 flex gap-1 border-b border-[color:var(--border)]">
+        {BACKUP_TABS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={[
+              "cursor-pointer rounded-t-lg px-4 py-2 text-xs transition",
+              tab === t
+                ? "border-b-2 border-[color:var(--gold)] text-[color:var(--foreground)]"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
+            ].join(" ")}
+          >
+            {t}
+          </button>
+        ))}
+      </nav>
+
       {records.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-[color:var(--border)] bg-[color:var(--card)]/30 p-12 text-center">
           <p className="font-display text-lg">Nenhum backup disponível.</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-[color:var(--muted-foreground)]">
-            {isSupervisor
+            {tab === "Portal"
+              ? "As conversas arquivadas do Portal aparecem aqui, prontas para restauração."
+              : isSupervisor
               ? "As conversas dos Executivos só aparecem aqui mediante autorização temporária do Administrador."
               : "Os relacionamentos registrados no CRM aparecem automaticamente nesta Central."}
           </p>
@@ -163,7 +184,20 @@ function BackupsPage() {
               record={r}
               isAdmin={isAdmin}
               adminId={session.userId}
-              onOpen={() => setPending(r)}
+              portalTab={tab === "Portal"}
+              onOpen={() => (tab === "Portal" ? setOpen(r) : setPending(r))}
+              onRestore={() => {
+                restoreRelationship({
+                  investorId: r.investorId,
+                  investorName: r.name,
+                  actorId: session.userId,
+                  actorName: session.name,
+                  actorRole: session.activeRole,
+                  ownerId: r.executiveId,
+                  origin: r.originLabel,
+                });
+                setTick((v) => v + 1);
+              }}
               onShareChanged={() => setTick((v) => v + 1)}
             />
           ))}
@@ -198,13 +232,17 @@ function BackupCard({
   record,
   isAdmin,
   adminId,
+  portalTab,
   onOpen,
+  onRestore,
   onShareChanged,
 }: {
   record: CrmBackupRecord;
   isAdmin: boolean;
   adminId: string;
+  portalTab: boolean;
   onOpen: () => void;
+  onRestore: () => void;
   onShareChanged: () => void;
 }) {
   const grant = backupGrantFor(record.investorId);
@@ -226,6 +264,9 @@ function BackupCard({
         <Row label="Status" value={record.stateLabel} />
         <Row label="Situação" value={record.statusLabel} />
         <Row label="Última movimentação" value={record.lastMovementLabel} />
+        {record.archivedAtLabel ? (
+          <Row label="Arquivado em" value={record.archivedAtLabel} />
+        ) : null}
       </dl>
 
       {grant ? (
@@ -236,6 +277,26 @@ function BackupCard({
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
+        {portalTab ? (
+          <>
+            <button
+              type="button"
+              onClick={onRestore}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-3 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Restaurar Conversa
+            </button>
+            <button
+              type="button"
+              onClick={onOpen}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] transition hover:text-[color:var(--foreground)]"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Abrir backup
+            </button>
+          </>
+        ) : (
         <button
           type="button"
           onClick={onOpen}
@@ -244,7 +305,8 @@ function BackupCard({
           <ShieldCheck className="h-3.5 w-3.5" />
           Abrir backup
         </button>
-        {isAdmin ? (
+        )}
+        {isAdmin && !portalTab ? (
           <button
             type="button"
             onClick={() => {
