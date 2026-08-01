@@ -69,6 +69,8 @@ export const GOOGLE_ACCOUNT_CONNECTORS: GoogleConnectorKey[] = [
  */
 export function friendlyGoogleMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/SEM_PERMISSAO_CONTA_GOOGLE/i.test(raw))
+    return "Apenas a administração pode gerenciar a Conta Google do Portal.";
   if (/pop-?up/i.test(raw)) return "Permita janelas pop-up para conectar sua Conta Google.";
   if (/fechada|closed/i.test(raw)) return "A conexão foi interrompida antes de ser concluída.";
   return "Não foi possível concluir a conexão com o Google. Tente novamente.";
