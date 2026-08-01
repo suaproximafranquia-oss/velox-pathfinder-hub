@@ -1,6 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { FlaskConical, Cake, ClipboardCheck, Trophy, Building2, LogOut, Trash2 } from "lucide-react";
+import {
+  FlaskConical,
+  Cake,
+  ClipboardCheck,
+  Trophy,
+  Building2,
+  LogOut,
+  Trash2,
+} from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   getSession,
@@ -20,10 +28,7 @@ import { logAudit } from "@/lib/audit-log";
 
 export const Route = createFileRoute("/executivo/laboratorio")({
   head: () => ({
-    meta: [
-      { title: "Laboratório Atlas — Simulações" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Laboratório Atlas — Simulações" }, { name: "robots", content: "noindex" }],
   }),
   component: LaboratorioPage,
 });
@@ -91,10 +96,7 @@ function LaboratorioPage() {
     setTargetUserId(s.userId);
   }, [navigate]);
 
-  const users: ExecutiveUser[] = useMemo(
-    () => loadUsers().filter((u) => u.status === "ativo"),
-    [],
-  );
+  const users: ExecutiveUser[] = useMemo(() => loadUsers().filter((u) => u.status === "ativo"), []);
   const scheduled: ScheduledRecognition[] = useMemo(() => listScheduled(), [tick]);
 
   if (!session) return null;
@@ -117,8 +119,7 @@ function LaboratorioPage() {
     navigate({ to: "/executivo" });
   }
 
-  const targetName =
-    users.find((u) => u.id === targetUserId)?.name ?? "usuário selecionado";
+  const targetName = users.find((u) => u.id === targetUserId)?.name ?? "usuário selecionado";
 
   return (
     <ExecutiveShell session={session} title="Laboratório Atlas">
@@ -132,15 +133,12 @@ function LaboratorioPage() {
               <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)]">
                 Ambiente exclusivo do Administrador
               </p>
-              <h2 className="font-display text-xl mt-1">
-                Simule eventos do Recognition Engine
-              </h2>
+              <h2 className="font-display text-xl mt-1">Simule eventos do Recognition Engine</h2>
               <p className="text-sm text-[color:var(--muted-foreground)] mt-2 leading-relaxed">
-                Os botões abaixo <strong>não disparam nada imediatamente</strong>.
-                Eles registram uma simulação vinculada ao usuário selecionado.
-                Após <em>logout e novo login</em> desse usuário, o engine
-                executará o evento como aconteceria em produção — e o removerá
-                automaticamente após a exibição.
+                Os botões abaixo <strong>não disparam nada imediatamente</strong>. Eles registram
+                uma simulação vinculada ao usuário selecionado. Após <em>logout e novo login</em>{" "}
+                desse usuário, o engine executará o evento como aconteceria em produção — e o
+                removerá automaticamente após a exibição.
               </p>
             </div>
           </div>
@@ -211,12 +209,18 @@ function LaboratorioPage() {
               {scheduled.map((s, i) => {
                 const u = users.find((x) => x.id === s.userId);
                 return (
-                  <li key={`${s.userId}-${s.occurrence}-${i}`} className="flex items-center justify-between py-2.5">
+                  <li
+                    key={`${s.userId}-${s.occurrence}-${i}`}
+                    className="flex items-center justify-between py-2.5"
+                  >
                     <div className="min-w-0">
                       <p className="text-sm truncate">
-                        {u?.name ?? s.userId} · <span className="text-[color:var(--muted-foreground)]">{s.type}</span>
+                        {u?.name ?? s.userId} ·{" "}
+                        <span className="text-[color:var(--muted-foreground)]">{s.type}</span>
                       </p>
-                      <p className="text-[11px] text-[color:var(--muted-foreground)]/80">{s.occurrence}</p>
+                      <p className="text-[11px] text-[color:var(--muted-foreground)]/80">
+                        {s.occurrence}
+                      </p>
                     </div>
                     <Trash2
                       className="h-4 w-4 text-[color:var(--muted-foreground)]/60"
@@ -228,8 +232,8 @@ function LaboratorioPage() {
             </ul>
           )}
           <p className="text-[11px] text-[color:var(--muted-foreground)] mt-4 leading-relaxed">
-            Após a exibição no login, cada simulação é removida automaticamente
-            do buffer — nenhuma repetição em logins seguintes.
+            Após a exibição no login, cada simulação é removida automaticamente do buffer — nenhuma
+            repetição em logins seguintes.
           </p>
         </section>
 
@@ -303,10 +307,10 @@ function HomologationResetCard({
           </p>
           <h2 className="font-display text-xl mt-1">RESET do ambiente de homologação</h2>
           <p className="text-sm text-[color:var(--muted-foreground)] mt-2 leading-relaxed">
-            Remove definitivamente Leads, conversas, alertas, auditorias, reuniões, cards,
-            timeline, jornadas e eventos simulados. Usuários, permissões, templates, estrutura,
-            banco e integrações permanecem intactos. A partir do RESET a homologação utiliza
-            exclusivamente dados reais.
+            Remove definitivamente Leads, conversas, alertas, auditorias, reuniões, cards, timeline,
+            jornadas e eventos simulados. Usuários, permissões, templates, estrutura, banco e
+            integrações permanecem intactos. A partir do RESET a homologação utiliza exclusivamente
+            dados reais.
           </p>
           {done !== null ? (
             <p className="mt-3 text-sm text-[color:var(--gold)]">

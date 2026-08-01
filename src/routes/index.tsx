@@ -252,9 +252,7 @@ function PortalHome() {
     writeEntryContext({ pendingModule: null });
     setActive({ key, title: mod.title, src: mod.panelSrc });
     setActiveOverlay(key);
-    setJourneyStatus(
-      key === "simulador" ? "simulador" : key === "manual" ? "manual" : "portal",
-    );
+    setJourneyStatus(key === "simulador" ? "simulador" : key === "manual" ? "manual" : "portal");
     trackSessionNavigation(key, mod.title);
   }, []);
 
@@ -553,13 +551,7 @@ function Hero() {
   );
 }
 
-function ModulesGrid({
-  onOpen,
-  unlocked,
-}: {
-  onOpen: (m: ModuleCard) => void;
-  unlocked: boolean;
-}) {
+function ModulesGrid({ onOpen, unlocked }: { onOpen: (m: ModuleCard) => void; unlocked: boolean }) {
   return (
     <section
       id="modulos"
@@ -604,10 +596,9 @@ function ModuleTile({
   locked?: boolean;
 }) {
   const Icon = m.icon;
-  const badge =
-    locked
-      ? "Confirme seu WhatsApp"
-      : m.status === "em-preparacao"
+  const badge = locked
+    ? "Confirme seu WhatsApp"
+    : m.status === "em-preparacao"
       ? "Em preparação"
       : m.status === "em-desenvolvimento"
         ? "Em desenvolvimento"

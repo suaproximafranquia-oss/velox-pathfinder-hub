@@ -222,19 +222,16 @@ function RootComponent() {
   // componente <EditorialShell>. Novos módulos (Sede, Revista,
   // Experiências, Biblioteca, FAQ, …) recebem a variante correta
   // adicionando uma entrada abaixo — nenhum estilo é duplicado.
-  const variant: EditorialVariant = isPortal
-    ? "portal"
-    : isUniverso
-      ? "universo"
-      : "manual";
+  const variant: EditorialVariant = isPortal ? "portal" : isUniverso ? "universo" : "manual";
 
-  const content = isPortal || isUniverso || isGateway ? (
-    <Outlet />
-  ) : (
-    <JourneyChrome>
+  const content =
+    isPortal || isUniverso || isGateway ? (
       <Outlet />
-    </JourneyChrome>
-  );
+    ) : (
+      <JourneyChrome>
+        <Outlet />
+      </JourneyChrome>
+    );
 
   return (
     <QueryClientProvider client={queryClient}>

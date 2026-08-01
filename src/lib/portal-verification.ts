@@ -152,8 +152,7 @@ export function confirmWhatsapp(input: {
     ...record,
     confirmedAt: now,
     confirmedIp: null,
-    confirmedUserAgent:
-      typeof navigator === "undefined" ? null : navigator.userAgent.slice(0, 180),
+    confirmedUserAgent: typeof navigator === "undefined" ? null : navigator.userAgent.slice(0, 180),
   };
   store[input.investorId] = confirmed;
   write(store);
