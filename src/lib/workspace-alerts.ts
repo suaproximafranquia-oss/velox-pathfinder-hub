@@ -113,8 +113,6 @@ function pushAlert(alert: Omit<WorkspaceAlert, "id">, stableId?: string) {
 export function evaluateInvestorMovement(): Investor[] {
   const windowMs = getReactivationWindowMs();
   const lastSeen = readLastSeen();
-  const windowMs = getReactivationWindowMs();
-  const lastSeen = readLastSeen();
   const investors = listAllInvestors().filter((i) => i.origin === "portal");
   const reactivated: Investor[] = [];
 
