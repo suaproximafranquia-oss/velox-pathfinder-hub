@@ -156,6 +156,22 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     () => filterConversations(conversations, query),
     [conversations, query],
   );
+
+  // DEF 2.4.10 §2 — toda atividade do investidor no Portal (Manual,
+  // Material, Calculadora, Workspace, retorno) vira alerta na Ficha e
+  // registro permanente na Timeline, automaticamente.
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    syncPortalActivity(
+      conversations.map((c) => ({
+        id: c.id,
+        name: c.name,
+        ownerId: c.ownerId,
+        originLabel: c.originLabel,
+      })),
+    );
+  }, [conversations]);
+
   const selected =
     visible.find((c) => c.id === selectedId) ??
     conversations.find((c) => c.id === selectedId) ??
