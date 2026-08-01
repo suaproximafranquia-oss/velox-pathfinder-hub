@@ -243,7 +243,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const chatWindow = useMemo(
     () =>
       selected && privateOk
-        ? resolveCrmWindow(lastInboundAt(selected.id))
+        ? resolveCrmWindow(windowAnchorAt(selected.id))
         : undefined,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selected?.id, privateOk, messageTick, tick, now],
@@ -389,7 +389,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   ? "Jornada Digital — inicie o relacionamento para liberar o envio"
                   : "Conversa disponível apenas ao Executivo responsável"
               }
-              onSend={(text) => {
+              onSend={(text, viaTemplate) => {
                 appendCrmMessage({
                   investorId: selected.id,
                   direction: "enviada",
@@ -397,6 +397,19 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   authorId: actor.userId,
                 });
                 markOutboundMessage(selected.id);
+                // DEF 2.4.15 §2 — Estado 02: o Template aprovado abre
+                // imediatamente uma nova Janela de Conversação de 24h.
+                if (viaTemplate) {
+                  markWindowOpened(selected.id);
+                  recordCrmEvent({
+                    investorId: selected.id,
+                    event: "janela_reaberta",
+                    origin: selected.originLabel,
+                    reason: "Template aprovado enviado — janela de 24 horas reaberta.",
+                    ownerId: selected.ownerId,
+                    actorId: actor.userId,
+                  });
+                }
                 recordCrmEvent({
                   investorId: selected.id,
                   event: "mensagem_enviada",
