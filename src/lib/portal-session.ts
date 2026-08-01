@@ -25,6 +25,13 @@ import {
 import { readEntryContext } from "@/lib/portal-entry";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { registerJourney, trackJourney } from "@/lib/journey/engine";
+import {
+  markJourneyOnly,
+  isArchived,
+  restoreRelationship,
+} from "@/lib/crm/commercial";
+import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
+import { recordCrmEvent } from "@/lib/crm/timeline";
 
 const SESSION_KEY = "velox:portal:session:v1";
 
@@ -86,6 +93,20 @@ function safeWrite(key: string, value: unknown) {
 function findLeadByEmail(email: string): LeadRecord | null {
   const normalized = normalizeEmail(email);
   return loadLeads().find((lead) => normalizeEmail(lead.email) === normalized) ?? null;
+}
+
+function digits(value?: string | null): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+/**
+ * Identificação de retorno (DEF 2.4.11): o mesmo WhatsApp jamais gera um
+ * novo cadastro — o histórico existente é sempre reaproveitado.
+ */
+function findLeadByPhone(phone?: string | null): LeadRecord | null {
+  const normalized = digits(phone);
+  if (normalized.length < 10) return null;
+  return loadLeads().find((lead) => digits(lead.whatsapp) === normalized) ?? null;
 }
 
 export function getPortalSession(): PortalSession | null {
@@ -151,20 +172,21 @@ export function getResumePoint(): { module: string; detail?: string; at: string 
 export function startPortalSession(input: {
   name: string;
   email: string;
+  phone?: string;
   origin?: string;
   nextPath?: string;
 }): PortalSession {
   const entry = readEntryContext();
   const responsible = getResponsibleExecutive();
   const identity = resolveIdentity({ name: input.name, email: input.email });
-  const existing = findLeadByEmail(input.email);
+  const existing = findLeadByEmail(input.email) ?? findLeadByPhone(input.phone);
   const baseLead =
     existing ??
     registerLead({
       identity: {
         name: input.name.trim(),
         email: normalizeEmail(input.email),
-        whatsapp: "",
+        whatsapp: input.phone?.trim() ?? "",
         city: "",
       },
       material: "Gateway Portal Velox",
@@ -183,6 +205,29 @@ export function startPortalSession(input: {
     : baseLead;
 
   attachLeadToIdentity(identity.id, lead.id);
+
+  /**
+   * DEF 2.4.11 — Jornada Digital.
+   *
+   * O visitante identificado NÃO gera Lead operacional, Card no Workspace
+   * nem Registro Comercial: ele existe apenas como conversa congelada no
+   * CRM. Investidor recorrente arquivado é restaurado automaticamente,
+   * mantendo Executivo responsável, histórico e jornada.
+   */
+  if (!existing) {
+    markJourneyOnly(lead.id);
+  } else if (isArchived(lead.id)) {
+    restoreRelationship({
+      investorId: lead.id,
+      investorName: lead.name,
+      actorId: "sistema",
+      actorName: "Sistema",
+      actorRole: "Automatizado",
+      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      origin: input.origin ?? entry.origin ?? "Portal Velox",
+      automatic: true,
+    });
+  }
 
   const now = new Date().toISOString();
   const session: PortalSession = {
@@ -242,6 +287,27 @@ export function startPortalSession(input: {
     whatsapp: lead.whatsapp,
     city: lead.city,
   });
+
+  // Template automático do sistema — única mensagem possível durante a
+  // Jornada Digital. Registrado uma única vez por relacionamento.
+  if (listCrmMessages(lead.id).length === 0) {
+    appendCrmMessage({
+      investorId: lead.id,
+      direction: "enviada",
+      body: existing
+        ? `Olá, ${lead.name}. Que bom ver você novamente. Seu progresso foi restaurado.`
+        : `Olá, ${lead.name}. Seja bem-vindo ao Portal Velox. Sua jornada foi iniciada e seu progresso ficará salvo.`,
+      authorId: "sistema",
+    });
+    recordCrmEvent({
+      investorId: lead.id,
+      event: "template_automatico",
+      origin: input.origin ?? entry.origin ?? "Portal Velox",
+      reason: "Mensagem automática de boas-vindas enviada pelo sistema.",
+      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      actorId: "sistema",
+    });
+  }
 
   emitEvent({
     type: "journey.started",

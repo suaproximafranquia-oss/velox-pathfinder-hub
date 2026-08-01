@@ -14,6 +14,7 @@ import { listMeetings, type Meeting } from "@/lib/meetings";
 import { listComments, type InvestorComment } from "@/lib/investor-comments";
 import { journeySummary } from "@/lib/journey/insights";
 import type { JourneySummary } from "@/lib/journey/insights";
+import { getCommercial } from "@/lib/crm/commercial";
 
 export type CrmBackupRecord = {
   investorId: string;
@@ -30,6 +31,11 @@ export type CrmBackupRecord = {
   email: string;
   originLabel: string;
   readingPct: number;
+  /** "green_sales" (Central Corporativa) ou "portal" (Backup do Executivo). */
+  workspaceKind: "green_sales" | "portal";
+  /** Relacionamento arquivado — disponível para restauração. */
+  archived: boolean;
+  archivedAtLabel?: string;
 };
 
 const ORIGIN_LABEL: Record<string, string> = {
@@ -38,14 +44,15 @@ const ORIGIN_LABEL: Record<string, string> = {
   manual: "Cadastro manual",
 };
 
-/** Todos os backups da Central Corporativa, do mais recente ao mais antigo. */
+/** Todos os backups da Central, do mais recente ao mais antigo. */
 export function listConversationBackups(): CrmBackupRecord[] {
   const nameById = new Map(loadUsers().map((u) => [u.id, u.name]));
-  return listAllInvestors()
+  return listAllInvestors({ includeJourneyOnly: true, includeArchived: true })
     .map<CrmBackupRecord>((i) => {
       const ownerId = officialOwnerId(i);
       const state = resolveLeadState({ id: i.id, lastActivity: i.lastActivity });
       const origin = i.origin ?? "portal";
+      const commercial = getCommercial(i.id);
       return {
         investorId: i.id,
         name: i.name,
@@ -61,6 +68,11 @@ export function listConversationBackups(): CrmBackupRecord[] {
         email: i.email,
         originLabel: ORIGIN_LABEL[origin] ?? "Portal Velox",
         readingPct: i.readingPct,
+        workspaceKind: origin === "green_sales" ? "green_sales" : "portal",
+        archived: commercial?.state === "arquivado",
+        archivedAtLabel: commercial?.archivedAt
+          ? new Date(commercial.archivedAt).toLocaleString("pt-BR")
+          : undefined,
       };
     })
     .sort((a, b) => (a.lastMovementIso < b.lastMovementIso ? 1 : -1));

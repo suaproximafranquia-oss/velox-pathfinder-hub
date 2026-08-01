@@ -20,6 +20,80 @@ import {
 } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
 
+/**
+ * Badge permanente da Jornada Digital (DEF 2.4.11): o investidor navega
+ * pelo Portal, mas o relacionamento comercial ainda não existe.
+ */
+export function CrmJourneyBadge() {
+  return (
+    <div className="crm-enter mx-auto mb-4 flex w-full max-w-2xl items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5">
+      <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+      <p className="text-[11px] leading-relaxed text-amber-800">
+        <span className="font-semibold">Jornada Digital</span>
+        <br />
+        Relacionamento ainda não iniciado. O histórico permanece visível e o
+        envio de mensagens fica bloqueado até o início do relacionamento.
+      </p>
+    </div>
+  );
+}
+
+/** Confirmação obrigatória antes de criar o Relacionamento Comercial. */
+export function CrmStartRelationshipDialog({
+  name,
+  onCancel,
+  onConfirm,
+}: {
+  name: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Iniciar relacionamento"
+      onClick={onCancel}
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="crm-enter w-full max-w-md rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-6"
+      >
+        <h2 className="text-base font-semibold tracking-[-0.01em]">
+          Iniciar relacionamento?
+        </h2>
+        <p className="mt-2 text-xs leading-relaxed text-[color:var(--crm-muted)]">
+          Até este momento {name} utilizou apenas a Jornada Digital.
+        </p>
+        <p className="mt-3 text-xs text-[color:var(--crm-muted)]">Ao continuar:</p>
+        <ul className="mt-1.5 space-y-1 text-xs leading-relaxed text-[color:var(--crm-muted)]">
+          <li>• será criado um Lead comercial;</li>
+          <li>• será criado automaticamente o Card no Workspace;</li>
+          <li>• a conversa será liberada;</li>
+          <li>• esta ação ficará registrada na Auditoria.</li>
+        </ul>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="cursor-pointer rounded-lg border border-[color:var(--crm-border)] px-3.5 py-2 text-xs font-medium transition-colors hover:bg-[color:var(--crm-hover)]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="cursor-pointer rounded-lg bg-[color:var(--crm-accent)] px-3.5 py-2 text-xs font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 active:translate-y-0"
+          >
+            Iniciar Relacionamento
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Indicador padronizado do estágio automático do relacionamento. */
 export function CrmStateDot({ item }: { item: CrmConversation }) {
   const meta = CRM_RELATIONSHIP_META[item.relationshipState];

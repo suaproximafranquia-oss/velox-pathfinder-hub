@@ -26,6 +26,7 @@ export type WorkspaceAlertCategory =
   | "manual_concluido"
   | "simulacao"
   | "contato_whatsapp"
+  | "atendimento_solicitado"
   | "engajamento_alto"
   | "reuniao"
   | "reuniao_solicitada"
@@ -53,6 +54,7 @@ export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, stri
   manual_concluido: "Manual Concluído",
   simulacao: "Simulação Realizada",
   contato_whatsapp: "Contato Solicitado",
+  atendimento_solicitado: "Atendimento Solicitado",
   engajamento_alto: "Engajamento Elevado",
   reuniao: "Lembrete de Reunião",
   reuniao_solicitada: "Nova Solicitação de Reunião",
@@ -458,6 +460,32 @@ export function recordPortalActivityAlert(input: {
       date: input.dateIso,
     },
     `wa_crm_atividade_${input.investorId}_${at}`,
+  );
+}
+
+/**
+ * Solicitação de atendimento (DEF 2.4.11): o investidor pediu contato e o
+ * Relacionamento Comercial foi criado automaticamente.
+ */
+export function recordServiceRequestAlert(input: {
+  ownerUserId: string;
+  investorId: string;
+  investorName: string;
+  dateIso: string;
+}) {
+  const at = Date.parse(input.dateIso);
+  if (!Number.isFinite(at)) return;
+  pushAlert(
+    {
+      ownerUserId: input.ownerUserId,
+      category: "atendimento_solicitado",
+      title: `${input.investorName} solicitou atendimento`,
+      description:
+        "Relacionamento comercial criado automaticamente. Conversa liberada no CRM e Card disponível no Workspace.",
+      investorId: input.investorId,
+      date: input.dateIso,
+    },
+    `wa_crm_atendimento_${input.investorId}_${at}`,
   );
 }
 

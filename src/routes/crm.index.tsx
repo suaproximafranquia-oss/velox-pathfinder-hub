@@ -21,6 +21,8 @@ import {
   CrmDuplicateNotice,
   CrmStateChip,
   CrmCopyLinkButton,
+  CrmJourneyBadge,
+  CrmStartRelationshipDialog,
 } from "@/components/crm/crm-conversation";
 import {
   User,
@@ -31,6 +33,8 @@ import {
   BellRing,
   Video,
   CalendarPlus,
+  Handshake,
+  Archive,
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
@@ -64,6 +68,7 @@ import {
   WORKSPACE_ALERT_CATEGORY_LABEL,
 } from "@/lib/workspace-alerts";
 import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
+import { startRelationship, archiveRelationship } from "@/lib/crm/commercial";
 
 export const Route = createFileRoute("/crm/")({
   head: () => ({
@@ -121,6 +126,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [messageTick, setMessageTick] = useState(0);
+  const [startOpen, setStartOpen] = useState(false);
   const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
 
@@ -205,6 +211,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const executiveName = (id?: string) =>
     executives.find((e) => e.id === id)?.name ?? "—";
   const privateOk = selected ? canSeePrivateContent(selected.access) : false;
+  // Jornada Digital: conversa congelada — envio manual bloqueado.
+  const journeyOnly = Boolean(selected?.journeyOnly);
+  const composerEnabled = privateOk && !journeyOnly;
 
   // Histórico da conversa — persistido, nunca some após o envio.
   const messages = useMemo(
@@ -343,8 +352,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         footer={
           isConversas && selected ? (
             <CrmComposer
-              disabled={!privateOk}
-              hint="Conversa disponível apenas ao Executivo responsável"
+              disabled={!composerEnabled}
+              hint={
+                journeyOnly
+                  ? "Jornada Digital — inicie o relacionamento para liberar o envio"
+                  : "Conversa disponível apenas ao Executivo responsável"
+              }
               onSend={(text) => {
                 appendCrmMessage({
                   investorId: selected.id,
@@ -376,6 +389,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : (
             <>
               <CrmDuplicateNotice item={selected} />
+              {journeyOnly ? <CrmJourneyBadge /> : null}
               <CrmThread item={selected} messages={messages} />
             </>
           )
@@ -438,6 +452,43 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               </div>
               <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
+              {/* DEF 2.4.11 — único comando disponível durante a Jornada
+                  Digital. Ao confirmar, o relacionamento comercial nasce
+                  preservando integralmente todo o histórico anterior. */}
+              {journeyOnly && privateOk ? (
+                <button
+                  type="button"
+                  onClick={() => setStartOpen(true)}
+                  className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 active:translate-y-0"
+                >
+                  <Handshake className="h-3.5 w-3.5" />
+                  Iniciar Relacionamento
+                </button>
+              ) : null}
+              {/* Arquivamento do relacionamento Portal: nada é apagado —
+                  tudo migra para a aba Portal da Central de Backup. */}
+              {!journeyOnly && privateOk && selected.workspaceLabel === "Portal" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    archiveRelationship({
+                      investorId: selected.id,
+                      investorName: selected.name,
+                      actorId: actor.userId,
+                      actorName: session.name,
+                      actorRole: session.activeRole,
+                      ownerId: selected.ownerId,
+                      origin: selected.originLabel,
+                    });
+                    setSelectedId(null);
+                    setTick((v) => v + 1);
+                  }}
+                  className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--crm-muted)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                  Arquivar conversa
+                </button>
+              ) : null}
               {/* DEF 2.4.9 §1 — a redistribuição existe apenas enquanto NÃO
                   houver Executivo responsável. Relacionamento já iniciado
                   jamais é redistribuído. */}
@@ -601,6 +652,27 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               ownerId: selected.ownerId,
               actorId: actor.userId,
             });
+            setTick((v) => v + 1);
+          }}
+        />
+      ) : null}
+
+      {startOpen && selected ? (
+        <CrmStartRelationshipDialog
+          name={selected.name}
+          onCancel={() => setStartOpen(false)}
+          onConfirm={() => {
+            startRelationship({
+              investorId: selected.id,
+              investorName: selected.name,
+              actorId: actor.userId,
+              actorName: session.name,
+              actorRole: session.activeRole,
+              ownerId: selected.ownerId,
+              origin: selected.originLabel,
+              source: "executivo",
+            });
+            setStartOpen(false);
             setTick((v) => v + 1);
           }}
         />
