@@ -29,6 +29,17 @@ import {
   type CrmRelationshipState,
 } from "@/lib/crm/relationship-state";
 import { recordReactivationAlert } from "@/lib/workspace-alerts";
+import { getJourney } from "@/lib/journey/engine";
+/**
+ * WhatsApp do investidor (DEF 2.4.10 §4): sempre que o número existir em
+ * qualquer camada oficial (cadastro ou jornada) ele é exibido.
+ */
+function phoneOf(i: Investor): string {
+  const direct = (i.phone ?? "").trim();
+  if (direct) return direct;
+  return (getJourney(i.id)?.phone ?? "").trim();
+}
+
 
 export type CrmConversation = {
   id: string;
@@ -143,7 +154,7 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
         id: i.id,
         name: i.name,
         initials: initialsOf(i.name),
-        phone: i.phone,
+        phone: phoneOf(i),
         email: i.email,
         city: i.city,
         lastInteraction: i.lastEventLabel ?? STATUS_LABEL[i.status],
