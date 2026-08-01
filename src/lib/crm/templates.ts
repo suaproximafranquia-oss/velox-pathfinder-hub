@@ -16,19 +16,19 @@ const first = (name: string) => (name || "").trim().split(/\s+/)[0] || "";
 export const CRM_TEMPLATES: CrmTemplate[] = [
   {
     id: "primeiro_contato",
-    label: "Primeiro contato",
+    label: "Primeiro Contato",
     body: (n) =>
       `Olá, ${first(n)}! Sou Executivo de Expansão da Velox. Recebi seu interesse em conhecer nosso modelo de franquia e fico à disposição para esclarecer qualquer dúvida, sem compromisso.`,
   },
   {
     id: "envio_manual",
-    label: "Envio do Manual",
+    label: "Envio de Material",
     body: (n) =>
       `${first(n)}, preparei o Manual do Investidor com todas as informações sobre investimento, produtos e suporte. Pode ler com calma e, depois, conversamos sobre o que fizer mais sentido para você.`,
   },
   {
     id: "convite_reuniao",
-    label: "Convite para reunião",
+    label: "Convite para Reunião",
     body: (n) =>
       `${first(n)}, podemos marcar uma conversa on-line de cerca de 30 minutos para eu apresentar o modelo em detalhes e responder suas dúvidas? Me diga um dia e horário confortáveis para você.`,
   },
@@ -40,7 +40,7 @@ export const CRM_TEMPLATES: CrmTemplate[] = [
   },
   {
     id: "retomada",
-    label: "Retomada de contato",
+    label: "Retomada de Contato",
     body: (n) =>
       `${first(n)}, faz um tempo desde nossa última conversa. Caso ainda tenha interesse em avaliar a oportunidade, posso retomar de onde paramos.`,
   },
@@ -58,30 +58,30 @@ export type CrmWindowStatus = {
 };
 
 export function resolveCrmWindow(
-  lastInboundIso: string | null | undefined,
+  anchorIso: string | null | undefined,
   now = Date.now(),
 ): CrmWindowStatus {
-  const at = lastInboundIso ? Date.parse(lastInboundIso) : NaN;
+  const at = anchorIso ? Date.parse(anchorIso) : NaN;
   if (!Number.isFinite(at)) {
     return {
       open: false,
-      label: "Janela 24h fechada",
-      hint: "Sem resposta do investidor: utilize um template aprovado para reabrir a conversa.",
+      label: "Janela de Conversação Encerrada",
+      hint: "Envio livre bloqueado. Selecione um Template aprovado para reabrir a conversa.",
     };
   }
   const remaining = at + CRM_WINDOW_MS - now;
   if (remaining <= 0) {
     return {
       open: false,
-      label: "Janela 24h fechada",
-      hint: "A janela de 24 horas expirou: utilize um template aprovado para reabrir a conversa.",
+      label: "Janela de Conversação Encerrada",
+      hint: "A janela de 24 horas expirou. Selecione um Template aprovado para reabrir a conversa.",
     };
   }
   const hours = Math.floor(remaining / 3_600_000);
   const minutes = Math.floor((remaining % 3_600_000) / 60_000);
   return {
     open: true,
-    label: hours > 0 ? `Janela 24h · ${hours}h ${minutes}min` : `Janela 24h · ${minutes}min`,
-    hint: "Janela de 24 horas aberta: mensagens livres liberadas.",
+    label: hours > 0 ? `Janela aberta · ${hours}h ${minutes}min` : `Janela aberta · ${minutes}min`,
+    hint: "Janela aberta: mensagens livres, anexos e emojis liberados.",
   };
 }

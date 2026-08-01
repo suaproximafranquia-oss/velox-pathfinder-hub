@@ -11,9 +11,7 @@ import {
   Library,
   Sparkles,
   Users2,
-  Video,
   BarChart3,
-  FolderOpen,
   UserCircle2,
   Settings,
   Database,
@@ -47,11 +45,11 @@ export type PlatformModule = {
 export const PLATFORM_MODULES: PlatformModule[] = [
   {
     id: "manual",
-    name: "Manual do Investidor",
+    name: "Portal do Investidor",
     description:
-      "Material educativo para preparar o investidor antes do contato consultivo.",
+      "Home do Portal do Investidor. O Manual é apenas o primeiro conteúdo da jornada.",
     icon: BookOpen,
-    href: "/manual",
+    href: "/",
     external: true,
     status: "ativo",
   },
@@ -101,32 +99,12 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     requiresRole: ["super_admin", "diretora"],
   },
   {
-    id: "recursos",
-    name: "Centro de Recursos",
-    description:
-      "Ativos institucionais reutilizáveis — apresentações, PDFs, vídeos e treinamentos.",
-    icon: FolderOpen,
-    to: "/executivo/recursos",
-    status: "ativo",
-    requiresRole: ["super_admin", "diretora"],
-  },
-  {
     id: "crm",
     name: "CRM",
     description:
-      "Gestão comercial e relacionamento com investidores. Abre o Green Sales em nova aba.",
+      "Ambiente operacional de relacionamento com investidores. Abre em nova aba.",
     icon: Users2,
-    href: "https://adm.greennsales.com.br/velox/home",
-    external: true,
-    status: "ativo",
-  },
-  {
-    id: "reunioes",
-    name: "Reuniões",
-    description:
-      "Sala virtual integrada. Abre o Google Meet em nova aba até a integração definitiva.",
-    icon: Video,
-    href: "https://meet.google.com/landing?authuser=0",
+    href: "/crm",
     external: true,
     status: "ativo",
   },
