@@ -40,12 +40,7 @@ import {
 } from "@/lib/crm/distribution";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { loadUsers } from "@/lib/executive-auth";
-import {
-  recordCrmEvent,
-  listCrmTimeline,
-  CRM_TIMELINE_LABEL,
-  formatCrmTimestamp,
-} from "@/lib/crm/timeline";
+import { recordCrmEvent } from "@/lib/crm/timeline";
 import { actorFromSession } from "@/lib/crm/access";
 import { CRM_AREAS, type CrmAreaKey } from "@/lib/crm/modules";
 import { listConversations, filterConversations } from "@/lib/crm/relationships";
@@ -192,11 +187,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     if (!selected) return;
     setOpenedIds((prev) => (prev.includes(selected.id) ? prev : [...prev, selected.id]));
   }, [selected?.id]);
-
-  const timeline = useMemo(
-    () => (selected && privateOk ? listCrmTimeline(selected.id).slice(0, 6) : []),
-    [selected?.id, privateOk, tick],
-  );
 
   // Alertas ATIVOS do investidor aberto. O histórico permanente continua
   // exclusivamente na Central de Alertas — o CRM nunca a substitui.
