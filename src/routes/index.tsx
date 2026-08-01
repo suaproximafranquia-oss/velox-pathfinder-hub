@@ -40,6 +40,13 @@ import {
   getPortalSession,
 } from "@/lib/portal-session";
 import { isPortalUnlocked } from "@/lib/portal-verification";
+import { loadLeads } from "@/lib/leads";
+
+/** WhatsApp informado no Gateway — usado apenas para a confirmação. */
+function sessionPhone(investorId: string | null | undefined): string {
+  if (!investorId) return "";
+  return loadLeads().find((lead) => lead.id === investorId)?.whatsapp ?? "";
+}
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
@@ -357,7 +364,7 @@ function PortalHome() {
             open={confirmOpen}
             investorId={getPortalSession()?.investorId ?? ""}
             investorName={getPortalSession()?.name ?? "Visitante"}
-            phone={getPortalSession()?.email ? (getPortalSession()?.investorId ? "" : "") : ""}
+            phone={sessionPhone(getPortalSession()?.investorId)}
             onClose={() => {
               setConfirmOpen(false);
               writeEntryContext({ pendingModule: null });
