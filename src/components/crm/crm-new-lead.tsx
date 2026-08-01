@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Upload, Sparkles, UserPlus, X, Loader2 } from "lucide-react";
 import { extractLeadFromImage } from "@/lib/crm/lead-import.functions";
 import { createCrmLead, type CrmLeadInput } from "@/lib/crm/lead-intake";
+import { nextRoundRobinOwner } from "@/lib/crm/round-robin";
 
 /**
  * Novo Lead (DF 2.4.5) — duas formas permanentes de criação:
