@@ -65,7 +65,6 @@ import {
 } from "@/lib/workspace-alerts";
 
 export const Route = createFileRoute("/crm/")({
-
   head: () => ({
     meta: [
       { title: "CRM de Relacionamento — Portal Velox" },
