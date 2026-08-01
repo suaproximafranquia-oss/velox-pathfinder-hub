@@ -270,9 +270,10 @@ function MeetingsPage() {
     <ExecutiveShell session={session} title="Central de Reuniões">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 mb-5 sm:flex sm:flex-wrap sm:justify-between">
         <p className="text-sm text-[color:var(--muted-foreground)] max-w-2xl min-w-0">
-          Painel de acompanhamento das reuniões da sua carteira. As reuniões são
-          criadas exclusivamente a partir do Lead no Workspace — esta Central
-          apenas consulta, acompanha, cancela e registra.
+          Histórico consolidado das reuniões da sua carteira. As reuniões são
+          criadas a partir do Lead no Workspace e operadas no CRM — esta Central
+          apenas consulta, pesquisa, filtra, audita e registra. Nenhuma reunião
+          é excluída.
         </p>
       </div>
 
