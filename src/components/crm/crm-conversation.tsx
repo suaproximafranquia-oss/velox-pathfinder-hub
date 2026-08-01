@@ -277,7 +277,7 @@ export function CrmComposer({
   investorName = "",
   window: win,
 }: {
-  onSend: (text: string) => void;
+  onSend: (text: string, viaTemplate: boolean) => void;
   disabled?: boolean;
   hint?: string;
   /** Nome usado na personalização dos templates. */
@@ -286,22 +286,35 @@ export function CrmComposer({
 }) {
   const [text, setText] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [armedTemplate, setArmedTemplate] = useState(false);
+  /**
+   * DEF 2.4.15 §2 — Estado 01: com a Janela de Conversação encerrada a
+   * digitação, o foco, o ENTER e o botão Enviar ficam totalmente
+   * bloqueados. Somente um Template aprovado pode ser disparado, e o
+   * disparo reabre imediatamente a janela (Estado 02).
+   */
+  const windowClosed = Boolean(win && !win.open);
+  const typingBlocked = disabled || windowClosed;
+  const canSend =
+    !disabled && text.trim().length > 0 && (!windowClosed || armedTemplate);
   const submit = () => {
-    if (disabled) return;
+    if (!canSend) return;
     const value = text.trim();
     if (!value) return;
-    onSend(value);
+    onSend(value, armedTemplate);
     setText("");
+    setArmedTemplate(false);
   };
   return (
     <div className="shrink-0 border-t border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3">
       {win && !disabled ? (
         <p
           className={[
-            "mb-2 text-[11px]",
-            win.open ? "text-emerald-700" : "text-amber-700",
+            "mb-2 inline-flex items-center gap-1.5 rounded-full py-0.5 text-[11px]",
+            win.open ? "text-emerald-700" : "bg-rose-50 px-2 font-medium text-rose-700",
           ].join(" ")}
         >
+          {win.open ? null : <Lock className="h-3 w-3 shrink-0" />}
           {win.hint}
         </p>
       ) : null}
@@ -313,6 +326,7 @@ export function CrmComposer({
               type="button"
               onClick={() => {
                 setText(t.body(investorName));
+                setArmedTemplate(true);
                 setTemplatesOpen(false);
               }}
               className="cursor-pointer rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
@@ -328,7 +342,7 @@ export function CrmComposer({
           disabled={disabled}
           aria-expanded={templatesOpen}
           aria-label="Templates de mensagem"
-          title="Templates de mensagem"
+          title="Templates aprovados"
           onClick={() => setTemplatesOpen((v) => !v)}
           className={[
             "inline-flex h-[42px] w-[42px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[color:var(--crm-border)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0",
@@ -342,21 +356,35 @@ export function CrmComposer({
         <input
           value={text}
           disabled={disabled}
+          readOnly={windowClosed}
+          onFocus={(e) => {
+            if (windowClosed) e.currentTarget.blur();
+          }}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
+            if (typingBlocked) {
+              e.preventDefault();
+              return;
+            }
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               submit();
             }
           }}
-          placeholder={disabled ? (hint ?? "Conversa indisponível") : "Digite uma mensagem..."}
+          placeholder={
+            disabled
+              ? (hint ?? "Conversa indisponível")
+              : windowClosed
+                ? "Janela encerrada — escolha um Template para reabrir"
+                : "Digite uma mensagem..."
+          }
           aria-label="Digite uma mensagem"
-          className="min-w-0 flex-1 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-[color:var(--crm-muted)] focus:border-[color:var(--crm-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-w-0 flex-1 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] px-3.5 py-2.5 text-sm outline-none transition-colors placeholder:text-[color:var(--crm-muted)] focus:border-[color:var(--crm-accent)] disabled:cursor-not-allowed disabled:opacity-60 read-only:cursor-not-allowed read-only:opacity-60"
         />
         <button
           type="button"
           onClick={submit}
-          disabled={disabled || !text.trim()}
+          disabled={!canSend}
           className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-[color:var(--crm-accent)] px-3.5 py-2.5 text-xs font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 hover:shadow-sm active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
         >
           <Send className="h-3.5 w-3.5" />
