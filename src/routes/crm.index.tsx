@@ -20,6 +20,7 @@ import {
   CrmSupervisionView,
   CrmDuplicateNotice,
   CrmStateChip,
+  CrmCopyLinkButton,
 } from "@/components/crm/crm-conversation";
 import {
   User,
@@ -35,6 +36,7 @@ import {
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import { markOutboundMessage } from "@/lib/crm/relationship-state";
+import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
 import {
@@ -110,6 +112,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
+  const [messageTick, setMessageTick] = useState(0);
   const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
 
