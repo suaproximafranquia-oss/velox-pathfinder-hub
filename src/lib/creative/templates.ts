@@ -19,6 +19,8 @@ export type UnitBrief = {
   headline: string;
   subheadline: string;
   supporting: string;
+  /** Fotografia institucional da cidade (data URI). Campo variável. */
+  photo?: string | null;
 };
 
 const W = 1080;
@@ -62,6 +64,21 @@ function logoBlock(logoHref: string | null, x: number, y: number, h: number): st
   return `<text x="${x}" y="${y + h * 0.75}" font-family="${BRAND.displayFont}" font-size="${h}" letter-spacing="6" fill="${BRAND.white}">VELOX</text>`;
 }
 
+/**
+ * Camada fotográfica — único elemento visual variável da arte. A
+ * fotografia entra sempre sob o mesmo véu institucional, preservando
+ * integralmente cores, contraste e legibilidade do padrão oficial.
+ */
+function photoLayer(photo: string | null | undefined, veil: string): string {
+  if (!photo) return "";
+  return `<g clip-path="url(#frame)">
+    <image href="${photo}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>
+    <rect width="${W}" height="${H}" fill="${veil}" fill-opacity="0.84"/>
+  </g>`;
+}
+
+const CLIP = `<clipPath id="frame"><rect width="${W}" height="${H}"/></clipPath>`;
+
 /** MODELO A — Institucional: sóbrio, corporativo, credibilidade. */
 function institucional(brief: UnitBrief, logoHref: string | null): string {
   const head = wrap(brief.headline, 22, 3);
@@ -73,8 +90,10 @@ function institucional(brief: UnitBrief, logoHref: string | null): string {
       <stop offset="0%" stop-color="${BRAND.navy}"/>
       <stop offset="100%" stop-color="${BRAND.navyDeep}"/>
     </linearGradient>
+    ${CLIP}
   </defs>
   <rect width="${W}" height="${H}" fill="url(#bgA)"/>
+  ${photoLayer(brief.photo, BRAND.navyDeep)}
   <rect x="52" y="52" width="${W - 104}" height="${H - 104}" fill="none" stroke="${BRAND.gold}" stroke-opacity="0.45" stroke-width="2"/>
   ${logoBlock(logoHref, 104, 116, 68)}
   <text x="104" y="236" font-family="${BRAND.bodyFont}" font-size="22" letter-spacing="7" fill="${BRAND.gold}">COMUNICADO OFICIAL</text>
@@ -107,8 +126,10 @@ function marketing(brief: UnitBrief, logoHref: string | null): string {
       <stop offset="0%" stop-color="${BRAND.gold}"/>
       <stop offset="100%" stop-color="${BRAND.goldSoft}"/>
     </linearGradient>
+    ${CLIP}
   </defs>
   <rect width="${W}" height="${H}" fill="url(#bgB)"/>
+  ${photoLayer(brief.photo, BRAND.navy)}
   <circle cx="${W - 60}" cy="180" r="320" fill="${BRAND.gold}" fill-opacity="0.10"/>
   <circle cx="60" cy="${H - 120}" r="260" fill="${BRAND.gold}" fill-opacity="0.07"/>
   <rect x="0" y="0" width="14" height="${H}" fill="url(#goldB)"/>
