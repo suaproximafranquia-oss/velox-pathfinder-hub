@@ -945,9 +945,19 @@ body[data-shell="universo"] :focus-visible {
 .crm-chat-surface {
   background-color: var(--crm-background);
   background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--crm-accent) 5%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--crm-accent) 5%, transparent) 1px,
+      transparent 1px
+    ),
     radial-gradient(
       circle at 1px 1px,
-      color-mix(in srgb, var(--crm-muted) 16%, transparent) 1px,
+      color-mix(in srgb, var(--crm-muted) 14%, transparent) 1px,
       transparent 0
     ),
     linear-gradient(
@@ -956,6 +966,8 @@ body[data-shell="universo"] :focus-visible {
       transparent 42%
     );
   background-size:
+    64px 64px,
+    64px 64px,
     22px 22px,
     100% 100%;
 }
