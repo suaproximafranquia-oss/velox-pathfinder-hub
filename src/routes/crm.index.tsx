@@ -481,6 +481,23 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           />
         )}
       </CrmDetailsPane>
+
+      {newLeadOpen ? (
+        <CrmNewLeadDialog
+          ownerId={actor.userId}
+          onClose={() => setNewLeadOpen(false)}
+          onCreated={(name) => {
+            setTick((v) => v + 1);
+            void pullLeads()
+              .then(() => setTick((v) => v + 1))
+              .catch(() => undefined);
+            if (typeof window !== "undefined") {
+              window.setTimeout(() => setTick((v) => v + 1), 300);
+            }
+            void name;
+          }}
+        />
+      ) : null}
     </>
   );
 }
