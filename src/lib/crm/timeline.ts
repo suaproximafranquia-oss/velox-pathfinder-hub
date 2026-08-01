@@ -17,7 +17,9 @@ export type CrmTimelineEvent =
   | "distribuicao_realizada"
   | "sincronizacao_tardia"
   | "conflito_identificado"
-  | "responsavel_mantido";
+  | "responsavel_mantido"
+  | "lead_criado"
+  | "lead_redistribuido";
 
 export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   relacionamento_oficial: "Relacionamento oficial definido",
@@ -32,6 +34,8 @@ export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   sincronizacao_tardia: "Sincronização tardia",
   conflito_identificado: "Conflito identificado",
   responsavel_mantido: "Responsável mantido",
+  lead_criado: "Lead criado no CRM",
+  lead_redistribuido: "Lead redistribuído",
 };
 
 export type CrmTimelineEntry = {

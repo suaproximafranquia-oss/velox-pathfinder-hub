@@ -34,6 +34,12 @@ import { listMeetings } from "@/lib/meetings";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
 import {
+  CrmNewLeadButton,
+  CrmNewLeadDialog,
+  CrmRedistributeRow,
+} from "@/components/crm/crm-new-lead";
+import { redistributeLead, isPrivateLead } from "@/lib/crm/lead-intake";
+import {
   listIntakeLeads,
   assignLead,
   setSyncWaitHours,
@@ -98,6 +104,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   // Conversas já abertas nesta sessão — o indicador some ao abrir.
   const [openedIds, setOpenedIds] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
+  const [newLeadOpen, setNewLeadOpen] = useState(false);
   const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
 
@@ -226,6 +233,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         query={isConversas ? query : undefined}
         onQueryChange={isConversas ? setQuery : undefined}
         searchPlaceholder="Buscar investidor"
+        action={
+          isConversas ? <CrmNewLeadButton onOpen={() => setNewLeadOpen(true)} /> : undefined
+        }
       >
         {isConversas ? (
           visible.length > 0 ? (
@@ -351,6 +361,30 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               </div>
               <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
+              {canManageDistribution ? (
+                <div className="pt-1">
+                  {isPrivateLead(selected.id) ? (
+                    <p className="text-[11px] text-[color:var(--crm-muted)]">
+                      Lead particular do Executivo — fora da redistribuição automática.
+                    </p>
+                  ) : null}
+                  <div className="mt-2">
+                    <CrmRedistributeRow
+                      executives={executives}
+                      currentOwnerId={selected.ownerId}
+                      onRedistribute={(executiveId) => {
+                        redistributeLead({
+                          investorId: selected.id,
+                          newOwnerId: executiveId,
+                          actorId: actor.userId,
+                          origin: selected.originLabel,
+                        });
+                        setTick((v) => v + 1);
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null}
             </CrmRecordSection>
 
             <CrmRecordSection title="Portal do investidor" tone="roxo" icon={Compass}>
@@ -447,6 +481,23 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           />
         )}
       </CrmDetailsPane>
+
+      {newLeadOpen ? (
+        <CrmNewLeadDialog
+          ownerId={actor.userId}
+          onClose={() => setNewLeadOpen(false)}
+          onCreated={(name) => {
+            setTick((v) => v + 1);
+            void pullLeads()
+              .then(() => setTick((v) => v + 1))
+              .catch(() => undefined);
+            if (typeof window !== "undefined") {
+              window.setTimeout(() => setTick((v) => v + 1), 300);
+            }
+            void name;
+          }}
+        />
+      ) : null}
     </>
   );
 }

@@ -94,6 +94,60 @@ export function officialOwnerId(investor: Investor): string {
   return record?.ownerId ?? investor.assignedToUserId;
 }
 
+/**
+ * Cria o vínculo oficial de um Lead nascido dentro do próprio CRM
+ * (Importador Inteligente ou Cadastro Manual).
+ */
+export function claimOwnership(input: {
+  investorId: string;
+  ownerId: string;
+  phone: string;
+  email: string;
+  origin: string;
+}): CrmOwnershipRecord {
+  const all = readAll();
+  const existing = all.find((r) => r.investorId === input.investorId);
+  if (existing) return existing;
+  const record: CrmOwnershipRecord = {
+    investorId: input.investorId,
+    ownerId: input.ownerId,
+    phoneKey: phoneKeyOf(input.phone),
+    emailKey: emailKeyOf(input.email),
+    origin: input.origin,
+    claimedAt: new Date().toISOString(),
+  };
+  writeAll([...all, record]);
+  return record;
+}
+
+/**
+ * Redistribuição MANUAL (Gestora). É a única forma de trocar o
+ * responsável oficial — sincronizações continuam sem esse poder.
+ */
+export function reassignOwnership(
+  investorId: string,
+  newOwnerId: string,
+  origin: string,
+): CrmOwnershipRecord {
+  const all = readAll();
+  const idx = all.findIndex((r) => r.investorId === investorId);
+  const record: CrmOwnershipRecord =
+    idx >= 0
+      ? { ...all[idx], ownerId: newOwnerId, claimedAt: new Date().toISOString() }
+      : {
+          investorId,
+          ownerId: newOwnerId,
+          phoneKey: "",
+          emailKey: "",
+          origin,
+          claimedAt: new Date().toISOString(),
+        };
+  if (idx >= 0) all[idx] = record;
+  else all.push(record);
+  writeAll(all);
+  return record;
+}
+
 export type CrmDuplicate = {
   /** Investidor que já possui relacionamento ativo. */
   investorId: string;
