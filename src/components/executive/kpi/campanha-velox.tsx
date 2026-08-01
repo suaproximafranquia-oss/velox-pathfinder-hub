@@ -18,7 +18,8 @@ import { cn } from "@/lib/utils";
 export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
   const { value, percent, level } = campaignStatus(salesValue);
   const barColor = level?.color ?? "rgba(148, 163, 184, 0.55)"; // slate-400/55 neutro
-  const trackColor = "rgba(148, 163, 184, 0.28)";
+  // Trilho mais claro e preenchimento com brilho — leitura imediata.
+  const trackColor = "rgba(226, 232, 240, 0.22)";
   const percentLabel = `${percent.toFixed(1).replace(".", ",")}%`;
   const nextLevel = CAMPAIGN_LEVELS.find((l) => value < l.min) ?? null;
   const remaining = nextLevel ? Math.max(0, nextLevel.min - value) : 0;
@@ -59,10 +60,10 @@ export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
 
       <div className="mt-4">
         <div
-          className="relative h-3.5 w-full overflow-hidden rounded-full border border-white/10"
+          className="relative h-5 w-full overflow-hidden rounded-full border border-white/25"
           style={{
             backgroundColor: trackColor,
-            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.35)",
+            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.30)",
           }}
           role="progressbar"
           aria-valuemin={0}
@@ -77,12 +78,15 @@ export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
             )}
             style={{
               width: `${percent}%`,
+              backgroundImage: `linear-gradient(90deg, ${barColor} 0%, ${barColor} 65%, rgba(255,255,255,0.35) 100%)`,
               backgroundColor: barColor,
-              boxShadow: `0 0 14px -2px ${barColor}`,
+              boxShadow: `0 0 16px -2px ${barColor}, inset 0 1px 0 rgba(255,255,255,0.35)`,
             }}
           />
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums tracking-wide text-[color:var(--foreground)] drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
-            {percentLabel}
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="rounded-full bg-black/55 px-2 py-[1px] text-[11px] font-semibold tabular-nums tracking-wide text-white shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+              {percentLabel}
+            </span>
           </span>
         </div>
 
