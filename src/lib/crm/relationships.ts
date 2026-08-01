@@ -1,0 +1,124 @@
+/**
+ * CRM de Relacionamento — camada de leitura sobre o Portal do Executivo.
+ *
+ * O CRM NÃO possui base própria: ele lê exatamente os mesmos investidores
+ * do Workspace do Executivo (`listAllInvestors`) e apenas os apresenta em
+ * formato de conversas. Nenhum cadastro é criado, duplicado ou alterado
+ * aqui — o Portal do Executivo continua sendo a fonte oficial dos dados.
+ */
+import {
+  listAllInvestors,
+  STATUS_LABEL,
+  formatRelative,
+  type Investor,
+} from "@/lib/executive-data";
+import { canViewAllInvestors, loadUsers } from "@/lib/executive-auth";
+import { resolveLeadState, LEAD_STATE_META, type LeadState } from "@/lib/lead-state";
+import type { CrmActor } from "@/lib/crm/types";
+
+export type CrmConversation = {
+  id: string;
+  name: string;
+  initials: string;
+  photoUrl?: string;
+  phone: string;
+  email: string;
+  city: string;
+  /** Rótulo do último evento real registrado (ou origem do Lead). */
+  lastInteraction: string;
+  /** Resumo curto do momento atual do investidor. */
+  summary: string;
+  statusLabel: string;
+  state: LeadState;
+  stateLabel: string;
+  lastActivityIso: string;
+  lastActivityLabel: string;
+  originLabel: string;
+  workspaceLabel: string;
+  ownerName: string;
+  readingPct: number;
+  investor: Investor;
+};
+
+const ORIGIN_LABEL: Record<string, string> = {
+  green_sales: "Green Sales",
+  portal: "Portal Velox",
+  manual: "Cadastro manual",
+};
+
+function initialsOf(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function summaryOf(i: Investor): string {
+  if (i.readingPct >= 100) return "Concluiu a leitura do Manual do Investidor.";
+  if (i.readingPct > 0) return `Leitura em andamento — ${i.currentChapter}.`;
+  if (i.diagnostic !== "não iniciado") return "Perfil comercial em construção.";
+  return "Investidor identificado, ainda sem histórico de leitura.";
+}
+
+/**
+ * Conversas visíveis ao Executivo autenticado. Reaproveita a MESMA regra
+ * de permissão da Central do Executivo: quem vê todos os investidores no
+ * Workspace vê todos aqui; os demais veem apenas os próprios.
+ */
+export function listConversations(actor: CrmActor): CrmConversation[] {
+  const users = loadUsers();
+  const nameById = new Map(users.map((u) => [u.id, u.name]));
+  const all = listAllInvestors();
+  const scoped = canViewAllInvestors(actor.role)
+    ? all
+    : all.filter((i) => i.assignedToUserId === actor.userId);
+
+  return scoped
+    .map<CrmConversation>((i) => {
+      const state = resolveLeadState({ id: i.id, lastActivity: i.lastActivity });
+      return {
+        id: i.id,
+        name: i.name,
+        initials: initialsOf(i.name),
+        phone: i.phone,
+        email: i.email,
+        city: i.city,
+        lastInteraction: i.lastEventLabel ?? STATUS_LABEL[i.status],
+        summary: summaryOf(i),
+        statusLabel: STATUS_LABEL[i.status],
+        state,
+        stateLabel: LEAD_STATE_META[state].label,
+        lastActivityIso: i.lastActivity,
+        lastActivityLabel: formatRelative(i.lastActivity),
+        originLabel: ORIGIN_LABEL[i.origin ?? "portal"] ?? "Portal Velox",
+        workspaceLabel: (i.origin ?? "portal") === "green_sales" ? "Green Sales" : "Portal",
+        ownerName: nameById.get(i.assignedToUserId) ?? "—",
+        readingPct: i.readingPct,
+        investor: i,
+      };
+    })
+    .sort((a, b) => (a.lastActivityIso < b.lastActivityIso ? 1 : -1));
+}
+
+export function filterConversations(
+  items: CrmConversation[],
+  query: string,
+): CrmConversation[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter(
+    (c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.phone.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      c.city.toLowerCase().includes(q),
+  );
+}
+
+export const CRM_STATE_DOT: Record<LeadState, string> = {
+  novo: "bg-emerald-500",
+  em_andamento: "bg-amber-400",
+  encerrado: "bg-[color:var(--crm-muted)]/50",
+};
