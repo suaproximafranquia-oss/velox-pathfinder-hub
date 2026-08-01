@@ -1,12 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import {
   getSession,
   signInWithCloud,
   type ExecutiveSession,
 } from "@/lib/executive-auth";
-import { WORKSPACE } from "@/config/workspace";
 import { markCrmActivity, isCrmSessionExpired } from "@/lib/crm/session";
+import { crmCssVars, resolveCrmBranding } from "@/lib/crm/theme";
 
 /**
  * Shell do CRM de Relacionamento.
@@ -24,6 +24,11 @@ export function CrmShell({
 }) {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [ready, setReady] = useState(false);
+  const branding = useMemo(() => resolveCrmBranding(), []);
+  const themeVars = useMemo(
+    () => crmCssVars(branding) as React.CSSProperties,
+    [branding],
+  );
 
   useEffect(() => {
     const s = getSession();
@@ -50,26 +55,37 @@ export function CrmShell({
 
   if (!session) {
     return (
-      <CrmLogin
-        onSuccess={(s) => {
-          markCrmActivity();
-          setSession(s);
-        }}
-      />
+      <div style={themeVars}>
+        <CrmLogin
+          companyName={branding.companyName}
+          onSuccess={(s) => {
+            markCrmActivity();
+            setSession(s);
+          }}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] bg-grain">
-      <header className="border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]">
+    <div
+      style={themeVars}
+      className="min-h-screen bg-[color:var(--crm-background)] text-[color:var(--crm-foreground)]"
+    >
+      <header className="border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex flex-col leading-tight">
-            <span className="font-display text-sm tracking-[0.18em]">{title}</span>
-            <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-              {WORKSPACE.workspaceName}
-            </span>
+          <div className="flex items-center gap-3">
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt={branding.companyName} className="h-6 w-auto" />
+            ) : null}
+            <div className="flex flex-col leading-tight">
+              <span className="text-sm font-medium tracking-wide">{title}</span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--crm-muted)]">
+                {branding.tagline}
+              </span>
+            </div>
           </div>
-          <span className="text-xs text-[color:var(--muted-foreground)]">
+          <span className="text-xs text-[color:var(--crm-muted)]">
             {session.name}
           </span>
         </div>
@@ -79,7 +95,13 @@ export function CrmShell({
   );
 }
 
-function CrmLogin({ onSuccess }: { onSuccess: (s: ExecutiveSession) => void }) {
+function CrmLogin({
+  companyName,
+  onSuccess,
+}: {
+  companyName: string;
+  onSuccess: (s: ExecutiveSession) => void;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -102,42 +124,39 @@ function CrmLogin({ onSuccess }: { onSuccess: (s: ExecutiveSession) => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[color:var(--background)] bg-grain px-6 py-16">
+    <div className="min-h-screen flex items-center justify-center bg-[color:var(--crm-background)] text-[color:var(--crm-foreground)] px-6 py-16">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 p-6 space-y-5"
+        className="w-full max-w-md rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-6 space-y-5"
       >
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[color:var(--gold)] mb-2">
-            CRM de Relacionamento
-          </p>
-          <h1 className="font-display text-2xl tracking-wide">{WORKSPACE.workspaceName}</h1>
-          <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
+          <h1 className="text-xl font-medium tracking-wide">{companyName}</h1>
+          <p className="mt-2 text-sm text-[color:var(--crm-muted)]">
             Utilize o mesmo acesso da Central do Executivo.
           </p>
         </div>
         <div>
-          <label className="block text-xs uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
+          <label className="block text-xs uppercase tracking-[0.18em] text-[color:var(--crm-muted)] mb-2">
             E-mail Corporativo
           </label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-4 py-3 text-sm outline-none focus:border-[color:var(--gold)]/50"
+            className="w-full rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] px-4 py-3 text-sm outline-none focus:border-[color:var(--crm-primary)]"
             autoComplete="email"
             required
           />
         </div>
         <div>
-          <label className="block text-xs uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
+          <label className="block text-xs uppercase tracking-[0.18em] text-[color:var(--crm-muted)] mb-2">
             Senha
           </label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-4 py-3 text-sm outline-none focus:border-[color:var(--gold)]/50"
+            className="w-full rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] px-4 py-3 text-sm outline-none focus:border-[color:var(--crm-primary)]"
             autoComplete="current-password"
             required
           />
@@ -145,7 +164,7 @@ function CrmLogin({ onSuccess }: { onSuccess: (s: ExecutiveSession) => void }) {
         {error && (
           <div
             role="alert"
-            className="rounded-xl border border-red-400/30 bg-red-400/5 px-4 py-3 text-sm text-red-300"
+            className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
           >
             {error}
           </div>
@@ -153,7 +172,7 @@ function CrmLogin({ onSuccess }: { onSuccess: (s: ExecutiveSession) => void }) {
         <button
           type="submit"
           disabled={busy}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-6 py-3 text-sm font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition"
+          className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition disabled:opacity-60 bg-[color:var(--crm-primary)] text-[color:var(--crm-primary-foreground)]"
         >
           <Lock className="h-4 w-4" /> {busy ? "Entrando…" : "Entrar"}
         </button>

@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Trophy,
   Bell,
+  Contact,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -72,6 +73,7 @@ export function ExecutiveShell({
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/auditoria", label: "Central de Auditoria", icon: ShieldCheck }]
       : []),
+    { to: "/crm", label: "CRM", icon: Contact },
     { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
