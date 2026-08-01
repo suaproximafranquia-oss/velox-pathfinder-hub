@@ -379,3 +379,131 @@ export function startPortalSession(input: {
 
   return session;
 }
+
+/**
+ * DEF 2.5.1 §09 — promoção da Jornada Digital a Relacionamento Comercial.
+ *
+ * Executada EXCLUSIVAMENTE após a confirmação do WhatsApp. Só neste
+ * momento nascem Lead, Card no Workspace, Conversa no CRM, Timeline,
+ * Auditoria, Executivo responsável, Origem, Data e Hora.
+ */
+export function promotePortalSession(): PortalSession | null {
+  const session = getPortalSession();
+  if (!session) return null;
+  if (!isJourneyId(session.investorId)) return session;
+
+  const journey = getDigitalJourney();
+  const name = journey?.name ?? session.name;
+  const email = journey?.email ?? session.email;
+  const phone = journey?.phone ?? "";
+  const origin = journey?.origin ?? session.origin;
+  const responsible = getResponsibleExecutive();
+
+  const existing = findLeadByEmail(email) ?? findLeadByPhone(phone);
+  const lead =
+    existing ??
+    registerLead({
+      identity: { name, email: normalizeEmail(email), whatsapp: phone, city: "" },
+      material: "Portal do Investidor — WhatsApp confirmado",
+      origin,
+    }).lead;
+
+  const routed =
+    applyLeadRouting(lead.id, {
+      personalized: responsible.personalized,
+      responsibleExecutiveId: responsible.personalized
+        ? (responsible.executive?.id ?? null)
+        : null,
+    }) ?? lead;
+
+  attachLeadToIdentity(session.identityId, routed.id);
+
+  // Jornada preservada e, em seguida, promovida a relacionamento ativo.
+  markJourneyOnly(routed.id);
+  startRelationship({
+    investorId: routed.id,
+    investorName: routed.name,
+    actorId: "sistema",
+    actorName: "Sistema",
+    actorRole: "Automatizado",
+    ownerId: routed.responsibleExecutiveId ?? "sistema",
+    origin,
+    source: "solicitacao_investidor",
+  });
+
+  registerJourney({
+    investorId: routed.id,
+    identityId: session.identityId,
+    name: routed.name,
+    email: routed.email,
+    phone: routed.whatsapp || null,
+    executiveId: routed.responsibleExecutiveId ?? session.responsibleExecutiveId,
+    executiveSlug: session.responsibleExecutiveSlug,
+    unit: session.unit,
+    origin,
+    campaign: session.campaign,
+    link: session.responsibleExecutiveSlug ? `/e/${session.responsibleExecutiveSlug}` : null,
+    personalized: session.personalized,
+    device: session.device,
+    restored: Boolean(existing),
+  });
+
+  saveVisitorIdentity({
+    name: routed.name,
+    email: routed.email,
+    whatsapp: routed.whatsapp,
+    city: routed.city,
+  });
+
+  if (listCrmMessages(routed.id).length === 0) {
+    appendCrmMessage({
+      investorId: routed.id,
+      direction: "enviada",
+      body: `Olá, ${routed.name}. Seja bem-vindo ao Portal Velox. Sua identidade foi confirmada e sua jornada ficará salva.`,
+      authorId: "sistema",
+    });
+  }
+  recordCrmEvent({
+    investorId: routed.id,
+    event: "atividade_portal",
+    origin,
+    reason: "WhatsApp confirmado no Portal — relacionamento comercial criado automaticamente.",
+    ownerId: routed.responsibleExecutiveId ?? "sistema",
+    actorId: "sistema",
+  });
+
+  emitEvent({
+    type: "journey.started",
+    investorId: routed.id,
+    actorId: routed.responsibleExecutiveId,
+    payload: {
+      gateway: true,
+      sessionId: session.sessionId,
+      identityId: session.identityId,
+      restored: Boolean(existing),
+      origin,
+      unit: session.unit,
+      campaign: session.campaign,
+      whatsappConfirmed: true,
+    },
+  });
+
+  addComment({
+    investorId: routed.id,
+    authorId: "ai_corporate",
+    authorName: "IA Corporativa",
+    body: "WhatsApp confirmado pelo visitante. Relacionamento comercial criado com Card, conversa e Executivo responsável registrados.",
+  });
+
+  transferVerification(session.investorId, routed.id);
+  clearDigitalJourney();
+
+  return persist({
+    ...session,
+    investorId: routed.id,
+    name: routed.name,
+    email: routed.email,
+    responsibleExecutiveId: routed.responsibleExecutiveId ?? session.responsibleExecutiveId,
+    lastSeenAt: new Date().toISOString(),
+  });
+}
