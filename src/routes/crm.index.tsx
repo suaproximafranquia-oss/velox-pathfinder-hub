@@ -392,7 +392,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   ) : null}
                   <div className="mt-2">
                     <CrmRedistributeRow
-                      executives={executives}
                       currentOwnerId={selected.ownerId}
                       onRedistribute={(executiveId) => {
                         redistributeLead({
