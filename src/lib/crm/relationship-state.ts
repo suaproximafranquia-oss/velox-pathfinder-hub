@@ -57,6 +57,8 @@ type Entry = {
   lastOutboundAt?: string;
   /** Última resposta registrada do investidor. */
   lastInboundAt?: string;
+  /** Abertura de janela provocada pelo envio de um Template aprovado. */
+  lastWindowOpenedAt?: string;
 };
 
 type StateMap = Record<string, Entry>;
@@ -115,6 +117,31 @@ export function markInboundMessage(investorId: string, at = new Date().toISOStri
 /** Última resposta registrada do investidor — base da janela de 24 horas. */
 export function lastInboundAt(investorId: string): string | null {
   return read()[investorId]?.lastInboundAt ?? null;
+}
+
+/**
+ * DEF 2.4.15 §2 — o envio de um Template aprovado abre imediatamente uma
+ * nova Janela de Conversação de 24 horas.
+ */
+export function markWindowOpened(
+  investorId: string,
+  at = new Date().toISOString(),
+): void {
+  const map = read();
+  map[investorId] = { ...(map[investorId] ?? {}), lastWindowOpenedAt: at };
+  write(map);
+}
+
+/**
+ * Âncora oficial da janela: a mais recente entre a resposta do investidor
+ * e a última abertura por Template.
+ */
+export function windowAnchorAt(investorId: string): string | null {
+  const entry = read()[investorId] ?? {};
+  const a = ts(entry.lastInboundAt);
+  const b = ts(entry.lastWindowOpenedAt);
+  const max = Math.max(a, b);
+  return max > 0 ? new Date(max).toISOString() : null;
 }
 
 function ts(iso?: string | null): number {
