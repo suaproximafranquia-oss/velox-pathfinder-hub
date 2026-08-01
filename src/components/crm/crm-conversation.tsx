@@ -280,7 +280,7 @@ export function CrmConversationHeader({
           ].join(" ")}
         >
           <Clock3 className="h-3.5 w-3.5" />
-          {live.open ? `Janela aberta · ${live.label.split("· ")[1] ?? ""}` : "Janela encerrada"}
+          {live.label}
         </span>
       ) : null}
     </div>
