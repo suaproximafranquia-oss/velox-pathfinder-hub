@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   MessageSquare,
   Clock,
@@ -12,6 +12,8 @@ import {
   Lock,
   ShieldCheck,
   AlertTriangle,
+  Copy,
+  Check,
 } from "lucide-react";
 import { CRM_STATE_DOT, type CrmConversation } from "@/lib/crm/relationships";
 
