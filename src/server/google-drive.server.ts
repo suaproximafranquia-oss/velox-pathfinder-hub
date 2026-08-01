@@ -3,6 +3,12 @@ import { googleFetch } from "@/server/google.server";
 
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 
+/**
+ * Pasta corporativa oficial do Portal Velox no Drive. Todo material da
+ * IA Criativa é arquivado aqui — nunca se pergunta o destino ao usuário.
+ */
+export const CORPORATE_FOLDER_ID = "1PbM3GbROKTyVkt2RztugMpTAljsKivqb";
+
 type DriveFile = { id?: string; name?: string; webViewLink?: string; mimeType?: string };
 
 async function findFolder(
