@@ -17,7 +17,6 @@ import {
   History,
   ListChecks,
   LayoutGrid,
-  Trash2,
   Cloud,
   CloudOff,
   Link2,
@@ -34,7 +33,6 @@ import {
   listMeetings,
   updateMeetingStatus,
   updateMeeting,
-  deleteMeeting,
   type Meeting,
   type MeetingStatus,
   type GoogleSyncState,
@@ -47,7 +45,6 @@ import { listEvents, onEvent, type PortalEvent } from "@/lib/events/bus";
 import {
   trySyncCreate,
   trySyncUpdate,
-  trySyncDelete,
   syncPending,
   checkConflicts,
   DEFAULT_TIMEZONE,
@@ -121,7 +118,6 @@ function MeetingsPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [items, setItems] = useState<Meeting[]>([]);
   const [detailsFor, setDetailsFor] = useState<Meeting | null>(null);
-  const [deleteFor, setDeleteFor] = useState<Meeting | null>(null);
   const [profileOpen, setProfileOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("recent");
