@@ -98,8 +98,8 @@ function CriativaPage() {
 
   async function generate() {
     if (busy) return;
-    if (!form.unit.trim() || !form.city.trim()) {
-      setError("Informe ao menos o nome da unidade e a cidade.");
+    if (!form.city.trim() || form.state.trim().length !== 2) {
+      setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
       return;
     }
     setError(null);
@@ -107,13 +107,9 @@ function CriativaPage() {
     try {
       const res = await generateCreativeCopy({
         data: {
-          unit: form.unit.trim(),
+          unit: unitName(form),
           city: form.city.trim(),
-          state: form.state.trim(),
-          address: form.address.trim() || undefined,
-          openingDate: form.openingDate.trim() || undefined,
-          phone: form.phone.trim() || undefined,
-          notes: form.notes.trim() || undefined,
+          state: form.state.trim().toUpperCase(),
         },
       });
       setCopy(res);
@@ -156,18 +152,18 @@ function CriativaPage() {
               <ArtCard
                 model="institucional"
                 svg={arts.institucional.svg}
-                fileBase={`${slugify(form.unit)}-institucional`}
+                fileBase={`${slugify(unitName(form))}-institucional`}
                 session={session}
-                unit={form.unit}
+                unit={unitName(form)}
                 city={form.city}
                 onSaved={() => setHistoryTick((v) => v + 1)}
               />
               <ArtCard
                 model="marketing"
                 svg={arts.marketing.svg}
-                fileBase={`${slugify(form.unit)}-marketing`}
+                fileBase={`${slugify(unitName(form))}-marketing`}
                 session={session}
-                unit={form.unit}
+                unit={unitName(form)}
                 city={form.city}
                 onSaved={() => setHistoryTick((v) => v + 1)}
               />
