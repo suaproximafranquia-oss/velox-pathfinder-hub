@@ -452,12 +452,6 @@ function MeetingsPage() {
                       label={inviteBusy === m.id ? "Enviando..." : "Reenviar convite"}
                       onClick={() => void resendInvite(m)}
                     />
-                    <ActionButton
-                      icon={Trash2}
-                      label="Excluir reunião"
-                      onClick={() => setDeleteFor(m)}
-                      tone="danger"
-                    />
                   </div>
                 </div>
               </li>
@@ -497,15 +491,6 @@ function MeetingsPage() {
       )}
 
 
-
-      {deleteFor && (
-        <DeleteDialog
-          meeting={deleteFor}
-          session={session}
-          onClose={() => setDeleteFor(null)}
-          onDeleted={() => { setDeleteFor(null); refresh(); }}
-        />
-      )}
 
       <InvestorProfilePanel
         investorId={profileOpen}
