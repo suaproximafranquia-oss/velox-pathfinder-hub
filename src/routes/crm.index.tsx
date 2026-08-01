@@ -21,6 +21,8 @@ import {
   CrmDuplicateNotice,
   CrmStateChip,
   CrmCopyLinkButton,
+  CrmJourneyBadge,
+  CrmStartRelationshipDialog,
 } from "@/components/crm/crm-conversation";
 import {
   User,
@@ -31,6 +33,8 @@ import {
   BellRing,
   Video,
   CalendarPlus,
+  Handshake,
+  Archive,
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
@@ -64,6 +68,7 @@ import {
   WORKSPACE_ALERT_CATEGORY_LABEL,
 } from "@/lib/workspace-alerts";
 import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
+import { startRelationship, archiveRelationship } from "@/lib/crm/commercial";
 
 export const Route = createFileRoute("/crm/")({
   head: () => ({
@@ -121,6 +126,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [messageTick, setMessageTick] = useState(0);
+  const [startOpen, setStartOpen] = useState(false);
   const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
 
