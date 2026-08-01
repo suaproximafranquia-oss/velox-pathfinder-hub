@@ -208,6 +208,22 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     [selected?.id, privateOk, session, tick],
   );
 
+  // Próxima reunião — apenas a mais próxima ainda válida.
+  const nextMeeting = useMemo(() => {
+    if (!selected || !privateOk) return null;
+    const now = Date.now();
+    return (
+      listMeetings({ investorId: selected.id })
+        .filter(
+          (m) =>
+            m.status !== "Cancelada" &&
+            m.status !== "Concluída" &&
+            new Date(m.scheduledAt).getTime() >= now,
+        )
+        .sort((a, b) => (a.scheduledAt < b.scheduledAt ? -1 : 1))[0] ?? null
+    );
+  }, [selected?.id, privateOk, tick]);
+
   return (
     <>
       <CrmRail areas={CRM_AREAS} active={area} onSelect={setArea} />
