@@ -94,6 +94,14 @@ function CrmHome() {
 }
 
 /**
+ * Existe Executivo responsável oficial? Um relacionamento com responsável
+ * definido nunca pode ser redistribuído (DEF 2.4.9 §1).
+ */
+function hasResponsible(item: { ownerId: string; ownerName: string }): boolean {
+  return Boolean(item.ownerId) && item.ownerName !== "—";
+}
+
+/**
  * Ambiente operacional do CRM.
  *
  * Os investidores exibidos são EXATAMENTE os do Workspace do Executivo:
