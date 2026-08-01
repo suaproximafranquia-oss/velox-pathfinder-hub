@@ -60,10 +60,11 @@ export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
 
       <div className="mt-4">
         <div
-          className="relative h-6 w-full overflow-hidden rounded-full border border-white/40"
+          className="relative h-7 w-full overflow-hidden rounded-full border border-white/45"
           style={{
             backgroundColor: trackColor,
-            boxShadow: "inset 0 1px 4px rgba(0,0,0,0.38)",
+            boxShadow:
+              "inset 0 2px 6px rgba(0,0,0,0.42), 0 1px 0 rgba(255,255,255,0.18)",
           }}
           role="progressbar"
           aria-valuemin={0}
@@ -74,23 +75,28 @@ export function CampanhaVeloxCard({ salesValue }: { salesValue: number }) {
           <div
             className={cn(
               "h-full rounded-full",
-              "transition-[width,background-color] duration-500 ease-out",
+              "transition-[width,background-color] duration-700 ease-out",
             )}
             style={{
               width: `${percent}%`,
-              backgroundImage: `linear-gradient(90deg, ${barColor} 0%, ${barColor} 60%, rgba(255,255,255,0.55) 100%)`,
+              backgroundImage:
+                `linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 52%, rgba(0,0,0,0.18) 100%),` +
+                `linear-gradient(90deg, ${barColor} 0%, ${barColor} 62%, rgba(255,255,255,0.62) 100%)`,
               backgroundColor: barColor,
-              boxShadow: `0 0 20px -2px ${barColor}, inset 0 1px 0 rgba(255,255,255,0.55)`,
+              boxShadow: `0 0 24px -3px ${barColor}, inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -1px 2px rgba(0,0,0,0.28)`,
             }}
           />
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2">
-            <span className="rounded-full bg-black/70 px-2.5 py-[2px] text-[11px] font-semibold tabular-nums tracking-wide text-white shadow-[0_1px_4px_rgba(0,0,0,0.6)]">
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 px-2">
+            <span className="rounded-full bg-black/75 px-2.5 py-[2px] text-[11px] font-semibold tabular-nums tracking-wide text-white shadow-[0_1px_5px_rgba(0,0,0,0.7)]">
               {percentLabel}
             </span>
             {level ? (
               <span
-                className="rounded-full px-2 py-[2px] text-[10px] font-semibold uppercase tracking-[0.14em] text-white"
-                style={{ backgroundColor: `${level.color}CC` }}
+                className="rounded-full px-2 py-[2px] text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_1px_4px_rgba(0,0,0,0.45)]"
+                style={{
+                  backgroundColor: `${level.color}E6`,
+                  border: `1px solid rgba(255,255,255,0.35)`,
+                }}
               >
                 {level.label}
               </span>
