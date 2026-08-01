@@ -2,20 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Link oficial da pasta corporativa "Portal Velox" no Drive da Conta
- * Google do Portal — nunca o Drive da conta logada no navegador.
+ * Link oficial da pasta corporativa fixa no Drive da Conta Google do
+ * Portal — nunca o Drive da conta logada no navegador e nunca uma
+ * pasta nova.
  */
 export const getCorporateDriveLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => data ?? {})
-  .handler(async ({ context }): Promise<{ url: string | null }> => {
-    const { ensureFolder } = await import("@/server/google-drive.server");
-    try {
-      const rootId = await ensureFolder(context.userId, "Portal Velox");
-      return { url: `https://drive.google.com/drive/folders/${rootId}` };
-    } catch {
-      return { url: null };
-    }
+  .handler(async (): Promise<{ url: string | null }> => {
+    const { CORPORATE_FOLDER_ID } = await import("@/server/google-drive.server");
+    return { url: `https://drive.google.com/drive/folders/${CORPORATE_FOLDER_ID}` };
   });
 
 /** Cria (ou reaproveita) a pasta do investidor dentro de "Portal Velox". */
