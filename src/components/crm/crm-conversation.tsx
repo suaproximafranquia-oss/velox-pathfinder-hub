@@ -134,27 +134,46 @@ export function CrmActionBar() {
   );
 }
 
-/** Presença simples derivada da última movimentação registrada. */
-function isOnline(iso: string): boolean {
+/**
+ * Presença do WhatsApp — o cabeçalho jamais exibe dados do Portal do
+ * Investidor. Apenas Online, "Visto por último" ou Offline.
+ */
+function whatsappPresence(iso: string): { online: boolean; label: string } {
   const ts = new Date(iso).getTime();
-  return Number.isFinite(ts) && Date.now() - ts < 5 * 60 * 1000;
+  if (!Number.isFinite(ts)) return { online: false, label: "Offline" };
+  const diff = Date.now() - ts;
+  if (diff < 5 * 60 * 1000) return { online: true, label: "Online" };
+  const d = new Date(ts);
+  const hhmm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const sameDay = d.toDateString() === new Date().toDateString();
+  if (sameDay) return { online: false, label: `Visto por último hoje às ${hhmm}` };
+  const yesterday = new Date(Date.now() - 864e5).toDateString() === d.toDateString();
+  if (yesterday) return { online: false, label: `Visto por último ontem às ${hhmm}` };
+  if (diff < 30 * 864e5)
+    return {
+      online: false,
+      label: `Visto por último em ${d.toLocaleDateString("pt-BR")} às ${hhmm}`,
+    };
+  return { online: false, label: "Offline" };
 }
 
 export function CrmConversationHeader({ item }: { item: CrmConversation }) {
-  const online = isOnline(item.lastActivityIso);
+  const presence = whatsappPresence(item.lastActivityIso);
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
-      <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={38} />
-      <div className="flex min-w-0 flex-col">
+    <div className="flex min-w-0 flex-1 items-center gap-3.5">
+      <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={42} />
+      <div className="flex min-w-0 flex-col gap-0.5">
         <h2 className="truncate text-[15px] font-semibold tracking-[-0.01em]">{item.name}</h2>
         <span className="flex items-center gap-1.5 text-[11px] text-[color:var(--crm-muted)]">
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              online ? "bg-emerald-500" : "bg-[color:var(--crm-muted)]/50"
+              presence.online
+                ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                : "bg-[color:var(--crm-muted)]/40"
             }`}
             aria-hidden
           />
-          {online ? "Online" : "Offline"}
+          {presence.label}
         </span>
       </div>
       <div className="ml-auto">
