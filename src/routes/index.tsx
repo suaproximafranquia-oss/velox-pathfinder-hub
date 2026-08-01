@@ -546,7 +546,13 @@ function Hero() {
   );
 }
 
-function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
+function ModulesGrid({
+  onOpen,
+  unlocked,
+}: {
+  onOpen: (m: ModuleCard) => void;
+  unlocked: boolean;
+}) {
   return (
     <section
       id="modulos"
@@ -568,7 +574,12 @@ function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {MODULES.map((m) => (
-            <ModuleTile key={m.key} module={m} onOpen={onOpen} />
+            <ModuleTile
+              key={m.key}
+              module={m}
+              onOpen={onOpen}
+              locked={Boolean(m.moduleKey) && m.moduleKey !== "manual" && !unlocked}
+            />
           ))}
         </div>
       </div>
@@ -579,13 +590,17 @@ function ModulesGrid({ onOpen }: { onOpen: (m: ModuleCard) => void }) {
 function ModuleTile({
   module: m,
   onOpen,
+  locked = false,
 }: {
   module: ModuleCard;
   onOpen: (m: ModuleCard) => void;
+  locked?: boolean;
 }) {
   const Icon = m.icon;
   const badge =
-    m.status === "em-preparacao"
+    locked
+      ? "Confirme seu WhatsApp"
+      : m.status === "em-preparacao"
       ? "Em preparação"
       : m.status === "em-desenvolvimento"
         ? "Em desenvolvimento"
