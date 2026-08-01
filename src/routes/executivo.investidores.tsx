@@ -14,6 +14,7 @@ import {
   formatRelative,
 } from "@/lib/executive-data";
 import { openInvestorReport } from "@/lib/investor-report-lazy";
+import { onSync } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/executivo/investidores")({
   head: () => ({
@@ -36,6 +37,10 @@ function InvestidoresPage() {
     else setSession(s);
   }, [navigate]);
 
+  // Base única: qualquer alteração no CRM/Portal reflete aqui na hora.
+  const [tick, setTick] = useState(0);
+  useEffect(() => onSync(() => setTick((v) => v + 1)), []);
+
   const userNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const u of loadUsers()) map.set(u.id, u.name);
@@ -56,7 +61,7 @@ function InvestidoresPage() {
         i.phone.toLowerCase().includes(q) ||
         i.email.toLowerCase().includes(q),
     );
-  }, [session, query]);
+  }, [session, query, tick]);
 
   if (!session) return null;
 

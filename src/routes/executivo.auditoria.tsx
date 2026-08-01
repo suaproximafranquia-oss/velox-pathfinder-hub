@@ -29,6 +29,7 @@ import {
   type AuditSeverity,
 } from "@/lib/audit-log";
 import { cn } from "@/lib/utils";
+import { onSync } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/executivo/auditoria")({
   head: () => ({
@@ -102,6 +103,9 @@ function AuditPage() {
     seedAuditIfEmpty();
     setSession(s);
   }, [navigate]);
+
+  // Log permanente: novas entradas aparecem sem recarregar a página.
+  useEffect(() => onSync(() => setRefresh((v) => v + 1), ["audit"]), []);
 
   const actors = useMemo(() => distinctActors(), [refresh]);
   const entries = useMemo<AuditEntry[]>(

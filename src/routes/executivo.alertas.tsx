@@ -19,6 +19,7 @@ import {
   type WorkspaceAlert,
 } from "@/lib/workspace-alerts";
 import { cn } from "@/lib/utils";
+import { onSync } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/executivo/alertas")({
   head: () => ({
@@ -63,7 +64,9 @@ function AlertsCenterPage() {
       setAlerts(listWorkspaceAlertHistory(session!));
     }
     refresh();
-    return onEvent(() => refresh());
+    const off = onEvent(() => refresh());
+    const offSync = onSync(() => refresh());
+    return () => { off(); offSync(); };
   }, [session]);
 
   const active = useMemo(() => alerts.filter((a) => !a.archived), [alerts]);

@@ -59,7 +59,7 @@ export function CrmNewLeadDialog({
 }: {
   ownerId: string;
   onClose: () => void;
-  onCreated: (name: string) => void;
+  onCreated: (name: string, duplicated?: boolean) => void;
 }) {
   const [tab, setTab] = useState<"importador" | "manual">("importador");
   const [fields, setFields] = useState<CrmLeadInput>(EMPTY);
@@ -129,7 +129,7 @@ export function CrmNewLeadDialog({
 
   function submit() {
     const lead = createCrmLead({ fields, source: tab, ownerId });
-    onCreated(lead.name);
+    onCreated(lead.name, lead.duplicated);
     onClose();
   }
 

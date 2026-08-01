@@ -37,6 +37,7 @@ import {
 import { CRM_TIMELINE_LABEL, formatCrmTimestamp } from "@/lib/crm/timeline";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { restoreRelationship } from "@/lib/crm/commercial";
+import { onSync } from "@/lib/sync-bus";
 
 /** Abas oficiais da Central única de Backup (DEF 2.4.11). */
 const BACKUP_TABS = ["GreenSales", "Portal"] as const;
@@ -81,6 +82,9 @@ function BackupsPage() {
     }
     setSession(s);
   }, [navigate]);
+
+  // Arquivamento, restauração e auditoria refletem na hora.
+  useEffect(() => onSync(() => setTick((v) => v + 1)), []);
 
   const isAdmin = session ? isCrmAdministrator(session.activeRole) : false;
   const isSupervisor = session ? isCrmSupervisor(session.activeRole) : false;

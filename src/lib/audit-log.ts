@@ -11,6 +11,8 @@
  *  3. Nenhum dado sensível é gravado — apenas metadados descritivos.
  */
 
+import { notifySync } from "@/lib/sync-bus";
+
 export type AuditModule =
   | "usuarios"
   | "kpi"
@@ -69,6 +71,7 @@ function writeAll(entries: AuditEntry[]): void {
   } catch {
     /* silencioso — quota */
   }
+  notifySync("audit");
 }
 
 function newId(): string {

@@ -54,6 +54,7 @@ import {
   DEFAULT_TIMEZONE,
 } from "@/lib/google-calendar";
 import { getGoogleStore, subscribeGoogleStore } from "@/lib/google-workspace";
+import { onSync } from "@/lib/sync-bus";
 import {
   MEETING_PROVIDERS,
   getDefaultProviderForExecutive,
@@ -206,8 +207,11 @@ function MeetingsPage() {
     const off = onEvent((ev) => {
       if (ev.type.startsWith("meeting.")) refresh();
     });
+    // Toda reunião criada/alterada aparece imediatamente para Executivo,
+    // Gestora e Administrador, sem recarregar a tela.
+    const offSync = onSync(() => refresh(), ["meetings"]);
     const t = window.setInterval(() => setTick((n) => n + 1), 60_000);
-    return () => { off(); window.clearInterval(t); };
+    return () => { off(); offSync(); window.clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 

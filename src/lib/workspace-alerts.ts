@@ -14,6 +14,7 @@
 import { emitEvent, onEvent } from "@/lib/events/bus";
 import { getReactivationWindowMs } from "@/lib/platform-settings";
 import { listAllInvestors, formatRelative, type Investor } from "@/lib/executive-data";
+import { notifySync } from "@/lib/sync-bus";
 import { listMeetings } from "@/lib/meetings";
 import { canViewAllInvestors, type ExecutiveSession } from "@/lib/executive-auth";
 import { listJourneys } from "@/lib/journey/engine";
@@ -83,6 +84,7 @@ function readAlerts(): WorkspaceAlert[] {
 function writeAlerts(list: WorkspaceAlert[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(ALERTS_KEY, JSON.stringify(list.slice(-300)));
+  notifySync("alerts");
 }
 
 function readLastSeen(): LastSeenMap {
