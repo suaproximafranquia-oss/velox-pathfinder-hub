@@ -307,6 +307,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             <CrmComposer
               onSend={() => {
                 markOutboundMessage(selected.id);
+                recordCrmEvent({
+                  investorId: selected.id,
+                  event: "mensagem_enviada",
+                  origin: selected.originLabel,
+                  reason: "Mensagem enviada pelo Executivo na conversa do CRM.",
+                  ownerId: selected.ownerId,
+                  actorId: actor.userId,
+                });
                 setTick((v) => v + 1);
               }}
             />
