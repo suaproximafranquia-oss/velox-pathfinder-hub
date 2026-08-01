@@ -82,6 +82,9 @@ function BackupsPage() {
     setSession(s);
   }, [navigate]);
 
+  // Arquivamento, restauração e auditoria refletem na hora.
+  useEffect(() => onSync(() => setTick((v) => v + 1)), []);
+
   const isAdmin = session ? isCrmAdministrator(session.activeRole) : false;
   const isSupervisor = session ? isCrmSupervisor(session.activeRole) : false;
 

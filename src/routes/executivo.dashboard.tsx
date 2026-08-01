@@ -9,6 +9,7 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { listAllInvestors } from "@/lib/executive-data";
+import { onSync } from "@/lib/sync-bus";
 import { listMeetings } from "@/lib/meetings";
 import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
@@ -107,12 +108,14 @@ function WorkspacePage() {
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
     };
+    const offSync = onSync(refresh);
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
       unsubscribe();
+      offSync();
       window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);

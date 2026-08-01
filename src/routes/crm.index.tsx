@@ -62,6 +62,7 @@ import { CRM_AREAS, type CrmAreaKey } from "@/lib/crm/modules";
 import { listConversations, filterConversations } from "@/lib/crm/relationships";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
+import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import {
   listWorkspaceAlerts,
@@ -142,12 +143,19 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       });
     };
     const offEvents = onEvent(refresh);
+    // DEF 2.4.13 — relacionamento, mensagens, agenda, alertas e backup
+    // compartilham o mesmo barramento: nada exige atualização manual.
+    const offSync = onSync(() => {
+      refresh();
+      setMessageTick((v) => v + 1);
+    });
     void pullLeads().then(refresh).catch(refresh);
     const offLeads = subscribeLeads(() => {
       void pullLeads().then(refresh).catch(refresh);
     });
     return () => {
       offEvents();
+      offSync();
       offLeads();
     };
   }, []);

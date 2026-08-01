@@ -103,6 +103,9 @@ function AuditPage() {
     setSession(s);
   }, [navigate]);
 
+  // Log permanente: novas entradas aparecem sem recarregar a página.
+  useEffect(() => onSync(() => setRefresh((v) => v + 1), ["audit"]), []);
+
   const actors = useMemo(() => distinctActors(), [refresh]);
   const entries = useMemo<AuditEntry[]>(
     () => listAudit({ query, module, actorId: actor, severity }),
