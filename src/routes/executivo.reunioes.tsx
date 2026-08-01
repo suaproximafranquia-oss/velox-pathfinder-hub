@@ -656,58 +656,6 @@ function ActionButton({
   );
 }
 
-function DeleteDialog({
-  meeting,
-  session,
-  onClose,
-  onDeleted,
-}: {
-  meeting: Meeting;
-  session: ExecutiveSession;
-  onClose: () => void;
-  onDeleted: () => void;
-}) {
-  const when = new Date(meeting.scheduledAt);
-  return (
-    <Overlay onClose={onClose} title="Excluir reunião">
-      <div className="space-y-4 text-sm">
-        <p>Deseja realmente excluir esta reunião?</p>
-        <div className="rounded-md border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-3 text-sm">
-          <p><span className="text-[color:var(--muted-foreground)]">Investidor:</span> {meeting.investorName}</p>
-          <p><span className="text-[color:var(--muted-foreground)]">Data:</span> {when.toLocaleDateString("pt-BR")}</p>
-          <p><span className="text-[color:var(--muted-foreground)]">Horário:</span> {when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
-        </div>
-        <p className="text-[11px] uppercase tracking-[0.22em] text-[#C53030] flex items-center gap-1.5">
-          <AlertTriangle className="h-3 w-3" /> Esta ação não poderá ser desfeita.
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              await trySyncDelete(meeting, {
-                userId: session.userId,
-                userName: session.name,
-                userRole: "Executivo",
-              });
-              deleteMeeting(meeting.id, { actorId: session.userId, actorName: session.name });
-              onDeleted();
-            }}
-            className="flex-1 rounded-full bg-[#C53030] px-4 py-2 text-sm text-white font-medium"
-          >
-            Excluir reunião
-          </button>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
 
 function NewMeetingDialog({
   session,
