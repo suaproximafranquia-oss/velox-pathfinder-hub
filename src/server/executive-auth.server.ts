@@ -61,7 +61,15 @@ export async function ensureAuthUser(user: OfficialUser): Promise<string> {
 
   let userId = (profile?.user_id as string | undefined) ?? undefined;
 
-  if (!userId) {
+  if (userId) {
+    // Conta já provisionada: mantém e-mail e senha alinhados ao cadastro oficial.
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      email: user.email,
+      password: user.password,
+      email_confirm: true,
+      user_metadata: { name: user.name, executive_id: user.executiveId },
+    });
+  } else {
     const created = await supabaseAdmin.auth.admin.createUser({
       email: user.email,
       password: user.password,
