@@ -112,6 +112,11 @@ export function markInboundMessage(investorId: string, at = new Date().toISOStri
   write(map);
 }
 
+/** Última resposta registrada do investidor — base da janela de 24 horas. */
+export function lastInboundAt(investorId: string): string | null {
+  return read()[investorId]?.lastInboundAt ?? null;
+}
+
 function ts(iso?: string | null): number {
   if (!iso) return 0;
   const v = Date.parse(iso);

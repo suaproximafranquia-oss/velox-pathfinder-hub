@@ -153,7 +153,7 @@ export function CrmMainPane({
       <header className="flex items-center justify-between gap-4 border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3">
         {header ?? <h2 className="truncate text-sm font-medium">{title}</h2>}
       </header>
-      <div className="relative min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="crm-chat-surface relative min-h-0 flex-1 overflow-y-auto p-5">
         <CrmWatermark />
         <div className="relative h-full">{children}</div>
       </div>
