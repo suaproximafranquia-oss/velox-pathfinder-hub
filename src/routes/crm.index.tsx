@@ -211,6 +211,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const executiveName = (id?: string) =>
     executives.find((e) => e.id === id)?.name ?? "—";
   const privateOk = selected ? canSeePrivateContent(selected.access) : false;
+  // Jornada Digital: conversa congelada — envio manual bloqueado.
+  const journeyOnly = Boolean(selected?.journeyOnly);
+  const composerEnabled = privateOk && !journeyOnly;
 
   // Histórico da conversa — persistido, nunca some após o envio.
   const messages = useMemo(
@@ -349,8 +352,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         footer={
           isConversas && selected ? (
             <CrmComposer
-              disabled={!privateOk}
-              hint="Conversa disponível apenas ao Executivo responsável"
+              disabled={!composerEnabled}
+              hint={
+                journeyOnly
+                  ? "Jornada Digital — inicie o relacionamento para liberar o envio"
+                  : "Conversa disponível apenas ao Executivo responsável"
+              }
               onSend={(text) => {
                 appendCrmMessage({
                   investorId: selected.id,
@@ -382,6 +389,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : (
             <>
               <CrmDuplicateNotice item={selected} />
+              {journeyOnly ? <CrmJourneyBadge /> : null}
               <CrmThread item={selected} messages={messages} />
             </>
           )
