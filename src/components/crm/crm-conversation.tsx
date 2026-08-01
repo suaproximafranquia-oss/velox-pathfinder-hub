@@ -377,8 +377,18 @@ export function CrmComposer({
           value={text}
           disabled={disabled}
           readOnly={windowClosed}
+          onMouseDown={(e) => {
+            // DEF 2.5.2 §5 — com a janela encerrada o clique na barra abre
+            // a lista oficial de Templates em vez do teclado.
+            if (!windowClosed || disabled) return;
+            e.preventDefault();
+            setTemplatesOpen(true);
+          }}
           onFocus={(e) => {
-            if (windowClosed) e.currentTarget.blur();
+            if (windowClosed) {
+              e.currentTarget.blur();
+              if (!disabled) setTemplatesOpen(true);
+            }
           }}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -459,14 +469,14 @@ export function CrmThread({ item, messages }: { item: CrmConversation; messages:
                 </span>
               </div>
             ) : null}
-            {/* DEF 2.4.22 §3 — Executivo à esquerda, Investidor à direita. */}
-            <div className={sent ? "flex justify-start" : "flex justify-end"}>
+            {/* DEF 2.5.2 §1 — Executivo à direita, Investidor à esquerda. */}
+            <div className={sent ? "flex justify-end" : "flex justify-start"}>
               <div
                 className={[
                   "max-w-[78%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed shadow-[0_1px_2px_rgba(16,24,40,0.05)]",
                   sent
-                    ? "rounded-bl-md bg-[color:var(--crm-accent)] text-white"
-                    : "rounded-br-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
+                    ? "rounded-br-md bg-[color:var(--crm-accent)] text-white"
+                    : "rounded-bl-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
                 ].join(" ")}
               >
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
