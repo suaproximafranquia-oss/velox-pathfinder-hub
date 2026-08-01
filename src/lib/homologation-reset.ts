@@ -10,6 +10,8 @@
  */
 import { notifySync } from "@/lib/sync-bus";
 
+const RESET_VERSION_KEY = "velox:physical-reset:2.4.reset.2";
+
 /** Chaves operacionais removidas pelo RESET. */
 const OPERATIONAL_KEYS = [
   // Leads, jornada e portal
@@ -89,16 +91,10 @@ export function resetHomologationData(): ResetSummary {
       removed.push(key);
     }
   }
-  // Preferências por executivo (prefixadas) também são operacionais.
+  // Registros operacionais prefixados também são removidos.
   for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
     const key = window.localStorage.key(i);
     if (!key) continue;
-    if (key.startsWith("velox:meeting-provider-default:v1:")) {
-      window.localStorage.removeItem(key);
-      removed.push(key);
-    }
-    // Lançamentos do KPI Manager e backups por escopo também são
-    // dados operacionais de homologação.
     if (
       key.startsWith("atlas:kpi:v1:") ||
       key.startsWith("crm.backup") ||
@@ -108,11 +104,23 @@ export function resetHomologationData(): ResetSummary {
       removed.push(key);
     }
   }
-  window.sessionStorage.clear();
+  window.sessionStorage.removeItem("velox:portal:entry-context:v1");
   notifySync("commercial");
   notifySync("audit");
   return {
     removed,
     preserved: PRESERVED_KEYS.filter((k) => window.localStorage.getItem(k) !== null).length,
   };
+}
+
+/**
+ * Executa o RESET físico uma única vez em cada navegador que ainda possa
+ * conter registros operacionais da homologação. A marca de versão impede
+ * novas limpezas e não representa dado operacional.
+ */
+export function enforcePhysicalReset(): void {
+  if (typeof window === "undefined") return;
+  if (window.localStorage.getItem(RESET_VERSION_KEY) === "done") return;
+  resetHomologationData();
+  window.localStorage.setItem(RESET_VERSION_KEY, "done");
 }

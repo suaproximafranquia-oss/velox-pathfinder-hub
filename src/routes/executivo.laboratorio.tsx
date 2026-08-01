@@ -143,11 +143,7 @@ function LaboratorioPage() {
           </div>
         </div>
 
-        <HomologationResetCard
-          actorId={session.userId}
-          actorName={session.name}
-          actorRole={session.role}
-        />
+        <HomologationResetCard />
 
         <section>
           <label className="block text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
@@ -266,15 +262,7 @@ function LaboratorioPage() {
  * permissões, templates, estrutura, banco e integrações permanecem
  * intactos.
  */
-function HomologationResetCard({
-  actorId,
-  actorName,
-  actorRole,
-}: {
-  actorId: string;
-  actorName: string;
-  actorRole: string;
-}) {
+function HomologationResetCard() {
   const [confirming, setConfirming] = useState(false);
   const [done, setDone] = useState<number | null>(null);
 

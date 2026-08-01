@@ -23,7 +23,6 @@ import {
   distinctActors,
   formatAuditTime,
   listAudit,
-  seedAuditIfEmpty,
   type AuditEntry,
   type AuditModule,
   type AuditSeverity,
@@ -100,7 +99,6 @@ function AuditPage() {
       navigate({ to: "/executivo" });
       return;
     }
-    seedAuditIfEmpty();
     setSession(s);
   }, [navigate]);
 
