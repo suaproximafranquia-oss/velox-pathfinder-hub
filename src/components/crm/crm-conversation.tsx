@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   MessageSquare,
   Clock,
@@ -12,6 +12,8 @@ import {
   Lock,
   ShieldCheck,
   AlertTriangle,
+  Copy,
+  Check,
 } from "lucide-react";
 import { CRM_STATE_DOT, type CrmConversation } from "@/lib/crm/relationships";
 
@@ -132,27 +134,46 @@ export function CrmActionBar() {
   );
 }
 
-/** Presença simples derivada da última movimentação registrada. */
-function isOnline(iso: string): boolean {
+/**
+ * Presença do WhatsApp — o cabeçalho jamais exibe dados do Portal do
+ * Investidor. Apenas Online, "Visto por último" ou Offline.
+ */
+function whatsappPresence(iso: string): { online: boolean; label: string } {
   const ts = new Date(iso).getTime();
-  return Number.isFinite(ts) && Date.now() - ts < 5 * 60 * 1000;
+  if (!Number.isFinite(ts)) return { online: false, label: "Offline" };
+  const diff = Date.now() - ts;
+  if (diff < 5 * 60 * 1000) return { online: true, label: "Online" };
+  const d = new Date(ts);
+  const hhmm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const sameDay = d.toDateString() === new Date().toDateString();
+  if (sameDay) return { online: false, label: `Visto por último hoje às ${hhmm}` };
+  const yesterday = new Date(Date.now() - 864e5).toDateString() === d.toDateString();
+  if (yesterday) return { online: false, label: `Visto por último ontem às ${hhmm}` };
+  if (diff < 30 * 864e5)
+    return {
+      online: false,
+      label: `Visto por último em ${d.toLocaleDateString("pt-BR")} às ${hhmm}`,
+    };
+  return { online: false, label: "Offline" };
 }
 
 export function CrmConversationHeader({ item }: { item: CrmConversation }) {
-  const online = isOnline(item.lastActivityIso);
+  const presence = whatsappPresence(item.lastActivityIso);
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
-      <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={38} />
-      <div className="flex min-w-0 flex-col">
+    <div className="flex min-w-0 flex-1 items-center gap-3.5">
+      <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={42} />
+      <div className="flex min-w-0 flex-col gap-0.5">
         <h2 className="truncate text-[15px] font-semibold tracking-[-0.01em]">{item.name}</h2>
         <span className="flex items-center gap-1.5 text-[11px] text-[color:var(--crm-muted)]">
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              online ? "bg-emerald-500" : "bg-[color:var(--crm-muted)]/50"
+              presence.online
+                ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                : "bg-[color:var(--crm-muted)]/40"
             }`}
             aria-hidden
           />
-          {online ? "Online" : "Offline"}
+          {presence.label}
         </span>
       </div>
       <div className="ml-auto">
@@ -179,22 +200,59 @@ export function CrmThread({ item }: { item: CrmConversation }) {
   );
 }
 
+/** Pequenos detalhes corporativos por bloco da ficha. */
+export type CrmRecordTone =
+  | "azul"
+  | "verde"
+  | "roxo"
+  | "laranja"
+  | "azul-claro"
+  | "vermelho"
+  | "neutro";
+
+const TONE: Record<CrmRecordTone, { icon: string; bar: string }> = {
+  azul: { icon: "bg-blue-50 text-blue-600", bar: "bg-blue-500" },
+  verde: { icon: "bg-emerald-50 text-emerald-600", bar: "bg-emerald-500" },
+  roxo: { icon: "bg-violet-50 text-violet-600", bar: "bg-violet-500" },
+  laranja: { icon: "bg-amber-50 text-amber-600", bar: "bg-amber-500" },
+  "azul-claro": { icon: "bg-sky-50 text-sky-600", bar: "bg-sky-400" },
+  vermelho: { icon: "bg-rose-50 text-rose-600", bar: "bg-rose-500" },
+  neutro: {
+    icon: "bg-[color:var(--crm-hover)] text-[color:var(--crm-muted)]",
+    bar: "bg-[color:var(--crm-muted)]/40",
+  },
+};
+
 /** Bloco categorizado da Ficha Operacional (painel direito). */
 export function CrmRecordSection({
   title,
   hint,
+  tone = "neutro",
+  icon: Icon,
   children,
 }: {
   title: string;
   hint?: string;
+  tone?: CrmRecordTone;
+  icon?: typeof MessageSquare;
   children?: ReactNode;
 }) {
+  const t = TONE[tone];
   return (
-    <section className="border-b border-[color:var(--crm-border)] pb-4 last:border-0">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--crm-muted)]">
-        {title}
-      </h3>
-      <div className="mt-2.5 space-y-2 text-sm">
+    <section className="rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+      <div className="flex items-center gap-2.5">
+        {Icon ? (
+          <span className={`flex h-6 w-6 items-center justify-center rounded-lg ${t.icon}`}>
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+        ) : (
+          <span className={`h-3.5 w-[3px] rounded-full ${t.bar}`} aria-hidden />
+        )}
+        <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--crm-muted)]">
+          {title}
+        </h3>
+      </div>
+      <div className="mt-3 space-y-2.5 text-sm">
         {children ?? (
           <p className="text-xs leading-relaxed text-[color:var(--crm-muted)]">
             {hint ?? "Em preparação para as próximas etapas."}
@@ -205,11 +263,45 @@ export function CrmRecordSection({
   );
 }
 
-export function CrmRecordRow({ label, value }: { label: string; value: string }) {
+export function CrmRecordRow({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="text-xs text-[color:var(--crm-muted)]">{label}</span>
-      <span className="min-w-0 truncate text-xs font-medium">{value}</span>
+      <span className="shrink-0 text-xs text-[color:var(--crm-muted)]">{label}</span>
+      <span className="min-w-0 truncate text-xs font-medium">{value?.trim() ? value : "—"}</span>
+    </div>
+  );
+}
+
+/** Linha do WhatsApp — clique copia o número, sem abrir conversa/navegador. */
+export function CrmCopyRow({ label, value }: { label: string; value?: string | null }) {
+  const [copied, setCopied] = useState(false);
+  const text = value?.trim();
+  if (!text) return <CrmRecordRow label={label} value="—" />;
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="shrink-0 text-xs text-[color:var(--crm-muted)]">{label}</span>
+      <button
+        type="button"
+        title="Copiar número"
+        aria-label={`Copiar ${label}`}
+        onClick={() => {
+          void navigator.clipboard?.writeText(text).then(
+            () => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1600);
+            },
+            () => undefined,
+          );
+        }}
+        className="group flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium transition-colors hover:bg-[color:var(--crm-hover)]"
+      >
+        <span className="min-w-0 truncate">{text}</span>
+        {copied ? (
+          <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+        ) : (
+          <Copy className="h-3.5 w-3.5 shrink-0 text-[color:var(--crm-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+        )}
+      </button>
     </div>
   );
 }
