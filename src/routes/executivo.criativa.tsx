@@ -211,16 +211,11 @@ function BriefForm({
           <Wand2 className="h-4 w-4 text-[color:var(--gold)]" />
           <h2 className="font-display text-lg">Nova unidade</h2>
         </div>
+        <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
+          Informe apenas cidade e UF. Todo o restante — layout, cores,
+          tipografia, logotipo e textos — segue o padrão oficial da marca.
+        </p>
 
-        <div className="space-y-1.5">
-          <span className={label}>Unidade</span>
-          <input
-            className={field}
-            value={form.unit}
-            onChange={(e) => onChange({ unit: e.target.value })}
-            placeholder="Velox São José do Rio Preto"
-          />
-        </div>
         <div className="grid grid-cols-[1fr_88px] gap-3">
           <div className="space-y-1.5">
             <span className={label}>Cidade</span>
@@ -241,42 +236,6 @@ function BriefForm({
             />
           </div>
         </div>
-        <div className="space-y-1.5">
-          <span className={label}>Endereço</span>
-          <input
-            className={field}
-            value={form.address}
-            onChange={(e) => onChange({ address: e.target.value })}
-            placeholder="Av. Brasil, 1200 — Centro"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <span className={label}>Inauguração</span>
-          <input
-            className={field}
-            value={form.openingDate}
-            onChange={(e) => onChange({ openingDate: e.target.value })}
-            placeholder="12 de agosto"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <span className={label}>Contato</span>
-          <input
-            className={field}
-            value={form.phone}
-            onChange={(e) => onChange({ phone: e.target.value })}
-            placeholder="(17) 99772-7337"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <span className={label}>Observações</span>
-          <textarea
-            className={`${field} min-h-[84px] resize-y`}
-            value={form.notes}
-            onChange={(e) => onChange({ notes: e.target.value })}
-            placeholder="Informações adicionais aprovadas para a peça."
-          />
-        </div>
 
         {error ? (
           <p className="text-xs text-[color:var(--destructive)]">{error}</p>
@@ -289,9 +248,11 @@ function BriefForm({
           className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-4 py-2.5 text-sm text-[color:var(--foreground)] hover:border-[color:var(--gold)] disabled:opacity-60 transition"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          {busy ? "Gerando peças oficiais…" : "Gerar Modelos A e B"}
+          {busy ? "Gerando artes oficiais…" : "Gerar artes"}
         </button>
       </section>
+
+      <BrandStandardUploads />
 
       {history.length > 0 ? (
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
