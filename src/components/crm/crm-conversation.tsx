@@ -461,13 +461,14 @@ export function CrmThread({
                 </span>
               </div>
             ) : null}
-            <div className={sent ? "flex justify-end" : "flex justify-start"}>
+            {/* DEF 2.4.22 §3 — Executivo à esquerda, Investidor à direita. */}
+            <div className={sent ? "flex justify-start" : "flex justify-end"}>
               <div
                 className={[
                   "max-w-[78%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed shadow-[0_1px_2px_rgba(16,24,40,0.05)]",
                   sent
-                    ? "rounded-br-md bg-[color:var(--crm-accent)] text-white"
-                    : "rounded-bl-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
+                    ? "rounded-bl-md bg-[color:var(--crm-accent)] text-white"
+                    : "rounded-br-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
                 ].join(" ")}
               >
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
