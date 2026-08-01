@@ -30,6 +30,8 @@ export type LeadRecord = VisitorIdentity & {
   createdAt: string;
   responsibleExecutiveId: string | null;
   personalized: boolean;
+  /** Observações operacionais do Executivo (ficha do Workspace). */
+  notes?: string;
   /**
    * Escopo permanente do Lead no Workspace ("green_sales" quando veio de
    * link personalizado; "portal" quando veio do acesso institucional).
@@ -89,6 +91,53 @@ function syncToCloud(lead: LeadRecord) {
 }
 
 /**
+ * Restaura (quando arquivado) o relacionamento existente e registra o
+ * evento em Timeline e Auditoria. Importação dinâmica para evitar
+ * dependência circular com o CRM.
+ */
+function restoreExistingRelationship(lead: LeadRecord) {
+  if (typeof window === "undefined") return;
+  syncToCloud(lead);
+  void import("@/lib/crm/commercial")
+    .then((m) => {
+      if (!m.isArchived(lead.id)) return;
+      m.restoreRelationship({
+        investorId: lead.id,
+        investorName: lead.name,
+        actorId: "system",
+        actorName: "Sistema",
+        ownerId: lead.responsibleExecutiveId ?? undefined,
+        origin: lead.scope === "green_sales" ? "Green Sales" : "Portal Velox",
+        automatic: true,
+      });
+    })
+    .catch(() => {});
+  void import("@/lib/crm/timeline")
+    .then((m) =>
+      m.recordCrmEvent({
+        investorId: lead.id,
+        event: "duplicidade_detectada",
+        origin: lead.scope === "green_sales" ? "Green Sales" : "Portal Velox",
+        reason:
+          "Relacionamento anterior identificado por WhatsApp/e-mail — nenhum Card novo foi criado.",
+        ownerId: lead.responsibleExecutiveId ?? "system",
+        actorId: "system",
+      }),
+    )
+    .catch(() => {});
+  void import("@/lib/audit-log")
+    .then((m) =>
+      m.logSystemAudit("investidores", "Duplicidade evitada na criação de Lead", {
+        target: lead.name,
+        details:
+          "Relacionamento existente restaurado — histórico, Executivo e origem preservados.",
+        severity: "warning",
+      }),
+    )
+    .catch(() => {});
+}
+
+/**
  * Reaplica o roteamento obrigatório a um Lead já existente. Um investidor
  * recorrente que retorna por link personalizado passa a pertencer ao
  * Green Sales daquele executivo; sem link continua no Portal.
@@ -132,7 +181,11 @@ export function deleteLead(id: string): void {
  * conclusão do Manual). Mantém a mesma identidade — nunca cria outro
  * registro.
  */
-export function updateLead(id: string, patch: Partial<VisitorIdentity>): LeadRecord | null {
+export function updateLead(
+  id: string,
+  patch: Partial<VisitorIdentity> &
+    Partial<Pick<LeadRecord, "notes" | "scope" | "responsibleExecutiveId" | "personalized">>,
+): LeadRecord | null {
   const all = loadLeads();
   const idx = all.findIndex((l) => l.id === id);
   if (idx < 0) return null;
@@ -149,6 +202,36 @@ export function updateLead(id: string, patch: Partial<VisitorIdentity>): LeadRec
   return merged;
 }
 
+/** Normalização oficial usada na verificação de duplicidade (DEF 2.5.3 §9). */
+export function leadPhoneKey(phone: string): string {
+  const digits = (phone ?? "").replace(/\D+/g, "");
+  return digits.length > 11 ? digits.slice(-11) : digits;
+}
+
+export function leadEmailKey(email: string): string {
+  return (email ?? "").trim().toLowerCase();
+}
+
+/**
+ * Localiza um relacionamento anterior por WhatsApp ou e-mail — inclusive
+ * arquivado. Nenhum Card novo pode ser criado quando existe histórico.
+ */
+export function findExistingLead(identity: {
+  whatsapp?: string;
+  email?: string;
+}): LeadRecord | null {
+  const phone = leadPhoneKey(identity.whatsapp ?? "");
+  const email = leadEmailKey(identity.email ?? "");
+  if (!phone && !email) return null;
+  return (
+    loadLeads().find(
+      (l) =>
+        (phone && leadPhoneKey(l.whatsapp) === phone) ||
+        (email && leadEmailKey(l.email) === email),
+    ) ?? null
+  );
+}
+
 /**
  * Grava um novo lead na base local. Retorna o executivo responsável
  * resolvido pela lógica oficial (link personalizado ou padrão).
@@ -162,6 +245,18 @@ export function registerLead(input: {
   const origin =
     input.origin ??
     (typeof window !== "undefined" ? window.location.pathname : "direct");
+  // DEF 2.5.3 §9 — duplicidade: existindo relacionamento anterior
+  // (WhatsApp ou e-mail), NUNCA cria novo Card; restaura o existente.
+  const existing = findExistingLead(input.identity);
+  if (existing) {
+    const restored = updateLead(existing.id, input.identity) ?? existing;
+    restoreExistingRelationship(restored);
+    return {
+      lead: restored,
+      executive: responsible.executive,
+      personalized: restored.scope === "green_sales",
+    };
+  }
   // Vínculo individual existe SOMENTE em link personalizado. Acesso
   // institucional gera Lead do Portal, sem dono.
   const responsibleExecutiveId = responsible.personalized

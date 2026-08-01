@@ -4,7 +4,6 @@ import { Search, Share2, Link2, Check } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   getSession,
-  canViewAllInvestors,
   loadUsers,
   type ExecutiveSession,
 } from "@/lib/executive-auth";
@@ -19,6 +18,7 @@ import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import { archiveRelationship } from "@/lib/crm/commercial";
 import {
   canAccessPortalWorkspace,
+  canViewFullWorkspace,
   WORKSPACE_SCOPE_LABEL,
   type WorkspaceScope,
 } from "@/lib/portal-workspace";
@@ -142,7 +142,10 @@ function WorkspacePage() {
     void tick;
     if (!session) return [];
     const allInvestors = listAllInvestors();
-    const visible = canViewAllInvestors(session.activeRole)
+    // DEF 2.5.3 §1/§2 — Administrador e perfil híbrido enxergam a base
+    // completa (sem filtro de carteira); Executivos comuns veem apenas
+    // os seus, e sempre restritos ao Green Sales.
+    const visible = canViewFullWorkspace(session.userId, session.activeRole)
       ? allInvestors
       : allInvestors.filter((i) => i.assignedToUserId === session.userId);
     // Isolamento absoluto por escopo: Portal jamais mistura com Green

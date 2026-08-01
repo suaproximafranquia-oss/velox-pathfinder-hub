@@ -26,8 +26,15 @@ import {
   markLeadViewed,
   onLeadStateChange,
   resolveLeadState,
+  closeLead,
+  reopenLead,
   type LeadState,
 } from "@/lib/lead-state";
+import {
+  readLeadFicha,
+  saveLeadFicha,
+  type LeadFicha,
+} from "@/lib/workspace-lead-edit";
 import {
   listSimulations,
   getLastSimulation,
@@ -189,7 +196,7 @@ export function InvestorProfileView({
       </nav>
 
       <section className="mt-6">
-        {tab === "geral" && <TabGeral investor={investor} executive={executive?.name} />}
+        {tab === "geral" && <TabGeral investor={investor} session={session} />}
         {tab === "jornada" && <TabJornada investor={investor} />}
         {tab === "timeline" && <TabTimeline profile={profile} />}
         {tab === "reunioes" && (
@@ -276,36 +283,197 @@ function LeadStateBadge({
 }
 
 /* ---------- Aba Geral ---------- */
-function TabGeral({ investor, executive }: { investor: Investor; executive?: string }) {
-  const originLabel = ORIGIN_LABEL[investor.origin ?? "manual"] ?? "—";
-  const originValue = executive
-    ? `${originLabel} · ${executive}${
-        investor.origin !== "portal" ? ` (/manual/${slugify(executive)})` : ""
-      }`
-    : originLabel;
-  const rows: [string, React.ReactNode][] = [
-    ["Nome completo", investor.name],
-    ["Telefone", investor.phone || "—"],
-    ["Email", investor.email || "—"],
-    ["Cidade", investor.city || "—"],
-    ["Origem / Executivo", originValue],
-    ["Status atual", STATUS_LABEL[investor.status]],
-    ["Diagnóstico", investor.diagnostic],
-    ["Interações com IA", String(investor.aiInteractions)],
-  ];
+/**
+ * DEF 2.5.3 §6 — ficha totalmente editável. Toda alteração é gravada na
+ * base única e propagada na hora para CRM, Timeline, Auditoria, Backup e
+ * Central de Alertas.
+ */
+function TabGeral({
+  investor,
+  session,
+}: {
+  investor: Investor;
+  session: ExecutiveSession;
+}) {
+  const users = useMemo(() => loadUsers(), []);
+  const [ficha, setFicha] = useState<LeadFicha | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [state, setState] = useState<LeadState>(() => resolveLeadState(investor));
+
+  useEffect(() => {
+    setFicha(readLeadFicha(investor.id));
+    setState(resolveLeadState(investor));
+  }, [investor.id]);
+
+  if (!ficha) {
+    return (
+      <p className="text-sm text-[color:var(--muted-foreground)]">
+        Ficha indisponível para este registro.
+      </p>
+    );
+  }
+
+  const set = (patch: Partial<LeadFicha>) => {
+    setSaved(false);
+    setFicha((f) => (f ? { ...f, ...patch } : f));
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ficha) return;
+    saveLeadFicha({
+      investorId: investor.id,
+      ficha,
+      actorId: session.userId,
+      actorName: session.name,
+      actorRole: session.activeRole,
+    });
+    setSaved(true);
+  };
+
+  const changeState = (next: LeadState) => {
+    if (next === "encerrado") closeLead(investor.id, session.userId);
+    else if (state === "encerrado") reopenLead(investor.id, session.userId);
+    else markLeadViewed(investor.id, session.userId);
+    setState(next);
+  };
+
   return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {rows.map(([k, v]) => (
-        <div
-          key={k}
-          className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-5 py-4"
+    <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
+      <Field label="Nome completo" value={ficha.name} onChange={(v) => set({ name: v })} />
+      <Field
+        label="WhatsApp / Telefone"
+        value={ficha.whatsapp}
+        onChange={(v) => set({ whatsapp: v })}
+      />
+      <Field label="E-mail" value={ficha.email} onChange={(v) => set({ email: v })} />
+      <Field label="Cidade" value={ficha.city} onChange={(v) => set({ city: v })} />
+
+      <SelectField
+        label="Origem"
+        value={ficha.scope}
+        onChange={(v) => set({ scope: v as LeadFicha["scope"] })}
+        options={[
+          { value: "green_sales", label: ORIGIN_LABEL.green_sales },
+          { value: "portal", label: ORIGIN_LABEL.portal },
+        ]}
+      />
+      <SelectField
+        label="Executivo responsável"
+        value={ficha.responsibleExecutiveId ?? ""}
+        onChange={(v) => set({ responsibleExecutiveId: v || null })}
+        options={[
+          { value: "", label: "Administrador do Portal" },
+          ...users.map((u) => ({ value: u.id, label: u.name })),
+        ]}
+      />
+      <SelectField
+        label="Status"
+        value={state}
+        onChange={(v) => changeState(v as LeadState)}
+        options={[
+          { value: "novo", label: LEAD_STATE_META.novo.label },
+          { value: "em_andamento", label: LEAD_STATE_META.em_andamento.label },
+          { value: "encerrado", label: LEAD_STATE_META.encerrado.label },
+        ]}
+      />
+      <ReadOnly label="Status da jornada" value={STATUS_LABEL[investor.status]} />
+
+      <div className="md:col-span-2 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-5 py-4">
+        <label className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+          Observações
+        </label>
+        <textarea
+          value={ficha.notes}
+          onChange={(e) => set({ notes: e.target.value })}
+          rows={3}
+          className="mt-2 w-full resize-y bg-transparent text-sm outline-none placeholder:text-[color:var(--muted-foreground)]/50"
+          placeholder="Observações operacionais sobre o relacionamento"
+        />
+      </div>
+
+      <ReadOnly label="Diagnóstico" value={investor.diagnostic} />
+      <ReadOnly label="Interações com IA" value={String(investor.aiInteractions)} />
+
+      <div className="md:col-span-2 flex items-center gap-3">
+        <button
+          type="submit"
+          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-5 py-2 text-xs uppercase tracking-[0.16em] text-[color:var(--foreground)] hover:border-[color:var(--gold)] transition"
         >
-          <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-            {k}
-          </p>
-          <p className="mt-1 text-sm text-[color:var(--foreground)] break-words">{v}</p>
-        </div>
-      ))}
+          Salvar alterações
+        </button>
+        {saved && (
+          <span className="text-xs text-emerald-400">
+            Ficha atualizada e sincronizada.
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-5 py-4 block">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+        {label}
+      </span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full bg-transparent text-sm text-[color:var(--foreground)] outline-none"
+      />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-5 py-4 block">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full bg-transparent text-sm text-[color:var(--foreground)] outline-none [&>option]:bg-[color:var(--card)] [&>option]:text-[color:var(--foreground)]"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function ReadOnly({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-5 py-4">
+      <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+        {label}
+      </p>
+      <p className="mt-1 text-sm text-[color:var(--foreground)] break-words">{value}</p>
     </div>
   );
 }
@@ -891,13 +1059,4 @@ function EmptyState({
       <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">{text}</p>
     </div>
   );
-}
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .split(" ")
-    .filter(Boolean)[0] ?? s;
 }

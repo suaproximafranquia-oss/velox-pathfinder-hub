@@ -7,6 +7,7 @@ import { loadLeads } from "@/lib/leads";
 import { getDefaultExecutive } from "@/lib/executive-auth";
 import { resolveLeadScope } from "@/lib/lead-routing";
 import { isJourneyOnly, isArchived } from "@/lib/crm/commercial";
+import { getPortalAdministratorId } from "@/lib/portal-workspace";
 
 export type InvestorStatus =
   | "novo"
@@ -79,7 +80,16 @@ export type InvestorScopeOptions = {
 
 export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[] {
   const fallbackExecutiveId = getDefaultExecutive()?.id ?? "usr_thiago";
+  // DEF 2.5.3 §3 — Portal pertence sempre ao Administrador responsável.
+  const portalAdministratorId = getPortalAdministratorId();
   const portalInvestors = loadLeads().map<Investor>((lead) => {
+    const scope =
+      lead.scope ??
+      resolveLeadScope({
+        personalized: lead.personalized,
+        responsibleExecutiveId: lead.responsibleExecutiveId,
+      });
+    const isPortal = scope !== "green_sales";
     const events = listEvents({ investorId: lead.id });
     const manualEvents = events.filter((event) => event.type === "manual.chapter.completed");
     const manualDone = events.some((event) => event.type === "manual.completed");
@@ -119,17 +129,13 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
       aiInteractions: events.filter((event) => event.type === "ai.query.answered").length +
         (interestsCaptured ? 1 : 0),
       diagnostic: simulatorDone || interestsCaptured ? "em andamento" : "não iniciado",
-      assignedToUserId: lead.responsibleExecutiveId ?? fallbackExecutiveId,
+      // Portal: Administrador responsável, sem redistribuição automática.
+      assignedToUserId: isPortal
+        ? (lead.responsibleExecutiveId ?? portalAdministratorId)
+        : (lead.responsibleExecutiveId ?? fallbackExecutiveId),
       // Origem oficial: link personalizado → Green Sales; acesso
       // institucional → Portal. Ver `lead-routing.ts`.
-      origin:
-        (lead.scope ??
-          resolveLeadScope({
-            personalized: lead.personalized,
-            responsibleExecutiveId: lead.responsibleExecutiveId,
-          })) === "green_sales"
-          ? "green_sales"
-          : "portal",
+      origin: isPortal ? "portal" : "green_sales",
       priority: simulatorDone ? "high" : interestsCaptured ? "medium" : "none",
       lastEventLabel,
     };
