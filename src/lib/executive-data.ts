@@ -59,8 +59,6 @@ export const STATUS_LABEL: Record<InvestorStatus, string> = {
  * DEF 2.4.RESET — proibido qualquer investidor de demonstração.
  * A base é composta exclusivamente por registros reais.
  */
-export const MOCK_INVESTORS: Investor[] = [];
-
 function latestIso(values: string[]): string {
   const valid = values.filter(Boolean);
   if (valid.length === 0) return new Date().toISOString();
@@ -138,7 +136,6 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
   });
 
   const byId = new Map<string, Investor>();
-  for (const investor of MOCK_INVESTORS) byId.set(investor.id, investor);
   for (const investor of portalInvestors) byId.set(investor.id, investor);
   return Array.from(byId.values()).filter((investor) => {
     if (!options.includeArchived && isArchived(investor.id)) return false;

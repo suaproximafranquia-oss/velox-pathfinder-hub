@@ -50,8 +50,6 @@ export type AuditEntry = {
 };
 
 const STORAGE_KEY = "atlas.audit.log.v1";
-const SEED_FLAG = "atlas.audit.seeded.v1";
-
 function readAll(): AuditEntry[] {
   if (typeof window === "undefined") return [];
   try {
@@ -136,14 +134,6 @@ export function distinctActors(): { id: string; name: string }[] {
   const map = new Map<string, string>();
   for (const e of readAll()) if (!map.has(e.actorId)) map.set(e.actorId, e.actorName);
   return Array.from(map, ([id, name]) => ({ id, name }));
-}
-
-/**
- * DEF 2.4.RESET — a Central de Auditoria nunca recebe registros de exemplo.
- * Mantida apenas para compatibilidade de chamadas existentes.
- */
-export function seedAuditIfEmpty(): void {
-  /* no-op — proibido criar auditorias fictícias. */
 }
 
 /** Formata timestamp em pt-BR com precisão de minutos. */

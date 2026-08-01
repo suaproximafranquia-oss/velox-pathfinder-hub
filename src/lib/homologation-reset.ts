@@ -1,7 +1,7 @@
 /**
  * DEF 2.4.19 §12 / DEF 2.4.20 §13 — RESET do ambiente de homologação.
  *
- * Remove exclusivamente dados operacionais de demonstração (leads,
+ * Remove definitivamente dados operacionais (leads,
  * conversas, alertas, auditorias, reuniões, cards, timeline, eventos
  * simulados, jornadas e sessões do Portal).
  *
@@ -9,6 +9,8 @@
  * banco e integrações.
  */
 import { notifySync } from "@/lib/sync-bus";
+
+const RESET_VERSION_KEY = "velox:physical-reset:2.4.reset.2";
 
 /** Chaves operacionais removidas pelo RESET. */
 const OPERATIONAL_KEYS = [
@@ -20,6 +22,7 @@ const OPERATIONAL_KEYS = [
   "velox:portal:identities:v1",
   "velox:portal:entry-context:v1",
   "velox:portal:whatsapp-verification:v1",
+  "velox:scheduling-draft:v1",
   "velox:journey:v1",
   "velox:manual:v1",
   "velox:interests-profile:v1",
@@ -46,17 +49,22 @@ const OPERATIONAL_KEYS = [
   "atlas:brain:alerts:v3",
   "velox:notifications:v1",
   "velox:meetings:v1",
+  "velox:google-calendar:v2",
   "velox:events:v1",
   "velox:investor-comments:v1",
   "atlas:recognition:events:v1",
   "atlas:recognition:homolog:v1",
   "atlas:recognition:scheduled:v1",
+  "atlas.creative.history.v1",
   // Backups, KPI e demais registros temporários de homologação
   "crm.backups.v1",
   "atlas:backups:v1",
   "velox:simulator:history:v1",
   "velox:portal:activity:v1",
   "velox:scheduling:v1",
+  "atlas:kpi:context:v2",
+  "crm:lastActivity:v1",
+  "velox:sync:ping",
 ] as const;
 
 /** Chaves jamais tocadas — estrutura, usuários, permissões e integrações. */
@@ -70,7 +78,6 @@ export const PRESERVED_KEYS = [
   "atlas:resources:v1",
   "crm.distribution.config.v1",
   "velox:crm:relationship-inactivity-days:v1",
-  "velox:google-calendar:v2",
 ] as const;
 
 export type ResetSummary = { removed: string[]; preserved: number };
@@ -84,17 +91,15 @@ export function resetHomologationData(): ResetSummary {
       removed.push(key);
     }
   }
-  // Preferências por executivo (prefixadas) também são operacionais.
+  // Registros operacionais prefixados também são removidos.
   for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
     const key = window.localStorage.key(i);
     if (!key) continue;
-    if (key.startsWith("velox:meeting-provider-default:v1:")) {
-      window.localStorage.removeItem(key);
-      removed.push(key);
-    }
-    // Lançamentos do KPI Manager e backups por escopo também são
-    // dados operacionais de homologação.
-    if (key.startsWith("atlas:kpi:v1:") || key.startsWith("crm.backup")) {
+    if (
+      key.startsWith("atlas:kpi:v1:") ||
+      key.startsWith("crm.backup") ||
+      key.startsWith("velox:meeting-provider-default:v1:")
+    ) {
       window.localStorage.removeItem(key);
       removed.push(key);
     }
@@ -106,4 +111,16 @@ export function resetHomologationData(): ResetSummary {
     removed,
     preserved: PRESERVED_KEYS.filter((k) => window.localStorage.getItem(k) !== null).length,
   };
+}
+
+/**
+ * Executa o RESET físico uma única vez em cada navegador que ainda possa
+ * conter registros operacionais da homologação. A marca de versão impede
+ * novas limpezas e não representa dado operacional.
+ */
+export function enforcePhysicalReset(): void {
+  if (typeof window === "undefined") return;
+  if (window.localStorage.getItem(RESET_VERSION_KEY) === "done") return;
+  resetHomologationData();
+  window.localStorage.setItem(RESET_VERSION_KEY, "done");
 }

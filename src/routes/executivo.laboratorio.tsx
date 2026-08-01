@@ -24,7 +24,6 @@ import {
   type ScheduledRecognition,
 } from "@/lib/recognition/engine";
 import { resetHomologationData } from "@/lib/homologation-reset";
-import { logAudit } from "@/lib/audit-log";
 
 export const Route = createFileRoute("/executivo/laboratorio")({
   head: () => ({
@@ -144,11 +143,7 @@ function LaboratorioPage() {
           </div>
         </div>
 
-        <HomologationResetCard
-          actorId={session.userId}
-          actorName={session.name}
-          actorRole={session.role}
-        />
+        <HomologationResetCard />
 
         <section>
           <label className="block text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
@@ -267,29 +262,12 @@ function LaboratorioPage() {
  * permissões, templates, estrutura, banco e integrações permanecem
  * intactos.
  */
-function HomologationResetCard({
-  actorId,
-  actorName,
-  actorRole,
-}: {
-  actorId: string;
-  actorName: string;
-  actorRole: string;
-}) {
+function HomologationResetCard() {
   const [confirming, setConfirming] = useState(false);
   const [done, setDone] = useState<number | null>(null);
 
   const run = () => {
     const summary = resetHomologationData();
-    logAudit({
-      actorId,
-      actorName,
-      actorRole,
-      module: "sistema",
-      action: "RESET do ambiente de homologação executado",
-      details: `${summary.removed.length} bases operacionais limpas. Usuários, permissões, templates e integrações preservados.`,
-      severity: "critical",
-    });
     setDone(summary.removed.length);
     setConfirming(false);
     if (typeof window !== "undefined") window.setTimeout(() => window.location.reload(), 900);
