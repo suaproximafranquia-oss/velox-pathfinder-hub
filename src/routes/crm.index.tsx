@@ -194,7 +194,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     }
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, tick, now]);
+  }, [visible, tick]);
 
   // DEF 2.4.10 §2 — toda atividade do investidor no Portal (Manual,
   // Material, Calculadora, Workspace, retorno) vira alerta na Ficha e
