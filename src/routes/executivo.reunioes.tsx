@@ -413,7 +413,7 @@ function MeetingsPage() {
                 key={m.id}
                 className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-4 md:p-5"
               >
-                <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_auto_auto] md:items-center">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_auto_minmax(0,auto)] lg:items-center">
                   {/* Coluna 1 — Investidor */}
                   <div className="min-w-0">
                      <div className="flex items-center gap-2 mb-1">
@@ -457,7 +457,7 @@ function MeetingsPage() {
                   </div>
 
                   {/* Coluna 2 — Status */}
-                  <div className="flex flex-wrap gap-1.5 md:justify-center">
+                  <div className="flex flex-wrap gap-1.5 lg:justify-center">
                     <span
                       className="text-[10px] uppercase tracking-[0.22em] rounded-full px-3 py-1"
                       style={{ color: st.fg, background: st.bg, border: `1px solid ${st.border}` }}
@@ -473,9 +473,8 @@ function MeetingsPage() {
                   </div>
 
                   {/* Coluna 3 — Ações */}
-                  <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
+                  <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
                     <ActionButton icon={Eye} label="Ver detalhes" onClick={() => setDetailsFor(m)} />
-                    <ActionButton icon={Pencil} label="Editar" onClick={() => setEditFor(m)} />
                     {resolveMeetingUrl(m) && (
                       <ActionButton icon={Link2} label="Copiar link" onClick={() => void copyMeetingLink(m)} />
                     )}
@@ -483,13 +482,6 @@ function MeetingsPage() {
                       icon={Send}
                       label={inviteBusy === m.id ? "Enviando..." : "Reenviar convite"}
                       onClick={() => void resendInvite(m)}
-                    />
-                    <ActionButton icon={RefreshCw} label="Alterar Status" onClick={() => setStatusFor(m)} />
-                    <ActionButton
-                      icon={MessageSquare}
-                      label="Adicionar Observação"
-                      count={m.notes.length}
-                      onClick={() => setNotesFor(m)}
                     />
                     <ActionButton
                       icon={Trash2}

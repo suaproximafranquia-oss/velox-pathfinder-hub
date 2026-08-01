@@ -63,6 +63,23 @@ export function downloadBase64(base64: string, filename: string, mime = "image/p
   link.remove();
 }
 
+/**
+ * Abre a arte em nova aba. Navegadores bloqueiam navegação de topo para
+ * `data:` URIs — por isso convertemos em Blob antes de abrir.
+ */
+export function openBase64InNewTab(base64: string, mime = "image/png") {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  const win = window.open(url, "_blank", "noopener");
+  if (!win) {
+    // Popup bloqueado: cai para download, garantindo acesso à peça.
+    downloadBase64(base64, "velox-arte.png", mime);
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export function slugify(value: string): string {
   return (value || "peca")
     .normalize("NFD")

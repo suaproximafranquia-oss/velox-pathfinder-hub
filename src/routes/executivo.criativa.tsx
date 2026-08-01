@@ -1,28 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Wand2,
-  Loader2,
-  Download,
-  CloudUpload,
-  Eye,
-  Check,
-  FolderTree,
-  Lock,
-} from "lucide-react";
+import { Wand2, Loader2, Download, CloudUpload, Eye, Check, Lock } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import {
-  CREATIVE_CATEGORIES,
-  CREATIVE_MODEL_LABEL,
-  type CreativeModel,
-} from "@/lib/creative/brand";
+import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
 import { renderTemplate, type UnitBrief } from "@/lib/creative/templates";
 import {
   officialLogoHref,
   svgToDataUrl,
   svgToPngBase64,
   downloadBase64,
+  openBase64InNewTab,
   slugify,
 } from "@/lib/creative/render";
 import { listCreativeHistory, recordCreative } from "@/lib/creative/history";
@@ -156,6 +144,7 @@ function CriativaPage() {
                 session={session}
                 unit={unitName(form)}
                 city={form.city}
+                state={form.state}
                 onSaved={() => setHistoryTick((v) => v + 1)}
               />
               <ArtCard
@@ -165,6 +154,7 @@ function CriativaPage() {
                 session={session}
                 unit={unitName(form)}
                 city={form.city}
+                state={form.state}
                 onSaved={() => setHistoryTick((v) => v + 1)}
               />
             </div>
@@ -178,7 +168,6 @@ function CriativaPage() {
             </div>
           )}
 
-          <CategoriesRoadmap />
         </section>
       </div>
     </ExecutiveShell>
@@ -260,8 +249,19 @@ function BriefForm({
           <ul className="mt-3 space-y-2 text-sm">
             {history.map((h) => (
               <li key={h.id} className="flex items-start justify-between gap-3">
-                <span className="min-w-0 truncate text-[color:var(--muted-foreground)]">
-                  {h.unit} — {CREATIVE_MODEL_LABEL[h.model].replace("Modelo ", "")}
+                <span className="min-w-0 text-[color:var(--muted-foreground)]">
+                  <span className="block truncate">
+                    {h.city}
+                    {h.state ? ` / ${h.state}` : ""} —{" "}
+                    {CREATIVE_MODEL_LABEL[h.model].replace("Modelo ", "")}
+                  </span>
+                  <span className="block text-[11px] opacity-70">
+                    {new Date(h.createdAt).toLocaleDateString("pt-BR")} ·{" "}
+                    {new Date(h.createdAt).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </span>
                 {h.driveLink ? (
                   <a
@@ -287,17 +287,45 @@ function BriefForm({
  * aprovados e manuais direto para a biblioteca no Drive corporativo.
  */
 const BRAND_UPLOADS: { kind: BrandAssetKind; label: string; accept: string }[] = [
-  { kind: "logo", label: "Logotipos oficiais", accept: "image/*,.svg" },
-  { kind: "template", label: "Templates de arte", accept: "image/*,.svg,.pdf,.psd,.ai" },
-  { kind: "modelo", label: "Modelos aprovados", accept: "image/*,.pdf" },
-  { kind: "manual", label: "Manual da marca / referências", accept: ".pdf,image/*" },
+  {
+    kind: "modelo",
+    label: "Modelo aprovado",
+    accept: ".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf",
+  },
+  {
+    kind: "manual",
+    label: "Manual da marca (opcional)",
+    accept: ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg",
+  },
+  {
+    kind: "logo",
+    label: "Logotipo oficial (opcional)",
+    accept: ".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml",
+  },
 ];
+
+/** Extensões aceitas no padrão oficial — validação amigável antes do envio. */
+const ACCEPTED_EXT = /\.(png|jpe?g|pdf|svg)$/i;
+
+function guessMime(name: string, type: string): string {
+  if (type) return type;
+  const ext = name.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "svg") return "image/svg+xml";
+  return "application/octet-stream";
+}
 
 function BrandStandardUploads() {
   const [busy, setBusy] = useState<BrandAssetKind | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   async function upload(kind: BrandAssetKind, file: File) {
+    if (!ACCEPTED_EXT.test(file.name)) {
+      setStatus("Formato não aceito. Envie um arquivo PNG, JPG, JPEG ou PDF.");
+      return;
+    }
     setBusy(kind);
     setStatus(null);
     try {
@@ -312,12 +340,14 @@ function BrandStandardUploads() {
           kind,
           name: file.name,
           contentBase64: base64,
-          mimeType: file.type || "application/octet-stream",
+          mimeType: guessMime(file.name, file.type),
         },
       });
       setStatus(`“${file.name}” enviado para a biblioteca oficial.`);
     } catch {
-      setStatus("Não foi possível enviar o arquivo agora. Tente novamente.");
+      setStatus(
+        "Não foi possível enviar o arquivo agora. Verifique a conexão da Conta Google corporativa e tente novamente.",
+      );
     } finally {
       setBusy(null);
     }
@@ -330,8 +360,9 @@ function BrandStandardUploads() {
         <h3 className="font-display text-base">Padrão oficial da marca</h3>
       </div>
       <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
-        Envie aqui os arquivos oficiais. Eles ficam organizados na biblioteca
-        do Drive corporativo e são a única referência usada pela IA.
+        Envie a arte oficial aprovada. Ela fica armazenada na biblioteca do
+        Drive corporativo e é a referência permanente usada pela IA. Formatos
+        aceitos: PNG, JPG, JPEG e PDF.
       </p>
       <div className="space-y-2">
         {BRAND_UPLOADS.map((item) => (
@@ -372,6 +403,7 @@ function ArtCard({
   session,
   unit,
   city,
+  state,
   onSaved,
 }: {
   model: CreativeModel;
@@ -380,9 +412,10 @@ function ArtCard({
   session: ExecutiveSession;
   unit: string;
   city: string;
+  state: string;
   onSaved: () => void;
 }) {
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const preview = useMemo(() => svgToDataUrl(svg), [svg]);
@@ -391,43 +424,57 @@ function ArtCard({
   async function download() {
     const png = await svgToPngBase64(svg);
     downloadBase64(png, fileName);
-    recordCreative({
-      userId: session.userId,
-      category: "unidade",
-      model,
-      unit,
-      city,
-      fileName,
-    });
-    onSaved();
   }
 
-  async function saveToDrive() {
-    if (saving) return;
+  async function view() {
+    const png = await svgToPngBase64(svg);
+    openBase64InNewTab(png);
+  }
+
+  /**
+   * Arquivamento automático: assim que a peça é gerada ela vai para a pasta
+   * corporativa e entra no histórico — sem qualquer ação do usuário.
+   */
+  useEffect(() => {
+    let alive = true;
     setSaving(true);
+    setSaved(null);
     setFailed(null);
-    try {
-      const png = await svgToPngBase64(svg);
-      const res = await saveCreativeArt({
-        data: { name: fileName, contentBase64: png, mimeType: "image/png" },
-      });
-      setSaved(res.webViewLink ?? "");
+    void (async () => {
+      let driveLink: string | null = null;
+      try {
+        const png = await svgToPngBase64(svg);
+        const res = await saveCreativeArt({
+          data: { name: fileName, contentBase64: png, mimeType: "image/png" },
+        });
+        driveLink = res.webViewLink ?? null;
+        if (alive) setSaved(driveLink ?? "");
+      } catch {
+        if (alive)
+          setFailed(
+            "A peça foi gerada. O arquivamento automático no Drive será retomado assim que a Conta Google corporativa estiver conectada.",
+          );
+      }
       recordCreative({
         userId: session.userId,
         category: "unidade",
         model,
         unit,
         city,
+        state,
         fileName,
-        driveLink: res.webViewLink,
+        driveLink,
       });
-      onSaved();
-    } catch {
-      setFailed("Conecte sua conta corporativa nas Configurações para salvar no Drive.");
-    } finally {
-      setSaving(false);
-    }
-  }
+      if (alive) {
+        setSaving(false);
+        onSaved();
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svg, fileName]);
 
   const action =
     "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/50 transition";
@@ -451,61 +498,31 @@ function ArtCard({
         />
       </div>
       <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--border)] px-5 py-3">
-        <a href={preview} target="_blank" rel="noreferrer" className={action}>
+        <button type="button" onClick={() => void view()} className={action}>
           <Eye className="h-3.5 w-3.5" /> Visualizar
-        </a>
+        </button>
         <button type="button" onClick={() => void download()} className={action}>
           <Download className="h-3.5 w-3.5" /> Download
         </button>
-        <button type="button" onClick={() => void saveToDrive()} className={action} disabled={saving}>
+        <span className="inline-flex items-center gap-1.5 text-xs text-[color:var(--muted-foreground)]">
           {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Arquivando no Drive…
+            </>
           ) : saved !== null ? (
-            <Check className="h-3.5 w-3.5" />
+            <>
+              <Check className="h-3.5 w-3.5 text-[color:var(--gold)]" /> Salvo no Drive
+            </>
           ) : (
-            <CloudUpload className="h-3.5 w-3.5" />
+            <>
+              <CloudUpload className="h-3.5 w-3.5" /> Arquivamento pendente
+            </>
           )}
-          {saved !== null ? "Salvo no Drive" : "Salvar no Drive"}
-        </button>
+        </span>
         {failed ? (
           <p className="w-full text-[11px] text-[color:var(--muted-foreground)]">{failed}</p>
         ) : null}
       </footer>
     </article>
-  );
-}
-
-function CategoriesRoadmap() {
-  return (
-    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
-      <div className="flex items-center gap-2">
-        <FolderTree className="h-4 w-4 text-[color:var(--gold)]" />
-        <h2 className="font-display text-lg">Categorias da biblioteca</h2>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CREATIVE_CATEGORIES.map((c) => (
-          <div
-            key={c.id}
-            className="rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-4 py-3"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm">{c.label}</span>
-              <span
-                className={
-                  c.status === "ativo"
-                    ? "rounded-full border border-[color:var(--gold)]/50 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[color:var(--gold)]"
-                    : "rounded-full border border-[color:var(--border)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]"
-                }
-              >
-                {c.status === "ativo" ? "Ativo" : "Previsto"}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-[color:var(--muted-foreground)] leading-relaxed">
-              {c.description}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }

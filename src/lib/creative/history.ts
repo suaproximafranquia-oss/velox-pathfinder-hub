@@ -14,6 +14,8 @@ export type CreativeHistoryEntry = {
   model: CreativeModel;
   unit: string;
   city: string;
+  /** UF da unidade (registro oficial do histórico). */
+  state?: string;
   fileName: string;
   driveLink?: string | null;
 };
