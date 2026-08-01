@@ -163,8 +163,10 @@ export function CrmMainPane({
 }
 
 /**
- * Marca d'água institucional — extremamente discreta, apenas para remover
- * a sensação de tela vazia sem prejudicar a leitura.
+ * Identidade institucional do Connect Hub (DEF 2.4.10 §6).
+ *
+ * Malha de conexões, comunicação e inteligência em opacidade mínima:
+ * enriquece o ambiente sem jamais competir com a leitura da conversa.
  */
 function CrmWatermark() {
   return (
@@ -182,15 +184,34 @@ function CrmWatermark() {
         <circle cx="100" cy="100" r="18" />
         <circle cx="100" cy="100" r="46" strokeDasharray="3 6" />
         <circle cx="100" cy="100" r="76" strokeDasharray="3 10" />
+        {/* Núcleo de comunicação — o diálogo no centro do relacionamento. */}
+        <path d="M88 94h24a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-13l-7 6v-6h-4a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z" />
         {[0, 60, 120, 180, 240, 300].map((deg) => {
           const rad = (deg * Math.PI) / 180;
           const x = 100 + Math.cos(rad) * 76;
           const y = 100 + Math.sin(rad) * 76;
+          const mx = 100 + Math.cos(rad) * 46;
+          const my = 100 + Math.sin(rad) * 46;
           return (
             <g key={deg}>
               <line x1={100} y1={100} x2={x} y2={y} />
+              <circle cx={mx} cy={my} r="4" />
               <circle cx={x} cy={y} r="9" fill="currentColor" stroke="none" />
             </g>
+          );
+        })}
+        {/* Elos entre os nós — inteligência distribuída da rede. */}
+        {[30, 90, 150, 210, 270, 330].map((deg) => {
+          const rad = (deg * Math.PI) / 180;
+          return (
+            <circle
+              key={deg}
+              cx={100 + Math.cos(rad) * 61}
+              cy={100 + Math.sin(rad) * 61}
+              r="2.5"
+              fill="currentColor"
+              stroke="none"
+            />
           );
         })}
       </svg>
@@ -211,7 +232,7 @@ export function CrmDetailsPane({
 }) {
   if (!open) {
     return (
-      <div className="hidden h-full shrink-0 items-start border-l border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] lg:flex">
+      <div className="crm-enter hidden h-full shrink-0 items-start border-l border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] lg:flex">
         <button
           type="button"
           onClick={onToggle}
@@ -227,7 +248,7 @@ export function CrmDetailsPane({
   return (
     <aside
       aria-label={title}
-      className="relative hidden h-full w-[330px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] shadow-[-1px_0_0_0_var(--crm-border)] lg:flex 2xl:w-[390px]"
+      className="crm-slide-in relative hidden h-full w-[330px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] shadow-[-1px_0_0_0_var(--crm-border)] lg:flex 2xl:w-[390px]"
     >
       {/* Controle na própria borda da ficha — nunca no cabeçalho da conversa. */}
       <button
