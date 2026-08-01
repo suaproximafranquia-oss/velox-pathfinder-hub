@@ -182,6 +182,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     executives.find((e) => e.id === id)?.name ?? "—";
   const privateOk = selected ? canSeePrivateContent(selected.access) : false;
 
+  // Histórico da conversa — persistido, nunca some após o envio.
+  const messages = useMemo(
+    () => (selected && privateOk ? listCrmMessages(selected.id) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selected?.id, privateOk, messageTick],
+  );
+
   // Registro automático da ocorrência — sem interação do usuário.
   useEffect(() => {
     if (!selected) return;
@@ -306,9 +313,17 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
         footer={
-          isConversas && selected && privateOk ? (
+          isConversas && selected ? (
             <CrmComposer
-              onSend={() => {
+              disabled={!privateOk}
+              hint="Conversa disponível apenas ao Executivo responsável"
+              onSend={(text) => {
+                appendCrmMessage({
+                  investorId: selected.id,
+                  direction: "enviada",
+                  body: text,
+                  authorId: actor.userId,
+                });
                 markOutboundMessage(selected.id);
                 recordCrmEvent({
                   investorId: selected.id,
@@ -318,6 +333,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   ownerId: selected.ownerId,
                   actorId: actor.userId,
                 });
+                setMessageTick((v) => v + 1);
                 setTick((v) => v + 1);
               }}
             />
@@ -332,7 +348,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : (
             <>
               <CrmDuplicateNotice item={selected} />
-              <CrmThread item={selected} />
+              <CrmThread item={selected} messages={messages} />
             </>
           )
         ) : isDistribuicao && selectedIntake ? (
