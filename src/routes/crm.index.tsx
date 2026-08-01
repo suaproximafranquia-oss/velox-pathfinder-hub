@@ -14,10 +14,22 @@ import {
   CrmThread,
   CrmRecordSection,
   CrmRecordRow,
+  CrmCopyRow,
   CrmBlockedRelationship,
   CrmSupervisionView,
   CrmDuplicateNotice,
 } from "@/components/crm/crm-conversation";
+import {
+  User,
+  Users,
+  Compass,
+  CalendarClock,
+  Sparkles,
+  BellRing,
+  Video,
+  Link2,
+} from "lucide-react";
+import { listMeetings } from "@/lib/meetings";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
 import {
