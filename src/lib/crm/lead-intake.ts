@@ -13,8 +13,14 @@
  */
 import { loadLeads, replaceLeads, type LeadRecord } from "@/lib/leads";
 import { pushLead } from "@/lib/portal-leads-sync";
-import { claimOwnership, reassignOwnership } from "@/lib/crm/ownership";
+import {
+  claimOwnership,
+  reassignOwnership,
+  phoneKeyOf,
+  emailKeyOf,
+} from "@/lib/crm/ownership";
 import { recordCrmEvent } from "@/lib/crm/timeline";
+import { isArchived, restoreRelationship } from "@/lib/crm/commercial";
 
 const PRIVATE_KEY = "crm.private-leads.v1";
 
@@ -65,13 +71,58 @@ function orDash(value: string | undefined): string {
   return v.length > 0 ? v : "—";
 }
 
+/**
+ * Identificação obrigatória antes de qualquer criação (DEF 2.4.13):
+ * WhatsApp e e-mail são comparados com a base oficial. Havendo histórico,
+ * a restauração sempre prevalece sobre a duplicação.
+ */
+function findExistingLead(fields: CrmLeadInput): LeadRecord | null {
+  const phone = phoneKeyOf(fields.whatsapp);
+  const email = emailKeyOf(fields.email);
+  if (phone.length < 8 && email.length < 4) return null;
+  return (
+    loadLeads().find((l) => {
+      const samePhone = phone.length >= 8 && phoneKeyOf(l.whatsapp) === phone;
+      const sameEmail = email.length > 3 && emailKeyOf(l.email) === email;
+      return samePhone || sameEmail;
+    }) ?? null
+  );
+}
+
 export function createCrmLead(input: {
   fields: CrmLeadInput;
   source: CrmLeadSource;
   /** Executivo que realizou o cadastro — proprietário automático. */
   ownerId: string;
-}): LeadRecord {
+}): LeadRecord & { duplicated?: boolean } {
   const now = new Date().toISOString();
+
+  // Nunca duplicar: o relacionamento existente é reaproveitado e, quando
+  // arquivado, retorna exatamente do ponto em que parou.
+  const existing = findExistingLead(input.fields);
+  if (existing) {
+    if (isArchived(existing.id)) {
+      restoreRelationship({
+        investorId: existing.id,
+        investorName: existing.name,
+        actorId: input.ownerId,
+        actorName: "Executivo responsável",
+        ownerId: existing.responsibleExecutiveId ?? input.ownerId,
+        origin: SOURCE_LABEL[input.source],
+      });
+    }
+    recordCrmEvent({
+      investorId: existing.id,
+      event: "duplicidade_detectada",
+      origin: SOURCE_LABEL[input.source],
+      reason:
+        "Cadastro interrompido: já existe relacionamento com este WhatsApp/e-mail. Histórico e Executivo responsável mantidos.",
+      ownerId: existing.responsibleExecutiveId ?? input.ownerId,
+      actorId: input.ownerId,
+    });
+    return { ...existing, duplicated: true };
+  }
+
   const lead: LeadRecord = {
     id: `ld_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     name: orDash(input.fields.name),
