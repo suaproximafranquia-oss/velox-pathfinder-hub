@@ -690,7 +690,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         <CrmNewLeadDialog
           ownerId={actor.userId}
           onClose={() => setNewLeadOpen(false)}
-          onCreated={(name) => {
+          onCreated={(name, duplicated) => {
             setTick((v) => v + 1);
             void pullLeads()
               .then(() => setTick((v) => v + 1))
@@ -698,7 +698,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             if (typeof window !== "undefined") {
               window.setTimeout(() => setTick((v) => v + 1), 300);
             }
-            void name;
+            if (duplicated && typeof window !== "undefined") {
+              window.alert(
+                `Já existe relacionamento ativo com ${name}. O histórico foi mantido e nenhum Lead duplicado foi criado.`,
+              );
+            }
           }}
         />
       ) : null}
