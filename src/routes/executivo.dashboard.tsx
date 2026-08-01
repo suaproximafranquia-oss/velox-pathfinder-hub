@@ -234,7 +234,7 @@ function WorkspacePage() {
         actorId: session.userId,
         actorName: session.name,
         actorRole: session.activeRole,
-        ownerId: investor?.executiveId,
+        ownerId: investor?.assignedToUserId,
         origin: investor?.origin,
       });
       setTick((v) => v + 1);
