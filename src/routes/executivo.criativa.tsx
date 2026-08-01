@@ -29,6 +29,8 @@ import { listCreativeHistory, recordCreative } from "@/lib/creative/history";
 import {
   generateCreativeCopy,
   saveCreativeArt,
+  saveBrandAsset,
+  type BrandAssetKind,
   type CreativeCopyPair,
 } from "@/lib/creative.functions";
 
@@ -42,25 +44,18 @@ export const Route = createFileRoute("/executivo/criativa")({
   component: CriativaPage,
 });
 
+/** Somente cidade e UF variam: todo o restante é padrão oficial fixo. */
 type FormState = {
-  unit: string;
   city: string;
   state: string;
-  address: string;
-  openingDate: string;
-  phone: string;
-  notes: string;
 };
 
-const EMPTY: FormState = {
-  unit: "",
-  city: "",
-  state: "",
-  address: "",
-  openingDate: "",
-  phone: "",
-  notes: "",
-};
+const EMPTY: FormState = { city: "", state: "" };
+
+/** Nome institucional derivado — a unidade nunca é digitada. */
+function unitName(form: FormState): string {
+  return `Velox ${form.city}${form.state ? ` — ${form.state}` : ""}`.trim();
+}
 
 function CriativaPage() {
   const navigate = useNavigate();
@@ -87,12 +82,9 @@ function CriativaPage() {
   const arts = useMemo(() => {
     if (!copy) return null;
     const base = {
-      unit: form.unit,
+      unit: unitName(form),
       city: form.city,
       state: form.state,
-      address: form.address || undefined,
-      openingDate: form.openingDate || undefined,
-      phone: form.phone || undefined,
     };
     const build = (model: CreativeModel): { svg: string; brief: UnitBrief } => {
       const brief: UnitBrief = { ...base, ...copy[model] };
