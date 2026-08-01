@@ -83,7 +83,9 @@ export function WhatsAppFloating() {
     if (!exec) return;
     const raw = (exec.whatsapp || exec.phone || "").replace(/\D/g, "");
     if (!raw) return;
-    const session = getPortalSession();
+    // Pedido explícito do investidor materializa a Jornada Digital antes
+    // de qualquer registro comercial (DEF 2.5.1).
+    const session = promotePortalSession() ?? getPortalSession();
     const first = exec.name.split(" ")[0];
     const msg = session?.name
       ? `Olá ${first}! Sou ${session.name} e gostaria de continuar nossa conversa sobre a Velox.`
