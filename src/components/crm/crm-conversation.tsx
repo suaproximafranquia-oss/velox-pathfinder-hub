@@ -18,6 +18,16 @@ import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/li
 import { copyToClipboard } from "@/lib/clipboard";
 import { CRM_TEMPLATES, type CrmWindowStatus } from "@/lib/crm/templates";
 
+/** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
+function useSecondTick(active: boolean) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const t = window.setInterval(() => setTick((v) => v + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [active]);
+}
+
 /**
  * Badge permanente da Jornada Digital (DEF 2.4.11): o investidor navega
  * pelo Portal, mas o relacionamento comercial ainda não existe.
@@ -232,9 +242,12 @@ export function CrmConversationItem({
 export function CrmConversationHeader({
   item,
   window: win,
+  windowLabel,
 }: {
   item: CrmConversation;
   window?: CrmWindowStatus;
+  /** Rótulo recalculado a cada segundo (contador regressivo). */
+  windowLabel?: string;
 }) {
   const presence = whatsappPresence(item.id);
   return (
@@ -265,7 +278,7 @@ export function CrmConversationHeader({
           ].join(" ")}
         >
           <Clock3 className="h-3.5 w-3.5" />
-          {win.label}
+          {windowLabel ?? win.label}
         </span>
       ) : null}
     </div>
