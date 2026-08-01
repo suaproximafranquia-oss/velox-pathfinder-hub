@@ -38,7 +38,8 @@ import {
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
-import { markOutboundMessage } from "@/lib/crm/relationship-state";
+import { markOutboundMessage, lastInboundAt } from "@/lib/crm/relationship-state";
+import { resolveCrmWindow } from "@/lib/crm/templates";
 import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
@@ -230,6 +231,17 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     [selected?.id, privateOk, messageTick],
   );
 
+  // DEF 2.4.14 — janela oficial de 24 horas a partir da última resposta
+  // do investidor, identificada visualmente na conversa.
+  const chatWindow = useMemo(
+    () =>
+      selected && privateOk
+        ? resolveCrmWindow(lastInboundAt(selected.id))
+        : undefined,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selected?.id, privateOk, messageTick, tick, now],
+  );
+
   // Registro automático da ocorrência — sem interação do usuário.
   useEffect(() => {
     if (!selected) return;
@@ -355,12 +367,16 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmMainPane
         title={current.label}
         header={
-          isConversas && selected ? <CrmConversationHeader item={selected} /> : undefined
+          isConversas && selected ? (
+            <CrmConversationHeader item={selected} window={chatWindow} />
+          ) : undefined
         }
         footer={
           isConversas && selected ? (
             <CrmComposer
               disabled={!composerEnabled}
+              investorName={selected.name}
+              window={chatWindow}
               hint={
                 journeyOnly
                   ? "Jornada Digital — inicie o relacionamento para liberar o envio"
