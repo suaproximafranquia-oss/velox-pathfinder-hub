@@ -7,6 +7,7 @@
  */
 export type CrmAreaKey =
   | "conversas"
+  | "distribuicao"
   | "timeline"
   | "alertas"
   | "templates"
@@ -31,6 +32,13 @@ export const CRM_AREAS: CrmArea[] = [
     label: "Conversas",
     description: "Atendimento e mensagens com o investidor.",
     path: "/crm/conversas",
+    status: "planejado",
+  },
+  {
+    key: "distribuicao",
+    label: "Distribuição de Leads",
+    description: "Novos contatos, sincronização do GreenSales e conflitos.",
+    path: "/crm/distribuicao",
     status: "planejado",
   },
   {
