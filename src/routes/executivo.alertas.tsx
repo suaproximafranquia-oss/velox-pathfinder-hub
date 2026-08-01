@@ -64,7 +64,9 @@ function AlertsCenterPage() {
       setAlerts(listWorkspaceAlertHistory(session!));
     }
     refresh();
-    return onEvent(() => refresh());
+    const off = onEvent(() => refresh());
+    const offSync = onSync(() => refresh());
+    return () => { off(); offSync(); };
   }, [session]);
 
   const active = useMemo(() => alerts.filter((a) => !a.archived), [alerts]);
