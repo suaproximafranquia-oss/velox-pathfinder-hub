@@ -26,6 +26,7 @@ export type WorkspaceAlertCategory =
   | "manual_concluido"
   | "simulacao"
   | "contato_whatsapp"
+  | "atendimento_solicitado"
   | "engajamento_alto"
   | "reuniao"
   | "reuniao_solicitada"
@@ -53,6 +54,7 @@ export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, stri
   manual_concluido: "Manual Concluído",
   simulacao: "Simulação Realizada",
   contato_whatsapp: "Contato Solicitado",
+  atendimento_solicitado: "Atendimento Solicitado",
   engajamento_alto: "Engajamento Elevado",
   reuniao: "Lembrete de Reunião",
   reuniao_solicitada: "Nova Solicitação de Reunião",

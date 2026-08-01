@@ -22,7 +22,12 @@ export type CrmTimelineEvent =
   | "lead_redistribuido"
   | "reuniao_agendada"
   | "mensagem_enviada"
-  | "atividade_portal";
+  | "atividade_portal"
+  | "relacionamento_iniciado"
+  | "relacionamento_arquivado"
+  | "relacionamento_restaurado"
+  | "retorno_identificado"
+  | "template_automatico";
 
 export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   relacionamento_oficial: "Relacionamento oficial definido",
@@ -42,6 +47,11 @@ export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   reuniao_agendada: "Reunião agendada pelo CRM",
   mensagem_enviada: "Mensagem enviada pelo Executivo",
   atividade_portal: "Atividade do investidor no Portal",
+  relacionamento_iniciado: "Relacionamento comercial iniciado",
+  relacionamento_arquivado: "Relacionamento arquivado no Backup Portal",
+  relacionamento_restaurado: "Conversa restaurada do Backup Portal",
+  retorno_identificado: "Retorno do investidor identificado",
+  template_automatico: "Template automático enviado pelo sistema",
 };
 
 export type CrmTimelineEntry = {
