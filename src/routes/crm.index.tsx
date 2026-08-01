@@ -14,7 +14,17 @@ import {
   CrmThread,
   CrmRecordSection,
   CrmRecordRow,
+  CrmBlockedRelationship,
+  CrmSupervisionView,
+  CrmDuplicateNotice,
 } from "@/components/crm/crm-conversation";
+import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
+import {
+  recordCrmEvent,
+  listCrmTimeline,
+  CRM_TIMELINE_LABEL,
+  formatCrmTimestamp,
+} from "@/lib/crm/timeline";
 import { actorFromSession } from "@/lib/crm/access";
 import { CRM_AREAS, type CrmAreaKey } from "@/lib/crm/modules";
 import { listConversations, filterConversations } from "@/lib/crm/relationships";
@@ -107,6 +117,28 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     null;
 
   const isConversas = area === "conversas";
+  const privateOk = selected ? canSeePrivateContent(selected.access) : false;
+
+  // Registro automático da ocorrência — sem interação do usuário.
+  useEffect(() => {
+    if (!selected) return;
+    recordCrmEvent({
+      investorId: selected.id,
+      event: selected.access === "bloqueado" ? "acesso_bloqueado" : "conversa_aberta",
+      origin: selected.originLabel,
+      reason:
+        selected.access === "bloqueado"
+          ? "Investidor pertencente a outro Executivo."
+          : `Conversa aberta em modo ${CRM_ACCESS_LABEL[selected.access]}.`,
+      ownerId: selected.ownerId,
+      actorId: actor.userId,
+    });
+  }, [selected?.id, selected?.access, actor.userId]);
+
+  const timeline = useMemo(
+    () => (selected && privateOk ? listCrmTimeline(selected.id).slice(0, 6) : []),
+    [selected?.id, privateOk, tick],
+  );
 
   return (
     <>
@@ -159,7 +191,16 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         onToggleDetails={() => setDetailsOpen((v) => !v)}
       >
         {isConversas && selected ? (
-          <CrmThread item={selected} />
+          selected.access === "bloqueado" ? (
+            <CrmBlockedRelationship item={selected} />
+          ) : selected.access === "supervisao" ? (
+            <CrmSupervisionView item={selected} />
+          ) : (
+            <>
+              <CrmDuplicateNotice item={selected} />
+              <CrmThread item={selected} />
+            </>
+          )
         ) : (
           <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-4">
             <CrmPlaceholder
@@ -183,9 +224,15 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           <div className="space-y-4">
             <CrmRecordSection title="Dados gerais">
               <CrmRecordRow label="Nome" value={selected.name} />
-              <CrmRecordRow label="Telefone" value={selected.phone} />
-              <CrmRecordRow label="E-mail" value={selected.email} />
-              <CrmRecordRow label="Cidade" value={selected.city} />
+              {privateOk ? (
+                <>
+                  <CrmRecordRow label="Telefone" value={selected.phone} />
+                  <CrmRecordRow label="E-mail" value={selected.email} />
+                  <CrmRecordRow label="Cidade" value={selected.city} />
+                </>
+              ) : (
+                <CrmRecordRow label="Acesso" value={CRM_ACCESS_LABEL[selected.access]} />
+              )}
             </CrmRecordSection>
 
             <CrmRecordSection title="Relacionamento">
@@ -196,20 +243,50 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
             </CrmRecordSection>
 
-            <CrmRecordSection title="Portal">
-              <CrmRecordRow label="Leitura do Manual" value={`${selected.readingPct}%`} />
-              <CrmRecordRow label="Última movimentação" value={selected.lastActivityLabel} />
-              <CrmRecordRow label="Último evento" value={selected.lastInteraction} />
-            </CrmRecordSection>
+            {privateOk ? (
+              <CrmRecordSection title="Portal">
+                <CrmRecordRow label="Leitura do Manual" value={`${selected.readingPct}%`} />
+                <CrmRecordRow label="Última movimentação" value={selected.lastActivityLabel} />
+                <CrmRecordRow label="Último evento" value={selected.lastInteraction} />
+              </CrmRecordSection>
+            ) : (
+              <CrmRecordSection
+                title="Portal"
+                hint="Conteúdo privado do relacionamento — visível apenas ao Executivo responsável."
+              />
+            )}
 
+            {privateOk ? null : null}
             <CrmRecordSection
               title="Agenda"
               hint="Reuniões e compromissos do investidor serão exibidos aqui."
             />
-            <CrmRecordSection
-              title="Timeline"
-              hint="Linha do tempo cronológica do relacionamento."
-            />
+            {privateOk ? (
+              <CrmRecordSection title="Timeline">
+                {timeline.length > 0 ? (
+                  <ul className="space-y-2">
+                    {timeline.map((e) => (
+                      <li key={e.id} className="text-xs leading-relaxed">
+                        <span className="block text-[color:var(--crm-muted)]">
+                          {formatCrmTimestamp(e.at)} · {e.origin}
+                        </span>
+                        <span className="block">{CRM_TIMELINE_LABEL[e.event]}</span>
+                        <span className="block text-[color:var(--crm-muted)]">{e.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-[color:var(--crm-muted)]">
+                    Nenhuma ocorrência registrada até o momento.
+                  </p>
+                )}
+              </CrmRecordSection>
+            ) : (
+              <CrmRecordSection
+                title="Timeline"
+                hint="Linha do tempo privada do relacionamento."
+              />
+            )}
             <CrmRecordSection
               title="Histórico"
               hint="Registro consolidado das interações anteriores."
