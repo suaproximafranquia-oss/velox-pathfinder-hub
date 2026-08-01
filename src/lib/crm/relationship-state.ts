@@ -133,16 +133,21 @@ export function resolveRelationshipState(
 ): CrmRelationshipState {
   const entry = read()[subject.id] ?? {};
   const outbound = ts(entry.lastOutboundAt);
-  const inbound = Math.max(ts(entry.lastInboundAt), ts(subject.lastInvestorActivityIso));
+  // Interação do investidor só conta como resposta quando ocorre após o
+  // envio do Executivo; respostas registradas explicitamente sempre contam.
+  const activity = ts(subject.lastInvestorActivityIso);
+  const inbound = Math.max(
+    ts(entry.lastInboundAt),
+    outbound > 0 && activity >= outbound ? activity : 0,
+  );
   const lastRelevant = Math.max(outbound, inbound);
   const limit = inactivityDays() * 86_400_000;
 
   // Inatividade: nenhuma interação relevante dentro da janela configurada.
   if (lastRelevant > 0 && now - lastRelevant > limit) return "inativo";
 
-  // Resposta do investidor após o último envio → conversa ativa.
-  if (inbound > 0 && inbound >= outbound && outbound > 0) return "em_atendimento";
-  if (outbound > 0) return "aguardando_resposta";
+  // Resposta do investidor → conversa ativa (inclusive retorno de inativos).
   if (inbound > 0) return "em_atendimento";
+  if (outbound > 0) return "aguardando_resposta";
   return "novo";
 }
