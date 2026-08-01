@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, X, ArrowRight } from "lucide-react";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
-import { getPortalSession } from "@/lib/portal-session";
+import { getPortalSession, promotePortalSession } from "@/lib/portal-session";
 import { registerLead, updateLead, loadLeads, type VisitorIdentity } from "@/lib/leads";
 import { trackJourney } from "@/lib/journey/engine";
 import { getActiveOverlay, subscribeOverlay } from "@/lib/portal-overlay";
