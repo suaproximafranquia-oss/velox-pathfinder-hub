@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UniversoRouteImport } from './routes/universo'
 import { Route as EntrarRouteImport } from './routes/entrar'
+import { Route as CrmRouteImport } from './routes/crm'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ManualIndexRouteImport } from './routes/manual/index'
 import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
+import { Route as CrmIndexRouteImport } from './routes/crm.index'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
@@ -50,6 +52,11 @@ const EntrarRoute = EntrarRouteImport.update({
   path: '/entrar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmRoute = CrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -64,6 +71,11 @@ const ExecutivoIndexRoute = ExecutivoIndexRouteImport.update({
   id: '/executivo/',
   path: '/executivo/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CrmIndexRoute = CrmIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CrmRoute,
 } as any)
 const ManualConcluidoRoute = ManualConcluidoRouteImport.update({
   id: '/manual/concluido',
@@ -193,6 +205,7 @@ const OauthGoogleConnectorRoute = OauthGoogleConnectorRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
@@ -219,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
@@ -251,6 +265,7 @@ export interface FileRoutesByTo {
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/crm': typeof CrmIndexRoute
   '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
@@ -258,6 +273,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
@@ -284,6 +300,7 @@ export interface FileRoutesById {
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
@@ -292,6 +309,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/crm'
     | '/entrar'
     | '/universo'
     | '/e/$slug'
@@ -318,6 +336,7 @@ export interface FileRouteTypes {
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/crm/'
     | '/executivo/'
     | '/manual/'
     | '/oauth/google/$connector'
@@ -350,12 +369,14 @@ export interface FileRouteTypes {
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/crm'
     | '/executivo'
     | '/manual'
     | '/oauth/google/$connector'
   id:
     | '__root__'
     | '/'
+    | '/crm'
     | '/entrar'
     | '/universo'
     | '/e/$slug'
@@ -382,6 +403,7 @@ export interface FileRouteTypes {
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/crm/'
     | '/executivo/'
     | '/manual/'
     | '/oauth/google/$connector'
@@ -389,6 +411,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CrmRoute: typeof CrmRouteWithChildren
   EntrarRoute: typeof EntrarRoute
   UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
@@ -436,6 +459,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntrarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm': {
+      id: '/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof CrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -456,6 +486,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/executivo/'
       preLoaderRoute: typeof ExecutivoIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/crm/': {
+      id: '/crm/'
+      path: '/'
+      fullPath: '/crm/'
+      preLoaderRoute: typeof CrmIndexRouteImport
+      parentRoute: typeof CrmRoute
     }
     '/manual/concluido': {
       id: '/manual/concluido'
@@ -635,8 +672,19 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CrmRouteChildren {
+  CrmIndexRoute: typeof CrmIndexRoute
+}
+
+const CrmRouteChildren: CrmRouteChildren = {
+  CrmIndexRoute: CrmIndexRoute,
+}
+
+const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CrmRoute: CrmRouteWithChildren,
   EntrarRoute: EntrarRoute,
   UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
