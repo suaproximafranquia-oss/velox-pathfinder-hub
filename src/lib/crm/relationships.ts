@@ -15,6 +15,14 @@ import {
 import { canViewAllInvestors, loadUsers } from "@/lib/executive-auth";
 import { resolveLeadState, LEAD_STATE_META, type LeadState } from "@/lib/lead-state";
 import type { CrmActor } from "@/lib/crm/types";
+import {
+  ensureOwnership,
+  officialOwnerId,
+  findDuplicate,
+  type CrmDuplicate,
+} from "@/lib/crm/ownership";
+import { accessModeFor, type CrmAccessMode } from "@/lib/crm/permissions";
+import { recordCrmEvent } from "@/lib/crm/timeline";
 
 export type CrmConversation = {
   id: string;
@@ -36,6 +44,12 @@ export type CrmConversation = {
   originLabel: string;
   workspaceLabel: string;
   ownerName: string;
+  /** Executivo responsável oficial (imutável por sincronização). */
+  ownerId: string;
+  /** Camada de permissão aplicada a este relacionamento. */
+  access: CrmAccessMode;
+  /** Relacionamento ativo já existente com o mesmo telefone/e-mail. */
+  duplicate?: CrmDuplicate & { ownerName: string; investorName: string };
   readingPct: number;
   investor: Investor;
 };
@@ -71,13 +85,43 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
   const users = loadUsers();
   const nameById = new Map(users.map((u) => [u.id, u.name]));
   const all = listAllInvestors();
+  const nameByInvestorId = new Map(all.map((i) => [i.id, i.name]));
+
+  // Base única: o vínculo oficial é garantido (e preservado) para todos.
+  for (const i of all) {
+    const { record, created } = ensureOwnership(i);
+    if (created) {
+      recordCrmEvent({
+        investorId: i.id,
+        event: "relacionamento_oficial",
+        origin: i.origin ?? "portal",
+        reason: "Primeiro relacionamento registrado na base do CRM.",
+        ownerId: record.ownerId,
+        actorId: "sistema",
+      });
+    }
+  }
+
   const scoped = canViewAllInvestors(actor.role)
     ? all
-    : all.filter((i) => i.assignedToUserId === actor.userId);
+    : all.filter((i) => officialOwnerId(i) === actor.userId);
 
   return scoped
     .map<CrmConversation>((i) => {
       const state = resolveLeadState({ id: i.id, lastActivity: i.lastActivity });
+      const ownerId = officialOwnerId(i);
+      const access = accessModeFor(actor, ownerId);
+      const dup = findDuplicate(i, all);
+      if (dup) {
+        recordCrmEvent({
+          investorId: i.id,
+          event: "duplicidade_detectada",
+          origin: i.origin ?? "portal",
+          reason: `Registro coincidente por ${dup.matchedBy}.`,
+          ownerId,
+          actorId: actor.userId,
+        });
+      }
       return {
         id: i.id,
         name: i.name,
@@ -94,7 +138,16 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
         lastActivityLabel: formatRelative(i.lastActivity),
         originLabel: ORIGIN_LABEL[i.origin ?? "portal"] ?? "Portal Velox",
         workspaceLabel: (i.origin ?? "portal") === "green_sales" ? "Green Sales" : "Portal",
-        ownerName: nameById.get(i.assignedToUserId) ?? "—",
+        ownerName: nameById.get(ownerId) ?? "—",
+        ownerId,
+        access,
+        duplicate: dup
+          ? {
+              ...dup,
+              ownerName: nameById.get(dup.ownerId) ?? "—",
+              investorName: nameByInvestorId.get(dup.investorId) ?? "—",
+            }
+          : undefined,
         readingPct: i.readingPct,
         investor: i,
       };
