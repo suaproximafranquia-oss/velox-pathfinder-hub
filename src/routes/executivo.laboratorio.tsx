@@ -15,6 +15,8 @@ import {
   type RecognitionType,
   type ScheduledRecognition,
 } from "@/lib/recognition/engine";
+import { resetHomologationData } from "@/lib/homologation-reset";
+import { logAudit } from "@/lib/audit-log";
 
 export const Route = createFileRoute("/executivo/laboratorio")({
   head: () => ({
