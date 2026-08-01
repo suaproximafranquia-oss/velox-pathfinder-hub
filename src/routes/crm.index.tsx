@@ -411,7 +411,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               </div>
               <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
-              {canManageDistribution ? (
+              {/* DEF 2.4.9 §1 — a redistribuição existe apenas enquanto NÃO
+                  houver Executivo responsável. Relacionamento já iniciado
+                  jamais é redistribuído. */}
+              {canManageDistribution && !hasResponsible(selected) ? (
                 <div className="pt-1">
                   {isPrivateLead(selected.id) ? (
                     <p className="text-[11px] text-[color:var(--crm-muted)]">
