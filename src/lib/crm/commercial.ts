@@ -16,6 +16,7 @@
  */
 import { logAudit } from "@/lib/audit-log";
 import { recordCrmEvent } from "@/lib/crm/timeline";
+import { notifySync } from "@/lib/sync-bus";
 
 export type CommercialState = "jornada" | "ativo" | "arquivado";
 
@@ -58,6 +59,8 @@ function write(store: Store) {
   } catch {
     /* armazenamento indisponível */
   }
+  // Workspace, CRM, Backup e Alertas passam a refletir a mudança na hora.
+  notifySync("commercial");
 }
 
 export function getCommercial(investorId: string): CommercialRecord | null {
