@@ -24,7 +24,6 @@ import {
   type ScheduledRecognition,
 } from "@/lib/recognition/engine";
 import { resetHomologationData } from "@/lib/homologation-reset";
-import { logAudit } from "@/lib/audit-log";
 
 export const Route = createFileRoute("/executivo/laboratorio")({
   head: () => ({
@@ -281,15 +280,6 @@ function HomologationResetCard({
 
   const run = () => {
     const summary = resetHomologationData();
-    logAudit({
-      actorId,
-      actorName,
-      actorRole,
-      module: "sistema",
-      action: "RESET do ambiente de homologação executado",
-      details: `${summary.removed.length} bases operacionais limpas. Usuários, permissões, templates e integrações preservados.`,
-      severity: "critical",
-    });
     setDone(summary.removed.length);
     setConfirming(false);
     if (typeof window !== "undefined") window.setTimeout(() => window.location.reload(), 900);

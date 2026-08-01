@@ -215,10 +215,8 @@ const ALERTS_KEY = "atlas:brain:alerts:v3";
  * DEF 2.4.RESET — nenhum alerta de demonstração pode existir.
  * A base inicia vazia e só recebe alertas reais gerados pela operação.
  */
-const SEED_ALERTS: BrainAlert[] = [];
-
 export function loadAlerts(): BrainAlert[] {
-  if (typeof window === "undefined") return SEED_ALERTS;
+  if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(ALERTS_KEY);
     if (!raw) return [];
@@ -226,7 +224,7 @@ export function loadAlerts(): BrainAlert[] {
     if (!Array.isArray(arr)) return [];
     return arr.filter((a) => Boolean(a?.id && a?.ownerUserId));
   } catch {
-    return SEED_ALERTS;
+    return [];
   }
 }
 
