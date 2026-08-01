@@ -16,17 +16,16 @@ export type ImportedLeadFields = {
   executive: string;
 };
 
-const EMPTY: ImportedLeadFields = {
-  name: "",
-  whatsapp: "",
-  email: "",
-  city: "",
-  executive: "",
-};
-
 export const extractLeadFromImage = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => data as { imageDataUrl: string })
   .handler(async ({ data }): Promise<ImportedLeadFields> => {
+    const EMPTY: ImportedLeadFields = {
+      name: "",
+      whatsapp: "",
+      email: "",
+      city: "",
+      executive: "",
+    };
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Serviço de leitura indisponível no momento.");
     const image = (data?.imageDataUrl || "").trim();
