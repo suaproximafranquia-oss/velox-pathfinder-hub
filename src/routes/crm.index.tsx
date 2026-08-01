@@ -343,89 +343,101 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
       <CrmDetailsPane open={detailsOpen} title="Ficha do investidor">
         {selected ? (
-          <div className="space-y-4">
-            <CrmRecordSection title="Dados gerais">
+          <div className="space-y-3">
+            {/* Padronizada: todos os investidores exibem os mesmos campos. */}
+            <CrmRecordSection title="Dados gerais" tone="azul" icon={User}>
               <CrmRecordRow label="Nome" value={selected.name} />
-              {privateOk ? (
-                <>
-                  <CrmRecordRow label="Telefone" value={selected.phone} />
-                  <CrmRecordRow label="E-mail" value={selected.email} />
-                  <CrmRecordRow label="Cidade" value={selected.city} />
-                </>
-              ) : null}
+              <CrmCopyRow label="WhatsApp" value={privateOk ? selected.phone : undefined} />
+              <CrmRecordRow label="E-mail" value={privateOk ? selected.email : undefined} />
+              <CrmRecordRow label="Cidade" value={privateOk ? selected.city : undefined} />
             </CrmRecordSection>
 
-            <CrmRecordSection title="Relacionamento">
-              <CrmRecordRow label="Origem" value={selected.originLabel} />
-              <CrmRecordRow label="Executivo" value={selected.ownerName} />
+            <CrmRecordSection title="Relacionamento" tone="verde" icon={Users}>
+              <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
-              <CrmRecordRow label="Acesso" value={CRM_ACCESS_LABEL[selected.access]} />
             </CrmRecordSection>
 
-            {privateOk ? (
-              <CrmRecordSection title="Portal do investidor">
-                <CrmRecordRow label="Manual" value={`${selected.readingPct}% concluído`} />
-                <CrmRecordRow label="Material" value="—" />
-                <CrmRecordRow label="Calculadora" value="—" />
-                <CrmRecordRow label="Último acesso" value={selected.lastActivityLabel} />
-              </CrmRecordSection>
-            ) : (
-              <CrmRecordSection
-                title="Portal do investidor"
-                hint="Conteúdo privado do relacionamento — visível apenas ao Executivo responsável."
+            <CrmRecordSection title="Portal do investidor" tone="roxo" icon={Compass}>
+              <CrmRecordRow
+                label="Manual"
+                value={privateOk ? `${selected.readingPct}% concluído` : undefined}
               />
-            )}
+              <CrmRecordRow label="Material" value={undefined} />
+              <CrmRecordRow label="Calculadora" value={undefined} />
+              <CrmRecordRow
+                label="Último acesso ao Portal"
+                value={privateOk ? selected.lastActivityLabel : undefined}
+              />
+            </CrmRecordSection>
+
+            <CrmRecordSection title="Agenda" tone="laranja" icon={CalendarClock}>
+              {nextMeeting ? (
+                <div className="space-y-2.5">
+                  <CrmRecordRow
+                    label="Próxima reunião"
+                    value={new Date(nextMeeting.scheduledAt).toLocaleString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={nextMeeting.meetUrl ?? nextMeeting.meetingProviderUrl ?? "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-disabled={!nextMeeting.meetUrl && !nextMeeting.meetingProviderUrl}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90"
+                    >
+                      <Video className="h-3.5 w-3.5" />
+                      Entrar na reunião
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = nextMeeting.meetUrl ?? nextMeeting.meetingProviderUrl;
+                        if (url) void navigator.clipboard?.writeText(url).catch(() => undefined);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[color:var(--crm-hover)]"
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      Copiar Link
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[color:var(--crm-muted)]">
+                  Nenhuma reunião agendada.
+                </p>
+              )}
+            </CrmRecordSection>
 
             <CrmRecordSection
-              title="Agenda"
-              hint="Reuniões e compromissos do investidor serão exibidos aqui."
+              title="IA Corporativa"
+              tone="azul-claro"
+              icon={Sparkles}
+              hint="Sugestões inteligentes de apoio ao Executivo em preparação."
             />
-            {privateOk ? (
-              <CrmRecordSection title="Timeline">
-                {timeline.length > 0 ? (
-                  <ul className="space-y-2">
-                    {timeline.map((e) => (
-                      <li key={e.id} className="text-xs leading-relaxed">
-                        <span className="block text-[color:var(--crm-muted)]">
-                          {formatCrmTimestamp(e.at)} · {e.origin}
-                        </span>
-                        <span className="block">{CRM_TIMELINE_LABEL[e.event]}</span>
-                        <span className="block text-[color:var(--crm-muted)]">{e.reason}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-[color:var(--crm-muted)]">
-                    Nenhuma ocorrência registrada até o momento.
-                  </p>
-                )}
-              </CrmRecordSection>
-            ) : (
-              <CrmRecordSection
-                title="Timeline"
-                hint="Linha do tempo privada do relacionamento."
-              />
-            )}
-            <CrmRecordSection
-              title="Histórico"
-              hint="Registro consolidado das interações anteriores."
-            />
-            <CrmRecordSection
-              title="IA"
-              hint="Sugestões e leituras analíticas de apoio ao Executivo."
-            />
+
+            {/* Apenas alertas ATIVOS — o histórico pertence à Central de Alertas. */}
             <CrmRecordSection
               title="Alertas"
+              tone="vermelho"
+              icon={BellRing}
               hint="Nenhum alerta ativo para este investidor."
             >
               {investorAlerts.length > 0 ? (
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {investorAlerts.map((a) => (
-                    <li key={a.id} className="text-xs leading-relaxed">
-                      <span className="block text-[color:var(--crm-muted)]">
+                    <li
+                      key={a.id}
+                      className="rounded-lg border border-rose-100 bg-rose-50/60 px-2.5 py-2 text-xs leading-relaxed"
+                    >
+                      <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-rose-600">
                         {WORKSPACE_ALERT_CATEGORY_LABEL[a.category]}
                       </span>
-                      <span className="block">{a.title}</span>
+                      <span className="mt-0.5 block">{a.title}</span>
                     </li>
                   ))}
                 </ul>
