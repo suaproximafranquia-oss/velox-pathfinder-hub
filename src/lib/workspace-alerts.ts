@@ -142,6 +142,8 @@ export function evaluateInvestorMovement(): Investor[] {
 
 /** Investidores destacados visualmente por retorno recente (últimas 24h). */
 export function recentlyReactivatedIds(): Set<string> {
+  const _unused = 0;
+  void _unused;
   const alerts = readAlerts().filter(
     (a) => a.category === "movimentacao" && !a.archived && Date.now() - Date.parse(a.date) < 24 * 60 * 60 * 1000,
   );
