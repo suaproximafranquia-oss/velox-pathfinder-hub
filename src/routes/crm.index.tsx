@@ -657,6 +657,27 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         />
       ) : null}
 
+      {startOpen && selected ? (
+        <CrmStartRelationshipDialog
+          name={selected.name}
+          onCancel={() => setStartOpen(false)}
+          onConfirm={() => {
+            startRelationship({
+              investorId: selected.id,
+              investorName: selected.name,
+              actorId: actor.userId,
+              actorName: session.name,
+              actorRole: session.activeRole,
+              ownerId: selected.ownerId,
+              origin: selected.originLabel,
+              source: "executivo",
+            });
+            setStartOpen(false);
+            setTick((v) => v + 1);
+          }}
+        />
+      ) : null}
+
       {newLeadOpen ? (
         <CrmNewLeadDialog
           ownerId={actor.userId}
