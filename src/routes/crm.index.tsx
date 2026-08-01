@@ -452,6 +452,43 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               </div>
               <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
+              {/* DEF 2.4.11 — único comando disponível durante a Jornada
+                  Digital. Ao confirmar, o relacionamento comercial nasce
+                  preservando integralmente todo o histórico anterior. */}
+              {journeyOnly && privateOk ? (
+                <button
+                  type="button"
+                  onClick={() => setStartOpen(true)}
+                  className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 active:translate-y-0"
+                >
+                  <Handshake className="h-3.5 w-3.5" />
+                  Iniciar Relacionamento
+                </button>
+              ) : null}
+              {/* Arquivamento do relacionamento Portal: nada é apagado —
+                  tudo migra para a aba Portal da Central de Backup. */}
+              {!journeyOnly && privateOk && selected.workspaceLabel === "Portal" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    archiveRelationship({
+                      investorId: selected.id,
+                      investorName: selected.name,
+                      actorId: actor.userId,
+                      actorName: session.name,
+                      actorRole: session.activeRole,
+                      ownerId: selected.ownerId,
+                      origin: selected.originLabel,
+                    });
+                    setSelectedId(null);
+                    setTick((v) => v + 1);
+                  }}
+                  className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--crm-muted)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                  Arquivar conversa
+                </button>
+              ) : null}
               {/* DEF 2.4.9 §1 — a redistribuição existe apenas enquanto NÃO
                   houver Executivo responsável. Relacionamento já iniciado
                   jamais é redistribuído. */}
