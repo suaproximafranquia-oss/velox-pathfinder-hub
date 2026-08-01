@@ -249,8 +249,19 @@ function BriefForm({
           <ul className="mt-3 space-y-2 text-sm">
             {history.map((h) => (
               <li key={h.id} className="flex items-start justify-between gap-3">
-                <span className="min-w-0 truncate text-[color:var(--muted-foreground)]">
-                  {h.unit} — {CREATIVE_MODEL_LABEL[h.model].replace("Modelo ", "")}
+                <span className="min-w-0 text-[color:var(--muted-foreground)]">
+                  <span className="block truncate">
+                    {h.city}
+                    {h.state ? ` / ${h.state}` : ""} —{" "}
+                    {CREATIVE_MODEL_LABEL[h.model].replace("Modelo ", "")}
+                  </span>
+                  <span className="block text-[11px] opacity-70">
+                    {new Date(h.createdAt).toLocaleDateString("pt-BR")} ·{" "}
+                    {new Date(h.createdAt).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </span>
                 {h.driveLink ? (
                   <a
