@@ -144,6 +144,7 @@ function CriativaPage() {
                 session={session}
                 unit={unitName(form)}
                 city={form.city}
+                state={form.state}
                 onSaved={() => setHistoryTick((v) => v + 1)}
               />
               <ArtCard
@@ -153,6 +154,7 @@ function CriativaPage() {
                 session={session}
                 unit={unitName(form)}
                 city={form.city}
+                state={form.state}
                 onSaved={() => setHistoryTick((v) => v + 1)}
               />
             </div>
