@@ -26,7 +26,11 @@ import {
 } from "lucide-react";
 import { TIME_INPUT_PROPS, isValidTimeValue, sanitizeTimeValue } from "@/lib/time-input";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  getSession,
+  canViewAllInvestors,
+  type ExecutiveSession,
+} from "@/lib/executive-auth";
 import {
   addMeetingNote,
   createMeeting,
@@ -181,9 +185,15 @@ function MeetingsPage() {
     else setSession(s);
   }, [navigate]);
 
+  // Central de Reuniões corporativa: Gestora e Administrador enxergam
+  // automaticamente todas as reuniões criadas pelos Colaboradores.
   const refresh = () =>
     setItems(
-      listMeetings(session ? { executiveId: session.userId } : undefined),
+      listMeetings(
+        session && !canViewAllInvestors(session.role)
+          ? { executiveId: session.userId }
+          : undefined,
+      ),
     );
 
   useEffect(() => {

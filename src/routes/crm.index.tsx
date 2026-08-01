@@ -30,7 +30,6 @@ import {
   Sparkles,
   BellRing,
   Video,
-  Link2,
   CalendarPlus,
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
