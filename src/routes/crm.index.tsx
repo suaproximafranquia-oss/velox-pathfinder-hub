@@ -263,6 +263,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
   const meetingUrl = nextMeeting?.meetUrl ?? nextMeeting?.meetingProviderUrl ?? null;
 
+  // Atividades reais do investidor no Portal — exibidas na própria ficha.
+  const portalActivities = useMemo(
+    () => (selected && privateOk ? listPortalActivities(selected.id, 5) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selected?.id, privateOk, tick],
+  );
+
   return (
     <>
       <CrmRail areas={CRM_AREAS} active={area} onSelect={setArea} />
@@ -414,7 +421,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         onToggle={() => setDetailsOpen((v) => !v)}
       >
         {selected ? (
-          <div className="space-y-3">
+          <div key={selected.id} className="crm-enter space-y-3">
             {/* Padronizada: todos os investidores exibem os mesmos campos. */}
             <CrmRecordSection title="Dados gerais" tone="azul" icon={User}>
               <CrmRecordRow label="Nome" value={selected.name} />
@@ -470,6 +477,23 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 label="Último acesso ao Portal"
                 value={privateOk ? selected.lastActivityLabel : undefined}
               />
+              {portalActivities.length > 0 ? (
+                <ul className="mt-1 space-y-1.5 border-t border-[color:var(--crm-border)] pt-2.5">
+                  {portalActivities.map((a) => (
+                    <li key={a.id} className="crm-enter flex items-start justify-between gap-3">
+                      <span className="min-w-0 truncate text-xs">{a.label}</span>
+                      <span className="shrink-0 text-[11px] tabular-nums text-[color:var(--crm-muted)]">
+                        {new Date(a.at).toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </CrmRecordSection>
 
             <CrmRecordSection title="Agenda" tone="laranja" icon={CalendarClock}>
@@ -541,7 +565,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   {investorAlerts.map((a) => (
                     <li
                       key={a.id}
-                      className="rounded-lg border border-rose-100 bg-rose-50/60 px-2.5 py-2 text-xs leading-relaxed"
+                      className="crm-enter rounded-lg border border-rose-100 bg-rose-50/60 px-2.5 py-2 text-xs leading-relaxed"
                     >
                       <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-rose-600">
                         {WORKSPACE_ALERT_CATEGORY_LABEL[a.category]}
