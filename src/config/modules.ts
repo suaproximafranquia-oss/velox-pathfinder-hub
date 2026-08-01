@@ -55,13 +55,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     status: "ativo",
   },
   {
-    id: "biblioteca",
-    name: "Biblioteca Corporativa",
-    description: "Acervo institucional de documentos, políticas e materiais oficiais.",
-    icon: Library,
-    status: "em_breve",
-  },
-  {
     id: "ia",
     name: "IA Corporativa",
     description: "Assistente corporativo para consultas guiadas ao ecossistema.",
@@ -146,11 +139,11 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     status: "ativo",
   },
   {
-    id: "drive",
-    name: "Drive Corporativo",
+    id: "biblioteca",
+    name: "Biblioteca Corporativa",
     description:
-      "Central de arquivos do Portal. Abre a pasta oficial da Conta Google corporativa.",
-    icon: FolderOpen,
+      "Acervo institucional de arquivos do Portal. Abre a pasta oficial da Conta Google corporativa.",
+    icon: Library,
     href: "https://drive.google.com/",
     external: true,
     status: "ativo",

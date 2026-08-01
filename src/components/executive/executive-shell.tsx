@@ -19,6 +19,7 @@ import {
   Trophy,
   Bell,
   Contact,
+  FolderOpen,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
