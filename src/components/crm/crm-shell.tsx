@@ -60,7 +60,7 @@ export function CrmShell({
 
   if (!session) {
     return (
-      <div style={themeVars}>
+      <div className="crm-root" style={themeVars}>
         <CrmLogin
           companyName={branding.companyName}
           onSuccess={(s) => {

@@ -882,3 +882,20 @@ body[data-shell="universo"] :focus-visible {
     animation: none;
   }
 }
+
+/* =====================================================================
+ * CRM de Relacionamento — ambiente operacional com tipografia própria,
+ * independente das fontes editoriais do Portal.
+ * ===================================================================== */
+.crm-root,
+.crm-root h1,
+.crm-root h2,
+.crm-root h3,
+.crm-root h4,
+.crm-root button,
+.crm-root input,
+.crm-root textarea,
+.crm-root select {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
