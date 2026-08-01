@@ -1,28 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Wand2,
-  Loader2,
-  Download,
-  CloudUpload,
-  Eye,
-  Check,
-  FolderTree,
-  Lock,
-} from "lucide-react";
+import { Wand2, Loader2, Download, CloudUpload, Eye, Check, Lock } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import {
-  CREATIVE_CATEGORIES,
-  CREATIVE_MODEL_LABEL,
-  type CreativeModel,
-} from "@/lib/creative/brand";
+import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
 import { renderTemplate, type UnitBrief } from "@/lib/creative/templates";
 import {
   officialLogoHref,
   svgToDataUrl,
   svgToPngBase64,
   downloadBase64,
+  openBase64InNewTab,
   slugify,
 } from "@/lib/creative/render";
 import { listCreativeHistory, recordCreative } from "@/lib/creative/history";
