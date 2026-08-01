@@ -12,6 +12,7 @@ import {
   CrmConversationItem,
   CrmConversationHeader,
   CrmThread,
+  CrmComposer,
   CrmRecordSection,
   CrmRecordRow,
   CrmCopyRow,
@@ -29,8 +30,11 @@ import {
   BellRing,
   Video,
   Link2,
+  CalendarPlus,
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
+import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
+import { markOutboundMessage } from "@/lib/crm/relationship-state";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
 import {
