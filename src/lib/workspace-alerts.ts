@@ -83,6 +83,7 @@ function readAlerts(): WorkspaceAlert[] {
 function writeAlerts(list: WorkspaceAlert[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(ALERTS_KEY, JSON.stringify(list.slice(-300)));
+  notifySync("alerts");
 }
 
 function readLastSeen(): LastSeenMap {
