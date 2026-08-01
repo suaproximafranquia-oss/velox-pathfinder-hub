@@ -6,6 +6,7 @@ import { listEvents } from "@/lib/events/bus";
 import { loadLeads } from "@/lib/leads";
 import { getDefaultExecutive } from "@/lib/executive-auth";
 import { resolveLeadScope } from "@/lib/lead-routing";
+import { isJourneyOnly, isArchived } from "@/lib/crm/commercial";
 
 export type InvestorStatus =
   | "novo"
@@ -143,7 +144,19 @@ function latestIso(values: string[]): string {
   return valid.sort((a, b) => (a < b ? 1 : -1))[0] ?? new Date().toISOString();
 }
 
-export function listAllInvestors(): Investor[] {
+/**
+ * Escopo de leitura da base (DEF 2.4.11).
+ *
+ * Por padrão devolve apenas o que possui Relacionamento Comercial ativo —
+ * exatamente o que o Workspace deve exibir. O CRM pede também as Jornadas
+ * Digitais; a Central de Backup pede também os arquivados.
+ */
+export type InvestorScopeOptions = {
+  includeJourneyOnly?: boolean;
+  includeArchived?: boolean;
+};
+
+export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[] {
   const fallbackExecutiveId = getDefaultExecutive()?.id ?? "usr_thiago";
   const portalInvestors = loadLeads().map<Investor>((lead) => {
     const events = listEvents({ investorId: lead.id });
@@ -204,7 +217,11 @@ export function listAllInvestors(): Investor[] {
   const byId = new Map<string, Investor>();
   for (const investor of MOCK_INVESTORS) byId.set(investor.id, investor);
   for (const investor of portalInvestors) byId.set(investor.id, investor);
-  return Array.from(byId.values());
+  return Array.from(byId.values()).filter((investor) => {
+    if (!options.includeArchived && isArchived(investor.id)) return false;
+    if (!options.includeJourneyOnly && isJourneyOnly(investor.id)) return false;
+    return true;
+  });
 }
 
 /**
