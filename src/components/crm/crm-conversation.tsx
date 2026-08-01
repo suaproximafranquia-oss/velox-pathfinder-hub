@@ -1,14 +1,10 @@
 import { useState, type ReactNode } from "react";
 import {
   MessageSquare,
-  Clock,
-  Bell,
-  Sparkles,
-  CalendarDays,
-  FileText,
-  History,
+  CalendarPlus,
+  Phone,
   Plug,
-  Compass,
+  Send,
   Lock,
   ShieldCheck,
   AlertTriangle,
@@ -17,6 +13,7 @@ import {
 } from "lucide-react";
 import { type CrmConversation } from "@/lib/crm/relationships";
 import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
+import { whatsappPresence } from "@/lib/crm/presence";
 
 /** Indicador padronizado do estágio automático do relacionamento. */
 export function CrmStateDot({ item }: { item: CrmConversation }) {
