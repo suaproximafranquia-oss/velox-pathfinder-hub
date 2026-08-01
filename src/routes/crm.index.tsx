@@ -237,6 +237,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     );
   }, [selected?.id, privateOk, tick]);
 
+  const meetingUrl = nextMeeting?.meetUrl ?? nextMeeting?.meetingProviderUrl ?? null;
+
   return (
     <>
       <CrmRail areas={CRM_AREAS} active={area} onSelect={setArea} />
