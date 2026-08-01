@@ -147,7 +147,12 @@ function CrmLogin({
         className="w-full max-w-md rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-6 space-y-5"
       >
         <div className="text-center">
-          <h1 className="text-xl font-medium tracking-wide">{companyName}</h1>
+          <h1
+            style={{ fontFamily: "inherit" }}
+            className="text-lg font-semibold tracking-tight"
+          >
+            {companyName}
+          </h1>
           <p className="mt-2 text-sm text-[color:var(--crm-muted)]">
             Utilize o mesmo acesso da Central do Executivo.
           </p>
