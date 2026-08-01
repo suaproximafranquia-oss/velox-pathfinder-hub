@@ -514,6 +514,40 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               </div>
               <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
+              {/* DEF 2.4.16 §9 — liberação imediata do Portal. Nunca cria
+                  Lead e nunca altera o Executivo responsável. */}
+              {canReleasePortal ? (
+                portalReleased ? (
+                  <p className="text-[11px] text-emerald-700">
+                    Portal liberado manualmente para este investidor.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const reason = window.prompt(
+                        "Informe o motivo da liberação do Portal:",
+                      );
+                      if (!reason?.trim()) return;
+                      releasePortal({
+                        investorId: selected.id,
+                        investorName: selected.name,
+                        actorId: actor.userId,
+                        actorName: session.name,
+                        actorRole: session.activeRole,
+                        ownerId: selected.ownerId,
+                        origin: selected.originLabel,
+                        reason,
+                      });
+                      setTick((v) => v + 1);
+                    }}
+                    className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
+                  >
+                    <Unlock className="h-3.5 w-3.5" />
+                    Liberar Portal
+                  </button>
+                )
+              ) : null}
               {/* DEF 2.4.11 — único comando disponível durante a Jornada
                   Digital. Ao confirmar, o relacionamento comercial nasce
                   preservando integralmente todo o histórico anterior. */}
@@ -659,36 +693,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               ) : null}
             </CrmRecordSection>
 
-            <CrmRecordSection
-              title="IA Corporativa"
-              tone="azul-claro"
-              icon={Sparkles}
-              hint="Sugestões inteligentes de apoio ao Executivo em preparação."
-            />
-
-            {/* Apenas alertas ATIVOS — o histórico pertence à Central de Alertas. */}
-            <CrmRecordSection
-              title="Alertas"
-              tone="vermelho"
-              icon={BellRing}
-              hint="Nenhum alerta ativo para este investidor."
-            >
-              {investorAlerts.length > 0 ? (
-                <ul className="space-y-2.5">
-                  {investorAlerts.map((a) => (
-                    <li
-                      key={a.id}
-                      className="crm-enter rounded-lg border border-rose-100 bg-rose-50/60 px-2.5 py-2 text-xs leading-relaxed"
-                    >
-                      <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-rose-600">
-                        {WORKSPACE_ALERT_CATEGORY_LABEL[a.category]}
-                      </span>
-                      <span className="mt-0.5 block">{a.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : undefined}
-            </CrmRecordSection>
+            {/* DEF 2.4.15 §8 — a Ficha possui exclusivamente os blocos
+                Dados gerais, Relacionamento, Portal do investidor e Agenda
+                Corporativa. Alertas e IA vivem em suas Centrais próprias. */}
           </div>
         ) : (
           <CrmPlaceholder
