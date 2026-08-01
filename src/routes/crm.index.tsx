@@ -361,6 +361,30 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               </div>
               <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
+              {canManageDistribution ? (
+                <div className="pt-1">
+                  {isPrivateLead(selected.id) ? (
+                    <p className="text-[11px] text-[color:var(--crm-muted)]">
+                      Lead particular do Executivo — fora da redistribuição automática.
+                    </p>
+                  ) : null}
+                  <div className="mt-2">
+                    <CrmRedistributeRow
+                      executives={executives}
+                      currentOwnerId={selected.ownerId}
+                      onRedistribute={(executiveId) => {
+                        redistributeLead({
+                          investorId: selected.id,
+                          newOwnerId: executiveId,
+                          actorId: actor.userId,
+                          origin: selected.originLabel,
+                        });
+                        setTick((v) => v + 1);
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null}
             </CrmRecordSection>
 
             <CrmRecordSection title="Portal do investidor" tone="roxo" icon={Compass}>
