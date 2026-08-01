@@ -462,6 +462,16 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   Nenhuma reunião agendada.
                 </p>
               )}
+              {privateOk ? (
+                <button
+                  type="button"
+                  onClick={() => setMeetingOpen(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[color:var(--crm-hover)]"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  Agendar
+                </button>
+              ) : null}
             </CrmRecordSection>
 
             <CrmRecordSection
