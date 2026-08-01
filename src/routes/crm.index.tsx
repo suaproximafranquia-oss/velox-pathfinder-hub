@@ -1,8 +1,15 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { CrmShell } from "@/components/crm/crm-shell";
+import {
+  CrmRail,
+  CrmListPane,
+  CrmMainPane,
+  CrmDetailsPane,
+  CrmPlaceholder,
+} from "@/components/crm/crm-workspace";
 import { actorFromSession } from "@/lib/crm/access";
-import { CRM_AREAS } from "@/lib/crm/modules";
-import { CRM_INTEGRATIONS } from "@/lib/crm/integrations";
+import { CRM_AREAS, type CrmAreaKey } from "@/lib/crm/modules";
 
 export const Route = createFileRoute("/crm/")({
   head: () => ({
@@ -26,79 +33,61 @@ export const Route = createFileRoute("/crm/")({
 });
 
 function CrmHome() {
+  const [area, setArea] = useState<CrmAreaKey>("conversas");
+  const [detailsOpen, setDetailsOpen] = useState(true);
+  const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
+
   return (
     <CrmShell title="CRM de Relacionamento">
       {(session) => {
         const actor = actorFromSession(session);
         return (
-          <div className="space-y-8">
-            <section className="rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-8">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--crm-muted)]">
-                Fundação arquitetural
-              </p>
-              <h1 className="mt-2 text-2xl font-medium tracking-wide">
-                CRM de Relacionamento
-              </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[color:var(--crm-muted)]">
-                Estrutura preparada para receber as funcionalidades futuras de
-                relacionamento com investidores. Autenticação, usuários e
-                permissões são os mesmos do ecossistema. Cada Executivo
-                visualizará exclusivamente os próprios relacionamentos.
-              </p>
-              <dl className="mt-8 grid gap-4 sm:grid-cols-3 text-sm">
+          <>
+            <CrmRail areas={CRM_AREAS} active={area} onSelect={setArea} />
+
+            <CrmListPane title={current.label} subtitle={current.description}>
+              <CrmPlaceholder
+                label="Lista em preparação"
+                hint="Os registros deste módulo serão exibidos aqui nas próximas etapas."
+              />
+            </CrmListPane>
+
+            <CrmMainPane
+              title={current.label}
+              detailsOpen={detailsOpen}
+              onToggleDetails={() => setDetailsOpen((v) => !v)}
+            >
+              <div className="mx-auto flex h-full max-w-3xl flex-col justify-center gap-4">
+                <CrmPlaceholder
+                  label="Área de trabalho"
+                  hint="Espaço reservado para a conversa ou o registro selecionado."
+                />
+              </div>
+            </CrmMainPane>
+
+            <CrmDetailsPane open={detailsOpen} title="Investidor">
+              <dl className="space-y-4 text-sm">
                 <div>
-                  <dt className="text-[color:var(--crm-muted)]">Executivo</dt>
-                  <dd>{session.name}</dd>
+                  <dt className="text-xs text-[color:var(--crm-muted)]">Executivo</dt>
+                  <dd className="mt-0.5">{session.name}</dd>
                 </div>
                 <div>
-                  <dt className="text-[color:var(--crm-muted)]">Workspace</dt>
-                  <dd>{actor.workspaceId}</dd>
+                  <dt className="text-xs text-[color:var(--crm-muted)]">Workspace</dt>
+                  <dd className="mt-0.5">{actor.workspaceId}</dd>
                 </div>
                 <div>
-                  <dt className="text-[color:var(--crm-muted)]">Escopo</dt>
-                  <dd>Somente registros próprios</dd>
+                  <dt className="text-xs text-[color:var(--crm-muted)]">Escopo</dt>
+                  <dd className="mt-0.5">Somente registros próprios</dd>
                 </div>
               </dl>
-            </section>
-
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.18em] text-[color:var(--crm-muted)]">
-                Áreas previstas
-              </h2>
-              <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {CRM_AREAS.map((area) => (
-                  <li
-                    key={area.key}
-                    className="rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-4"
-                  >
-                    <p className="text-sm font-medium">{area.label}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-[color:var(--crm-muted)]">
-                      {area.description}
-                    </p>
-                    <span className="mt-3 inline-block rounded-full border border-[color:var(--crm-border)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[color:var(--crm-muted)]">
-                      {area.status}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.18em] text-[color:var(--crm-muted)]">
-                Integrações previstas
-              </h2>
-              <ul className="mt-4 flex flex-wrap gap-2">
-                {CRM_INTEGRATIONS.map((i) => (
-                  <li
-                    key={i.key}
-                    className="rounded-full border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-3 py-1.5 text-xs text-[color:var(--crm-muted)]"
-                  >
-                    {i.label}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
+              <div className="mt-5">
+                <CrmPlaceholder
+                  label="Ficha do investidor"
+                  hint="Dados, contexto e histórico serão exibidos neste painel."
+                />
+              </div>
+            </CrmDetailsPane>
+          </>
         );
       }}
     </CrmShell>

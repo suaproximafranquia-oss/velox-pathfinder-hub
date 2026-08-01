@@ -133,6 +133,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function resolveShell(pathname: string): EditorialVariant | "executive" {
   if (pathname.startsWith("/executivo")) return "executive";
+  // O CRM é um ambiente operacional próprio — não herda o tema editorial.
+  if (pathname.startsWith("/crm")) return "executive";
   if (pathname.startsWith("/universo")) return "universo";
   if (pathname === "/") return "portal";
   return "manual";
@@ -163,6 +165,7 @@ function RootComponent() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isExecutive = pathname.startsWith("/executivo");
+  const isCrm = pathname.startsWith("/crm");
   const isPortal = pathname === "/";
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";
@@ -176,7 +179,7 @@ function RootComponent() {
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isExecutive || isPortal) return;
+    if (isExecutive || isCrm || isPortal) return;
     const insideOverlay = window.self !== window.top;
     const mod = moduleForPath(pathname);
     if (!mod) return;
@@ -187,7 +190,7 @@ function RootComponent() {
       return;
     }
     navigate({ to: "/", search: { m: mod.key }, replace: true });
-  }, [isExecutive, isPortal, navigate, pathname]);
+  }, [isCrm, isExecutive, isPortal, navigate, pathname]);
 
   // Área Executiva permanece isolada do Design System editorial.
   if (isExecutive) {
@@ -196,6 +199,16 @@ function RootComponent() {
         <ExecutiveShellMarker>
           <Outlet />
         </ExecutiveShellMarker>
+      </QueryClientProvider>
+    );
+  }
+
+  // O CRM de Relacionamento possui identidade própria: sem cabeçalho do
+  // Manual, sem índice editorial e sem elementos institucionais.
+  if (isCrm) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
       </QueryClientProvider>
     );
   }
