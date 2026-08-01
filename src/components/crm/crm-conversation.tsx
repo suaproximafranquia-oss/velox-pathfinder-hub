@@ -16,7 +16,17 @@ import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
-import { CRM_TEMPLATES, type CrmWindowStatus } from "@/lib/crm/templates";
+import { CRM_TEMPLATES, resolveCrmWindow, type CrmWindowStatus } from "@/lib/crm/templates";
+
+/** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
+function useSecondTick(active: boolean) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const t = window.setInterval(() => setTick((v) => v + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [active]);
+}
 
 /**
  * Badge permanente da Jornada Digital (DEF 2.4.11): o investidor navega
@@ -232,11 +242,16 @@ export function CrmConversationItem({
 export function CrmConversationHeader({
   item,
   window: win,
+  windowAnchor,
 }: {
   item: CrmConversation;
   window?: CrmWindowStatus;
+  /** Âncora da janela de 24h — permite o contador regressivo ao vivo. */
+  windowAnchor?: string | null;
 }) {
   const presence = whatsappPresence(item.id);
+  useSecondTick(Boolean(win?.open));
+  const live = win && windowAnchor ? resolveCrmWindow(windowAnchor) : win;
   return (
     <div key={item.id} className="crm-enter flex min-w-0 flex-1 items-center gap-3.5">
       <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={42} />
@@ -254,18 +269,18 @@ export function CrmConversationHeader({
           {presence.label}
         </span>
       </div>
-      {win ? (
+      {live ? (
         <span
-          title={win.hint}
+          title={live.hint}
           className={[
             "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
-            win.open
+            live.open
               ? "bg-emerald-50 text-emerald-700"
               : "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
           ].join(" ")}
         >
           <Clock3 className="h-3.5 w-3.5" />
-          {win.label}
+          {live.label}
         </span>
       ) : null}
     </div>
@@ -362,8 +377,18 @@ export function CrmComposer({
           value={text}
           disabled={disabled}
           readOnly={windowClosed}
+          onMouseDown={(e) => {
+            // DEF 2.5.2 §5 — com a janela encerrada o clique na barra abre
+            // a lista oficial de Templates em vez do teclado.
+            if (!windowClosed || disabled) return;
+            e.preventDefault();
+            setTemplatesOpen(true);
+          }}
           onFocus={(e) => {
-            if (windowClosed) e.currentTarget.blur();
+            if (windowClosed) {
+              e.currentTarget.blur();
+              if (!disabled) setTemplatesOpen(true);
+            }
           }}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -444,14 +469,14 @@ export function CrmThread({ item, messages }: { item: CrmConversation; messages:
                 </span>
               </div>
             ) : null}
-            {/* DEF 2.4.22 §3 — Executivo à esquerda, Investidor à direita. */}
-            <div className={sent ? "flex justify-start" : "flex justify-end"}>
+            {/* DEF 2.5.2 §1 — Executivo à direita, Investidor à esquerda. */}
+            <div className={sent ? "flex justify-end" : "flex justify-start"}>
               <div
                 className={[
                   "max-w-[78%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed shadow-[0_1px_2px_rgba(16,24,40,0.05)]",
                   sent
-                    ? "rounded-bl-md bg-[color:var(--crm-accent)] text-white"
-                    : "rounded-br-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
+                    ? "rounded-br-md bg-[color:var(--crm-accent)] text-white"
+                    : "rounded-bl-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
                 ].join(" ")}
               >
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
