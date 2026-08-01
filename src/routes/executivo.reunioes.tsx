@@ -110,32 +110,6 @@ const GOOGLE_SYNC_STYLES: Record<GoogleSyncState, { label: string; fg: string; b
   none:    { label: "Sem integração",      fg: "#4A5568", bg: "rgba(74,85,104,0.14)",  border: "#4A5568", Icon: CloudOff },
 };
 
-function GoogleSyncBadge({ state, error }: { state: GoogleSyncState; error?: string }) {
-  const s = GOOGLE_SYNC_STYLES[state];
-  const Icon = s.Icon;
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.22em]"
-      style={{ color: s.fg, background: s.bg, border: `1px solid ${s.border}` }}
-      title={error || s.label}
-    >
-      <Icon className="h-3 w-3" /> {s.label}
-    </span>
-  );
-}
-
-function ProviderBadge({ meeting }: { meeting: Meeting }) {
-  const p = resolveMeetingProvider(meeting);
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.22em]"
-      style={{ color: p.color, background: `${p.color}1F`, border: `1px solid ${p.color}66` }}
-      title={`Provedor: ${p.label}`}
-    >
-      <Video className="h-3 w-3" /> {p.shortLabel}
-    </span>
-  );
-}
 
 function ymd(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -146,10 +120,7 @@ function MeetingsPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [items, setItems] = useState<Meeting[]>([]);
-  const [notesFor, setNotesFor] = useState<Meeting | null>(null);
   const [detailsFor, setDetailsFor] = useState<Meeting | null>(null);
-  const [editFor, setEditFor] = useState<Meeting | null>(null);
-  const [statusFor, setStatusFor] = useState<Meeting | null>(null);
   const [deleteFor, setDeleteFor] = useState<Meeting | null>(null);
   const [profileOpen, setProfileOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -425,8 +396,6 @@ function MeetingsPage() {
                        >
                          {m.investorName}
                        </button>
-                       <ProviderBadge meeting={m} />
-                       <GoogleSyncBadge state={m.googleSync ?? "none"} error={m.googleSyncError} />
                      </div>
                      <div className="mt-1">
                        {resolveMeetingUrl(m) ? (
@@ -522,39 +491,12 @@ function MeetingsPage() {
         <HistoryView executiveId={session.userId} items={items} />
       )}
 
-      {notesFor && (
-        <NotesDialog
-          meeting={notesFor}
-          session={session}
-          onClose={() => setNotesFor(null)}
-          onSaved={() => {
-            refresh();
-            setNotesFor(null);
-          }}
-        />
-      )}
 
       {detailsFor && (
         <DetailsDialog meeting={detailsFor} onClose={() => setDetailsFor(null)} />
       )}
 
-      {editFor && (
-        <EditDialog
-          meeting={editFor}
-          session={session}
-          onClose={() => setEditFor(null)}
-          onSaved={() => { refresh(); setEditFor(null); }}
-        />
-      )}
 
-      {statusFor && (
-        <StatusDialog
-          meeting={statusFor}
-          session={session}
-          onClose={() => setStatusFor(null)}
-          onSaved={() => { refresh(); setStatusFor(null); }}
-        />
-      )}
 
       {deleteFor && (
         <DeleteDialog
@@ -1012,66 +954,6 @@ function NewMeetingDialog({
   );
 }
 
-function NotesDialog({
-  meeting,
-  session,
-  onClose,
-  onSaved,
-}: {
-  meeting: Meeting;
-  session: ExecutiveSession;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [text, setText] = useState("");
-  const MAX = 3000;
-  return (
-    <Overlay onClose={onClose} title={`Nova observação · ${meeting.investorName}`}>
-      <div className="space-y-3">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value.slice(0, MAX))}
-          rows={6}
-          placeholder="Resumo, próximos passos, observações..."
-          className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2 text-sm"
-        />
-        <div className="flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
-          <span>Máximo 3.000 caracteres</span>
-          <span>{text.length}/{MAX}</span>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            disabled={!text.trim()}
-            onClick={() => {
-              addMeetingNote(meeting.id, { authorId: session.userId, authorName: session.name, text: text.trim() });
-              logAudit({
-                actorId: session.userId,
-                actorName: session.name,
-                actorRole: "Executivo",
-                module: "investidores",
-                action: "Observação adicionada à reunião",
-                target: meeting.investorName,
-                severity: "info",
-              });
-              onSaved();
-            }}
-            className="flex-1 rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium disabled:opacity-50"
-          >
-            Salvar
-          </button>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
 
 function DetailsDialog({ meeting, onClose }: { meeting: Meeting; onClose: () => void }) {
   const st = STATUS_STYLES[meeting.status];
@@ -1140,171 +1022,7 @@ function DetailsDialog({ meeting, onClose }: { meeting: Meeting; onClose: () => 
   );
 }
 
-function EditDialog({
-  meeting,
-  session,
-  onClose,
-  onSaved,
-}: {
-  meeting: Meeting;
-  session: ExecutiveSession;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const initial = new Date(meeting.scheduledAt);
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  const [date, setDate] = useState(`${initial.getFullYear()}-${pad(initial.getMonth() + 1)}-${pad(initial.getDate())}`);
-  const [time, setTime] = useState(`${pad(initial.getHours())}:${pad(initial.getMinutes())}`);
-  const [meetUrl, setMeetUrl] = useState(meeting.meetUrl ?? "");
 
-  return (
-    <Overlay onClose={onClose} title={`Editar reunião · ${meeting.investorName}`}>
-      <div className="space-y-3 text-sm">
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Data</span>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
-          </label>
-          <label className="block">
-            <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Hora</span>
-            <input {...TIME_INPUT_PROPS} value={time} onChange={(e) => setTime(sanitizeTimeValue(e.target.value))} aria-invalid={time !== "" && !isValidTimeValue(time)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
-          </label>
-        </div>
-        <label className="block">
-          <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Link da reunião</span>
-          <input value={meetUrl} onChange={(e) => setMeetUrl(e.target.value)} placeholder="https://meet.google.com/..." className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
-        </label>
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm">Cancelar</button>
-          <button
-            type="button"
-            disabled={!date || !isValidTimeValue(time)}
-            onClick={async () => {
-              const iso = new Date(`${date}T${time}:00`).toISOString();
-              const updated = updateMeeting(meeting.id, { scheduledAt: iso, meetUrl }, { actorId: session.userId, actorName: session.name });
-              if (updated) {
-                await trySyncUpdate(updated, {
-                  userId: session.userId,
-                  userName: session.name,
-                  userRole: "Executivo",
-                });
-              }
-              onSaved();
-            }}
-            className="flex-1 rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium disabled:opacity-50"
-          >
-            Salvar
-          </button>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
-
-function StatusDialog({
-  meeting,
-  session,
-  onClose,
-  onSaved,
-}: {
-  meeting: Meeting;
-  session: ExecutiveSession;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const options = useMemo<MeetingStatus[]>(() => {
-    if (meeting.status === "Concluída") return STATUS_FLOW.filter((s) => s !== "Em andamento");
-    return STATUS_FLOW;
-  }, [meeting.status]);
-  const [status, setStatus] = useState<MeetingStatus>(meeting.status);
-  const [reason, setReason] = useState("");
-  const initial = new Date(meeting.scheduledAt);
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  const [date, setDate] = useState(`${initial.getFullYear()}-${pad(initial.getMonth() + 1)}-${pad(initial.getDate())}`);
-  const [time, setTime] = useState(`${pad(initial.getHours())}:${pad(initial.getMinutes())}`);
-
-  const invalid =
-    (status === "Cancelada" && !reason.trim()) ||
-    (status === "Reagendada" && (!date || !isValidTimeValue(time)));
-
-  async function submit() {
-    if (invalid) return;
-    const extra: Parameters<typeof updateMeetingStatus>[2] = {
-      actorId: session.userId,
-      actorName: session.name,
-    };
-    if (status === "Cancelada") extra.cancelReason = reason.trim();
-    if (status === "Reagendada") extra.scheduledAt = new Date(`${date}T${time}:00`).toISOString();
-    const updated = updateMeetingStatus(meeting.id, status, extra);
-    if (updated) {
-      const actor = { userId: session.userId, userName: session.name, userRole: "Executivo" };
-      if (status === "Cancelada" && updated.googleEventId) {
-        await trySyncDelete(updated, actor);
-      } else if (status === "Reagendada") {
-        await trySyncUpdate(updated, actor);
-      }
-    }
-    logAudit({
-      actorId: session.userId,
-      actorName: session.name,
-      actorRole: "Executivo",
-      module: "investidores",
-      action: `Status alterado para ${status}`,
-      target: meeting.investorName,
-      severity: status === "Cancelada" ? "warning" : "info",
-    });
-    onSaved();
-  }
-
-  return (
-    <Overlay onClose={onClose} title={`Alterar status · ${meeting.investorName}`}>
-      <div className="space-y-3 text-sm">
-        <label className="block">
-          <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Novo status</span>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as MeetingStatus)}
-            className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2"
-          >
-            {options.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </label>
-
-        {status === "Cancelada" && (
-          <label className="block">
-            <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Motivo do cancelamento *</span>
-            <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
-          </label>
-        )}
-
-        {status === "Reagendada" && (
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Nova data *</span>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
-            </label>
-            <label className="block">
-              <span className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1">Nova hora *</span>
-              <input {...TIME_INPUT_PROPS} value={time} onChange={(e) => setTime(sanitizeTimeValue(e.target.value))} aria-invalid={time !== "" && !isValidTimeValue(time)} className="w-full rounded-md border border-[color:var(--border)] bg-transparent px-3 py-2" />
-            </label>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-full border border-[color:var(--border)] px-4 py-2 text-sm">Cancelar</button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={invalid}
-            className="flex-1 rounded-full bg-[color:var(--gold)] px-4 py-2 text-sm text-[color:var(--navy-deep)] font-medium disabled:opacity-50"
-          >
-            Salvar
-          </button>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
 
 function Overlay({ onClose, title, children, wide }: { onClose: () => void; title: string; children: React.ReactNode; wide?: boolean }) {
   return (
