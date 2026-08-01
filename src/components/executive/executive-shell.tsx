@@ -20,6 +20,7 @@ import {
   Bell,
   Contact,
   FolderOpen,
+  Archive,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
