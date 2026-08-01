@@ -3,11 +3,13 @@ import { CheckCircle2, Info, Loader2, LogOut } from "lucide-react";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import {
   connectGoogleAccount,
+  canManageGoogleAccount,
   disconnectGoogleAccount,
   getGoogleStore,
   isGoogleAccountConnected,
   refreshGoogleStore,
   subscribeGoogleStore,
+  friendlyGoogleMessage,
   type GoogleStore,
 } from "@/lib/google-workspace";
 
@@ -52,6 +54,7 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
   const actor = { userId: session.userId, userName: session.name, userRole: session.activeRole };
   const connected = isGoogleAccountConnected(store);
   const email = store.account?.email ?? null;
+  const canManage = canManageGoogleAccount(session.activeRole);
 
   async function handleConnect() {
     setMessage(null);
@@ -59,10 +62,10 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
     try {
       const next = await connectGoogleAccount(actor);
       if (next.state === "error") {
-        setMessage("Não foi possível concluir a conexão com o Google. Tente novamente.");
+        setMessage(next.error ?? "Não foi possível concluir a conexão com o Google. Tente novamente.");
       }
-    } catch {
-      setMessage("Não foi possível concluir a conexão com o Google. Tente novamente.");
+    } catch (err) {
+      setMessage(friendlyGoogleMessage(err));
     } finally {
       setBusy(null);
     }
@@ -113,7 +116,7 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
                 </>
               )}
             </span>
-            {connected ? (
+            {!canManage ? null : connected ? (
               <>
                 <button
                   type="button"
@@ -163,8 +166,9 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
         {message && <p className="mt-4 text-[11px] text-amber-400">{message}</p>}
 
         <p className="mt-4 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-          A autorização é feita uma única vez e permanece ativa. Só será solicitada
-          novamente se você revogar o acesso ou alterar as permissões da conta.
+          {canManage
+            ? "A autorização é feita uma única vez e permanece ativa para todo o Portal. Só será solicitada novamente se o acesso for revogado no Google ou desconectado aqui."
+            : "Esta é a Conta Google corporativa do Portal, usada por agenda, reuniões, arquivos e e-mails. A gestão é feita pela administração."}
         </p>
       </div>
     </section>

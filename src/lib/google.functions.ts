@@ -11,13 +11,14 @@ export type GoogleConnectionStatus = {
   updatedAt: string | null;
 };
 
-/** Situação das três integrações Google do executivo autenticado. */
+/** Situação da Conta Google corporativa (mesma conta para todos). */
 export const getGoogleConnections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<GoogleConnectionStatus[]> => {
-    const { GOOGLE_CONNECTORS } = await import("@/server/google.server");
+    const { GOOGLE_CONNECTORS, CORPORATE_OWNER_ID } = await import("@/server/google.server");
     const { listConnectionsForUser } = await import("@/server/appUserConnections.server");
-    const stored = await listConnectionsForUser(context.userId);
+    const corporate = await listConnectionsForUser(CORPORATE_OWNER_ID);
+    const stored = corporate.length ? corporate : await listConnectionsForUser(context.userId);
     return GOOGLE_CONNECTORS.map((connectorId) => {
       const row = stored.find((s) => s.connectorId === connectorId);
       return {
@@ -35,20 +36,27 @@ export const startGoogleConnect = createServerFn({ method: "POST" })
   .inputValidator((data: { connectorId: GoogleConnectorKey }) => data)
   .handler(async ({ data, context }) => {
     const { authorizeAppUserOAuth } = await import("@/integrations/lovable/appUserConnector");
-    const { GATEWAY_BASE_URL, GOOGLE_SCOPES_BY_CONNECTOR, clientApiKeyFor, isGoogleConnector } =
-      await import("@/server/google.server");
+    const {
+      GATEWAY_BASE_URL,
+      GOOGLE_SCOPES_BY_CONNECTOR,
+      clientApiKeyFor,
+      isGoogleConnector,
+      CORPORATE_OWNER_ID,
+    } = await import("@/server/google.server");
     const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
+    const { assertGoogleAccountManager } = await import("@/server/executive-auth.server");
 
     if (!isGoogleConnector(data.connectorId)) throw new Error("Conector inválido.");
+    await assertGoogleAccountManager(context.userId);
     const request = getRequest();
     if (!request) throw new Error("A conexão precisa começar por uma requisição da aplicação.");
     const returnUrl = new URL(`/oauth/google/${data.connectorId}`, request.url).toString();
-    const existing = await getConnectionKeyForUser(context.userId, data.connectorId);
+    const existing = await getConnectionKeyForUser(CORPORATE_OWNER_ID, data.connectorId);
 
     const { authorizationUrl } = await authorizeAppUserOAuth({
       gatewayBaseUrl: GATEWAY_BASE_URL,
       connectorId: data.connectorId,
-      appUserId: context.userId,
+      appUserId: CORPORATE_OWNER_ID,
       clientAPIKey: clientApiKeyFor(data.connectorId),
       returnUrl,
       connectionAPIKey: existing ?? undefined,
@@ -63,25 +71,26 @@ export const completeGoogleConnection = createServerFn({ method: "POST" })
   .inputValidator((data: { code: string }) => data)
   .handler(async ({ data, context }) => {
     const { exchangeAppUserOAuthCode } = await import("@/integrations/lovable/appUserConnector");
-    const { GATEWAY_BASE_URL, fetchGoogleProfile, isGoogleConnector } = await import(
-      "@/server/google.server"
-    );
+    const { GATEWAY_BASE_URL, fetchGoogleProfile, isGoogleConnector, CORPORATE_OWNER_ID } =
+      await import("@/server/google.server");
     const { saveConnectionKeyForUser, setConnectionAccountEmail } = await import(
       "@/server/appUserConnections.server"
     );
+    const { assertGoogleAccountManager } = await import("@/server/executive-auth.server");
+    await assertGoogleAccountManager(context.userId);
 
     const { connectionAPIKey, connectorId } = await exchangeAppUserOAuthCode(
       GATEWAY_BASE_URL,
       data.code,
     );
     if (!isGoogleConnector(connectorId)) throw new Error("Conector inesperado no retorno OAuth.");
-    await saveConnectionKeyForUser(context.userId, connectorId, connectionAPIKey);
+    await saveConnectionKeyForUser(CORPORATE_OWNER_ID, connectorId, connectionAPIKey);
 
     let email: string | null = null;
     try {
-      const profile = await fetchGoogleProfile(context.userId, connectorId);
+      const profile = await fetchGoogleProfile(CORPORATE_OWNER_ID, connectorId);
       email = profile.email;
-      if (email) await setConnectionAccountEmail(context.userId, connectorId, email);
+      if (email) await setConnectionAccountEmail(CORPORATE_OWNER_ID, connectorId, email);
     } catch {
       /* perfil é complementar — nunca bloqueia a conexão */
     }
@@ -94,11 +103,13 @@ export const disconnectGoogle = createServerFn({ method: "POST" })
   .inputValidator((data: { connectorId: GoogleConnectorKey }) => data)
   .handler(async ({ data, context }) => {
     const { disconnectAppUser } = await import("@/integrations/lovable/appUserConnector");
-    const { GATEWAY_BASE_URL } = await import("@/server/google.server");
+    const { GATEWAY_BASE_URL, CORPORATE_OWNER_ID } = await import("@/server/google.server");
     const { deleteConnectionForUser, getConnectionKeyForUser } = await import(
       "@/server/appUserConnections.server"
     );
-    const key = await getConnectionKeyForUser(context.userId, data.connectorId);
+    const { assertGoogleAccountManager } = await import("@/server/executive-auth.server");
+    await assertGoogleAccountManager(context.userId);
+    const key = await getConnectionKeyForUser(CORPORATE_OWNER_ID, data.connectorId);
     if (key) {
       try {
         await disconnectAppUser({
@@ -110,6 +121,7 @@ export const disconnectGoogle = createServerFn({ method: "POST" })
         /* segue removendo localmente */
       }
     }
+    await deleteConnectionForUser(CORPORATE_OWNER_ID, data.connectorId);
     await deleteConnectionForUser(context.userId, data.connectorId);
     return { ok: true as const };
   });

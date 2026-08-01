@@ -3,6 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import {
   getGoogleStore,
+  canManageGoogleAccount,
+  isGoogleAccountConnected,
   refreshGoogleStore,
   subscribeGoogleStore,
   type GoogleStore,
@@ -34,25 +36,32 @@ export function GoogleStatusIndicator({ session }: { session: ExecutiveSession }
     return off;
   }, [session.userId, sync]);
 
-  const tone =
-    store.state === "connected" ? "#34A853" : store.state === "error" ? "#E0A458" : "#8A94A6";
-  const label =
-    store.state === "connected"
-      ? `Google conectado${store.account?.email ? ` · ${store.account.email}` : ""}`
-      : store.state === "error"
-        ? "Google · reconectar conta"
-        : "Google · conta não conectada";
+  const connected = isGoogleAccountConnected(store);
+  const canManage = canManageGoogleAccount(session.activeRole);
+  const tone = connected ? "#34A853" : "#E0533D";
+  const label = connected
+    ? `Google conectado${store.account?.email ? ` · ${store.account.email}` : ""}`
+    : "Google desconectado";
   return (
     <button
       type="button"
       title={label}
       aria-label={label}
-      onClick={() => navigate({ to: "/executivo/perfil" })}
-      className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--border)] hover:border-[color:var(--gold)]/40 transition"
+      disabled={!canManage}
+      onClick={() => {
+        if (canManage) void navigate({ to: "/executivo/configuracoes" });
+      }}
+      className={
+        "relative inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-2.5 py-1 transition " +
+        (canManage ? "hover:border-[color:var(--gold)]/40" : "cursor-default")
+      }
     >
       <GoogleGlyph tone={tone} />
+      <span className="hidden sm:inline text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
+        {connected ? "Google conectado" : "Google desconectado"}
+      </span>
       <span
-        className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-[color:var(--navy-deep)]"
+        className="h-2 w-2 rounded-full"
         style={{ background: tone }}
       />
     </button>

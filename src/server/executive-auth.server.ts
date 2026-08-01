@@ -1,5 +1,29 @@
 /** Provisionamento das contas de acesso dos executivos — SERVER ONLY. */
-import { SEED_USERS } from "@/lib/executive-auth";
+import { SEED_USERS, type ExecutiveRole } from "@/lib/executive-auth";
+
+/** Papel oficial vinculado à conta autenticada. */
+export async function getExecutiveRoleForUser(userId: string): Promise<ExecutiveRole> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("executive_profiles")
+    .select("executive_id, email")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const executiveId = (data?.executive_id as string | undefined) ?? "";
+  const email = ((data?.email as string | undefined) ?? "").toLowerCase();
+  const seed =
+    SEED_USERS.find((u) => u.id === executiveId) ??
+    SEED_USERS.find((u) => u.email.toLowerCase() === email);
+  return seed?.role ?? "executivo";
+}
+
+/** Somente Administrador e Gestor administram a Conta Google corporativa. */
+export async function assertGoogleAccountManager(userId: string): Promise<void> {
+  const role = await getExecutiveRoleForUser(userId);
+  if (role !== "super_admin" && role !== "diretora") {
+    throw new Error("SEM_PERMISSAO_CONTA_GOOGLE");
+  }
+}
 
 export type OfficialUser = {
   executiveId: string;

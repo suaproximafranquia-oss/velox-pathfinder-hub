@@ -2,9 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type CreativeCopyInput = {
-  unit: string;
   city: string;
   state: string;
+  /** Nome institucional derivado da cidade — nunca digitado manualmente. */
+  unit?: string;
   address?: string;
   openingDate?: string;
   phone?: string;
@@ -57,6 +58,43 @@ export const saveCreativeArt = createServerFn({ method: "POST" })
       folderId: folders.generatedId,
       name: data.name,
       mimeType: data.mimeType || "image/png",
+      contentBase64: data.contentBase64,
+    });
+  });
+
+/** Tipos de arquivo aceitos no bloco "Padrão oficial da marca". */
+export type BrandAssetKind = "logo" | "template" | "modelo" | "manual" | "referencia";
+
+/**
+ * Envia um arquivo do padrão oficial para a pasta correta da biblioteca
+ * no Drive corporativo. Esses arquivos são a única referência da IA.
+ */
+export const saveBrandAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      kind: BrandAssetKind;
+      name: string;
+      contentBase64: string;
+      mimeType?: string;
+    }) => data,
+  )
+  .handler(async ({ data, context }) => {
+    const { ensureCreativeFolders, uploadUniqueDocument } = await import(
+      "@/server/google-drive.server"
+    );
+    const folders = await ensureCreativeFolders(context.userId);
+    const target: Record<BrandAssetKind, string> = {
+      logo: folders.logosId,
+      template: folders.templatesId,
+      modelo: folders.approvedId,
+      manual: folders.referencesId,
+      referencia: folders.referencesId,
+    };
+    return uploadUniqueDocument(context.userId, {
+      folderId: target[data.kind] ?? folders.referencesId,
+      name: data.name,
+      mimeType: data.mimeType || "application/octet-stream",
       contentBase64: data.contentBase64,
     });
   });

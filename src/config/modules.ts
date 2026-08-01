@@ -149,7 +149,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     id: "drive",
     name: "Drive Corporativo",
     description:
-      "Central de arquivos do workspace. Abre em nova aba — integração com Google Drive prevista.",
+      "Central de arquivos do Portal. Abre a pasta oficial da Conta Google corporativa.",
     icon: FolderOpen,
     href: "https://drive.google.com/",
     external: true,

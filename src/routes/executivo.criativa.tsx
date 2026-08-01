@@ -29,6 +29,8 @@ import { listCreativeHistory, recordCreative } from "@/lib/creative/history";
 import {
   generateCreativeCopy,
   saveCreativeArt,
+  saveBrandAsset,
+  type BrandAssetKind,
   type CreativeCopyPair,
 } from "@/lib/creative.functions";
 
@@ -42,25 +44,18 @@ export const Route = createFileRoute("/executivo/criativa")({
   component: CriativaPage,
 });
 
+/** Somente cidade e UF variam: todo o restante é padrão oficial fixo. */
 type FormState = {
-  unit: string;
   city: string;
   state: string;
-  address: string;
-  openingDate: string;
-  phone: string;
-  notes: string;
 };
 
-const EMPTY: FormState = {
-  unit: "",
-  city: "",
-  state: "",
-  address: "",
-  openingDate: "",
-  phone: "",
-  notes: "",
-};
+const EMPTY: FormState = { city: "", state: "" };
+
+/** Nome institucional derivado — a unidade nunca é digitada. */
+function unitName(form: FormState): string {
+  return `Velox ${form.city}${form.state ? ` — ${form.state}` : ""}`.trim();
+}
 
 function CriativaPage() {
   const navigate = useNavigate();
@@ -87,12 +82,9 @@ function CriativaPage() {
   const arts = useMemo(() => {
     if (!copy) return null;
     const base = {
-      unit: form.unit,
+      unit: unitName(form),
       city: form.city,
       state: form.state,
-      address: form.address || undefined,
-      openingDate: form.openingDate || undefined,
-      phone: form.phone || undefined,
     };
     const build = (model: CreativeModel): { svg: string; brief: UnitBrief } => {
       const brief: UnitBrief = { ...base, ...copy[model] };
@@ -106,8 +98,8 @@ function CriativaPage() {
 
   async function generate() {
     if (busy) return;
-    if (!form.unit.trim() || !form.city.trim()) {
-      setError("Informe ao menos o nome da unidade e a cidade.");
+    if (!form.city.trim() || form.state.trim().length !== 2) {
+      setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
       return;
     }
     setError(null);
@@ -115,13 +107,9 @@ function CriativaPage() {
     try {
       const res = await generateCreativeCopy({
         data: {
-          unit: form.unit.trim(),
+          unit: unitName(form),
           city: form.city.trim(),
-          state: form.state.trim(),
-          address: form.address.trim() || undefined,
-          openingDate: form.openingDate.trim() || undefined,
-          phone: form.phone.trim() || undefined,
-          notes: form.notes.trim() || undefined,
+          state: form.state.trim().toUpperCase(),
         },
       });
       setCopy(res);
@@ -164,18 +152,18 @@ function CriativaPage() {
               <ArtCard
                 model="institucional"
                 svg={arts.institucional.svg}
-                fileBase={`${slugify(form.unit)}-institucional`}
+                fileBase={`${slugify(unitName(form))}-institucional`}
                 session={session}
-                unit={form.unit}
+                unit={unitName(form)}
                 city={form.city}
                 onSaved={() => setHistoryTick((v) => v + 1)}
               />
               <ArtCard
                 model="marketing"
                 svg={arts.marketing.svg}
-                fileBase={`${slugify(form.unit)}-marketing`}
+                fileBase={`${slugify(unitName(form))}-marketing`}
                 session={session}
-                unit={form.unit}
+                unit={unitName(form)}
                 city={form.city}
                 onSaved={() => setHistoryTick((v) => v + 1)}
               />
@@ -223,16 +211,11 @@ function BriefForm({
           <Wand2 className="h-4 w-4 text-[color:var(--gold)]" />
           <h2 className="font-display text-lg">Nova unidade</h2>
         </div>
+        <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
+          Informe apenas cidade e UF. Todo o restante — layout, cores,
+          tipografia, logotipo e textos — segue o padrão oficial da marca.
+        </p>
 
-        <div className="space-y-1.5">
-          <span className={label}>Unidade</span>
-          <input
-            className={field}
-            value={form.unit}
-            onChange={(e) => onChange({ unit: e.target.value })}
-            placeholder="Velox São José do Rio Preto"
-          />
-        </div>
         <div className="grid grid-cols-[1fr_88px] gap-3">
           <div className="space-y-1.5">
             <span className={label}>Cidade</span>
@@ -253,42 +236,6 @@ function BriefForm({
             />
           </div>
         </div>
-        <div className="space-y-1.5">
-          <span className={label}>Endereço</span>
-          <input
-            className={field}
-            value={form.address}
-            onChange={(e) => onChange({ address: e.target.value })}
-            placeholder="Av. Brasil, 1200 — Centro"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <span className={label}>Inauguração</span>
-          <input
-            className={field}
-            value={form.openingDate}
-            onChange={(e) => onChange({ openingDate: e.target.value })}
-            placeholder="12 de agosto"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <span className={label}>Contato</span>
-          <input
-            className={field}
-            value={form.phone}
-            onChange={(e) => onChange({ phone: e.target.value })}
-            placeholder="(17) 99772-7337"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <span className={label}>Observações</span>
-          <textarea
-            className={`${field} min-h-[84px] resize-y`}
-            value={form.notes}
-            onChange={(e) => onChange({ notes: e.target.value })}
-            placeholder="Informações adicionais aprovadas para a peça."
-          />
-        </div>
 
         {error ? (
           <p className="text-xs text-[color:var(--destructive)]">{error}</p>
@@ -301,9 +248,11 @@ function BriefForm({
           className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-4 py-2.5 text-sm text-[color:var(--foreground)] hover:border-[color:var(--gold)] disabled:opacity-60 transition"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          {busy ? "Gerando peças oficiais…" : "Gerar Modelos A e B"}
+          {busy ? "Gerando artes oficiais…" : "Gerar artes"}
         </button>
       </section>
+
+      <BrandStandardUploads />
 
       {history.length > 0 ? (
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
@@ -330,6 +279,89 @@ function BriefForm({
         </section>
       ) : null}
     </aside>
+  );
+}
+
+/**
+ * Padrão oficial da marca — envio de logotipos, templates, modelos
+ * aprovados e manuais direto para a biblioteca no Drive corporativo.
+ */
+const BRAND_UPLOADS: { kind: BrandAssetKind; label: string; accept: string }[] = [
+  { kind: "logo", label: "Logotipos oficiais", accept: "image/*,.svg" },
+  { kind: "template", label: "Templates de arte", accept: "image/*,.svg,.pdf,.psd,.ai" },
+  { kind: "modelo", label: "Modelos aprovados", accept: "image/*,.pdf" },
+  { kind: "manual", label: "Manual da marca / referências", accept: ".pdf,image/*" },
+];
+
+function BrandStandardUploads() {
+  const [busy, setBusy] = useState<BrandAssetKind | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function upload(kind: BrandAssetKind, file: File) {
+    setBusy(kind);
+    setStatus(null);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+        reader.onerror = () => reject(new Error("leitura"));
+        reader.readAsDataURL(file);
+      });
+      await saveBrandAsset({
+        data: {
+          kind,
+          name: file.name,
+          contentBase64: base64,
+          mimeType: file.type || "application/octet-stream",
+        },
+      });
+      setStatus(`“${file.name}” enviado para a biblioteca oficial.`);
+    } catch {
+      setStatus("Não foi possível enviar o arquivo agora. Tente novamente.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6 space-y-3">
+      <div className="flex items-center gap-2">
+        <Lock className="h-4 w-4 text-[color:var(--gold)]" />
+        <h3 className="font-display text-base">Padrão oficial da marca</h3>
+      </div>
+      <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
+        Envie aqui os arquivos oficiais. Eles ficam organizados na biblioteca
+        do Drive corporativo e são a única referência usada pela IA.
+      </p>
+      <div className="space-y-2">
+        {BRAND_UPLOADS.map((item) => (
+          <label
+            key={item.kind}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/50 px-3 py-2 text-xs hover:border-[color:var(--gold)]/50 transition"
+          >
+            <span className="text-[color:var(--muted-foreground)]">{item.label}</span>
+            {busy === item.kind ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
+            ) : (
+              <CloudUpload className="h-3.5 w-3.5 text-[color:var(--gold)]" />
+            )}
+            <input
+              type="file"
+              accept={item.accept}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void upload(item.kind, file);
+              }}
+            />
+          </label>
+        ))}
+      </div>
+      {status ? (
+        <p className="text-[11px] text-[color:var(--muted-foreground)]">{status}</p>
+      ) : null}
+    </section>
   );
 }
 
