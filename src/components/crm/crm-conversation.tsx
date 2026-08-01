@@ -16,6 +16,43 @@ import {
   Check,
 } from "lucide-react";
 import { CRM_STATE_DOT, type CrmConversation } from "@/lib/crm/relationships";
+import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
+
+/** Indicador padronizado do estágio automático do relacionamento. */
+export function CrmStateDot({ item }: { item: CrmConversation }) {
+  const meta = CRM_RELATIONSHIP_META[item.relationshipState];
+  return (
+    <span
+      className="relative flex h-2 w-2 shrink-0 items-center justify-center"
+      title={meta.label}
+      aria-label={meta.label}
+    >
+      {meta.pulse ? (
+        <span
+          className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-40 ${meta.dot}`}
+          style={{ animationDuration: "2.4s" }}
+          aria-hidden
+        />
+      ) : null}
+      <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${meta.dot}`} aria-hidden />
+    </span>
+  );
+}
+
+/** Chip discreto do estágio — exibido apenas na Ficha do investidor. */
+export function CrmStateChip({ item }: { item: CrmConversation }) {
+  const meta = CRM_RELATIONSHIP_META[item.relationshipState];
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.chip}`}
+      >
+        <CrmStateDot item={item} />
+        {meta.label}
+      </span>
+    </span>
+  );
+}
 
 /** Avatar do investidor — foto quando existir, iniciais como alternativa. */
 export function CrmAvatar({
@@ -84,12 +121,9 @@ export function CrmConversationItem({
           </span>
         </span>
         <span className="mt-1 flex items-center gap-2">
-          <span
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${CRM_STATE_DOT[item.state]}`}
-            aria-hidden
-          />
+          <CrmStateDot item={item} />
           <span className="min-w-0 flex-1 truncate text-[11px] text-[color:var(--crm-muted)]">
-            {item.statusLabel}
+            {CRM_RELATIONSHIP_META[item.relationshipState].label}
           </span>
           {unread ? (
             <span
