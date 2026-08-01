@@ -20,6 +20,7 @@ import {
   CrmSupervisionView,
   CrmDuplicateNotice,
   CrmStateChip,
+  CrmCopyLinkButton,
 } from "@/components/crm/crm-conversation";
 import {
   User,
@@ -29,12 +30,12 @@ import {
   Sparkles,
   BellRing,
   Video,
-  Link2,
   CalendarPlus,
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import { markOutboundMessage } from "@/lib/crm/relationship-state";
+import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
 import {
@@ -110,6 +111,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
+  const [messageTick, setMessageTick] = useState(0);
   const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
 
@@ -179,6 +181,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     executives.find((e) => e.id === id)?.name ?? "—";
   const privateOk = selected ? canSeePrivateContent(selected.access) : false;
 
+  // Histórico da conversa — persistido, nunca some após o envio.
+  const messages = useMemo(
+    () => (selected && privateOk ? listCrmMessages(selected.id) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selected?.id, privateOk, messageTick],
+  );
+
   // Registro automático da ocorrência — sem interação do usuário.
   useEffect(() => {
     if (!selected) return;
@@ -226,6 +235,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         .sort((a, b) => (a.scheduledAt < b.scheduledAt ? -1 : 1))[0] ?? null
     );
   }, [selected?.id, privateOk, tick]);
+
+  const meetingUrl = nextMeeting?.meetUrl ?? nextMeeting?.meetingProviderUrl ?? null;
 
   return (
     <>
@@ -303,9 +314,17 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
         footer={
-          isConversas && selected && privateOk ? (
+          isConversas && selected ? (
             <CrmComposer
-              onSend={() => {
+              disabled={!privateOk}
+              hint="Conversa disponível apenas ao Executivo responsável"
+              onSend={(text) => {
+                appendCrmMessage({
+                  investorId: selected.id,
+                  direction: "enviada",
+                  body: text,
+                  authorId: actor.userId,
+                });
                 markOutboundMessage(selected.id);
                 recordCrmEvent({
                   investorId: selected.id,
@@ -315,6 +334,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   ownerId: selected.ownerId,
                   actorId: actor.userId,
                 });
+                setMessageTick((v) => v + 1);
                 setTick((v) => v + 1);
               }}
             />
@@ -329,7 +349,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : (
             <>
               <CrmDuplicateNotice item={selected} />
-              <CrmThread item={selected} />
+              <CrmThread item={selected} messages={messages} />
             </>
           )
         ) : isDistribuicao && selectedIntake ? (
@@ -442,27 +462,24 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     })}
                   />
                   <div className="flex flex-wrap gap-2">
-                    <a
-                      href={nextMeeting.meetUrl ?? nextMeeting.meetingProviderUrl ?? "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-disabled={!nextMeeting.meetUrl && !nextMeeting.meetingProviderUrl}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90"
-                    >
-                      <Video className="h-3.5 w-3.5" />
-                      Entrar na reunião
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const url = nextMeeting.meetUrl ?? nextMeeting.meetingProviderUrl;
-                        if (url) void navigator.clipboard?.writeText(url).catch(() => undefined);
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[color:var(--crm-hover)]"
-                    >
-                      <Link2 className="h-3.5 w-3.5" />
-                      Copiar Link
-                    </button>
+                    {meetingUrl ? (
+                      <>
+                        <a
+                          href={meetingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 hover:shadow-sm active:translate-y-0"
+                        >
+                          <Video className="h-3.5 w-3.5" />
+                          Entrar na reunião
+                        </a>
+                        <CrmCopyLinkButton url={meetingUrl} />
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-[color:var(--crm-muted)]">
+                        Link da videoconferência ainda não disponível.
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -474,7 +491,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 <button
                   type="button"
                   onClick={() => setMeetingOpen(true)}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-[color:var(--crm-hover)]"
+                  className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
                 >
                   <CalendarPlus className="h-3.5 w-3.5" />
                   Agendar
