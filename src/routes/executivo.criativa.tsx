@@ -166,7 +166,6 @@ function CriativaPage() {
             </div>
           )}
 
-          <CategoriesRoadmap />
         </section>
       </div>
     </ExecutiveShell>
