@@ -25,6 +25,13 @@ import {
 import { readEntryContext } from "@/lib/portal-entry";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { registerJourney, trackJourney } from "@/lib/journey/engine";
+import {
+  markJourneyOnly,
+  isArchived,
+  restoreRelationship,
+} from "@/lib/crm/commercial";
+import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
+import { recordCrmEvent } from "@/lib/crm/timeline";
 
 const SESSION_KEY = "velox:portal:session:v1";
 
@@ -86,6 +93,20 @@ function safeWrite(key: string, value: unknown) {
 function findLeadByEmail(email: string): LeadRecord | null {
   const normalized = normalizeEmail(email);
   return loadLeads().find((lead) => normalizeEmail(lead.email) === normalized) ?? null;
+}
+
+function digits(value?: string | null): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+/**
+ * Identificação de retorno (DEF 2.4.11): o mesmo WhatsApp jamais gera um
+ * novo cadastro — o histórico existente é sempre reaproveitado.
+ */
+function findLeadByPhone(phone?: string | null): LeadRecord | null {
+  const normalized = digits(phone);
+  if (normalized.length < 10) return null;
+  return loadLeads().find((lead) => digits(lead.whatsapp) === normalized) ?? null;
 }
 
 export function getPortalSession(): PortalSession | null {
@@ -151,20 +172,21 @@ export function getResumePoint(): { module: string; detail?: string; at: string 
 export function startPortalSession(input: {
   name: string;
   email: string;
+  phone?: string;
   origin?: string;
   nextPath?: string;
 }): PortalSession {
   const entry = readEntryContext();
   const responsible = getResponsibleExecutive();
   const identity = resolveIdentity({ name: input.name, email: input.email });
-  const existing = findLeadByEmail(input.email);
+  const existing = findLeadByEmail(input.email) ?? findLeadByPhone(input.phone);
   const baseLead =
     existing ??
     registerLead({
       identity: {
         name: input.name.trim(),
         email: normalizeEmail(input.email),
-        whatsapp: "",
+        whatsapp: input.phone?.trim() ?? "",
         city: "",
       },
       material: "Gateway Portal Velox",
