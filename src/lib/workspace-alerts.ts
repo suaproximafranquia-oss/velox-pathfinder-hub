@@ -465,6 +465,7 @@ export function recordPortalActivityAlert(input: {
 
 export function onWorkspaceAlertsChange(cb: () => void) {
   return onEvent((e) => {
+    void 0;
     // Atualização automática: novos leads, atualizações de lead, retornos
     // ao Portal e movimentações de reunião.
     if (
