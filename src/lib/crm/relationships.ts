@@ -23,6 +23,10 @@ import {
 } from "@/lib/crm/ownership";
 import { accessModeFor, type CrmAccessMode } from "@/lib/crm/permissions";
 import { recordCrmEvent } from "@/lib/crm/timeline";
+import {
+  resolveRelationshipState,
+  type CrmRelationshipState,
+} from "@/lib/crm/relationship-state";
 
 export type CrmConversation = {
   id: string;
@@ -39,6 +43,8 @@ export type CrmConversation = {
   statusLabel: string;
   state: LeadState;
   stateLabel: string;
+  /** Estágio automático do relacionamento (Motor Inteligente). */
+  relationshipState: CrmRelationshipState;
   lastActivityIso: string;
   lastActivityLabel: string;
   originLabel: string;
@@ -134,6 +140,10 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
         statusLabel: STATUS_LABEL[i.status],
         state,
         stateLabel: LEAD_STATE_META[state].label,
+        relationshipState: resolveRelationshipState({
+          id: i.id,
+          lastInvestorActivityIso: i.lastActivity,
+        }),
         lastActivityIso: i.lastActivity,
         lastActivityLabel: formatRelative(i.lastActivity),
         originLabel: ORIGIN_LABEL[i.origin ?? "portal"] ?? "Portal Velox",

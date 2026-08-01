@@ -18,6 +18,7 @@ import {
   CrmBlockedRelationship,
   CrmSupervisionView,
   CrmDuplicateNotice,
+  CrmStateChip,
 } from "@/components/crm/crm-conversation";
 import {
   User,
@@ -343,6 +344,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             </CrmRecordSection>
 
             <CrmRecordSection title="Relacionamento" tone="verde" icon={Users}>
+              {/* Estágio automático — exibido exclusivamente aqui. */}
+              <div className="flex items-start justify-between gap-3">
+                <span className="shrink-0 text-xs text-[color:var(--crm-muted)]">Estágio</span>
+                <CrmStateChip item={selected} />
+              </div>
               <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
             </CrmRecordSection>
