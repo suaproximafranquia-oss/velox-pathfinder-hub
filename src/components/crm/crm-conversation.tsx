@@ -16,7 +16,7 @@ import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
-import { CRM_TEMPLATES, type CrmWindowStatus } from "@/lib/crm/templates";
+import { CRM_TEMPLATES, resolveCrmWindow, type CrmWindowStatus } from "@/lib/crm/templates";
 
 /** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
 function useSecondTick(active: boolean) {
@@ -242,14 +242,16 @@ export function CrmConversationItem({
 export function CrmConversationHeader({
   item,
   window: win,
-  windowLabel,
+  windowAnchor,
 }: {
   item: CrmConversation;
   window?: CrmWindowStatus;
-  /** Rótulo recalculado a cada segundo (contador regressivo). */
-  windowLabel?: string;
+  /** Âncora da janela de 24h — permite o contador regressivo ao vivo. */
+  windowAnchor?: string | null;
 }) {
   const presence = whatsappPresence(item.id);
+  useSecondTick(Boolean(win?.open));
+  const live = win && windowAnchor ? resolveCrmWindow(windowAnchor) : win;
   return (
     <div key={item.id} className="crm-enter flex min-w-0 flex-1 items-center gap-3.5">
       <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={42} />
@@ -267,18 +269,18 @@ export function CrmConversationHeader({
           {presence.label}
         </span>
       </div>
-      {win ? (
+      {live ? (
         <span
-          title={win.hint}
+          title={live.hint}
           className={[
             "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
-            win.open
+            live.open
               ? "bg-emerald-50 text-emerald-700"
               : "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
           ].join(" ")}
         >
           <Clock3 className="h-3.5 w-3.5" />
-          {windowLabel ?? win.label}
+          {live.open ? `Janela aberta · ${live.label.split("· ")[1] ?? ""}` : "Janela encerrada"}
         </span>
       ) : null}
     </div>
