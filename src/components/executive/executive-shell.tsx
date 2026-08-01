@@ -35,7 +35,6 @@ import {
 import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
-import { AlertsDrawer } from "@/components/executive/alerts-drawer";
 import { GoogleStatusIndicator } from "@/components/executive/google-status-indicator";
 
 export function ExecutiveShell({
@@ -54,26 +53,32 @@ export function ExecutiveShell({
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const nav = [
+  // Arquitetura do ecossistema: primeiro as ferramentas de uso diário,
+  // depois as Centrais (consulta, auditoria e histórico) agrupadas ao final.
+  const daily = [
     { to: "/executivo/home", label: "Home", icon: LayoutGrid },
     { to: "/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
     { to: "/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
-    { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
-    { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
     { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     { to: "/executivo/criativa", label: "IA Criativa", icon: Wand2 },
+    { to: "/crm", label: "CRM", icon: Contact },
+  ];
+
+  const administrative = [
+    { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
+    { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
+    ...(canManageUsers(session.activeRole)
+      ? [{ to: "/executivo/auditoria", label: "Central de Auditoria", icon: ShieldCheck }]
+      : []),
+    { to: "/executivo/recursos", label: "Biblioteca Corporativa", icon: FolderOpen },
     ...(canManageKnowledge(session.activeRole)
-      ? [{ to: "/executivo/conhecimento", label: "Conhecimento", icon: Database }]
+      ? [{ to: "/executivo/conhecimento", label: "Central de Conhecimento", icon: Database }]
       : []),
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
-    ...(canManageUsers(session.activeRole)
-      ? [{ to: "/executivo/auditoria", label: "Central de Auditoria", icon: ShieldCheck }]
-      : []),
-    { to: "/crm", label: "CRM", icon: Contact },
     { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
@@ -82,6 +87,25 @@ export function ExecutiveShell({
       ? [{ to: "/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical }]
       : []),
   ];
+
+  const renderLink = (n: { to: string; label: string; icon: typeof LayoutGrid }) => {
+    const active = pathname.startsWith(n.to);
+    return (
+      <Link
+        key={n.to}
+        to={n.to}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border transition-colors whitespace-nowrap",
+          active
+            ? "border-[color:var(--gold)]/30 bg-[color:var(--accent)] text-[color:var(--foreground)]"
+            : "border-transparent text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60",
+        )}
+      >
+        <n.icon className="h-4 w-4" />
+        {n.label}
+      </Link>
+    );
+  };
 
   return (
     <div
@@ -152,24 +176,12 @@ export function ExecutiveShell({
           style={{ contain: "layout paint style" }}
         >
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
-            {nav.map((n) => {
-              const active = pathname.startsWith(n.to);
-              return (
-                <Link
-                  key={n.to}
-                  to={n.to}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm border transition-colors whitespace-nowrap",
-                    active
-                      ? "border-[color:var(--gold)]/30 bg-[color:var(--accent)] text-[color:var(--foreground)]"
-                      : "border-transparent text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60",
-                  )}
-                >
-                  <n.icon className="h-4 w-4" />
-                  {n.label}
-                </Link>
-              );
-            })}
+            {daily.map(renderLink)}
+            <span
+              aria-hidden
+              className="my-2 hidden h-px w-full bg-[color:var(--border)] md:block"
+            />
+            {administrative.map(renderLink)}
           </nav>
         </aside>
         <main className="min-w-0" style={{ overflowX: "clip" }}>
@@ -190,9 +202,8 @@ export function ExecutiveShell({
         </div>
       </footer>
       <RecognitionHost userId={session.userId} />
-      {/* Central de Alertas — Drawer lateral flutuante, presente em todas as telas
-          do Workspace. Única exceção: o KPI Manager (tela densa de indicadores). */}
-      {!pathname.startsWith("/executivo/kpi") && <AlertsDrawer session={session} />}
+      {/* DF 2.4.2 — o alerta global flutuante deixou de existir. Alertas ativos
+          são operacionais no CRM; o histórico permanente vive na Central. */}
     </div>
   );
 }
