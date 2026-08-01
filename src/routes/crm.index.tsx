@@ -316,22 +316,22 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             </CrmRecordSection>
 
             <CrmRecordSection title="Relacionamento">
-              <CrmRecordRow label="Situação" value={selected.stateLabel} />
-              <CrmRecordRow label="Status" value={selected.statusLabel} />
               <CrmRecordRow label="Origem" value={selected.originLabel} />
               <CrmRecordRow label="Executivo" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
+              <CrmRecordRow label="Acesso" value={CRM_ACCESS_LABEL[selected.access]} />
             </CrmRecordSection>
 
             {privateOk ? (
-              <CrmRecordSection title="Portal">
-                <CrmRecordRow label="Leitura do Manual" value={`${selected.readingPct}%`} />
-                <CrmRecordRow label="Última movimentação" value={selected.lastActivityLabel} />
-                <CrmRecordRow label="Último evento" value={selected.lastInteraction} />
+              <CrmRecordSection title="Portal do investidor">
+                <CrmRecordRow label="Manual" value={`${selected.readingPct}% concluído`} />
+                <CrmRecordRow label="Material" value="—" />
+                <CrmRecordRow label="Calculadora" value="—" />
+                <CrmRecordRow label="Último acesso" value={selected.lastActivityLabel} />
               </CrmRecordSection>
             ) : (
               <CrmRecordSection
-                title="Portal"
+                title="Portal do investidor"
                 hint="Conteúdo privado do relacionamento — visível apenas ao Executivo responsável."
               />
             )}
