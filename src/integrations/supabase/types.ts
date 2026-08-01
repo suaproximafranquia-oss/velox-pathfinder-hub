@@ -44,6 +44,33 @@ export type Database = {
         }
         Relationships: []
       }
+      creative_official_model: {
+        Row: {
+          content_base64: string
+          file_name: string
+          id: string
+          mime_type: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          content_base64: string
+          file_name: string
+          id?: string
+          mime_type: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          content_base64?: string
+          file_name?: string
+          id?: string
+          mime_type?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       executive_profiles: {
         Row: {
           created_at: string
