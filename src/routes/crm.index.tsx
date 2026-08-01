@@ -179,6 +179,23 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     [conversations, query],
   );
 
+  /**
+   * DEF 2.4.15 §5 — motivo obrigatório da movimentação. Qualquer conversa
+   * que subiu por atividade recente do investidor (últimas 24 horas) exibe
+   * explicitamente o que aconteceu. Novo Lead nunca gera pop-up.
+   */
+  const movements = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of visible) {
+      const last = listPortalActivities(c.id, 1)[0];
+      if (!last) continue;
+      if (Date.now() - Date.parse(last.at) > 86_400_000) continue;
+      map[c.id] = last.label;
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, tick, now]);
+
   // DEF 2.4.10 §2 — toda atividade do investidor no Portal (Manual,
   // Material, Calculadora, Workspace, retorno) vira alerta na Ficha e
   // registro permanente na Timeline, automaticamente.
@@ -330,6 +347,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   item={item}
                   active={selected?.id === item.id}
                   unread={item.state === "novo" && !openedIds.includes(item.id)}
+                  movement={movements[item.id]}
                   onSelect={() => setSelectedId(item.id)}
                 />
               ))}
