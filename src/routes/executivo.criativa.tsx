@@ -274,17 +274,45 @@ function BriefForm({
  * aprovados e manuais direto para a biblioteca no Drive corporativo.
  */
 const BRAND_UPLOADS: { kind: BrandAssetKind; label: string; accept: string }[] = [
-  { kind: "logo", label: "Logotipos oficiais", accept: "image/*,.svg" },
-  { kind: "template", label: "Templates de arte", accept: "image/*,.svg,.pdf,.psd,.ai" },
-  { kind: "modelo", label: "Modelos aprovados", accept: "image/*,.pdf" },
-  { kind: "manual", label: "Manual da marca / referências", accept: ".pdf,image/*" },
+  {
+    kind: "modelo",
+    label: "Modelo aprovado",
+    accept: ".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf",
+  },
+  {
+    kind: "manual",
+    label: "Manual da marca (opcional)",
+    accept: ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg",
+  },
+  {
+    kind: "logo",
+    label: "Logotipo oficial (opcional)",
+    accept: ".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml",
+  },
 ];
+
+/** Extensões aceitas no padrão oficial — validação amigável antes do envio. */
+const ACCEPTED_EXT = /\.(png|jpe?g|pdf|svg)$/i;
+
+function guessMime(name: string, type: string): string {
+  if (type) return type;
+  const ext = name.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "svg") return "image/svg+xml";
+  return "application/octet-stream";
+}
 
 function BrandStandardUploads() {
   const [busy, setBusy] = useState<BrandAssetKind | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   async function upload(kind: BrandAssetKind, file: File) {
+    if (!ACCEPTED_EXT.test(file.name)) {
+      setStatus("Formato não aceito. Envie um arquivo PNG, JPG, JPEG ou PDF.");
+      return;
+    }
     setBusy(kind);
     setStatus(null);
     try {
@@ -299,12 +327,14 @@ function BrandStandardUploads() {
           kind,
           name: file.name,
           contentBase64: base64,
-          mimeType: file.type || "application/octet-stream",
+          mimeType: guessMime(file.name, file.type),
         },
       });
       setStatus(`“${file.name}” enviado para a biblioteca oficial.`);
     } catch {
-      setStatus("Não foi possível enviar o arquivo agora. Tente novamente.");
+      setStatus(
+        "Não foi possível enviar o arquivo agora. Verifique a conexão da Conta Google corporativa e tente novamente.",
+      );
     } finally {
       setBusy(null);
     }
@@ -317,8 +347,9 @@ function BrandStandardUploads() {
         <h3 className="font-display text-base">Padrão oficial da marca</h3>
       </div>
       <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
-        Envie aqui os arquivos oficiais. Eles ficam organizados na biblioteca
-        do Drive corporativo e são a única referência usada pela IA.
+        Envie a arte oficial aprovada. Ela fica armazenada na biblioteca do
+        Drive corporativo e é a referência permanente usada pela IA. Formatos
+        aceitos: PNG, JPG, JPEG e PDF.
       </p>
       <div className="space-y-2">
         {BRAND_UPLOADS.map((item) => (
