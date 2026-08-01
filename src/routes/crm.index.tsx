@@ -38,7 +38,11 @@ import {
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
-import { markOutboundMessage, lastInboundAt } from "@/lib/crm/relationship-state";
+import {
+  markOutboundMessage,
+  markWindowOpened,
+  windowAnchorAt,
+} from "@/lib/crm/relationship-state";
 import { resolveCrmWindow } from "@/lib/crm/templates";
 import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
@@ -71,6 +75,9 @@ import {
 } from "@/lib/workspace-alerts";
 import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
 import { startRelationship, archiveRelationship } from "@/lib/crm/commercial";
+import { isPortalReleased, releasePortal } from "@/lib/crm/portal-release";
+import { isCrmSupervisor as isSupervisorRole } from "@/lib/crm/permissions";
+import { Unlock } from "lucide-react";
 
 export const Route = createFileRoute("/crm/")({
   head: () => ({
