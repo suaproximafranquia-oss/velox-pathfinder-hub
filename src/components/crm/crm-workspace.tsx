@@ -10,8 +10,8 @@ import {
   History,
   Plug,
   Search,
-  PanelRightClose,
-  PanelRightOpen,
+  ChevronRight,
+  ChevronLeft,
   Share2,
 } from "lucide-react";
 import type { CrmAreaKey } from "@/lib/crm/modules";
