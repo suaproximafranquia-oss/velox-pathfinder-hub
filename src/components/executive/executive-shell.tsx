@@ -20,6 +20,7 @@ import {
   Bell,
   Contact,
   FolderOpen,
+  Archive,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -70,6 +71,7 @@ export function ExecutiveShell({
   const administrative = [
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
+    { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/auditoria", label: "Central de Auditoria", icon: ShieldCheck }]
       : []),

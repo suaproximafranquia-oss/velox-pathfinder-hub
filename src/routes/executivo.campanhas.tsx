@@ -10,7 +10,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Trophy } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import { visibleCollaborators } from "@/lib/teams";
+import { OPERATIONAL_EXECUTIVE_IDS } from "@/lib/teams";
+import { loadUsers } from "@/lib/executive-auth";
 import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
@@ -57,10 +58,16 @@ function CampaignsPage() {
     setSession(s);
   }, [navigate]);
 
-  const collaborators = useMemo(
-    () => (session ? visibleCollaborators(session) : []),
-    [session],
-  );
+  // DEF 2.4.9 §6 — o Painel de Campanhas é corporativo: Colaborador,
+  // Gestor e Administrador enxergam exatamente o mesmo ranking. Nenhum
+  // dado financeiro privado é exibido, apenas a posição na campanha.
+  const collaborators = useMemo(() => {
+    if (!session) return [];
+    const users = loadUsers().filter((u) => u.status === "ativo");
+    return OPERATIONAL_EXECUTIVE_IDS.map((id) => users.find((u) => u.id === id)).filter(
+      (u): u is NonNullable<typeof u> => Boolean(u),
+    );
+  }, [session]);
 
   const personalSales = useMemo(() => {
     if (!session) return 0;

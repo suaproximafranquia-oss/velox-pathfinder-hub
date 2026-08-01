@@ -19,6 +19,7 @@ import {
   getCityPhoto,
   saveCreativeArt,
   saveOfficialModel,
+  getOfficialModel,
   type CreativeCopyPair,
 } from "@/lib/creative.functions";
 
@@ -226,10 +227,26 @@ function guessMime(name: string, type: string): string {
 function OfficialModelUpload() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [current, setCurrent] = useState<{
+    fileName: string;
+    uploadedAt: string;
+  } | null>(null);
+
+  // O Modelo Oficial persiste no banco corporativo: ao reabrir a tela o
+  // arquivo enviado continua registrado.
+  useEffect(() => {
+    void getOfficialModel({ data: {} })
+      .then((m) => setCurrent(m ? { fileName: m.fileName, uploadedAt: m.uploadedAt } : null))
+      .catch(() => undefined);
+  }, []);
 
   async function upload(file: File) {
     if (!ACCEPTED_EXT.test(file.name)) {
       setStatus("Formato não aceito. Envie um arquivo PNG, JPG, JPEG ou PDF.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setStatus("Arquivo muito grande. Envie um arquivo de até 8 MB.");
       return;
     }
     setBusy(true);
@@ -241,13 +258,14 @@ function OfficialModelUpload() {
         reader.onerror = () => reject(new Error("leitura"));
         reader.readAsDataURL(file);
       });
-      await saveOfficialModel({
+      const saved = await saveOfficialModel({
         data: {
           name: file.name,
           contentBase64: base64,
           mimeType: guessMime(file.name, file.type),
         },
       });
+      setCurrent({ fileName: saved.fileName, uploadedAt: saved.uploadedAt });
       setStatus("✔ Modelo Oficial carregado.");
     } catch {
       setStatus("Não foi possível carregar o Modelo Oficial agora. Tente novamente.");
@@ -287,6 +305,16 @@ function OfficialModelUpload() {
       {status ? (
         <p className="text-[11px] text-[color:var(--muted-foreground)]">{status}</p>
       ) : null}
+      {current ? (
+        <p className="text-[11px] text-[color:var(--muted-foreground)]">
+          Modelo salvo: <strong>{current.fileName}</strong> ·{" "}
+          {new Date(current.uploadedAt).toLocaleString("pt-BR")}
+        </p>
+      ) : (
+        <p className="text-[11px] text-[color:var(--muted-foreground)]">
+          Nenhum Modelo Oficial salvo até o momento.
+        </p>
+      )}
     </section>
   );
 }

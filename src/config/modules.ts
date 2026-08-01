@@ -26,6 +26,7 @@ import {
   Wand2,
   type LucideIcon,
 } from "lucide-react";
+import { Archive } from "lucide-react";
 
 export type PlatformModule = {
   id: string;
@@ -176,6 +177,15 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     to: "/executivo/auditoria",
     status: "ativo",
     requiresRole: ["super_admin", "diretora"],
+  },
+  {
+    id: "backups",
+    name: "Backup de Conversas",
+    description:
+      "Registro permanente e somente leitura dos relacionamentos do CRM, com motivo obrigatório de abertura.",
+    icon: Archive,
+    to: "/executivo/backups",
+    status: "ativo",
   },
 ];
 
