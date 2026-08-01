@@ -1,14 +1,20 @@
 /**
  * Ponte com o Google Workspace (Calendar/Meet, Drive e Gmail) — SERVER ONLY.
  *
- * Toda chamada usa a credencial individual do executivo autenticado,
- * emitida pelo App User Connector da Lovable. Nenhum token trafega para
- * o navegador.
+ * O Portal Velox possui UMA única Conta Google corporativa: toda chamada
+ * (agenda, reuniões, arquivos e e-mails) usa a mesma credencial, guardada
+ * sob o proprietário corporativo. Nenhum token trafega para o navegador.
  */
 import { callAsAppUser } from "@/integrations/lovable/appUserConnector";
 import { getConnectionKeyForUser } from "@/server/appUserConnections.server";
 
 export const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
+
+/**
+ * Proprietário técnico da Conta Google corporativa. Não corresponde a um
+ * executivo — é o identificador único da conta compartilhada do Portal.
+ */
+export const CORPORATE_OWNER_ID = "00000000-0000-4000-8000-000000000001";
 
 export type GoogleConnectorId = "google_calendar" | "google_drive" | "google_mail";
 
@@ -51,7 +57,7 @@ export async function googleFetch(
   path: string,
   init?: RequestInit,
 ): Promise<unknown> {
-  const connectionAPIKey = await getConnectionKeyForUser(userId, connectorId);
+  const connectionAPIKey = await resolveCorporateKey(connectorId, userId);
   if (!connectionAPIKey) {
     throw new Error(`GOOGLE_NOT_CONNECTED:${connectorId}`);
   }
