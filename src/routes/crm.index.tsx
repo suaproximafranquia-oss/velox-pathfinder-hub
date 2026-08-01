@@ -513,6 +513,27 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         )}
       </CrmDetailsPane>
 
+      {/* Agendamento já vinculado ao investidor aberto — sem seleção manual. */}
+      {meetingOpen && selected && privateOk ? (
+        <InvestorMeetingDialog
+          investor={selected.investor}
+          session={session}
+          onClose={() => setMeetingOpen(false)}
+          onCreated={() => {
+            setMeetingOpen(false);
+            recordCrmEvent({
+              investorId: selected.id,
+              event: "reuniao_agendada",
+              origin: selected.originLabel,
+              reason: "Reunião criada pelo CRM e vinculada à Central de Reuniões.",
+              ownerId: selected.ownerId,
+              actorId: actor.userId,
+            });
+            setTick((v) => v + 1);
+          }}
+        />
+      ) : null}
+
       {newLeadOpen ? (
         <CrmNewLeadDialog
           ownerId={actor.userId}
