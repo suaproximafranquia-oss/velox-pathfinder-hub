@@ -109,6 +109,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [openedIds, setOpenedIds] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
   const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
 
@@ -294,10 +295,23 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmMainPane
         title={current.label}
         header={
-          isConversas && selected ? <CrmConversationHeader item={selected} /> : undefined
+          isConversas && selected ? (
+            <CrmConversationHeader
+              item={selected}
+              onSchedule={privateOk ? () => setMeetingOpen(true) : undefined}
+            />
+          ) : undefined
         }
-        detailsOpen={detailsOpen}
-        onToggleDetails={() => setDetailsOpen((v) => !v)}
+        footer={
+          isConversas && selected && privateOk ? (
+            <CrmComposer
+              onSend={() => {
+                markOutboundMessage(selected.id);
+                setTick((v) => v + 1);
+              }}
+            />
+          ) : undefined
+        }
       >
         {isConversas && selected ? (
           selected.access === "bloqueado" ? (
@@ -346,7 +360,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         )}
       </CrmMainPane>
 
-      <CrmDetailsPane open={detailsOpen} title="Ficha do investidor">
+      <CrmDetailsPane
+        open={detailsOpen}
+        title="Ficha do investidor"
+        onToggle={() => setDetailsOpen((v) => !v)}
+      >
         {selected ? (
           <div className="space-y-3">
             {/* Padronizada: todos os investidores exibem os mesmos campos. */}
