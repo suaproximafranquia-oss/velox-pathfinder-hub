@@ -166,8 +166,9 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
         {message && <p className="mt-4 text-[11px] text-amber-400">{message}</p>}
 
         <p className="mt-4 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
-          A autorização é feita uma única vez e permanece ativa. Só será solicitada
-          novamente se você revogar o acesso ou alterar as permissões da conta.
+          {canManage
+            ? "A autorização é feita uma única vez e permanece ativa para todo o Portal. Só será solicitada novamente se o acesso for revogado no Google ou desconectado aqui."
+            : "Esta é a Conta Google corporativa do Portal, usada por agenda, reuniões, arquivos e e-mails. A gestão é feita pela administração."}
         </p>
       </div>
     </section>
