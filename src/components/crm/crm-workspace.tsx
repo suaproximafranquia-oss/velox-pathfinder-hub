@@ -178,12 +178,12 @@ export function CrmDetailsPane({
   return (
     <aside
       aria-label={title}
-      className="hidden h-full w-[320px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] lg:flex 2xl:w-[380px]"
+      className="hidden h-full w-[330px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] lg:flex 2xl:w-[390px]"
     >
-      <header className="border-b border-[color:var(--crm-border)] px-4 py-3">
-        <h2 className="text-sm font-medium">{title}</h2>
+      <header className="border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3.5">
+        <h2 className="text-sm font-semibold tracking-[-0.01em]">{title}</h2>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3.5">{children}</div>
     </aside>
   );
 }
