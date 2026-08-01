@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Upload, Sparkles, UserPlus, X, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Upload, Sparkles, UserPlus, X, Loader2, ClipboardPaste } from "lucide-react";
 import { extractLeadFromImage } from "@/lib/crm/lead-import.functions";
 import { createCrmLead, type CrmLeadInput } from "@/lib/crm/lead-intake";
 import { nextRoundRobinOwner } from "@/lib/crm/round-robin";
@@ -17,7 +17,7 @@ export function CrmNewLeadButton({ onOpen }: { onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-2 text-[11px] font-medium text-white transition-opacity hover:opacity-90"
+      className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-2 text-[11px] font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 hover:shadow-sm active:translate-y-0"
     >
       <UserPlus className="h-3.5 w-3.5" />
       Novo Lead
@@ -67,6 +67,7 @@ export function CrmNewLeadDialog({
   const [reading, setReading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pasted, setPasted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const set = (k: keyof CrmLeadInput) => (v: string) =>
@@ -75,6 +76,7 @@ export function CrmNewLeadDialog({
   async function handleFile(file: File) {
     setError(null);
     setReading(true);
+    setPasted(false);
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -97,6 +99,33 @@ export function CrmNewLeadDialog({
       setReading(false);
     }
   }
+
+  /**
+   * CTRL + V direto no diálogo: o print copiado da área de transferência é
+   * lido imediatamente, sem passar pelo explorador de arquivos. O upload
+   * manual continua disponível normalmente.
+   */
+  useEffect(() => {
+    if (tab !== "importador") return;
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const it of Array.from(items)) {
+        if (it.type.startsWith("image/")) {
+          const file = it.getAsFile();
+          if (file) {
+            e.preventDefault();
+            setPasted(true);
+            void handleFile(file);
+          }
+          return;
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   function submit() {
     const lead = createCrmLead({ fields, source: tab, ownerId });
@@ -132,7 +161,7 @@ export function CrmNewLeadDialog({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="rounded-lg p-1.5 text-[color:var(--crm-muted)] hover:bg-[color:var(--crm-hover)]"
+          className="cursor-pointer rounded-lg p-1.5 text-[color:var(--crm-muted)] transition-colors duration-150 hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
           >
             <X className="h-4 w-4" />
           </button>
@@ -150,7 +179,7 @@ export function CrmNewLeadDialog({
               type="button"
               onClick={() => setTab(key)}
               className={[
-                "rounded-t-lg px-3 py-2 text-xs font-medium transition-colors",
+                "cursor-pointer rounded-t-lg px-3 py-2 text-xs font-medium transition-colors duration-150",
                 tab === key
                   ? "border-b-2 border-[color:var(--crm-accent)] text-[color:var(--crm-accent)]"
                   : "text-[color:var(--crm-muted)] hover:bg-[color:var(--crm-hover)]",
@@ -164,10 +193,28 @@ export function CrmNewLeadDialog({
         <div className="space-y-4 px-5 py-4">
           {tab === "importador" ? (
             <>
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file?.type.startsWith("image/")) void handleFile(file);
+                }}
+                className="rounded-xl border border-dashed border-[color:var(--crm-accent)]/40 bg-[color:var(--crm-accent-soft)]/50 px-4 py-3 text-center"
+              >
+                <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-[color:var(--crm-accent)]">
+                  <ClipboardPaste className="h-3.5 w-3.5" />
+                  Cole o print com CTRL + V
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-[color:var(--crm-muted)]">
+                  Copie a tela (CTRL + C ou Print Screen) e cole aqui. Também é
+                  possível arrastar a imagem ou enviar um arquivo.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-[color:var(--crm-border)] px-4 py-6 text-center transition-colors hover:bg-[color:var(--crm-hover)]"
+                className="flex w-full cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-[color:var(--crm-border)] px-4 py-6 text-center transition-colors duration-150 hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]"
               >
                 {reading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-[color:var(--crm-accent)]" />
@@ -175,7 +222,11 @@ export function CrmNewLeadDialog({
                   <Upload className="h-5 w-5 text-[color:var(--crm-muted)]" />
                 )}
                 <span className="text-sm">
-                  {reading ? "Lendo a imagem…" : "Enviar print da tela do CRM"}
+                  {reading
+                    ? pasted
+                      ? "Lendo o print colado…"
+                      : "Lendo a imagem…"
+                    : "Enviar print da tela do CRM"}
                 </span>
                 <span className="text-[11px] text-[color:var(--crm-muted)]">
                   A leitura identifica apenas nome, WhatsApp, e-mail, cidade e executivo.
@@ -239,7 +290,7 @@ export function CrmNewLeadDialog({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-[color:var(--crm-border)] px-3 py-2 text-xs font-medium hover:bg-[color:var(--crm-hover)]"
+              className="cursor-pointer rounded-lg border border-[color:var(--crm-border)] px-3 py-2 text-xs font-medium transition-colors duration-150 hover:bg-[color:var(--crm-hover)]"
             >
               Cancelar
             </button>
@@ -247,7 +298,7 @@ export function CrmNewLeadDialog({
               type="button"
               disabled={!canSubmit}
               onClick={submit}
-              className="rounded-lg bg-[color:var(--crm-accent)] px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="cursor-pointer rounded-lg bg-[color:var(--crm-accent)] px-3 py-2 text-xs font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 hover:shadow-sm active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
             >
               {tab === "manual" ? "Salvar Lead" : "Confirmar importação"}
             </button>
@@ -284,7 +335,7 @@ export function CrmRedistributeRow({
             <button
               type="button"
               onClick={() => setConfirming(false)}
-              className="flex-1 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium hover:bg-[color:var(--crm-hover)]"
+              className="flex-1 cursor-pointer rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-colors duration-150 hover:bg-[color:var(--crm-hover)]"
             >
               Cancelar
             </button>
@@ -294,7 +345,7 @@ export function CrmRedistributeRow({
                 onRedistribute(next.id);
                 setConfirming(false);
               }}
-              className="flex-1 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-opacity hover:opacity-90"
+              className="flex-1 cursor-pointer rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 active:translate-y-0"
             >
               Confirmar
             </button>
@@ -304,7 +355,7 @@ export function CrmRedistributeRow({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="w-full rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-2 text-[11px] font-medium text-white transition-opacity hover:opacity-90"
+          className="w-full cursor-pointer rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-2 text-[11px] font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 hover:shadow-sm active:translate-y-0"
         >
           Redistribuir Lead
         </button>
