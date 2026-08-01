@@ -196,6 +196,11 @@ function WhatsAppLeadModal({
       detail: "Solicitou atendimento pelo WhatsApp",
       payload: { executiveId: defaultExec?.id ?? null, personalized: false },
     });
+    requestService({
+      investorId,
+      investorName: form.name,
+      executiveId: defaultExec?.id ?? null,
+    });
 
     if (raw) window.open(`https://wa.me/${raw}?text=${encodeURIComponent(msg)}`, "_blank");
     setSubmitting(false);
@@ -225,7 +230,7 @@ function WhatsAppLeadModal({
           </button>
           <div className="px-7 pt-7 pb-2">
             <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[#25D366]">
-              <MessageCircle className="h-3.5 w-3.5" /> Falar com a Velox
+              <MessageCircle className="h-3.5 w-3.5" /> Solicitar Atendimento
             </div>
             <h2 className="mt-3 font-[var(--font-editorial)] text-2xl leading-tight text-slate-900">
               Antes de iniciarmos.
