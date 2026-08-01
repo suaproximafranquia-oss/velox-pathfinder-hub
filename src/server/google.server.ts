@@ -50,6 +50,23 @@ export function isGoogleConnector(value: string): value is GoogleConnectorId {
   return (GOOGLE_CONNECTORS as readonly string[]).includes(value);
 }
 
+/**
+ * Credencial da Conta Google corporativa. Conexões individuais anteriores
+ * continuam funcionando como retrocompatibilidade enquanto a conta
+ * corporativa não estiver pareada.
+ */
+export async function resolveCorporateKey(
+  connectorId: GoogleConnectorId,
+  legacyUserId?: string,
+): Promise<string | null> {
+  const corporate = await getConnectionKeyForUser(CORPORATE_OWNER_ID, connectorId);
+  if (corporate) return corporate;
+  if (legacyUserId && legacyUserId !== CORPORATE_OWNER_ID) {
+    return getConnectionKeyForUser(legacyUserId, connectorId);
+  }
+  return null;
+}
+
 /** Chamada autenticada ao Google via gateway. Lança com o corpo do erro. */
 export async function googleFetch(
   userId: string,
