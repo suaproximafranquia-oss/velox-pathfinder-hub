@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, X, ArrowRight } from "lucide-react";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
-import { getPortalSession } from "@/lib/portal-session";
+import { getPortalSession, promotePortalSession } from "@/lib/portal-session";
 import { registerLead, updateLead, loadLeads, type VisitorIdentity } from "@/lib/leads";
 import { trackJourney } from "@/lib/journey/engine";
 import { getActiveOverlay, subscribeOverlay } from "@/lib/portal-overlay";
@@ -83,7 +83,9 @@ export function WhatsAppFloating() {
     if (!exec) return;
     const raw = (exec.whatsapp || exec.phone || "").replace(/\D/g, "");
     if (!raw) return;
-    const session = getPortalSession();
+    // Pedido explícito do investidor materializa a Jornada Digital antes
+    // de qualquer registro comercial (DEF 2.5.1).
+    const session = promotePortalSession() ?? getPortalSession();
     const first = exec.name.split(" ")[0];
     const msg = session?.name
       ? `Olá ${first}! Sou ${session.name} e gostaria de continuar nossa conversa sobre a Velox.`

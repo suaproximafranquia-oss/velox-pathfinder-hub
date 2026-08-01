@@ -38,14 +38,23 @@ import {
   trackSessionNavigation,
   getResumePoint,
   getPortalSession,
+  promotePortalSession,
 } from "@/lib/portal-session";
 import { isPortalUnlocked } from "@/lib/portal-verification";
 import { loadLeads } from "@/lib/leads";
+import { getDigitalJourney } from "@/lib/portal-journey";
 
-/** WhatsApp informado no Gateway — usado apenas para a confirmação. */
+/**
+ * WhatsApp informado no Gateway — usado apenas para a confirmação.
+ * Durante a Jornada Digital não existe Lead: o número vem da jornada.
+ */
 function sessionPhone(investorId: string | null | undefined): string {
   if (!investorId) return "";
-  return loadLeads().find((lead) => lead.id === investorId)?.whatsapp ?? "";
+  return (
+    loadLeads().find((lead) => lead.id === investorId)?.whatsapp ??
+    getDigitalJourney()?.phone ??
+    ""
+  );
 }
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
@@ -369,6 +378,8 @@ function PortalHome() {
             }}
             onConfirmed={() => {
               setConfirmOpen(false);
+              // DEF 2.5.1 §09 — o relacionamento comercial nasce aqui.
+              promotePortalSession();
               setUnlocked(true);
               const pending = readEntryContext().pendingModule;
               if (pending) openModule(pending);
