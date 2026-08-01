@@ -5,6 +5,8 @@
  * permanece no histórico da conversa — nenhuma mensagem desaparece.
  * Persistência local, append-only, ordem cronológica.
  */
+import { notifySync } from "@/lib/sync-bus";
+
 export type CrmMessageDirection = "enviada" | "recebida";
 
 export type CrmMessage = {
