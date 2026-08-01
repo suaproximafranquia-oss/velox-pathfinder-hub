@@ -63,7 +63,7 @@ export function CrmRail({
             aria-current={isActive ? "page" : undefined}
             onClick={() => onSelect(area.key)}
             className={[
-              "relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+              "relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-all duration-150 hover:scale-105 active:scale-100",
               isActive
                 ? "bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
                 : "text-[color:var(--crm-muted)] hover:bg-[color:var(--crm-hover)]",
@@ -103,7 +103,7 @@ export function CrmListPane({
   return (
     <section
       aria-label={title}
-      className="hidden h-full w-[300px] shrink-0 flex-col border-r border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] md:flex xl:w-[340px]"
+      className="hidden h-full w-[300px] shrink-0 flex-col border-r border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] shadow-[1px_0_0_0_var(--crm-border)] md:flex xl:w-[340px]"
     >
       <header className="border-b border-[color:var(--crm-border)] px-4 py-3">
         <div className="flex items-center justify-between gap-2">
@@ -149,7 +149,7 @@ export function CrmMainPane({
   footer?: ReactNode;
 }) {
   return (
-    <section className="relative flex h-full min-w-0 flex-1 flex-col bg-[color:var(--crm-background)]">
+    <section className="relative flex h-full min-w-0 flex-1 flex-col border-x border-[color:var(--crm-border)] bg-[color:var(--crm-background)]">
       <header className="flex items-center justify-between gap-4 border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3">
         {header ?? <h2 className="truncate text-sm font-medium">{title}</h2>}
       </header>
@@ -217,7 +217,7 @@ export function CrmDetailsPane({
           onClick={onToggle}
           title={title}
           aria-label={`Exibir ${title}`}
-          className="mt-5 flex h-16 w-7 items-center justify-center rounded-l-lg text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-foreground)]"
+          className="mt-5 flex h-16 w-7 cursor-pointer items-center justify-center rounded-l-lg text-[color:var(--crm-muted)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)]"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -227,7 +227,7 @@ export function CrmDetailsPane({
   return (
     <aside
       aria-label={title}
-      className="relative hidden h-full w-[330px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] lg:flex 2xl:w-[390px]"
+      className="relative hidden h-full w-[330px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] shadow-[-1px_0_0_0_var(--crm-border)] lg:flex 2xl:w-[390px]"
     >
       {/* Controle na própria borda da ficha — nunca no cabeçalho da conversa. */}
       <button
@@ -235,7 +235,7 @@ export function CrmDetailsPane({
         onClick={onToggle}
         aria-label={`Recolher ${title}`}
         title={`Recolher ${title}`}
-        className="absolute -left-3 top-5 z-10 flex h-7 w-6 items-center justify-center rounded-l-lg border border-r-0 border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-muted)] shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-colors hover:text-[color:var(--crm-foreground)]"
+        className="absolute -left-3 top-5 z-10 flex h-7 w-6 cursor-pointer items-center justify-center rounded-l-lg border border-r-0 border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-muted)] shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-colors hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)]"
       >
         <ChevronRight className="h-3.5 w-3.5" />
       </button>
