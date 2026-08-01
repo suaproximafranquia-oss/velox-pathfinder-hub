@@ -136,7 +136,7 @@ function HeaderField({ label, value }: { label: string; value: string }) {
 
 export function CrmConversationHeader({ item }: { item: CrmConversation }) {
   return (
-    <div className="flex items-center gap-4 border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-2.5">
+    <div className="flex min-w-0 flex-1 items-center gap-4">
       <CrmAvatar name={item.name} initials={item.initials} photoUrl={item.photoUrl} size={36} />
       <div className="flex min-w-0 flex-col">
         <div className="flex items-center gap-2">
