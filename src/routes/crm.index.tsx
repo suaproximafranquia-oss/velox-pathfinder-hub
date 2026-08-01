@@ -244,6 +244,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const executiveName = (id?: string) =>
     executives.find((e) => e.id === id)?.name ?? "—";
   const privateOk = selected ? canSeePrivateContent(selected.access) : false;
+  /** Liberar Portal: exclusivo de Administrador e Gestora. */
+  const canReleasePortal =
+    Boolean(selected) &&
+    (isCrmAdministrator(actor.role) || isSupervisorRole(actor.role));
+  const portalReleased = selected ? isPortalReleased(selected.id) : false;
   // Jornada Digital: conversa congelada — envio manual bloqueado.
   const journeyOnly = Boolean(selected?.journeyOnly);
   const composerEnabled = privateOk && !journeyOnly;
