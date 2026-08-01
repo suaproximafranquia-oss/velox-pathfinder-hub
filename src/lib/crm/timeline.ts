@@ -10,7 +10,14 @@ export type CrmTimelineEvent =
   | "duplicidade_detectada"
   | "acesso_bloqueado"
   | "conversa_aberta"
-  | "sincronizacao";
+  | "sincronizacao"
+  | "contato_recebido"
+  | "sincronizacao_iniciada"
+  | "tempo_expirado"
+  | "distribuicao_realizada"
+  | "sincronizacao_tardia"
+  | "conflito_identificado"
+  | "responsavel_mantido";
 
 export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   relacionamento_oficial: "Relacionamento oficial definido",
@@ -18,6 +25,13 @@ export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   acesso_bloqueado: "Acesso bloqueado por relacionamento ativo",
   conversa_aberta: "Conversa aberta",
   sincronizacao: "Sincronização de base",
+  contato_recebido: "Contato recebido",
+  sincronizacao_iniciada: "Sincronização iniciada",
+  tempo_expirado: "Tempo de espera expirado",
+  distribuicao_realizada: "Distribuição realizada",
+  sincronizacao_tardia: "Sincronização tardia",
+  conflito_identificado: "Conflito identificado",
+  responsavel_mantido: "Responsável mantido",
 };
 
 export type CrmTimelineEntry = {
