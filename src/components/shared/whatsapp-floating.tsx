@@ -6,6 +6,39 @@ import { getPortalSession } from "@/lib/portal-session";
 import { registerLead, updateLead, loadLeads, type VisitorIdentity } from "@/lib/leads";
 import { trackJourney } from "@/lib/journey/engine";
 import { getActiveOverlay, subscribeOverlay } from "@/lib/portal-overlay";
+import { startRelationship } from "@/lib/crm/commercial";
+import { recordServiceRequestAlert } from "@/lib/workspace-alerts";
+
+/**
+ * DEF 2.4.11 — Solicitação de Atendimento.
+ *
+ * O pedido do investidor cria imediatamente o Relacionamento Comercial:
+ * Lead, Card no Workspace, conversa liberada no CRM e alerta ao Executivo
+ * responsável. Todo o histórico anterior da Jornada Digital é preservado.
+ */
+function requestService(input: {
+  investorId: string | null;
+  investorName: string;
+  executiveId: string | null;
+}) {
+  if (!input.investorId) return;
+  startRelationship({
+    investorId: input.investorId,
+    investorName: input.investorName,
+    actorId: "sistema",
+    actorName: "Sistema",
+    actorRole: "Automatizado",
+    ownerId: input.executiveId ?? "sistema",
+    origin: "Portal Velox",
+    source: "solicitacao_investidor",
+  });
+  recordServiceRequestAlert({
+    ownerUserId: input.executiveId ?? "sistema",
+    investorId: input.investorId,
+    investorName: input.investorName,
+    dateIso: new Date().toISOString(),
+  });
+}
 
 /**
  * Botão flutuante de WhatsApp — fixo em toda a navegação do Portal,
@@ -43,7 +76,7 @@ export function WhatsAppFloating() {
 
   if (insideOverlay || overlayActive) return null;
 
-  const label = resolved.personalized ? "Chame seu Executivo" : "Falar com a Velox";
+  const label = "Solicitar Atendimento";
 
   const openDirect = () => {
     const exec = resolved.executive;
@@ -60,6 +93,11 @@ export function WhatsAppFloating() {
       investorId: session?.investorId ?? null,
       detail: "Solicitou atendimento pelo WhatsApp",
       payload: { executiveId: exec.id, personalized: true },
+    });
+    requestService({
+      investorId: session?.investorId ?? null,
+      investorName: session?.name ?? "Investidor",
+      executiveId: exec.id,
     });
     window.open(`https://wa.me/${raw}?text=${encodeURIComponent(msg)}`, "_blank");
   };
