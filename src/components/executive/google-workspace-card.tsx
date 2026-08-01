@@ -3,11 +3,13 @@ import { CheckCircle2, Info, Loader2, LogOut } from "lucide-react";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import {
   connectGoogleAccount,
+  canManageGoogleAccount,
   disconnectGoogleAccount,
   getGoogleStore,
   isGoogleAccountConnected,
   refreshGoogleStore,
   subscribeGoogleStore,
+  friendlyGoogleMessage,
   type GoogleStore,
 } from "@/lib/google-workspace";
 
@@ -52,6 +54,7 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
   const actor = { userId: session.userId, userName: session.name, userRole: session.activeRole };
   const connected = isGoogleAccountConnected(store);
   const email = store.account?.email ?? null;
+  const canManage = canManageGoogleAccount(session.activeRole);
 
   async function handleConnect() {
     setMessage(null);
@@ -59,10 +62,10 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
     try {
       const next = await connectGoogleAccount(actor);
       if (next.state === "error") {
-        setMessage("Não foi possível concluir a conexão com o Google. Tente novamente.");
+        setMessage(next.error ?? "Não foi possível concluir a conexão com o Google. Tente novamente.");
       }
-    } catch {
-      setMessage("Não foi possível concluir a conexão com o Google. Tente novamente.");
+    } catch (err) {
+      setMessage(friendlyGoogleMessage(err));
     } finally {
       setBusy(null);
     }
@@ -113,7 +116,7 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
                 </>
               )}
             </span>
-            {connected ? (
+            {!canManage ? null : connected ? (
               <>
                 <button
                   type="button"
