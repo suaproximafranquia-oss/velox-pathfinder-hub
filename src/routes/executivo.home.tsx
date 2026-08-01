@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
@@ -93,7 +93,7 @@ function ModuleCard({ module: mod }: { module: PlatformModule }) {
  * Drive Corporativo — abre sempre a pasta oficial da Conta Google do
  * Portal, nunca o Drive da conta logada no navegador.
  */
-function CorporateDriveCard({ children }: { children: React.ReactNode }) {
+function CorporateDriveCard({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
