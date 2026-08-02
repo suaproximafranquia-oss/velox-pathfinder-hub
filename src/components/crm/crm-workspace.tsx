@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
   MessageSquare,
-  FileText,
   Palette,
   Search,
   ChevronRight,

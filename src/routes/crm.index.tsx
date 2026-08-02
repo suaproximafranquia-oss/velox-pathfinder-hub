@@ -41,8 +41,8 @@ import {
   markWindowOpened,
   windowAnchorAt,
 } from "@/lib/crm/relationship-state";
-import { resolveCrmWindow, CRM_TEMPLATES } from "@/lib/crm/templates";
-import { copyToClipboard } from "@/lib/clipboard";
+import { resolveCrmWindow } from "@/lib/crm/templates";
+import { CRM_THEMES, getUserCrmTheme, setUserCrmTheme, type CrmThemeId } from "@/lib/crm/themes";
 import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
@@ -145,11 +145,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     [actor.role],
   );
   const current = areas.find((a) => a.key === area) ?? areas[0];
-  const [templateId, setTemplateId] = useState<string>(CRM_TEMPLATES[0]?.id ?? "");
-  const [prefill, setPrefill] = useState<{ text: string; nonce: number }>({
-    text: "",
-    nonce: 0,
-  });
+  // DEF 3.0.3 — o módulo Temas gerencia a aparência (imagem de fundo) do CRM.
+  const [themeId, setThemeId] = useState<CrmThemeId>(() => getUserCrmTheme(session.userId));
+  const [previewThemeId, setPreviewThemeId] = useState<CrmThemeId>(themeId);
 
   // Se o módulo ativo deixar de existir para o perfil, volta a Conversas.
   useEffect(() => {
@@ -236,7 +234,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
   const isConversas = area === "conversas";
   const isDistribuicao = area === "distribuicao";
-  const isTemplates = area === "templates";
+  const isTemas = area === "temas";
   const canManageDistribution =
     isCrmAdministrator(actor.role) || isCrmSupervisor(actor.role);
   const [intakeId, setIntakeId] = useState<string | null>(null);
@@ -346,7 +344,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         count={isConversas ? visible.length : isDistribuicao ? intake.length : undefined}
         query={isConversas ? query : undefined}
         onQueryChange={isConversas ? setQuery : undefined}
-        searchPlaceholder={isTemplates ? "Buscar template" : "Buscar investidor"}
+        searchPlaceholder="Buscar investidor"
         action={
           isConversas ? <CrmNewLeadButton onOpen={() => setNewLeadOpen(true)} /> : undefined
         }
@@ -395,25 +393,44 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             />
           )
         ) : (
-          <div className="space-y-0.5">
-            {CRM_TEMPLATES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTemplateId(t.id)}
-                className={[
-                  "block w-full cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors",
-                  t.id === templateId
-                    ? "bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
-                    : "hover:bg-[color:var(--crm-hover)]",
-                ].join(" ")}
-              >
-                <span className="block text-sm font-medium">{t.label}</span>
-                <span className="mt-0.5 block truncate text-[11px] text-[color:var(--crm-muted)]">
-                  {t.body(selected?.name ?? "investidor")}
-                </span>
-              </button>
-            ))}
+          <div className="space-y-1.5">
+            {CRM_THEMES.map((t) => {
+              const isActive = t.id === themeId;
+              const isPreview = t.id === previewThemeId;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setPreviewThemeId(t.id)}
+                  className={[
+                    "block w-full cursor-pointer overflow-hidden rounded-xl border text-left transition-colors",
+                    isPreview
+                      ? "border-[color:var(--crm-accent)] bg-[color:var(--crm-accent-soft)]"
+                      : "border-[color:var(--crm-border)] hover:bg-[color:var(--crm-hover)]",
+                  ].join(" ")}
+                >
+                  <img
+                    src={t.thumbnail}
+                    alt={`Fundo do tema ${t.label}`}
+                    loading="lazy"
+                    className="block aspect-[16/10] w-full object-cover"
+                  />
+                  <span className="flex items-center justify-between gap-2 px-3 py-2">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{t.label}</span>
+                      <span className="mt-0.5 block truncate text-[11px] text-[color:var(--crm-muted)]">
+                        {t.description}
+                      </span>
+                    </span>
+                    {isActive ? (
+                      <span className="shrink-0 rounded-full bg-[color:var(--crm-accent)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--crm-primary-foreground)]">
+                        Em uso
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </CrmListPane>
@@ -438,8 +455,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               lastInboundBody={
                 [...messages].reverse().find((m) => m.direction === "recebida")?.body ?? null
               }
-              prefillText={prefill.text}
-              prefillNonce={prefill.nonce}
               hint={
                 journeyOnly
                   ? "Jornada Digital — inicie o relacionamento para liberar o envio"
@@ -509,52 +524,40 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               setTick((v) => v + 1);
             }}
           />
-        ) : isTemplates ? (
+        ) : isTemas ? (
           (() => {
-            const t = CRM_TEMPLATES.find((x) => x.id === templateId) ?? CRM_TEMPLATES[0];
-            if (!t) {
-              return (
-                <div className="mx-auto flex h-full max-w-2xl flex-col justify-center">
-                  <CrmPlaceholder
-                    label="Nenhum Template cadastrado"
-                    hint="Cadastre um modelo oficial para utilizá-lo nas conversas."
-                  />
-                </div>
-              );
-            }
-            const body = t.body(selected?.name ?? "investidor");
+            const t = CRM_THEMES.find((x) => x.id === previewThemeId) ?? CRM_THEMES[0]!;
+            const applied = t.id === themeId;
             return (
-              <div className="crm-enter mx-auto w-full max-w-2xl space-y-4">
-                <div className="rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-5">
-                  <h3 className="text-sm font-semibold">{t.label}</h3>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[color:var(--crm-foreground)]">
-                    {body}
-                  </p>
-                  <p className="mt-3 text-[11px] text-[color:var(--crm-muted)]">
-                    {selected
-                      ? `Personalizado para ${selected.name}. O texto pode ser editado antes do envio.`
-                      : "Selecione um investidor em Conversas para personalizar o texto."}
-                  </p>
+              <div className="crm-enter mx-auto w-full max-w-3xl space-y-4">
+                <div className="overflow-hidden rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)]">
+                  <img
+                    src={t.thumbnail}
+                    alt={`Pré-visualização do tema ${t.label}`}
+                    className="block w-full object-cover"
+                  />
+                  <div className="p-5">
+                    <h3 className="text-sm font-semibold">{t.label}</h3>
+                    <p className="mt-1.5 text-[12px] leading-relaxed text-[color:var(--crm-muted)]">
+                      {t.description}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    disabled={!selected}
+                    disabled={applied}
                     onClick={() => {
-                      setPrefill({ text: body, nonce: Date.now() });
-                      setArea("conversas");
+                      setUserCrmTheme(session.userId, t.id);
+                      setThemeId(t.id);
                     }}
-                    className="cursor-pointer rounded-xl bg-[color:var(--crm-accent)] px-4 py-2.5 text-xs font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="cursor-pointer rounded-xl bg-[color:var(--crm-accent)] px-4 py-2.5 text-xs font-medium text-[color:var(--crm-primary-foreground)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Usar na conversa
+                    {applied ? "Fundo em uso" : "Aplicar este fundo"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void copyToClipboard(body)}
-                    className="cursor-pointer rounded-xl border border-[color:var(--crm-border)] px-4 py-2.5 text-xs font-medium transition hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)]"
-                  >
-                    Copiar texto
-                  </button>
+                  <span className="text-[11px] text-[color:var(--crm-muted)]">
+                    A troca é aplicada imediatamente e salva no seu perfil.
+                  </span>
                 </div>
               </div>
             );
