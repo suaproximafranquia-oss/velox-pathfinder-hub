@@ -11,12 +11,27 @@ import { logAudit } from "@/lib/audit-log";
 import { notifySync } from "@/lib/sync-bus";
 import { dispatchWhatsappTemplate } from "@/lib/whatsapp.functions";
 
-export function officialTemplateBody(investorName: string): string {
+export function officialTemplateBody(
+  investorName: string,
+  options: { personalized?: boolean } = {},
+): string {
+  if (options.personalized) {
+    return (
+      `Olá, ${investorName}. Aqui é a Velox Soluções Financeiras.\n` +
+      "Identificamos o início da sua jornada no Portal do Investidor. " +
+      "Confirma que este WhatsApp é realmente seu?\n" +
+      "Responda usando os botões desta mensagem: CONFIRMAR ou NÃO CONFIRMAR."
+    );
+  }
+  // Mensagem padrão de boas-vindas — leads que chegaram sem link
+  // personalizado (acesso institucional ao Portal).
   return (
-    `Olá, ${investorName}. Aqui é a Velox Soluções Financeiras.\n` +
-    "Identificamos o início da sua jornada no Portal do Investidor. " +
-    "Confirma que este WhatsApp é realmente seu?\n" +
-    "Responda usando os botões desta mensagem: CONFIRMAR ou NÃO CONFIRMAR."
+    `Olá, ${investorName}! Seja bem-vindo ao Portal do Investidor Velox.\n\n` +
+    "Identificamos que você iniciou sua Jornada Digital para conhecer nosso modelo de franquia.\n\n" +
+    "Para proteger seu progresso e liberar o acesso aos demais materiais, confirme que este WhatsApp realmente pertence a você utilizando um dos botões abaixo.\n\n" +
+    "Após a confirmação, sua jornada ficará vinculada a este número e você poderá continuar de onde parou sempre que retornar.\n\n" +
+    "⬜ CONFIRMAR\n" +
+    "⬜ NÃO CONFIRMAR"
   );
 }
 
@@ -31,13 +46,14 @@ export function dispatchValidationTemplate(input: {
   ownerId?: string | null;
   origin?: string;
   resend?: boolean;
+  personalized?: boolean;
 }): void {
   const phone = input.phone.replace(/\D/g, "");
 
   appendCrmMessage({
     investorId: input.investorId,
     direction: "enviada",
-    body: officialTemplateBody(input.investorName),
+    body: officialTemplateBody(input.investorName, { personalized: input.personalized }),
     authorId: "crm_meta",
     authorName: "CRM · Template Oficial",
   });

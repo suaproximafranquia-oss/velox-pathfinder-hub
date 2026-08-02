@@ -89,6 +89,8 @@ export function requestWhatsappConfirmation(input: {
   phone: string;
   origin?: string;
   ownerId?: string | null;
+  /** Lead originado de link personalizado de executivo (Green Sales). */
+  personalized?: boolean;
 }): VerificationRecord {
   const store = read();
   const previous = store[input.investorId];
@@ -120,6 +122,7 @@ export function requestWhatsappConfirmation(input: {
     ownerId: input.ownerId ?? null,
     origin: input.origin,
     resend: Boolean(previous),
+    personalized: Boolean(input.personalized),
   });
 
   logAudit({
