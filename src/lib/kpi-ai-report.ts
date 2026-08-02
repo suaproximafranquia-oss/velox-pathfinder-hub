@@ -449,7 +449,7 @@ function renderExecutiveSummary(
   const highlights: string[] = [
     `Competencia analisada: ${snap.month.label}${snap.previousMonth ? ` · Comparativo com ${snap.previousMonth.label}` : ""}.`,
     `Escopo consolidado: ${totalExec} ${totalExec === 1 ? "executivo" : "executivos"} sob a permissao do solicitante.`,
-    `Leads captados: ${formatNumber(s.leads)} · Apresentacoes: ${formatNumber(s.presentations)} · COFs enviadas: ${formatNumber(s.contractsSent)}.`,
+    `Leads captados: ${formatNumber(s.leads)} · Apresentacoes: ${formatNumber(s.presentations)} · Contratos enviados: ${formatNumber(s.contractsSent)}.`,
     `Vendas concluidas: ${formatNumber(s.sales)} · Faturamento total: ${formatCurrency(s.salesValue)}.`,
     `Conversao Lead → Venda: ${formatPercent(s.conversion)}${p ? ` (mes anterior: ${formatPercent(p.conversion)})` : ""}.`,
   ];
@@ -493,7 +493,7 @@ function renderComparativesAndTables(
   const cmpRows: string[][] = [
     ["Leads", formatNumber(c.leads), formatNumber(baseline.leads), pct(c.leads, baseline.leads)],
     ["Apresentacoes", formatNumber(c.presentations), formatNumber(baseline.presentations), pct(c.presentations, baseline.presentations)],
-    ["COFs enviadas", formatNumber(c.contractsSent), formatNumber(baseline.contractsSent), pct(c.contractsSent, baseline.contractsSent)],
+    ["Contratos enviados", formatNumber(c.contractsSent), formatNumber(baseline.contractsSent), pct(c.contractsSent, baseline.contractsSent)],
     ["Vendas", formatNumber(c.sales), formatNumber(baseline.sales), pct(c.sales, baseline.sales)],
     ["Faturamento", formatCurrency(c.salesValue), formatCurrency(baseline.salesValue), pct(c.salesValue, baseline.salesValue)],
     ["Conversao L→V", formatPercent(c.conversion), formatPercent(baseline.conversion), pct(c.conversion * 100, baseline.conversion * 100)],

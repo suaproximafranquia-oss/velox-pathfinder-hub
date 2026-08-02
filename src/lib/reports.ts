@@ -144,7 +144,7 @@ function buildFunnel(summary: KpiSummary, datasets: KpiDataset[]): FunnelStage[]
     { id: "leads", label: "Lead", value: summary.leads },
     { id: "presentations", label: "Apresentação", value: summary.presentations },
     { id: "videos", label: "Videoconferência", value: videosDone },
-    { id: "cofs", label: "COF enviada", value: summary.contractsSent },
+    { id: "cofs", label: "Contrato enviado", value: summary.contractsSent },
     { id: "sales", label: "Venda", value: summary.sales },
     { id: "revenue", label: "Faturamento", value: summary.salesValue },
   ];
@@ -197,7 +197,7 @@ function buildNarrative(
     scope === "individual"
       ? `Segundo os registros do KPI Manager, ${subjectName}`
       : `Com base nos dados oficiais do KPI Manager, a ${subjectName}`;
-  return `${prefix} registrou ${formatNumber(summary.leads)} leads, ${formatNumber(summary.presentations)} apresentações, ${formatNumber(summary.contractsSent)} COFs enviadas, ${formatNumber(summary.sales)} vendas e ${val} em faturamento em ${monthLabel}. Conversão geral registrada: ${conv}.`;
+  return `${prefix} registrou ${formatNumber(summary.leads)} leads, ${formatNumber(summary.presentations)} apresentações, ${formatNumber(summary.contractsSent)} Contratos enviados, ${formatNumber(summary.sales)} vendas e ${val} em faturamento em ${monthLabel}. Conversão geral registrada: ${conv}.`;
 }
 
 /* ---------------------- API pública ---------------------- */
@@ -295,7 +295,7 @@ export function brainSummaryFromReport(report: ReportDataset): string {
   const ticket = s.sales > 0 ? formatCurrency(s.salesValue / s.sales) : "n/d";
   return (
     `Análise operacional de ${report.month.label}: dos ${formatNumber(s.leads)} leads captados, ` +
-    `${pres} avançaram para apresentação, ${cofs} evoluíram para COF enviada e ${closing} converteram em venda ` +
+    `${pres} avançaram para apresentação, ${cofs} evoluíram para Contrato enviado e ${closing} converteram em venda ` +
     `(conversão final ${conv}). Ticket médio ${ticket}. Faturamento consolidado ${formatCurrency(s.salesValue)}. ` +
     `Interpretação automática — não substitui análise humana.`
   );

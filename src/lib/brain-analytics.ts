@@ -119,7 +119,7 @@ function conversionsFrom(t: Totals): ConversionRate[] {
     },
     {
       id: "apres_cof",
-      label: "Apresentação → COF",
+      label: "Apresentação → Contrato",
       from: t.presentations,
       to: t.contractsSent,
       rate: t.presentations > 0 ? t.contractsSent / t.presentations : 0,
@@ -127,7 +127,7 @@ function conversionsFrom(t: Totals): ConversionRate[] {
     },
     {
       id: "cof_venda",
-      label: "COF → Venda",
+      label: "Contrato → Venda",
       from: t.contractsSent,
       to: t.sales,
       rate: t.contractsSent > 0 ? t.sales / t.contractsSent : 0,
@@ -199,7 +199,7 @@ export function buildBrainAnalytics(
   const rowDefs: { id: keyof Totals; label: string; unit: "count" | "currency" }[] = [
     { id: "leads", label: "Leads", unit: "count" },
     { id: "presentations", label: "Apresentações", unit: "count" },
-    { id: "contractsSent", label: "COFs enviadas", unit: "count" },
+    { id: "contractsSent", label: "Contratos enviados", unit: "count" },
     { id: "sales", label: "Vendas", unit: "count" },
     { id: "salesValue", label: "Faturamento", unit: "currency" },
   ];
@@ -250,7 +250,7 @@ export function buildBrainAnalytics(
     { label: "Leads", value: totals.leads },
     { label: "Apresentações", value: totals.presentations },
     { label: "Videoconferências", value: totals.videosDone },
-    { label: "COFs enviadas", value: totals.contractsSent },
+    { label: "Contratos enviados", value: totals.contractsSent },
     { label: "Vendas", value: totals.sales },
   ];
   let worst: { from: string; to: string; kept: number } | null = null;
@@ -312,8 +312,8 @@ export function buildBrainAnalytics(
         : `Redução da taxa de fechamento para ${pct(cofRate)}`,
     detail:
       cofRate >= 0.4
-        ? "As COFs enviadas estão sendo apresentadas no momento certo da conversa — manter o padrão de proposta."
-        : "Há propostas formais sem desfecho: retomar as COFs em aberto é a ação de maior retorno no curto prazo.",
+        ? "As Contratos enviados estão sendo apresentadas no momento certo da conversa — manter o padrão de proposta."
+        : "Há propostas formais sem desfecho: retomar os contratos em aberto é a ação de maior retorno no curto prazo.",
   });
 
   if (insights.length === 0) {
