@@ -28,6 +28,7 @@ import { registerJourney, trackJourney } from "@/lib/journey/engine";
 import {
   markJourneyOnly,
   isArchived,
+  isJourneyOnly,
   restoreRelationship,
   startRelationship,
 } from "@/lib/crm/commercial";
