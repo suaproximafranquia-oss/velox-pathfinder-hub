@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { TIME_INPUT_PROPS, isValidTimeValue, sanitizeTimeValue } from "@/lib/time-input";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { ScopeSelector } from "@/components/executive/scope-selector";
+import { defaultScope, type ScopeSelection } from "@/lib/brain/scopes";
 import {
   getSession,
   canViewAllInvestors,
@@ -121,6 +123,7 @@ function ymd(d: Date): string {
 function MeetingsPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [scope, setScope] = useState<ScopeSelection | null>(null);
   const [items, setItems] = useState<Meeting[]>([]);
   const [detailsFor, setDetailsFor] = useState<Meeting | null>(null);
   const [profileOpen, setProfileOpen] = useState<string | null>(null);
@@ -183,23 +186,30 @@ function MeetingsPage() {
   useEffect(() => {
     const s = getSession();
     if (!s) navigate({ to: "/executivo" });
-    else setSession(s);
+    else {
+      setSession(s);
+      setScope(defaultScope(s.activeRole, s.userId));
+    }
   }, [navigate]);
 
   // Central de Reuniões corporativa: Gestora e Administrador enxergam
-  // automaticamente todas as reuniões criadas pelos Colaboradores.
+  // automaticamente todas as reuniões criadas pelos Colaboradores. O escopo
+  // (ITEM 03) permite alternar entre a equipe e um Executivo específico.
   const refresh = () =>
     setItems(
       listMeetings(
         session && !canViewAllInvestors(session.role)
           ? { executiveId: session.userId }
+          : scope?.mode === "executive" && scope.executiveId
+          ? { executiveId: scope.executiveId }
           : undefined,
       ),
     );
 
   useEffect(() => {
     if (session) refresh();
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, scope]);
 
   // Auto-refresh: assina eventos de reunião no bus e re-renderiza a cada minuto
   // para atualizar o indicador de "Horário ultrapassado".
@@ -213,7 +223,7 @@ function MeetingsPage() {
     const t = window.setInterval(() => setTick((n) => n + 1), 60_000);
     return () => { off(); offSync(); window.clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session, scope]);
 
   // Painel superior — recomputa quando items mudam.
   const today = ymd(new Date());
@@ -289,6 +299,9 @@ function MeetingsPage() {
           apenas consulta, pesquisa, filtra, audita e registra. Nenhuma reunião
           é excluída.
         </p>
+        {scope && canViewAllInvestors(session.role) && (
+          <ScopeSelector session={session} scope={scope} onChange={setScope} />
+        )}
       </div>
 
       <SummaryPanel

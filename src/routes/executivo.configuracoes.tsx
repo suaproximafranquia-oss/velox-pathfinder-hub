@@ -44,7 +44,7 @@ function ConfiguracoesPage() {
   useEffect(() => {
     const s = getSession();
     if (!s) navigate({ to: "/executivo" });
-    else if (!canManageUsers(s.activeRole)) navigate({ to: "/executivo/home" });
+    else if (s.activeRole !== "super_admin") navigate({ to: "/executivo/home" });
     else setSession(s);
   }, [navigate]);
   if (!session) return null;

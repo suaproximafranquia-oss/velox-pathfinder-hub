@@ -8,7 +8,7 @@
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { BellRing } from "lucide-react";
+import { BellRing, Search, Mail, Phone, Tag } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
@@ -20,6 +20,20 @@ import {
 } from "@/lib/workspace-alerts";
 import { cn } from "@/lib/utils";
 import { onSync } from "@/lib/sync-bus";
+import { loadLeads } from "@/lib/leads";
+import { WORKSPACE_SCOPE_LABEL, isWorkspaceScope } from "@/lib/portal-workspace";
+
+/** Dados do investidor exibidos na listagem (ITEM 04). */
+type AlertContact = {
+  name: string;
+  email: string;
+  whatsapp: string;
+  origin: string;
+};
+
+function digits(value: string): string {
+  return value.replace(/\D+/g, "");
+}
 
 export const Route = createFileRoute("/executivo/alertas")({
   head: () => ({
@@ -47,6 +61,8 @@ function AlertsCenterPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [alerts, setAlerts] = useState<WorkspaceAlert[]>([]);
+  const [query, setQuery] = useState("");
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const s = getSession();
@@ -62,6 +78,7 @@ function AlertsCenterPage() {
     function refresh() {
       runWorkspaceAlertEvaluation(session!);
       setAlerts(listWorkspaceAlertHistory(session!));
+      setTick((v) => v + 1);
     }
     refresh();
     const off = onEvent(() => refresh());
@@ -69,14 +86,56 @@ function AlertsCenterPage() {
     return () => { off(); offSync(); };
   }, [session]);
 
-  const active = useMemo(() => alerts.filter((a) => !a.archived), [alerts]);
-  const resolved = useMemo(() => alerts.filter((a) => a.archived), [alerts]);
+  /** Índice de contatos por Lead — alimenta exibição e pesquisa parcial. */
+  const contacts = useMemo(() => {
+    const map = new Map<string, AlertContact>();
+    for (const l of loadLeads()) {
+      map.set(l.id, {
+        name: l.name,
+        email: l.email ?? "",
+        whatsapp: l.whatsapp ?? "",
+        origin: isWorkspaceScope(l.scope)
+          ? WORKSPACE_SCOPE_LABEL[l.scope]
+          : "Portal",
+      });
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
+
+  const visible = useMemo(() => {
+    const raw = query.trim().toLowerCase();
+    if (!raw) return alerts;
+    const num = digits(raw);
+    return alerts.filter((a) => {
+      const c = a.investorId ? contacts.get(a.investorId) : undefined;
+      const hay = [
+        a.title,
+        a.description,
+        WORKSPACE_ALERT_CATEGORY_LABEL[a.category],
+        c?.name,
+        c?.email,
+        c?.origin,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (hay.includes(raw)) return true;
+      // Pesquisa parcial por WhatsApp: "9988" localiza o número completo.
+      if (num.length >= 2 && c?.whatsapp && digits(c.whatsapp).includes(num)) return true;
+      return false;
+    });
+  }, [alerts, query, contacts]);
+
+  const active = useMemo(() => visible.filter((a) => !a.archived), [visible]);
+  const resolved = useMemo(() => visible.filter((a) => a.archived), [visible]);
 
   if (!session) return null;
 
   return (
     <ExecutiveShell session={session} title="Central de Alertas">
-      <div className="mb-6 flex items-start gap-3">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
         <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--gold)]/40 text-[color:var(--gold)]">
           <BellRing className="h-4 w-4" />
         </span>
@@ -88,11 +147,21 @@ function AlertsCenterPage() {
             apenas muda de status. A operação acontece no CRM.
           </p>
         </div>
+        </div>
+        <label className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-2">
+          <Search className="h-3.5 w-3.5 text-[color:var(--muted-foreground)]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por nome, e-mail ou WhatsApp"
+            className="w-64 bg-transparent text-xs outline-none placeholder:text-[color:var(--muted-foreground)]"
+          />
+        </label>
       </div>
 
-      <Section title="Ativos" count={active.length} items={active} />
+      <Section title="Ativos" count={active.length} items={active} contacts={contacts} />
       <div className="mt-8">
-        <Section title="Resolvidos" count={resolved.length} items={resolved} />
+        <Section title="Resolvidos" count={resolved.length} items={resolved} contacts={contacts} />
       </div>
     </ExecutiveShell>
   );
@@ -102,10 +171,12 @@ function Section({
   title,
   count,
   items,
+  contacts,
 }: {
   title: string;
   count: number;
   items: WorkspaceAlert[];
+  contacts: Map<string, AlertContact>;
 }) {
   return (
     <section>
@@ -121,7 +192,9 @@ function Section({
         </div>
       ) : (
         <ul className="space-y-2.5">
-          {items.map((a) => (
+          {items.map((a) => {
+            const c = a.investorId ? contacts.get(a.investorId) : undefined;
+            return (
             <li
               key={a.id}
               className={cn(
@@ -138,6 +211,27 @@ function Section({
                   <p className="mt-1 text-xs text-[color:var(--muted-foreground)] leading-relaxed">
                     {a.description}
                   </p>
+                  {c && (
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[color:var(--muted-foreground)]">
+                      <span className="text-[color:var(--foreground)]">{c.name}</span>
+                      {c.whatsapp && (
+                        <span className="inline-flex items-center gap-1 tabular-nums">
+                          <Phone className="h-3 w-3" />
+                          {c.whatsapp}
+                        </span>
+                      )}
+                      {c.email && (
+                        <span className="inline-flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          {c.email}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        {c.origin}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <span className="text-[10px] tabular-nums text-[color:var(--muted-foreground)]">
@@ -154,7 +248,8 @@ function Section({
                 </div>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </section>

@@ -95,7 +95,7 @@ function AuditPage() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s || !canManageUsers(s.activeRole)) {
+    if (!s || s.activeRole !== "super_admin") {
       navigate({ to: "/executivo" });
       return;
     }
