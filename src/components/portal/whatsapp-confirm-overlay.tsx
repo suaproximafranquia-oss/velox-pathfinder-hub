@@ -1,14 +1,16 @@
 /**
- * DEF 2.4.18 §06–§09 — Confirmação do WhatsApp.
+ * DEF 3.0.1 §9 — Confirmação do WhatsApp SEM código, OTP ou PIN.
  *
- * Abre obrigatoriamente quando o Visitante Identificado tenta acessar
- * qualquer módulo diferente do Manual do Investidor. Nenhum módulo é
- * liberado enquanto a confirmação não ocorrer.
+ * O visitante recebe a mensagem oficial da Velox com dois botões,
+ * CONFIRMAR e NÃO CONFIRMAR. A resposta é identificada automaticamente
+ * pelo CRM: só o botão CONFIRMAR libera os módulos do Portal. O Manual
+ * do Investidor permanece sempre livre.
  */
 import { useEffect, useState } from "react";
-import { ArrowRight, ShieldCheck, X, RefreshCw, Pencil } from "lucide-react";
+import { ArrowRight, ShieldCheck, X, RefreshCw, Pencil, MessageCircle } from "lucide-react";
 import {
   confirmWhatsapp,
+  declineWhatsapp,
   getVerification,
   requestWhatsappConfirmation,
 } from "@/lib/portal-verification";
@@ -28,10 +30,9 @@ export function WhatsappConfirmOverlay({
   onConfirmed: () => void;
   onClose: () => void;
 }) {
-  const [step, setStep] = useState<"intro" | "codigo" | "numero">("intro");
+  const [step, setStep] = useState<"intro" | "aguardando" | "numero">("intro");
   const [currentPhone, setCurrentPhone] = useState(phone);
   const [newPhone, setNewPhone] = useState(phone);
-  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
@@ -40,8 +41,7 @@ export function WhatsappConfirmOverlay({
     const existing = getVerification(investorId);
     setCurrentPhone(existing?.phone || phone);
     setNewPhone(existing?.phone || phone);
-    setStep(existing?.sentAt ? "codigo" : "intro");
-    setCode("");
+    setStep(existing?.sentAt ? "aguardando" : "intro");
     setError("");
     setInfo("");
     const prev = document.body.style.overflow;
@@ -69,18 +69,28 @@ export function WhatsappConfirmOverlay({
     });
     setCurrentPhone(digits);
     setError("");
-    setInfo("Mensagem enviada. Informe abaixo o código recebido.");
-    setStep("codigo");
+    setInfo(
+      "Mensagem oficial enviada. Responda usando os botões CONFIRMAR ou NÃO CONFIRMAR.",
+    );
+    setStep("aguardando");
   };
 
   const confirm = () => {
-    const result = confirmWhatsapp({ investorId, investorName, code });
+    const result = confirmWhatsapp({ investorId, investorName });
     if (!result.ok) {
-      setError("Código inválido. Verifique a mensagem enviada ou solicite um novo envio.");
+      setError("Não localizamos o envio. Solicite o reenvio da mensagem oficial.");
       return;
     }
     setError("");
     onConfirmed();
+  };
+
+  const decline = () => {
+    declineWhatsapp({ investorId, investorName });
+    setError("");
+    setInfo(
+      "Resposta registrada. Os módulos seguem bloqueados; o Manual do Investidor continua liberado.",
+    );
   };
 
   return (
@@ -152,25 +162,43 @@ export function WhatsappConfirmOverlay({
             </div>
           ) : null}
 
-          {step === "codigo" ? (
+          {step === "aguardando" ? (
             <div className="mt-7 space-y-4">
               <p className="text-xs text-[color:var(--muted-foreground)]">
-                Enviamos um código de confirmação para o WhatsApp <strong>{currentPhone}</strong>.
+                Enviamos a mensagem oficial da Velox para o WhatsApp{" "}
+                <strong>{currentPhone}</strong>. Não há código a digitar: basta
+                tocar em um dos botões da própria mensagem.
               </p>
-              <label className="block">
-                <span className="text-xs uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
-                  Código de confirmação
-                </span>
-                <input
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  inputMode="numeric"
-                  maxLength={6}
-                  autoFocus
-                  className="mt-2 w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)] px-4 py-3 text-sm tracking-[0.4em] outline-none transition focus:border-[color:var(--gold)]"
-                  placeholder="000000"
-                />
-              </label>
+
+              {/* Reprodução fiel da mensagem oficial recebida no WhatsApp. */}
+              <div className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/70">
+                <div className="flex items-center gap-2 border-b border-[color:var(--border)] px-4 py-3">
+                  <MessageCircle className="h-4 w-4 text-[color:var(--gold)]" />
+                  <span className="text-xs uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
+                    Velox Soluções Financeiras
+                  </span>
+                </div>
+                <p className="px-4 py-4 text-sm leading-relaxed">
+                  Olá, {investorName}. Você está iniciando sua jornada no Portal
+                  do Investidor Velox. Confirma que este WhatsApp é seu?
+                </p>
+                <div className="grid gap-2 border-t border-[color:var(--border)] p-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={confirm}
+                    className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-[color:var(--gold)] px-4 py-3 text-xs font-medium uppercase tracking-[0.16em] text-[color:var(--gold-foreground)] transition hover:scale-[1.01]"
+                  >
+                    Confirmar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={decline}
+                    className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-[color:var(--border)] px-4 py-3 text-xs uppercase tracking-[0.16em] transition hover:scale-[1.01] hover:border-[color:var(--gold)]"
+                  >
+                    Não confirmar
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -187,17 +215,6 @@ export function WhatsappConfirmOverlay({
                 className="inline-flex w-full cursor-pointer items-center justify-center gap-3 rounded-full bg-[color:var(--gold)] px-6 py-4 text-sm font-medium text-[color:var(--gold-foreground)] transition hover:scale-[1.01] hover:shadow-[0_15px_50px_-15px_var(--gold)]"
               >
                 Confirmar WhatsApp
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            ) : null}
-
-            {step === "codigo" ? (
-              <button
-                type="button"
-                onClick={confirm}
-                className="inline-flex w-full cursor-pointer items-center justify-center gap-3 rounded-full bg-[color:var(--gold)] px-6 py-4 text-sm font-medium text-[color:var(--gold-foreground)] transition hover:scale-[1.01] hover:shadow-[0_15px_50px_-15px_var(--gold)]"
-              >
-                Validar código
                 <ArrowRight className="h-4 w-4" />
               </button>
             ) : null}
@@ -225,7 +242,7 @@ export function WhatsappConfirmOverlay({
                 <button
                   type="button"
                   onClick={() => {
-                    setStep(step === "numero" ? "codigo" : "numero");
+                    setStep(step === "numero" ? "aguardando" : "numero");
                     setError("");
                     setInfo("");
                   }}
