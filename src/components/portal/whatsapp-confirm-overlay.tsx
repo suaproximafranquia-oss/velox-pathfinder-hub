@@ -1,19 +1,21 @@
 /**
- * DEF 3.0.1 §9 — Confirmação do WhatsApp SEM código, OTP ou PIN.
+ * DEF 3.0.2 §3/§4 — Confirmação do WhatsApp SEM código, OTP ou PIN.
  *
- * O visitante recebe a mensagem oficial da Velox com dois botões,
- * CONFIRMAR e NÃO CONFIRMAR. A resposta é identificada automaticamente
- * pelo CRM: só o botão CONFIRMAR libera os módulos do Portal. O Manual
- * do Investidor permanece sempre livre.
+ * O CRM dispara o Template Oficial pela Cloud API da Meta. O visitante
+ * responde CONFIRMAR ou NÃO CONFIRMAR dentro do próprio WhatsApp: o
+ * Portal apenas aguarda o retorno oficial do Webhook. Nenhum botão de
+ * confirmação existe aqui e nenhum WhatsApp Web é aberto.
  */
-import { useEffect, useState } from "react";
-import { ArrowRight, ShieldCheck, X, RefreshCw, Pencil, MessageCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, ShieldCheck, X, RefreshCw, Pencil, Loader2 } from "lucide-react";
 import {
   confirmWhatsapp,
   declineWhatsapp,
   getVerification,
   requestWhatsappConfirmation,
 } from "@/lib/portal-verification";
+import { getWhatsappReply } from "@/lib/crm/whatsapp-inbox";
+import { readWhatsappValidation } from "@/lib/whatsapp.functions";
 
 export function WhatsappConfirmOverlay({
   open,
@@ -35,6 +37,7 @@ export function WhatsappConfirmOverlay({
   const [newPhone, setNewPhone] = useState(phone);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const settled = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -54,6 +57,60 @@ export function WhatsappConfirmOverlay({
     };
   }, [open, investorId, phone, onClose]);
 
+  /**
+   * Aguardo ativo pela resposta oficial: o CRM é informado pelo Webhook
+   * da Meta e o Portal libera os módulos automaticamente.
+   */
+  useEffect(() => {
+    if (!open || step !== "aguardando") return;
+    settled.current = false;
+    let alive = true;
+
+    const handle = (status: "confirmado" | "recusado") => {
+      if (!alive || settled.current) return;
+      settled.current = true;
+      if (status === "confirmado") {
+        const result = confirmWhatsapp({ investorId, investorName });
+        if (!result.ok) {
+          setError("Não localizamos o envio. Solicite o reenvio da mensagem oficial.");
+          settled.current = false;
+          return;
+        }
+        setError("");
+        onConfirmed();
+        return;
+      }
+      declineWhatsapp({ investorId, investorName });
+      setInfo(
+        "Resposta 'NÃO CONFIRMAR' registrada. Os módulos seguem bloqueados; o Manual do Investidor continua liberado.",
+      );
+      settled.current = false;
+    };
+
+    const check = async () => {
+      const local = getWhatsappReply(currentPhone);
+      if (local && local.status !== "aguardando") {
+        handle(local.status);
+        return;
+      }
+      try {
+        const remote = await readWhatsappValidation({ data: { phone: currentPhone } });
+        if (remote && (remote.status === "confirmado" || remote.status === "recusado")) {
+          handle(remote.status);
+        }
+      } catch {
+        /* canal indisponível — segue aguardando */
+      }
+    };
+
+    void check();
+    const timer = window.setInterval(() => void check(), 4000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [open, step, currentPhone, investorId, investorName, onConfirmed]);
+
   if (!open) return null;
 
   const send = (target: string) => {
@@ -70,27 +127,9 @@ export function WhatsappConfirmOverlay({
     setCurrentPhone(digits);
     setError("");
     setInfo(
-      "Mensagem oficial enviada. Responda usando os botões CONFIRMAR ou NÃO CONFIRMAR.",
+      "O CRM enviou o Template Oficial da Velox. Responda no WhatsApp usando os botões CONFIRMAR ou NÃO CONFIRMAR.",
     );
     setStep("aguardando");
-  };
-
-  const confirm = () => {
-    const result = confirmWhatsapp({ investorId, investorName });
-    if (!result.ok) {
-      setError("Não localizamos o envio. Solicite o reenvio da mensagem oficial.");
-      return;
-    }
-    setError("");
-    onConfirmed();
-  };
-
-  const decline = () => {
-    declineWhatsapp({ investorId, investorName });
-    setError("");
-    setInfo(
-      "Resposta registrada. Os módulos seguem bloqueados; o Manual do Investidor continua liberado.",
-    );
   };
 
   return (
