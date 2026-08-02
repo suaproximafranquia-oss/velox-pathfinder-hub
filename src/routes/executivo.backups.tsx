@@ -89,6 +89,19 @@ function BackupsPage() {
 
   const isAdmin = session ? isCrmAdministrator(session.activeRole) : false;
   const isSupervisor = session ? isCrmSupervisor(session.activeRole) : false;
+  // ITEM 01 — a aba Portal é exclusiva do Administrador e do colaborador
+  // híbrido. A Gestora consulta apenas o ambiente GreenSales.
+  const tabs = useMemo<readonly BackupTab[]>(
+    () =>
+      session && canAccessPortalWorkspace(session.userId, session.activeRole)
+        ? BACKUP_TABS
+        : (["GreenSales"] as const),
+    [session],
+  );
+
+  useEffect(() => {
+    if (!tabs.includes(tab)) setTab("GreenSales");
+  }, [tabs, tab]);
 
   const records = useMemo(() => {
     if (!session) return [];
@@ -155,7 +168,7 @@ function BackupsPage() {
       </div>
 
       <nav className="mb-5 flex gap-1 border-b border-[color:var(--border)]">
-        {BACKUP_TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t}
             type="button"
