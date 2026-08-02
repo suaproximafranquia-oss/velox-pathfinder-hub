@@ -29,10 +29,7 @@ type DashboardSearch = { perfil?: string; escopo?: WorkspaceScope };
 export const Route = createFileRoute("/executivo/dashboard")({
   validateSearch: (s: Record<string, unknown>): DashboardSearch => ({
     perfil: typeof s.perfil === "string" ? s.perfil : undefined,
-    escopo:
-      s.escopo === "portal" || s.escopo === "green_sales"
-        ? (s.escopo as WorkspaceScope)
-        : undefined,
+    escopo: isWorkspaceScope(s.escopo) ? s.escopo : undefined,
   }),
   head: () => ({
     meta: [
@@ -56,12 +53,13 @@ function WorkspacePage() {
   const [tick, setTick] = useState(0);
   const scrollRef = useRef(0);
   const openProfileId = search.perfil ?? null;
-  const portalEnabled = session
-    ? canAccessPortalWorkspace(session.userId, session.activeRole)
-    : false;
-  const scope: WorkspaceScope = portalEnabled
-    ? (search.escopo ?? "green_sales")
-    : "green_sales";
+  // ETAPA 02.1 §Doc01 — abas oficiais por perfil: Green Sales e
+  // Redistribuição para todos; Portal apenas para Administrador/híbrido.
+  const scopes: WorkspaceScope[] = session
+    ? workspaceScopesFor(session.userId, session.activeRole)
+    : ["green_sales"];
+  const scope: WorkspaceScope =
+    search.escopo && scopes.includes(search.escopo) ? search.escopo : "green_sales";
 
   useEffect(() => {
     const s = getSession();
@@ -152,7 +150,11 @@ function WorkspacePage() {
     // Sales — inclusive para quem não tem acesso à aba Portal, que vê
     // exclusivamente Leads de link personalizado (Green Sales).
     const base = visible.filter((i) =>
-      scope === "portal" ? i.origin === "portal" : i.origin !== "portal",
+      scope === "portal"
+        ? i.origin === "portal"
+        : scope === "redistribuicao"
+          ? i.origin === "redistribuicao"
+          : i.origin !== "portal" && i.origin !== "redistribuicao",
     );
 
     const q = query.trim().toLowerCase();
@@ -261,8 +263,8 @@ function WorkspacePage() {
         />
       ) : (
         <>
-          {portalEnabled && (
-            <ScopeTabs current={scope} onChange={changeScope} />
+          {scopes.length > 1 && (
+            <ScopeTabs items={scopes} current={scope} onChange={changeScope} />
           )}
           <WorkspaceHeader
             query={query}
@@ -320,13 +322,14 @@ function WorkspaceHeader({
 }
 
 function ScopeTabs({
+  items,
   current,
   onChange,
 }: {
+  items: WorkspaceScope[];
   current: WorkspaceScope;
   onChange: (s: WorkspaceScope) => void;
 }) {
-  const items: WorkspaceScope[] = ["green_sales", "portal"];
   return (
     <div
       role="tablist"
