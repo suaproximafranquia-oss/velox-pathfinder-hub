@@ -130,8 +130,30 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [messageTick, setMessageTick] = useState(0);
   const [startOpen, setStartOpen] = useState(false);
-  const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
+  // DEF 3.0.3 §1/§7 — o Executivo só enxerga o que pertence ao
+  // relacionamento. Distribuição é administração da plataforma.
+  const areas = useMemo(
+    () =>
+      CRM_AREAS.filter(
+        (a) =>
+          !a.adminOnly ||
+          isCrmAdministrator(actor.role) ||
+          isCrmSupervisor(actor.role),
+      ),
+    [actor.role],
+  );
+  const current = areas.find((a) => a.key === area) ?? areas[0];
+  const [templateId, setTemplateId] = useState<string>(CRM_TEMPLATES[0]?.id ?? "");
+  const [prefill, setPrefill] = useState<{ text: string; nonce: number }>({
+    text: "",
+    nonce: 0,
+  });
+
+  // Se o módulo ativo deixar de existir para o perfil, volta a Conversas.
+  useEffect(() => {
+    if (!areas.some((a) => a.key === area)) setArea("conversas");
+  }, [areas, area]);
 
   // Sincronização com a fonte oficial (Portal do Executivo).
   useEffect(() => {
@@ -213,6 +235,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
   const isConversas = area === "conversas";
   const isDistribuicao = area === "distribuicao";
+  const isTemplates = area === "templates";
   const canManageDistribution =
     isCrmAdministrator(actor.role) || isCrmSupervisor(actor.role);
   const [intakeId, setIntakeId] = useState<string | null>(null);
