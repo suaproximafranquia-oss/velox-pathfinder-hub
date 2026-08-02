@@ -75,7 +75,7 @@ export function ExecutiveShell({
   const administrative = [
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
-    ...(canManageUsers(session.activeRole)
+    ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/auditoria", label: "Central de Auditoria", icon: ShieldCheck }]
       : []),
     ...(canManageKnowledge(session.activeRole)
@@ -86,7 +86,7 @@ export function ExecutiveShell({
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
     { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
-    ...(canManageUsers(session.activeRole)
+    ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
       : []),
     ...(session.activeRole === "super_admin"
