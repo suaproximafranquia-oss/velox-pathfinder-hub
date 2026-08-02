@@ -15,6 +15,7 @@ import {
   Share2,
 } from "lucide-react";
 import type { CrmAreaKey } from "@/lib/crm/modules";
+import { CrmCanvas } from "@/components/crm/crm-canvas";
 
 /**
  * Estrutura visual do ambiente operacional do CRM.
@@ -154,7 +155,7 @@ export function CrmMainPane({
         {header ?? <h2 className="truncate text-sm font-medium">{title}</h2>}
       </header>
       <div className="crm-chat-surface relative min-h-0 flex-1 overflow-y-auto p-5">
-        <CrmWatermark />
+        <CrmCanvas />
         <div className="relative h-full">{children}</div>
       </div>
       {footer}
@@ -162,62 +163,6 @@ export function CrmMainPane({
   );
 }
 
-/**
- * Identidade institucional do Connect Hub (DEF 2.4.10 §6).
- *
- * Malha de conexões, comunicação e inteligência em opacidade mínima:
- * enriquece o ambiente sem jamais competir com a leitura da conversa.
- */
-function CrmWatermark() {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
-    >
-      <svg
-        viewBox="0 0 200 200"
-        className="h-[min(58%,420px)] w-auto text-[color:var(--crm-muted)] opacity-[0.035]"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      >
-        <circle cx="100" cy="100" r="18" />
-        <circle cx="100" cy="100" r="46" strokeDasharray="3 6" />
-        <circle cx="100" cy="100" r="76" strokeDasharray="3 10" />
-        {/* Núcleo de comunicação — o diálogo no centro do relacionamento. */}
-        <path d="M88 94h24a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-13l-7 6v-6h-4a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z" />
-        {[0, 60, 120, 180, 240, 300].map((deg) => {
-          const rad = (deg * Math.PI) / 180;
-          const x = 100 + Math.cos(rad) * 76;
-          const y = 100 + Math.sin(rad) * 76;
-          const mx = 100 + Math.cos(rad) * 46;
-          const my = 100 + Math.sin(rad) * 46;
-          return (
-            <g key={deg}>
-              <line x1={100} y1={100} x2={x} y2={y} />
-              <circle cx={mx} cy={my} r="4" />
-              <circle cx={x} cy={y} r="9" fill="currentColor" stroke="none" />
-            </g>
-          );
-        })}
-        {/* Elos entre os nós — inteligência distribuída da rede. */}
-        {[30, 90, 150, 210, 270, 330].map((deg) => {
-          const rad = (deg * Math.PI) / 180;
-          return (
-            <circle
-              key={deg}
-              cx={100 + Math.cos(rad) * 61}
-              cy={100 + Math.sin(rad) * 61}
-              r="2.5"
-              fill="currentColor"
-              stroke="none"
-            />
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
 
 export function CrmDetailsPane({
   open,

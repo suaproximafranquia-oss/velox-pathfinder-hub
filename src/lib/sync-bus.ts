@@ -21,7 +21,8 @@ export type SyncChannel =
   | "timeline"
   | "ownership"
   | "notes"
-  | "status";
+  | "status"
+  | "theme";
 
 const EVENT_NAME = "velox:sync";
 const PING_KEY = "velox:sync:ping";

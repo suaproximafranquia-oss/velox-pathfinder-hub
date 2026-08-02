@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { GoogleWorkspaceCard } from "@/components/executive/google-workspace-card";
+import { CrmThemePicker } from "@/components/executive/crm-theme-picker";
 import {
   getSession,
   loadUsers,
@@ -78,6 +79,7 @@ function PerfilPage() {
             if (s) setSession(s);
           }}
         />
+        <CrmThemePicker userId={session.userId} />
         <IntegrationsSection />
         <GoogleWorkspaceCard session={session} />
       </div>

@@ -25,7 +25,6 @@ const KEY = "velox:portal:whatsapp-verification:v1";
 export type VerificationRecord = {
   investorId: string;
   phone: string;
-  code: string;
   sentAt: string | null;
   sendCount: number;
   confirmedAt: string | null;
@@ -54,10 +53,6 @@ function write(store: Store) {
     /* armazenamento indisponível */
   }
   notifySync("commercial");
-}
-
-function newCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 export function getVerification(investorId: string): VerificationRecord | null {
@@ -103,8 +98,6 @@ export function requestWhatsappConfirmation(input: {
   const record: VerificationRecord = {
     investorId: input.investorId,
     phone,
-    // Troca de número invalida o código anterior.
-    code: previous && !changedPhone ? previous.code : newCode(),
     sentAt: new Date().toISOString(),
     sendCount: (previous?.sendCount ?? 0) + 1,
     confirmedAt: null,
@@ -119,7 +112,7 @@ export function requestWhatsappConfirmation(input: {
 
   void sendWhatsApp({
     to: VELOX_OFFICIAL_WHATSAPP,
-    text: `Confirmação de identidade — Portal do Investidor Velox.\nNome: ${input.investorName}\nWhatsApp: ${phone}\nCódigo de confirmação: ${record.code}`,
+    text: `Confirmação de identidade — Portal do Investidor Velox.\nNome: ${input.investorName}\nWhatsApp: ${phone}\nResponda utilizando os botões da mensagem oficial: CONFIRMAR ou NÃO CONFIRMAR.`,
     reference: input.investorId,
   });
 
@@ -135,8 +128,8 @@ export function requestWhatsappConfirmation(input: {
     actorRole: "Visitante identificado",
     module: "investidores",
     action: changedPhone
-      ? "Número de WhatsApp alterado e novo código enviado"
-      : "Código de confirmação de WhatsApp enviado",
+      ? "Número de WhatsApp alterado e nova confirmação enviada"
+      : "Mensagem oficial de confirmação de WhatsApp enviada",
     target: input.investorName,
     details: `Envio nº ${record.sendCount} para ${phone} em ${new Date(record.sentAt!).toLocaleString("pt-BR")}. Nenhum Lead, Card ou Executivo foi criado.`,
     severity: "info",
@@ -146,26 +139,29 @@ export function requestWhatsappConfirmation(input: {
     event: "atividade_portal",
     origin: input.origin ?? "Portal do Investidor",
     reason: changedPhone
-      ? "Visitante alterou o número e solicitou novo código de confirmação."
-      : "Código de confirmação de WhatsApp enviado ao visitante.",
+      ? "Visitante alterou o número e recebeu nova mensagem oficial de confirmação."
+      : "Mensagem oficial de confirmação enviada ao visitante (CONFIRMAR / NÃO CONFIRMAR).",
     ownerId: input.ownerId ?? "sistema",
     actorId: input.investorId,
   });
   return record;
 }
 
-/** PASSO 09 — confirmação registra data, hora, IP, navegador e usuário. */
+/**
+ * DEF 3.0.1 §9 — a confirmação chega pelo botão CONFIRMAR da mensagem
+ * oficial do WhatsApp. Nenhum código, OTP ou PIN é utilizado: o CRM
+ * identifica automaticamente a resposta e registra data, hora, IP e
+ * navegador.
+ */
 export function confirmWhatsapp(input: {
   investorId: string;
   investorName: string;
-  code: string;
   origin?: string;
   ownerId?: string | null;
 }): { ok: boolean; record: VerificationRecord | null } {
   const store = read();
   const record = store[input.investorId];
   if (!record) return { ok: false, record: null };
-  if (record.code !== input.code.replace(/\D/g, "")) return { ok: false, record };
 
   const now = new Date().toISOString();
   const confirmed: VerificationRecord = {
@@ -222,4 +218,37 @@ async function resolveIp(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** Resposta "NÃO CONFIRMAR" — o relacionamento segue aguardando validação. */
+export function declineWhatsapp(input: {
+  investorId: string;
+  investorName: string;
+  origin?: string;
+  ownerId?: string | null;
+}): void {
+  const store = read();
+  const record = store[input.investorId];
+  if (!record) return;
+  store[input.investorId] = { ...record, confirmedAt: null };
+  write(store);
+  if (isJourneyId(input.investorId)) return;
+  logAudit({
+    actorId: input.investorId,
+    actorName: input.investorName,
+    actorRole: "Visitante identificado",
+    module: "investidores",
+    action: "Confirmação de WhatsApp recusada pelo visitante",
+    target: input.investorName,
+    details: "Resposta 'NÃO CONFIRMAR' na mensagem oficial. Módulos permanecem bloqueados.",
+    severity: "warning",
+  });
+  recordCrmEvent({
+    investorId: input.investorId,
+    event: "atividade_portal",
+    origin: input.origin ?? "Portal do Investidor",
+    reason: "Visitante respondeu NÃO CONFIRMAR na mensagem oficial do WhatsApp.",
+    ownerId: input.ownerId ?? "sistema",
+    actorId: input.investorId,
+  });
 }

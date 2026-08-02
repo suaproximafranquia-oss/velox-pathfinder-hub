@@ -7,6 +7,8 @@ import {
 } from "@/lib/executive-auth";
 import { markCrmActivity, isCrmSessionExpired } from "@/lib/crm/session";
 import { crmCssVars, resolveCrmBranding } from "@/lib/crm/theme";
+import { findCrmTheme, getUserCrmTheme } from "@/lib/crm/themes";
+import { onSync } from "@/lib/sync-bus";
 
 /**
  * Shell do CRM de Relacionamento.
@@ -24,7 +26,12 @@ export function CrmShell({
 }) {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [ready, setReady] = useState(false);
-  const branding = useMemo(() => resolveCrmBranding(), []);
+  const [themeId, setThemeId] = useState(() => getUserCrmTheme(null));
+  const theme = useMemo(() => findCrmTheme(themeId), [themeId]);
+  const branding = useMemo(
+    () => resolveCrmBranding({ colors: theme.colors }),
+    [theme],
+  );
   const themeVars = useMemo(
     () =>
       ({
@@ -40,9 +47,16 @@ export function CrmShell({
     if (s && !isCrmSessionExpired()) {
       markCrmActivity();
       setSession(s);
+      setThemeId(getUserCrmTheme(s.userId));
     }
     setReady(true);
   }, []);
+
+  // Troca de tema aplicada instantaneamente, sem recarregar o CRM.
+  useEffect(() => {
+    if (!session) return;
+    return onSync(() => setThemeId(getUserCrmTheme(session.userId)), ["theme"]);
+  }, [session]);
 
   // Preparação da regra de inatividade (~4h): apenas registra atividade.
   useEffect(() => {
@@ -60,11 +74,12 @@ export function CrmShell({
 
   if (!session) {
     return (
-      <div className="crm-root" style={themeVars}>
+      <div className="crm-root" data-crm-theme={theme.id} style={themeVars}>
         <CrmLogin
           companyName={branding.companyName}
           onSuccess={(s) => {
             markCrmActivity();
+            setThemeId(getUserCrmTheme(s.userId));
             setSession(s);
           }}
         />
@@ -82,6 +97,7 @@ export function CrmShell({
   return (
     <div
       style={themeVars}
+      data-crm-theme={theme.id}
       className="crm-root flex h-screen w-full flex-col overflow-hidden bg-[color:var(--crm-background)] text-[color:var(--crm-foreground)]"
     >
       <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-4">
