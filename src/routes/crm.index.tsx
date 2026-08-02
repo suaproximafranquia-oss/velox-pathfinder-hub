@@ -41,7 +41,7 @@ import {
   markWindowOpened,
   windowAnchorAt,
 } from "@/lib/crm/relationship-state";
-import { resolveCrmWindow } from "@/lib/crm/templates";
+import { resolveCrmWindow, CRM_TEMPLATES } from "@/lib/crm/templates";
 import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
@@ -337,7 +337,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
   return (
     <>
-      <CrmRail areas={CRM_AREAS} active={area} onSelect={setArea} />
+      <CrmRail areas={areas} active={area} onSelect={setArea} />
 
       <CrmListPane
         title={isConversas ? "Conversas" : current.label}
@@ -394,10 +394,26 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             />
           )
         ) : (
-          <CrmPlaceholder
-            label="Módulo em preparação"
-            hint="Os registros deste módulo serão exibidos aqui nas próximas etapas."
-          />
+          <div className="space-y-0.5">
+            {CRM_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTemplateId(t.id)}
+                className={[
+                  "block w-full cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors",
+                  t.id === templateId
+                    ? "bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
+                    : "hover:bg-[color:var(--crm-hover)]",
+                ].join(" ")}
+              >
+                <span className="block text-sm font-medium">{t.label}</span>
+                <span className="mt-0.5 block truncate text-[11px] text-[color:var(--crm-muted)]">
+                  {t.body(selected?.name ?? "")}
+                </span>
+              </button>
+            ))}
+          </div>
         )}
       </CrmListPane>
 
@@ -418,6 +434,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               disabled={!composerEnabled}
               investorName={selected.name}
               window={chatWindow}
+              lastInboundBody={
+                [...messages].reverse().find((m) => m.direction === "recebida")?.body ?? null
+              }
+              prefillText={prefill.text}
+              prefillNonce={prefill.nonce}
               hint={
                 journeyOnly
                   ? "Jornada Digital — inicie o relacionamento para liberar o envio"
