@@ -301,6 +301,8 @@ export function CrmComposer({
   investorName = "",
   window: win,
   lastInboundBody,
+  prefillText,
+  prefillNonce = 0,
 }: {
   onSend: (text: string, viaTemplate: boolean) => void;
   disabled?: boolean;
@@ -319,7 +321,14 @@ export function CrmComposer({
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [armedTemplate, setArmedTemplate] = useState(false);
-  const prefill = arguments as never; // eslint-disable-line
+  // Template escolhido no módulo Templates entra direto na caixa,
+  // pronto para edição antes do envio.
+  useEffect(() => {
+    if (!prefillNonce || !prefillText) return;
+    setText(prefillText);
+    setArmedTemplate(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillNonce]);
   /**
    * DEF 2.4.15 §2 — Estado 01: com a Janela de Conversação encerrada a
    * digitação, o foco, o ENTER e o botão Enviar ficam totalmente
