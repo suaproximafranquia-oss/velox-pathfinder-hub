@@ -91,10 +91,12 @@ function BackupsPage() {
 
   const records = useMemo(() => {
     if (!session) return [];
+    // DEF 3.0.1 §7 — segregação total: cada aba enxerga exclusivamente os
+    // backups do seu próprio ambiente, sem qualquer mistura de registros.
     const all = listConversationBackups().filter((r) =>
       tab === "GreenSales"
-        ? r.workspaceKind === "green_sales" && !r.archived
-        : r.workspaceKind === "portal" && r.archived,
+        ? r.workspaceKind === "green_sales"
+        : r.workspaceKind === "portal",
     );
     // A Gestora nunca vê conversas automaticamente: apenas as cópias
     // temporárias autorizadas pelo Administrador (24 horas).
