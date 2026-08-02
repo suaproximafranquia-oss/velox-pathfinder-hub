@@ -37,10 +37,11 @@ export function CrmJourneyBadge() {
     <div className="crm-enter mx-auto mb-4 flex w-full max-w-2xl items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5">
       <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
       <p className="text-[11px] leading-relaxed text-amber-800">
-        <span className="font-semibold">Jornada Digital</span>
+        <span className="font-semibold">Aguardando confirmação do WhatsApp</span>
         <br />
-        Relacionamento ainda não iniciado. O histórico permanece visível e o envio de mensagens fica
-        bloqueado até o início do relacionamento.
+        Jornada Digital em validação. O Template Oficial já foi enviado pelo CRM: o histórico
+        permanece visível e o envio de mensagens fica bloqueado até a resposta CONFIRMAR do
+        investidor.
       </p>
     </div>
   );
