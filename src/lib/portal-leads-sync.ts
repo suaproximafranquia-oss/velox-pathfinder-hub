@@ -8,7 +8,12 @@
  *  2. leitura + tempo real no Workspace, sem recarregar a página;
  *  3. persistência após reload (a verdade passa a ser o servidor).
  */
-import { syncPortalLead, listPortalLeads, deletePortalLead } from "@/lib/portal-leads.functions";
+import {
+  syncPortalLead,
+  listPortalLeads,
+  deletePortalLead,
+  lookupPortalLead,
+} from "@/lib/portal-leads.functions";
 import { resolveLeadScope } from "@/lib/lead-routing";
 import { loadLeads, replaceLeads, type LeadRecord } from "@/lib/leads";
 
@@ -107,6 +112,34 @@ export async function removeLeadEverywhere(id: string): Promise<void> {
     await deletePortalLead({ data: { id } });
   } catch {
     /* remoção local já ocorreu */
+  }
+}
+
+/**
+ * Recupera a jornada do investidor em outro navegador ou dispositivo.
+ *
+ * O Gateway chama esta função ANTES de criar qualquer registro: se o
+ * servidor já conhece esse e-mail + WhatsApp, o Lead é espelhado no
+ * armazenamento local e o fluxo seguinte reconhece o visitante como
+ * recorrente, sem duplicar cadastro, conversa ou backup.
+ */
+export async function restoreLeadFromCloud(input: {
+  email: string;
+  phone: string;
+}): Promise<LeadRecord | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const row = (await lookupPortalLead({
+      data: { email: input.email, phone: input.phone },
+    })) as unknown as RemoteLead | null;
+    if (!row) return null;
+    const lead = toLocal(row);
+    const local = loadLeads();
+    if (local.some((l) => l.id === lead.id)) return lead;
+    replaceLeads([lead, ...local]);
+    return lead;
+  } catch {
+    return null;
   }
 }
 

@@ -88,3 +88,37 @@ export const deletePortalLead = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
+/**
+ * Recuperação da Jornada Digital em outro navegador ou dispositivo.
+ *
+ * O visitante não é autenticado, por isso a consulta exige e-mail E
+ * WhatsApp coincidentes com o mesmo registro — nunca devolve lista, nunca
+ * permite varredura da base e devolve apenas o mínimo necessário para
+ * restaurar a jornada.
+ */
+export const lookupPortalLead = createServerFn({ method: "POST" })
+  .inputValidator((data: { email: string; phone: string }) => data)
+  .handler(async ({ data }) => {
+    const email = (data.email ?? "").trim().toLowerCase();
+    const phoneDigits = (data.phone ?? "").replace(/\D+/g, "");
+    const phoneKey = phoneDigits.length > 11 ? phoneDigits.slice(-11) : phoneDigits;
+    if (!email || phoneKey.length < 10) return null;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("portal_leads")
+      .select(
+        "id,name,email,whatsapp,city,origin,material,scope,personalized,responsible_executive_id,created_at",
+      )
+      .eq("email", email)
+      .limit(5);
+    if (error) throw new Error(error.message);
+
+    const match = (rows ?? []).find((row) => {
+      const digitsRow = (row.whatsapp ?? "").replace(/\D+/g, "");
+      const keyRow = digitsRow.length > 11 ? digitsRow.slice(-11) : digitsRow;
+      return keyRow === phoneKey;
+    });
+    return match ?? null;
+  });
