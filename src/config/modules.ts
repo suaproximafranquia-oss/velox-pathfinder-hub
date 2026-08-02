@@ -144,7 +144,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     icon: Settings,
     to: "/executivo/configuracoes",
     status: "ativo",
-    requiresRole: ["super_admin", "diretora"],
+    requiresRole: ["super_admin"],
   },
   {
     id: "auditoria",
@@ -154,7 +154,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     icon: ShieldCheck,
     to: "/executivo/auditoria",
     status: "ativo",
-    requiresRole: ["super_admin", "diretora"],
+    requiresRole: ["super_admin"],
   },
   {
     id: "backups",
