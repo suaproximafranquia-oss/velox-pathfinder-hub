@@ -67,7 +67,7 @@ export const CRM_THEMES: CrmTheme[] = [
       muted: "#8299bd",
       border: "#15243f",
       accent: "#3d9bff",
-      accentSoft: "#0f2murmur",
+      accentSoft: "#102a4a",
       hover: "#101c31",
     },
   },
@@ -79,7 +79,7 @@ export const CRM_THEMES: CrmTheme[] = [
     colors: {
       primary: "#1fbf72",
       primaryForeground: "#04140c",
-      secondary: "#12archives",
+      secondary: "#12563a",
       secondaryForeground: "#d6ffe9",
       background: "#03110a",
       surface: "#08190f",
