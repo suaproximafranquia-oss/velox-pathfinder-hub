@@ -1,0 +1,2 @@
+ALTER TABLE public.portal_leads DROP CONSTRAINT IF EXISTS portal_leads_scope_check;
+ALTER TABLE public.portal_leads ADD CONSTRAINT portal_leads_scope_check CHECK (scope = ANY (ARRAY['green_sales'::text, 'redistribuicao'::text, 'portal'::text]));
