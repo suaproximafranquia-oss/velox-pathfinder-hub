@@ -13,7 +13,7 @@ import { logAudit } from "@/lib/audit-log";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { isPortalReleased } from "@/lib/crm/portal-release";
 import { dispatchValidationTemplate } from "@/lib/crm/whatsapp-official";
-import { updateLead } from "@/lib/leads";
+import { loadLeads, updateLead } from "@/lib/leads";
 import { notifySync } from "@/lib/sync-bus";
 
 /** Número oficial que recebe as confirmações de identidade. */
@@ -71,10 +71,18 @@ export function transferVerification(fromId: string, toId: string): void {
   write(store);
 }
 
-/** Portal liberado = WhatsApp confirmado OU liberação manual (Admin/Gestora). */
+/**
+ * Portal liberado =
+ *  - investidor vindo de LINK PERSONALIZADO (o relacionamento já existia
+ *    antes do acesso: nada a confirmar), OU
+ *  - WhatsApp confirmado, OU
+ *  - liberação manual (Admin/Gestora).
+ */
 export function isPortalUnlocked(investorId: string | null | undefined): boolean {
   if (!investorId) return false;
   if (isPortalReleased(investorId)) return true;
+  const lead = loadLeads().find((l) => l.id === investorId);
+  if (lead?.personalized && lead.responsibleExecutiveId) return true;
   return Boolean(read()[investorId]?.confirmedAt);
 }
 

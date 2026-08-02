@@ -29,6 +29,7 @@ import {
   markJourneyOnly,
   isArchived,
   isJourneyOnly,
+  hasCommercialRelationship,
   restoreRelationship,
   startRelationship,
 } from "@/lib/crm/commercial";
@@ -197,13 +198,18 @@ export function startPortalSession(input: {
   const origin = input.origin ?? entry.origin ?? "Portal Velox";
 
   /**
-   * DEF 3.0.2 §1 — o visitante inédito NÃO vira Lead Comercial. Nasce
-   * apenas a Jornada Digital: um registro operacional conhecido pelo CRM
-   * (conversa, timeline, auditoria e backup) que permanece fora do
-   * Workspace e com o atendimento bloqueado até a confirmação do
-   * WhatsApp.
+   * Regra oficial dos dois cenários de entrada:
+   *
+   * 1) LINK PERSONALIZADO — o relacionamento já existe antes do acesso.
+   *    O Portal apenas dá continuidade à jornada do Executivo dono do
+   *    link: nada de Jornada Digital, nada de mensagem institucional de
+   *    boas-vindas e nada de confirmação por WhatsApp.
+   * 2) ACESSO DIRETO — investidor orgânico do Portal. Nasce apenas a
+   *    Jornada Digital (bloqueada) sob o Administrador híbrido, no escopo
+   *    Portal, e o CRM dispara a mensagem oficial de boas-vindas.
    */
-  const journeyBorn = !existing;
+  const personalizedEntry = Boolean(responsible.personalized && responsible.executive?.id);
+  const journeyBorn = !existing && !personalizedEntry;
   const base =
     existing ??
     registerLead({
@@ -213,7 +219,9 @@ export function startPortalSession(input: {
         whatsapp: input.phone?.trim() ?? "",
         city: "",
       },
-      material: "Portal do Investidor — Jornada Digital",
+      material: personalizedEntry
+        ? "Portal do Investidor — Link personalizado"
+        : "Portal do Investidor — Jornada Digital",
       origin,
     }).lead;
 
@@ -410,6 +418,28 @@ export function startPortalSession(input: {
     notifySync("commercial");
     notifySync("timeline");
     notifySync("audit");
+  }
+
+  /**
+   * Cenário 1 — link personalizado: o relacionamento comercial já
+   * pertence ao Executivo que enviou o link. Ele é garantido aqui (sem
+   * template institucional e sem validação de WhatsApp), preservando o
+   * escopo Green Sales.
+   */
+  if (personalizedEntry && !hasCommercialRelationship(lead.id)) {
+    startRelationship({
+      investorId: lead.id,
+      investorName: lead.name,
+      actorId: lead.responsibleExecutiveId ?? "sistema",
+      actorName: responsible.executive?.name ?? "Executivo responsável",
+      actorRole: "Executivo",
+      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      origin,
+      source: "executivo",
+    });
+    notifySync("leads");
+    notifySync("commercial");
+    notifySync("timeline");
   }
 
   return session;
