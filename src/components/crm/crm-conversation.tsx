@@ -310,11 +310,16 @@ export function CrmComposer({
   window?: CrmWindowStatus;
   /** Última mensagem recebida — contexto das sugestões de IA. */
   lastInboundBody?: string | null;
+  /** Texto carregado a partir do módulo Templates. */
+  prefillText?: string | null;
+  /** Muda a cada seleção, permitindo recarregar o mesmo template. */
+  prefillNonce?: number;
 }) {
   const [text, setText] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [armedTemplate, setArmedTemplate] = useState(false);
+  const prefill = arguments as never; // eslint-disable-line
   /**
    * DEF 2.4.15 §2 — Estado 01: com a Janela de Conversação encerrada a
    * digitação, o foco, o ENTER e o botão Enviar ficam totalmente
