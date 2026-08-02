@@ -110,7 +110,6 @@ export async function sendOfficialTemplate(input: TemplateInput): Promise<Templa
     investor_name: input.investorName,
     status: "enviado",
     template_name: TEMPLATE_NAME,
-    provider: provider.id,
   });
 
   return { ok: true, provider: provider.id, delivered: result.delivered, error: result.error };
