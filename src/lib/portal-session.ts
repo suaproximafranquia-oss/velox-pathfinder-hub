@@ -423,23 +423,25 @@ export function startPortalSession(input: {
 export function promotePortalSession(): PortalSession | null {
   const session = getPortalSession();
   if (!session) return null;
-  if (!isJourneyId(session.investorId)) return session;
+  /**
+   * DEF 3.0.2 §4 — o registro já existe desde o Gateway como Jornada
+   * Digital. Confirmar o WhatsApp NÃO cria outro cadastro: converte o
+   * mesmo registro em Relacionamento Comercial.
+   */
+  if (!isJourneyOnly(session.investorId) && !isJourneyId(session.investorId)) return session;
 
   const journey = getDigitalJourney();
-  const name = journey?.name ?? session.name;
   const email = journey?.email ?? session.email;
   const phone = journey?.phone ?? "";
   const origin = journey?.origin ?? session.origin;
   const responsible = getResponsibleExecutive();
 
-  const existing = findLeadByEmail(email) ?? findLeadByPhone(phone);
-  const lead =
-    existing ??
-    registerLead({
-      identity: { name, email: normalizeEmail(email), whatsapp: phone, city: "" },
-      material: "Portal do Investidor — WhatsApp confirmado",
-      origin,
-    }).lead;
+  const existing =
+    loadLeads().find((l) => l.id === session.investorId) ??
+    findLeadByEmail(email) ??
+    findLeadByPhone(phone);
+  if (!existing) return session;
+  const lead = existing;
 
   const routed =
     applyLeadRouting(lead.id, {
@@ -451,8 +453,7 @@ export function promotePortalSession(): PortalSession | null {
 
   attachLeadToIdentity(session.identityId, routed.id);
 
-  // Jornada preservada e, em seguida, promovida a relacionamento ativo.
-  markJourneyOnly(routed.id);
+  // Mesmo registro, agora promovido a relacionamento comercial ativo.
   startRelationship({
     investorId: routed.id,
     investorName: routed.name,
