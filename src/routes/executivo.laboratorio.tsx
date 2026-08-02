@@ -24,6 +24,7 @@ import {
   type ScheduledRecognition,
 } from "@/lib/recognition/engine";
 import { resetHomologationData } from "@/lib/homologation-reset";
+import { recordWhatsappReply } from "@/lib/crm/whatsapp-inbox";
 
 export const Route = createFileRoute("/executivo/laboratorio")({
   head: () => ({
