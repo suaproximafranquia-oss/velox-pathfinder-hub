@@ -511,7 +511,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : (
             <>
               <CrmDuplicateNotice item={selected} />
-              {journeyOnly ? <CrmJourneyBadge /> : null}
+              {journeyOnly && !portalReleased ? <CrmJourneyBadge /> : null}
               <CrmThread item={selected} messages={messages} />
             </>
           )

@@ -61,6 +61,16 @@ export function recordWhatsappReply(
   };
   store[reply.phone] = reply;
   write(store);
+  /**
+   * Confirmação recebida: o Lead nasce imediatamente no Workspace e a
+   * comunicação é liberada, mesmo que o investidor não esteja com o
+   * Portal aberto. Import dinâmico evita ciclo entre CRM e Leads.
+   */
+  if (reply.status === "confirmado") {
+    void import("@/lib/crm/whatsapp-confirmation").then(({ promoteConfirmedWhatsapp }) => {
+      promoteConfirmedWhatsapp(reply.phone);
+    });
+  }
   return reply;
 }
 
