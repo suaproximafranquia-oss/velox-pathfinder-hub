@@ -42,6 +42,7 @@ import {
   windowAnchorAt,
 } from "@/lib/crm/relationship-state";
 import { resolveCrmWindow, CRM_TEMPLATES } from "@/lib/crm/templates";
+import { copyToClipboard } from "@/lib/clipboard";
 import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
