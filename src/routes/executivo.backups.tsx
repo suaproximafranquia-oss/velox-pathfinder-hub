@@ -36,6 +36,7 @@ import {
 } from "@/lib/crm/backup-access";
 import { CRM_TIMELINE_LABEL, formatCrmTimestamp } from "@/lib/crm/timeline";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
+import { canAccessPortalWorkspace } from "@/lib/portal-workspace";
 import { restoreRelationship } from "@/lib/crm/commercial";
 import { onSync } from "@/lib/sync-bus";
 
