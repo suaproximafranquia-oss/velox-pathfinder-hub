@@ -346,7 +346,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         count={isConversas ? visible.length : isDistribuicao ? intake.length : undefined}
         query={isConversas ? query : undefined}
         onQueryChange={isConversas ? setQuery : undefined}
-        searchPlaceholder="Buscar investidor"
+        searchPlaceholder={isTemplates ? "Buscar template" : "Buscar investidor"}
         action={
           isConversas ? <CrmNewLeadButton onOpen={() => setNewLeadOpen(true)} /> : undefined
         }
@@ -410,7 +410,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               >
                 <span className="block text-sm font-medium">{t.label}</span>
                 <span className="mt-0.5 block truncate text-[11px] text-[color:var(--crm-muted)]">
-                  {t.body(selected?.name ?? "")}
+                  {t.body(selected?.name ?? "investidor")}
                 </span>
               </button>
             ))}
@@ -522,7 +522,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 </div>
               );
             }
-            const body = t.body(selected?.name ?? "");
+            const body = t.body(selected?.name ?? "investidor");
             return (
               <div className="crm-enter mx-auto w-full max-w-2xl space-y-4">
                 <div className="rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-5">
