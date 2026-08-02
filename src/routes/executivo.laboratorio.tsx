@@ -145,6 +145,8 @@ function LaboratorioPage() {
 
         <HomologationResetCard />
 
+        <WhatsappReplySimulator />
+
         <section>
           <label className="block text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
             Usuário-alvo da simulação
