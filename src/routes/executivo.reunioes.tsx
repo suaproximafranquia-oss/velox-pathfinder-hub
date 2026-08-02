@@ -186,23 +186,30 @@ function MeetingsPage() {
   useEffect(() => {
     const s = getSession();
     if (!s) navigate({ to: "/executivo" });
-    else setSession(s);
+    else {
+      setSession(s);
+      setScope(defaultScope(s.activeRole, s.userId));
+    }
   }, [navigate]);
 
   // Central de Reuniões corporativa: Gestora e Administrador enxergam
-  // automaticamente todas as reuniões criadas pelos Colaboradores.
+  // automaticamente todas as reuniões criadas pelos Colaboradores. O escopo
+  // (ITEM 03) permite alternar entre a equipe e um Executivo específico.
   const refresh = () =>
     setItems(
       listMeetings(
         session && !canViewAllInvestors(session.role)
           ? { executiveId: session.userId }
+          : scope?.mode === "executive" && scope.executiveId
+          ? { executiveId: scope.executiveId }
           : undefined,
       ),
     );
 
   useEffect(() => {
     if (session) refresh();
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, scope]);
 
   // Auto-refresh: assina eventos de reunião no bus e re-renderiza a cada minuto
   // para atualizar o indicador de "Horário ultrapassado".
@@ -292,6 +299,9 @@ function MeetingsPage() {
           apenas consulta, pesquisa, filtra, audita e registra. Nenhuma reunião
           é excluída.
         </p>
+        {scope && canViewAllInvestors(session.role) && (
+          <ScopeSelector session={session} scope={scope} onChange={setScope} />
+        )}
       </div>
 
       <SummaryPanel
