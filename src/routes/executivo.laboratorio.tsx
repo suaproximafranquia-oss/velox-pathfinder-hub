@@ -287,6 +287,11 @@ function WhatsappReplySimulator() {
       return;
     }
     recordWhatsappReply(digits, status);
+    // Espelha a resposta na base oficial de validações, exatamente como
+    // o Webhook da Meta fará quando as credenciais forem provisionadas.
+    void simulateWhatsappReply({ data: { phone: digits, status } }).catch(() => {
+      /* simulação local já registrada */
+    });
     setFeedback(
       status === "confirmado"
         ? `Resposta CONFIRMAR registrada para ${digits}. O Portal libera os módulos automaticamente.`
