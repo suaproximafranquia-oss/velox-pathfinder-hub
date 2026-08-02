@@ -179,6 +179,45 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_validations: {
+        Row: {
+          created_at: string
+          id: string
+          investor_name: string | null
+          journey_id: string | null
+          phone: string
+          raw: Json | null
+          responded_at: string | null
+          status: string
+          template_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          investor_name?: string | null
+          journey_id?: string | null
+          phone: string
+          raw?: Json | null
+          responded_at?: string | null
+          status?: string
+          template_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          investor_name?: string | null
+          journey_id?: string | null
+          phone?: string
+          raw?: Json | null
+          responded_at?: string | null
+          status?: string
+          template_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
