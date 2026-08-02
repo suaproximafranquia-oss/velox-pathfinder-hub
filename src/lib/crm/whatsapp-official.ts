@@ -13,18 +13,11 @@ import { dispatchWhatsappTemplate } from "@/lib/whatsapp.functions";
 
 export function officialTemplateBody(
   investorName: string,
-  options: { personalized?: boolean } = {},
+  _options: { personalized?: boolean } = {},
 ): string {
-  if (options.personalized) {
-    return (
-      `Olá, ${investorName}. Aqui é a Velox Soluções Financeiras.\n` +
-      "Identificamos o início da sua jornada no Portal do Investidor. " +
-      "Confirma que este WhatsApp é realmente seu?\n" +
-      "Responda usando os botões desta mensagem: CONFIRMAR ou NÃO CONFIRMAR."
-    );
-  }
-  // Mensagem padrão de boas-vindas — leads que chegaram sem link
-  // personalizado (acesso institucional ao Portal).
+  // Mensagem oficial de boas-vindas do Portal do Investidor. Enviada
+  // EXCLUSIVAMENTE para investidores orgânicos (sem link personalizado):
+  // quem chega por link de Executivo não recebe validação institucional.
   return (
     `Olá, ${investorName}! Seja bem-vindo ao Portal do Investidor Velox.\n\n` +
     "Identificamos que você iniciou sua Jornada Digital para conhecer nosso modelo de franquia.\n\n" +
