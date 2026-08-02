@@ -30,7 +30,7 @@ const MATRIX: Record<GovernanceCapability, ExecutiveRole[]> = {
   "resources.read.restricted": ["super_admin", "diretora"],
   "ai.corporate.use": ["super_admin", "diretora", "executivo"],
   "ai.managerial.use": ["super_admin", "diretora"],
-  "audit.read": ["super_admin", "diretora"],
+  "audit.read": ["super_admin"],
 };
 
 export function can(role: ExecutiveRole, capability: GovernanceCapability): boolean {
