@@ -223,7 +223,7 @@ function MeetingsPage() {
     const t = window.setInterval(() => setTick((n) => n + 1), 60_000);
     return () => { off(); offSync(); window.clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session, scope]);
 
   // Painel superior — recomputa quando items mudam.
   const today = ymd(new Date());
