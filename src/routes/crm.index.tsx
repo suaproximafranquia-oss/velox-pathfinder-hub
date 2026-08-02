@@ -508,15 +508,63 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               setTick((v) => v + 1);
             }}
           />
+        ) : isTemplates ? (
+          (() => {
+            const t = CRM_TEMPLATES.find((x) => x.id === templateId) ?? CRM_TEMPLATES[0];
+            if (!t) {
+              return (
+                <div className="mx-auto flex h-full max-w-2xl flex-col justify-center">
+                  <CrmPlaceholder
+                    label="Nenhum Template cadastrado"
+                    hint="Cadastre um modelo oficial para utilizá-lo nas conversas."
+                  />
+                </div>
+              );
+            }
+            const body = t.body(selected?.name ?? "");
+            return (
+              <div className="crm-enter mx-auto w-full max-w-2xl space-y-4">
+                <div className="rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-5">
+                  <h3 className="text-sm font-semibold">{t.label}</h3>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[color:var(--crm-foreground)]">
+                    {body}
+                  </p>
+                  <p className="mt-3 text-[11px] text-[color:var(--crm-muted)]">
+                    {selected
+                      ? `Personalizado para ${selected.name}. O texto pode ser editado antes do envio.`
+                      : "Selecione um investidor em Conversas para personalizar o texto."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={!selected}
+                    onClick={() => {
+                      setPrefill({ text: body, nonce: Date.now() });
+                      setArea("conversas");
+                    }}
+                    className="cursor-pointer rounded-xl bg-[color:var(--crm-accent)] px-4 py-2.5 text-xs font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Usar na conversa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void copyToClipboard(body)}
+                    className="cursor-pointer rounded-xl border border-[color:var(--crm-border)] px-4 py-2.5 text-xs font-medium transition hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)]"
+                  >
+                    Copiar texto
+                  </button>
+                </div>
+              </div>
+            );
+          })()
         ) : (
           <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-4">
             <CrmPlaceholder
               label={
                 isConversas
                   ? "Selecione um investidor"
-                  : isDistribuicao
-                    ? "Nenhum Lead selecionado"
-                    : `${current.label} em preparação`
+                  : "Nenhum Lead selecionado"
               }
               hint={
                 isConversas
