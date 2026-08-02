@@ -127,7 +127,7 @@ export function WhatsappConfirmOverlay({
     setCurrentPhone(digits);
     setError("");
     setInfo(
-      "O CRM enviou o Template Oficial da Velox. Responda no WhatsApp usando os botões CONFIRMAR ou NÃO CONFIRMAR.",
+      "Enviamos uma mensagem oficial da Velox para o seu WhatsApp. Toque em CONFIRMAR ou NÃO CONFIRMAR na própria mensagem.",
     );
     setStep("aguardando");
   };
@@ -204,7 +204,7 @@ export function WhatsappConfirmOverlay({
           {step === "aguardando" ? (
             <div className="mt-7 space-y-4">
               <p className="text-xs text-[color:var(--muted-foreground)]">
-                O CRM enviou o Template Oficial da Velox para o WhatsApp{" "}
+                Enviamos uma mensagem oficial da Velox para o WhatsApp{" "}
                 <strong>{currentPhone}</strong>. Não há código a digitar: abra
                 sua conversa no WhatsApp e toque em <strong>CONFIRMAR</strong> ou{" "}
                 <strong>NÃO CONFIRMAR</strong> na própria mensagem.
@@ -214,7 +214,7 @@ export function WhatsappConfirmOverlay({
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[color:var(--gold)]" />
                 <p className="text-xs leading-relaxed text-[color:var(--muted-foreground)]">
                   Aguardando sua resposta no WhatsApp. Esta tela é liberada
-                  automaticamente assim que o CRM identificar a confirmação.
+                  automaticamente assim que a confirmação for recebida.
                 </p>
               </div>
             </div>
