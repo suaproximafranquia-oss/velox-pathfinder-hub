@@ -23,51 +23,86 @@ export function onlyDigits(value: string): string {
 
 const TEMPLATE_NAME = "velox_validacao_identidade";
 
-/** Dispara o Template Oficial da Meta e registra o envio. */
-export async function sendOfficialTemplate(input: {
-  phone: string;
-  investorName: string;
-  journeyId: string;
-}): Promise<{ ok: boolean; delivered: boolean; error?: string }> {
-  const phone = onlyDigits(input.phone);
-  const token = process.env["WHATSAPP_TOKEN"];
-  const phoneNumberId = process.env["WHATSAPP_PHONE_NUMBER_ID"];
+/* ---------------------------------------------------------------------
+ * Adaptador de canal — provider interno x Meta oficial.
+ *
+ * A arquitetura inteira funciona sem credenciais: o provider interno
+ * ("mock") registra o envio na base oficial de validações e mantém o
+ * fluxo completo (Jornada Digital → bloqueio → confirmação → CRM). No
+ * momento em que WHATSAPP_TOKEN e WHATSAPP_PHONE_NUMBER_ID existirem, o
+ * provider oficial da Meta assume automaticamente, sem qualquer mudança
+ * nos pontos de chamada.
+ * ------------------------------------------------------------------ */
 
-  let delivered = false;
-  let error: string | undefined;
+export type ChannelProviderId = "interno" | "meta";
 
-  if (token && phoneNumberId) {
+export type TemplateDispatch = {
+  ok: boolean;
+  provider: ChannelProviderId;
+  delivered: boolean;
+  error?: string;
+};
+
+type TemplateInput = { phone: string; investorName: string; journeyId: string };
+
+type ChannelProvider = {
+  id: ChannelProviderId;
+  send: (input: TemplateInput) => Promise<{ delivered: boolean; error?: string }>;
+};
+
+/** Provider oficial — WhatsApp Cloud API (Meta). */
+const metaProvider: ChannelProvider = {
+  id: "meta",
+  async send(input) {
+    const token = process.env["WHATSAPP_TOKEN"]!;
+    const phoneNumberId = process.env["WHATSAPP_PHONE_NUMBER_ID"]!;
     try {
       const res = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           messaging_product: "whatsapp",
-          to: phone,
+          to: onlyDigits(input.phone),
           type: "template",
           template: {
             name: TEMPLATE_NAME,
             language: { code: "pt_BR" },
             components: [
-              {
-                type: "body",
-                parameters: [{ type: "text", text: input.investorName }],
-              },
+              { type: "body", parameters: [{ type: "text", text: input.investorName }] },
             ],
           },
         }),
       });
-      delivered = res.ok;
-      if (!res.ok) error = `Meta respondeu ${res.status}`;
+      if (!res.ok) return { delivered: false, error: `Meta respondeu ${res.status}` };
+      return { delivered: true };
     } catch (e) {
-      error = e instanceof Error ? e.message : "Falha no envio";
+      return { delivered: false, error: e instanceof Error ? e.message : "Falha no envio" };
     }
-  } else {
-    error = "Credenciais oficiais da Meta ainda não provisionadas";
-  }
+  },
+};
+
+/**
+ * Provider interno — substituto temporário e oficial da homologação.
+ * Nenhuma mensagem sai para fora: o envio é considerado entregue e a
+ * resposta chega pela simulação do Laboratório ou pelo Webhook.
+ */
+const internalProvider: ChannelProvider = {
+  id: "interno",
+  async send() {
+    return { delivered: true };
+  },
+};
+
+export function activeProvider(): ChannelProvider {
+  const ready = Boolean(process.env["WHATSAPP_TOKEN"] && process.env["WHATSAPP_PHONE_NUMBER_ID"]);
+  return ready ? metaProvider : internalProvider;
+}
+
+/** Dispara o Template Oficial pelo provider ativo e registra o envio. */
+export async function sendOfficialTemplate(input: TemplateInput): Promise<TemplateDispatch> {
+  const phone = onlyDigits(input.phone);
+  const provider = activeProvider();
+  const result = await provider.send({ ...input, phone });
 
   await supabaseAdmin.from("whatsapp_validations").insert({
     phone,
@@ -75,9 +110,10 @@ export async function sendOfficialTemplate(input: {
     investor_name: input.investorName,
     status: "enviado",
     template_name: TEMPLATE_NAME,
+    provider: provider.id,
   });
 
-  return { ok: true, delivered, error };
+  return { ok: true, provider: provider.id, delivered: result.delivered, error: result.error };
 }
 
 /** Última validação registrada para o número — usada no aguardo do Portal. */
