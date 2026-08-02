@@ -102,7 +102,7 @@ export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
                       "linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.05) 42%, rgba(0,0,0,0.38) 100%)",
                   }}
                 />
-                <div className="absolute inset-0 flex items-center justify-center gap-4 px-10">
+                <div className="absolute inset-0 flex items-center justify-center px-14">
                   <div className="min-w-0 text-center">
                     <span className="block truncate text-[11px] font-medium uppercase tracking-[0.16em] text-white/90">
                       {s.label}
@@ -112,7 +112,7 @@ export function FunnelCard({ stages }: { stages: FunnelStage[] }) {
                     </span>
                   </div>
                   {isRevenue ? null : (
-                    <span className="shrink-0 text-[11px] tabular-nums text-white/80">
+                    <span className="absolute right-[9%] text-[11px] tabular-nums text-white/85">
                       {pct.toFixed(1).replace(".", ",")}%
                     </span>
                   )}
