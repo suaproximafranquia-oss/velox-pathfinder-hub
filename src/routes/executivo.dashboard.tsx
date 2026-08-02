@@ -17,8 +17,9 @@ import { resolveLeadState } from "@/lib/lead-state";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import { archiveRelationship } from "@/lib/crm/commercial";
 import {
-  canAccessPortalWorkspace,
   canViewFullWorkspace,
+  isWorkspaceScope,
+  workspaceScopesFor,
   WORKSPACE_SCOPE_LABEL,
   type WorkspaceScope,
 } from "@/lib/portal-workspace";
