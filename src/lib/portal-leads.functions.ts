@@ -9,7 +9,7 @@ export type PortalLeadPayload = {
   city?: string;
   origin?: string;
   material?: string;
-  scope: "green_sales" | "portal";
+  scope: "green_sales" | "redistribuicao" | "portal";
   personalized?: boolean;
   responsibleExecutiveId?: string | null;
   responsibleExecutiveSlug?: string | null;
@@ -33,6 +33,27 @@ export const syncPortalLead = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const executiveId = data.responsibleExecutiveId ?? null;
+    // ETAPA 02.1 §Doc02 — um Lead redistribuído nunca é rebaixado por uma
+    // sincronização posterior do Portal: escopo e proprietário permanecem.
+    const { data: current } = await supabaseAdmin
+      .from("portal_leads")
+      .select("scope,responsible_executive_id,responsible_executive_slug")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (current?.scope === "redistribuicao") {
+      const { error: keepError } = await supabaseAdmin
+        .from("portal_leads")
+        .update({
+          name: data.name,
+          email: data.email.toLowerCase(),
+          whatsapp: data.whatsapp ?? "",
+          city: data.city ?? "",
+          last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
+        })
+        .eq("id", data.id);
+      if (keepError) throw new Error(keepError.message);
+      return { ok: true as const, scope: "redistribuicao" as const };
+    }
     // Revalidação do roteamento obrigatório: green_sales exige executivo.
     const scope = data.personalized && executiveId ? "green_sales" : "portal";
     const { error } = await supabaseAdmin.from("portal_leads").upsert(
@@ -59,6 +80,29 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     return { ok: true as const, scope };
+  });
+
+/**
+ * ETAPA 02.1 §Doc02 ITEM 03 — redistribuição oficial executada pela
+ * Gestão. Não cria Lead, não altera histórico: apenas transfere a
+ * responsabilidade operacional e fixa a origem "Redistribuição".
+ */
+export const redistributePortalLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string; executiveId: string }) => data)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("portal_leads")
+      .update({
+        scope: "redistribuicao",
+        personalized: false,
+        responsible_executive_id: data.executiveId,
+        responsible_executive_slug: null,
+        last_activity_at: new Date().toISOString(),
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });
 
 /**
