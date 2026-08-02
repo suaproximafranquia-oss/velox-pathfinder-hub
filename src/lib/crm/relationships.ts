@@ -31,6 +31,17 @@ import {
 import { recordReactivationAlert } from "@/lib/workspace-alerts";
 import { getJourney } from "@/lib/journey/engine";
 import { isJourneyOnly, getCommercial } from "@/lib/crm/commercial";
+import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
+import { listCrmMessages } from "@/lib/crm/messages";
+
+/**
+ * ETAPA 02.1 · ITEM 08 — a Gestora não recebe acesso automático a todas as
+ * conversas: ela só enxerga um relacionamento quando participa efetivamente
+ * do atendimento (é proprietária ou já registrou mensagem na conversa).
+ */
+function supervisorParticipates(investorId: string, userId: string): boolean {
+  return listCrmMessages(investorId).some((m) => m.authorId === userId);
+}
 /**
  * WhatsApp do investidor (DEF 2.4.10 §4): sempre que o número existir em
  * qualquer camada oficial (cadastro ou jornada) ele é exibido.
