@@ -138,7 +138,7 @@ export function buildKpiInsightSnapshot(
  */
 export function serializeSnapshotForPrompt(s: KpiInsightSnapshot): string {
   const line = (label: string, sum: KpiSummary) =>
-    `${label}: Leads ${formatNumber(sum.leads)} · Apresentacoes ${formatNumber(sum.presentations)} · COFs ${formatNumber(sum.contractsSent)} · Vendas ${formatNumber(sum.sales)} · Faturamento ${formatCurrency(sum.salesValue)} · Conversao Lead->Venda ${formatPercent(sum.conversion)}`;
+    `${label}: Leads ${formatNumber(sum.leads)} · Apresentacoes ${formatNumber(sum.presentations)} · Contratos enviados ${formatNumber(sum.contractsSent)} · Vendas ${formatNumber(sum.sales)} · Faturamento ${formatCurrency(sum.salesValue)} · Conversao Lead->Venda ${formatPercent(sum.conversion)}`;
 
   const rows: string[] = [];
   rows.push(`WORKSPACE: ${s.workspace}`);

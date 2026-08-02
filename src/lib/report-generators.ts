@@ -119,7 +119,7 @@ export function exportReportPdf(
   const cards: [string, string][] = [
     ["Leads", formatNumber(report.summary.leads)],
     ["Apresentações", formatNumber(report.summary.presentations)],
-    ["COFs Enviadas", formatNumber(report.summary.contractsSent)],
+    ["Contratos Enviados", formatNumber(report.summary.contractsSent)],
     ["Vendas", formatNumber(report.summary.sales)],
     ["Faturamento", formatCurrency(report.summary.salesValue)],
   ];
@@ -254,7 +254,7 @@ export function exportReportExcel(
     ["Indicador", "Valor"],
     ["Leads", report.summary.leads],
     ["Apresentações", report.summary.presentations],
-    ["COFs Enviadas", report.summary.contractsSent],
+    ["Contratos Enviados", report.summary.contractsSent],
     ["Vendas", report.summary.sales],
     ["Faturamento (R$)", report.summary.salesValue],
   ];

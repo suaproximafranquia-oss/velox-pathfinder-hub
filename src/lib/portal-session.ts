@@ -404,6 +404,7 @@ export function startPortalSession(input: {
       phone: lead.whatsapp || (input.phone ?? ""),
       origin,
       ownerId: lead.responsibleExecutiveId ?? null,
+      personalized: Boolean(session.personalized && lead.responsibleExecutiveId),
     });
     notifySync("leads");
     notifySync("commercial");

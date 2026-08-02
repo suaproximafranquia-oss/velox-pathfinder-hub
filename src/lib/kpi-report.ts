@@ -112,7 +112,7 @@ export function generateKpiIndividualReport(user: ExecutiveUser, monthKey: strin
     ["Leads", formatNumber(summary.leads)],
     ["Apresentações", formatNumber(summary.presentations)],
     ["Videoconferências feitas", formatNumber(sumRow(ds.matrix, "videosDone"))],
-    ["COFs enviadas", formatNumber(summary.contractsSent)],
+    ["Contratos enviados", formatNumber(summary.contractsSent)],
     ["Vendas", formatNumber(summary.sales)],
     ["Faturamento", formatCurrency(summary.salesValue)],
   ];

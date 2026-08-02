@@ -73,7 +73,7 @@ function buildOperationalFunnel(totals: ReturnType<typeof summarizeMany>): Funne
     { id: "leads", label: "Lead", value: totals.leads },
     { id: "presentations", label: "Apresentação", value: totals.presentations },
     { id: "videos", label: "Videoconferência", value: totals.videosDone },
-    { id: "cofs", label: "COF enviada", value: totals.contractsSent },
+    { id: "cofs", label: "Contratos enviados", value: totals.contractsSent },
     { id: "sales", label: "Venda", value: totals.sales },
     { id: "revenue", label: "Faturamento", value: totals.salesValue },
   ];
@@ -123,11 +123,11 @@ export function buildOperationalSnapshot(
     },
     {
       id: "cofs",
-      label: "COFs Enviadas",
+      label: "Contratos Enviados",
       value: fmtInt(totals.contractsSent),
       delta: 0,
       description: "Propostas formais",
-      tooltip: "Contratos/COFs enviados no KPI Manager.",
+      tooltip: "Contratos enviados no KPI Manager.",
       icon: "fileCheck",
     },
     {

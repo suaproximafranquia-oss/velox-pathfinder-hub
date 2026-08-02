@@ -137,15 +137,15 @@ function ConversionRings({ report }: { report: ReportDataset }) {
       value: pct(s.presentations, s.leads),
     },
     {
-      label: "Apresentação → COF",
-      hint: "Apresentações que evoluíram para envio de proposta (COF).",
+      label: "Apresentação → Contrato",
+      hint: "Apresentações que evoluíram para envio de proposta (contrato).",
       converted: Math.min(s.contractsSent, s.presentations),
       base: s.presentations,
       value: pct(s.contractsSent, s.presentations),
     },
     {
-      label: "COF → Venda",
-      hint: "Propostas enviadas (COF) que foram efetivamente convertidas em venda.",
+      label: "Contrato → Venda",
+      hint: "Contratos enviados que foram efetivamente convertidas em venda.",
       converted: Math.min(s.sales, s.contractsSent),
       base: s.contractsSent,
       value: pct(s.sales, s.contractsSent),
@@ -225,7 +225,7 @@ function MiniCards({ report }: { report: ReportDataset }) {
   const items: [string, string, string][] = [
     ["Ticket médio", s.sales > 0 ? formatCurrency(s.salesValue / s.sales) : "—", "Valor médio por venda concluída."],
     ["Leads/venda", s.sales > 0 ? formatNumber(Math.round(s.leads / s.sales)) : "—", "Volume de leads consumidos por venda."],
-    ["COFs pendentes", formatNumber(Math.max(0, s.contractsSent - s.sales)), "COFs enviadas ainda não convertidas."],
+    ["Contratos pendentes", formatNumber(Math.max(0, s.contractsSent - s.sales)), "Contratos enviados ainda não convertidas."],
     ["Taxa final", fmtPercent(pct(s.sales, s.leads)), "Conversão consolidada da competência."],
   ];
   return (

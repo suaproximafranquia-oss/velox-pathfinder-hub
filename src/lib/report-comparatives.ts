@@ -86,7 +86,7 @@ function buildCells(current: KpiSummary, reference: KpiSummary): ComparativeCell
   const pairs: [string, keyof KpiSummary, "count" | "currency"][] = [
     ["Leads", "leads", "count"],
     ["Apresentações", "presentations", "count"],
-    ["COFs enviadas", "contractsSent", "count"],
+    ["Contratos enviados", "contractsSent", "count"],
     ["Vendas", "sales", "count"],
     ["Faturamento", "salesValue", "currency"],
   ];
