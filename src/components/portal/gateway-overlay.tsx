@@ -12,6 +12,7 @@ import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { readEntryContext } from "@/lib/portal-entry";
 import { startPortalSession } from "@/lib/portal-session";
 import { getVisitorIdentity } from "@/lib/leads";
+import { restoreLeadFromCloud } from "@/lib/portal-leads-sync";
 
 export function GatewayOverlay({
   open,
@@ -28,6 +29,7 @@ export function GatewayOverlay({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
 
   const executive = useMemo(() => {
     if (!open) return null;
@@ -61,7 +63,7 @@ export function GatewayOverlay({
     };
   }, [open, executive, onClose]);
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = name.trim();
     const trimmedEmail = email.trim().toLowerCase();
@@ -79,6 +81,12 @@ export function GatewayOverlay({
     }
     const entry = readEntryContext();
     if (executive) setResponsibleExecutiveSlug(executive.slug);
+    setError("");
+    setChecking(true);
+    // Identificar não é criar: se esta pessoa já existe na plataforma
+    // (mesmo em outro navegador ou dispositivo), a jornada é restaurada
+    // antes de qualquer novo registro ser criado.
+    await restoreLeadFromCloud({ email: trimmedEmail, phone: phone.trim() });
     startPortalSession({
       name: trimmedName,
       email: trimmedEmail,
@@ -86,15 +94,17 @@ export function GatewayOverlay({
       origin:
         entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox"),
     });
-    setError("");
+    setChecking(false);
     onDone();
   };
 
   /** Retorno reconhecido: continuidade imediata, sem qualquer formulário. */
-  const continueKnown = () => {
+  const continueKnown = async () => {
     if (!known) return;
     const entry = readEntryContext();
     if (executive) setResponsibleExecutiveSlug(executive.slug);
+    setChecking(true);
+    await restoreLeadFromCloud({ email: known.email, phone: known.whatsapp });
     startPortalSession({
       name: known.name,
       email: known.email,
@@ -102,6 +112,7 @@ export function GatewayOverlay({
       origin:
         entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox"),
     });
+    setChecking(false);
     onDone();
   };
 
@@ -153,10 +164,11 @@ export function GatewayOverlay({
             </p>
             <button
               type="button"
-              onClick={continueKnown}
+              onClick={() => void continueKnown()}
+              disabled={checking}
               className="mt-7 inline-flex w-full items-center justify-center gap-3 rounded-full bg-[color:var(--gold)] px-6 py-4 text-sm font-medium text-[color:var(--gold-foreground)] transition hover:shadow-[0_15px_50px_-15px_var(--gold)]"
             >
-              Continuar jornada
+              {checking ? "Recuperando sua jornada…" : "Continuar jornada"}
               <ArrowRight className="h-4 w-4" />
             </button>
             <div className="mt-6 flex gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/60 p-4">
@@ -168,7 +180,7 @@ export function GatewayOverlay({
             </div>
           </div>
         ) : (
-        <form onSubmit={submit} className="p-7 md:p-9">
+        <form onSubmit={(event) => void submit(event)} className="p-7 md:p-9">
           <p className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--gold)]">
             Sua jornada Velox
           </p>
@@ -234,9 +246,10 @@ export function GatewayOverlay({
 
           <button
             type="submit"
+            disabled={checking}
             className="mt-7 inline-flex w-full items-center justify-center gap-3 rounded-full bg-[color:var(--gold)] px-6 py-4 text-sm font-medium text-[color:var(--gold-foreground)] transition hover:shadow-[0_15px_50px_-15px_var(--gold)]"
           >
-            Continuar jornada
+            {checking ? "Verificando sua jornada…" : "Continuar jornada"}
             <ArrowRight className="h-4 w-4" />
           </button>
 

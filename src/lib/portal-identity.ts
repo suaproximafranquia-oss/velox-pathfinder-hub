@@ -69,6 +69,18 @@ export function findIdentityByEmail(email: string): PortalIdentity | null {
   return listIdentities().find((i) => i.emails.includes(normalized)) ?? null;
 }
 
+/** Chave oficial de telefone (últimos 11 dígitos) usada na identificação. */
+export function normalizePhone(phone?: string | null): string {
+  const digits = (phone ?? "").replace(/\D+/g, "");
+  return digits.length > 11 ? digits.slice(-11) : digits;
+}
+
+export function findIdentityByPhone(phone?: string | null): PortalIdentity | null {
+  const key = normalizePhone(phone);
+  if (key.length < 10) return null;
+  return listIdentities().find((i) => i.phones.some((p) => normalizePhone(p) === key)) ?? null;
+}
+
 export function deviceFingerprint(): string {
   if (typeof window === "undefined") return "server";
   return [
@@ -85,7 +97,8 @@ function pushUnique(list: string[], value?: string | null): string[] {
 
 /**
  * Resolve (ou cria) a identidade permanente para os dados informados no
- * Gateway. Nunca duplica um e-mail já conhecido.
+ * Gateway (Nome, E-mail e WhatsApp). Nunca duplica um e-mail ou um
+ * WhatsApp já conhecido: identificar não é criar um novo cadastro.
  */
 export function resolveIdentity(input: {
   name: string;
@@ -95,7 +108,12 @@ export function resolveIdentity(input: {
   const email = normalizeEmail(input.email);
   const now = new Date().toISOString();
   const all = listIdentities();
-  const existing = all.find((i) => i.emails.includes(email));
+  const phoneKey = normalizePhone(input.phone);
+  const existing =
+    all.find((i) => i.emails.includes(email)) ??
+    (phoneKey.length >= 10
+      ? all.find((i) => i.phones.some((p) => normalizePhone(p) === phoneKey))
+      : undefined);
 
   if (existing) {
     existing.name = input.name.trim() || existing.name;

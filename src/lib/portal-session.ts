@@ -24,6 +24,7 @@ import {
 } from "@/lib/portal-identity";
 import { readEntryContext } from "@/lib/portal-entry";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { getPortalAdministratorId } from "@/lib/portal-workspace";
 import { registerJourney, trackJourney } from "@/lib/journey/engine";
 import {
   markJourneyOnly,
@@ -193,7 +194,11 @@ export function startPortalSession(input: {
 }): PortalSession {
   const entry = readEntryContext();
   const responsible = getResponsibleExecutive();
-  const identity = resolveIdentity({ name: input.name, email: input.email });
+  const identity = resolveIdentity({
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+  });
   const existing = findLeadByEmail(input.email) ?? findLeadByPhone(input.phone);
   const origin = input.origin ?? entry.origin ?? "Portal Velox";
 
@@ -210,6 +215,12 @@ export function startPortalSession(input: {
    */
   const personalizedEntry = Boolean(responsible.personalized && responsible.executive?.id);
   const journeyBorn = !existing && !personalizedEntry;
+  /**
+   * Lead Orgânico pertence ao Portal e ao Administrador responsável — o
+   * dono do relacionamento nunca é "sistema", para que Workspace, CRM,
+   * Backup e Alertas apontem para a mesma pessoa desde o primeiro acesso.
+   */
+  const portalOwnerId = getPortalAdministratorId();
   const base =
     existing ??
     registerLead({
@@ -337,7 +348,10 @@ export function startPortalSession(input: {
 
   // Template automático do sistema — única mensagem possível durante a
   // Jornada Digital. Registrado uma única vez por relacionamento.
-  if (listCrmMessages(lead.id).length === 0) {
+  // Na Jornada Digital orgânica a única comunicação é a mensagem
+  // institucional oficial (enviada logo abaixo): nada de mensagem
+  // duplicada de boas-vindas.
+  if (!journeyBorn && listCrmMessages(lead.id).length === 0) {
     appendCrmMessage({
       investorId: lead.id,
       direction: "enviada",
@@ -351,7 +365,7 @@ export function startPortalSession(input: {
       event: "template_automatico",
       origin: input.origin ?? entry.origin ?? "Portal Velox",
       reason: "Mensagem automática de boas-vindas enviada pelo sistema.",
-      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      ownerId: lead.responsibleExecutiveId ?? portalOwnerId,
       actorId: "sistema",
     });
   }
@@ -403,7 +417,7 @@ export function startPortalSession(input: {
       origin,
       reason:
         "Jornada Digital iniciada no Gateway — status: aguardando confirmação do WhatsApp.",
-      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      ownerId: lead.responsibleExecutiveId ?? portalOwnerId,
       actorId: "sistema",
     });
     requestWhatsappConfirmation({
@@ -411,7 +425,7 @@ export function startPortalSession(input: {
       investorName: lead.name,
       phone: lead.whatsapp || (input.phone ?? ""),
       origin,
-      ownerId: lead.responsibleExecutiveId ?? null,
+      ownerId: lead.responsibleExecutiveId ?? portalOwnerId,
       personalized: Boolean(session.personalized && lead.responsibleExecutiveId),
     });
     notifySync("leads");
