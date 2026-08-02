@@ -37,10 +37,14 @@ import {
   clearDigitalJourney,
   getDigitalJourney,
   isJourneyId,
-  newJourneyId,
   saveDigitalJourney,
 } from "@/lib/portal-journey";
-import { transferVerification } from "@/lib/portal-verification";
+import {
+  requestWhatsappConfirmation,
+  transferVerification,
+} from "@/lib/portal-verification";
+import { logAudit } from "@/lib/audit-log";
+import { notifySync } from "@/lib/sync-bus";
 
 const SESSION_KEY = "velox:portal:session:v1";
 
