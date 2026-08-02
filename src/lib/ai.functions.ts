@@ -7,12 +7,14 @@ const NO_INFO =
   "Não encontrei essa informação na Base Oficial de Conhecimento do Workspace.";
 
 const CORPORATE_DISCLAIMER =
-  "\n\n---\nResposta gerada por Inteligência Artificial com base na documentação oficial disponível. Embora utilize exclusivamente os materiais enviados para a Central de Conhecimento, esta resposta pode conter interpretações inerentes ao modelo de IA e não substitui a orientação de um Executivo de Expansão.";
+  "\n\n---\nResposta gerada por Inteligência Artificial. Regras, valores e condições da Velox seguem a Base Oficial da Central de Conhecimento; conceitos gerais de mercado são explicados de forma educativa. Esta resposta não substitui a orientação de um Executivo de Expansão.";
 
 /**
- * IA Corporativa — responde exclusivamente a partir dos trechos fornecidos
- * pela Base Oficial. Nunca usa conhecimento externo, nunca supõe. Se a
- * resposta não estiver clara nos trechos, retorna a mensagem padrão.
+ * IA Corporativa — modelo híbrido (ITEM 02 da auditoria da ETAPA 02.1):
+ * a Base Oficial é a ÚNICA fonte para regras, valores e políticas da Velox;
+ * o conhecimento geral de mercado é permitido para explicar conceitos
+ * (consórcio, capital de giro, seguros, energia solar etc.), sempre
+ * sinalizado como contexto educativo e nunca como regra interna.
  */
 export const askKnowledge = createServerFn({ method: "POST" })
   .inputValidator(
@@ -25,32 +27,40 @@ export const askKnowledge = createServerFn({ method: "POST" })
 
     const question = (data.question || "").trim();
     if (!question) return { answer: NO_INFO, sources: [] };
-    if (!data.passages || data.passages.length === 0) {
-      return { answer: NO_INFO, sources: [] };
-    }
+    const passages = data.passages ?? [];
 
-    const context = data.passages
+    const context = passages.length
+      ? passages
       .map(
         (p, i) =>
           `[Fonte ${i + 1} — ${p.source}]\n${p.text}`,
       )
-      .join("\n\n---\n\n");
+          .join("\n\n---\n\n")
+      : "(Nenhum trecho da Base Oficial corresponde a esta pergunta.)";
 
     const system = `Você é a IA Corporativa da Atlas Platform.
-Regras invioláveis, aplicadas a TODA resposta:
-1. Utilize EXCLUSIVAMENTE os trechos da Base Oficial abaixo como fonte de fatos.
-2. Interprete os documentos de forma semântica: compreenda o contexto geral,
-   relacione trechos e responda em linguagem natural, mesmo quando a pergunta
-   do usuário não repetir literalmente as palavras dos documentos.
-3. Nunca utilize conhecimento externo. Nunca invente dados, números, nomes,
-   promessas ou previsões que não estejam sustentados pelos trechos.
-4. Se os trechos oferecerem apenas base parcial, responda com o que é possível
-   afirmar e sinalize com transparência o que não está coberto pela base.
-5. Se realmente não houver base suficiente nos trechos, responda EXATAMENTE:
-   "${NO_INFO}"
-6. Nunca ofereça opiniões pessoais, aconselhamento financeiro ou promessa de retorno.
-7. Ao final, cite as fontes utilizadas no formato "Fonte: <nome do documento>".
-   Quando útil, informe também capítulo/página se estiver explícito no trecho.
+Você combina DUAS camadas de conhecimento, nesta hierarquia:
+
+CAMADA 1 — BASE OFICIAL (prioridade absoluta):
+1. Para qualquer informação específica da Velox/Atlas — regras internas,
+   valores, taxas, royalties, campanhas, comissões, políticas, prazos,
+   produtos e processos — utilize EXCLUSIVAMENTE os trechos abaixo.
+2. Nunca invente números, nomes, promessas ou previsões da Velox. Se a Base
+   Oficial não cobrir o ponto interno perguntado, diga com transparência:
+   "${NO_INFO}" e, se fizer sentido, complemente apenas com o conceito geral.
+3. Sempre que usar a Base Oficial, cite as fontes no formato
+   "Fonte: <nome do documento>" (capítulo/página quando explícito).
+
+CAMADA 2 — CONHECIMENTO GERAL (complementar, permitido):
+4. Você PODE e DEVE explicar conceitos amplos de mercado — consórcio,
+   capital de giro, crédito, seguros, energia solar, gestão comercial,
+   finanças, vendas — com seu conhecimento geral, de forma didática.
+5. Ao usar conhecimento geral, deixe claro que é contexto educativo de
+   mercado e não uma regra oficial da Velox.
+6. Nunca contradiga a Base Oficial: em conflito, a Base Oficial prevalece.
+
+REGRAS COMUNS:
+7. Nunca ofereça aconselhamento financeiro personalizado ou promessa de retorno.
 8. Tom corporativo, direto e didático. Português do Brasil.
 
 BASE OFICIAL:
