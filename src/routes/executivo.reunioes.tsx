@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { TIME_INPUT_PROPS, isValidTimeValue, sanitizeTimeValue } from "@/lib/time-input";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { ScopeSelector } from "@/components/executive/scope-selector";
+import { defaultScope, type ScopeSelection } from "@/lib/brain/scopes";
 import {
   getSession,
   canViewAllInvestors,
@@ -121,6 +123,7 @@ function ymd(d: Date): string {
 function MeetingsPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [scope, setScope] = useState<ScopeSelection | null>(null);
   const [items, setItems] = useState<Meeting[]>([]);
   const [detailsFor, setDetailsFor] = useState<Meeting | null>(null);
   const [profileOpen, setProfileOpen] = useState<string | null>(null);
