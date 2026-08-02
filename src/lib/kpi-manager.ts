@@ -176,6 +176,63 @@ export function resetDataset(userId: string, monthKey: string): KpiDataset {
   return loadDataset(userId, monthKey);
 }
 
+/* ---------------------- Massa de Homologação ----------------------
+ * DEF 3.0.2 §7 — dados fictícios EXCLUSIVOS de homologação, gerados
+ * sob demanda por um usuário autorizado, para que o Brain Analytics
+ * exiba o funil completo. Nada é criado automaticamente.
+ * ------------------------------------------------------------------ */
+
+/** Sequência determinística — a mesma competência gera o mesmo cenário. */
+function pseudo(seed: number): () => number {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+export function seedHomologationDataset(userId: string, monthKey: string): KpiDataset {
+  const month = findMonth(monthKey);
+  const total = daysInMonth(month);
+  const rand = pseudo(month.year * 100 + month.month + userId.length);
+  const matrix = emptyMatrix();
+
+  for (let day = 1; day <= total; day += 1) {
+    if (isWeekend(month, day)) continue;
+    const intensity = 0.7 + rand() * 0.6;
+    const leads = Math.round(8 * intensity);
+    const leadsJoao = Math.round(leads * 0.55);
+    const calls = Math.round(leads * 3.2);
+    const callsAnswered = Math.round(calls * 0.58);
+    const presentations = Math.round(callsAnswered * 0.42);
+    const videosScheduled = Math.round(presentations * 0.75);
+    const videosDone = Math.round(videosScheduled * 0.72);
+    const contractsSent = Math.round(videosDone * 0.55);
+    const dropouts = Math.round(contractsSent * 0.18);
+    const contractsSigned = Math.max(0, Math.round(contractsSent * 0.45) - dropouts);
+
+    matrix["leads"][day] = leads;
+    matrix["leadsJoao"][day] = leadsJoao;
+    matrix["leadsFelipe"][day] = leads - leadsJoao;
+    matrix["calls"][day] = calls;
+    matrix["callsAnswered"][day] = callsAnswered;
+    matrix["presentations"][day] = presentations;
+    matrix["messages"][day] = Math.round(leads * 4.1);
+    matrix["emails"][day] = Math.round(leads * 1.8);
+    matrix["videosScheduled"][day] = videosScheduled;
+    matrix["videosDone"][day] = videosDone;
+    matrix["contractsSent"][day] = contractsSent;
+    matrix["dropouts"][day] = dropouts;
+    matrix["contractsSigned"][day] = contractsSigned;
+    matrix["salesValue"][day] = contractsSigned * (17900 + Math.round(rand() * 12000));
+  }
+
+  const dataset: KpiDataset = { userId, monthKey, matrix, updatedAt: Date.now() };
+  saveDataset(dataset);
+  return dataset;
+}
+
 /* ---------------------- Cálculos agregados ---------------------- */
 
 export function sumRow(matrix: KpiMatrix, indicatorId: string): number {
