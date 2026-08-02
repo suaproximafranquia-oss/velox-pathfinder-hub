@@ -15,6 +15,7 @@ import {
   Share2,
 } from "lucide-react";
 import type { CrmAreaKey } from "@/lib/crm/modules";
+import { CrmCanvas } from "@/components/crm/crm-canvas";
 
 /**
  * Estrutura visual do ambiente operacional do CRM.
@@ -154,7 +155,7 @@ export function CrmMainPane({
         {header ?? <h2 className="truncate text-sm font-medium">{title}</h2>}
       </header>
       <div className="crm-chat-surface relative min-h-0 flex-1 overflow-y-auto p-5">
-        <CrmWatermark />
+        <CrmCanvas />
         <div className="relative h-full">{children}</div>
       </div>
       {footer}
