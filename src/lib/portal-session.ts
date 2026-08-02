@@ -368,6 +368,44 @@ export function startPortalSession(input: {
       : "Novo investidor identificado pelo Gateway. Jornada iniciada com perfil único para Manual, Material Institucional e Simulador.",
   });
 
+  /**
+   * DEF 3.0.2 §2 e §3 — assim que a Jornada Digital nasce, o CRM registra
+   * o relacionamento em validação (conversa, timeline, auditoria e
+   * backup) e dispara automaticamente o Template Oficial da Meta.
+   */
+  if (journeyBorn) {
+    logAudit({
+      actorId: "sistema",
+      actorName: "Portal Velox",
+      actorRole: "Automatizado",
+      module: "investidores",
+      action: "Jornada Digital criada — aguardando confirmação do WhatsApp",
+      target: lead.name,
+      details: `Origem: ${origin}. Nenhum Lead Comercial foi criado: o relacionamento permanece bloqueado até a resposta oficial do investidor.`,
+      severity: "info",
+    });
+    recordCrmEvent({
+      investorId: lead.id,
+      event: "atividade_portal",
+      origin,
+      reason:
+        "Jornada Digital iniciada no Gateway — status: aguardando confirmação do WhatsApp.",
+      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      actorId: "sistema",
+    });
+    requestWhatsappConfirmation({
+      investorId: lead.id,
+      investorName: lead.name,
+      phone: lead.whatsapp || (input.phone ?? ""),
+      origin,
+      ownerId: lead.responsibleExecutiveId ?? null,
+    });
+    notifySync("leads");
+    notifySync("commercial");
+    notifySync("timeline");
+    notifySync("audit");
+  }
+
   return session;
 }
 
