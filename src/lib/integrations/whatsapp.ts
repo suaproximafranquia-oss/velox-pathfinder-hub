@@ -1,10 +1,10 @@
 /**
- * WhatsApp — preparação da arquitetura para a Business API (próximo épico).
+ * WhatsApp — camada oficial de envio.
  *
- * Hoje o Portal usa links `wa.me` (clique-para-conversar). Esta camada
- * padroniza o envio de mensagens para que a troca pela Cloud API oficial
- * aconteça sem alterar nenhum ponto de chamada: basta um provedor com
- * `enabled: true` ser registrado.
+ * DEF 3.0.2 §3/§4: a validação de identidade NUNCA abre WhatsApp Web nem
+ * o aplicativo. O envio pertence exclusivamente ao CRM, através da Cloud
+ * API oficial (ver `@/lib/crm/whatsapp-official`). O link `wa.me` continua
+ * disponível apenas para o contato comercial explícito do investidor.
  */
 export type WhatsAppMessage = {
   /** Número em formato internacional, apenas dígitos (ex.: 5517997727337). */
@@ -34,14 +34,17 @@ export function buildClickToChatUrl(message: WhatsAppMessage): string {
   return `https://wa.me/${digits}?text=${encodeURIComponent(message.text)}`;
 }
 
+/**
+ * Provedor padrão: apenas devolve o endereço oficial. Nenhuma janela é
+ * aberta automaticamente — quem decide abrir é o ponto de chamada
+ * comercial, jamais o fluxo de validação.
+ */
 const clickToChat: WhatsAppProvider = {
   id: "click-to-chat",
   label: "WhatsApp (clique para conversar)",
   enabled: true,
   async send(message) {
-    const url = buildClickToChatUrl(message);
-    if (typeof window !== "undefined") window.open(url, "_blank", "noopener");
-    return { channel: "click-to-chat", ok: true, url };
+    return { channel: "click-to-chat", ok: true, url: buildClickToChatUrl(message) };
   },
 };
 
