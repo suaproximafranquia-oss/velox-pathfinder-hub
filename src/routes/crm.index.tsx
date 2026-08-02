@@ -267,7 +267,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const portalReleased = selected ? isPortalReleased(selected.id) : false;
   // Jornada Digital: conversa congelada — envio manual bloqueado.
   const journeyOnly = Boolean(selected?.journeyOnly);
-  const composerEnabled = privateOk && !journeyOnly;
+  /**
+   * Comunicação total é liberada assim que o Portal é liberado ao
+   * investidor: confirmação oficial no WhatsApp OU liberação manual do
+   * Administrador/Gestora. A partir daí mensagens livres e templates
+   * ficam disponíveis mesmo antes do relacionamento ser iniciado.
+   */
+  const communicationUnlocked = !journeyOnly || portalReleased;
+  const composerEnabled = privateOk && communicationUnlocked;
 
   // Histórico da conversa — persistido, nunca some após o envio.
   const messages = useMemo(
