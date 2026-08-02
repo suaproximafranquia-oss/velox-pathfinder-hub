@@ -503,7 +503,7 @@ function renderComparativesAndTables(
   y = ensureRoom(doc, y + 6, 20, w, h);
   y = sectionTitle(doc, "Detalhamento por Executivo", y);
 
-  const execHead = ["Executivo", "Leads", "Apres.", "COFs", "Vendas", "Faturamento"];
+  const execHead = ["Executivo", "Leads", "Apres.", "Contratos", "Vendas", "Faturamento"];
   const execRows: string[][] = snap.executives.map((e) => [
     e.name,
     formatNumber(e.current.leads),
