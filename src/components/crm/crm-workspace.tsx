@@ -1,14 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   MessageSquare,
-  Clock,
-  Bell,
   FileText,
-  CalendarDays,
-  Compass,
-  Sparkles,
-  History,
-  Plug,
   Search,
   ChevronRight,
   ChevronLeft,
@@ -28,14 +21,7 @@ import { CrmCanvas } from "@/components/crm/crm-canvas";
 const AREA_ICONS: Record<CrmAreaKey, typeof MessageSquare> = {
   conversas: MessageSquare,
   distribuicao: Share2,
-  timeline: Clock,
-  alertas: Bell,
   templates: FileText,
-  agendamentos: CalendarDays,
-  portal: Compass,
-  ia: Sparkles,
-  historico: History,
-  integracoes: Plug,
 };
 
 export function CrmRail({
