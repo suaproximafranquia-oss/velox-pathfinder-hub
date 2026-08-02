@@ -24,6 +24,7 @@ import {
   type WorkspaceScope,
 } from "@/lib/portal-workspace";
 import { cn } from "@/lib/utils";
+import { RedistributionPanel } from "@/components/executive/workspace/redistribution-panel";
 
 type DashboardSearch = { perfil?: string; escopo?: WorkspaceScope };
 
@@ -267,6 +268,13 @@ function WorkspacePage() {
           {scopes.length > 1 && (
             <ScopeTabs items={scopes} current={scope} onChange={changeScope} />
           )}
+          {scope === "redistribuicao" &&
+            (session.activeRole === "super_admin" || session.activeRole === "diretora") && (
+              <RedistributionPanel
+                session={session}
+                onDone={() => setTick((t) => t + 1)}
+              />
+            )}
           <WorkspaceHeader
             query={query}
             onQuery={setQuery}
