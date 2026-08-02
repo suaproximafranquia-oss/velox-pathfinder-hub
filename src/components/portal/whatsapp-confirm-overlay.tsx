@@ -1,19 +1,21 @@
 /**
- * DEF 3.0.1 §9 — Confirmação do WhatsApp SEM código, OTP ou PIN.
+ * DEF 3.0.2 §3/§4 — Confirmação do WhatsApp SEM código, OTP ou PIN.
  *
- * O visitante recebe a mensagem oficial da Velox com dois botões,
- * CONFIRMAR e NÃO CONFIRMAR. A resposta é identificada automaticamente
- * pelo CRM: só o botão CONFIRMAR libera os módulos do Portal. O Manual
- * do Investidor permanece sempre livre.
+ * O CRM dispara o Template Oficial pela Cloud API da Meta. O visitante
+ * responde CONFIRMAR ou NÃO CONFIRMAR dentro do próprio WhatsApp: o
+ * Portal apenas aguarda o retorno oficial do Webhook. Nenhum botão de
+ * confirmação existe aqui e nenhum WhatsApp Web é aberto.
  */
-import { useEffect, useState } from "react";
-import { ArrowRight, ShieldCheck, X, RefreshCw, Pencil, MessageCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, ShieldCheck, X, RefreshCw, Pencil, Loader2 } from "lucide-react";
 import {
   confirmWhatsapp,
   declineWhatsapp,
   getVerification,
   requestWhatsappConfirmation,
 } from "@/lib/portal-verification";
+import { getWhatsappReply } from "@/lib/crm/whatsapp-inbox";
+import { readWhatsappValidation } from "@/lib/whatsapp.functions";
 
 export function WhatsappConfirmOverlay({
   open,
@@ -35,6 +37,7 @@ export function WhatsappConfirmOverlay({
   const [newPhone, setNewPhone] = useState(phone);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const settled = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -54,6 +57,60 @@ export function WhatsappConfirmOverlay({
     };
   }, [open, investorId, phone, onClose]);
 
+  /**
+   * Aguardo ativo pela resposta oficial: o CRM é informado pelo Webhook
+   * da Meta e o Portal libera os módulos automaticamente.
+   */
+  useEffect(() => {
+    if (!open || step !== "aguardando") return;
+    settled.current = false;
+    let alive = true;
+
+    const handle = (status: "confirmado" | "recusado") => {
+      if (!alive || settled.current) return;
+      settled.current = true;
+      if (status === "confirmado") {
+        const result = confirmWhatsapp({ investorId, investorName });
+        if (!result.ok) {
+          setError("Não localizamos o envio. Solicite o reenvio da mensagem oficial.");
+          settled.current = false;
+          return;
+        }
+        setError("");
+        onConfirmed();
+        return;
+      }
+      declineWhatsapp({ investorId, investorName });
+      setInfo(
+        "Resposta 'NÃO CONFIRMAR' registrada. Os módulos seguem bloqueados; o Manual do Investidor continua liberado.",
+      );
+      settled.current = false;
+    };
+
+    const check = async () => {
+      const local = getWhatsappReply(currentPhone);
+      if (local && local.status !== "aguardando") {
+        handle(local.status);
+        return;
+      }
+      try {
+        const remote = await readWhatsappValidation({ data: { phone: currentPhone } });
+        if (remote && (remote.status === "confirmado" || remote.status === "recusado")) {
+          handle(remote.status);
+        }
+      } catch {
+        /* canal indisponível — segue aguardando */
+      }
+    };
+
+    void check();
+    const timer = window.setInterval(() => void check(), 4000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [open, step, currentPhone, investorId, investorName, onConfirmed]);
+
   if (!open) return null;
 
   const send = (target: string) => {
@@ -70,27 +127,9 @@ export function WhatsappConfirmOverlay({
     setCurrentPhone(digits);
     setError("");
     setInfo(
-      "Mensagem oficial enviada. Responda usando os botões CONFIRMAR ou NÃO CONFIRMAR.",
+      "O CRM enviou o Template Oficial da Velox. Responda no WhatsApp usando os botões CONFIRMAR ou NÃO CONFIRMAR.",
     );
     setStep("aguardando");
-  };
-
-  const confirm = () => {
-    const result = confirmWhatsapp({ investorId, investorName });
-    if (!result.ok) {
-      setError("Não localizamos o envio. Solicite o reenvio da mensagem oficial.");
-      return;
-    }
-    setError("");
-    onConfirmed();
-  };
-
-  const decline = () => {
-    declineWhatsapp({ investorId, investorName });
-    setError("");
-    setInfo(
-      "Resposta registrada. Os módulos seguem bloqueados; o Manual do Investidor continua liberado.",
-    );
   };
 
   return (
@@ -165,39 +204,18 @@ export function WhatsappConfirmOverlay({
           {step === "aguardando" ? (
             <div className="mt-7 space-y-4">
               <p className="text-xs text-[color:var(--muted-foreground)]">
-                Enviamos a mensagem oficial da Velox para o WhatsApp{" "}
-                <strong>{currentPhone}</strong>. Não há código a digitar: basta
-                tocar em um dos botões da própria mensagem.
+                O CRM enviou o Template Oficial da Velox para o WhatsApp{" "}
+                <strong>{currentPhone}</strong>. Não há código a digitar: abra
+                sua conversa no WhatsApp e toque em <strong>CONFIRMAR</strong> ou{" "}
+                <strong>NÃO CONFIRMAR</strong> na própria mensagem.
               </p>
 
-              {/* Reprodução fiel da mensagem oficial recebida no WhatsApp. */}
-              <div className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/70">
-                <div className="flex items-center gap-2 border-b border-[color:var(--border)] px-4 py-3">
-                  <MessageCircle className="h-4 w-4 text-[color:var(--gold)]" />
-                  <span className="text-xs uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
-                    Velox Soluções Financeiras
-                  </span>
-                </div>
-                <p className="px-4 py-4 text-sm leading-relaxed">
-                  Olá, {investorName}. Você está iniciando sua jornada no Portal
-                  do Investidor Velox. Confirma que este WhatsApp é seu?
+              <div className="flex items-center gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/70 px-4 py-4">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[color:var(--gold)]" />
+                <p className="text-xs leading-relaxed text-[color:var(--muted-foreground)]">
+                  Aguardando sua resposta no WhatsApp. Esta tela é liberada
+                  automaticamente assim que o CRM identificar a confirmação.
                 </p>
-                <div className="grid gap-2 border-t border-[color:var(--border)] p-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={confirm}
-                    className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-[color:var(--gold)] px-4 py-3 text-xs font-medium uppercase tracking-[0.16em] text-[color:var(--gold-foreground)] transition hover:scale-[1.01]"
-                  >
-                    Confirmar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={decline}
-                    className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-[color:var(--border)] px-4 py-3 text-xs uppercase tracking-[0.16em] transition hover:scale-[1.01] hover:border-[color:var(--gold)]"
-                  >
-                    Não confirmar
-                  </button>
-                </div>
               </div>
             </div>
           ) : null}

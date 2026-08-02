@@ -24,6 +24,7 @@ import {
   type ScheduledRecognition,
 } from "@/lib/recognition/engine";
 import { resetHomologationData } from "@/lib/homologation-reset";
+import { recordWhatsappReply } from "@/lib/crm/whatsapp-inbox";
 
 export const Route = createFileRoute("/executivo/laboratorio")({
   head: () => ({
@@ -145,6 +146,8 @@ function LaboratorioPage() {
 
         <HomologationResetCard />
 
+        <WhatsappReplySimulator />
+
         <section>
           <label className="block text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
             Usuário-alvo da simulação
@@ -263,6 +266,75 @@ function LaboratorioPage() {
  * intactos.
  */
 function HomologationResetCard() {
+  return <ResetCardBody />;
+}
+
+/**
+ * DEF 3.0.2 §5 — simulação da resposta oficial da Meta.
+ *
+ * Em produção quem informa o CRM é o Webhook. Na homologação, enquanto
+ * as credenciais oficiais não estão provisionadas, o Administrador pode
+ * reproduzir a resposta CONFIRMAR / NÃO CONFIRMAR de um número.
+ */
+function WhatsappReplySimulator() {
+  const [phone, setPhone] = useState("");
+  const [feedback, setFeedback] = useState("");
+
+  const reply = (status: "confirmado" | "recusado") => {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      setFeedback("Informe o WhatsApp completo, com DDD.");
+      return;
+    }
+    recordWhatsappReply(digits, status);
+    setFeedback(
+      status === "confirmado"
+        ? `Resposta CONFIRMAR registrada para ${digits}. O Portal libera os módulos automaticamente.`
+        : `Resposta NÃO CONFIRMAR registrada para ${digits}. O relacionamento segue bloqueado.`,
+    );
+  };
+
+  return (
+    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
+      <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)]">
+        Canal oficial WhatsApp · Homologação
+      </p>
+      <h2 className="font-display text-xl mt-1">Simular resposta do Template Oficial</h2>
+      <p className="text-sm text-[color:var(--muted-foreground)] mt-2 leading-relaxed">
+        Reproduz exatamente o que o Webhook da Meta informa ao CRM quando o
+        investidor toca em CONFIRMAR ou NÃO CONFIRMAR.
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          inputMode="tel"
+          placeholder="55 17 99772-7337"
+          className="w-full max-w-xs rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/60 px-4 py-2.5 text-sm outline-none focus:border-[color:var(--gold)]/60"
+        />
+        <button
+          type="button"
+          onClick={() => reply("confirmado")}
+          className="cursor-pointer rounded-full bg-[color:var(--gold)] px-4 py-2.5 text-xs uppercase tracking-[0.16em] text-[color:var(--gold-foreground)] transition hover:scale-[1.01]"
+        >
+          Confirmar
+        </button>
+        <button
+          type="button"
+          onClick={() => reply("recusado")}
+          className="cursor-pointer rounded-full border border-[color:var(--border)] px-4 py-2.5 text-xs uppercase tracking-[0.16em] transition hover:border-[color:var(--gold)]"
+        >
+          Não confirmar
+        </button>
+      </div>
+      {feedback ? (
+        <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">{feedback}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function ResetCardBody() {
   const [confirming, setConfirming] = useState(false);
   const [done, setDone] = useState<number | null>(null);
 

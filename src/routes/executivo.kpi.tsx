@@ -32,6 +32,7 @@ import {
   isWeekend,
   loadDataset,
   resetDataset,
+  seedHomologationDataset,
   saveDataset,
   summarize,
   sumRow,
@@ -224,6 +225,18 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
     setDataset(fresh);
   }
 
+  /** DEF 3.0.2 §7 — massa fictícia para homologar o Brain Analytics. */
+  function seedMonth() {
+    if (isConsolidated) return;
+    if (
+      !window.confirm(
+        `Gerar massa de HOMOLOGAÇÃO para ${activeMonth.label}? Os lançamentos atuais serão substituídos.`,
+      )
+    )
+      return;
+    setDataset(seedHomologationDataset(activeUserId, activeMonth.key));
+  }
+
   return (
     <ExecutiveShell session={session} title="KPI Manager" fullBleed>
       <div
@@ -275,6 +288,25 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
           >
             <RotateCcw className="h-3 w-3" />
             Limpar
+          </button>
+          <button
+            type="button"
+            onClick={seedMonth}
+            disabled={isConsolidated}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] transition",
+              isConsolidated
+                ? "cursor-not-allowed text-[color:var(--muted-foreground)]/40 opacity-60"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40",
+            )}
+            title={
+              isConsolidated
+                ? "Disponível apenas no KPI individual"
+                : "Gerar massa fictícia de homologação para o Brain Analytics"
+            }
+          >
+            <Gauge className="h-3 w-3" />
+            Massa de homologação
           </button>
         </div>
       </div>

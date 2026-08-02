@@ -28,6 +28,7 @@ import { registerJourney, trackJourney } from "@/lib/journey/engine";
 import {
   markJourneyOnly,
   isArchived,
+  isJourneyOnly,
   restoreRelationship,
   startRelationship,
 } from "@/lib/crm/commercial";
@@ -37,10 +38,14 @@ import {
   clearDigitalJourney,
   getDigitalJourney,
   isJourneyId,
-  newJourneyId,
   saveDigitalJourney,
 } from "@/lib/portal-journey";
-import { transferVerification } from "@/lib/portal-verification";
+import {
+  requestWhatsappConfirmation,
+  transferVerification,
+} from "@/lib/portal-verification";
+import { logAudit } from "@/lib/audit-log";
+import { notifySync } from "@/lib/sync-bus";
 
 const SESSION_KEY = "velox:portal:session:v1";
 
@@ -192,17 +197,33 @@ export function startPortalSession(input: {
   const origin = input.origin ?? entry.origin ?? "Portal Velox";
 
   /**
-   * DEF 2.5.1 §05 — visitante inédito gera EXCLUSIVAMENTE uma Jornada
-   * Digital: nenhum Lead, Card, Conversa, Timeline, Auditoria ou
-   * Registro Comercial é criado neste momento.
+   * DEF 3.0.2 §1 — o visitante inédito NÃO vira Lead Comercial. Nasce
+   * apenas a Jornada Digital: um registro operacional conhecido pelo CRM
+   * (conversa, timeline, auditoria e backup) que permanece fora do
+   * Workspace e com o atendimento bloqueado até a confirmação do
+   * WhatsApp.
    */
-  if (!existing) {
-    const journeyId = newJourneyId();
-    const now = new Date().toISOString();
+  const journeyBorn = !existing;
+  const base =
+    existing ??
+    registerLead({
+      identity: {
+        name: input.name.trim(),
+        email: normalizeEmail(input.email),
+        whatsapp: input.phone?.trim() ?? "",
+        city: "",
+      },
+      material: "Portal do Investidor — Jornada Digital",
+      origin,
+    }).lead;
+
+  if (journeyBorn) {
+    // Estado oficial: Jornada Digital aguardando validação.
+    markJourneyOnly(base.id);
     saveDigitalJourney({
-      journeyId,
-      name: input.name.trim(),
-      email: normalizeEmail(input.email),
+      journeyId: base.id,
+      name: base.name,
+      email: base.email,
       phone: input.phone?.trim() ?? "",
       executiveSlug: responsible.personalized
         ? (responsible.executive?.slug ?? entry.executiveSlug ?? null)
@@ -210,44 +231,19 @@ export function startPortalSession(input: {
       unit: entry.unit,
       origin,
       campaign: entry.campaign,
-      startedAt: now,
+      startedAt: new Date().toISOString(),
     });
-    const journeySession: PortalSession = {
-      sessionId: `ses_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-      identityId: identity.id,
-      investorId: journeyId,
-      name: input.name.trim(),
-      email: normalizeEmail(input.email),
-      responsibleExecutiveId: responsible.personalized
-        ? (responsible.executive?.id ?? null)
-        : null,
-      responsibleExecutiveSlug: responsible.personalized
-        ? (responsible.executive?.slug ?? entry.executiveSlug ?? null)
-        : null,
-      unit: entry.unit,
-      origin,
-      campaign: entry.campaign,
-      device: deviceFingerprint(),
-      personalized: responsible.personalized,
-      startedAt: now,
-      lastSeenAt: now,
-      journeyStatus: "identificado",
-      history: [{ at: now, module: "gateway", detail: "Jornada Digital iniciada" }],
-      restored: false,
-    };
-    attachSessionToIdentity(identity.id, journeySession.sessionId);
-    return persist(journeySession);
   }
 
   // Roteamento obrigatório também para investidor recorrente: quem volta
   // por link personalizado é reconduzido ao Green Sales do executivo.
   const lead =
-    applyLeadRouting(existing.id, {
+    applyLeadRouting(base.id, {
       personalized: responsible.personalized,
       responsibleExecutiveId: responsible.personalized
         ? (responsible.executive?.id ?? null)
         : null,
-    }) ?? existing;
+    }) ?? base;
 
   attachLeadToIdentity(identity.id, lead.id);
 
@@ -377,6 +373,44 @@ export function startPortalSession(input: {
       : "Novo investidor identificado pelo Gateway. Jornada iniciada com perfil único para Manual, Material Institucional e Simulador.",
   });
 
+  /**
+   * DEF 3.0.2 §2 e §3 — assim que a Jornada Digital nasce, o CRM registra
+   * o relacionamento em validação (conversa, timeline, auditoria e
+   * backup) e dispara automaticamente o Template Oficial da Meta.
+   */
+  if (journeyBorn) {
+    logAudit({
+      actorId: "sistema",
+      actorName: "Portal Velox",
+      actorRole: "Automatizado",
+      module: "investidores",
+      action: "Jornada Digital criada — aguardando confirmação do WhatsApp",
+      target: lead.name,
+      details: `Origem: ${origin}. Nenhum Lead Comercial foi criado: o relacionamento permanece bloqueado até a resposta oficial do investidor.`,
+      severity: "info",
+    });
+    recordCrmEvent({
+      investorId: lead.id,
+      event: "atividade_portal",
+      origin,
+      reason:
+        "Jornada Digital iniciada no Gateway — status: aguardando confirmação do WhatsApp.",
+      ownerId: lead.responsibleExecutiveId ?? "sistema",
+      actorId: "sistema",
+    });
+    requestWhatsappConfirmation({
+      investorId: lead.id,
+      investorName: lead.name,
+      phone: lead.whatsapp || (input.phone ?? ""),
+      origin,
+      ownerId: lead.responsibleExecutiveId ?? null,
+    });
+    notifySync("leads");
+    notifySync("commercial");
+    notifySync("timeline");
+    notifySync("audit");
+  }
+
   return session;
 }
 
@@ -390,23 +424,25 @@ export function startPortalSession(input: {
 export function promotePortalSession(): PortalSession | null {
   const session = getPortalSession();
   if (!session) return null;
-  if (!isJourneyId(session.investorId)) return session;
+  /**
+   * DEF 3.0.2 §4 — o registro já existe desde o Gateway como Jornada
+   * Digital. Confirmar o WhatsApp NÃO cria outro cadastro: converte o
+   * mesmo registro em Relacionamento Comercial.
+   */
+  if (!isJourneyOnly(session.investorId) && !isJourneyId(session.investorId)) return session;
 
   const journey = getDigitalJourney();
-  const name = journey?.name ?? session.name;
   const email = journey?.email ?? session.email;
   const phone = journey?.phone ?? "";
   const origin = journey?.origin ?? session.origin;
   const responsible = getResponsibleExecutive();
 
-  const existing = findLeadByEmail(email) ?? findLeadByPhone(phone);
-  const lead =
-    existing ??
-    registerLead({
-      identity: { name, email: normalizeEmail(email), whatsapp: phone, city: "" },
-      material: "Portal do Investidor — WhatsApp confirmado",
-      origin,
-    }).lead;
+  const existing =
+    loadLeads().find((l) => l.id === session.investorId) ??
+    findLeadByEmail(email) ??
+    findLeadByPhone(phone);
+  if (!existing) return session;
+  const lead = existing;
 
   const routed =
     applyLeadRouting(lead.id, {
@@ -418,8 +454,7 @@ export function promotePortalSession(): PortalSession | null {
 
   attachLeadToIdentity(session.identityId, routed.id);
 
-  // Jornada preservada e, em seguida, promovida a relacionamento ativo.
-  markJourneyOnly(routed.id);
+  // Mesmo registro, agora promovido a relacionamento comercial ativo.
   startRelationship({
     investorId: routed.id,
     investorName: routed.name,

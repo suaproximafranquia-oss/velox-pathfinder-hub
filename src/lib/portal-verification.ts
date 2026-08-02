@@ -12,9 +12,8 @@
 import { logAudit } from "@/lib/audit-log";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { isPortalReleased } from "@/lib/crm/portal-release";
-import { sendWhatsApp } from "@/lib/integrations/whatsapp";
+import { dispatchValidationTemplate } from "@/lib/crm/whatsapp-official";
 import { updateLead } from "@/lib/leads";
-import { isJourneyId } from "@/lib/portal-journey";
 import { notifySync } from "@/lib/sync-bus";
 
 /** Número oficial que recebe as confirmações de identidade. */
@@ -110,17 +109,18 @@ export function requestWhatsappConfirmation(input: {
   // Atualiza SEMPRE o cadastro existente — nunca cria outro.
   if (changedPhone || !previous) updateLead(input.investorId, { whatsapp: phone });
 
-  void sendWhatsApp({
-    to: VELOX_OFFICIAL_WHATSAPP,
-    text: `Confirmação de identidade — Portal do Investidor Velox.\nNome: ${input.investorName}\nWhatsApp: ${phone}\nResponda utilizando os botões da mensagem oficial: CONFIRMAR ou NÃO CONFIRMAR.`,
-    reference: input.investorId,
-  });
-
   /**
-   * Jornada Digital ainda não é relacionamento: nenhuma Auditoria ou
-   * Timeline pode existir antes da confirmação do WhatsApp.
+   * DEF 3.0.2 §3 — quem envia é o CRM, através da Cloud API oficial.
+   * O Portal nunca abre WhatsApp Web nem o aplicativo.
    */
-  if (isJourneyId(input.investorId)) return record;
+  dispatchValidationTemplate({
+    investorId: input.investorId,
+    investorName: input.investorName,
+    phone,
+    ownerId: input.ownerId ?? null,
+    origin: input.origin,
+    resend: Boolean(previous),
+  });
 
   logAudit({
     actorId: input.investorId,
@@ -183,10 +183,6 @@ export function confirmWhatsapp(input: {
     write(current);
   });
 
-  // A Auditoria e a Timeline nascem junto com o Relacionamento Comercial,
-  // criado logo após esta confirmação (ver `promotePortalSession`).
-  if (isJourneyId(input.investorId)) return { ok: true, record: confirmed };
-
   logAudit({
     actorId: input.investorId,
     actorName: input.investorName,
@@ -232,7 +228,6 @@ export function declineWhatsapp(input: {
   if (!record) return;
   store[input.investorId] = { ...record, confirmedAt: null };
   write(store);
-  if (isJourneyId(input.investorId)) return;
   logAudit({
     actorId: input.investorId,
     actorName: input.investorName,
