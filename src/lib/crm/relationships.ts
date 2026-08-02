@@ -141,9 +141,15 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
     }
   }
 
-  const scoped = canViewAllInvestors(actor.role)
+  const scoped = isCrmAdministrator(actor.role)
     ? all
-    : all.filter((i) => officialOwnerId(i) === actor.userId);
+    : isCrmSupervisor(actor.role)
+      ? all.filter(
+          (i) =>
+            officialOwnerId(i) === actor.userId ||
+            supervisorParticipates(i.id, actor.userId),
+        )
+      : all.filter((i) => officialOwnerId(i) === actor.userId);
 
   return scoped
     .map<CrmConversation>((i) => {
