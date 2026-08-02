@@ -34,9 +34,10 @@ export type LeadRecord = VisitorIdentity & {
   notes?: string;
   /**
    * Escopo permanente do Lead no Workspace ("green_sales" quando veio de
-   * link personalizado; "portal" quando veio do acesso institucional).
+   * link personalizado; "portal" quando veio do acesso institucional;
+   * "redistribuicao" quando entregue pela Gestão — ETAPA 02.1).
    */
-  scope?: "green_sales" | "portal";
+  scope?: "green_sales" | "redistribuicao" | "portal";
 };
 
 function safeRead<T>(key: string): T | null {
@@ -151,6 +152,11 @@ export function applyLeadRouting(
   if (idx < 0) return null;
   const personalized = input.personalized && Boolean(input.responsibleExecutiveId);
   // O vínculo, uma vez estabelecido, é permanente: nunca rebaixa para Portal.
+  // Lead redistribuído JAMAIS volta a Green Sales nem ao Portal (§Doc02).
+  if (all[idx].scope === "redistribuicao") {
+    syncToCloud(all[idx]);
+    return all[idx];
+  }
   if (!personalized && all[idx].scope === "green_sales") {
     syncToCloud(all[idx]);
     return all[idx];

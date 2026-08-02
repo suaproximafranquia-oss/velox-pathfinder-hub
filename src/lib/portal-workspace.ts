@@ -69,9 +69,34 @@ export function getPortalAdministratorId(): string {
   return HYBRID_WORKSPACE_USER_IDS[0]!;
 }
 
-export type WorkspaceScope = "green_sales" | "portal";
+/**
+ * ETAPA 02.1 §Doc01/Doc02 — três origens operacionais distintas:
+ *  - green_sales:    Lead captado diretamente pelo Executivo (link pessoal);
+ *  - redistribuicao: Lead institucional sem dono, atribuído pela Gestão;
+ *  - portal:         Lead Orgânico do Portal do Investidor (só o híbrido).
+ */
+export type WorkspaceScope = "green_sales" | "redistribuicao" | "portal";
 
 export const WORKSPACE_SCOPE_LABEL: Record<WorkspaceScope, string> = {
   green_sales: "Green Sales",
+  redistribuicao: "Redistribuição",
   portal: "Portal",
 };
+
+export function isWorkspaceScope(value: unknown): value is WorkspaceScope {
+  return value === "green_sales" || value === "redistribuicao" || value === "portal";
+}
+
+/**
+ * Abas visíveis no Workspace e no Backup de Conversas. Portal existe
+ * exclusivamente para o colaborador híbrido (e para o Administrador,
+ * que nunca sofre restrição técnica).
+ */
+export function workspaceScopesFor(
+  userId: string,
+  role: ExecutiveRole,
+): WorkspaceScope[] {
+  return canAccessPortalWorkspace(userId, role)
+    ? ["green_sales", "redistribuicao", "portal"]
+    : ["green_sales", "redistribuicao"];
+}

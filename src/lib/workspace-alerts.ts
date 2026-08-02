@@ -33,7 +33,14 @@ export type WorkspaceAlertCategory =
   | "reuniao_solicitada"
   | "reuniao_confirmada"
   | "reuniao_cancelada"
-  | "reuniao_alterada";
+  | "reuniao_alterada"
+  /* ETAPA 02.1 §Doc03 ITEM 09 — movimentações operacionais. */
+  | "lead_redistribuido"
+  | "conversa_restaurada"
+  | "lead_arquivado"
+  | "lead_reaberto"
+  | "proprietario_alterado"
+  | "falha_operacional";
 
 export type WorkspaceAlert = {
   id: string;
@@ -62,6 +69,12 @@ export const WORKSPACE_ALERT_CATEGORY_LABEL: Record<WorkspaceAlertCategory, stri
   reuniao_confirmada: "Reunião Confirmada",
   reuniao_cancelada: "Reunião Cancelada",
   reuniao_alterada: "Alteração de Horário",
+  lead_redistribuido: "Lead Redistribuído",
+  conversa_restaurada: "Conversa Restaurada",
+  lead_arquivado: "Lead Arquivado",
+  lead_reaberto: "Lead Reaberto",
+  proprietario_alterado: "Alteração de Proprietário",
+  falha_operacional: "Falha Operacional",
 };
 
 const ALERTS_KEY = "atlas:workspace-alerts:v1";
@@ -492,6 +505,44 @@ export function recordServiceRequestAlert(input: {
 }
 
 export function onWorkspaceAlertsChange(cb: () => void) {
+  return onWorkspaceAlertsChangeImpl(cb);
+}
+
+/**
+ * ETAPA 02.1 §Doc03 ITEM 09 — alerta operacional único por evento.
+ * O identificador estável impede qualquer duplicidade na Central.
+ */
+export function recordOperationalAlert(input: {
+  ownerUserId: string;
+  category: Extract<
+    WorkspaceAlertCategory,
+    | "lead_redistribuido"
+    | "conversa_restaurada"
+    | "lead_arquivado"
+    | "lead_reaberto"
+    | "proprietario_alterado"
+    | "falha_operacional"
+  >;
+  title: string;
+  description: string;
+  investorId?: string;
+  dateIso?: string;
+}) {
+  const date = input.dateIso ?? new Date().toISOString();
+  pushAlert(
+    {
+      ownerUserId: input.ownerUserId,
+      category: input.category,
+      title: input.title,
+      description: input.description,
+      investorId: input.investorId,
+      date,
+    },
+    `wa_op_${input.category}_${input.investorId ?? "x"}_${Date.parse(date)}`,
+  );
+}
+
+function onWorkspaceAlertsChangeImpl(cb: () => void) {
   return onEvent((e) => {
     // Atualização automática: novos leads, atualizações de lead, retornos
     // ao Portal e movimentações de reunião.

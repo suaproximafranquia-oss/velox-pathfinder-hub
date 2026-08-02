@@ -29,6 +29,11 @@ const ORIGIN_META: Record<
     dot: "bg-emerald-500",
     hover: "hover:border-emerald-500/60 hover:shadow-[0_18px_40px_-24px_rgba(16,185,129,0.55)]",
   },
+  redistribuicao: {
+    label: "Redistribuição",
+    dot: "bg-amber-500",
+    hover: "hover:border-amber-500/60 hover:shadow-[0_18px_40px_-24px_rgba(245,158,11,0.55)]",
+  },
   portal: {
     label: "Portal Velox",
     dot: "bg-sky-500",

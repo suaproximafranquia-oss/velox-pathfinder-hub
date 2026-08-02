@@ -1,0 +1,274 @@
+/**
+ * ETAPA 02.1 — Documento 02/03: Redistribuição oficial de Leads.
+ *
+ * Redistribuição NÃO é transferência entre Executivos: é a atribuição
+ * inicial de um contato institucional que ainda não pertence a ninguém.
+ *
+ * Sequência obrigatória antes de qualquer redistribuição (ITEM 02):
+ *   1. capturar o WhatsApp do contato;
+ *   2. procurar em todas as carteiras Green Sales;
+ *   3. procurar em todas as abas Redistribuição;
+ *   4. procurar na aba Portal do colaborador híbrido;
+ *   5. só então considerar o contato "sem proprietário".
+ *
+ * A fila é fixa, circular e persistente (ITEM 03).
+ */
+import { loadLeads, leadPhoneKey, updateLead, registerLead } from "@/lib/leads";
+import { loadUsers } from "@/lib/executive-auth";
+import { logAudit } from "@/lib/audit-log";
+import { recordCrmEvent } from "@/lib/crm/timeline";
+import { recordOperationalAlert } from "@/lib/workspace-alerts";
+import { startRelationship, hasCommercialRelationship } from "@/lib/crm/commercial";
+import { notifySync } from "@/lib/sync-bus";
+import type { WorkspaceScope } from "@/lib/portal-workspace";
+
+/** Ordem oficial da fila (ITEM 03). Resolvida contra os usuários reais. */
+export const REDISTRIBUTION_ORDER = [
+  "Thiago",
+  "Marton",
+  "Paulo",
+  "Milton",
+  "Carlos",
+  "Talita",
+] as const;
+
+const CURSOR_KEY = "atlas:redistribution:cursor:v1";
+
+export type RedistributionTarget = { id: string; name: string };
+
+function normalize(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+/** Fila oficial resolvida contra a base de colaboradores ativos. */
+export function redistributionQueue(): RedistributionTarget[] {
+  const users = loadUsers().filter((u) => u.status !== "inativo");
+  const queue: RedistributionTarget[] = [];
+  for (const label of REDISTRIBUTION_ORDER) {
+    const match = users.find((u) => normalize(u.name).startsWith(normalize(label)));
+    if (match && !queue.some((q) => q.id === match.id)) {
+      queue.push({ id: match.id, name: match.name });
+    }
+  }
+  return queue;
+}
+
+function readCursor(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = Number(window.localStorage.getItem(CURSOR_KEY));
+  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+}
+
+function writeCursor(value: number) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CURSOR_KEY, String(value));
+  } catch {
+    /* armazenamento indisponível */
+  }
+}
+
+/**
+ * Próximo Executivo da fila — apenas leitura. A Gestora visualiza quem
+ * receberá o Lead, mas jamais escolhe manualmente.
+ */
+export function peekNextExecutive(): RedistributionTarget | null {
+  const queue = redistributionQueue();
+  if (queue.length === 0) return null;
+  return queue[readCursor() % queue.length] ?? queue[0];
+}
+
+/** Avança a fila e devolve o Executivo sorteado sequencialmente. */
+function takeNextExecutive(): RedistributionTarget | null {
+  const queue = redistributionQueue();
+  if (queue.length === 0) return null;
+  const index = readCursor() % queue.length;
+  writeCursor((index + 1) % queue.length);
+  return queue[index] ?? null;
+}
+
+export type OwnershipCheck =
+  | { owned: false }
+  | {
+      owned: true;
+      scope: WorkspaceScope;
+      leadId: string;
+      leadName: string;
+      ownerId: string | null;
+      reason: string;
+    };
+
+const SCOPE_REASON: Record<WorkspaceScope, string> = {
+  green_sales:
+    "Este investidor já possui proprietário na Green Sales. Nenhuma redistribuição é permitida.",
+  redistribuicao:
+    "Este investidor já foi redistribuído anteriormente. O proprietário atual é mantido.",
+  portal:
+    "Este investidor pertence ao Portal do Investidor. Nenhuma redistribuição é permitida.",
+};
+
+/**
+ * ITEM 02 — verificação completa de propriedade pelo WhatsApp, na ordem
+ * oficial: Green Sales → Redistribuição → Portal.
+ */
+export function checkOwnershipByPhone(phone: string): OwnershipCheck {
+  const key = leadPhoneKey(phone ?? "");
+  if (key.length < 8) return { owned: false };
+  const leads = loadLeads().filter((l) => leadPhoneKey(l.whatsapp) === key);
+  if (leads.length === 0) return { owned: false };
+  const order: WorkspaceScope[] = ["green_sales", "redistribuicao", "portal"];
+  for (const scope of order) {
+    const hit = leads.find((l) => (l.scope ?? "portal") === scope);
+    if (hit) {
+      return {
+        owned: true,
+        scope,
+        leadId: hit.id,
+        leadName: hit.name,
+        ownerId: hit.responsibleExecutiveId,
+        reason: SCOPE_REASON[scope],
+      };
+    }
+  }
+  const fallback = leads[0]!;
+  return {
+    owned: true,
+    scope: "portal",
+    leadId: fallback.id,
+    leadName: fallback.name,
+    ownerId: fallback.responsibleExecutiveId,
+    reason: SCOPE_REASON.portal,
+  };
+}
+
+export type RedistributionResult =
+  | { ok: true; executive: RedistributionTarget; leadId: string }
+  | { ok: false; reason: string };
+
+/**
+ * ITEM 03/04 — executa a redistribuição. Nenhum registro é duplicado:
+ * apenas a responsabilidade operacional é definida e a origem passa a
+ * ser, permanentemente, "Redistribuição".
+ */
+export function redistributeContact(input: {
+  name: string;
+  phone: string;
+  email?: string;
+  origin?: string;
+  actorId: string;
+  actorName: string;
+}): RedistributionResult {
+  const ownership = checkOwnershipByPhone(input.phone);
+  if (ownership.owned) {
+    recordOperationalAlert({
+      ownerUserId: input.actorId,
+      category: "falha_operacional",
+      title: `Redistribuição bloqueada — ${ownership.leadName}`,
+      description: ownership.reason,
+      investorId: ownership.leadId,
+    });
+    return { ok: false, reason: ownership.reason };
+  }
+
+  const executive = takeNextExecutive();
+  if (!executive) {
+    return {
+      ok: false,
+      reason: "Nenhum Executivo disponível na fila oficial de redistribuição.",
+    };
+  }
+
+  const origin = input.origin ?? "Canal institucional";
+  const { lead } = registerLead({
+    identity: {
+      name: input.name.trim() || "Contato institucional",
+      email: (input.email ?? "").trim().toLowerCase(),
+      whatsapp: input.phone.trim(),
+      city: "",
+    },
+    material: "Contato institucional — Redistribuição",
+    origin,
+  });
+
+  const routed =
+    updateLead(lead.id, {
+      scope: "redistribuicao",
+      responsibleExecutiveId: executive.id,
+      personalized: false,
+    }) ?? lead;
+
+  // Espelhamento no servidor: o Card nasce direto na aba Redistribuição.
+  if (typeof window !== "undefined") {
+    void import("@/lib/portal-leads.functions")
+      .then((m) => m.redistributePortalLead({ data: { id: routed.id, executiveId: executive.id } }))
+      .catch(() => {
+        recordOperationalAlert({
+          ownerUserId: input.actorId,
+          category: "falha_operacional",
+          title: `Falha na sincronização da redistribuição — ${routed.name}`,
+          description:
+            "O Lead foi redistribuído localmente, mas a sincronização com a base oficial falhou.",
+          investorId: routed.id,
+        });
+      });
+  }
+
+  if (!hasCommercialRelationship(routed.id)) {
+    startRelationship({
+      investorId: routed.id,
+      investorName: routed.name,
+      actorId: input.actorId,
+      actorName: input.actorName,
+      actorRole: "Gestor",
+      ownerId: executive.id,
+      origin,
+      source: "executivo",
+    });
+  }
+
+  recordCrmEvent({
+    investorId: routed.id,
+    event: "distribuicao_realizada",
+    origin,
+    reason: `Redistribuição automática pela fila oficial — responsável: ${executive.name}.`,
+    ownerId: executive.id,
+    actorId: input.actorId,
+  });
+
+  logAudit({
+    actorId: input.actorId,
+    actorName: input.actorName,
+    actorRole: "Gestor",
+    module: "investidores",
+    action: "Lead redistribuído",
+    target: routed.name,
+    details: `Origem: ${origin}. Responsável definido automaticamente pela fila oficial: ${executive.name}.`,
+    severity: "info",
+  });
+
+  recordOperationalAlert({
+    ownerUserId: executive.id,
+    category: "lead_redistribuido",
+    title: `Novo Lead redistribuído — ${routed.name}`,
+    description: `Contato institucional atribuído pela Gestão. Disponível na aba Redistribuição do seu Workspace.`,
+    investorId: routed.id,
+  });
+  recordOperationalAlert({
+    ownerUserId: input.actorId,
+    category: "lead_redistribuido",
+    title: `Redistribuição concluída — ${routed.name}`,
+    description: `Responsável definido pela fila oficial: ${executive.name}.`,
+    investorId: routed.id,
+  });
+
+  notifySync("leads");
+  notifySync("commercial");
+  notifySync("timeline");
+  notifySync("alerts");
+
+  return { ok: true, executive, leadId: routed.id };
+}

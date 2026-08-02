@@ -17,11 +17,16 @@ export type InvestorStatus =
 
 /**
  * Origem do investidor — apenas estrutura visual nesta etapa.
- *  - green_sales: reconhecido via integração Green Sales
- *  - portal:      originado diretamente pelo Portal Velox
- *  - manual:      cadastro manual pelo executivo
+ *  - green_sales:    reconhecido via integração Green Sales
+ *  - redistribuicao: entregue pela Gestão (ETAPA 02.1)
+ *  - portal:         originado diretamente pelo Portal Velox
+ *  - manual:         cadastro manual pelo executivo
  */
-export type InvestorOrigin = "green_sales" | "portal" | "manual";
+export type InvestorOrigin =
+  | "green_sales"
+  | "redistribuicao"
+  | "portal"
+  | "manual";
 
 /**
  * Prioridade sinalizada pelo Portal — "o Portal identificou uma
@@ -89,7 +94,7 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
         personalized: lead.personalized,
         responsibleExecutiveId: lead.responsibleExecutiveId,
       });
-    const isPortal = scope !== "green_sales";
+    const isPortal = scope === "portal";
     const events = listEvents({ investorId: lead.id });
     const manualEvents = events.filter((event) => event.type === "manual.chapter.completed");
     const manualDone = events.some((event) => event.type === "manual.completed");
@@ -135,7 +140,12 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
         : (lead.responsibleExecutiveId ?? fallbackExecutiveId),
       // Origem oficial: link personalizado → Green Sales; acesso
       // institucional → Portal. Ver `lead-routing.ts`.
-      origin: isPortal ? "portal" : "green_sales",
+      origin:
+        scope === "green_sales"
+          ? "green_sales"
+          : scope === "redistribuicao"
+            ? "redistribuicao"
+            : "portal",
       priority: simulatorDone ? "high" : interestsCaptured ? "medium" : "none",
       lastEventLabel,
     };

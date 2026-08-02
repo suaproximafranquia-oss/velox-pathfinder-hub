@@ -64,7 +64,7 @@ type RemoteLead = {
   city: string | null;
   origin: string | null;
   material: string | null;
-  scope: "green_sales" | "portal";
+  scope: "green_sales" | "redistribuicao" | "portal";
   personalized: boolean;
   responsible_executive_id: string | null;
   created_at: string;
