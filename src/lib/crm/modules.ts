@@ -6,7 +6,7 @@
  * Portal do Investidor, Histórico/Timeline, IA e Integrações) foi
  * removido daqui para eliminar duplicidade e reduzir a navegação.
  */
-export type CrmAreaKey = "conversas" | "distribuicao" | "templates";
+export type CrmAreaKey = "conversas" | "distribuicao" | "temas";
 
 export type CrmArea = {
   key: CrmAreaKey;
@@ -32,9 +32,9 @@ export const CRM_AREAS: CrmArea[] = [
     adminOnly: true,
   },
   {
-    key: "templates",
-    label: "Templates",
-    description: "Modelos oficiais usados na conversa.",
-    path: "/crm/templates",
+    key: "temas",
+    label: "Temas",
+    description: "Imagem de fundo e aparência do CRM.",
+    path: "/crm/temas",
   },
 ];

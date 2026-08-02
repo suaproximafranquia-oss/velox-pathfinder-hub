@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   MessageSquare,
-  FileText,
+  Palette,
   Search,
   ChevronRight,
   ChevronLeft,
@@ -21,7 +21,7 @@ import { CrmCanvas } from "@/components/crm/crm-canvas";
 const AREA_ICONS: Record<CrmAreaKey, typeof MessageSquare> = {
   conversas: MessageSquare,
   distribuicao: Share2,
-  templates: FileText,
+  temas: Palette,
 };
 
 export function CrmRail({
@@ -104,19 +104,22 @@ export function CrmListPane({
         {subtitle ? (
           <p className="mt-0.5 text-xs text-[color:var(--crm-muted)]">{subtitle}</p>
         ) : null}
-        <div className="mt-3 flex items-center gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-[color:var(--crm-hover)] px-3 py-2">
-            <Search className="h-4 w-4 shrink-0 text-[color:var(--crm-muted)]" />
-            <input
-              disabled={!onQueryChange}
-              value={query ?? ""}
-              onChange={(e) => onQueryChange?.(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="w-full bg-transparent text-sm outline-none placeholder:text-[color:var(--crm-muted)]"
-            />
+        {onQueryChange || action ? (
+          <div className="mt-3 flex items-center gap-2">
+            {onQueryChange ? (
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-[color:var(--crm-hover)] px-3 py-2">
+                <Search className="h-4 w-4 shrink-0 text-[color:var(--crm-muted)]" />
+                <input
+                  value={query ?? ""}
+                  onChange={(e) => onQueryChange(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-[color:var(--crm-muted)]"
+                />
+              </div>
+            ) : null}
+            {action}
           </div>
-          {action}
-        </div>
+        ) : null}
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">{children}</div>
     </section>

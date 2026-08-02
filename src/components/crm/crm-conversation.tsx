@@ -341,12 +341,20 @@ export function CrmComposer({
    * encerrada apenas Templates aprovados podem ser usados, então a
    * assistência de escrita fica indisponível nesse estado.
    */
-  const aiAvailable = !disabled && !windowClosed;
-  const aiSuggestions = buildCrmAiSuggestions({
-    investorName,
-    windowOpen: !windowClosed,
-    lastInboundBody,
-  });
+  const aiAvailable = !disabled;
+  // Com a janela encerrada a IA sugere apenas Templates aprovados,
+  // preservando a regra oficial de reabertura da conversa.
+  const aiSuggestions = windowClosed
+    ? CRM_TEMPLATES.map((t) => ({
+        id: t.id,
+        label: t.label,
+        text: t.body(investorName),
+      }))
+    : buildCrmAiSuggestions({
+        investorName,
+        windowOpen: true,
+        lastInboundBody,
+      });
   const typingBlocked = disabled || windowClosed;
   const canSend = !disabled && text.trim().length > 0 && (!windowClosed || armedTemplate);
   const submit = () => {
@@ -400,6 +408,7 @@ export function CrmComposer({
               type="button"
               onClick={() => {
                 setText(s.text);
+                if (windowClosed) setArmedTemplate(true);
                 setAiOpen(false);
               }}
               className="block w-full cursor-pointer rounded-lg border border-transparent px-2.5 py-2 text-left transition-colors hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]"
