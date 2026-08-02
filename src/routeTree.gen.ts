@@ -42,6 +42,7 @@ import { Route as ExecutivoAlertasRouteImport } from './routes/executivo.alertas
 import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.administracao'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 import { Route as OauthGoogleConnectorRouteImport } from './routes/oauth.google.$connector'
+import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 
 const UniversoRoute = UniversoRouteImport.update({
   id: '/universo',
@@ -208,6 +209,12 @@ const OauthGoogleConnectorRoute = OauthGoogleConnectorRouteImport.update({
   path: '/oauth/google/$connector',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWhatsappWebhookRoute =
+  ApiPublicWhatsappWebhookRouteImport.update({
+    id: '/api/public/whatsapp/webhook',
+    path: '/api/public/whatsapp/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -243,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -277,6 +285,7 @@ export interface FileRoutesByTo {
   '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -313,6 +322,7 @@ export interface FileRoutesById {
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/executivo/'
     | '/manual/'
     | '/oauth/google/$connector'
+    | '/api/public/whatsapp/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/executivo'
     | '/manual'
     | '/oauth/google/$connector'
+    | '/api/public/whatsapp/webhook'
   id:
     | '__root__'
     | '/'
@@ -419,6 +431,7 @@ export interface FileRouteTypes {
     | '/executivo/'
     | '/manual/'
     | '/oauth/google/$connector'
+    | '/api/public/whatsapp/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -454,6 +467,7 @@ export interface RootRouteChildren {
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
   ManualIndexRoute: typeof ManualIndexRoute
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
+  ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -689,6 +703,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OauthGoogleConnectorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/whatsapp/webhook': {
+      id: '/api/public/whatsapp/webhook'
+      path: '/api/public/whatsapp/webhook'
+      fullPath: '/api/public/whatsapp/webhook'
+      preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -735,6 +756,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoIndexRoute: ExecutivoIndexRoute,
   ManualIndexRoute: ManualIndexRoute,
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
+  ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
