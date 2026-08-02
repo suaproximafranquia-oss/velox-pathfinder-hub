@@ -204,39 +204,18 @@ export function WhatsappConfirmOverlay({
           {step === "aguardando" ? (
             <div className="mt-7 space-y-4">
               <p className="text-xs text-[color:var(--muted-foreground)]">
-                Enviamos a mensagem oficial da Velox para o WhatsApp{" "}
-                <strong>{currentPhone}</strong>. Não há código a digitar: basta
-                tocar em um dos botões da própria mensagem.
+                O CRM enviou o Template Oficial da Velox para o WhatsApp{" "}
+                <strong>{currentPhone}</strong>. Não há código a digitar: abra
+                sua conversa no WhatsApp e toque em <strong>CONFIRMAR</strong> ou{" "}
+                <strong>NÃO CONFIRMAR</strong> na própria mensagem.
               </p>
 
-              {/* Reprodução fiel da mensagem oficial recebida no WhatsApp. */}
-              <div className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/70">
-                <div className="flex items-center gap-2 border-b border-[color:var(--border)] px-4 py-3">
-                  <MessageCircle className="h-4 w-4 text-[color:var(--gold)]" />
-                  <span className="text-xs uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
-                    Velox Soluções Financeiras
-                  </span>
-                </div>
-                <p className="px-4 py-4 text-sm leading-relaxed">
-                  Olá, {investorName}. Você está iniciando sua jornada no Portal
-                  do Investidor Velox. Confirma que este WhatsApp é seu?
+              <div className="flex items-center gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)]/70 px-4 py-4">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[color:var(--gold)]" />
+                <p className="text-xs leading-relaxed text-[color:var(--muted-foreground)]">
+                  Aguardando sua resposta no WhatsApp. Esta tela é liberada
+                  automaticamente assim que o CRM identificar a confirmação.
                 </p>
-                <div className="grid gap-2 border-t border-[color:var(--border)] p-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={confirm}
-                    className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-[color:var(--gold)] px-4 py-3 text-xs font-medium uppercase tracking-[0.16em] text-[color:var(--gold-foreground)] transition hover:scale-[1.01]"
-                  >
-                    Confirmar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={decline}
-                    className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-[color:var(--border)] px-4 py-3 text-xs uppercase tracking-[0.16em] transition hover:scale-[1.01] hover:border-[color:var(--gold)]"
-                  >
-                    Não confirmar
-                  </button>
-                </div>
               </div>
             </div>
           ) : null}
