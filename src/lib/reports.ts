@@ -144,7 +144,7 @@ function buildFunnel(summary: KpiSummary, datasets: KpiDataset[]): FunnelStage[]
     { id: "leads", label: "Lead", value: summary.leads },
     { id: "presentations", label: "Apresentação", value: summary.presentations },
     { id: "videos", label: "Videoconferência", value: videosDone },
-    { id: "cofs", label: "Contrato enviado", value: summary.contractsSent },
+    { id: "cofs", label: "Contratos enviados", value: summary.contractsSent },
     { id: "sales", label: "Venda", value: summary.sales },
     { id: "revenue", label: "Faturamento", value: summary.salesValue },
   ];

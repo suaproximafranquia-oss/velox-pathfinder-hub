@@ -312,7 +312,7 @@ export function buildBrainAnalytics(
         : `Redução da taxa de fechamento para ${pct(cofRate)}`,
     detail:
       cofRate >= 0.4
-        ? "As Contratos enviados estão sendo apresentadas no momento certo da conversa — manter o padrão de proposta."
+        ? "Os contratos enviados estão chegando no momento certo da conversa — manter o padrão de proposta."
         : "Há propostas formais sem desfecho: retomar os contratos em aberto é a ação de maior retorno no curto prazo.",
   });
 
