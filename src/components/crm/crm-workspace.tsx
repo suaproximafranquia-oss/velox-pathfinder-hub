@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import {
   MessageSquare,
   FileText,
+  Palette,
   Search,
   ChevronRight,
   ChevronLeft,
@@ -21,7 +22,7 @@ import { CrmCanvas } from "@/components/crm/crm-canvas";
 const AREA_ICONS: Record<CrmAreaKey, typeof MessageSquare> = {
   conversas: MessageSquare,
   distribuicao: Share2,
-  templates: FileText,
+  temas: Palette,
 };
 
 export function CrmRail({
