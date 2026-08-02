@@ -1,29 +1,20 @@
 /**
- * CRM de Relacionamento — mapa das áreas funcionais futuras.
+ * DEF 3.0.3 — mapa mínimo das áreas do CRM.
  *
- * Apenas declaração estrutural: cada área receberá, nas próximas etapas,
- * suas rotas e telas dentro de `/crm/<key>`. Nenhuma funcionalidade é
- * implementada aqui.
+ * O CRM existe exclusivamente para o relacionamento entre Executivo e
+ * Investidor. Tudo que já existe em outro módulo da plataforma (Agenda,
+ * Portal do Investidor, Histórico/Timeline, IA e Integrações) foi
+ * removido daqui para eliminar duplicidade e reduzir a navegação.
  */
-export type CrmAreaKey =
-  | "conversas"
-  | "distribuicao"
-  | "timeline"
-  | "alertas"
-  | "templates"
-  | "agendamentos"
-  | "portal"
-  | "ia"
-  | "historico"
-  | "integracoes";
+export type CrmAreaKey = "conversas" | "distribuicao" | "templates";
 
 export type CrmArea = {
   key: CrmAreaKey;
   label: string;
   description: string;
-  /** Caminho reservado — as rotas serão criadas nas próximas etapas. */
   path: `/crm/${CrmAreaKey}`;
-  status: "planejado";
+  /** Área restrita à administração/supervisão do CRM. */
+  adminOnly?: boolean;
 };
 
 export const CRM_AREAS: CrmArea[] = [
@@ -32,62 +23,18 @@ export const CRM_AREAS: CrmArea[] = [
     label: "Conversas",
     description: "Atendimento e mensagens com o investidor.",
     path: "/crm/conversas",
-    status: "planejado",
   },
   {
     key: "distribuicao",
     label: "Distribuição de Leads",
     description: "Novos contatos, sincronização do GreenSales e conflitos.",
     path: "/crm/distribuicao",
-    status: "planejado",
-  },
-  {
-    key: "alertas",
-    label: "Alertas",
-    description: "Avisos e acionamentos do relacionamento.",
-    path: "/crm/alertas",
-    status: "planejado",
+    adminOnly: true,
   },
   {
     key: "templates",
     label: "Templates",
-    description: "Modelos de mensagem e documentos padronizados.",
+    description: "Modelos oficiais usados na conversa.",
     path: "/crm/templates",
-    status: "planejado",
-  },
-  {
-    key: "agendamentos",
-    label: "Agendamentos",
-    description: "Compromissos e reuniões vinculados ao investidor.",
-    path: "/crm/agendamentos",
-    status: "planejado",
-  },
-  {
-    key: "portal",
-    label: "Portal do Investidor",
-    description: "Ponte com a experiência do investidor.",
-    path: "/crm/portal",
-    status: "planejado",
-  },
-  {
-    key: "ia",
-    label: "Inteligência Artificial",
-    description: "Apoio analítico e sugestões ao Executivo.",
-    path: "/crm/ia",
-    status: "planejado",
-  },
-  {
-    key: "historico",
-    label: "Histórico",
-    description: "Registro consolidado das interações.",
-    path: "/crm/historico",
-    status: "planejado",
-  },
-  {
-    key: "integracoes",
-    label: "Integrações",
-    description: "Conexões com sistemas internos e externos.",
-    path: "/crm/integracoes",
-    status: "planejado",
   },
 ];

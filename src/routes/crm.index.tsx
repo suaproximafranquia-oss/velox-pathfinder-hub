@@ -41,7 +41,8 @@ import {
   markWindowOpened,
   windowAnchorAt,
 } from "@/lib/crm/relationship-state";
-import { resolveCrmWindow } from "@/lib/crm/templates";
+import { resolveCrmWindow, CRM_TEMPLATES } from "@/lib/crm/templates";
+import { copyToClipboard } from "@/lib/clipboard";
 import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
 import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
@@ -130,8 +131,30 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [messageTick, setMessageTick] = useState(0);
   const [startOpen, setStartOpen] = useState(false);
-  const current = CRM_AREAS.find((a) => a.key === area) ?? CRM_AREAS[0];
   const actor = actorFromSession(session);
+  // DEF 3.0.3 §1/§7 — o Executivo só enxerga o que pertence ao
+  // relacionamento. Distribuição é administração da plataforma.
+  const areas = useMemo(
+    () =>
+      CRM_AREAS.filter(
+        (a) =>
+          !a.adminOnly ||
+          isCrmAdministrator(actor.role) ||
+          isCrmSupervisor(actor.role),
+      ),
+    [actor.role],
+  );
+  const current = areas.find((a) => a.key === area) ?? areas[0];
+  const [templateId, setTemplateId] = useState<string>(CRM_TEMPLATES[0]?.id ?? "");
+  const [prefill, setPrefill] = useState<{ text: string; nonce: number }>({
+    text: "",
+    nonce: 0,
+  });
+
+  // Se o módulo ativo deixar de existir para o perfil, volta a Conversas.
+  useEffect(() => {
+    if (!areas.some((a) => a.key === area)) setArea("conversas");
+  }, [areas, area]);
 
   // Sincronização com a fonte oficial (Portal do Executivo).
   useEffect(() => {
@@ -213,6 +236,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
   const isConversas = area === "conversas";
   const isDistribuicao = area === "distribuicao";
+  const isTemplates = area === "templates";
   const canManageDistribution =
     isCrmAdministrator(actor.role) || isCrmSupervisor(actor.role);
   const [intakeId, setIntakeId] = useState<string | null>(null);
@@ -314,7 +338,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
   return (
     <>
-      <CrmRail areas={CRM_AREAS} active={area} onSelect={setArea} />
+      <CrmRail areas={areas} active={area} onSelect={setArea} />
 
       <CrmListPane
         title={isConversas ? "Conversas" : current.label}
@@ -322,7 +346,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         count={isConversas ? visible.length : isDistribuicao ? intake.length : undefined}
         query={isConversas ? query : undefined}
         onQueryChange={isConversas ? setQuery : undefined}
-        searchPlaceholder="Buscar investidor"
+        searchPlaceholder={isTemplates ? "Buscar template" : "Buscar investidor"}
         action={
           isConversas ? <CrmNewLeadButton onOpen={() => setNewLeadOpen(true)} /> : undefined
         }
@@ -371,10 +395,26 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             />
           )
         ) : (
-          <CrmPlaceholder
-            label="Módulo em preparação"
-            hint="Os registros deste módulo serão exibidos aqui nas próximas etapas."
-          />
+          <div className="space-y-0.5">
+            {CRM_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTemplateId(t.id)}
+                className={[
+                  "block w-full cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors",
+                  t.id === templateId
+                    ? "bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
+                    : "hover:bg-[color:var(--crm-hover)]",
+                ].join(" ")}
+              >
+                <span className="block text-sm font-medium">{t.label}</span>
+                <span className="mt-0.5 block truncate text-[11px] text-[color:var(--crm-muted)]">
+                  {t.body(selected?.name ?? "investidor")}
+                </span>
+              </button>
+            ))}
+          </div>
         )}
       </CrmListPane>
 
@@ -395,6 +435,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               disabled={!composerEnabled}
               investorName={selected.name}
               window={chatWindow}
+              lastInboundBody={
+                [...messages].reverse().find((m) => m.direction === "recebida")?.body ?? null
+              }
+              prefillText={prefill.text}
+              prefillNonce={prefill.nonce}
               hint={
                 journeyOnly
                   ? "Jornada Digital — inicie o relacionamento para liberar o envio"
@@ -464,15 +509,63 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               setTick((v) => v + 1);
             }}
           />
+        ) : isTemplates ? (
+          (() => {
+            const t = CRM_TEMPLATES.find((x) => x.id === templateId) ?? CRM_TEMPLATES[0];
+            if (!t) {
+              return (
+                <div className="mx-auto flex h-full max-w-2xl flex-col justify-center">
+                  <CrmPlaceholder
+                    label="Nenhum Template cadastrado"
+                    hint="Cadastre um modelo oficial para utilizá-lo nas conversas."
+                  />
+                </div>
+              );
+            }
+            const body = t.body(selected?.name ?? "investidor");
+            return (
+              <div className="crm-enter mx-auto w-full max-w-2xl space-y-4">
+                <div className="rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] p-5">
+                  <h3 className="text-sm font-semibold">{t.label}</h3>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[color:var(--crm-foreground)]">
+                    {body}
+                  </p>
+                  <p className="mt-3 text-[11px] text-[color:var(--crm-muted)]">
+                    {selected
+                      ? `Personalizado para ${selected.name}. O texto pode ser editado antes do envio.`
+                      : "Selecione um investidor em Conversas para personalizar o texto."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={!selected}
+                    onClick={() => {
+                      setPrefill({ text: body, nonce: Date.now() });
+                      setArea("conversas");
+                    }}
+                    className="cursor-pointer rounded-xl bg-[color:var(--crm-accent)] px-4 py-2.5 text-xs font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Usar na conversa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void copyToClipboard(body)}
+                    className="cursor-pointer rounded-xl border border-[color:var(--crm-border)] px-4 py-2.5 text-xs font-medium transition hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)]"
+                  >
+                    Copiar texto
+                  </button>
+                </div>
+              </div>
+            );
+          })()
         ) : (
           <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-4">
             <CrmPlaceholder
               label={
                 isConversas
                   ? "Selecione um investidor"
-                  : isDistribuicao
-                    ? "Nenhum Lead selecionado"
-                    : `${current.label} em preparação`
+                  : "Nenhum Lead selecionado"
               }
               hint={
                 isConversas

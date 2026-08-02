@@ -9,6 +9,7 @@ import {
   Copy,
   Check,
   Link2,
+  Sparkles,
 } from "lucide-react";
 import { FileText, Clock3 } from "lucide-react";
 import { type CrmConversation } from "@/lib/crm/relationships";
@@ -17,6 +18,7 @@ import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CRM_TEMPLATES, resolveCrmWindow, type CrmWindowStatus } from "@/lib/crm/templates";
+import { buildCrmAiSuggestions } from "@/lib/crm/ai-suggestions";
 
 /** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
 function useSecondTick(active: boolean) {
@@ -298,6 +300,9 @@ export function CrmComposer({
   hint,
   investorName = "",
   window: win,
+  lastInboundBody,
+  prefillText,
+  prefillNonce = 0,
 }: {
   onSend: (text: string, viaTemplate: boolean) => void;
   disabled?: boolean;
@@ -305,10 +310,25 @@ export function CrmComposer({
   /** Nome usado na personalização dos templates. */
   investorName?: string;
   window?: CrmWindowStatus;
+  /** Última mensagem recebida — contexto das sugestões de IA. */
+  lastInboundBody?: string | null;
+  /** Texto carregado a partir do módulo Templates. */
+  prefillText?: string | null;
+  /** Muda a cada seleção, permitindo recarregar o mesmo template. */
+  prefillNonce?: number;
 }) {
   const [text, setText] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [armedTemplate, setArmedTemplate] = useState(false);
+  // Template escolhido no módulo Templates entra direto na caixa,
+  // pronto para edição antes do envio.
+  useEffect(() => {
+    if (!prefillNonce || !prefillText) return;
+    setText(prefillText);
+    setArmedTemplate(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillNonce]);
   /**
    * DEF 2.4.15 §2 — Estado 01: com a Janela de Conversação encerrada a
    * digitação, o foco, o ENTER e o botão Enviar ficam totalmente
@@ -316,6 +336,17 @@ export function CrmComposer({
    * disparo reabre imediatamente a janela (Estado 02).
    */
   const windowClosed = Boolean(win && !win.open);
+  /**
+   * DEF 3.0.3 §3 — a IA escreve dentro da conversa. Com a janela
+   * encerrada apenas Templates aprovados podem ser usados, então a
+   * assistência de escrita fica indisponível nesse estado.
+   */
+  const aiAvailable = !disabled && !windowClosed;
+  const aiSuggestions = buildCrmAiSuggestions({
+    investorName,
+    windowOpen: !windowClosed,
+    lastInboundBody,
+  });
   const typingBlocked = disabled || windowClosed;
   const canSend = !disabled && text.trim().length > 0 && (!windowClosed || armedTemplate);
   const submit = () => {
@@ -349,10 +380,36 @@ export function CrmComposer({
                 setText(t.body(investorName));
                 setArmedTemplate(true);
                 setTemplatesOpen(false);
+                setAiOpen(false);
               }}
               className="cursor-pointer rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
             >
               {t.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {aiOpen && aiAvailable ? (
+        <div className="crm-enter mb-2 space-y-1.5 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] p-2">
+          <p className="px-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[color:var(--crm-muted)]">
+            Sugestões inteligentes — o texto é inserido na caixa e pode ser editado
+          </p>
+          {aiSuggestions.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => {
+                setText(s.text);
+                setAiOpen(false);
+              }}
+              className="block w-full cursor-pointer rounded-lg border border-transparent px-2.5 py-2 text-left transition-colors hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]"
+            >
+              <span className="block text-[11px] font-medium text-[color:var(--crm-accent)]">
+                {s.label}
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-relaxed text-[color:var(--crm-muted)]">
+                {s.text}
+              </span>
             </button>
           ))}
         </div>
@@ -364,7 +421,10 @@ export function CrmComposer({
           aria-expanded={templatesOpen}
           aria-label="Templates de mensagem"
           title="Templates aprovados"
-          onClick={() => setTemplatesOpen((v) => !v)}
+          onClick={() => {
+            setAiOpen(false);
+            setTemplatesOpen((v) => !v);
+          }}
           className={[
             "inline-flex h-[42px] w-[42px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[color:var(--crm-border)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0",
             templatesOpen
@@ -373,6 +433,26 @@ export function CrmComposer({
           ].join(" ")}
         >
           <FileText className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          disabled={!aiAvailable}
+          aria-expanded={aiOpen}
+          aria-label="Sugestões da IA"
+          title="Sugestões da IA"
+          onClick={() => {
+            setTemplatesOpen(false);
+            setAiOpen((v) => !v);
+          }}
+          className={[
+            "inline-flex h-[42px] shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-[color:var(--crm-border)] px-3 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0",
+            aiOpen
+              ? "bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
+              : "text-[color:var(--crm-muted)]",
+          ].join(" ")}
+        >
+          <Sparkles className="h-4 w-4" />
+          IA
         </button>
         <input
           value={text}
