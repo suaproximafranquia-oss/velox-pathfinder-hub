@@ -368,7 +368,25 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         onQueryChange={isConversas ? setQuery : undefined}
         searchPlaceholder="Buscar investidor"
         action={
-          isConversas ? <CrmNewLeadButton onOpen={() => setNewLeadOpen(true)} /> : undefined
+          isConversas ? (
+            <>
+              <CrmNewLeadButton onOpen={() => setNewLeadOpen(true)} />
+              <CrmNewChatButton onOpen={() => setNewChatOpen(true)} />
+              <button
+                type="button"
+                onClick={() => setShowArchived((v) => !v)}
+                className={[
+                  "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-medium transition-colors",
+                  showArchived
+                    ? "border-[color:var(--crm-accent)] bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
+                    : "border-[color:var(--crm-border)] text-[color:var(--crm-muted)] hover:text-[color:var(--crm-accent)]",
+                ].join(" ")}
+              >
+                <Archive className="h-3.5 w-3.5" />
+                {showArchived ? "Ver ativas" : "Arquivadas"}
+              </button>
+            </>
+          ) : undefined
         }
       >
         {isConversas ? (
