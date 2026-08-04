@@ -269,6 +269,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     null;
 
   const isConversas = area === "conversas";
+  // Conversas temporárias do Executivo — visíveis na lista lateral.
+  const tempChats = useMemo(
+    () => (isConversas ? listTempChats(actor.userId) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isConversas, actor.userId, tempTick],
+  );
+  const tempChat = tempId ? (tempChats.find((c) => c.id === tempId) ?? null) : null;
   const isDistribuicao = area === "distribuicao";
   const isTemas = area === "temas";
   const canManageDistribution =
