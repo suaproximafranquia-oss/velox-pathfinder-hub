@@ -111,6 +111,29 @@ export const redistributePortalLead = createServerFn({ method: "POST" })
 
 /**
  * Leitura da carteira — somente equipe autenticada.
+ */
+/**
+ * Transferência oficial de proprietário (Gestora/Administrador).
+ *
+ * Diferente da redistribuição, aqui a carteira de origem é preservada:
+ * apenas o Executivo responsável muda — e muda de verdade, na base.
+ */
+export const assignPortalLeadOwner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string; executiveId: string | null }) => data)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("portal_leads")
+      .update({
+        responsible_executive_id: data.executiveId,
+        last_activity_at: new Date().toISOString(),
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/**
  * Usa POST de propósito: leituras GET podem ser servidas do cache do
  * navegador e congelariam o Workspace em um estado antigo.
  */
