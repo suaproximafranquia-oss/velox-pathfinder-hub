@@ -142,6 +142,50 @@ async function findFileInFolder(
   return data?.files?.[0] ?? null;
 }
 
+/**
+ * Valida a integração com a pasta corporativa oficial: acesso (leitura de
+ * metadados), gravação (upload de um arquivo de teste) e leitura (listagem),
+ * removendo o arquivo de teste ao final.
+ */
+export async function verifyCorporateFolder(
+  userId: string,
+): Promise<{ ok: boolean; message: string; folderName?: string }> {
+  const folder = (await googleFetch(
+    userId,
+    "google_drive",
+    `/drive/v3/files/${CORPORATE_FOLDER_ID}?fields=id,name,mimeType`,
+  )) as DriveFile | null;
+  if (!folder?.id) {
+    return { ok: false, message: "Pasta corporativa não encontrada no Drive." };
+  }
+
+  const probeName = `velox-diagnostico-${Date.now()}.txt`;
+  const created = await uploadDocumentInternal(userId, {
+    folderId: CORPORATE_FOLDER_ID,
+    name: probeName,
+    mimeType: "text/plain",
+    contentBase64: btoa("Portal Velox — teste de integração da IA Criativa."),
+  });
+
+  const found = await findFileInFolder(userId, CORPORATE_FOLDER_ID, probeName);
+
+  try {
+    await googleFetch(userId, "google_drive", `/drive/v3/files/${created.id}`, {
+      method: "DELETE",
+    });
+  } catch {
+    /* limpeza é complementar */
+  }
+
+  return {
+    ok: Boolean(found?.id),
+    folderName: folder.name ?? undefined,
+    message: found?.id
+      ? `Integração validada: acesso, gravação e leitura confirmados na pasta "${folder.name ?? "corporativa"}".`
+      : "A gravação ocorreu, mas a leitura da pasta não confirmou o arquivo.",
+  };
+}
+
 /** Envio idempotente: se já existir arquivo com o mesmo nome, reaproveita. */
 export async function uploadUniqueDocument(
   userId: string,

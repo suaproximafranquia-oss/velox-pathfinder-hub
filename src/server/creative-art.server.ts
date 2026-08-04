@@ -26,6 +26,9 @@ async function generate(parts: ContentPart[], key: string): Promise<string> {
       model: MODEL,
       messages: [{ role: "user", content: parts }],
       modalities: ["image", "text"],
+      // Geração determinística: mesma entrada, mesmo resultado.
+      temperature: 0,
+      seed: 20240,
     }),
   });
   if (!res.ok) {
@@ -41,20 +44,26 @@ async function generate(parts: ContentPart[], key: string): Promise<string> {
 }
 
 function institutionalPrompt(city: string, state: string, hasPhoto: boolean): string {
-  return `Você recebeu a ARTE OFICIAL da franquia Velox (primeira imagem).
-Reproduza esta arte de forma PRATICAMENTE IDÊNTICA, em alta resolução, mantendo exatamente:
-composição, posição de todos os elementos, tipografia, cores, títulos, subtítulos,
-textos institucionais, logotipos, molduras, estrutura gráfica e estilo do layout.
+  return `TAREFA: EDIÇÃO DE IMAGEM. Você NÃO está criando uma nova arte.
+A primeira imagem é a ARTE OFICIAL da franquia Velox. Devolva EXATAMENTE ESSE MESMO ARQUIVO,
+pixel a pixel, na mesma resolução e proporção, com apenas as substituições pontuais listadas abaixo.
+
+Trate a imagem como um arquivo editável: mantenha intactos composição, layout, posição de cada
+elemento, tipografia, tamanhos, espaçamentos, alinhamentos, cores, gradientes, sombras, molduras,
+logotipos, ícones, elementos gráficos, slogans e todos os textos institucionais existentes.
 
 ALTERE SOMENTE:
 1. Todos os locais onde aparece o nome da cidade → "${city}".
 2. Todos os locais onde aparece o estado/UF → "${state}".
 ${hasPhoto
       ? `3. A fotografia principal → utilize a segunda imagem fornecida (fotografia real da cidade de ${city}/${state}), aplicada no mesmo enquadramento, mesmo recorte e mesmo tratamento visual da foto original.`
-      : `3. A fotografia principal → substitua por uma imagem representativa e realista da cidade de ${city}/${state} (cartão-postal, monumento, igreja, praça, lago, paisagem ou skyline), no mesmo enquadramento e tratamento visual da foto original.`}
+      : `3. A fotografia principal → substitua por uma imagem representativa e realista da cidade de ${city}/${state} (cartão-postal, monumento, igreja, praça, lago, centro histórico, paisagem, ponto turístico ou skyline), no mesmo enquadramento e tratamento visual da foto original.`}
 
-NÃO altere mais nada. Nenhum outro texto, cor, fonte ou elemento pode mudar.
-O resultado final deve parecer o mesmo arquivo oficial, apenas com a cidade, a UF e a foto atualizadas.
+PROIBIDO: criar nova composição, reorganizar o layout, mover elementos, alterar identidade visual,
+tipografia, tamanhos, espaçamentos, alinhamentos, sombras, gradientes, logotipos, ícones ou
+elementos gráficos; criar novos slogans; criar ou substituir qualquer texto institucional.
+
+O resultado final deve ser indistinguível do arquivo oficial, exceto pela cidade, pela UF e pela foto.
 Saída: apenas a imagem final, sem bordas extras nem marcas d'água.`;
 }
 

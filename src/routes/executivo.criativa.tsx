@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Wand2, Loader2, Download, CloudUpload, Eye, Check, Lock } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Wand2, Loader2, Download, CloudUpload, Lock, Trash2, X, HardDrive } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
@@ -10,16 +10,16 @@ import {
   svgToDataUrl,
   svgToPngBase64,
   downloadBase64,
-  openBase64InNewTab,
   slugify,
 } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
 import {
   generateCreativeCopy,
   getCityPhoto,
-  saveCreativeArt,
   saveOfficialModel,
   getOfficialModel,
+  deleteOfficialModel,
+  checkDriveIntegration,
   generateOfficialArts,
   type CreativeCopyPair,
 } from "@/lib/creative.functions";
@@ -55,6 +55,9 @@ function CriativaPage() {
   const [logo, setLogo] = useState<string | null>(null);
   const [official, setOfficial] = useState<Record<CreativeModel, string> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<{ model: CreativeModel; src: string; file: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     const s = getSession();
@@ -82,37 +85,51 @@ function CriativaPage() {
     setError(null);
     setNotice(null);
     setBusy(true);
+    // Nova geração sempre substitui as artes anteriores.
+    setOfficial(null);
+    setCopy(null);
+    setZoom(null);
     const city = form.city.trim();
     const state = form.state.trim().toUpperCase();
     try {
-      // Caminho oficial: as duas peças nascem do Modelo Oficial aprovado.
-      const res = await generateOfficialArts({ data: { city, state } });
-      const map = {} as Record<CreativeModel, string>;
-      for (const art of res.arts) map[art.model] = art.base64;
-      setOfficial(map);
-      setCopy(null);
-      return;
-    } catch (err) {
-      setOfficial(null);
-      setNotice(
-        err instanceof Error
-          ? `${err.message} Exibindo as peças no padrão vetorial da marca.`
-          : "Não foi possível usar o Modelo Oficial agora. Exibindo o padrão vetorial da marca.",
-      );
-    }
-    try {
-      const [res, picture] = await Promise.all([
-        generateCreativeCopy({ data: { unit: unitName(form), city, state } }),
-        getCityPhoto({ data: { city, state } }).catch(() => ({ dataUrl: null })),
-      ]);
-      setPhoto(picture.dataUrl ?? null);
-      setCopy(res);
-    } catch {
-      setError("Não foi possível gerar as artes agora. Tente novamente em instantes.");
+      try {
+        // Caminho oficial: as duas peças nascem do Modelo Oficial aprovado.
+        const res = await generateOfficialArts({ data: { city, state } });
+        const map = {} as Record<CreativeModel, string>;
+        for (const art of res.arts) map[art.model] = art.base64;
+        setOfficial(map);
+        return;
+      } catch (err) {
+        setNotice(
+          err instanceof Error
+            ? `${err.message} Exibindo as peças no padrão vetorial da marca.`
+            : "Não foi possível usar o Modelo Oficial agora. Exibindo o padrão vetorial da marca.",
+        );
+      }
+      try {
+        const [res, picture] = await Promise.all([
+          generateCreativeCopy({ data: { unit: unitName(form), city, state } }),
+          getCityPhoto({ data: { city, state } }).catch(() => ({ dataUrl: null })),
+        ]);
+        setPhoto(picture.dataUrl ?? null);
+        setCopy(res);
+      } catch {
+        setError("Não foi possível gerar as artes agora. Tente novamente em instantes.");
+      }
     } finally {
       setBusy(false);
     }
   }
+
+  /** Ao remover o Modelo Oficial a tela volta ao estado inicial. */
+  const resetArts = useCallback(() => {
+    setOfficial(null);
+    setCopy(null);
+    setPhoto(null);
+    setZoom(null);
+    setNotice(null);
+    setError(null);
+  }, []);
 
   if (!session) return null;
 
@@ -127,7 +144,8 @@ function CriativaPage() {
             busy={busy}
             error={error}
           />
-          <OfficialModelUpload />
+          <OfficialModelUpload onRemoved={resetArts} />
+          <DriveDiagnostics />
         </aside>
 
         <section className="space-y-5">
@@ -148,6 +166,7 @@ function CriativaPage() {
                   unit={unitName(form)}
                   city={form.city}
                   state={form.state}
+                  onOpen={setZoom}
                 />
               ))}
             </div>
@@ -161,6 +180,7 @@ function CriativaPage() {
                 unit={unitName(form)}
                 city={form.city}
                 state={form.state}
+                onOpen={setZoom}
               />
               <ArtCard
                 model="marketing"
@@ -170,6 +190,7 @@ function CriativaPage() {
                 unit={unitName(form)}
                 city={form.city}
                 state={form.state}
+                onOpen={setZoom}
               />
             </div>
           ) : (
@@ -184,6 +205,7 @@ function CriativaPage() {
           )}
         </section>
       </div>
+      {zoom ? <ArtModal art={zoom} onClose={() => setZoom(null)} /> : null}
     </ExecutiveShell>
   );
 }
@@ -264,8 +286,9 @@ function guessMime(name: string, type: string): string {
  * MODELO OFICIAL — arquivo único e imutável de referência. Um novo envio
  * substitui automaticamente o anterior; não há versões nem histórico.
  */
-function OfficialModelUpload() {
+function OfficialModelUpload({ onRemoved }: { onRemoved: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [current, setCurrent] = useState<{
     fileName: string;
@@ -314,6 +337,23 @@ function OfficialModelUpload() {
     }
   }
 
+  /** Remoção total: arquivo, cache e artes geradas. */
+  async function remove() {
+    if (removing) return;
+    setRemoving(true);
+    setStatus(null);
+    try {
+      await deleteOfficialModel({ data: undefined });
+      setCurrent(null);
+      onRemoved();
+      setStatus("Modelo Oficial removido. A tela voltou ao estado inicial.");
+    } catch {
+      setStatus("Não foi possível remover o Modelo Oficial agora. Tente novamente.");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6 space-y-3">
       <div className="flex items-center gap-2">
@@ -346,15 +386,83 @@ function OfficialModelUpload() {
         <p className="text-[11px] text-[color:var(--muted-foreground)]">{status}</p>
       ) : null}
       {current ? (
-        <p className="text-[11px] text-[color:var(--muted-foreground)]">
-          Modelo salvo: <strong>{current.fileName}</strong> ·{" "}
-          {new Date(current.uploadedAt).toLocaleString("pt-BR")}
-        </p>
+        <div className="space-y-2">
+          <p className="text-[11px] text-[color:var(--muted-foreground)]">
+            ✓ Modelo Oficial carregado: <strong>{current.fileName}</strong> ·{" "}
+            {new Date(current.uploadedAt).toLocaleString("pt-BR")}
+          </p>
+          <button
+            type="button"
+            onClick={() => void remove()}
+            disabled={removing}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--destructive)] hover:border-[color:var(--destructive)]/50 disabled:opacity-60 transition"
+          >
+            {removing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            Remover Modelo Oficial
+          </button>
+        </div>
       ) : (
         <p className="text-[11px] text-[color:var(--muted-foreground)]">
           Nenhum Modelo Oficial salvo até o momento.
         </p>
       )}
+    </section>
+  );
+}
+
+/** Validação da pasta corporativa do Drive — acesso, gravação e leitura. */
+function DriveDiagnostics() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function run() {
+    if (busy) return;
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await checkDriveIntegration({ data: undefined });
+      setResult({ ok: res.ok, message: res.message });
+    } catch (err) {
+      setResult({
+        ok: false,
+        message:
+          err instanceof Error ? err.message : "Falha ao validar a integração com o Drive.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6 space-y-3">
+      <div className="flex items-center gap-2">
+        <HardDrive className="h-4 w-4 text-[color:var(--gold)]" />
+        <h3 className="font-display text-base">Pasta corporativa</h3>
+      </div>
+      <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
+        Verifica acesso, gravação e leitura na pasta oficial do Drive.
+      </p>
+      <button
+        type="button"
+        onClick={() => void run()}
+        disabled={busy}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-2 text-xs text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/50 hover:text-[color:var(--foreground)] disabled:opacity-60 transition"
+      >
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+        {busy ? "Validando integração…" : "Validar integração"}
+      </button>
+      {result ? (
+        <p
+          className={`text-[11px] leading-relaxed ${result.ok ? "text-[color:var(--gold)]" : "text-[color:var(--muted-foreground)]"}`}
+        >
+          {result.ok ? "✓ " : "• "}
+          {result.message}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -368,6 +476,7 @@ function ArtCard({
   unit,
   city,
   state,
+  onOpen,
 }: {
   model: CreativeModel;
   svg?: string;
@@ -377,9 +486,8 @@ function ArtCard({
   unit: string;
   city: string;
   state: string;
+  onOpen: (art: { model: CreativeModel; src: string; file: string }) => void;
 }) {
-  const [saving, setSaving] = useState(true);
-  const [saved, setSaved] = useState(false);
   const preview = useMemo(
     () => (png ? `data:image/png;base64,${png}` : svgToDataUrl(svg ?? "")),
     [png, svg],
@@ -390,54 +498,32 @@ function ArtCard({
     return png ?? (await svgToPngBase64(svg ?? ""));
   }
 
-  async function download() {
-    downloadBase64(await toPng(), fileName);
-  }
-
-  async function view() {
-    openBase64InNewTab(await toPng());
-  }
-
-  /** Arquivamento automático na pasta corporativa — sem qualquer ação. */
+  /** Registro interno da peça — sem download nem abertura automática. */
   useEffect(() => {
-    let alive = true;
-    setSaving(true);
-    setSaved(false);
-    void (async () => {
-      let driveLink: string | null = null;
-      try {
-        const data = await toPng();
-        const res = await saveCreativeArt({
-          data: { name: fileName, contentBase64: data, mimeType: "image/png" },
-        });
-        driveLink = res.webViewLink ?? null;
-        if (alive) setSaved(true);
-      } catch {
-        /* a peça continua disponível para visualizar e baixar */
-      }
-      recordCreative({
-        userId: session.userId,
-        category: "unidade",
-        model,
-        unit,
-        city,
-        state,
-        fileName,
-        driveLink,
-      });
-      if (alive) setSaving(false);
-    })();
-    return () => {
-      alive = false;
-    };
+    recordCreative({
+      userId: session.userId,
+      category: "unidade",
+      model,
+      unit,
+      city,
+      state,
+      fileName,
+      driveLink: null,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svg, png, fileName]);
 
-  const action =
-    "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/50 transition";
-
   return (
-    <article className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 overflow-hidden flex flex-col">
+    <button
+      type="button"
+      onClick={() =>
+        void (async () => {
+          const data = await toPng();
+          onOpen({ model, src: `data:image/png;base64,${data}`, file: fileName });
+        })()
+      }
+      className="text-left rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 overflow-hidden flex flex-col hover:border-[color:var(--gold)]/60 transition"
+    >
       <header className="border-b border-[color:var(--border)] px-5 py-3">
         <h3 className="font-display text-base">{CREATIVE_MODEL_LABEL[model]}</h3>
       </header>
@@ -449,21 +535,76 @@ function ArtCard({
           loading="lazy"
         />
       </div>
-      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--border)] px-5 py-3">
-        <button type="button" onClick={() => void view()} className={action}>
-          <Eye className="h-3.5 w-3.5" /> Visualizar
-        </button>
-        <button type="button" onClick={() => void download()} className={action}>
-          <Download className="h-3.5 w-3.5" /> Download
-        </button>
-        <span className="inline-flex items-center gap-1.5 text-xs text-[color:var(--muted-foreground)]">
-          {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : saved ? (
-            <Check className="h-3.5 w-3.5 text-[color:var(--gold)]" />
-          ) : null}
-        </span>
+      <footer className="mt-auto border-t border-[color:var(--border)] px-5 py-3 text-xs text-[color:var(--muted-foreground)]">
+        Clique para ampliar
       </footer>
-    </article>
+    </button>
+  );
+}
+
+/** Visualização ampliada na própria página — download apenas manual. */
+function ArtModal({
+  art,
+  onClose,
+}: {
+  art: { model: CreativeModel; src: string; file: string };
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={CREATIVE_MODEL_LABEL[art.model]}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-full w-full max-w-3xl overflow-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between border-b border-[color:var(--border)] px-5 py-3">
+          <h3 className="font-display text-base">{CREATIVE_MODEL_LABEL[art.model]}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="rounded-full p-1.5 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+        <div className="p-5">
+          <img
+            src={art.src}
+            alt={`Arte ampliada — ${CREATIVE_MODEL_LABEL[art.model]}`}
+            className="w-full rounded-xl border border-[color:var(--border)]"
+          />
+        </div>
+        <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[color:var(--border)] px-5 py-3">
+          <button
+            type="button"
+            onClick={() => downloadBase64(art.src.split(",")[1] ?? "", art.file)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-4 py-2 text-xs hover:border-[color:var(--gold)] transition"
+          >
+            <Download className="h-3.5 w-3.5" /> Download
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-4 py-2 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition"
+          >
+            <X className="h-3.5 w-3.5" /> Fechar
+          </button>
+        </footer>
+      </div>
+    </div>
   );
 }
