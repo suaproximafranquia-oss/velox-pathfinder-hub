@@ -66,6 +66,7 @@ const TABS: { key: TabKey; label: string }[] = [
 
 const ORIGIN_LABEL: Record<string, string> = {
   green_sales: "Green Sales",
+  redistribuicao: "Redistribuição",
   portal: "Portal Velox",
   manual: "Manual do Investidor",
 };
@@ -355,6 +356,7 @@ function TabGeral({
         onChange={(v) => set({ scope: v as LeadFicha["scope"] })}
         options={[
           { value: "green_sales", label: ORIGIN_LABEL.green_sales },
+          { value: "redistribuicao", label: ORIGIN_LABEL.redistribuicao },
           { value: "portal", label: ORIGIN_LABEL.portal },
         ]}
       />
