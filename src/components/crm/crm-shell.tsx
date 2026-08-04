@@ -36,9 +36,9 @@ export function CrmShell({
     () =>
       ({
         ...crmCssVars(branding),
-        // Pacote visual completo do tema: o papel de parede oficial é
-        // aplicado junto das cores, nunca isoladamente.
-        "--crm-wallpaper": `url("${theme.thumbnail}")`,
+        // O tema aplica somente características visuais (cores, bordas,
+        // sombras, textura). A imagem do card é preview de galeria e
+        // NUNCA é renderizada sobre a área operacional do CRM.
         fontFamily:
           'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
       }) as React.CSSProperties,
