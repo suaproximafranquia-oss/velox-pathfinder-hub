@@ -704,29 +704,54 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   Iniciar Relacionamento
                 </button>
               ) : null}
-              {/* Arquivamento do relacionamento Portal: nada é apagado —
-                  tudo migra para a aba Portal da Central de Backup. */}
-              {!journeyOnly && privateOk && selected.workspaceLabel === "Portal" ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    archiveRelationship({
-                      investorId: selected.id,
-                      investorName: selected.name,
-                      actorId: actor.userId,
-                      actorName: session.name,
-                      actorRole: session.activeRole,
-                      ownerId: selected.ownerId,
-                      origin: selected.originLabel,
-                    });
-                    setSelectedId(null);
-                    setTick((v) => v + 1);
-                  }}
-                  className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--crm-muted)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
-                >
-                  <Archive className="h-3.5 w-3.5" />
-                  Arquivar conversa
-                </button>
+              {/* Arquivar/Desarquivar — comportamento idêntico em Green
+                  Sales, Redistribuição e Portal. Um clique, sem motivo:
+                  nada é apagado e o histórico continua exatamente do
+                  ponto em que a conversa foi arquivada. */}
+              {privateOk ? (
+                selected.archived ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      restoreRelationship({
+                        investorId: selected.id,
+                        investorName: selected.name,
+                        actorId: actor.userId,
+                        actorName: session.name,
+                        actorRole: session.activeRole,
+                        ownerId: selected.ownerId,
+                        origin: selected.originLabel,
+                      });
+                      setShowArchived(false);
+                      setTick((v) => v + 1);
+                    }}
+                    className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 active:translate-y-0"
+                  >
+                    <ArchiveRestore className="h-3.5 w-3.5" />
+                    Desarquivar conversa
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      archiveRelationship({
+                        investorId: selected.id,
+                        investorName: selected.name,
+                        actorId: actor.userId,
+                        actorName: session.name,
+                        actorRole: session.activeRole,
+                        ownerId: selected.ownerId,
+                        origin: selected.originLabel,
+                      });
+                      setSelectedId(null);
+                      setTick((v) => v + 1);
+                    }}
+                    className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--crm-muted)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                    Arquivar conversa
+                  </button>
+                )
               ) : null}
               {/* DEF 2.4.9 §1 — a redistribuição existe apenas enquanto NÃO
                   houver Executivo responsável. Relacionamento já iniciado
