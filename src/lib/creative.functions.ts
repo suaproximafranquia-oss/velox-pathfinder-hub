@@ -43,16 +43,7 @@ export const getCityPhoto = createServerFn({ method: "POST" })
     return findCityPhoto(data.city, data.state);
   });
 
-export type OfficialArt = { model: "institucional" | "marketing"; base64: string };
-
-/** Chave determinística: mesmo Modelo Oficial + cidade + UF => mesma arte. */
-function cacheKey(modelVersion: string, city: string, state: string): string {
-  return [
-    modelVersion,
-    city.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
-    state.trim().toUpperCase(),
-  ].join("|");
-}
+export type OfficialArt = { model: "institucional"; base64: string };
 
 async function loadOfficialRow(supabase: {
   from: (t: string) => any;
