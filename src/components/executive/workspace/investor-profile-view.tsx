@@ -48,7 +48,6 @@ import { cn } from "@/lib/utils";
 type TabKey =
   | "geral"
   | "jornada"
-  | "timeline"
   | "reunioes"
   | "comentarios"
   | "ia"
@@ -57,7 +56,6 @@ type TabKey =
 const TABS: { key: TabKey; label: string }[] = [
   { key: "geral", label: "Geral" },
   { key: "jornada", label: "Jornada" },
-  { key: "timeline", label: "Linha do Tempo" },
   { key: "reunioes", label: "Reuniões" },
   { key: "comentarios", label: "Notas do Executivo" },
   { key: "ia", label: "IA Corporativa" },
@@ -198,8 +196,18 @@ export function InvestorProfileView({
 
       <section className="mt-6">
         {tab === "geral" && <TabGeral investor={investor} session={session} />}
-        {tab === "jornada" && <TabJornada investor={investor} />}
-        {tab === "timeline" && <TabTimeline profile={profile} />}
+        {/* Jornada consolidada: módulos + histórico cronológico em uma única aba. */}
+        {tab === "jornada" && (
+          <div className="space-y-6">
+            <TabJornada investor={investor} />
+            <div>
+              <p className="mb-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+                Histórico da jornada
+              </p>
+              <TabTimeline profile={profile} />
+            </div>
+          </div>
+        )}
         {tab === "reunioes" && (
           <TabReunioes profile={profile} onNewMeeting={openNewMeeting} tick={tick} />
         )}
