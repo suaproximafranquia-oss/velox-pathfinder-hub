@@ -57,8 +57,15 @@ import {
   CrmEphemeralHeader,
   CrmEphemeralThread,
   CrmEphemeralComposer,
-  type EphemeralMessage,
+  CrmTempChatItem,
 } from "@/components/crm/crm-ephemeral-chat";
+import {
+  listTempChats,
+  createTempChat,
+  appendTempMessage,
+  removeTempChat,
+  getTempChat,
+} from "@/lib/crm/temp-chats";
 import { sendWhatsappText } from "@/lib/whatsapp.functions";
 import { createCrmLead } from "@/lib/crm/lead-intake";
 import { withSignature } from "@/lib/crm/signature";
@@ -145,13 +152,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
   /**
-   * Conversa avulsa (Nova Conversa › Conversar): existe apenas em memória.
-   * Encerrada a conversa, nada permanece cadastrado.
+   * Conversa temporária (Nova Conversa › Conversar): aparece na lista
+   * lateral, mas não cria Lead, Jornada, Portal, Histórico ou Backup.
    */
-  const [ephemeral, setEphemeral] = useState<{
-    phone: string;
-    messages: EphemeralMessage[];
-  } | null>(null);
+  const [tempId, setTempId] = useState<string | null>(null);
+  const [tempTick, setTempTick] = useState(0);
   // Arquivar é organização pessoal: a lista alterna entre ativas e
   // arquivadas, sem qualquer justificativa do Executivo.
   const [showArchived, setShowArchived] = useState(false);
