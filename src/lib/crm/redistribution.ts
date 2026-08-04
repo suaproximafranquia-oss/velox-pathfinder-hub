@@ -339,7 +339,7 @@ export function listRedistributedLeads(): Array<{
       phone: l.whatsapp ?? "",
       ownerId: l.responsibleExecutiveId,
       ownerName: nameById.get(l.responsibleExecutiveId ?? "") ?? "—",
-      at: l.lastActivityAt ?? l.createdAt ?? new Date().toISOString(),
+      at: l.createdAt,
     }))
     .sort((a, b) => (a.at < b.at ? 1 : -1));
 }
