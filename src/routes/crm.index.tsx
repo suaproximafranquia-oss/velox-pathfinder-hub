@@ -915,6 +915,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         />
       ) : null}
 
+      {newChatOpen ? <CrmNewChatDialog onClose={() => setNewChatOpen(false)} /> : null}
+
       {newLeadOpen ? (
         <CrmNewLeadDialog
           ownerId={actor.userId}
