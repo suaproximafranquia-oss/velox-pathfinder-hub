@@ -133,6 +133,7 @@ export type Database = {
           content_base64: string
           file_name: string
           id: string
+          layout: Json
           mime_type: string
           uploaded_at: string
           uploaded_by: string | null
@@ -141,6 +142,7 @@ export type Database = {
           content_base64: string
           file_name: string
           id?: string
+          layout?: Json
           mime_type: string
           uploaded_at?: string
           uploaded_by?: string | null
@@ -149,6 +151,7 @@ export type Database = {
           content_base64?: string
           file_name?: string
           id?: string
+          layout?: Json
           mime_type?: string
           uploaded_at?: string
           uploaded_by?: string | null

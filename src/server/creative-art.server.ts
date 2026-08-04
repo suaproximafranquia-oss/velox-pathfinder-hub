@@ -1,18 +1,13 @@
 /**
- * IA Criativa — geração das artes oficiais a partir do MODELO OFICIAL.
- * SERVER ONLY.
+ * MODELO B (MARKETING) — releitura criativa por IA. SERVER ONLY.
  *
- * Modelo A (Institucional): reprodução fiel do modelo enviado pelo
- * administrador — apenas cidade, UF e a fotografia principal mudam.
- * Modelo B (Marketing): releitura criativa inspirada no mesmo material,
- * preservando a identidade visual da Velox.
+ * O Modelo A NÃO passa por aqui: ele é uma edição automatizada do arquivo
+ * oficial, feita sem IA generativa (ver src/lib/creative/compose.ts).
  */
-import { findCityPhoto } from "./creative-photo.server";
+import { resolveCityPhoto } from "./creative-photo.server";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/images/generations";
 const MODEL = "google/gemini-3-pro-image";
-
-export type GeneratedArt = { model: "institucional" | "marketing"; base64: string };
 
 type ContentPart =
   | { type: "text"; text: string }
@@ -26,14 +21,14 @@ async function generate(parts: ContentPart[], key: string): Promise<string> {
       model: MODEL,
       messages: [{ role: "user", content: parts }],
       modalities: ["image", "text"],
-      // Geração determinística: mesma entrada, mesmo resultado.
       temperature: 0,
       seed: 20240,
     }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    if (res.status === 429) throw new Error("Limite de uso da IA atingido. Tente novamente em instantes.");
+    if (res.status === 429)
+      throw new Error("Limite de uso da IA atingido. Tente novamente em instantes.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados no workspace.");
     throw new Error(`Falha ao gerar a arte (${res.status}). ${detail.slice(0, 200)}`);
   }
@@ -41,30 +36,6 @@ async function generate(parts: ContentPart[], key: string): Promise<string> {
   const b64 = json.data?.[0]?.b64_json;
   if (!b64) throw new Error("A IA não devolveu imagem para esta peça.");
   return b64;
-}
-
-function institutionalPrompt(city: string, state: string, hasPhoto: boolean): string {
-  return `TAREFA: EDIÇÃO DE IMAGEM. Você NÃO está criando uma nova arte.
-A primeira imagem é a ARTE OFICIAL da franquia Velox. Devolva EXATAMENTE ESSE MESMO ARQUIVO,
-pixel a pixel, na mesma resolução e proporção, com apenas as substituições pontuais listadas abaixo.
-
-Trate a imagem como um arquivo editável: mantenha intactos composição, layout, posição de cada
-elemento, tipografia, tamanhos, espaçamentos, alinhamentos, cores, gradientes, sombras, molduras,
-logotipos, ícones, elementos gráficos, slogans e todos os textos institucionais existentes.
-
-ALTERE SOMENTE:
-1. Todos os locais onde aparece o nome da cidade → "${city}".
-2. Todos os locais onde aparece o estado/UF → "${state}".
-${hasPhoto
-      ? `3. A fotografia principal → utilize a segunda imagem fornecida (fotografia real da cidade de ${city}/${state}), aplicada no mesmo enquadramento, mesmo recorte e mesmo tratamento visual da foto original.`
-      : `3. A fotografia principal → substitua por uma imagem representativa e realista da cidade de ${city}/${state} (cartão-postal, monumento, igreja, praça, lago, centro histórico, paisagem, ponto turístico ou skyline), no mesmo enquadramento e tratamento visual da foto original.`}
-
-PROIBIDO: criar nova composição, reorganizar o layout, mover elementos, alterar identidade visual,
-tipografia, tamanhos, espaçamentos, alinhamentos, sombras, gradientes, logotipos, ícones ou
-elementos gráficos; criar novos slogans; criar ou substituir qualquer texto institucional.
-
-O resultado final deve ser indistinguível do arquivo oficial, exceto pela cidade, pela UF e pela foto.
-Saída: apenas a imagem final, sem bordas extras nem marcas d'água.`;
 }
 
 function marketingPrompt(city: string, state: string, hasPhoto: boolean): string {
@@ -88,42 +59,27 @@ Tom: profissional, humano, transparente e seguro. Nunca prometa enriquecimento o
 Mesma proporção da arte oficial. Saída: apenas a imagem final, sem marcas d'água.`;
 }
 
-export async function buildOfficialArts(input: {
+export async function buildMarketingArt(input: {
   city: string;
   state: string;
   officialDataUrl: string;
-}): Promise<{ arts: GeneratedArt[]; photoCredit: string | null }> {
+}): Promise<{ base64: string; photoCredit: string | null }> {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new Error("IA indisponível: chave de acesso não configurada.");
 
   const city = input.city.trim();
   const state = input.state.trim().toUpperCase();
 
-  const photo = await findCityPhoto(city, state).catch(() => ({
+  const photo = await resolveCityPhoto(city, state).catch(() => ({
     dataUrl: null,
     credit: null,
   }));
-  const hasPhoto = Boolean(photo.dataUrl);
 
-  const withImages = (text: string): ContentPart[] => {
-    const parts: ContentPart[] = [
-      { type: "text", text },
-      { type: "image_url", image_url: { url: input.officialDataUrl } },
-    ];
-    if (photo.dataUrl) parts.push({ type: "image_url", image_url: { url: photo.dataUrl } });
-    return parts;
-  };
+  const parts: ContentPart[] = [
+    { type: "text", text: marketingPrompt(city, state, Boolean(photo.dataUrl)) },
+    { type: "image_url", image_url: { url: input.officialDataUrl } },
+  ];
+  if (photo.dataUrl) parts.push({ type: "image_url", image_url: { url: photo.dataUrl } });
 
-  const [institucional, marketing] = await Promise.all([
-    generate(withImages(institutionalPrompt(city, state, hasPhoto)), key),
-    generate(withImages(marketingPrompt(city, state, hasPhoto)), key),
-  ]);
-
-  return {
-    arts: [
-      { model: "institucional", base64: institucional },
-      { model: "marketing", base64: marketing },
-    ],
-    photoCredit: photo.credit ?? null,
-  };
+  return { base64: await generate(parts, key), photoCredit: photo.credit ?? null };
 }

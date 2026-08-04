@@ -1,0 +1,84 @@
+/**
+ * MAPEAMENTO DO MODELO OFICIAL.
+ *
+ * O Modelo A (Institucional) não é gerado por IA: ele é uma EDIÇÃO
+ * automatizada do arquivo enviado pelo administrador. Para editar sem
+ * interpretar, o sistema precisa saber apenas onde ficam os campos
+ * variáveis — cidade, UF e fotografia principal. Nada além disso é tocado.
+ *
+ * Todas as coordenadas são frações (0 a 1) do arquivo original, de modo
+ * que o mapeamento vale para qualquer resolução do Modelo Oficial.
+ */
+
+export type Rect = { x: number; y: number; w: number; h: number };
+
+export type TextField = {
+  rect: Rect;
+  /** Cor do texto aplicado. */
+  color: string;
+  /** Cor usada para cobrir o texto antigo (vazio = não cobre). */
+  cover: string;
+  align: "left" | "center" | "right";
+  weight: number;
+  uppercase: boolean;
+  /** Espaçamento entre letras, em fração da altura do bloco. */
+  tracking: number;
+  /** Família tipográfica do arquivo oficial. */
+  font: string;
+};
+
+export type OfficialLayout = {
+  photo?: Rect;
+  city?: TextField;
+  state?: TextField;
+};
+
+export type LayoutFieldKey = "photo" | "city" | "state";
+
+export const FIELD_LABEL: Record<LayoutFieldKey, string> = {
+  photo: "Fotografia principal",
+  city: "Cidade",
+  state: "UF",
+};
+
+export function defaultTextField(rect: Rect): TextField {
+  return {
+    rect,
+    color: "#FFFFFF",
+    cover: "",
+    align: "center",
+    weight: 700,
+    uppercase: true,
+    tracking: 0,
+    font: "Inter, Helvetica, Arial, sans-serif",
+  };
+}
+
+export function isRect(value: unknown): value is Rect {
+  const r = value as Rect | undefined;
+  return (
+    !!r &&
+    [r.x, r.y, r.w, r.h].every((n) => typeof n === "number" && Number.isFinite(n)) &&
+    r.w > 0 &&
+    r.h > 0
+  );
+}
+
+/** Um Modelo A editável exige, no mínimo, o campo Cidade mapeado. */
+export function isLayoutReady(layout: OfficialLayout | null | undefined): boolean {
+  return Boolean(layout && (isRect(layout.city?.rect) || isRect(layout.photo)));
+}
+
+export function parseLayout(value: unknown): OfficialLayout {
+  if (!value || typeof value !== "object") return {};
+  const raw = value as OfficialLayout;
+  const out: OfficialLayout = {};
+  if (isRect(raw.photo)) out.photo = raw.photo;
+  for (const key of ["city", "state"] as const) {
+    const field = raw[key];
+    if (field && isRect(field.rect)) {
+      out[key] = { ...defaultTextField(field.rect), ...field, rect: field.rect };
+    }
+  }
+  return out;
+}
