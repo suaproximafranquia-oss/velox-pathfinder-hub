@@ -1,27 +1,39 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Wand2, Loader2, Download, CloudUpload, Lock, Trash2, X, HardDrive } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Wand2,
+  Loader2,
+  Download,
+  CloudUpload,
+  Lock,
+  Trash2,
+  X,
+  HardDrive,
+  Crop,
+} from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
-import { renderTemplate, type UnitBrief } from "@/lib/creative/templates";
-import {
-  officialLogoHref,
-  svgToDataUrl,
-  svgToPngBase64,
-  downloadBase64,
-  slugify,
-} from "@/lib/creative/render";
+import { svgToDataUrl, downloadBase64, slugify } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
+import { composeInstitutionalArt } from "@/lib/creative/compose";
 import {
-  generateCreativeCopy,
-  getCityPhoto,
+  defaultTextField,
+  isLayoutReady,
+  parseLayout,
+  FIELD_LABEL,
+  type LayoutFieldKey,
+  type OfficialLayout,
+  type Rect,
+} from "@/lib/creative/layout";
+import {
   saveOfficialModel,
   getOfficialModel,
   deleteOfficialModel,
   checkDriveIntegration,
-  generateOfficialArts,
-  type CreativeCopyPair,
+  getInstitutionalSource,
+  generateMarketingArt,
+  saveOfficialModelLayout,
 } from "@/lib/creative.functions";
 
 export const Route = createFileRoute("/executivo/criativa")({
@@ -50,11 +62,9 @@ function CriativaPage() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copy, setCopy] = useState<CreativeCopyPair | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [logo, setLogo] = useState<string | null>(null);
-  const [official, setOfficial] = useState<Record<CreativeModel, string> | null>(null);
+  const [arts, setArts] = useState<Partial<Record<CreativeModel, string>>>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [modelVersion, setModelVersion] = useState(0);
   const [zoom, setZoom] = useState<{ model: CreativeModel; src: string; file: string } | null>(
     null,
   );
@@ -63,18 +73,7 @@ function CriativaPage() {
     const s = getSession();
     if (!s) return void navigate({ to: "/executivo" });
     setSession(s);
-    void officialLogoHref().then(setLogo);
   }, [navigate]);
-
-  const arts = useMemo(() => {
-    if (!copy) return null;
-    const base = { unit: unitName(form), city: form.city, state: form.state, photo };
-    const build = (model: CreativeModel): { svg: string; brief: UnitBrief } => {
-      const brief: UnitBrief = { ...base, ...copy[model] };
-      return { svg: renderTemplate(model, brief, logo), brief };
-    };
-    return { institucional: build("institucional"), marketing: build("marketing") };
-  }, [copy, form, logo, photo]);
 
   async function generate() {
     if (busy) return;
@@ -86,56 +85,77 @@ function CriativaPage() {
     setNotice(null);
     setBusy(true);
     // Nova geração sempre substitui as artes anteriores.
-    setOfficial(null);
-    setCopy(null);
+    setArts({});
     setZoom(null);
     const city = form.city.trim();
     const state = form.state.trim().toUpperCase();
+    const problems: string[] = [];
     try {
-      try {
-        // Caminho oficial: as duas peças nascem do Modelo Oficial aprovado.
-        const res = await generateOfficialArts({ data: { city, state } });
-        const map = {} as Record<CreativeModel, string>;
-        for (const art of res.arts) map[art.model] = art.base64;
-        setOfficial(map);
-        return;
-      } catch (err) {
-        setNotice(
-          err instanceof Error
-            ? `${err.message} Exibindo as peças no padrão vetorial da marca.`
-            : "Não foi possível usar o Modelo Oficial agora. Exibindo o padrão vetorial da marca.",
+      const [institucional, marketing] = await Promise.allSettled([
+        // MODELO A — edição automatizada do arquivo oficial, sem IA generativa.
+        (async () => {
+          const source = await getInstitutionalSource({ data: { city, state } });
+          const layout = parseLayout(source.layout);
+          if (!isLayoutReady(layout)) {
+            throw new Error(
+              "Mapeie os campos variáveis do Modelo Oficial (cidade, UF e fotografia) para liberar o Modelo A.",
+            );
+          }
+          return composeInstitutionalArt({
+            officialDataUrl: source.officialDataUrl,
+            layout,
+            city,
+            state,
+            photoDataUrl: source.photoDataUrl,
+          });
+        })(),
+        // MODELO B — releitura criativa por IA.
+        generateMarketingArt({ data: { city, state } }).then((r) => r.base64),
+      ]);
+
+      const next: Partial<Record<CreativeModel, string>> = {};
+      if (institucional.status === "fulfilled") next.institucional = institucional.value;
+      else
+        problems.push(
+          institucional.reason instanceof Error
+            ? institucional.reason.message
+            : "Não foi possível editar o Modelo Oficial agora.",
         );
-      }
-      try {
-        const [res, picture] = await Promise.all([
-          generateCreativeCopy({ data: { unit: unitName(form), city, state } }),
-          getCityPhoto({ data: { city, state } }).catch(() => ({ dataUrl: null })),
-        ]);
-        setPhoto(picture.dataUrl ?? null);
-        setCopy(res);
-      } catch {
-        setError("Não foi possível gerar as artes agora. Tente novamente em instantes.");
-      }
+      if (marketing.status === "fulfilled") next.marketing = marketing.value;
+      else
+        problems.push(
+          marketing.reason instanceof Error
+            ? marketing.reason.message
+            : "Não foi possível gerar o Modelo B agora.",
+        );
+
+      setArts(next);
+      if (problems.length) setNotice(problems.join(" "));
+      if (!next.institucional && !next.marketing) setError(problems[0] ?? null);
     } finally {
       setBusy(false);
     }
   }
 
-  /** Ao remover o Modelo Oficial a tela volta ao estado inicial. */
+  /** Ao remover ou substituir o Modelo Oficial a tela volta ao estado inicial. */
   const resetArts = useCallback(() => {
-    setOfficial(null);
-    setCopy(null);
-    setPhoto(null);
+    setArts({});
     setZoom(null);
     setNotice(null);
     setError(null);
+    setModelVersion((v) => v + 1);
   }, []);
+
+  const models = useMemo(
+    () => (["institucional", "marketing"] as CreativeModel[]).filter((m) => arts[m]),
+    [arts],
+  );
 
   if (!session) return null;
 
   return (
     <ExecutiveShell session={session} title="IA Criativa">
-      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] items-start">
+      <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] items-start">
         <aside className="space-y-5">
           <NewUnitForm
             form={form}
@@ -144,7 +164,8 @@ function CriativaPage() {
             busy={busy}
             error={error}
           />
-          <OfficialModelUpload onRemoved={resetArts} />
+          <OfficialModelUpload onChanged={resetArts} />
+          <OfficialModelMapper key={modelVersion} />
           <DriveDiagnostics />
         </aside>
 
@@ -154,13 +175,13 @@ function CriativaPage() {
               {notice}
             </p>
           ) : null}
-          {official ? (
+          {models.length ? (
             <div className="grid gap-5 md:grid-cols-2">
-              {(["institucional", "marketing"] as CreativeModel[]).map((model) => (
+              {models.map((model) => (
                 <ArtCard
                   key={model}
                   model={model}
-                  png={official[model]}
+                  png={arts[model]!}
                   fileBase={`${slugify(unitName(form))}-${model}`}
                   session={session}
                   unit={unitName(form)}
@@ -170,36 +191,13 @@ function CriativaPage() {
                 />
               ))}
             </div>
-          ) : arts ? (
-            <div className="grid gap-5 md:grid-cols-2">
-              <ArtCard
-                model="institucional"
-                svg={arts.institucional.svg}
-                fileBase={`${slugify(unitName(form))}-institucional`}
-                session={session}
-                unit={unitName(form)}
-                city={form.city}
-                state={form.state}
-                onOpen={setZoom}
-              />
-              <ArtCard
-                model="marketing"
-                svg={arts.marketing.svg}
-                fileBase={`${slugify(unitName(form))}-marketing`}
-                session={session}
-                unit={unitName(form)}
-                city={form.city}
-                state={form.state}
-                onOpen={setZoom}
-              />
-            </div>
           ) : (
             <div className="rounded-3xl border border-dashed border-[color:var(--border)] bg-[color:var(--card)]/30 p-12 text-center">
               <p className="font-display text-xl">Nenhuma arte gerada ainda.</p>
               <p className="mx-auto mt-2 max-w-md text-sm text-[color:var(--muted-foreground)]">
-                Informe a cidade e a UF. As duas peças oficiais — Modelo A
-                (Institucional) e Modelo B (Marketing) — serão geradas a partir
-                do Modelo Oficial aprovado.
+                Informe a cidade e a UF. O Modelo A (Institucional) é o próprio
+                arquivo oficial editado — apenas cidade, UF e fotografia mudam.
+                O Modelo B (Marketing) é a releitura criativa da mesma peça.
               </p>
             </div>
           )}
@@ -286,7 +284,7 @@ function guessMime(name: string, type: string): string {
  * MODELO OFICIAL — arquivo único e imutável de referência. Um novo envio
  * substitui automaticamente o anterior; não há versões nem histórico.
  */
-function OfficialModelUpload({ onRemoved }: { onRemoved: () => void }) {
+function OfficialModelUpload({ onChanged }: { onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -329,7 +327,8 @@ function OfficialModelUpload({ onRemoved }: { onRemoved: () => void }) {
         },
       });
       setCurrent({ fileName: saved.fileName, uploadedAt: saved.uploadedAt });
-      setStatus("✔ Modelo Oficial carregado.");
+      onChanged();
+      setStatus("✔ Modelo Oficial carregado. Mapeie os campos variáveis abaixo.");
     } catch {
       setStatus("Não foi possível carregar o Modelo Oficial agora. Tente novamente.");
     } finally {
@@ -345,7 +344,7 @@ function OfficialModelUpload({ onRemoved }: { onRemoved: () => void }) {
     try {
       await deleteOfficialModel({ data: undefined });
       setCurrent(null);
-      onRemoved();
+      onChanged();
       setStatus("Modelo Oficial removido. A tela voltou ao estado inicial.");
     } catch {
       setStatus("Não foi possível remover o Modelo Oficial agora. Tente novamente.");
@@ -469,7 +468,6 @@ function DriveDiagnostics() {
 
 function ArtCard({
   model,
-  svg,
   png,
   fileBase,
   session,
@@ -479,8 +477,7 @@ function ArtCard({
   onOpen,
 }: {
   model: CreativeModel;
-  svg?: string;
-  png?: string;
+  png: string;
   fileBase: string;
   session: ExecutiveSession;
   unit: string;
@@ -488,15 +485,8 @@ function ArtCard({
   state: string;
   onOpen: (art: { model: CreativeModel; src: string; file: string }) => void;
 }) {
-  const preview = useMemo(
-    () => (png ? `data:image/png;base64,${png}` : svgToDataUrl(svg ?? "")),
-    [png, svg],
-  );
+  const preview = useMemo(() => `data:image/png;base64,${png}`, [png]);
   const fileName = `${fileBase}.png`;
-
-  async function toPng(): Promise<string> {
-    return png ?? (await svgToPngBase64(svg ?? ""));
-  }
 
   /** Registro interno da peça — sem download nem abertura automática. */
   useEffect(() => {
@@ -511,17 +501,12 @@ function ArtCard({
       driveLink: null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svg, png, fileName]);
+  }, [png, fileName]);
 
   return (
     <button
       type="button"
-      onClick={() =>
-        void (async () => {
-          const data = await toPng();
-          onOpen({ model, src: `data:image/png;base64,${data}`, file: fileName });
-        })()
-      }
+      onClick={() => onOpen({ model, src: preview, file: fileName })}
       className="text-left rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 overflow-hidden flex flex-col hover:border-[color:var(--gold)]/60 transition"
     >
       <header className="border-b border-[color:var(--border)] px-5 py-3">
