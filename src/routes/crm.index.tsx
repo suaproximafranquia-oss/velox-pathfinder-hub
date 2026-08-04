@@ -33,6 +33,7 @@ import {
   CalendarPlus,
   Handshake,
   Archive,
+  ArchiveRestore,
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
@@ -51,6 +52,8 @@ import {
   CrmNewLeadDialog,
   CrmRedistributeRow,
 } from "@/components/crm/crm-new-lead";
+import { CrmNewChatButton, CrmNewChatDialog } from "@/components/crm/crm-new-chat";
+import { withSignature } from "@/lib/crm/signature";
 import { redistributeLead, isPrivateLead } from "@/lib/crm/lead-intake";
 import {
   listIntakeLeads,
@@ -69,7 +72,11 @@ import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
-import { startRelationship, archiveRelationship } from "@/lib/crm/commercial";
+import {
+  startRelationship,
+  archiveRelationship,
+  restoreRelationship,
+} from "@/lib/crm/commercial";
 import { isPortalReleased, releasePortal } from "@/lib/crm/portal-release";
 import { isCrmSupervisor as isSupervisorRole } from "@/lib/crm/permissions";
 import { Unlock } from "lucide-react";
@@ -128,6 +135,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [openedIds, setOpenedIds] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  // Arquivar é organização pessoal: a lista alterna entre ativas e
+  // arquivadas, sem qualquer justificativa do Executivo.
+  const [showArchived, setShowArchived] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [messageTick, setMessageTick] = useState(0);
   const [startOpen, setStartOpen] = useState(false);
@@ -190,8 +201,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     [actor.userId, actor.role, actor.workspaceId, tick],
   );
   const visible = useMemo(
-    () => filterConversations(conversations, query),
-    [conversations, query],
+    () =>
+      filterConversations(
+        conversations.filter((c) => c.archived === showArchived),
+        query,
+      ),
+    [conversations, query, showArchived],
   );
 
   /**
@@ -353,7 +368,25 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         onQueryChange={isConversas ? setQuery : undefined}
         searchPlaceholder="Buscar investidor"
         action={
-          isConversas ? <CrmNewLeadButton onOpen={() => setNewLeadOpen(true)} /> : undefined
+          isConversas ? (
+            <>
+              <CrmNewLeadButton onOpen={() => setNewLeadOpen(true)} />
+              <CrmNewChatButton onOpen={() => setNewChatOpen(true)} />
+              <button
+                type="button"
+                onClick={() => setShowArchived((v) => !v)}
+                className={[
+                  "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-medium transition-colors",
+                  showArchived
+                    ? "border-[color:var(--crm-accent)] bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
+                    : "border-[color:var(--crm-border)] text-[color:var(--crm-muted)] hover:text-[color:var(--crm-accent)]",
+                ].join(" ")}
+              >
+                <Archive className="h-3.5 w-3.5" />
+                {showArchived ? "Ver ativas" : "Arquivadas"}
+              </button>
+            </>
+          ) : undefined
         }
       >
         {isConversas ? (
@@ -372,11 +405,19 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             </div>
           ) : (
             <CrmPlaceholder
-              label={query ? "Nenhum investidor encontrado" : "Nenhum investidor no Workspace"}
+              label={
+                query
+                  ? "Nenhum investidor encontrado"
+                  : showArchived
+                    ? "Nenhuma conversa arquivada"
+                    : "Nenhum investidor no Workspace"
+              }
               hint={
                 query
                   ? "Ajuste a busca para localizar o investidor desejado."
-                  : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
+                  : showArchived
+                    ? "Conversas arquivadas ficam guardadas aqui com todo o histórico preservado."
+                    : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
               }
             />
           )
@@ -468,10 +509,16 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   : "Conversa disponível apenas ao Executivo responsável"
               }
               onSend={(text, viaTemplate) => {
+                // Assinatura automática do Executivo — nunca digitada.
+                const body = withSignature(text, {
+                  investorId: selected.id,
+                  userId: actor.userId,
+                  userName: session.name,
+                });
                 appendCrmMessage({
                   investorId: selected.id,
                   direction: "enviada",
-                  body: text,
+                  body,
                   authorId: actor.userId,
                 });
                 markOutboundMessage(selected.id);
@@ -657,29 +704,54 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   Iniciar Relacionamento
                 </button>
               ) : null}
-              {/* Arquivamento do relacionamento Portal: nada é apagado —
-                  tudo migra para a aba Portal da Central de Backup. */}
-              {!journeyOnly && privateOk && selected.workspaceLabel === "Portal" ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    archiveRelationship({
-                      investorId: selected.id,
-                      investorName: selected.name,
-                      actorId: actor.userId,
-                      actorName: session.name,
-                      actorRole: session.activeRole,
-                      ownerId: selected.ownerId,
-                      origin: selected.originLabel,
-                    });
-                    setSelectedId(null);
-                    setTick((v) => v + 1);
-                  }}
-                  className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--crm-muted)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
-                >
-                  <Archive className="h-3.5 w-3.5" />
-                  Arquivar conversa
-                </button>
+              {/* Arquivar/Desarquivar — comportamento idêntico em Green
+                  Sales, Redistribuição e Portal. Um clique, sem motivo:
+                  nada é apagado e o histórico continua exatamente do
+                  ponto em que a conversa foi arquivada. */}
+              {privateOk ? (
+                selected.archived ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      restoreRelationship({
+                        investorId: selected.id,
+                        investorName: selected.name,
+                        actorId: actor.userId,
+                        actorName: session.name,
+                        actorRole: session.activeRole,
+                        ownerId: selected.ownerId,
+                        origin: selected.originLabel,
+                      });
+                      setShowArchived(false);
+                      setTick((v) => v + 1);
+                    }}
+                    className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-2.5 py-1.5 text-[11px] font-medium text-white transition-all duration-150 hover:-translate-y-[1px] hover:opacity-90 active:translate-y-0"
+                  >
+                    <ArchiveRestore className="h-3.5 w-3.5" />
+                    Desarquivar conversa
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      archiveRelationship({
+                        investorId: selected.id,
+                        investorName: selected.name,
+                        actorId: actor.userId,
+                        actorName: session.name,
+                        actorRole: session.activeRole,
+                        ownerId: selected.ownerId,
+                        origin: selected.originLabel,
+                      });
+                      setSelectedId(null);
+                      setTick((v) => v + 1);
+                    }}
+                    className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--crm-muted)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                    Arquivar conversa
+                  </button>
+                )
               ) : null}
               {/* DEF 2.4.9 §1 — a redistribuição existe apenas enquanto NÃO
                   houver Executivo responsável. Relacionamento já iniciado
@@ -842,6 +914,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           }}
         />
       ) : null}
+
+      {newChatOpen ? <CrmNewChatDialog onClose={() => setNewChatOpen(false)} /> : null}
 
       {newLeadOpen ? (
         <CrmNewLeadDialog

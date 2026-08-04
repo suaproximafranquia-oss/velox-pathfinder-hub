@@ -3,6 +3,11 @@ import { Upload, Sparkles, UserPlus, X, Loader2, ClipboardPaste } from "lucide-r
 import { extractLeadFromImage } from "@/lib/crm/lead-import.functions";
 import { createCrmLead, type CrmLeadInput } from "@/lib/crm/lead-intake";
 import { nextRoundRobinOwner } from "@/lib/crm/round-robin";
+import {
+  matchExecutive,
+  officialExecutives,
+  type ExecutiveOption,
+} from "@/lib/crm/executive-match";
 
 /**
  * Novo Lead (DF 2.4.5) — duas formas permanentes de criação:
@@ -64,6 +69,11 @@ export function CrmNewLeadDialog({
   const [tab, setTab] = useState<"importador" | "manual">("importador");
   const [fields, setFields] = useState<CrmLeadInput>(EMPTY);
   const [executive, setExecutive] = useState("");
+  // Proprietário do Lead identificado no print — o usuário logado nunca
+  // define a propriedade, apenas executa a importação.
+  const [ownerFromOcr, setOwnerFromOcr] = useState<ExecutiveOption | null>(null);
+  const [ownerIssue, setOwnerIssue] = useState<string | null>(null);
+  const [ownerChoices, setOwnerChoices] = useState<ExecutiveOption[]>([]);
   const [reading, setReading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +103,19 @@ export function CrmNewLeadDialog({
         city: result.city,
       });
       setExecutive(result.executive);
+      const match = matchExecutive(result.executive);
+      if (match.confident) {
+        setOwnerFromOcr(match.executive);
+        setExecutive(match.executive.name);
+        setOwnerIssue(null);
+        setOwnerChoices([]);
+      } else {
+        setOwnerFromOcr(null);
+        setOwnerIssue(match.reason);
+        setOwnerChoices(
+          match.candidates.length > 0 ? match.candidates : officialExecutives(),
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível ler a imagem.");
     } finally {
@@ -128,7 +151,10 @@ export function CrmNewLeadDialog({
   }, [tab]);
 
   function submit() {
-    const lead = createCrmLead({ fields, source: tab, ownerId });
+    // Importação: o proprietário é sempre o Executivo da tabela oficial.
+    const resolvedOwner = tab === "importador" ? ownerFromOcr?.id : ownerId;
+    if (!resolvedOwner) return;
+    const lead = createCrmLead({ fields, source: tab, ownerId: resolvedOwner });
     onCreated(lead.name, lead.duplicated);
     onClose();
   }
@@ -136,7 +162,7 @@ export function CrmNewLeadDialog({
   const canSubmit =
     tab === "manual"
       ? fields.name.trim().length > 1
-      : Boolean(preview) && !reading;
+      : Boolean(preview) && !reading && Boolean(ownerFromOcr);
 
   return (
     <div
@@ -263,12 +289,43 @@ export function CrmNewLeadDialog({
                   <Field label="WhatsApp" value={fields.whatsapp} onChange={set("whatsapp")} />
                   <Field label="E-mail" value={fields.email} onChange={set("email")} />
                   <Field label="Cidade" value={fields.city} onChange={set("city")} />
-                  <Field
-                    label="Executivo responsável identificado"
-                    value={executive}
-                    onChange={setExecutive}
-                    placeholder="—"
-                  />
+                  <div>
+                    <span className="text-[11px] font-medium text-[color:var(--crm-muted)]">
+                      Executivo responsável identificado
+                    </span>
+                    {ownerFromOcr ? (
+                      <p className="mt-1 rounded-lg border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] px-3 py-2 text-sm">
+                        {ownerFromOcr.name}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="mt-1 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700">
+                          {ownerIssue ??
+                            "Não foi possível identificar o Executivo com segurança."}{" "}
+                          Selecione manualmente o Executivo responsável para concluir.
+                          {executive ? ` Texto lido: “${executive}”.` : ""}
+                        </p>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            const found = ownerChoices.find((c) => c.id === e.target.value);
+                            if (found) {
+                              setOwnerFromOcr(found);
+                              setExecutive(found.name);
+                            }
+                          }}
+                          className="mt-2 w-full cursor-pointer rounded-lg border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-3 py-2 text-sm outline-none focus:border-[color:var(--crm-accent)]"
+                        >
+                          <option value="">Selecionar Executivo responsável…</option>
+                          {ownerChoices.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
                 </div>
               ) : null}
             </>
