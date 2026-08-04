@@ -1027,8 +1027,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         <CrmNewChatDialog
           onClose={() => setNewChatOpen(false)}
           onConverse={(phone) => {
-            setEphemeral({ phone, messages: [] });
+            const chat = createTempChat(phone, actor.userId);
             setArea("conversas");
+            setTempTick((v) => v + 1);
+            setTempId(chat.id);
           }}
           onCreateLead={(lead) => {
             const created = createCrmLead({
@@ -1041,7 +1043,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               source: "manual",
               ownerId: actor.userId,
             });
-            setEphemeral(null);
+            setTempId(null);
             setSelectedId(created.id);
             setTick((v) => v + 1);
             void pullLeads()
