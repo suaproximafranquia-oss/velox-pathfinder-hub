@@ -972,32 +972,18 @@ body[data-shell="universo"] :focus-visible {
     100% 100%;
 }
 
-/* DEF 2.5.2 §2 — elementos geométricos discretos + marca d'água
- * institucional "Connect Hub" extremamente sutil, sem prejudicar
- * a leitura das mensagens. */
+/* Sistema de Temas — o papel de parede oficial do tema selecionado é a
+ * referência visual do CRM: o resultado final é exatamente o preview
+ * exibido na galeria. O conteúdo permanece contido no painel central. */
 .crm-chat-surface::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.55;
-  background-image:
-    radial-gradient(
-      circle at 14% 18%,
-      color-mix(in srgb, var(--crm-accent) 7%, transparent) 0 78px,
-      transparent 79px
-    ),
-    radial-gradient(
-      circle at 86% 72%,
-      color-mix(in srgb, var(--crm-accent) 6%, transparent) 0 120px,
-      transparent 121px
-    ),
-    linear-gradient(
-      135deg,
-      transparent 0 62%,
-      color-mix(in srgb, var(--crm-muted) 6%, transparent) 62% 63%,
-      transparent 63%
-    );
+  opacity: 0.4;
+  background-image: var(--crm-wallpaper, none);
+  background-size: cover;
+  background-position: center;
   background-repeat: no-repeat;
 }
 
