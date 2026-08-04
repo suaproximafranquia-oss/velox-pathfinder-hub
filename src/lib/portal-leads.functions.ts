@@ -56,6 +56,10 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     }
     // Revalidação do roteamento obrigatório: green_sales exige executivo.
     const scope = data.personalized && executiveId ? "green_sales" : "portal";
+    // O proprietário definido por uma transferência oficial nunca é
+    // apagado por uma sincronização posterior da jornada.
+    const preservedOwner =
+      scope === "green_sales" ? executiveId : (current?.responsible_executive_id ?? null);
     const { error } = await supabaseAdmin.from("portal_leads").upsert(
       {
         id: data.id,
@@ -67,7 +71,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         material: data.material ?? "",
         scope,
         personalized: Boolean(data.personalized && executiveId),
-        responsible_executive_id: scope === "green_sales" ? executiveId : null,
+        responsible_executive_id: preservedOwner,
         responsible_executive_slug:
           scope === "green_sales" ? (data.responsibleExecutiveSlug ?? null) : null,
         campaign: data.campaign ?? null,
