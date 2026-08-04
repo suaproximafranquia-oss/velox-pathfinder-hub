@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Wand2, Loader2, Download, CloudUpload, Eye, Check, Lock } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Wand2, Loader2, Download, CloudUpload, Lock, Trash2, X, HardDrive } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
@@ -10,16 +10,16 @@ import {
   svgToDataUrl,
   svgToPngBase64,
   downloadBase64,
-  openBase64InNewTab,
   slugify,
 } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
 import {
   generateCreativeCopy,
   getCityPhoto,
-  saveCreativeArt,
   saveOfficialModel,
   getOfficialModel,
+  deleteOfficialModel,
+  checkDriveIntegration,
   generateOfficialArts,
   type CreativeCopyPair,
 } from "@/lib/creative.functions";
@@ -55,6 +55,9 @@ function CriativaPage() {
   const [logo, setLogo] = useState<string | null>(null);
   const [official, setOfficial] = useState<Record<CreativeModel, string> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<{ model: CreativeModel; src: string; file: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     const s = getSession();
@@ -82,37 +85,51 @@ function CriativaPage() {
     setError(null);
     setNotice(null);
     setBusy(true);
+    // Nova geração sempre substitui as artes anteriores.
+    setOfficial(null);
+    setCopy(null);
+    setZoom(null);
     const city = form.city.trim();
     const state = form.state.trim().toUpperCase();
     try {
-      // Caminho oficial: as duas peças nascem do Modelo Oficial aprovado.
-      const res = await generateOfficialArts({ data: { city, state } });
-      const map = {} as Record<CreativeModel, string>;
-      for (const art of res.arts) map[art.model] = art.base64;
-      setOfficial(map);
-      setCopy(null);
-      return;
-    } catch (err) {
-      setOfficial(null);
-      setNotice(
-        err instanceof Error
-          ? `${err.message} Exibindo as peças no padrão vetorial da marca.`
-          : "Não foi possível usar o Modelo Oficial agora. Exibindo o padrão vetorial da marca.",
-      );
-    }
-    try {
-      const [res, picture] = await Promise.all([
-        generateCreativeCopy({ data: { unit: unitName(form), city, state } }),
-        getCityPhoto({ data: { city, state } }).catch(() => ({ dataUrl: null })),
-      ]);
-      setPhoto(picture.dataUrl ?? null);
-      setCopy(res);
-    } catch {
-      setError("Não foi possível gerar as artes agora. Tente novamente em instantes.");
+      try {
+        // Caminho oficial: as duas peças nascem do Modelo Oficial aprovado.
+        const res = await generateOfficialArts({ data: { city, state } });
+        const map = {} as Record<CreativeModel, string>;
+        for (const art of res.arts) map[art.model] = art.base64;
+        setOfficial(map);
+        return;
+      } catch (err) {
+        setNotice(
+          err instanceof Error
+            ? `${err.message} Exibindo as peças no padrão vetorial da marca.`
+            : "Não foi possível usar o Modelo Oficial agora. Exibindo o padrão vetorial da marca.",
+        );
+      }
+      try {
+        const [res, picture] = await Promise.all([
+          generateCreativeCopy({ data: { unit: unitName(form), city, state } }),
+          getCityPhoto({ data: { city, state } }).catch(() => ({ dataUrl: null })),
+        ]);
+        setPhoto(picture.dataUrl ?? null);
+        setCopy(res);
+      } catch {
+        setError("Não foi possível gerar as artes agora. Tente novamente em instantes.");
+      }
     } finally {
       setBusy(false);
     }
   }
+
+  /** Ao remover o Modelo Oficial a tela volta ao estado inicial. */
+  const resetArts = useCallback(() => {
+    setOfficial(null);
+    setCopy(null);
+    setPhoto(null);
+    setZoom(null);
+    setNotice(null);
+    setError(null);
+  }, []);
 
   if (!session) return null;
 
@@ -127,7 +144,8 @@ function CriativaPage() {
             busy={busy}
             error={error}
           />
-          <OfficialModelUpload />
+          <OfficialModelUpload onRemoved={resetArts} />
+          <DriveDiagnostics />
         </aside>
 
         <section className="space-y-5">
@@ -148,6 +166,7 @@ function CriativaPage() {
                   unit={unitName(form)}
                   city={form.city}
                   state={form.state}
+                  onOpen={setZoom}
                 />
               ))}
             </div>
@@ -161,6 +180,7 @@ function CriativaPage() {
                 unit={unitName(form)}
                 city={form.city}
                 state={form.state}
+                onOpen={setZoom}
               />
               <ArtCard
                 model="marketing"
@@ -170,6 +190,7 @@ function CriativaPage() {
                 unit={unitName(form)}
                 city={form.city}
                 state={form.state}
+                onOpen={setZoom}
               />
             </div>
           ) : (
@@ -184,6 +205,7 @@ function CriativaPage() {
           )}
         </section>
       </div>
+      {zoom ? <ArtModal art={zoom} onClose={() => setZoom(null)} /> : null}
     </ExecutiveShell>
   );
 }
