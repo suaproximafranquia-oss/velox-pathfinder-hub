@@ -405,11 +405,19 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             </div>
           ) : (
             <CrmPlaceholder
-              label={query ? "Nenhum investidor encontrado" : "Nenhum investidor no Workspace"}
+              label={
+                query
+                  ? "Nenhum investidor encontrado"
+                  : showArchived
+                    ? "Nenhuma conversa arquivada"
+                    : "Nenhum investidor no Workspace"
+              }
               hint={
                 query
                   ? "Ajuste a busca para localizar o investidor desejado."
-                  : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
+                  : showArchived
+                    ? "Conversas arquivadas ficam guardadas aqui com todo o histórico preservado."
+                    : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
               }
             />
           )
@@ -501,10 +509,16 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   : "Conversa disponível apenas ao Executivo responsável"
               }
               onSend={(text, viaTemplate) => {
+                // Assinatura automática do Executivo — nunca digitada.
+                const body = withSignature(text, {
+                  investorId: selected.id,
+                  userId: actor.userId,
+                  userName: session.name,
+                });
                 appendCrmMessage({
                   investorId: selected.id,
                   direction: "enviada",
-                  body: text,
+                  body,
                   authorId: actor.userId,
                 });
                 markOutboundMessage(selected.id);
