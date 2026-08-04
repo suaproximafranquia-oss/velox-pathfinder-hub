@@ -696,7 +696,7 @@ function OfficialModelMapper() {
             idêntico.
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {(["photo", "city", "state"] as LayoutFieldKey[]).map((key) => (
+            {LAYOUT_FIELD_KEYS.map((key) => (
               <button
                 key={key}
                 type="button"
@@ -725,7 +725,7 @@ function OfficialModelMapper() {
               className="pointer-events-none w-full"
               draggable={false}
             />
-            {(["photo", "city", "state"] as LayoutFieldKey[]).map((key) => {
+            {LAYOUT_FIELD_KEYS.map((key) => {
               const rect = key === "photo" ? layout.photo : layout[key]?.rect;
               if (!rect) return null;
               return (
