@@ -53,55 +53,106 @@ function cacheKey(modelVersion: string, city: string, state: string): string {
   ].join("|");
 }
 
+async function loadOfficialRow(supabase: {
+  from: (t: string) => any;
+}): Promise<{
+  mime_type: string;
+  content_base64: string;
+  file_name: string;
+  uploaded_at: string;
+  layout: unknown;
+}> {
+  const { data: row, error } = await supabase
+    .from("creative_official_model")
+    .select("mime_type, content_base64, file_name, uploaded_at, layout")
+    .eq("id", "official")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row) {
+    throw new Error(
+      "Nenhum Modelo Oficial foi enviado. Envie a arte oficial antes de gerar as peças.",
+    );
+  }
+  if (!String(row.mime_type).startsWith("image/")) {
+    throw new Error(
+      "O Modelo Oficial precisa ser uma imagem (PNG ou JPG) para ser editado.",
+    );
+  }
+  return row;
+}
+
 /**
- * Gera as DUAS artes oficiais a partir do Modelo Oficial enviado pelo
- * administrador — Modelo A (fiel) e Modelo B (criativo).
+ * MODELO A — insumos da EDIÇÃO automatizada.
  *
- * A geração é determinística: se a mesma combinação já foi produzida, o
- * resultado armazenado é reaproveitado em vez de gerar uma nova versão.
+ * Nenhuma arte é criada aqui: devolvemos o arquivo oficial original, o
+ * mapeamento dos campos variáveis e a fotografia da cidade. A montagem é
+ * uma edição determinística feita no navegador (src/lib/creative/compose.ts).
  */
-export const generateOfficialArts = createServerFn({ method: "POST" })
+export const getInstitutionalSource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { city: string; state: string }) => data)
-  .handler(async ({ data, context }): Promise<{ arts: OfficialArt[] }> => {
-    const { data: row, error } = await context.supabase
-      .from("creative_official_model")
-      .select("mime_type, content_base64, file_name, uploaded_at")
-      .eq("id", "official")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!row) {
-      throw new Error(
-        "Nenhum Modelo Oficial foi enviado. Envie a arte oficial antes de gerar as peças.",
-      );
-    }
-    if (!String(row.mime_type).startsWith("image/")) {
-      throw new Error(
-        "O Modelo Oficial precisa ser uma imagem (PNG ou JPG) para que a IA possa reproduzi-lo.",
-      );
-    }
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{
+      officialDataUrl: string;
+      layout: unknown;
+      photoDataUrl: string | null;
+      photoCredit: string | null;
+    }> => {
+      const row = await loadOfficialRow(context.supabase);
+      const { resolveCityPhoto } = await import("@/server/creative-photo.server");
+      const photo = await resolveCityPhoto(data.city, data.state).catch(() => ({
+        dataUrl: null,
+        credit: null,
+      }));
+      return {
+        officialDataUrl: `data:${row.mime_type};base64,${row.content_base64}`,
+        layout: row.layout ?? {},
+        photoDataUrl: photo.dataUrl,
+        photoCredit: photo.credit,
+      };
+    },
+  );
 
-    const key = cacheKey(
-      `${row.file_name}@${row.uploaded_at}`,
-      data.city,
-      data.state,
-    );
+/** Mapeamento dos campos variáveis do Modelo Oficial. */
+export const saveOfficialModelLayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { layout: unknown }) => data)
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("creative_official_model")
+      .update({ layout: (data.layout ?? {}) as never })
+      .eq("id", "official");
+    if (error) throw new Error(error.message);
+    // O mapeamento muda a peça: o cache derivado deixa de valer.
+    await supabaseAdmin.from("creative_art_cache").delete().neq("cache_key", "");
+    return { ok: true as const };
+  });
+
+/**
+ * MODELO B — releitura criativa por IA, inspirada no Modelo Oficial.
+ * Determinística por cache: mesma combinação, mesmo resultado.
+ */
+export const generateMarketingArt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { city: string; state: string }) => data)
+  .handler(async ({ data, context }): Promise<{ base64: string }> => {
+    const row = await loadOfficialRow(context.supabase);
+    const version = `${row.file_name}@${row.uploaded_at}`;
+    const key = cacheKey(version, data.city, data.state);
+
     const { data: cached } = await context.supabase
       .from("creative_art_cache")
-      .select("institucional_base64, marketing_base64")
+      .select("marketing_base64")
       .eq("cache_key", key)
       .maybeSingle();
-    if (cached) {
-      return {
-        arts: [
-          { model: "institucional", base64: cached.institucional_base64 },
-          { model: "marketing", base64: cached.marketing_base64 },
-        ],
-      };
-    }
+    if (cached?.marketing_base64) return { base64: cached.marketing_base64 };
 
-    const { buildOfficialArts } = await import("@/server/creative-art.server");
-    const result = await buildOfficialArts({
+    const { buildMarketingArt } = await import("@/server/creative-art.server");
+    const result = await buildMarketingArt({
       city: data.city,
       state: data.state,
       officialDataUrl: `data:${row.mime_type};base64,${row.content_base64}`,
@@ -114,11 +165,9 @@ export const generateOfficialArts = createServerFn({ method: "POST" })
           cache_key: key,
           city: data.city.trim(),
           state: data.state.trim().toUpperCase(),
-          model_version: `${row.file_name}@${row.uploaded_at}`,
-          institucional_base64:
-            result.arts.find((a) => a.model === "institucional")?.base64 ?? "",
-          marketing_base64:
-            result.arts.find((a) => a.model === "marketing")?.base64 ?? "",
+          model_version: version,
+          institucional_base64: "",
+          marketing_base64: result.base64,
         },
         { onConflict: "cache_key" },
       );
@@ -126,7 +175,7 @@ export const generateOfficialArts = createServerFn({ method: "POST" })
       /* o cache é otimização — a arte já está pronta para o usuário */
     }
 
-    return { arts: result.arts };
+    return { base64: result.base64 };
   });
 
 /** Arquiva automaticamente a arte gerada na pasta corporativa oficial. */
@@ -202,11 +251,12 @@ export const getOfficialModel = createServerFn({ method: "POST" })
       fileName: string;
       mimeType: string;
       uploadedAt: string;
+      layout: unknown;
       contentBase64?: string;
     } | null> => {
       const { data: row, error } = await context.supabase
         .from("creative_official_model")
-        .select("file_name, mime_type, uploaded_at, content_base64")
+        .select("file_name, mime_type, uploaded_at, content_base64, layout")
         .eq("id", "official")
         .maybeSingle();
       if (error) throw new Error(error.message);
@@ -215,6 +265,7 @@ export const getOfficialModel = createServerFn({ method: "POST" })
         fileName: row.file_name,
         mimeType: row.mime_type,
         uploadedAt: row.uploaded_at,
+        layout: row.layout ?? {},
         ...(data.withContent ? { contentBase64: row.content_base64 } : {}),
       };
     },
