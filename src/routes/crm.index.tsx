@@ -418,7 +418,20 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         }
       >
         {isConversas ? (
-          visible.length > 0 ? (
+          <>
+          {tempChats.length > 0 ? (
+            <div className="mb-1 space-y-0.5">
+              {tempChats.map((chat) => (
+                <CrmTempChatItem
+                  key={chat.id}
+                  chat={chat}
+                  active={tempId === chat.id}
+                  onSelect={() => setTempId(chat.id)}
+                />
+              ))}
+            </div>
+          ) : null}
+          {visible.length > 0 ? (
             <div className="space-y-0.5">
               {visible.map((item) => (
                 <CrmConversationItem
@@ -428,13 +441,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   unread={item.state === "novo" && !openedIds.includes(item.id)}
                   movement={movements[item.id]}
                   onSelect={() => {
-                    setEphemeral(null);
+                    setTempId(null);
                     setSelectedId(item.id);
                   }}
                 />
               ))}
             </div>
-          ) : (
+          ) : tempChats.length > 0 ? null : (
             <CrmPlaceholder
               label={
                 query
@@ -451,7 +464,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
               }
             />
-          )
+          )}
+          </>
         ) : isDistribuicao ? (
           intake.length > 0 ? (
             <div className="space-y-0.5">
