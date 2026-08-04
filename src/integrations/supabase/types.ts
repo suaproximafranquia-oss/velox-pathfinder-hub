@@ -44,6 +44,60 @@ export type Database = {
         }
         Relationships: []
       }
+      campaigns: {
+        Row: {
+          audience: string
+          created_at: string
+          created_by: string
+          created_by_name: string
+          failed_count: number
+          id: string
+          last_dispatch_at: string | null
+          name: string
+          objective: string
+          replied_count: number
+          scheduled_at: string | null
+          sent_count: number
+          status: string
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          failed_count?: number
+          id: string
+          last_dispatch_at?: string | null
+          name: string
+          objective?: string
+          replied_count?: number
+          scheduled_at?: string | null
+          sent_count?: number
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          failed_count?: number
+          id?: string
+          last_dispatch_at?: string | null
+          name?: string
+          objective?: string
+          replied_count?: number
+          scheduled_at?: string | null
+          sent_count?: number
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       creative_official_model: {
         Row: {
           content_base64: string
@@ -146,6 +200,90 @@ export type Database = {
           uploaded_by_user_id?: string
           visibility?: string
           workspace_id?: string
+        }
+        Relationships: []
+      }
+      meta_templates: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          created_by: string
+          id: string
+          language: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          category?: string
+          created_at?: string
+          created_by?: string
+          id: string
+          language?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          language?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      news_posts: {
+        Row: {
+          audience: string
+          author_id: string
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          image_url: string | null
+          published_at: string | null
+          status: string
+          summary: string
+          title: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          audience?: string
+          author_id?: string
+          author_name?: string
+          body?: string
+          created_at?: string
+          id: string
+          image_url?: string | null
+          published_at?: string | null
+          status?: string
+          summary?: string
+          title: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          audience?: string
+          author_id?: string
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          published_at?: string | null
+          status?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+          video_url?: string | null
         }
         Relationships: []
       }

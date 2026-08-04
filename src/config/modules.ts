@@ -22,6 +22,7 @@ import {
   Calendar,
   Sliders,
   Wand2,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import { Archive } from "lucide-react";
@@ -77,6 +78,15 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Indicadores executivos consolidados a partir dos módulos da plataforma.",
     icon: Brain,
     to: "/executivo/brain",
+    status: "ativo",
+  },
+  {
+    id: "comunicacao",
+    name: "Central de Comunicação",
+    description:
+      "Feed de Notícias, templates oficiais e campanhas de relacionamento.",
+    icon: Megaphone,
+    to: "/executivo/comunicacao",
     status: "ativo",
   },
   {
