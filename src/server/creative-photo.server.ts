@@ -88,3 +88,48 @@ export async function findCityPhoto(
   }
   return { dataUrl: null, credit: null };
 }
+
+/**
+ * Fotografia da cidade com fallback por IA.
+ *
+ * É o ÚNICO ponto em que o Modelo A pode usar IA: apenas para obter uma
+ * fotografia representativa quando não existe imagem real disponível.
+ */
+export async function resolveCityPhoto(
+  city: string,
+  state: string,
+): Promise<{ dataUrl: string | null; credit: string | null }> {
+  const real = await findCityPhoto(city, state).catch(() => ({
+    dataUrl: null,
+    credit: null,
+  }));
+  if (real.dataUrl) return real;
+
+  const key = process.env["LOVABLE_API_KEY"];
+  if (!key) return { dataUrl: null, credit: null };
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3-pro-image",
+        messages: [
+          {
+            role: "user",
+            content: `Fotografia realista e representativa da cidade de ${city} — ${state}, Brasil: cartão-postal, monumento, igreja matriz, praça, centro histórico ou skyline urbano. Luz natural de fim de tarde, sem texto, sem pessoas em primeiro plano, sem marca d'água.`,
+          },
+        ],
+        modalities: ["image", "text"],
+        temperature: 0,
+        seed: 20240,
+      }),
+    });
+    if (!res.ok) return { dataUrl: null, credit: null };
+    const json = (await res.json()) as { data?: { b64_json?: string }[] };
+    const b64 = json.data?.[0]?.b64_json;
+    if (!b64) return { dataUrl: null, credit: null };
+    return { dataUrl: `data:image/png;base64,${b64}`, credit: `${city} — ${state}` };
+  } catch {
+    return { dataUrl: null, credit: null };
+  }
+}
