@@ -9,6 +9,7 @@ import {
 } from "@/lib/executive-auth";
 import {
   listDocuments,
+  pullOfficialBase,
   retrievePassages,
   visibleDocuments,
 } from "@/lib/knowledge-base";
@@ -44,6 +45,7 @@ function IaPage() {
     if (!s) return void navigate({ to: "/executivo" });
     setSession(s);
     setBaseSize(listDocuments(s.workspaceId).length);
+    void pullOfficialBase(s.workspaceId).then((docs) => setBaseSize(docs.length));
   }, [navigate]);
 
   useEffect(() => {
@@ -66,7 +68,7 @@ function IaPage() {
     setMessages((m) => [...m, { role: "user", content: q }]);
     setBusy(true);
     try {
-      const allDocs = listDocuments(session!.workspaceId);
+      const allDocs = await pullOfficialBase(session!.workspaceId);
       const scoped = visibleDocuments(allDocs, audience);
       if (scoped.filter((d) => d.status === "ativo").length === 0) {
         setMessages((m) => [
