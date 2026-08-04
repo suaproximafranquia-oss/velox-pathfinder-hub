@@ -397,3 +397,67 @@ export function visibleDocuments(
   if (audience === "publico") return docs.filter((d) => d.visibility === "publico");
   return docs;
 }
+/* ================================================================== */
+/* BASE OFICIAL ÚNICA — sincronização com o backend (Bloco 3)          */
+/* ------------------------------------------------------------------ */
+/* O armazenamento local passa a ser apenas um cache de leitura rápida. */
+/* A fonte de verdade é o backend: o que o Administrador publica fica   */
+/* imediatamente disponível para toda a equipe e para a IA Corporativa. */
+/* ================================================================== */
+
+import {
+  deleteOfficialDocument,
+  listOfficialDocuments,
+  resetOfficialBase,
+  saveOfficialDocument,
+} from "@/lib/knowledge.functions";
+
+function replaceWorkspaceCache(workspaceId: string, docs: KnowledgeDocument[]) {
+  const others = readAll().filter((d) => d.workspaceId !== workspaceId);
+  writeAll([...others, ...docs]);
+}
+
+/** Baixa a Base Oficial do backend e atualiza o cache local. */
+export async function pullOfficialBase(
+  workspaceId: string,
+): Promise<KnowledgeDocument[]> {
+  try {
+    const res = await listOfficialDocuments({ data: { workspaceId } });
+    const docs = (res.documents ?? []) as KnowledgeDocument[];
+    replaceWorkspaceCache(workspaceId, docs);
+    return listDocuments(workspaceId);
+  } catch {
+    // Offline ou sessão expirada: mantém o cache local já disponível.
+    return listDocuments(workspaceId);
+  }
+}
+
+/** Publica (ou atualiza) um documento na Base Oficial compartilhada. */
+export async function publishDocument(
+  actorId: string,
+  doc: KnowledgeDocument,
+): Promise<void> {
+  const all = readAll();
+  const i = all.findIndex((d) => d.id === doc.id);
+  if (i < 0) all.push(doc);
+  else all[i] = doc;
+  writeAll(all);
+  await saveOfficialDocument({ data: { actorId, document: doc } });
+}
+
+/** Remove o documento da Base Oficial (backend + cache). */
+export async function removeOfficialDocument(actorId: string, id: string) {
+  removeDocument(id);
+  await deleteOfficialDocument({ data: { actorId, id } });
+}
+
+/** Reseta a Base Oficial do workspace (backend + cache). */
+export async function resetOfficialWorkspace(actorId: string, workspaceId: string) {
+  resetWorkspace(workspaceId);
+  await resetOfficialBase({ data: { actorId, workspaceId } });
+}
+
+/** Documento local pelo id (utilitário para republicar após indexação). */
+export function getDocument(id: string): KnowledgeDocument | null {
+  return readAll().find((d) => d.id === id) ?? null;
+}
