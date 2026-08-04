@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { parseLayout, type OfficialLayout } from "@/lib/creative/layout";
 
 export type CreativeCopyInput = {
   city: string;
@@ -97,7 +98,7 @@ export const getInstitutionalSource = createServerFn({ method: "POST" })
       context,
     }): Promise<{
       officialDataUrl: string;
-      layout: unknown;
+      layout: OfficialLayout;
       photoDataUrl: string | null;
       photoCredit: string | null;
     }> => {
@@ -109,7 +110,7 @@ export const getInstitutionalSource = createServerFn({ method: "POST" })
       }));
       return {
         officialDataUrl: `data:${row.mime_type};base64,${row.content_base64}`,
-        layout: row.layout ?? {},
+        layout: parseLayout(row.layout),
         photoDataUrl: photo.dataUrl,
         photoCredit: photo.credit,
       };
@@ -119,7 +120,7 @@ export const getInstitutionalSource = createServerFn({ method: "POST" })
 /** Mapeamento dos campos variáveis do Modelo Oficial. */
 export const saveOfficialModelLayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { layout: unknown }) => data)
+  .inputValidator((data: { layout: OfficialLayout }) => data)
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
@@ -251,7 +252,7 @@ export const getOfficialModel = createServerFn({ method: "POST" })
       fileName: string;
       mimeType: string;
       uploadedAt: string;
-      layout: unknown;
+      layout: OfficialLayout;
       contentBase64?: string;
     } | null> => {
       const { data: row, error } = await context.supabase
@@ -265,7 +266,7 @@ export const getOfficialModel = createServerFn({ method: "POST" })
         fileName: row.file_name,
         mimeType: row.mime_type,
         uploadedAt: row.uploaded_at,
-        layout: row.layout ?? {},
+        layout: parseLayout(row.layout),
         ...(data.withContent ? { contentBase64: row.content_base64 } : {}),
       };
     },
