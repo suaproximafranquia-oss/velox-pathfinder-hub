@@ -276,6 +276,39 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     [isConversas, actor.userId, tempTick],
   );
   const tempChat = tempId ? (tempChats.find((c) => c.id === tempId) ?? null) : null;
+
+  /**
+   * Transformar em Lead: aproveita integralmente a conversa temporária.
+   * O Lead nasce na carteira Redistribuição, com Jornada, Portal,
+   * Histórico e Backup oficiais, e nenhuma mensagem é perdida.
+   */
+  function convertTempChat(id: string) {
+    const chat = getTempChat(id);
+    if (!chat) return;
+    const created = createCrmLead({
+      fields: { name: chat.phone, whatsapp: chat.phone, email: "", city: "" },
+      source: "manual",
+      ownerId: actor.userId,
+    });
+    for (const m of chat.messages) {
+      appendCrmMessage({
+        investorId: created.id,
+        direction: m.direction,
+        body: m.body,
+        authorId: actor.userId,
+        at: m.at,
+      });
+    }
+    removeTempChat(id);
+    setTempId(null);
+    setTempTick((v) => v + 1);
+    setSelectedId(created.id);
+    setMessageTick((v) => v + 1);
+    setTick((v) => v + 1);
+    void pullLeads()
+      .then(() => setTick((v) => v + 1))
+      .catch(() => undefined);
+  }
   const isDistribuicao = area === "distribuicao";
   const isTemas = area === "temas";
   const canManageDistribution =
