@@ -123,6 +123,9 @@ export function createCrmLead(input: {
     return { ...existing, duplicated: true };
   }
 
+  // Cadastro manual dentro do CRM: o proprietário é o Executivo que
+  // cadastrou, mas a carteira oficial do registro é "Redistribuição".
+  const manual = input.source === "manual";
   const lead: LeadRecord = {
     id: `ld_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     name: orDash(input.fields.name),
@@ -133,13 +136,22 @@ export function createCrmLead(input: {
     material: SOURCE_LABEL[input.source],
     createdAt: now,
     responsibleExecutiveId: input.ownerId,
-    personalized: true,
-    scope: "green_sales",
+    personalized: !manual,
+    scope: manual ? "redistribuicao" : "green_sales",
   };
 
   replaceLeads([...loadLeads(), lead]);
   // Card imediato no Workspace do Executivo (base real).
   pushLead(lead, { lastActivityAt: now });
+  // A carteira "Redistribuição" precisa valer também na base oficial —
+  // a sincronização do Portal, sozinha, rebaixaria o registro.
+  if (manual && typeof window !== "undefined") {
+    void import("@/lib/portal-leads.functions")
+      .then((m) =>
+        m.redistributePortalLead({ data: { id: lead.id, executiveId: input.ownerId } }),
+      )
+      .catch(() => undefined);
+  }
 
   // Vínculo oficial: pertence a quem cadastrou.
   claimOwnership({
