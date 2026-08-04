@@ -268,13 +268,7 @@ function WorkspacePage() {
           {scopes.length > 1 && (
             <ScopeTabs items={scopes} current={scope} onChange={changeScope} />
           )}
-          {scope === "redistribuicao" &&
-            (session.activeRole === "super_admin" || session.activeRole === "diretora") && (
-              <RedistributionPanel
-                session={session}
-                onDone={() => setTick((t) => t + 1)}
-              />
-            )}
+          {scope === "redistribuicao" && <RedistributionPanel tick={tick} />}
           <WorkspaceHeader
             query={query}
             onQuery={setQuery}
