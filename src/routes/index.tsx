@@ -57,6 +57,7 @@ function sessionPhone(investorId: string | null | undefined): string {
   );
 }
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
+import { InvestorNewsFeed } from "@/components/portal/investor-news-feed";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
 import { setActiveOverlay } from "@/lib/portal-overlay";
@@ -341,6 +342,7 @@ function PortalHome() {
             openModule(mod.key);
           }}
         />
+        <InvestorNewsFeed />
       </main>
       <PortalFooter />
       <ModulePanel
