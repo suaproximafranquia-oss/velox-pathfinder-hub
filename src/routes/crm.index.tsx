@@ -53,6 +53,14 @@ import {
   CrmRedistributeRow,
 } from "@/components/crm/crm-new-lead";
 import { CrmNewChatButton, CrmNewChatDialog } from "@/components/crm/crm-new-chat";
+import {
+  CrmEphemeralHeader,
+  CrmEphemeralThread,
+  CrmEphemeralComposer,
+  type EphemeralMessage,
+} from "@/components/crm/crm-ephemeral-chat";
+import { sendWhatsappText } from "@/lib/whatsapp.functions";
+import { createCrmLead } from "@/lib/crm/lead-intake";
 import { withSignature } from "@/lib/crm/signature";
 import { redistributeLead, isPrivateLead } from "@/lib/crm/lead-intake";
 import {
@@ -136,6 +144,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  /**
+   * Conversa avulsa (Nova Conversa › Conversar): existe apenas em memória.
+   * Encerrada a conversa, nada permanece cadastrado.
+   */
+  const [ephemeral, setEphemeral] = useState<{
+    phone: string;
+    messages: EphemeralMessage[];
+  } | null>(null);
   // Arquivar é organização pessoal: a lista alterna entre ativas e
   // arquivadas, sem qualquer justificativa do Executivo.
   const [showArchived, setShowArchived] = useState(false);
