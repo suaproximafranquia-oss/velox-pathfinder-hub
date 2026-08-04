@@ -30,7 +30,7 @@ import {
 } from "@/lib/crm/relationship-state";
 import { recordReactivationAlert } from "@/lib/workspace-alerts";
 import { getJourney } from "@/lib/journey/engine";
-import { isJourneyOnly, getCommercial } from "@/lib/crm/commercial";
+import { isJourneyOnly, getCommercial, isArchived } from "@/lib/crm/commercial";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { listCrmMessages } from "@/lib/crm/messages";
 
@@ -84,6 +84,8 @@ export type CrmConversation = {
    * nem Card no Workspace. O envio manual permanece bloqueado.
    */
   journeyOnly: boolean;
+  /** Conversa arquivada pelo Executivo — oculta da lista principal. */
+  archived: boolean;
   /** Data/hora de criação do Relacionamento Comercial, quando existir. */
   relationshipStartedAt?: string;
   /** Relacionamento ativo já existente com o mesmo telefone/e-mail. */
@@ -123,7 +125,9 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
   const users = loadUsers();
   const nameById = new Map(users.map((u) => [u.id, u.name]));
   // O CRM enxerga também as Jornadas Digitais — o Workspace, não.
-  const all = listAllInvestors({ includeJourneyOnly: true });
+  // Conversas arquivadas continuam existindo: apenas saem da lista
+  // principal do CRM até que o Executivo as desarquive.
+  const all = listAllInvestors({ includeJourneyOnly: true, includeArchived: true });
   const nameByInvestorId = new Map(all.map((i) => [i.id, i.name]));
 
   // Base única: o vínculo oficial é garantido (e preservado) para todos.
@@ -201,6 +205,7 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
         ownerId,
         access,
         journeyOnly,
+        archived: isArchived(i.id),
         relationshipStartedAt: getCommercial(i.id)?.startedAt,
         duplicate: dup
           ? {
