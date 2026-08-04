@@ -43,16 +43,7 @@ export const getCityPhoto = createServerFn({ method: "POST" })
     return findCityPhoto(data.city, data.state);
   });
 
-export type OfficialArt = { model: "institucional" | "marketing"; base64: string };
-
-/** Chave determinística: mesmo Modelo Oficial + cidade + UF => mesma arte. */
-function cacheKey(modelVersion: string, city: string, state: string): string {
-  return [
-    modelVersion,
-    city.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
-    state.trim().toUpperCase(),
-  ].join("|");
-}
+export type OfficialArt = { model: "institucional"; base64: string };
 
 async function loadOfficialRow(supabase: {
   from: (t: string) => any;
@@ -131,52 +122,6 @@ export const saveOfficialModelLayout = createServerFn({ method: "POST" })
     // O mapeamento muda a peça: o cache derivado deixa de valer.
     await supabaseAdmin.from("creative_art_cache").delete().neq("cache_key", "");
     return { ok: true as const };
-  });
-
-/**
- * MODELO B — releitura criativa por IA, inspirada no Modelo Oficial.
- * Determinística por cache: mesma combinação, mesmo resultado.
- */
-export const generateMarketingArt = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: { city: string; state: string }) => data)
-  .handler(async ({ data, context }): Promise<{ base64: string }> => {
-    const row = await loadOfficialRow(context.supabase);
-    const version = `${row.file_name}@${row.uploaded_at}`;
-    const key = cacheKey(version, data.city, data.state);
-
-    const { data: cached } = await context.supabase
-      .from("creative_art_cache")
-      .select("marketing_base64")
-      .eq("cache_key", key)
-      .maybeSingle();
-    if (cached?.marketing_base64) return { base64: cached.marketing_base64 };
-
-    const { buildMarketingArt } = await import("@/server/creative-art.server");
-    const result = await buildMarketingArt({
-      city: data.city,
-      state: data.state,
-      officialDataUrl: `data:${row.mime_type};base64,${row.content_base64}`,
-    });
-
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await supabaseAdmin.from("creative_art_cache").upsert(
-        {
-          cache_key: key,
-          city: data.city.trim(),
-          state: data.state.trim().toUpperCase(),
-          model_version: version,
-          institucional_base64: "",
-          marketing_base64: result.base64,
-        },
-        { onConflict: "cache_key" },
-      );
-    } catch {
-      /* o cache é otimização — a arte já está pronta para o usuário */
-    }
-
-    return { base64: result.base64 };
   });
 
 /** Arquiva automaticamente a arte gerada na pasta corporativa oficial. */

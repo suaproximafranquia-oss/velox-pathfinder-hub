@@ -57,8 +57,15 @@ import {
   CrmEphemeralHeader,
   CrmEphemeralThread,
   CrmEphemeralComposer,
-  type EphemeralMessage,
+  CrmTempChatItem,
 } from "@/components/crm/crm-ephemeral-chat";
+import {
+  listTempChats,
+  createTempChat,
+  appendTempMessage,
+  removeTempChat,
+  getTempChat,
+} from "@/lib/crm/temp-chats";
 import { sendWhatsappText } from "@/lib/whatsapp.functions";
 import { createCrmLead } from "@/lib/crm/lead-intake";
 import { withSignature } from "@/lib/crm/signature";
@@ -145,13 +152,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
   /**
-   * Conversa avulsa (Nova Conversa › Conversar): existe apenas em memória.
-   * Encerrada a conversa, nada permanece cadastrado.
+   * Conversa temporária (Nova Conversa › Conversar): aparece na lista
+   * lateral, mas não cria Lead, Jornada, Portal, Histórico ou Backup.
    */
-  const [ephemeral, setEphemeral] = useState<{
-    phone: string;
-    messages: EphemeralMessage[];
-  } | null>(null);
+  const [tempId, setTempId] = useState<string | null>(null);
+  const [tempTick, setTempTick] = useState(0);
   // Arquivar é organização pessoal: a lista alterna entre ativas e
   // arquivadas, sem qualquer justificativa do Executivo.
   const [showArchived, setShowArchived] = useState(false);
@@ -264,6 +269,46 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     null;
 
   const isConversas = area === "conversas";
+  // Conversas temporárias do Executivo — visíveis na lista lateral.
+  const tempChats = useMemo(
+    () => (isConversas ? listTempChats(actor.userId) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isConversas, actor.userId, tempTick],
+  );
+  const tempChat = tempId ? (tempChats.find((c) => c.id === tempId) ?? null) : null;
+
+  /**
+   * Transformar em Lead: aproveita integralmente a conversa temporária.
+   * O Lead nasce na carteira Redistribuição, com Jornada, Portal,
+   * Histórico e Backup oficiais, e nenhuma mensagem é perdida.
+   */
+  function convertTempChat(id: string) {
+    const chat = getTempChat(id);
+    if (!chat) return;
+    const created = createCrmLead({
+      fields: { name: chat.phone, whatsapp: chat.phone, email: "", city: "" },
+      source: "manual",
+      ownerId: actor.userId,
+    });
+    for (const m of chat.messages) {
+      appendCrmMessage({
+        investorId: created.id,
+        direction: m.direction,
+        body: m.body,
+        authorId: actor.userId,
+        at: m.at,
+      });
+    }
+    removeTempChat(id);
+    setTempId(null);
+    setTempTick((v) => v + 1);
+    setSelectedId(created.id);
+    setMessageTick((v) => v + 1);
+    setTick((v) => v + 1);
+    void pullLeads()
+      .then(() => setTick((v) => v + 1))
+      .catch(() => undefined);
+  }
   const isDistribuicao = area === "distribuicao";
   const isTemas = area === "temas";
   const canManageDistribution =
@@ -406,7 +451,20 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         }
       >
         {isConversas ? (
-          visible.length > 0 ? (
+          <>
+          {tempChats.length > 0 ? (
+            <div className="mb-1 space-y-0.5">
+              {tempChats.map((chat) => (
+                <CrmTempChatItem
+                  key={chat.id}
+                  chat={chat}
+                  active={tempId === chat.id}
+                  onSelect={() => setTempId(chat.id)}
+                />
+              ))}
+            </div>
+          ) : null}
+          {visible.length > 0 ? (
             <div className="space-y-0.5">
               {visible.map((item) => (
                 <CrmConversationItem
@@ -416,13 +474,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   unread={item.state === "novo" && !openedIds.includes(item.id)}
                   movement={movements[item.id]}
                   onSelect={() => {
-                    setEphemeral(null);
+                    setTempId(null);
                     setSelectedId(item.id);
                   }}
                 />
               ))}
             </div>
-          ) : (
+          ) : tempChats.length > 0 ? null : (
             <CrmPlaceholder
               label={
                 query
@@ -439,7 +497,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
               }
             />
-          )
+          )}
+          </>
         ) : isDistribuicao ? (
           intake.length > 0 ? (
             <div className="space-y-0.5">
@@ -505,10 +564,22 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmMainPane
         title={current.label}
         header={
-          isConversas && ephemeral ? (
+          isConversas && tempChat ? (
             <CrmEphemeralHeader
-              phone={ephemeral.phone}
-              onClose={() => setEphemeral(null)}
+              phone={tempChat.phone}
+              onConvert={() => convertTempChat(tempChat.id)}
+              onDelete={() => {
+                if (
+                  typeof window !== "undefined" &&
+                  !window.confirm(
+                    "Excluir definitivamente esta conversa temporária? Nenhum registro permanecerá.",
+                  )
+                )
+                  return;
+                removeTempChat(tempChat.id);
+                setTempId(null);
+                setTempTick((v) => v + 1);
+              }}
             />
           ) : isConversas && selected ? (
             <CrmConversationHeader
@@ -519,25 +590,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
         footer={
-          isConversas && ephemeral ? (
+          isConversas && tempChat ? (
             <CrmEphemeralComposer
               onSend={(text) => {
-                const phone = ephemeral.phone;
-                setEphemeral((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        messages: [
-                          ...prev.messages,
-                          {
-                            id: `ef_${Date.now().toString(36)}`,
-                            body: text,
-                            at: new Date().toISOString(),
-                          },
-                        ],
-                      }
-                    : prev,
-                );
+                const phone = tempChat.phone;
+                appendTempMessage(tempChat.id, { body: text });
+                setTempTick((v) => v + 1);
                 void sendWhatsappText({ data: { phone, body: text } }).catch(
                   () => undefined,
                 );
@@ -598,8 +656,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
       >
-        {isConversas && ephemeral ? (
-          <CrmEphemeralThread messages={ephemeral.messages} />
+        {isConversas && tempChat ? (
+          <CrmEphemeralThread messages={tempChat.messages} />
         ) : isConversas && selected ? (
           selected.access === "bloqueado" ? (
             <CrmBlockedRelationship item={selected} />
@@ -969,8 +1027,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         <CrmNewChatDialog
           onClose={() => setNewChatOpen(false)}
           onConverse={(phone) => {
-            setEphemeral({ phone, messages: [] });
+            const chat = createTempChat(phone, actor.userId);
             setArea("conversas");
+            setTempTick((v) => v + 1);
+            setTempId(chat.id);
           }}
           onCreateLead={(lead) => {
             const created = createCrmLead({
@@ -983,7 +1043,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               source: "manual",
               ownerId: actor.userId,
             });
-            setEphemeral(null);
+            setTempId(null);
             setSelectedId(created.id);
             setTick((v) => v + 1);
             void pullLeads()

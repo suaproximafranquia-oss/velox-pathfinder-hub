@@ -22,6 +22,7 @@ import {
   isLayoutReady,
   parseLayout,
   FIELD_LABEL,
+  LAYOUT_FIELD_KEYS,
   type LayoutFieldKey,
   type OfficialLayout,
   type Rect,
@@ -32,7 +33,6 @@ import {
   deleteOfficialModel,
   checkDriveIntegration,
   getInstitutionalSource,
-  generateMarketingArt,
   saveOfficialModelLayout,
 } from "@/lib/creative.functions";
 
@@ -89,49 +89,35 @@ function CriativaPage() {
     setZoom(null);
     const city = form.city.trim();
     const state = form.state.trim().toUpperCase();
-    const problems: string[] = [];
     try {
-      const [institucional, marketing] = await Promise.allSettled([
-        // MODELO A — edição automatizada do arquivo oficial, sem IA generativa.
-        (async () => {
-          const source = await getInstitutionalSource({ data: { city, state } });
-          const layout = parseLayout(source.layout);
-          if (!isLayoutReady(layout)) {
-            throw new Error(
-              "Mapeie os campos variáveis do Modelo Oficial (cidade, UF e fotografia) para liberar o Modelo A.",
-            );
-          }
-          return composeInstitutionalArt({
-            officialDataUrl: source.officialDataUrl,
-            layout,
-            city,
-            state,
-            photoDataUrl: source.photoDataUrl,
-          });
-        })(),
-        // MODELO B — releitura criativa por IA.
-        generateMarketingArt({ data: { city, state } }).then((r) => r.base64),
-      ]);
-
-      const next: Partial<Record<CreativeModel, string>> = {};
-      if (institucional.status === "fulfilled") next.institucional = institucional.value;
-      else
-        problems.push(
-          institucional.reason instanceof Error
-            ? institucional.reason.message
-            : "Não foi possível editar o Modelo Oficial agora.",
+      // Edição automatizada do arquivo oficial — nenhuma IA gera a arte.
+      const source = await getInstitutionalSource({ data: { city, state } });
+      const layout = parseLayout(source.layout);
+      if (!isLayoutReady(layout)) {
+        setError(
+          "Mapeie os campos variáveis do Modelo Oficial (cidade, UF e fotografia) antes de gerar a arte.",
         );
-      if (marketing.status === "fulfilled") next.marketing = marketing.value;
-      else
-        problems.push(
-          marketing.reason instanceof Error
-            ? marketing.reason.message
-            : "Não foi possível gerar o Modelo B agora.",
+        return;
+      }
+      const png = await composeInstitutionalArt({
+        officialDataUrl: source.officialDataUrl,
+        layout,
+        city,
+        state,
+        photoDataUrl: source.photoDataUrl,
+      });
+      setArts({ institucional: png });
+      if (!source.photoDataUrl) {
+        setNotice(
+          "Nenhuma fotografia da cidade foi localizada: a imagem original do Modelo Oficial foi mantida.",
         );
-
-      setArts(next);
-      if (problems.length) setNotice(problems.join(" "));
-      if (!next.institucional && !next.marketing) setError(problems[0] ?? null);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível editar o Modelo Oficial agora.",
+      );
     } finally {
       setBusy(false);
     }
@@ -147,7 +133,7 @@ function CriativaPage() {
   }, []);
 
   const models = useMemo(
-    () => (["institucional", "marketing"] as CreativeModel[]).filter((m) => arts[m]),
+    () => (["institucional"] as CreativeModel[]).filter((m) => arts[m]),
     [arts],
   );
 
@@ -176,7 +162,7 @@ function CriativaPage() {
             </p>
           ) : null}
           {models.length ? (
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5">
               {models.map((model) => (
                 <ArtCard
                   key={model}
@@ -195,9 +181,9 @@ function CriativaPage() {
             <div className="rounded-3xl border border-dashed border-[color:var(--border)] bg-[color:var(--card)]/30 p-12 text-center">
               <p className="font-display text-xl">Nenhuma arte gerada ainda.</p>
               <p className="mx-auto mt-2 max-w-md text-sm text-[color:var(--muted-foreground)]">
-                Informe a cidade e a UF. O Modelo A (Institucional) é o próprio
-                arquivo oficial editado — apenas cidade, UF e fotografia mudam.
-                O Modelo B (Marketing) é a releitura criativa da mesma peça.
+                Informe a cidade e a UF. A arte gerada é o próprio arquivo
+                oficial editado: apenas o nome da cidade, a UF e a fotografia de
+                fundo mudam. Todo o restante permanece idêntico.
               </p>
             </div>
           )}
@@ -710,7 +696,7 @@ function OfficialModelMapper() {
             idêntico.
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {(["photo", "city", "state"] as LayoutFieldKey[]).map((key) => (
+            {LAYOUT_FIELD_KEYS.map((key) => (
               <button
                 key={key}
                 type="button"
@@ -739,7 +725,7 @@ function OfficialModelMapper() {
               className="pointer-events-none w-full"
               draggable={false}
             />
-            {(["photo", "city", "state"] as LayoutFieldKey[]).map((key) => {
+            {LAYOUT_FIELD_KEYS.map((key) => {
               const rect = key === "photo" ? layout.photo : layout[key]?.rect;
               if (!rect) return null;
               return (
