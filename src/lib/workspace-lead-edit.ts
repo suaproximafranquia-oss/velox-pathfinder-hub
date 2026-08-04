@@ -6,6 +6,7 @@
  * Alertas — sem recarregar a página e sem atualização manual.
  */
 import { loadLeads, updateLead, type LeadRecord } from "@/lib/leads";
+import { transferLeadOwnership } from "@/lib/crm/lead-transfer";
 import { logAudit } from "@/lib/audit-log";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { notifySync } from "@/lib/sync-bus";
@@ -16,7 +17,7 @@ export type LeadFicha = {
   email: string;
   whatsapp: string;
   city: string;
-  scope: "green_sales" | "portal";
+  scope: "green_sales" | "redistribuicao" | "portal";
   responsibleExecutiveId: string | null;
   notes: string;
 };
@@ -29,7 +30,12 @@ export function readLeadFicha(investorId: string): LeadFicha | null {
     email: lead.email ?? "",
     whatsapp: lead.whatsapp ?? "",
     city: lead.city ?? "",
-    scope: lead.scope === "green_sales" ? "green_sales" : "portal",
+    scope:
+      lead.scope === "green_sales"
+        ? "green_sales"
+        : lead.scope === "redistribuicao"
+          ? "redistribuicao"
+          : "portal",
     responsibleExecutiveId: lead.responsibleExecutiveId ?? null,
     notes: lead.notes ?? "",
   };
@@ -60,18 +66,34 @@ export function saveLeadFicha(input: {
   );
   if (changed.length === 0) return null;
 
+  const ownerChanged = before.responsibleExecutiveId !== next.responsibleExecutiveId;
   const personalized = next.scope === "green_sales" && Boolean(next.responsibleExecutiveId);
+  // A carteira Redistribuição é permanente: nunca é rebaixada para Portal
+  // por uma edição de ficha, e mantém sempre um Executivo responsável.
+  const scope = next.scope === "redistribuicao" ? "redistribuicao" : personalized ? "green_sales" : "portal";
   const updated = updateLead(input.investorId, {
     name: next.name.trim(),
     email: next.email.trim(),
     whatsapp: next.whatsapp.trim(),
     city: next.city.trim(),
     notes: next.notes,
-    scope: personalized ? "green_sales" : "portal",
-    responsibleExecutiveId: personalized ? next.responsibleExecutiveId : null,
-    personalized,
+    scope,
+    personalized: scope === "green_sales",
   });
   if (!updated) return null;
+
+  // Trocar o responsável é uma transferência oficial: propaga para CRM,
+  // base real, Timeline, Auditoria e Alertas — não é só a ficha.
+  if (ownerChanged) {
+    transferLeadOwnership({
+      investorId: input.investorId,
+      newOwnerId: next.responsibleExecutiveId,
+      actorId: input.actorId,
+      actorName: input.actorName,
+      actorRole: input.actorRole ?? "Executivo",
+      reason: "Transferência realizada pela Ficha do Investidor",
+    });
+  }
 
   const details = changed.map((k) => FIELD_LABEL[k]).join(", ");
   logAudit({
