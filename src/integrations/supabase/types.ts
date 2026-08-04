@@ -98,6 +98,36 @@ export type Database = {
         }
         Relationships: []
       }
+      creative_art_cache: {
+        Row: {
+          cache_key: string
+          city: string
+          created_at: string
+          institucional_base64: string
+          marketing_base64: string
+          model_version: string
+          state: string
+        }
+        Insert: {
+          cache_key: string
+          city: string
+          created_at?: string
+          institucional_base64: string
+          marketing_base64: string
+          model_version: string
+          state: string
+        }
+        Update: {
+          cache_key?: string
+          city?: string
+          created_at?: string
+          institucional_base64?: string
+          marketing_base64?: string
+          model_version?: string
+          state?: string
+        }
+        Relationships: []
+      }
       creative_official_model: {
         Row: {
           content_base64: string
