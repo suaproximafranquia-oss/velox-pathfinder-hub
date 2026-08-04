@@ -272,3 +272,74 @@ export function redistributeContact(input: {
 
   return { ok: true, executive, leadId: routed.id };
 }
+
+/**
+ * CORREÇÃO — Redistribuição é automática, nunca manual.
+ *
+ * Sempre que um número entra em contato pelo CRM, o sistema decide
+ * sozinho: se o WhatsApp já pertence a alguém (Green Sales,
+ * Redistribuição ou Portal), a conversa vai para o proprietário atual;
+ * se o número é desconhecido, o contato é atribuído automaticamente ao
+ * próximo Executivo da fila oficial. Ninguém escolhe o responsável.
+ */
+export type InboundRouting =
+  | { routed: "proprietario"; ownerId: string | null; leadId: string; leadName: string; scope: WorkspaceScope }
+  | { routed: "fila"; ownerId: string; leadId: string; leadName: string; executiveName: string }
+  | { routed: "indisponivel"; reason: string };
+
+export function routeInboundWhatsapp(input: {
+  phone: string;
+  name?: string;
+  origin?: string;
+}): InboundRouting {
+  const ownership = checkOwnershipByPhone(input.phone);
+  if (ownership.owned) {
+    return {
+      routed: "proprietario",
+      ownerId: ownership.ownerId,
+      leadId: ownership.leadId,
+      leadName: ownership.leadName,
+      scope: ownership.scope,
+    };
+  }
+
+  const result = redistributeContact({
+    name: input.name?.trim() || `Contato ${input.phone}`,
+    phone: input.phone,
+    origin: input.origin ?? "WhatsApp institucional",
+    actorId: "sistema",
+    actorName: "Roteamento automático",
+  });
+
+  if (!result.ok) return { routed: "indisponivel", reason: result.reason };
+  return {
+    routed: "fila",
+    ownerId: result.executive.id,
+    leadId: result.leadId,
+    leadName: input.name?.trim() || `Contato ${input.phone}`,
+    executiveName: result.executive.name,
+  };
+}
+
+/** Histórico de contatos já roteados pela fila oficial (somente leitura). */
+export function listRedistributedLeads(): Array<{
+  id: string;
+  name: string;
+  phone: string;
+  ownerId: string | null;
+  ownerName: string;
+  at: string;
+}> {
+  const nameById = new Map(loadUsers().map((u) => [u.id, u.name]));
+  return loadLeads()
+    .filter((l) => (l.scope ?? "portal") === "redistribuicao")
+    .map((l) => ({
+      id: l.id,
+      name: l.name,
+      phone: l.whatsapp ?? "",
+      ownerId: l.responsibleExecutiveId,
+      ownerName: nameById.get(l.responsibleExecutiveId ?? "") ?? "—",
+      at: l.createdAt,
+    }))
+    .sort((a, b) => (a.at < b.at ? 1 : -1));
+}

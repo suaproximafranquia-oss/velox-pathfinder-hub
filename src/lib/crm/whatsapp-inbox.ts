@@ -68,7 +68,14 @@ export function recordWhatsappReply(
    */
   if (reply.status === "confirmado") {
     void import("@/lib/crm/whatsapp-confirmation").then(({ promoteConfirmedWhatsapp }) => {
-      promoteConfirmedWhatsapp(reply.phone);
+      const lead = promoteConfirmedWhatsapp(reply.phone);
+      // Número desconhecido chegando ao CRM: o roteamento é automático
+      // pela fila oficial — nenhuma decisão manual é solicitada.
+      if (!lead) {
+        void import("@/lib/crm/redistribution").then(({ routeInboundWhatsapp }) => {
+          routeInboundWhatsapp({ phone: reply.phone });
+        });
+      }
     });
   }
   return reply;

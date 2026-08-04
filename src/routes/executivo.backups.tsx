@@ -41,7 +41,7 @@ import { restoreRelationship } from "@/lib/crm/commercial";
 import { onSync } from "@/lib/sync-bus";
 
 /** Abas oficiais da Central única de Backup (DEF 2.4.11). */
-const BACKUP_TABS = ["GreenSales", "Portal"] as const;
+const BACKUP_TABS = ["GreenSales", "Redistribuição", "Portal"] as const;
 type BackupTab = (typeof BACKUP_TABS)[number];
 
 export const Route = createFileRoute("/executivo/backups")({
@@ -91,11 +91,13 @@ function BackupsPage() {
   const isSupervisor = session ? isCrmSupervisor(session.activeRole) : false;
   // ITEM 01 — a aba Portal é exclusiva do Administrador e do colaborador
   // híbrido. A Gestora consulta apenas o ambiente GreenSales.
+  // A carteira Redistribuição existe para todos os perfis operacionais;
+  // a aba Portal continua exclusiva do Administrador e do híbrido.
   const tabs = useMemo<readonly BackupTab[]>(
     () =>
       session && canAccessPortalWorkspace(session.userId, session.activeRole)
         ? BACKUP_TABS
-        : (["GreenSales"] as const),
+        : (["GreenSales", "Redistribuição"] as const),
     [session],
   );
 
@@ -107,25 +109,26 @@ function BackupsPage() {
     if (!session) return [];
     // DEF 3.0.1 §7 — segregação total: cada aba enxerga exclusivamente os
     // backups do seu próprio ambiente, sem qualquer mistura de registros.
-    const all = listConversationBackups().filter((r) =>
+    const kind =
       tab === "GreenSales"
-        ? r.workspaceKind === "green_sales"
-        : r.workspaceKind === "portal",
-    );
+        ? "green_sales"
+        : tab === "Redistribuição"
+          ? "redistribuicao"
+          : "portal";
+    const all = listConversationBackups().filter((r) => r.workspaceKind === kind);
     // A Gestora nunca vê conversas automaticamente: apenas as cópias
     // temporárias autorizadas pelo Administrador (24 horas).
-    const scoped =
-      tab === "Portal"
-        ? // Backup Portal pertence ao Executivo responsável — restauração
-          // operacional, sem justificativa.
-          isAdmin
-          ? all
-          : all.filter((r) => r.executiveId === session.userId)
-        : isAdmin
-          ? all
-          : isSupervisor
-            ? all.filter((r) => Boolean(backupGrantFor(r.investorId)))
-            : all.filter((r) => r.executiveId === session.userId);
+    const scoped = isAdmin
+      ? all
+      : tab === "GreenSales" && isSupervisor
+        ? // Green Sales é ambiente corporativo: a Gestora só enxerga o que
+          // o Administrador autorizou temporariamente.
+          all.filter((r) => Boolean(backupGrantFor(r.investorId)))
+        : tab === "Redistribuição" && isSupervisor
+          ? // Redistribuição é carteira institucional: a Gestão acompanha
+            // integralmente, sem autorização por conversa.
+            all
+          : all.filter((r) => r.executiveId === session.userId);
     const q = query.trim().toLowerCase();
     if (!q) return scoped;
     return scoped.filter(
@@ -191,6 +194,8 @@ function BackupsPage() {
           <p className="mx-auto mt-2 max-w-md text-sm text-[color:var(--muted-foreground)]">
             {tab === "Portal"
               ? "As conversas arquivadas do Portal aparecem aqui, prontas para restauração."
+              : tab === "Redistribuição"
+              ? "Os contatos institucionais atribuídos automaticamente pela fila oficial aparecem aqui."
               : isSupervisor
               ? "As conversas dos Executivos só aparecem aqui mediante autorização temporária do Administrador."
               : "Os relacionamentos registrados no CRM aparecem automaticamente nesta Central."}
