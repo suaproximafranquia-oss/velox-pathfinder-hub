@@ -133,6 +133,12 @@ export type ExecutiveUser = {
   whatsapp?: string;
   /** Cargo institucional exibido em perfil e Manual personalizado. */
   title?: string;
+  /**
+   * Foto institucional do colaborador (data URL). Arquitetura preparada
+   * para uso em toda a plataforma; quando ausente, usa-se o avatar padrão
+   * com as iniciais do nome oficial.
+   */
+  photoUrl?: string;
   /** Data de admissão (ISO). Origem única para Recognition e Perfil. */
   admissionDate?: string;
   /** Data de nascimento (ISO). Utilizada por notificações e automações internas. */
