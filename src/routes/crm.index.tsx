@@ -931,7 +931,33 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         />
       ) : null}
 
-      {newChatOpen ? <CrmNewChatDialog onClose={() => setNewChatOpen(false)} /> : null}
+      {newChatOpen ? (
+        <CrmNewChatDialog
+          onClose={() => setNewChatOpen(false)}
+          onConverse={(phone) => {
+            setEphemeral({ phone, messages: [] });
+            setArea("conversas");
+          }}
+          onCreateLead={(lead) => {
+            const created = createCrmLead({
+              fields: {
+                name: lead.name || lead.whatsapp,
+                whatsapp: lead.whatsapp,
+                email: lead.email,
+                city: lead.city,
+              },
+              source: "manual",
+              ownerId: actor.userId,
+            });
+            setEphemeral(null);
+            setSelectedId(created.id);
+            setTick((v) => v + 1);
+            void pullLeads()
+              .then(() => setTick((v) => v + 1))
+              .catch(() => undefined);
+          }}
+        />
+      ) : null}
 
       {newLeadOpen ? (
         <CrmNewLeadDialog
