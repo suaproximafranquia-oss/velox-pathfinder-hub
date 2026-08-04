@@ -194,6 +194,8 @@ function BackupsPage() {
           <p className="mx-auto mt-2 max-w-md text-sm text-[color:var(--muted-foreground)]">
             {tab === "Portal"
               ? "As conversas arquivadas do Portal aparecem aqui, prontas para restauração."
+              : tab === "Redistribuição"
+              ? "Os contatos institucionais atribuídos automaticamente pela fila oficial aparecem aqui."
               : isSupervisor
               ? "As conversas dos Executivos só aparecem aqui mediante autorização temporária do Administrador."
               : "Os relacionamentos registrados no CRM aparecem automaticamente nesta Central."}
