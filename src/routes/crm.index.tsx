@@ -33,6 +33,7 @@ import {
   CalendarPlus,
   Handshake,
   Archive,
+  ArchiveRestore,
 } from "lucide-react";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
@@ -51,6 +52,8 @@ import {
   CrmNewLeadDialog,
   CrmRedistributeRow,
 } from "@/components/crm/crm-new-lead";
+import { CrmNewChatButton, CrmNewChatDialog } from "@/components/crm/crm-new-chat";
+import { withSignature } from "@/lib/crm/signature";
 import { redistributeLead, isPrivateLead } from "@/lib/crm/lead-intake";
 import {
   listIntakeLeads,
@@ -69,7 +72,11 @@ import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
-import { startRelationship, archiveRelationship } from "@/lib/crm/commercial";
+import {
+  startRelationship,
+  archiveRelationship,
+  restoreRelationship,
+} from "@/lib/crm/commercial";
 import { isPortalReleased, releasePortal } from "@/lib/crm/portal-release";
 import { isCrmSupervisor as isSupervisorRole } from "@/lib/crm/permissions";
 import { Unlock } from "lucide-react";
@@ -128,6 +135,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [openedIds, setOpenedIds] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  // Arquivar é organização pessoal: a lista alterna entre ativas e
+  // arquivadas, sem qualquer justificativa do Executivo.
+  const [showArchived, setShowArchived] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [messageTick, setMessageTick] = useState(0);
   const [startOpen, setStartOpen] = useState(false);
@@ -190,8 +201,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     [actor.userId, actor.role, actor.workspaceId, tick],
   );
   const visible = useMemo(
-    () => filterConversations(conversations, query),
-    [conversations, query],
+    () =>
+      filterConversations(
+        conversations.filter((c) => c.archived === showArchived),
+        query,
+      ),
+    [conversations, query, showArchived],
   );
 
   /**
