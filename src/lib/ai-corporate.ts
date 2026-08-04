@@ -18,7 +18,7 @@
 import { askKnowledge, type AskResult } from "@/lib/ai.functions";
 import { can } from "@/lib/governance";
 import {
-  listDocuments,
+
   pullOfficialBase,
   retrievePassages,
   visibleDocuments,
