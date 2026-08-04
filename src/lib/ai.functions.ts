@@ -4,10 +4,10 @@ export type AskPassage = { source: string; text: string };
 export type AskResult = { answer: string; sources: string[] };
 
 const NO_INFO =
-  "Não encontrei essa informação na Base Oficial de Conhecimento do Workspace.";
+  "Não localizei essa informação na documentação oficial da empresa. Recomendo confirmar essa informação com o Executivo de Expansão ou com a Gestora.";
 
 const CORPORATE_DISCLAIMER =
-  "\n\n---\nResposta gerada por Inteligência Artificial. Regras, valores e condições da Velox seguem a Base Oficial da Central de Conhecimento; conceitos gerais de mercado são explicados de forma educativa. Esta resposta não substitui a orientação de um Executivo de Expansão.";
+  "\n\n---\nResposta construída com base na documentação oficial da empresa combinada com conhecimento técnico de caráter educativo. Informações institucionais devem ser confirmadas com o Executivo de Expansão.";
 
 /**
  * IA Corporativa — modelo híbrido (ITEM 02 da auditoria da ETAPA 02.1):
@@ -31,39 +31,39 @@ export const askKnowledge = createServerFn({ method: "POST" })
 
     const context = passages.length
       ? passages
-      .map(
-        (p, i) =>
-          `[Fonte ${i + 1} — ${p.source}]\n${p.text}`,
-      )
+          .map((p, i) => `[Trecho ${i + 1}]\n${p.text}`)
           .join("\n\n---\n\n")
       : "(Nenhum trecho da Base Oficial corresponde a esta pergunta.)";
 
-    const system = `Você é a IA Corporativa da Atlas Platform.
-Você combina DUAS camadas de conhecimento, nesta hierarquia:
+    const system = `Você é a IA Corporativa da empresa: um especialista interno que conversa de forma natural, profissional e didática, em Português do Brasil.
 
-CAMADA 1 — BASE OFICIAL (prioridade absoluta):
-1. Para qualquer informação específica da Velox/Atlas — regras internas,
-   valores, taxas, royalties, campanhas, comissões, políticas, prazos,
-   produtos e processos — utilize EXCLUSIVAMENTE os trechos abaixo.
-2. Nunca invente números, nomes, promessas ou previsões da Velox. Se a Base
-   Oficial não cobrir o ponto interno perguntado, diga com transparência:
-   "${NO_INFO}" e, se fizer sentido, complemente apenas com o conceito geral.
-3. Sempre que usar a Base Oficial, cite as fontes no formato
-   "Fonte: <nome do documento>" (capítulo/página quando explícito).
+MODELO HÍBRIDO DE CONHECIMENTO:
 
-CAMADA 2 — CONHECIMENTO GERAL (complementar, permitido):
-4. Você PODE e DEVE explicar conceitos amplos de mercado — consórcio,
-   capital de giro, crédito, seguros, energia solar, gestão comercial,
-   finanças, vendas — com seu conhecimento geral, de forma didática.
-5. Ao usar conhecimento geral, deixe claro que é contexto educativo de
-   mercado e não uma regra oficial da Velox.
-6. Nunca contradiga a Base Oficial: em conflito, a Base Oficial prevalece.
+1. INFORMAÇÃO INSTITUCIONAL (exclusiva da empresa) — comissões, políticas
+   internas, regras comerciais, campanhas, produtos exclusivos, valores,
+   taxas, royalties, prazos, processos internos, normas e qualquer conteúdo
+   institucional: use EXCLUSIVAMENTE os trechos da documentação oficial
+   abaixo. Nunca crie, deduza ou estime esse tipo de informação.
+   Se não estiver na documentação oficial, responda de forma natural algo
+   equivalente a: "${NO_INFO}"
 
-REGRAS COMUNS:
-7. Nunca ofereça aconselhamento financeiro personalizado ou promessa de retorno.
-8. Tom corporativo, direto e didático. Português do Brasil.
+2. CONHECIMENTO GERAL (permitido e incentivado) — conceitos de mercado,
+   boas práticas, explicações educativas: consórcio, financiamento, crédito,
+   seguros, energia solar, finanças, processos comerciais, gestão e vendas.
+   Explique com seu conhecimento técnico, de forma clara e educativa.
 
-BASE OFICIAL:
+3. Em caso de conflito, a documentação oficial sempre prevalece.
+
+EXPERIÊNCIA DA RESPOSTA (obrigatório):
+4. NUNCA cite nomes de documentos, PDFs, arquivos, "fontes", "trechos",
+   páginas ou qualquer referência técnica de origem.
+5. NUNCA diga que uma frase foi retirada de um documento específico.
+6. Fale como um especialista da empresa, em fluxo natural.
+7. Quando pertinente, recomende confirmar informações institucionais com o
+   Executivo de Expansão.
+8. Nunca ofereça aconselhamento financeiro personalizado nem promessa de retorno.
+
+DOCUMENTAÇÃO OFICIAL DA EMPRESA (uso interno, não mencione sua existência como arquivos):
 ${context}`;
 
     const res = await fetch(
@@ -112,8 +112,8 @@ ${context}`;
     };
     const raw = j.choices?.[0]?.message?.content?.trim() || NO_INFO;
     const answer = raw === NO_INFO ? raw : `${raw}${CORPORATE_DISCLAIMER}`;
-    const uniqueSources = Array.from(new Set(data.passages.map((p) => p.source)));
-    return { answer, sources: uniqueSources };
+    // A experiência não expõe nomes de documentos: fontes não são retornadas.
+    return { answer, sources: [] };
   });
 
 /* ================================================================== */
