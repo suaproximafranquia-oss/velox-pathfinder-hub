@@ -44,9 +44,21 @@ export const getCityPhoto = createServerFn({ method: "POST" })
 
 export type OfficialArt = { model: "institucional" | "marketing"; base64: string };
 
+/** Chave determinística: mesmo Modelo Oficial + cidade + UF => mesma arte. */
+function cacheKey(modelVersion: string, city: string, state: string): string {
+  return [
+    modelVersion,
+    city.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
+    state.trim().toUpperCase(),
+  ].join("|");
+}
+
 /**
  * Gera as DUAS artes oficiais a partir do Modelo Oficial enviado pelo
  * administrador — Modelo A (fiel) e Modelo B (criativo).
+ *
+ * A geração é determinística: se a mesma combinação já foi produzida, o
+ * resultado armazenado é reaproveitado em vez de gerar uma nova versão.
  */
 export const generateOfficialArts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -54,7 +66,7 @@ export const generateOfficialArts = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ arts: OfficialArt[] }> => {
     const { data: row, error } = await context.supabase
       .from("creative_official_model")
-      .select("mime_type, content_base64")
+      .select("mime_type, content_base64, file_name, uploaded_at")
       .eq("id", "official")
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -68,12 +80,52 @@ export const generateOfficialArts = createServerFn({ method: "POST" })
         "O Modelo Oficial precisa ser uma imagem (PNG ou JPG) para que a IA possa reproduzi-lo.",
       );
     }
+
+    const key = cacheKey(
+      `${row.file_name}@${row.uploaded_at}`,
+      data.city,
+      data.state,
+    );
+    const { data: cached } = await context.supabase
+      .from("creative_art_cache")
+      .select("institucional_base64, marketing_base64")
+      .eq("cache_key", key)
+      .maybeSingle();
+    if (cached) {
+      return {
+        arts: [
+          { model: "institucional", base64: cached.institucional_base64 },
+          { model: "marketing", base64: cached.marketing_base64 },
+        ],
+      };
+    }
+
     const { buildOfficialArts } = await import("@/server/creative-art.server");
     const result = await buildOfficialArts({
       city: data.city,
       state: data.state,
       officialDataUrl: `data:${row.mime_type};base64,${row.content_base64}`,
     });
+
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("creative_art_cache").upsert(
+        {
+          cache_key: key,
+          city: data.city.trim(),
+          state: data.state.trim().toUpperCase(),
+          model_version: `${row.file_name}@${row.uploaded_at}`,
+          institucional_base64:
+            result.arts.find((a) => a.model === "institucional")?.base64 ?? "",
+          marketing_base64:
+            result.arts.find((a) => a.model === "marketing")?.base64 ?? "",
+        },
+        { onConflict: "cache_key" },
+      );
+    } catch {
+      /* o cache é otimização — a arte já está pronta para o usuário */
+    }
+
     return { arts: result.arts };
   });
 
@@ -165,5 +217,44 @@ export const getOfficialModel = createServerFn({ method: "POST" })
         uploadedAt: row.uploaded_at,
         ...(data.withContent ? { contentBase64: row.content_base64 } : {}),
       };
+    },
+  );
+
+/**
+ * Remove o Modelo Oficial e todo o cache de artes derivado dele,
+ * devolvendo a tela ao estado inicial.
+ */
+export const deleteOfficialModel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async (): Promise<{ removed: true }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("creative_official_model")
+      .delete()
+      .eq("id", "official");
+    if (error) throw new Error(error.message);
+    await supabaseAdmin.from("creative_art_cache").delete().neq("cache_key", "");
+    return { removed: true };
+  });
+
+/** Diagnóstico da pasta corporativa do Drive: acesso, gravação e leitura. */
+export const checkDriveIntegration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(
+    async ({
+      context,
+    }): Promise<{ ok: boolean; message: string; folderName?: string }> => {
+      const { verifyCorporateFolder } = await import("@/server/google-drive.server");
+      try {
+        return await verifyCorporateFolder(context.userId);
+      } catch (err) {
+        return {
+          ok: false,
+          message:
+            err instanceof Error
+              ? err.message
+              : "Não foi possível validar a pasta corporativa do Drive.",
+        };
+      }
     },
   );
