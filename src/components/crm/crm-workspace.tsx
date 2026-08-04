@@ -90,7 +90,7 @@ export function CrmListPane({
   return (
     <section
       aria-label={title}
-      className="hidden h-full w-[300px] shrink-0 flex-col border-r border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] shadow-[1px_0_0_0_var(--crm-border)] md:flex xl:w-[340px]"
+      className="hidden h-full w-[clamp(260px,21vw,340px)] shrink-0 flex-col overflow-hidden border-r border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] shadow-[1px_0_0_0_var(--crm-border)] md:flex"
     >
       <header className="border-b border-[color:var(--crm-border)] px-4 py-3">
         <div className="flex items-center justify-between gap-2">
@@ -105,9 +105,9 @@ export function CrmListPane({
           <p className="mt-0.5 text-xs text-[color:var(--crm-muted)]">{subtitle}</p>
         ) : null}
         {onQueryChange || action ? (
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {onQueryChange ? (
-              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-[color:var(--crm-hover)] px-3 py-2">
+              <div className="flex min-w-0 flex-1 basis-full items-center gap-2 rounded-lg bg-[color:var(--crm-hover)] px-3 py-2">
                 <Search className="h-4 w-4 shrink-0 text-[color:var(--crm-muted)]" />
                 <input
                   value={query ?? ""}
@@ -139,11 +139,11 @@ export function CrmMainPane({
   footer?: ReactNode;
 }) {
   return (
-    <section className="relative flex h-full min-w-0 flex-1 flex-col border-x border-[color:var(--crm-border)] bg-[color:var(--crm-background)]">
+    <section className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden border-x border-[color:var(--crm-border)] bg-[color:var(--crm-background)]">
       <header className="flex items-center justify-between gap-4 border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3">
         {header ?? <h2 className="truncate text-sm font-medium">{title}</h2>}
       </header>
-      <div className="crm-chat-surface relative min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="crm-chat-surface relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-5">
         <CrmCanvas />
         <div className="relative h-full">{children}</div>
       </div>
@@ -182,7 +182,7 @@ export function CrmDetailsPane({
   return (
     <aside
       aria-label={title}
-      className="crm-slide-in relative hidden h-full w-[330px] shrink-0 flex-col border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] shadow-[-1px_0_0_0_var(--crm-border)] lg:flex 2xl:w-[390px]"
+      className="crm-slide-in relative hidden h-full w-[clamp(300px,24vw,390px)] shrink-0 flex-col overflow-hidden border-l border-[color:var(--crm-border)] bg-[color:var(--crm-background)] shadow-[-1px_0_0_0_var(--crm-border)] lg:flex"
     >
       {/* Controle na própria borda da ficha — nunca no cabeçalho da conversa. */}
       <button
@@ -197,7 +197,7 @@ export function CrmDetailsPane({
       <header className="border-b border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3.5">
         <h2 className="text-sm font-semibold tracking-[-0.01em]">{title}</h2>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-3.5">{children}</div>
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-3.5">{children}</div>
     </aside>
   );
 }
