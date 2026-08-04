@@ -25,6 +25,20 @@ export const readWhatsappValidation = createServerFn({ method: "POST" })
   });
 
 /**
+ * Mensagem livre pelo canal oficial. Toda conversa acontece dentro do
+ * CRM — nenhum redirecionamento para WhatsApp Web.
+ */
+export const sendWhatsappText = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ phone: z.string(), body: z.string().min(1) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { sendTextMessage } = await import("@/server/whatsapp.server");
+    return sendTextMessage(data);
+  });
+
+/**
  * Adaptador interno de recebimento — equivalente exato ao Webhook da
  * Meta enquanto as credenciais oficiais não existem. Restrito à equipe
  * autenticada (Laboratório do Administrador).

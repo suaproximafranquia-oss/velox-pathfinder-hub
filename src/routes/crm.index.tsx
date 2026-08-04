@@ -53,6 +53,14 @@ import {
   CrmRedistributeRow,
 } from "@/components/crm/crm-new-lead";
 import { CrmNewChatButton, CrmNewChatDialog } from "@/components/crm/crm-new-chat";
+import {
+  CrmEphemeralHeader,
+  CrmEphemeralThread,
+  CrmEphemeralComposer,
+  type EphemeralMessage,
+} from "@/components/crm/crm-ephemeral-chat";
+import { sendWhatsappText } from "@/lib/whatsapp.functions";
+import { createCrmLead } from "@/lib/crm/lead-intake";
 import { withSignature } from "@/lib/crm/signature";
 import { redistributeLead, isPrivateLead } from "@/lib/crm/lead-intake";
 import {
@@ -136,6 +144,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  /**
+   * Conversa avulsa (Nova Conversa › Conversar): existe apenas em memória.
+   * Encerrada a conversa, nada permanece cadastrado.
+   */
+  const [ephemeral, setEphemeral] = useState<{
+    phone: string;
+    messages: EphemeralMessage[];
+  } | null>(null);
   // Arquivar é organização pessoal: a lista alterna entre ativas e
   // arquivadas, sem qualquer justificativa do Executivo.
   const [showArchived, setShowArchived] = useState(false);
@@ -399,7 +415,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   active={selected?.id === item.id}
                   unread={item.state === "novo" && !openedIds.includes(item.id)}
                   movement={movements[item.id]}
-                  onSelect={() => setSelectedId(item.id)}
+                  onSelect={() => {
+                    setEphemeral(null);
+                    setSelectedId(item.id);
+                  }}
                 />
               ))}
             </div>
@@ -486,7 +505,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmMainPane
         title={current.label}
         header={
-          isConversas && selected ? (
+          isConversas && ephemeral ? (
+            <CrmEphemeralHeader
+              phone={ephemeral.phone}
+              onClose={() => setEphemeral(null)}
+            />
+          ) : isConversas && selected ? (
             <CrmConversationHeader
               item={selected}
               window={chatWindow}
@@ -495,7 +519,31 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
         footer={
-          isConversas && selected ? (
+          isConversas && ephemeral ? (
+            <CrmEphemeralComposer
+              onSend={(text) => {
+                const phone = ephemeral.phone;
+                setEphemeral((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        messages: [
+                          ...prev.messages,
+                          {
+                            id: `ef_${Date.now().toString(36)}`,
+                            body: text,
+                            at: new Date().toISOString(),
+                          },
+                        ],
+                      }
+                    : prev,
+                );
+                void sendWhatsappText({ data: { phone, body: text } }).catch(
+                  () => undefined,
+                );
+              }}
+            />
+          ) : isConversas && selected ? (
             <CrmComposer
               disabled={!composerEnabled}
               investorName={selected.name}
@@ -550,7 +598,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
       >
-        {isConversas && selected ? (
+        {isConversas && ephemeral ? (
+          <CrmEphemeralThread messages={ephemeral.messages} />
+        ) : isConversas && selected ? (
           selected.access === "bloqueado" ? (
             <CrmBlockedRelationship item={selected} />
           ) : selected.access === "supervisao" ? (
@@ -915,7 +965,33 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         />
       ) : null}
 
-      {newChatOpen ? <CrmNewChatDialog onClose={() => setNewChatOpen(false)} /> : null}
+      {newChatOpen ? (
+        <CrmNewChatDialog
+          onClose={() => setNewChatOpen(false)}
+          onConverse={(phone) => {
+            setEphemeral({ phone, messages: [] });
+            setArea("conversas");
+          }}
+          onCreateLead={(lead) => {
+            const created = createCrmLead({
+              fields: {
+                name: lead.name || lead.whatsapp,
+                whatsapp: lead.whatsapp,
+                email: lead.email,
+                city: lead.city,
+              },
+              source: "manual",
+              ownerId: actor.userId,
+            });
+            setEphemeral(null);
+            setSelectedId(created.id);
+            setTick((v) => v + 1);
+            void pullLeads()
+              .then(() => setTick((v) => v + 1))
+              .catch(() => undefined);
+          }}
+        />
+      ) : null}
 
       {newLeadOpen ? (
         <CrmNewLeadDialog
