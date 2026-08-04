@@ -593,3 +593,251 @@ function ArtModal({
     </div>
   );
 }
+
+/**
+ * MAPEAMENTO DO MODELO OFICIAL.
+ *
+ * O Modelo A não interpreta a arte: ele edita o arquivo enviado. Para
+ * isso o administrador marca, uma única vez, onde ficam os campos
+ * variáveis — fotografia, cidade e UF. Nada fora dessas áreas é tocado.
+ */
+function OfficialModelMapper() {
+  const [source, setSource] = useState<{ dataUrl: string; fileName: string } | null>(null);
+  const [layout, setLayout] = useState<OfficialLayout>({});
+  const [field, setField] = useState<LayoutFieldKey>("photo");
+  const [status, setStatus] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    void getOfficialModel({ data: { withContent: true } })
+      .then((m) => {
+        if (m && m.contentBase64 && m.mimeType.startsWith("image/")) {
+          setSource({
+            dataUrl: `data:${m.mimeType};base64,${m.contentBase64}`,
+            fileName: m.fileName,
+          });
+          setLayout(parseLayout(m.layout));
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, []);
+
+  function point(e: React.PointerEvent): { x: number; y: number } {
+    const box = boxRef.current!.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - box.left) / box.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - box.top) / box.height)),
+    };
+  }
+
+  function apply(rect: Rect) {
+    setLayout((prev) => {
+      if (field === "photo") return { ...prev, photo: rect };
+      const current = prev[field];
+      return { ...prev, [field]: current ? { ...current, rect } : defaultTextField(rect) };
+    });
+  }
+
+  function onDown(e: React.PointerEvent) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = point(e);
+  }
+  function onMove(e: React.PointerEvent) {
+    const start = dragRef.current;
+    if (!start) return;
+    const now = point(e);
+    apply({
+      x: Math.min(start.x, now.x),
+      y: Math.min(start.y, now.y),
+      w: Math.abs(now.x - start.x),
+      h: Math.abs(now.y - start.y),
+    });
+  }
+  function onUp() {
+    dragRef.current = null;
+  }
+
+  function patchText(patch: Partial<ReturnType<typeof defaultTextField>>) {
+    setLayout((prev) => {
+      if (field === "photo") return prev;
+      const current = prev[field];
+      if (!current) return prev;
+      return { ...prev, [field]: { ...current, ...patch } };
+    });
+  }
+
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    setStatus(null);
+    try {
+      await saveOfficialModelLayout({ data: { layout } });
+      setStatus("✔ Mapeamento salvo. O Modelo A passará a editar essas áreas.");
+    } catch {
+      setStatus("Não foi possível salvar o mapeamento agora. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const active = field === "photo" ? layout.photo : layout[field]?.rect;
+  const text = field === "photo" ? null : layout[field];
+  const control =
+    "rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/60 px-2 py-1 text-[11px] outline-none";
+
+  if (loading) return null;
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6 space-y-3">
+      <div className="flex items-center gap-2">
+        <Crop className="h-4 w-4 text-[color:var(--gold)]" />
+        <h3 className="font-display text-base">Campos variáveis</h3>
+      </div>
+      {!source ? (
+        <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
+          Envie um Modelo Oficial em PNG ou JPG para mapear cidade, UF e a
+          fotografia principal.
+        </p>
+      ) : (
+        <>
+          <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
+            Selecione o campo e arraste sobre a arte para marcar a área. Somente
+            essas áreas são substituídas — o restante do arquivo permanece
+            idêntico.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {(["photo", "city", "state"] as LayoutFieldKey[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setField(key)}
+                className={`rounded-full border px-3 py-1 text-[11px] transition ${
+                  field === key
+                    ? "border-[color:var(--gold)] text-[color:var(--foreground)]"
+                    : "border-[color:var(--border)] text-[color:var(--muted-foreground)]"
+                }`}
+              >
+                {FIELD_LABEL[key]}
+              </button>
+            ))}
+          </div>
+
+          <div
+            ref={boxRef}
+            onPointerDown={onDown}
+            onPointerMove={onMove}
+            onPointerUp={onUp}
+            className="relative w-full cursor-crosshair touch-none overflow-hidden rounded-xl border border-[color:var(--border)] select-none"
+          >
+            <img
+              src={source.dataUrl}
+              alt={`Modelo Oficial ${source.fileName}`}
+              className="pointer-events-none w-full"
+              draggable={false}
+            />
+            {(["photo", "city", "state"] as LayoutFieldKey[]).map((key) => {
+              const rect = key === "photo" ? layout.photo : layout[key]?.rect;
+              if (!rect) return null;
+              return (
+                <span
+                  key={key}
+                  className={`pointer-events-none absolute border-2 ${
+                    key === field
+                      ? "border-[color:var(--gold)] bg-[color:var(--gold)]/15"
+                      : "border-white/60"
+                  }`}
+                  style={{
+                    left: `${rect.x * 100}%`,
+                    top: `${rect.y * 100}%`,
+                    width: `${rect.w * 100}%`,
+                    height: `${rect.h * 100}%`,
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {text ? (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center justify-between gap-2 text-[11px] text-[color:var(--muted-foreground)]">
+                Cor do texto
+                <input
+                  type="color"
+                  value={text.color}
+                  onChange={(e) => patchText({ color: e.target.value })}
+                  className="h-6 w-10 rounded border border-[color:var(--border)] bg-transparent"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-2 text-[11px] text-[color:var(--muted-foreground)]">
+                Cobrir fundo
+                <input
+                  type="color"
+                  value={text.cover || "#0B1B33"}
+                  onChange={(e) => patchText({ cover: e.target.value })}
+                  className="h-6 w-10 rounded border border-[color:var(--border)] bg-transparent"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => patchText({ cover: "" })}
+                className="rounded-lg border border-[color:var(--border)] px-2 py-1 text-[11px] text-[color:var(--muted-foreground)]"
+              >
+                Sem cobertura
+              </button>
+              <select
+                className={control}
+                value={text.align}
+                onChange={(e) => patchText({ align: e.target.value as "left" })}
+              >
+                <option value="left">Alinhar à esquerda</option>
+                <option value="center">Centralizar</option>
+                <option value="right">Alinhar à direita</option>
+              </select>
+              <select
+                className={control}
+                value={String(text.weight)}
+                onChange={(e) => patchText({ weight: Number(e.target.value) })}
+              >
+                <option value="400">Regular</option>
+                <option value="600">Semibold</option>
+                <option value="700">Bold</option>
+                <option value="800">Extra bold</option>
+              </select>
+              <label className="flex items-center gap-2 text-[11px] text-[color:var(--muted-foreground)]">
+                <input
+                  type="checkbox"
+                  checked={text.uppercase}
+                  onChange={(e) => patchText({ uppercase: e.target.checked })}
+                />
+                Maiúsculas
+              </label>
+            </div>
+          ) : null}
+
+          {active ? null : (
+            <p className="text-[11px] text-[color:var(--muted-foreground)]">
+              Área ainda não marcada para “{FIELD_LABEL[field]}”.
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-3 py-2 text-xs disabled:opacity-60 transition"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {saving ? "Salvando mapeamento…" : "Salvar mapeamento"}
+          </button>
+          {status ? (
+            <p className="text-[11px] text-[color:var(--muted-foreground)]">{status}</p>
+          ) : null}
+        </>
+      )}
+    </section>
+  );
+}
