@@ -177,12 +177,19 @@ function IaPage() {
               <h3 className="font-display text-sm">Governança</h3>
             </div>
             <ul className="text-[12px] text-[color:var(--muted-foreground)] leading-relaxed space-y-2">
-              <li>Responde apenas com base na Base Oficial deste workspace.</li>
-              <li>Nunca utiliza conhecimento externo, opiniões ou promessas.</li>
-              <li>Sempre informa as fontes utilizadas.</li>
               <li>
-                Se a informação não existir na base, responde:{" "}
-                <em>“Não encontrei essa informação…”</em>
+                Informações institucionais (comissões, políticas, campanhas,
+                produtos e processos) vêm exclusivamente da documentação
+                oficial da empresa.
+              </li>
+              <li>
+                Conceitos de mercado e explicações educativas podem ser
+                complementados com conhecimento técnico geral.
+              </li>
+              <li>Nunca cita nomes de documentos ou arquivos.</li>
+              <li>
+                Sem informação oficial, recomenda confirmação com o Executivo
+                de Expansão ou a Gestora.
               </li>
             </ul>
           </div>
