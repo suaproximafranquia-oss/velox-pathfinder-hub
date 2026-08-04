@@ -98,6 +98,57 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_documents: {
+        Row: {
+          chunks: Json
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          size_bytes: number
+          status: string
+          type: string
+          updated_at: string
+          uploaded_at: string
+          uploaded_by_name: string
+          uploaded_by_user_id: string
+          visibility: string
+          workspace_id: string
+        }
+        Insert: {
+          chunks?: Json
+          created_by?: string | null
+          description?: string | null
+          id: string
+          name: string
+          size_bytes?: number
+          status?: string
+          type?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by_name?: string
+          uploaded_by_user_id?: string
+          visibility?: string
+          workspace_id: string
+        }
+        Update: {
+          chunks?: Json
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          size_bytes?: number
+          status?: string
+          type?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by_name?: string
+          uploaded_by_user_id?: string
+          visibility?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       portal_leads: {
         Row: {
           campaign: string | null

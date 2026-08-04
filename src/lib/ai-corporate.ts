@@ -18,7 +18,8 @@
 import { askKnowledge, type AskResult } from "@/lib/ai.functions";
 import { can } from "@/lib/governance";
 import {
-  listDocuments,
+
+  pullOfficialBase,
   retrievePassages,
   visibleDocuments,
   type KnowledgeDocument,
@@ -73,7 +74,8 @@ export async function answerCorporate(
       blocked: true,
     };
   }
-  const all = listDocuments(ctx.workspaceId);
+  // Base Oficial ÚNICA: sempre a versão publicada no backend.
+  const all = await pullOfficialBase(ctx.workspaceId);
   const scoped = visibleDocuments(
     all,
     can(ctx.role, "knowledge.read.restricted") ? "interno" : "publico",

@@ -25,8 +25,11 @@ import {
   type IngestLog,
   listDocuments,
   newDocumentId,
-  removeDocument,
-  resetWorkspace,
+  getDocument,
+  publishDocument,
+  pullOfficialBase,
+  removeOfficialDocument,
+  resetOfficialWorkspace,
   updateDocument,
   STATUS_LABEL,
   VISIBILITY_LABEL,
@@ -67,6 +70,7 @@ function KnowledgePage() {
     if (!canManageKnowledge(s.activeRole)) return void navigate({ to: "/executivo/home" });
     setSession(s);
     setDocs(listDocuments(s.workspaceId));
+    void pullOfficialBase(s.workspaceId).then(setDocs);
   }, [navigate]);
 
   const stats = useMemo(() => {
@@ -137,6 +141,7 @@ function KnowledgePage() {
     };
     addDocument(provisional);
     refresh();
+    void publishDocument(session!.userId, provisional);
     try {
       setStage("Analisando documento…");
       const result = await ingestFile(file, (entry) => {
@@ -157,6 +162,8 @@ function KnowledgePage() {
         status: chunks.length ? "ativo" : "erro",
       });
       refresh();
+      const indexed = getDocument(id);
+      if (indexed) await publishDocument(session!.userId, indexed);
       if (chunks.length) {
         const suffix = result.usedOcr
           ? result.partial
@@ -187,7 +194,7 @@ function KnowledgePage() {
   }
 
   function handleRemove(id: string) {
-    removeDocument(id);
+    void removeOfficialDocument(session!.userId, id).finally(refresh);
     refresh();
   }
 
@@ -368,7 +375,9 @@ function KnowledgePage() {
         <ResetModal
           onCancel={() => setResetOpen(false)}
           onConfirm={() => {
-            resetWorkspace(session.workspaceId);
+            void resetOfficialWorkspace(session.userId, session.workspaceId).finally(
+              refresh,
+            );
             setResetOpen(false);
             refresh();
             setFlash({ type: "ok", msg: "Base Oficial resetada com sucesso." });
