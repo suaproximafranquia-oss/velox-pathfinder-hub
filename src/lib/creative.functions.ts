@@ -42,6 +42,41 @@ export const getCityPhoto = createServerFn({ method: "POST" })
     return findCityPhoto(data.city, data.state);
   });
 
+export type OfficialArt = { model: "institucional" | "marketing"; base64: string };
+
+/**
+ * Gera as DUAS artes oficiais a partir do Modelo Oficial enviado pelo
+ * administrador — Modelo A (fiel) e Modelo B (criativo).
+ */
+export const generateOfficialArts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { city: string; state: string }) => data)
+  .handler(async ({ data, context }): Promise<{ arts: OfficialArt[] }> => {
+    const { data: row, error } = await context.supabase
+      .from("creative_official_model")
+      .select("mime_type, content_base64")
+      .eq("id", "official")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) {
+      throw new Error(
+        "Nenhum Modelo Oficial foi enviado. Envie a arte oficial antes de gerar as peças.",
+      );
+    }
+    if (!String(row.mime_type).startsWith("image/")) {
+      throw new Error(
+        "O Modelo Oficial precisa ser uma imagem (PNG ou JPG) para que a IA possa reproduzi-lo.",
+      );
+    }
+    const { buildOfficialArts } = await import("@/server/creative-art.server");
+    const result = await buildOfficialArts({
+      city: data.city,
+      state: data.state,
+      officialDataUrl: `data:${row.mime_type};base64,${row.content_base64}`,
+    });
+    return { arts: result.arts };
+  });
+
 /** Arquiva automaticamente a arte gerada na pasta corporativa oficial. */
 export const saveCreativeArt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

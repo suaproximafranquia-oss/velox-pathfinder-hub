@@ -20,6 +20,7 @@ import {
   saveCreativeArt,
   saveOfficialModel,
   getOfficialModel,
+  generateOfficialArts,
   type CreativeCopyPair,
 } from "@/lib/creative.functions";
 
@@ -52,6 +53,8 @@ function CriativaPage() {
   const [copy, setCopy] = useState<CreativeCopyPair | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
+  const [official, setOfficial] = useState<Record<CreativeModel, string> | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const s = getSession();
@@ -77,9 +80,26 @@ function CriativaPage() {
       return;
     }
     setError(null);
+    setNotice(null);
     setBusy(true);
     const city = form.city.trim();
     const state = form.state.trim().toUpperCase();
+    try {
+      // Caminho oficial: as duas peças nascem do Modelo Oficial aprovado.
+      const res = await generateOfficialArts({ data: { city, state } });
+      const map = {} as Record<CreativeModel, string>;
+      for (const art of res.arts) map[art.model] = art.base64;
+      setOfficial(map);
+      setCopy(null);
+      return;
+    } catch (err) {
+      setOfficial(null);
+      setNotice(
+        err instanceof Error
+          ? `${err.message} Exibindo as peças no padrão vetorial da marca.`
+          : "Não foi possível usar o Modelo Oficial agora. Exibindo o padrão vetorial da marca.",
+      );
+    }
     try {
       const [res, picture] = await Promise.all([
         generateCreativeCopy({ data: { unit: unitName(form), city, state } }),
@@ -111,7 +131,27 @@ function CriativaPage() {
         </aside>
 
         <section className="space-y-5">
-          {arts ? (
+          {notice ? (
+            <p className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-5 py-3 text-xs text-[color:var(--muted-foreground)]">
+              {notice}
+            </p>
+          ) : null}
+          {official ? (
+            <div className="grid gap-5 md:grid-cols-2">
+              {(["institucional", "marketing"] as CreativeModel[]).map((model) => (
+                <ArtCard
+                  key={model}
+                  model={model}
+                  png={official[model]}
+                  fileBase={`${slugify(unitName(form))}-${model}`}
+                  session={session}
+                  unit={unitName(form)}
+                  city={form.city}
+                  state={form.state}
+                />
+              ))}
+            </div>
+          ) : arts ? (
             <div className="grid gap-5 md:grid-cols-2">
               <ArtCard
                 model="institucional"
@@ -322,6 +362,7 @@ function OfficialModelUpload() {
 function ArtCard({
   model,
   svg,
+  png,
   fileBase,
   session,
   unit,
@@ -329,7 +370,8 @@ function ArtCard({
   state,
 }: {
   model: CreativeModel;
-  svg: string;
+  svg?: string;
+  png?: string;
   fileBase: string;
   session: ExecutiveSession;
   unit: string;
@@ -338,17 +380,22 @@ function ArtCard({
 }) {
   const [saving, setSaving] = useState(true);
   const [saved, setSaved] = useState(false);
-  const preview = useMemo(() => svgToDataUrl(svg), [svg]);
+  const preview = useMemo(
+    () => (png ? `data:image/png;base64,${png}` : svgToDataUrl(svg ?? "")),
+    [png, svg],
+  );
   const fileName = `${fileBase}.png`;
 
+  async function toPng(): Promise<string> {
+    return png ?? (await svgToPngBase64(svg ?? ""));
+  }
+
   async function download() {
-    const png = await svgToPngBase64(svg);
-    downloadBase64(png, fileName);
+    downloadBase64(await toPng(), fileName);
   }
 
   async function view() {
-    const png = await svgToPngBase64(svg);
-    openBase64InNewTab(png);
+    openBase64InNewTab(await toPng());
   }
 
   /** Arquivamento automático na pasta corporativa — sem qualquer ação. */
@@ -359,9 +406,9 @@ function ArtCard({
     void (async () => {
       let driveLink: string | null = null;
       try {
-        const png = await svgToPngBase64(svg);
+        const data = await toPng();
         const res = await saveCreativeArt({
-          data: { name: fileName, contentBase64: png, mimeType: "image/png" },
+          data: { name: fileName, contentBase64: data, mimeType: "image/png" },
         });
         driveLink = res.webViewLink ?? null;
         if (alive) setSaved(true);
@@ -384,7 +431,7 @@ function ArtCard({
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svg, fileName]);
+  }, [svg, png, fileName]);
 
   const action =
     "inline-flex items-center justify-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/50 transition";
