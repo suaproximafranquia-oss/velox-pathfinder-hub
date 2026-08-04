@@ -114,9 +114,11 @@ export async function composeInstitutionalArt(input: {
     }
   }
 
-  // 3) Campos textuais variáveis.
+  // 3) Campos textuais variáveis — cidade e UF aparecem duas vezes.
   if (input.layout.city) drawText(ctx, input.layout.city, input.city, w, h);
+  if (input.layout.city2) drawText(ctx, input.layout.city2, input.city, w, h);
   if (input.layout.state) drawText(ctx, input.layout.state, input.state, w, h);
+  if (input.layout.state2) drawText(ctx, input.layout.state2, input.state, w, h);
 
   return canvas.toDataURL("image/png").split(",")[1] ?? "";
 }

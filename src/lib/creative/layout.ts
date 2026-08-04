@@ -31,14 +31,29 @@ export type OfficialLayout = {
   photo?: Rect;
   city?: TextField;
   state?: TextField;
+  /** A cidade e a UF aparecem duas vezes na arte oficial. */
+  city2?: TextField;
+  state2?: TextField;
 };
 
-export type LayoutFieldKey = "photo" | "city" | "state";
+export type LayoutFieldKey = "photo" | "city" | "state" | "city2" | "state2";
+
+export const LAYOUT_FIELD_KEYS: LayoutFieldKey[] = [
+  "photo",
+  "city",
+  "state",
+  "city2",
+  "state2",
+];
+
+export const TEXT_FIELD_KEYS = ["city", "state", "city2", "state2"] as const;
 
 export const FIELD_LABEL: Record<LayoutFieldKey, string> = {
   photo: "Fotografia principal",
-  city: "Cidade",
-  state: "UF",
+  city: "Cidade (1)",
+  state: "UF (1)",
+  city2: "Cidade (2)",
+  state2: "UF (2)",
 };
 
 export function defaultTextField(rect: Rect): TextField {
@@ -74,7 +89,7 @@ export function parseLayout(value: unknown): OfficialLayout {
   const raw = value as OfficialLayout;
   const out: OfficialLayout = {};
   if (isRect(raw.photo)) out.photo = raw.photo;
-  for (const key of ["city", "state"] as const) {
+  for (const key of TEXT_FIELD_KEYS) {
     const field = raw[key];
     if (field && isRect(field.rect)) {
       out[key] = { ...defaultTextField(field.rect), ...field, rect: field.rect };
