@@ -972,20 +972,9 @@ body[data-shell="universo"] :focus-visible {
     100% 100%;
 }
 
-/* Sistema de Temas — o papel de parede oficial do tema selecionado é a
- * referência visual do CRM: o resultado final é exatamente o preview
- * exibido na galeria. O conteúdo permanece contido no painel central. */
-.crm-chat-surface::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.4;
-  background-image: var(--crm-wallpaper, none);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
+/* Sistema de Temas — o tema define apenas cores, textura, bordas e
+ * sombras. A imagem do card de preview existe somente na tela de
+ * seleção e nunca é sobreposta à área operacional do CRM. */
 
 /* DEF 3.0.1 §5 — Microinterações do Funil Brain Analytics.
  * Apenas escala leve, brilho suave, sombra discreta e profundidade. */
