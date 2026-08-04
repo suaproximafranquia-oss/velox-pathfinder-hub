@@ -31,8 +31,8 @@ export type CrmBackupRecord = {
   email: string;
   originLabel: string;
   readingPct: number;
-  /** "green_sales" (Central Corporativa) ou "portal" (Backup do Executivo). */
-  workspaceKind: "green_sales" | "portal";
+  /** Carteira de origem: Green Sales, Redistribuição ou Portal. */
+  workspaceKind: "green_sales" | "redistribuicao" | "portal";
   /** Relacionamento arquivado — disponível para restauração. */
   archived: boolean;
   archivedAtLabel?: string;
@@ -40,6 +40,7 @@ export type CrmBackupRecord = {
 
 const ORIGIN_LABEL: Record<string, string> = {
   green_sales: "Green Sales",
+  redistribuicao: "Redistribuição",
   portal: "Portal Velox",
   manual: "Cadastro manual",
 };
@@ -53,12 +54,25 @@ export function listConversationBackups(): CrmBackupRecord[] {
       const state = resolveLeadState({ id: i.id, lastActivity: i.lastActivity });
       const origin = i.origin ?? "portal";
       const commercial = getCommercial(i.id);
+      // A carteira do backup acompanha exatamente a carteira operacional
+      // do Lead — Redistribuição nunca se mistura com Green Sales.
+      const kind: CrmBackupRecord["workspaceKind"] =
+        origin === "green_sales"
+          ? "green_sales"
+          : origin === "redistribuicao"
+            ? "redistribuicao"
+            : "portal";
       return {
         investorId: i.id,
         name: i.name,
         executiveId: ownerId,
         executiveName: nameById.get(ownerId) ?? "—",
-        workspaceLabel: origin === "green_sales" ? "Green Sales" : "Portal",
+        workspaceLabel:
+          kind === "green_sales"
+            ? "Green Sales"
+            : kind === "redistribuicao"
+              ? "Redistribuição"
+              : "Portal",
         statusLabel: STATUS_LABEL[i.status],
         stateLabel: LEAD_STATE_META[state].label,
         lastMovementIso: i.lastActivity,
@@ -68,7 +82,7 @@ export function listConversationBackups(): CrmBackupRecord[] {
         email: i.email,
         originLabel: ORIGIN_LABEL[origin] ?? "Portal Velox",
         readingPct: i.readingPct,
-        workspaceKind: origin === "green_sales" ? "green_sales" : "portal",
+        workspaceKind: kind,
         archived: commercial?.state === "arquivado",
         archivedAtLabel: commercial?.archivedAt
           ? new Date(commercial.archivedAt).toLocaleString("pt-BR")
