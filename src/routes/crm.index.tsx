@@ -531,10 +531,22 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmMainPane
         title={current.label}
         header={
-          isConversas && ephemeral ? (
+          isConversas && tempChat ? (
             <CrmEphemeralHeader
-              phone={ephemeral.phone}
-              onClose={() => setEphemeral(null)}
+              phone={tempChat.phone}
+              onConvert={() => convertTempChat(tempChat.id)}
+              onDelete={() => {
+                if (
+                  typeof window !== "undefined" &&
+                  !window.confirm(
+                    "Excluir definitivamente esta conversa temporária? Nenhum registro permanecerá.",
+                  )
+                )
+                  return;
+                removeTempChat(tempChat.id);
+                setTempId(null);
+                setTempTick((v) => v + 1);
+              }}
             />
           ) : isConversas && selected ? (
             <CrmConversationHeader
@@ -545,25 +557,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
         footer={
-          isConversas && ephemeral ? (
+          isConversas && tempChat ? (
             <CrmEphemeralComposer
               onSend={(text) => {
-                const phone = ephemeral.phone;
-                setEphemeral((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        messages: [
-                          ...prev.messages,
-                          {
-                            id: `ef_${Date.now().toString(36)}`,
-                            body: text,
-                            at: new Date().toISOString(),
-                          },
-                        ],
-                      }
-                    : prev,
-                );
+                const phone = tempChat.phone;
+                appendTempMessage(tempChat.id, { body: text });
+                setTempTick((v) => v + 1);
                 void sendWhatsappText({ data: { phone, body: text } }).catch(
                   () => undefined,
                 );
@@ -624,8 +623,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
       >
-        {isConversas && ephemeral ? (
-          <CrmEphemeralThread messages={ephemeral.messages} />
+        {isConversas && tempChat ? (
+          <CrmEphemeralThread messages={tempChat.messages} />
         ) : isConversas && selected ? (
           selected.access === "bloqueado" ? (
             <CrmBlockedRelationship item={selected} />
