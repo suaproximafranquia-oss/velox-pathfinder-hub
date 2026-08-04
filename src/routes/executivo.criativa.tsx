@@ -14,7 +14,7 @@ import {
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
-import { svgToDataUrl, downloadBase64, slugify } from "@/lib/creative/render";
+import { downloadBase64, slugify } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
 import { composeInstitutionalArt } from "@/lib/creative/compose";
 import {
