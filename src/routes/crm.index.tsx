@@ -415,7 +415,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   active={selected?.id === item.id}
                   unread={item.state === "novo" && !openedIds.includes(item.id)}
                   movement={movements[item.id]}
-                  onSelect={() => setSelectedId(item.id)}
+                  onSelect={() => {
+                    setEphemeral(null);
+                    setSelectedId(item.id);
+                  }}
                 />
               ))}
             </div>
