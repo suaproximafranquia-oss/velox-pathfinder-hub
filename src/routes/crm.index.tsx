@@ -502,7 +502,12 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       <CrmMainPane
         title={current.label}
         header={
-          isConversas && selected ? (
+          isConversas && ephemeral ? (
+            <CrmEphemeralHeader
+              phone={ephemeral.phone}
+              onClose={() => setEphemeral(null)}
+            />
+          ) : isConversas && selected ? (
             <CrmConversationHeader
               item={selected}
               window={chatWindow}
@@ -511,7 +516,31 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
         footer={
-          isConversas && selected ? (
+          isConversas && ephemeral ? (
+            <CrmEphemeralComposer
+              onSend={(text) => {
+                const phone = ephemeral.phone;
+                setEphemeral((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        messages: [
+                          ...prev.messages,
+                          {
+                            id: `ef_${Date.now().toString(36)}`,
+                            body: text,
+                            at: new Date().toISOString(),
+                          },
+                        ],
+                      }
+                    : prev,
+                );
+                void sendWhatsappText({ data: { phone, body: text } }).catch(
+                  () => undefined,
+                );
+              }}
+            />
+          ) : isConversas && selected ? (
             <CrmComposer
               disabled={!composerEnabled}
               investorName={selected.name}
@@ -566,7 +595,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           ) : undefined
         }
       >
-        {isConversas && selected ? (
+        {isConversas && ephemeral ? (
+          <CrmEphemeralThread messages={ephemeral.messages} />
+        ) : isConversas && selected ? (
           selected.access === "bloqueado" ? (
             <CrmBlockedRelationship item={selected} />
           ) : selected.access === "supervisao" ? (
