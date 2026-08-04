@@ -116,6 +116,45 @@ export async function sendOfficialTemplate(input: TemplateInput): Promise<Templa
 }
 
 /** Última validação registrada para o número — usada no aguardo do Portal. */
+export async function sendTextMessage(input: {
+  phone: string;
+  body: string;
+}): Promise<{ ok: true; provider: ChannelProviderId; delivered: boolean; error?: string }> {
+  const phone = onlyDigits(input.phone);
+  const ready = Boolean(
+    process.env["WHATSAPP_TOKEN"] && process.env["WHATSAPP_PHONE_NUMBER_ID"],
+  );
+  if (!ready) return { ok: true, provider: "interno", delivered: true };
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v20.0/${process.env["WHATSAPP_PHONE_NUMBER_ID"]}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env["WHATSAPP_TOKEN"]}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "text",
+          text: { body: input.body },
+        }),
+      },
+    );
+    if (!res.ok)
+      return { ok: true, provider: "meta", delivered: false, error: `Meta respondeu ${res.status}` };
+    return { ok: true, provider: "meta", delivered: true };
+  } catch (e) {
+    return {
+      ok: true,
+      provider: "meta",
+      delivered: false,
+      error: e instanceof Error ? e.message : "Falha no envio",
+    };
+  }
+}
+
 export async function readLatestValidation(phone: string): Promise<ValidationRow | null> {
   const { data } = await supabaseAdmin
     .from("whatsapp_validations")
