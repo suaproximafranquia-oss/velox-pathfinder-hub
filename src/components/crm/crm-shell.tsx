@@ -36,10 +36,13 @@ export function CrmShell({
     () =>
       ({
         ...crmCssVars(branding),
+        // Pacote visual completo do tema: o papel de parede oficial é
+        // aplicado junto das cores, nunca isoladamente.
+        "--crm-wallpaper": `url("${theme.thumbnail}")`,
         fontFamily:
           'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
       }) as React.CSSProperties,
-    [branding],
+    [branding, theme],
   );
 
   useEffect(() => {
