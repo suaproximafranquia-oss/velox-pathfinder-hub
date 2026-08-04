@@ -16,6 +16,7 @@ import {
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { GoogleWorkspaceCard } from "@/components/executive/google-workspace-card";
 import { CrmThemePicker } from "@/components/executive/crm-theme-picker";
+import { ExecutivePhotoCard } from "@/components/executive/executive-photo-card";
 import {
   getSession,
   loadUsers,
@@ -70,6 +71,12 @@ function PerfilPage() {
           Recognition, IA, etc.) vêm diretamente daqui. Para alterá-los,
           utilize o botão “Editar Perfil”.
         </p>
+        <ExecutivePhotoCard
+          user={user}
+          fallbackName={session.name}
+          onChange={setUser}
+        />
+        <div className="h-6" />
         <ProfileFields
           session={session}
           user={user}
