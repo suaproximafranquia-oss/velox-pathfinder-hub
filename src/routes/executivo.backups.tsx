@@ -433,7 +433,9 @@ function ReasonDialog({
   );
 }
 
-const TABS = ["Geral", "Jornada", "Linha do Tempo", "Reuniões", "Notas do Executivo"] as const;
+// Jornada é o único local do histórico: a Linha do Tempo deixou de ser
+// aba separada e passou a compor a própria Jornada.
+const TABS = ["Geral", "Jornada", "Reuniões", "Notas do Executivo"] as const;
 
 function BackupReader({
   record,
@@ -521,42 +523,48 @@ function BackupReader({
               </div>
             </dl>
           ) : tab === "Jornada" ? (
-            detail.journey ? (
-              <dl className="space-y-2 text-xs">
-                <Row label="Etapa" value={detail.journey.stageLabel} />
-                <Row label="Módulo atual" value={detail.journey.currentModuleLabel} />
-                <Row label="Progresso" value={`${detail.journey.percent}%`} />
-                <Row label="Sessões" value={String(detail.journey.sessions)} />
-                <Row label="Retornos" value={String(detail.journey.returns)} />
-                <Row
-                  label="Tempo efetivo"
-                  value={`${detail.journey.effectiveMinutes} min`}
-                />
-                <p className="pt-3 leading-relaxed text-[color:var(--muted-foreground)]">
-                  {detail.journey.autoSummary}
+            <div className="space-y-6">
+              {detail.journey ? (
+                <dl className="space-y-2 text-xs">
+                  <Row label="Etapa" value={detail.journey.stageLabel} />
+                  <Row label="Módulo atual" value={detail.journey.currentModuleLabel} />
+                  <Row label="Progresso" value={`${detail.journey.percent}%`} />
+                  <Row label="Sessões" value={String(detail.journey.sessions)} />
+                  <Row label="Retornos" value={String(detail.journey.returns)} />
+                  <Row
+                    label="Tempo efetivo"
+                    value={`${detail.journey.effectiveMinutes} min`}
+                  />
+                  <p className="pt-3 leading-relaxed text-[color:var(--muted-foreground)]">
+                    {detail.journey.autoSummary}
+                  </p>
+                </dl>
+              ) : (
+                <Empty text="Nenhum registro de jornada para este relacionamento." />
+              )}
+              <div>
+                <p className="mb-2 text-[10px] uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
+                  Histórico da jornada
                 </p>
-              </dl>
-            ) : (
-              <Empty text="Nenhum registro de jornada para este relacionamento." />
-            )
-          ) : tab === "Linha do Tempo" ? (
-            detail.timeline.length > 0 ? (
-              <ul className="space-y-3">
-                {detail.timeline.map((e) => (
-                  <li
-                    key={e.id}
-                    className="rounded-xl border border-[color:var(--border)] px-3 py-2.5"
-                  >
-                    <p className="text-xs">{CRM_TIMELINE_LABEL[e.event]}</p>
-                    <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
-                      {formatCrmTimestamp(e.at)} · {e.origin} · {e.reason}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty text="Nenhum evento registrado." />
-            )
+                {detail.timeline.length > 0 ? (
+                  <ul className="space-y-3">
+                    {detail.timeline.map((e) => (
+                      <li
+                        key={e.id}
+                        className="rounded-xl border border-[color:var(--border)] px-3 py-2.5"
+                      >
+                        <p className="text-xs">{CRM_TIMELINE_LABEL[e.event]}</p>
+                        <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
+                          {formatCrmTimestamp(e.at)} · {e.origin} · {e.reason}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Empty text="Nenhum evento registrado." />
+                )}
+              </div>
+            </div>
           ) : tab === "Reuniões" ? (
             detail.meetings.length > 0 ? (
               <ul className="space-y-3">
