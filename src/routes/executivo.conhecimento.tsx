@@ -25,8 +25,11 @@ import {
   type IngestLog,
   listDocuments,
   newDocumentId,
-  removeDocument,
-  resetWorkspace,
+  getDocument,
+  publishDocument,
+  pullOfficialBase,
+  removeOfficialDocument,
+  resetOfficialWorkspace,
   updateDocument,
   STATUS_LABEL,
   VISIBILITY_LABEL,
@@ -67,6 +70,7 @@ function KnowledgePage() {
     if (!canManageKnowledge(s.activeRole)) return void navigate({ to: "/executivo/home" });
     setSession(s);
     setDocs(listDocuments(s.workspaceId));
+    void pullOfficialBase(s.workspaceId).then(setDocs);
   }, [navigate]);
 
   const stats = useMemo(() => {
