@@ -108,8 +108,12 @@ function extractOverlay(
   out.height = height;
   const cx = out.getContext("2d")!;
   const img = cx.createImageData(width, height);
+  // Suavização das bordas do recorte: evita qualquer moldura visível.
+  const fx = Math.max(1, width * 0.06);
+  const fy = Math.max(1, height * 0.06);
   for (let y = 0; y < height; y += 1) {
     const [br, bg, bb] = rows[y]!;
+    const fadeY = Math.min(1, Math.min(y, height - 1 - y) / fy);
     for (let x = 0; x < width; x += 1) {
       const i = (y * width + x) * 4;
       const r = data.data[i]!;
@@ -117,7 +121,9 @@ function extractOverlay(
       const b = data.data[i + 2]!;
       const diff = Math.max(Math.abs(r - br), Math.abs(g - bg), Math.abs(b - bb));
       // Suaviza a borda dos elementos gráficos preservados.
-      const alpha = diff <= 14 ? 0 : diff >= 46 ? 1 : (diff - 14) / 32;
+      const raw = diff <= 18 ? 0 : diff >= 52 ? 1 : (diff - 18) / 34;
+      const fade = Math.min(fadeY, Math.min(x, width - 1 - x) / fx);
+      const alpha = raw * fade;
       img.data[i] = r;
       img.data[i + 1] = g;
       img.data[i + 2] = b;
