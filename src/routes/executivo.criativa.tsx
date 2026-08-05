@@ -482,13 +482,37 @@ function CriativaPage() {
                     <span className="text-muted-foreground">Nenhum template</span>
                   )}
                 </p>
-                {tpl ? (
-                  <img
-                    src={tpl.dataUrl}
-                    alt={TEMPLATE_LABEL[model]}
-                    className="h-32 w-full rounded-lg border border-border object-contain"
-                  />
-                ) : null}
+                <div className="grid grid-cols-2 gap-3">
+                  {tpl ? (
+                    <figure>
+                      <img
+                        src={tpl.dataUrl}
+                        alt={TEMPLATE_LABEL[model]}
+                        className="h-32 w-full rounded-lg border border-border object-contain"
+                      />
+                      <figcaption className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Template oficial · onde editar
+                      </figcaption>
+                    </figure>
+                  ) : null}
+                  {ref ? (
+                    <figure>
+                      <img
+                        src={ref.dataUrl}
+                        alt={`Modelo padronizado — ${CREATIVE_MODEL_LABEL[model]}`}
+                        className="h-32 w-full rounded-lg border border-dashed border-border object-contain"
+                      />
+                      <figcaption className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Modelo padronizado · referência ({ref.width}×{ref.height})
+                      </figcaption>
+                    </figure>
+                  ) : (
+                    <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border p-2 text-center text-[10px] text-muted-foreground">
+                      Modelo padronizado não enviado — referência apenas visual, nunca utilizada
+                      como template.
+                    </div>
+                  )}
+                </div>
                 {diags ? (
                   <ul className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs">
                     {diags.map((d, i) => (
