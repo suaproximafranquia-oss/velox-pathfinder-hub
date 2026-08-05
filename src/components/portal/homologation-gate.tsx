@@ -54,7 +54,7 @@ export function HomologationGate({ children }: { children: ReactNode }) {
       {/* Apenas um leve escurecimento — a arte continua legível. */}
       <div className="absolute inset-0 bg-[#050B18]/35" aria-hidden />
 
-      <div className="relative flex min-h-screen items-center justify-center px-6 py-12 lg:justify-start lg:pl-[8%]">
+      <div className="relative flex min-h-screen items-center justify-center px-6 py-12 lg:justify-end lg:pr-[7%]">
       <form
         onSubmit={submit}
         className="w-full max-w-md rounded-2xl border border-[#D8B25A]/35 bg-[#050B18]/75 p-10 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.9)] backdrop-blur-[2px]"
