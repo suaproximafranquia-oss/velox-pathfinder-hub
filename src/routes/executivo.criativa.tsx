@@ -1,18 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Wand2, Loader2, Download, X } from "lucide-react";
+import { Wand2, Loader2, Download, X, Upload, CheckCircle2 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
-import {
-  downloadBase64,
-  officialLogoHref,
-  slugify,
-  svgToPngBase64,
-} from "@/lib/creative/render";
-import { renderTemplate } from "@/lib/creative/templates";
+import { downloadBase64, slugify } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
-import { composeInstitutionalArt } from "@/lib/creative/compose";
+import { composeFromTemplate } from "@/lib/creative/compose";
+import {
+  getTemplate,
+  uploadTemplate,
+  type CreativeTemplate,
+} from "@/lib/creative/template-store";
 import { generateCreativeCopy, getCityPhoto } from "@/lib/creative.functions";
 
 export const Route = createFileRoute("/executivo/criativa")({
@@ -30,11 +29,16 @@ type FormState = { city: string; state: string };
 
 const EMPTY: FormState = { city: "", state: "" };
 
+const TEMPLATE_LABEL: Record<CreativeModel, string> = {
+  institucional: "Template Institucional",
+  marketing: "Template Marketing",
+};
+
 const MODEL_HINT: Record<CreativeModel, string> = {
   institucional:
     "Preenchimento do Template Oficial: fotografia da cidade, nome da cidade e UF. Nenhum outro elemento é alterado.",
   marketing:
-    "Versão criativa produzida pela IA dentro da identidade visual da Velox.",
+    "Preenchimento do Template Marketing: fotografia da cidade, cidade, UF e os textos publicitários da IA. O layout do template é preservado.",
 };
 
 function unitName(form: FormState): string {
@@ -51,6 +55,40 @@ function CriativaPage() {
   const [zoom, setZoom] = useState<{ model: CreativeModel; src: string; file: string } | null>(
     null,
   );
+  const [templates, setTemplates] = useState<Partial<Record<CreativeModel, CreativeTemplate>>>(
+    {},
+  );
+  const [uploading, setUploading] = useState<CreativeModel | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const [institucional, marketing] = await Promise.all([
+        getTemplate("institucional"),
+        getTemplate("marketing"),
+      ]);
+      setTemplates({
+        ...(institucional ? { institucional } : {}),
+        ...(marketing ? { marketing } : {}),
+      });
+    })();
+  }, []);
+
+  /** Cada modelo possui o seu próprio template: um upload nunca afeta o outro. */
+  async function sendTemplate(model: CreativeModel, file: File | undefined) {
+    if (!file) return;
+    setUploading(model);
+    setError(null);
+    try {
+      const saved = await uploadTemplate(model, file, session?.userId);
+      setTemplates((t) => ({ ...t, [model]: saved }));
+    } catch (err) {
+      const saved = await getTemplate(model);
+      if (saved) setTemplates((t) => ({ ...t, [model]: saved }));
+      setError(err instanceof Error ? err.message : "Falha ao enviar o template.");
+    } finally {
+      setUploading(null);
+    }
+  }
 
   useEffect(() => {
     const s = getSession();
@@ -72,36 +110,36 @@ function CriativaPage() {
     try {
       const photo = await getCityPhoto({ data: { city, state } });
 
-      // MODELO A — preenchimento determinístico do Template Oficial.
-      const institucional = await composeInstitutionalArt({
+      // MODELO A — preenchimento determinístico do Template Institucional.
+      const institucional = await composeFromTemplate({
+        model: "institucional",
         city,
         state,
         photoDataUrl: photo.dataUrl,
       });
 
-      // MODELO B — versão criativa, dentro da identidade Velox.
+      // MODELO B — mesmo motor, sobre o Template Marketing. A IA produz
+      // apenas os textos publicitários; o layout vem do template.
       let marketing: string | undefined;
-      try {
-        const copy = await generateCreativeCopy({
-          data: { city, state, unit: unitName({ city, state }) },
-        });
-        const logo = await officialLogoHref();
-        const svg = renderTemplate(
-          "marketing",
-          {
-            unit: unitName({ city, state }),
+      if (templates.marketing) {
+        try {
+          const copy = await generateCreativeCopy({
+            data: { city, state, unit: unitName({ city, state }) },
+          });
+          marketing = await composeFromTemplate({
+            model: "marketing",
             city,
             state,
-            headline: copy.marketing.headline,
-            subheadline: copy.marketing.subheadline,
-            supporting: copy.marketing.supporting,
-            photo: photo.dataUrl,
-          },
-          logo,
-        );
-        marketing = await svgToPngBase64(svg, 1080, 1350);
-      } catch {
-        /* o Modelo A é entregue mesmo se a versão criativa falhar */
+            photoDataUrl: photo.dataUrl,
+            copy: {
+              headline: copy.marketing.headline,
+              subheadline: copy.marketing.subheadline,
+              supporting: copy.marketing.supporting,
+            },
+          });
+        } catch {
+          /* o Modelo A é entregue mesmo se o Modelo B falhar */
+        }
       }
 
       setArts({ institucional, ...(marketing ? { marketing } : {}) });
@@ -183,6 +221,62 @@ function CriativaPage() {
           {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
         </section>
 
+        <section className="grid gap-4 sm:grid-cols-2">
+          {(["institucional", "marketing"] as CreativeModel[]).map((model) => {
+            const tpl = templates[model];
+            return (
+              <div
+                key={model}
+                className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5"
+              >
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {CREATIVE_MODEL_LABEL[model]}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {tpl
+                      ? tpl.builtIn
+                        ? "Utilizando o template oficial padrão."
+                        : `Em uso: ${tpl.fileName}`
+                      : "Nenhum template enviado."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
+                    {uploading === model ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    Enviar {TEMPLATE_LABEL[model]}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={(e) => {
+                        void sendTemplate(model, e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {tpl && !tpl.builtIn ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> ativo
+                    </span>
+                  ) : null}
+                </div>
+                {tpl ? (
+                  <img
+                    src={tpl.dataUrl}
+                    alt={TEMPLATE_LABEL[model]}
+                    className="h-32 w-full rounded-lg border border-border object-contain"
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+        </section>
+
         <section className="grid gap-6 sm:grid-cols-2">
           {(["institucional", "marketing"] as CreativeModel[]).map((model) => {
             const art = arts[model];
@@ -218,7 +312,11 @@ function CriativaPage() {
                     </button>
                   ) : (
                     <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-                      {busy ? "Gerando…" : "Aguardando geração"}
+                      {busy
+                        ? "Gerando…"
+                        : model === "marketing" && !templates.marketing
+                          ? "Envie o Template Marketing"
+                          : "Aguardando geração"}
                     </div>
                   )}
                 </div>
