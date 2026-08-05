@@ -152,7 +152,7 @@ export async function uploadTemplate(
       data_url: dataUrl,
       width,
       height,
-      config: config as unknown as Record<string, unknown>,
+      config: JSON.parse(JSON.stringify(config)),
       updated_by: updatedBy ?? null,
       updated_at: template.updatedAt,
     },
