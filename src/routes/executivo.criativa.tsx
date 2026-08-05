@@ -386,11 +386,7 @@ function CriativaPage() {
                     </button>
                   ) : (
                     <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-                      {busy
-                        ? "Gerando…"
-                        : model === "marketing" && !templates.marketing
-                          ? "Envie o Template Marketing"
-                          : "Aguardando geração"}
+                      {busy ? "Gerando…" : "Aguardando geração"}
                     </div>
                   )}
                 </div>
