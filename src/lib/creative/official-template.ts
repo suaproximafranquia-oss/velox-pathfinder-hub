@@ -132,7 +132,7 @@ const MARKETING: TemplateLayout = {
     lines: 1,
     weight: 700,
     color: "#F1610C",
-    clear: { x0: 0.05, x1: 0.645, y0: 0.5382, y1: 0.6076 },
+    clear: { x0: 0.05, x1: 0.645, y0: 0.5382, y1: 0.6111 },
   },
   subheadline: {
     x: 0.0623,
