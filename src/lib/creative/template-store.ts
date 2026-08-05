@@ -10,7 +10,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { CreativeModel } from "./brand";
-import { OFFICIAL_TEMPLATE_URL } from "./official-template";
+import { BUILTIN_TEMPLATE_URL } from "./official-template";
 import { buildConfig, type TemplateConfig } from "./calibration";
 
 export type CreativeTemplate = {
@@ -78,14 +78,15 @@ export async function getTemplate(model: CreativeModel): Promise<CreativeTemplat
     if (cached) return cached;
   }
   // Fallback embutido: cada modelo continua operando mesmo sem upload.
-  const config = await calibrateFrom(model, OFFICIAL_TEMPLATE_URL, null, null);
+  const builtIn = BUILTIN_TEMPLATE_URL[model];
+  const config = await calibrateFrom(model, builtIn, null, null);
   return {
     model,
     fileName:
       model === "institucional"
         ? "velox-template-oficial.png"
-        : "velox-template-marketing-padrao.png",
-    dataUrl: OFFICIAL_TEMPLATE_URL,
+        : "velox-template-marketing-oficial.png",
+    dataUrl: builtIn,
     updatedAt: "",
     builtIn: true,
     ...(config ? { config } : {}),
