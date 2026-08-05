@@ -282,6 +282,7 @@ function KnowledgePage() {
         <input
           ref={fileRef}
           type="file"
+          multiple
           accept=".pdf,.docx,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={(e) => onPickFile(e.target.files)}
           className="hidden"
@@ -301,6 +302,24 @@ function KnowledgePage() {
               <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
               <span>{stage || "Processando…"}</span>
             </div>
+            {queue.length > 1 && (
+              <ul className="mt-3 space-y-1 text-[11px]">
+                {queue.map((item, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    {item.status === "processando" ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-[color:var(--gold)]" />
+                    ) : item.status === "concluido" ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-300" />
+                    ) : item.status === "erro" ? (
+                      <AlertTriangle className="h-3 w-3 text-red-300" />
+                    ) : (
+                      <span className="h-3 w-3 rounded-full border border-[color:var(--border)]" />
+                    )}
+                    <span>{item.name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             {logs.length > 0 && (
               <ul className="mt-3 max-h-40 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed">
                 {logs.map((l, i) => (
