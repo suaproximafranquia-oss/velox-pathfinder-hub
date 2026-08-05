@@ -54,7 +54,13 @@ type PendingUpload = {
 type QueueItem = {
   name: string;
   status: "aguardando" | "processando" | "concluido" | "erro";
+  /** Progresso individual do documento (ex.: "Página 3 de 18"). */
+  detail?: string;
 };
+
+/** Concorrência padrão: 3 documentos processados simultaneamente. */
+const DEFAULT_CONCURRENCY = 3;
+const CONCURRENCY_OPTIONS = [1, 2, 3, 4, 5, 6];
 
 function KnowledgePage() {
   const navigate = useNavigate();
@@ -68,6 +74,8 @@ function KnowledgePage() {
   const [pending, setPending] = useState<PendingUpload | null>(null);
   /** Fila de processamento: um arquivo por vez, com estado visível. */
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  /** Quantos documentos são processados ao mesmo tempo. */
+  const [concurrency, setConcurrency] = useState<number>(DEFAULT_CONCURRENCY);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
