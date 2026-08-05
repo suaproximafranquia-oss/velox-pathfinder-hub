@@ -65,6 +65,7 @@ import {
   appendTempMessage,
   removeTempChat,
   getTempChat,
+  renameTempChat,
 } from "@/lib/crm/temp-chats";
 import { sendWhatsappText } from "@/lib/whatsapp.functions";
 import { createCrmLead } from "@/lib/crm/lead-intake";
@@ -286,7 +287,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     const chat = getTempChat(id);
     if (!chat) return;
     const created = createCrmLead({
-      fields: { name: chat.phone, whatsapp: chat.phone, email: "", city: "" },
+      fields: {
+        // O nome definido na conversa temporária acompanha o Lead.
+        name: chat.name?.trim() || chat.phone,
+        whatsapp: chat.phone,
+        email: "",
+        city: "",
+      },
       source: "manual",
       ownerId: actor.userId,
     });
@@ -567,6 +574,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
           isConversas && tempChat ? (
             <CrmEphemeralHeader
               phone={tempChat.phone}
+              {...(tempChat.name ? { name: tempChat.name } : {})}
+              onRename={(value) => {
+                renameTempChat(tempChat.id, value);
+                setTempTick((v) => v + 1);
+              }}
               onConvert={() => convertTempChat(tempChat.id)}
               onDelete={() => {
                 if (
