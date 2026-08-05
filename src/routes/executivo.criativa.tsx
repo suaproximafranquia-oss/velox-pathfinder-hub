@@ -9,9 +9,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   FlaskConical,
-  ImagePlus,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import {
   getSession,
   canManageCreativeTemplates,
@@ -112,6 +112,8 @@ function CriativaPage() {
   const [uploadingRef, setUploadingRef] = useState<CreativeModel | null>(null);
   /** Modo Manual: fotografia escolhida pelo usuário (opcional). */
   const [manualPhoto, setManualPhoto] = useState<{ name: string; dataUrl: string } | null>(null);
+  /** Origem da fotografia: busca automática ou imagem enviada. */
+  const [photoMode, setPhotoMode] = useState<"auto" | "manual">("auto");
   const [testing, setTesting] = useState<CreativeModel | null>(null);
   const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
   const canManageTemplates = session ? canManageCreativeTemplates(session.activeRole) : false;
@@ -139,23 +141,6 @@ function CriativaPage() {
     reader.onload = () => setManualPhoto({ name: file.name || "foto colada", dataUrl: String(reader.result) });
     reader.readAsDataURL(file);
   }
-
-  useEffect(() => {
-    const onPaste = (e: ClipboardEvent) => {
-      for (const item of Array.from(e.clipboardData?.items ?? [])) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) {
-            e.preventDefault();
-            readPhoto(file);
-          }
-          return;
-        }
-      }
-    };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, []);
 
   /** Cada modelo possui o seu próprio template: um upload nunca afeta o outro. */
   async function sendTemplate(model: CreativeModel, file: File | undefined) {
