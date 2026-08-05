@@ -63,13 +63,8 @@ export function HomologationGate({ children }: { children: ReactNode }) {
         />
 
         <form onSubmit={submit} className="absolute inset-0">
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            aria-label="Usuário"
-            placeholder="Usuário"
-            className="absolute border-0 text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
+          <div
+            className="absolute flex items-center gap-[0.6em] px-[0.7em]"
             style={{
               left: "27.6%",
               top: "52.2%",
@@ -78,15 +73,19 @@ export function HomologationGate({ children }: { children: ReactNode }) {
               background: "#070C12",
               fontSize: "clamp(11px, 1.15vw, 17px)",
             }}
-          />
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type="password"
-            autoComplete="current-password"
-            aria-label="Senha"
-            placeholder="Senha"
-            className="absolute border-0 text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
+          >
+            <User className="shrink-0 text-[#D4AF37]" size={16} strokeWidth={1.8} />
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              aria-label="Usuário"
+              placeholder="Usuário"
+              className="w-full border-0 bg-transparent text-[1em] text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
+            />
+          </div>
+          <div
+            className="absolute flex items-center gap-[0.6em] px-[0.7em]"
             style={{
               left: "27.6%",
               top: "59.5%",
@@ -95,7 +94,18 @@ export function HomologationGate({ children }: { children: ReactNode }) {
               background: "#070C12",
               fontSize: "clamp(11px, 1.15vw, 17px)",
             }}
-          />
+          >
+            <Lock className="shrink-0 text-[#D4AF37]" size={16} strokeWidth={1.8} />
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              autoComplete="current-password"
+              aria-label="Senha"
+              placeholder="Senha"
+              className="w-full border-0 bg-transparent text-[1em] text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
+            />
+          </div>
           <button
             type="submit"
             aria-label="Entrar"
