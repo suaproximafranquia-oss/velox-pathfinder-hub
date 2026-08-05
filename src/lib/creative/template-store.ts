@@ -11,6 +11,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { CreativeModel } from "./brand";
 import { OFFICIAL_TEMPLATE_URL } from "./official-template";
+import { buildConfig, type TemplateConfig } from "./calibration";
 
 export type CreativeTemplate = {
   model: CreativeModel;
@@ -18,9 +19,11 @@ export type CreativeTemplate = {
   dataUrl: string;
   updatedAt: string;
   builtIn?: boolean;
+  /** Configuração própria do template (calibração automática). */
+  config?: TemplateConfig;
 };
 
-const CACHE_KEY = "velox.creative.templates.v1";
+const CACHE_KEY = "velox.creative.templates.v2";
 
 type Cache = Partial<Record<CreativeModel, CreativeTemplate>>;
 
@@ -50,15 +53,21 @@ export async function getTemplate(model: CreativeModel): Promise<CreativeTemplat
   try {
     const { data } = await supabase
       .from("creative_templates")
-      .select("model, file_name, data_url, updated_at")
+      .select("model, file_name, data_url, updated_at, config, width, height")
       .eq("model", model)
       .maybeSingle();
     if (data?.data_url) {
+      const stored = (data.config ?? null) as TemplateConfig | null;
+      const config =
+        stored && stored.width
+          ? stored
+          : await calibrateFrom(model, data.data_url, data.width, data.height);
       const template: CreativeTemplate = {
         model,
         fileName: data.file_name,
         dataUrl: data.data_url,
         updatedAt: data.updated_at,
+        ...(config ? { config } : {}),
       };
       writeCache(model, template);
       return template;
@@ -68,16 +77,32 @@ export async function getTemplate(model: CreativeModel): Promise<CreativeTemplat
     const cached = readCache()[model];
     if (cached) return cached;
   }
-  if (model === "institucional") {
-    return {
-      model,
-      fileName: "velox-template-oficial.png",
-      dataUrl: OFFICIAL_TEMPLATE_URL,
-      updatedAt: "",
-      builtIn: true,
-    };
-  }
-  return null;
+  // Fallback embutido: cada modelo continua operando mesmo sem upload.
+  const config = await calibrateFrom(model, OFFICIAL_TEMPLATE_URL, null, null);
+  return {
+    model,
+    fileName:
+      model === "institucional"
+        ? "velox-template-oficial.png"
+        : "velox-template-marketing-padrao.png",
+    dataUrl: OFFICIAL_TEMPLATE_URL,
+    updatedAt: "",
+    builtIn: true,
+    ...(config ? { config } : {}),
+  };
+}
+
+async function calibrateFrom(
+  model: CreativeModel,
+  dataUrl: string,
+  width: number | null,
+  height: number | null,
+): Promise<TemplateConfig | null> {
+  if (width && height) return buildConfig(model, width, height);
+  if (typeof window === "undefined") return null;
+  const size = await measure(dataUrl);
+  if (!size.width || !size.height) return null;
+  return buildConfig(model, size.width, size.height);
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -109,11 +134,15 @@ export async function uploadTemplate(
   }
   const dataUrl = await fileToDataUrl(file);
   const { width, height } = await measure(dataUrl);
+  // Calibração automática: as áreas variáveis são recalculadas para a
+  // resolução real do arquivo. O layout gráfico nunca é alterado.
+  const config = buildConfig(model, width, height);
   const template: CreativeTemplate = {
     model,
     fileName: file.name,
     dataUrl,
     updatedAt: new Date().toISOString(),
+    config,
   };
   writeCache(model, template);
   const { error } = await supabase.from("creative_templates").upsert(
@@ -124,6 +153,7 @@ export async function uploadTemplate(
       data_url: dataUrl,
       width,
       height,
+      config: JSON.parse(JSON.stringify(config)),
       updated_by: updatedBy ?? null,
       updated_at: template.updatedAt,
     },

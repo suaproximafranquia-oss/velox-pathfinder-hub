@@ -160,6 +160,7 @@ export type Database = {
       }
       creative_templates: {
         Row: {
+          config: Json
           content_type: string
           data_url: string
           file_name: string
@@ -170,6 +171,7 @@ export type Database = {
           width: number | null
         }
         Insert: {
+          config?: Json
           content_type?: string
           data_url: string
           file_name: string
@@ -180,6 +182,7 @@ export type Database = {
           width?: number | null
         }
         Update: {
+          config?: Json
           content_type?: string
           data_url?: string
           file_name?: string
