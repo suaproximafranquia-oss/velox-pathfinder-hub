@@ -323,6 +323,7 @@ function CriativaPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                  {canManageTemplates ? (
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
                     {uploading === model ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -340,6 +341,11 @@ function CriativaPage() {
                       }}
                     />
                   </label>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Somente Administrador e Gestora podem alterar templates.
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => void runTest(model)}
