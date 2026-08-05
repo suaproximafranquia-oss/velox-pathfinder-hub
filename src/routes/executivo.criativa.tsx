@@ -396,6 +396,7 @@ function CriativaPage() {
           {(["institucional", "marketing"] as CreativeModel[]).map((model) => {
             const tpl = templates[model];
             const diags = report[model];
+            const ref = references[model];
             return (
               <div
                 key={model}
@@ -451,6 +452,25 @@ function CriativaPage() {
                     Testar Template
                   </button>
                 </div>
+                {canManageTemplates ? (
+                  <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
+                    {uploadingRef === model ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    Enviar Modelo Padronizado
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={(e) => {
+                        void sendReference(model, e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                ) : null}
                 <p className="text-xs">
                   <span className="text-muted-foreground">Status: </span>
                   {tpl ? (
