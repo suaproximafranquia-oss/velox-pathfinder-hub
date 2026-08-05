@@ -158,6 +158,39 @@ export type Database = {
         }
         Relationships: []
       }
+      creative_templates: {
+        Row: {
+          content_type: string
+          data_url: string
+          file_name: string
+          height: number | null
+          model: string
+          updated_at: string
+          updated_by: string | null
+          width: number | null
+        }
+        Insert: {
+          content_type?: string
+          data_url: string
+          file_name: string
+          height?: number | null
+          model: string
+          updated_at?: string
+          updated_by?: string | null
+          width?: number | null
+        }
+        Update: {
+          content_type?: string
+          data_url?: string
+          file_name?: string
+          height?: number | null
+          model?: string
+          updated_at?: string
+          updated_by?: string | null
+          width?: number | null
+        }
+        Relationships: []
+      }
       executive_profiles: {
         Row: {
           created_at: string
