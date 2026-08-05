@@ -34,13 +34,18 @@ function candidates(city: string, state: string): string[] {
   return [
     `${city}${uf}`,
     `${city} cartão postal`,
+    `${city} igreja matriz`,
+    `${city} catedral`,
+    `${city} ponte`,
+    `${city} rio`,
     `${city} vista panorâmica`,
     `${city} skyline`,
     `${city} monumento`,
     `${city} centro histórico`,
     `${city} parque`,
     `${city} praça`,
-    `${city} vista aérea`,
+    `${city} arquitetura histórica`,
+    `${city} avenida`,
   ];
 }
 
@@ -74,6 +79,31 @@ const REJECT = [
   "portrait",
   "selfie",
   "interior",
+  // Etapa 2 §6 — descartar o que não representa a identidade da cidade.
+  "kartodromo",
+  "kartódromo",
+  "kart",
+  "autodromo",
+  "autódromo",
+  "pista",
+  "estacionamento",
+  "parking",
+  "industri",
+  "galpao",
+  "galpão",
+  "fabrica",
+  "fábrica",
+  "telhado",
+  "roof",
+  "loteamento",
+  "condominio",
+  "condomínio",
+  "residencial",
+  "obra",
+  "canteiro",
+  "favela",
+  "lixao",
+  "aterro",
 ];
 
 /** Prioriza cartões-postais, monumentos, skyline e paisagens urbanas. */
@@ -97,6 +127,18 @@ const PREFER = [
   "igreja",
   "matriz",
   "avenida",
+  "ponte",
+  "rio",
+  "praia",
+  "orla",
+  "teatro",
+  "museu",
+  "basilica",
+  "basílica",
+  "coreto",
+  "jardim",
+  "arquitetura",
+  "turis",
   "paisagem",
   "cidade",
   "city",
@@ -108,7 +150,7 @@ function score(url: string, info: ImageInfo): number {
   const width = info.width ?? 0;
   const height = info.height ?? 0;
   // Resolução mínima: evita imagens pequenas e excessivamente comprimidas.
-  if (width < 1100 || height < 700) return -1;
+  if (width < 1200 || height < 800) return -1;
   const ratio = width / height;
   // Enquadramentos muito fechados (verticais) ou panorâmicos extremos.
   if (ratio < 1.1 || ratio > 2.6) return -1;
@@ -116,7 +158,11 @@ function score(url: string, info: ImageInfo): number {
   const bytes = info.size ?? 0;
   if (bytes && bytes / (width * height) < 0.06) return -1;
   let s = Math.min(6, width / 600);
-  if (PREFER.some((w) => name.includes(w))) s += 4;
+  // Só entram imagens que declaram algum elemento representativo da
+  // cidade: cartão-postal, monumento, igreja, praça, rio, ponte, etc.
+  const representative = PREFER.filter((w) => name.includes(w)).length;
+  if (representative === 0) return -1;
+  s += 4 + Math.min(3, representative);
   if (ratio >= 1.3 && ratio <= 1.9) s += 2;
   return s;
 }
