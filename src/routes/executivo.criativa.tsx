@@ -692,9 +692,12 @@ function OfficialModelMapper() {
       ) : (
         <>
           <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
-            Selecione o campo e arraste sobre a arte para marcar a área. Somente
-            essas áreas são substituídas — o restante do arquivo permanece
-            idêntico.
+            Selecione o campo e arraste sobre a arte para marcar a área. A
+            fotografia da cidade preenche toda a área marcada e recebe
+            automaticamente a película azul do template, fundindo-se ao fundo
+            institucional. Marque em “Selo” o carimbo “Vem Aí — Nova Unidade”
+            (com uma folga em volta) para que ele seja preservado sobre a foto.
+            O restante do arquivo permanece idêntico.
           </p>
           <div className="flex flex-wrap gap-1.5">
             {LAYOUT_FIELD_KEYS.map((key) => (
