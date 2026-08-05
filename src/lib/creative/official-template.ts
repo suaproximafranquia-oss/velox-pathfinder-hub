@@ -41,7 +41,14 @@ export type TextBlock = {
    * limpa essa faixa reproduzindo a cor do próprio template — nenhum
    * elemento gráfico é alterado, apenas o texto de exemplo desaparece.
    */
-  clear?: { x0: number; x1: number; y0: number; y1: number };
+  clear?: {
+    x0: number;
+    x1: number;
+    y0: number;
+    y1: number;
+    /** Lado do template usado como amostra de cor (padrão: esquerda). */
+    sample?: "left" | "right";
+  };
 };
 
 export type CopyBlock = TextBlock & {
@@ -182,7 +189,7 @@ const MARKETING: TemplateLayout = {
     maxWidth: 0.232,
     weight: 700,
     color: "#FFFFFF",
-    clear: { x0: 0.7253, x1: 0.972, y0: 0.8896, y1: 0.9188 },
+    clear: { x0: 0.7253, x1: 0.972, y0: 0.8896, y1: 0.9188, sample: "right" },
   },
 };
 
