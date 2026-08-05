@@ -552,7 +552,8 @@ function UploadModal({
           </h3>
         </div>
         <p className="text-[11px] text-[color:var(--muted-foreground)] mb-4">
-          Os documentos serão processados em fila, um a um, com a mesma visibilidade e descrição.
+          Os documentos serão processados em fila, com até {concurrency} em paralelo, compartilhando
+          a mesma visibilidade e descrição.
         </p>
 
         <div className="space-y-4">
