@@ -77,18 +77,19 @@ export async function getTemplate(model: CreativeModel): Promise<CreativeTemplat
     const cached = readCache()[model];
     if (cached) return cached;
   }
-  if (model === "institucional") {
-    const config = await calibrateFrom(model, OFFICIAL_TEMPLATE_URL, null, null);
-    return {
-      model,
-      fileName: "velox-template-oficial.png",
-      dataUrl: OFFICIAL_TEMPLATE_URL,
-      updatedAt: "",
-      builtIn: true,
-      ...(config ? { config } : {}),
-    };
-  }
-  return null;
+  // Fallback embutido: cada modelo continua operando mesmo sem upload.
+  const config = await calibrateFrom(model, OFFICIAL_TEMPLATE_URL, null, null);
+  return {
+    model,
+    fileName:
+      model === "institucional"
+        ? "velox-template-oficial.png"
+        : "velox-template-marketing-padrao.png",
+    dataUrl: OFFICIAL_TEMPLATE_URL,
+    updatedAt: "",
+    builtIn: true,
+    ...(config ? { config } : {}),
+  };
 }
 
 async function calibrateFrom(
