@@ -52,7 +52,10 @@ export type TemplateTestResult = {
   report: Diagnostic[];
 };
 
-export async function testTemplate(model: CreativeModel): Promise<TemplateTestResult> {
+export async function testTemplate(
+  model: CreativeModel,
+  options: { guide?: boolean } = {},
+): Promise<TemplateTestResult> {
   const template = await getTemplate(model);
   if (!template) {
     throw new Error("Envie um template para este modelo antes de testar.");
@@ -65,6 +68,8 @@ export async function testTemplate(model: CreativeModel): Promise<TemplateTestRe
     city: TEST_CITY,
     state: TEST_STATE,
     photoDataUrl: testPhoto(),
+    // Guia tracejado de calibração: existe apenas na prévia.
+    guide: options.guide ?? true,
     ...(model === "marketing" ? { copy: TEST_COPY } : {}),
   });
   return { preview, report };
