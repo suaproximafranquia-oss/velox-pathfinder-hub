@@ -170,10 +170,11 @@ const MARKETING: TemplateLayout = {
     tracking: 0.03,
     weight: 700,
     color: "#F1610C",
+    prefix: "AGORA EM ",
     clear: { x0: 0.05, x1: 0.63, y0: 0.7132, y1: 0.7368 },
   },
   // Rodapé laranja: "<CIDADE> - <UF>".
-  city: {
+  footer: {
     x: 0.7326,
     align: "left",
     baselineY: 0.9132,
