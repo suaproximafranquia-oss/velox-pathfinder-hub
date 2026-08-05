@@ -1,0 +1,1 @@
+DELETE FROM public.creative_templates WHERE model = 'marketing';
