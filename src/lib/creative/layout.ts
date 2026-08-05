@@ -29,6 +29,12 @@ export type TextField = {
 
 export type OfficialLayout = {
   photo?: Rect;
+  /**
+   * Selo gráfico do template que fica DENTRO da área da fotografia
+   * (ex.: "Vem Aí — Nova Unidade"). É o único elemento do template
+   * preservado sobre a foto; o restante da área é substituído.
+   */
+  badge?: Rect;
   city?: TextField;
   state?: TextField;
   /** A cidade e a UF aparecem duas vezes na arte oficial. */
@@ -36,10 +42,11 @@ export type OfficialLayout = {
   state2?: TextField;
 };
 
-export type LayoutFieldKey = "photo" | "city" | "state" | "city2" | "state2";
+export type LayoutFieldKey = "photo" | "badge" | "city" | "state" | "city2" | "state2";
 
 export const LAYOUT_FIELD_KEYS: LayoutFieldKey[] = [
   "photo",
+  "badge",
   "city",
   "state",
   "city2",
@@ -48,8 +55,12 @@ export const LAYOUT_FIELD_KEYS: LayoutFieldKey[] = [
 
 export const TEXT_FIELD_KEYS = ["city", "state", "city2", "state2"] as const;
 
+/** Campos definidos apenas por área (sem tipografia). */
+export const RECT_FIELD_KEYS = ["photo", "badge"] as const;
+
 export const FIELD_LABEL: Record<LayoutFieldKey, string> = {
   photo: "Fotografia principal",
+  badge: "Selo (preservar)",
   city: "Cidade (1)",
   state: "UF (1)",
   city2: "Cidade (2)",
@@ -89,6 +100,7 @@ export function parseLayout(value: unknown): OfficialLayout {
   const raw = value as OfficialLayout;
   const out: OfficialLayout = {};
   if (isRect(raw.photo)) out.photo = raw.photo;
+  if (isRect(raw.badge)) out.badge = raw.badge;
   for (const key of TEXT_FIELD_KEYS) {
     const field = raw[key];
     if (field && isRect(field.rect)) {
