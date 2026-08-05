@@ -219,63 +219,18 @@ export function CrmNewLeadDialog({
         <div className="space-y-4 px-5 py-4">
           {tab === "importador" ? (
             <>
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file?.type.startsWith("image/")) void handleFile(file);
-                }}
-                className="rounded-xl border border-dashed border-[color:var(--crm-accent)]/40 bg-[color:var(--crm-accent-soft)]/50 px-4 py-3 text-center"
-              >
-                <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-[color:var(--crm-accent)]">
-                  <ClipboardPaste className="h-3.5 w-3.5" />
-                  Cole o print com CTRL + V
-                </p>
-                <p className="mt-1 text-[11px] leading-relaxed text-[color:var(--crm-muted)]">
-                  Copie a tela (CTRL + C ou Print Screen) e cole aqui. Também é
-                  possível arrastar a imagem ou enviar um arquivo.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="flex w-full cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-[color:var(--crm-border)] px-4 py-6 text-center transition-colors duration-150 hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]"
-              >
-                {reading ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-[color:var(--crm-accent)]" />
-                ) : (
-                  <Upload className="h-5 w-5 text-[color:var(--crm-muted)]" />
-                )}
-                <span className="text-sm">
-                  {reading
-                    ? pasted
-                      ? "Lendo o print colado…"
-                      : "Lendo a imagem…"
-                    : "Enviar print da tela do CRM"}
-                </span>
-                <span className="text-[11px] text-[color:var(--crm-muted)]">
-                  A leitura identifica apenas nome, WhatsApp, e-mail, cidade e executivo.
-                </span>
-              </button>
-              <input
-                ref={inputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handleFile(file);
-                  e.target.value = "";
-                }}
+              <ImageDropzone
+                variant="crm"
+                pasteEnabled={false}
+                title="Cole o print com CTRL + V"
+                hint="Copie a tela (CTRL + C ou Print Screen) e cole aqui. Também é possível arrastar a imagem ou enviar um arquivo."
+                uploadLabel="Enviar print da tela do CRM"
+                readingLabel={pasted ? "Lendo o print colado…" : "Lendo a imagem…"}
+                note="A leitura identifica apenas nome, WhatsApp, e-mail, cidade e executivo."
+                reading={reading}
+                preview={preview}
+                onFile={(file) => void handleFile(file)}
               />
-              {preview ? (
-                <img
-                  src={preview}
-                  alt="Print enviado para leitura"
-                  className="max-h-32 w-full rounded-lg border border-[color:var(--crm-border)] object-cover"
-                />
-              ) : null}
               {error ? (
                 <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">{error}</p>
               ) : null}
