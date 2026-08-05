@@ -146,6 +146,63 @@ function setFont(
   }
 }
 
+/**
+ * Apaga o texto de exemplo impresso no template reproduzindo, linha a
+ * linha, a cor do próprio arquivo (amostrada imediatamente à esquerda da
+ * área). Nenhum elemento gráfico é redesenhado.
+ */
+function clearPlaceholder(
+  ctx: CanvasRenderingContext2D,
+  base: HTMLImageElement,
+  block: TextBlock,
+  w: number,
+  h: number,
+) {
+  const rect = block.clear;
+  if (!rect) return;
+  const area: Area = {
+    x: rect.x0 * w,
+    y: rect.y0 * h,
+    w: (rect.x1 - rect.x0) * w,
+    h: (rect.y1 - rect.y0) * h,
+  };
+  const sampleW = Math.max(2, Math.round(area.w * 0.02));
+  const sample = readArea(base, {
+    x: Math.max(0, area.x - sampleW - 1),
+    y: area.y,
+    w: sampleW,
+    h: area.h,
+  });
+  const step = area.h / sample.height;
+  for (let y = 0; y < sample.height; y += 1) {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    for (let x = 0; x < sample.width; x += 1) {
+      const i = (y * sample.width + x) * 4;
+      r += sample.data[i]!;
+      g += sample.data[i + 1]!;
+      b += sample.data[i + 2]!;
+    }
+    const n = sample.width;
+    ctx.fillStyle = `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})`;
+    ctx.fillRect(area.x, area.y + y * step, area.w, step + 1);
+  }
+}
+
+function setFontLegacy(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  tracking: number,
+  weight: number,
+) {
+  ctx.font = `${weight} ${size}px ${TEMPLATE_FONT}`;
+  if ("letterSpacing" in ctx) {
+    (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
+      `${tracking}px`;
+  }
+}
+
 /** Maior corpo que respeita a altura oficial e a largura disponível. */
 function fitSize(
   ctx: CanvasRenderingContext2D,
