@@ -403,68 +403,26 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   };
 
   /**
-   * NOVO CONCEITO GRÁFICO: quando o PNG oficial possui janela
-   * transparente na área da fotografia, ele passa a ser um OVERLAY.
-   * A fotografia é redimensionada, posicionada exatamente atrás e o
-   * template é aplicado por cima — sem recalcular degradê, película
-   * azul ou transparências, que já pertencem ao arquivo oficial.
+   * MAIL MERGE GRÁFICO — sem liberdade criativa.
+   *
+   * O template é a arte final. A fotografia entra apenas na janela
+   * reservada e nenhum efeito é recriado (nada de película, degradê ou
+   * reconstrução de selos: o que existir já pertence ao arquivo oficial).
+   * Quando o PNG possui área transparente, a foto entra ATRÁS e o
+   * template cobre por cima; caso contrário ela apenas preenche a área.
    */
   const overlayMode = hasPhotoWindow(base, photoArea);
-
-  if (overlayMode) {
-    if (input.photoDataUrl) {
-      try {
-        const photo = await loadImage(input.photoDataUrl);
-        drawCover(ctx, photo, photoArea, 0.38);
-      } catch {
-        /* sem fotografia, o template permanece como está */
-      }
-    }
-    ctx.drawImage(base, 0, 0, w, h);
-  } else {
-    // 1) Template reproduzido integralmente.
-    ctx.drawImage(base, 0, 0, w, h);
+  let photo: HTMLImageElement | null = null;
+  if (input.photoDataUrl) {
+    photo = await loadImage(input.photoDataUrl).catch(() => null);
   }
 
-  // 2) Fotografia da cidade + película do próprio template (modo legado,
-  // para templates opacos que ainda não possuem janela transparente).
-  if (!overlayMode && input.photoDataUrl) {
-    try {
-      const photo = await loadImage(input.photoDataUrl);
-      const rows = rowColors(readArea(base, photoArea));
-      drawCover(ctx, photo, photoArea, 0.38);
-      if (layout.photoArea.film !== false) {
-        // Faixa logo abaixo da fotografia: é o azul institucional exato
-        // com o qual o degradê precisa terminar.
-        const anchor = stripColor(base, {
-          x: photoArea.x,
-          y: Math.min(h - 2, photoArea.y + photoArea.h + 1),
-          w: photoArea.w,
-          h: Math.max(2, h * 0.01),
-        });
-        applyFilm(ctx, rows, photoArea, anchor);
-      }
-
-      // Elemento gráfico do topo (selo) volta por cima da fotografia.
-      if (layout.badgeArea) {
-        const badge: Area = {
-          x: layout.badgeArea.x0 * w,
-          y: layout.badgeArea.y0 * h,
-          w: (layout.badgeArea.x1 - layout.badgeArea.x0) * w,
-          h: (layout.badgeArea.y1 - layout.badgeArea.y0) * h,
-        };
-        const badgeData = readArea(base, badge);
-        ctx.drawImage(
-          extractOverlay(badgeData, rowColors(badgeData)),
-          badge.x,
-          badge.y,
-          badge.w,
-          badge.h,
-        );
-      }
-    } catch {
-      /* sem fotografia disponível, o template permanece como está */
-    }
+  if (overlayMode) {
+    if (photo) drawCover(ctx, photo, photoArea, 0.38);
+    ctx.drawImage(base, 0, 0, w, h);
+  } else {
+    ctx.drawImage(base, 0, 0, w, h);
+    if (photo) drawCover(ctx, photo, photoArea, 0.38);
   }
 
   const city = (input.city || "").trim().toLocaleUpperCase("pt-BR");
