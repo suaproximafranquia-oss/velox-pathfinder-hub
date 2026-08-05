@@ -40,6 +40,126 @@ function drawCover(
   ctx.restore();
 }
 
+type Area = { x: number; y: number; w: number; h: number };
+
+/**
+ * PELÍCULA AZUL DO TEMPLATE.
+ *
+ * A área da fotografia do Template Oficial é um degradê institucional: no
+ * topo quase claro, descendo até fundir-se com o azul da peça. Em vez de
+ * inventar cores, lemos o próprio degradê do template linha a linha e o
+ * reaplicamos sobre a fotografia com opacidade crescente. Assim não existe
+ * linha de corte: a base da fotografia é exatamente o azul do template.
+ */
+function readArea(base: HTMLImageElement, area: Area): ImageData {
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(area.w));
+  c.height = Math.max(1, Math.round(area.h));
+  const cx = c.getContext("2d", { willReadFrequently: true })!;
+  cx.drawImage(
+    base,
+    area.x,
+    area.y,
+    area.w,
+    area.h,
+    0,
+    0,
+    c.width,
+    c.height,
+  );
+  return cx.getImageData(0, 0, c.width, c.height);
+}
+
+/** Cor de fundo do template em cada linha (média das bordas laterais). */
+function rowBackgrounds(data: ImageData): [number, number, number][] {
+  const { width, height } = data;
+  const edge = Math.max(1, Math.round(width * 0.04));
+  const rows: [number, number, number][] = [];
+  for (let y = 0; y < height; y += 1) {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let n = 0;
+    for (let x = 0; x < width; x += 1) {
+      if (x >= edge && x < width - edge) continue;
+      const i = (y * width + x) * 4;
+      r += data.data[i]!;
+      g += data.data[i + 1]!;
+      b += data.data[i + 2]!;
+      n += 1;
+    }
+    rows.push([r / n, g / n, b / n]);
+  }
+  return rows;
+}
+
+/**
+ * Camada de elementos gráficos do template dentro da área da fotografia
+ * (selo "Vem Aí — Nova Unidade", marcador, réguas). Tudo que difere do
+ * degradê de fundo é preservado e redesenhado sobre a fotografia.
+ */
+function extractOverlay(
+  data: ImageData,
+  rows: [number, number, number][],
+): HTMLCanvasElement {
+  const { width, height } = data;
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  const cx = out.getContext("2d")!;
+  const img = cx.createImageData(width, height);
+  for (let y = 0; y < height; y += 1) {
+    const [br, bg, bb] = rows[y]!;
+    for (let x = 0; x < width; x += 1) {
+      const i = (y * width + x) * 4;
+      const r = data.data[i]!;
+      const g = data.data[i + 1]!;
+      const b = data.data[i + 2]!;
+      const diff = Math.max(Math.abs(r - br), Math.abs(g - bg), Math.abs(b - bb));
+      // Suaviza a borda dos elementos gráficos preservados.
+      const alpha = diff <= 14 ? 0 : diff >= 46 ? 1 : (diff - 14) / 32;
+      img.data[i] = r;
+      img.data[i + 1] = g;
+      img.data[i + 2] = b;
+      img.data[i + 3] = Math.round(alpha * 255);
+    }
+  }
+  cx.putImageData(img, 0, 0);
+  return out;
+}
+
+/** Fotografia + película azul do template, sem linha de corte. */
+function paintPhotoArea(
+  ctx: CanvasRenderingContext2D,
+  base: HTMLImageElement,
+  photo: HTMLImageElement,
+  area: Area,
+) {
+  const data = readArea(base, area);
+  const rows = rowBackgrounds(data);
+  const overlay = extractOverlay(data, rows);
+
+  drawCover(ctx, photo, area);
+
+  // Película: cor real do template em cada linha, opacidade crescente.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(area.x, area.y, area.w, area.h);
+  ctx.clip();
+  const step = area.h / rows.length;
+  for (let y = 0; y < rows.length; y += 1) {
+    const t = rows.length > 1 ? y / (rows.length - 1) : 1;
+    const alpha = Math.min(1, 0.06 + 0.94 * Math.pow(t, 1.7));
+    const [r, g, b] = rows[y]!;
+    ctx.fillStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
+    ctx.fillRect(area.x, area.y + y * step, area.w, step + 1);
+  }
+  ctx.restore();
+
+  // Elementos gráficos originais do template voltam por cima.
+  ctx.drawImage(overlay, area.x, area.y, area.w, area.h);
+}
+
 function drawText(
   ctx: CanvasRenderingContext2D,
   field: TextField,
