@@ -41,10 +41,8 @@ function orientationOf(width: number, height: number): TemplateConfig["orientati
  * do texto relativo à LARGURA, evitando letras esticadas ou minúsculas.
  */
 function scaleText<T extends TextBlock>(block: T, k: number): T {
-  const next: T = { ...block, capHeight: block.capHeight * k };
-  if ((block as CopyBlock).lineHeight !== undefined) {
-    (next as CopyBlock).lineHeight = (block as CopyBlock).lineHeight * k;
-  }
+  const next = { ...block, capHeight: block.capHeight * k } as T & Partial<CopyBlock>;
+  if (typeof next.lineHeight === "number") next.lineHeight *= k;
   return next;
 }
 
