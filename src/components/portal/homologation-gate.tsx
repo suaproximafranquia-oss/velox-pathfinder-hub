@@ -6,7 +6,6 @@
  * navegador e a experiência segue exatamente como antes.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { Lock, User } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import background from "@/assets/atlas-homologacao-bg-wide.png.asset.json";
 import { isHomologationUnlocked, signInHomologation } from "@/lib/homologation-guard";
@@ -64,49 +63,41 @@ export function HomologationGate({ children }: { children: ReactNode }) {
         />
 
         <form onSubmit={submit} className="absolute inset-0">
-          <div
-            className="absolute flex items-center gap-[0.6em] px-[0.7em]"
+          <input
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            autoComplete="username"
+            aria-label="Usuário"
+            placeholder="Usuário"
+            className="absolute border-0 bg-[#070C12] bg-[length:1em_1em] bg-[position:0.75em_center] bg-no-repeat pl-[2.35em] pr-[0.7em] text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
             style={{
               left: "27.6%",
               top: "52.2%",
               width: "17.4%",
               height: "5%",
-              background: "#070C12",
               fontSize: "clamp(11px, 1.15vw, 17px)",
+              backgroundImage:
+                "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D4AF37' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21a8 8 0 0 0-16 0'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E\")",
             }}
-          >
-            <User className="shrink-0 text-[#D4AF37]" size={16} strokeWidth={1.8} />
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              aria-label="Usuário"
-              placeholder="Usuário"
-              className="w-full border-0 bg-transparent text-[1em] text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
-            />
-          </div>
-          <div
-            className="absolute flex items-center gap-[0.6em] px-[0.7em]"
+          />
+          <input
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            type="password"
+            autoComplete="current-password"
+            aria-label="Senha"
+            placeholder="Senha"
+            className="absolute border-0 bg-[#070C12] bg-[length:1em_1em] bg-[position:0.75em_center] bg-no-repeat pl-[2.35em] pr-[0.7em] text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
             style={{
               left: "27.6%",
               top: "59.5%",
               width: "17.4%",
               height: "5%",
-              background: "#070C12",
               fontSize: "clamp(11px, 1.15vw, 17px)",
+              backgroundImage:
+                "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D4AF37' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E\")",
             }}
-          >
-            <Lock className="shrink-0 text-[#D4AF37]" size={16} strokeWidth={1.8} />
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              autoComplete="current-password"
-              aria-label="Senha"
-              placeholder="Senha"
-              className="w-full border-0 bg-transparent text-[1em] text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
-            />
-          </div>
+          />
           <button
             type="submit"
             aria-label="Entrar"
