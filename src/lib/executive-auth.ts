@@ -66,10 +66,7 @@ export function canManageUsers(role: ExecutiveRole): boolean {
  *                  Colaboradores a Gestor).
  *   Colaborador  → nenhum alvo.
  */
-export function canManageTargetUser(
-  actor: ExecutiveRole,
-  target: ExecutiveRole,
-): boolean {
+export function canManageTargetUser(actor: ExecutiveRole, target: ExecutiveRole): boolean {
   if (actor === "super_admin") return true;
   if (actor === "diretora") return target === "executivo";
   return false;
@@ -80,8 +77,7 @@ export function canManageTargetUser(
  * Gestor NÃO pode criar/atribuir Administradores.
  */
 export function assignableRoles(actor: ExecutiveRole): ExecutiveRole[] {
-  if (actor === "super_admin")
-    return ["super_admin", "diretora", "executivo"];
+  if (actor === "super_admin") return ["super_admin", "diretora", "executivo"];
   if (actor === "diretora") return ["diretora", "executivo"];
   return [];
 }
@@ -104,13 +100,19 @@ const ROLE_WEIGHT: Record<ExecutiveRole, number> = {
  */
 export function availableRoles(grantedRole: ExecutiveRole): ExecutiveRole[] {
   const w = ROLE_WEIGHT[grantedRole];
-  return (Object.keys(ROLE_WEIGHT) as ExecutiveRole[]).filter(
-    (r) => ROLE_WEIGHT[r] <= w,
-  );
+  return (Object.keys(ROLE_WEIGHT) as ExecutiveRole[]).filter((r) => ROLE_WEIGHT[r] <= w);
 }
 
 /** Retorna a permissão para acessar o módulo Central de Conhecimento. */
 export function canManageKnowledge(role: ExecutiveRole): boolean {
+  return role === "super_admin" || role === "diretora";
+}
+
+/**
+ * Templates da IA Criativa: apenas Administrador e Gestora podem enviar,
+ * substituir ou remover. Executivos e colaboradores apenas utilizam.
+ */
+export function canManageCreativeTemplates(role: ExecutiveRole): boolean {
   return role === "super_admin" || role === "diretora";
 }
 
@@ -280,9 +282,7 @@ export function loadUsers(): ExecutiveUser[] {
     // sincronizadas com o seed atual (previne conflitos com versões
     // anteriores da estrutura persistida no localStorage).
     const byId = new Map(
-      arr
-        .filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id))
-        .map((u) => [u.id, u] as const),
+      arr.filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id)).map((u) => [u.id, u] as const),
     );
     for (const seed of SEED_USERS) byId.set(seed.id, seed);
     return Array.from(byId.values());
@@ -354,10 +354,7 @@ export function signIn(email: string, password: string): ExecutiveSession | null
   const users = loadUsers();
   const key = email.trim().toLowerCase();
   const u = users.find(
-    (x) =>
-      x.email.toLowerCase() === key &&
-      x.password === password &&
-      x.status === "ativo",
+    (x) => x.email.toLowerCase() === key && x.password === password && x.status === "ativo",
   );
   if (!u) return null;
   const s: ExecutiveSession = {
@@ -441,8 +438,5 @@ export function getDefaultExecutive(): ExecutiveUser | null {
 export function getExecutiveBySlug(slug: string): ExecutiveUser | null {
   const key = slug.trim().toLowerCase();
   if (!key) return null;
-  return (
-    loadUsers().find((u) => u.slug.toLowerCase() === key && u.status === "ativo") ??
-    null
-  );
+  return loadUsers().find((u) => u.slug.toLowerCase() === key && u.status === "ativo") ?? null;
 }

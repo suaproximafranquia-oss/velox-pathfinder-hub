@@ -13,11 +13,7 @@ import {
   Plus,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import {
-  getSession,
-  canManageKnowledge,
-  type ExecutiveSession,
-} from "@/lib/executive-auth";
+import { getSession, canManageKnowledge, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   addDocument,
   chunkText,
@@ -47,6 +43,19 @@ export const Route = createFileRoute("/executivo/conhecimento")({
   component: KnowledgePage,
 });
 
+/** Seleção pendente: vários arquivos compartilham visibilidade e descrição. */
+type PendingUpload = {
+  items: { file: File; name: string }[];
+  visibility: DocumentVisibility;
+  description: string;
+};
+
+/** Item da fila de processamento exibida durante o envio. */
+type QueueItem = {
+  name: string;
+  status: "aguardando" | "processando" | "concluido" | "erro";
+};
+
 function KnowledgePage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
@@ -56,12 +65,9 @@ function KnowledgePage() {
   const [logs, setLogs] = useState<IngestLog[]>([]);
   const [flash, setFlash] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
-  const [pending, setPending] = useState<{
-    file: File;
-    name: string;
-    visibility: DocumentVisibility;
-    description: string;
-  } | null>(null);
+  const [pending, setPending] = useState<PendingUpload | null>(null);
+  /** Fila de processamento: um arquivo por vez, com estado visível. */
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -90,33 +96,41 @@ function KnowledgePage() {
 
   function onPickFile(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const file = files[0];
-    const lower = file.name.toLowerCase();
-    const ok = lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".txt");
-    if (!ok) {
+    const accepted: { file: File; name: string }[] = [];
+    let rejected = 0;
+    for (const file of Array.from(files)) {
+      const lower = file.name.toLowerCase();
+      const ok = lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".txt");
+      if (!ok) {
+        rejected += 1;
+        continue;
+      }
+      accepted.push({ file, name: file.name.replace(/\.[^.]+$/, "") });
+    }
+    if (fileRef.current) fileRef.current.value = "";
+    if (accepted.length === 0) {
       setFlash({
         type: "err",
         msg: "Formato não suportado. Envie PDF, Word (.docx) ou TXT.",
       });
-      if (fileRef.current) fileRef.current.value = "";
       return;
     }
-    setPending({
-      file,
-      name: file.name.replace(/\.[^.]+$/, ""),
-      visibility: "publico",
-      description: "",
-    });
-    if (fileRef.current) fileRef.current.value = "";
+    if (rejected > 0) {
+      setFlash({
+        type: "err",
+        msg: `${rejected} arquivo(s) ignorado(s) por formato não suportado.`,
+      });
+    }
+    setPending({ items: accepted, visibility: "publico", description: "" });
   }
 
-  async function submitPending() {
-    if (!pending || busy) return;
-    const { file, name, visibility, description } = pending;
-    const displayName = name.trim() || file.name;
-    setPending(null);
-    setBusy(true);
-    setFlash(null);
+  /** Processa um único arquivo da fila, do OCR até a indexação. */
+  async function processOne(
+    file: File,
+    displayName: string,
+    visibility: DocumentVisibility,
+    description: string,
+  ): Promise<boolean> {
     setLogs([]);
     const id = newDocumentId();
     const now = new Date().toISOString();
@@ -174,11 +188,13 @@ function KnowledgePage() {
           type: "ok",
           msg: `"${displayName}" foi indexado e está disponível${suffix}`,
         });
+        return true;
       } else {
         setFlash({
           type: "err",
           msg: `Não foi possível reconhecer conteúdo em "${displayName}", mesmo após OCR.`,
         });
+        return false;
       }
     } catch (e) {
       updateDocument(id, { status: "erro" });
@@ -187,9 +203,42 @@ function KnowledgePage() {
         type: "err",
         msg: `Falha ao processar "${displayName}": ${(e as Error).message}`,
       });
-    } finally {
-      setBusy(false);
-      setStage("");
+      return false;
+    }
+  }
+
+  /** Envia todos os arquivos selecionados, um após o outro. */
+  async function submitPending() {
+    if (!pending || busy) return;
+    const { items, visibility, description } = pending;
+    const jobs = items.map((it) => ({
+      file: it.file,
+      name: it.name.trim() || it.file.name,
+    }));
+    setPending(null);
+    setBusy(true);
+    setFlash(null);
+    setQueue(jobs.map((j) => ({ name: j.name, status: "aguardando" as const })));
+    let ok = 0;
+    for (let i = 0; i < jobs.length; i += 1) {
+      const job = jobs[i]!;
+      setQueue((q) =>
+        q.map((item, idx) => (idx === i ? { ...item, status: "processando" } : item)),
+      );
+      setStage(`Documento ${i + 1} de ${jobs.length} — ${job.name}`);
+      const done = await processOne(job.file, job.name, visibility, description);
+      if (done) ok += 1;
+      setQueue((q) =>
+        q.map((item, idx) => (idx === i ? { ...item, status: done ? "concluido" : "erro" } : item)),
+      );
+    }
+    setBusy(false);
+    setStage("");
+    if (jobs.length > 1) {
+      setFlash({
+        type: ok === jobs.length ? "ok" : "err",
+        msg: `${ok} de ${jobs.length} documento(s) indexado(s) com sucesso.`,
+      });
     }
   }
 
@@ -201,9 +250,9 @@ function KnowledgePage() {
   return (
     <ExecutiveShell session={session} title="Central de Conhecimento">
       <p className="text-sm text-[color:var(--muted-foreground)] max-w-3xl mb-8 leading-relaxed">
-        Base Oficial de Conhecimento do Workspace. Documentos enviados aqui
-        alimentam a IA Corporativa e demais módulos autorizados. A classificação
-        de visibilidade é definida pelo Administrador — nunca pela IA.
+        Base Oficial de Conhecimento do Workspace. Documentos enviados aqui alimentam a IA
+        Corporativa e demais módulos autorizados. A classificação de visibilidade é definida pelo
+        Administrador — nunca pela IA.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-4 mb-8">
@@ -219,13 +268,13 @@ function KnowledgePage() {
           <h2 className="font-display text-lg">Enviar documento</h2>
         </div>
         <p className="text-xs text-[color:var(--muted-foreground)] mb-5">
-          Formatos aceitos: PDF, Word (.docx) e TXT. Após selecionar o
-          arquivo, você poderá definir nome, visibilidade e descrição antes
-          do envio.
+          Formatos aceitos: PDF, Word (.docx) e TXT. Após selecionar o arquivo, você poderá definir
+          nome, visibilidade e descrição antes do envio.
         </p>
         <input
           ref={fileRef}
           type="file"
+          multiple
           accept=".pdf,.docx,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={(e) => onPickFile(e.target.files)}
           className="hidden"
@@ -245,13 +294,28 @@ function KnowledgePage() {
               <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
               <span>{stage || "Processando…"}</span>
             </div>
+            {queue.length > 1 && (
+              <ul className="mt-3 space-y-1 text-[11px]">
+                {queue.map((item, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    {item.status === "processando" ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-[color:var(--gold)]" />
+                    ) : item.status === "concluido" ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-300" />
+                    ) : item.status === "erro" ? (
+                      <AlertTriangle className="h-3 w-3 text-red-300" />
+                    ) : (
+                      <span className="h-3 w-3 rounded-full border border-[color:var(--border)]" />
+                    )}
+                    <span>{item.name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             {logs.length > 0 && (
               <ul className="mt-3 max-h-40 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed">
                 {logs.map((l, i) => (
-                  <li
-                    key={i}
-                    className={l.ok ? "text-emerald-300/90" : "text-amber-300/90"}
-                  >
+                  <li key={i} className={l.ok ? "text-emerald-300/90" : "text-amber-300/90"}>
                     {l.ok ? "✓" : "✖"} {l.msg}
                   </li>
                 ))}
@@ -375,9 +439,7 @@ function KnowledgePage() {
         <ResetModal
           onCancel={() => setResetOpen(false)}
           onConfirm={() => {
-            void resetOfficialWorkspace(session.userId, session.workspaceId).finally(
-              refresh,
-            );
+            void resetOfficialWorkspace(session.userId, session.workspaceId).finally(refresh);
             setResetOpen(false);
             refresh();
             setFlash({ type: "ok", msg: "Base Oficial resetada com sucesso." });
@@ -403,18 +465,8 @@ function UploadModal({
   onCancel,
   onConfirm,
 }: {
-  pending: {
-    file: File;
-    name: string;
-    visibility: DocumentVisibility;
-    description: string;
-  };
-  onChange: (p: {
-    file: File;
-    name: string;
-    visibility: DocumentVisibility;
-    description: string;
-  }) => void;
+  pending: PendingUpload;
+  onChange: (p: PendingUpload) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -423,11 +475,12 @@ function UploadModal({
       <div className="w-full max-w-lg rounded-2xl border border-[color:var(--border)] bg-[color:var(--navy)] p-6">
         <div className="flex items-center gap-2 mb-4">
           <FileText className="h-5 w-5 text-[color:var(--gold)]" />
-          <h3 className="font-display text-lg">Novo documento</h3>
+          <h3 className="font-display text-lg">
+            {pending.items.length > 1 ? `${pending.items.length} documentos` : "Novo documento"}
+          </h3>
         </div>
         <p className="text-[11px] text-[color:var(--muted-foreground)] mb-4">
-          Arquivo selecionado:{" "}
-          <span className="text-[color:var(--foreground)]">{pending.file.name}</span>
+          Os documentos serão processados em fila, um a um, com a mesma visibilidade e descrição.
         </p>
 
         <div className="space-y-4">
@@ -435,13 +488,29 @@ function UploadModal({
             <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
               Nome do documento
             </label>
-            <input
-              type="text"
-              value={pending.name}
-              onChange={(e) => onChange({ ...pending, name: e.target.value })}
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
-              autoFocus
-            />
+            <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+              {pending.items.map((item, i) => (
+                <div key={i}>
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) =>
+                      onChange({
+                        ...pending,
+                        items: pending.items.map((it, idx) =>
+                          idx === i ? { ...it, name: e.target.value } : it,
+                        ),
+                      })
+                    }
+                    className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
+                    autoFocus={i === 0}
+                  />
+                  <p className="mt-1 text-[10px] text-[color:var(--muted-foreground)]">
+                    {item.file.name}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div>
@@ -502,7 +571,7 @@ function UploadModal({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={!pending.name.trim()}
+            disabled={pending.items.every((i) => !i.name.trim())}
             className="rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-5 py-2 text-xs text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40"
           >
             Enviar
@@ -553,13 +622,7 @@ function formatDate(iso: string) {
   }
 }
 
-function ResetModal({
-  onCancel,
-  onConfirm,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
+function ResetModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
   const [text, setText] = useState("");
   const ok = text.trim() === "CONFIRMAR RESET";
   return (
@@ -570,8 +633,8 @@ function ResetModal({
           <h3 className="font-display text-lg">Resetar Base Oficial</h3>
         </div>
         <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed mb-4">
-          Esta ação remove todos os documentos indexados deste workspace. Não
-          pode ser desfeita. Para continuar, digite{" "}
+          Esta ação remove todos os documentos indexados deste workspace. Não pode ser desfeita.
+          Para continuar, digite{" "}
           <span className="font-mono text-[color:var(--foreground)]">CONFIRMAR RESET</span>.
         </p>
         <input

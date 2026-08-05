@@ -5,9 +5,14 @@
  * Portal, Histórico ou Backup. A conversa permanece na lista lateral
  * até ser excluída ou transformada em Lead.
  */
-import { useState } from "react";
-import { Send, Phone, Trash2, UserPlus } from "lucide-react";
-import { formatTempPhone, type TempChat, type TempChatMessage } from "@/lib/crm/temp-chats";
+import { useEffect, useState } from "react";
+import { Send, Phone, Trash2, UserPlus, Pencil, Check, X } from "lucide-react";
+import {
+  formatTempPhone,
+  tempChatLabel,
+  type TempChat,
+  type TempChatMessage,
+} from "@/lib/crm/temp-chats";
 
 export type EphemeralMessage = TempChatMessage;
 
@@ -41,7 +46,7 @@ export function CrmTempChatItem({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">
-          {formatTempPhone(chat.phone)}
+          {tempChatLabel(chat)}
         </span>
         <span className="mt-0.5 block truncate text-[11px] text-[color:var(--crm-muted)]">
           {last ? last.body : "Conversa iniciada"}
@@ -56,14 +61,31 @@ export function CrmTempChatItem({
 
 export function CrmEphemeralHeader({
   phone,
+  name,
+  onRename,
   onConvert,
   onDelete,
 }: {
   phone: string;
+  /** Nome exibido, editável imediatamente no cabeçalho. */
+  name?: string;
+  onRename: (name: string) => void;
   /** Transformar em Lead — exclusivo das conversas temporárias. */
   onConvert: () => void;
   onDelete: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name ?? "");
+  useEffect(() => {
+    setDraft(name ?? "");
+    setEditing(false);
+  }, [name, phone]);
+
+  const commit = () => {
+    onRename(draft.trim());
+    setEditing(false);
+  };
+
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3.5">
       <span
@@ -73,11 +95,52 @@ export function CrmEphemeralHeader({
         <Phone className="h-4 w-4" />
       </span>
       <div className="flex min-w-0 flex-col gap-0.5">
-        <h2 className="truncate text-[15px] font-semibold tracking-[-0.01em]">
-          {formatTempPhone(phone)}
-        </h2>
+        {editing ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commit();
+                if (e.key === "Escape") setEditing(false);
+              }}
+              placeholder={formatTempPhone(phone)}
+              aria-label="Nome do contato"
+              className="h-7 w-48 rounded-lg border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] px-2 text-[13px] outline-none focus:border-[color:var(--crm-accent)]"
+            />
+            <button
+              type="button"
+              onClick={commit}
+              aria-label="Salvar nome"
+              className="cursor-pointer rounded-md p-1 text-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              aria-label="Cancelar"
+              className="cursor-pointer rounded-md p-1 text-[color:var(--crm-muted)] hover:bg-[color:var(--crm-hover)]"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            title="Editar nome do contato"
+            className="group flex min-w-0 cursor-pointer items-center gap-1.5 text-left"
+          >
+            <h2 className="truncate text-[15px] font-semibold tracking-[-0.01em]">
+              {name?.trim() || formatTempPhone(phone)}
+            </h2>
+            <Pencil className="h-3 w-3 shrink-0 text-[color:var(--crm-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+          </button>
+        )}
         <span className="w-fit rounded-full border border-[color:var(--crm-border)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--crm-muted)]">
-          Conversa temporária
+          {name?.trim() ? `${formatTempPhone(phone)} · temporária` : "Conversa temporária"}
         </span>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-2">

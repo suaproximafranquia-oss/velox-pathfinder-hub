@@ -94,7 +94,10 @@ export function newDocumentId(): string {
 
 /** Divide o texto extraído em chunks de ~800 caracteres respeitando parágrafos. */
 export function chunkText(text: string, size = 800): string[] {
-  const clean = text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
+  const clean = text
+    .replace(/\r/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   if (!clean) return [];
   const paragraphs = clean.split(/\n\n+/);
   const chunks: string[] = [];
@@ -112,7 +115,9 @@ export function chunkText(text: string, size = 800): string[] {
 }
 
 /** Extrai texto de PDF, DOCX ou TXT no navegador. */
-export async function extractTextFromFile(file: File): Promise<{ text: string; type: DocumentType }> {
+export async function extractTextFromFile(
+  file: File,
+): Promise<{ text: string; type: DocumentType }> {
   const res = await ingestFile(file);
   return { text: res.text, type: res.type };
 }
@@ -149,10 +154,7 @@ function isTextInsufficient(text: string, pages: number): boolean {
   return perPage < 40;
 }
 
-export async function ingestFile(
-  file: File,
-  onLog?: IngestProgress,
-): Promise<IngestResult> {
+export async function ingestFile(file: File, onLog?: IngestProgress): Promise<IngestResult> {
   const logs: IngestLog[] = [];
   const push = (ok: boolean, msg: string) => {
     const entry = { ok, msg };
@@ -226,7 +228,10 @@ export async function ingestFile(
     if (nativeInsufficient) {
       push(false, "Texto nativo inexistente ou insuficiente");
     } else {
-      push(true, `Texto nativo extraído (${nativeText.replace(/\s+/g, " ").trim().length} caracteres)`);
+      push(
+        true,
+        `Texto nativo extraído (${nativeText.replace(/\s+/g, " ").trim().length} caracteres)`,
+      );
     }
 
     // Se o texto nativo já é suficiente, retorna direto.
@@ -243,7 +248,7 @@ export async function ingestFile(
     }
 
     // 2) Fallback OCR — renderiza cada página em canvas de alta resolução
-    push(true, "OCR iniciado (Português + Inglês)");
+    push(true, `OCR iniciado (Português + Inglês) · ${pagesTotal} página(s)`);
     const tesseract = await import("tesseract.js");
     // Idiomas combinados para maximizar reconhecimento de material comercial.
     const worker = await tesseract.createWorker(["por", "eng"]);
@@ -292,6 +297,8 @@ export async function ingestFile(
 
         pageTexts.push(pageText);
         ocrProcessed++;
+        // Progresso página a página: nunca fica apenas em "Processando".
+        push(true, `Página ${i} de ${pagesTotal}`);
       } catch (e) {
         // Falha de página não interrompe o processamento das demais.
         push(false, `Falha na página ${i}: ${(e as Error).message}`);
@@ -314,6 +321,7 @@ export async function ingestFile(
     const blocks = ocrText.split(/\n{2,}/).filter((b) => b.trim().length > 0).length;
     push(true, `OCR concluído · ${ocrProcessed}/${pagesTotal} página(s) processada(s)`);
     push(true, `${blocks} bloco(s) de texto identificado(s)`);
+    push(true, "Extração concluída");
 
     const merged = [nativeText, ocrText].filter((t) => t && t.trim()).join("\n\n");
     const finalText = merged.trim() || ocrText;
@@ -418,9 +426,7 @@ function replaceWorkspaceCache(workspaceId: string, docs: KnowledgeDocument[]) {
 }
 
 /** Baixa a Base Oficial do backend e atualiza o cache local. */
-export async function pullOfficialBase(
-  workspaceId: string,
-): Promise<KnowledgeDocument[]> {
+export async function pullOfficialBase(workspaceId: string): Promise<KnowledgeDocument[]> {
   try {
     const res = await listOfficialDocuments({ data: { workspaceId } });
     const docs = (res.documents ?? []) as KnowledgeDocument[];
@@ -433,10 +439,7 @@ export async function pullOfficialBase(
 }
 
 /** Publica (ou atualiza) um documento na Base Oficial compartilhada. */
-export async function publishDocument(
-  actorId: string,
-  doc: KnowledgeDocument,
-): Promise<void> {
+export async function publishDocument(actorId: string, doc: KnowledgeDocument): Promise<void> {
   const all = readAll();
   const i = all.findIndex((d) => d.id === doc.id);
   if (i < 0) all.push(doc);
