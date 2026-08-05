@@ -155,7 +155,10 @@ function paintPhotoArea(
   const step = area.h / rows.length;
   for (let y = 0; y < rows.length; y += 1) {
     const t = rows.length > 1 ? y / (rows.length - 1) : 1;
-    const alpha = Math.min(1, 0.06 + 0.94 * Math.pow(t, 1.7));
+    // A película fecha 100% um pouco antes da borda inferior: a base da
+    // fotografia funde-se totalmente ao azul institucional, sem corte.
+    const k = Math.min(1, t / 0.88);
+    const alpha = Math.min(1, 0.06 + 0.94 * Math.pow(k, 1.7));
     const [r, g, b] = rows[y]!;
     ctx.fillStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
     ctx.fillRect(area.x, area.y + y * step, area.w, step + 1);
