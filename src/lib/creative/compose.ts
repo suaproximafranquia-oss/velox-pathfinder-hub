@@ -190,6 +190,38 @@ function setFont(ctx: CanvasRenderingContext2D, size: number, tracking: number, 
 }
 
 /**
+ * O template oficial já traz película azul, degradê, transparências,
+ * logotipo e selo. Quando a área da fotografia é transparente, o PNG
+ * funciona como MÁSCARA (overlay): a fotografia entra atrás e nada é
+ * recalculado. Esta função identifica esse caso lendo o canal alfa.
+ */
+function hasPhotoWindow(base: HTMLImageElement, area: Area): boolean {
+  try {
+    const data = readArea(base, area);
+    const total = data.width * data.height;
+    if (!total) return false;
+    let transparent = 0;
+    for (let i = 3; i < data.data.length; i += 4) {
+      if (data.data[i]! < 250) transparent += 1;
+    }
+    // 25% da área com alfa parcial já caracteriza uma janela oficial.
+    return transparent / total > 0.25;
+  } catch {
+    return false;
+  }
+}
+
+/** Guia tracejado de calibração — jamais exportado na arte final. */
+function drawGuide(ctx: CanvasRenderingContext2D, area: Area) {
+  ctx.save();
+  ctx.strokeStyle = "#F1610C";
+  ctx.lineWidth = Math.max(2, area.w * 0.006);
+  ctx.setLineDash([ctx.lineWidth * 4, ctx.lineWidth * 3]);
+  ctx.strokeRect(area.x, area.y, area.w, area.h);
+  ctx.restore();
+}
+
+/**
  * Apaga o texto de exemplo impresso no template reproduzindo, linha a
  * linha, a cor do próprio arquivo (amostrada imediatamente à esquerda da
  * área). Nenhum elemento gráfico é redesenhado.
