@@ -287,24 +287,14 @@ function BackupCard({
 
       <div className="mt-4 flex flex-wrap gap-2">
         {portalTab ? (
-          <>
-            <button
-              type="button"
-              onClick={onRestore}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-3 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Restaurar Conversa
-            </button>
-            <button
-              type="button"
-              onClick={onOpen}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] transition hover:text-[color:var(--foreground)]"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Abrir backup
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={onRestore}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-3 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Restaurar Conversa
+          </button>
         ) : (
           <button
             type="button"

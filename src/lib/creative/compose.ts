@@ -60,128 +60,6 @@ function readArea(base: HTMLImageElement, area: Area): ImageData {
   return cx.getImageData(0, 0, c.width, c.height);
 }
 
-/** Cor do template em cada linha — é ela que define a película azul. */
-function rowColors(data: ImageData): [number, number, number][] {
-  const { width, height } = data;
-  const edge = Math.max(1, Math.round(width * 0.04));
-  const rows: [number, number, number][] = [];
-  for (let y = 0; y < height; y += 1) {
-    let r = 0;
-    let g = 0;
-    let b = 0;
-    let n = 0;
-    for (let x = 0; x < width; x += 1) {
-      if (x >= edge && x < width - edge) continue;
-      const i = (y * width + x) * 4;
-      r += data.data[i]!;
-      g += data.data[i + 1]!;
-      b += data.data[i + 2]!;
-      n += 1;
-    }
-    rows.push([r / n, g / n, b / n]);
-  }
-  return rows;
-}
-
-/** Recorta um elemento gráfico do template descartando o fundo. */
-function extractOverlay(data: ImageData, rows: [number, number, number][]): HTMLCanvasElement {
-  const { width, height } = data;
-  const out = document.createElement("canvas");
-  out.width = width;
-  out.height = height;
-  const cx = out.getContext("2d")!;
-  const img = cx.createImageData(width, height);
-  const fx = Math.max(1, width * 0.05);
-  const fy = Math.max(1, height * 0.05);
-  for (let y = 0; y < height; y += 1) {
-    const [br, bg, bb] = rows[y]!;
-    const fadeY = Math.min(1, Math.min(y, height - 1 - y) / fy);
-    for (let x = 0; x < width; x += 1) {
-      const i = (y * width + x) * 4;
-      const r = data.data[i]!;
-      const g = data.data[i + 1]!;
-      const b = data.data[i + 2]!;
-      const diff = Math.max(Math.abs(r - br), Math.abs(g - bg), Math.abs(b - bb));
-      const raw = diff <= 16 ? 0 : diff >= 48 ? 1 : (diff - 16) / 32;
-      const fade = Math.min(fadeY, Math.min(x, width - 1 - x) / fx);
-      img.data[i] = r;
-      img.data[i + 1] = g;
-      img.data[i + 2] = b;
-      img.data[i + 3] = Math.round(raw * fade * 255);
-    }
-  }
-  cx.putImageData(img, 0, 0);
-  return out;
-}
-
-/**
- * Película azul: a cor de cada linha vem do próprio template e a
- * opacidade cresce de forma contínua (smoothstep) até fundir-se com o
- * azul institucional. O degradê começa cedo, satura antes do fim da
- * área e as últimas linhas assumem exatamente o tom do bloco azul
- * imediatamente abaixo — assim não resta nenhuma linha de junção.
- */
-function applyFilm(
-  ctx: CanvasRenderingContext2D,
-  rows: [number, number, number][],
-  area: Area,
-  anchor?: [number, number, number],
-) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(area.x, area.y, area.w, area.h);
-  ctx.clip();
-  const step = area.h / rows.length;
-  // Início antecipado do degradê e saturação total antes da borda.
-  const START = 0.1;
-  const FULL = 0.74;
-  // A partir daqui a cor migra para o tom exato do bloco azul inferior.
-  const BLEND = 0.6;
-  for (let y = 0; y < rows.length; y += 1) {
-    const t = rows.length > 1 ? y / (rows.length - 1) : 1;
-    const k = Math.min(1, Math.max(0, (t - START) / (FULL - START)));
-    // smoothstep: sem degrau perceptível no início nem no fim.
-    const alpha = k * k * (3 - 2 * k);
-    let [r, g, b] = rows[y]!;
-    if (anchor) {
-      const m = Math.min(1, Math.max(0, (t - BLEND) / (1 - BLEND)));
-      const e = m * m * (3 - 2 * m);
-      r = r + (anchor[0] - r) * e;
-      g = g + (anchor[1] - g) * e;
-      b = b + (anchor[2] - b) * e;
-    }
-    ctx.fillStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
-    ctx.fillRect(area.x, area.y + y * step, area.w, step + 1);
-  }
-  // Selagem final: as últimas linhas recebem o azul institucional puro,
-  // eliminando qualquer resíduo de transição contra o bloco inferior.
-  if (anchor) {
-    const seal = Math.max(2, area.h * 0.012);
-    ctx.fillStyle = `rgb(${Math.round(anchor[0])}, ${Math.round(anchor[1])}, ${Math.round(anchor[2])})`;
-    ctx.fillRect(area.x, area.y + area.h - seal, area.w, seal + 1);
-  }
-  ctx.restore();
-}
-
-/** Tom médio de uma faixa fina do template (referência de fusão). */
-function stripColor(base: HTMLImageElement, area: Area): [number, number, number] | undefined {
-  try {
-    const data = readArea(base, area);
-    let r = 0;
-    let g = 0;
-    let b = 0;
-    const n = data.width * data.height;
-    for (let i = 0; i < n; i += 1) {
-      r += data.data[i * 4]!;
-      g += data.data[i * 4 + 1]!;
-      b += data.data[i * 4 + 2]!;
-    }
-    return [r / n, g / n, b / n];
-  } catch {
-    return undefined;
-  }
-}
-
 function setFont(ctx: CanvasRenderingContext2D, size: number, tracking: number, weight: number) {
   ctx.font = `${weight} ${size}px ${TEMPLATE_FONT}`;
   if ("letterSpacing" in ctx) {
@@ -403,68 +281,26 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   };
 
   /**
-   * NOVO CONCEITO GRÁFICO: quando o PNG oficial possui janela
-   * transparente na área da fotografia, ele passa a ser um OVERLAY.
-   * A fotografia é redimensionada, posicionada exatamente atrás e o
-   * template é aplicado por cima — sem recalcular degradê, película
-   * azul ou transparências, que já pertencem ao arquivo oficial.
+   * MAIL MERGE GRÁFICO — sem liberdade criativa.
+   *
+   * O template é a arte final. A fotografia entra apenas na janela
+   * reservada e nenhum efeito é recriado (nada de película, degradê ou
+   * reconstrução de selos: o que existir já pertence ao arquivo oficial).
+   * Quando o PNG possui área transparente, a foto entra ATRÁS e o
+   * template cobre por cima; caso contrário ela apenas preenche a área.
    */
   const overlayMode = hasPhotoWindow(base, photoArea);
-
-  if (overlayMode) {
-    if (input.photoDataUrl) {
-      try {
-        const photo = await loadImage(input.photoDataUrl);
-        drawCover(ctx, photo, photoArea, 0.38);
-      } catch {
-        /* sem fotografia, o template permanece como está */
-      }
-    }
-    ctx.drawImage(base, 0, 0, w, h);
-  } else {
-    // 1) Template reproduzido integralmente.
-    ctx.drawImage(base, 0, 0, w, h);
+  let photo: HTMLImageElement | null = null;
+  if (input.photoDataUrl) {
+    photo = await loadImage(input.photoDataUrl).catch(() => null);
   }
 
-  // 2) Fotografia da cidade + película do próprio template (modo legado,
-  // para templates opacos que ainda não possuem janela transparente).
-  if (!overlayMode && input.photoDataUrl) {
-    try {
-      const photo = await loadImage(input.photoDataUrl);
-      const rows = rowColors(readArea(base, photoArea));
-      drawCover(ctx, photo, photoArea, 0.38);
-      if (layout.photoArea.film !== false) {
-        // Faixa logo abaixo da fotografia: é o azul institucional exato
-        // com o qual o degradê precisa terminar.
-        const anchor = stripColor(base, {
-          x: photoArea.x,
-          y: Math.min(h - 2, photoArea.y + photoArea.h + 1),
-          w: photoArea.w,
-          h: Math.max(2, h * 0.01),
-        });
-        applyFilm(ctx, rows, photoArea, anchor);
-      }
-
-      // Elemento gráfico do topo (selo) volta por cima da fotografia.
-      if (layout.badgeArea) {
-        const badge: Area = {
-          x: layout.badgeArea.x0 * w,
-          y: layout.badgeArea.y0 * h,
-          w: (layout.badgeArea.x1 - layout.badgeArea.x0) * w,
-          h: (layout.badgeArea.y1 - layout.badgeArea.y0) * h,
-        };
-        const badgeData = readArea(base, badge);
-        ctx.drawImage(
-          extractOverlay(badgeData, rowColors(badgeData)),
-          badge.x,
-          badge.y,
-          badge.w,
-          badge.h,
-        );
-      }
-    } catch {
-      /* sem fotografia disponível, o template permanece como está */
-    }
+  if (overlayMode) {
+    if (photo) drawCover(ctx, photo, photoArea, 0.38);
+    ctx.drawImage(base, 0, 0, w, h);
+  } else {
+    ctx.drawImage(base, 0, 0, w, h);
+    if (photo) drawCover(ctx, photo, photoArea, 0.38);
   }
 
   const city = (input.city || "").trim().toLocaleUpperCase("pt-BR");
