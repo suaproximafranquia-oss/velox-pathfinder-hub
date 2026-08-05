@@ -144,7 +144,7 @@ const PREFER = [
   "city",
 ];
 
-function score(url: string, info: ImageInfo): number {
+function score(url: string, info: ImageInfo, strict = true): number {
   const name = decodeURIComponent(url).toLowerCase();
   if (REJECT.some((w) => name.includes(w))) return -1;
   const width = info.width ?? 0;
@@ -161,8 +161,8 @@ function score(url: string, info: ImageInfo): number {
   // Só entram imagens que declaram algum elemento representativo da
   // cidade: cartão-postal, monumento, igreja, praça, rio, ponte, etc.
   const representative = PREFER.filter((w) => name.includes(w)).length;
-  if (representative === 0) return -1;
-  s += 4 + Math.min(3, representative);
+  if (representative === 0 && strict) return -1;
+  if (representative > 0) s += 4 + Math.min(3, representative);
   if (ratio >= 1.3 && ratio <= 1.9) s += 2;
   return s;
 }
