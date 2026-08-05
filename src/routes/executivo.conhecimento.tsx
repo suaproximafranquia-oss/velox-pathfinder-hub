@@ -54,7 +54,13 @@ type PendingUpload = {
 type QueueItem = {
   name: string;
   status: "aguardando" | "processando" | "concluido" | "erro";
+  /** Progresso individual do documento (ex.: "Página 3 de 18"). */
+  detail?: string;
 };
+
+/** Concorrência padrão: 3 documentos processados simultaneamente. */
+const DEFAULT_CONCURRENCY = 3;
+const CONCURRENCY_OPTIONS = [1, 2, 3, 4, 5, 6];
 
 function KnowledgePage() {
   const navigate = useNavigate();
@@ -68,6 +74,8 @@ function KnowledgePage() {
   const [pending, setPending] = useState<PendingUpload | null>(null);
   /** Fila de processamento: um arquivo por vez, com estado visível. */
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  /** Quantos documentos são processados ao mesmo tempo. */
+  const [concurrency, setConcurrency] = useState<number>(DEFAULT_CONCURRENCY);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -130,8 +138,8 @@ function KnowledgePage() {
     displayName: string,
     visibility: DocumentVisibility,
     description: string,
+    onDetail: (detail: string) => void,
   ): Promise<boolean> {
-    setLogs([]);
     const id = newDocumentId();
     const now = new Date().toISOString();
     const provisional: KnowledgeDocument = {
@@ -157,17 +165,17 @@ function KnowledgePage() {
     refresh();
     void publishDocument(session!.userId, provisional);
     try {
-      setStage("Analisando documento…");
+      onDetail("Analisando documento…");
       const result = await ingestFile(file, (entry) => {
-        setLogs((prev) => [...prev, entry]);
-        setStage(entry.msg);
+        setLogs((prev) => [...prev.slice(-80), { ...entry, msg: `${displayName}: ${entry.msg}` }]);
+        onDetail(entry.msg);
         // cede o event loop para o React repintar o painel de logs.
         return new Promise<void>((r) => setTimeout(r, 0)) as unknown as void;
       });
-      setStage("Indexando conteúdo…");
+      onDetail("Indexando conteúdo…");
       await new Promise((r) => setTimeout(r, 50));
       const chunks = chunkText(result.text);
-      setStage("Atualizando Base Oficial…");
+      onDetail("Atualizando Base Oficial…");
       await new Promise((r) => setTimeout(r, 150));
       // Nunca descartar conteúdo parcial: se houver qualquer chunk, ativa.
       updateDocument(id, {
@@ -207,7 +215,7 @@ function KnowledgePage() {
     }
   }
 
-  /** Envia todos os arquivos selecionados, um após o outro. */
+  /** Envia os arquivos selecionados com concorrência controlada. */
   async function submitPending() {
     if (!pending || busy) return;
     const { items, visibility, description } = pending;
@@ -218,20 +226,43 @@ function KnowledgePage() {
     setPending(null);
     setBusy(true);
     setFlash(null);
+    setLogs([]);
     setQueue(jobs.map((j) => ({ name: j.name, status: "aguardando" as const })));
     let ok = 0;
-    for (let i = 0; i < jobs.length; i += 1) {
-      const job = jobs[i]!;
-      setQueue((q) =>
-        q.map((item, idx) => (idx === i ? { ...item, status: "processando" } : item)),
-      );
-      setStage(`Documento ${i + 1} de ${jobs.length} — ${job.name}`);
-      const done = await processOne(job.file, job.name, visibility, description);
-      if (done) ok += 1;
-      setQueue((q) =>
-        q.map((item, idx) => (idx === i ? { ...item, status: done ? "concluido" : "erro" } : item)),
-      );
+    let finished = 0;
+    let next = 0;
+    const limit = Math.max(1, Math.min(concurrency, jobs.length));
+    setStage(`0 de ${jobs.length} documentos concluídos`);
+
+    /** Worker: consome a fila enquanto houver itens pendentes. */
+    async function worker() {
+      for (;;) {
+        const i = next;
+        next += 1;
+        if (i >= jobs.length) return;
+        const job = jobs[i]!;
+        setQueue((q) =>
+          q.map((item, idx) =>
+            idx === i ? { ...item, status: "processando", detail: "Na fila…" } : item,
+          ),
+        );
+        const done = await processOne(job.file, job.name, visibility, description, (detail) =>
+          setQueue((q) => q.map((item, idx) => (idx === i ? { ...item, detail } : item))),
+        );
+        if (done) ok += 1;
+        finished += 1;
+        setStage(`${finished} de ${jobs.length} documentos concluídos`);
+        setQueue((q) =>
+          q.map((item, idx) =>
+            idx === i
+              ? { ...item, status: done ? "concluido" : "erro", detail: undefined }
+              : item,
+          ),
+        );
+      }
     }
+
+    await Promise.all(Array.from({ length: limit }, () => worker()));
     setBusy(false);
     setStage("");
     if (jobs.length > 1) {
@@ -279,14 +310,31 @@ function KnowledgePage() {
           onChange={(e) => onPickFile(e.target.files)}
           className="hidden"
         />
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-5 py-2.5 text-sm text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40"
-        >
-          <Plus className="h-4 w-4" /> Adicionar Documento
-        </button>
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-5 py-2.5 text-sm text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" /> Adicionar Documento
+          </button>
+          <label className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
+            Processamento simultâneo
+            <select
+              value={concurrency}
+              disabled={busy}
+              onChange={(e) => setConcurrency(Number(e.target.value))}
+              className="rounded-lg border border-[color:var(--border)] bg-[color:var(--card)] px-2 py-1 text-xs text-[color:var(--foreground)] disabled:opacity-40"
+            >
+              {CONCURRENCY_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n} documento{n > 1 ? "s" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         {busy && (
           <div className="mt-5 rounded-xl border border-[color:var(--border)] bg-[color:var(--accent)]/30 px-4 py-3 text-xs text-[color:var(--muted-foreground)]">
@@ -294,23 +342,47 @@ function KnowledgePage() {
               <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
               <span>{stage || "Processando…"}</span>
             </div>
-            {queue.length > 1 && (
-              <ul className="mt-3 space-y-1 text-[11px]">
-                {queue.map((item, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    {item.status === "processando" ? (
-                      <Loader2 className="h-3 w-3 animate-spin text-[color:var(--gold)]" />
-                    ) : item.status === "concluido" ? (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-300" />
-                    ) : item.status === "erro" ? (
-                      <AlertTriangle className="h-3 w-3 text-red-300" />
-                    ) : (
-                      <span className="h-3 w-3 rounded-full border border-[color:var(--border)]" />
-                    )}
-                    <span>{item.name}</span>
-                  </li>
-                ))}
-              </ul>
+            {queue.length > 0 && (
+              <>
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--border)]">
+                  <div
+                    className="h-full rounded-full bg-[color:var(--gold)] transition-all duration-300"
+                    style={{
+                      width: `${Math.round(
+                        (queue.filter((q) => q.status === "concluido" || q.status === "erro")
+                          .length /
+                          queue.length) *
+                          100,
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <ul className="mt-3 space-y-1.5 text-[11px]">
+                  {queue.map((item, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      {item.status === "processando" ? (
+                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[color:var(--gold)]" />
+                      ) : item.status === "concluido" ? (
+                        <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-300" />
+                      ) : item.status === "erro" ? (
+                        <AlertTriangle className="h-3 w-3 shrink-0 text-red-300" />
+                      ) : (
+                        <span className="h-3 w-3 shrink-0 rounded-full border border-[color:var(--border)]" />
+                      )}
+                      <span className="truncate">{item.name}</span>
+                      <span className="ml-auto shrink-0 text-[color:var(--muted-foreground)]/80">
+                        {item.status === "aguardando"
+                          ? "aguardando"
+                          : item.status === "processando"
+                            ? item.detail || "processando…"
+                            : item.status === "concluido"
+                              ? "concluído"
+                              : "erro"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
             {logs.length > 0 && (
               <ul className="mt-3 max-h-40 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed">
@@ -480,7 +552,8 @@ function UploadModal({
           </h3>
         </div>
         <p className="text-[11px] text-[color:var(--muted-foreground)] mb-4">
-          Os documentos serão processados em fila, um a um, com a mesma visibilidade e descrição.
+          Os documentos serão processados em fila, com processamento paralelo controlado,
+          compartilhando a mesma visibilidade e descrição.
         </p>
 
         <div className="space-y-4">
