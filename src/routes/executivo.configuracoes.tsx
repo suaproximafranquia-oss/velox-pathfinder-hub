@@ -1,6 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings, Palette, Plug, Shield, Bell, Video } from "lucide-react";
+import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2 } from "lucide-react";
+import {
+  loadHomologationConfig,
+  saveHomologationConfig,
+  signOutHomologation,
+  type HomologationConfig,
+} from "@/lib/homologation-guard";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   canManageUsers,
@@ -88,6 +94,7 @@ function ConfiguracoesPage() {
         </p>
         <div className="grid gap-4">
           <VideoconferenciaSection session={session} />
+          <ProtecaoHomologacaoSection />
           <IntegracoesSection />
           {sections.map((s) => {
             const Icon = s.icon;
@@ -120,6 +127,160 @@ function ConfiguracoesPage() {
 
 function VideoconferenciaSection({ session }: { session: ExecutiveSession }) {
   return <VideoconferenciaSectionInner session={session} />;
+}
+
+/**
+ * Etapa 2 §9 — Proteção da Homologação.
+ *
+ * Ativa/desativa a camada de proteção do ambiente e administra os
+ * usuários autorizados. Não interfere nos logins do CRM, da Central
+ * Administrativa nem do Portal do Investidor.
+ */
+function ProtecaoHomologacaoSection() {
+  const [config, setConfig] = useState<HomologationConfig>({ enabled: true, users: [] });
+  const [novoUsuario, setNovoUsuario] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    setConfig(loadHomologationConfig());
+  }, []);
+
+  function persist(next: HomologationConfig, message: string) {
+    setConfig(saveHomologationConfig(next));
+    setFeedback(message);
+  }
+
+  function toggle() {
+    persist(
+      { ...config, enabled: !config.enabled },
+      config.enabled ? "Proteção desativada." : "Proteção ativada.",
+    );
+  }
+
+  function addUser() {
+    const username = novoUsuario.trim();
+    if (username.length < 2 || novaSenha.length < 4) {
+      setFeedback("Informe um usuário e uma senha com pelo menos 4 caracteres.");
+      return;
+    }
+    const users = [
+      ...config.users.filter((u) => u.username.toLowerCase() !== username.toLowerCase()),
+      { username, password: novaSenha },
+    ];
+    persist({ ...config, users }, `Acesso de ${username} salvo.`);
+    setNovoUsuario("");
+    setNovaSenha("");
+  }
+
+  function removeUser(username: string) {
+    persist(
+      { ...config, users: config.users.filter((u) => u.username !== username) },
+      `Acesso de ${username} removido.`,
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
+          <Lock className="h-4 w-4" strokeWidth={1.6} />
+        </span>
+        <h2 className="font-display text-base">Proteção da Homologação</h2>
+      </div>
+      <div className="flex items-center justify-between gap-4 border-b border-[color:var(--border)] pb-3">
+        <p className="text-xs leading-relaxed text-[color:var(--muted-foreground)]">
+          Tela de acesso exibida antes de qualquer URL do ambiente. Não substitui os logins do CRM,
+          da Central Administrativa ou do Portal do Investidor.
+        </p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={config.enabled}
+          aria-label={config.enabled ? "Desativar proteção" : "Ativar proteção"}
+          onClick={toggle}
+          className={
+            "relative h-6 w-11 shrink-0 rounded-full border transition " +
+            (config.enabled
+              ? "border-[color:var(--gold)]/50 bg-[color:var(--gold)]/25"
+              : "border-[color:var(--border)] bg-[color:var(--background)]/60")
+          }
+        >
+          <span
+            className={
+              "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition-all " +
+              (config.enabled
+                ? "left-6 bg-[color:var(--gold)]"
+                : "left-1 bg-[color:var(--muted-foreground)]")
+            }
+          />
+        </button>
+      </div>
+      <ul className="divide-y divide-[color:var(--border)]">
+        {config.users.map((u) => (
+          <li key={u.username} className="flex items-center justify-between gap-4 py-3">
+            <div>
+              <p className="text-sm">{u.username}</p>
+              <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                Senha definida · {u.password.length} caracteres
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => removeUser(u.username)}
+              aria-label={`Excluir ${u.username}`}
+              className="rounded-lg border border-[color:var(--border)] p-2 text-[color:var(--muted-foreground)] transition hover:border-[color:var(--destructive)]/50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </li>
+        ))}
+        {config.users.length === 0 ? (
+          <li className="py-3 text-xs text-[color:var(--muted-foreground)]">
+            Nenhum usuário autorizado — a proteção precisa de ao menos um acesso.
+          </li>
+        ) : null}
+      </ul>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <input
+          value={novoUsuario}
+          onChange={(e) => setNovoUsuario(e.target.value)}
+          placeholder="Usuário"
+          className="w-40 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/60 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/60"
+        />
+        <input
+          value={novaSenha}
+          onChange={(e) => setNovaSenha(e.target.value)}
+          type="password"
+          placeholder="Senha"
+          className="w-40 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)]/60 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/60"
+        />
+        <button
+          type="button"
+          onClick={addUser}
+          className="rounded-full bg-[color:var(--gold)] px-4 py-2 text-xs uppercase tracking-[0.16em] text-[color:var(--gold-foreground)] transition hover:opacity-90"
+        >
+          Salvar acesso
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            signOutHomologation();
+            setFeedback("Sessão de homologação encerrada neste navegador.");
+          }}
+          className="rounded-full border border-[color:var(--border)] px-4 py-2 text-xs uppercase tracking-[0.16em] transition hover:border-[color:var(--gold)]"
+        >
+          Encerrar sessão
+        </button>
+      </div>
+      {feedback ? (
+        <p className="mt-3 text-[11px] text-[color:var(--muted-foreground)]">{feedback}</p>
+      ) : null}
+      <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+        Cadastrar o mesmo usuário novamente atualiza a senha.
+      </p>
+    </section>
+  );
 }
 
 const INTEGRATIONS_KEY = "velox:integrations:v1";

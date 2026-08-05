@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FlaskConical,
+  ImagePlus,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
@@ -20,7 +21,14 @@ import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
 import { downloadBase64, slugify } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
 import { composeFromTemplate } from "@/lib/creative/compose";
-import { getTemplate, uploadTemplate, type CreativeTemplate } from "@/lib/creative/template-store";
+import {
+  getTemplate,
+  uploadTemplate,
+  getReference,
+  uploadReference,
+  type CreativeTemplate,
+  type CreativeReference,
+} from "@/lib/creative/template-store";
 import { generateCreativeCopy, getCityPhoto } from "@/lib/creative.functions";
 import { testTemplate, TEST_CITY, TEST_STATE } from "@/lib/creative/template-test";
 import type { Diagnostic } from "@/lib/creative/calibration";
@@ -97,7 +105,13 @@ function CriativaPage() {
     null,
   );
   const [templates, setTemplates] = useState<Partial<Record<CreativeModel, CreativeTemplate>>>({});
+  const [references, setReferences] = useState<Partial<Record<CreativeModel, CreativeReference>>>(
+    {},
+  );
   const [uploading, setUploading] = useState<CreativeModel | null>(null);
+  const [uploadingRef, setUploadingRef] = useState<CreativeModel | null>(null);
+  /** Modo Manual: fotografia escolhida pelo usuário (opcional). */
+  const [manualPhoto, setManualPhoto] = useState<{ name: string; dataUrl: string } | null>(null);
   const [testing, setTesting] = useState<CreativeModel | null>(null);
   const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
   const canManageTemplates = session ? canManageCreativeTemplates(session.activeRole) : false;
@@ -112,7 +126,35 @@ function CriativaPage() {
         ...(institucional ? { institucional } : {}),
         ...(marketing ? { marketing } : {}),
       });
+      const refA = getReference("institucional");
+      const refB = getReference("marketing");
+      setReferences({ ...(refA ? { institucional: refA } : {}), ...(refB ? { marketing: refB } : {}) });
     })();
+  }, []);
+
+  /** Fotografia manual: upload, arrastar ou CTRL + V. */
+  function readPhoto(file: File | undefined | null) {
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => setManualPhoto({ name: file.name || "foto colada", dataUrl: String(reader.result) });
+    reader.readAsDataURL(file);
+  }
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      for (const item of Array.from(e.clipboardData?.items ?? [])) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            readPhoto(file);
+          }
+          return;
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
   }, []);
 
   /** Cada modelo possui o seu próprio template: um upload nunca afeta o outro. */
@@ -132,12 +174,28 @@ function CriativaPage() {
     }
   }
 
+  /** Modelo Padronizado: referência visual, nunca usada como template. */
+  async function sendReference(model: CreativeModel, file: File | undefined) {
+    if (!file) return;
+    setUploadingRef(model);
+    setError(null);
+    try {
+      const saved = await uploadReference(model, file);
+      setReferences((r) => ({ ...r, [model]: saved }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao enviar o modelo padronizado.");
+    } finally {
+      setUploadingRef(null);
+    }
+  }
+
   /** Prévia de validação: não gera arte definitiva nem grava histórico. */
   async function runTest(model: CreativeModel) {
     setTesting(model);
     setError(null);
     try {
-      const result = await testTemplate(model);
+      // Guia tracejado da área da fotografia: só existe na prévia.
+      const result = await testTemplate(model, { guide: true });
       setReport((r) => ({ ...r, [model]: result.report }));
       setZoom({
         model,
@@ -170,22 +228,27 @@ function CriativaPage() {
     setArts({});
     try {
       const historyKey = `${city.toLocaleLowerCase("pt-BR")}-${state}`;
-      const photo = await getCityPhoto({
-        data: { city, state, exclude: photoHistory(historyKey) },
-      });
-      if (!photo.dataUrl) {
-        throw new Error(
-          `Nenhuma fotografia adequada foi encontrada para ${city} - ${state}. Tente novamente ou verifique a grafia da cidade.`,
-        );
+      // Modo Manual: a fotografia escolhida substitui a busca automática.
+      let photoDataUrl = manualPhoto?.dataUrl ?? null;
+      if (!photoDataUrl) {
+        const photo = await getCityPhoto({
+          data: { city, state, exclude: photoHistory(historyKey) },
+        });
+        if (!photo.dataUrl) {
+          throw new Error(
+            `Nenhuma fotografia adequada foi encontrada para ${city} - ${state}. Selecione uma fotografia manualmente ou verifique a grafia da cidade.`,
+          );
+        }
+        rememberPhoto(historyKey, photo.credit);
+        photoDataUrl = photo.dataUrl;
       }
-      rememberPhoto(historyKey, photo.credit);
 
       // MODELO A — preenchimento determinístico do Template Institucional.
       const institucional = await composeFromTemplate({
         model: "institucional",
         city,
         state,
-        photoDataUrl: photo.dataUrl,
+        photoDataUrl,
       });
 
       // MODELO B — mesmo motor, sobre o Template Marketing. A IA produz
@@ -200,7 +263,7 @@ function CriativaPage() {
             model: "marketing",
             city,
             state,
-            photoDataUrl: photo.dataUrl,
+            photoDataUrl,
             copy: {
               headline: copy.marketing.headline,
               subheadline: copy.marketing.subheadline,
@@ -280,6 +343,52 @@ function CriativaPage() {
               {busy ? "Gerando…" : "Gerar artes"}
             </button>
           </div>
+
+          {/* Modo Manual — fotografia opcional (upload, arrastar ou CTRL + V). */}
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              readPhoto(e.dataTransfer.files?.[0]);
+            }}
+            className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 p-4"
+          >
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
+              <ImagePlus className="h-4 w-4" />
+              📷 Selecionar Foto da Cidade (Opcional)
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  readPhoto(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {manualPhoto ? (
+              <>
+                <img
+                  src={manualPhoto.dataUrl}
+                  alt="Fotografia selecionada"
+                  className="h-12 w-20 rounded-md border border-border object-cover"
+                />
+                <span className="text-xs text-foreground">{manualPhoto.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setManualPhoto(null)}
+                  className="text-xs font-semibold text-muted-foreground underline underline-offset-2"
+                >
+                  Remover
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                Arraste uma imagem, cole com CTRL + V ou faça o upload. Sem seleção, a busca
+                automática continua sendo utilizada.
+              </span>
+            )}
+          </div>
           {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
         </section>
 
@@ -287,6 +396,7 @@ function CriativaPage() {
           {(["institucional", "marketing"] as CreativeModel[]).map((model) => {
             const tpl = templates[model];
             const diags = report[model];
+            const ref = references[model];
             return (
               <div
                 key={model}
@@ -342,6 +452,25 @@ function CriativaPage() {
                     Testar Template
                   </button>
                 </div>
+                {canManageTemplates ? (
+                  <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
+                    {uploadingRef === model ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    Enviar Modelo Padronizado
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={(e) => {
+                        void sendReference(model, e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                ) : null}
                 <p className="text-xs">
                   <span className="text-muted-foreground">Status: </span>
                   {tpl ? (
@@ -353,13 +482,37 @@ function CriativaPage() {
                     <span className="text-muted-foreground">Nenhum template</span>
                   )}
                 </p>
-                {tpl ? (
-                  <img
-                    src={tpl.dataUrl}
-                    alt={TEMPLATE_LABEL[model]}
-                    className="h-32 w-full rounded-lg border border-border object-contain"
-                  />
-                ) : null}
+                <div className="grid grid-cols-2 gap-3">
+                  {tpl ? (
+                    <figure>
+                      <img
+                        src={tpl.dataUrl}
+                        alt={TEMPLATE_LABEL[model]}
+                        className="h-32 w-full rounded-lg border border-border object-contain"
+                      />
+                      <figcaption className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Template oficial · onde editar
+                      </figcaption>
+                    </figure>
+                  ) : null}
+                  {ref ? (
+                    <figure>
+                      <img
+                        src={ref.dataUrl}
+                        alt={`Modelo padronizado — ${CREATIVE_MODEL_LABEL[model]}`}
+                        className="h-32 w-full rounded-lg border border-dashed border-border object-contain"
+                      />
+                      <figcaption className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Modelo padronizado · referência ({ref.width}×{ref.height})
+                      </figcaption>
+                    </figure>
+                  ) : (
+                    <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border p-2 text-center text-[10px] text-muted-foreground">
+                      Modelo padronizado não enviado — referência apenas visual, nunca utilizada
+                      como template.
+                    </div>
+                  )}
+                </div>
                 {diags ? (
                   <ul className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs">
                     {diags.map((d, i) => (

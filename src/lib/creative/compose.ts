@@ -190,6 +190,38 @@ function setFont(ctx: CanvasRenderingContext2D, size: number, tracking: number, 
 }
 
 /**
+ * O template oficial já traz película azul, degradê, transparências,
+ * logotipo e selo. Quando a área da fotografia é transparente, o PNG
+ * funciona como MÁSCARA (overlay): a fotografia entra atrás e nada é
+ * recalculado. Esta função identifica esse caso lendo o canal alfa.
+ */
+function hasPhotoWindow(base: HTMLImageElement, area: Area): boolean {
+  try {
+    const data = readArea(base, area);
+    const total = data.width * data.height;
+    if (!total) return false;
+    let transparent = 0;
+    for (let i = 3; i < data.data.length; i += 4) {
+      if (data.data[i]! < 250) transparent += 1;
+    }
+    // 25% da área com alfa parcial já caracteriza uma janela oficial.
+    return transparent / total > 0.25;
+  } catch {
+    return false;
+  }
+}
+
+/** Guia tracejado de calibração — jamais exportado na arte final. */
+function drawGuide(ctx: CanvasRenderingContext2D, area: Area) {
+  ctx.save();
+  ctx.strokeStyle = "#F1610C";
+  ctx.lineWidth = Math.max(2, area.w * 0.006);
+  ctx.setLineDash([ctx.lineWidth * 4, ctx.lineWidth * 3]);
+  ctx.strokeRect(area.x, area.y, area.w, area.h);
+  ctx.restore();
+}
+
+/**
  * Apaga o texto de exemplo impresso no template reproduzindo, linha a
  * linha, a cor do próprio arquivo (amostrada imediatamente à esquerda da
  * área). Nenhum elemento gráfico é redesenhado.
@@ -321,6 +353,11 @@ export type ComposeInput = {
   photoDataUrl?: string | null;
   /** Somente Modelo B: textos gerados pela IA. */
   copy?: { headline?: string; subheadline?: string; supporting?: string };
+  /**
+   * Guia tracejado sobre a área da fotografia. Uso exclusivo de
+   * calibração/prévia — nunca é aplicado na arte final exportada.
+   */
+  guide?: boolean;
 };
 
 /**
@@ -358,17 +395,40 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
     }
   }
 
-  // 1) Template reproduzido integralmente.
-  ctx.drawImage(base, 0, 0, w, h);
-
-  // 2) Fotografia da cidade + película do próprio template.
   const photoArea: Area = {
     x: (layout.photoArea.x0 ?? 0) * w,
     y: layout.photoArea.y0 * h,
     w: ((layout.photoArea.x1 ?? 1) - (layout.photoArea.x0 ?? 0)) * w,
     h: (layout.photoArea.y1 - layout.photoArea.y0) * h,
   };
-  if (input.photoDataUrl) {
+
+  /**
+   * NOVO CONCEITO GRÁFICO: quando o PNG oficial possui janela
+   * transparente na área da fotografia, ele passa a ser um OVERLAY.
+   * A fotografia é redimensionada, posicionada exatamente atrás e o
+   * template é aplicado por cima — sem recalcular degradê, película
+   * azul ou transparências, que já pertencem ao arquivo oficial.
+   */
+  const overlayMode = hasPhotoWindow(base, photoArea);
+
+  if (overlayMode) {
+    if (input.photoDataUrl) {
+      try {
+        const photo = await loadImage(input.photoDataUrl);
+        drawCover(ctx, photo, photoArea, 0.38);
+      } catch {
+        /* sem fotografia, o template permanece como está */
+      }
+    }
+    ctx.drawImage(base, 0, 0, w, h);
+  } else {
+    // 1) Template reproduzido integralmente.
+    ctx.drawImage(base, 0, 0, w, h);
+  }
+
+  // 2) Fotografia da cidade + película do próprio template (modo legado,
+  // para templates opacos que ainda não possuem janela transparente).
+  if (!overlayMode && input.photoDataUrl) {
     try {
       const photo = await loadImage(input.photoDataUrl);
       const rows = rowColors(readArea(base, photoArea));
@@ -440,6 +500,9 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   if ("letterSpacing" in ctx) {
     (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = "0px";
   }
+
+  // 5) Guia visual temporário — apenas em prévias de calibração.
+  if (input.guide) drawGuide(ctx, photoArea);
 
   return canvas.toDataURL("image/png").split(",")[1] ?? "";
 }

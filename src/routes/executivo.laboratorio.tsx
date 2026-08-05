@@ -145,10 +145,17 @@ function LaboratorioPage() {
           </div>
         </div>
 
-        <HomologationResetCard />
+        <LabGroup
+          title="Simulações Meta"
+          hint="Canal oficial WhatsApp — reprodução das respostas do Webhook."
+        >
+          <WhatsappReplySimulator />
+        </LabGroup>
 
-        <WhatsappReplySimulator />
-
+        <LabGroup
+          title="Recognition Engine"
+          hint="Eventos de reconhecimento executados no próximo login do usuário-alvo."
+        >
         <section>
           <label className="block text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-2">
             Usuário-alvo da simulação
@@ -235,8 +242,13 @@ function LaboratorioPage() {
             repetição em logins seguintes.
           </p>
         </section>
+        </LabGroup>
 
-        {targetUserId === session.userId && (
+        <LabGroup
+          title="Ferramentas Administrativas"
+          hint="Recursos de apoio à homologação disponíveis apenas ao Administrador."
+        >
+        {targetUserId === session.userId ? (
           <div className="rounded-2xl border border-[color:var(--gold)]/25 bg-[color:var(--card)]/40 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-sm">
@@ -254,9 +266,48 @@ function LaboratorioPage() {
               <LogOut className="h-4 w-4" /> Sair para testar
             </button>
           </div>
+        ) : (
+          <p className="text-sm text-[color:var(--muted-foreground)]">
+            Selecione o seu próprio usuário para liberar o atalho de logout de teste.
+          </p>
         )}
+        </LabGroup>
+
+        <LabGroup title="Reset" hint="Limpeza dos dados operacionais de demonstração.">
+          <HomologationResetCard />
+        </LabGroup>
+
+        <LabGroup
+          title="Simulações Gerais"
+          hint="Novas simulações de homologação serão organizadas neste grupo."
+        >
+          <p className="text-sm text-[color:var(--muted-foreground)]">
+            Nenhuma simulação geral disponível nesta versão.
+          </p>
+        </LabGroup>
       </div>
     </ExecutiveShell>
+  );
+}
+
+/** Agrupamento visual do Laboratório — nenhuma funcionalidade alterada. */
+function LabGroup({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-[color:var(--border)]/70 p-5">
+      <header>
+        <h2 className="font-display text-lg">{title}</h2>
+        <p className="text-[11px] text-[color:var(--muted-foreground)] mt-1">{hint}</p>
+      </header>
+      {children}
+    </section>
   );
 }
 /**

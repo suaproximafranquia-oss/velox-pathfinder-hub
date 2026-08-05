@@ -27,6 +27,7 @@ import { writeEntryContext } from "../lib/portal-entry";
 import { WhatsAppFloating } from "../components/shared/whatsapp-floating";
 import { JourneyTracker } from "../components/journey/journey-tracker";
 import { enforcePhysicalReset } from "../lib/homologation-reset";
+import { HomologationGate } from "../components/portal/homologation-gate";
 
 function NotFoundComponent() {
   return (
@@ -168,6 +169,14 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  return (
+    <HomologationGate>
+      <RootRoutes />
+    </HomologationGate>
+  );
+}
+
+function RootRoutes() {
   enforcePhysicalReset();
   const { queryClient } = Route.useRouteContext();
   const navigate = useNavigate();
