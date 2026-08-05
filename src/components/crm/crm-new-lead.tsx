@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { Upload, Sparkles, UserPlus, X, Loader2, ClipboardPaste } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Sparkles, UserPlus, X } from "lucide-react";
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import { extractLeadFromImage } from "@/lib/crm/lead-import.functions";
 import { createCrmLead, type CrmLeadInput } from "@/lib/crm/lead-intake";
 import { nextRoundRobinOwner } from "@/lib/crm/round-robin";
