@@ -6,6 +6,7 @@
  * navegador e a experiência segue exatamente como antes.
  */
 import { useEffect, useState, type ReactNode } from "react";
+import { Lock, User } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import background from "@/assets/atlas-homologacao-bg-wide.png.asset.json";
 import { isHomologationUnlocked, signInHomologation } from "@/lib/homologation-guard";
