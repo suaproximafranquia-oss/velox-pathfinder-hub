@@ -91,6 +91,41 @@ function hasPhotoWindow(base: HTMLImageElement, area: Area): boolean {
 }
 
 /** Guia tracejado de calibração — jamais exportado na arte final. */
+/**
+ * Janela real do PNG: retângulo que envolve os pixels transparentes.
+ * Assim a fotografia ocupa EXATAMENTE a abertura desenhada no arquivo
+ * oficial, sem depender de coordenadas declaradas manualmente.
+ */
+function alphaWindow(base: HTMLImageElement, w: number, h: number): Area | null {
+  try {
+    const sw = Math.min(240, w);
+    const sh = Math.max(1, Math.round((h / w) * sw));
+    const data = readArea(base, { x: 0, y: 0, w, h });
+    void sw;
+    void sh;
+    let x0 = data.width;
+    let y0 = data.height;
+    let x1 = -1;
+    let y1 = -1;
+    for (let y = 0; y < data.height; y += 1) {
+      for (let x = 0; x < data.width; x += 1) {
+        if (data.data[(y * data.width + x) * 4 + 3]! < 250) {
+          if (x < x0) x0 = x;
+          if (y < y0) y0 = y;
+          if (x > x1) x1 = x;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 < 0 || y1 < 0) return null;
+    const kx = w / data.width;
+    const ky = h / data.height;
+    return { x: x0 * kx, y: y0 * ky, w: (x1 - x0 + 1) * kx, h: (y1 - y0 + 1) * ky };
+  } catch {
+    return null;
+  }
+}
+
 function drawGuide(ctx: CanvasRenderingContext2D, area: Area) {
   ctx.save();
   ctx.strokeStyle = "#F1610C";
