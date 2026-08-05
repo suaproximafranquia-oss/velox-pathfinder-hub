@@ -50,7 +50,7 @@ export function HomologationGate({ children }: { children: ReactNode }) {
       {/* Landing Page institucional: a própria arte é a interface de acesso.
           A arte cobre 100% da viewport (comportamento cover), sem faixas laterais. */}
       <div
-        className="relative"
+        className="relative shrink-0"
         style={{
           width: "max(100vw, calc(100vh * 2.131548))",
           height: "max(100vh, calc(100vw * 0.469143))",
