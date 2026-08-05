@@ -146,6 +146,49 @@ function setFont(
   }
 }
 
+/**
+ * Apaga o texto de exemplo impresso no template reproduzindo, linha a
+ * linha, a cor do próprio arquivo (amostrada imediatamente à esquerda da
+ * área). Nenhum elemento gráfico é redesenhado.
+ */
+function clearPlaceholder(
+  ctx: CanvasRenderingContext2D,
+  base: HTMLImageElement,
+  block: TextBlock,
+  w: number,
+  h: number,
+) {
+  const rect = block.clear;
+  if (!rect) return;
+  const area: Area = {
+    x: rect.x0 * w,
+    y: rect.y0 * h,
+    w: (rect.x1 - rect.x0) * w,
+    h: (rect.y1 - rect.y0) * h,
+  };
+  const sampleW = Math.max(2, Math.round(area.w * 0.02));
+  const sampleX =
+    rect.sample === "right"
+      ? Math.min(w - sampleW, area.x + area.w + 1)
+      : Math.max(0, area.x - sampleW - 1);
+  const sample = readArea(base, { x: sampleX, y: area.y, w: sampleW, h: area.h });
+  const step = area.h / sample.height;
+  for (let y = 0; y < sample.height; y += 1) {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    for (let x = 0; x < sample.width; x += 1) {
+      const i = (y * sample.width + x) * 4;
+      r += sample.data[i]!;
+      g += sample.data[i + 1]!;
+      b += sample.data[i + 2]!;
+    }
+    const n = sample.width;
+    ctx.fillStyle = `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})`;
+    ctx.fillRect(area.x, area.y + y * step, area.w, step + 1);
+  }
+}
+
 /** Maior corpo que respeita a altura oficial e a largura disponível. */
 function fitSize(
   ctx: CanvasRenderingContext2D,
@@ -266,14 +309,26 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas indisponível neste navegador.");
 
+  // Garante a tipografia oficial antes de escrever qualquer campo.
+  if (typeof document !== "undefined" && document.fonts) {
+    try {
+      await Promise.all([
+        document.fonts.load('600 96px "Poppins"'),
+        document.fonts.load('700 96px "Poppins"'),
+      ]);
+    } catch {
+      /* a fonte de sistema assume o lugar */
+    }
+  }
+
   // 1) Template reproduzido integralmente.
   ctx.drawImage(base, 0, 0, w, h);
 
   // 2) Fotografia da cidade + película do próprio template.
   const photoArea: Area = {
-    x: 0,
+    x: (layout.photoArea.x0 ?? 0) * w,
     y: layout.photoArea.y0 * h,
-    w,
+    w: ((layout.photoArea.x1 ?? 1) - (layout.photoArea.x0 ?? 0)) * w,
     h: (layout.photoArea.y1 - layout.photoArea.y0) * h,
   };
   if (input.photoDataUrl) {
@@ -281,7 +336,7 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
       const photo = await loadImage(input.photoDataUrl);
       const rows = rowColors(readArea(base, photoArea));
       drawCover(ctx, photo, photoArea);
-      applyFilm(ctx, rows, photoArea);
+      if (layout.photoArea.film !== false) applyFilm(ctx, rows, photoArea);
 
       // Elemento gráfico do topo (selo) volta por cima da fotografia.
       if (layout.badgeArea) {
@@ -312,17 +367,26 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   if (layout.city) writeField(ctx, layout.city, city, w, h);
   if (layout.state) writeField(ctx, layout.state, stateLabel(uf), w, h);
   if (layout.tail && city) {
-    writeField(ctx, layout.tail, uf ? `${city} - ${uf}` : city, w, h);
+    const value = uf ? `${city} - ${uf}` : city;
+    clearPlaceholder(ctx, base, layout.tail, w, h);
+    writeField(ctx, layout.tail, `${layout.tail.prefix ?? ""}${value}`, w, h);
+  }
+  if (layout.footer && city) {
+    clearPlaceholder(ctx, base, layout.footer, w, h);
+    writeField(ctx, layout.footer, uf ? `${city} - ${uf}` : city, w, h);
   }
 
   // 4) Textos publicitários (Modelo B).
   if (layout.headline && input.copy?.headline) {
+    clearPlaceholder(ctx, base, layout.headline, w, h);
     writeCopy(ctx, layout.headline, input.copy.headline, w, h);
   }
   if (layout.subheadline && input.copy?.subheadline) {
+    clearPlaceholder(ctx, base, layout.subheadline, w, h);
     writeCopy(ctx, layout.subheadline, input.copy.subheadline, w, h);
   }
   if (layout.supporting && input.copy?.supporting) {
+    clearPlaceholder(ctx, base, layout.supporting, w, h);
     writeCopy(ctx, layout.supporting, input.copy.supporting, w, h);
   }
 
