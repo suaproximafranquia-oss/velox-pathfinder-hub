@@ -1,13 +1,24 @@
 /**
- * MODELO A — EDITOR AUTOMATIZADO DO MODELO OFICIAL (browser only).
+ * MODELO A — PREENCHIMENTO DO TEMPLATE OFICIAL (browser only).
  *
- * Aqui não existe IA generativa: o arquivo oficial é aberto, os campos
- * variáveis mapeados pelo administrador são substituídos e a imagem é
- * exportada na resolução original. Duas execuções com a mesma cidade
- * produzem exatamente o mesmo arquivo.
+ * Não existe IA generativa aqui. O Template Oficial é aberto e apenas
+ * três elementos são inseridos: a fotografia da cidade (área superior,
+ * sob a película azul do template), o nome da cidade e a UF. Todo o
+ * restante — selo, fundo, textos institucionais, lista de produtos e
+ * logotipo — permanece pixel a pixel idêntico ao arquivo oficial.
  */
-import type { OfficialLayout, Rect, TextField } from "./layout";
-import { isRect } from "./layout";
+import {
+  BADGE_AREA,
+  CITY_BLOCK,
+  OFFICIAL_TEMPLATE_URL,
+  PHOTO_AREA,
+  STATE_BLOCK,
+  TAIL_TEXT,
+  TEMPLATE_FONT,
+  stateName,
+} from "./official-template";
+
+type Area = { x: number; y: number; w: number; h: number };
 
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -19,16 +30,8 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function px(rect: Rect, w: number, h: number) {
-  return { x: rect.x * w, y: rect.y * h, w: rect.w * w, h: rect.h * h };
-}
-
-/** Recorte "cover": preenche a área sem distorcer a fotografia. */
-function drawCover(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  area: { x: number; y: number; w: number; h: number },
-) {
+/** Recorte "cover": preenche a área sem distorcer nem deixar borda. */
+function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, area: Area) {
   const scale = Math.max(area.w / img.naturalWidth, area.h / img.naturalHeight);
   const dw = img.naturalWidth * scale;
   const dh = img.naturalHeight * scale;
@@ -40,38 +43,17 @@ function drawCover(
   ctx.restore();
 }
 
-type Area = { x: number; y: number; w: number; h: number };
-
-/**
- * PELÍCULA AZUL DO TEMPLATE.
- *
- * A área da fotografia do Template Oficial é um degradê institucional: no
- * topo quase claro, descendo até fundir-se com o azul da peça. Em vez de
- * inventar cores, lemos o próprio degradê do template linha a linha e o
- * reaplicamos sobre a fotografia com opacidade crescente. Assim não existe
- * linha de corte: a base da fotografia é exatamente o azul do template.
- */
 function readArea(base: HTMLImageElement, area: Area): ImageData {
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(area.w));
   c.height = Math.max(1, Math.round(area.h));
   const cx = c.getContext("2d", { willReadFrequently: true })!;
-  cx.drawImage(
-    base,
-    area.x,
-    area.y,
-    area.w,
-    area.h,
-    0,
-    0,
-    c.width,
-    c.height,
-  );
+  cx.drawImage(base, area.x, area.y, area.w, area.h, 0, 0, c.width, c.height);
   return cx.getImageData(0, 0, c.width, c.height);
 }
 
-/** Cor de fundo do template em cada linha (média das bordas laterais). */
-function rowBackgrounds(data: ImageData): [number, number, number][] {
+/** Cor do template em cada linha — é ela que define a película azul. */
+function rowColors(data: ImageData): [number, number, number][] {
   const { width, height } = data;
   const edge = Math.max(1, Math.round(width * 0.04));
   const rows: [number, number, number][] = [];
@@ -93,24 +75,16 @@ function rowBackgrounds(data: ImageData): [number, number, number][] {
   return rows;
 }
 
-/**
- * Camada de elementos gráficos do template dentro da área da fotografia
- * (selo "Vem Aí — Nova Unidade", marcador, réguas). Tudo que difere do
- * degradê de fundo é preservado e redesenhado sobre a fotografia.
- */
-function extractOverlay(
-  data: ImageData,
-  rows: [number, number, number][],
-): HTMLCanvasElement {
+/** Recorta um elemento gráfico do template descartando o fundo. */
+function extractOverlay(data: ImageData, rows: [number, number, number][]): HTMLCanvasElement {
   const { width, height } = data;
   const out = document.createElement("canvas");
   out.width = width;
   out.height = height;
   const cx = out.getContext("2d")!;
   const img = cx.createImageData(width, height);
-  // Suavização das bordas do recorte: evita qualquer moldura visível.
-  const fx = Math.max(1, width * 0.06);
-  const fy = Math.max(1, height * 0.06);
+  const fx = Math.max(1, width * 0.05);
+  const fy = Math.max(1, height * 0.05);
   for (let y = 0; y < height; y += 1) {
     const [br, bg, bb] = rows[y]!;
     const fadeY = Math.min(1, Math.min(y, height - 1 - y) / fy);
@@ -120,34 +94,28 @@ function extractOverlay(
       const g = data.data[i + 1]!;
       const b = data.data[i + 2]!;
       const diff = Math.max(Math.abs(r - br), Math.abs(g - bg), Math.abs(b - bb));
-      // Suaviza a borda dos elementos gráficos preservados.
-      const raw = diff <= 18 ? 0 : diff >= 52 ? 1 : (diff - 18) / 34;
+      const raw = diff <= 16 ? 0 : diff >= 48 ? 1 : (diff - 16) / 32;
       const fade = Math.min(fadeY, Math.min(x, width - 1 - x) / fx);
-      const alpha = raw * fade;
       img.data[i] = r;
       img.data[i + 1] = g;
       img.data[i + 2] = b;
-      img.data[i + 3] = Math.round(alpha * 255);
+      img.data[i + 3] = Math.round(raw * fade * 255);
     }
   }
   cx.putImageData(img, 0, 0);
   return out;
 }
 
-/** Fotografia + película azul do template, sem linha de corte. */
-function paintPhotoArea(
+/**
+ * Película azul: a cor de cada linha vem do próprio template e a
+ * opacidade cresce continuamente até fundir-se com o azul institucional.
+ * Não existe linha de corte entre fotografia e fundo.
+ */
+function applyFilm(
   ctx: CanvasRenderingContext2D,
-  base: HTMLImageElement,
-  photo: HTMLImageElement,
+  rows: [number, number, number][],
   area: Area,
-  badge: Area | null,
 ) {
-  const data = readArea(base, area);
-  const rows = rowBackgrounds(data);
-
-  drawCover(ctx, photo, area);
-
-  // Película: cor real do template em cada linha, opacidade crescente.
   ctx.save();
   ctx.beginPath();
   ctx.rect(area.x, area.y, area.w, area.h);
@@ -155,79 +123,56 @@ function paintPhotoArea(
   const step = area.h / rows.length;
   for (let y = 0; y < rows.length; y += 1) {
     const t = rows.length > 1 ? y / (rows.length - 1) : 1;
-    // A película fecha 100% um pouco antes da borda inferior: a base da
-    // fotografia funde-se totalmente ao azul institucional, sem corte.
-    const k = Math.min(1, t / 0.88);
-    const alpha = Math.min(1, 0.06 + 0.94 * Math.pow(k, 1.7));
+    const k = Math.min(1, t / 0.82);
+    const alpha = Math.min(1, Math.pow(k, 1.6));
     const [r, g, b] = rows[y]!;
     ctx.fillStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
     ctx.fillRect(area.x, area.y + y * step, area.w, step + 1);
   }
   ctx.restore();
+}
 
-  // Selo oficial do template ("Vem Aí — Nova Unidade") volta por cima,
-  // recortado do próprio arquivo e sem o fundo. Marcações auxiliares do
-  // template (moldura da foto, réguas) não são preservadas.
-  if (badge) {
-    const badgeData = readArea(base, badge);
-    const overlay = extractOverlay(badgeData, rowBackgrounds(badgeData));
-    ctx.drawImage(overlay, badge.x, badge.y, badge.w, badge.h);
+function setFont(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  tracking: number,
+  weight = 900,
+) {
+  ctx.font = `${weight} ${size}px ${TEMPLATE_FONT}`;
+  if ("letterSpacing" in ctx) {
+    (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
+      `${tracking}px`;
   }
 }
 
-function drawText(
+/** Maior corpo que respeita a altura oficial e a largura disponível. */
+function fitSize(
   ctx: CanvasRenderingContext2D,
-  field: TextField,
   text: string,
-  w: number,
-  h: number,
-) {
-  const area = px(field.rect, w, h);
-  if (field.cover) {
-    ctx.fillStyle = field.cover;
-    ctx.fillRect(area.x, area.y, area.w, area.h);
-  }
-  const value = field.uppercase ? text.toLocaleUpperCase("pt-BR") : text;
-  if (!value.trim()) return;
-
-  const tracking = field.tracking * area.h;
-  const setFont = (size: number) => {
-    ctx.font = `${field.weight} ${size}px ${field.font}`;
-    if ("letterSpacing" in ctx) {
-      (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
-        `${tracking}px`;
-    }
-  };
-
-  // Ajuste determinístico: maior corpo inteiro que cabe no bloco mapeado.
-  let size = Math.floor(area.h);
-  while (size > 4) {
-    setFont(size);
-    if (ctx.measureText(value).width <= area.w) break;
+  ideal: number,
+  maxWidth: number,
+  trackingRatio: number,
+  weight: number,
+): number {
+  let size = ideal;
+  while (size > 6) {
+    setFont(ctx, size, size * trackingRatio, weight);
+    if (ctx.measureText(text).width <= maxWidth) break;
     size -= 1;
   }
-  setFont(size);
-
-  ctx.fillStyle = field.color;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = field.align;
-  const x =
-    field.align === "left" ? area.x : field.align === "right" ? area.x + area.w : area.x + area.w / 2;
-  ctx.fillText(value, x, area.y + area.h / 2);
+  return size;
 }
 
 /**
- * Edita o Modelo Oficial: substitui apenas cidade, UF e fotografia.
- * Devolve PNG em base64 (sem prefixo), na resolução do arquivo original.
+ * Preenche o Template Oficial com a fotografia, a cidade e a UF.
+ * Devolve PNG em base64 (sem prefixo) na resolução original do template.
  */
 export async function composeInstitutionalArt(input: {
-  officialDataUrl: string;
-  layout: OfficialLayout;
   city: string;
   state: string;
   photoDataUrl?: string | null;
 }): Promise<string> {
-  const base = await loadImage(input.officialDataUrl);
+  const base = await loadImage(OFFICIAL_TEMPLATE_URL);
   const w = base.naturalWidth;
   const h = base.naturalHeight;
   const canvas = document.createElement("canvas");
@@ -236,30 +181,96 @@ export async function composeInstitutionalArt(input: {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas indisponível neste navegador.");
 
-  // 1) O arquivo oficial é reproduzido integralmente, pixel a pixel.
+  const photoArea: Area = {
+    x: 0,
+    y: PHOTO_AREA.y0 * h,
+    w,
+    h: (PHOTO_AREA.y1 - PHOTO_AREA.y0) * h,
+  };
+
+  // 1) Template oficial reproduzido integralmente.
   ctx.drawImage(base, 0, 0, w, h);
 
-  // 2) Fotografia principal — único elemento visual substituído.
-  if (isRect(input.layout.photo) && input.photoDataUrl) {
+  // 2) Fotografia da cidade + película azul do próprio template.
+  if (input.photoDataUrl) {
     try {
       const photo = await loadImage(input.photoDataUrl);
-      paintPhotoArea(
-        ctx,
-        base,
-        photo,
-        px(input.layout.photo, w, h),
-        isRect(input.layout.badge) ? px(input.layout.badge, w, h) : null,
+      const rows = rowColors(readArea(base, photoArea));
+      drawCover(ctx, photo, photoArea);
+      applyFilm(ctx, rows, photoArea);
+
+      // Selo "Vem Aí — Nova Unidade" volta por cima da fotografia.
+      const badge: Area = {
+        x: BADGE_AREA.x0 * w,
+        y: BADGE_AREA.y0 * h,
+        w: (BADGE_AREA.x1 - BADGE_AREA.x0) * w,
+        h: (BADGE_AREA.y1 - BADGE_AREA.y0) * h,
+      };
+      const badgeData = readArea(base, badge);
+      ctx.drawImage(
+        extractOverlay(badgeData, rowColors(badgeData)),
+        badge.x,
+        badge.y,
+        badge.w,
+        badge.h,
       );
     } catch {
-      /* sem foto disponível, o enquadramento original permanece */
+      /* sem fotografia disponível, o template permanece como está */
     }
   }
 
-  // 3) Campos textuais variáveis — cidade e UF aparecem duas vezes.
-  if (input.layout.city) drawText(ctx, input.layout.city, input.city, w, h);
-  if (input.layout.city2) drawText(ctx, input.layout.city2, input.city, w, h);
-  if (input.layout.state) drawText(ctx, input.layout.state, input.state, w, h);
-  if (input.layout.state2) drawText(ctx, input.layout.state2, input.state, w, h);
+  const city = (input.city || "").trim().toLocaleUpperCase("pt-BR");
+  const uf = (input.state || "").trim().toUpperCase();
+
+  ctx.textBaseline = "middle";
+
+  // 3) Cidade — texto principal.
+  if (city) {
+    ctx.textAlign = "center";
+    const size = fitSize(ctx, city, (CITY_BLOCK.capHeight / 0.72) * h, CITY_BLOCK.maxWidth * w, 0, 900);
+    setFont(ctx, size, 0, 900);
+    ctx.fillStyle = CITY_BLOCK.color;
+    ctx.fillText(city, w / 2, CITY_BLOCK.centerY * h);
+  }
+
+  // 4) UF por extenso, com o espaçamento oficial.
+  const state = stateName(uf).toLocaleUpperCase("pt-BR");
+  if (state) {
+    ctx.textAlign = "center";
+    const size = fitSize(
+      ctx,
+      state,
+      (STATE_BLOCK.capHeight / 0.72) * h,
+      STATE_BLOCK.maxWidth * w,
+      STATE_BLOCK.tracking,
+      700,
+    );
+    setFont(ctx, size, size * STATE_BLOCK.tracking, 700);
+    ctx.fillStyle = STATE_BLOCK.color;
+    // A folga do tracking desloca o texto: compensamos meia unidade.
+    ctx.fillText(state, w / 2 - (size * STATE_BLOCK.tracking) / 2, STATE_BLOCK.centerY * h);
+  }
+
+  // 5) Referência da cidade no texto institucional ("AGORA EM ...").
+  if (city) {
+    const tail = uf ? `${city} - ${uf}` : city;
+    ctx.textAlign = "left";
+    const size = fitSize(
+      ctx,
+      tail,
+      (TAIL_TEXT.capHeight / 0.72) * h,
+      TAIL_TEXT.maxWidth * w,
+      0.02,
+      800,
+    );
+    setFont(ctx, size, size * 0.02, 800);
+    ctx.fillStyle = TAIL_TEXT.color;
+    ctx.fillText(tail, TAIL_TEXT.x * w, TAIL_TEXT.centerY * h);
+  }
+
+  if ("letterSpacing" in ctx) {
+    (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = "0px";
+  }
 
   return canvas.toDataURL("image/png").split(",")[1] ?? "";
 }
