@@ -82,8 +82,9 @@ function hasPhotoWindow(base: HTMLImageElement, area: Area): boolean {
     for (let i = 3; i < data.data.length; i += 4) {
       if (data.data[i]! < 250) transparent += 1;
     }
-    // 25% da área com alfa parcial já caracteriza uma janela oficial.
-    return transparent / total > 0.25;
+    // Qualquer janela real de transparência (>2% da área) já caracteriza
+    // um template-máscara: a fotografia entra ATRÁS e o PNG cobre por cima.
+    return transparent / total > 0.02;
   } catch {
     return false;
   }
