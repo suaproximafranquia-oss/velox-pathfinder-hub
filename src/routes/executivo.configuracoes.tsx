@@ -1,6 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings, Palette, Plug, Shield, Bell, Video } from "lucide-react";
+import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2 } from "lucide-react";
+import {
+  loadHomologationConfig,
+  saveHomologationConfig,
+  signOutHomologation,
+  type HomologationConfig,
+} from "@/lib/homologation-guard";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   canManageUsers,
@@ -88,6 +94,7 @@ function ConfiguracoesPage() {
         </p>
         <div className="grid gap-4">
           <VideoconferenciaSection session={session} />
+          <ProtecaoHomologacaoSection />
           <IntegracoesSection />
           {sections.map((s) => {
             const Icon = s.icon;
