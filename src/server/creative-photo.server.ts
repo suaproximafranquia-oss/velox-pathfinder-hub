@@ -228,14 +228,23 @@ export async function findCityPhoto(
   if (!name) return { dataUrl: null, credit: null };
   const used = new Set(exclude.map((u) => u.toLowerCase()));
   const pool: { url: string; score: number }[] = [];
+  // Segunda linha: imagens válidas porém sem palavra-chave explícita de
+  // cartão-postal. Só entram se nenhuma representativa for encontrada.
+  const fallback: { url: string; score: number }[] = [];
   for (const term of candidates(name, (state || "").trim().toUpperCase())) {
     try {
       const title = (await firstTitle(term)) ?? term;
       for (const item of await pageImages(title)) {
         if (used.has(item.url.toLowerCase())) continue;
         if (pool.some((p) => p.url === item.url)) continue;
-        const s = score(item.url, item.info);
+        const s = score(item.url, item.info, true);
         if (s > 0) pool.push({ url: item.url, score: s });
+        else {
+          const loose = score(item.url, item.info, false);
+          if (loose > 0 && !fallback.some((p) => p.url === item.url)) {
+            fallback.push({ url: item.url, score: loose });
+          }
+        }
       }
       // Amostra suficiente para escolher com critério.
       if (pool.length >= 8) break;
@@ -243,8 +252,8 @@ export async function findCityPhoto(
       /* segue para o próximo termo */
     }
   }
-  pool.sort((a, b) => b.score - a.score);
-  for (const item of pool.slice(0, 6)) {
+  const ranked = (pool.length > 0 ? pool : fallback).sort((a, b) => b.score - a.score);
+  for (const item of ranked.slice(0, 6)) {
     try {
       const dataUrl = await toDataUrl(item.url);
       if (dataUrl) return { dataUrl, credit: item.url };
