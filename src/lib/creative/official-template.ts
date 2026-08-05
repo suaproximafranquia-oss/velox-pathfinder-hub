@@ -34,6 +34,8 @@ export type TextBlock = {
   tracking?: number;
   weight: number;
   color: string;
+  /** Texto fixo escrito antes do valor variável (ex.: "AGORA EM "). */
+  prefix?: string;
   /**
    * Área do placeholder impresso no template. Antes de escrever, o motor
    * limpa essa faixa reproduzindo a cor do próprio template — nenhum
