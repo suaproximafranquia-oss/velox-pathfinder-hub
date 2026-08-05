@@ -14,7 +14,7 @@ import { TEMPLATE_LAYOUT, type CopyBlock, type TemplateLayout, type TextBlock } 
 /** Resolução de referência do material oficial da Velox. */
 export const REFERENCE_SIZE: Record<CreativeModel, { width: number; height: number }> = {
   institucional: { width: 941, height: 1672 },
-  marketing: { width: 941, height: 1672 },
+  marketing: { width: 1092, height: 1440 },
 };
 
 export type TemplateConfig = {
@@ -115,7 +115,7 @@ export function diagnose(model: CreativeModel, config: TemplateConfig): Diagnost
   const photo = config.layout.photoArea;
   const photoHeightPx = (photo.y1 - photo.y0) * config.height;
   out.push(
-    photoHeightPx / config.height >= 0.35
+    photoHeightPx / config.height >= 0.15
       ? { level: "ok", message: "Campos calibrados (fotografia, cidade, UF e textos)" }
       : {
           level: "warn",
