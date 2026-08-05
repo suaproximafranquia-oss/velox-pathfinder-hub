@@ -24,8 +24,8 @@ export const BRAND = {
 export type CreativeModel = "institucional" | "marketing";
 
 export const CREATIVE_MODEL_LABEL: Record<CreativeModel, string> = {
-  institucional: "Arte oficial da unidade",
-  marketing: "Arte de marketing",
+  institucional: "Modelo A — Institucional",
+  marketing: "Modelo B — Marketing",
 };
 
 /** Única categoria oficial de peça — anúncio de nova unidade. */
