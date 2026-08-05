@@ -79,7 +79,6 @@ export function CrmNewLeadDialog({
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pasted, setPasted] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const set = (k: keyof CrmLeadInput) => (v: string) =>
     setFields((prev) => ({ ...prev, [k]: v }));
