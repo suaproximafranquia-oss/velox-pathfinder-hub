@@ -65,6 +65,8 @@ export type TemplateLayout = {
   state?: TextBlock;
   /** Complemento "AGORA EM <CIDADE> - <UF>". */
   tail?: TextBlock;
+  /** Rodapé "<CIDADE> - <UF>". */
+  footer?: TextBlock;
   /** Textos publicitários produzidos pela IA (somente Modelo B). */
   headline?: CopyBlock;
   subheadline?: CopyBlock;
