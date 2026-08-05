@@ -52,8 +52,8 @@ export function HomologationGate({ children }: { children: ReactNode }) {
       <div
         className="relative"
         style={{
-          width: "max(100vw, calc(100vh * 1831 / 859))",
-          height: "max(100vh, calc(100vw * 859 / 1831))",
+          width: "max(100vw, calc(100vh * 2.131548))",
+          height: "max(100vh, calc(100vw * 0.469143))",
         }}
       >
         <img
