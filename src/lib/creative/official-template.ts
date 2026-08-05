@@ -7,10 +7,20 @@
  * as coordenadas são frações (0 a 1) da largura/altura do template.
  */
 import templateAsset from "@/assets/velox-template-oficial.png.asset.json";
+import marketingAsset from "@/assets/velox-template-marketing.png.asset.json";
 import type { CreativeModel } from "./brand";
 
 /** Template institucional embutido — usado enquanto nenhum upload existir. */
 export const OFFICIAL_TEMPLATE_URL = (templateAsset as { url: string }).url;
+
+/** Template de marketing oficial embutido (Modelo B). */
+export const MARKETING_TEMPLATE_URL = (marketingAsset as { url: string }).url;
+
+/** Arquivo padrão de cada modelo, usado enquanto não houver upload. */
+export const BUILTIN_TEMPLATE_URL: Record<CreativeModel, string> = {
+  institucional: OFFICIAL_TEMPLATE_URL,
+  marketing: MARKETING_TEMPLATE_URL,
+};
 
 export type TextBlock = {
   /** Fração horizontal; usada como centro (align "center") ou início. */
@@ -24,6 +34,12 @@ export type TextBlock = {
   tracking?: number;
   weight: number;
   color: string;
+  /**
+   * Área do placeholder impresso no template. Antes de escrever, o motor
+   * limpa essa faixa reproduzindo a cor do próprio template — nenhum
+   * elemento gráfico é alterado, apenas o texto de exemplo desaparece.
+   */
+  clear?: { x0: number; x1: number; y0: number; y1: number };
 };
 
 export type CopyBlock = TextBlock & {
@@ -35,8 +51,12 @@ export type CopyBlock = TextBlock & {
 };
 
 export type TemplateLayout = {
-  /** Faixa vertical da fotografia da cidade (topo → azul sólido). */
-  photoArea: { y0: number; y1: number };
+  /**
+   * Área da fotografia da cidade. `x0`/`x1` são opcionais: quando ausentes
+   * a fotografia ocupa toda a largura (Modelo A). `film` desliga a película
+   * quando o próprio template já traz o tratamento (Modelo B).
+   */
+  photoArea: { y0: number; y1: number; x0?: number; x1?: number; film?: boolean };
   /** Elemento gráfico preservado por cima da fotografia (selo). */
   badgeArea?: { x0: number; x1: number; y0: number; y1: number };
   city?: TextBlock;
