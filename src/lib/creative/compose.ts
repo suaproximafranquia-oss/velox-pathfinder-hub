@@ -1,22 +1,23 @@
 /**
- * MODELO A — PREENCHIMENTO DO TEMPLATE OFICIAL (browser only).
+ * MOTOR DE COMPOSIÇÃO DETERMINÍSTICA (browser only).
  *
- * Não existe IA generativa aqui. O Template Oficial é aberto e apenas
- * três elementos são inseridos: a fotografia da cidade (área superior,
- * sob a película azul do template), o nome da cidade e a UF. Todo o
- * restante — selo, fundo, textos institucionais, lista de produtos e
- * logotipo — permanece pixel a pixel idêntico ao arquivo oficial.
+ * Um único motor atende os dois modelos. Ele abre o template gráfico do
+ * modelo, reproduz o arquivo pixel a pixel e substitui apenas os campos
+ * variáveis declarados no layout: fotografia da cidade, nome da cidade,
+ * UF, o complemento "AGORA EM <CIDADE> - <UF>" e — no Modelo B — os
+ * textos publicitários produzidos pela IA. Nenhum elemento gráfico é
+ * recriado, reposicionado ou reinventado.
  */
+import type { CreativeModel } from "./brand";
 import {
-  BADGE_AREA,
-  CITY_BLOCK,
-  OFFICIAL_TEMPLATE_URL,
-  PHOTO_AREA,
-  STATE_BLOCK,
-  TAIL_TEXT,
   TEMPLATE_FONT,
+  TEMPLATE_LAYOUT,
+  type CopyBlock,
+  type TemplateLayout,
+  type TextBlock,
   stateName,
 } from "./official-template";
+import { getTemplate } from "./template-store";
 
 type Area = { x: number; y: number; w: number; h: number };
 
@@ -136,7 +137,7 @@ function setFont(
   ctx: CanvasRenderingContext2D,
   size: number,
   tracking: number,
-  weight = 900,
+  weight: number,
 ) {
   ctx.font = `${weight} ${size}px ${TEMPLATE_FONT}`;
   if ("letterSpacing" in ctx) {
@@ -151,12 +152,12 @@ function fitSize(
   text: string,
   ideal: number,
   maxWidth: number,
-  trackingRatio: number,
+  tracking: number,
   weight: number,
 ): number {
   let size = ideal;
   while (size > 6) {
-    setFont(ctx, size, size * trackingRatio, weight);
+    setFont(ctx, size, size * tracking, weight);
     if (ctx.measureText(text).width <= maxWidth) break;
     size -= 1;
   }
@@ -164,15 +165,97 @@ function fitSize(
 }
 
 /**
- * Preenche o Template Oficial com a fotografia, a cidade e a UF.
- * Devolve PNG em base64 (sem prefixo) na resolução original do template.
+ * Escreve um campo variável respeitando a linha de base do template.
+ * A altura das maiúsculas (cap height) é a referência — assim o texto
+ * fica exatamente na mesma altura da arte original.
  */
-export async function composeInstitutionalArt(input: {
+function writeField(
+  ctx: CanvasRenderingContext2D,
+  block: TextBlock,
+  text: string,
+  w: number,
+  h: number,
+) {
+  if (!text) return;
+  const tracking = block.tracking ?? 0;
+  const size = fitSize(
+    ctx,
+    text,
+    (block.capHeight / 0.72) * h,
+    block.maxWidth * w,
+    tracking,
+    block.weight,
+  );
+  setFont(ctx, size, size * tracking, block.weight);
+  ctx.fillStyle = block.color;
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = block.align;
+  // O tracking acrescenta uma folga após o último caractere: em textos
+  // centralizados compensamos meia unidade para manter o eixo da arte.
+  const nudge = block.align === "center" ? (size * tracking) / 2 : 0;
+  const x = block.align === "center" ? w / 2 - nudge : (block.x ?? 0.06) * w;
+  ctx.fillText(text, x, block.baselineY * h);
+}
+
+function wrap(text: string, max: number, limit: number): string[] {
+  const words = (text || "").split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    if (line && `${line} ${word}`.length > max) {
+      lines.push(line);
+      line = word;
+      if (lines.length === limit) return lines;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line && lines.length < limit) lines.push(line);
+  return lines;
+}
+
+/** Textos publicitários da IA — apenas conteúdo, nunca layout novo. */
+function writeCopy(
+  ctx: CanvasRenderingContext2D,
+  block: CopyBlock,
+  text: string,
+  w: number,
+  h: number,
+) {
+  const lines = wrap(text, block.chars, block.lines);
+  lines.forEach((line, i) => {
+    writeField(
+      ctx,
+      { ...block, baselineY: block.baselineY + i * block.lineHeight },
+      line,
+      w,
+      h,
+    );
+  });
+}
+
+export type ComposeInput = {
+  model: CreativeModel;
   city: string;
   state: string;
   photoDataUrl?: string | null;
-}): Promise<string> {
-  const base = await loadImage(OFFICIAL_TEMPLATE_URL);
+  /** Somente Modelo B: textos gerados pela IA. */
+  copy?: { headline?: string; subheadline?: string; supporting?: string };
+};
+
+/**
+ * Preenche o template do modelo indicado e devolve o PNG em base64
+ * (sem prefixo), na resolução original do arquivo enviado.
+ */
+export async function composeFromTemplate(input: ComposeInput): Promise<string> {
+  const template = await getTemplate(input.model);
+  if (!template) {
+    throw new Error(
+      "Nenhum template enviado para este modelo. Envie o arquivo na área de templates.",
+    );
+  }
+  const layout: TemplateLayout = TEMPLATE_LAYOUT[input.model];
+  const base = await loadImage(template.dataUrl);
   const w = base.naturalWidth;
   const h = base.naturalHeight;
   const canvas = document.createElement("canvas");
@@ -181,17 +264,16 @@ export async function composeInstitutionalArt(input: {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas indisponível neste navegador.");
 
-  const photoArea: Area = {
-    x: 0,
-    y: PHOTO_AREA.y0 * h,
-    w,
-    h: (PHOTO_AREA.y1 - PHOTO_AREA.y0) * h,
-  };
-
-  // 1) Template oficial reproduzido integralmente.
+  // 1) Template reproduzido integralmente.
   ctx.drawImage(base, 0, 0, w, h);
 
-  // 2) Fotografia da cidade + película azul do próprio template.
+  // 2) Fotografia da cidade + película do próprio template.
+  const photoArea: Area = {
+    x: 0,
+    y: layout.photoArea.y0 * h,
+    w,
+    h: (layout.photoArea.y1 - layout.photoArea.y0) * h,
+  };
   if (input.photoDataUrl) {
     try {
       const photo = await loadImage(input.photoDataUrl);
@@ -199,21 +281,23 @@ export async function composeInstitutionalArt(input: {
       drawCover(ctx, photo, photoArea);
       applyFilm(ctx, rows, photoArea);
 
-      // Selo "Vem Aí — Nova Unidade" volta por cima da fotografia.
-      const badge: Area = {
-        x: BADGE_AREA.x0 * w,
-        y: BADGE_AREA.y0 * h,
-        w: (BADGE_AREA.x1 - BADGE_AREA.x0) * w,
-        h: (BADGE_AREA.y1 - BADGE_AREA.y0) * h,
-      };
-      const badgeData = readArea(base, badge);
-      ctx.drawImage(
-        extractOverlay(badgeData, rowColors(badgeData)),
-        badge.x,
-        badge.y,
-        badge.w,
-        badge.h,
-      );
+      // Elemento gráfico do topo (selo) volta por cima da fotografia.
+      if (layout.badgeArea) {
+        const badge: Area = {
+          x: layout.badgeArea.x0 * w,
+          y: layout.badgeArea.y0 * h,
+          w: (layout.badgeArea.x1 - layout.badgeArea.x0) * w,
+          h: (layout.badgeArea.y1 - layout.badgeArea.y0) * h,
+        };
+        const badgeData = readArea(base, badge);
+        ctx.drawImage(
+          extractOverlay(badgeData, rowColors(badgeData)),
+          badge.x,
+          badge.y,
+          badge.w,
+          badge.h,
+        );
+      }
     } catch {
       /* sem fotografia disponível, o template permanece como está */
     }
@@ -222,50 +306,22 @@ export async function composeInstitutionalArt(input: {
   const city = (input.city || "").trim().toLocaleUpperCase("pt-BR");
   const uf = (input.state || "").trim().toUpperCase();
 
-  ctx.textBaseline = "middle";
-
-  // 3) Cidade — texto principal.
-  if (city) {
-    ctx.textAlign = "center";
-    const size = fitSize(ctx, city, (CITY_BLOCK.capHeight / 0.72) * h, CITY_BLOCK.maxWidth * w, 0, 900);
-    setFont(ctx, size, 0, 900);
-    ctx.fillStyle = CITY_BLOCK.color;
-    ctx.fillText(city, w / 2, CITY_BLOCK.centerY * h);
+  // 3) Campos variáveis de identificação da unidade.
+  if (layout.city) writeField(ctx, layout.city, city, w, h);
+  if (layout.state) writeField(ctx, layout.state, stateLabel(uf), w, h);
+  if (layout.tail && city) {
+    writeField(ctx, layout.tail, uf ? `${city} - ${uf}` : city, w, h);
   }
 
-  // 4) UF por extenso, com o espaçamento oficial.
-  const state = stateName(uf).toLocaleUpperCase("pt-BR");
-  if (state) {
-    ctx.textAlign = "center";
-    const size = fitSize(
-      ctx,
-      state,
-      (STATE_BLOCK.capHeight / 0.72) * h,
-      STATE_BLOCK.maxWidth * w,
-      STATE_BLOCK.tracking,
-      700,
-    );
-    setFont(ctx, size, size * STATE_BLOCK.tracking, 700);
-    ctx.fillStyle = STATE_BLOCK.color;
-    // A folga do tracking desloca o texto: compensamos meia unidade.
-    ctx.fillText(state, w / 2 - (size * STATE_BLOCK.tracking) / 2, STATE_BLOCK.centerY * h);
+  // 4) Textos publicitários (Modelo B).
+  if (layout.headline && input.copy?.headline) {
+    writeCopy(ctx, layout.headline, input.copy.headline, w, h);
   }
-
-  // 5) Referência da cidade no texto institucional ("AGORA EM ...").
-  if (city) {
-    const tail = uf ? `${city} - ${uf}` : city;
-    ctx.textAlign = "left";
-    const size = fitSize(
-      ctx,
-      tail,
-      (TAIL_TEXT.capHeight / 0.72) * h,
-      TAIL_TEXT.maxWidth * w,
-      0.02,
-      800,
-    );
-    setFont(ctx, size, size * 0.02, 800);
-    ctx.fillStyle = TAIL_TEXT.color;
-    ctx.fillText(tail, TAIL_TEXT.x * w, TAIL_TEXT.centerY * h);
+  if (layout.subheadline && input.copy?.subheadline) {
+    writeCopy(ctx, layout.subheadline, input.copy.subheadline, w, h);
+  }
+  if (layout.supporting && input.copy?.supporting) {
+    writeCopy(ctx, layout.supporting, input.copy.supporting, w, h);
   }
 
   if ("letterSpacing" in ctx) {
@@ -273,4 +329,17 @@ export async function composeInstitutionalArt(input: {
   }
 
   return canvas.toDataURL("image/png").split(",")[1] ?? "";
+}
+
+/** Compatibilidade: Modelo A continua exposto pelo nome anterior. */
+export function composeInstitutionalArt(input: {
+  city: string;
+  state: string;
+  photoDataUrl?: string | null;
+}): Promise<string> {
+  return composeFromTemplate({ ...input, model: "institucional" });
+}
+
+function stateLabel(uf: string): string {
+  return stateName(uf).toLocaleUpperCase("pt-BR");
 }
