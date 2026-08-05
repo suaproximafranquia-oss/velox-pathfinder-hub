@@ -31,8 +31,19 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Recorte "cover": preenche a área sem distorcer nem deixar borda. */
-function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, area: Area) {
+/**
+ * Recorte "cover": preenche a área sem distorcer nem deixar borda.
+ * `focusY` define o ponto de interesse vertical (0 = topo, 1 = base).
+ * Fotografias urbanas concentram o assunto acima da linha média, por
+ * isso o padrão privilegia o terço superior — o céu e o skyline ficam
+ * visíveis e o enquadramento parece natural dentro do template.
+ */
+function drawCover(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  area: Area,
+  focusY = 0.5,
+) {
   const scale = Math.max(area.w / img.naturalWidth, area.h / img.naturalHeight);
   const dw = img.naturalWidth * scale;
   const dh = img.naturalHeight * scale;
@@ -40,7 +51,8 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, area: A
   ctx.beginPath();
   ctx.rect(area.x, area.y, area.w, area.h);
   ctx.clip();
-  ctx.drawImage(img, area.x + (area.w - dw) / 2, area.y + (area.h - dh) / 2, dw, dh);
+  const dy = area.y + (area.h - dh) * Math.min(1, Math.max(0, focusY));
+  ctx.drawImage(img, area.x + (area.w - dw) / 2, dy, dw, dh);
   ctx.restore();
 }
 
@@ -109,28 +121,73 @@ function extractOverlay(data: ImageData, rows: [number, number, number][]): HTML
 
 /**
  * Película azul: a cor de cada linha vem do próprio template e a
- * opacidade cresce continuamente até fundir-se com o azul institucional.
- * Não existe linha de corte entre fotografia e fundo.
+ * opacidade cresce de forma contínua (smoothstep) até fundir-se com o
+ * azul institucional. O degradê começa cedo, satura antes do fim da
+ * área e as últimas linhas assumem exatamente o tom do bloco azul
+ * imediatamente abaixo — assim não resta nenhuma linha de junção.
  */
 function applyFilm(
   ctx: CanvasRenderingContext2D,
   rows: [number, number, number][],
   area: Area,
+  anchor?: [number, number, number],
 ) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(area.x, area.y, area.w, area.h);
   ctx.clip();
   const step = area.h / rows.length;
+  // Início antecipado do degradê e saturação total antes da borda.
+  const START = 0.1;
+  const FULL = 0.74;
+  // A partir daqui a cor migra para o tom exato do bloco azul inferior.
+  const BLEND = 0.6;
   for (let y = 0; y < rows.length; y += 1) {
     const t = rows.length > 1 ? y / (rows.length - 1) : 1;
-    const k = Math.min(1, t / 0.82);
-    const alpha = Math.min(1, Math.pow(k, 1.6));
-    const [r, g, b] = rows[y]!;
+    const k = Math.min(1, Math.max(0, (t - START) / (FULL - START)));
+    // smoothstep: sem degrau perceptível no início nem no fim.
+    const alpha = k * k * (3 - 2 * k);
+    let [r, g, b] = rows[y]!;
+    if (anchor) {
+      const m = Math.min(1, Math.max(0, (t - BLEND) / (1 - BLEND)));
+      const e = m * m * (3 - 2 * m);
+      r = r + (anchor[0] - r) * e;
+      g = g + (anchor[1] - g) * e;
+      b = b + (anchor[2] - b) * e;
+    }
     ctx.fillStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
     ctx.fillRect(area.x, area.y + y * step, area.w, step + 1);
   }
+  // Selagem final: as últimas linhas recebem o azul institucional puro,
+  // eliminando qualquer resíduo de transição contra o bloco inferior.
+  if (anchor) {
+    const seal = Math.max(2, area.h * 0.012);
+    ctx.fillStyle = `rgb(${Math.round(anchor[0])}, ${Math.round(anchor[1])}, ${Math.round(anchor[2])})`;
+    ctx.fillRect(area.x, area.y + area.h - seal, area.w, seal + 1);
+  }
   ctx.restore();
+}
+
+/** Tom médio de uma faixa fina do template (referência de fusão). */
+function stripColor(
+  base: HTMLImageElement,
+  area: Area,
+): [number, number, number] | undefined {
+  try {
+    const data = readArea(base, area);
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    const n = data.width * data.height;
+    for (let i = 0; i < n; i += 1) {
+      r += data.data[i * 4]!;
+      g += data.data[i * 4 + 1]!;
+      b += data.data[i * 4 + 2]!;
+    }
+    return [r / n, g / n, b / n];
+  } catch {
+    return undefined;
+  }
 }
 
 function setFont(
@@ -335,8 +392,18 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
     try {
       const photo = await loadImage(input.photoDataUrl);
       const rows = rowColors(readArea(base, photoArea));
-      drawCover(ctx, photo, photoArea);
-      if (layout.photoArea.film !== false) applyFilm(ctx, rows, photoArea);
+      drawCover(ctx, photo, photoArea, 0.38);
+      if (layout.photoArea.film !== false) {
+        // Faixa logo abaixo da fotografia: é o azul institucional exato
+        // com o qual o degradê precisa terminar.
+        const anchor = stripColor(base, {
+          x: photoArea.x,
+          y: Math.min(h - 2, photoArea.y + photoArea.h + 1),
+          w: photoArea.w,
+          h: Math.max(2, h * 0.01),
+        });
+        applyFilm(ctx, rows, photoArea, anchor);
+      }
 
       // Elemento gráfico do topo (selo) volta por cima da fotografia.
       if (layout.badgeArea) {
