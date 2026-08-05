@@ -243,7 +243,7 @@ export async function ingestFile(
     }
 
     // 2) Fallback OCR — renderiza cada página em canvas de alta resolução
-    push(true, "OCR iniciado (Português + Inglês)");
+    push(true, `OCR iniciado (Português + Inglês) · ${pagesTotal} página(s)`);
     const tesseract = await import("tesseract.js");
     // Idiomas combinados para maximizar reconhecimento de material comercial.
     const worker = await tesseract.createWorker(["por", "eng"]);
@@ -292,6 +292,8 @@ export async function ingestFile(
 
         pageTexts.push(pageText);
         ocrProcessed++;
+        // Progresso página a página: nunca fica apenas em "Processando".
+        push(true, `Página ${i} de ${pagesTotal}`);
       } catch (e) {
         // Falha de página não interrompe o processamento das demais.
         push(false, `Falha na página ${i}: ${(e as Error).message}`);
@@ -314,6 +316,7 @@ export async function ingestFile(
     const blocks = ocrText.split(/\n{2,}/).filter((b) => b.trim().length > 0).length;
     push(true, `OCR concluído · ${ocrProcessed}/${pagesTotal} página(s) processada(s)`);
     push(true, `${blocks} bloco(s) de texto identificado(s)`);
+    push(true, "Extração concluída");
 
     const merged = [nativeText, ocrText].filter((t) => t && t.trim()).join("\n\n");
     const finalText = merged.trim() || ocrText;
