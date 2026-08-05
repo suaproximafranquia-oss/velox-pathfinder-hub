@@ -65,7 +65,7 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             autoComplete="username"
             aria-label="Usuário"
             placeholder="Usuário"
-            className="absolute border-0 text-[#EFE3C4] outline-none placeholder:text-[#8C93A1]"
+            className="absolute border-0 text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
             style={{
               left: "24%",
               top: "53.8%",
@@ -82,7 +82,7 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             autoComplete="current-password"
             aria-label="Senha"
             placeholder="Senha"
-            className="absolute border-0 text-[#EFE3C4] outline-none placeholder:text-[#8C93A1]"
+            className="absolute border-0 text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
             style={{
               left: "24%",
               top: "61.2%",
