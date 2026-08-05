@@ -56,12 +56,9 @@ function KnowledgePage() {
   const [logs, setLogs] = useState<IngestLog[]>([]);
   const [flash, setFlash] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
-  const [pending, setPending] = useState<{
-    file: File;
-    name: string;
-    visibility: DocumentVisibility;
-    description: string;
-  } | null>(null);
+  const [pending, setPending] = useState<PendingUpload | null>(null);
+  /** Fila de processamento: um arquivo por vez, com estado visível. */
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -90,33 +87,42 @@ function KnowledgePage() {
 
   function onPickFile(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const file = files[0];
-    const lower = file.name.toLowerCase();
-    const ok = lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".txt");
-    if (!ok) {
+    const accepted: { file: File; name: string }[] = [];
+    let rejected = 0;
+    for (const file of Array.from(files)) {
+      const lower = file.name.toLowerCase();
+      const ok =
+        lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".txt");
+      if (!ok) {
+        rejected += 1;
+        continue;
+      }
+      accepted.push({ file, name: file.name.replace(/\.[^.]+$/, "") });
+    }
+    if (fileRef.current) fileRef.current.value = "";
+    if (accepted.length === 0) {
       setFlash({
         type: "err",
         msg: "Formato não suportado. Envie PDF, Word (.docx) ou TXT.",
       });
-      if (fileRef.current) fileRef.current.value = "";
       return;
     }
-    setPending({
-      file,
-      name: file.name.replace(/\.[^.]+$/, ""),
-      visibility: "publico",
-      description: "",
-    });
-    if (fileRef.current) fileRef.current.value = "";
+    if (rejected > 0) {
+      setFlash({
+        type: "err",
+        msg: `${rejected} arquivo(s) ignorado(s) por formato não suportado.`,
+      });
+    }
+    setPending({ items: accepted, visibility: "publico", description: "" });
   }
 
-  async function submitPending() {
-    if (!pending || busy) return;
-    const { file, name, visibility, description } = pending;
-    const displayName = name.trim() || file.name;
-    setPending(null);
-    setBusy(true);
-    setFlash(null);
+  /** Processa um único arquivo da fila, do OCR até a indexação. */
+  async function processOne(
+    file: File,
+    displayName: string,
+    visibility: DocumentVisibility,
+    description: string,
+  ): Promise<boolean> {
     setLogs([]);
     const id = newDocumentId();
     const now = new Date().toISOString();
@@ -174,11 +180,13 @@ function KnowledgePage() {
           type: "ok",
           msg: `"${displayName}" foi indexado e está disponível${suffix}`,
         });
+        return true;
       } else {
         setFlash({
           type: "err",
           msg: `Não foi possível reconhecer conteúdo em "${displayName}", mesmo após OCR.`,
         });
+        return false;
       }
     } catch (e) {
       updateDocument(id, { status: "erro" });
@@ -187,9 +195,44 @@ function KnowledgePage() {
         type: "err",
         msg: `Falha ao processar "${displayName}": ${(e as Error).message}`,
       });
-    } finally {
-      setBusy(false);
-      setStage("");
+      return false;
+    }
+  }
+
+  /** Envia todos os arquivos selecionados, um após o outro. */
+  async function submitPending() {
+    if (!pending || busy) return;
+    const { items, visibility, description } = pending;
+    const jobs = items.map((it) => ({
+      file: it.file,
+      name: it.name.trim() || it.file.name,
+    }));
+    setPending(null);
+    setBusy(true);
+    setFlash(null);
+    setQueue(jobs.map((j) => ({ name: j.name, status: "aguardando" as const })));
+    let ok = 0;
+    for (let i = 0; i < jobs.length; i += 1) {
+      const job = jobs[i]!;
+      setQueue((q) =>
+        q.map((item, idx) => (idx === i ? { ...item, status: "processando" } : item)),
+      );
+      setStage(`Documento ${i + 1} de ${jobs.length} — ${job.name}`);
+      const done = await processOne(job.file, job.name, visibility, description);
+      if (done) ok += 1;
+      setQueue((q) =>
+        q.map((item, idx) =>
+          idx === i ? { ...item, status: done ? "concluido" : "erro" } : item,
+        ),
+      );
+    }
+    setBusy(false);
+    setStage("");
+    if (jobs.length > 1) {
+      setFlash({
+        type: ok === jobs.length ? "ok" : "err",
+        msg: `${ok} de ${jobs.length} documento(s) indexado(s) com sucesso.`,
+      });
     }
   }
 
