@@ -167,3 +167,66 @@ export async function uploadTemplate(
   }
   return template;
 }
+
+/* ------------------------------------------------------------------ *
+ * MODELO PADRONIZADO (referência visual)
+ *
+ * Etapa 2 §3 — além do Template Oficial, cada modelo pode receber o
+ * "resultado esperado". Ele NUNCA é utilizado como template: serve
+ * exclusivamente para comparar enquadramento, escala, posicionamento,
+ * alinhamentos, proporções e fidelidade gráfica.
+ * ------------------------------------------------------------------ */
+
+export type CreativeReference = {
+  model: CreativeModel;
+  fileName: string;
+  dataUrl: string;
+  updatedAt: string;
+  width: number;
+  height: number;
+};
+
+const REFERENCE_KEY = "velox.creative.references.v1";
+
+type ReferenceCache = Partial<Record<CreativeModel, CreativeReference>>;
+
+function readReferences(): ReferenceCache {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(REFERENCE_KEY) || "{}") as ReferenceCache;
+  } catch {
+    return {};
+  }
+}
+
+export function getReference(model: CreativeModel): CreativeReference | null {
+  return readReferences()[model] ?? null;
+}
+
+/** Guarda o modelo padronizado. Jamais entra no motor de composição. */
+export async function uploadReference(
+  model: CreativeModel,
+  file: File,
+): Promise<CreativeReference> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Envie o modelo padronizado em imagem (PNG ou JPG).");
+  }
+  const dataUrl = await fileToDataUrl(file);
+  const { width, height } = await measure(dataUrl);
+  const reference: CreativeReference = {
+    model,
+    fileName: file.name,
+    dataUrl,
+    updatedAt: new Date().toISOString(),
+    width,
+    height,
+  };
+  const all = readReferences();
+  all[model] = reference;
+  try {
+    window.localStorage.setItem(REFERENCE_KEY, JSON.stringify(all));
+  } catch {
+    throw new Error("Não foi possível guardar o modelo padronizado neste navegador.");
+  }
+  return reference;
+}
