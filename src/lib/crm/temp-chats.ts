@@ -17,6 +17,8 @@ export type TempChatMessage = {
 export type TempChat = {
   id: string;
   phone: string;
+  /** Nome exibido, editável pelo Executivo. Vazio = usa o telefone. */
+  name?: string;
   ownerId: string;
   createdAt: string;
   messages: TempChatMessage[];
@@ -97,6 +99,21 @@ export function removeTempChat(id: string): void {
   writeAll(readAll().filter((c) => c.id !== id));
 }
 
+/**
+ * Renomeia a conversa temporária. O nome passa a identificar o contato
+ * em toda a interface e é herdado pelo Lead na conversão.
+ */
+export function renameTempChat(id: string, name: string): TempChat | null {
+  const all = readAll();
+  const chat = all.find((c) => c.id === id);
+  if (!chat) return null;
+  const value = name.trim();
+  if (value) chat.name = value;
+  else delete chat.name;
+  writeAll(all);
+  return chat;
+}
+
 export function formatTempPhone(phone: string): string {
   const d = phone.replace(/\D/g, "");
   if (d.length === 13)
@@ -104,4 +121,9 @@ export function formatTempPhone(phone: string): string {
   if (d.length === 12)
     return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 8)}-${d.slice(8)}`;
   return `+${d}`;
+}
+
+/** Identificação visível da conversa: nome quando existir, senão telefone. */
+export function tempChatLabel(chat: TempChat): string {
+  return chat.name?.trim() || formatTempPhone(chat.phone);
 }
