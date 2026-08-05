@@ -64,13 +64,14 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
             aria-label="Usuário"
-            className="absolute rounded-[10px] border-0 bg-transparent text-[#EFE3C4] outline-none focus:ring-1 focus:ring-[#D8B25A]/60"
+            placeholder="Usuário"
+            className="absolute border-0 text-[#EFE3C4] outline-none placeholder:text-[#8C93A1]"
             style={{
-              left: "18.5%",
-              top: "53.4%",
-              width: "29%",
-              height: "5.3%",
-              paddingLeft: "5.6%",
+              left: "24%",
+              top: "53.8%",
+              width: "22.6%",
+              height: "4.5%",
+              background: "#070C12",
               fontSize: "clamp(11px, 1.15vw, 17px)",
             }}
           />
@@ -80,13 +81,14 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             type="password"
             autoComplete="current-password"
             aria-label="Senha"
-            className="absolute rounded-[10px] border-0 bg-transparent text-[#EFE3C4] outline-none focus:ring-1 focus:ring-[#D8B25A]/60"
+            placeholder="Senha"
+            className="absolute border-0 text-[#EFE3C4] outline-none placeholder:text-[#8C93A1]"
             style={{
-              left: "18.5%",
-              top: "60.8%",
-              width: "29%",
-              height: "5.3%",
-              paddingLeft: "5.6%",
+              left: "24%",
+              top: "61.2%",
+              width: "22.6%",
+              height: "4.5%",
+              background: "#070C12",
               fontSize: "clamp(11px, 1.15vw, 17px)",
             }}
           />
@@ -94,7 +96,7 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             type="submit"
             aria-label="Entrar"
             className="absolute rounded-[10px] bg-transparent text-transparent transition hover:bg-white/10"
-            style={{ left: "18.5%", top: "68.2%", width: "29%", height: "5.6%" }}
+            style={{ left: "19.1%", top: "68.2%", width: "29%", height: "5.6%" }}
           >
             Entrar
           </button>
@@ -102,7 +104,7 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             <p
               className="absolute text-center text-red-300"
               style={{
-                left: "18.5%",
+                left: "19.1%",
                 top: "74.6%",
                 width: "29%",
                 fontSize: "clamp(10px, 0.95vw, 14px)",
