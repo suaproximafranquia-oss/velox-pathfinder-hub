@@ -215,7 +215,7 @@ function KnowledgePage() {
     }
   }
 
-  /** Envia todos os arquivos selecionados, um após o outro. */
+  /** Envia os arquivos selecionados com concorrência controlada. */
   async function submitPending() {
     if (!pending || busy) return;
     const { items, visibility, description } = pending;
@@ -226,20 +226,43 @@ function KnowledgePage() {
     setPending(null);
     setBusy(true);
     setFlash(null);
+    setLogs([]);
     setQueue(jobs.map((j) => ({ name: j.name, status: "aguardando" as const })));
     let ok = 0;
-    for (let i = 0; i < jobs.length; i += 1) {
-      const job = jobs[i]!;
-      setQueue((q) =>
-        q.map((item, idx) => (idx === i ? { ...item, status: "processando" } : item)),
-      );
-      setStage(`Documento ${i + 1} de ${jobs.length} — ${job.name}`);
-      const done = await processOne(job.file, job.name, visibility, description);
-      if (done) ok += 1;
-      setQueue((q) =>
-        q.map((item, idx) => (idx === i ? { ...item, status: done ? "concluido" : "erro" } : item)),
-      );
+    let finished = 0;
+    let next = 0;
+    const limit = Math.max(1, Math.min(concurrency, jobs.length));
+    setStage(`0 de ${jobs.length} documentos concluídos`);
+
+    /** Worker: consome a fila enquanto houver itens pendentes. */
+    async function worker() {
+      for (;;) {
+        const i = next;
+        next += 1;
+        if (i >= jobs.length) return;
+        const job = jobs[i]!;
+        setQueue((q) =>
+          q.map((item, idx) =>
+            idx === i ? { ...item, status: "processando", detail: "Na fila…" } : item,
+          ),
+        );
+        const done = await processOne(job.file, job.name, visibility, description, (detail) =>
+          setQueue((q) => q.map((item, idx) => (idx === i ? { ...item, detail } : item))),
+        );
+        if (done) ok += 1;
+        finished += 1;
+        setStage(`${finished} de ${jobs.length} documentos concluídos`);
+        setQueue((q) =>
+          q.map((item, idx) =>
+            idx === i
+              ? { ...item, status: done ? "concluido" : "erro", detail: undefined }
+              : item,
+          ),
+        );
+      }
     }
+
+    await Promise.all(Array.from({ length: limit }, () => worker()));
     setBusy(false);
     setStage("");
     if (jobs.length > 1) {
