@@ -120,7 +120,7 @@ const INSTITUTIONAL: TemplateLayout = {
 const MARKETING: TemplateLayout = {
   // Área reservada para a fotografia (moldura tracejada do template).
   // A película já pertence ao próprio arquivo — nada é recriado.
-  photoArea: { x0: 0.437, x1: 0.928, y0: 0.156, y1: 0.434, film: false },
+  photoArea: { x0: 0.432, x1: 0.932, y0: 0.151, y1: 0.439, film: false },
   headline: {
     x: 0.0623,
     align: "left",
@@ -132,7 +132,7 @@ const MARKETING: TemplateLayout = {
     lines: 1,
     weight: 700,
     color: "#F1610C",
-    clear: { x0: 0.05, x1: 0.63, y0: 0.5417, y1: 0.6014 },
+    clear: { x0: 0.05, x1: 0.645, y0: 0.5382, y1: 0.6076 },
   },
   subheadline: {
     x: 0.0623,
@@ -145,7 +145,7 @@ const MARKETING: TemplateLayout = {
     lines: 1,
     weight: 700,
     color: "#12275A",
-    clear: { x0: 0.05, x1: 0.63, y0: 0.6076, y1: 0.6382 },
+    clear: { x0: 0.05, x1: 0.645, y0: 0.6083, y1: 0.6417 },
   },
   supporting: {
     x: 0.0623,
@@ -179,10 +179,10 @@ const MARKETING: TemplateLayout = {
     align: "left",
     baselineY: 0.9132,
     capHeight: 0.0181,
-    maxWidth: 0.245,
+    maxWidth: 0.232,
     weight: 700,
     color: "#FFFFFF",
-    clear: { x0: 0.7253, x1: 0.98, y0: 0.8917, y1: 0.9174 },
+    clear: { x0: 0.7253, x1: 0.972, y0: 0.8896, y1: 0.9188 },
   },
 };
 
