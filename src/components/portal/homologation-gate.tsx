@@ -7,7 +7,7 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import background from "@/assets/atlas-homologacao-bg.png.asset.json";
+import background from "@/assets/atlas-homologacao-bg-wide.png.asset.json";
 import { isHomologationUnlocked, signInHomologation } from "@/lib/homologation-guard";
 
 export function HomologationGate({ children }: { children: ReactNode }) {
@@ -46,16 +46,20 @@ export function HomologationGate({ children }: { children: ReactNode }) {
   const bgUrl = (background as { url: string }).url;
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#050B18]">
-      {/* Landing Page institucional: a própria arte é a interface de acesso. */}
+    <div className="relative flex h-screen min-h-screen w-full items-center justify-center overflow-hidden bg-[#050B18]">
+      {/* Landing Page institucional: a própria arte é a interface de acesso.
+          A arte cobre 100% da viewport (comportamento cover), sem faixas laterais. */}
       <div
-        className="relative w-full max-w-[min(100vw,150vh)]"
-        style={{ aspectRatio: "1536 / 1024" }}
+        className="relative"
+        style={{
+          width: "max(100vw, calc(100vh * 1831 / 859))",
+          height: "max(100vh, calc(100vw * 859 / 1831))",
+        }}
       >
         <img
           src={bgUrl}
           alt="Projeto Atlas — Ambiente Seguro de Homologação, Corporate Workspace"
-          className="absolute inset-0 h-full w-full object-contain"
+          className="absolute inset-0 h-full w-full object-cover"
         />
 
         <form onSubmit={submit} className="absolute inset-0">
@@ -67,10 +71,10 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             placeholder="Usuário"
             className="absolute border-0 text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
             style={{
-              left: "24%",
-              top: "53.8%",
-              width: "22.6%",
-              height: "4.5%",
+              left: "27.6%",
+              top: "52.2%",
+              width: "17.4%",
+              height: "5%",
               background: "#070C12",
               fontSize: "clamp(11px, 1.15vw, 17px)",
             }}
@@ -84,10 +88,10 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             placeholder="Senha"
             className="absolute border-0 text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
             style={{
-              left: "24%",
-              top: "61.2%",
-              width: "22.6%",
-              height: "4.5%",
+              left: "27.6%",
+              top: "59.5%",
+              width: "17.4%",
+              height: "5%",
               background: "#070C12",
               fontSize: "clamp(11px, 1.15vw, 17px)",
             }}
@@ -96,7 +100,7 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             type="submit"
             aria-label="Entrar"
             className="absolute rounded-[10px] bg-transparent text-transparent transition hover:bg-white/10"
-            style={{ left: "19.1%", top: "68.2%", width: "29%", height: "5.6%" }}
+            style={{ left: "26.8%", top: "66.1%", width: "19%", height: "5.7%" }}
           >
             Entrar
           </button>
@@ -104,9 +108,9 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             <p
               className="absolute text-center text-red-300"
               style={{
-                left: "19.1%",
-                top: "74.6%",
-                width: "29%",
+                left: "26.8%",
+                top: "78%",
+                width: "19%",
                 fontSize: "clamp(10px, 0.95vw, 14px)",
               }}
             >
