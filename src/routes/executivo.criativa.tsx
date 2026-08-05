@@ -105,12 +105,19 @@ function CriativaPage() {
       }
 
       setArts({ institucional, ...(marketing ? { marketing } : {}) });
-      recordCreative({
-        userId: session?.user.id ?? "",
-        city,
-        state,
-        models: marketing ? ["institucional", "marketing"] : ["institucional"],
-      });
+      for (const model of marketing
+        ? (["institucional", "marketing"] as CreativeModel[])
+        : (["institucional"] as CreativeModel[])) {
+        recordCreative({
+          userId: session?.userId ?? "",
+          category: "unidade",
+          model,
+          unit: unitName({ city, state }),
+          city,
+          state,
+          fileName: `velox-${model}-${slugify(`${city}-${state}`)}.png`,
+        });
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Não foi possível gerar as artes agora.",
@@ -123,8 +130,10 @@ function CriativaPage() {
   const fileFor = (model: CreativeModel) =>
     `velox-${model}-${slugify(`${form.city}-${form.state}`)}.png`;
 
+  if (!session) return null;
+
   return (
-    <ExecutiveShell title="IA Criativa" subtitle="Artes oficiais de nova unidade">
+    <ExecutiveShell session={session} title="IA Criativa">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
         <section className="rounded-2xl border border-border bg-card p-6">
           <h2 className="text-lg font-semibold text-foreground">Nova unidade</h2>
