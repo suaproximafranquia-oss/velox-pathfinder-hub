@@ -190,19 +190,6 @@ function clearPlaceholder(
   }
 }
 
-function setFontLegacy(
-  ctx: CanvasRenderingContext2D,
-  size: number,
-  tracking: number,
-  weight: number,
-) {
-  ctx.font = `${weight} ${size}px ${TEMPLATE_FONT}`;
-  if ("letterSpacing" in ctx) {
-    (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
-      `${tracking}px`;
-  }
-}
-
 /** Maior corpo que respeita a altura oficial e a largura disponível. */
 function fitSize(
   ctx: CanvasRenderingContext2D,
