@@ -459,18 +459,8 @@ function UploadModal({
   onCancel,
   onConfirm,
 }: {
-  pending: {
-    file: File;
-    name: string;
-    visibility: DocumentVisibility;
-    description: string;
-  };
-  onChange: (p: {
-    file: File;
-    name: string;
-    visibility: DocumentVisibility;
-    description: string;
-  }) => void;
+  pending: PendingUpload;
+  onChange: (p: PendingUpload) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -479,11 +469,15 @@ function UploadModal({
       <div className="w-full max-w-lg rounded-2xl border border-[color:var(--border)] bg-[color:var(--navy)] p-6">
         <div className="flex items-center gap-2 mb-4">
           <FileText className="h-5 w-5 text-[color:var(--gold)]" />
-          <h3 className="font-display text-lg">Novo documento</h3>
+          <h3 className="font-display text-lg">
+            {pending.items.length > 1
+              ? `${pending.items.length} documentos`
+              : "Novo documento"}
+          </h3>
         </div>
         <p className="text-[11px] text-[color:var(--muted-foreground)] mb-4">
-          Arquivo selecionado:{" "}
-          <span className="text-[color:var(--foreground)]">{pending.file.name}</span>
+          Os documentos serão processados em fila, um a um, com a mesma
+          visibilidade e descrição.
         </p>
 
         <div className="space-y-4">
@@ -491,13 +485,29 @@ function UploadModal({
             <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
               Nome do documento
             </label>
-            <input
-              type="text"
-              value={pending.name}
-              onChange={(e) => onChange({ ...pending, name: e.target.value })}
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
-              autoFocus
-            />
+            <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+              {pending.items.map((item, i) => (
+                <div key={i}>
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) =>
+                      onChange({
+                        ...pending,
+                        items: pending.items.map((it, idx) =>
+                          idx === i ? { ...it, name: e.target.value } : it,
+                        ),
+                      })
+                    }
+                    className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
+                    autoFocus={i === 0}
+                  />
+                  <p className="mt-1 text-[10px] text-[color:var(--muted-foreground)]">
+                    {item.file.name}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div>
@@ -558,7 +568,7 @@ function UploadModal({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={!pending.name.trim()}
+            disabled={pending.items.every((i) => !i.name.trim())}
             className="rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-5 py-2 text-xs text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40"
           >
             Enviar
