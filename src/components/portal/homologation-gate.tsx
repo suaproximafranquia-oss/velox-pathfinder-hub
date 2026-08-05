@@ -48,7 +48,7 @@ export function HomologationGate({ children }: { children: ReactNode }) {
       className="relative flex min-h-screen items-center justify-center bg-[#050B18] bg-cover bg-center px-6 py-12"
       style={{ backgroundImage: `url(${(background as { url: string }).url})` }}
     >
-      <div className="absolute inset-0 bg-[#050B18]/70" aria-hidden />
+      <div className="absolute inset-0 bg-[#050B18]/85 backdrop-blur-[3px]" aria-hidden />
       <form
         onSubmit={submit}
         className="relative w-full max-w-sm rounded-2xl border border-[#D8B25A]/30 bg-[#050B18]/80 p-8 backdrop-blur-md"
