@@ -208,6 +208,10 @@ function CriativaPage() {
       setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
       return;
     }
+    if (photoMode === "manual" && !manualPhoto) {
+      setError("Cole, arraste ou envie a imagem da cidade para gerar as artes.");
+      return;
+    }
     setBusy(true);
     setError(null);
     setArts({});
