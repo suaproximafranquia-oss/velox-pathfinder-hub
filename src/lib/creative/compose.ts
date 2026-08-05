@@ -15,6 +15,7 @@ import {
   type CopyBlock,
   type TemplateLayout,
   type TextBlock,
+  stateName,
 } from "./official-template";
 import { getTemplate } from "./template-store";
 
@@ -342,5 +343,3 @@ export function composeInstitutionalArt(input: {
 function stateLabel(uf: string): string {
   return stateName(uf).toLocaleUpperCase("pt-BR");
 }
-
-import { stateName } from "./official-template";
