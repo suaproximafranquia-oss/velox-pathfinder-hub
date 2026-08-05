@@ -310,14 +310,31 @@ function KnowledgePage() {
           onChange={(e) => onPickFile(e.target.files)}
           className="hidden"
         />
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-5 py-2.5 text-sm text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40"
-        >
-          <Plus className="h-4 w-4" /> Adicionar Documento
-        </button>
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-5 py-2.5 text-sm text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" /> Adicionar Documento
+          </button>
+          <label className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
+            Processamento simultâneo
+            <select
+              value={concurrency}
+              disabled={busy}
+              onChange={(e) => setConcurrency(Number(e.target.value))}
+              className="rounded-lg border border-[color:var(--border)] bg-[color:var(--card)] px-2 py-1 text-xs text-[color:var(--foreground)] disabled:opacity-40"
+            >
+              {CONCURRENCY_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n} documento{n > 1 ? "s" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         {busy && (
           <div className="mt-5 rounded-xl border border-[color:var(--border)] bg-[color:var(--accent)]/30 px-4 py-3 text-xs text-[color:var(--muted-foreground)]">
@@ -325,23 +342,47 @@ function KnowledgePage() {
               <Loader2 className="h-3.5 w-3.5 animate-spin text-[color:var(--gold)]" />
               <span>{stage || "Processando…"}</span>
             </div>
-            {queue.length > 1 && (
-              <ul className="mt-3 space-y-1 text-[11px]">
-                {queue.map((item, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    {item.status === "processando" ? (
-                      <Loader2 className="h-3 w-3 animate-spin text-[color:var(--gold)]" />
-                    ) : item.status === "concluido" ? (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-300" />
-                    ) : item.status === "erro" ? (
-                      <AlertTriangle className="h-3 w-3 text-red-300" />
-                    ) : (
-                      <span className="h-3 w-3 rounded-full border border-[color:var(--border)]" />
-                    )}
-                    <span>{item.name}</span>
-                  </li>
-                ))}
-              </ul>
+            {queue.length > 0 && (
+              <>
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--border)]">
+                  <div
+                    className="h-full rounded-full bg-[color:var(--gold)] transition-all duration-300"
+                    style={{
+                      width: `${Math.round(
+                        (queue.filter((q) => q.status === "concluido" || q.status === "erro")
+                          .length /
+                          queue.length) *
+                          100,
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <ul className="mt-3 space-y-1.5 text-[11px]">
+                  {queue.map((item, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      {item.status === "processando" ? (
+                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[color:var(--gold)]" />
+                      ) : item.status === "concluido" ? (
+                        <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-300" />
+                      ) : item.status === "erro" ? (
+                        <AlertTriangle className="h-3 w-3 shrink-0 text-red-300" />
+                      ) : (
+                        <span className="h-3 w-3 shrink-0 rounded-full border border-[color:var(--border)]" />
+                      )}
+                      <span className="truncate">{item.name}</span>
+                      <span className="ml-auto shrink-0 text-[color:var(--muted-foreground)]/80">
+                        {item.status === "aguardando"
+                          ? "aguardando"
+                          : item.status === "processando"
+                            ? item.detail || "processando…"
+                            : item.status === "concluido"
+                              ? "concluído"
+                              : "erro"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
             {logs.length > 0 && (
               <ul className="mt-3 max-h-40 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed">
