@@ -254,7 +254,9 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
       "Nenhum template enviado para este modelo. Envie o arquivo na área de templates.",
     );
   }
-  const layout: TemplateLayout = TEMPLATE_LAYOUT[input.model];
+  // Cada template usa a sua própria configuração calibrada; sem ela,
+  // vale o layout oficial de referência do modelo.
+  const layout: TemplateLayout = template.config?.layout ?? TEMPLATE_LAYOUT[input.model];
   const base = await loadImage(template.dataUrl);
   const w = base.naturalWidth;
   const h = base.naturalHeight;
