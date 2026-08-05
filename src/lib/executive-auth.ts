@@ -115,6 +115,14 @@ export function canManageKnowledge(role: ExecutiveRole): boolean {
 }
 
 /**
+ * Templates da IA Criativa: apenas Administrador e Gestora podem enviar,
+ * substituir ou remover. Executivos e colaboradores apenas utilizam.
+ */
+export function canManageCreativeTemplates(role: ExecutiveRole): boolean {
+  return role === "super_admin" || role === "diretora";
+}
+
+/**
  * Estrutura do usuário — preparada para gestão dinâmica pelo Administrador
  * do Workspace. Ao criar um novo usuário, a plataforma deverá provisionar
  * automaticamente perfil, área individual, permissões e demais estruturas
