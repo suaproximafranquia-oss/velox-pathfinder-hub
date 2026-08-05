@@ -622,7 +622,7 @@ function OfficialModelMapper() {
 
   function apply(rect: Rect) {
     setLayout((prev) => {
-      if (field === "photo") return { ...prev, photo: rect };
+      if (field === "photo" || field === "badge") return { ...prev, [field]: rect };
       const current = prev[field];
       return { ...prev, [field]: current ? { ...current, rect } : defaultTextField(rect) };
     });
@@ -649,7 +649,7 @@ function OfficialModelMapper() {
 
   function patchText(patch: Partial<ReturnType<typeof defaultTextField>>) {
     setLayout((prev) => {
-      if (field === "photo") return prev;
+      if (field === "photo" || field === "badge") return prev;
       const current = prev[field];
       if (!current) return prev;
       return { ...prev, [field]: { ...current, ...patch } };
@@ -670,8 +670,9 @@ function OfficialModelMapper() {
     }
   }
 
-  const active = field === "photo" ? layout.photo : layout[field]?.rect;
-  const text = field === "photo" ? null : layout[field];
+  const active =
+    field === "photo" || field === "badge" ? layout[field] : layout[field]?.rect;
+  const text = field === "photo" || field === "badge" ? null : layout[field];
   const control =
     "rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/60 px-2 py-1 text-[11px] outline-none";
 
@@ -691,9 +692,12 @@ function OfficialModelMapper() {
       ) : (
         <>
           <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed">
-            Selecione o campo e arraste sobre a arte para marcar a área. Somente
-            essas áreas são substituídas — o restante do arquivo permanece
-            idêntico.
+            Selecione o campo e arraste sobre a arte para marcar a área. A
+            fotografia da cidade preenche toda a área marcada e recebe
+            automaticamente a película azul do template, fundindo-se ao fundo
+            institucional. Marque em “Selo” o carimbo “Vem Aí — Nova Unidade”
+            (com uma folga em volta) para que ele seja preservado sobre a foto.
+            O restante do arquivo permanece idêntico.
           </p>
           <div className="flex flex-wrap gap-1.5">
             {LAYOUT_FIELD_KEYS.map((key) => (
@@ -726,7 +730,8 @@ function OfficialModelMapper() {
               draggable={false}
             />
             {LAYOUT_FIELD_KEYS.map((key) => {
-              const rect = key === "photo" ? layout.photo : layout[key]?.rect;
+              const rect =
+                key === "photo" || key === "badge" ? layout[key] : layout[key]?.rect;
               if (!rect) return null;
               return (
                 <span
