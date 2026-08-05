@@ -310,6 +310,18 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas indisponível neste navegador.");
 
+  // Garante a tipografia oficial antes de escrever qualquer campo.
+  if (typeof document !== "undefined" && document.fonts) {
+    try {
+      await Promise.all([
+        document.fonts.load('600 96px "Poppins"'),
+        document.fonts.load('700 96px "Poppins"'),
+      ]);
+    } catch {
+      /* a fonte de sistema assume o lugar */
+    }
+  }
+
   // 1) Template reproduzido integralmente.
   ctx.drawImage(base, 0, 0, w, h);
 
