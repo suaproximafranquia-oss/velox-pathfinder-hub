@@ -343,6 +343,52 @@ function CriativaPage() {
               {busy ? "Gerando…" : "Gerar artes"}
             </button>
           </div>
+
+          {/* Modo Manual — fotografia opcional (upload, arrastar ou CTRL + V). */}
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              readPhoto(e.dataTransfer.files?.[0]);
+            }}
+            className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 p-4"
+          >
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
+              <ImagePlus className="h-4 w-4" />
+              📷 Selecionar Foto da Cidade (Opcional)
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  readPhoto(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {manualPhoto ? (
+              <>
+                <img
+                  src={manualPhoto.dataUrl}
+                  alt="Fotografia selecionada"
+                  className="h-12 w-20 rounded-md border border-border object-cover"
+                />
+                <span className="text-xs text-foreground">{manualPhoto.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setManualPhoto(null)}
+                  className="text-xs font-semibold text-muted-foreground underline underline-offset-2"
+                >
+                  Remover
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                Arraste uma imagem, cole com CTRL + V ou faça o upload. Sem seleção, a busca
+                automática continua sendo utilizada.
+              </span>
+            )}
+          </div>
           {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
         </section>
 
