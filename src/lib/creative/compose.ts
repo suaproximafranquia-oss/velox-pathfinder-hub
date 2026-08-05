@@ -167,12 +167,11 @@ function clearPlaceholder(
     h: (rect.y1 - rect.y0) * h,
   };
   const sampleW = Math.max(2, Math.round(area.w * 0.02));
-  const sample = readArea(base, {
-    x: Math.max(0, area.x - sampleW - 1),
-    y: area.y,
-    w: sampleW,
-    h: area.h,
-  });
+  const sampleX =
+    rect.sample === "right"
+      ? Math.min(w - sampleW, area.x + area.w + 1)
+      : Math.max(0, area.x - sampleW - 1);
+  const sample = readArea(base, { x: sampleX, y: area.y, w: sampleW, h: area.h });
   const step = area.h / sample.height;
   for (let y = 0; y < sample.height; y += 1) {
     let r = 0;
