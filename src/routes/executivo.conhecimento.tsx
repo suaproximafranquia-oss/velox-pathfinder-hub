@@ -47,6 +47,19 @@ export const Route = createFileRoute("/executivo/conhecimento")({
   component: KnowledgePage,
 });
 
+/** Seleção pendente: vários arquivos compartilham visibilidade e descrição. */
+type PendingUpload = {
+  items: { file: File; name: string }[];
+  visibility: DocumentVisibility;
+  description: string;
+};
+
+/** Item da fila de processamento exibida durante o envio. */
+type QueueItem = {
+  name: string;
+  status: "aguardando" | "processando" | "concluido" | "erro";
+};
+
 function KnowledgePage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
