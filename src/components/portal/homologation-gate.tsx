@@ -43,66 +43,75 @@ export function HomologationGate({ children }: { children: ReactNode }) {
     setError("Usuário ou senha inválidos.");
   }
 
-  return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#050B18]">
-      {/* Arte institucional preservada por inteiro (sem corte, sem zoom). */}
-      <div
-        className="absolute inset-0 bg-contain bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${(background as { url: string }).url})` }}
-        aria-hidden
-      />
-      {/* Apenas um leve escurecimento — a arte continua legível. */}
-      <div className="absolute inset-0 bg-[#050B18]/35" aria-hidden />
+  const bgUrl = (background as { url: string }).url;
 
-      <div className="relative flex min-h-screen items-center justify-center px-6 py-12 lg:justify-end lg:pr-[7%]">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-md rounded-2xl border border-[#D8B25A]/35 bg-[#050B18]/75 p-10 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.9)] backdrop-blur-[2px]"
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#050B18]">
+      {/* Landing Page institucional: a própria arte é a interface de acesso. */}
+      <div
+        className="relative w-full max-w-[min(100vw,150vh)]"
+        style={{ aspectRatio: "1536 / 1024" }}
       >
-        <div className="mb-8 flex items-center gap-3">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[#D8B25A]/40 text-[#D8B25A]">
-            <Lock className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.28em] text-[#D8B25A]">Projeto Atlas</p>
-            <h1 className="text-xl font-semibold text-white">Ambiente de Homologação</h1>
-          </div>
-        </div>
-        <label className="mb-5 block">
-          <span className="mb-1.5 block text-[11px] uppercase tracking-[0.22em] text-white/60">
-            Usuário
-          </span>
+        <img
+          src={bgUrl}
+          alt="Projeto Atlas — Ambiente Seguro de Homologação, Corporate Workspace"
+          className="absolute inset-0 h-full w-full object-contain"
+        />
+
+        <form onSubmit={submit} className="absolute inset-0">
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
-            className="h-14 w-full rounded-lg border border-white/15 bg-white/5 px-4 text-base text-white outline-none focus:border-[#D8B25A]"
+            aria-label="Usuário"
+            className="absolute rounded-[10px] border-0 bg-transparent text-[#EFE3C4] outline-none focus:ring-1 focus:ring-[#D8B25A]/60"
+            style={{
+              left: "18.5%",
+              top: "53.4%",
+              width: "29%",
+              height: "5.3%",
+              paddingLeft: "5.6%",
+              fontSize: "clamp(11px, 1.15vw, 17px)",
+            }}
           />
-        </label>
-        <label className="mb-6 block">
-          <span className="mb-1.5 block text-[11px] uppercase tracking-[0.22em] text-white/60">
-            Senha
-          </span>
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
             autoComplete="current-password"
-            className="h-14 w-full rounded-lg border border-white/15 bg-white/5 px-4 text-base text-white outline-none focus:border-[#D8B25A]"
+            aria-label="Senha"
+            className="absolute rounded-[10px] border-0 bg-transparent text-[#EFE3C4] outline-none focus:ring-1 focus:ring-[#D8B25A]/60"
+            style={{
+              left: "18.5%",
+              top: "60.8%",
+              width: "29%",
+              height: "5.3%",
+              paddingLeft: "5.6%",
+              fontSize: "clamp(11px, 1.15vw, 17px)",
+            }}
           />
-        </label>
-        {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
-        <button
-          type="submit"
-          className="h-14 w-full rounded-lg bg-[#D8B25A] text-base font-semibold uppercase tracking-[0.2em] text-[#050B18] transition hover:opacity-90"
-        >
-          Entrar
-        </button>
-        <p className="mt-6 text-xs leading-relaxed text-white/50">
-          Esta autenticação protege apenas o ambiente de homologação. Os acessos do CRM, da Central
-          Administrativa e do Portal do Investidor permanecem inalterados.
-        </p>
-      </form>
+          <button
+            type="submit"
+            aria-label="Entrar"
+            className="absolute rounded-[10px] bg-transparent text-transparent transition hover:bg-white/10"
+            style={{ left: "18.5%", top: "68.2%", width: "29%", height: "5.6%" }}
+          >
+            Entrar
+          </button>
+          {error ? (
+            <p
+              className="absolute text-center text-red-300"
+              style={{
+                left: "18.5%",
+                top: "74.6%",
+                width: "29%",
+                fontSize: "clamp(10px, 0.95vw, 14px)",
+              }}
+            >
+              {error}
+            </p>
+          ) : null}
+        </form>
       </div>
     </div>
   );
