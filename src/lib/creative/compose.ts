@@ -134,10 +134,10 @@ function paintPhotoArea(
   base: HTMLImageElement,
   photo: HTMLImageElement,
   area: Area,
+  badge: Area | null,
 ) {
   const data = readArea(base, area);
   const rows = rowBackgrounds(data);
-  const overlay = extractOverlay(data, rows);
 
   drawCover(ctx, photo, area);
 
@@ -156,8 +156,14 @@ function paintPhotoArea(
   }
   ctx.restore();
 
-  // Elementos gráficos originais do template voltam por cima.
-  ctx.drawImage(overlay, area.x, area.y, area.w, area.h);
+  // Selo oficial do template ("Vem Aí — Nova Unidade") volta por cima,
+  // recortado do próprio arquivo e sem o fundo. Marcações auxiliares do
+  // template (moldura da foto, réguas) não são preservadas.
+  if (badge) {
+    const badgeData = readArea(base, badge);
+    const overlay = extractOverlay(badgeData, rowBackgrounds(badgeData));
+    ctx.drawImage(overlay, badge.x, badge.y, badge.w, badge.h);
+  }
 }
 
 function drawText(
