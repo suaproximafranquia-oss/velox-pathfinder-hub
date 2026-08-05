@@ -69,15 +69,17 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             autoComplete="username"
             aria-label="Usuário"
             placeholder="Usuário"
-            className="absolute border-0 bg-[#070C12] bg-[length:1em_1em] bg-[position:0.75em_center] bg-no-repeat pl-[2.35em] pr-[0.7em] text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
+            className="absolute box-border rounded-[6px] border border-[#8A6726] bg-[#070C12] bg-no-repeat pl-[3.6em] pr-[1em] text-[#EFE3C4] outline-none focus:border-[#D4AF37] focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
             style={{
-              left: "27.6%",
-              top: "52.2%",
-              width: "17.4%",
-              height: "5%",
+              left: "26.87%",
+              top: "51.69%",
+              width: "18.84%",
+              height: "5.82%",
               fontSize: "clamp(11px, 1.15vw, 17px)",
               backgroundImage:
                 "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D4AF37' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21a8 8 0 0 0-16 0'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E\")",
+              backgroundPosition: "1.1em center",
+              backgroundSize: "1.45em 1.45em",
             }}
           />
           <input
@@ -87,15 +89,17 @@ export function HomologationGate({ children }: { children: ReactNode }) {
             autoComplete="current-password"
             aria-label="Senha"
             placeholder="Senha"
-            className="absolute border-0 bg-[#070C12] bg-[length:1em_1em] bg-[position:0.75em_center] bg-no-repeat pl-[2.35em] pr-[0.7em] text-[#EFE3C4] outline-none focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
+            className="absolute box-border rounded-[6px] border border-[#8A6726] bg-[#070C12] bg-no-repeat pl-[3.6em] pr-[3.5em] text-[#EFE3C4] outline-none focus:border-[#D4AF37] focus:outline-none focus-visible:outline-none placeholder:text-[#8C93A1]"
             style={{
-              left: "27.6%",
-              top: "59.5%",
-              width: "17.4%",
-              height: "5%",
+              left: "26.87%",
+              top: "59.02%",
+              width: "18.84%",
+              height: "5.82%",
               fontSize: "clamp(11px, 1.15vw, 17px)",
               backgroundImage:
-                "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D4AF37' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E\")",
+                "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238C93A1' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m2 2 20 20'/%3E%3Cpath d='M6.7 6.7C4.8 8 3.3 9.8 2.5 12c1.7 4.4 5.2 7 9.5 7 1.3 0 2.6-.3 3.7-.7'/%3E%3Cpath d='M10.7 5.1A10 10 0 0 1 12 5c4.3 0 7.8 2.6 9.5 7a11.8 11.8 0 0 1-2.1 3.4'/%3E%3Cpath d='M14.1 14.1A3 3 0 0 1 9.9 9.9'/%3E%3C/svg%3E\"), url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D4AF37' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E\")",
+              backgroundPosition: "calc(100% - 1.1em) center, 1.1em center",
+              backgroundSize: "1.2em 1.2em, 1.45em 1.45em",
             }}
           />
           <button
