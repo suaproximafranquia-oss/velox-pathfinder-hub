@@ -228,7 +228,7 @@ export async function composeInstitutionalArt(input: {
   if (isRect(input.layout.photo) && input.photoDataUrl) {
     try {
       const photo = await loadImage(input.photoDataUrl);
-      drawCover(ctx, photo, px(input.layout.photo, w, h));
+      paintPhotoArea(ctx, base, photo, px(input.layout.photo, w, h));
     } catch {
       /* sem foto disponível, o enquadramento original permanece */
     }
