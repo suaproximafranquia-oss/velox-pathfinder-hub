@@ -333,32 +333,28 @@ function CriativaPage() {
             </button>
           </div>
 
-          {/* Origem da fotografia — automática ou imagem enviada. */}
+          {/* Origem da fotografia — automática por padrão; manual é opcional. */}
           <div className="mt-6 border-t border-border pt-5">
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["auto", "Gerar automaticamente"],
-                  ["manual", "Usar imagem manual"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    setPhotoMode(key);
-                    if (key === "auto") setManualPhoto(null);
-                  }}
-                  className={[
-                    "cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold transition",
-                    photoMode === key
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border text-muted-foreground hover:bg-muted",
-                  ].join(" ")}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = photoMode === "manual" ? "auto" : "manual";
+                  setPhotoMode(next);
+                  if (next === "auto") setManualPhoto(null);
+                }}
+                className={[
+                  "cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold transition",
+                  photoMode === "manual"
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                Usar imagem manual
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Sem imagem manual, a fotografia da cidade é buscada automaticamente.
+              </span>
             </div>
             {photoMode === "manual" ? (
               <div className="mt-4">
