@@ -234,7 +234,13 @@ export async function composeInstitutionalArt(input: {
   if (isRect(input.layout.photo) && input.photoDataUrl) {
     try {
       const photo = await loadImage(input.photoDataUrl);
-      paintPhotoArea(ctx, base, photo, px(input.layout.photo, w, h));
+      paintPhotoArea(
+        ctx,
+        base,
+        photo,
+        px(input.layout.photo, w, h),
+        isRect(input.layout.badge) ? px(input.layout.badge, w, h) : null,
+      );
     } catch {
       /* sem foto disponível, o enquadramento original permanece */
     }
