@@ -1,6 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Wand2, Loader2, Download, X, Upload, CheckCircle2 } from "lucide-react";
+import {
+  Wand2,
+  Loader2,
+  Download,
+  X,
+  Upload,
+  CheckCircle2,
+  AlertTriangle,
+  FlaskConical,
+} from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
@@ -13,6 +22,8 @@ import {
   type CreativeTemplate,
 } from "@/lib/creative/template-store";
 import { generateCreativeCopy, getCityPhoto } from "@/lib/creative.functions";
+import { testTemplate, TEST_CITY, TEST_STATE } from "@/lib/creative/template-test";
+import type { Diagnostic } from "@/lib/creative/calibration";
 
 export const Route = createFileRoute("/executivo/criativa")({
   head: () => ({
@@ -59,6 +70,8 @@ function CriativaPage() {
     {},
   );
   const [uploading, setUploading] = useState<CreativeModel | null>(null);
+  const [testing, setTesting] = useState<CreativeModel | null>(null);
+  const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
 
   useEffect(() => {
     void (async () => {
@@ -87,6 +100,25 @@ function CriativaPage() {
       setError(err instanceof Error ? err.message : "Falha ao enviar o template.");
     } finally {
       setUploading(null);
+    }
+  }
+
+  /** Prévia de validação: não gera arte definitiva nem grava histórico. */
+  async function runTest(model: CreativeModel) {
+    setTesting(model);
+    setError(null);
+    try {
+      const result = await testTemplate(model);
+      setReport((r) => ({ ...r, [model]: result.report }));
+      setZoom({
+        model,
+        src: `data:image/png;base64,${result.preview}`,
+        file: `teste-${model}-${slugify(`${TEST_CITY}-${TEST_STATE}`)}.png`,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao testar o template.");
+    } finally {
+      setTesting(null);
     }
   }
 
@@ -224,6 +256,7 @@ function CriativaPage() {
         <section className="grid gap-4 sm:grid-cols-2">
           {(["institucional", "marketing"] as CreativeModel[]).map((model) => {
             const tpl = templates[model];
+            const diags = report[model];
             return (
               <div
                 key={model}
@@ -241,7 +274,7 @@ function CriativaPage() {
                       : "Nenhum template enviado."}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
                     {uploading === model ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -259,18 +292,59 @@ function CriativaPage() {
                       }}
                     />
                   </label>
-                  {tpl && !tpl.builtIn ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> ativo
-                    </span>
-                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void runTest(model)}
+                    disabled={!tpl || testing === model}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
+                  >
+                    {testing === model ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FlaskConical className="h-4 w-4" />
+                    )}
+                    Testar Template
+                  </button>
                 </div>
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Status: </span>
+                  {tpl ? (
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Template carregado
+                      {tpl.config
+                        ? ` · ${tpl.config.width}×${tpl.config.height} px`
+                        : ""}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Nenhum template</span>
+                  )}
+                </p>
                 {tpl ? (
                   <img
                     src={tpl.dataUrl}
                     alt={TEMPLATE_LABEL[model]}
                     className="h-32 w-full rounded-lg border border-border object-contain"
                   />
+                ) : null}
+                {diags ? (
+                  <ul className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs">
+                    {diags.map((d, i) => (
+                      <li
+                        key={i}
+                        className={
+                          "flex items-start gap-2 " +
+                          (d.level === "warn" ? "text-amber-600" : "text-muted-foreground")
+                        }
+                      >
+                        {d.level === "warn" ? (
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        )}
+                        <span>{d.message}</span>
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
               </div>
             );
