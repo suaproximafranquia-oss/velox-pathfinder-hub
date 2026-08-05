@@ -353,6 +353,11 @@ export type ComposeInput = {
   photoDataUrl?: string | null;
   /** Somente Modelo B: textos gerados pela IA. */
   copy?: { headline?: string; subheadline?: string; supporting?: string };
+  /**
+   * Guia tracejado sobre a área da fotografia. Uso exclusivo de
+   * calibração/prévia — nunca é aplicado na arte final exportada.
+   */
+  guide?: boolean;
 };
 
 /**
@@ -390,17 +395,40 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
     }
   }
 
-  // 1) Template reproduzido integralmente.
-  ctx.drawImage(base, 0, 0, w, h);
-
-  // 2) Fotografia da cidade + película do próprio template.
   const photoArea: Area = {
     x: (layout.photoArea.x0 ?? 0) * w,
     y: layout.photoArea.y0 * h,
     w: ((layout.photoArea.x1 ?? 1) - (layout.photoArea.x0 ?? 0)) * w,
     h: (layout.photoArea.y1 - layout.photoArea.y0) * h,
   };
-  if (input.photoDataUrl) {
+
+  /**
+   * NOVO CONCEITO GRÁFICO: quando o PNG oficial possui janela
+   * transparente na área da fotografia, ele passa a ser um OVERLAY.
+   * A fotografia é redimensionada, posicionada exatamente atrás e o
+   * template é aplicado por cima — sem recalcular degradê, película
+   * azul ou transparências, que já pertencem ao arquivo oficial.
+   */
+  const overlayMode = hasPhotoWindow(base, photoArea);
+
+  if (overlayMode) {
+    if (input.photoDataUrl) {
+      try {
+        const photo = await loadImage(input.photoDataUrl);
+        drawCover(ctx, photo, photoArea, 0.38);
+      } catch {
+        /* sem fotografia, o template permanece como está */
+      }
+    }
+    ctx.drawImage(base, 0, 0, w, h);
+  } else {
+    // 1) Template reproduzido integralmente.
+    ctx.drawImage(base, 0, 0, w, h);
+  }
+
+  // 2) Fotografia da cidade + película do próprio template (modo legado,
+  // para templates opacos que ainda não possuem janela transparente).
+  if (!overlayMode && input.photoDataUrl) {
     try {
       const photo = await loadImage(input.photoDataUrl);
       const rows = rowColors(readArea(base, photoArea));
@@ -472,6 +500,9 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   if ("letterSpacing" in ctx) {
     (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = "0px";
   }
+
+  // 5) Guia visual temporário — apenas em prévias de calibração.
+  if (input.guide) drawGuide(ctx, photoArea);
 
   return canvas.toDataURL("image/png").split(",")[1] ?? "";
 }
