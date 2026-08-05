@@ -153,7 +153,7 @@ function CriativaPage() {
       // MODELO B — mesmo motor, sobre o Template Marketing. A IA produz
       // apenas os textos publicitários; o layout vem do template.
       let marketing: string | undefined;
-      if (templates.marketing) {
+      {
         try {
           const copy = await generateCreativeCopy({
             data: { city, state, unit: unitName({ city, state }) },
