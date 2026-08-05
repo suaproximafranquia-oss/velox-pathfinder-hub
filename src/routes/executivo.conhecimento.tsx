@@ -138,8 +138,8 @@ function KnowledgePage() {
     displayName: string,
     visibility: DocumentVisibility,
     description: string,
+    onDetail: (detail: string) => void,
   ): Promise<boolean> {
-    setLogs([]);
     const id = newDocumentId();
     const now = new Date().toISOString();
     const provisional: KnowledgeDocument = {
@@ -165,17 +165,17 @@ function KnowledgePage() {
     refresh();
     void publishDocument(session!.userId, provisional);
     try {
-      setStage("Analisando documento…");
+      onDetail("Analisando documento…");
       const result = await ingestFile(file, (entry) => {
-        setLogs((prev) => [...prev, entry]);
-        setStage(entry.msg);
+        setLogs((prev) => [...prev.slice(-80), { ...entry, msg: `${displayName}: ${entry.msg}` }]);
+        onDetail(entry.msg);
         // cede o event loop para o React repintar o painel de logs.
         return new Promise<void>((r) => setTimeout(r, 0)) as unknown as void;
       });
-      setStage("Indexando conteúdo…");
+      onDetail("Indexando conteúdo…");
       await new Promise((r) => setTimeout(r, 50));
       const chunks = chunkText(result.text);
-      setStage("Atualizando Base Oficial…");
+      onDetail("Atualizando Base Oficial…");
       await new Promise((r) => setTimeout(r, 150));
       // Nunca descartar conteúdo parcial: se houver qualquer chunk, ativa.
       updateDocument(id, {
