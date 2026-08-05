@@ -98,11 +98,7 @@ function hasPhotoWindow(base: HTMLImageElement, area: Area): boolean {
  */
 function alphaWindow(base: HTMLImageElement, w: number, h: number): Area | null {
   try {
-    const sw = Math.min(240, w);
-    const sh = Math.max(1, Math.round((h / w) * sw));
     const data = readArea(base, { x: 0, y: 0, w, h });
-    void sw;
-    void sh;
     let x0 = data.width;
     let y0 = data.height;
     let x1 = -1;
@@ -326,13 +322,16 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
    * template cobre por cima; caso contrário ela apenas preenche a área.
    */
   const overlayMode = hasPhotoWindow(base, photoArea);
+  // Em modo máscara, a abertura real do PNG manda: a fotografia preenche
+  // exatamente esse recorte e o template cobre tudo por cima.
+  const targetArea = overlayMode ? (alphaWindow(base, w, h) ?? photoArea) : photoArea;
   let photo: HTMLImageElement | null = null;
   if (input.photoDataUrl) {
     photo = await loadImage(input.photoDataUrl).catch(() => null);
   }
 
   if (overlayMode) {
-    if (photo) drawCover(ctx, photo, photoArea, 0.38);
+    if (photo) drawCover(ctx, photo, targetArea, 0.38);
     ctx.drawImage(base, 0, 0, w, h);
   } else {
     ctx.drawImage(base, 0, 0, w, h);
@@ -374,7 +373,7 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   }
 
   // 5) Guia visual temporário — apenas em prévias de calibração.
-  if (input.guide) drawGuide(ctx, photoArea);
+  if (input.guide) drawGuide(ctx, targetArea);
 
   return canvas.toDataURL("image/png").split(",")[1] ?? "";
 }
