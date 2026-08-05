@@ -315,9 +315,9 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
 
   // 2) Fotografia da cidade + película do próprio template.
   const photoArea: Area = {
-    x: 0,
+    x: (layout.photoArea.x0 ?? 0) * w,
     y: layout.photoArea.y0 * h,
-    w,
+    w: ((layout.photoArea.x1 ?? 1) - (layout.photoArea.x0 ?? 0)) * w,
     h: (layout.photoArea.y1 - layout.photoArea.y0) * h,
   };
   if (input.photoDataUrl) {
@@ -325,7 +325,7 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
       const photo = await loadImage(input.photoDataUrl);
       const rows = rowColors(readArea(base, photoArea));
       drawCover(ctx, photo, photoArea);
-      applyFilm(ctx, rows, photoArea);
+      if (layout.photoArea.film !== false) applyFilm(ctx, rows, photoArea);
 
       // Elemento gráfico do topo (selo) volta por cima da fotografia.
       if (layout.badgeArea) {
@@ -356,17 +356,26 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   if (layout.city) writeField(ctx, layout.city, city, w, h);
   if (layout.state) writeField(ctx, layout.state, stateLabel(uf), w, h);
   if (layout.tail && city) {
-    writeField(ctx, layout.tail, uf ? `${city} - ${uf}` : city, w, h);
+    const value = uf ? `${city} - ${uf}` : city;
+    clearPlaceholder(ctx, base, layout.tail, w, h);
+    writeField(ctx, layout.tail, `${layout.tail.prefix ?? ""}${value}`, w, h);
+  }
+  if (layout.footer && city) {
+    clearPlaceholder(ctx, base, layout.footer, w, h);
+    writeField(ctx, layout.footer, uf ? `${city} - ${uf}` : city, w, h);
   }
 
   // 4) Textos publicitários (Modelo B).
   if (layout.headline && input.copy?.headline) {
+    clearPlaceholder(ctx, base, layout.headline, w, h);
     writeCopy(ctx, layout.headline, input.copy.headline, w, h);
   }
   if (layout.subheadline && input.copy?.subheadline) {
+    clearPlaceholder(ctx, base, layout.subheadline, w, h);
     writeCopy(ctx, layout.subheadline, input.copy.subheadline, w, h);
   }
   if (layout.supporting && input.copy?.supporting) {
+    clearPlaceholder(ctx, base, layout.supporting, w, h);
     writeCopy(ctx, layout.supporting, input.copy.supporting, w, h);
   }
 
