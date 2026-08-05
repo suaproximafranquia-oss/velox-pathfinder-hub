@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FlaskConical,
+  ImagePlus,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
@@ -20,7 +21,14 @@ import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
 import { downloadBase64, slugify } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
 import { composeFromTemplate } from "@/lib/creative/compose";
-import { getTemplate, uploadTemplate, type CreativeTemplate } from "@/lib/creative/template-store";
+import {
+  getTemplate,
+  uploadTemplate,
+  getReference,
+  uploadReference,
+  type CreativeTemplate,
+  type CreativeReference,
+} from "@/lib/creative/template-store";
 import { generateCreativeCopy, getCityPhoto } from "@/lib/creative.functions";
 import { testTemplate, TEST_CITY, TEST_STATE } from "@/lib/creative/template-test";
 import type { Diagnostic } from "@/lib/creative/calibration";
@@ -97,7 +105,13 @@ function CriativaPage() {
     null,
   );
   const [templates, setTemplates] = useState<Partial<Record<CreativeModel, CreativeTemplate>>>({});
+  const [references, setReferences] = useState<Partial<Record<CreativeModel, CreativeReference>>>(
+    {},
+  );
   const [uploading, setUploading] = useState<CreativeModel | null>(null);
+  const [uploadingRef, setUploadingRef] = useState<CreativeModel | null>(null);
+  /** Modo Manual: fotografia escolhida pelo usuário (opcional). */
+  const [manualPhoto, setManualPhoto] = useState<{ name: string; dataUrl: string } | null>(null);
   const [testing, setTesting] = useState<CreativeModel | null>(null);
   const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
   const canManageTemplates = session ? canManageCreativeTemplates(session.activeRole) : false;
@@ -112,7 +126,35 @@ function CriativaPage() {
         ...(institucional ? { institucional } : {}),
         ...(marketing ? { marketing } : {}),
       });
+      const refA = getReference("institucional");
+      const refB = getReference("marketing");
+      setReferences({ ...(refA ? { institucional: refA } : {}), ...(refB ? { marketing: refB } : {}) });
     })();
+  }, []);
+
+  /** Fotografia manual: upload, arrastar ou CTRL + V. */
+  function readPhoto(file: File | undefined | null) {
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => setManualPhoto({ name: file.name || "foto colada", dataUrl: String(reader.result) });
+    reader.readAsDataURL(file);
+  }
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      for (const item of Array.from(e.clipboardData?.items ?? [])) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            readPhoto(file);
+          }
+          return;
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
   }, []);
 
   /** Cada modelo possui o seu próprio template: um upload nunca afeta o outro. */
@@ -132,12 +174,28 @@ function CriativaPage() {
     }
   }
 
+  /** Modelo Padronizado: referência visual, nunca usada como template. */
+  async function sendReference(model: CreativeModel, file: File | undefined) {
+    if (!file) return;
+    setUploadingRef(model);
+    setError(null);
+    try {
+      const saved = await uploadReference(model, file);
+      setReferences((r) => ({ ...r, [model]: saved }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao enviar o modelo padronizado.");
+    } finally {
+      setUploadingRef(null);
+    }
+  }
+
   /** Prévia de validação: não gera arte definitiva nem grava histórico. */
   async function runTest(model: CreativeModel) {
     setTesting(model);
     setError(null);
     try {
-      const result = await testTemplate(model);
+      // Guia tracejado da área da fotografia: só existe na prévia.
+      const result = await testTemplate(model, { guide: true });
       setReport((r) => ({ ...r, [model]: result.report }));
       setZoom({
         model,
