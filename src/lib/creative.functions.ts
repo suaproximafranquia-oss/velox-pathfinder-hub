@@ -36,11 +36,13 @@ export const generateCreativeCopy = createServerFn({ method: "POST" })
 
 /** Fotografia representativa da cidade informada (Cidade + UF). */
 export const getCityPhoto = createServerFn({ method: "POST" })
-  .inputValidator((data: { city: string; state: string }) => data)
+  .inputValidator(
+    (data: { city: string; state: string; exclude?: string[] }) => data,
+  )
   .handler(
     async ({ data }): Promise<{ dataUrl: string | null; credit: string | null }> => {
       const { resolveCityPhoto } = await import("@/server/creative-photo.server");
-      return resolveCityPhoto(data.city, data.state).catch(() => ({
+      return resolveCityPhoto(data.city, data.state, data.exclude ?? []).catch(() => ({
         dataUrl: null,
         credit: null,
       }));
