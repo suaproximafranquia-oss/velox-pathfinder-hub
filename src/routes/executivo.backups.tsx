@@ -118,17 +118,10 @@ function BackupsPage() {
     const all = listConversationBackups().filter((r) => r.workspaceKind === kind);
     // A Gestora nunca vê conversas automaticamente: apenas as cópias
     // temporárias autorizadas pelo Administrador (24 horas).
-    const scoped = isAdmin
-      ? all
-      : tab === "GreenSales" && isSupervisor
-        ? // Green Sales é ambiente corporativo: a Gestora só enxerga o que
-          // o Administrador autorizou temporariamente.
-          all.filter((r) => Boolean(backupGrantFor(r.investorId)))
-        : tab === "Redistribuição" && isSupervisor
-          ? // Redistribuição é carteira institucional: a Gestão acompanha
-            // integralmente, sem autorização por conversa.
-            all
-          : all.filter((r) => r.executiveId === session.userId);
+    // Backup de conversas é registro pessoal: cada usuário enxerga apenas
+    // os próprios relacionamentos. A Gestora não acessa backups de
+    // terceiros; somente o Administrador mantém visão integral.
+    const scoped = isAdmin ? all : all.filter((r) => r.executiveId === session.userId);
     const q = query.trim().toLowerCase();
     if (!q) return scoped;
     return scoped.filter(
