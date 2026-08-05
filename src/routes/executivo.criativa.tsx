@@ -228,22 +228,27 @@ function CriativaPage() {
     setArts({});
     try {
       const historyKey = `${city.toLocaleLowerCase("pt-BR")}-${state}`;
-      const photo = await getCityPhoto({
-        data: { city, state, exclude: photoHistory(historyKey) },
-      });
-      if (!photo.dataUrl) {
-        throw new Error(
-          `Nenhuma fotografia adequada foi encontrada para ${city} - ${state}. Tente novamente ou verifique a grafia da cidade.`,
-        );
+      // Modo Manual: a fotografia escolhida substitui a busca automática.
+      let photoDataUrl = manualPhoto?.dataUrl ?? null;
+      if (!photoDataUrl) {
+        const photo = await getCityPhoto({
+          data: { city, state, exclude: photoHistory(historyKey) },
+        });
+        if (!photo.dataUrl) {
+          throw new Error(
+            `Nenhuma fotografia adequada foi encontrada para ${city} - ${state}. Selecione uma fotografia manualmente ou verifique a grafia da cidade.`,
+          );
+        }
+        rememberPhoto(historyKey, photo.credit);
+        photoDataUrl = photo.dataUrl;
       }
-      rememberPhoto(historyKey, photo.credit);
 
       // MODELO A — preenchimento determinístico do Template Institucional.
       const institucional = await composeFromTemplate({
         model: "institucional",
         city,
         state,
-        photoDataUrl: photo.dataUrl,
+        photoDataUrl,
       });
 
       // MODELO B — mesmo motor, sobre o Template Marketing. A IA produz
@@ -258,7 +263,7 @@ function CriativaPage() {
             model: "marketing",
             city,
             state,
-            photoDataUrl: photo.dataUrl,
+            photoDataUrl,
             copy: {
               headline: copy.marketing.headline,
               subheadline: copy.marketing.subheadline,
