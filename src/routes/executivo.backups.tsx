@@ -20,11 +20,7 @@ import {
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import {
-  listConversationBackups,
-  getBackupDetail,
-  type CrmBackupRecord,
-} from "@/lib/crm/backups";
+import { listConversationBackups, getBackupDetail, type CrmBackupRecord } from "@/lib/crm/backups";
 import {
   BACKUP_REASONS,
   recordBackupAccess,
@@ -110,11 +106,7 @@ function BackupsPage() {
     // DEF 3.0.1 §7 — segregação total: cada aba enxerga exclusivamente os
     // backups do seu próprio ambiente, sem qualquer mistura de registros.
     const kind =
-      tab === "GreenSales"
-        ? "green_sales"
-        : tab === "Redistribuição"
-          ? "redistribuicao"
-          : "portal";
+      tab === "GreenSales" ? "green_sales" : tab === "Redistribuição" ? "redistribuicao" : "portal";
     const all = listConversationBackups().filter((r) => r.workspaceKind === kind);
     // A Gestora nunca vê conversas automaticamente: apenas as cópias
     // temporárias autorizadas pelo Administrador (24 horas).
@@ -145,10 +137,9 @@ function BackupsPage() {
           <div>
             <h1 className="font-display text-xl">Backup de Conversas</h1>
             <p className="mt-1 max-w-2xl text-xs text-[color:var(--muted-foreground)]">
-              Central única de backup. A aba GreenSales é corporativa e somente
-              leitura, com motivo obrigatório e auditoria permanente. A aba
-              Portal pertence ao Executivo responsável e permite restauração
-              operacional das conversas arquivadas.
+              Central única de backup. A aba GreenSales é corporativa e somente leitura, com motivo
+              obrigatório e auditoria permanente. A aba Portal pertence ao Executivo responsável e
+              permite restauração operacional das conversas arquivadas.
             </p>
           </div>
         </div>
@@ -188,10 +179,10 @@ function BackupsPage() {
             {tab === "Portal"
               ? "As conversas arquivadas do Portal aparecem aqui, prontas para restauração."
               : tab === "Redistribuição"
-              ? "Os contatos institucionais atribuídos automaticamente pela fila oficial aparecem aqui."
-              : isSupervisor
-              ? "As conversas dos Executivos só aparecem aqui mediante autorização temporária do Administrador."
-              : "Os relacionamentos registrados no CRM aparecem automaticamente nesta Central."}
+                ? "Os contatos institucionais atribuídos automaticamente pela fila oficial aparecem aqui."
+                : isSupervisor
+                  ? "As conversas dos Executivos só aparecem aqui mediante autorização temporária do Administrador."
+                  : "Os relacionamentos registrados no CRM aparecem automaticamente nesta Central."}
           </p>
         </div>
       ) : (
@@ -315,14 +306,14 @@ function BackupCard({
             </button>
           </>
         ) : (
-        <button
-          type="button"
-          onClick={onOpen}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-3 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
-        >
-          <ShieldCheck className="h-3.5 w-3.5" />
-          Abrir backup
-        </button>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-3 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Abrir backup
+          </button>
         )}
         {isAdmin && !portalTab ? (
           <button
@@ -383,9 +374,8 @@ function ReasonDialog({
       >
         <h2 className="font-display text-lg">Motivo da abertura</h2>
         <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-          O backup de <strong>{record.name}</strong> só pode ser aberto com um
-          motivo declarado. Usuário, data, hora e motivo ficam registrados
-          permanentemente.
+          O backup de <strong>{record.name}</strong> só pode ser aberto com um motivo declarado.
+          Usuário, data, hora e motivo ficam registrados permanentemente.
         </p>
         <div className="mt-4 space-y-2">
           {BACKUP_REASONS.map((r) => (
@@ -430,13 +420,7 @@ function ReasonDialog({
 // aba separada e passou a compor a própria Jornada.
 const TABS = ["Geral", "Jornada", "Reuniões", "Notas do Executivo"] as const;
 
-function BackupReader({
-  record,
-  onClose,
-}: {
-  record: CrmBackupRecord;
-  onClose: () => void;
-}) {
+function BackupReader({ record, onClose }: { record: CrmBackupRecord; onClose: () => void }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Geral");
   const detail = useMemo(() => getBackupDetail(record), [record]);
   const accessLog = useMemo(() => listBackupAccessLog(record.investorId), [record]);
@@ -457,8 +441,8 @@ function BackupReader({
           <div>
             <h2 className="font-display text-lg">{record.name}</h2>
             <p className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-[color:var(--muted-foreground)]">
-              <Lock className="h-3 w-3" /> Backup somente leitura ·{" "}
-              {record.executiveName} · {record.workspaceLabel}
+              <Lock className="h-3 w-3" /> Backup somente leitura · {record.executiveName} ·{" "}
+              {record.workspaceLabel}
             </p>
           </div>
           <button
@@ -524,10 +508,7 @@ function BackupReader({
                   <Row label="Progresso" value={`${detail.journey.percent}%`} />
                   <Row label="Sessões" value={String(detail.journey.sessions)} />
                   <Row label="Retornos" value={String(detail.journey.returns)} />
-                  <Row
-                    label="Tempo efetivo"
-                    value={`${detail.journey.effectiveMinutes} min`}
-                  />
+                  <Row label="Tempo efetivo" value={`${detail.journey.effectiveMinutes} min`} />
                   <p className="pt-3 leading-relaxed text-[color:var(--muted-foreground)]">
                     {detail.journey.autoSummary}
                   </p>

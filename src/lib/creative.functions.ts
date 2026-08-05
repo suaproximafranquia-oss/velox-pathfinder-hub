@@ -36,25 +36,19 @@ export const generateCreativeCopy = createServerFn({ method: "POST" })
 
 /** Fotografia representativa da cidade informada (Cidade + UF). */
 export const getCityPhoto = createServerFn({ method: "POST" })
-  .inputValidator(
-    (data: { city: string; state: string; exclude?: string[] }) => data,
-  )
-  .handler(
-    async ({ data }): Promise<{ dataUrl: string | null; credit: string | null }> => {
-      const { resolveCityPhoto } = await import("@/server/creative-photo.server");
-      return resolveCityPhoto(data.city, data.state, data.exclude ?? []).catch(() => ({
-        dataUrl: null,
-        credit: null,
-      }));
-    },
-  );
+  .inputValidator((data: { city: string; state: string; exclude?: string[] }) => data)
+  .handler(async ({ data }): Promise<{ dataUrl: string | null; credit: string | null }> => {
+    const { resolveCityPhoto } = await import("@/server/creative-photo.server");
+    return resolveCityPhoto(data.city, data.state, data.exclude ?? []).catch(() => ({
+      dataUrl: null,
+      credit: null,
+    }));
+  });
 
 /** Arquiva automaticamente a arte gerada na pasta corporativa oficial. */
 export const saveCreativeArt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (data: { name: string; contentBase64: string; mimeType?: string }) => data,
-  )
+  .inputValidator((data: { name: string; contentBase64: string; mimeType?: string }) => data)
   .handler(async ({ data, context }) => {
     const { saveToCorporateFolder } = await import("@/server/google-drive.server");
     return saveToCorporateFolder(context.userId, {

@@ -13,11 +13,7 @@ import {
   Plus,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import {
-  getSession,
-  canManageKnowledge,
-  type ExecutiveSession,
-} from "@/lib/executive-auth";
+import { getSession, canManageKnowledge, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   addDocument,
   chunkText,
@@ -104,8 +100,7 @@ function KnowledgePage() {
     let rejected = 0;
     for (const file of Array.from(files)) {
       const lower = file.name.toLowerCase();
-      const ok =
-        lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".txt");
+      const ok = lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".txt");
       if (!ok) {
         rejected += 1;
         continue;
@@ -234,9 +229,7 @@ function KnowledgePage() {
       const done = await processOne(job.file, job.name, visibility, description);
       if (done) ok += 1;
       setQueue((q) =>
-        q.map((item, idx) =>
-          idx === i ? { ...item, status: done ? "concluido" : "erro" } : item,
-        ),
+        q.map((item, idx) => (idx === i ? { ...item, status: done ? "concluido" : "erro" } : item)),
       );
     }
     setBusy(false);
@@ -257,9 +250,9 @@ function KnowledgePage() {
   return (
     <ExecutiveShell session={session} title="Central de Conhecimento">
       <p className="text-sm text-[color:var(--muted-foreground)] max-w-3xl mb-8 leading-relaxed">
-        Base Oficial de Conhecimento do Workspace. Documentos enviados aqui
-        alimentam a IA Corporativa e demais módulos autorizados. A classificação
-        de visibilidade é definida pelo Administrador — nunca pela IA.
+        Base Oficial de Conhecimento do Workspace. Documentos enviados aqui alimentam a IA
+        Corporativa e demais módulos autorizados. A classificação de visibilidade é definida pelo
+        Administrador — nunca pela IA.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-4 mb-8">
@@ -275,9 +268,8 @@ function KnowledgePage() {
           <h2 className="font-display text-lg">Enviar documento</h2>
         </div>
         <p className="text-xs text-[color:var(--muted-foreground)] mb-5">
-          Formatos aceitos: PDF, Word (.docx) e TXT. Após selecionar o
-          arquivo, você poderá definir nome, visibilidade e descrição antes
-          do envio.
+          Formatos aceitos: PDF, Word (.docx) e TXT. Após selecionar o arquivo, você poderá definir
+          nome, visibilidade e descrição antes do envio.
         </p>
         <input
           ref={fileRef}
@@ -323,10 +315,7 @@ function KnowledgePage() {
             {logs.length > 0 && (
               <ul className="mt-3 max-h-40 overflow-y-auto space-y-1 font-mono text-[11px] leading-relaxed">
                 {logs.map((l, i) => (
-                  <li
-                    key={i}
-                    className={l.ok ? "text-emerald-300/90" : "text-amber-300/90"}
-                  >
+                  <li key={i} className={l.ok ? "text-emerald-300/90" : "text-amber-300/90"}>
                     {l.ok ? "✓" : "✖"} {l.msg}
                   </li>
                 ))}
@@ -450,9 +439,7 @@ function KnowledgePage() {
         <ResetModal
           onCancel={() => setResetOpen(false)}
           onConfirm={() => {
-            void resetOfficialWorkspace(session.userId, session.workspaceId).finally(
-              refresh,
-            );
+            void resetOfficialWorkspace(session.userId, session.workspaceId).finally(refresh);
             setResetOpen(false);
             refresh();
             setFlash({ type: "ok", msg: "Base Oficial resetada com sucesso." });
@@ -489,14 +476,11 @@ function UploadModal({
         <div className="flex items-center gap-2 mb-4">
           <FileText className="h-5 w-5 text-[color:var(--gold)]" />
           <h3 className="font-display text-lg">
-            {pending.items.length > 1
-              ? `${pending.items.length} documentos`
-              : "Novo documento"}
+            {pending.items.length > 1 ? `${pending.items.length} documentos` : "Novo documento"}
           </h3>
         </div>
         <p className="text-[11px] text-[color:var(--muted-foreground)] mb-4">
-          Os documentos serão processados em fila, um a um, com a mesma
-          visibilidade e descrição.
+          Os documentos serão processados em fila, um a um, com a mesma visibilidade e descrição.
         </p>
 
         <div className="space-y-4">
@@ -638,13 +622,7 @@ function formatDate(iso: string) {
   }
 }
 
-function ResetModal({
-  onCancel,
-  onConfirm,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
+function ResetModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
   const [text, setText] = useState("");
   const ok = text.trim() === "CONFIRMAR RESET";
   return (
@@ -655,8 +633,8 @@ function ResetModal({
           <h3 className="font-display text-lg">Resetar Base Oficial</h3>
         </div>
         <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed mb-4">
-          Esta ação remove todos os documentos indexados deste workspace. Não
-          pode ser desfeita. Para continuar, digite{" "}
+          Esta ação remove todos os documentos indexados deste workspace. Não pode ser desfeita.
+          Para continuar, digite{" "}
           <span className="font-mono text-[color:var(--foreground)]">CONFIRMAR RESET</span>.
         </p>
         <input

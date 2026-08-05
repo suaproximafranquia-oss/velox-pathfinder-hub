@@ -20,21 +20,14 @@ import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
 import { downloadBase64, slugify } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
 import { composeFromTemplate } from "@/lib/creative/compose";
-import {
-  getTemplate,
-  uploadTemplate,
-  type CreativeTemplate,
-} from "@/lib/creative/template-store";
+import { getTemplate, uploadTemplate, type CreativeTemplate } from "@/lib/creative/template-store";
 import { generateCreativeCopy, getCityPhoto } from "@/lib/creative.functions";
 import { testTemplate, TEST_CITY, TEST_STATE } from "@/lib/creative/template-test";
 import type { Diagnostic } from "@/lib/creative/calibration";
 
 export const Route = createFileRoute("/executivo/criativa")({
   head: () => ({
-    meta: [
-      { title: "IA Criativa — Atlas Platform" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "IA Criativa — Atlas Platform" }, { name: "robots", content: "noindex" }],
   }),
   component: CriativaPage,
 });
@@ -80,9 +73,10 @@ function photoHistory(key: string): string[] {
 function rememberPhoto(key: string, credit: string | null) {
   if (typeof window === "undefined" || !credit) return;
   try {
-    const all = JSON.parse(
-      window.localStorage.getItem(PHOTO_HISTORY_KEY) || "{}",
-    ) as Record<string, string[]>;
+    const all = JSON.parse(window.localStorage.getItem(PHOTO_HISTORY_KEY) || "{}") as Record<
+      string,
+      string[]
+    >;
     const list = Array.isArray(all[key]) ? all[key]! : [];
     // Guarda as últimas 6: garante rotação sem esgotar as opções.
     all[key] = [credit, ...list.filter((c) => c !== credit)].slice(0, 6);
@@ -102,15 +96,11 @@ function CriativaPage() {
   const [zoom, setZoom] = useState<{ model: CreativeModel; src: string; file: string } | null>(
     null,
   );
-  const [templates, setTemplates] = useState<Partial<Record<CreativeModel, CreativeTemplate>>>(
-    {},
-  );
+  const [templates, setTemplates] = useState<Partial<Record<CreativeModel, CreativeTemplate>>>({});
   const [uploading, setUploading] = useState<CreativeModel | null>(null);
   const [testing, setTesting] = useState<CreativeModel | null>(null);
   const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
-  const canManageTemplates = session
-    ? canManageCreativeTemplates(session.activeRole)
-    : false;
+  const canManageTemplates = session ? canManageCreativeTemplates(session.activeRole) : false;
 
   useEffect(() => {
     void (async () => {
@@ -237,9 +227,7 @@ function CriativaPage() {
         });
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Não foi possível gerar as artes agora.",
-      );
+      setError(err instanceof Error ? err.message : "Não foi possível gerar as artes agora.");
     } finally {
       setBusy(false);
     }
@@ -277,9 +265,7 @@ function CriativaPage() {
               <input
                 value={form.state}
                 maxLength={2}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))}
                 placeholder="RJ"
                 className="h-11 w-24 rounded-lg border border-input bg-background px-3 text-sm uppercase text-foreground outline-none focus:border-primary"
               />
@@ -290,11 +276,7 @@ function CriativaPage() {
               disabled={busy}
               className="mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
             >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Wand2 className="h-4 w-4" />
-              )}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
               {busy ? "Gerando…" : "Gerar artes"}
             </button>
           </div>
@@ -324,23 +306,23 @@ function CriativaPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   {canManageTemplates ? (
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
-                    {uploading === model ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    Enviar {TEMPLATE_LABEL[model]}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      className="hidden"
-                      onChange={(e) => {
-                        void sendTemplate(model, e.target.files?.[0]);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
+                      {uploading === model ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      Enviar {TEMPLATE_LABEL[model]}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        className="hidden"
+                        onChange={(e) => {
+                          void sendTemplate(model, e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
                   ) : (
                     <span className="text-xs text-muted-foreground">
                       Somente Administrador e Gestora podem alterar templates.
@@ -365,9 +347,7 @@ function CriativaPage() {
                   {tpl ? (
                     <span className="inline-flex items-center gap-1 font-medium text-foreground">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Template carregado
-                      {tpl.config
-                        ? ` · ${tpl.config.width}×${tpl.config.height} px`
-                        : ""}
+                      {tpl.config ? ` · ${tpl.config.width}×${tpl.config.height} px` : ""}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">Nenhum template</span>
@@ -466,9 +446,7 @@ function CriativaPage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    downloadBase64(zoom.src.split(",")[1] ?? "", zoom.file)
-                  }
+                  onClick={() => downloadBase64(zoom.src.split(",")[1] ?? "", zoom.file)}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
                 >
                   <Download className="h-4 w-4" /> Download

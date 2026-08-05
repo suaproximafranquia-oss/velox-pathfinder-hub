@@ -38,12 +38,7 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
  * isso o padrão privilegia o terço superior — o céu e o skyline ficam
  * visíveis e o enquadramento parece natural dentro do template.
  */
-function drawCover(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  area: Area,
-  focusY = 0.5,
-) {
+function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, area: Area, focusY = 0.5) {
   const scale = Math.max(area.w / img.naturalWidth, area.h / img.naturalHeight);
   const dw = img.naturalWidth * scale;
   const dh = img.naturalHeight * scale;
@@ -169,10 +164,7 @@ function applyFilm(
 }
 
 /** Tom médio de uma faixa fina do template (referência de fusão). */
-function stripColor(
-  base: HTMLImageElement,
-  area: Area,
-): [number, number, number] | undefined {
+function stripColor(base: HTMLImageElement, area: Area): [number, number, number] | undefined {
   try {
     const data = readArea(base, area);
     let r = 0;
@@ -190,16 +182,10 @@ function stripColor(
   }
 }
 
-function setFont(
-  ctx: CanvasRenderingContext2D,
-  size: number,
-  tracking: number,
-  weight: number,
-) {
+function setFont(ctx: CanvasRenderingContext2D, size: number, tracking: number, weight: number) {
   ctx.font = `${weight} ${size}px ${TEMPLATE_FONT}`;
   if ("letterSpacing" in ctx) {
-    (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
-      `${tracking}px`;
+    (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${tracking}px`;
   }
 }
 
@@ -324,13 +310,7 @@ function writeCopy(
 ) {
   const lines = wrap(text, block.chars, block.lines);
   lines.forEach((line, i) => {
-    writeField(
-      ctx,
-      { ...block, baselineY: block.baselineY + i * block.lineHeight },
-      line,
-      w,
-      h,
-    );
+    writeField(ctx, { ...block, baselineY: block.baselineY + i * block.lineHeight }, line, w, h);
   });
 }
 

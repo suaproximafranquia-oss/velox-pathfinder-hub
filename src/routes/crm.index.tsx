@@ -88,11 +88,7 @@ import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
-import {
-  startRelationship,
-  archiveRelationship,
-  restoreRelationship,
-} from "@/lib/crm/commercial";
+import { startRelationship, archiveRelationship, restoreRelationship } from "@/lib/crm/commercial";
 import { isPortalReleased, releasePortal } from "@/lib/crm/portal-release";
 import { isCrmSupervisor as isSupervisorRole } from "@/lib/crm/permissions";
 import { Unlock } from "lucide-react";
@@ -103,14 +99,12 @@ export const Route = createFileRoute("/crm/")({
       { title: "CRM de Relacionamento — Portal Velox" },
       {
         name: "description",
-        content:
-          "Módulo de relacionamento dos Executivos de Expansão do Portal Velox.",
+        content: "Módulo de relacionamento dos Executivos de Expansão do Portal Velox.",
       },
       { property: "og:title", content: "CRM de Relacionamento — Portal Velox" },
       {
         property: "og:description",
-        content:
-          "Módulo de relacionamento dos Executivos de Expansão do Portal Velox.",
+        content: "Módulo de relacionamento dos Executivos de Expansão do Portal Velox.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -170,10 +164,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const areas = useMemo(
     () =>
       CRM_AREAS.filter(
-        (a) =>
-          !a.adminOnly ||
-          isCrmAdministrator(actor.role) ||
-          isCrmSupervisor(actor.role),
+        (a) => !a.adminOnly || isCrmAdministrator(actor.role) || isCrmSupervisor(actor.role),
       ),
     [actor.role],
   );
@@ -318,8 +309,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   }
   const isDistribuicao = area === "distribuicao";
   const isTemas = area === "temas";
-  const canManageDistribution =
-    isCrmAdministrator(actor.role) || isCrmSupervisor(actor.role);
+  const canManageDistribution = isCrmAdministrator(actor.role) || isCrmSupervisor(actor.role);
   const [intakeId, setIntakeId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -334,19 +324,19 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     () => (isDistribuicao ? listIntakeLeads() : []),
     [isDistribuicao, now, tick],
   );
-  const selectedIntake =
-    intake.find((l) => l.id === intakeId) ?? intake[0] ?? null;
+  const selectedIntake = intake.find((l) => l.id === intakeId) ?? intake[0] ?? null;
   const executives = useMemo(
-    () => loadUsers().filter((u) => u.status === "ativo").map((u) => ({ id: u.id, name: u.name })),
+    () =>
+      loadUsers()
+        .filter((u) => u.status === "ativo")
+        .map((u) => ({ id: u.id, name: u.name })),
     [tick],
   );
-  const executiveName = (id?: string) =>
-    executives.find((e) => e.id === id)?.name ?? "—";
+  const executiveName = (id?: string) => executives.find((e) => e.id === id)?.name ?? "—";
   const privateOk = selected ? canSeePrivateContent(selected.access) : false;
   /** Liberar Portal: exclusivo de Administrador e Gestora. */
   const canReleasePortal =
-    Boolean(selected) &&
-    (isCrmAdministrator(actor.role) || isSupervisorRole(actor.role));
+    Boolean(selected) && (isCrmAdministrator(actor.role) || isSupervisorRole(actor.role));
   const portalReleased = selected ? isPortalReleased(selected.id) : false;
   // Jornada Digital: conversa congelada — envio manual bloqueado.
   const journeyOnly = Boolean(selected?.journeyOnly);
@@ -369,10 +359,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   // DEF 2.4.14 — janela oficial de 24 horas a partir da última resposta
   // do investidor, identificada visualmente na conversa.
   const chatWindow = useMemo(
-    () =>
-      selected && privateOk
-        ? resolveCrmWindow(windowAnchorAt(selected.id))
-        : undefined,
+    () => (selected && privateOk ? resolveCrmWindow(windowAnchorAt(selected.id)) : undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selected?.id, privateOk, messageTick, tick, now],
   );
@@ -459,52 +446,52 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       >
         {isConversas ? (
           <>
-          {tempChats.length > 0 ? (
-            <div className="mb-1 space-y-0.5">
-              {tempChats.map((chat) => (
-                <CrmTempChatItem
-                  key={chat.id}
-                  chat={chat}
-                  active={tempId === chat.id}
-                  onSelect={() => setTempId(chat.id)}
-                />
-              ))}
-            </div>
-          ) : null}
-          {visible.length > 0 ? (
-            <div className="space-y-0.5">
-              {visible.map((item) => (
-                <CrmConversationItem
-                  key={item.id}
-                  item={item}
-                  active={selected?.id === item.id}
-                  unread={item.state === "novo" && !openedIds.includes(item.id)}
-                  movement={movements[item.id]}
-                  onSelect={() => {
-                    setTempId(null);
-                    setSelectedId(item.id);
-                  }}
-                />
-              ))}
-            </div>
-          ) : tempChats.length > 0 ? null : (
-            <CrmPlaceholder
-              label={
-                query
-                  ? "Nenhum investidor encontrado"
-                  : showArchived
-                    ? "Nenhuma conversa arquivada"
-                    : "Nenhum investidor no Workspace"
-              }
-              hint={
-                query
-                  ? "Ajuste a busca para localizar o investidor desejado."
-                  : showArchived
-                    ? "Conversas arquivadas ficam guardadas aqui com todo o histórico preservado."
-                    : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
-              }
-            />
-          )}
+            {tempChats.length > 0 ? (
+              <div className="mb-1 space-y-0.5">
+                {tempChats.map((chat) => (
+                  <CrmTempChatItem
+                    key={chat.id}
+                    chat={chat}
+                    active={tempId === chat.id}
+                    onSelect={() => setTempId(chat.id)}
+                  />
+                ))}
+              </div>
+            ) : null}
+            {visible.length > 0 ? (
+              <div className="space-y-0.5">
+                {visible.map((item) => (
+                  <CrmConversationItem
+                    key={item.id}
+                    item={item}
+                    active={selected?.id === item.id}
+                    unread={item.state === "novo" && !openedIds.includes(item.id)}
+                    movement={movements[item.id]}
+                    onSelect={() => {
+                      setTempId(null);
+                      setSelectedId(item.id);
+                    }}
+                  />
+                ))}
+              </div>
+            ) : tempChats.length > 0 ? null : (
+              <CrmPlaceholder
+                label={
+                  query
+                    ? "Nenhum investidor encontrado"
+                    : showArchived
+                      ? "Nenhuma conversa arquivada"
+                      : "Nenhum investidor no Workspace"
+                }
+                hint={
+                  query
+                    ? "Ajuste a busca para localizar o investidor desejado."
+                    : showArchived
+                      ? "Conversas arquivadas ficam guardadas aqui com todo o histórico preservado."
+                      : "Os investidores do Portal do Executivo aparecem aqui automaticamente."
+                }
+              />
+            )}
           </>
         ) : isDistribuicao ? (
           intake.length > 0 ? (
@@ -608,9 +595,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 const phone = tempChat.phone;
                 appendTempMessage(tempChat.id, { body: text });
                 setTempTick((v) => v + 1);
-                void sendWhatsappText({ data: { phone, body: text } }).catch(
-                  () => undefined,
-                );
+                void sendWhatsappText({ data: { phone, body: text } }).catch(() => undefined);
               }}
             />
           ) : isConversas && selected ? (
@@ -739,11 +724,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         ) : (
           <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-4">
             <CrmPlaceholder
-              label={
-                isConversas
-                  ? "Selecione um investidor"
-                  : "Nenhum Lead selecionado"
-              }
+              label={isConversas ? "Selecione um investidor" : "Nenhum Lead selecionado"}
               hint={
                 isConversas
                   ? "Escolha um investidor na lista para abrir o relacionamento."
@@ -788,9 +769,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   <button
                     type="button"
                     onClick={() => {
-                      const reason = window.prompt(
-                        "Informe o motivo da liberação do Portal:",
-                      );
+                      const reason = window.prompt("Informe o motivo da liberação do Portal:");
                       if (!reason?.trim()) return;
                       releasePortal({
                         investorId: selected.id,
@@ -965,9 +944,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-[color:var(--crm-muted)]">
-                  Nenhuma reunião agendada.
-                </p>
+                <p className="text-xs text-[color:var(--crm-muted)]">Nenhuma reunião agendada.</p>
               )}
               {privateOk ? (
                 <button
