@@ -22,7 +22,6 @@ import {
 } from "@/lib/meeting-providers";
 import {
   getGoogleStore,
-  googleIssues,
   isConnectorConnected,
   reconnectGoogleAccount,
   refreshGoogleStore,
