@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Wand2,
   Loader2,
@@ -313,6 +313,24 @@ function CriativaPage() {
 
   const fileFor = (model: CreativeModel) =>
     `velox-${model}-${slugify(`${form.city}-${form.state}`)}.png`;
+
+  /** Arraste da fotografia (Modelo B) — único gesto de edição. */
+  const dragRef = useRef<{ x: number; y: number; base: { x: number; y: number }; w: number } | null>(
+    null,
+  );
+  const renderingRef = useRef(false);
+  const pendingRef = useRef<{ x: number; y: number } | null>(null);
+
+  async function pumpFrame() {
+    if (renderingRef.current) return;
+    const next = pendingRef.current;
+    if (!next) return;
+    pendingRef.current = null;
+    renderingRef.current = true;
+    await recomposeMarketing(next);
+    renderingRef.current = false;
+    void pumpFrame();
+  }
 
   /**
    * Recompõe o Modelo B com a fotografia deslocada. Nenhum outro
