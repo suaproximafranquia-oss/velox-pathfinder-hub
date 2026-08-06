@@ -702,15 +702,16 @@ function CriativaPage() {
                     y: e.clientY,
                     base: framing.offset,
                     w: rect.width,
+                    h: rect.height,
                   };
                   e.currentTarget.setPointerCapture(e.pointerId);
                 }}
                 onPointerMove={(e) => {
                   const drag = dragRef.current;
-                  if (!drag || !drag.w) return;
+                  if (!drag || !drag.w || !drag.h) return;
                   pendingRef.current = {
                     x: drag.base.x + (e.clientX - drag.x) / drag.w,
-                    y: drag.base.y + (e.clientY - drag.y) / drag.w,
+                    y: drag.base.y + (e.clientY - drag.y) / drag.h,
                   };
                   void pumpFrame();
                 }}
