@@ -434,7 +434,13 @@ function MeetingsPage() {
                          </a>
                        ) : resolveMeetingProvider(m).id === "google_meet" ? (
                          <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
-                           Aguardando configuração da integração Google Meet.
+                           {m.googleSyncError
+                             ? m.googleSyncError
+                             : m.googleSync === "pending"
+                               ? "Gerando link do Google Meet…"
+                               : googleConnected
+                                 ? "Link do Google Meet ainda não gerado."
+                                 : "Conta Google do Portal indisponível — reconecte em Configurações."}
                          </span>
                        ) : (
                          <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">

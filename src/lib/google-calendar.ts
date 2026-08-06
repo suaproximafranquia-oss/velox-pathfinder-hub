@@ -283,6 +283,8 @@ export async function syncDelete(meeting: Meeting, actor: Actor): Promise<void> 
 function friendlyError(err: unknown): string {
   const raw = err instanceof Error ? err.message : "Falha desconhecida.";
   if (raw.startsWith("GOOGLE_NOT_CONNECTED")) return "Conta Google desconectada.";
+  if (raw.startsWith("GOOGLE_REAUTH_REQUIRED"))
+    return "A autorização do Google expirou. A administração precisa reconectar a Conta Google do Portal.";
   if (raw.startsWith("GOOGLE_API_ERROR")) {
     const [, status] = raw.split(":");
     return `O Google recusou a operação (código ${status}).`;
