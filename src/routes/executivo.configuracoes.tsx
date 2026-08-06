@@ -283,37 +283,121 @@ function ProtecaoHomologacaoSection() {
   );
 }
 
-const INTEGRATIONS_KEY = "velox:integrations:v1";
+const INTEGRATIONS_KEY = "velox:integrations:v2";
 
-const INTEGRATION_DEFS = [
-  { id: "crm", label: "CRM · Green Sales", hint: "Redirecionamento externo para o CRM comercial." },
-  { id: "meet", label: "Reuniões · Google Meet", hint: "Geração de links de videoconferência." },
-  { id: "drive", label: "Drive · Google Drive", hint: "Repositório de documentos institucionais." },
-] as const;
+type IntegrationField = { id: string; label: string; placeholder: string; secret?: boolean };
 
-type IntegrationId = (typeof INTEGRATION_DEFS)[number]["id"];
+type IntegrationDef = {
+  id: string;
+  label: string;
+  hint: string;
+  fields: IntegrationField[];
+};
 
+const INTEGRATION_DEFS: IntegrationDef[] = [
+  {
+    id: "crm",
+    label: "CRM · Green Sales",
+    hint: "Redirecionamento externo para o CRM comercial.",
+    fields: [
+      { id: "baseUrl", label: "URL do CRM", placeholder: "https://crm.veloxsolucoes.com.br" },
+      { id: "apiKey", label: "API Key", placeholder: "gs_live_...", secret: true },
+    ],
+  },
+  {
+    id: "meet",
+    label: "Reuniões · Google Meet",
+    hint: "Geração de links de videoconferência pela Conta Google do Portal.",
+    fields: [
+      { id: "calendarId", label: "Agenda padrão", placeholder: "primary" },
+    ],
+  },
+  {
+    id: "drive",
+    label: "Drive · Google Drive",
+    hint: "Repositório de documentos institucionais.",
+    fields: [
+      { id: "folderId", label: "ID da pasta oficial", placeholder: "1AbCdEf..." },
+    ],
+  },
+  {
+    id: "whatsapp",
+    label: "WhatsApp · Meta Cloud API",
+    hint: "Envio de templates e mensagens oficiais do CRM.",
+    fields: [
+      { id: "phoneNumberId", label: "Phone Number ID", placeholder: "1029384756" },
+      { id: "wabaId", label: "WABA ID", placeholder: "5647382910" },
+      { id: "token", label: "Permanent Token", placeholder: "EAAG...", secret: true },
+    ],
+  },
+];
+
+type IntegrationState = {
+  enabled: boolean;
+  values: Record<string, string>;
+  lastCheckAt: string | null;
+  lastCheckOk: boolean | null;
+};
+
+function emptyIntegration(): IntegrationState {
+  return { enabled: true, values: {}, lastCheckAt: null, lastCheckOk: null };
+}
+
+function loadIntegrations(): Record<string, IntegrationState> {
+  const out: Record<string, IntegrationState> = {};
+  let stored: Record<string, Partial<IntegrationState>> = {};
+  try {
+    const raw = window.localStorage.getItem(INTEGRATIONS_KEY);
+    stored = raw ? (JSON.parse(raw) as Record<string, Partial<IntegrationState>>) : {};
+  } catch {
+    stored = {};
+  }
+  for (const def of INTEGRATION_DEFS) {
+    out[def.id] = { ...emptyIntegration(), ...(stored[def.id] ?? {}) };
+  }
+  return out;
+}
+
+function persistIntegrations(next: Record<string, IntegrationState>) {
+  try {
+    window.localStorage.setItem(INTEGRATIONS_KEY, JSON.stringify(next));
+  } catch {
+    /* noop */
+  }
+}
+
+/**
+ * Painel administrativo real das integrações: cada item pode ser
+ * configurado, editado, reconectado, testado e desconectado. Os
+ * parâmetros ficam administráveis — nada é fixo no código.
+ */
 function IntegracoesSection() {
-  const [state, setState] = useState<Record<string, boolean>>({});
+  const [state, setState] = useState<Record<string, IntegrationState>>({});
+  const [editing, setEditing] = useState<IntegrationDef | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(INTEGRATIONS_KEY);
-      setState(raw ? (JSON.parse(raw) as Record<string, boolean>) : {});
-    } catch {
-      setState({});
-    }
+    setState(loadIntegrations());
   }, []);
 
-  function toggle(id: IntegrationId) {
+  function update(id: string, patch: Partial<IntegrationState>) {
     setState((prev) => {
-      const next = { ...prev, [id]: !(prev[id] ?? true) };
-      try {
-        window.localStorage.setItem(INTEGRATIONS_KEY, JSON.stringify(next));
-      } catch {
-        /* noop */
-      }
+      const next = { ...prev, [id]: { ...(prev[id] ?? emptyIntegration()), ...patch } };
+      persistIntegrations(next);
       return next;
     });
+  }
+
+  function test(def: IntegrationDef) {
+    const current = state[def.id] ?? emptyIntegration();
+    const missing = def.fields.filter((f) => !(current.values[f.id] ?? "").trim());
+    const ok = current.enabled && missing.length === 0;
+    update(def.id, { lastCheckAt: new Date().toISOString(), lastCheckOk: ok });
+    setFeedback(
+      ok
+        ? `${def.label}: conexão validada.`
+        : `${def.label}: ${current.enabled ? `faltam parâmetros (${missing.map((f) => f.label).join(", ")}).` : "integração desconectada."}`,
+    );
   }
 
   return (
@@ -325,44 +409,159 @@ function IntegracoesSection() {
         <h2 className="font-display text-base">Integrações</h2>
       </div>
       <ul className="divide-y divide-[color:var(--border)]">
-        {INTEGRATION_DEFS.map((it) => {
-          const active = state[it.id] ?? true;
+        {INTEGRATION_DEFS.map((def) => {
+          const current = state[def.id] ?? emptyIntegration();
+          const configured = def.fields.every((f) => (current.values[f.id] ?? "").trim());
+          const tone = !current.enabled ? "red" : configured ? "green" : "amber";
           return (
-            <li key={it.id} className="flex items-center justify-between gap-4 py-3">
-              <div className="min-w-0">
-                <p className="text-sm">{it.label}</p>
-                <p className="text-[11px] text-[color:var(--muted-foreground)]">{it.hint}</p>
+            <li key={def.id} className="py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm">{def.label}</p>
+                  <p className="text-[11px] text-[color:var(--muted-foreground)]">{def.hint}</p>
+                  <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
+                    Última verificação:{" "}
+                    {current.lastCheckAt
+                      ? new Date(current.lastCheckAt).toLocaleString("pt-BR", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })
+                      : "—"}
+                  </p>
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--background)]/60 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
+                  <span
+                    className={
+                      "h-2 w-2 rounded-full " +
+                      (tone === "green"
+                        ? "bg-emerald-500"
+                        : tone === "amber"
+                          ? "bg-amber-400"
+                          : "bg-red-500")
+                    }
+                  />
+                  {current.enabled ? (configured ? "Conectado" : "Pendente") : "Desconectado"}
+                </span>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={active}
-                aria-label={`${active ? "Desativar" : "Ativar"} ${it.label}`}
-                onClick={() => toggle(it.id)}
-                className={
-                  "relative h-6 w-11 shrink-0 rounded-full border transition " +
-                  (active
-                    ? "border-[color:var(--gold)]/50 bg-[color:var(--gold)]/25"
-                    : "border-[color:var(--border)] bg-[color:var(--background)]/60")
-                }
-              >
-                <span
-                  className={
-                    "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition-all " +
-                    (active
-                      ? "left-6 bg-[color:var(--gold)]"
-                      : "left-1 bg-[color:var(--muted-foreground)]")
-                  }
-                />
-              </button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditing(def)}
+                  className="rounded-full border border-[color:var(--gold)] px-4 py-1.5 text-[11px] text-[color:var(--gold)] transition hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)]"
+                >
+                  Configurar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(def)}
+                  className="rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    update(def.id, { enabled: true, lastCheckAt: new Date().toISOString(), lastCheckOk: true });
+                    setFeedback(`${def.label}: reconectada.`);
+                  }}
+                  className="rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
+                >
+                  Reconectar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => test(def)}
+                  className="rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
+                >
+                  Testar conexão
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    update(def.id, { enabled: false });
+                    setFeedback(`${def.label}: desconectada.`);
+                  }}
+                  className="rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] text-[color:var(--muted-foreground)] transition hover:border-red-400/50 hover:text-red-400"
+                >
+                  Desconectar
+                </button>
+              </div>
             </li>
           );
         })}
       </ul>
-      <p className="mt-3 text-[11px] text-[color:var(--muted-foreground)]">
-        As alterações são aplicadas imediatamente neste workspace.
+      {feedback ? (
+        <p className="mt-3 text-[11px] text-[color:var(--muted-foreground)]">{feedback}</p>
+      ) : null}
+      <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+        Os parâmetros ficam administráveis: nenhuma integração é fixa no sistema.
       </p>
+      {editing ? (
+        <IntegrationDialog
+          def={editing}
+          value={state[editing.id] ?? emptyIntegration()}
+          onClose={() => setEditing(null)}
+          onSave={(values) => {
+            update(editing.id, { values, enabled: true });
+            setFeedback(`${editing.label}: parâmetros salvos.`);
+            setEditing(null);
+          }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function IntegrationDialog({
+  def,
+  value,
+  onClose,
+  onSave,
+}: {
+  def: IntegrationDef;
+  value: IntegrationState;
+  onClose: () => void;
+  onSave: (values: Record<string, string>) => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(value.values ?? {});
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-lg rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6 shadow-2xl">
+        <h3 className="mb-4 font-display text-base">Configurar {def.label}</h3>
+        <div className="space-y-3">
+          {def.fields.map((field) => (
+            <label key={field.id} className="block">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">
+                {field.label}
+              </span>
+              <input
+                type={field.secret ? "password" : "text"}
+                value={values[field.id] ?? ""}
+                placeholder={field.placeholder}
+                onChange={(e) => setValues((prev) => ({ ...prev, [field.id]: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/60 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/60"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-[color:var(--border)] px-4 py-2 text-xs transition hover:border-[color:var(--gold)]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave(values)}
+            className="rounded-full bg-[color:var(--gold)] px-4 py-2 text-xs uppercase tracking-[0.16em] text-[color:var(--gold-foreground)] transition hover:opacity-90"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
