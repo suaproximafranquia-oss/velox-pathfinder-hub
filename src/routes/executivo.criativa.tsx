@@ -315,9 +315,13 @@ function CriativaPage() {
     `velox-${model}-${slugify(`${form.city}-${form.state}`)}.png`;
 
   /** Arraste da fotografia (Modelo B) — único gesto de edição. */
-  const dragRef = useRef<{ x: number; y: number; base: { x: number; y: number }; w: number } | null>(
-    null,
-  );
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    base: { x: number; y: number };
+    w: number;
+    h: number;
+  } | null>(null);
   const renderingRef = useRef(false);
   const pendingRef = useRef<{ x: number; y: number } | null>(null);
 
