@@ -113,7 +113,7 @@ const INSTITUTIONAL: TemplateLayout = {
     // x = 0.2444 e a linha de base do parágrafo está em y = 0.6851.
     // O prefixo de espaço cria o intervalo tipográfico entre "EM" e a
     // cidade, mantendo tudo em UMA única linha contínua.
-    x: 0.2444,
+    x: 0.2560,
     prefix: " ",
     align: "left",
     baselineY: 0.6851,
@@ -126,7 +126,7 @@ const INSTITUTIONAL: TemplateLayout = {
     color: "#FFFFFF",
     // Apaga apenas o exemplo laranja impresso após "AGORA EM" (amostra de
     // cor colhida à direita, longe do texto institucional laranja).
-    clear: { x0: 0.2405, x1: 0.62, y0: 0.6665, y1: 0.6905, sample: "right" },
+    clear: { x0: 0.2530, x1: 0.62, y0: 0.6665, y1: 0.6905, sample: "right" },
   },
 };
 
