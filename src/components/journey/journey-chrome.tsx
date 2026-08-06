@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { List, X } from "lucide-react";
 import { CHAPTERS, getChapterByPath, TOTAL_CHAPTERS } from "@/lib/journey-data";
 import { useJourneyProgress } from "@/hooks/use-journey-progress";
-import { AiAssistant } from "@/components/ai-assistant";
 import { cn } from "@/lib/utils";
 
 export function JourneyChrome({ children }: { children: React.ReactNode }) {
@@ -169,8 +168,6 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
         </aside>
       </div>
 
-      {/* Assistente IA — presente em todas as páginas do Manual */}
-      <AiAssistant />
     </div>
   );
 }

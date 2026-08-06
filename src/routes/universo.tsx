@@ -4,7 +4,6 @@ import { ModuleChrome, type ModuleChromeSection } from "@/components/editorial/m
 import { BackToTop } from "@/components/site/BackToTop";
 import { Reveal } from "@/components/site/Reveal";
 import { VMark } from "@/components/site/VMark";
-import { AiAssistant } from "@/components/ai-assistant";
 import { PortalFinalCta } from "@/components/portal/portal-final-cta";
 import {
   ChapterCover,
@@ -1505,7 +1504,6 @@ function Index() {
       </footer>
 
       <BackToTop />
-      <AiAssistant />
     </ModuleChrome>
   );
 }
