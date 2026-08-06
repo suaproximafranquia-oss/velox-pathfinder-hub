@@ -444,26 +444,38 @@ function CriativaPage() {
                 {CREATIVE_MODEL_LABEL[MODEL]}
               </h3>
             </header>
-            <div className="p-5">
+            <div className="flex flex-col items-center gap-4 p-5">
               {art ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setZoom({
-                      src: `data:image/png;base64,${art}`,
-                      file: fileName(form.city, form.state),
-                    })
-                  }
-                  className="block w-full cursor-pointer overflow-hidden rounded-xl border border-border transition hover:opacity-90"
-                >
-                  <img
-                    src={`data:image/png;base64,${art}`}
-                    alt={`Arte institucional — ${form.city}`}
-                    className="w-full"
-                  />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setZoom({
+                        src: `data:image/png;base64,${art}`,
+                        file: fileName(form.city, form.state),
+                      })
+                    }
+                    className="block w-full max-w-[420px] cursor-pointer overflow-hidden rounded-xl border border-border transition hover:opacity-90"
+                  >
+                    <img
+                      src={`data:image/png;base64,${art}`}
+                      alt={`Arte institucional — ${form.city}`}
+                      className="block h-auto w-full"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadBase64(art, fileName(form.city, form.state))}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
+                  >
+                    <Download className="h-4 w-4" /> Download
+                  </button>
+                  <p className="text-[11px] text-muted-foreground">
+                    Prévia reduzida — o arquivo baixado mantém a resolução original.
+                  </p>
+                </>
               ) : (
-                <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
+                <div className="flex aspect-[4/5] w-full max-w-[420px] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
                   {busy ? "Gerando…" : "Aguardando geração"}
                 </div>
               )}
