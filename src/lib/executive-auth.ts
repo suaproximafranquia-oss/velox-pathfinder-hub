@@ -284,7 +284,25 @@ export function loadUsers(): ExecutiveUser[] {
     const byId = new Map(
       arr.filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id)).map((u) => [u.id, u] as const),
     );
-    for (const seed of SEED_USERS) byId.set(seed.id, seed);
+    for (const seed of SEED_USERS) {
+      const stored = byId.get(seed.id);
+      // Credenciais/estrutura vêm do seed; os dados pessoais editados pelo
+      // colaborador (foto, WhatsApp, datas, nome) são preservados.
+      byId.set(
+        seed.id,
+        stored
+          ? {
+              ...seed,
+              name: stored.name || seed.name,
+              phone: stored.phone ?? seed.phone,
+              whatsapp: stored.whatsapp ?? seed.whatsapp,
+              photoUrl: stored.photoUrl ?? seed.photoUrl,
+              admissionDate: stored.admissionDate ?? seed.admissionDate,
+              birthDate: stored.birthDate ?? seed.birthDate,
+            }
+          : seed,
+      );
+    }
     return Array.from(byId.values());
   } catch {
     return SEED_USERS;
