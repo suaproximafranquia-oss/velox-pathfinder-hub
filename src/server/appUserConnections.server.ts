@@ -77,3 +77,43 @@ export async function deleteConnectionForUser(userId: string, connectorId: strin
     .eq("user_id", userId)
     .eq("connector_id", connectorId);
 }
+
+/**
+ * A Conta Google é do PORTAL, não do executivo: qualquer credencial
+ * existente para o conector vale para todos os usuários autenticados.
+ */
+export async function findAnyConnection(
+  connectorId: string,
+): Promise<{ userId: string; key: string; accountEmail: string | null; updatedAt: string } | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("app_user_connections")
+    .select("user_id, connection_key_ciphertext, account_email, updated_at")
+    .eq("connector_id", connectorId)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  const row = data?.[0];
+  if (!row) return null;
+  return {
+    userId: row.user_id as string,
+    key: decryptConnectionKey(row.connection_key_ciphertext as string),
+    accountEmail: (row.account_email as string | null) ?? null,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+/** Move uma credencial individual antiga para o proprietário corporativo. */
+export async function promoteConnectionToOwner(
+  fromUserId: string,
+  toUserId: string,
+  connectorId: string,
+) {
+  if (fromUserId === toUserId) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin
+    .from("app_user_connections")
+    .update({ user_id: toUserId, updated_at: new Date().toISOString() })
+    .eq("user_id", fromUserId)
+    .eq("connector_id", connectorId);
+}
