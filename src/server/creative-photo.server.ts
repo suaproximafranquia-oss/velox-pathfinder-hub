@@ -207,6 +207,15 @@ async function firstTitle(term: string): Promise<string | null> {
   return json.query?.search?.[0]?.title ?? null;
 }
 
+/** Normaliza para comparar nomes de cidade sem acento/caixa. */
+function norm(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 async function toDataUrl(source: string): Promise<string | null> {
   const res = await fetch(source, { headers: { "User-Agent": UA } });
   if (!res.ok) return null;
@@ -233,7 +242,11 @@ export async function findCityPhoto(
   const fallback: { url: string; score: number }[] = [];
   for (const term of candidates(name, (state || "").trim().toUpperCase())) {
     try {
-      const title = (await firstTitle(term)) ?? term;
+      // A página encontrada precisa pertencer realmente à cidade informada:
+      // cidades vizinhas, bairros e homônimos são descartados.
+      const found = await firstTitle(term);
+      if (!found || !norm(found).includes(norm(name))) continue;
+      const title = found;
       for (const item of await pageImages(title)) {
         if (used.has(item.url.toLowerCase())) continue;
         if (pool.some((p) => p.url === item.url)) continue;
