@@ -24,6 +24,7 @@ import {
   CrmJourneyBadge,
   CrmStartRelationshipDialog,
 } from "@/components/crm/crm-conversation";
+import { CrmLeadFicha } from "@/components/crm/crm-lead-ficha";
 import {
   User,
   Users,
@@ -747,7 +748,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               email={selected.email}
               city={selected.city}
               privateOk={privateOk}
-              actor={{ userId: actor.userId, name: actor.name, role: actor.role }}
+              actor={{ userId: actor.userId, name: session.name, role: actor.role }}
               onSaved={() => setTick((v) => v + 1)}
             />
 
