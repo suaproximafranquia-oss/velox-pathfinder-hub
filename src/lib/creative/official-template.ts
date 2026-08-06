@@ -109,18 +109,19 @@ const INSTITUTIONAL: TemplateLayout = {
   },
   tail: {
     // Continuação exata da linha "AGORA EM" impressa no template
-    // (termina em x = 0.2485). O espaço do prefixo cria o intervalo
+    // (medida no arquivo oficial: termina em x = 0.2391). O espaço do
     // tipográfico correto — nenhum deslocamento arbitrário.
-    x: 0.2485,
+    // prefixo cria o intervalo tipográfico correto.
+    x: 0.2391,
     prefix: " ",
     align: "left",
     // Linha 3 do parágrafo institucional ("AGORA EM"), medida no arquivo.
-    baselineY: 0.6889,
-    capHeight: 0.0137,
-    maxWidth: 0.68,
+    baselineY: 0.6681,
+    capHeight: 0.0138,
+    maxWidth: 0.7,
     tracking: 0.02,
     weight: 700,
-    color: "#FFFFFF",
+    color: "#F26A12",
   },
 };
 
