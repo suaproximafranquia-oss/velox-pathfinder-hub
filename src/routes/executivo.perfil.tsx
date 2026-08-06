@@ -61,6 +61,10 @@ function PerfilPage() {
     }
   }, [navigate]);
   if (!session) return null;
+  // Personalização do CRM, Integrações e Conta Google são áreas
+  // administrativas: visíveis apenas para Administrador e Gestora.
+  const isAdminProfile =
+    session.activeRole === "super_admin" || session.activeRole === "diretora";
   return (
     <ExecutiveShell session={session} title="Meu Perfil">
       <div className="max-w-3xl">
@@ -86,9 +90,13 @@ function PerfilPage() {
             if (s) setSession(s);
           }}
         />
-        <CrmThemePicker userId={session.userId} />
-        <IntegrationsSection />
-        <GoogleWorkspaceCard session={session} />
+        {isAdminProfile && (
+          <>
+            <CrmThemePicker userId={session.userId} />
+            <IntegrationsSection />
+            <GoogleWorkspaceCard session={session} />
+          </>
+        )}
       </div>
     </ExecutiveShell>
   );
