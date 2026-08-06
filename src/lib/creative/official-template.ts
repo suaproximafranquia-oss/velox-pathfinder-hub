@@ -124,6 +124,9 @@ const INSTITUTIONAL: TemplateLayout = {
     // "AGORA EM" já está impresso em laranja no template; a parte dinâmica
     // (CIDADE - UF) acompanha o branco do restante do texto institucional.
     color: "#FFFFFF",
+    // Apaga apenas o exemplo laranja impresso após "AGORA EM" (amostra de
+    // cor colhida à direita, longe do texto institucional laranja).
+    clear: { x0: 0.2405, x1: 0.62, y0: 0.6665, y1: 0.6905, sample: "right" },
   },
 };
 
