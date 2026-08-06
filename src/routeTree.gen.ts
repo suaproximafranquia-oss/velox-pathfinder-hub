@@ -33,6 +33,7 @@ import { Route as ExecutivoCriativaRouteImport } from './routes/executivo.criati
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoComunicacaoRouteImport } from './routes/executivo.comunicacao'
 import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
+import { Route as ExecutivoCaptacaoRouteImport } from './routes/executivo.captacao'
 import { Route as ExecutivoCampanhasRouteImport } from './routes/executivo.campanhas'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
 import { Route as ExecutivoBackupsRouteImport } from './routes/executivo.backups'
@@ -162,6 +163,11 @@ const ExecutivoCelebracaoRoute = ExecutivoCelebracaoRouteImport.update({
   path: '/executivo/celebracao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoCaptacaoRoute = ExecutivoCaptacaoRouteImport.update({
+  id: '/executivo/captacao',
+  path: '/executivo/captacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoCampanhasRoute = ExecutivoCampanhasRouteImport.update({
   id: '/executivo/campanhas',
   path: '/executivo/campanhas',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/executivo/backups': typeof ExecutivoBackupsRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
+  '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
@@ -248,6 +255,7 @@ export interface FileRoutesByTo {
   '/executivo/backups': typeof ExecutivoBackupsRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
+  '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/executivo/backups': typeof ExecutivoBackupsRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
+  '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
@@ -319,6 +328,7 @@ export interface FileRouteTypes {
     | '/executivo/backups'
     | '/executivo/brain'
     | '/executivo/campanhas'
+    | '/executivo/captacao'
     | '/executivo/celebracao'
     | '/executivo/comunicacao'
     | '/executivo/configuracoes'
@@ -352,6 +362,7 @@ export interface FileRouteTypes {
     | '/executivo/backups'
     | '/executivo/brain'
     | '/executivo/campanhas'
+    | '/executivo/captacao'
     | '/executivo/celebracao'
     | '/executivo/comunicacao'
     | '/executivo/configuracoes'
@@ -386,6 +397,7 @@ export interface FileRouteTypes {
     | '/executivo/backups'
     | '/executivo/brain'
     | '/executivo/campanhas'
+    | '/executivo/captacao'
     | '/executivo/celebracao'
     | '/executivo/comunicacao'
     | '/executivo/configuracoes'
@@ -421,6 +433,7 @@ export interface RootRouteChildren {
   ExecutivoBackupsRoute: typeof ExecutivoBackupsRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
   ExecutivoCampanhasRoute: typeof ExecutivoCampanhasRoute
+  ExecutivoCaptacaoRoute: typeof ExecutivoCaptacaoRoute
   ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
   ExecutivoComunicacaoRoute: typeof ExecutivoComunicacaoRoute
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
@@ -614,6 +627,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoCelebracaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/captacao': {
+      id: '/executivo/captacao'
+      path: '/executivo/captacao'
+      fullPath: '/executivo/captacao'
+      preLoaderRoute: typeof ExecutivoCaptacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/campanhas': {
       id: '/executivo/campanhas'
       path: '/executivo/campanhas'
@@ -694,6 +714,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoBackupsRoute: ExecutivoBackupsRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
   ExecutivoCampanhasRoute: ExecutivoCampanhasRoute,
+  ExecutivoCaptacaoRoute: ExecutivoCaptacaoRoute,
   ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,
   ExecutivoComunicacaoRoute: ExecutivoComunicacaoRoute,
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
@@ -719,13 +740,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
