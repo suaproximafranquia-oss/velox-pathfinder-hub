@@ -121,7 +121,9 @@ const INSTITUTIONAL: TemplateLayout = {
     maxWidth: 0.7,
     tracking: 0.02,
     weight: 700,
-    color: "#FF730E",
+    // "AGORA EM" já está impresso em laranja no template; a parte dinâmica
+    // (CIDADE - UF) acompanha o branco do restante do texto institucional.
+    color: "#FFFFFF",
   },
 };
 
