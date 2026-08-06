@@ -347,12 +347,15 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
     photo = await loadImage(input.photoDataUrl).catch(() => null);
   }
 
+  const offsetPx = input.photoOffset
+    ? { x: input.photoOffset.x * w, y: input.photoOffset.y * h }
+    : { x: 0, y: 0 };
   if (overlayMode) {
-    if (photo) drawCover(ctx, photo, targetArea, 0.38, input.photoOffset);
+    if (photo) drawCover(ctx, photo, targetArea, 0.38, offsetPx);
     ctx.drawImage(base, 0, 0, w, h);
   } else {
     ctx.drawImage(base, 0, 0, w, h);
-    if (photo) drawCover(ctx, photo, photoArea, 0.38, input.photoOffset);
+    if (photo) drawCover(ctx, photo, photoArea, 0.38, offsetPx);
   }
 
   const city = (input.city || "").trim().toLocaleUpperCase("pt-BR");
