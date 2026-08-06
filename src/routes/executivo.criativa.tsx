@@ -30,7 +30,7 @@ import {
   type CreativeTemplate,
   type CreativeReference,
 } from "@/lib/creative/template-store";
-import { generateCreativeCopy, getCityPhoto } from "@/lib/creative.functions";
+import { generateCreativeCopy } from "@/lib/creative.functions";
 import { testTemplate, TEST_CITY, TEST_STATE } from "@/lib/creative/template-test";
 import type { Diagnostic } from "@/lib/creative/calibration";
 
@@ -113,8 +113,8 @@ function CriativaPage() {
   const [uploadingRef, setUploadingRef] = useState<CreativeModel | null>(null);
   /** Modo Manual: fotografia escolhida pelo usuário (opcional). */
   const [manualPhoto, setManualPhoto] = useState<{ name: string; dataUrl: string } | null>(null);
-  /** Origem da fotografia: busca automática ou imagem enviada. */
-  const [photoMode, setPhotoMode] = useState<"auto" | "manual">("auto");
+  /** Etapa 2 do fluxo: envio obrigatório da fotografia da cidade. */
+  const [photoStep, setPhotoStep] = useState(false);
   const [testing, setTesting] = useState<CreativeModel | null>(null);
   const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
   /**
@@ -215,6 +215,18 @@ function CriativaPage() {
     setSession(s);
   }, [navigate]);
 
+  /** Etapa 1: Cidade + UF › abre o envio da fotografia. */
+  function startGeneration() {
+    const city = form.city.trim();
+    const state = form.state.trim().toUpperCase();
+    if (!city || state.length !== 2) {
+      setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
+      return;
+    }
+    setError(null);
+    setPhotoStep(true);
+  }
+
   async function generate() {
     if (busy) return;
     const city = form.city.trim();
@@ -223,7 +235,7 @@ function CriativaPage() {
       setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
       return;
     }
-    if (photoMode === "manual" && !manualPhoto) {
+    if (!manualPhoto) {
       setError("Cole, arraste ou envie a imagem da cidade para gerar as artes.");
       return;
     }
@@ -231,21 +243,8 @@ function CriativaPage() {
     setError(null);
     setArts({});
     try {
-      const historyKey = `${city.toLocaleLowerCase("pt-BR")}-${state}`;
-      // Modo Manual: a fotografia escolhida substitui a busca automática.
-      let photoDataUrl = manualPhoto?.dataUrl ?? null;
-      if (!photoDataUrl) {
-        const photo = await getCityPhoto({
-          data: { city, state, exclude: photoHistory(historyKey) },
-        });
-        if (!photo.dataUrl) {
-          throw new Error(
-            `Nenhuma fotografia adequada foi encontrada para ${city} - ${state}. Selecione uma fotografia manualmente ou verifique a grafia da cidade.`,
-          );
-        }
-        rememberPhoto(historyKey, photo.credit);
-        photoDataUrl = photo.dataUrl;
-      }
+      // Toda arte exige fotografia enviada pelo usuário.
+      const photoDataUrl = manualPhoto.dataUrl;
 
       // MODELO A — preenchimento determinístico do Template Institucional.
       const institucional = await composeFromTemplate({
@@ -308,6 +307,7 @@ function CriativaPage() {
       setError(err instanceof Error ? err.message : "Não foi possível gerar as artes agora.");
     } finally {
       setBusy(false);
+      setPhotoStep(false);
     }
   }
 
