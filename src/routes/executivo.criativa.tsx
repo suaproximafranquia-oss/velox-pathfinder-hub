@@ -655,6 +655,71 @@ function CriativaPage() {
         </section>
       </div>
 
+      {framing ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-6">
+          <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card">
+            <header className="flex items-center justify-between border-b border-border px-5 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Ajustar enquadramento</h3>
+                <p className="text-xs text-muted-foreground">
+                  Arraste a fotografia. Todo o restante da arte permanece bloqueado.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setArts((a) => ({ ...a, marketing: framing.art }));
+                    setFraming(null);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                >
+                  <CheckCircle2 className="h-4 w-4" /> Salvar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFraming(null)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground"
+                >
+                  <X className="h-4 w-4" /> Cancelar
+                </button>
+              </div>
+            </header>
+            <div className="overflow-auto p-5">
+              <img
+                src={`data:image/png;base64,${framing.art}`}
+                alt="Ajuste de enquadramento — Modelo B"
+                draggable={false}
+                className="w-full cursor-grab touch-none select-none active:cursor-grabbing"
+                onPointerDown={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  dragRef.current = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    base: framing.offset,
+                    w: rect.width,
+                  };
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                }}
+                onPointerMove={(e) => {
+                  const drag = dragRef.current;
+                  if (!drag || !drag.w) return;
+                  pendingRef.current = {
+                    x: drag.base.x + (e.clientX - drag.x) / drag.w,
+                    y: drag.base.y + (e.clientY - drag.y) / drag.w,
+                  };
+                  void pumpFrame();
+                }}
+                onPointerUp={(e) => {
+                  dragRef.current = null;
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {zoom ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-6"
