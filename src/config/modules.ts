@@ -23,6 +23,7 @@ import {
   Sliders,
   Wand2,
   Megaphone,
+  Radar,
   type LucideIcon,
 } from "lucide-react";
 import { Archive } from "lucide-react";
