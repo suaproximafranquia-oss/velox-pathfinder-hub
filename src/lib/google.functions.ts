@@ -16,18 +16,35 @@ export const getGoogleConnections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<GoogleConnectionStatus[]> => {
     const { GOOGLE_CONNECTORS, CORPORATE_OWNER_ID } = await import("@/server/google.server");
-    const { listConnectionsForUser } = await import("@/server/appUserConnections.server");
+    const { listConnectionsForUser, findAnyConnection, promoteConnectionToOwner } = await import(
+      "@/server/appUserConnections.server"
+    );
+    void context;
     const corporate = await listConnectionsForUser(CORPORATE_OWNER_ID);
-    const stored = corporate.length ? corporate : await listConnectionsForUser(context.userId);
-    return GOOGLE_CONNECTORS.map((connectorId) => {
-      const row = stored.find((s) => s.connectorId === connectorId);
-      return {
+    const result: GoogleConnectionStatus[] = [];
+    for (const connectorId of GOOGLE_CONNECTORS) {
+      let row = corporate.find((s) => s.connectorId === connectorId) ?? null;
+      if (!row) {
+        // Conexão legada de um executivo: promove para a conta do Portal
+        // para que TODOS os usuários vejam o Google conectado.
+        const legacy = await findAnyConnection(connectorId);
+        if (legacy) {
+          await promoteConnectionToOwner(legacy.userId, CORPORATE_OWNER_ID, connectorId);
+          row = {
+            connectorId,
+            accountEmail: legacy.accountEmail,
+            updatedAt: legacy.updatedAt,
+          };
+        }
+      }
+      result.push({
         connectorId,
         connected: Boolean(row),
         accountEmail: row?.accountEmail ?? null,
         updatedAt: row?.updatedAt ?? null,
-      };
-    });
+      });
+    }
+    return result;
   });
 
 /** Inicia o consentimento OAuth 2.0 oficial do Google. */
