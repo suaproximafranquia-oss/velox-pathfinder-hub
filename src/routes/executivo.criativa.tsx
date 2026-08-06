@@ -112,7 +112,10 @@ function CriativaPage() {
       });
       const refA = getReference("institucional");
       const refB = getReference("marketing");
-      setReferences({ ...(refA ? { institucional: refA } : {}), ...(refB ? { marketing: refB } : {}) });
+      setReferences({
+        ...(refA ? { institucional: refA } : {}),
+        ...(refB ? { marketing: refB } : {}),
+      });
     })();
   }, []);
 
@@ -120,7 +123,8 @@ function CriativaPage() {
   function readPhoto(file: File | undefined | null) {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => setManualPhoto({ name: file.name || "foto colada", dataUrl: String(reader.result) });
+    reader.onload = () =>
+      setManualPhoto({ name: file.name || "foto colada", dataUrl: String(reader.result) });
     reader.readAsDataURL(file);
   }
 
@@ -425,7 +429,11 @@ function CriativaPage() {
                   disabled={busy || !manualPhoto}
                   className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
                 >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
                   {busy ? "Gerando…" : "Gerar"}
                 </button>
               </div>

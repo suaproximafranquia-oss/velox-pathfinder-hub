@@ -30,7 +30,12 @@ export function CrmLeadFicha({
   onSaved: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ name, whatsapp: phone ?? "", email: email ?? "", city: city ?? "" });
+  const [draft, setDraft] = useState({
+    name,
+    whatsapp: phone ?? "",
+    email: email ?? "",
+    city: city ?? "",
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

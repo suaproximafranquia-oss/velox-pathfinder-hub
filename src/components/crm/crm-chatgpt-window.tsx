@@ -20,7 +20,10 @@ export function CrmChatGptWindow({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed bottom-6 right-6 z-[95] flex w-[min(460px,92vw)] flex-col overflow-hidden rounded-2xl border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] shadow-2xl"
-      style={{ transform: `translate(${pos.x}px, ${pos.y}px)`, height: minimized ? "auto" : "min(640px, 78vh)" }}
+      style={{
+        transform: `translate(${pos.x}px, ${pos.y}px)`,
+        height: minimized ? "auto" : "min(640px, 78vh)",
+      }}
       role="dialog"
       aria-label="ChatGPT"
     >
@@ -71,11 +74,7 @@ export function CrmChatGptWindow({ onClose }: { onClose: () => void }) {
       </header>
       {minimized ? null : (
         <div className="relative min-h-0 flex-1">
-          <iframe
-            src={CHATGPT_URL}
-            title="ChatGPT"
-            className="h-full w-full border-0 bg-white"
-          />
+          <iframe src={CHATGPT_URL} title="ChatGPT" className="h-full w-full border-0 bg-white" />
           {/* Alternativa silenciosa: alguns navegadores impedem a exibição
               incorporada. O atalho abaixo mantém o fluxo do Executivo. */}
           <a
