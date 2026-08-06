@@ -55,14 +55,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     status: "ativo",
   },
   {
-    id: "ia",
-    name: "IA Corporativa",
-    description: "Assistente corporativo para consultas guiadas ao ecossistema.",
-    icon: Sparkles,
-    to: "/executivo/ia",
-    status: "ativo",
-  },
-  {
     id: "ia-criativa",
     name: "IA Criativa",
     description:
@@ -97,16 +89,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     icon: Gauge,
     to: "/executivo/kpi",
     status: "ativo",
-  },
-  {
-    id: "conhecimento",
-    name: "Central de Conhecimento",
-    description:
-      "Base Oficial do Workspace — documentos que alimentam a IA e os módulos.",
-    icon: Database,
-    to: "/executivo/conhecimento",
-    status: "ativo",
-    requiresRole: ["super_admin", "diretora"],
   },
   {
     id: "crm",
@@ -153,16 +135,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Integrações, identidade visual, permissões e preferências do workspace.",
     icon: Settings,
     to: "/executivo/configuracoes",
-    status: "ativo",
-    requiresRole: ["super_admin"],
-  },
-  {
-    id: "auditoria",
-    name: "Central de Auditoria",
-    description:
-      "Registro completo de ações administrativas — usuários, KPI, investidores e conhecimento.",
-    icon: ShieldCheck,
-    to: "/executivo/auditoria",
     status: "ativo",
     requiresRole: ["super_admin"],
   },
