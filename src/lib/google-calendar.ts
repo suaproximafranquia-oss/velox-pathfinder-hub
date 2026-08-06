@@ -1,8 +1,8 @@
 /**
  * Google Calendar / Meet — integração real (Épico 8).
  *
- * As operações são executadas no servidor com a credencial individual do
- * executivo (App User Connector). O espelho local guarda apenas dados não
+ * As operações são executadas no servidor com a credencial corporativa do
+ * Portal. O espelho local guarda apenas dados não
  * sensíveis dos eventos criados, usados para detectar conflitos de agenda
  * de forma instantânea na interface.
  */
@@ -311,17 +311,7 @@ function markFailure(meeting: Meeting, actor: Actor, err: unknown): void {
   });
 }
 
-async function connected(actor: Actor): Promise<boolean> {
-  const store = getGoogleStore(actor.userId);
-  if (isConnectorConnected(store, "google_calendar")) return true;
-  return isConnectorConnected(await refreshGoogleStore(actor.userId), "google_calendar");
-}
-
 export async function trySyncCreate(meeting: Meeting, actor: Actor): Promise<Meeting> {
-  if (!(await connected(actor))) {
-    applyGoogleSyncPatch(meeting.id, { googleSync: "none" });
-    return meeting;
-  }
   applyGoogleSyncPatch(meeting.id, { googleSync: "pending" });
   try {
     return await syncCreate(meeting, actor);
@@ -332,10 +322,6 @@ export async function trySyncCreate(meeting: Meeting, actor: Actor): Promise<Mee
 }
 
 export async function trySyncUpdate(meeting: Meeting, actor: Actor): Promise<Meeting> {
-  if (!(await connected(actor))) {
-    applyGoogleSyncPatch(meeting.id, { googleSync: "none" });
-    return meeting;
-  }
   applyGoogleSyncPatch(meeting.id, { googleSync: "pending" });
   try {
     return await syncUpdate(meeting, actor);
@@ -346,7 +332,7 @@ export async function trySyncUpdate(meeting: Meeting, actor: Actor): Promise<Mee
 }
 
 export async function trySyncDelete(meeting: Meeting, actor: Actor): Promise<void> {
-  if (!meeting.googleEventId || !(await connected(actor))) return;
+  if (!meeting.googleEventId) return;
   try {
     await syncDelete(meeting, actor);
   } catch (err) {

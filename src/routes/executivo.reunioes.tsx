@@ -55,7 +55,7 @@ import {
   checkConflicts,
   DEFAULT_TIMEZONE,
 } from "@/lib/google-calendar";
-import { getGoogleStore, subscribeGoogleStore } from "@/lib/google-workspace";
+import { getGoogleStore, refreshGoogleStore, subscribeGoogleStore } from "@/lib/google-workspace";
 import { onSync } from "@/lib/sync-bus";
 import {
   MEETING_PROVIDERS,
@@ -176,6 +176,7 @@ function MeetingsPage() {
   useEffect(() => {
     if (!session) return;
     const off = subscribeGoogleStore(session.userId, () => setGoogleTick((t) => t + 1));
+    void refreshGoogleStore(session.userId);
     return () => off();
   }, [session?.userId]);
 
@@ -721,7 +722,7 @@ function NewMeetingDialog({
     }
     const iso = new Date(`${date}T${time}:00`).toISOString();
     const endIso = new Date(new Date(iso).getTime() + 60 * 60_000).toISOString();
-    if (!force && googleConnected && provider.id === "google_meet") {
+    if (!force && provider.id === "google_meet") {
       const found = checkConflicts(session.userId, iso, endIso);
       if (found.length > 0) {
         setConflicts(

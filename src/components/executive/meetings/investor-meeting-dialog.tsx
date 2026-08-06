@@ -11,7 +11,6 @@ import {
   type MeetingProviderId,
 } from "@/lib/meeting-providers";
 import { trySyncCreate, checkConflicts, DEFAULT_TIMEZONE } from "@/lib/google-calendar";
-import { getGoogleStore } from "@/lib/google-workspace";
 import { TIME_INPUT_PROPS, isValidTimeValue, sanitizeTimeValue } from "@/lib/time-input";
 
 /**
@@ -39,15 +38,13 @@ export function InvestorMeetingDialog({
   // executivo da sessão. Ambos permanecem editáveis antes do envio.
   const [investorEmail, setInvestorEmail] = useState(investor.email ?? "");
   const [executiveEmail, setExecutiveEmail] = useState(
-    () => session.email ?? getGoogleStore(session.userId).account?.email ?? "",
+    () => session.email ?? "",
   );
   const [conflicts, setConflicts] = useState<{ summary: string; start: string; end: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const provider = getProvider(providerId);
-  const googleStore = getGoogleStore(session.userId);
-  const googleConnected = googleStore.state === "connected";
 
   async function submit(force = false) {
     if (!date || !time || submitting) return;
@@ -70,7 +67,7 @@ export function InvestorMeetingDialog({
       return;
     }
     const endIso = new Date(new Date(iso).getTime() + 60 * 60_000).toISOString();
-    if (!force && googleConnected && provider.id === "google_meet") {
+    if (!force && provider.id === "google_meet") {
       const found = checkConflicts(session.userId, iso, endIso);
       if (found.length > 0) {
         setConflicts(found.map((e) => ({ summary: e.summary, start: e.start, end: e.end })));
@@ -95,7 +92,7 @@ export function InvestorMeetingDialog({
       meetingProviderStatus: gen.status,
       meetingProviderUrl: gen.url || undefined,
     });
-    if (provider.id === "google_meet" && googleConnected) {
+    if (provider.id === "google_meet") {
       await trySyncCreate(created, {
         userId: session.userId,
         userName: session.name,
@@ -199,9 +196,7 @@ export function InvestorMeetingDialog({
             </label>
           ) : provider.id === "google_meet" ? (
             <p className="rounded-md border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-2 text-[11px] text-[color:var(--muted-foreground)]">
-              {googleConnected
-                ? `Evento será criado no Google Calendar (${DEFAULT_TIMEZONE}) com Meet e convites automáticos.`
-                : "Conecte a integração Google para gerar link automaticamente."}
+              {`Evento será criado pela conta corporativa no Google Calendar (${DEFAULT_TIMEZONE}), com Meet e convites automáticos.`}
             </p>
           ) : (
             <p className="rounded-md border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-2 text-[11px] text-[color:var(--muted-foreground)]">
