@@ -157,7 +157,7 @@ function MeetingsPage() {
     setInviteFeedback(
       result.googleSync === "synced"
         ? `Convite reenviado para os participantes de ${m.investorName}.`
-        : "Conecte sua conta Google em Configurações para enviar convites automaticamente.",
+        : "A integração Google corporativa está indisponível. Solicite a verificação à administração.",
     );
   }
 
