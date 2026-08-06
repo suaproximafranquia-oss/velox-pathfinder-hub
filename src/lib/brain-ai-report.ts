@@ -21,6 +21,7 @@ const LINE: [number, number, number] = [222, 225, 233];
 const SOFT: [number, number, number] = [246, 247, 250];
 const GREEN: [number, number, number] = [34, 122, 84];
 const RED: [number, number, number] = [176, 58, 46];
+const AMBER: [number, number, number] = [186, 118, 20];
 
 const M = 16; // margem lateral
 const TOP = 30;
@@ -105,34 +106,210 @@ const int = (n: number) => new Intl.NumberFormat("pt-BR").format(Math.round(n));
 function kpiCards(c: Ctx, state: { page: number }, y: number, snapshot: BrainSnapshot): number {
   const { doc, w } = c;
   const cols = 3;
-  const gap = 4;
+  const gap = 5;
   const cw = (w - M * 2 - gap * (cols - 1)) / cols;
-  const ch = 22;
+  const ch = 25;
   snapshot.kpis.forEach((k, i) => {
     const col = i % cols;
     if (col === 0) y = room(c, state, y, ch + gap);
     const x = M + col * (cw + gap);
+    // sombra suave
+    doc.setFillColor(232, 235, 241);
+    doc.roundedRect(x + 0.7, y + 0.9, cw, ch, 2.4, 2.4, "F");
     doc.setFillColor(...SOFT);
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.3);
-    doc.roundedRect(x, y, cw, ch, 2, 2, "FD");
+    doc.roundedRect(x, y, cw, ch, 2.4, 2.4, "FD");
     doc.setFillColor(...GOLD);
-    doc.rect(x, y, 1.4, ch, "F");
+    doc.rect(x, y, 1.6, ch, "F");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.8);
     doc.setTextColor(...MUTED);
-    doc.text(k.label.toUpperCase(), x + 5, y + 7, { charSpace: 0.8 });
+    doc.text(k.label.toUpperCase(), x + 5.5, y + 7.5, { charSpace: 0.8 });
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
+    doc.setFontSize(14.5);
     doc.setTextColor(...NAVY);
-    doc.text(String(k.value), x + 5, y + 15.5);
+    doc.text(String(k.value), x + 5.5, y + 16.5);
+    doc.setDrawColor(...LINE);
+    doc.setLineWidth(0.2);
+    doc.line(x + 5.5, y + 18.6, x + cw - 5, y + 18.6);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.6);
     doc.setTextColor(...MUTED);
-    doc.text((doc.splitTextToSize(k.description, cw - 8) as string[])[0] ?? "", x + 5, y + 19.5);
+    doc.text((doc.splitTextToSize(k.description, cw - 9) as string[])[0] ?? "", x + 5.5, y + 22.3);
     if (col === cols - 1) y += ch + gap;
   });
   if (snapshot.kpis.length % cols !== 0) y += ch + gap;
+  return y + 2;
+}
+
+/* --------------------- painel executivo (destaques) ---------------------- */
+
+type Highlight = { label: string; value: string; note: string; tone: "good" | "warn" | "bad" };
+
+function buildHighlights(a: BrainAnalytics, snapshot: BrainSnapshot): Highlight[] {
+  const out: Highlight[] = [];
+  const sorted = [...a.conversions].sort((x, y2) => y2.rate - x.rate);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  const leads = snapshot.funnel.find((s) => s.id !== "revenue");
+  const sales = [...snapshot.funnel].reverse().find((s) => s.id !== "revenue");
+  const revenue = snapshot.funnel.find((s) => s.id === "revenue");
+
+  if (leads && sales && leads.value > 0) {
+    const overall = sales.value / leads.value;
+    out.push({
+      label: "Conversão geral",
+      value: pct(overall),
+      note: `${int(leads.value)} → ${int(sales.value)}`,
+      tone: overall >= 0.15 ? "good" : overall >= 0.07 ? "warn" : "bad",
+    });
+  }
+  if (revenue) {
+    out.push({
+      label: "Receita do período",
+      value: brl(revenue.value),
+      note: a.monthLabel,
+      tone: "good",
+    });
+  }
+  if (best) {
+    out.push({ label: "Melhor conversão", value: pct(best.rate), note: best.label, tone: "good" });
+  }
+  if (worst && worst !== best) {
+    out.push({ label: "Principal gargalo", value: pct(worst.rate), note: worst.label, tone: "warn" });
+  }
+  const top = [...a.comparison.rows]
+    .filter((r) => r.vsPrevious !== null)
+    .sort((x, y2) => (y2.vsPrevious ?? 0) - (x.vsPrevious ?? 0))[0];
+  if (top) {
+    out.push({
+      label: "Melhor indicador",
+      value: `${(top.vsPrevious ?? 0) >= 0 ? "+" : "-"}${pct(Math.abs(top.vsPrevious ?? 0))}`,
+      note: `${top.label} vs. ${a.comparison.previousLabel}`,
+      tone: (top.vsPrevious ?? 0) >= 0 ? "good" : "bad",
+    });
+  }
+  return out;
+}
+
+function highlightPanel(c: Ctx, state: { page: number }, y: number, items: Highlight[]): number {
+  const { doc, w } = c;
+  const cols = 3;
+  const gap = 5;
+  const cw = (w - M * 2 - gap * (cols - 1)) / cols;
+  const ch = 27;
+  items.forEach((it, i) => {
+    const col = i % cols;
+    if (col === 0) y = room(c, state, y, ch + gap);
+    const x = M + col * (cw + gap);
+    const tone = it.tone === "good" ? GREEN : it.tone === "warn" ? AMBER : RED;
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(x, y, cw, ch, 2.4, 2.4, "F");
+    doc.setFillColor(...tone);
+    doc.circle(x + 6, y + 7, 1.7, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.6);
+    doc.setTextColor(...GOLD);
+    doc.text(it.label.toUpperCase(), x + 10, y + 8, { charSpace: 0.9 });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(255, 255, 255);
+    doc.text(it.value, x + 6, y + 18.5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.6);
+    doc.setTextColor(178, 188, 208);
+    doc.text((doc.splitTextToSize(it.note, cw - 10) as string[])[0] ?? "", x + 6, y + 23.5);
+    if (col === cols - 1) y += ch + gap;
+  });
+  if (items.length % cols !== 0) y += ch + gap;
+  return y + 2;
+}
+
+/* ------------------- gráfico comparativo (barras duplas) ----------------- */
+
+function comparisonChart(c: Ctx, state: { page: number }, y: number, a: BrainAnalytics): number {
+  const { doc, w } = c;
+  const full = w - M * 2;
+  const rows = a.comparison.rows.filter((r) => r.unit !== "currency");
+  if (!rows.length) return y;
+  const max = Math.max(...rows.flatMap((r) => [r.current, r.previous]), 1);
+  const track = full * 0.6;
+  for (const r of rows) {
+    y = room(c, state, y, 18);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...NAVY);
+    doc.text(r.label, M, y + 3);
+    const v = r.vsPrevious;
+    doc.setFontSize(7.6);
+    doc.setTextColor(...(v === null ? MUTED : v >= 0 ? GREEN : RED));
+    doc.text(v === null ? "—" : `${v >= 0 ? "+" : "-"}${pct(Math.abs(v))}`, w - M, y + 3, {
+      align: "right",
+    });
+    const bars: [number, [number, number, number], string][] = [
+      [r.current, NAVY, a.monthLabel],
+      [r.previous, [168, 178, 196], a.comparison.previousLabel],
+    ];
+    let by = y + 5.5;
+    for (const [val, color, lbl] of bars) {
+      doc.setFillColor(...SOFT);
+      doc.roundedRect(M, by, track, 4.2, 1, 1, "F");
+      doc.setFillColor(...color);
+      doc.roundedRect(M, by, Math.max(1.5, track * (val / max)), 4.2, 1, 1, "F");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.6);
+      doc.setTextColor(...MUTED);
+      doc.text(`${lbl} · ${int(val)}`, M + track + 3, by + 3.2);
+      by += 5.6;
+    }
+    y = by + 2.4;
+  }
+  return y + 2;
+}
+
+/* -------------------------- plano de ação por prioridade ------------------ */
+
+function actionPlan(c: Ctx, state: { page: number }, y: number, items: string[]): number {
+  const { doc, w } = c;
+  const full = w - M * 2;
+  const groups: [string, [number, number, number], string[]][] = [
+    ["Prioridade alta", RED, items.slice(0, 2)],
+    ["Prioridade média", AMBER, items.slice(2, 4)],
+    ["Prioridade baixa", GREEN, items.slice(4)],
+  ];
+  for (const [label, color, list] of groups) {
+    if (!list.length) continue;
+    y = room(c, state, y, 14);
+    doc.setFillColor(...color);
+    doc.roundedRect(M, y, 34, 6, 1.4, 1.4, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.8);
+    doc.setTextColor(255, 255, 255);
+    doc.text(label.toUpperCase(), M + 3, y + 4.1, { charSpace: 0.8 });
+    y += 9;
+    for (const item of list) {
+      const lines = doc.splitTextToSize(item, full - 12) as string[];
+      const ch = 4 + lines.length * 4.4;
+      y = room(c, state, y, ch + 3);
+      doc.setFillColor(...SOFT);
+      doc.setDrawColor(...LINE);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(M, y, full, ch, 2, 2, "FD");
+      doc.setFillColor(...color);
+      doc.rect(M, y, 1.6, ch, "F");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.4);
+      doc.setTextColor(...TEXT);
+      let ty = y + 5.6;
+      for (const l of lines) {
+        doc.text(l, M + 6, ty);
+        ty += 4.4;
+      }
+      y += ch + 3;
+    }
+    y += 2;
+  }
   return y + 2;
 }
 
@@ -263,25 +440,35 @@ function insightCards(c: Ctx, state: { page: number }, y: number, a: BrainAnalyt
   const full = w - M * 2;
   for (const ins of a.insights) {
     const body = doc.splitTextToSize(ins.detail, full - 12) as string[];
-    const ch = 12 + body.length * 4.4;
+    const ch = 17 + body.length * 4.4;
     y = room(c, state, y, ch + 4);
-    const accent = ins.tone === "positivo" ? GREEN : ins.tone === "atencao" ? RED : GOLD;
+    const accent = ins.tone === "positivo" ? GREEN : ins.tone === "atencao" ? AMBER : NAVY;
+    const chip =
+      ins.tone === "positivo" ? "DESTAQUE POSITIVO" : ins.tone === "atencao" ? "ATENÇÃO" : "OBSERVAÇÃO";
+    doc.setFillColor(232, 235, 241);
+    doc.roundedRect(M + 0.7, y + 0.9, full, ch, 2.4, 2.4, "F");
     doc.setFillColor(...SOFT);
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.3);
-    doc.roundedRect(M, y, full, ch, 2, 2, "FD");
+    doc.roundedRect(M, y, full, ch, 2.4, 2.4, "FD");
     doc.setFillColor(...accent);
-    doc.rect(M, y, 1.6, ch, "F");
+    doc.rect(M, y, 1.8, ch, "F");
+    doc.setFillColor(...accent);
+    doc.circle(M + 8, y + 7, 1.6, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(...NAVY);
-    doc.text(ins.title, M + 6, y + 7);
+    doc.text(ins.title, M + 12.5, y + 8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.4);
+    doc.setTextColor(...accent);
+    doc.text(chip, w - M - 4, y + 8, { align: "right", charSpace: 0.8 });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.2);
     doc.setTextColor(...TEXT);
-    let ty = y + 12.5;
+    let ty = y + 14.5;
     for (const l of body) {
-      doc.text(l, M + 6, ty);
+      doc.text(l, M + 6.5, ty);
       ty += 4.4;
     }
     y += ch + 4;
@@ -331,7 +518,9 @@ export function generateBrainExecutivePdf(input: {
   doc.setFillColor(...NAVY_DEEP);
   doc.rect(0, 0, w, h, "F");
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, w, 120, "F");
+  doc.rect(0, 0, w, 128, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 128, w, 1.2, "F");
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.6);
   doc.line(M, 34, M + 28, 34);
@@ -340,22 +529,27 @@ export function generateBrainExecutivePdf(input: {
   doc.setTextColor(...GOLD);
   doc.text("BRAIN ANALYTICS · RELATÓRIO INTELIGENTE", M, 29, { charSpace: 2 });
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(24);
+  doc.setFontSize(30);
   doc.setTextColor(255, 255, 255);
   const titleLines = doc.splitTextToSize(input.report.title, w - M * 2) as string[];
-  let ty = 72;
+  let ty = 68;
   for (const l of titleLines.slice(0, 3)) {
     doc.text(l, M, ty);
-    ty += 11;
+    ty += 13;
   }
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(...GOLD);
-  doc.text((doc.splitTextToSize(input.report.subtitle, w - M * 2) as string[])[0] ?? "", M, ty + 4);
-
   doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.4);
-  doc.line(M, 140, w - M, 140);
+  doc.setLineWidth(1.2);
+  doc.line(M, ty + 1, M + 34, ty + 1);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11.5);
+  doc.setTextColor(214, 220, 234);
+  const subLines = doc.splitTextToSize(input.report.subtitle, w - M * 2 - 10) as string[];
+  let sy = ty + 10;
+  for (const l of subLines.slice(0, 2)) {
+    doc.text(l, M, sy);
+    sy += 6;
+  }
+
   const meta: [string, string][] = [
     ["Escopo", a.subjectLabel],
     ["Competência", a.monthLabel],
@@ -365,15 +559,17 @@ export function generateBrainExecutivePdf(input: {
   ];
   let my = 152;
   for (const [k, v] of meta) {
+    doc.setFillColor(...GOLD);
+    doc.rect(M, my - 3.4, 1.2, 11, "F");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...GOLD);
-    doc.text(k.toUpperCase(), M, my, { charSpace: 1.2 });
+    doc.text(k.toUpperCase(), M + 5, my, { charSpace: 1.2 });
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10.5);
     doc.setTextColor(255, 255, 255);
     const vl = doc.splitTextToSize(v, w - M * 2) as string[];
-    doc.text(vl[0] ?? "", M, my + 6);
+    doc.text(vl[0] ?? "", M + 5, my + 6);
     my += 16;
   }
   doc.setFont("helvetica", "normal");
@@ -388,6 +584,9 @@ export function generateBrainExecutivePdf(input: {
 
   // Página 2 em diante
   let y = newPage(c, state);
+
+  y = sectionTitle(c, state, y, "Painel executivo", "Destaques do período");
+  y = highlightPanel(c, state, y, buildHighlights(a, input.snapshot));
 
   if (input.report.summary) {
     y = sectionTitle(c, state, y, "Resumo executivo", "Leitura do período");
@@ -406,6 +605,7 @@ export function generateBrainExecutivePdf(input: {
 
   y = sectionTitle(c, state, y, "Comparativos", "Atual · anterior · média anual");
   y = comparisonTable(c, state, y, a);
+  y = comparisonChart(c, state, y, a);
 
   for (const s of input.report.sections) {
     y = sectionTitle(c, state, y, "Análise da IA Executiva", s.title);
@@ -418,7 +618,7 @@ export function generateBrainExecutivePdf(input: {
 
   if (input.report.recommendations.length) {
     y = sectionTitle(c, state, y, "Plano de ação", "Prioridades recomendadas");
-    y = bullets(c, state, y, input.report.recommendations);
+    y = actionPlan(c, state, y, input.report.recommendations);
   }
 
   y = room(c, state, y, 24);
