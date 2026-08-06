@@ -282,7 +282,7 @@ export type ComposeInput = {
   guide?: boolean;
   /**
    * Reposicionamento manual da fotografia dentro da máscara (frações da
-   * área). Único ajuste permitido ao usuário — nada mais é editável.
+   * largura/altura do template). Único ajuste permitido ao usuário.
    */
   photoOffset?: { x: number; y: number };
 };
