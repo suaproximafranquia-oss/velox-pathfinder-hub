@@ -62,37 +62,6 @@ function unitName(form: FormState): string {
   return `Velox ${form.city}${form.state ? ` — ${form.state}` : ""}`.trim();
 }
 
-/**
- * Fotografias já utilizadas por cidade. Sempre que a mesma cidade é
- * solicitada novamente, tentamos uma imagem diferente da anterior.
- */
-const PHOTO_HISTORY_KEY = "velox.creative.photos.v1";
-
-function photoHistory(key: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const all = JSON.parse(window.localStorage.getItem(PHOTO_HISTORY_KEY) || "{}");
-    const list = (all as Record<string, unknown>)[key];
-    return Array.isArray(list) ? (list as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function rememberPhoto(key: string, credit: string | null) {
-  if (typeof window === "undefined" || !credit) return;
-  try {
-    const all = JSON.parse(window.localStorage.getItem(PHOTO_HISTORY_KEY) || "{}") as Record<
-      string,
-      string[]
-    >;
-    const list = Array.isArray(all[key]) ? all[key]! : [];
-    // Guarda as últimas 6: garante rotação sem esgotar as opções.
-    all[key] = [credit, ...list.filter((c) => c !== credit)].slice(0, 6);
-    window.localStorage.setItem(PHOTO_HISTORY_KEY, JSON.stringify(all));
-  } catch {
-    /* histórico é apenas conveniência */
-  }
 }
 
 function CriativaPage() {
