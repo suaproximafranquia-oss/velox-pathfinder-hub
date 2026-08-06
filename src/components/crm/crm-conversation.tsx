@@ -18,7 +18,7 @@ import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CRM_TEMPLATES, resolveCrmWindow, type CrmWindowStatus } from "@/lib/crm/templates";
-import { CrmChatGptWindow } from "@/components/crm/crm-chatgpt-window";
+const CHATGPT_URL = "https://chatgpt.com/";
 
 /** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
 function useSecondTick(active: boolean) {
@@ -316,7 +316,6 @@ export function CrmComposer({
 }) {
   const [text, setText] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
   const [armedTemplate, setArmedTemplate] = useState(false);
   // Template escolhido no módulo Templates entra direto na caixa,
   // pronto para edição antes do envio.
@@ -370,7 +369,6 @@ export function CrmComposer({
                 setText(t.body(investorName));
                 setArmedTemplate(true);
                 setTemplatesOpen(false);
-                setAiOpen(false);
               }}
               className="cursor-pointer rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
             >
@@ -379,7 +377,6 @@ export function CrmComposer({
           ))}
         </div>
       ) : null}
-      {aiOpen ? <CrmChatGptWindow onClose={() => setAiOpen(false)} /> : null}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -388,7 +385,6 @@ export function CrmComposer({
           aria-label="Templates de mensagem"
           title="Templates aprovados"
           onClick={() => {
-            setAiOpen(false);
             setTemplatesOpen((v) => !v);
           }}
           className={[
@@ -402,18 +398,17 @@ export function CrmComposer({
         </button>
         <button
           type="button"
-          aria-expanded={aiOpen}
-          aria-label="Abrir ChatGPT"
-          title="Abrir ChatGPT"
+          aria-label="Abrir o ChatGPT em uma nova aba"
+          title="Abrir o ChatGPT em uma nova aba"
           onClick={() => {
             setTemplatesOpen(false);
-            setAiOpen((v) => !v);
+            // Atalho simples: o ChatGPT bloqueia carregamento embutido,
+            // então abrimos uma nova aba e mantemos o Portal aberto.
+            window.open(CHATGPT_URL, "_blank", "noopener,noreferrer");
           }}
           className={[
             "inline-flex h-[42px] shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-[color:var(--crm-border)] px-3 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0",
-            aiOpen
-              ? "bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
-              : "text-[color:var(--crm-muted)]",
+            "text-[color:var(--crm-muted)]",
           ].join(" ")}
         >
           <Sparkles className="h-4 w-4" />

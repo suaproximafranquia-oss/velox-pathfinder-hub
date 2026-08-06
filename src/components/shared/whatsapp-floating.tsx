@@ -5,7 +5,6 @@ import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
 import { getPortalSession, promotePortalSession } from "@/lib/portal-session";
 import { registerLead, updateLead, loadLeads, type VisitorIdentity } from "@/lib/leads";
 import { trackJourney } from "@/lib/journey/engine";
-import { getActiveOverlay, subscribeOverlay } from "@/lib/portal-overlay";
 import { startRelationship } from "@/lib/crm/commercial";
 import { recordServiceRequestAlert } from "@/lib/workspace-alerts";
 
@@ -61,20 +60,15 @@ export function WhatsAppFloating() {
   const [modalOpen, setModalOpen] = useState(false);
   /** Dentro de um overlay (iframe) o botão da Home já está visível. */
   const [insideOverlay, setInsideOverlay] = useState(false);
-  /** Enquanto um módulo estiver aberto sobre a Home, o FAB global some. */
-  const [overlayActive, setOverlayActive] = useState(false);
 
   useEffect(() => {
     setResolved(getResponsibleExecutive());
     setInsideOverlay(typeof window !== "undefined" && window.self !== window.top);
   }, []);
 
-  useEffect(() => {
-    setOverlayActive(getActiveOverlay() !== null);
-    return subscribeOverlay((key) => setOverlayActive(key !== null));
-  }, []);
-
-  if (insideOverlay || overlayActive) return null;
+  // O botão permanece fixo em toda a navegação do investidor, inclusive
+  // com módulos abertos (Manual, Material, Simulador).
+  if (insideOverlay) return null;
 
   const label = "Solicitar Atendimento";
 
@@ -115,7 +109,7 @@ export function WhatsAppFloating() {
         type="button"
         onClick={handleClick}
         aria-label={label}
-        className="fixed bottom-6 right-6 z-[70] inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-medium text-white shadow-[0_18px_40px_-12px_rgba(37,211,102,0.55)] transition hover:scale-[1.03] hover:bg-[#1FAE54]"
+        className="fixed bottom-6 right-6 z-[85] inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-medium text-white shadow-[0_18px_40px_-12px_rgba(37,211,102,0.55)] transition hover:scale-[1.03] hover:bg-[#1FAE54]"
       >
         <MessageCircle className="h-5 w-5" />
         <span className="hidden sm:inline">{label}</span>
@@ -213,7 +207,7 @@ function WhatsAppLeadModal({
     "w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-[15px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/25 transition";
 
   return (
-    <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true">
       <button
         type="button"
         aria-label="Fechar"
