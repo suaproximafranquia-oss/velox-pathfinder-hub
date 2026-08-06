@@ -347,7 +347,6 @@ export async function trySyncDelete(meeting: Meeting, actor: Actor): Promise<voi
 export async function syncPending(
   actor: Actor,
 ): Promise<{ synced: number; failed: number; skipped: number }> {
-  if (!connected(actor)) return { synced: 0, failed: 0, skipped: 0 };
   const meetings = listMeetings({ executiveId: actor.userId }).filter(
     (m) => m.status !== "Cancelada" && m.status !== "Concluída",
   );
