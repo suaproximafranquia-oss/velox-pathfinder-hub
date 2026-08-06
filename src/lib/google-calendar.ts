@@ -8,7 +8,7 @@
  */
 import { emitEvent } from "@/lib/events/bus";
 import { logAudit } from "@/lib/audit-log";
-import { getGoogleStore, isConnectorConnected } from "@/lib/google-workspace";
+import { getGoogleStore, isConnectorConnected, refreshGoogleStore } from "@/lib/google-workspace";
 import {
   cancelGoogleEvent,
   createGoogleEvent,
@@ -113,8 +113,15 @@ export function checkConflicts(
   });
 }
 
-function requireConnected(actor: Actor) {
-  const store = getGoogleStore(actor.userId);
+/**
+ * A Conta Google é corporativa: se o cache local ainda não conhece a
+ * conexão, consulta o servidor antes de recusar a sincronização.
+ */
+async function requireConnected(actor: Actor) {
+  let store = getGoogleStore(actor.userId);
+  if (!isConnectorConnected(store, "google_calendar")) {
+    store = await refreshGoogleStore(actor.userId);
+  }
   if (!isConnectorConnected(store, "google_calendar")) {
     throw new Error("Conta Google desconectada.");
   }
@@ -123,7 +130,7 @@ function requireConnected(actor: Actor) {
 
 /** Cria o evento real no Calendar com link oficial do Google Meet. */
 export async function syncCreate(meeting: Meeting, actor: Actor): Promise<Meeting> {
-  const store = requireConnected(actor);
+  const store = await requireConnected(actor);
   const executiveEmail = actor.email ?? store.account?.email;
   const start = meeting.scheduledAt;
   const end = endOf(meeting);
@@ -183,7 +190,7 @@ export async function syncCreate(meeting: Meeting, actor: Actor): Promise<Meetin
 /** Atualiza data/hora/descrição/participantes do evento real. */
 export async function syncUpdate(meeting: Meeting, actor: Actor): Promise<Meeting> {
   if (!meeting.googleEventId) return syncCreate(meeting, actor);
-  const store = requireConnected(actor);
+  const store = await requireConnected(actor);
   const executiveEmail = actor.email ?? store.account?.email;
   const start = meeting.scheduledAt;
   const end = endOf(meeting);
@@ -243,7 +250,7 @@ export async function syncUpdate(meeting: Meeting, actor: Actor): Promise<Meetin
 export async function syncDelete(meeting: Meeting, actor: Actor): Promise<void> {
   if (!meeting.googleEventId) return;
   try {
-    requireConnected(actor);
+    await requireConnected(actor);
     await cancelGoogleEvent({ data: { eventId: meeting.googleEventId } });
   } catch (err) {
     markFailure(meeting, actor, err);
@@ -304,12 +311,14 @@ function markFailure(meeting: Meeting, actor: Actor, err: unknown): void {
   });
 }
 
-function connected(actor: Actor): boolean {
-  return isConnectorConnected(getGoogleStore(actor.userId), "google_calendar");
+async function connected(actor: Actor): Promise<boolean> {
+  const store = getGoogleStore(actor.userId);
+  if (isConnectorConnected(store, "google_calendar")) return true;
+  return isConnectorConnected(await refreshGoogleStore(actor.userId), "google_calendar");
 }
 
 export async function trySyncCreate(meeting: Meeting, actor: Actor): Promise<Meeting> {
-  if (!connected(actor)) {
+  if (!(await connected(actor))) {
     applyGoogleSyncPatch(meeting.id, { googleSync: "none" });
     return meeting;
   }
@@ -323,7 +332,7 @@ export async function trySyncCreate(meeting: Meeting, actor: Actor): Promise<Mee
 }
 
 export async function trySyncUpdate(meeting: Meeting, actor: Actor): Promise<Meeting> {
-  if (!connected(actor)) {
+  if (!(await connected(actor))) {
     applyGoogleSyncPatch(meeting.id, { googleSync: "none" });
     return meeting;
   }
@@ -337,7 +346,7 @@ export async function trySyncUpdate(meeting: Meeting, actor: Actor): Promise<Mee
 }
 
 export async function trySyncDelete(meeting: Meeting, actor: Actor): Promise<void> {
-  if (!connected(actor) || !meeting.googleEventId) return;
+  if (!meeting.googleEventId || !(await connected(actor))) return;
   try {
     await syncDelete(meeting, actor);
   } catch (err) {

@@ -23,6 +23,7 @@ import {
   Sliders,
   Wand2,
   Megaphone,
+  Radar,
   type LucideIcon,
 } from "lucide-react";
 import { Archive } from "lucide-react";
@@ -98,6 +99,15 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     icon: Users2,
     href: "/crm",
     external: true,
+    status: "ativo",
+  },
+  {
+    id: "central-captacao",
+    name: "Central de Captação",
+    description:
+      "Monitoramento das origens de aquisição de leads: Meta Ads, TikTok Ads, Google Ads e Portal Velox.",
+    icon: Radar,
+    to: "/executivo/captacao",
     status: "ativo",
   },
   {

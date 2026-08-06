@@ -18,6 +18,7 @@ import {
   Contact,
   FolderOpen,
   Archive,
+  Radar,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -68,6 +69,7 @@ export function ExecutiveShell({
   ];
 
   const administrative = [
+    { to: "/executivo/captacao", label: "Central de Captação", icon: Radar },
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
     { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
