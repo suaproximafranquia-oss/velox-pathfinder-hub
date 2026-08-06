@@ -20,6 +20,16 @@ import {
   setDefaultProviderForExecutive,
   type MeetingProviderId,
 } from "@/lib/meeting-providers";
+import {
+  getGoogleStore,
+  googleIssues,
+  isConnectorConnected,
+  reconnectGoogleAccount,
+  refreshGoogleStore,
+  subscribeGoogleStore,
+  testGoogleService,
+  type GoogleConnectorKey,
+} from "@/lib/google-workspace";
 
 export const Route = createFileRoute("/executivo/configuracoes")({
   head: () => ({
@@ -95,7 +105,7 @@ function ConfiguracoesPage() {
         <div className="grid gap-4">
           <VideoconferenciaSection session={session} />
           <ProtecaoHomologacaoSection />
-          <IntegracoesSection />
+          <IntegracoesSection session={session} />
           {sections.map((s) => {
             const Icon = s.icon;
             return (
