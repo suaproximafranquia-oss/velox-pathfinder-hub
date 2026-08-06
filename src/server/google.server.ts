@@ -6,7 +6,11 @@
  * sob o proprietário corporativo. Nenhum token trafega para o navegador.
  */
 import { callAsAppUser } from "@/integrations/lovable/appUserConnector";
-import { getConnectionKeyForUser } from "@/server/appUserConnections.server";
+import {
+  findAnyConnection,
+  getConnectionKeyForUser,
+  promoteConnectionToOwner,
+} from "@/server/appUserConnections.server";
 
 export const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
 
@@ -61,10 +65,13 @@ export async function resolveCorporateKey(
 ): Promise<string | null> {
   const corporate = await getConnectionKeyForUser(CORPORATE_OWNER_ID, connectorId);
   if (corporate) return corporate;
-  if (legacyUserId && legacyUserId !== CORPORATE_OWNER_ID) {
-    return getConnectionKeyForUser(legacyUserId, connectorId);
-  }
-  return null;
+  void legacyUserId;
+  // Credencial antiga vinculada a um executivo: promove para a conta
+  // corporativa e passa a valer para todos os usuários do Portal.
+  const legacy = await findAnyConnection(connectorId);
+  if (!legacy) return null;
+  await promoteConnectionToOwner(legacy.userId, CORPORATE_OWNER_ID, connectorId);
+  return legacy.key;
 }
 
 /** Chamada autenticada ao Google via gateway. Lança com o corpo do erro. */
