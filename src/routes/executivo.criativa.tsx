@@ -604,23 +604,45 @@ function CriativaPage() {
                 </header>
                 <div className="p-5">
                   {art ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setZoom({
-                          model,
-                          src: `data:image/png;base64,${art}`,
-                          file: fileFor(model),
-                        })
-                      }
-                      className="block w-full overflow-hidden rounded-xl border border-border transition hover:opacity-90"
-                    >
-                      <img
-                        src={`data:image/png;base64,${art}`}
-                        alt={`${CREATIVE_MODEL_LABEL[model]} — ${form.city}`}
-                        className="w-full"
-                      />
-                    </button>
+                    <div className="flex flex-col gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          model === "marketing" && lastRun
+                            ? setFraming({ offset: { x: 0, y: 0 }, art })
+                            : setZoom({
+                                model,
+                                src: `data:image/png;base64,${art}`,
+                                file: fileFor(model),
+                              })
+                        }
+                        className="block w-full overflow-hidden rounded-xl border border-border transition hover:opacity-90"
+                      >
+                        <img
+                          src={`data:image/png;base64,${art}`}
+                          alt={`${CREATIVE_MODEL_LABEL[model]} — ${form.city}`}
+                          className="w-full"
+                        />
+                      </button>
+                      {model === "marketing" && lastRun ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFraming({ offset: { x: 0, y: 0 }, art })}
+                            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted"
+                          >
+                            <Move className="h-4 w-4" /> Ajustar enquadramento
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadBase64(art, fileFor(model))}
+                            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                          >
+                            <Download className="h-4 w-4" /> Download
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
                       {busy ? "Gerando…" : "Aguardando geração"}
