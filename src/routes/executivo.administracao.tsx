@@ -3,9 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Settings,
   Sliders,
-  Database,
   FolderOpen,
-  Sparkles,
   ShieldCheck,
   Users2,
   ListChecks,
@@ -115,32 +113,11 @@ function AdminHub({ role }: { role: ExecutiveSession["activeRole"] }) {
       show: can(role, "admin.users.manage"),
     },
     {
-      to: "/executivo/conhecimento",
-      icon: Database,
-      title: "Base de Conhecimento",
-      desc: "Fonte oficial consultada pela IA Corporativa.",
-      show: can(role, "knowledge.manage"),
-    },
-    {
       to: "/executivo/recursos",
       icon: FolderOpen,
       title: "Centro de Recursos",
       desc: "Ativos institucionais reutilizáveis.",
       show: can(role, "resources.manage"),
-    },
-    {
-      to: "/executivo/ia",
-      icon: Sparkles,
-      title: "IA Corporativa",
-      desc: "Assistente transversal consultivo.",
-      show: can(role, "ai.corporate.use"),
-    },
-    {
-      to: "/executivo/auditoria",
-      icon: ShieldCheck,
-      title: "Auditoria",
-      desc: "Registro imutável de ações administrativas.",
-      show: can(role, "audit.read"),
     },
     {
       to: "/executivo/configuracoes",

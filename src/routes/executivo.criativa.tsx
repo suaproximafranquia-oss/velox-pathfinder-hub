@@ -30,7 +30,7 @@ import {
   type CreativeTemplate,
   type CreativeReference,
 } from "@/lib/creative/template-store";
-import { generateCreativeCopy, getCityPhoto } from "@/lib/creative.functions";
+import { generateCreativeCopy } from "@/lib/creative.functions";
 import { testTemplate, TEST_CITY, TEST_STATE } from "@/lib/creative/template-test";
 import type { Diagnostic } from "@/lib/creative/calibration";
 
@@ -62,39 +62,6 @@ function unitName(form: FormState): string {
   return `Velox ${form.city}${form.state ? ` — ${form.state}` : ""}`.trim();
 }
 
-/**
- * Fotografias já utilizadas por cidade. Sempre que a mesma cidade é
- * solicitada novamente, tentamos uma imagem diferente da anterior.
- */
-const PHOTO_HISTORY_KEY = "velox.creative.photos.v1";
-
-function photoHistory(key: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const all = JSON.parse(window.localStorage.getItem(PHOTO_HISTORY_KEY) || "{}");
-    const list = (all as Record<string, unknown>)[key];
-    return Array.isArray(list) ? (list as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function rememberPhoto(key: string, credit: string | null) {
-  if (typeof window === "undefined" || !credit) return;
-  try {
-    const all = JSON.parse(window.localStorage.getItem(PHOTO_HISTORY_KEY) || "{}") as Record<
-      string,
-      string[]
-    >;
-    const list = Array.isArray(all[key]) ? all[key]! : [];
-    // Guarda as últimas 6: garante rotação sem esgotar as opções.
-    all[key] = [credit, ...list.filter((c) => c !== credit)].slice(0, 6);
-    window.localStorage.setItem(PHOTO_HISTORY_KEY, JSON.stringify(all));
-  } catch {
-    /* histórico é apenas conveniência */
-  }
-}
-
 function CriativaPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
@@ -113,8 +80,8 @@ function CriativaPage() {
   const [uploadingRef, setUploadingRef] = useState<CreativeModel | null>(null);
   /** Modo Manual: fotografia escolhida pelo usuário (opcional). */
   const [manualPhoto, setManualPhoto] = useState<{ name: string; dataUrl: string } | null>(null);
-  /** Origem da fotografia: busca automática ou imagem enviada. */
-  const [photoMode, setPhotoMode] = useState<"auto" | "manual">("auto");
+  /** Etapa 2 do fluxo: envio obrigatório da fotografia da cidade. */
+  const [photoStep, setPhotoStep] = useState(false);
   const [testing, setTesting] = useState<CreativeModel | null>(null);
   const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
   /**
@@ -145,7 +112,10 @@ function CriativaPage() {
       });
       const refA = getReference("institucional");
       const refB = getReference("marketing");
-      setReferences({ ...(refA ? { institucional: refA } : {}), ...(refB ? { marketing: refB } : {}) });
+      setReferences({
+        ...(refA ? { institucional: refA } : {}),
+        ...(refB ? { marketing: refB } : {}),
+      });
     })();
   }, []);
 
@@ -153,7 +123,8 @@ function CriativaPage() {
   function readPhoto(file: File | undefined | null) {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => setManualPhoto({ name: file.name || "foto colada", dataUrl: String(reader.result) });
+    reader.onload = () =>
+      setManualPhoto({ name: file.name || "foto colada", dataUrl: String(reader.result) });
     reader.readAsDataURL(file);
   }
 
@@ -215,6 +186,18 @@ function CriativaPage() {
     setSession(s);
   }, [navigate]);
 
+  /** Etapa 1: Cidade + UF › abre o envio da fotografia. */
+  function startGeneration() {
+    const city = form.city.trim();
+    const state = form.state.trim().toUpperCase();
+    if (!city || state.length !== 2) {
+      setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
+      return;
+    }
+    setError(null);
+    setPhotoStep(true);
+  }
+
   async function generate() {
     if (busy) return;
     const city = form.city.trim();
@@ -223,7 +206,7 @@ function CriativaPage() {
       setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
       return;
     }
-    if (photoMode === "manual" && !manualPhoto) {
+    if (!manualPhoto) {
       setError("Cole, arraste ou envie a imagem da cidade para gerar as artes.");
       return;
     }
@@ -231,21 +214,8 @@ function CriativaPage() {
     setError(null);
     setArts({});
     try {
-      const historyKey = `${city.toLocaleLowerCase("pt-BR")}-${state}`;
-      // Modo Manual: a fotografia escolhida substitui a busca automática.
-      let photoDataUrl = manualPhoto?.dataUrl ?? null;
-      if (!photoDataUrl) {
-        const photo = await getCityPhoto({
-          data: { city, state, exclude: photoHistory(historyKey) },
-        });
-        if (!photo.dataUrl) {
-          throw new Error(
-            `Nenhuma fotografia adequada foi encontrada para ${city} - ${state}. Selecione uma fotografia manualmente ou verifique a grafia da cidade.`,
-          );
-        }
-        rememberPhoto(historyKey, photo.credit);
-        photoDataUrl = photo.dataUrl;
-      }
+      // Toda arte exige fotografia enviada pelo usuário.
+      const photoDataUrl = manualPhoto.dataUrl;
 
       // MODELO A — preenchimento determinístico do Template Institucional.
       const institucional = await composeFromTemplate({
@@ -308,6 +278,7 @@ function CriativaPage() {
       setError(err instanceof Error ? err.message : "Não foi possível gerar as artes agora.");
     } finally {
       setBusy(false);
+      setPhotoStep(false);
     }
   }
 
@@ -389,62 +360,86 @@ function CriativaPage() {
             </label>
             <button
               type="button"
-              onClick={generate}
+              onClick={startGeneration}
               disabled={busy}
               className="mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              {busy ? "Gerando…" : "Gerar artes"}
+              {busy ? "Gerando…" : "Gerar arte"}
             </button>
           </div>
 
-          {/* Origem da fotografia — automática por padrão; manual é opcional. */}
-          <div className="mt-6 border-t border-border pt-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const next = photoMode === "manual" ? "auto" : "manual";
-                  setPhotoMode(next);
-                  if (next === "auto") setManualPhoto(null);
-                }}
-                className={[
-                  "cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold transition",
-                  photoMode === "manual"
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border text-muted-foreground hover:bg-muted",
-                ].join(" ")}
-              >
-                Usar imagem manual
-              </button>
-              <span className="text-xs text-muted-foreground">
-                Sem imagem manual, a fotografia da cidade é buscada automaticamente.
-              </span>
-            </div>
-            {photoMode === "manual" ? (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Toda arte utiliza a fotografia enviada por você — não há busca automática de imagens.
+          </p>
+          {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
+        </section>
+
+        {/* Etapa 2 — envio da fotografia da cidade. */}
+        {photoStep ? (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6">
+              <h3 className="text-base font-semibold text-foreground">
+                Fotografia de {form.city.trim()} - {form.state.trim().toUpperCase()}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Envie a imagem que será aplicada na área reservada do template oficial.
+              </p>
               <div className="mt-4">
                 <ImageDropzone
                   title="Cole a imagem com CTRL + V"
-                  hint="Cole (CTRL + V), arraste ou envie a imagem da cidade que deseja utilizar na arte oficial."
+                  hint="Cole (CTRL + V), arraste ou envie a imagem da cidade."
                   uploadLabel="Enviar imagem da cidade"
                   note="A imagem entra exatamente na área reservada do template oficial."
                   preview={manualPhoto?.dataUrl ?? null}
                   onFile={(file) => readPhoto(file)}
                 />
-                {manualPhoto ? (
+              </div>
+              {manualPhoto ? (
+                <div className="mt-3 flex items-center gap-3">
+                  <img
+                    src={manualPhoto.dataUrl}
+                    alt="Miniatura da fotografia enviada"
+                    className="h-14 w-20 rounded-md border border-border object-cover"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                    {manualPhoto.name}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setManualPhoto(null)}
-                    className="mt-2 text-xs font-semibold text-muted-foreground underline underline-offset-2"
+                    className="cursor-pointer text-xs font-semibold text-muted-foreground underline underline-offset-2"
                   >
-                    Remover imagem
+                    Trocar
                   </button>
-                ) : null}
+                </div>
+              ) : null}
+              {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPhotoStep(false)}
+                  className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-muted"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={generate}
+                  disabled={busy || !manualPhoto}
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
+                  {busy ? "Gerando…" : "Gerar"}
+                </button>
               </div>
-            ) : null}
+            </div>
           </div>
-          {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
-        </section>
+        ) : null}
 
         <section className="grid gap-4 sm:grid-cols-2">
           {(["institucional", "marketing"] as CreativeModel[]).map((model) => {

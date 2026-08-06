@@ -18,7 +18,7 @@ import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CRM_TEMPLATES, resolveCrmWindow, type CrmWindowStatus } from "@/lib/crm/templates";
-import { buildCrmAiSuggestions } from "@/lib/crm/ai-suggestions";
+import { CrmChatGptWindow } from "@/components/crm/crm-chatgpt-window";
 
 /** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
 function useSecondTick(active: boolean) {
@@ -300,7 +300,6 @@ export function CrmComposer({
   hint,
   investorName = "",
   window: win,
-  lastInboundBody,
   prefillText,
   prefillNonce = 0,
 }: {
@@ -310,8 +309,6 @@ export function CrmComposer({
   /** Nome usado na personalização dos templates. */
   investorName?: string;
   window?: CrmWindowStatus;
-  /** Última mensagem recebida — contexto das sugestões de IA. */
-  lastInboundBody?: string | null;
   /** Texto carregado a partir do módulo Templates. */
   prefillText?: string | null;
   /** Muda a cada seleção, permitindo recarregar o mesmo template. */
@@ -337,24 +334,9 @@ export function CrmComposer({
    */
   const windowClosed = Boolean(win && !win.open);
   /**
-   * DEF 3.0.3 §3 — a IA escreve dentro da conversa. Com a janela
-   * encerrada apenas Templates aprovados podem ser usados, então a
-   * assistência de escrita fica indisponível nesse estado.
+   * O botão IA abre o ChatGPT em uma janela flutuante dentro do próprio
+   * CRM. Nenhum painel de sugestões, nenhuma integração automática.
    */
-  const aiAvailable = !disabled;
-  // Com a janela encerrada a IA sugere apenas Templates aprovados,
-  // preservando a regra oficial de reabertura da conversa.
-  const aiSuggestions = windowClosed
-    ? CRM_TEMPLATES.map((t) => ({
-        id: t.id,
-        label: t.label,
-        text: t.body(investorName),
-      }))
-    : buildCrmAiSuggestions({
-        investorName,
-        windowOpen: true,
-        lastInboundBody,
-      });
   const typingBlocked = disabled || windowClosed;
   const canSend = !disabled && text.trim().length > 0 && (!windowClosed || armedTemplate);
   const submit = () => {
@@ -397,32 +379,7 @@ export function CrmComposer({
           ))}
         </div>
       ) : null}
-      {aiOpen && aiAvailable ? (
-        <div className="crm-enter mb-2 space-y-1.5 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] p-2">
-          <p className="px-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[color:var(--crm-muted)]">
-            Sugestões inteligentes — o texto é inserido na caixa e pode ser editado
-          </p>
-          {aiSuggestions.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => {
-                setText(s.text);
-                if (windowClosed) setArmedTemplate(true);
-                setAiOpen(false);
-              }}
-              className="block w-full cursor-pointer rounded-lg border border-transparent px-2.5 py-2 text-left transition-colors hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]"
-            >
-              <span className="block text-[11px] font-medium text-[color:var(--crm-accent)]">
-                {s.label}
-              </span>
-              <span className="mt-0.5 block text-[11px] leading-relaxed text-[color:var(--crm-muted)]">
-                {s.text}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {aiOpen ? <CrmChatGptWindow onClose={() => setAiOpen(false)} /> : null}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -445,10 +402,9 @@ export function CrmComposer({
         </button>
         <button
           type="button"
-          disabled={!aiAvailable}
           aria-expanded={aiOpen}
-          aria-label="Sugestões da IA"
-          title="Sugestões da IA"
+          aria-label="Abrir ChatGPT"
+          title="Abrir ChatGPT"
           onClick={() => {
             setTemplatesOpen(false);
             setAiOpen((v) => !v);

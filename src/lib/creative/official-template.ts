@@ -108,9 +108,11 @@ const INSTITUTIONAL: TemplateLayout = {
     color: "#FFFFFF",
   },
   tail: {
-    // Alinhado ao fim de "AGORA EM" impresso no template (x1 = 0.2402)
-    // acrescido de um espaço tipográfico.
-    x: 0.2466,
+    // Continuação exata da linha "AGORA EM" impressa no template
+    // (termina em x = 0.2402). O espaço do prefixo cria o intervalo
+    // tipográfico correto — nenhum deslocamento arbitrário.
+    x: 0.2402,
+    prefix: " ",
     align: "left",
     // Linha 3 do parágrafo institucional ("AGORA EM"), medida no arquivo.
     baselineY: 0.6681,
