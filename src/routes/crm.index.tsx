@@ -740,12 +740,16 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         {selected ? (
           <div key={selected.id} className="crm-enter space-y-3">
             {/* Padronizada: todos os investidores exibem os mesmos campos. */}
-            <CrmRecordSection title="Dados gerais" tone="azul" icon={User}>
-              <CrmRecordRow label="Nome" value={selected.name} />
-              <CrmCopyRow label="WhatsApp" value={privateOk ? selected.phone : undefined} />
-              <CrmRecordRow label="E-mail" value={privateOk ? selected.email : undefined} />
-              <CrmRecordRow label="Cidade" value={privateOk ? selected.city : undefined} />
-            </CrmRecordSection>
+            <CrmLeadFicha
+              investorId={selected.id}
+              name={selected.name}
+              phone={selected.phone}
+              email={selected.email}
+              city={selected.city}
+              privateOk={privateOk}
+              actor={{ userId: actor.userId, name: actor.name, role: actor.role }}
+              onSaved={() => setTick((v) => v + 1)}
+            />
 
             <CrmRecordSection title="Relacionamento" tone="verde" icon={Users}>
               {/* Estágio automático — exibido exclusivamente aqui. */}
