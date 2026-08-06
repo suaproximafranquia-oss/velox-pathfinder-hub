@@ -68,19 +68,12 @@ export function ExecutiveShell({
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
     { to: "/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
-    { to: "/executivo/ia", label: "IA Corporativa", icon: Sparkles },
     { to: "/executivo/criativa", label: "IA Criativa", icon: Wand2 },
   ];
 
   const administrative = [
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
-    ...(session.activeRole === "super_admin"
-      ? [{ to: "/executivo/auditoria", label: "Central de Auditoria", icon: ShieldCheck }]
-      : []),
-    ...(canManageKnowledge(session.activeRole)
-      ? [{ to: "/executivo/conhecimento", label: "Central de Conhecimento", icon: Database }]
-      : []),
     { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
