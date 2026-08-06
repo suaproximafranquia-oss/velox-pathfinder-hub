@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Wand2,
   Loader2,
@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   FlaskConical,
-  Move,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ImageDropzone } from "@/components/shared/image-dropzone";
@@ -18,7 +17,7 @@ import {
   canManageCreativeTemplates,
   type ExecutiveSession,
 } from "@/lib/executive-auth";
-import { CREATIVE_MODEL_LABEL, type CreativeModel } from "@/lib/creative/brand";
+import { CREATIVE_MODEL_LABEL } from "@/lib/creative/brand";
 import { downloadBase64, slugify } from "@/lib/creative/render";
 import { recordCreative } from "@/lib/creative/history";
 import { composeFromTemplate } from "@/lib/creative/compose";
@@ -30,7 +29,6 @@ import {
   type CreativeTemplate,
   type CreativeReference,
 } from "@/lib/creative/template-store";
-import { generateCreativeCopy } from "@/lib/creative.functions";
 import { testTemplate, TEST_CITY, TEST_STATE } from "@/lib/creative/template-test";
 import type { Diagnostic } from "@/lib/creative/calibration";
 
@@ -46,17 +44,8 @@ type FormState = { city: string; state: string };
 
 const EMPTY: FormState = { city: "", state: "" };
 
-const TEMPLATE_LABEL: Record<CreativeModel, string> = {
-  institucional: "Template Institucional",
-  marketing: "Template Marketing",
-};
-
-const MODEL_HINT: Record<CreativeModel, string> = {
-  institucional:
-    "Preenchimento do Template Oficial: fotografia da cidade, nome da cidade e UF. Nenhum outro elemento é alterado.",
-  marketing:
-    "Preenchimento do Template Marketing: fotografia da cidade, cidade, UF e os textos publicitários da IA. O layout do template é preservado.",
-};
+/** A IA Criativa trabalha exclusivamente com o Modelo A — Institucional. */
+const MODEL = "institucional" as const;
 
 function unitName(form: FormState): string {
   return `Velox ${form.city}${form.state ? ` — ${form.state}` : ""}`.trim();
@@ -68,56 +57,32 @@ function CriativaPage() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [arts, setArts] = useState<Partial<Record<CreativeModel, string>>>({});
-  const [zoom, setZoom] = useState<{ model: CreativeModel; src: string; file: string } | null>(
-    null,
-  );
-  const [templates, setTemplates] = useState<Partial<Record<CreativeModel, CreativeTemplate>>>({});
-  const [references, setReferences] = useState<Partial<Record<CreativeModel, CreativeReference>>>(
-    {},
-  );
-  const [uploading, setUploading] = useState<CreativeModel | null>(null);
-  const [uploadingRef, setUploadingRef] = useState<CreativeModel | null>(null);
-  /** Modo Manual: fotografia escolhida pelo usuário (opcional). */
+  const [art, setArt] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<{ src: string; file: string } | null>(null);
+  const [template, setTemplate] = useState<CreativeTemplate | null>(null);
+  const [reference, setReference] = useState<CreativeReference | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadingRef, setUploadingRef] = useState(false);
+  /** Fotografia enviada pelo usuário (obrigatória). */
   const [manualPhoto, setManualPhoto] = useState<{ name: string; dataUrl: string } | null>(null);
   /** Etapa 2 do fluxo: envio obrigatório da fotografia da cidade. */
   const [photoStep, setPhotoStep] = useState(false);
-  const [testing, setTesting] = useState<CreativeModel | null>(null);
-  const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
-  /**
-   * Dados da última geração — permitem recompor o Modelo B quando o
-   * usuário reposiciona a fotografia dentro da máscara oficial.
-   */
-  const [lastRun, setLastRun] = useState<{
-    city: string;
-    state: string;
-    photoDataUrl: string;
-    copy: { headline: string; subheadline: string; supporting: string };
-  } | null>(null);
-  /** Modo de enquadramento do Modelo B (somente mover a fotografia). */
-  const [framing, setFraming] = useState<{ offset: { x: number; y: number }; art: string } | null>(
-    null,
-  );
+  const [testing, setTesting] = useState(false);
+  const [report, setReport] = useState<Diagnostic[] | null>(null);
   const canManageTemplates = session ? canManageCreativeTemplates(session.activeRole) : false;
 
   useEffect(() => {
     void (async () => {
-      const [institucional, marketing] = await Promise.all([
-        getTemplate("institucional"),
-        getTemplate("marketing"),
-      ]);
-      setTemplates({
-        ...(institucional ? { institucional } : {}),
-        ...(marketing ? { marketing } : {}),
-      });
-      const refA = getReference("institucional");
-      const refB = getReference("marketing");
-      setReferences({
-        ...(refA ? { institucional: refA } : {}),
-        ...(refB ? { marketing: refB } : {}),
-      });
+      setTemplate((await getTemplate(MODEL)) ?? null);
+      setReference(getReference(MODEL) ?? null);
     })();
   }, []);
+
+  useEffect(() => {
+    const s = getSession();
+    if (!s) return void navigate({ to: "/executivo" });
+    setSession(s);
+  }, [navigate]);
 
   /** Fotografia manual: upload, arrastar ou CTRL + V. */
   function readPhoto(file: File | undefined | null) {
@@ -128,70 +93,59 @@ function CriativaPage() {
     reader.readAsDataURL(file);
   }
 
-  /** Cada modelo possui o seu próprio template: um upload nunca afeta o outro. */
-  async function sendTemplate(model: CreativeModel, file: File | undefined) {
+  async function sendTemplate(file: File | undefined) {
     if (!file) return;
-    setUploading(model);
+    setUploading(true);
     setError(null);
     try {
-      const saved = await uploadTemplate(model, file, session?.userId);
-      setTemplates((t) => ({ ...t, [model]: saved }));
+      setTemplate(await uploadTemplate(MODEL, file, session?.userId));
     } catch (err) {
-      const saved = await getTemplate(model);
-      if (saved) setTemplates((t) => ({ ...t, [model]: saved }));
+      const saved = await getTemplate(MODEL);
+      if (saved) setTemplate(saved);
       setError(err instanceof Error ? err.message : "Falha ao enviar o template.");
     } finally {
-      setUploading(null);
+      setUploading(false);
     }
   }
 
   /** Modelo Padronizado: referência visual, nunca usada como template. */
-  async function sendReference(model: CreativeModel, file: File | undefined) {
+  async function sendReference(file: File | undefined) {
     if (!file) return;
-    setUploadingRef(model);
+    setUploadingRef(true);
     setError(null);
     try {
-      const saved = await uploadReference(model, file);
-      setReferences((r) => ({ ...r, [model]: saved }));
+      setReference(await uploadReference(MODEL, file));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao enviar o modelo padronizado.");
     } finally {
-      setUploadingRef(null);
+      setUploadingRef(false);
     }
   }
 
   /** Prévia de validação: não gera arte definitiva nem grava histórico. */
-  async function runTest(model: CreativeModel) {
-    setTesting(model);
+  async function runTest() {
+    setTesting(true);
     setError(null);
     try {
-      // Guia tracejado da área da fotografia: só existe na prévia.
-      const result = await testTemplate(model, { guide: true });
-      setReport((r) => ({ ...r, [model]: result.report }));
+      const result = await testTemplate(MODEL, { guide: true });
+      setReport(result.report);
       setZoom({
-        model,
         src: `data:image/png;base64,${result.preview}`,
-        file: `teste-${model}-${slugify(`${TEST_CITY}-${TEST_STATE}`)}.png`,
+        file: `teste-${MODEL}-${slugify(`${TEST_CITY}-${TEST_STATE}`)}.png`,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao testar o template.");
     } finally {
-      setTesting(null);
+      setTesting(false);
     }
   }
-
-  useEffect(() => {
-    const s = getSession();
-    if (!s) return void navigate({ to: "/executivo" });
-    setSession(s);
-  }, [navigate]);
 
   /** Etapa 1: Cidade + UF › abre o envio da fotografia. */
   function startGeneration() {
     const city = form.city.trim();
     const state = form.state.trim().toUpperCase();
     if (!city || state.length !== 2) {
-      setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
+      setError("Informe a cidade e a UF (duas letras) para gerar a arte.");
       return;
     }
     setError(null);
@@ -203,126 +157,43 @@ function CriativaPage() {
     const city = form.city.trim();
     const state = form.state.trim().toUpperCase();
     if (!city || state.length !== 2) {
-      setError("Informe a cidade e a UF (duas letras) para gerar as artes.");
+      setError("Informe a cidade e a UF (duas letras) para gerar a arte.");
       return;
     }
     if (!manualPhoto) {
-      setError("Cole, arraste ou envie a imagem da cidade para gerar as artes.");
+      setError("Cole, arraste ou envie a imagem da cidade para gerar a arte.");
       return;
     }
     setBusy(true);
     setError(null);
-    setArts({});
+    setArt(null);
     try {
-      // Toda arte exige fotografia enviada pelo usuário.
-      const photoDataUrl = manualPhoto.dataUrl;
-
-      // MODELO A — preenchimento determinístico do Template Institucional.
       const institucional = await composeFromTemplate({
-        model: "institucional",
+        model: MODEL,
         city,
         state,
-        photoDataUrl,
+        photoDataUrl: manualPhoto.dataUrl,
       });
-
-      // MODELO B — mesmo motor, sobre o Template Marketing. A IA produz
-      // apenas os textos publicitários; o layout vem do template.
-      let marketing: string | undefined;
-      {
-        try {
-          const copy = await generateCreativeCopy({
-            data: { city, state, unit: unitName({ city, state }) },
-          });
-          marketing = await composeFromTemplate({
-            model: "marketing",
-            city,
-            state,
-            photoDataUrl,
-            copy: {
-              headline: copy.marketing.headline,
-              subheadline: copy.marketing.subheadline,
-              supporting: copy.marketing.supporting,
-            },
-          });
-          setLastRun({
-            city,
-            state,
-            photoDataUrl,
-            copy: {
-              headline: copy.marketing.headline,
-              subheadline: copy.marketing.subheadline,
-              supporting: copy.marketing.supporting,
-            },
-          });
-        } catch {
-          /* o Modelo A é entregue mesmo se o Modelo B falhar */
-        }
-      }
-      setFraming(null);
-
-      setArts({ institucional, ...(marketing ? { marketing } : {}) });
-      for (const model of marketing
-        ? (["institucional", "marketing"] as CreativeModel[])
-        : (["institucional"] as CreativeModel[])) {
-        recordCreative({
-          userId: session?.userId ?? "",
-          category: "unidade",
-          model,
-          unit: unitName({ city, state }),
-          city,
-          state,
-          fileName: `velox-${model}-${slugify(`${city}-${state}`)}.png`,
-        });
-      }
+      setArt(institucional);
+      recordCreative({
+        userId: session?.userId ?? "",
+        category: "unidade",
+        model: MODEL,
+        unit: unitName({ city, state }),
+        city,
+        state,
+        fileName: fileName(city, state),
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível gerar as artes agora.");
+      setError(err instanceof Error ? err.message : "Não foi possível gerar a arte agora.");
     } finally {
       setBusy(false);
       setPhotoStep(false);
     }
   }
 
-  const fileFor = (model: CreativeModel) =>
-    `velox-${model}-${slugify(`${form.city}-${form.state}`)}.png`;
-
-  /** Arraste da fotografia (Modelo B) — único gesto de edição. */
-  const dragRef = useRef<{
-    x: number;
-    y: number;
-    base: { x: number; y: number };
-    w: number;
-    h: number;
-  } | null>(null);
-  const renderingRef = useRef(false);
-  const pendingRef = useRef<{ x: number; y: number } | null>(null);
-
-  async function pumpFrame() {
-    if (renderingRef.current) return;
-    const next = pendingRef.current;
-    if (!next) return;
-    pendingRef.current = null;
-    renderingRef.current = true;
-    await recomposeMarketing(next);
-    renderingRef.current = false;
-    void pumpFrame();
-  }
-
-  /**
-   * Recompõe o Modelo B com a fotografia deslocada. Nenhum outro
-   * elemento é recalculado: o template oficial continua por cima.
-   */
-  async function recomposeMarketing(offset: { x: number; y: number }) {
-    if (!lastRun) return;
-    const art = await composeFromTemplate({
-      model: "marketing",
-      city: lastRun.city,
-      state: lastRun.state,
-      photoDataUrl: lastRun.photoDataUrl,
-      copy: lastRun.copy,
-      photoOffset: offset,
-    }).catch(() => null);
-    if (art) setFraming({ offset, art });
-  }
+  const fileName = (city: string, state: string) =>
+    `velox-${MODEL}-${slugify(`${city}-${state}`)}.png`;
 
   if (!session) return null;
 
@@ -362,16 +233,12 @@ function CriativaPage() {
               type="button"
               onClick={startGeneration}
               disabled={busy}
-              className="mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
+              className="mt-auto inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
               {busy ? "Gerando…" : "Gerar arte"}
             </button>
           </div>
-
-          <p className="mt-4 text-xs text-muted-foreground">
-            Toda arte utiliza a fotografia enviada por você — não há busca automática de imagens.
-          </p>
           {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
         </section>
 
@@ -441,284 +308,169 @@ function CriativaPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 sm:grid-cols-2">
-          {(["institucional", "marketing"] as CreativeModel[]).map((model) => {
-            const tpl = templates[model];
-            const diags = report[model];
-            const ref = references[model];
-            return (
-              <div
-                key={model}
-                className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5"
+        {/* Área administrativa — somente Administrador e Gestora. */}
+        {canManageTemplates ? (
+          <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                {CREATIVE_MODEL_LABEL[MODEL]}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {template
+                  ? template.builtIn
+                    ? "Utilizando o template oficial padrão."
+                    : `Em uso: ${template.fileName}`
+                  : "Nenhum template enviado."}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                Enviar Template Institucional
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    void sendTemplate(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
+                {uploadingRef ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                Enviar Modelo Padronizado
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    void sendReference(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void runTest()}
+                disabled={!template || testing}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
               >
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {CREATIVE_MODEL_LABEL[model]}
-                  </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {tpl
-                      ? tpl.builtIn
-                        ? "Utilizando o template oficial padrão."
-                        : `Em uso: ${tpl.fileName}`
-                      : "Nenhum template enviado."}
-                  </p>
+                {testing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FlaskConical className="h-4 w-4" />
+                )}
+                Testar Template
+              </button>
+            </div>
+            <p className="text-xs">
+              <span className="text-muted-foreground">Status: </span>
+              {template ? (
+                <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Template carregado
+                  {template.config ? ` · ${template.config.width}×${template.config.height} px` : ""}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">Nenhum template</span>
+              )}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {template ? (
+                <figure>
+                  <img
+                    src={template.dataUrl}
+                    alt="Template Institucional"
+                    className="h-32 w-full rounded-lg border border-border object-contain"
+                  />
+                  <figcaption className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Template oficial · onde editar
+                  </figcaption>
+                </figure>
+              ) : null}
+              {reference ? (
+                <figure>
+                  <img
+                    src={reference.dataUrl}
+                    alt="Modelo padronizado — Institucional"
+                    className="h-32 w-full rounded-lg border border-dashed border-border object-contain"
+                  />
+                  <figcaption className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Modelo padronizado · referência ({reference.width}×{reference.height})
+                  </figcaption>
+                </figure>
+              ) : (
+                <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border p-2 text-center text-[10px] text-muted-foreground">
+                  Modelo padronizado não enviado — referência apenas visual, nunca utilizada como
+                  template.
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  {canManageTemplates ? (
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
-                      {uploading === model ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Upload className="h-4 w-4" />
-                      )}
-                      Enviar {TEMPLATE_LABEL[model]}
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg"
-                        className="hidden"
-                        onChange={(e) => {
-                          void sendTemplate(model, e.target.files?.[0]);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      Somente Administrador e Gestora podem alterar templates.
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => void runTest(model)}
-                    disabled={!tpl || testing === model}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
+              )}
+            </div>
+            {report ? (
+              <ul className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs">
+                {report.map((d, i) => (
+                  <li
+                    key={i}
+                    className={
+                      "flex items-start gap-2 " +
+                      (d.level === "warn" ? "text-amber-600" : "text-muted-foreground")
+                    }
                   >
-                    {testing === model ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    {d.level === "warn" ? (
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     ) : (
-                      <FlaskConical className="h-4 w-4" />
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     )}
-                    Testar Template
-                  </button>
-                </div>
-                {canManageTemplates ? (
-                  <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted">
-                    {uploadingRef === model ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    Enviar Modelo Padronizado
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      className="hidden"
-                      onChange={(e) => {
-                        void sendReference(model, e.target.files?.[0]);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                ) : null}
-                <p className="text-xs">
-                  <span className="text-muted-foreground">Status: </span>
-                  {tpl ? (
-                    <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Template carregado
-                      {tpl.config ? ` · ${tpl.config.width}×${tpl.config.height} px` : ""}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">Nenhum template</span>
-                  )}
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  {tpl ? (
-                    <figure>
-                      <img
-                        src={tpl.dataUrl}
-                        alt={TEMPLATE_LABEL[model]}
-                        className="h-32 w-full rounded-lg border border-border object-contain"
-                      />
-                      <figcaption className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        Template oficial · onde editar
-                      </figcaption>
-                    </figure>
-                  ) : null}
-                  {ref ? (
-                    <figure>
-                      <img
-                        src={ref.dataUrl}
-                        alt={`Modelo padronizado — ${CREATIVE_MODEL_LABEL[model]}`}
-                        className="h-32 w-full rounded-lg border border-dashed border-border object-contain"
-                      />
-                      <figcaption className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        Modelo padronizado · referência ({ref.width}×{ref.height})
-                      </figcaption>
-                    </figure>
-                  ) : (
-                    <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border p-2 text-center text-[10px] text-muted-foreground">
-                      Modelo padronizado não enviado — referência apenas visual, nunca utilizada
-                      como template.
-                    </div>
-                  )}
-                </div>
-                {diags ? (
-                  <ul className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs">
-                    {diags.map((d, i) => (
-                      <li
-                        key={i}
-                        className={
-                          "flex items-start gap-2 " +
-                          (d.level === "warn" ? "text-amber-600" : "text-muted-foreground")
-                        }
-                      >
-                        {d.level === "warn" ? (
-                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        ) : (
-                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        )}
-                        <span>{d.message}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            );
-          })}
-        </section>
+                    <span>{d.message}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        ) : null}
 
-        <section className="grid gap-6 sm:grid-cols-2">
-          {(["institucional", "marketing"] as CreativeModel[]).map((model) => {
-            const art = arts[model];
-            return (
-              <article
-                key={model}
-                className="overflow-hidden rounded-2xl border border-border bg-card"
-              >
-                <header className="border-b border-border px-5 py-4">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {CREATIVE_MODEL_LABEL[model]}
-                  </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{MODEL_HINT[model]}</p>
-                </header>
-                <div className="p-5">
-                  {art ? (
-                    <div className="flex flex-col gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          model === "marketing" && lastRun
-                            ? setFraming({ offset: { x: 0, y: 0 }, art })
-                            : setZoom({
-                                model,
-                                src: `data:image/png;base64,${art}`,
-                                file: fileFor(model),
-                              })
-                        }
-                        className="block w-full overflow-hidden rounded-xl border border-border transition hover:opacity-90"
-                      >
-                        <img
-                          src={`data:image/png;base64,${art}`}
-                          alt={`${CREATIVE_MODEL_LABEL[model]} — ${form.city}`}
-                          className="w-full"
-                        />
-                      </button>
-                      {model === "marketing" && lastRun ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setFraming({ offset: { x: 0, y: 0 }, art })}
-                            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted"
-                          >
-                            <Move className="h-4 w-4" /> Ajustar enquadramento
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => downloadBase64(art, fileFor(model))}
-                            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
-                          >
-                            <Download className="h-4 w-4" /> Download
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-                      {busy ? "Gerando…" : "Aguardando geração"}
-                    </div>
-                  )}
+        <section>
+          <article className="overflow-hidden rounded-2xl border border-border bg-card">
+            <header className="border-b border-border px-5 py-4">
+              <h3 className="text-sm font-semibold text-foreground">
+                {CREATIVE_MODEL_LABEL[MODEL]}
+              </h3>
+            </header>
+            <div className="p-5">
+              {art ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setZoom({
+                      src: `data:image/png;base64,${art}`,
+                      file: fileName(form.city, form.state),
+                    })
+                  }
+                  className="block w-full cursor-pointer overflow-hidden rounded-xl border border-border transition hover:opacity-90"
+                >
+                  <img
+                    src={`data:image/png;base64,${art}`}
+                    alt={`Arte institucional — ${form.city}`}
+                    className="w-full"
+                  />
+                </button>
+              ) : (
+                <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
+                  {busy ? "Gerando…" : "Aguardando geração"}
                 </div>
-              </article>
-            );
-          })}
+              )}
+            </div>
+          </article>
         </section>
       </div>
-
-      {framing ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-6">
-          <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card">
-            <header className="flex items-center justify-between border-b border-border px-5 py-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Ajustar enquadramento</h3>
-                <p className="text-xs text-muted-foreground">
-                  Arraste a fotografia. Todo o restante da arte permanece bloqueado.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setArts((a) => ({ ...a, marketing: framing.art }));
-                    setFraming(null);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
-                >
-                  <CheckCircle2 className="h-4 w-4" /> Salvar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFraming(null)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground"
-                >
-                  <X className="h-4 w-4" /> Cancelar
-                </button>
-              </div>
-            </header>
-            <div className="overflow-auto p-5">
-              <img
-                src={`data:image/png;base64,${framing.art}`}
-                alt="Ajuste de enquadramento — Modelo B"
-                draggable={false}
-                className="w-full cursor-grab touch-none select-none active:cursor-grabbing"
-                onPointerDown={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  dragRef.current = {
-                    x: e.clientX,
-                    y: e.clientY,
-                    base: framing.offset,
-                    w: rect.width,
-                    h: rect.height,
-                  };
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                }}
-                onPointerMove={(e) => {
-                  const drag = dragRef.current;
-                  if (!drag || !drag.w || !drag.h) return;
-                  pendingRef.current = {
-                    x: drag.base.x + (e.clientX - drag.x) / drag.w,
-                    y: drag.base.y + (e.clientY - drag.y) / drag.h,
-                  };
-                  void pumpFrame();
-                }}
-                onPointerUp={(e) => {
-                  dragRef.current = null;
-                  e.currentTarget.releasePointerCapture(e.pointerId);
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {zoom ? (
         <div
@@ -731,27 +483,27 @@ function CriativaPage() {
           >
             <header className="flex items-center justify-between border-b border-border px-5 py-3">
               <h3 className="text-sm font-semibold text-foreground">
-                {CREATIVE_MODEL_LABEL[zoom.model]}
+                {CREATIVE_MODEL_LABEL[MODEL]}
               </h3>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => downloadBase64(zoom.src.split(",")[1] ?? "", zoom.file)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
                 >
                   <Download className="h-4 w-4" /> Download
                 </button>
                 <button
                   type="button"
                   onClick={() => setZoom(null)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground"
                 >
                   <X className="h-4 w-4" /> Fechar
                 </button>
               </div>
             </header>
             <div className="overflow-auto p-5">
-              <img src={zoom.src} alt={CREATIVE_MODEL_LABEL[zoom.model]} className="w-full" />
+              <img src={zoom.src} alt={CREATIVE_MODEL_LABEL[MODEL]} className="w-full" />
             </div>
           </div>
         </div>
