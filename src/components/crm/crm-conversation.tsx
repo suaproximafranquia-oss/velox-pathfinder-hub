@@ -369,7 +369,6 @@ export function CrmComposer({
                 setText(t.body(investorName));
                 setArmedTemplate(true);
                 setTemplatesOpen(false);
-                setAiOpen(false);
               }}
               className="cursor-pointer rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
             >
