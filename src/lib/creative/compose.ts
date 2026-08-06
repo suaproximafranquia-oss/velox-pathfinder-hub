@@ -43,6 +43,7 @@ function drawCover(
   img: HTMLImageElement,
   area: Area,
   focusY = 0.5,
+  /** Deslocamento manual em pixels do próprio template. */
   offset: { x: number; y: number } = { x: 0, y: 0 },
 ) {
   const scale = Math.max(area.w / img.naturalWidth, area.h / img.naturalHeight);
@@ -54,8 +55,8 @@ function drawCover(
   ctx.clip();
   // Reposicionamento manual: a fotografia desliza dentro da máscara sem
   // nunca deixar borda vazia (o deslocamento é limitado à sobra).
-  const rawX = area.x + (area.w - dw) / 2 + offset.x * area.w;
-  const rawY = area.y + (area.h - dh) * Math.min(1, Math.max(0, focusY)) + offset.y * area.h;
+  const rawX = area.x + (area.w - dw) / 2 + offset.x;
+  const rawY = area.y + (area.h - dh) * Math.min(1, Math.max(0, focusY)) + offset.y;
   const dx = Math.min(area.x, Math.max(area.x + area.w - dw, rawX));
   const dy = Math.min(area.y, Math.max(area.y + area.h - dh, rawY));
   ctx.drawImage(img, dx, dy, dw, dh);
