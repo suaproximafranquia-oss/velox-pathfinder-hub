@@ -302,6 +302,8 @@ type IntegrationDef = {
   label: string;
   hint: string;
   fields: IntegrationField[];
+  /** Integrações reais do Google: o estado vem do servidor, não do navegador. */
+  google?: GoogleConnectorKey;
 };
 
 const INTEGRATION_DEFS: IntegrationDef[] = [
@@ -318,6 +320,7 @@ const INTEGRATION_DEFS: IntegrationDef[] = [
     id: "meet",
     label: "Reuniões · Google Meet",
     hint: "Geração de links de videoconferência pela Conta Google do Portal.",
+    google: "google_calendar",
     fields: [
       { id: "calendarId", label: "Agenda padrão", placeholder: "primary" },
     ],
@@ -326,6 +329,7 @@ const INTEGRATION_DEFS: IntegrationDef[] = [
     id: "drive",
     label: "Drive · Google Drive",
     hint: "Repositório de documentos institucionais.",
+    google: "google_drive",
     fields: [
       { id: "folderId", label: "ID da pasta oficial", placeholder: "1AbCdEf..." },
     ],
@@ -381,14 +385,26 @@ function persistIntegrations(next: Record<string, IntegrationState>) {
  * configurado, editado, reconectado, testado e desconectado. Os
  * parâmetros ficam administráveis — nada é fixo no código.
  */
-function IntegracoesSection() {
+function IntegracoesSection({ session }: { session: ExecutiveSession }) {
   const [state, setState] = useState<Record<string, IntegrationState>>({});
   const [editing, setEditing] = useState<IntegrationDef | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [googleTick, setGoogleTick] = useState(0);
+  const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
     setState(loadIntegrations());
   }, []);
+
+  useEffect(() => {
+    const off = subscribeGoogleStore(session.userId, () => setGoogleTick((t) => t + 1));
+    void refreshGoogleStore(session.userId);
+    return off;
+  }, [session.userId]);
+
+  void googleTick;
+  const googleStore = getGoogleStore(session.userId);
+  const actor = { userId: session.userId, userName: session.name, userRole: session.activeRole };
 
   function update(id: string, patch: Partial<IntegrationState>) {
     setState((prev) => {
@@ -398,7 +414,17 @@ function IntegracoesSection() {
     });
   }
 
-  function test(def: IntegrationDef) {
+  async function test(def: IntegrationDef) {
+    if (def.google) {
+      // Verificação real: chama a API do Google com a credencial corporativa.
+      setBusy(def.id);
+      const res = await testGoogleService(def.google);
+      update(def.id, { lastCheckAt: new Date().toISOString(), lastCheckOk: res.ok });
+      setFeedback(`${def.label}: ${res.message}`);
+      await refreshGoogleStore(session.userId);
+      setBusy(null);
+      return;
+    }
     const current = state[def.id] ?? emptyIntegration();
     const missing = def.fields.filter((f) => !(current.values[f.id] ?? "").trim());
     const ok = current.enabled && missing.length === 0;
@@ -407,6 +433,23 @@ function IntegracoesSection() {
       ok
         ? `${def.label}: conexão validada.`
         : `${def.label}: ${current.enabled ? `faltam parâmetros (${missing.map((f) => f.label).join(", ")}).` : "integração desconectada."}`,
+    );
+  }
+
+  /** Reconexão real do Google (novo consentimento OAuth). */
+  async function reconnect(def: IntegrationDef) {
+    if (!def.google) {
+      update(def.id, { enabled: true, lastCheckAt: new Date().toISOString(), lastCheckOk: true });
+      setFeedback(`${def.label}: reconectada.`);
+      return;
+    }
+    setBusy(def.id);
+    const next = await reconnectGoogleAccount(actor);
+    setBusy(null);
+    setFeedback(
+      next.state === "error"
+        ? `${def.label}: ${next.error ?? "não foi possível reconectar."}`
+        : `${def.label}: Conta Google reconectada.`,
     );
   }
 
@@ -421,14 +464,23 @@ function IntegracoesSection() {
       <ul className="divide-y divide-[color:var(--border)]">
         {INTEGRATION_DEFS.map((def) => {
           const current = state[def.id] ?? emptyIntegration();
-          const configured = def.fields.every((f) => (current.values[f.id] ?? "").trim());
-          const tone = !current.enabled ? "red" : configured ? "green" : "amber";
+          const googleOk = def.google ? isConnectorConnected(googleStore, def.google) : null;
+          const configured =
+            googleOk ?? def.fields.every((f) => (current.values[f.id] ?? "").trim());
+          const enabled = def.google ? true : current.enabled;
+          const tone = !enabled ? "red" : configured ? "green" : "amber";
+          const issue = def.google
+            ? (googleStore.connectors.find((c) => c.connectorId === def.google)?.detail ?? null)
+            : null;
           return (
             <li key={def.id} className="py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm">{def.label}</p>
                   <p className="text-[11px] text-[color:var(--muted-foreground)]">{def.hint}</p>
+                  {!configured && issue ? (
+                    <p className="mt-1 text-[11px] text-amber-400">{issue}</p>
+                  ) : null}
                   <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
                     Última verificação:{" "}
                     {current.lastCheckAt
@@ -450,7 +502,7 @@ function IntegracoesSection() {
                           : "bg-red-500")
                     }
                   />
-                  {current.enabled ? (configured ? "Conectado" : "Pendente") : "Desconectado"}
+                  {enabled ? (configured ? "Conectado" : "Pendente") : "Desconectado"}
                 </span>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -470,20 +522,19 @@ function IntegracoesSection() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    update(def.id, { enabled: true, lastCheckAt: new Date().toISOString(), lastCheckOk: true });
-                    setFeedback(`${def.label}: reconectada.`);
-                  }}
+                  disabled={busy === def.id}
+                  onClick={() => void reconnect(def)}
                   className="rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
                 >
                   Reconectar
                 </button>
                 <button
                   type="button"
-                  onClick={() => test(def)}
+                  disabled={busy === def.id}
+                  onClick={() => void test(def)}
                   className="rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] transition hover:border-[color:var(--gold)]"
                 >
-                  Testar conexão
+                  {busy === def.id ? "Verificando…" : "Testar conexão"}
                 </button>
                 <button
                   type="button"
