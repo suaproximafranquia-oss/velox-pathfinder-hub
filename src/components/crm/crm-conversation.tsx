@@ -316,7 +316,6 @@ export function CrmComposer({
 }) {
   const [text, setText] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
   const [armedTemplate, setArmedTemplate] = useState(false);
   // Template escolhido no módulo Templates entra direto na caixa,
   // pronto para edição antes do envio.
@@ -387,7 +386,6 @@ export function CrmComposer({
           aria-label="Templates de mensagem"
           title="Templates aprovados"
           onClick={() => {
-            setAiOpen(false);
             setTemplatesOpen((v) => !v);
           }}
           className={[
