@@ -104,6 +104,19 @@ export const PLATFORM_MODULES: PlatformModule[] = [
   {
     id: "central-reunioes",
     name: "Central de Reuniões",
+  } as PlatformModule,
+  {
+    id: "central-captacao",
+    name: "Central de Captação",
+    description:
+      "Monitoramento das origens de aquisição de leads: Meta Ads, TikTok Ads, Google Ads e Portal Velox.",
+    icon: Radar,
+    to: "/executivo/captacao",
+    status: "ativo",
+  },
+  {
+    id: "central-reunioes-real",
+    name: "Central de Reuniões",
     description:
       "Gestão dos encontros da sua carteira — histórico, status e registros pós-reunião.",
     icon: Calendar,
