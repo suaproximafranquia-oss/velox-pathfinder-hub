@@ -518,7 +518,9 @@ export function generateBrainExecutivePdf(input: {
   doc.setFillColor(...NAVY_DEEP);
   doc.rect(0, 0, w, h, "F");
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, w, 120, "F");
+  doc.rect(0, 0, w, 128, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(0, 128, w, 1.2, "F");
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.6);
   doc.line(M, 34, M + 28, 34);
@@ -527,22 +529,27 @@ export function generateBrainExecutivePdf(input: {
   doc.setTextColor(...GOLD);
   doc.text("BRAIN ANALYTICS · RELATÓRIO INTELIGENTE", M, 29, { charSpace: 2 });
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(24);
+  doc.setFontSize(30);
   doc.setTextColor(255, 255, 255);
   const titleLines = doc.splitTextToSize(input.report.title, w - M * 2) as string[];
-  let ty = 72;
+  let ty = 68;
   for (const l of titleLines.slice(0, 3)) {
     doc.text(l, M, ty);
-    ty += 11;
+    ty += 13;
   }
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(...GOLD);
-  doc.text((doc.splitTextToSize(input.report.subtitle, w - M * 2) as string[])[0] ?? "", M, ty + 4);
-
   doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.4);
-  doc.line(M, 140, w - M, 140);
+  doc.setLineWidth(1.2);
+  doc.line(M, ty + 1, M + 34, ty + 1);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11.5);
+  doc.setTextColor(214, 220, 234);
+  const subLines = doc.splitTextToSize(input.report.subtitle, w - M * 2 - 10) as string[];
+  let sy = ty + 10;
+  for (const l of subLines.slice(0, 2)) {
+    doc.text(l, M, sy);
+    sy += 6;
+  }
+
   const meta: [string, string][] = [
     ["Escopo", a.subjectLabel],
     ["Competência", a.monthLabel],
@@ -552,15 +559,17 @@ export function generateBrainExecutivePdf(input: {
   ];
   let my = 152;
   for (const [k, v] of meta) {
+    doc.setFillColor(...GOLD);
+    doc.rect(M, my - 3.4, 1.2, 11, "F");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...GOLD);
-    doc.text(k.toUpperCase(), M, my, { charSpace: 1.2 });
+    doc.text(k.toUpperCase(), M + 5, my, { charSpace: 1.2 });
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10.5);
     doc.setTextColor(255, 255, 255);
     const vl = doc.splitTextToSize(v, w - M * 2) as string[];
-    doc.text(vl[0] ?? "", M, my + 6);
+    doc.text(vl[0] ?? "", M + 5, my + 6);
     my += 16;
   }
   doc.setFont("helvetica", "normal");
@@ -575,6 +584,9 @@ export function generateBrainExecutivePdf(input: {
 
   // Página 2 em diante
   let y = newPage(c, state);
+
+  y = sectionTitle(c, state, y, "Painel executivo", "Destaques do período");
+  y = highlightPanel(c, state, y, buildHighlights(a, input.snapshot));
 
   if (input.report.summary) {
     y = sectionTitle(c, state, y, "Resumo executivo", "Leitura do período");
@@ -593,6 +605,7 @@ export function generateBrainExecutivePdf(input: {
 
   y = sectionTitle(c, state, y, "Comparativos", "Atual · anterior · média anual");
   y = comparisonTable(c, state, y, a);
+  y = comparisonChart(c, state, y, a);
 
   for (const s of input.report.sections) {
     y = sectionTitle(c, state, y, "Análise da IA Executiva", s.title);
@@ -605,7 +618,7 @@ export function generateBrainExecutivePdf(input: {
 
   if (input.report.recommendations.length) {
     y = sectionTitle(c, state, y, "Plano de ação", "Prioridades recomendadas");
-    y = bullets(c, state, y, input.report.recommendations);
+    y = actionPlan(c, state, y, input.report.recommendations);
   }
 
   y = room(c, state, y, 24);
