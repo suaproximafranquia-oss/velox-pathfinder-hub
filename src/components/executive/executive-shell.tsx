@@ -18,6 +18,7 @@ import {
   Contact,
   FolderOpen,
   Archive,
+  Radar,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
