@@ -18,6 +18,7 @@ import {
   stateName,
 } from "./official-template";
 import { getTemplate } from "./template-store";
+import { calibrateLayout } from "./calibration";
 
 type Area = { x: number; y: number; w: number; h: number };
 
@@ -298,9 +299,16 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
       "Nenhum template enviado para este modelo. Envie o arquivo na área de templates.",
     );
   }
-  // Cada template usa a sua própria configuração calibrada; sem ela,
-  // vale o layout oficial de referência do modelo.
-  const layout: TemplateLayout = template.config?.layout ?? TEMPLATE_LAYOUT[input.model];
+  // O layout OFICIAL do código é sempre a fonte de verdade das posições:
+  // da configuração persistida aproveitamos apenas a resolução real do
+  // arquivo, usada para recalibrar proporcionalmente. Assim qualquer
+  // ajuste de coordenada feito no template oficial vale imediatamente,
+  // sem depender de um layout antigo gravado no banco.
+  const cfg = template.config;
+  const layout: TemplateLayout =
+    cfg?.width && cfg?.height
+      ? calibrateLayout(input.model, cfg.width, cfg.height)
+      : TEMPLATE_LAYOUT[input.model];
   const base = await loadImage(template.dataUrl);
   const w = base.naturalWidth;
   const h = base.naturalHeight;
