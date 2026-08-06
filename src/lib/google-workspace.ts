@@ -3,7 +3,7 @@
  *
  * A autenticação é OAuth 2.0 oficial: o consentimento acontece em um
  * popup do Google e a credencial resultante fica exclusivamente no
- * servidor, criptografada e vinculada ao executivo autenticado. Nenhum
+ * servidor, criptografada e vinculada ao Portal Velox. Nenhum
  * token trafega ou é persistido no navegador.
  */
 import { emitEvent } from "@/lib/events/bus";
@@ -76,7 +76,6 @@ export function friendlyGoogleMessage(error: unknown): string {
   return "Não foi possível concluir a conexão com o Google. Tente novamente.";
 }
 
-const CACHE_PREFIX = "velox:google-workspace:v2:";
 const CHANGED_EVENT = "velox:google-workspace:changed";
 
 /**
@@ -103,36 +102,18 @@ function empty(ownerId: string): GoogleStore {
   };
 }
 
-function cacheKey(ownerId: string) {
-  void ownerId;
-  return `${CACHE_PREFIX}${CORPORATE_STORE_ID}`;
-}
-
 function write(store: GoogleStore) {
   memory.set(CORPORATE_STORE_ID, store);
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(cacheKey(store.ownerId), JSON.stringify(store));
-  } catch {
-    /* noop */
-  }
   window.dispatchEvent(new CustomEvent(CHANGED_EVENT, { detail: CORPORATE_STORE_ID }));
 }
 
-/** Estado conhecido (cache) — use `refreshGoogleStore` para atualizar. */
+/** Estado apenas de apresentação; a fonte de verdade é sempre o servidor. */
 export function getGoogleStore(ownerId: string): GoogleStore {
+  void ownerId;
   const cached = memory.get(CORPORATE_STORE_ID);
   if (cached) return cached;
-  if (typeof window === "undefined") return empty(CORPORATE_STORE_ID);
-  try {
-    const raw = window.localStorage.getItem(cacheKey(ownerId));
-    if (!raw) return empty(CORPORATE_STORE_ID);
-    const parsed = { ...empty(CORPORATE_STORE_ID), ...(JSON.parse(raw) as GoogleStore) };
-    memory.set(CORPORATE_STORE_ID, parsed);
-    return parsed;
-  } catch {
-    return empty(CORPORATE_STORE_ID);
-  }
+  return empty(CORPORATE_STORE_ID);
 }
 
 export function subscribeGoogleStore(ownerId: string, listener: () => void): () => void {
@@ -140,14 +121,10 @@ export function subscribeGoogleStore(ownerId: string, listener: () => void): () 
   function handler() {
     listener();
   }
-  function storageHandler(ev: StorageEvent) {
-    if (ev.key === cacheKey(ownerId)) listener();
-  }
+  void ownerId;
   window.addEventListener(CHANGED_EVENT, handler);
-  window.addEventListener("storage", storageHandler);
   return () => {
     window.removeEventListener(CHANGED_EVENT, handler);
-    window.removeEventListener("storage", storageHandler);
   };
 }
 
@@ -170,7 +147,7 @@ export async function refreshGoogleStore(ownerId: string): Promise<GoogleStore> 
     write(next);
     return next;
   } catch (err) {
-    const message = "Não foi possível verificar sua Conta Google agora.";
+    const message = "Não foi possível verificar a Conta Google corporativa agora.";
     void err;
     const next: GoogleStore = { ...getGoogleStore(ownerId), state: "error", error: message };
     write(next);
@@ -260,7 +237,7 @@ export async function startConnect(
     module: "administracao",
     action: `Google Workspace · ${CONNECTOR_LABEL[connectorId]} conectado`,
     target: store.account?.email ?? "conta Google",
-    details: "Autenticação OAuth 2.0 concluída com credencial individual do executivo.",
+    details: "Autenticação OAuth 2.0 concluída com credencial corporativa persistida pelo Portal.",
     severity: "success",
   });
   return store;

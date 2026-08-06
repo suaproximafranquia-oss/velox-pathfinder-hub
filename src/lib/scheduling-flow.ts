@@ -14,7 +14,7 @@ import {
   type Meeting,
 } from "@/lib/meetings";
 import { trySyncCreate, trySyncDelete, trySyncUpdate } from "@/lib/google-calendar";
-import { GOOGLE_INTEGRATION_CONFIGURED, getGoogleStore } from "@/lib/google-workspace";
+import { GOOGLE_INTEGRATION_CONFIGURED } from "@/lib/google-workspace";
 import { addComment } from "@/lib/investor-comments";
 
 export type ConfirmActor = {
@@ -42,12 +42,9 @@ const REASON_MESSAGE: Record<string, string> = {
 
 /** Mensagem administrativa quando a configuração Google está ausente. */
 export function googleConfigNotice(executiveId: string): string | null {
+  void executiveId;
   if (!GOOGLE_INTEGRATION_CONFIGURED) {
     return "Integração Google ainda não configurada pelo administrador. A reunião foi registrada e o link deve ser enviado manualmente.";
-  }
-  const store = getGoogleStore(executiveId);
-  if (store.state !== "connected" || !store.account) {
-    return "Conecte sua conta Google em Configurações para gerar o evento e o link do Meet automaticamente.";
   }
   return null;
 }

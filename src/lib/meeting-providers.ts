@@ -7,7 +7,6 @@
  * intacta e é reutilizada opcionalmente pelo provedor "google_meet".
  */
 import type { Meeting } from "@/lib/meetings";
-import { getGoogleStore } from "@/lib/google-workspace";
 
 export type MeetingProviderId = "google_meet" | "manual";
 
@@ -108,15 +107,8 @@ export function tryGenerateProviderLink(
 
   if (provider.id === "google_meet") {
     if (ctx.existingUrl) return { status: "available", url: ctx.existingUrl };
-    const store = getGoogleStore(ctx.executiveId);
-    if (store.state === "connected") {
-      // A infra Calendar existente preenche meetUrl de forma assíncrona.
-      return { status: "pending", message: "Aguardando geração do Google Meet." };
-    }
-    return {
-      status: "pending",
-      message: "Aguardando configuração da integração Google Meet.",
-    };
+    void ctx.executiveId;
+    return { status: "pending", message: "Aguardando geração do Google Meet corporativo." };
   }
 
   // Providers marcados como "Em breve".
