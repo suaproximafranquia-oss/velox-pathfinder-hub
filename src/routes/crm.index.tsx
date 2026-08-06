@@ -603,9 +603,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               disabled={!composerEnabled}
               investorName={selected.name}
               window={chatWindow}
-              lastInboundBody={
-                [...messages].reverse().find((m) => m.direction === "recebida")?.body ?? null
-              }
               hint={
                 journeyOnly
                   ? "Jornada Digital — inicie o relacionamento para liberar o envio"
