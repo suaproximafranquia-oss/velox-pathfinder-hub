@@ -274,10 +274,21 @@ function CriativaPage() {
               supporting: copy.marketing.supporting,
             },
           });
+          setLastRun({
+            city,
+            state,
+            photoDataUrl,
+            copy: {
+              headline: copy.marketing.headline,
+              subheadline: copy.marketing.subheadline,
+              supporting: copy.marketing.supporting,
+            },
+          });
         } catch {
           /* o Modelo A é entregue mesmo se o Modelo B falhar */
         }
       }
+      setFraming(null);
 
       setArts({ institucional, ...(marketing ? { marketing } : {}) });
       for (const model of marketing
@@ -302,6 +313,23 @@ function CriativaPage() {
 
   const fileFor = (model: CreativeModel) =>
     `velox-${model}-${slugify(`${form.city}-${form.state}`)}.png`;
+
+  /**
+   * Recompõe o Modelo B com a fotografia deslocada. Nenhum outro
+   * elemento é recalculado: o template oficial continua por cima.
+   */
+  async function recomposeMarketing(offset: { x: number; y: number }) {
+    if (!lastRun) return;
+    const art = await composeFromTemplate({
+      model: "marketing",
+      city: lastRun.city,
+      state: lastRun.state,
+      photoDataUrl: lastRun.photoDataUrl,
+      copy: lastRun.copy,
+      photoOffset: offset,
+    }).catch(() => null);
+    if (art) setFraming({ offset, art });
+  }
 
   if (!session) return null;
 
