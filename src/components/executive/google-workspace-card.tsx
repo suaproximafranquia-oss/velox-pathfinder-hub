@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Info, Loader2, LogOut } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, Loader2, LogOut, RefreshCw } from "lucide-react";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import {
   connectGoogleAccount,
@@ -10,6 +10,11 @@ import {
   refreshGoogleStore,
   subscribeGoogleStore,
   friendlyGoogleMessage,
+  googleIssues,
+  needsGoogleReauth,
+  reconnectGoogleAccount,
+  testGoogleService,
+  GOOGLE_ACCOUNT_CONNECTORS,
   type GoogleStore,
 } from "@/lib/google-workspace";
 
@@ -40,8 +45,9 @@ function formatSync(value: string | undefined): string {
  */
 export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) {
   const [store, setStore] = useState<GoogleStore>(() => getGoogleStore(session.userId));
-  const [busy, setBusy] = useState<"connect" | "disconnect" | null>(null);
+  const [busy, setBusy] = useState<"connect" | "disconnect" | "test" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [testOk, setTestOk] = useState<boolean | null>(null);
 
   const sync = useCallback(() => setStore(getGoogleStore(session.userId)), [session.userId]);
 
@@ -55,17 +61,41 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
   const connected = isGoogleAccountConnected(store);
   const email = store.account?.email ?? null;
   const canManage = canManageGoogleAccount(session.activeRole);
+  const issues = googleIssues(store);
+  const reauth = needsGoogleReauth(store);
 
   async function handleConnect() {
     setMessage(null);
+    setTestOk(null);
     setBusy("connect");
     try {
-      const next = await connectGoogleAccount(actor);
+      const next = reauth ? await reconnectGoogleAccount(actor) : await connectGoogleAccount(actor);
       if (next.state === "error") {
         setMessage(next.error ?? "Não foi possível concluir a conexão com o Google. Tente novamente.");
       }
     } catch (err) {
       setMessage(friendlyGoogleMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Verificação real: uma chamada à API do Google por serviço. */
+  async function handleTest() {
+    setMessage(null);
+    setBusy("test");
+    try {
+      const results = await Promise.all(
+        GOOGLE_ACCOUNT_CONNECTORS.map(async (id) => ({ id, ...(await testGoogleService(id)) })),
+      );
+      const failed = results.filter((r) => !r.ok);
+      setTestOk(failed.length === 0);
+      setMessage(
+        failed.length === 0
+          ? "Conexão validada: o Google respondeu com sucesso para agenda, arquivos e e-mail."
+          : failed.map((f) => f.message).join(" "),
+      );
+      await refreshGoogleStore(session.userId);
     } finally {
       setBusy(null);
     }
@@ -93,7 +123,11 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
           </div>
           <div className="min-w-0">
             <p className="font-display text-base">
-              {connected ? (email ?? "Conta Google conectada") : "Nenhuma conta conectada"}
+              {connected
+                ? (email ?? "Conta Google conectada")
+                : reauth
+                  ? "Autorização do Google expirada"
+                  : "Nenhuma conta conectada"}
             </p>
             <p className="text-xs text-[color:var(--muted-foreground)] leading-relaxed mt-1">
               {connected
@@ -110,12 +144,31 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
                 <>
                   <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Conectada
                 </>
+              ) : reauth ? (
+                <>
+                  <AlertTriangle className="h-3 w-3 text-amber-400" /> Reconexão necessária
+                </>
               ) : (
                 <>
                   <Info className="h-3 w-3" /> Não conectada
                 </>
               )}
             </span>
+            {canManage ? (
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void handleTest()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-4 py-1.5 text-[11px] transition hover:border-[color:var(--gold)] disabled:opacity-50"
+              >
+                {busy === "test" ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+                Testar conexão
+              </button>
+            ) : null}
             {!canManage ? null : connected ? (
               <>
                 <button
@@ -157,13 +210,25 @@ export function GoogleWorkspaceCard({ session }: { session: ExecutiveSession }) 
                 ) : (
                   <GoogleIcon className="h-3 w-3" />
                 )}
-                Conectar conta Google
+                {reauth ? "Reconectar conta Google" : "Conectar conta Google"}
               </button>
             )}
           </div>
         </div>
 
-        {message && <p className="mt-4 text-[11px] text-amber-400">{message}</p>}
+        {message && (
+          <p className={"mt-4 text-[11px] " + (testOk ? "text-emerald-500" : "text-amber-400")}>
+            {message}
+          </p>
+        )}
+
+        {!connected && issues.length > 0 && (
+          <ul className="mt-3 space-y-1 text-[11px] text-[color:var(--muted-foreground)]">
+            {issues.map((i) => (
+              <li key={i}>· {i}</li>
+            ))}
+          </ul>
+        )}
 
         <p className="mt-4 text-[11px] text-[color:var(--muted-foreground)] leading-relaxed">
           {canManage

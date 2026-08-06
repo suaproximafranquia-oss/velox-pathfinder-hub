@@ -9,6 +9,9 @@ export type GoogleConnectionStatus = {
   connected: boolean;
   accountEmail: string | null;
   updatedAt: string | null;
+  /** Estado real apurado por chamada à API do Google. */
+  state: "connected" | "reauth_required" | "missing_credential" | "error";
+  detail: string | null;
 };
 
 /** Situação da Conta Google corporativa (mesma conta para todos). */
@@ -37,15 +40,47 @@ export const getGoogleConnections = createServerFn({ method: "GET" })
           };
         }
       }
+      const { probeConnection } = await import("@/server/google.server");
+      const probe = await probeConnection(connectorId);
       result.push({
         connectorId,
-        connected: Boolean(row),
-        accountEmail: row?.accountEmail ?? null,
+        connected: probe.ok,
+        state:
+          probe.reason === "ok"
+            ? "connected"
+            : probe.reason === "reauth_required"
+              ? "reauth_required"
+              : probe.reason === "missing_credential"
+                ? "missing_credential"
+                : "error",
+        detail: probe.detail,
+        accountEmail: probe.accountEmail ?? row?.accountEmail ?? null,
         updatedAt: row?.updatedAt ?? null,
       });
     }
     return result;
   });
+
+/** Verificação real e sob demanda (botão "Testar conexão"). */
+export const testGoogleConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { connectorId: GoogleConnectorKey }) => data)
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: boolean; message: string; accountEmail: string | null }> => {
+      const { probeConnection, isGoogleConnector } = await import("@/server/google.server");
+      if (!isGoogleConnector(data.connectorId)) throw new Error("Conector inválido.");
+      const probe = await probeConnection(data.connectorId, { force: true });
+      return {
+        ok: probe.ok,
+        accountEmail: probe.accountEmail,
+        message: probe.ok
+          ? `Conexão validada com a API do Google${probe.accountEmail ? ` (${probe.accountEmail})` : ""}.`
+          : (probe.detail ?? "Falha na verificação junto ao Google."),
+      };
+    },
+  );
 
 /** Inicia o consentimento OAuth 2.0 oficial do Google. */
 export const startGoogleConnect = createServerFn({ method: "POST" })
@@ -59,6 +94,7 @@ export const startGoogleConnect = createServerFn({ method: "POST" })
       clientApiKeyFor,
       isGoogleConnector,
       CORPORATE_OWNER_ID,
+      probeConnection,
     } = await import("@/server/google.server");
     const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
     const { assertGoogleAccountManager } = await import("@/server/executive-auth.server");
@@ -68,7 +104,13 @@ export const startGoogleConnect = createServerFn({ method: "POST" })
     const request = getRequest();
     if (!request) throw new Error("A conexão precisa começar por uma requisição da aplicação.");
     const returnUrl = new URL(`/oauth/google/${data.connectorId}`, request.url).toString();
-    const existing = await getConnectionKeyForUser(CORPORATE_OWNER_ID, data.connectorId);
+    // Só reaproveita a credencial atual quando ela ainda é válida. Se a
+    // autorização expirou/foi revogada, exigimos um consentimento novo
+    // para obter um Refresh Token durável.
+    const probe = await probeConnection(data.connectorId, { force: true });
+    const existing = probe.ok
+      ? await getConnectionKeyForUser(CORPORATE_OWNER_ID, data.connectorId)
+      : null;
 
     const { authorizationUrl } = await authorizeAppUserOAuth({
       gatewayBaseUrl: GATEWAY_BASE_URL,
@@ -77,7 +119,11 @@ export const startGoogleConnect = createServerFn({ method: "POST" })
       clientAPIKey: clientApiKeyFor(data.connectorId),
       returnUrl,
       connectionAPIKey: existing ?? undefined,
-      credentialsConfiguration: { scopes: GOOGLE_SCOPES_BY_CONNECTOR[data.connectorId] },
+      credentialsConfiguration: {
+        scopes: GOOGLE_SCOPES_BY_CONNECTOR[data.connectorId],
+        access_type: "offline",
+        prompt: "consent",
+      },
     });
     return { authorizationUrl };
   });
@@ -102,6 +148,8 @@ export const completeGoogleConnection = createServerFn({ method: "POST" })
     );
     if (!isGoogleConnector(connectorId)) throw new Error("Conector inesperado no retorno OAuth.");
     await saveConnectionKeyForUser(CORPORATE_OWNER_ID, connectorId, connectionAPIKey);
+    const { clearProbeCache } = await import("@/server/google.server");
+    clearProbeCache(connectorId);
 
     let email: string | null = null;
     try {
@@ -120,7 +168,9 @@ export const disconnectGoogle = createServerFn({ method: "POST" })
   .inputValidator((data: { connectorId: GoogleConnectorKey }) => data)
   .handler(async ({ data, context }) => {
     const { disconnectAppUser } = await import("@/integrations/lovable/appUserConnector");
-    const { GATEWAY_BASE_URL, CORPORATE_OWNER_ID } = await import("@/server/google.server");
+    const { GATEWAY_BASE_URL, CORPORATE_OWNER_ID, clearProbeCache } = await import(
+      "@/server/google.server"
+    );
     const { deleteConnectionForUser, getConnectionKeyForUser } = await import(
       "@/server/appUserConnections.server"
     );
@@ -140,5 +190,6 @@ export const disconnectGoogle = createServerFn({ method: "POST" })
     }
     await deleteConnectionForUser(CORPORATE_OWNER_ID, data.connectorId);
     await deleteConnectionForUser(context.userId, data.connectorId);
+    clearProbeCache(data.connectorId);
     return { ok: true as const };
   });

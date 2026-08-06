@@ -12,6 +12,7 @@ import {
   disconnectGoogle,
   getGoogleConnections,
   startGoogleConnect,
+  testGoogleConnection,
   type GoogleConnectionStatus,
   type GoogleConnectorKey,
 } from "@/lib/google.functions";
@@ -169,6 +170,33 @@ export function isConnectorConnected(store: GoogleStore, connectorId: GoogleConn
   return store.connectors.some((c) => c.connectorId === connectorId && c.connected);
 }
 
+/**
+ * Diagnóstico legível de cada serviço que não está operacional. Sem isso
+ * a tela mostraria apenas "pendente" sem dizer o que falta.
+ */
+export function googleIssues(store: GoogleStore): string[] {
+  return store.connectors
+    .filter((c) => !c.connected)
+    .map((c) => `${CONNECTOR_LABEL[c.connectorId]}: ${c.detail ?? "serviço não autorizado."}`);
+}
+
+/** Alguma credencial existe, mas a autorização do Google expirou. */
+export function needsGoogleReauth(store: GoogleStore): boolean {
+  return store.connectors.some((c) => c.state === "reauth_required");
+}
+
+/** Chamada real à API do Google usada pelo botão "Testar conexão". */
+export async function testGoogleService(
+  connectorId: GoogleConnectorKey,
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const res = await testGoogleConnection({ data: { connectorId } });
+    return { ok: res.ok, message: res.message };
+  } catch (err) {
+    return { ok: false, message: friendlyGoogleMessage(err) };
+  }
+}
+
 function waitForOAuth(popup: Window, connectorId: GoogleConnectorKey): Promise<void> {
   return new Promise((resolve, reject) => {
     let poll: number | undefined;
@@ -299,10 +327,23 @@ export async function connectGoogleAccount(actor: ConnectActor): Promise<GoogleS
 /** Desfaz o pareamento completo da Conta Google. */
 export async function disconnectGoogleAccount(actor: ConnectActor): Promise<GoogleStore> {
   let store = getGoogleStore(actor.userId);
+  void store;
   for (const connectorId of GOOGLE_ACCOUNT_CONNECTORS) {
-    if (isConnectorConnected(store, connectorId)) {
-      store = await disconnect(actor, connectorId);
-    }
+    store = await disconnect(actor, connectorId);
+  }
+  return refreshGoogleStore(actor.userId);
+}
+
+/**
+ * Reconexão explícita: reautoriza TODOS os serviços da Conta Google,
+ * mesmo os que aparentam existir, para renovar o consentimento e obter
+ * um Refresh Token durável.
+ */
+export async function reconnectGoogleAccount(actor: ConnectActor): Promise<GoogleStore> {
+  let store = getGoogleStore(actor.userId);
+  for (const connectorId of GOOGLE_ACCOUNT_CONNECTORS) {
+    store = await startConnect(actor, connectorId);
+    if (store.state === "error") return store;
   }
   return refreshGoogleStore(actor.userId);
 }
