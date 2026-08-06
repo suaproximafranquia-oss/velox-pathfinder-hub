@@ -108,12 +108,14 @@ const INSTITUTIONAL: TemplateLayout = {
     color: "#FFFFFF",
   },
   tail: {
-    x: 0.252,
+    // Alinhado ao fim de "AGORA EM" impresso no template (x1 = 0.2402)
+    // acrescido de um espaço tipográfico.
+    x: 0.2466,
     align: "left",
     // Linha 3 do parágrafo institucional ("AGORA EM"), medida no arquivo.
-    baselineY: 0.6675,
+    baselineY: 0.6681,
     capHeight: 0.0132,
-    maxWidth: 0.72,
+    maxWidth: 0.7,
     tracking: 0.02,
     weight: 700,
     color: "#FFFFFF",
