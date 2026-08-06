@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Wand2,
   Loader2,
@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FlaskConical,
+  Move,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ImageDropzone } from "@/components/shared/image-dropzone";
@@ -116,6 +117,20 @@ function CriativaPage() {
   const [photoMode, setPhotoMode] = useState<"auto" | "manual">("auto");
   const [testing, setTesting] = useState<CreativeModel | null>(null);
   const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
+  /**
+   * Dados da última geração — permitem recompor o Modelo B quando o
+   * usuário reposiciona a fotografia dentro da máscara oficial.
+   */
+  const [lastRun, setLastRun] = useState<{
+    city: string;
+    state: string;
+    photoDataUrl: string;
+    copy: { headline: string; subheadline: string; supporting: string };
+  } | null>(null);
+  /** Modo de enquadramento do Modelo B (somente mover a fotografia). */
+  const [framing, setFraming] = useState<{ offset: { x: number; y: number }; art: string } | null>(
+    null,
+  );
   const canManageTemplates = session ? canManageCreativeTemplates(session.activeRole) : false;
 
   useEffect(() => {
@@ -259,10 +274,21 @@ function CriativaPage() {
               supporting: copy.marketing.supporting,
             },
           });
+          setLastRun({
+            city,
+            state,
+            photoDataUrl,
+            copy: {
+              headline: copy.marketing.headline,
+              subheadline: copy.marketing.subheadline,
+              supporting: copy.marketing.supporting,
+            },
+          });
         } catch {
           /* o Modelo A é entregue mesmo se o Modelo B falhar */
         }
       }
+      setFraming(null);
 
       setArts({ institucional, ...(marketing ? { marketing } : {}) });
       for (const model of marketing
@@ -287,6 +313,45 @@ function CriativaPage() {
 
   const fileFor = (model: CreativeModel) =>
     `velox-${model}-${slugify(`${form.city}-${form.state}`)}.png`;
+
+  /** Arraste da fotografia (Modelo B) — único gesto de edição. */
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    base: { x: number; y: number };
+    w: number;
+    h: number;
+  } | null>(null);
+  const renderingRef = useRef(false);
+  const pendingRef = useRef<{ x: number; y: number } | null>(null);
+
+  async function pumpFrame() {
+    if (renderingRef.current) return;
+    const next = pendingRef.current;
+    if (!next) return;
+    pendingRef.current = null;
+    renderingRef.current = true;
+    await recomposeMarketing(next);
+    renderingRef.current = false;
+    void pumpFrame();
+  }
+
+  /**
+   * Recompõe o Modelo B com a fotografia deslocada. Nenhum outro
+   * elemento é recalculado: o template oficial continua por cima.
+   */
+  async function recomposeMarketing(offset: { x: number; y: number }) {
+    if (!lastRun) return;
+    const art = await composeFromTemplate({
+      model: "marketing",
+      city: lastRun.city,
+      state: lastRun.state,
+      photoDataUrl: lastRun.photoDataUrl,
+      copy: lastRun.copy,
+      photoOffset: offset,
+    }).catch(() => null);
+    if (art) setFraming({ offset, art });
+  }
 
   if (!session) return null;
 
@@ -543,23 +608,45 @@ function CriativaPage() {
                 </header>
                 <div className="p-5">
                   {art ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setZoom({
-                          model,
-                          src: `data:image/png;base64,${art}`,
-                          file: fileFor(model),
-                        })
-                      }
-                      className="block w-full overflow-hidden rounded-xl border border-border transition hover:opacity-90"
-                    >
-                      <img
-                        src={`data:image/png;base64,${art}`}
-                        alt={`${CREATIVE_MODEL_LABEL[model]} — ${form.city}`}
-                        className="w-full"
-                      />
-                    </button>
+                    <div className="flex flex-col gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          model === "marketing" && lastRun
+                            ? setFraming({ offset: { x: 0, y: 0 }, art })
+                            : setZoom({
+                                model,
+                                src: `data:image/png;base64,${art}`,
+                                file: fileFor(model),
+                              })
+                        }
+                        className="block w-full overflow-hidden rounded-xl border border-border transition hover:opacity-90"
+                      >
+                        <img
+                          src={`data:image/png;base64,${art}`}
+                          alt={`${CREATIVE_MODEL_LABEL[model]} — ${form.city}`}
+                          className="w-full"
+                        />
+                      </button>
+                      {model === "marketing" && lastRun ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFraming({ offset: { x: 0, y: 0 }, art })}
+                            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted"
+                          >
+                            <Move className="h-4 w-4" /> Ajustar enquadramento
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadBase64(art, fileFor(model))}
+                            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                          >
+                            <Download className="h-4 w-4" /> Download
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
                       {busy ? "Gerando…" : "Aguardando geração"}
@@ -571,6 +658,72 @@ function CriativaPage() {
           })}
         </section>
       </div>
+
+      {framing ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-6">
+          <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card">
+            <header className="flex items-center justify-between border-b border-border px-5 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Ajustar enquadramento</h3>
+                <p className="text-xs text-muted-foreground">
+                  Arraste a fotografia. Todo o restante da arte permanece bloqueado.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setArts((a) => ({ ...a, marketing: framing.art }));
+                    setFraming(null);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                >
+                  <CheckCircle2 className="h-4 w-4" /> Salvar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFraming(null)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground"
+                >
+                  <X className="h-4 w-4" /> Cancelar
+                </button>
+              </div>
+            </header>
+            <div className="overflow-auto p-5">
+              <img
+                src={`data:image/png;base64,${framing.art}`}
+                alt="Ajuste de enquadramento — Modelo B"
+                draggable={false}
+                className="w-full cursor-grab touch-none select-none active:cursor-grabbing"
+                onPointerDown={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  dragRef.current = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    base: framing.offset,
+                    w: rect.width,
+                    h: rect.height,
+                  };
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                }}
+                onPointerMove={(e) => {
+                  const drag = dragRef.current;
+                  if (!drag || !drag.w || !drag.h) return;
+                  pendingRef.current = {
+                    x: drag.base.x + (e.clientX - drag.x) / drag.w,
+                    y: drag.base.y + (e.clientY - drag.y) / drag.h,
+                  };
+                  void pumpFrame();
+                }}
+                onPointerUp={(e) => {
+                  dragRef.current = null;
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {zoom ? (
         <div

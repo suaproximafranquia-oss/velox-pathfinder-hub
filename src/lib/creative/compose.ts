@@ -38,7 +38,14 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
  * isso o padrão privilegia o terço superior — o céu e o skyline ficam
  * visíveis e o enquadramento parece natural dentro do template.
  */
-function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, area: Area, focusY = 0.5) {
+function drawCover(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  area: Area,
+  focusY = 0.5,
+  /** Deslocamento manual em pixels do próprio template. */
+  offset: { x: number; y: number } = { x: 0, y: 0 },
+) {
   const scale = Math.max(area.w / img.naturalWidth, area.h / img.naturalHeight);
   const dw = img.naturalWidth * scale;
   const dh = img.naturalHeight * scale;
@@ -46,8 +53,13 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, area: A
   ctx.beginPath();
   ctx.rect(area.x, area.y, area.w, area.h);
   ctx.clip();
-  const dy = area.y + (area.h - dh) * Math.min(1, Math.max(0, focusY));
-  ctx.drawImage(img, area.x + (area.w - dw) / 2, dy, dw, dh);
+  // Reposicionamento manual: a fotografia desliza dentro da máscara sem
+  // nunca deixar borda vazia (o deslocamento é limitado à sobra).
+  const rawX = area.x + (area.w - dw) / 2 + offset.x;
+  const rawY = area.y + (area.h - dh) * Math.min(1, Math.max(0, focusY)) + offset.y;
+  const dx = Math.min(area.x, Math.max(area.x + area.w - dw, rawX));
+  const dy = Math.min(area.y, Math.max(area.y + area.h - dh, rawY));
+  ctx.drawImage(img, dx, dy, dw, dh);
   ctx.restore();
 }
 
@@ -268,6 +280,11 @@ export type ComposeInput = {
    * calibração/prévia — nunca é aplicado na arte final exportada.
    */
   guide?: boolean;
+  /**
+   * Reposicionamento manual da fotografia dentro da máscara (frações da
+   * largura/altura do template). Único ajuste permitido ao usuário.
+   */
+  photoOffset?: { x: number; y: number };
 };
 
 /**
@@ -330,12 +347,15 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
     photo = await loadImage(input.photoDataUrl).catch(() => null);
   }
 
+  const offsetPx = input.photoOffset
+    ? { x: input.photoOffset.x * w, y: input.photoOffset.y * h }
+    : { x: 0, y: 0 };
   if (overlayMode) {
-    if (photo) drawCover(ctx, photo, targetArea, 0.38);
+    if (photo) drawCover(ctx, photo, targetArea, 0.38, offsetPx);
     ctx.drawImage(base, 0, 0, w, h);
   } else {
     ctx.drawImage(base, 0, 0, w, h);
-    if (photo) drawCover(ctx, photo, photoArea, 0.38);
+    if (photo) drawCover(ctx, photo, photoArea, 0.38, offsetPx);
   }
 
   const city = (input.city || "").trim().toLocaleUpperCase("pt-BR");
