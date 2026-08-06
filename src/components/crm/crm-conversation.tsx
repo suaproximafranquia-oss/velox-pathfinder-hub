@@ -18,7 +18,7 @@ import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CRM_TEMPLATES, resolveCrmWindow, type CrmWindowStatus } from "@/lib/crm/templates";
-import { buildCrmAiSuggestions } from "@/lib/crm/ai-suggestions";
+import { CrmChatGptWindow } from "@/components/crm/crm-chatgpt-window";
 
 /** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
 function useSecondTick(active: boolean) {
@@ -300,7 +300,6 @@ export function CrmComposer({
   hint,
   investorName = "",
   window: win,
-  lastInboundBody,
   prefillText,
   prefillNonce = 0,
 }: {
@@ -310,8 +309,6 @@ export function CrmComposer({
   /** Nome usado na personalização dos templates. */
   investorName?: string;
   window?: CrmWindowStatus;
-  /** Última mensagem recebida — contexto das sugestões de IA. */
-  lastInboundBody?: string | null;
   /** Texto carregado a partir do módulo Templates. */
   prefillText?: string | null;
   /** Muda a cada seleção, permitindo recarregar o mesmo template. */
@@ -337,24 +334,9 @@ export function CrmComposer({
    */
   const windowClosed = Boolean(win && !win.open);
   /**
-   * DEF 3.0.3 §3 — a IA escreve dentro da conversa. Com a janela
-   * encerrada apenas Templates aprovados podem ser usados, então a
-   * assistência de escrita fica indisponível nesse estado.
+   * O botão IA abre o ChatGPT em uma janela flutuante dentro do próprio
+   * CRM. Nenhum painel de sugestões, nenhuma integração automática.
    */
-  const aiAvailable = !disabled;
-  // Com a janela encerrada a IA sugere apenas Templates aprovados,
-  // preservando a regra oficial de reabertura da conversa.
-  const aiSuggestions = windowClosed
-    ? CRM_TEMPLATES.map((t) => ({
-        id: t.id,
-        label: t.label,
-        text: t.body(investorName),
-      }))
-    : buildCrmAiSuggestions({
-        investorName,
-        windowOpen: true,
-        lastInboundBody,
-      });
   const typingBlocked = disabled || windowClosed;
   const canSend = !disabled && text.trim().length > 0 && (!windowClosed || armedTemplate);
   const submit = () => {
