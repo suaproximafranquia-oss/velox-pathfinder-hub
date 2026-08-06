@@ -102,10 +102,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     status: "ativo",
   },
   {
-    id: "central-reunioes",
-    name: "Central de Reuniões",
-  } as PlatformModule,
-  {
     id: "central-captacao",
     name: "Central de Captação",
     description:
@@ -115,7 +111,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     status: "ativo",
   },
   {
-    id: "central-reunioes-real",
+    id: "central-reunioes",
     name: "Central de Reuniões",
     description:
       "Gestão dos encontros da sua carteira — histórico, status e registros pós-reunião.",
