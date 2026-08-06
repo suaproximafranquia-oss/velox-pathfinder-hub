@@ -108,20 +108,20 @@ const INSTITUTIONAL: TemplateLayout = {
     color: "#FFFFFF",
   },
   tail: {
-    // Continuação exata da linha "AGORA EM" impressa no template
-    // (medida no arquivo oficial: termina em x = 0.2391). O espaço do
-    // tipográfico correto — nenhum deslocamento arbitrário.
-    // prefixo cria o intervalo tipográfico correto.
-    x: 0.2391,
+    // Continuação EXATA da linha "AGORA EM" já impressa no template.
+    // Medido no arquivo oficial em uso: a palavra "EM" termina em
+    // x = 0.2444 e a linha de base do parágrafo está em y = 0.6851.
+    // O prefixo de espaço cria o intervalo tipográfico entre "EM" e a
+    // cidade, mantendo tudo em UMA única linha contínua.
+    x: 0.2444,
     prefix: " ",
     align: "left",
-    // Linha 3 do parágrafo institucional ("AGORA EM"), medida no arquivo.
-    baselineY: 0.6681,
-    capHeight: 0.0138,
+    baselineY: 0.6851,
+    capHeight: 0.0131,
     maxWidth: 0.7,
     tracking: 0.02,
     weight: 700,
-    color: "#F26A12",
+    color: "#FF730E",
   },
 };
 
