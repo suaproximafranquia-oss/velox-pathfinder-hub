@@ -62,8 +62,6 @@ function unitName(form: FormState): string {
   return `Velox ${form.city}${form.state ? ` — ${form.state}` : ""}`.trim();
 }
 
-}
-
 function CriativaPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
