@@ -3,9 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Settings,
   Sliders,
-  Database,
   FolderOpen,
-  Sparkles,
   ShieldCheck,
   Users2,
   ListChecks,
