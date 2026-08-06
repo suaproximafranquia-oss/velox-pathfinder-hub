@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FlaskConical,
+  Move,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ImageDropzone } from "@/components/shared/image-dropzone";
@@ -116,6 +117,20 @@ function CriativaPage() {
   const [photoMode, setPhotoMode] = useState<"auto" | "manual">("auto");
   const [testing, setTesting] = useState<CreativeModel | null>(null);
   const [report, setReport] = useState<Partial<Record<CreativeModel, Diagnostic[]>>>({});
+  /**
+   * Dados da última geração — permitem recompor o Modelo B quando o
+   * usuário reposiciona a fotografia dentro da máscara oficial.
+   */
+  const [lastRun, setLastRun] = useState<{
+    city: string;
+    state: string;
+    photoDataUrl: string;
+    copy: { headline: string; subheadline: string; supporting: string };
+  } | null>(null);
+  /** Modo de enquadramento do Modelo B (somente mover a fotografia). */
+  const [framing, setFraming] = useState<{ offset: { x: number; y: number }; art: string } | null>(
+    null,
+  );
   const canManageTemplates = session ? canManageCreativeTemplates(session.activeRole) : false;
 
   useEffect(() => {
