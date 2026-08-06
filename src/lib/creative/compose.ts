@@ -279,6 +279,11 @@ export type ComposeInput = {
    * calibração/prévia — nunca é aplicado na arte final exportada.
    */
   guide?: boolean;
+  /**
+   * Reposicionamento manual da fotografia dentro da máscara (frações da
+   * área). Único ajuste permitido ao usuário — nada mais é editável.
+   */
+  photoOffset?: { x: number; y: number };
 };
 
 /**
@@ -342,11 +347,11 @@ export async function composeFromTemplate(input: ComposeInput): Promise<string> 
   }
 
   if (overlayMode) {
-    if (photo) drawCover(ctx, photo, targetArea, 0.38);
+    if (photo) drawCover(ctx, photo, targetArea, 0.38, input.photoOffset);
     ctx.drawImage(base, 0, 0, w, h);
   } else {
     ctx.drawImage(base, 0, 0, w, h);
-    if (photo) drawCover(ctx, photo, photoArea, 0.38);
+    if (photo) drawCover(ctx, photo, photoArea, 0.38, input.photoOffset);
   }
 
   const city = (input.city || "").trim().toLocaleUpperCase("pt-BR");
