@@ -379,32 +379,7 @@ export function CrmComposer({
           ))}
         </div>
       ) : null}
-      {aiOpen && aiAvailable ? (
-        <div className="crm-enter mb-2 space-y-1.5 rounded-xl border border-[color:var(--crm-border)] bg-[color:var(--crm-background)] p-2">
-          <p className="px-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[color:var(--crm-muted)]">
-            Sugestões inteligentes — o texto é inserido na caixa e pode ser editado
-          </p>
-          {aiSuggestions.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => {
-                setText(s.text);
-                if (windowClosed) setArmedTemplate(true);
-                setAiOpen(false);
-              }}
-              className="block w-full cursor-pointer rounded-lg border border-transparent px-2.5 py-2 text-left transition-colors hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]"
-            >
-              <span className="block text-[11px] font-medium text-[color:var(--crm-accent)]">
-                {s.label}
-              </span>
-              <span className="mt-0.5 block text-[11px] leading-relaxed text-[color:var(--crm-muted)]">
-                {s.text}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {aiOpen ? <CrmChatGptWindow onClose={() => setAiOpen(false)} /> : null}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -427,10 +402,9 @@ export function CrmComposer({
         </button>
         <button
           type="button"
-          disabled={!aiAvailable}
           aria-expanded={aiOpen}
-          aria-label="Sugestões da IA"
-          title="Sugestões da IA"
+          aria-label="Abrir ChatGPT"
+          title="Abrir ChatGPT"
           onClick={() => {
             setTemplatesOpen(false);
             setAiOpen((v) => !v);
