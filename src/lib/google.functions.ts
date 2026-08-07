@@ -94,7 +94,6 @@ export const startGoogleConnect = createServerFn({ method: "POST" })
       clientApiKeyFor,
       isGoogleConnector,
       CORPORATE_OWNER_ID,
-      probeConnection,
     } = await import("@/server/google.server");
     const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
     const { assertGoogleAccountManager } = await import("@/server/executive-auth.server");
@@ -104,13 +103,9 @@ export const startGoogleConnect = createServerFn({ method: "POST" })
     const request = getRequest();
     if (!request) throw new Error("A conexão precisa começar por uma requisição da aplicação.");
     const returnUrl = new URL(`/oauth/google/${data.connectorId}`, request.url).toString();
-    // Só reaproveita a credencial atual quando ela ainda é válida. Se a
-    // autorização expirou/foi revogada, exigimos um consentimento novo
-    // para obter um Refresh Token durável.
-    const probe = await probeConnection(data.connectorId, { force: true });
-    const existing = probe.ok
-      ? await getConnectionKeyForUser(CORPORATE_OWNER_ID, data.connectorId)
-      : null;
+    // Reaproveita a credencial corporativa existente: o gateway
+    // reautoriza a MESMA conexão e devolve um Refresh Token novo.
+    const existing = await getConnectionKeyForUser(CORPORATE_OWNER_ID, data.connectorId);
 
     const { authorizationUrl } = await authorizeAppUserOAuth({
       gatewayBaseUrl: GATEWAY_BASE_URL,
@@ -119,11 +114,7 @@ export const startGoogleConnect = createServerFn({ method: "POST" })
       clientAPIKey: clientApiKeyFor(data.connectorId),
       returnUrl,
       connectionAPIKey: existing ?? undefined,
-      credentialsConfiguration: {
-        scopes: GOOGLE_SCOPES_BY_CONNECTOR[data.connectorId],
-        access_type: "offline",
-        prompt: "consent",
-      },
+      credentialsConfiguration: { scopes: GOOGLE_SCOPES_BY_CONNECTOR[data.connectorId] },
     });
     return { authorizationUrl };
   });
