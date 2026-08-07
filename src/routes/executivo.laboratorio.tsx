@@ -26,6 +26,7 @@ import {
 import { resetHomologationData } from "@/lib/homologation-reset";
 import { recordWhatsappReply } from "@/lib/crm/whatsapp-inbox";
 import { simulateWhatsappReply } from "@/lib/whatsapp.functions";
+import { isHomologationEnvironment } from "@/lib/environment";
 
 export const Route = createFileRoute("/executivo/laboratorio")({
   head: () => ({
@@ -101,6 +102,25 @@ function LaboratorioPage() {
   const scheduled: ScheduledRecognition[] = useMemo(() => listScheduled(), [tick]);
 
   if (!session) return null;
+
+  // Produção não gera eventos simulados de nenhuma natureza.
+  if (!isHomologationEnvironment()) {
+    return (
+      <ExecutiveShell session={session} title="Laboratório Atlas">
+        <div className="max-w-2xl rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)]">
+            Ambiente de produção
+          </p>
+          <h2 className="font-display text-xl mt-2">Simulações indisponíveis</h2>
+          <p className="text-sm text-[color:var(--muted-foreground)] mt-3 leading-relaxed">
+            O Portal está operando em produção e trabalha exclusivamente com dados reais
+            registrados pela equipe ou recebidos pelas integrações oficiais. As simulações do
+            Laboratório existem apenas no ambiente de homologação.
+          </p>
+        </div>
+      </ExecutiveShell>
+    );
+  }
 
   const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
 

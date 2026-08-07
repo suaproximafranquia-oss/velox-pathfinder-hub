@@ -41,6 +41,7 @@ import {
   type KpiIndicator,
 } from "@/lib/kpi-manager";
 import { visibleCollaborators } from "@/lib/teams";
+import { isHomologationEnvironment } from "@/lib/environment";
 import { cn } from "@/lib/utils";
 import { KpiAiAssistant } from "@/components/executive/kpi-ai-assistant";
 
@@ -289,6 +290,8 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
             <RotateCcw className="h-3 w-3" />
             Limpar
           </button>
+          {/* Massa fictícia: existe apenas em homologação. */}
+          {isHomologationEnvironment() ? (
           <button
             type="button"
             onClick={seedMonth}
@@ -308,6 +311,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
             <Gauge className="h-3 w-3" />
             Massa de homologação
           </button>
+          ) : null}
         </div>
       </div>
 
