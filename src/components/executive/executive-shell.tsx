@@ -1,4 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { isHomologationEnvironment } from "@/lib/environment";
 import {
   LayoutGrid,
   LayoutDashboard,
