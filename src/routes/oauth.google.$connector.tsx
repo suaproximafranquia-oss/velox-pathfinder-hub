@@ -20,7 +20,9 @@ function GoogleOAuthReturn() {
     const params = new URLSearchParams(window.location.search);
     const notify = (type: "google-oauth-complete" | "google-oauth-failed") => {
       window.opener?.postMessage({ type, connectorId: connector }, window.location.origin);
-      window.close();
+      // A janela é reaproveitada pelo Portal para autorizar os demais
+      // serviços da mesma conta; quem fecha é sempre quem abriu.
+      if (!window.opener) window.close();
     };
     if (params.get("success") !== "true") {
       setMessage(params.get("error") ?? "A autorização não foi concluída.");

@@ -230,25 +230,24 @@ function waitForOAuth(popup: Window, connectorId: GoogleConnectorKey): Promise<v
 
 export type ConnectActor = { userId: string; userName: string; userRole: string };
 
-/** Abre o consentimento oficial do Google e persiste a credencial. */
-export async function startConnect(
+/**
+ * Executa o consentimento de UM serviço reaproveitando um popup já aberto
+ * pelo clique do usuário. Abrir a janela depois de um `await` faz o
+ * navegador bloquear o popup — foi essa a causa da conexão nunca iniciar.
+ */
+async function runConnect(
   actor: ConnectActor,
-  connectorId: GoogleConnectorKey = "google_calendar",
+  connectorId: GoogleConnectorKey,
+  popup: Window,
 ): Promise<GoogleStore> {
   const owner = actor.userId;
   write({ ...getGoogleStore(owner), state: "connecting", error: null });
-
-  const popup = window.open("", "velox-google-oauth", "width=620,height=740");
-  if (!popup) {
-    return setConnectError(owner, "Permita janelas pop-up para conectar sua conta Google.");
-  }
   try {
     const { authorizationUrl } = await startGoogleConnect({ data: { connectorId } });
     const completion = waitForOAuth(popup, connectorId);
     popup.location.href = authorizationUrl;
     await completion;
   } catch (err) {
-    popup.close();
     return setConnectError(owner, friendlyGoogleMessage(err));
   }
 
@@ -269,6 +268,38 @@ export async function startConnect(
     severity: "success",
   });
   return store;
+}
+
+/** Autoriza vários serviços da mesma conta em UM único popup. */
+async function runSequence(
+  actor: ConnectActor,
+  connectors: GoogleConnectorKey[],
+  popup: Window,
+): Promise<GoogleStore> {
+  let store = getGoogleStore(actor.userId);
+  for (const connectorId of connectors) {
+    store = await runConnect(actor, connectorId, popup);
+    if (store.state === "error") break;
+  }
+  if (!popup.closed) popup.close();
+  return store.state === "error" ? store : refreshGoogleStore(actor.userId);
+}
+
+function openOAuthPopup(): Window | null {
+  return window.open("", "velox-google-oauth", "width=620,height=740");
+}
+
+/** Abre o consentimento oficial do Google e persiste a credencial. */
+export async function startConnect(
+  actor: ConnectActor,
+  connectorId: GoogleConnectorKey = "google_calendar",
+): Promise<GoogleStore> {
+  const owner = actor.userId;
+  const popup = openOAuthPopup();
+  if (!popup) {
+    return setConnectError(owner, "Permita janelas pop-up para conectar sua conta Google.");
+  }
+  return runSequence(actor, [connectorId], popup);
 }
 
 export function setConnectError(ownerId: string, error: string): GoogleStore {
@@ -316,12 +347,18 @@ export function isExpired(_store: GoogleStore): boolean {
  * refresh token é feita pelo gateway seguro, sem novo login.
  */
 export async function connectGoogleAccount(actor: ConnectActor): Promise<GoogleStore> {
-  let store = await refreshGoogleStore(actor.userId);
-  for (const connectorId of missingGoogleConnectors(store)) {
-    store = await startConnect(actor, connectorId);
-    if (store.state === "error") return store;
+  // O popup precisa nascer no gesto do usuário, antes de qualquer await.
+  const popup = openOAuthPopup();
+  if (!popup) {
+    return setConnectError(actor.userId, "Permita janelas pop-up para conectar sua conta Google.");
   }
-  return store;
+  const store = await refreshGoogleStore(actor.userId);
+  const pending = missingGoogleConnectors(store);
+  if (pending.length === 0) {
+    if (!popup.closed) popup.close();
+    return store;
+  }
+  return runSequence(actor, pending, popup);
 }
 
 /** Desfaz o pareamento completo da Conta Google. */
@@ -340,10 +377,9 @@ export async function disconnectGoogleAccount(actor: ConnectActor): Promise<Goog
  * um Refresh Token durável.
  */
 export async function reconnectGoogleAccount(actor: ConnectActor): Promise<GoogleStore> {
-  let store = getGoogleStore(actor.userId);
-  for (const connectorId of GOOGLE_ACCOUNT_CONNECTORS) {
-    store = await startConnect(actor, connectorId);
-    if (store.state === "error") return store;
+  const popup = openOAuthPopup();
+  if (!popup) {
+    return setConnectError(actor.userId, "Permita janelas pop-up para conectar sua conta Google.");
   }
-  return refreshGoogleStore(actor.userId);
+  return runSequence(actor, [...GOOGLE_ACCOUNT_CONNECTORS], popup);
 }
