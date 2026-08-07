@@ -14,6 +14,7 @@
  *   toBrainSnapshot(...)          → BrainKpiSnapshot (adapter)
  */
 import { useCallback, useEffect, useState } from "react";
+import { isProductionEnvironment, PRODUCTION_BLOCK_MESSAGE } from "@/lib/environment";
 import type {
   ExecutiveRole,
   ExecutiveSession,
