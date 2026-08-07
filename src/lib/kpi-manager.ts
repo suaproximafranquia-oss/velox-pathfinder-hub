@@ -14,6 +14,7 @@
  *   toBrainSnapshot(...)          → BrainKpiSnapshot (adapter)
  */
 import { useCallback, useEffect, useState } from "react";
+import { isProductionEnvironment, PRODUCTION_BLOCK_MESSAGE } from "@/lib/environment";
 import type {
   ExecutiveRole,
   ExecutiveSession,
@@ -193,6 +194,8 @@ function pseudo(seed: number): () => number {
 }
 
 export function seedHomologationDataset(userId: string, monthKey: string): KpiDataset {
+  // Produção opera exclusivamente com lançamentos reais.
+  if (isProductionEnvironment()) throw new Error(PRODUCTION_BLOCK_MESSAGE);
   const month = findMonth(monthKey);
   const total = daysInMonth(month);
   const rand = pseudo(month.year * 100 + month.month + userId.length);

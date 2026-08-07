@@ -7,6 +7,7 @@
  * oficial de validações.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isProductionRequest } from "@/server/environment.server";
 
 export type ValidationStatus = "enviado" | "confirmado" | "recusado";
 
@@ -82,9 +83,9 @@ const metaProvider: ChannelProvider = {
 };
 
 /**
- * Provider interno — substituto temporário e oficial da homologação.
- * Nenhuma mensagem sai para fora: o envio é considerado entregue e a
- * resposta chega pela simulação do Laboratório ou pelo Webhook.
+ * Provider interno — EXCLUSIVO de homologação. Nenhuma mensagem sai
+ * para fora e o envio é considerado entregue apenas para permitir os
+ * testes do fluxo. Em produção este provider nunca é usado.
  */
 const internalProvider: ChannelProvider = {
   id: "interno",
@@ -93,9 +94,24 @@ const internalProvider: ChannelProvider = {
   },
 };
 
+/**
+ * Em produção só existe o canal oficial da Meta: sem credenciais, o
+ * envio falha de forma explícita — jamais é simulado como entregue.
+ */
+const unavailableProvider: ChannelProvider = {
+  id: "meta",
+  async send() {
+    return {
+      delivered: false,
+      error: "Canal oficial do WhatsApp não configurado para este ambiente.",
+    };
+  },
+};
+
 export function activeProvider(): ChannelProvider {
   const ready = Boolean(process.env["WHATSAPP_TOKEN"] && process.env["WHATSAPP_PHONE_NUMBER_ID"]);
-  return ready ? metaProvider : internalProvider;
+  if (ready) return metaProvider;
+  return isProductionRequest() ? unavailableProvider : internalProvider;
 }
 
 /** Dispara o Template Oficial pelo provider ativo e registra o envio. */
@@ -124,7 +140,19 @@ export async function sendTextMessage(input: {
   const ready = Boolean(
     process.env["WHATSAPP_TOKEN"] && process.env["WHATSAPP_PHONE_NUMBER_ID"],
   );
-  if (!ready) return { ok: true, provider: "interno", delivered: true };
+  if (!ready) {
+    // Produção nunca finge entrega: o executivo precisa saber que a
+    // mensagem não saiu.
+    if (isProductionRequest()) {
+      return {
+        ok: true,
+        provider: "meta",
+        delivered: false,
+        error: "Canal oficial do WhatsApp não configurado para este ambiente.",
+      };
+    }
+    return { ok: true, provider: "interno", delivered: true };
+  }
   try {
     const res = await fetch(
       `https://graph.facebook.com/v20.0/${process.env["WHATSAPP_PHONE_NUMBER_ID"]}/messages`,

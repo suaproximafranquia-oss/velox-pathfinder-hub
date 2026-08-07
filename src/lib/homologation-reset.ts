@@ -9,6 +9,7 @@
  * banco e integrações.
  */
 import { notifySync } from "@/lib/sync-bus";
+import { isProductionEnvironment } from "@/lib/environment";
 
 const RESET_VERSION_KEY = "velox:physical-reset:2.4.reset.2";
 
@@ -120,6 +121,8 @@ export function resetHomologationData(): ResetSummary {
  */
 export function enforcePhysicalReset(): void {
   if (typeof window === "undefined") return;
+  // Em produção nada é apagado automaticamente: os registros são reais.
+  if (isProductionEnvironment()) return;
   if (window.localStorage.getItem(RESET_VERSION_KEY) === "done") return;
   resetHomologationData();
   window.localStorage.setItem(RESET_VERSION_KEY, "done");
