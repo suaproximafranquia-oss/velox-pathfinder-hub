@@ -51,6 +51,9 @@ export const simulateWhatsappReply = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
+    const { assertHomologationOnly } = await import("@/server/environment.server");
+    // Em produção a resposta só pode chegar pelo Webhook oficial da Meta.
+    assertHomologationOnly();
     const { recordReply } = await import("@/server/whatsapp.server");
     await recordReply({
       phone: data.phone,
