@@ -80,7 +80,7 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
       : []),
-    ...(session.activeRole === "super_admin"
+    ...(session.activeRole === "super_admin" && isHomologationEnvironment()
       ? [{ to: "/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical }]
       : []),
   ];
