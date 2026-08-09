@@ -157,6 +157,16 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     to: "/executivo/backups",
     status: "ativo",
   },
+  {
+    id: "central-backup",
+    name: "Central de Backup",
+    description:
+      "Pontos de restauração do estado integral do Portal, com backup automático contínuo e restauração protegida.",
+    icon: Database,
+    to: "/executivo/central-backup",
+    status: "ativo",
+    requiresRole: ["super_admin"],
+  },
 ];
 
 // Alusão explícita — `BarChart3` foi substituído por `FileBarChart2` para
