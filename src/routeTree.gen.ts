@@ -32,6 +32,7 @@ import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashb
 import { Route as ExecutivoCriativaRouteImport } from './routes/executivo.criativa'
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
 import { Route as ExecutivoComunicacaoRouteImport } from './routes/executivo.comunicacao'
+import { Route as ExecutivoCentralBackupRouteImport } from './routes/executivo.central-backup'
 import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
 import { Route as ExecutivoCaptacaoRouteImport } from './routes/executivo.captacao'
 import { Route as ExecutivoCampanhasRouteImport } from './routes/executivo.campanhas'
@@ -42,6 +43,7 @@ import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.a
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 import { Route as OauthGoogleConnectorRouteImport } from './routes/oauth.google.$connector'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
+import { Route as ApiPublicBackupRunRouteImport } from './routes/api/public/backup/run'
 
 const UniversoRoute = UniversoRouteImport.update({
   id: '/universo',
@@ -158,6 +160,11 @@ const ExecutivoComunicacaoRoute = ExecutivoComunicacaoRouteImport.update({
   path: '/executivo/comunicacao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoCentralBackupRoute = ExecutivoCentralBackupRouteImport.update({
+  id: '/executivo/central-backup',
+  path: '/executivo/central-backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoCelebracaoRoute = ExecutivoCelebracaoRouteImport.update({
   id: '/executivo/celebracao',
   path: '/executivo/celebracao',
@@ -209,6 +216,11 @@ const ApiPublicWhatsappWebhookRoute =
     path: '/api/public/whatsapp/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicBackupRunRoute = ApiPublicBackupRunRouteImport.update({
+  id: '/api/public/backup/run',
+  path: '/api/public/backup/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -223,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
+  '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
   '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
@@ -243,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -257,6 +271,7 @@ export interface FileRoutesByTo {
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
+  '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
   '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
@@ -277,6 +292,7 @@ export interface FileRoutesByTo {
   '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesById {
@@ -293,6 +309,7 @@ export interface FileRoutesById {
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
+  '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
   '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
@@ -313,6 +330,7 @@ export interface FileRoutesById {
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRouteTypes {
@@ -330,6 +348,7 @@ export interface FileRouteTypes {
     | '/executivo/campanhas'
     | '/executivo/captacao'
     | '/executivo/celebracao'
+    | '/executivo/central-backup'
     | '/executivo/comunicacao'
     | '/executivo/configuracoes'
     | '/executivo/criativa'
@@ -350,6 +369,7 @@ export interface FileRouteTypes {
     | '/executivo/'
     | '/manual/'
     | '/oauth/google/$connector'
+    | '/api/public/backup/run'
     | '/api/public/whatsapp/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -364,6 +384,7 @@ export interface FileRouteTypes {
     | '/executivo/campanhas'
     | '/executivo/captacao'
     | '/executivo/celebracao'
+    | '/executivo/central-backup'
     | '/executivo/comunicacao'
     | '/executivo/configuracoes'
     | '/executivo/criativa'
@@ -384,6 +405,7 @@ export interface FileRouteTypes {
     | '/executivo'
     | '/manual'
     | '/oauth/google/$connector'
+    | '/api/public/backup/run'
     | '/api/public/whatsapp/webhook'
   id:
     | '__root__'
@@ -399,6 +421,7 @@ export interface FileRouteTypes {
     | '/executivo/campanhas'
     | '/executivo/captacao'
     | '/executivo/celebracao'
+    | '/executivo/central-backup'
     | '/executivo/comunicacao'
     | '/executivo/configuracoes'
     | '/executivo/criativa'
@@ -419,6 +442,7 @@ export interface FileRouteTypes {
     | '/executivo/'
     | '/manual/'
     | '/oauth/google/$connector'
+    | '/api/public/backup/run'
     | '/api/public/whatsapp/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -435,6 +459,7 @@ export interface RootRouteChildren {
   ExecutivoCampanhasRoute: typeof ExecutivoCampanhasRoute
   ExecutivoCaptacaoRoute: typeof ExecutivoCaptacaoRoute
   ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
+  ExecutivoCentralBackupRoute: typeof ExecutivoCentralBackupRoute
   ExecutivoComunicacaoRoute: typeof ExecutivoComunicacaoRoute
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoCriativaRoute: typeof ExecutivoCriativaRoute
@@ -454,6 +479,7 @@ export interface RootRouteChildren {
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
   ManualIndexRoute: typeof ManualIndexRoute
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
+  ApiPublicBackupRunRoute: typeof ApiPublicBackupRunRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
 
@@ -620,6 +646,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoComunicacaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/central-backup': {
+      id: '/executivo/central-backup'
+      path: '/executivo/central-backup'
+      fullPath: '/executivo/central-backup'
+      preLoaderRoute: typeof ExecutivoCentralBackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/celebracao': {
       id: '/executivo/celebracao'
       path: '/executivo/celebracao'
@@ -690,6 +723,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/backup/run': {
+      id: '/api/public/backup/run'
+      path: '/api/public/backup/run'
+      fullPath: '/api/public/backup/run'
+      preLoaderRoute: typeof ApiPublicBackupRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -716,6 +756,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoCampanhasRoute: ExecutivoCampanhasRoute,
   ExecutivoCaptacaoRoute: ExecutivoCaptacaoRoute,
   ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,
+  ExecutivoCentralBackupRoute: ExecutivoCentralBackupRoute,
   ExecutivoComunicacaoRoute: ExecutivoComunicacaoRoute,
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoCriativaRoute: ExecutivoCriativaRoute,
@@ -735,18 +776,9 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoIndexRoute: ExecutivoIndexRoute,
   ManualIndexRoute: ManualIndexRoute,
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
+  ApiPublicBackupRunRoute: ApiPublicBackupRunRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

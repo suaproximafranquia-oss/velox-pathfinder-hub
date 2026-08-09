@@ -356,6 +356,48 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_backups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          id: string
+          kind: string
+          label: string
+          origin: string
+          payload: Json
+          size_bytes: number
+          status: string
+          table_counts: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          kind?: string
+          label: string
+          origin?: string
+          payload?: Json
+          size_bytes?: number
+          status?: string
+          table_counts?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          kind?: string
+          label?: string
+          origin?: string
+          payload?: Json
+          size_bytes?: number
+          status?: string
+          table_counts?: Json
+        }
+        Relationships: []
+      }
       portal_leads: {
         Row: {
           campaign: string | null
@@ -415,6 +457,54 @@ export type Database = {
           whatsapp?: string
         }
         Relationships: []
+      }
+      portal_restores: {
+        Row: {
+          backup_id: string | null
+          created_at: string
+          details: string
+          id: string
+          performed_by: string | null
+          performed_by_name: string
+          safety_backup_id: string | null
+          status: string
+        }
+        Insert: {
+          backup_id?: string | null
+          created_at?: string
+          details?: string
+          id?: string
+          performed_by?: string | null
+          performed_by_name?: string
+          safety_backup_id?: string | null
+          status?: string
+        }
+        Update: {
+          backup_id?: string | null
+          created_at?: string
+          details?: string
+          id?: string
+          performed_by?: string | null
+          performed_by_name?: string
+          safety_backup_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_restores_backup_id_fkey"
+            columns: ["backup_id"]
+            isOneToOne: false
+            referencedRelation: "portal_backups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_restores_safety_backup_id_fkey"
+            columns: ["safety_backup_id"]
+            isOneToOne: false
+            referencedRelation: "portal_backups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
