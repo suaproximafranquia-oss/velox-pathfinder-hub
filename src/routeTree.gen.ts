@@ -42,6 +42,7 @@ import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.a
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 import { Route as OauthGoogleConnectorRouteImport } from './routes/oauth.google.$connector'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
+import { Route as ApiPublicBackupRunRouteImport } from './routes/api/public/backup/run'
 
 const UniversoRoute = UniversoRouteImport.update({
   id: '/universo',
@@ -209,6 +210,11 @@ const ApiPublicWhatsappWebhookRoute =
     path: '/api/public/whatsapp/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicBackupRunRoute = ApiPublicBackupRunRouteImport.update({
+  id: '/api/public/backup/run',
+  path: '/api/public/backup/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -243,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -277,6 +284,7 @@ export interface FileRoutesByTo {
   '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesById {
@@ -313,6 +321,7 @@ export interface FileRoutesById {
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
+  '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRouteTypes {
@@ -350,6 +359,7 @@ export interface FileRouteTypes {
     | '/executivo/'
     | '/manual/'
     | '/oauth/google/$connector'
+    | '/api/public/backup/run'
     | '/api/public/whatsapp/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -384,6 +394,7 @@ export interface FileRouteTypes {
     | '/executivo'
     | '/manual'
     | '/oauth/google/$connector'
+    | '/api/public/backup/run'
     | '/api/public/whatsapp/webhook'
   id:
     | '__root__'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/executivo/'
     | '/manual/'
     | '/oauth/google/$connector'
+    | '/api/public/backup/run'
     | '/api/public/whatsapp/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -454,6 +466,7 @@ export interface RootRouteChildren {
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
   ManualIndexRoute: typeof ManualIndexRoute
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
+  ApiPublicBackupRunRoute: typeof ApiPublicBackupRunRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
 
@@ -690,6 +703,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/backup/run': {
+      id: '/api/public/backup/run'
+      path: '/api/public/backup/run'
+      fullPath: '/api/public/backup/run'
+      preLoaderRoute: typeof ApiPublicBackupRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -735,18 +755,9 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoIndexRoute: ExecutivoIndexRoute,
   ManualIndexRoute: ManualIndexRoute,
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
+  ApiPublicBackupRunRoute: ApiPublicBackupRunRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
