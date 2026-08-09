@@ -74,6 +74,9 @@ export function ExecutiveShell({
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
     { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
+    ...(session.activeRole === "super_admin"
+      ? [{ to: "/executivo/central-backup", label: "Central de Backup", icon: Archive }]
+      : []),
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
