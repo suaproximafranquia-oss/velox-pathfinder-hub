@@ -108,8 +108,8 @@ export async function createBackup(input: CreateBackupInput): Promise<BackupReco
       origin: input.origin,
       status: "concluido",
       size_bytes: serialized.length,
-      table_counts: counts,
-      payload,
+      table_counts: counts as never,
+      payload: payload as never,
       created_by: input.createdBy ?? null,
       created_by_name: input.createdByName ?? "Sistema",
     })
