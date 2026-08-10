@@ -225,6 +225,36 @@ function PortalHome() {
     refreshUnlocked();
   }, [refreshUnlocked]);
 
+  /**
+   * A liberação do Portal vive no servidor. Consultamos ao abrir, ao
+   * voltar para a aba e em intervalos curtos: se o Executivo liberar o
+   * acesso pelo CRM, o bloqueio some sozinho — sem F5, sem novo login.
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let alive = true;
+    const sync = async () => {
+      const id = getPortalSession()?.investorId ?? null;
+      if (!id) return;
+      const { refreshPortalAccess } = await import("@/lib/portal-access");
+      await refreshPortalAccess(id, { force: true });
+      if (!alive) return;
+      refreshUnlocked();
+      if (isPortalUnlocked(id)) setConfirmOpen(false);
+    };
+    void sync();
+    const timer = window.setInterval(() => void sync(), 20_000);
+    const onFocus = () => void sync();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [refreshUnlocked]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const idle = window.requestIdleCallback
@@ -250,13 +280,29 @@ function PortalHome() {
   const openModule = useCallback((key: PortalModuleKey) => {
     const mod = getPortalModule(key);
     if (!mod) return;
+    const investorId = getPortalSession()?.investorId ?? null;
     // Bloqueio oficial: qualquer módulo diferente do Manual exige a
     // confirmação do WhatsApp.
-    if (key !== "manual" && !isPortalUnlocked(getPortalSession()?.investorId ?? null)) {
-      writeEntryContext({ pendingModule: key });
-      setActive(null);
-      setActiveOverlay(null);
-      setConfirmOpen(true);
+    if (key !== "manual" && !isPortalUnlocked(investorId)) {
+      // Antes de bloquear, confirmamos com o servidor: a liberação pode
+      // ter sido concedida agora mesmo em outro dispositivo.
+      void (async () => {
+        const { refreshPortalAccess } = await import("@/lib/portal-access");
+        await refreshPortalAccess(investorId, { force: true });
+        if (isPortalUnlocked(investorId)) {
+          setUnlocked(true);
+          writeEntryContext({ pendingModule: null });
+          setActive({ key, title: mod.title, src: mod.panelSrc });
+          setActiveOverlay(key);
+          setJourneyStatus(key === "simulador" ? "simulador" : "portal");
+          trackSessionNavigation(key, mod.title);
+          return;
+        }
+        writeEntryContext({ pendingModule: key });
+        setActive(null);
+        setActiveOverlay(null);
+        setConfirmOpen(true);
+      })();
       return;
     }
     writeEntryContext({ pendingModule: null });
