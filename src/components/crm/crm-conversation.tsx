@@ -10,6 +10,13 @@ import {
   Check,
   Link2,
   Sparkles,
+  Plus,
+  Mic,
+  Image as ImageIcon,
+  Camera,
+  User,
+  Trash2,
+  Square,
 } from "lucide-react";
 import { FileText, Clock3 } from "lucide-react";
 import { type CrmConversation } from "@/lib/crm/relationships";
@@ -290,12 +297,41 @@ export function CrmConversationHeader({
   );
 }
 
+export type CrmAttachmentKind = "documento" | "imagem" | "video" | "audio" | "contato";
+
+export type CrmOutgoingAttachment = {
+  kind: CrmAttachmentKind;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  /** Conteúdo em base64 puro (sem o prefixo data:). */
+  base64: string;
+};
+
+async function fileToAttachment(
+  file: File,
+  kind: CrmAttachmentKind,
+): Promise<CrmOutgoingAttachment> {
+  const buffer = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i] as number);
+  return {
+    kind,
+    filename: file.name || "anexo",
+    mimeType: file.type || "application/octet-stream",
+    sizeBytes: file.size,
+    base64: btoa(binary),
+  };
+}
+
 /**
  * Barra inferior de envio — permanentemente visível na conversa.
  * ENTER envia a mensagem, registra no histórico e atualiza o estágio.
  */
 export function CrmComposer({
   onSend,
+  onSendAttachment,
   disabled = false,
   hint,
   investorName = "",
@@ -304,6 +340,10 @@ export function CrmComposer({
   prefillNonce = 0,
 }: {
   onSend: (text: string, viaTemplate: boolean) => void;
+  /** Envio real de anexos e áudios pelo canal oficial. */
+  onSendAttachment?: (
+    attachment: CrmOutgoingAttachment,
+  ) => Promise<{ delivered: boolean; error?: string }>;
   disabled?: boolean;
   hint?: string;
   /** Nome usado na personalização dos templates. */
@@ -317,6 +357,72 @@ export function CrmComposer({
   const [text, setText] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [armedTemplate, setArmedTemplate] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  /** Áudio gravado aguardando revisão — nada é enviado sem confirmação. */
+  const [recording, setRecording] = useState(false);
+  const [audio, setAudio] = useState<{ url: string; blob: Blob } | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const pendingKind = useRef<CrmAttachmentKind>("documento");
+
+  const deliver = async (attachment: CrmOutgoingAttachment) => {
+    if (!onSendAttachment) return;
+    setSending(true);
+    setAttachError(null);
+    try {
+      const result = await onSendAttachment(attachment);
+      if (!result.delivered) {
+        setAttachError(result.error ?? "O anexo não foi entregue pelo canal oficial.");
+      }
+    } catch (e) {
+      setAttachError(e instanceof Error ? e.message : "Falha ao enviar o anexo.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const pickFile = (kind: CrmAttachmentKind, accept: string, capture?: boolean) => {
+    pendingKind.current = kind;
+    const input = fileRef.current;
+    if (!input) return;
+    input.accept = accept;
+    if (capture) input.setAttribute("capture", "environment");
+    else input.removeAttribute("capture");
+    input.click();
+    setAttachOpen(false);
+  };
+
+  const startRecording = async () => {
+    setAttachError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        setAudio({ url: URL.createObjectURL(blob), blob });
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setAttachError("Não foi possível acessar o microfone deste dispositivo.");
+    }
+  };
+
+  const stopRecording = () => {
+    recorderRef.current?.stop();
+    recorderRef.current = null;
+    setRecording(false);
+  };
+
   // Template escolhido no módulo Templates entra direto na caixa,
   // pronto para edição antes do envio.
   useEffect(() => {
@@ -348,6 +454,17 @@ export function CrmComposer({
   };
   return (
     <div className="shrink-0 border-t border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] px-5 py-3">
+      <input
+        ref={fileRef}
+        type="file"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          await deliver(await fileToAttachment(file, pendingKind.current));
+        }}
+      />
       {win && !disabled ? (
         <p
           className={[
@@ -358,6 +475,84 @@ export function CrmComposer({
           {win.open ? null : <Lock className="h-3 w-3 shrink-0" />}
           {win.hint}
         </p>
+      ) : null}
+      {attachError ? (
+        <p className="mb-2 rounded-lg bg-rose-50 px-2.5 py-1.5 text-[11px] font-medium text-rose-700">
+          {attachError}
+        </p>
+      ) : null}
+      {audio ? (
+        <div className="crm-enter mb-2 flex items-center gap-2 rounded-xl border border-[color:var(--crm-border)] px-3 py-2">
+          {/* Revisão obrigatória antes do envio do áudio. */}
+          <audio src={audio.url} controls className="h-8 flex-1" />
+          <button
+            type="button"
+            aria-label="Descartar áudio"
+            onClick={() => {
+              URL.revokeObjectURL(audio.url);
+              setAudio(null);
+            }}
+            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[color:var(--crm-muted)] hover:text-rose-600"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            disabled={sending}
+            onClick={async () => {
+              const buffer = await audio.blob.arrayBuffer();
+              const bytes = new Uint8Array(buffer);
+              let binary = "";
+              for (let i = 0; i < bytes.length; i += 1)
+                binary += String.fromCharCode(bytes[i] as number);
+              await deliver({
+                kind: "audio",
+                filename: `audio-${Date.now()}.ogg`,
+                mimeType: audio.blob.type || "audio/ogg",
+                sizeBytes: audio.blob.size,
+                base64: btoa(binary),
+              });
+              URL.revokeObjectURL(audio.url);
+              setAudio(null);
+            }}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[color:var(--crm-accent)] px-3 py-1.5 text-[11px] font-medium text-white disabled:opacity-40"
+          >
+            <Send className="h-3.5 w-3.5" />
+            Enviar áudio
+          </button>
+        </div>
+      ) : null}
+      {attachOpen && !disabled ? (
+        <div className="crm-enter mb-2 flex flex-wrap gap-1.5">
+          {[
+            { label: "Documento", icon: FileText, kind: "documento" as const, accept: "*/*" },
+            {
+              label: "Fotos e vídeos",
+              icon: ImageIcon,
+              kind: "imagem" as const,
+              accept: "image/*,video/*",
+            },
+            { label: "Câmera", icon: Camera, kind: "imagem" as const, accept: "image/*", capture: true },
+            { label: "Áudio", icon: Mic, kind: "audio" as const, accept: "audio/*" },
+            { label: "Contato", icon: User, kind: "contato" as const, accept: ".vcf,text/vcard" },
+          ].map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              onClick={() =>
+                pickFile(
+                  option.kind === "contato" ? "documento" : option.kind,
+                  option.accept,
+                  option.capture,
+                )
+              }
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)]"
+            >
+              <option.icon className="h-3.5 w-3.5" />
+              {option.label}
+            </button>
+          ))}
+        </div>
       ) : null}
       {templatesOpen && !disabled ? (
         <div className="crm-enter mb-2 flex flex-wrap gap-1.5">
@@ -378,6 +573,25 @@ export function CrmComposer({
         </div>
       ) : null}
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={typingBlocked || !onSendAttachment}
+          aria-expanded={attachOpen}
+          aria-label="Anexar arquivo"
+          title="Anexar"
+          onClick={() => {
+            setTemplatesOpen(false);
+            setAttachOpen((v) => !v);
+          }}
+          className={[
+            "inline-flex h-[42px] w-[42px] shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[color:var(--crm-border)] transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40",
+            attachOpen
+              ? "bg-[color:var(--crm-accent-soft)] text-[color:var(--crm-accent)]"
+              : "text-[color:var(--crm-muted)]",
+          ].join(" ")}
+        >
+          <Plus className="h-4 w-4" />
+        </button>
         <button
           type="button"
           disabled={disabled}
@@ -460,6 +674,21 @@ export function CrmComposer({
         >
           <Send className="h-3.5 w-3.5" />
           Enviar
+        </button>
+        <button
+          type="button"
+          disabled={typingBlocked || !onSendAttachment}
+          aria-label={recording ? "Parar gravação" : "Gravar áudio"}
+          title={recording ? "Parar gravação" : "Gravar áudio"}
+          onClick={() => (recording ? stopRecording() : void startRecording())}
+          className={[
+            "inline-flex h-[42px] w-[42px] shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40",
+            recording
+              ? "border-rose-300 bg-rose-50 text-rose-600"
+              : "border-[color:var(--crm-border)] text-[color:var(--crm-muted)] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)]",
+          ].join(" ")}
+        >
+          {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </button>
       </div>
     </div>
