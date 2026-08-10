@@ -83,6 +83,55 @@ function defaultLabel(kind: BackupKind, origin: BackupOrigin): string {
   return kind === "conversas" ? "Backup de Conversas" : "Backup Completo do Portal";
 }
 
+/**
+ * Política oficial de retenção dos pontos AUTOMÁTICOS.
+ * Backups manuais e de segurança seguem política própria: nunca são
+ * removidos pela rotina.
+ */
+export const RETENTION = {
+  /** Últimas 48 horas: todos os pontos (um a cada 15 minutos). */
+  fullHours: 48,
+  /** De 48 horas a 30 dias: um ponto por dia. */
+  dailyDays: 30,
+  /** Após 30 dias: um ponto por semana, por 8 semanas. */
+  weeklyWeeks: 8,
+} as const;
+
+/**
+ * Assinatura do conteúdo. Pontos idênticos (Portal parado entre duas
+ * execuções) reaproveitam o mesmo conteúdo em vez de duplicar o
+ * armazenamento — sem perder nenhum ponto do histórico.
+ */
+async function hashPayload(serialized: string): Promise<string> {
+  const { createHash } = await import("node:crypto");
+  return createHash("sha256").update(serialized).digest("hex");
+}
+
+/** Conteúdo do ponto — do repositório compartilhado ou do formato antigo. */
+export async function readBackupPayload(backupId: string): Promise<{
+  tables?: Record<string, Row[]>;
+  localState?: Record<string, string> | null;
+} | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("portal_backups")
+    .select("payload,payload_hash")
+    .eq("id", backupId)
+    .maybeSingle();
+  if (!data) return null;
+  const row = data as Row;
+  const hash = row["payload_hash"] as string | null;
+  if (hash) {
+    const { data: blob } = await supabaseAdmin
+      .from("portal_backup_blobs")
+      .select("payload")
+      .eq("hash", hash)
+      .maybeSingle();
+    if (blob) return (blob as Row)["payload"] as never;
+  }
+  return (row["payload"] as never) ?? null;
+}
+
 /** Cria um ponto de restauração a partir do estado atual do Portal. */
 export async function createBackup(input: CreateBackupInput): Promise<BackupRecord> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -99,6 +148,24 @@ export async function createBackup(input: CreateBackupInput): Promise<BackupReco
   const counts: Record<string, number> = { ...captured.counts };
   if (input.localState) counts["estado_local"] = Object.keys(input.localState).length;
   const serialized = JSON.stringify(payload);
+  const hash = await hashPayload(serialized);
+
+  // O conteúdo é gravado uma única vez por assinatura.
+  const { data: existingBlob } = await supabaseAdmin
+    .from("portal_backup_blobs")
+    .select("hash")
+    .eq("hash", hash)
+    .maybeSingle();
+  if (!existingBlob) {
+    const { error: blobError } = await supabaseAdmin.from("portal_backup_blobs").insert({
+      hash,
+      payload: payload as never,
+      size_bytes: serialized.length,
+    });
+    if (blobError && !blobError.message.includes("duplicate")) {
+      throw new Error(`Falha ao gravar o conteúdo do backup: ${blobError.message}`);
+    }
+  }
 
   const { data, error } = await supabaseAdmin
     .from("portal_backups")
@@ -109,7 +176,10 @@ export async function createBackup(input: CreateBackupInput): Promise<BackupReco
       status: "concluido",
       size_bytes: serialized.length,
       table_counts: counts as never,
-      payload: payload as never,
+      payload: {} as never,
+      payload_hash: hash,
+      // Manuais e de segurança nunca são apagados pela rotina.
+      protected: input.origin !== "automatico",
       created_by: input.createdBy ?? null,
       created_by_name: input.createdByName ?? "Sistema",
     })
@@ -141,16 +211,8 @@ export type RestoreResult = {
 /** Reescreve o banco com o conteúdo do ponto de restauração escolhido. */
 export async function restoreBackupPayload(backupId: string): Promise<RestoreResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("portal_backups")
-    .select("payload,kind")
-    .eq("id", backupId)
-    .single();
-  if (error || !data) throw new Error("Ponto de restauração não encontrado.");
-  const payload = (data as Row)["payload"] as {
-    tables?: Record<string, Row[]>;
-    localState?: Record<string, string> | null;
-  };
+  const payload = await readBackupPayload(backupId);
+  if (!payload) throw new Error("Ponto de restauração não encontrado.");
   const tables = payload?.tables ?? {};
   const restored: Record<string, number> = {};
 
@@ -170,36 +232,48 @@ export async function restoreBackupPayload(backupId: string): Promise<RestoreRes
 }
 
 /**
- * Retenção: mantém densidade alta no passado recente e reduz
- * gradualmente os pontos antigos. Backups manuais e de segurança nunca
- * são removidos automaticamente.
+ * Retenção oficial dos pontos automáticos:
+ *  · últimas 48 horas — todos (a cada 15 minutos);
+ *  · de 48 horas a 30 dias — 1 por dia;
+ *  · acima de 30 dias — 1 por semana, por 8 semanas;
+ *  · além disso, o ponto é descartado.
+ * Backups manuais e de segurança seguem política própria e nunca são
+ * removidos aqui. Ao final, conteúdos sem nenhum ponto associado são
+ * liberados — nenhum dado do Portal é tocado.
  */
 export async function pruneBackups(): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("portal_backups")
-    .select("id,created_at,origin,kind")
+    .select("id,created_at,origin,kind,protected")
     .eq("origin", "automatico")
     .order("created_at", { ascending: false });
   if (error || !data) return 0;
 
   const now = Date.now();
   const hour = 3_600_000;
+  const day = 24 * hour;
   const keep = new Set<string>();
   const buckets = new Set<string>();
+  const drop: string[] = [];
   for (const row of data as Row[]) {
     const id = String(row["id"]);
+    if (row["protected"] === true) {
+      keep.add(id);
+      continue;
+    }
     const at = Date.parse(String(row["created_at"]));
     const age = now - at;
     let bucket: string;
-    if (age <= 24 * hour) {
-      bucket = `raw:${id}`; // últimas 24h: todos os pontos
-    } else if (age <= 7 * 24 * hour) {
-      bucket = `hour:${Math.floor(at / hour)}`; // 7 dias: 1 por hora
-    } else if (age <= 60 * 24 * hour) {
-      bucket = `day:${Math.floor(at / (24 * hour))}`; // 60 dias: 1 por dia
+    if (age <= RETENTION.fullHours * hour) {
+      bucket = `raw:${id}`; // 48h: todos os pontos de 15 em 15 minutos
+    } else if (age <= RETENTION.dailyDays * day) {
+      bucket = `day:${Math.floor(at / day)}`; // até 30 dias: 1 por dia
+    } else if (age <= (RETENTION.dailyDays + RETENTION.weeklyWeeks * 7) * day) {
+      bucket = `week:${Math.floor(at / (7 * day))}`; // 8 semanas: 1 por semana
     } else {
-      bucket = `week:${Math.floor(at / (7 * 24 * hour))}`; // depois: 1 por semana
+      drop.push(id); // além do horizonte de retenção
+      continue;
     }
     if (buckets.has(bucket)) continue;
     buckets.add(bucket);
@@ -207,8 +281,36 @@ export async function pruneBackups(): Promise<number> {
   }
   const remove = (data as Row[])
     .map((r) => String(r["id"]))
-    .filter((id) => !keep.has(id));
-  if (!remove.length) return 0;
-  await supabaseAdmin.from("portal_backups").delete().in("id", remove);
+    .filter((id) => !keep.has(id) && !drop.includes(id))
+    .concat(drop);
+  if (remove.length) {
+    for (let i = 0; i < remove.length; i += 100) {
+      await supabaseAdmin
+        .from("portal_backups")
+        .delete()
+        .in("id", remove.slice(i, i + 100));
+    }
+  }
+  await pruneOrphanBlobs();
   return remove.length;
+}
+
+/** Libera conteúdos que não pertencem mais a nenhum ponto de restauração. */
+async function pruneOrphanBlobs(): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: refs } = await supabaseAdmin
+    .from("portal_backups")
+    .select("payload_hash")
+    .not("payload_hash", "is", null);
+  const used = new Set((refs ?? []).map((r) => String((r as Row)["payload_hash"])));
+  const { data: blobs } = await supabaseAdmin.from("portal_backup_blobs").select("hash");
+  const orphans = (blobs ?? [])
+    .map((b) => String((b as Row)["hash"]))
+    .filter((h) => !used.has(h));
+  for (let i = 0; i < orphans.length; i += 100) {
+    await supabaseAdmin
+      .from("portal_backup_blobs")
+      .delete()
+      .in("hash", orphans.slice(i, i + 100));
+  }
 }
