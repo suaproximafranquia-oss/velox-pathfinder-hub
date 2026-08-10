@@ -35,6 +35,43 @@ export function isPortalReleased(investorId: string): boolean {
   return Boolean(read()[investorId]);
 }
 
+function persist(store: Record<string, PortalRelease>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(store));
+  } catch {
+    /* armazenamento indisponível */
+  }
+}
+
+/**
+ * Espelha no navegador a liberação que já existe no banco. O cache local
+ * é apenas leitura rápida: a verdade continua sendo o servidor.
+ */
+export function applyRemoteRelease(
+  investorId: string,
+  remote: { releasedAt: string; releasedByName?: string | null; reason?: string | null } | null,
+): void {
+  const store = read();
+  if (!remote) {
+    if (!store[investorId]) return;
+    delete store[investorId];
+    persist(store);
+    return;
+  }
+  const current = store[investorId];
+  if (current && current.releasedAt === remote.releasedAt) return;
+  store[investorId] = {
+    investorId,
+    releasedAt: remote.releasedAt,
+    releasedBy: current?.releasedBy ?? "",
+    releasedByName: remote.releasedByName ?? current?.releasedByName ?? "Administrador",
+    reason: remote.reason ?? current?.reason ?? "",
+  };
+  persist(store);
+  notifySync("commercial");
+}
+
 export function getPortalRelease(investorId: string): PortalRelease | null {
   return read()[investorId] ?? null;
 }
@@ -58,12 +95,23 @@ export function releasePortal(input: {
   };
   const store = read();
   store[input.investorId] = record;
+  persist(store);
+  // Persistência REAL: sem esta gravação a liberação existiria apenas no
+  // navegador do Executivo e o investidor continuaria bloqueado.
   if (typeof window !== "undefined") {
-    try {
-      window.localStorage.setItem(KEY, JSON.stringify(store));
-    } catch {
-      /* armazenamento indisponível */
-    }
+    void import("@/lib/portal-access.functions")
+      .then((m) =>
+        m.releasePortalAccess({
+          data: {
+            investorId: input.investorId,
+            actorName: input.actorName,
+            reason: record.reason || "Liberação manual do Portal",
+          },
+        }),
+      )
+      .catch(() => {
+        /* o executivo é avisado pela ausência do selo após a atualização */
+      });
   }
   notifySync("commercial");
   logAudit({
