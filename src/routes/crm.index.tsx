@@ -604,6 +604,32 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               disabled={!composerEnabled}
               investorName={selected.name}
               window={chatWindow}
+              onSendAttachment={async (attachment) => {
+                // Envio real pelo canal oficial — nada é dado como
+                // entregue sem a confirmação da Meta.
+                const { sendWhatsappMedia } = await import("@/lib/whatsapp.functions");
+                const kind = attachment.kind === "contato" ? "documento" : attachment.kind;
+                const result = await sendWhatsappMedia({
+                  data: {
+                    phone: selected.phone.replace(/\D/g, ""),
+                    kind,
+                    mimeType: attachment.mimeType,
+                    filename: attachment.filename,
+                    base64: attachment.base64,
+                  },
+                });
+                if (result.delivered) {
+                  appendCrmMessage({
+                    investorId: selected.id,
+                    direction: "enviada",
+                    body: `📎 ${attachment.filename}`,
+                    authorId: actor.userId,
+                  });
+                  markOutboundMessage(selected.id);
+                  setMessageTick((v) => v + 1);
+                }
+                return { delivered: result.delivered, ...(result.error ? { error: result.error } : {}) };
+              }}
               hint={
                 journeyOnly
                   ? "Jornada Digital — inicie o relacionamento para liberar o envio"
