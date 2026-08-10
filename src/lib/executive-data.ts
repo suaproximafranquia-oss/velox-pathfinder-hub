@@ -107,10 +107,15 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
     const calculatedPct = latestManualPayload?.index && latestManualPayload?.total
       ? Math.min(100, Math.round((latestManualPayload.index / latestManualPayload.total) * 100))
       : 0;
-    const readingPct = manualDone ? 100 : calculatedPct;
+    // O progresso REAL vem do servidor: os eventos do visitante nunca
+    // existem no navegador do Executivo. O maior valor prevalece — jamais
+    // um número estimado, apenas leitura efetivamente registrada.
+    const remotePct = Math.max(0, Math.min(100, Math.round(lead.journeyPercent ?? 0)));
+    const remoteDone = Boolean(lead.journeyCompletedAt);
+    const readingPct = manualDone || remoteDone ? 100 : Math.max(calculatedPct, remotePct);
     const status: InvestorStatus = simulatorDone
       ? "conversando"
-      : manualDone
+      : manualDone || remoteDone
         ? "concluido"
         : readingPct > 0
           ? "em_leitura"
@@ -127,10 +132,15 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
       email: lead.email,
       status,
       readingPct,
-      currentChapter: manualDone
+      currentChapter: manualDone || remoteDone
         ? "Convite para conversar"
-        : latestManualPayload?.chapterTitle ?? lead.material,
-      lastActivity: latestIso([lead.createdAt, ...events.map((event) => event.at)]),
+        : (latestManualPayload?.chapterTitle ?? lead.journeyChapter ?? lead.material),
+      lastActivity: latestIso([
+        lead.createdAt,
+        lead.lastActivityAt ?? "",
+        lead.journeyLastEventAt ?? "",
+        ...events.map((event) => event.at),
+      ]),
       aiInteractions: events.filter((event) => event.type === "ai.query.answered").length +
         (interestsCaptured ? 1 : 0),
       diagnostic: simulatorDone || interestsCaptured ? "em andamento" : "não iniciado",
