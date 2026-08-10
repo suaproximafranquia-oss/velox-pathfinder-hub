@@ -38,6 +38,19 @@ export type LeadRecord = VisitorIdentity & {
    * "redistribuicao" quando entregue pela Gestão — ETAPA 02.1).
    */
   scope?: "green_sales" | "redistribuicao" | "portal";
+  /**
+   * Espelho do progresso REAL registrado no servidor pela jornada do
+   * investidor. O navegador do Executivo não possui os eventos locais do
+   * visitante — sem estes campos o Workspace exibiria sempre "0%".
+   */
+  journeyPercent?: number;
+  journeyChapter?: string | null;
+  journeyStage?: string | null;
+  journeyCompletedAt?: string | null;
+  journeyLastEventAt?: string | null;
+  portalReleasedAt?: string | null;
+  whatsappConfirmedAt?: string | null;
+  lastActivityAt?: string | null;
 };
 
 function safeRead<T>(key: string): T | null {

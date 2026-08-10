@@ -458,7 +458,33 @@ export function trackJourney(input: TrackInput) {
     if (renewed) record.counters.returns = record.counters.returns;
     map[investorId] = record;
     write(map);
+
+    // Espelho no servidor: sem isto o CRM continuaria exibindo "Manual 0%"
+    // mesmo com o investidor lendo a jornada inteira.
+    void import("@/lib/portal-access").then((m) =>
+      m.pushPortalProgress({
+        investorId,
+        event: input.type,
+        module,
+        detail: input.detail ?? label,
+        percent: record.progress.percent,
+        chapter: record.progress.chapterTitle ?? record.progress.chapterSlug ?? undefined,
+        stage: currentStage(record),
+        completed: input.type === "manual.completed" || input.type === "journey.completed",
+      }),
+    );
   });
+}
+
+/** Etapa atual derivada dos eventos reais já registrados. */
+function currentStage(record: JourneyRecord): JourneyStage {
+  const done = record.progress.modulesCompleted;
+  if (record.counters.meetings > 0) return "jornada_concluida";
+  if (record.counters.whatsapp > 0) return "em_contato";
+  if (record.counters.simulations > 0) return "simulando";
+  if (done.includes("manual")) return "manual_concluido";
+  if (record.progress.percent > 0) return "lendo";
+  return "identificado";
 }
 
 function pushUnique<T>(list: T[], value: T): T[] {

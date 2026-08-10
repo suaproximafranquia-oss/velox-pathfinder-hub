@@ -62,3 +62,26 @@ export const simulateWhatsappReply = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+/**
+ * Anexos e áudios da conversa do CRM pelo canal oficial. O conteúdo
+ * trafega em base64 e é carregado na Meta pelo servidor — o navegador
+ * nunca fala diretamente com a API oficial.
+ */
+export const sendWhatsappMedia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        phone: z.string().min(8),
+        kind: z.enum(["documento", "imagem", "video", "audio"]),
+        mimeType: z.string().min(3),
+        filename: z.string().min(1),
+        base64: z.string().min(16),
+        caption: z.string().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { sendMediaMessage } = await import("@/server/whatsapp.server");
+    return sendMediaMessage(data);
+  });

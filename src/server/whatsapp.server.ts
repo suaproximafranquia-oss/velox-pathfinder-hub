@@ -184,6 +184,85 @@ export async function sendTextMessage(input: {
 }
 
 export async function readLatestValidation(phone: string): Promise<ValidationRow | null> {
+  return readLatestValidationRow(phone);
+}
+
+export type WhatsappMediaKind = "documento" | "imagem" | "video" | "audio";
+
+const MEDIA_TYPE: Record<WhatsappMediaKind, "document" | "image" | "video" | "audio"> = {
+  documento: "document",
+  imagem: "image",
+  video: "video",
+  audio: "audio",
+};
+
+/**
+ * Envio de anexo pelo canal oficial da Meta: o arquivo é carregado em
+ * /media e a mensagem referencia o identificador retornado. Nenhuma
+ * entrega é simulada — falhas voltam com o motivo real.
+ */
+export async function sendMediaMessage(input: {
+  phone: string;
+  kind: WhatsappMediaKind;
+  mimeType: string;
+  filename: string;
+  /** Conteúdo do arquivo em base64 (sem o prefixo data:). */
+  base64: string;
+  caption?: string;
+}): Promise<{ ok: true; delivered: boolean; error?: string }> {
+  const phone = onlyDigits(input.phone);
+  const token = process.env["WHATSAPP_TOKEN"];
+  const phoneId = process.env["WHATSAPP_PHONE_NUMBER_ID"];
+  if (!token || !phoneId) {
+    return {
+      ok: true,
+      delivered: false,
+      error: "Canal oficial do WhatsApp não configurado para este ambiente.",
+    };
+  }
+  try {
+    const bytes = Uint8Array.from(atob(input.base64), (c) => c.charCodeAt(0));
+    const form = new FormData();
+    form.append("messaging_product", "whatsapp");
+    form.append("type", input.mimeType);
+    form.append(
+      "file",
+      new Blob([bytes as unknown as BlobPart], { type: input.mimeType }),
+      input.filename,
+    );
+    const upload = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/media`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const uploadBody = await upload.text();
+    if (!upload.ok) {
+      return { ok: true, delivered: false, error: `Meta respondeu ${upload.status}: ${uploadBody}` };
+    }
+    const mediaId = (JSON.parse(uploadBody) as { id?: string }).id;
+    if (!mediaId) return { ok: true, delivered: false, error: "A Meta não devolveu o anexo." };
+
+    const type = MEDIA_TYPE[input.kind];
+    const media: Record<string, unknown> = { id: mediaId };
+    if (type === "document") media["filename"] = input.filename;
+    if (input.caption && (type === "image" || type === "video" || type === "document")) {
+      media["caption"] = input.caption;
+    }
+    const send = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", to: phone, type, [type]: media }),
+    });
+    if (!send.ok) {
+      return { ok: true, delivered: false, error: `Meta respondeu ${send.status}: ${await send.text()}` };
+    }
+    return { ok: true, delivered: true };
+  } catch (e) {
+    return { ok: true, delivered: false, error: e instanceof Error ? e.message : "Falha no envio" };
+  }
+}
+
+async function readLatestValidationRow(phone: string): Promise<ValidationRow | null> {
   const { data } = await supabaseAdmin
     .from("whatsapp_validations")
     .select("phone, journey_id, status, responded_at")

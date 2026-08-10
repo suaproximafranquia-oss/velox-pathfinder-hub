@@ -59,6 +59,31 @@ export function getVerification(investorId: string): VerificationRecord | null {
 }
 
 /**
+ * Espelha a confirmação já registrada no servidor. Permite que o
+ * investidor troque de navegador ou dispositivo sem refazer nada.
+ */
+export function applyRemoteConfirmation(
+  investorId: string,
+  confirmedAt: string | null,
+  phone?: string,
+): void {
+  if (!confirmedAt) return;
+  const store = read();
+  const current = store[investorId];
+  if (current?.confirmedAt) return;
+  store[investorId] = {
+    investorId,
+    phone: current?.phone ?? (phone ?? ""),
+    sentAt: current?.sentAt ?? confirmedAt,
+    sendCount: current?.sendCount ?? 1,
+    confirmedAt,
+    confirmedIp: current?.confirmedIp ?? null,
+    confirmedUserAgent: current?.confirmedUserAgent ?? null,
+  };
+  write(store);
+}
+
+/**
  * DEF 2.5.1 — ao promover a Jornada Digital a Relacionamento Comercial,
  * a confirmação já realizada acompanha o novo identificador.
  */
@@ -183,6 +208,16 @@ export function confirmWhatsapp(input: {
   };
   store[input.investorId] = confirmed;
   write(store);
+
+  // A confirmação é gravada no servidor: passa a valer em qualquer
+  // navegador e é vista imediatamente pelo CRM.
+  if (typeof window !== "undefined") {
+    void import("@/lib/portal-access.functions")
+      .then((m) => m.confirmPortalWhatsapp({ data: { investorId: input.investorId } }))
+      .catch(() => {
+        /* nova tentativa ocorre no próximo acesso ao Portal */
+      });
+  }
 
   // IP é resolvido em segundo plano — a liberação nunca depende dele.
   void resolveIp().then((ip) => {
