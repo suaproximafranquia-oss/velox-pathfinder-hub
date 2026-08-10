@@ -165,7 +165,7 @@ export const trackPortalProgress = createServerFn({ method: "POST" })
 
     const { error } = await supabaseAdmin
       .from("portal_leads")
-      .update(patch)
+      .update(patch as never)
       .eq("id", data.investorId);
     if (error) throw new Error(error.message);
 
