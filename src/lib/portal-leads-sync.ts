@@ -68,6 +68,14 @@ type RemoteLead = {
   personalized: boolean;
   responsible_executive_id: string | null;
   created_at: string;
+  last_activity_at?: string | null;
+  journey_percent?: number | null;
+  journey_chapter?: string | null;
+  journey_stage?: string | null;
+  journey_completed_at?: string | null;
+  journey_last_event_at?: string | null;
+  portal_released_at?: string | null;
+  whatsapp_confirmed_at?: string | null;
 };
 
 function toLocal(row: RemoteLead): LeadRecord {
@@ -83,6 +91,14 @@ function toLocal(row: RemoteLead): LeadRecord {
     responsibleExecutiveId: row.responsible_executive_id,
     personalized: row.personalized,
     scope: row.scope,
+    journeyPercent: row.journey_percent ?? 0,
+    journeyChapter: row.journey_chapter ?? null,
+    journeyStage: row.journey_stage ?? null,
+    journeyCompletedAt: row.journey_completed_at ?? null,
+    journeyLastEventAt: row.journey_last_event_at ?? null,
+    portalReleasedAt: row.portal_released_at ?? null,
+    whatsappConfirmedAt: row.whatsapp_confirmed_at ?? null,
+    lastActivityAt: row.last_activity_at ?? null,
   };
 }
 
