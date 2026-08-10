@@ -356,6 +356,27 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_backup_blobs: {
+        Row: {
+          created_at: string
+          hash: string
+          payload: Json
+          size_bytes: number
+        }
+        Insert: {
+          created_at?: string
+          hash: string
+          payload: Json
+          size_bytes?: number
+        }
+        Update: {
+          created_at?: string
+          hash?: string
+          payload?: Json
+          size_bytes?: number
+        }
+        Relationships: []
+      }
       portal_backups: {
         Row: {
           created_at: string
@@ -366,6 +387,8 @@ export type Database = {
           label: string
           origin: string
           payload: Json
+          payload_hash: string | null
+          protected: boolean
           size_bytes: number
           status: string
           table_counts: Json
@@ -379,6 +402,8 @@ export type Database = {
           label: string
           origin?: string
           payload?: Json
+          payload_hash?: string | null
+          protected?: boolean
           size_bytes?: number
           status?: string
           table_counts?: Json
@@ -392,9 +417,41 @@ export type Database = {
           label?: string
           origin?: string
           payload?: Json
+          payload_hash?: string | null
+          protected?: boolean
           size_bytes?: number
           status?: string
           table_counts?: Json
+        }
+        Relationships: []
+      }
+      portal_journey_events: {
+        Row: {
+          created_at: string
+          detail: string | null
+          event: string
+          id: string
+          investor_id: string
+          module: string | null
+          percent: number | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          event: string
+          id?: string
+          investor_id: string
+          module?: string | null
+          percent?: number | null
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          event?: string
+          id?: string
+          investor_id?: string
+          module?: string | null
+          percent?: number | null
         }
         Relationships: []
       }
@@ -407,16 +464,27 @@ export type Database = {
           email: string
           id: string
           journey: Json
+          journey_chapter: string | null
+          journey_completed_at: string | null
+          journey_first_access_at: string | null
+          journey_last_event_at: string | null
+          journey_percent: number
+          journey_stage: string | null
+          journey_started_at: string | null
           last_activity_at: string
           material: string
           name: string
           origin: string
           personalized: boolean
+          portal_release_reason: string | null
+          portal_released_at: string | null
+          portal_released_by: string | null
           responsible_executive_id: string | null
           responsible_executive_slug: string | null
           scope: string
           updated_at: string
           whatsapp: string
+          whatsapp_confirmed_at: string | null
         }
         Insert: {
           campaign?: string | null
@@ -426,16 +494,27 @@ export type Database = {
           email: string
           id: string
           journey?: Json
+          journey_chapter?: string | null
+          journey_completed_at?: string | null
+          journey_first_access_at?: string | null
+          journey_last_event_at?: string | null
+          journey_percent?: number
+          journey_stage?: string | null
+          journey_started_at?: string | null
           last_activity_at?: string
           material?: string
           name: string
           origin?: string
           personalized?: boolean
+          portal_release_reason?: string | null
+          portal_released_at?: string | null
+          portal_released_by?: string | null
           responsible_executive_id?: string | null
           responsible_executive_slug?: string | null
           scope?: string
           updated_at?: string
           whatsapp?: string
+          whatsapp_confirmed_at?: string | null
         }
         Update: {
           campaign?: string | null
@@ -445,16 +524,27 @@ export type Database = {
           email?: string
           id?: string
           journey?: Json
+          journey_chapter?: string | null
+          journey_completed_at?: string | null
+          journey_first_access_at?: string | null
+          journey_last_event_at?: string | null
+          journey_percent?: number
+          journey_stage?: string | null
+          journey_started_at?: string | null
           last_activity_at?: string
           material?: string
           name?: string
           origin?: string
           personalized?: boolean
+          portal_release_reason?: string | null
+          portal_released_at?: string | null
+          portal_released_by?: string | null
           responsible_executive_id?: string | null
           responsible_executive_slug?: string | null
           scope?: string
           updated_at?: string
           whatsapp?: string
+          whatsapp_confirmed_at?: string | null
         }
         Relationships: []
       }
