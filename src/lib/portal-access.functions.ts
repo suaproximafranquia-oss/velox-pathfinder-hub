@@ -176,7 +176,14 @@ export const trackPortalProgress = createServerFn({ method: "POST" })
       detail: data.detail ?? null,
       percent: typeof data.percent === "number" ? Math.round(data.percent) : null,
     });
-    return { ok: true as const };
+    // Engajamento REAL: sessões, retornos, tempo ativo e primeiro acesso
+    // a cada módulo — a base do ranking e dos alertas sem ruído.
+    const { applyEngagementEvent } = await import("@/server/portal-engagement.server");
+    const engagement = await applyEngagementEvent({
+      investorId: data.investorId,
+      module: data.module,
+    });
+    return { ok: true as const, engagement };
   });
 
 /** Histórico auditável dos eventos — consumido pela Ficha do CRM. */

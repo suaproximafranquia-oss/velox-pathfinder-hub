@@ -13,7 +13,6 @@ import {
   Plus,
   Mic,
   Image as ImageIcon,
-  Camera,
   User,
   Trash2,
   Square,
@@ -338,6 +337,7 @@ export function CrmComposer({
   window: win,
   prefillText,
   prefillNonce = 0,
+  contacts = [],
 }: {
   onSend: (text: string, viaTemplate: boolean) => void;
   /** Envio real de anexos e áudios pelo canal oficial. */
@@ -353,11 +353,15 @@ export function CrmComposer({
   prefillText?: string | null;
   /** Muda a cada seleção, permitindo recarregar o mesmo template. */
   prefillNonce?: number;
+  /** Contatos reais do CRM, oferecidos no botão "Contato". */
+  contacts?: { id: string; name: string; phone: string }[];
 }) {
   const [text, setText] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [armedTemplate, setArmedTemplate] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
+  /** Seletor de contato do CRM (substitui o antigo arquivo .vcf). */
+  const [contactsOpen, setContactsOpen] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   /** Áudio gravado aguardando revisão — nada é enviado sem confirmação. */
@@ -384,13 +388,11 @@ export function CrmComposer({
     }
   };
 
-  const pickFile = (kind: CrmAttachmentKind, accept: string, capture?: boolean) => {
+  const pickFile = (kind: CrmAttachmentKind, accept: string) => {
     pendingKind.current = kind;
     const input = fileRef.current;
     if (!input) return;
     input.accept = accept;
-    if (capture) input.setAttribute("capture", "environment");
-    else input.removeAttribute("capture");
     input.click();
     setAttachOpen(false);
   };
@@ -532,24 +534,53 @@ export function CrmComposer({
               kind: "imagem" as const,
               accept: "image/*,video/*",
             },
-            { label: "Câmera", icon: Camera, kind: "imagem" as const, accept: "image/*", capture: true },
             { label: "Áudio", icon: Mic, kind: "audio" as const, accept: "audio/*" },
-            { label: "Contato", icon: User, kind: "contato" as const, accept: ".vcf,text/vcard" },
           ].map((option) => (
             <button
               key={option.label}
               type="button"
-              onClick={() =>
-                pickFile(
-                  option.kind === "contato" ? "documento" : option.kind,
-                  option.accept,
-                  option.capture,
-                )
-              }
+              onClick={() => pickFile(option.kind, option.accept)}
               className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)]"
             >
               <option.icon className="h-3.5 w-3.5" />
               {option.label}
+            </button>
+          ))}
+          {/* Contato: escolhe um contato REAL do CRM e envia os dados
+              na conversa — nada de arquivos .vcf do computador. */}
+          <button
+            type="button"
+            onClick={() => {
+              setContactsOpen((v) => !v);
+              setAttachError(
+                contacts.length === 0
+                  ? "Nenhum contato disponível para compartilhar."
+                  : null,
+              );
+            }}
+            aria-expanded={contactsOpen}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)]"
+          >
+            <User className="h-3.5 w-3.5" />
+            Contato
+          </button>
+        </div>
+      ) : null}
+      {contactsOpen && !disabled && contacts.length > 0 ? (
+        <div className="crm-enter mb-2 max-h-40 overflow-y-auto rounded-xl border border-[color:var(--crm-border)] p-1.5">
+          {contacts.map((contact) => (
+            <button
+              key={contact.id}
+              type="button"
+              onClick={() => {
+                setText(`Contato: ${contact.name} — ${contact.phone}`);
+                setContactsOpen(false);
+                setAttachOpen(false);
+              }}
+              className="block w-full cursor-pointer rounded-lg px-2.5 py-1.5 text-left text-[11px] hover:bg-[color:var(--crm-hover)]"
+            >
+              <span className="font-medium">{contact.name}</span>{" "}
+              <span className="text-[color:var(--crm-muted)]">{contact.phone}</span>
             </button>
           ))}
         </div>

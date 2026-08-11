@@ -25,6 +25,7 @@ import {
   CrmStartRelationshipDialog,
 } from "@/components/crm/crm-conversation";
 import { CrmLeadFicha } from "@/components/crm/crm-lead-ficha";
+import { CrmEngagementSummary } from "@/components/crm/crm-engagement";
 import {
   User,
   Users,
@@ -604,6 +605,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               disabled={!composerEnabled}
               investorName={selected.name}
               window={chatWindow}
+              contacts={conversations
+                .filter((c) => c.id !== selected.id && Boolean(c.phone))
+                .map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
               onSendAttachment={async (attachment) => {
                 // Envio real pelo canal oficial — nada é dado como
                 // entregue sem a confirmação da Meta.
@@ -777,6 +781,11 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               actor={{ userId: actor.userId, name: session.name, role: actor.role }}
               onSaved={() => setTick((v) => v + 1)}
             />
+
+            {/* Engajamento real do investidor no Portal. */}
+            <CrmRecordSection title="Engajamento" tone="azul" icon={Users}>
+              <CrmEngagementSummary investorId={selected.id} />
+            </CrmRecordSection>
 
             <CrmRecordSection title="Relacionamento" tone="verde" icon={Users}>
               {/* Estágio automático — exibido exclusivamente aqui. */}

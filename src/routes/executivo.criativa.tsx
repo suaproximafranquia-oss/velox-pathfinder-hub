@@ -24,6 +24,7 @@ import { composeFromTemplate } from "@/lib/creative/compose";
 import {
   getTemplate,
   uploadTemplate,
+  deleteTemplate,
   getReference,
   uploadReference,
   type CreativeTemplate,
@@ -103,6 +104,20 @@ function CriativaPage() {
       const saved = await getTemplate(MODEL);
       if (saved) setTemplate(saved);
       setError(err instanceof Error ? err.message : "Falha ao enviar o template.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  /** Remove o template enviado — o modelo volta ao arquivo embutido. */
+  async function dropTemplate() {
+    setUploading(true);
+    setError(null);
+    try {
+      await deleteTemplate(MODEL);
+      setTemplate(await getTemplate(MODEL));
+    } catch {
+      setError("Não foi possível remover o template agora.");
     } finally {
       setUploading(false);
     }
@@ -371,6 +386,19 @@ function CriativaPage() {
                 )}
                 Testar Template
               </button>
+              {template && !template.builtIn ? (
+                <button
+                  type="button"
+                  onClick={() => void dropTemplate()}
+                  disabled={uploading}
+                  aria-label="Remover template enviado"
+                  title="Remover template enviado"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" />
+                  Remover
+                </button>
+              ) : null}
             </div>
             <p className="text-xs">
               <span className="text-muted-foreground">Status: </span>

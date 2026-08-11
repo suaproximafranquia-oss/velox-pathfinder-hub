@@ -462,6 +462,8 @@ export function recordPortalActivityAlert(input: {
   title: string;
   description: string;
   dateIso: string;
+  /** Módulo acessado — garante um único alerta por módulo. */
+  moduleKey?: string;
 }) {
   const at = Date.parse(input.dateIso);
   if (!Number.isFinite(at)) return;
@@ -474,7 +476,9 @@ export function recordPortalActivityAlert(input: {
       investorId: input.investorId,
       date: input.dateIso,
     },
-    `wa_crm_atividade_${input.investorId}_${at}`,
+    // Chave por MÓDULO (e não por instante): o mesmo módulo nunca gera
+    // um segundo alerta, eliminando o ruído de repetições.
+    `wa_crm_atividade_${input.investorId}_${input.moduleKey ?? at}`,
   );
 }
 

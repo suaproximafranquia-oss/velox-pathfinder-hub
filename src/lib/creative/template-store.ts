@@ -146,21 +146,22 @@ export async function uploadTemplate(
     config,
   };
   writeCache(model, template);
-  const { error } = await supabase.from("creative_templates").upsert(
-    {
-      model,
-      file_name: file.name,
-      content_type: file.type,
-      data_url: dataUrl,
-      width,
-      height,
-      config: JSON.parse(JSON.stringify(config)),
-      updated_by: updatedBy ?? null,
-      updated_at: template.updatedAt,
-    },
-    { onConflict: "model" },
-  );
-  if (error) {
+  // Publicação pelo servidor: independe da sessão do banco no navegador.
+  const { publishCreativeTemplate } = await import("@/lib/creative-template.functions");
+  try {
+    await publishCreativeTemplate({
+      data: {
+        model,
+        fileName: file.name,
+        contentType: file.type,
+        dataUrl,
+        width,
+        height,
+        config: JSON.parse(JSON.stringify(config)),
+        updatedBy: updatedBy ?? undefined,
+      },
+    });
+  } catch {
     throw new Error(
       "O template foi aplicado neste navegador, mas não pôde ser publicado para a equipe.",
     );
@@ -229,4 +230,22 @@ export async function uploadReference(
     throw new Error("Não foi possível guardar o modelo padronizado neste navegador.");
   }
   return reference;
+}
+
+/**
+ * Remove o Template Oficial do modelo: o cache local é limpo e o modelo
+ * volta imediatamente ao arquivo embutido, para toda a equipe.
+ */
+export async function deleteTemplate(model: CreativeModel): Promise<void> {
+  const cache = readCache();
+  delete cache[model];
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch {
+      /* armazenamento indisponível */
+    }
+  }
+  const { removeCreativeTemplate } = await import("@/lib/creative-template.functions");
+  await removeCreativeTemplate({ data: { model } });
 }
