@@ -71,7 +71,10 @@ export function syncPortalActivity(
     for (const activity of listPortalActivities(item.id, 4)) {
       const at = Date.parse(activity.at);
       if (!Number.isFinite(at) || now - at > WINDOW_MS) continue;
+      // Somente o PRIMEIRO acesso a cada módulo vira alerta: acessos
+      // repetidos continuam visíveis na Timeline, sem poluir a Central.
       recordPortalActivityAlert({
+        moduleKey: activity.module,
         ownerUserId: item.ownerId,
         investorId: item.id,
         investorName: item.name,
