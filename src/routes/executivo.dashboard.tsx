@@ -286,7 +286,10 @@ function WorkspacePage() {
             <ScopeTabs items={tabs} current={scope} onChange={changeScope} />
           )}
           {scope === "redistribuicao" && <RedistributionPanel tick={tick} />}
-          {scope === "engajamento" && <EngagementPanel onOpen={openProfile} />}
+          {scope === "engajamento" ? (
+            <EngagementPanel onOpen={openProfile} />
+          ) : (
+            <>
           <WorkspaceHeader
             query={query}
             onQuery={setQuery}
@@ -308,6 +311,8 @@ function WorkspacePage() {
                 />
               ))}
             </div>
+          )}
+            </>
           )}
         </>
       )}
