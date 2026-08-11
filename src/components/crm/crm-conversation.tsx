@@ -13,7 +13,6 @@ import {
   Plus,
   Mic,
   Image as ImageIcon,
-  Camera,
   User,
   Trash2,
   Square,
