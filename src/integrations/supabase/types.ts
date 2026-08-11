@@ -425,6 +425,45 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_engagement: {
+        Row: {
+          active_ms: number
+          created_at: string
+          first_access_at: string
+          investor_id: string
+          last_access_at: string
+          modules: Json
+          returns: number
+          session_started_at: string
+          sessions: number
+          updated_at: string
+        }
+        Insert: {
+          active_ms?: number
+          created_at?: string
+          first_access_at?: string
+          investor_id: string
+          last_access_at?: string
+          modules?: Json
+          returns?: number
+          session_started_at?: string
+          sessions?: number
+          updated_at?: string
+        }
+        Update: {
+          active_ms?: number
+          created_at?: string
+          first_access_at?: string
+          investor_id?: string
+          last_access_at?: string
+          modules?: Json
+          returns?: number
+          session_started_at?: string
+          sessions?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       portal_journey_events: {
         Row: {
           created_at: string
