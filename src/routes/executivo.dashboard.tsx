@@ -239,7 +239,7 @@ function WorkspacePage() {
     });
   };
 
-  const changeScope = (next: WorkspaceScope) => {
+  const changeScope = (next: WorkspaceTab) => {
     navigate({ to: "/executivo/dashboard", search: { escopo: next } });
   };
 
@@ -282,10 +282,11 @@ function WorkspacePage() {
         />
       ) : (
         <>
-          {scopes.length > 1 && (
-            <ScopeTabs items={scopes} current={scope} onChange={changeScope} />
+          {tabs.length > 1 && (
+            <ScopeTabs items={tabs} current={scope} onChange={changeScope} />
           )}
           {scope === "redistribuicao" && <RedistributionPanel tick={tick} />}
+          {scope === "engajamento" && <EngagementPanel onOpen={openProfile} />}
           <WorkspaceHeader
             query={query}
             onQuery={setQuery}
@@ -346,9 +347,9 @@ function ScopeTabs({
   current,
   onChange,
 }: {
-  items: WorkspaceScope[];
-  current: WorkspaceScope;
-  onChange: (s: WorkspaceScope) => void;
+  items: WorkspaceTab[];
+  current: WorkspaceTab;
+  onChange: (s: WorkspaceTab) => void;
 }) {
   return (
     <div
@@ -372,7 +373,7 @@ function ScopeTabs({
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
             )}
           >
-            {WORKSPACE_SCOPE_LABEL[s]}
+            {TAB_LABEL[s]}
           </button>
         );
       })}
