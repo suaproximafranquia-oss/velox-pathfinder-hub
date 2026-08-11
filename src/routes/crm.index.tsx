@@ -604,6 +604,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               disabled={!composerEnabled}
               investorName={selected.name}
               window={chatWindow}
+              contacts={conversations
+                .filter((c) => c.id !== selected.id && Boolean(c.phone))
+                .map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
               onSendAttachment={async (attachment) => {
                 // Envio real pelo canal oficial — nada é dado como
                 // entregue sem a confirmação da Meta.
