@@ -25,13 +25,30 @@ import {
 } from "@/lib/portal-workspace";
 import { cn } from "@/lib/utils";
 import { RedistributionPanel } from "@/components/executive/workspace/redistribution-panel";
+import { EngagementPanel } from "@/components/executive/workspace/engagement-panel";
 
-type DashboardSearch = { perfil?: string; escopo?: WorkspaceScope };
+/**
+ * Abas do Workspace. "Engajamento" é uma aba INDEPENDENTE, adicionada
+ * ao final: nenhuma aba existente (inclusive PORTAL) muda de posição,
+ * nome, permissão ou comportamento.
+ */
+type WorkspaceTab = WorkspaceScope | "engajamento";
+
+const TAB_LABEL: Record<WorkspaceTab, string> = {
+  ...WORKSPACE_SCOPE_LABEL,
+  engajamento: "Engajamento",
+};
+
+function isWorkspaceTab(value: unknown): value is WorkspaceTab {
+  return isWorkspaceScope(value) || value === "engajamento";
+}
+
+type DashboardSearch = { perfil?: string; escopo?: WorkspaceTab };
 
 export const Route = createFileRoute("/executivo/dashboard")({
   validateSearch: (s: Record<string, unknown>): DashboardSearch => ({
     perfil: typeof s.perfil === "string" ? s.perfil : undefined,
-    escopo: isWorkspaceScope(s.escopo) ? s.escopo : undefined,
+    escopo: isWorkspaceTab(s.escopo) ? s.escopo : undefined,
   }),
   head: () => ({
     meta: [
@@ -57,11 +74,11 @@ function WorkspacePage() {
   const openProfileId = search.perfil ?? null;
   // ETAPA 02.1 §Doc01 — abas oficiais por perfil: Green Sales e
   // Redistribuição para todos; Portal apenas para Administrador/híbrido.
-  const scopes: WorkspaceScope[] = session
-    ? workspaceScopesFor(session.userId, session.activeRole)
-    : ["green_sales"];
-  const scope: WorkspaceScope =
-    search.escopo && scopes.includes(search.escopo) ? search.escopo : "green_sales";
+  const tabs: WorkspaceTab[] = session
+    ? [...workspaceScopesFor(session.userId, session.activeRole), "engajamento"]
+    : ["green_sales", "engajamento"];
+  const scope: WorkspaceTab =
+    search.escopo && tabs.includes(search.escopo) ? search.escopo : "green_sales";
 
   useEffect(() => {
     const s = getSession();
