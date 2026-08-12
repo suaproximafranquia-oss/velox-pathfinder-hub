@@ -37,6 +37,16 @@ const MODULE_LABEL: Record<JourneyModule, string> = {
 /** Janela considerada "atividade recente" para exibição na Ficha. */
 const WINDOW_MS = 7 * 86_400_000;
 
+/**
+ * Ocorrências já transformadas em alerta/Timeline nesta sessão do
+ * navegador. Sem esta trava a sincronização se auto-alimentava: cada
+ * gravação avisava o barramento, o CRM recalculava a lista e a mesma
+ * atividade era registrada de novo, em laço — origem do "pisca-pisca"
+ * observado na tela de Conversas.
+ */
+const processed = new Set<string>();
+let syncing = false;
+
 /** Atividades reais do investidor, da mais recente para a mais antiga. */
 export function listPortalActivities(
   investorId: string,
@@ -66,11 +76,17 @@ export function syncPortalActivity(
   items: { id: string; name: string; ownerId: string; originLabel: string }[],
 ): void {
   if (typeof window === "undefined") return;
+  if (syncing) return;
+  syncing = true;
   const now = Date.now();
+  try {
   for (const item of items) {
     for (const activity of listPortalActivities(item.id, 4)) {
       const at = Date.parse(activity.at);
       if (!Number.isFinite(at) || now - at > WINDOW_MS) continue;
+      const key = `${item.id}|${activity.module}|${activity.at}`;
+      if (processed.has(key)) continue;
+      processed.add(key);
       // Somente o PRIMEIRO acesso a cada módulo vira alerta: acessos
       // repetidos continuam visíveis na Timeline, sem poluir a Central.
       recordPortalActivityAlert({
@@ -91,5 +107,8 @@ export function syncPortalActivity(
         actorId: "sistema",
       });
     }
+  }
+  } finally {
+    syncing = false;
   }
 }

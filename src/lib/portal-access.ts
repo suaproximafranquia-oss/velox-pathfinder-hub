@@ -89,7 +89,12 @@ type ProgressPush = {
   completed?: boolean;
 };
 
-let queue: ProgressPush | null = null;
+/**
+ * Fila agrupada por investidor + módulo. Antes havia um único slot: dois
+ * eventos de módulos diferentes na mesma janela (por exemplo, Manual e
+ * Material) se sobrepunham e um deles nunca chegava ao servidor.
+ */
+const queue = new Map<string, ProgressPush>();
 let timer: number | null = null;
 
 /**
@@ -98,22 +103,28 @@ let timer: number | null = null;
  */
 export function pushPortalProgress(input: ProgressPush): void {
   if (typeof window === "undefined" || !input.investorId) return;
-  queue = queue
-    ? {
-        ...queue,
-        ...input,
-        percent: Math.max(queue.percent ?? 0, input.percent ?? 0),
-        completed: queue.completed || input.completed,
-      }
-    : input;
+  const key = `${input.investorId}|${input.module ?? "portal"}`;
+  const current = queue.get(key);
+  queue.set(
+    key,
+    current
+      ? {
+          ...current,
+          ...input,
+          percent: Math.max(current.percent ?? 0, input.percent ?? 0),
+          completed: current.completed || input.completed,
+        }
+      : input,
+  );
   if (timer !== null) return;
   timer = window.setTimeout(() => {
-    const payload = queue;
-    queue = null;
+    const payloads = [...queue.values()];
+    queue.clear();
     timer = null;
-    if (!payload) return;
-    void trackPortalProgress({ data: payload }).catch(() => {
-      /* reenviado no próximo evento da jornada */
-    });
+    for (const payload of payloads) {
+      void trackPortalProgress({ data: payload }).catch(() => {
+        /* reenviado no próximo evento da jornada */
+      });
+    }
   }, 1_200);
 }

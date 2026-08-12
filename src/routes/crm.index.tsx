@@ -244,6 +244,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   // DEF 2.4.10 §2 — toda atividade do investidor no Portal (Manual,
   // Material, Calculadora, Workspace, retorno) vira alerta na Ficha e
   // registro permanente na Timeline, automaticamente.
+  // A dependência é a IDENTIDADE das conversas (ids), nunca o array
+  // recriado a cada atualização: sem isto a sincronização disparava
+  // gravações que reativavam o barramento em laço.
+  const conversationIdsKey = useMemo(
+    () => conversations.map((c) => c.id).join(","),
+    [conversations],
+  );
   useEffect(() => {
     if (conversations.length === 0) return;
     syncPortalActivity(
@@ -254,13 +261,21 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
         originLabel: c.originLabel,
       })),
     );
-  }, [conversations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationIdsKey]);
 
+  /**
+   * Seleção estável: a conversa escolhida pelo Executivo permanece aberta
+   * mesmo que a lista seja reordenada, atualizada ou temporariamente
+   * recarregada. Só há escolha automática quando ainda não existe uma
+   * seleção — nunca como "fallback" durante uma atualização.
+   */
   const selected =
-    visible.find((c) => c.id === selectedId) ??
-    conversations.find((c) => c.id === selectedId) ??
-    visible[0] ??
-    null;
+    (selectedId
+      ? (visible.find((c) => c.id === selectedId) ??
+        conversations.find((c) => c.id === selectedId) ??
+        null)
+      : (visible[0] ?? null));
 
   const isConversas = area === "conversas";
   // Conversas temporárias do Executivo — visíveis na lista lateral.
@@ -431,7 +446,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               <CrmNewChatButton onOpen={() => setNewChatOpen(true)} />
               <button
                 type="button"
-                onClick={() => setShowArchived((v) => !v)}
+                onClick={() =>
+                  setShowArchived((v) => {
+                    // Troca explícita de lista: a seleção anterior não
+                    // pertence mais ao contexto exibido.
+                    setSelectedId(null);
+                    return !v;
+                  })
+                }
                 className={[
                   "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-medium transition-colors",
                   showArchived
