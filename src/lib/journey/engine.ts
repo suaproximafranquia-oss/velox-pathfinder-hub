@@ -430,10 +430,33 @@ export function trackJourney(input: TrackInput) {
   // 2) Persistência da jornada em segundo plano.
   if (!input.investorId) return;
   const investorId = input.investorId;
+
+  /**
+   * Espelho no servidor: acontece SEMPRE, mesmo quando este navegador
+   * ainda não possui o registro local da jornada (outro dispositivo,
+   * cache limpo, aba anônima). Sem isto, módulos realmente acessados
+   * continuavam marcados como "0%" no CRM.
+   */
+  const mirror = (extra: { percent?: number; chapter?: string; stage?: string }) => {
+    void import("@/lib/portal-access").then((m) =>
+      m.pushPortalProgress({
+        investorId,
+        event: input.type,
+        module,
+        detail: input.detail ?? label,
+        completed: input.type === "manual.completed" || input.type === "journey.completed",
+        ...extra,
+      }),
+    );
+  };
+
   background(() => {
     const map = read();
     const record = map[investorId];
-    if (!record) return;
+    if (!record) {
+      mirror({});
+      return;
+    }
     const nowMs = Date.now();
     const now = new Date(nowMs).toISOString();
     const { session, renewed } = ensureActiveSession(record, nowMs);
@@ -459,20 +482,11 @@ export function trackJourney(input: TrackInput) {
     map[investorId] = record;
     write(map);
 
-    // Espelho no servidor: sem isto o CRM continuaria exibindo "Manual 0%"
-    // mesmo com o investidor lendo a jornada inteira.
-    void import("@/lib/portal-access").then((m) =>
-      m.pushPortalProgress({
-        investorId,
-        event: input.type,
-        module,
-        detail: input.detail ?? label,
-        percent: record.progress.percent,
-        chapter: record.progress.chapterTitle ?? record.progress.chapterSlug ?? undefined,
-        stage: currentStage(record),
-        completed: input.type === "manual.completed" || input.type === "journey.completed",
-      }),
-    );
+    mirror({
+      percent: record.progress.percent,
+      chapter: record.progress.chapterTitle ?? record.progress.chapterSlug ?? undefined,
+      stage: currentStage(record),
+    });
   });
 }
 
