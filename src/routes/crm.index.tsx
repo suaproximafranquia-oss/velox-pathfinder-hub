@@ -446,7 +446,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               <CrmNewChatButton onOpen={() => setNewChatOpen(true)} />
               <button
                 type="button"
-                onClick={() => setShowArchived((v) => !v)}
+                onClick={() =>
+                  setShowArchived((v) => {
+                    // Troca explícita de lista: a seleção anterior não
+                    // pertence mais ao contexto exibido.
+                    setSelectedId(null);
+                    return !v;
+                  })
+                }
                 className={[
                   "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-medium transition-colors",
                   showArchived
