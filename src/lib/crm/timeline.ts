@@ -89,6 +89,25 @@ function readAll(): CrmTimelineEntry[] {
   }
 }
 
+/** Cache completo — usado pela sincronização com o servidor. */
+export function readAllTimeline(): CrmTimelineEntry[] {
+  return readAll();
+}
+
+/** Mescla a Timeline oficial do banco sem duplicar nem perder registros. */
+export function mergeRemoteTimeline(remote: CrmTimelineEntry[]): void {
+  if (typeof window === "undefined" || remote.length === 0) return;
+  const byId = new Map(readAll().map((e) => [e.id, e]));
+  for (const entry of remote) byId.set(entry.id, entry);
+  const merged = [...byId.values()].sort((a, b) => (a.at < b.at ? -1 : 1)).slice(-LIMIT);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+  } catch {
+    /* armazenamento indisponível */
+  }
+  notifySync("timeline");
+}
+
 /** Registro automático — silencioso e idempotente por ocorrência única. */
 export function recordCrmEvent(entry: Omit<CrmTimelineEntry, "id" | "at">): void {
   if (typeof window === "undefined") return;
@@ -116,6 +135,8 @@ export function recordCrmEvent(entry: Omit<CrmTimelineEntry, "id" | "at">): void
   } catch {
     /* armazenamento indisponível */
   }
+  // Fonte de verdade no servidor — o cache local é só apresentação.
+  void import("@/lib/crm/server-sync").then((m) => m.mirrorCrmRecords({ timeline: [next] }));
   notifySync("timeline");
 }
 
