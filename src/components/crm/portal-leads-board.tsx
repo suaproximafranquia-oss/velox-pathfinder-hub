@@ -191,7 +191,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const fetchLeads = useServerFn(listCrmLeads);
@@ -199,8 +198,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const fetchLead = useServerFn(getCrmLead);
   const fetchStages = useServerFn(listCrmStages);
   const fetchConnection = useServerFn(getGreenSalesConnection);
-  const saveConnection = useServerFn(connectGreenSales);
-  const dropConnection = useServerFn(disconnectGreenSales);
   const runSync = useServerFn(runCrmSyncNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
 
@@ -289,29 +286,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     const res = await retryWelcome({ data: { id } });
     setNotice(res.ok ? "Mensagem de boas-vindas enviada." : `Envio não concluído (${res.outcome}).`);
     await load();
-  }
-
-  async function handleConnect(email: string, password: string) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      setConnection(await saveConnection({ data: { email, password } }));
-      setNotice("Conta Green Sales conectada a este usuário.");
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Não foi possível conectar a conta.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDisconnect() {
-    setBusy(true);
-    try {
-      setConnection(await dropConnection({}));
-      setNotice("Conexão encerrada.");
-    } finally {
-      setBusy(false);
-    }
   }
 
   if (!session) return null;
