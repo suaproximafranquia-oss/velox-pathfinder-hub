@@ -15,6 +15,7 @@ import {
 } from "@/lib/portal-access.functions";
 import { applyRemoteRelease } from "@/lib/crm/portal-release";
 import { applyRemoteConfirmation } from "@/lib/portal-verification";
+import { ensurePortalToken } from "@/lib/portal-token";
 
 /** Sincronização periódica: a liberação aparece sozinha para o visitante. */
 export const PORTAL_ACCESS_POLL_MS = 20_000;
@@ -122,9 +123,11 @@ export function pushPortalProgress(input: ProgressPush): void {
     queue.clear();
     timer = null;
     for (const payload of payloads) {
-      void trackPortalProgress({ data: payload }).catch(() => {
-        /* reenviado no próximo evento da jornada */
-      });
+      void ensurePortalToken(payload.investorId)
+        .then((token) => (token ? trackPortalProgress({ data: { ...payload, token } }) : null))
+        .catch(() => {
+          /* reenviado no próximo evento da jornada */
+        });
     }
   }, 1_200);
 }

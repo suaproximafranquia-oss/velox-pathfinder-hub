@@ -194,6 +194,75 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_messages: {
+        Row: {
+          at: string
+          author_id: string
+          author_name: string | null
+          body: string
+          created_at: string
+          direction: string
+          id: string
+          investor_id: string
+        }
+        Insert: {
+          at?: string
+          author_id: string
+          author_name?: string | null
+          body: string
+          created_at?: string
+          direction: string
+          id: string
+          investor_id: string
+        }
+        Update: {
+          at?: string
+          author_id?: string
+          author_name?: string | null
+          body?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          investor_id?: string
+        }
+        Relationships: []
+      }
+      crm_timeline: {
+        Row: {
+          actor_id: string | null
+          at: string
+          created_at: string
+          event: string
+          id: string
+          investor_id: string
+          origin: string
+          owner_id: string | null
+          reason: string
+        }
+        Insert: {
+          actor_id?: string | null
+          at?: string
+          created_at?: string
+          event: string
+          id: string
+          investor_id: string
+          origin?: string
+          owner_id?: string | null
+          reason?: string
+        }
+        Update: {
+          actor_id?: string | null
+          at?: string
+          created_at?: string
+          event?: string
+          id?: string
+          investor_id?: string
+          origin?: string
+          owner_id?: string | null
+          reason?: string
+        }
+        Relationships: []
+      }
       executive_profiles: {
         Row: {
           created_at: string
