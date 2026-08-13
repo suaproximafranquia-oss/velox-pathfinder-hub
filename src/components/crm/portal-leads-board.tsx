@@ -254,6 +254,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
 
   const byStage = useMemo(() => {
     const map = new Map<string, CrmLeadView[]>();
+    void 0;
     for (const stage of stages) map.set(stage.key, []);
     for (const lead of leads) {
       const key = lead.stageKey ?? "novos";
