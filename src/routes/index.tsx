@@ -75,6 +75,8 @@ type HomeSearch = {
   u?: string;
   /** Campanha. */
   c?: string;
+  /** Marca/operação de origem (`financeira`, `solar`, `seguros`). */
+  b?: string;
 };
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
@@ -86,6 +88,7 @@ export const Route = createFileRoute("/")({
     o: str(search.o),
     u: str(search.u),
     c: str(search.c),
+    b: str(search.b),
   }),
   head: () => ({
     meta: [
@@ -325,13 +328,14 @@ function PortalHome() {
    * pendente — nunca navegação. Em seguida a URL volta a ser a Home.
    */
   useEffect(() => {
-    const hasParams = Boolean(search.e || search.m || search.o || search.u || search.c);
+    const hasParams = Boolean(search.e || search.m || search.o || search.u || search.c || search.b);
     if (hasParams) {
       const ctx = writeEntryContext({
         executiveSlug: search.e ?? readEntryContext().executiveSlug,
         unit: search.u ?? readEntryContext().unit,
         origin: search.o ?? readEntryContext().origin,
         campaign: search.c ?? readEntryContext().campaign,
+        brand: search.b ?? readEntryContext().brand,
         pendingModule: (getPortalModule(search.m)?.key ??
           (search.e ? "manual" : null)) as PortalModuleKey | null,
       });

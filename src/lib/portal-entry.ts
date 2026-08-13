@@ -13,6 +13,8 @@ const ENTRY_KEY = "velox:portal:entry-context:v1";
 
 export type EntryContext = {
   executiveSlug: string | null;
+  /** Marca/operação do link público (`/f`, `/s`, `/seg`). */
+  brand: string | null;
   unit: string | null;
   origin: string | null;
   campaign: string | null;
@@ -23,6 +25,7 @@ export type EntryContext = {
 
 const EMPTY: EntryContext = {
   executiveSlug: null,
+  brand: null,
   unit: null,
   origin: null,
   campaign: null,
