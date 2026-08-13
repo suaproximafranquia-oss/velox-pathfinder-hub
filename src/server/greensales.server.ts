@@ -45,11 +45,16 @@ export type GreenSalesLead = {
 };
 
 /** Autenticação server-side. Devolve apenas o token, jamais logado. */
-export async function greenSalesLogin(): Promise<string> {
-  const email = process.env["GREENSALES_EMAIL"];
-  const password = process.env["GREENSALES_PASSWORD"];
+export async function greenSalesLogin(
+  credentials?: { email: string; password: string } | null,
+): Promise<string> {
+  const email = credentials?.email ?? process.env["GREENSALES_EMAIL"];
+  const password = credentials?.password ?? process.env["GREENSALES_PASSWORD"];
   if (!email || !password) {
-    throw new GreenSalesError("Credenciais do GreenSales não configuradas no servidor.", "autenticacao");
+    throw new GreenSalesError(
+      "Nenhuma conta Green Sales conectada para este usuário.",
+      "autenticacao",
+    );
   }
   const res = await fetch(`${BASE_URL}login`, {
     method: "POST",
