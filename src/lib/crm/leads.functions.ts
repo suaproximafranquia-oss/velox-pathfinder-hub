@@ -206,7 +206,7 @@ export const runCrmSyncNow = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertManager(context as never);
     const { runLeadSync } = await import("@/server/crm/lead-sync.server");
-    return runLeadSync("manual");
+    return runLeadSync("manual", context.userId);
   });
 
 /** Reenvio manual e controlado das boas-vindas de um lead. */

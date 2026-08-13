@@ -34,7 +34,10 @@ export type SyncSummary = {
 const OVERLAP_MINUTES = 15;
 const DEFAULT_LOOKBACK_MINUTES = 60;
 
-export async function runLeadSync(trigger: "cron" | "manual"): Promise<SyncSummary> {
+export async function runLeadSync(
+  trigger: "cron" | "manual",
+  actorUserId?: string | null,
+): Promise<SyncSummary> {
   const startedAt = new Date();
   const { data: lastRun } = await supabaseAdmin
     .from("crm_sync_runs")
@@ -99,9 +102,12 @@ export async function runLeadSync(trigger: "cron" | "manual"): Promise<SyncSumma
     "@/server/greensales.server"
   );
 
+  const { resolveCredentials } = await import("@/server/crm/connections.server");
+  const credentials = await resolveCredentials(actorUserId);
+
   let token: string;
   try {
-    token = await greenSalesLogin();
+    token = await greenSalesLogin(credentials);
   } catch (error) {
     return finish("ERRO", error instanceof Error ? error.message : "Falha de autenticação.");
   }
