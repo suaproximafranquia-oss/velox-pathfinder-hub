@@ -194,6 +194,161 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_automation_settings: {
+        Row: {
+          id: boolean
+          material_url: string | null
+          sync_interval_minutes: number
+          updated_at: string
+          welcome_body: string | null
+          welcome_enabled: boolean
+          welcome_template_id: string
+        }
+        Insert: {
+          id?: boolean
+          material_url?: string | null
+          sync_interval_minutes?: number
+          updated_at?: string
+          welcome_body?: string | null
+          welcome_enabled?: boolean
+          welcome_template_id?: string
+        }
+        Update: {
+          id?: boolean
+          material_url?: string | null
+          sync_interval_minutes?: number
+          updated_at?: string
+          welcome_body?: string | null
+          welcome_enabled?: boolean
+          welcome_template_id?: string
+        }
+        Relationships: []
+      }
+      crm_lead_events: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          lead_id: string
+          message: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          lead_id: string
+          message?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          lead_id?: string
+          message?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_leads: {
+        Row: {
+          capture_form: string | null
+          created_at: string
+          email: string
+          external_created_at: string | null
+          external_id: string
+          external_pipeline_id: string | null
+          external_source: string
+          external_stage_id: string | null
+          id: string
+          ingested_at: string
+          last_synced_at: string | null
+          name: string
+          origin: string | null
+          phone: string
+          pipeline_name: string | null
+          raw_payload: Json | null
+          stage_key: string | null
+          sync_error: string | null
+          sync_status: string
+          updated_at: string
+          welcome_attempts: number
+          welcome_error: string | null
+          welcome_link: string | null
+          welcome_sent_at: string | null
+          welcome_started_at: string | null
+          welcome_status: string
+          welcome_template: string | null
+        }
+        Insert: {
+          capture_form?: string | null
+          created_at?: string
+          email?: string
+          external_created_at?: string | null
+          external_id: string
+          external_pipeline_id?: string | null
+          external_source?: string
+          external_stage_id?: string | null
+          id?: string
+          ingested_at?: string
+          last_synced_at?: string | null
+          name?: string
+          origin?: string | null
+          phone?: string
+          pipeline_name?: string | null
+          raw_payload?: Json | null
+          stage_key?: string | null
+          sync_error?: string | null
+          sync_status?: string
+          updated_at?: string
+          welcome_attempts?: number
+          welcome_error?: string | null
+          welcome_link?: string | null
+          welcome_sent_at?: string | null
+          welcome_started_at?: string | null
+          welcome_status?: string
+          welcome_template?: string | null
+        }
+        Update: {
+          capture_form?: string | null
+          created_at?: string
+          email?: string
+          external_created_at?: string | null
+          external_id?: string
+          external_pipeline_id?: string | null
+          external_source?: string
+          external_stage_id?: string | null
+          id?: string
+          ingested_at?: string
+          last_synced_at?: string | null
+          name?: string
+          origin?: string | null
+          phone?: string
+          pipeline_name?: string | null
+          raw_payload?: Json | null
+          stage_key?: string | null
+          sync_error?: string | null
+          sync_status?: string
+          updated_at?: string
+          welcome_attempts?: number
+          welcome_error?: string | null
+          welcome_link?: string | null
+          welcome_sent_at?: string | null
+          welcome_started_at?: string | null
+          welcome_status?: string
+          welcome_template?: string | null
+        }
+        Relationships: []
+      }
       crm_messages: {
         Row: {
           at: string
@@ -224,6 +379,134 @@ export type Database = {
           direction?: string
           id?: string
           investor_id?: string
+        }
+        Relationships: []
+      }
+      crm_pipeline_stages: {
+        Row: {
+          created_at: string
+          external_tag: string
+          id: string
+          is_entry: boolean
+          key: string
+          label: string
+          pipeline_id: string
+          position: number
+          updated_at: string
+          visible: boolean
+        }
+        Insert: {
+          created_at?: string
+          external_tag: string
+          id?: string
+          is_entry?: boolean
+          key: string
+          label: string
+          pipeline_id: string
+          position?: number
+          updated_at?: string
+          visible?: boolean
+        }
+        Update: {
+          created_at?: string
+          external_tag?: string
+          id?: string
+          is_entry?: boolean
+          key?: string
+          label?: string
+          pipeline_id?: string
+          position?: number
+          updated_at?: string
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pipeline_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pipelines: {
+        Row: {
+          active: boolean
+          created_at: string
+          external_id: string
+          external_source: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          external_id: string
+          external_source?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          external_id?: string
+          external_source?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_sync_runs: {
+        Row: {
+          created_at: string
+          created_count: number
+          error_count: number
+          finished_at: string | null
+          found_count: number
+          id: string
+          last_error: string | null
+          skipped_count: number
+          started_at: string
+          status: string
+          trigger: string
+          updated_count: number
+          welcome_failed_count: number
+          welcome_sent_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_count?: number
+          error_count?: number
+          finished_at?: string | null
+          found_count?: number
+          id?: string
+          last_error?: string | null
+          skipped_count?: number
+          started_at?: string
+          status?: string
+          trigger?: string
+          updated_count?: number
+          welcome_failed_count?: number
+          welcome_sent_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_count?: number
+          error_count?: number
+          finished_at?: string | null
+          found_count?: number
+          id?: string
+          last_error?: string | null
+          skipped_count?: number
+          started_at?: string
+          status?: string
+          trigger?: string
+          updated_count?: number
+          welcome_failed_count?: number
+          welcome_sent_count?: number
         }
         Relationships: []
       }
