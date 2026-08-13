@@ -212,8 +212,13 @@ export function confirmWhatsapp(input: {
   // A confirmação é gravada no servidor: passa a valer em qualquer
   // navegador e é vista imediatamente pelo CRM.
   if (typeof window !== "undefined") {
-    void import("@/lib/portal-access.functions")
-      .then((m) => m.confirmPortalWhatsapp({ data: { investorId: input.investorId } }))
+    void import("@/lib/portal-token")
+      .then((t) => t.ensurePortalToken(input.investorId))
+      .then(async (token) => {
+        if (!token) return;
+        const m = await import("@/lib/portal-access.functions");
+        await m.confirmPortalWhatsapp({ data: { investorId: input.investorId, token } });
+      })
       .catch(() => {
         /* nova tentativa ocorre no próximo acesso ao Portal */
       });

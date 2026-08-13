@@ -97,8 +97,14 @@ export const releasePortalAccess = createServerFn({ method: "POST" })
 
 /** Confirmação oficial do WhatsApp — registrada no servidor. */
 export const confirmPortalWhatsapp = createServerFn({ method: "POST" })
-  .inputValidator((data) => z.object({ investorId: z.string().min(3) }).parse(data))
+  .inputValidator((data) =>
+    z.object({ investorId: z.string().min(3), token: z.string().min(10) }).parse(data),
+  )
   .handler(async ({ data }) => {
+    const { verifyToken } = await import("@/server/portal-token.server");
+    if (!(await verifyToken(data.token, data.investorId))) {
+      return { ok: false as const, reason: "nao_autorizado" as const };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const confirmedAt = new Date().toISOString();
     await supabaseAdmin
@@ -111,6 +117,8 @@ export const confirmPortalWhatsapp = createServerFn({ method: "POST" })
 
 const progressSchema = z.object({
   investorId: z.string().min(3),
+  /** Credencial assinada emitida pelo servidor para este investidor. */
+  token: z.string().min(10),
   /** Evento real ocorrido: nunca é inferido nem inventado. */
   event: z.string().min(2),
   module: z.string().optional(),
@@ -130,6 +138,12 @@ const progressSchema = z.object({
 export const trackPortalProgress = createServerFn({ method: "POST" })
   .inputValidator((data) => progressSchema.parse(data))
   .handler(async ({ data }) => {
+    // Sem o token assinado, informar um identificador existente não
+    // autoriza mais nenhuma gravação de progresso.
+    const { verifyToken } = await import("@/server/portal-token.server");
+    if (!(await verifyToken(data.token, data.investorId))) {
+      return { ok: false as const, reason: "nao_autorizado" };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const now = new Date().toISOString();
 
