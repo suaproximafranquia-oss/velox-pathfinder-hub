@@ -92,14 +92,17 @@ const StableGreenSalesFrame = memo(function StableGreenSalesFrame({
   zoom,
   onLoad,
 }: StableGreenSalesFrameProps) {
-  const frameRef = useRef<HTMLIFrameElement | null>(null);
-
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.debug("[GreenSales POC] iframe mounted", { frameVersion, target, targetUrl });
-      return () => console.debug("[GreenSales POC] iframe unmounted", { frameVersion, target });
-    }
-  }, [frameVersion, target, targetUrl]);
+  const frameRef = useCallback(
+    (node: HTMLIFrameElement | null) => {
+      if (!import.meta.env.DEV) return;
+      console.debug(node ? "[GreenSales POC] iframe mounted" : "[GreenSales POC] iframe unmounted", {
+        frameVersion,
+        target,
+        targetUrl,
+      });
+    },
+    [frameVersion, target, targetUrl],
+  );
 
   return (
     <iframe
@@ -172,12 +175,12 @@ function GreenSalesPoc() {
     return () => window.removeEventListener("keydown", onKey);
   }, [fullscreen]);
 
-  if (!session) return null;
-
   const handleFrameLoad = useCallback(() => {
     if (import.meta.env.DEV) console.debug("[GreenSales POC] iframe load");
     setStatus("carregado");
   }, []);
+
+  if (!session) return null;
 
   const controls = (
     <div className="flex flex-wrap items-center gap-2">
