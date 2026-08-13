@@ -68,6 +68,9 @@ export function ExecutiveShell({
     { to: "/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
     { to: "/executivo/criativa", label: "IA Criativa", icon: Wand2 },
+    ...(session.activeRole === "super_admin"
+      ? [{ to: "/portal-leads", label: "Portal dos Leads", icon: Sprout, newTab: true }]
+      : []),
   ];
 
   const administrative = [
@@ -84,9 +87,6 @@ export function ExecutiveShell({
     { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
     ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
-      : []),
-    ...(session.activeRole === "super_admin"
-      ? [{ to: "/executivo/greensales", label: "GreenSales", icon: Sprout }]
       : []),
     ...(session.activeRole === "super_admin" && isHomologationEnvironment()
       ? [{ to: "/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical }]
