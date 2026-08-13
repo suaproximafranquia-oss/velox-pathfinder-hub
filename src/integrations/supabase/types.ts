@@ -224,6 +224,45 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_connections: {
+        Row: {
+          account_email: string | null
+          account_label: string | null
+          created_at: string
+          credentials_ciphertext: string | null
+          id: string
+          last_verified_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_email?: string | null
+          account_label?: string | null
+          created_at?: string
+          credentials_ciphertext?: string | null
+          id?: string
+          last_verified_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_email?: string | null
+          account_label?: string | null
+          created_at?: string
+          credentials_ciphertext?: string | null
+          id?: string
+          last_verified_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       crm_lead_events: {
         Row: {
           created_at: string
