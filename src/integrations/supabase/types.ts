@@ -570,6 +570,11 @@ export type Database = {
           created_at: string
           device: string | null
           email: string
+          external_created_at: string | null
+          external_id: string | null
+          external_payload: Json | null
+          external_source: string | null
+          external_updated_at: string | null
           id: string
           journey: Json
           journey_chapter: string | null
@@ -600,6 +605,11 @@ export type Database = {
           created_at?: string
           device?: string | null
           email: string
+          external_created_at?: string | null
+          external_id?: string | null
+          external_payload?: Json | null
+          external_source?: string | null
+          external_updated_at?: string | null
           id: string
           journey?: Json
           journey_chapter?: string | null
@@ -630,6 +640,11 @@ export type Database = {
           created_at?: string
           device?: string | null
           email?: string
+          external_created_at?: string | null
+          external_id?: string | null
+          external_payload?: Json | null
+          external_source?: string | null
+          external_updated_at?: string | null
           id?: string
           journey?: Json
           journey_chapter?: string | null

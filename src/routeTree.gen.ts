@@ -28,6 +28,7 @@ import { Route as ExecutivoLaboratorioRouteImport } from './routes/executivo.lab
 import { Route as ExecutivoKpiRouteImport } from './routes/executivo.kpi'
 import { Route as ExecutivoInvestidoresRouteImport } from './routes/executivo.investidores'
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
+import { Route as ExecutivoGreensalesSyncRouteImport } from './routes/executivo.greensales-sync'
 import { Route as ExecutivoGreensalesRouteImport } from './routes/executivo.greensales'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
 import { Route as ExecutivoCriativaRouteImport } from './routes/executivo.criativa'
@@ -141,6 +142,11 @@ const ExecutivoHomeRoute = ExecutivoHomeRouteImport.update({
   path: '/executivo/home',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoGreensalesSyncRoute = ExecutivoGreensalesSyncRouteImport.update({
+  id: '/executivo/greensales-sync',
+  path: '/executivo/greensales-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoGreensalesRoute = ExecutivoGreensalesRouteImport.update({
   id: '/executivo/greensales',
   path: '/executivo/greensales',
@@ -247,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
+  '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
@@ -284,6 +291,7 @@ export interface FileRoutesByTo {
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
+  '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
@@ -323,6 +331,7 @@ export interface FileRoutesById {
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
+  '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
@@ -363,6 +372,7 @@ export interface FileRouteTypes {
     | '/executivo/criativa'
     | '/executivo/dashboard'
     | '/executivo/greensales'
+    | '/executivo/greensales-sync'
     | '/executivo/home'
     | '/executivo/investidores'
     | '/executivo/kpi'
@@ -400,6 +410,7 @@ export interface FileRouteTypes {
     | '/executivo/criativa'
     | '/executivo/dashboard'
     | '/executivo/greensales'
+    | '/executivo/greensales-sync'
     | '/executivo/home'
     | '/executivo/investidores'
     | '/executivo/kpi'
@@ -438,6 +449,7 @@ export interface FileRouteTypes {
     | '/executivo/criativa'
     | '/executivo/dashboard'
     | '/executivo/greensales'
+    | '/executivo/greensales-sync'
     | '/executivo/home'
     | '/executivo/investidores'
     | '/executivo/kpi'
@@ -477,6 +489,7 @@ export interface RootRouteChildren {
   ExecutivoCriativaRoute: typeof ExecutivoCriativaRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
   ExecutivoGreensalesRoute: typeof ExecutivoGreensalesRoute
+  ExecutivoGreensalesSyncRoute: typeof ExecutivoGreensalesSyncRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
   ExecutivoInvestidoresRoute: typeof ExecutivoInvestidoresRoute
   ExecutivoKpiRoute: typeof ExecutivoKpiRoute
@@ -631,6 +644,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoHomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/greensales-sync': {
+      id: '/executivo/greensales-sync'
+      path: '/executivo/greensales-sync'
+      fullPath: '/executivo/greensales-sync'
+      preLoaderRoute: typeof ExecutivoGreensalesSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/greensales': {
       id: '/executivo/greensales'
       path: '/executivo/greensales'
@@ -782,6 +802,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoCriativaRoute: ExecutivoCriativaRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
   ExecutivoGreensalesRoute: ExecutivoGreensalesRoute,
+  ExecutivoGreensalesSyncRoute: ExecutivoGreensalesSyncRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
   ExecutivoInvestidoresRoute: ExecutivoInvestidoresRoute,
   ExecutivoKpiRoute: ExecutivoKpiRoute,

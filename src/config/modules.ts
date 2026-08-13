@@ -26,7 +26,7 @@ import {
   Radar,
   type LucideIcon,
 } from "lucide-react";
-import { Archive } from "lucide-react";
+import { Archive, Download } from "lucide-react";
 
 export type PlatformModule = {
   id: string;
@@ -164,6 +164,16 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Pontos de restauração do estado integral do Portal, com backup automático contínuo e restauração protegida.",
     icon: Database,
     to: "/executivo/central-backup",
+    status: "ativo",
+    requiresRole: ["super_admin"],
+  },
+  {
+    id: "greensales-sync",
+    name: "GreenSales Sync",
+    description:
+      "POC de importação somente leitura dos leads criados hoje no GreenSales para o Portal Atlas.",
+    icon: Download,
+    to: "/executivo/greensales-sync",
     status: "ativo",
     requiresRole: ["super_admin"],
   },
