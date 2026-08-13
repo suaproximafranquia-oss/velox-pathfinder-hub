@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { isHomologationEnvironment } from "@/lib/environment";
 import {
+  Sprout,
   LayoutGrid,
   LayoutDashboard,
   UserCog,
@@ -83,6 +84,9 @@ export function ExecutiveShell({
     { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
     ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
+      : []),
+    ...(session.activeRole === "super_admin"
+      ? [{ to: "/executivo/greensales", label: "GreenSales", icon: Sprout }]
       : []),
     ...(session.activeRole === "super_admin" && isHomologationEnvironment()
       ? [{ to: "/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical }]

@@ -34,6 +34,22 @@ function readAll(): CrmMessage[] {
   }
 }
 
+/** Cache completo — usado pela sincronização com o servidor. */
+export function readAllMessages(): CrmMessage[] {
+  return readAll();
+}
+
+/**
+ * Mescla o histórico oficial vindo do banco. O identificador é a chave:
+ * nada é duplicado e nenhuma mensagem local é descartada.
+ */
+export function mergeRemoteMessages(remote: CrmMessage[]): void {
+  if (typeof window === "undefined" || remote.length === 0) return;
+  const byId = new Map(readAll().map((m) => [m.id, m]));
+  for (const message of remote) byId.set(message.id, message);
+  writeAll([...byId.values()].sort((a, b) => (a.at < b.at ? -1 : 1)));
+}
+
 function writeAll(list: CrmMessage[]) {
   if (typeof window === "undefined") return;
   try {
@@ -67,6 +83,8 @@ export function appendCrmMessage(input: {
     body: input.body.trim(),
   };
   writeAll([...readAll(), message]);
+  // O navegador é apenas interface: a verdade vai para o servidor.
+  void import("@/lib/crm/server-sync").then((m) => m.mirrorCrmRecords({ messages: [message] }));
   return message;
 }
 
