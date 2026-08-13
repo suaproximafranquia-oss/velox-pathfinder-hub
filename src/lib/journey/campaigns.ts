@@ -1,4 +1,5 @@
 /**
+import { investorPortalPath } from "@/lib/portal-brands";
  * Journey Engine — atribuição comercial (origem, campanha, link).
  *
  * Alimenta o Painel de Campanhas e o Brain Analytics exclusivamente com
@@ -59,7 +60,7 @@ export function buildCampaignSources(executiveId?: string | null): CampaignSourc
         key,
         origin: j.origin,
         campaign: j.campaign,
-        link: j.link ?? (j.executiveSlug ? `/e/${j.executiveSlug}` : null),
+        link: j.link ?? (j.executiveSlug ? investorPortalPath(j.executiveSlug) : null),
         leads: 0,
         manualStarted: 0,
         manualCompleted: 0,
