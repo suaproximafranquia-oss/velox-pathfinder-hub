@@ -28,7 +28,8 @@
  * transform scale, sem tocar em nada do GreenSales.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import {
   ExternalLink,
   Maximize2,
@@ -109,26 +110,43 @@ function GreenSalesPoc() {
     return () => window.clearTimeout(timer);
   }, [attempt, target]);
 
-  // Diagnóstico de dimensões: compara o viewport real do Chrome com o
-  // viewport lógico entregue ao GreenSales dentro do iframe.
-  useEffect(() => {
-    function measure() {
-      const r = holder.current?.getBoundingClientRect();
-      setBox({
-        w: Math.round(r?.width ?? 0),
-        h: Math.round(r?.height ?? 0),
-        winW: window.innerWidth,
-        winH: window.innerHeight,
-      });
-    }
-    measure();
-    window.addEventListener("resize", measure);
-    const id = window.setInterval(measure, 500);
-    return () => {
-      window.removeEventListener("resize", measure);
-      window.clearInterval(id);
+  // Diagnóstico de dimensões. NÃO usa polling: um setInterval que chama
+  // setState recria o objeto de estado a cada tick, re-renderiza o módulo e
+  // reescreve o tamanho do iframe — era isso que fazia o SPA do GreenSales
+  // recalcular layout continuamente ("piscando"). Agora só medimos em
+  // eventos reais (resize da janela / mudança de modo) e apenas quando o
+  // valor muda de fato.
+  const measure = useCallback(() => {
+    const r = holder.current?.getBoundingClientRect();
+    const next = {
+      w: Math.round(r?.width ?? 0),
+      h: Math.round(r?.height ?? 0),
+      winW: window.innerWidth,
+      winH: window.innerHeight,
     };
-  }, [fullscreen, zoom]);
+    setBox((prev) =>
+      prev.w === next.w && prev.h === next.h && prev.winW === next.winW && prev.winH === next.winH
+        ? prev
+        : next,
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    measure();
+  }, [measure, fullscreen, session]);
+
+  useEffect(() => {
+    let raf = 0;
+    function onResize() {
+      window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(measure);
+    }
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.cancelAnimationFrame(raf);
+    };
+  }, [measure]);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -146,6 +164,9 @@ function GreenSalesPoc() {
   const logicalW = box.w ? Math.round(box.w / zoom) : 0;
   const logicalH = box.h ? Math.round(box.h / zoom) : 0;
 
+  // O iframe é único e vive sempre na MESMA posição da árvore React: alternar
+  // tela cheia apenas troca classes do container, nunca desmonta o iframe.
+  // A `key` muda somente quando o usuário pede Recarregar ou troca de destino.
   const iframeEl = (
     <iframe
       key={`${attempt}-${target}`}
@@ -233,25 +254,20 @@ function GreenSalesPoc() {
     </p>
   );
 
-  if (fullscreen) {
-    return (
-      <div className="fixed inset-0 z-[200] flex flex-col bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-          <span className="text-sm font-medium">GreenSales — tela cheia</span>
-          {controls}
-        </div>
-        <div ref={holder} className="relative min-h-0 flex-1 overflow-hidden">
-          {iframeEl}
-        </div>
-        <div className="border-t px-3 py-1">{diagnostics}</div>
-      </div>
-    );
-  }
-
   return (
     <ExecutiveShell session={session} title="GreenSales" fullBleed>
-      <div className="space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        className={cn(
+          "space-y-4",
+          fullscreen && "fixed inset-0 z-[200] flex flex-col gap-0 space-y-0 bg-background p-2",
+        )}
+      >
+        <header
+          className={cn(
+            "flex flex-wrap items-center justify-between gap-3",
+            fullscreen && "shrink-0 border-b pb-2",
+          )}
+        >
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-500">
               <Sprout className="h-5 w-5" />
@@ -268,7 +284,9 @@ function GreenSalesPoc() {
 
         <div
           className={
-            status === "carregado"
+            fullscreen
+              ? "hidden"
+              : status === "carregado"
               ? "rounded-xl border border-emerald-500/40 bg-emerald-500/5 px-4 py-3 text-sm"
               : status === "bloqueado"
                 ? "rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm"
@@ -294,12 +312,15 @@ function GreenSalesPoc() {
 
         <div
           ref={holder}
-          className="relative overflow-hidden rounded-2xl border bg-background"
-          style={{ height: "calc(100vh - 260px)", minHeight: 560 }}
+          className={cn(
+            "relative overflow-hidden bg-background",
+            fullscreen ? "min-h-0 flex-1" : "rounded-2xl border",
+          )}
+          style={fullscreen ? undefined : { height: "calc(100vh - 260px)", minHeight: 560 }}
         >
           {iframeEl}
         </div>
-        {diagnostics}
+        <div className={fullscreen ? "shrink-0 border-t pt-1" : undefined}>{diagnostics}</div>
       </div>
     </ExecutiveShell>
   );
