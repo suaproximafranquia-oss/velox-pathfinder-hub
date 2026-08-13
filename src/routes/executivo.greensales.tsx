@@ -28,7 +28,7 @@
  * transform scale, sem tocar em nada do GreenSales.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   ExternalLink,
@@ -72,19 +72,75 @@ export const Route = createFileRoute("/executivo/greensales")({
 
 type Status = "carregando" | "carregado" | "bloqueado";
 
+type StableGreenSalesFrameProps = {
+  frameVersion: number;
+  target: (typeof TARGETS)[number]["key"];
+  targetUrl: string;
+  zoom: number;
+  onLoad: () => void;
+};
+
+/**
+ * Fronteira de renderização deliberadamente isolada do restante do módulo.
+ * Estados de sessão, status e tela cheia não voltam a renderizar o iframe.
+ * A key muda exclusivamente por ação explícita: Recarregar ou trocar destino.
+ */
+const StableGreenSalesFrame = memo(function StableGreenSalesFrame({
+  frameVersion,
+  target,
+  targetUrl,
+  zoom,
+  onLoad,
+}: StableGreenSalesFrameProps) {
+  const frameRef = useCallback(
+    (node: HTMLIFrameElement | null) => {
+      if (!import.meta.env.DEV) return;
+      console.debug(node ? "[GreenSales POC] iframe mounted" : "[GreenSales POC] iframe unmounted", {
+        frameVersion,
+        target,
+        targetUrl,
+      });
+    },
+    [frameVersion, target, targetUrl],
+  );
+
+  return (
+    <iframe
+      key={`${frameVersion}-${target}`}
+      ref={frameRef}
+      title="Ambiente GreenSales"
+      src={targetUrl}
+      onLoad={onLoad}
+      allow="clipboard-read; clipboard-write; fullscreen; storage-access"
+      className="block origin-top-left border-0"
+      style={{
+        width: `${100 / zoom}%`,
+        height: `${100 / zoom}%`,
+        transform: zoom === 1 ? undefined : `scale(${zoom})`,
+      }}
+    />
+  );
+});
+
 function GreenSalesPoc() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [status, setStatus] = useState<Status>("carregando");
-  const [attempt, setAttempt] = useState(0);
+  const [frameVersion, setFrameVersion] = useState(0);
   const [target, setTarget] = useState<(typeof TARGETS)[number]["key"]>("crm");
   const [fullscreen, setFullscreen] = useState(false);
   const [zoom, setZoom] = useState<number>(1);
-  const [box, setBox] = useState({ w: 0, h: 0, winW: 0, winH: 0 });
-  const frame = useRef<HTMLIFrameElement | null>(null);
-  const holder = useRef<HTMLDivElement | null>(null);
+  const componentMounts = useRef(0);
 
   const targetUrl = TARGETS.find((t) => t.key === target)!.url;
+
+  useEffect(() => {
+    componentMounts.current += 1;
+    if (import.meta.env.DEV) {
+      console.debug("[GreenSales POC] component mounted", { mounts: componentMounts.current });
+      return () => console.debug("[GreenSales POC] component unmounted");
+    }
+  }, []);
 
   useEffect(() => {
     const current = getSession();
@@ -108,45 +164,7 @@ function GreenSalesPoc() {
       setStatus((s) => (s === "carregando" ? "bloqueado" : s));
     }, 12_000);
     return () => window.clearTimeout(timer);
-  }, [attempt, target]);
-
-  // Diagnóstico de dimensões. NÃO usa polling: um setInterval que chama
-  // setState recria o objeto de estado a cada tick, re-renderiza o módulo e
-  // reescreve o tamanho do iframe — era isso que fazia o SPA do GreenSales
-  // recalcular layout continuamente ("piscando"). Agora só medimos em
-  // eventos reais (resize da janela / mudança de modo) e apenas quando o
-  // valor muda de fato.
-  const measure = useCallback(() => {
-    const r = holder.current?.getBoundingClientRect();
-    const next = {
-      w: Math.round(r?.width ?? 0),
-      h: Math.round(r?.height ?? 0),
-      winW: window.innerWidth,
-      winH: window.innerHeight,
-    };
-    setBox((prev) =>
-      prev.w === next.w && prev.h === next.h && prev.winW === next.winW && prev.winH === next.winH
-        ? prev
-        : next,
-    );
-  }, []);
-
-  useLayoutEffect(() => {
-    measure();
-  }, [measure, fullscreen, session]);
-
-  useEffect(() => {
-    let raf = 0;
-    function onResize() {
-      window.cancelAnimationFrame(raf);
-      raf = window.requestAnimationFrame(measure);
-    }
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.cancelAnimationFrame(raf);
-    };
-  }, [measure]);
+  }, [frameVersion, target]);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -157,34 +175,12 @@ function GreenSalesPoc() {
     return () => window.removeEventListener("keydown", onKey);
   }, [fullscreen]);
 
+  const handleFrameLoad = useCallback(() => {
+    if (import.meta.env.DEV) console.debug("[GreenSales POC] iframe load");
+    setStatus("carregado");
+  }, []);
+
   if (!session) return null;
-
-  // O iframe recebe um viewport lógico maior e é reduzido por scale,
-  // mantendo 100% da área visível preenchida.
-  const logicalW = box.w ? Math.round(box.w / zoom) : 0;
-  const logicalH = box.h ? Math.round(box.h / zoom) : 0;
-
-  // O iframe é único e vive sempre na MESMA posição da árvore React: alternar
-  // tela cheia apenas troca classes do container, nunca desmonta o iframe.
-  // A `key` muda somente quando o usuário pede Recarregar ou troca de destino.
-  const iframeEl = (
-    <iframe
-      key={`${attempt}-${target}`}
-      ref={frame}
-      title="Ambiente GreenSales"
-      src={targetUrl}
-      onLoad={() => setStatus("carregado")}
-      allow="clipboard-read; clipboard-write; fullscreen"
-      style={{
-        width: logicalW ? `${logicalW}px` : "100%",
-        height: logicalH ? `${logicalH}px` : "100%",
-        border: 0,
-        transform: zoom === 1 ? undefined : `scale(${zoom})`,
-        transformOrigin: "top left",
-        display: "block",
-      }}
-    />
-  );
 
   const controls = (
     <div className="flex flex-wrap items-center gap-2">
@@ -193,7 +189,10 @@ function GreenSalesPoc() {
           <button
             key={t.key}
             type="button"
-            onClick={() => setTarget(t.key)}
+            onClick={() => {
+              if (t.key === target) return;
+              setTarget(t.key);
+            }}
             className={
               "px-3 py-2 text-xs cursor-pointer " +
               (t.key === target ? "bg-[color:var(--accent)]" : "opacity-70")
@@ -229,7 +228,7 @@ function GreenSalesPoc() {
       </button>
       <button
         type="button"
-        onClick={() => setAttempt((v) => v + 1)}
+        onClick={() => setFrameVersion((v) => v + 1)}
         className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer"
       >
         <RefreshCw className="h-4 w-4" /> Recarregar
@@ -247,10 +246,9 @@ function GreenSalesPoc() {
 
   const diagnostics = (
     <p className="text-[11px] text-muted-foreground">
-      Janela do Chrome {box.winW}×{box.winH} · viewport entregue ao GreenSales{" "}
-      {logicalW}×{logicalH} (100vh interno = {logicalH}px) · área visível {box.w}×{box.h}.
-      Quanto maior a altura, mais cards do pipeline cabem — o CRM calcula as colunas em{" "}
-      <code>calc(100vh - 76px)</code>.
+      Iframe isolado · destino {target === "crm" ? "CRM" : "Login"} · zoom visual{" "}
+      {Math.round(zoom * 100)}%. O iframe só é remontado por Recarregar ou troca explícita de
+      destino.
     </p>
   );
 
@@ -311,14 +309,19 @@ function GreenSalesPoc() {
         </div>
 
         <div
-          ref={holder}
           className={cn(
             "relative overflow-hidden bg-background",
             fullscreen ? "min-h-0 flex-1" : "rounded-2xl border",
           )}
           style={fullscreen ? undefined : { height: "calc(100vh - 260px)", minHeight: 560 }}
         >
-          {iframeEl}
+          <StableGreenSalesFrame
+            frameVersion={frameVersion}
+            target={target}
+            targetUrl={targetUrl}
+            zoom={zoom}
+            onLoad={handleFrameLoad}
+          />
         </div>
         <div className={fullscreen ? "shrink-0 border-t pt-1" : undefined}>{diagnostics}</div>
       </div>
