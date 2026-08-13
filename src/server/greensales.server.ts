@@ -94,6 +94,17 @@ async function fetchPage(token: string, page: number): Promise<ListPage> {
 }
 
 /** Início e fim do dia atual no fuso da operação (America/Sao_Paulo). */
+export async function fetchLeadDetail(token: string, id: number | string): Promise<GreenSalesLead | null> {
+  // A listagem devolve `metas: []`; os campos adicionais (onde vive o
+  // "celular_(whatsapp)") só chegam no detalhe do lead.
+  const res = await fetch(`${BASE_URL}lead/${id}`, {
+    method: "GET",
+    headers: { ...BROWSER_HEADERS, Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as GreenSalesLead;
+}
+
 export function operationDayWindow(now = new Date()): { startUtc: Date; endUtc: Date; day: string } {
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(now);
   // São Paulo é UTC-3 o ano inteiro desde 2019 (sem horário de verão).

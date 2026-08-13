@@ -54,9 +54,11 @@ export const importGreenSalesTodayLeads = createServerFn({ method: "POST" })
     const {
       greenSalesLogin,
       fetchTodayLeads,
+      fetchLeadDetail,
       GreenSalesError,
       operationDayWindow,
     } = await import("@/server/greensales.server");
+    const { normalizeGreenSalesLead } = await import("@/lib/greensales/normalize");
     const win = operationDayWindow();
     const base = {
       ...EMPTY,
@@ -103,25 +105,31 @@ export const importGreenSalesTodayLeads = createServerFn({ method: "POST" })
     const errors: string[] = [];
     let sample: GreenSalesImportResult["sample"] = null;
 
-    for (const lead of leads.leads) {
-      const externalId = String(lead.id);
+    for (const listed of leads.leads) {
+      const externalId = String(listed.id);
       if (known.has(externalId)) {
         duplicated += 1;
         continue;
       }
+      // O detalhe traz os "campos adicionais" (metas) — é lá que muitos
+      // formulários entregam o WhatsApp mesmo com `phone` vazio.
+      const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
+      const lead = { ...listed, ...detail };
+      const normalized = normalizeGreenSalesLead(lead);
       const row = {
         id: `gs_${externalId}`,
-        name: (lead.name ?? "").toString().trim() || "Sem nome",
-        email: (lead.email ?? "").toString().trim().toLowerCase(),
-        whatsapp: (lead.phone ?? "").toString().trim(),
-        city: "",
+        name: normalized.name,
+        email: normalized.email,
+        whatsapp: normalized.whatsapp,
+        city: normalized.city,
         origin: "GreenSales",
-        material: (lead.origin ?? "").toString(),
-        scope: "portal" as const,
+        material: normalized.material,
+        // Lead vindo do GreenSales pertence SEMPRE à área Green Sales.
+        scope: "green_sales" as const,
         personalized: false,
         responsible_executive_id: null,
         responsible_executive_slug: null,
-        campaign: null,
+        campaign: normalized.campaign,
         device: null,
         created_at: lead.created_at ?? new Date().toISOString(),
         last_activity_at: lead.updated_at ?? lead.created_at ?? new Date().toISOString(),
