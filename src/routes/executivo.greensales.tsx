@@ -1,23 +1,14 @@
 /**
- * Green Sales — CRM próprio do Portal Velox.
+ * Green Sales — CRM visual do Portal Velox (quadro Kanban, somente leitura).
  *
- * O ambiente externo continua existindo como origem dos leads, mas a
- * operação acontece aqui: estrutura, interface e automação são nossas.
- * Nenhuma informação é enviada de volta à origem nesta versão.
+ * A origem externa continua sendo a fonte da verdade: o quadro apenas
+ * espelha as etapas. Nenhum lead pode ser movido manualmente aqui.
+ * A conexão com a origem pertence ao Executivo autenticado.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  RefreshCw,
-  Search,
-  Send,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { Link2, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
@@ -31,6 +22,14 @@ import {
   type CrmLeadView,
   type CrmSyncRunView,
 } from "@/lib/crm/leads.functions";
+import {
+  connectGreenSales,
+  disconnectGreenSales,
+  getGreenSalesConnection,
+  listCrmStages,
+  type CrmConnectionState,
+  type CrmStageView,
+} from "@/lib/crm/connection.functions";
 
 export const Route = createFileRoute("/executivo/greensales")({
   head: () => ({
@@ -39,12 +38,12 @@ export const Route = createFileRoute("/executivo/greensales")({
       {
         name: "description",
         content:
-          "CRM próprio do Portal Velox: leads recebidos da captação, etapa NOVOS e envio automático do material de boas-vindas.",
+          "Quadro visual do CRM Velox: leads da captação distribuídos pelas etapas oficiais do funil, com automação de boas-vindas.",
       },
       { property: "og:title", content: "Green Sales — CRM Velox" },
       {
         property: "og:description",
-        content: "Operação de leads da captação dentro do Portal Velox, com automação de contato.",
+        content: "Quadro Kanban do funil de captação dentro do Portal Velox.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -76,27 +75,238 @@ function StatusPill({ status }: { status: string }) {
         ? "border-red-500/40 text-red-400"
         : "border-amber-500/40 text-amber-400";
   return (
-    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] ${tone}`}>
+    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] ${tone}`}>
       {WELCOME_LABEL[status] ?? status}
     </span>
+  );
+}
+
+function ConnectionBar({
+  state,
+  onConnect,
+  onDisconnect,
+  busy,
+}: {
+  state: CrmConnectionState | null;
+  onConnect: (email: string, password: string) => Promise<void>;
+  onDisconnect: () => Promise<void>;
+  busy: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  return (
+    <div className="rounded-2xl border border-[color:var(--border)] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color:var(--border)]">
+            <Link2 className="h-4 w-4 text-[color:var(--gold)]" />
+          </span>
+          <div>
+            <p className="text-sm">
+              {state?.connected ? (
+                <>
+                  Conectado como <strong>{state.owner}</strong>
+                  {state.accountEmail ? ` · ${state.accountEmail}` : ""}
+                </>
+              ) : (
+                "Nenhuma conta Green Sales conectada a este usuário."
+              )}
+            </p>
+            <p className="text-[11px] text-[color:var(--muted-foreground)]">
+              A conexão é pessoal: cada Executivo utiliza a própria conta de origem.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="rounded-xl border border-[color:var(--border)] px-3 py-1.5 text-xs"
+          >
+            {state?.connected ? "Reconectar" : "Conectar conta"}
+          </button>
+          {state?.connected && (
+            <button
+              type="button"
+              onClick={() => void onDisconnect()}
+              disabled={busy}
+              className="rounded-xl border border-red-500/40 px-3 py-1.5 text-xs text-red-400 disabled:opacity-50"
+            >
+              Desconectar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {open && (
+        <form
+          className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            await onConnect(email, password);
+            setPassword("");
+            setOpen(false);
+          }}
+        >
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="E-mail da conta Green Sales"
+            className="rounded-xl border border-[color:var(--border)] bg-transparent px-3 py-2 text-sm outline-none"
+          />
+          <input
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Senha"
+            className="rounded-xl border border-[color:var(--border)] bg-transparent px-3 py-2 text-sm outline-none"
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded-xl border border-[color:var(--gold)]/50 px-4 py-2 text-sm text-[color:var(--gold)] disabled:opacity-50"
+          >
+            {busy ? "Validando…" : "Salvar"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function LeadCard({ lead, onOpen }: { lead: CrmLeadView; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-xl border border-[color:var(--border)] bg-white/[0.02] p-3 text-left transition hover:border-[color:var(--gold)]/40"
+    >
+      <p className="truncate text-sm">{lead.name || "Sem nome"}</p>
+      <p className="mt-0.5 truncate text-[11px] text-[color:var(--muted-foreground)]">
+        {lead.phone || lead.email || "Sem contato"}
+      </p>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-[10px] text-[color:var(--muted-foreground)]">
+          {formatDate(lead.externalCreatedAt ?? lead.ingestedAt)}
+        </span>
+        <StatusPill status={lead.welcomeStatus} />
+      </div>
+    </button>
+  );
+}
+
+function LeadDialog({
+  lead,
+  events,
+  onClose,
+  onRetry,
+}: {
+  lead: CrmLeadView;
+  events: CrmLeadEventView[];
+  onClose: () => void;
+  onRetry: (id: string) => Promise<void>;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--background)] p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-lg">{lead.name || "Sem nome"}</h2>
+            <p className="text-xs text-[color:var(--muted-foreground)]">
+              {lead.pipelineName ?? "Funil"} · etapa {lead.stageKey ?? "—"}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <dl className="grid gap-3 sm:grid-cols-2">
+          {[
+            ["WhatsApp", lead.phone || "—"],
+            ["E-mail", lead.email || "—"],
+            ["Origem", lead.origin ?? "—"],
+            ["Formulário", lead.captureForm ?? "—"],
+            ["Criado na origem", formatDate(lead.externalCreatedAt)],
+            ["Recebido no Portal", formatDate(lead.ingestedAt)],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl border border-[color:var(--border)] p-3">
+              <dt className="text-[11px] text-[color:var(--muted-foreground)]">{label}</dt>
+              <dd className="text-sm">{value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <StatusPill status={lead.welcomeStatus} />
+          {lead.welcomeStatus !== "SENT" && (
+            <button
+              type="button"
+              onClick={() => void onRetry(lead.id)}
+              className="rounded-xl border border-[color:var(--gold)]/50 px-3 py-1.5 text-xs text-[color:var(--gold)]"
+            >
+              Reenviar boas-vindas
+            </button>
+          )}
+          {lead.welcomeError && <span className="text-xs text-red-400">{lead.welcomeError}</span>}
+        </div>
+
+        <h3 className="mt-6 mb-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
+          Histórico
+        </h3>
+        <ul className="space-y-2">
+          {events.length === 0 && (
+            <li className="text-xs text-[color:var(--muted-foreground)]">Sem eventos.</li>
+          )}
+          {events.map((e) => (
+            <li key={e.id} className="rounded-xl border border-[color:var(--border)] p-3 text-xs">
+              <p>{e.message ?? e.type}</p>
+              <p className="mt-1 text-[10px] text-[color:var(--muted-foreground)]">
+                {formatDate(e.createdAt)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 
 function GreenSalesCrmPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [stages, setStages] = useState<CrmStageView[]>([]);
   const [leads, setLeads] = useState<CrmLeadView[]>([]);
   const [runs, setRuns] = useState<CrmSyncRunView[]>([]);
+  const [connection, setConnection] = useState<CrmConnectionState | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [events, setEvents] = useState<CrmLeadEventView[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const fetchLeads = useServerFn(listCrmLeads);
   const fetchRuns = useServerFn(listCrmSyncRuns);
   const fetchLead = useServerFn(getCrmLead);
+  const fetchStages = useServerFn(listCrmStages);
+  const fetchConnection = useServerFn(getGreenSalesConnection);
+  const saveConnection = useServerFn(connectGreenSales);
+  const dropConnection = useServerFn(disconnectGreenSales);
   const runSync = useServerFn(runCrmSyncNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
 
@@ -116,18 +326,22 @@ function GreenSalesCrmPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [rows, history] = await Promise.all([
-        fetchLeads({ data: { stageKey: "novos", search } }),
+      const [rows, history, stageList, conn] = await Promise.all([
+        fetchLeads({ data: { search } }),
         fetchRuns({}),
+        fetchStages({}),
+        fetchConnection({}),
       ]);
       setLeads(rows);
       setRuns(history);
+      setStages(stageList);
+      setConnection(conn);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Falha ao carregar os leads.");
+      setNotice(error instanceof Error ? error.message : "Falha ao carregar o quadro.");
     } finally {
       setLoading(false);
     }
-  }, [fetchLeads, fetchRuns, search]);
+  }, [fetchConnection, fetchLeads, fetchRuns, fetchStages, search]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -147,15 +361,16 @@ function GreenSalesCrmPage() {
     [leads, selectedId],
   );
 
-  const totals = useMemo(
-    () => ({
-      total: leads.length,
-      enviadas: leads.filter((l) => l.welcomeStatus === "SENT").length,
-      pendentes: leads.filter((l) => l.welcomeStatus === "PENDING").length,
-      falhas: leads.filter((l) => l.welcomeStatus === "FAILED").length,
-    }),
-    [leads],
-  );
+  const byStage = useMemo(() => {
+    const map = new Map<string, CrmLeadView[]>();
+    for (const stage of stages) map.set(stage.key, []);
+    for (const lead of leads) {
+      const key = lead.stageKey ?? "novos";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(lead);
+    }
+    return map;
+  }, [leads, stages]);
 
   async function handleSync() {
     setSyncing(true);
@@ -182,6 +397,29 @@ function GreenSalesCrmPage() {
     await load();
   }
 
+  async function handleConnect(email: string, password: string) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      setConnection(await saveConnection({ data: { email, password } }));
+      setNotice("Conta Green Sales conectada a este usuário.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Não foi possível conectar a conta.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    setBusy(true);
+    try {
+      setConnection(await dropConnection({}));
+      setNotice("Conexão encerrada.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!session) return null;
 
   return (
@@ -194,8 +432,8 @@ function GreenSalesCrmPage() {
           <div>
             <h1 className="font-display text-xl">Green Sales</h1>
             <p className="mt-1 max-w-2xl text-xs text-[color:var(--muted-foreground)]">
-              Leads recebidos da captação, organizados na etapa <strong>NOVOS</strong> do nosso CRM.
-              O material de boas-vindas é enviado automaticamente, uma única vez por lead.
+              Quadro visual do funil. As etapas refletem exatamente a origem — a movimentação de
+              leads acontece lá, aqui é leitura e operação de contato.
             </p>
           </div>
         </div>
@@ -219,28 +457,18 @@ function GreenSalesCrmPage() {
         </div>
       ) : (
         <div className="space-y-5">
+          <ConnectionBar
+            state={connection}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            busy={busy}
+          />
+
           {notice && (
             <p className="rounded-xl border border-[color:var(--border)] p-3 text-sm text-[color:var(--muted-foreground)]">
               {notice}
             </p>
           )}
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              ["Leads na etapa NOVOS", totals.total],
-              ["Boas-vindas enviadas", totals.enviadas],
-              ["Aguardando envio", totals.pendentes],
-              ["Falhas de envio", totals.falhas],
-            ].map(([label, value]) => (
-              <div
-                key={String(label)}
-                className="rounded-xl border border-[color:var(--border)] p-3"
-              >
-                <p className="text-[11px] text-[color:var(--muted-foreground)]">{label}</p>
-                <p className="font-display text-lg">{value}</p>
-              </div>
-            ))}
-          </div>
 
           <div className="flex items-center gap-2 rounded-xl border border-[color:var(--border)] px-3 py-2">
             <Search className="h-4 w-4 text-[color:var(--muted-foreground)]" />
@@ -252,148 +480,83 @@ function GreenSalesCrmPage() {
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-            <div className="overflow-hidden rounded-2xl border border-[color:var(--border)]">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-white/5 text-[11px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
-                  <tr>
-                    <th className="px-3 py-2">Lead</th>
-                    <th className="px-3 py-2">Contato</th>
-                    <th className="px-3 py-2">Recebido</th>
-                    <th className="px-3 py-2">Boas-vindas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading && (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-xs text-[color:var(--muted-foreground)]">
-                        Carregando leads…
-                      </td>
-                    </tr>
-                  )}
-                  {!loading && leads.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-xs text-[color:var(--muted-foreground)]">
-                        Nenhum lead recebido até o momento.
-                      </td>
-                    </tr>
-                  )}
-                  {leads.map((lead) => (
-                    <tr
-                      key={lead.id}
-                      onClick={() => setSelectedId(lead.id)}
-                      className={`cursor-pointer border-t border-[color:var(--border)] transition hover:bg-white/5 ${
-                        selectedId === lead.id ? "bg-white/5" : ""
-                      }`}
-                    >
-                      <td className="px-3 py-2">
-                        <p className="font-medium">{lead.name || "Sem nome"}</p>
-                        <p className="text-[11px] text-[color:var(--muted-foreground)]">
-                          {lead.origin ?? "—"} · {lead.captureForm ?? "Formulário não informado"}
-                        </p>
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        <p>{lead.phone || "Sem telefone"}</p>
-                        <p className="text-[color:var(--muted-foreground)]">{lead.email || "—"}</p>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-[color:var(--muted-foreground)]">
-                        {formatDate(lead.externalCreatedAt ?? lead.ingestedAt)}
-                      </td>
-                      <td className="px-3 py-2">
-                        <StatusPill status={lead.welcomeStatus} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <p className="flex items-center gap-2 text-[11px] text-[color:var(--muted-foreground)]">
+            <Lock className="h-3 w-3" /> Quadro somente leitura: os leads não podem ser arrastados
+            entre etapas.
+          </p>
 
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-[color:var(--border)] p-4">
-                <h2 className="font-display text-sm">Ficha do lead</h2>
-                {!selected ? (
-                  <p className="mt-2 text-xs text-[color:var(--muted-foreground)]">
-                    Selecione um lead para ver os dados e o histórico.
-                  </p>
-                ) : (
-                  <div className="mt-3 space-y-3 text-xs">
-                    <div>
-                      <p className="font-display text-base">{selected.name || "Sem nome"}</p>
-                      <p className="text-[color:var(--muted-foreground)]">
-                        {selected.phone || "Sem telefone"} · {selected.email || "sem e-mail"}
-                      </p>
-                    </div>
-                    <p className="text-[color:var(--muted-foreground)]">
-                      Etapa: {selected.stageKey ?? "—"} · Funil: {selected.pipelineName ?? "—"}
-                    </p>
-                    <p className="text-[color:var(--muted-foreground)]">
-                      Última sincronização: {formatDate(selected.lastSyncedAt)}
-                      {selected.syncStatus !== "OK" && (
-                        <span className="ml-1 text-red-400">
-                          <AlertTriangle className="mb-0.5 inline h-3 w-3" /> {selected.syncError}
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-[color:var(--muted-foreground)]">
-                      Boas-vindas: {WELCOME_LABEL[selected.welcomeStatus] ?? selected.welcomeStatus}
-                      {selected.welcomeSentAt ? ` · ${formatDate(selected.welcomeSentAt)}` : ""}
-                    </p>
-                    {selected.welcomeError && (
-                      <p className="text-red-400">{selected.welcomeError}</p>
-                    )}
-                    {selected.welcomeStatus !== "SENT" && (
-                      <button
-                        type="button"
-                        onClick={() => void handleRetry(selected.id)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[color:var(--gold)]/50 px-3 py-1.5 text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/10"
-                      >
-                        <Send className="h-3.5 w-3.5" /> Enviar boas-vindas
-                      </button>
-                    )}
-                    <div className="border-t border-[color:var(--border)] pt-3">
-                      <p className="mb-2 text-[11px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
-                        Histórico
-                      </p>
-                      <ul className="space-y-1">
-                        {events.map((event) => (
-                          <li key={event.id} className="text-[color:var(--muted-foreground)]">
-                            <span className="text-[color:var(--foreground)]">{event.type}</span> ·{" "}
-                            {formatDate(event.createdAt)}
-                            {event.message ? ` — ${event.message}` : ""}
-                          </li>
-                        ))}
-                        {events.length === 0 && <li>Sem eventos registrados.</li>}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-[color:var(--border)] p-4">
-                <h2 className="flex items-center gap-2 font-display text-sm">
-                  <Clock className="h-4 w-4" /> Execuções recentes
-                </h2>
-                <ul className="mt-3 space-y-2 text-[11px] text-[color:var(--muted-foreground)]">
-                  {runs.map((run) => (
-                    <li key={run.id} className="flex items-start gap-2">
-                      {run.status === "OK" ? (
-                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                      ) : (
-                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 text-red-400" />
-                      )}
-                      <span>
-                        {formatDate(run.startedAt)} · {run.trigger} · {run.created} novos,{" "}
-                        {run.updated} atualizados, {run.welcomeSent} boas-vindas
-                        {run.message ? ` — ${run.message}` : ""}
+          {loading ? (
+            <p className="text-xs text-[color:var(--muted-foreground)]">Carregando quadro…</p>
+          ) : (
+            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+              {stages.map((stage) => {
+                const items = byStage.get(stage.key) ?? [];
+                return (
+                  <section
+                    key={stage.key}
+                    className="flex w-[240px] shrink-0 flex-col rounded-2xl border border-[color:var(--border)]"
+                  >
+                    <header className="flex items-center justify-between gap-2 border-b border-[color:var(--border)] px-3 py-2">
+                      <h2 className="truncate text-[11px] uppercase tracking-wide">
+                        {stage.label}
+                      </h2>
+                      <span className="rounded-full border border-[color:var(--border)] px-2 text-[10px]">
+                        {items.length}
                       </span>
-                    </li>
-                  ))}
-                  {runs.length === 0 && <li>Nenhuma execução registrada.</li>}
-                </ul>
-              </div>
+                    </header>
+                    <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto p-2">
+                      {items.length === 0 && (
+                        <p className="px-1 py-4 text-center text-[11px] text-[color:var(--muted-foreground)]">
+                          Sem leads
+                        </p>
+                      )}
+                      {items.map((lead) => (
+                        <LeadCard
+                          key={lead.id}
+                          lead={lead}
+                          onOpen={() => setSelectedId(lead.id)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
+          )}
+
+          <div className="rounded-2xl border border-[color:var(--border)] p-4">
+            <h2 className="mb-3 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
+              Últimas sincronizações
+            </h2>
+            <ul className="space-y-2 text-xs">
+              {runs.length === 0 && (
+                <li className="text-[color:var(--muted-foreground)]">Nenhuma execução registrada.</li>
+              )}
+              {runs.map((run) => (
+                <li key={run.id} className="flex flex-wrap items-center gap-2">
+                  <span className="text-[color:var(--muted-foreground)]">
+                    {formatDate(run.startedAt)}
+                  </span>
+                  <span>{run.status}</span>
+                  <span className="text-[color:var(--muted-foreground)]">
+                    {run.found} encontrados · {run.created} novos · {run.updated} atualizados ·{" "}
+                    {run.welcomeSent} boas-vindas
+                  </span>
+                  {run.message && <span className="text-red-400">{run.message}</span>}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
+      )}
+
+      {selected && (
+        <LeadDialog
+          lead={selected}
+          events={events}
+          onClose={() => setSelectedId(null)}
+          onRetry={handleRetry}
+        />
       )}
     </ExecutiveShell>
   );
