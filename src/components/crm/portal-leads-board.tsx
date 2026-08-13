@@ -252,6 +252,8 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     [leads, selectedId],
   );
 
+  const lastSync = runs[0]?.startedAt ?? null;
+
   const byStage = useMemo(() => {
     const map = new Map<string, CrmLeadView[]>();
     for (const stage of stages) map.set(stage.key, []);
