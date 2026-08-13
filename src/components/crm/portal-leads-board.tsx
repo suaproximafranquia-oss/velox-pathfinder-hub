@@ -57,101 +57,14 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function ConnectionBar({
-  state,
-  onConnect,
-  onDisconnect,
-  busy,
-}: {
-  state: CrmConnectionState | null;
-  onConnect: (email: string, password: string) => Promise<void>;
-  onDisconnect: () => Promise<void>;
-  busy: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
+/** Indicador discreto: apenas estado, nunca credenciais. */
+function ConnectionDot({ state }: { state: CrmConnectionState | null }) {
+  const connected = Boolean(state?.connected);
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color:var(--border)]">
-            <Link2 className="h-4 w-4 text-[color:var(--gold)]" />
-          </span>
-          <div>
-            <p className="text-sm">
-              {state?.connected ? (
-                <>
-                  Conectado como <strong>{state.owner}</strong>
-                  {state.accountEmail ? ` · ${state.accountEmail}` : ""}
-                </>
-              ) : (
-                "Nenhuma conta Green Sales conectada a este usuário."
-              )}
-            </p>
-            <p className="text-[11px] text-[color:var(--muted-foreground)]">
-              A conexão é pessoal: cada Executivo utiliza a própria conta de origem.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-xl border border-[color:var(--border)] px-3 py-1.5 text-xs"
-          >
-            {state?.connected ? "Reconectar" : "Conectar conta"}
-          </button>
-          {state?.connected && (
-            <button
-              type="button"
-              onClick={() => void onDisconnect()}
-              disabled={busy}
-              className="rounded-xl border border-red-500/40 px-3 py-1.5 text-xs text-red-400 disabled:opacity-50"
-            >
-              Desconectar
-            </button>
-          )}
-        </div>
-      </div>
-
-      {open && (
-        <form
-          className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            await onConnect(email, password);
-            setPassword("");
-            setOpen(false);
-          }}
-        >
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="E-mail da conta Green Sales"
-            className="rounded-xl border border-[color:var(--border)] bg-transparent px-3 py-2 text-sm outline-none"
-          />
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Senha"
-            className="rounded-xl border border-[color:var(--border)] bg-transparent px-3 py-2 text-sm outline-none"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-xl border border-[color:var(--gold)]/50 px-4 py-2 text-sm text-[color:var(--gold)] disabled:opacity-50"
-          >
-            {busy ? "Validando…" : "Salvar"}
-          </button>
-        </form>
-      )}
-    </div>
+    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/60">
+      <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-emerald-400" : "bg-red-400"}`} />
+      {connected ? "Green Sales conectado" : "Desconectado"}
+    </span>
   );
 }
 
@@ -160,14 +73,19 @@ function LeadCard({ lead, onOpen }: { lead: CrmLeadView; onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="w-full rounded-xl border border-[color:var(--border)] bg-white/[0.02] p-3 text-left transition hover:border-[color:var(--gold)]/40"
+      className="group w-full rounded-xl border border-white/10 bg-white/[0.04] p-3 text-left shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] transition hover:border-[color:var(--gold)]/50 hover:bg-white/[0.07]"
     >
-      <p className="truncate text-sm">{lead.name || "Sem nome"}</p>
-      <p className="mt-0.5 truncate text-[11px] text-[color:var(--muted-foreground)]">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[color:var(--gold)]/15 text-[11px] font-medium text-[color:var(--gold)]">
+          {(lead.name || "?").trim().charAt(0).toUpperCase()}
+        </span>
+        <p className="truncate text-[13px] font-medium text-white/90">{lead.name || "Sem nome"}</p>
+      </div>
+      <p className="mt-1.5 truncate text-[11px] text-white/50">
         {lead.phone || lead.email || "Sem contato"}
       </p>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-[10px] text-[color:var(--muted-foreground)]">
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/5 pt-2">
+        <span className="text-[10px] text-white/40">
           {formatDate(lead.externalCreatedAt ?? lead.ingestedAt)}
         </span>
         <StatusPill status={lead.welcomeStatus} />
