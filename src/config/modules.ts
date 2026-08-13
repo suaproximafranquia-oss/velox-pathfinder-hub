@@ -167,6 +167,16 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     status: "ativo",
     requiresRole: ["super_admin"],
   },
+  {
+    id: "greensales-sync",
+    name: "GreenSales Sync",
+    description:
+      "POC de importação somente leitura dos leads criados hoje no GreenSales para o Portal Atlas.",
+    icon: Download,
+    to: "/executivo/greensales-sync",
+    status: "ativo",
+    requiresRole: ["super_admin"],
+  },
 ];
 
 // Alusão explícita — `BarChart3` foi substituído por `FileBarChart2` para
