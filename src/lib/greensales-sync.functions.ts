@@ -23,8 +23,8 @@ export type GreenSalesImportResult = {
   processed: number;
   errors: string[];
   sample?: {
-    greensales: Record<string, unknown>;
-    atlas: Record<string, unknown>;
+    greensales: Record<string, string | number>;
+    atlas: Record<string, string | number | boolean | null>;
   } | null;
 };
 

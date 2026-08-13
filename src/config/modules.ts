@@ -26,7 +26,7 @@ import {
   Radar,
   type LucideIcon,
 } from "lucide-react";
-import { Archive } from "lucide-react";
+import { Archive, Download } from "lucide-react";
 
 export type PlatformModule = {
   id: string;
