@@ -23,6 +23,7 @@ import {
   resolveIdentity,
 } from "@/lib/portal-identity";
 import { readEntryContext } from "@/lib/portal-entry";
+import { getBrand, investorPortalPath } from "@/lib/portal-brands";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { getPortalAdministratorId } from "@/lib/portal-workspace";
 import { registerJourney, trackJourney } from "@/lib/journey/engine";
@@ -78,6 +79,8 @@ export type PortalSession = {
   unit: string | null;
   origin: string;
   campaign: string | null;
+  /** Marca/operação de origem do link público. */
+  brand: string;
   device: string;
   personalized: boolean;
   startedAt: string;
@@ -304,6 +307,7 @@ export function startPortalSession(input: {
     unit: entry.unit,
     origin: input.origin ?? entry.origin ?? "Portal Velox",
     campaign: entry.campaign,
+    brand: getBrand(entry.brand).key,
     device: deviceFingerprint(),
     personalized: responsible.personalized || lead.personalized,
     startedAt: now,
@@ -333,7 +337,9 @@ export function startPortalSession(input: {
     unit: session.unit,
     origin: session.origin,
     campaign: session.campaign,
-    link: session.responsibleExecutiveSlug ? `/e/${session.responsibleExecutiveSlug}` : null,
+    link: session.responsibleExecutiveSlug
+      ? investorPortalPath(session.responsibleExecutiveSlug, session.brand)
+      : null,
     personalized: session.personalized,
     device: session.device,
     restored: Boolean(existing),
@@ -522,7 +528,9 @@ export function promotePortalSession(): PortalSession | null {
     unit: session.unit,
     origin,
     campaign: session.campaign,
-    link: session.responsibleExecutiveSlug ? `/e/${session.responsibleExecutiveSlug}` : null,
+    link: session.responsibleExecutiveSlug
+      ? investorPortalPath(session.responsibleExecutiveSlug, session.brand)
+      : null,
     personalized: session.personalized,
     device: session.device,
     restored: Boolean(existing),

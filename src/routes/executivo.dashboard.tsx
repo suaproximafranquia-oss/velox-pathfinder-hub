@@ -1,3 +1,4 @@
+import { DEFAULT_BRAND_KEY, investorPortalUrl } from "@/lib/portal-brands";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, Share2, Link2, Check } from "lucide-react";
@@ -450,5 +451,5 @@ function buildPersonalLink(session: ExecutiveSession): string {
     typeof window !== "undefined" && window.location?.origin
       ? window.location.origin
       : "https://portal.velox.com.br";
-  return `${base}/e/${slug}`;
+  return investorPortalUrl(slug, DEFAULT_BRAND_KEY, base);
 }

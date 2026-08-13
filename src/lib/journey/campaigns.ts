@@ -4,6 +4,7 @@
  * Alimenta o Painel de Campanhas e o Brain Analytics exclusivamente com
  * dados reais produzidos pelo Journey Engine. Nada é simulado.
  */
+import { investorPortalPath } from "@/lib/portal-brands";
 import { listJourneys } from "./engine";
 import { summarizeJourney } from "./insights";
 
@@ -59,7 +60,7 @@ export function buildCampaignSources(executiveId?: string | null): CampaignSourc
         key,
         origin: j.origin,
         campaign: j.campaign,
-        link: j.link ?? (j.executiveSlug ? `/e/${j.executiveSlug}` : null),
+        link: j.link ?? (j.executiveSlug ? investorPortalPath(j.executiveSlug) : null),
         leads: 0,
         manualStarted: 0,
         manualCompleted: 0,

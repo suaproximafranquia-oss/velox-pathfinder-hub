@@ -17,9 +17,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ManualIndexRouteImport } from './routes/manual/index'
 import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as CrmIndexRouteImport } from './routes/crm.index'
+import { Route as SegSlugRouteImport } from './routes/seg.$slug'
+import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
+import { Route as FSlugRouteImport } from './routes/f.$slug'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
 import { Route as ExecutivoReunioesRouteImport } from './routes/executivo.reunioes'
 import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
@@ -89,6 +92,16 @@ const CrmIndexRoute = CrmIndexRouteImport.update({
   path: '/',
   getParentRoute: () => CrmRoute,
 } as any)
+const SegSlugRoute = SegSlugRouteImport.update({
+  id: '/seg/$slug',
+  path: '/seg/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SSlugRoute = SSlugRouteImport.update({
+  id: '/s/$slug',
+  path: '/s/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ManualConcluidoRoute = ManualConcluidoRouteImport.update({
   id: '/manual/concluido',
   path: '/manual/concluido',
@@ -102,6 +115,11 @@ const ManualAnuncioRoute = ManualAnuncioRouteImport.update({
 const ManualChapterRoute = ManualChapterRouteImport.update({
   id: '/manual/$chapter',
   path: '/manual/$chapter',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FSlugRoute = FSlugRouteImport.update({
+  id: '/f/$slug',
+  path: '/f/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
@@ -276,9 +294,12 @@ export interface FileRoutesByFullPath {
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
+  '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/s/$slug': typeof SSlugRoute
+  '/seg/$slug': typeof SegSlugRoute
   '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
@@ -316,9 +337,12 @@ export interface FileRoutesByTo {
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
+  '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/s/$slug': typeof SSlugRoute
+  '/seg/$slug': typeof SegSlugRoute
   '/crm': typeof CrmIndexRoute
   '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
@@ -358,9 +382,12 @@ export interface FileRoutesById {
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
+  '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/s/$slug': typeof SSlugRoute
+  '/seg/$slug': typeof SegSlugRoute
   '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
@@ -401,9 +428,12 @@ export interface FileRouteTypes {
     | '/executivo/relatorios'
     | '/executivo/reunioes'
     | '/executivo/usuarios'
+    | '/f/$slug'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/s/$slug'
+    | '/seg/$slug'
     | '/crm/'
     | '/executivo/'
     | '/manual/'
@@ -441,9 +471,12 @@ export interface FileRouteTypes {
     | '/executivo/relatorios'
     | '/executivo/reunioes'
     | '/executivo/usuarios'
+    | '/f/$slug'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/s/$slug'
+    | '/seg/$slug'
     | '/crm'
     | '/executivo'
     | '/manual'
@@ -482,9 +515,12 @@ export interface FileRouteTypes {
     | '/executivo/relatorios'
     | '/executivo/reunioes'
     | '/executivo/usuarios'
+    | '/f/$slug'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/s/$slug'
+    | '/seg/$slug'
     | '/crm/'
     | '/executivo/'
     | '/manual/'
@@ -524,9 +560,12 @@ export interface RootRouteChildren {
   ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
   ExecutivoReunioesRoute: typeof ExecutivoReunioesRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
+  FSlugRoute: typeof FSlugRoute
   ManualChapterRoute: typeof ManualChapterRoute
   ManualAnuncioRoute: typeof ManualAnuncioRoute
   ManualConcluidoRoute: typeof ManualConcluidoRoute
+  SSlugRoute: typeof SSlugRoute
+  SegSlugRoute: typeof SegSlugRoute
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
   ManualIndexRoute: typeof ManualIndexRoute
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
@@ -593,6 +632,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrmIndexRouteImport
       parentRoute: typeof CrmRoute
     }
+    '/seg/$slug': {
+      id: '/seg/$slug'
+      path: '/seg/$slug'
+      fullPath: '/seg/$slug'
+      preLoaderRoute: typeof SegSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$slug': {
+      id: '/s/$slug'
+      path: '/s/$slug'
+      fullPath: '/s/$slug'
+      preLoaderRoute: typeof SSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/manual/concluido': {
       id: '/manual/concluido'
       path: '/manual/concluido'
@@ -612,6 +665,13 @@ declare module '@tanstack/react-router' {
       path: '/manual/$chapter'
       fullPath: '/manual/$chapter'
       preLoaderRoute: typeof ManualChapterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/$slug': {
+      id: '/f/$slug'
+      path: '/f/$slug'
+      fullPath: '/f/$slug'
+      preLoaderRoute: typeof FSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/usuarios': {
@@ -853,9 +913,12 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
   ExecutivoReunioesRoute: ExecutivoReunioesRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
+  FSlugRoute: FSlugRoute,
   ManualChapterRoute: ManualChapterRoute,
   ManualAnuncioRoute: ManualAnuncioRoute,
   ManualConcluidoRoute: ManualConcluidoRoute,
+  SSlugRoute: SSlugRoute,
+  SegSlugRoute: SegSlugRoute,
   ExecutivoIndexRoute: ExecutivoIndexRoute,
   ManualIndexRoute: ManualIndexRoute,
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
