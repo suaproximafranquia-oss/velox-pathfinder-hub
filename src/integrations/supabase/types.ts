@@ -769,6 +769,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_investor: { Args: { _investor_id: string }; Returns: boolean }
       current_executive_id: { Args: never; Returns: string }
       has_role: {
         Args: {

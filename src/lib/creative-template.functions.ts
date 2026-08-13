@@ -24,7 +24,9 @@ const templateSchema = z.object({
 export const publishCreativeTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => templateSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertTemplateManager } = await import("@/server/creative-template-guard.server");
+    await assertTemplateManager(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("creative_templates").upsert(
       {
@@ -50,7 +52,9 @@ export const removeCreativeTemplate = createServerFn({ method: "POST" })
   .inputValidator((data) =>
     z.object({ model: z.enum(["institucional", "marketing"]) }).parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertTemplateManager } = await import("@/server/creative-template-guard.server");
+    await assertTemplateManager(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("creative_templates")
