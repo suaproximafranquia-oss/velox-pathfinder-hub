@@ -8,7 +8,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Link2, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
+import { Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
@@ -23,8 +23,6 @@ import {
   type CrmSyncRunView,
 } from "@/lib/crm/leads.functions";
 import {
-  connectGreenSales,
-  disconnectGreenSales,
   getGreenSalesConnection,
   listCrmStages,
   type CrmConnectionState,
