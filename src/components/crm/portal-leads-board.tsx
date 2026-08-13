@@ -8,7 +8,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Link2, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
+import { Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
@@ -23,8 +23,6 @@ import {
   type CrmSyncRunView,
 } from "@/lib/crm/leads.functions";
 import {
-  connectGreenSales,
-  disconnectGreenSales,
   getGreenSalesConnection,
   listCrmStages,
   type CrmConnectionState,
@@ -59,101 +57,14 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function ConnectionBar({
-  state,
-  onConnect,
-  onDisconnect,
-  busy,
-}: {
-  state: CrmConnectionState | null;
-  onConnect: (email: string, password: string) => Promise<void>;
-  onDisconnect: () => Promise<void>;
-  busy: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
+/** Indicador discreto: apenas estado, nunca credenciais. */
+function ConnectionDot({ state }: { state: CrmConnectionState | null }) {
+  const connected = Boolean(state?.connected);
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color:var(--border)]">
-            <Link2 className="h-4 w-4 text-[color:var(--gold)]" />
-          </span>
-          <div>
-            <p className="text-sm">
-              {state?.connected ? (
-                <>
-                  Conectado como <strong>{state.owner}</strong>
-                  {state.accountEmail ? ` · ${state.accountEmail}` : ""}
-                </>
-              ) : (
-                "Nenhuma conta Green Sales conectada a este usuário."
-              )}
-            </p>
-            <p className="text-[11px] text-[color:var(--muted-foreground)]">
-              A conexão é pessoal: cada Executivo utiliza a própria conta de origem.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-xl border border-[color:var(--border)] px-3 py-1.5 text-xs"
-          >
-            {state?.connected ? "Reconectar" : "Conectar conta"}
-          </button>
-          {state?.connected && (
-            <button
-              type="button"
-              onClick={() => void onDisconnect()}
-              disabled={busy}
-              className="rounded-xl border border-red-500/40 px-3 py-1.5 text-xs text-red-400 disabled:opacity-50"
-            >
-              Desconectar
-            </button>
-          )}
-        </div>
-      </div>
-
-      {open && (
-        <form
-          className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            await onConnect(email, password);
-            setPassword("");
-            setOpen(false);
-          }}
-        >
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="E-mail da conta Green Sales"
-            className="rounded-xl border border-[color:var(--border)] bg-transparent px-3 py-2 text-sm outline-none"
-          />
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Senha"
-            className="rounded-xl border border-[color:var(--border)] bg-transparent px-3 py-2 text-sm outline-none"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-xl border border-[color:var(--gold)]/50 px-4 py-2 text-sm text-[color:var(--gold)] disabled:opacity-50"
-          >
-            {busy ? "Validando…" : "Salvar"}
-          </button>
-        </form>
-      )}
-    </div>
+    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/60">
+      <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-emerald-400" : "bg-red-400"}`} />
+      {connected ? "Green Sales conectado" : "Desconectado"}
+    </span>
   );
 }
 
@@ -162,14 +73,19 @@ function LeadCard({ lead, onOpen }: { lead: CrmLeadView; onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="w-full rounded-xl border border-[color:var(--border)] bg-white/[0.02] p-3 text-left transition hover:border-[color:var(--gold)]/40"
+      className="group w-full rounded-xl border border-white/10 bg-white/[0.04] p-3 text-left shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] transition hover:border-[color:var(--gold)]/50 hover:bg-white/[0.07]"
     >
-      <p className="truncate text-sm">{lead.name || "Sem nome"}</p>
-      <p className="mt-0.5 truncate text-[11px] text-[color:var(--muted-foreground)]">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[color:var(--gold)]/15 text-[11px] font-medium text-[color:var(--gold)]">
+          {(lead.name || "?").trim().charAt(0).toUpperCase()}
+        </span>
+        <p className="truncate text-[13px] font-medium text-white/90">{lead.name || "Sem nome"}</p>
+      </div>
+      <p className="mt-1.5 truncate text-[11px] text-white/50">
         {lead.phone || lead.email || "Sem contato"}
       </p>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-[10px] text-[color:var(--muted-foreground)]">
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/5 pt-2">
+        <span className="text-[10px] text-white/40">
           {formatDate(lead.externalCreatedAt ?? lead.ingestedAt)}
         </span>
         <StatusPill status={lead.welcomeStatus} />
@@ -275,7 +191,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const fetchLeads = useServerFn(listCrmLeads);
@@ -283,8 +198,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const fetchLead = useServerFn(getCrmLead);
   const fetchStages = useServerFn(listCrmStages);
   const fetchConnection = useServerFn(getGreenSalesConnection);
-  const saveConnection = useServerFn(connectGreenSales);
-  const dropConnection = useServerFn(disconnectGreenSales);
   const runSync = useServerFn(runCrmSyncNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
 
@@ -339,6 +252,8 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     [leads, selectedId],
   );
 
+  const lastSync = runs[0]?.startedAt ?? null;
+
   const byStage = useMemo(() => {
     const map = new Map<string, CrmLeadView[]>();
     for (const stage of stages) map.set(stage.key, []);
@@ -375,96 +290,68 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     await load();
   }
 
-  async function handleConnect(email: string, password: string) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      setConnection(await saveConnection({ data: { email, password } }));
-      setNotice("Conta Green Sales conectada a este usuário.");
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Não foi possível conectar a conta.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDisconnect() {
-    setBusy(true);
-    try {
-      setConnection(await dropConnection({}));
-      setNotice("Conexão encerrada.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   if (!session) return null;
 
   const content = (
-    <>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--gold)]/40 text-[color:var(--gold)]">
+    <div className="rounded-3xl border border-white/10 bg-[color:var(--navy-deep)] bg-[radial-gradient(1200px_500px_at_10%_-10%,color-mix(in_oklab,var(--gold)_9%,transparent),transparent_60%)] p-4 text-white/85 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.7)] md:p-6">
+      <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 text-[color:var(--gold)]">
             <Users className="h-4 w-4" />
           </span>
           <div>
-            <h1 className="font-display text-xl">Portal dos Leads</h1>
-            <p className="mt-1 max-w-2xl text-xs text-[color:var(--muted-foreground)]">
-              Quadro visual do funil. As etapas refletem exatamente a origem — a movimentação de
-              leads acontece lá, aqui é leitura e operação de contato.
-            </p>
+            <h1 className="font-display text-lg leading-tight text-white">Portal dos Leads</h1>
+            <p className="text-[11px] text-white/45">CRM Velox · funil espelhado da origem</p>
           </div>
         </div>
+
         {allowed && (
-          <button
-            type="button"
-            onClick={handleSync}
-            disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/10 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando…" : "Sincronizar agora"}
-          </button>
+          <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 sm:max-w-sm">
+              <Search className="h-4 w-4 text-white/40" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nome, e-mail ou telefone"
+                className="w-full bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
+              />
+            </div>
+            <ConnectionDot state={connection} />
+            {lastSync && (
+              <span className="text-[10px] text-white/40">Atualizado {formatDate(lastSync)}</span>
+            )}
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando…" : "Sincronizar agora"}
+            </button>
+          </div>
         )}
-      </div>
+      </header>
 
       {!allowed ? (
-        <div className="rounded-2xl border border-[color:var(--border)] p-6 text-sm text-[color:var(--muted-foreground)]">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-white/60">
           <ShieldCheck className="mb-2 h-4 w-4" />
           Área restrita à gestão do CRM.
         </div>
       ) : (
-        <div className="space-y-5">
-          <ConnectionBar
-            state={connection}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            busy={busy}
-          />
-
+        <div className="space-y-4">
           {notice && (
-            <p className="rounded-xl border border-[color:var(--border)] p-3 text-sm text-[color:var(--muted-foreground)]">
+            <p className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white/70">
               {notice}
             </p>
           )}
 
-          <div className="flex items-center gap-2 rounded-xl border border-[color:var(--border)] px-3 py-2">
-            <Search className="h-4 w-4 text-[color:var(--muted-foreground)]" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nome, e-mail ou telefone"
-              className="w-full bg-transparent text-sm outline-none"
-            />
-          </div>
-
-          <p className="flex items-center gap-2 text-[11px] text-[color:var(--muted-foreground)]">
-            <Lock className="h-3 w-3" /> Quadro somente leitura: os leads não podem ser arrastados
-            entre etapas.
+          <p className="flex items-center gap-2 text-[11px] text-white/35">
+            <Lock className="h-3 w-3" /> Quadro somente leitura — a movimentação acontece na origem.
           </p>
 
           {loading ? (
-            <p className="text-xs text-[color:var(--muted-foreground)]">Carregando quadro…</p>
+            <p className="text-xs text-white/50">Carregando quadro…</p>
           ) : (
             <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
               {stages.map((stage) => {
@@ -472,21 +359,19 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
                 return (
                   <section
                     key={stage.key}
-                    className="flex w-[240px] shrink-0 flex-col rounded-2xl border border-[color:var(--border)]"
+                    className="flex w-[248px] shrink-0 flex-col rounded-2xl border border-white/10 bg-white/[0.03]"
                   >
-                    <header className="flex items-center justify-between gap-2 border-b border-[color:var(--border)] px-3 py-2">
-                      <h2 className="truncate text-[11px] uppercase tracking-wide">
+                    <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+                      <h2 className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
                         {stage.label}
                       </h2>
-                      <span className="rounded-full border border-[color:var(--border)] px-2 text-[10px]">
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/70">
                         {items.length}
                       </span>
                     </header>
-                    <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto p-2">
+                    <div className="flex max-h-[64vh] flex-col gap-2 overflow-y-auto p-2">
                       {items.length === 0 && (
-                        <p className="px-1 py-4 text-center text-[11px] text-[color:var(--muted-foreground)]">
-                          Sem leads
-                        </p>
+                        <p className="px-1 py-6 text-center text-[11px] text-white/30">Sem leads</p>
                       )}
                       {items.map((lead) => (
                         <LeadCard
@@ -501,30 +386,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
               })}
             </div>
           )}
-
-          <div className="rounded-2xl border border-[color:var(--border)] p-4">
-            <h2 className="mb-3 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              Últimas sincronizações
-            </h2>
-            <ul className="space-y-2 text-xs">
-              {runs.length === 0 && (
-                <li className="text-[color:var(--muted-foreground)]">Nenhuma execução registrada.</li>
-              )}
-              {runs.map((run) => (
-                <li key={run.id} className="flex flex-wrap items-center gap-2">
-                  <span className="text-[color:var(--muted-foreground)]">
-                    {formatDate(run.startedAt)}
-                  </span>
-                  <span>{run.status}</span>
-                  <span className="text-[color:var(--muted-foreground)]">
-                    {run.found} encontrados · {run.created} novos · {run.updated} atualizados ·{" "}
-                    {run.welcomeSent} boas-vindas
-                  </span>
-                  {run.message && <span className="text-red-400">{run.message}</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
       )}
 
@@ -536,12 +397,12 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           onRetry={handleRetry}
         />
       )}
-    </>
+    </div>
   );
 
   if (standalone) {
     return (
-      <div className="min-h-screen bg-[color:var(--background)] px-4 py-6 text-[color:var(--foreground)] md:px-8">
+      <div className="min-h-screen bg-[color:var(--navy-deep)] px-3 py-4 md:px-6 md:py-6">
         {content}
       </div>
     );

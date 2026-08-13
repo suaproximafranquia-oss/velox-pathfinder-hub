@@ -8,6 +8,7 @@ import {
   type HomologationConfig,
 } from "@/lib/homologation-guard";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { GreenSalesConnectionSection } from "@/components/crm/greensales-connection-section";
 import {
   canManageUsers,
   getSession,
@@ -105,6 +106,7 @@ function ConfiguracoesPage() {
           <VideoconferenciaSection session={session} />
           <ProtecaoHomologacaoSection />
           <IntegracoesSection session={session} />
+          <GreenSalesConnectionSection />
           {sections.map((s) => {
             const Icon = s.icon;
             return (
