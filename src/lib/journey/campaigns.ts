@@ -1,10 +1,10 @@
 /**
-import { investorPortalPath } from "@/lib/portal-brands";
  * Journey Engine — atribuição comercial (origem, campanha, link).
  *
  * Alimenta o Painel de Campanhas e o Brain Analytics exclusivamente com
  * dados reais produzidos pelo Journey Engine. Nada é simulado.
  */
+import { investorPortalPath } from "@/lib/portal-brands";
 import { listJourneys } from "./engine";
 import { summarizeJourney } from "./insights";
 
