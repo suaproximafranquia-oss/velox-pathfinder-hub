@@ -145,3 +145,36 @@ export async function fetchTodayLeads(token: string): Promise<{
   }
   return { leads, pagesScanned: page - 1, window: win };
 }
+
+/**
+ * Sincronização contínua — leads criados/atualizados a partir de `since`.
+ *
+ * A listagem vem do mais recente para o mais antigo, então a varredura
+ * encerra assim que alcança registros anteriores à janela pedida.
+ */
+export async function fetchLeadsSince(
+  token: string,
+  since: Date,
+  maxPages = 20,
+): Promise<{ leads: GreenSalesLead[]; pagesScanned: number }> {
+  const leads: GreenSalesLead[] = [];
+  let page = 1;
+  let lastPage = 1;
+  let olderReached = false;
+  while (page <= lastPage && page <= maxPages && !olderReached) {
+    const body = await fetchPage(token, page);
+    lastPage = body.last_page ?? 1;
+    for (const lead of body.data ?? []) {
+      const stamp = lead.updated_at ?? lead.created_at;
+      const at = stamp ? new Date(stamp) : null;
+      if (!at || Number.isNaN(at.getTime())) continue;
+      if (at < since) {
+        olderReached = true;
+        continue;
+      }
+      leads.push(lead);
+    }
+    page += 1;
+  }
+  return { leads, pagesScanned: page - 1 };
+}

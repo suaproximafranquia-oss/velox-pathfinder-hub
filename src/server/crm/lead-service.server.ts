@@ -1,0 +1,175 @@
+/**
+ * Lead Service — persistência e regras do lead no NOSSO banco.
+ *
+ * O lead externo é reconhecido pela chave de integração
+ * (`external_source` + `external_id`). Receber o mesmo lead N vezes
+ * continua representando UM único lead interno.
+ */
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+export type LeadEventType =
+  | "lead_criado"
+  | "lead_sincronizado"
+  | "lead_atualizado"
+  | "etapa_alterada"
+  | "tag_alterada"
+  | "boas_vindas_iniciada"
+  | "boas_vindas_enviada"
+  | "boas_vindas_falhou"
+  | "sincronizacao_falhou"
+  | "sincronizacao_recuperada"
+  | "tentativa_sincronizacao";
+
+export type CrmLeadRow = {
+  id: string;
+  external_id: string;
+  name: string;
+  phone: string;
+  email: string;
+  origin: string | null;
+  capture_form: string | null;
+  external_pipeline_id: string | null;
+  pipeline_name: string | null;
+  stage_key: string | null;
+  external_stage_id: string | null;
+  external_created_at: string | null;
+  ingested_at: string;
+  last_synced_at: string | null;
+  sync_status: string;
+  sync_error: string | null;
+  welcome_status: string;
+  welcome_started_at: string | null;
+  welcome_sent_at: string | null;
+  welcome_template: string | null;
+  welcome_link: string | null;
+  welcome_error: string | null;
+};
+
+export async function recordEvent(
+  leadId: string,
+  type: LeadEventType,
+  message?: string,
+  data?: Record<string, unknown>,
+): Promise<void> {
+  await supabaseAdmin.from("crm_lead_events").insert({
+    lead_id: leadId,
+    type,
+    message: message ?? null,
+    data: (data ?? null) as never,
+  });
+}
+
+export type UpsertInput = {
+  externalId: string;
+  name: string;
+  phone: string;
+  email: string;
+  origin: string | null;
+  captureForm: string | null;
+  externalPipelineId: string | null;
+  pipelineName: string | null;
+  stageKey: string | null;
+  externalStageId: string | null;
+  externalCreatedAt: string | null;
+  rawPayload: unknown;
+};
+
+export type UpsertOutcome = {
+  lead: CrmLeadRow;
+  created: boolean;
+  changed: boolean;
+};
+
+const SELECT = "*";
+
+/** Upsert idempotente: nunca duplica e sempre registra o histórico. */
+export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
+  const now = new Date().toISOString();
+  const { data: existing } = await supabaseAdmin
+    .from("crm_leads")
+    .select(SELECT)
+    .eq("external_source", "greensales")
+    .eq("external_id", input.externalId)
+    .maybeSingle();
+
+  const base = {
+    name: input.name,
+    phone: input.phone,
+    email: input.email,
+    origin: input.origin,
+    capture_form: input.captureForm,
+    external_pipeline_id: input.externalPipelineId,
+    pipeline_name: input.pipelineName,
+    stage_key: input.stageKey,
+    external_stage_id: input.externalStageId,
+    external_created_at: input.externalCreatedAt,
+    last_synced_at: now,
+    sync_status: "OK",
+    sync_error: null,
+    raw_payload: input.rawPayload as never,
+  };
+
+  if (!existing) {
+    const { data, error } = await supabaseAdmin
+      .from("crm_leads")
+      .insert({
+        external_source: "greensales",
+        external_id: input.externalId,
+        ingested_at: now,
+        ...base,
+      })
+      .select(SELECT)
+      .single();
+    if (error) throw new Error(error.message);
+    const lead = data as unknown as CrmLeadRow;
+    await recordEvent(lead.id, "lead_criado", "Lead recebido da origem externa.", {
+      externalId: input.externalId,
+      stage: input.stageKey,
+    });
+    return { lead, created: true, changed: true };
+  }
+
+  const previous = existing as unknown as CrmLeadRow;
+  const stageChanged = previous.stage_key !== input.stageKey;
+  const changed =
+    stageChanged ||
+    previous.name !== input.name ||
+    previous.phone !== input.phone ||
+    previous.email !== input.email ||
+    previous.origin !== input.origin;
+
+  const { data, error } = await supabaseAdmin
+    .from("crm_leads")
+    .update(base)
+    .eq("id", previous.id)
+    .select(SELECT)
+    .single();
+  if (error) throw new Error(error.message);
+  const lead = data as unknown as CrmLeadRow;
+
+  if (previous.sync_status !== "OK") {
+    await recordEvent(lead.id, "sincronizacao_recuperada", "Sincronização normalizada.");
+  }
+  if (stageChanged) {
+    await recordEvent(lead.id, "etapa_alterada", "Etapa atualizada pela origem externa.", {
+      de: previous.stage_key,
+      para: input.stageKey,
+    });
+  } else if (changed) {
+    await recordEvent(lead.id, "lead_atualizado", "Dados atualizados pela origem externa.");
+  } else {
+    await recordEvent(lead.id, "lead_sincronizado", "Lead reconhecido — sem alterações.");
+  }
+  return { lead, created: false, changed };
+}
+
+export async function markSyncFailure(externalId: string, message: string): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("crm_leads")
+    .update({ sync_status: "ERRO", sync_error: message, last_synced_at: new Date().toISOString() })
+    .eq("external_source", "greensales")
+    .eq("external_id", externalId)
+    .select("id")
+    .maybeSingle();
+  if (data?.id) await recordEvent(data.id, "sincronizacao_falhou", message);
+}
