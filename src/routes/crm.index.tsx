@@ -199,6 +199,15 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       setMessageTick((v) => v + 1);
     });
     void pullLeads().then(refresh).catch(refresh);
+    // Fonte de verdade no servidor: histórico de mensagens e Timeline
+    // chegam do banco, independentemente do computador utilizado.
+    void import("@/lib/crm/server-sync")
+      .then((m) => m.hydrateCrmFromServer())
+      .then(() => {
+        refresh();
+        setMessageTick((v) => v + 1);
+      })
+      .catch(() => refresh());
     const offLeads = subscribeLeads(() => {
       void pullLeads().then(refresh).catch(refresh);
     });
