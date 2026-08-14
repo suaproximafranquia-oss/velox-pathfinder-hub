@@ -158,7 +158,7 @@ function LeadDialog({
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <StatusPill status={lead.welcomeStatus} />
-          {lead.welcomeStatus !== "SENT" && (
+          {lead.welcomeStatus !== "SENT" && lead.welcomeStatus !== "NOT_APPLICABLE" && (
             <button
               type="button"
               onClick={() => void onRetry(lead.id)}
