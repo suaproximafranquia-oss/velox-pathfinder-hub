@@ -34,7 +34,7 @@ export async function loadSettings(): Promise<AutomationSettings> {
   return {
     syncIntervalMinutes: data?.sync_interval_minutes ?? 5,
     welcomeEnabled: data?.welcome_enabled ?? true,
-    welcomeTemplateId: data?.welcome_template_id ?? "envio_manual",
+    welcomeTemplateId: data?.welcome_template_id ?? "primeiro_contato",
     welcomeBody: data?.welcome_body ?? null,
     materialUrl: data?.material_url ?? null,
   };
