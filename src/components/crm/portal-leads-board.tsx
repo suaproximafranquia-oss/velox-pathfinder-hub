@@ -8,7 +8,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
+import { DatabaseBackup, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
@@ -17,6 +17,7 @@ import {
   listCrmLeads,
   listCrmSyncRuns,
   retryCrmWelcome,
+  runCrmBackfillNow,
   runCrmSyncNow,
   type CrmLeadEventView,
   type CrmLeadView,
@@ -34,6 +35,7 @@ const WELCOME_LABEL: Record<string, string> = {
   SENDING: "Enviando",
   SENT: "Enviada",
   FAILED: "Falhou",
+  NOT_APPLICABLE: "Sem primeiro contato",
 };
 
 function formatDate(value: string | null): string {
@@ -68,7 +70,16 @@ function ConnectionDot({ state }: { state: CrmConnectionState | null }) {
   );
 }
 
-function LeadCard({ lead, onOpen }: { lead: CrmLeadView; onOpen: () => void }) {
+function LeadCard({
+  lead,
+  onOpen,
+  showWelcome,
+}: {
+  lead: CrmLeadView;
+  onOpen: () => void;
+  /** O primeiro contato só é informação operacional na etapa de entrada. */
+  showWelcome: boolean;
+}) {
   return (
     <button
       type="button"
@@ -88,7 +99,9 @@ function LeadCard({ lead, onOpen }: { lead: CrmLeadView; onOpen: () => void }) {
         <span className="text-[10px] text-white/40">
           {formatDate(lead.externalCreatedAt ?? lead.ingestedAt)}
         </span>
-        <StatusPill status={lead.welcomeStatus} />
+        {showWelcome && lead.welcomeStatus !== "NOT_APPLICABLE" && (
+          <StatusPill status={lead.welcomeStatus} />
+        )}
       </div>
     </button>
   );
@@ -146,7 +159,7 @@ function LeadDialog({
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <StatusPill status={lead.welcomeStatus} />
-          {lead.welcomeStatus !== "SENT" && (
+          {lead.welcomeStatus !== "SENT" && lead.welcomeStatus !== "NOT_APPLICABLE" && (
             <button
               type="button"
               onClick={() => void onRetry(lead.id)}
@@ -191,6 +204,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const fetchLeads = useServerFn(listCrmLeads);
@@ -199,6 +213,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const fetchStages = useServerFn(listCrmStages);
   const fetchConnection = useServerFn(getGreenSalesConnection);
   const runSync = useServerFn(runCrmSyncNow);
+  const runBackfill = useServerFn(runCrmBackfillNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
 
   useEffect(() => {
@@ -290,6 +305,31 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     await load();
   }
 
+  /** Carga histórica: reconstrói o estado da origem, sem disparar mensagens. */
+  async function handleBackfill() {
+    if (
+      !window.confirm(
+        "Importar todo o histórico de leads da origem? Nenhum lead será duplicado e nenhuma mensagem de boas-vindas será enviada.",
+      )
+    )
+      return;
+    setBackfilling(true);
+    setNotice(null);
+    try {
+      const s = await runBackfill({});
+      setNotice(
+        s.ok
+          ? `Carga histórica concluída: ${s.found} encontrados (${s.pagesScanned} páginas), ${s.created} criados, ${s.updated} atualizados, ${s.unchanged} já existentes, ${s.failed} com erro, 0 mensagens enviadas.`
+          : `Carga histórica com falha: ${s.message ?? "erro desconhecido"}.`,
+      );
+      await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Falha na carga histórica.");
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
   if (!session) return null;
 
   const content = (
@@ -328,6 +368,16 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
             >
               <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Sincronizando…" : "Sincronizar agora"}
+            </button>
+            <button
+              type="button"
+              onClick={handleBackfill}
+              disabled={backfilling}
+              title="Reconstrói o estado completo da origem, sem duplicar leads e sem enviar mensagens."
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition hover:bg-white/[0.08] disabled:opacity-50"
+            >
+              <DatabaseBackup className={`h-4 w-4 ${backfilling ? "animate-pulse" : ""}`} />
+              {backfilling ? "Importando histórico…" : "Carga histórica"}
             </button>
           </div>
         )}
@@ -377,6 +427,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
                         <LeadCard
                           key={lead.id}
                           lead={lead}
+                          showWelcome={stage.isEntry}
                           onOpen={() => setSelectedId(lead.id)}
                         />
                       ))}

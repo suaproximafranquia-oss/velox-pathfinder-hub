@@ -72,6 +72,11 @@ export type UpsertInput = {
   externalStageId: string | null;
   externalCreatedAt: string | null;
   rawPayload: unknown;
+  /**
+   * Carga histórica: o lead já existia na origem antes do Portal. Ele é
+   * apenas descoberto agora e NUNCA entra na fila de primeiro contato.
+   */
+  historical?: boolean;
 };
 
 export type UpsertOutcome = {
@@ -116,16 +121,23 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         external_source: "greensales",
         external_id: input.externalId,
         ingested_at: now,
+        // PENDING representa uma operação real de envio aguardando
+        // processamento — nunca "nunca recebeu mensagem".
+        welcome_status: input.historical ? "NOT_APPLICABLE" : "PENDING",
         ...base,
       })
       .select(SELECT)
       .single();
     if (error) throw new Error(error.message);
     const lead = data as unknown as CrmLeadRow;
-    await recordEvent(lead.id, "lead_criado", "Lead recebido da origem externa.", {
-      externalId: input.externalId,
-      stage: input.stageKey,
-    });
+    await recordEvent(
+      lead.id,
+      "lead_criado",
+      input.historical
+        ? "Lead histórico importado da origem externa (sem primeiro contato)."
+        : "Lead recebido da origem externa.",
+      { externalId: input.externalId, stage: input.stageKey, historico: Boolean(input.historical) },
+    );
     return { lead, created: true, changed: true };
   }
 

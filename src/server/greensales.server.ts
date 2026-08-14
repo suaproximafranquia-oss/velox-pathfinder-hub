@@ -183,3 +183,36 @@ export async function fetchLeadsSince(
   }
   return { leads, pagesScanned: page - 1 };
 }
+
+/**
+ * Carga histórica — percorre TODA a paginação disponível na conta.
+ *
+ * Diferente de `fetchLeadsSince`, não existe janela temporal: a varredura
+ * só encerra quando a origem informa que não há mais páginas. O limite
+ * `maxPages` é apenas uma trava de segurança contra paginação infinita.
+ */
+export async function fetchAllLeads(
+  token: string,
+  maxPages = 500,
+): Promise<{ leads: GreenSalesLead[]; pagesScanned: number; totalReported: number | null }> {
+  const leads: GreenSalesLead[] = [];
+  const seen = new Set<string>();
+  let page = 1;
+  let lastPage = 1;
+  let totalReported: number | null = null;
+  while (page <= lastPage && page <= maxPages) {
+    const body = await fetchPage(token, page);
+    lastPage = body.last_page ?? 1;
+    totalReported = body.total ?? totalReported;
+    const rows = body.data ?? [];
+    if (rows.length === 0) break;
+    for (const lead of rows) {
+      const key = String(lead.id);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      leads.push(lead);
+    }
+    page += 1;
+  }
+  return { leads, pagesScanned: page - 1, totalReported };
+}
