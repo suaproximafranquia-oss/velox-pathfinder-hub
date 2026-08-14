@@ -98,7 +98,9 @@ function LeadCard({
         <span className="text-[10px] text-white/40">
           {formatDate(lead.externalCreatedAt ?? lead.ingestedAt)}
         </span>
-        <StatusPill status={lead.welcomeStatus} />
+        {showWelcome && lead.welcomeStatus !== "NOT_APPLICABLE" && (
+          <StatusPill status={lead.welcomeStatus} />
+        )}
       </div>
     </button>
   );
@@ -387,6 +389,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
                         <LeadCard
                           key={lead.id}
                           lead={lead}
+                          showWelcome={stage.isEntry}
                           onOpen={() => setSelectedId(lead.id)}
                         />
                       ))}
