@@ -12,6 +12,7 @@ export type LeadEventType =
   | "lead_sincronizado"
   | "lead_atualizado"
   | "etapa_alterada"
+  | "nova_entrada"
   | "tag_alterada"
   | "boas_vindas_iniciada"
   | "boas_vindas_enviada"
@@ -33,6 +34,8 @@ export type CrmLeadRow = {
   stage_key: string | null;
   external_stage_id: string | null;
   external_created_at: string | null;
+  last_entry_at: string | null;
+  entry_count: number;
   ingested_at: string;
   last_synced_at: string | null;
   sync_status: string;
@@ -71,6 +74,11 @@ export type UpsertInput = {
   stageKey: string | null;
   externalStageId: string | null;
   externalCreatedAt: string | null;
+  /**
+   * Data/hora da última entrada comercial informada pela origem
+   * (novo cadastro da MESMA pessoa). Nunca substitui o histórico.
+   */
+  lastEntryAt?: string | null;
   rawPayload: unknown;
   /**
    * Carga histórica: o lead já existia na origem antes do Portal. Ele é
@@ -86,6 +94,48 @@ export type UpsertOutcome = {
 };
 
 const SELECT = "*";
+
+/**
+ * Estado mínimo já conhecido do lead — usado ANTES do upsert para
+ * decidir se a origem registrou uma nova entrada comercial e, com isso,
+ * qual relação de funil está vigente.
+ */
+export type LeadEntryState = {
+  exists: boolean;
+  stageKey: string | null;
+  lastEntryAt: string | null;
+  entryCount: number;
+};
+
+export async function getLeadEntryState(externalId: string): Promise<LeadEntryState> {
+  const { data } = await supabaseAdmin
+    .from("crm_leads")
+    .select("stage_key,last_entry_at,entry_count")
+    .eq("external_source", "greensales")
+    .eq("external_id", externalId)
+    .maybeSingle();
+  if (!data) return { exists: false, stageKey: null, lastEntryAt: null, entryCount: 0 };
+  return {
+    exists: true,
+    stageKey: data.stage_key,
+    lastEntryAt: data.last_entry_at,
+    entryCount: data.entry_count ?? 1,
+  };
+}
+
+/** Nova entrada = mesma pessoa, novo cadastro posterior ao já conhecido. */
+export function isNewCommercialEntry(
+  previousEntryAt: string | null,
+  incomingEntryAt: string | null | undefined,
+): boolean {
+  if (!incomingEntryAt) return false;
+  const incoming = Date.parse(incomingEntryAt);
+  if (Number.isNaN(incoming)) return false;
+  if (!previousEntryAt) return false;
+  const previous = Date.parse(previousEntryAt);
+  if (Number.isNaN(previous)) return false;
+  return incoming > previous;
+}
 
 /** Upsert idempotente: nunca duplica e sempre registra o histórico. */
 export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
