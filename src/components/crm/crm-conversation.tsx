@@ -353,6 +353,10 @@ export function CrmComposer({
   hint?: string;
   /** Nome usado na personalização dos templates. */
   investorName?: string;
+  /** Executivo responsável — resolve {{nome_executivo}}. */
+  executiveName?: string;
+  /** Portal do Investidor do executivo — resolve {{link_portal_investidor}}. */
+  portalLink?: string;
   window?: CrmWindowStatus;
   /** Texto carregado a partir do módulo Templates. */
   prefillText?: string | null;
