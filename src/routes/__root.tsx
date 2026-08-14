@@ -143,6 +143,8 @@ function resolveShell(pathname: string): EditorialVariant | "executive" {
   if (pathname.startsWith("/executivo")) return "executive";
   // O CRM é um ambiente operacional próprio — não herda o tema editorial.
   if (pathname.startsWith("/crm")) return "executive";
+  // O Portal dos Leads é ambiente operacional do executivo.
+  if (pathname.startsWith("/portal-leads")) return "executive";
   if (pathname.startsWith("/universo")) return "universo";
   if (pathname === "/") return "portal";
   return "manual";
@@ -183,6 +185,7 @@ function RootRoutes() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isExecutive = pathname.startsWith("/executivo");
   const isCrm = pathname.startsWith("/crm");
+  const isLeadsPortal = pathname.startsWith("/portal-leads");
   const isPortal = pathname === "/";
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";
@@ -196,7 +199,7 @@ function RootRoutes() {
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isExecutive || isCrm || isPortal) return;
+    if (isExecutive || isCrm || isLeadsPortal || isPortal) return;
     const insideOverlay = window.self !== window.top;
     const mod = moduleForPath(pathname);
     if (!mod) return;
@@ -210,7 +213,7 @@ function RootRoutes() {
       return;
     }
     navigate({ to: "/", search: { m: mod.key }, replace: true });
-  }, [isCrm, isExecutive, isPortal, navigate, pathname]);
+  }, [isCrm, isExecutive, isLeadsPortal, isPortal, navigate, pathname]);
 
   // Área Executiva permanece isolada do Design System editorial.
   if (isExecutive) {
@@ -225,7 +228,7 @@ function RootRoutes() {
 
   // O CRM de Relacionamento possui identidade própria: sem cabeçalho do
   // Manual, sem índice editorial e sem elementos institucionais.
-  if (isCrm) {
+  if (isCrm || isLeadsPortal) {
     return (
       <QueryClientProvider client={queryClient}>
         <Outlet />

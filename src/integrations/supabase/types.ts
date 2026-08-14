@@ -224,6 +224,56 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_cadence_tasks: {
+        Row: {
+          channel: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          due_date: string
+          id: string
+          lead_id: string
+          note: string | null
+          status: string
+          step_day: number
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          due_date: string
+          id?: string
+          lead_id: string
+          note?: string | null
+          status?: string
+          step_day: number
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          lead_id?: string
+          note?: string | null
+          status?: string
+          step_day?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_cadence_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_connections: {
         Row: {
           account_email: string | null
