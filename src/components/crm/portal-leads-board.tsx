@@ -69,7 +69,16 @@ function ConnectionDot({ state }: { state: CrmConnectionState | null }) {
   );
 }
 
-function LeadCard({ lead, onOpen }: { lead: CrmLeadView; onOpen: () => void }) {
+function LeadCard({
+  lead,
+  onOpen,
+  showWelcome,
+}: {
+  lead: CrmLeadView;
+  onOpen: () => void;
+  /** O primeiro contato só é informação operacional na etapa de entrada. */
+  showWelcome: boolean;
+}) {
   return (
     <button
       type="button"
