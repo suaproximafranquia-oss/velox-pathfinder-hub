@@ -17,7 +17,7 @@ export type CrmConnectionState = {
   mine: boolean;
 };
 
-export type CrmStageView = { key: string; label: string; position: number };
+export type CrmStageView = { key: string; label: string; position: number; isEntry: boolean };
 
 async function ownerName(context: { supabase: unknown; userId: string }): Promise<string> {
   const supabase = context.supabase as {
@@ -83,9 +83,14 @@ export const listCrmStages = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<CrmStageView[]> => {
     const { data, error } = await context.supabase
       .from("crm_pipeline_stages")
-      .select("key,label,position,visible")
+      .select("key,label,position,visible,is_entry")
       .eq("visible", true)
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
-    return (data ?? []).map((s) => ({ key: s.key, label: s.label, position: s.position }));
+    return (data ?? []).map((s) => ({
+      key: s.key,
+      label: s.label,
+      position: s.position,
+      isEntry: Boolean(s.is_entry),
+    }));
   });
