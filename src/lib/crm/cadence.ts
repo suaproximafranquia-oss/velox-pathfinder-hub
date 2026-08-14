@@ -13,7 +13,8 @@ export type CadenceChannel = "call" | "message";
 
 export const CADENCE_STEPS: Record<CadenceChannel, number[]> = {
   call: [1, 3, 4, 7],
-  message: [1, 2, 4, 5, 12, 13],
+  // A sequência de mensagens encerra no D12 — não existe D13.
+  message: [1, 2, 4, 5, 12],
 };
 
 /** Etapas da origem em que o lead ainda precisa de tentativa de contato. */
