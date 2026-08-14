@@ -23,7 +23,12 @@ import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
-import { CRM_TEMPLATES, resolveCrmWindow, type CrmWindowStatus } from "@/lib/crm/templates";
+import {
+  CRM_TEMPLATES,
+  renderCrmTemplate,
+  resolveCrmWindow,
+  type CrmWindowStatus,
+} from "@/lib/crm/templates";
 const CHATGPT_URL = "https://chatgpt.com/";
 
 /** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
