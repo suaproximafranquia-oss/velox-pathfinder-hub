@@ -149,7 +149,9 @@ export async function runLeadSync(
       if (outcome.created) summary.created += 1;
       else if (outcome.changed) summary.updated += 1;
 
-      if (stage?.isEntry) {
+      // Primeiro contato reage APENAS a uma entrada realmente nova em
+      // NOVOS. Lead já conhecido (ou histórico) nunca reabre a operação.
+      if (stage?.isEntry && outcome.created) {
         const welcome = await processWelcome(outcome.lead, settings);
         if (welcome === "enviada") summary.welcomeSent += 1;
         if (welcome === "falhou") summary.welcomeFailed += 1;
@@ -158,6 +160,145 @@ export async function runLeadSync(
       summary.failed += 1;
       const message = error instanceof Error ? error.message : "Falha desconhecida.";
       summary.errors.push(`Lead ${externalId}: ${message}`);
+      await markSyncFailure(externalId, message);
+    }
+  }
+
+  return finish("OK");
+}
+
+export type BackfillSummary = {
+  ok: boolean;
+  runId: string | null;
+  pagesScanned: number;
+  totalReported: number | null;
+  found: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  failed: number;
+  welcomeSent: 0;
+  message?: string;
+  errors: string[];
+};
+
+/**
+ * Carga histórica — reconstrução do estado inicial.
+ *
+ * Percorre toda a paginação da origem e aplica o MESMO upsert idempotente
+ * da sincronização incremental. Nenhum registro é apagado, nenhum lead é
+ * duplicado e nenhuma mensagem de primeiro contato é disparada.
+ */
+export async function runGreenSalesBackfill(
+  actorUserId?: string | null,
+): Promise<BackfillSummary> {
+  const startedAt = new Date();
+  const { data: run } = await supabaseAdmin
+    .from("crm_sync_runs")
+    .insert({ trigger: "backfill", status: "RUNNING", started_at: startedAt.toISOString() })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  const summary: BackfillSummary = {
+    ok: false,
+    runId,
+    pagesScanned: 0,
+    totalReported: null,
+    found: 0,
+    created: 0,
+    updated: 0,
+    unchanged: 0,
+    failed: 0,
+    welcomeSent: 0,
+    errors: [],
+  };
+
+  const finish = async (status: "OK" | "ERRO", message?: string) => {
+    summary.ok = status === "OK";
+    summary.message = message;
+    if (runId) {
+      await supabaseAdmin
+        .from("crm_sync_runs")
+        .update({
+          status,
+          finished_at: new Date().toISOString(),
+          found_count: summary.found,
+          created_count: summary.created,
+          updated_count: summary.updated,
+          skipped_count: summary.unchanged,
+          error_count: summary.failed,
+          welcome_sent_count: 0,
+          welcome_failed_count: 0,
+          last_error: message ?? summary.errors[0] ?? null,
+        })
+        .eq("id", runId);
+    }
+    return summary;
+  };
+
+  const pipeline = await loadPipeline(DEFAULT_PIPELINE_EXTERNAL_ID);
+  if (!pipeline) return finish("ERRO", "Funil não configurado no CRM.");
+
+  const { greenSalesLogin, fetchAllLeads, fetchLeadDetail } = await import(
+    "@/server/greensales.server"
+  );
+  const { resolveCredentials } = await import("@/server/crm/connections.server");
+  const credentials = await resolveCredentials(actorUserId);
+
+  let token: string;
+  try {
+    token = await greenSalesLogin(credentials);
+  } catch (error) {
+    return finish("ERRO", error instanceof Error ? error.message : "Falha de autenticação.");
+  }
+
+  let page: Awaited<ReturnType<typeof fetchAllLeads>>;
+  try {
+    page = await fetchAllLeads(token);
+  } catch (error) {
+    return finish("ERRO", error instanceof Error ? error.message : "Falha na consulta de leads.");
+  }
+  summary.found = page.leads.length;
+  summary.pagesScanned = page.pagesScanned;
+  summary.totalReported = page.totalReported;
+
+  for (const listed of page.leads) {
+    const externalId = String(listed.id);
+    try {
+      const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
+      const raw = { ...listed, ...detail } as Record<string, unknown>;
+      const normalized = normalizeGreenSalesLead(raw as never);
+      const tags = Array.isArray(raw["tags"])
+        ? (raw["tags"] as { id: number | string }[]).map((t) => String(t.id))
+        : [];
+      const stage = resolveStage(pipeline, tags);
+      const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
+
+      const outcome = await upsertLead({
+        externalId,
+        name: normalized.name,
+        phone: normalized.whatsapp,
+        email: normalized.email,
+        origin: (raw["origin"] as string) ?? null,
+        captureForm: forms[0]?.title ?? null,
+        externalPipelineId: pipeline.externalId,
+        pipelineName: pipeline.name,
+        stageKey: stage?.key ?? null,
+        externalStageId: stage?.externalTag ?? null,
+        externalCreatedAt: (raw["created_at"] as string) ?? null,
+        rawPayload: raw,
+        historical: true,
+      });
+      if (outcome.created) summary.created += 1;
+      else if (outcome.changed) summary.updated += 1;
+      else summary.unchanged += 1;
+      // Nenhuma automação de primeiro contato aqui — por definição.
+    } catch (error) {
+      // Um registro com problema não interrompe a reconstrução do estado.
+      summary.failed += 1;
+      const message = error instanceof Error ? error.message : "Falha desconhecida.";
+      if (summary.errors.length < 20) summary.errors.push(`Lead ${externalId}: ${message}`);
       await markSyncFailure(externalId, message);
     }
   }
