@@ -369,6 +369,16 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
               <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Sincronizando…" : "Sincronizar agora"}
             </button>
+            <button
+              type="button"
+              onClick={handleBackfill}
+              disabled={backfilling}
+              title="Reconstrói o estado completo da origem, sem duplicar leads e sem enviar mensagens."
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition hover:bg-white/[0.08] disabled:opacity-50"
+            >
+              <DatabaseBackup className={`h-4 w-4 ${backfilling ? "animate-pulse" : ""}`} />
+              {backfilling ? "Importando histórico…" : "Carga histórica"}
+            </button>
           </div>
         )}
       </header>
