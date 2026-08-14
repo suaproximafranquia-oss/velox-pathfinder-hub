@@ -210,6 +210,15 @@ export const runCrmSyncNow = createServerFn({ method: "POST" })
   });
 
 /** Reenvio manual e controlado das boas-vindas de um lead. */
+export const runCrmBackfillNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertManager(context as never);
+    const { runGreenSalesBackfill } = await import("@/server/crm/lead-sync.server");
+    return runGreenSalesBackfill(context.userId);
+  });
+
+/** Reenvio manual e controlado das boas-vindas de um lead. */
 export const retryCrmWelcome = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
