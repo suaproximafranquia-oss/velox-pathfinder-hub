@@ -339,6 +339,8 @@ export function CrmComposer({
   disabled = false,
   hint,
   investorName = "",
+  executiveName = "",
+  portalLink = "",
   window: win,
   prefillText,
   prefillNonce = 0,
@@ -601,7 +603,7 @@ export function CrmComposer({
               key={t.id}
               type="button"
               onClick={() => {
-                setText(t.body(investorName));
+                setText(renderCrmTemplate(t, { executiveName, portalLink }));
                 setArmedTemplate(true);
                 setTemplatesOpen(false);
               }}
