@@ -273,12 +273,17 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     const map = new Map<string, CrmLeadView[]>();
     for (const stage of stages) map.set(stage.key, []);
     for (const lead of leads) {
-      const key = lead.stageKey ?? "novos";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(lead);
+      // Espelho fiel: sem etapa na origem, o lead NÃO entra em nenhuma
+      // coluna. Antes ele caía em NOVOS por fallback — a divergência.
+      if (!lead.stageKey) continue;
+      if (!map.has(lead.stageKey)) map.set(lead.stageKey, []);
+      map.get(lead.stageKey)!.push(lead);
     }
     return map;
   }, [leads, stages]);
+
+  /** Leads que existem na origem mas não estão em nenhuma etapa do funil. */
+  const outsideFunnel = useMemo(() => leads.filter((l) => !l.stageKey).length, [leads]);
 
   async function handleSync() {
     setSyncing(true);
@@ -398,6 +403,11 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
 
           <p className="flex items-center gap-2 text-[11px] text-white/35">
             <Lock className="h-3 w-3" /> Quadro somente leitura — a movimentação acontece na origem.
+            {outsideFunnel > 0 && (
+              <span className="text-white/30">
+                · {outsideFunnel} lead(s) sem etapa no funil da origem
+              </span>
+            )}
           </p>
 
           {loading ? (
