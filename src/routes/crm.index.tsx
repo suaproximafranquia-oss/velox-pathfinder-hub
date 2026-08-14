@@ -81,6 +81,7 @@ import {
 } from "@/lib/crm/distribution";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { loadUsers } from "@/lib/executive-auth";
+import { investorPortalUrl } from "@/lib/portal-brands";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { actorFromSession } from "@/lib/crm/access";
 import { CRM_AREAS, type CrmAreaKey } from "@/lib/crm/modules";
