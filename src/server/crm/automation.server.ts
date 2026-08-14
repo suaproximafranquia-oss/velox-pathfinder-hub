@@ -7,7 +7,9 @@
  * que o sincronizador encontre o mesmo lead várias vezes.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { CRM_TEMPLATES } from "@/lib/crm/templates";
+import { getDefaultExecutive } from "@/lib/executive-auth";
+import { investorPortalUrl } from "@/lib/portal-brands";
+import { CRM_TEMPLATES, getCrmTemplate, renderCrmTemplate } from "@/lib/crm/templates";
 import { recordEvent, type CrmLeadRow } from "@/server/crm/lead-service.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 
@@ -38,18 +40,32 @@ export async function loadSettings(): Promise<AutomationSettings> {
   };
 }
 
-/** Texto oficial: reutiliza o template já existente no projeto. */
+/**
+ * Texto oficial: template do CRM de Relacionamento com as variáveis
+ * resolvidas pelo executivo responsável — nunca com nome gravado.
+ */
 export function buildWelcomeMessage(
   settings: AutomationSettings,
-  leadName: string,
+  _leadName?: string,
+  responsible?: { name?: string | null; slug?: string | null } | null,
 ): { body: string; templateId: string; link: string } {
-  const link = settings.materialUrl?.trim() || DEFAULT_MATERIAL_URL;
-  const template = CRM_TEMPLATES.find((t) => t.id === settings.welcomeTemplateId);
-  const first = (leadName || "").trim().split(/\s+/)[0] || "";
-  const base = settings.welcomeBody?.trim()
-    ? settings.welcomeBody.replace(/\{\{nome\}\}/gi, first)
-    : (template ?? CRM_TEMPLATES[0]!).body(leadName);
-  return { body: `${base}\n\n${link}`, templateId: settings.welcomeTemplateId, link };
+  const executive = responsible?.slug
+    ? { name: responsible.name ?? "", slug: responsible.slug }
+    : (() => {
+        const fallback = getDefaultExecutive();
+        return fallback ? { name: fallback.name, slug: fallback.slug } : null;
+      })();
+
+  const link =
+    settings.materialUrl?.trim() ||
+    (executive ? investorPortalUrl(executive.slug) : DEFAULT_MATERIAL_URL);
+
+  const context = { executiveName: executive?.name ?? "", portalLink: link };
+  const template = getCrmTemplate(settings.welcomeTemplateId) ?? CRM_TEMPLATES[0]!;
+  const raw = settings.welcomeBody?.trim() ? settings.welcomeBody : template.body;
+  const body = renderCrmTemplate(raw, context);
+  const withLink = body.includes(link) ? body : `${body}\n\n${link}`;
+  return { body: withLink, templateId: template.id, link };
 }
 
 export type WelcomeOutcome = "enviada" | "pendente" | "falhou" | "ignorada";
