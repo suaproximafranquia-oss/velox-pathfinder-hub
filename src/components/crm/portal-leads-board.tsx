@@ -337,26 +337,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     }
   }
 
-  if (!session) return null;
-
-  // Quando standalone, toma posse da viewport e evita rolagem da página pai.
-  useEffect(() => {
-    if (!standalone) return;
-    const html = document.documentElement;
-    const body = document.body;
-    const prevHtmlOverflow = html.style.overflowY;
-    const prevBodyOverflow = body.style.overflow;
-    const prevBodyPadding = body.style.paddingRight;
-    html.style.overflowY = "hidden";
-    body.style.overflow = "hidden";
-    body.style.paddingRight = "0px";
-    return () => {
-      html.style.overflowY = prevHtmlOverflow;
-      body.style.overflow = prevBodyOverflow;
-      body.style.paddingRight = prevBodyPadding;
-    };
-  }, [standalone]);
-
   const stageList = (
     <div
       className={
@@ -517,10 +497,12 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     </>
   );
 
+  if (!session) return null;
+
   if (standalone) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[color:var(--navy-deep)]">
-        <div className="flex h-full flex-col px-4 py-4 md:px-6 md:py-5">{board}</div>
+      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[color:var(--navy-deep)] px-4 py-4 md:px-6 md:py-5">
+        {board}
       </div>
     );
   }
