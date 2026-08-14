@@ -8,7 +8,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
+import { DatabaseBackup, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
@@ -17,6 +17,7 @@ import {
   listCrmLeads,
   listCrmSyncRuns,
   retryCrmWelcome,
+  runCrmBackfillNow,
   runCrmSyncNow,
   type CrmLeadEventView,
   type CrmLeadView,
@@ -203,6 +204,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const fetchLeads = useServerFn(listCrmLeads);
@@ -211,6 +213,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const fetchStages = useServerFn(listCrmStages);
   const fetchConnection = useServerFn(getGreenSalesConnection);
   const runSync = useServerFn(runCrmSyncNow);
+  const runBackfill = useServerFn(runCrmBackfillNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
 
   useEffect(() => {
@@ -300,6 +303,31 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     const res = await retryWelcome({ data: { id } });
     setNotice(res.ok ? "Mensagem de boas-vindas enviada." : `Envio não concluído (${res.outcome}).`);
     await load();
+  }
+
+  /** Carga histórica: reconstrói o estado da origem, sem disparar mensagens. */
+  async function handleBackfill() {
+    if (
+      !window.confirm(
+        "Importar todo o histórico de leads da origem? Nenhum lead será duplicado e nenhuma mensagem de boas-vindas será enviada.",
+      )
+    )
+      return;
+    setBackfilling(true);
+    setNotice(null);
+    try {
+      const s = await runBackfill({});
+      setNotice(
+        s.ok
+          ? `Carga histórica concluída: ${s.found} encontrados (${s.pagesScanned} páginas), ${s.created} criados, ${s.updated} atualizados, ${s.unchanged} já existentes, ${s.failed} com erro, 0 mensagens enviadas.`
+          : `Carga histórica com falha: ${s.message ?? "erro desconhecido"}.`,
+      );
+      await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Falha na carga histórica.");
+    } finally {
+      setBackfilling(false);
+    }
   }
 
   if (!session) return null;
