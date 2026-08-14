@@ -403,6 +403,11 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
 
           <p className="flex items-center gap-2 text-[11px] text-white/35">
             <Lock className="h-3 w-3" /> Quadro somente leitura — a movimentação acontece na origem.
+            {outsideFunnel > 0 && (
+              <span className="text-white/30">
+                · {outsideFunnel} lead(s) sem etapa no funil da origem
+              </span>
+            )}
           </p>
 
           {loading ? (
