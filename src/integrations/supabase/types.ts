@@ -353,6 +353,7 @@ export type Database = {
           capture_form: string | null
           created_at: string
           email: string
+          entry_count: number
           external_created_at: string | null
           external_id: string
           external_pipeline_id: string | null
@@ -360,6 +361,7 @@ export type Database = {
           external_stage_id: string | null
           id: string
           ingested_at: string
+          last_entry_at: string | null
           last_synced_at: string | null
           name: string
           origin: string | null
@@ -382,6 +384,7 @@ export type Database = {
           capture_form?: string | null
           created_at?: string
           email?: string
+          entry_count?: number
           external_created_at?: string | null
           external_id: string
           external_pipeline_id?: string | null
@@ -389,6 +392,7 @@ export type Database = {
           external_stage_id?: string | null
           id?: string
           ingested_at?: string
+          last_entry_at?: string | null
           last_synced_at?: string | null
           name?: string
           origin?: string | null
@@ -411,6 +415,7 @@ export type Database = {
           capture_form?: string | null
           created_at?: string
           email?: string
+          entry_count?: number
           external_created_at?: string | null
           external_id?: string
           external_pipeline_id?: string | null
@@ -418,6 +423,7 @@ export type Database = {
           external_stage_id?: string | null
           id?: string
           ingested_at?: string
+          last_entry_at?: string | null
           last_synced_at?: string | null
           name?: string
           origin?: string | null
