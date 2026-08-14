@@ -339,8 +339,74 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
 
   if (!session) return null;
 
-  const content = (
-    <div className="rounded-3xl border border-white/10 bg-[color:var(--navy-deep)] bg-[radial-gradient(1200px_500px_at_10%_-10%,color-mix(in_oklab,var(--gold)_9%,transparent),transparent_60%)] p-4 text-white/85 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.7)] md:p-6">
+  // Quando standalone, toma posse da viewport e evita rolagem da página pai.
+  useEffect(() => {
+    if (!standalone) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflowY;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyPadding = body.style.paddingRight;
+    html.style.overflowY = "hidden";
+    body.style.overflow = "hidden";
+    body.style.paddingRight = "0px";
+    return () => {
+      html.style.overflowY = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.paddingRight = prevBodyPadding;
+    };
+  }, [standalone]);
+
+  const stageList = (
+    <div
+      className={
+        standalone
+          ? "-mx-1 flex min-h-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden px-1"
+          : "-mx-1 flex gap-3 overflow-x-auto px-1 pb-2"
+      }
+    >
+      {stages.map((stage) => {
+        const items = byStage.get(stage.key) ?? [];
+        return (
+          <section
+            key={stage.key}
+            className="flex w-[248px] shrink-0 flex-col rounded-2xl border border-white/10 bg-white/[0.03]"
+          >
+            <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+              <h2 className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
+                {stage.label}
+              </h2>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/70">
+                {items.length}
+              </span>
+            </header>
+            <div
+              className={
+                standalone
+                  ? "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2"
+                  : "flex max-h-[64vh] flex-col gap-2 overflow-y-auto p-2"
+              }
+            >
+              {items.length === 0 && (
+                <p className="px-1 py-6 text-center text-[11px] text-white/30">Sem leads</p>
+              )}
+              {items.map((lead) => (
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  showWelcome={stage.isEntry}
+                  onOpen={() => setSelectedId(lead.id)}
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+
+  const board = (
+    <>
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 text-[color:var(--gold)]">
@@ -404,7 +470,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           Área restrita à gestão do CRM.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className={standalone ? "flex min-h-0 flex-1 flex-col gap-4" : "space-y-4"}>
           {notice && (
             <p className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white/70">
               {notice}
@@ -423,39 +489,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           {loading ? (
             <p className="text-xs text-white/50">Carregando quadro…</p>
           ) : (
-            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
-              {stages.map((stage) => {
-                const items = byStage.get(stage.key) ?? [];
-                return (
-                  <section
-                    key={stage.key}
-                    className="flex w-[248px] shrink-0 flex-col rounded-2xl border border-white/10 bg-white/[0.03]"
-                  >
-                    <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
-                      <h2 className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
-                        {stage.label}
-                      </h2>
-                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/70">
-                        {items.length}
-                      </span>
-                    </header>
-                    <div className="flex max-h-[64vh] flex-col gap-2 overflow-y-auto p-2">
-                      {items.length === 0 && (
-                        <p className="px-1 py-6 text-center text-[11px] text-white/30">Sem leads</p>
-                      )}
-                      {items.map((lead) => (
-                        <LeadCard
-                          key={lead.id}
-                          lead={lead}
-                          showWelcome={stage.isEntry}
-                          onOpen={() => setSelectedId(lead.id)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
+            stageList
           )}
         </div>
       )}
@@ -480,20 +514,22 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           setSelectedId(leadId);
         }}
       />
-    </div>
+    </>
   );
 
   if (standalone) {
     return (
-      <div className="min-h-screen bg-[color:var(--navy-deep)] px-3 py-4 md:px-6 md:py-6">
-        {content}
+      <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[color:var(--navy-deep)]">
+        <div className="flex h-full flex-col px-4 py-4 md:px-6 md:py-5">{board}</div>
       </div>
     );
   }
 
   return (
     <ExecutiveShell session={session} title="Portal dos Leads">
-      {content}
+      <div className="rounded-3xl border border-white/10 bg-[color:var(--navy-deep)] bg-[radial-gradient(1200px_500px_at_10%_-10%,color-mix(in_oklab,var(--gold)_9%,transparent),transparent_60%)] p-4 text-white/85 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.7)] md:p-6">
+        {board}
+      </div>
     </ExecutiveShell>
   );
 }
