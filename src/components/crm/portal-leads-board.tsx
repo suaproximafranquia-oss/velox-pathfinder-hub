@@ -8,8 +8,9 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { DatabaseBackup, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
+import { DatabaseBackup, Lock, Phone, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { DailyCallsOverlay } from "@/components/crm/daily-calls-overlay";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import {
@@ -206,6 +207,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const [syncing, setSyncing] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [callsOpen, setCallsOpen] = useState(false);
 
   const fetchLeads = useServerFn(listCrmLeads);
   const fetchRuns = useServerFn(listCrmSyncRuns);
@@ -367,6 +369,14 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
             )}
             <button
               type="button"
+              onClick={() => setCallsOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20"
+            >
+              <Phone className="h-4 w-4" />
+              Ligações do Dia
+            </button>
+            <button
+              type="button"
               onClick={handleSync}
               disabled={syncing}
               className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
@@ -458,6 +468,18 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           onRetry={handleRetry}
         />
       )}
+
+      <DailyCallsOverlay
+        open={callsOpen}
+        onClose={() => {
+          setCallsOpen(false);
+          void load();
+        }}
+        onOpenLead={(leadId) => {
+          setCallsOpen(false);
+          setSelectedId(leadId);
+        }}
+      />
     </div>
   );
 
