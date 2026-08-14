@@ -635,6 +635,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             <CrmComposer
               disabled={!composerEnabled}
               investorName={selected.name}
+              executiveName={session.name}
+              portalLink={investorPortalUrl(
+                loadUsers().find((u) => u.id === session.userId)?.slug ?? "",
+              )}
               window={chatWindow}
               contacts={conversations
                 .filter((c) => c.id !== selected.id && Boolean(c.phone))
