@@ -171,6 +171,8 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         external_source: "greensales",
         external_id: input.externalId,
         ingested_at: now,
+        last_entry_at: input.lastEntryAt ?? input.externalCreatedAt ?? now,
+        entry_count: 1,
         // PENDING representa uma operação real de envio aguardando
         // processamento — nunca "nunca recebeu mensagem".
         welcome_status: input.historical ? "NOT_APPLICABLE" : "PENDING",
@@ -192,9 +194,15 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
   }
 
   const previous = existing as unknown as CrmLeadRow;
-  const stageChanged = previous.stage_key !== input.stageKey;
+  const newEntry = isNewCommercialEntry(previous.last_entry_at, input.lastEntryAt);
+  // Ausência de relação de funil na origem NÃO é movimentação: apagar uma
+  // marcação auxiliar jamais tira o lead da coluna em que ele está.
+  const stageKey = input.stageKey ?? previous.stage_key;
+  const externalStageId = input.stageKey ? input.externalStageId : previous.external_stage_id;
+  const stageChanged = previous.stage_key !== stageKey;
   const changed =
     stageChanged ||
+    newEntry ||
     previous.name !== input.name ||
     previous.phone !== input.phone ||
     previous.email !== input.email ||
@@ -202,7 +210,15 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
 
   const { data, error } = await supabaseAdmin
     .from("crm_leads")
-    .update(base)
+    .update({
+      ...base,
+      stage_key: stageKey,
+      external_stage_id: externalStageId,
+      last_entry_at: newEntry
+        ? (input.lastEntryAt as string)
+        : (previous.last_entry_at ?? input.lastEntryAt ?? input.externalCreatedAt),
+      entry_count: newEntry ? (previous.entry_count ?? 1) + 1 : (previous.entry_count ?? 1),
+    })
     .eq("id", previous.id)
     .select(SELECT)
     .single();
@@ -212,14 +228,24 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
   if (previous.sync_status !== "OK") {
     await recordEvent(lead.id, "sincronizacao_recuperada", "Sincronização normalizada.");
   }
+  if (newEntry) {
+    // Mesma pessoa, nova oportunidade comercial. O histórico anterior
+    // permanece intacto — nada é apagado nem duplicado.
+    await recordEvent(
+      lead.id,
+      "nova_entrada",
+      "Nova entrada comercial registrada na origem (novo cadastro do mesmo lead).",
+      { entrada: input.lastEntryAt, entradas: lead.entry_count, etapa: stageKey },
+    );
+  }
   if (stageChanged) {
     await recordEvent(lead.id, "etapa_alterada", "Etapa atualizada pela origem externa.", {
       de: previous.stage_key,
-      para: input.stageKey,
+      para: stageKey,
     });
-  } else if (changed) {
+  } else if (changed && !newEntry) {
     await recordEvent(lead.id, "lead_atualizado", "Dados atualizados pela origem externa.");
-  } else {
+  } else if (!changed) {
     await recordEvent(lead.id, "lead_sincronizado", "Lead reconhecido — sem alterações.");
   }
   return { lead, created: false, changed };
