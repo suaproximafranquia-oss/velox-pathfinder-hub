@@ -91,6 +91,8 @@ export type UpsertOutcome = {
   lead: CrmLeadRow;
   created: boolean;
   changed: boolean;
+  /** Mesma pessoa, novo cadastro na origem — nova oportunidade comercial. */
+  newEntry: boolean;
 };
 
 const SELECT = "*";
@@ -190,7 +192,7 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         : "Lead recebido da origem externa.",
       { externalId: input.externalId, stage: input.stageKey, historico: Boolean(input.historical) },
     );
-    return { lead, created: true, changed: true };
+    return { lead, created: true, changed: true, newEntry: false };
   }
 
   const previous = existing as unknown as CrmLeadRow;
@@ -248,7 +250,7 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
   } else if (!changed) {
     await recordEvent(lead.id, "lead_sincronizado", "Lead reconhecido — sem alterações.");
   }
-  return { lead, created: false, changed };
+  return { lead, created: false, changed, newEntry };
 }
 
 export async function markSyncFailure(externalId: string, message: string): Promise<void> {
