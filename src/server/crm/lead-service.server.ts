@@ -12,6 +12,7 @@ export type LeadEventType =
   | "lead_sincronizado"
   | "lead_atualizado"
   | "etapa_alterada"
+  | "nova_entrada"
   | "tag_alterada"
   | "boas_vindas_iniciada"
   | "boas_vindas_enviada"
@@ -33,6 +34,8 @@ export type CrmLeadRow = {
   stage_key: string | null;
   external_stage_id: string | null;
   external_created_at: string | null;
+  last_entry_at: string | null;
+  entry_count: number;
   ingested_at: string;
   last_synced_at: string | null;
   sync_status: string;
@@ -71,6 +74,11 @@ export type UpsertInput = {
   stageKey: string | null;
   externalStageId: string | null;
   externalCreatedAt: string | null;
+  /**
+   * Data/hora da última entrada comercial informada pela origem
+   * (novo cadastro da MESMA pessoa). Nunca substitui o histórico.
+   */
+  lastEntryAt?: string | null;
   rawPayload: unknown;
   /**
    * Carga histórica: o lead já existia na origem antes do Portal. Ele é
@@ -83,9 +91,53 @@ export type UpsertOutcome = {
   lead: CrmLeadRow;
   created: boolean;
   changed: boolean;
+  /** Mesma pessoa, novo cadastro na origem — nova oportunidade comercial. */
+  newEntry: boolean;
 };
 
 const SELECT = "*";
+
+/**
+ * Estado mínimo já conhecido do lead — usado ANTES do upsert para
+ * decidir se a origem registrou uma nova entrada comercial e, com isso,
+ * qual relação de funil está vigente.
+ */
+export type LeadEntryState = {
+  exists: boolean;
+  stageKey: string | null;
+  lastEntryAt: string | null;
+  entryCount: number;
+};
+
+export async function getLeadEntryState(externalId: string): Promise<LeadEntryState> {
+  const { data } = await supabaseAdmin
+    .from("crm_leads")
+    .select("stage_key,last_entry_at,entry_count")
+    .eq("external_source", "greensales")
+    .eq("external_id", externalId)
+    .maybeSingle();
+  if (!data) return { exists: false, stageKey: null, lastEntryAt: null, entryCount: 0 };
+  return {
+    exists: true,
+    stageKey: data.stage_key,
+    lastEntryAt: data.last_entry_at,
+    entryCount: data.entry_count ?? 1,
+  };
+}
+
+/** Nova entrada = mesma pessoa, novo cadastro posterior ao já conhecido. */
+export function isNewCommercialEntry(
+  previousEntryAt: string | null,
+  incomingEntryAt: string | null | undefined,
+): boolean {
+  if (!incomingEntryAt) return false;
+  const incoming = Date.parse(incomingEntryAt);
+  if (Number.isNaN(incoming)) return false;
+  if (!previousEntryAt) return false;
+  const previous = Date.parse(previousEntryAt);
+  if (Number.isNaN(previous)) return false;
+  return incoming > previous;
+}
 
 /** Upsert idempotente: nunca duplica e sempre registra o histórico. */
 export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
@@ -121,6 +173,8 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         external_source: "greensales",
         external_id: input.externalId,
         ingested_at: now,
+        last_entry_at: input.lastEntryAt ?? input.externalCreatedAt ?? now,
+        entry_count: 1,
         // PENDING representa uma operação real de envio aguardando
         // processamento — nunca "nunca recebeu mensagem".
         welcome_status: input.historical ? "NOT_APPLICABLE" : "PENDING",
@@ -138,13 +192,19 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         : "Lead recebido da origem externa.",
       { externalId: input.externalId, stage: input.stageKey, historico: Boolean(input.historical) },
     );
-    return { lead, created: true, changed: true };
+    return { lead, created: true, changed: true, newEntry: false };
   }
 
   const previous = existing as unknown as CrmLeadRow;
-  const stageChanged = previous.stage_key !== input.stageKey;
+  const newEntry = isNewCommercialEntry(previous.last_entry_at, input.lastEntryAt);
+  // Ausência de relação de funil na origem NÃO é movimentação: apagar uma
+  // marcação auxiliar jamais tira o lead da coluna em que ele está.
+  const stageKey = input.stageKey ?? previous.stage_key;
+  const externalStageId = input.stageKey ? input.externalStageId : previous.external_stage_id;
+  const stageChanged = previous.stage_key !== stageKey;
   const changed =
     stageChanged ||
+    newEntry ||
     previous.name !== input.name ||
     previous.phone !== input.phone ||
     previous.email !== input.email ||
@@ -152,7 +212,15 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
 
   const { data, error } = await supabaseAdmin
     .from("crm_leads")
-    .update(base)
+    .update({
+      ...base,
+      stage_key: stageKey,
+      external_stage_id: externalStageId,
+      last_entry_at: newEntry
+        ? (input.lastEntryAt as string)
+        : (previous.last_entry_at ?? input.lastEntryAt ?? input.externalCreatedAt),
+      entry_count: newEntry ? (previous.entry_count ?? 1) + 1 : (previous.entry_count ?? 1),
+    })
     .eq("id", previous.id)
     .select(SELECT)
     .single();
@@ -162,17 +230,27 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
   if (previous.sync_status !== "OK") {
     await recordEvent(lead.id, "sincronizacao_recuperada", "Sincronização normalizada.");
   }
+  if (newEntry) {
+    // Mesma pessoa, nova oportunidade comercial. O histórico anterior
+    // permanece intacto — nada é apagado nem duplicado.
+    await recordEvent(
+      lead.id,
+      "nova_entrada",
+      "Nova entrada comercial registrada na origem (novo cadastro do mesmo lead).",
+      { entrada: input.lastEntryAt, entradas: lead.entry_count, etapa: stageKey },
+    );
+  }
   if (stageChanged) {
     await recordEvent(lead.id, "etapa_alterada", "Etapa atualizada pela origem externa.", {
       de: previous.stage_key,
-      para: input.stageKey,
+      para: stageKey,
     });
-  } else if (changed) {
+  } else if (changed && !newEntry) {
     await recordEvent(lead.id, "lead_atualizado", "Dados atualizados pela origem externa.");
-  } else {
+  } else if (!changed) {
     await recordEvent(lead.id, "lead_sincronizado", "Lead reconhecido — sem alterações.");
   }
-  return { lead, created: false, changed };
+  return { lead, created: false, changed, newEntry };
 }
 
 export async function markSyncFailure(externalId: string, message: string): Promise<void> {

@@ -81,6 +81,7 @@ import {
 } from "@/lib/crm/distribution";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { loadUsers } from "@/lib/executive-auth";
+import { investorPortalUrl } from "@/lib/portal-brands";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { actorFromSession } from "@/lib/crm/access";
 import { CRM_AREAS, type CrmAreaKey } from "@/lib/crm/modules";
@@ -635,6 +636,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             <CrmComposer
               disabled={!composerEnabled}
               investorName={selected.name}
+              executiveName={session.name}
+              portalLink={investorPortalUrl(
+                loadUsers().find((u) => u.id === session.userId)?.slug ?? "",
+              )}
               window={chatWindow}
               contacts={conversations
                 .filter((c) => c.id !== selected.id && Boolean(c.phone))

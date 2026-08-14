@@ -23,7 +23,12 @@ import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
-import { CRM_TEMPLATES, resolveCrmWindow, type CrmWindowStatus } from "@/lib/crm/templates";
+import {
+  CRM_TEMPLATES,
+  renderCrmTemplate,
+  resolveCrmWindow,
+  type CrmWindowStatus,
+} from "@/lib/crm/templates";
 const CHATGPT_URL = "https://chatgpt.com/";
 
 /** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
@@ -334,6 +339,8 @@ export function CrmComposer({
   disabled = false,
   hint,
   investorName = "",
+  executiveName = "",
+  portalLink = "",
   window: win,
   prefillText,
   prefillNonce = 0,
@@ -348,6 +355,10 @@ export function CrmComposer({
   hint?: string;
   /** Nome usado na personalização dos templates. */
   investorName?: string;
+  /** Executivo responsável — resolve {{nome_executivo}}. */
+  executiveName?: string;
+  /** Portal do Investidor do executivo — resolve {{link_portal_investidor}}. */
+  portalLink?: string;
   window?: CrmWindowStatus;
   /** Texto carregado a partir do módulo Templates. */
   prefillText?: string | null;
@@ -592,7 +603,7 @@ export function CrmComposer({
               key={t.id}
               type="button"
               onClick={() => {
-                setText(t.body(investorName));
+                setText(renderCrmTemplate(t, { executiveName, portalLink }));
                 setArmedTemplate(true);
                 setTemplatesOpen(false);
               }}

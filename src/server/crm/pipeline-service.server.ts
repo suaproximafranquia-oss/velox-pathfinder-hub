@@ -57,16 +57,30 @@ export async function loadPipeline(
 }
 
 /**
- * Resolve a etapa a partir das tags do lead na origem. Quando o lead
- * carrega mais de uma tag de etapa, prevalece a de maior posição — a
- * etapa mais avançada do funil.
+ * Resolve a etapa a partir da relação real do lead com o funil da origem.
+ *
+ * Regras:
+ * - somente relações que existem no funil configurado são consideradas;
+ *   qualquer outra marcação (marketing, formulário, remarketing antigo)
+ *   é dado auxiliar e nunca decide a coluna;
+ * - quando existe uma NOVA ENTRADA comercial (a pessoa se cadastrou de
+ *   novo) e a origem devolve a relação de entrada, a etapa atual é a de
+ *   entrada — relações antigas não bloqueiam o novo ciclo;
+ * - sem nova entrada, prevalece a relação mais avançada do funil;
+ * - ausência de relação NÃO é movimentação: devolve `null` e o chamador
+ *   preserva a última etapa conhecida.
  */
 export function resolveStage(
   pipeline: PipelineMap,
   tagIds: string[],
+  options: { newEntry?: boolean } = {},
 ): PipelineStage | null {
   const wanted = new Set(tagIds.map((t) => String(t)));
   const matched = pipeline.stages.filter((s) => wanted.has(s.externalTag));
   if (!matched.length) return null;
+  if (options.newEntry) {
+    const entry = matched.find((s) => s.isEntry);
+    if (entry) return entry;
+  }
   return matched.reduce((a, b) => (b.position > a.position ? b : a));
 }
