@@ -34,6 +34,7 @@ const WELCOME_LABEL: Record<string, string> = {
   SENDING: "Enviando",
   SENT: "Enviada",
   FAILED: "Falhou",
+  NOT_APPLICABLE: "Sem primeiro contato",
 };
 
 function formatDate(value: string | null): string {
