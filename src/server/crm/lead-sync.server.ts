@@ -8,7 +8,12 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normalizeGreenSalesLead } from "@/lib/greensales/normalize";
 import { loadSettings, processWelcome } from "@/server/crm/automation.server";
-import { markSyncFailure, upsertLead } from "@/server/crm/lead-service.server";
+import {
+  getLeadEntryState,
+  isNewCommercialEntry,
+  markSyncFailure,
+  upsertLead,
+} from "@/server/crm/lead-service.server";
 import {
   DEFAULT_PIPELINE_EXTERNAL_ID,
   loadPipeline,
@@ -129,7 +134,18 @@ export async function runLeadSync(
       const tags = Array.isArray(raw["tags"])
         ? (raw["tags"] as { id: number | string }[]).map((t) => String(t.id))
         : [];
-      const stage = resolveStage(pipeline, tags);
+      // Nova entrada comercial: a MESMA pessoa realizou um novo cadastro.
+      // A origem devolve isso em `last_register_at` (fallback `register`).
+      const lastEntryAt =
+        (raw["last_register_at"] as string) ??
+        (raw["register"] as string) ??
+        (raw["created_at"] as string) ??
+        null;
+      const known = await getLeadEntryState(externalId);
+      const newEntry = isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
+      // Etapa vem da relação real com o funil; marcações auxiliares
+      // (remarketing, formulário, campanha) nunca decidem a coluna.
+      const stage = resolveStage(pipeline, tags, { newEntry });
       const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
 
       const outcome = await upsertLead({
@@ -144,6 +160,7 @@ export async function runLeadSync(
         stageKey: stage?.key ?? null,
         externalStageId: stage?.externalTag ?? null,
         externalCreatedAt: (raw["created_at"] as string) ?? null,
+        lastEntryAt,
         rawPayload: raw,
       });
       if (outcome.created) summary.created += 1;
@@ -272,7 +289,18 @@ export async function runGreenSalesBackfill(
       const tags = Array.isArray(raw["tags"])
         ? (raw["tags"] as { id: number | string }[]).map((t) => String(t.id))
         : [];
-      const stage = resolveStage(pipeline, tags);
+      // Nova entrada comercial: a MESMA pessoa realizou um novo cadastro.
+      // A origem devolve isso em `last_register_at` (fallback `register`).
+      const lastEntryAt =
+        (raw["last_register_at"] as string) ??
+        (raw["register"] as string) ??
+        (raw["created_at"] as string) ??
+        null;
+      const known = await getLeadEntryState(externalId);
+      const newEntry = isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
+      // Etapa vem da relação real com o funil; marcações auxiliares
+      // (remarketing, formulário, campanha) nunca decidem a coluna.
+      const stage = resolveStage(pipeline, tags, { newEntry });
       const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
 
       const outcome = await upsertLead({
@@ -287,6 +315,7 @@ export async function runGreenSalesBackfill(
         stageKey: stage?.key ?? null,
         externalStageId: stage?.externalTag ?? null,
         externalCreatedAt: (raw["created_at"] as string) ?? null,
+        lastEntryAt,
         rawPayload: raw,
         historical: true,
       });
