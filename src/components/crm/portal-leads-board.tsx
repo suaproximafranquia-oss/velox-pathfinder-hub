@@ -257,7 +257,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     } finally {
       setLoading(false);
     }
-  }, [fetchConnection, fetchLeads, fetchRuns, fetchStages, search]);
+  }, [fetchCallsSummary, fetchConnection, fetchLeads, fetchRuns, fetchStages, search]);
 
   useEffect(() => {
     if (!allowed) return;
