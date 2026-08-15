@@ -69,6 +69,8 @@ export function DailyCallsOverlay({
     [queue, selectedId],
   );
 
+  const overdueCount = useMemo(() => queue.filter((item) => item.overdue).length, [queue]);
+
   async function handleDone(item: CadenceQueueView) {
     setBusy(true);
     try {
@@ -77,6 +79,7 @@ export function DailyCallsOverlay({
           leadId: item.leadId,
           step: item.step,
           dueDate: item.dueDate,
+          cycleDate: item.entryDate,
           channel: "call",
         },
       });
@@ -115,7 +118,10 @@ export function DailyCallsOverlay({
             <div>
               <h2 className="font-display text-base leading-tight text-white">Ligações do Dia</h2>
               <p className="text-[11px] text-white/45">
-                {queue.length} ligação(ões) pendente(s) · cadência D1 · D3 · D4 · D7
+                {overdueCount > 0
+                  ? `${overdueCount} atrasada(s) · ${queue.length - overdueCount} para hoje`
+                  : `${queue.length} para hoje`}
+                {" · próxima tentativa em dias úteis"}
               </p>
             </div>
           </div>
@@ -155,8 +161,8 @@ export function DailyCallsOverlay({
               <>
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-white/40">
-                    Tentativa D{selected.step} · entrada {formatDay(selected.entryDate)}
-                    {selected.overdue ? ` · prevista ${formatDay(selected.dueDate)}` : ""}
+                    {selected.step}ª tentativa · entrada {formatDay(selected.entryDate)}
+                    {selected.overdue ? ` · atrasada desde ${formatDay(selected.dueDate)}` : ""}
                   </p>
                   <h3 className="mt-2 font-display text-3xl leading-tight text-white">
                     {selected.name || "Sem nome"}
@@ -220,6 +226,11 @@ export function DailyCallsOverlay({
                     >
                       <p className="truncate text-[13px] font-medium text-white/90">
                         {item.name || "Sem nome"}
+                        {item.overdue && (
+                          <span className="ml-2 rounded-full bg-red-400/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-red-300">
+                            atrasada
+                          </span>
+                        )}
                       </p>
                       <p className="truncate text-[11px] text-white/50">
                         {item.phone || "Sem telefone"}

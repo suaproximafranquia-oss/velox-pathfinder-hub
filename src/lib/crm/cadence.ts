@@ -1,21 +1,36 @@
 /**
- * Regras da cadência comercial do Portal dos Leads.
+ * Motor de cadência comercial do Portal dos Leads.
  *
- * Camada de tarefas sobre os leads já sincronizados — nunca um segundo
- * CRM. O GreenSales continua sendo a fonte da verdade das etapas; aqui
- * apenas calculamos qual atividade é devida hoje para cada lead.
+ * Camada operacional sobre os leads sincronizados — nunca um segundo CRM.
+ * O GreenSales continua sendo a fonte da verdade da etapa; aqui só
+ * calculamos qual atividade é devida hoje para cada lead.
  *
- * A arquitetura é multicanal desde o início: hoje existe apenas o canal
- * `call`; o canal `message` (D1→D2→D4→D5→D12→D13) pode ser ligado no
- * futuro sem alterar a mecânica.
+ * Toda a regra comercial vive neste arquivo (intervalos, tentativas,
+ * elegibilidade, dias úteis, data de ativação). A interface não decide
+ * nada — apenas apresenta o que este motor calcula.
  */
 export type CadenceChannel = "call" | "message";
 
-export const CADENCE_STEPS: Record<CadenceChannel, number[]> = {
-  call: [1, 3, 4, 7],
-  // A sequência de mensagens encerra no D12 — não existe D13.
-  message: [1, 2, 4, 5, 12],
+export type CadenceConfig = {
+  enabled: boolean;
+  /**
+   * Intervalos em DIAS ÚTEIS a partir da ligação anterior efetivamente
+   * realizada. O primeiro elemento é sempre 0: a L1 vence na própria
+   * data da entrada comercial. L1 → +2 → L2 → +1 → L3 → +3 → L4.
+   */
+  offsets: number[];
 };
+
+export const CADENCE_CONFIG: Record<CadenceChannel, CadenceConfig> = {
+  call: { enabled: true, offsets: [0, 2, 1, 3] },
+  // Mensagens continuam desligadas nesta etapa (D1 · D2 · D4 · D5 · D12).
+  message: { enabled: false, offsets: [0, 1, 2, 1, 7] },
+};
+
+/** Quantidade de tentativas do canal. */
+export function totalSteps(channel: CadenceChannel): number {
+  return CADENCE_CONFIG[channel].offsets.length;
+}
 
 /** Etapas da origem em que o lead ainda precisa de tentativa de contato. */
 export const ELIGIBLE_STAGE_KEYS = ["novos", "zero_contato", "frio"] as const;
@@ -23,6 +38,16 @@ export const ELIGIBLE_STAGE_KEYS = ["novos", "zero_contato", "frio"] as const;
 export function isEligibleStage(stageKey: string | null): boolean {
   return Boolean(stageKey && (ELIGIBLE_STAGE_KEYS as readonly string[]).includes(stageKey));
 }
+
+/**
+ * Data de ativação da cadência. Leads históricos (entrada comercial
+ * anterior a esta data) NÃO recebem fila retroativa; a regra vale para
+ * novas entradas comerciais — inclusive de leads antigos que voltam.
+ */
+export const CADENCE_ACTIVATION_DATE = "2026-08-15";
+
+/** Feriados (YYYY-MM-DD) tratados como dias não úteis. Evolutivo. */
+export const NON_BUSINESS_DAYS: string[] = [];
 
 const TIME_ZONE = "America/Sao_Paulo";
 
@@ -44,33 +69,61 @@ export function addDays(isoDate: string, days: number): string {
   return new Date(base + days * 86_400_000).toISOString().slice(0, 10);
 }
 
+export function isBusinessDay(isoDate: string): boolean {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const weekday = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).getUTCDay();
+  if (weekday === 0 || weekday === 6) return false;
+  return !NON_BUSINESS_DAYS.includes(isoDate);
+}
+
+/** Empurra sábados, domingos e feriados para o próximo dia útil. */
+export function nextBusinessDay(isoDate: string): string {
+  let date = isoDate;
+  for (let i = 0; i < 30 && !isBusinessDay(date); i += 1) date = addDays(date, 1);
+  return date;
+}
+
+/** Soma dias úteis; 0 apenas normaliza para o próximo dia útil. */
+export function addBusinessDays(isoDate: string, days: number): string {
+  let date = nextBusinessDay(isoDate);
+  for (let i = 0; i < days; i += 1) date = nextBusinessDay(addDays(date, 1));
+  return date;
+}
+
 /**
- * Data de entrada real do lead na origem. Nunca usar `ingestedAt` ou
- * `lastSyncedAt` como referência da cadência — eles são técnicos.
+ * Data de entrada comercial do ciclo atual. Nunca usar `ingestedAt` ou
+ * `lastSyncedAt` como referência — eles são técnicos. Uma nova entrada
+ * (`lastEntryAt`) abre um novo ciclo sobre o mesmo lead.
  */
-export function cadenceBaseDate(lead: {
+export function cadenceCycleDate(lead: {
+  lastEntryAt?: string | null;
   externalCreatedAt: string | null;
   ingestedAt?: string | null;
 }): string | null {
-  const source = lead.externalCreatedAt ?? lead.ingestedAt ?? null;
+  const source = lead.lastEntryAt ?? lead.externalCreatedAt ?? lead.ingestedAt ?? null;
   if (!source) return null;
-  const date = commercialDate(source);
-  return date || null;
+  return commercialDate(source) || null;
 }
 
-/** Data prevista de um passo (D1 = a própria data de entrada). */
-export function dueDateForStep(baseDate: string, step: number): string {
-  return addDays(baseDate, step - 1);
-}
+/** Compatibilidade com o cálculo anterior. */
+export const cadenceBaseDate = cadenceCycleDate;
 
 /**
- * Próximo passo aplicável considerando o histórico já executado.
- * Um lead que volta para FRIO não reinicia em D1: retomamos de onde parou.
+ * Próxima tentativa de um ciclo, calculada SEMPRE a partir da última
+ * ligação efetivamente realizada — nunca da data originalmente prevista.
+ * `completedDates` são as datas reais (YYYY-MM-DD) das conclusões, em ordem.
  */
-export function nextStep(
+export function nextCadenceStep(
   channel: CadenceChannel,
-  completedSteps: number[],
-): number | null {
-  const done = new Set(completedSteps);
-  return CADENCE_STEPS[channel].find((step) => !done.has(step)) ?? null;
+  cycleDate: string,
+  completedDates: string[],
+): { step: number; dueDate: string } | null {
+  const config = CADENCE_CONFIG[channel];
+  if (!config.enabled) return null;
+  const done = completedDates.length;
+  if (done >= config.offsets.length) return null;
+  const offset = config.offsets[done] ?? 0;
+  const anchor = done === 0 ? cycleDate : (completedDates[done - 1] ?? cycleDate);
+  const dueDate = done === 0 ? nextBusinessDay(anchor) : addBusinessDays(anchor, offset);
+  return { step: done + 1, dueDate };
 }

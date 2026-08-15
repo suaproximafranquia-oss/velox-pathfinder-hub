@@ -230,6 +230,7 @@ export type Database = {
           completed_at: string | null
           completed_by: string | null
           created_at: string
+          cycle_date: string
           due_date: string
           id: string
           lead_id: string
@@ -243,6 +244,7 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
+          cycle_date?: string
           due_date: string
           id?: string
           lead_id: string
@@ -256,6 +258,7 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
+          cycle_date?: string
           due_date?: string
           id?: string
           lead_id?: string

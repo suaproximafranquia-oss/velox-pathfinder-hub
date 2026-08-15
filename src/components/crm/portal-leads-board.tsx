@@ -11,6 +11,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { DatabaseBackup, Lock, Phone, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { DailyCallsOverlay } from "@/components/crm/daily-calls-overlay";
+import { getCadenceSummary } from "@/lib/crm/cadence.functions";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import {
@@ -208,6 +209,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const [backfilling, setBackfilling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [callsOpen, setCallsOpen] = useState(false);
+  const [callsSummary, setCallsSummary] = useState<{ overdue: number; today: number } | null>(null);
 
   const fetchLeads = useServerFn(listCrmLeads);
   const fetchRuns = useServerFn(listCrmSyncRuns);
@@ -217,6 +219,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const runSync = useServerFn(runCrmSyncNow);
   const runBackfill = useServerFn(runCrmBackfillNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
+  const fetchCallsSummary = useServerFn(getCadenceSummary);
 
   useEffect(() => {
     const s = getSession();
@@ -244,12 +247,17 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       setRuns(history);
       setStages(stageList);
       setConnection(conn);
+      try {
+        setCallsSummary(await fetchCallsSummary({ data: { channel: "call" } }));
+      } catch {
+        setCallsSummary(null);
+      }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Falha ao carregar o quadro.");
     } finally {
       setLoading(false);
     }
-  }, [fetchConnection, fetchLeads, fetchRuns, fetchStages, search]);
+  }, [fetchCallsSummary, fetchConnection, fetchLeads, fetchRuns, fetchStages, search]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -420,6 +428,13 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
             >
               <Phone className="h-4 w-4" />
               Ligações do Dia
+              {callsSummary && callsSummary.overdue + callsSummary.today > 0 && (
+                <span className="rounded-full bg-[color:var(--gold)]/20 px-2 py-0.5 text-[10px]">
+                  {callsSummary.overdue > 0
+                    ? `${callsSummary.overdue} atrasadas · ${callsSummary.today} hoje`
+                    : callsSummary.today}
+                </span>
+              )}
             </button>
             <button
               type="button"
