@@ -18,6 +18,8 @@ export type CadenceQueueView = {
   overdue: boolean;
 };
 
+export type CadenceSummaryView = { overdue: number; today: number; total: number };
+
 async function assertManager(context: { supabase: never; userId: string }) {
   const supabase = context.supabase as unknown as {
     rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: boolean | null }>;
@@ -41,7 +43,21 @@ export const listCadenceQueue = createServerFn({ method: "POST" })
     return buildCadenceQueue(data.channel);
   });
 
-/** Registra a tentativa do dia — não exclui o lead nem encerra a cadência. */
+/** Contador discreto do botão: atrasadas x vencendo hoje. */
+export const getCadenceSummary = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ channel: z.enum(["call", "message"]).default("call") }).parse(data ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<CadenceSummaryView> => {
+    await assertManager(context as never);
+    const { buildCadenceQueue } = await import("@/server/crm/cadence.server");
+    const queue = await buildCadenceQueue(data.channel);
+    const overdue = queue.filter((item) => item.overdue).length;
+    return { overdue, today: queue.length - overdue, total: queue.length };
+  });
+
+/** Registra a tentativa realizada — não exclui o lead nem encerra a cadência. */
 export const completeCadenceTaskFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) =>
@@ -50,6 +66,7 @@ export const completeCadenceTaskFn = createServerFn({ method: "POST" })
         leadId: z.string().uuid(),
         step: z.number().int().positive(),
         dueDate: z.string(),
+        cycleDate: z.string(),
         channel: z.enum(["call", "message"]).default("call"),
       })
       .parse(data),
