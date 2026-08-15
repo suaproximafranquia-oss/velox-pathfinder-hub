@@ -208,6 +208,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const [backfilling, setBackfilling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [callsOpen, setCallsOpen] = useState(false);
+  const [callsSummary, setCallsSummary] = useState<{ overdue: number; today: number } | null>(null);
 
   const fetchLeads = useServerFn(listCrmLeads);
   const fetchRuns = useServerFn(listCrmSyncRuns);
@@ -217,6 +218,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const runSync = useServerFn(runCrmSyncNow);
   const runBackfill = useServerFn(runCrmBackfillNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
+  const fetchCallsSummary = useServerFn(getCadenceSummary);
 
   useEffect(() => {
     const s = getSession();
