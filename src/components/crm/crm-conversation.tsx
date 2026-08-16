@@ -399,6 +399,8 @@ export function CrmComposer({
 }) {
   const [text, setText] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  /** Cadastros vindos da Central de Templates (mesma finalidade e nome). */
+  const centralTemplates = useCentralTemplates(templatesOpen);
   const [armedTemplate, setArmedTemplate] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   /** Seletor de contato do CRM (substitui o antigo arquivo .vcf). */
@@ -628,6 +630,21 @@ export function CrmComposer({
       ) : null}
       {templatesOpen && !disabled ? (
         <div className="crm-enter mb-2 flex flex-wrap gap-1.5">
+          {centralTemplates.map((t) => (
+            <button
+              key={`meta-${t.id}-${t.language ?? ""}`}
+              type="button"
+              title={`${t.id}${t.language ? ` · ${t.language}` : ""}`}
+              onClick={() => {
+                setText(renderCrmTemplate(t.body, { executiveName, portalLink }));
+                setArmedTemplate(true);
+                setTemplatesOpen(false);
+              }}
+              className="cursor-pointer rounded-lg border border-[color:var(--crm-accent)]/40 bg-[color:var(--crm-accent-soft)] px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--crm-accent)] transition-all duration-150 hover:-translate-y-[1px] active:translate-y-0"
+            >
+              {t.label}
+            </button>
+          ))}
           {CRM_TEMPLATES.map((t) => (
             <button
               key={t.id}
