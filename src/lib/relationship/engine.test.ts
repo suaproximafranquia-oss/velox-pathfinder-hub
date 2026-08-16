@@ -193,7 +193,18 @@ function memoryRepository(scope: EngineScope, runId: string | null = null) {
       };
     },
     async loadContentLibrary() {
-      return [];
+      // Biblioteca mínima de homologação: um conteúdo ativo por grupo.
+      return ["E1", "E3", "R1", "R2"].map((group) => ({
+        id: `${group}-1`,
+        group,
+        name: `Conteúdo ${group}`,
+        kind: "pdf" as const,
+        url: "https://exemplo.test/conteudo",
+        active: true,
+        usageCount: 0,
+        createdAt: "2026-08-01T12:00:00.000Z",
+        updatedAt: "2026-08-01T12:00:00.000Z",
+      }));
     },
   };
   return { repo, queue, decisions, records };
