@@ -698,9 +698,10 @@ async function runLead(
   const executedSteps = finalRecord.executedSteps;
   const blockedDecisions = repository.decisions.filter((d) => d.outcome === "blocked").length;
 
+  const expectedSteps = expectedStepsFor(lead);
   const stepsMatch =
-    executedSteps.length === scenario.expectedSteps.length &&
-    executedSteps.every((s, i) => s === scenario.expectedSteps[i]);
+    executedSteps.length === expectedSteps.length &&
+    executedSteps.every((s, i) => s === expectedSteps[i]);
   const stateMatch = scenario.expectedStates.includes(finalRecord.state);
 
   const outsideHours = messages.filter(
@@ -710,7 +711,7 @@ async function runLead(
   const problems: string[] = [];
   if (!stepsMatch) {
     problems.push(
-      `Etapas executadas [${executedSteps.join(" → ") || "nenhuma"}] divergem do esperado [${scenario.expectedSteps.join(" → ")}].`,
+      `Etapas executadas [${executedSteps.join(" → ") || "nenhuma"}] divergem do esperado [${expectedSteps.join(" → ")}].`,
     );
   }
   if (!stateMatch) {
@@ -747,7 +748,7 @@ async function runLead(
     events: repository.events,
     result: problems.length === 0 ? "PASS" : "FAIL",
     divergence: problems.length === 0 ? null : problems.join(" "),
-    expectedSteps: scenario.expectedSteps,
+    expectedSteps,
     expectedStates: scenario.expectedStates,
   };
 }
