@@ -67,3 +67,56 @@ export function display(value: string | null | undefined): string {
   const text = (value ?? "").trim();
   return text ? text : NOT_IDENTIFIED;
 }
+
+/* ------------------------------------------------------------------ CRM */
+
+/**
+ * Ponte Central de Templates → CRM de Relacionamento.
+ *
+ * O CRM apenas ENXERGA o cadastro: nada é enviado, disparado ou
+ * sincronizado com a Meta nesta operação.
+ */
+export type CrmMetaTemplateOption = {
+  /** Nome oficial do template na Meta (identificador no CRM). */
+  id: string;
+  /** Rótulo pela finalidade operacional escolhida na Central. */
+  label: string;
+  purpose: MetaTemplatePurpose;
+  language: string | null;
+  category: string | null;
+  status: string | null;
+  /** Texto pronto para conferência/composição (cabeçalho + corpo + rodapé). */
+  body: string;
+  variables: MetaTemplateVariable[];
+  buttons: MetaTemplateButton[];
+  source: "meta";
+};
+
+/** Passo de cadência sugerido pela finalidade (organização, não disparo). */
+export const PURPOSE_CADENCE_STEP: Record<MetaTemplatePurpose, number | null> = {
+  primeiro_contato: 1,
+  segundo_contato: 2,
+  terceiro_contato: 4,
+  quarto_contato: 5,
+  encerramento: 12,
+  abertura_conversa: null,
+  outro: null,
+};
+
+export function metaTemplateToCrmOption(record: MetaTemplateRecord): CrmMetaTemplateOption {
+  const parts = [record.header, record.body, record.footer]
+    .map((p) => (p ?? "").trim())
+    .filter(Boolean);
+  return {
+    id: record.name ?? record.id,
+    label: `${purposeLabel(record.purpose)} · ${display(record.name)}`,
+    purpose: record.purpose,
+    language: record.language,
+    category: record.category,
+    status: record.status,
+    body: parts.join("\n\n"),
+    variables: record.variables,
+    buttons: record.buttons,
+    source: "meta",
+  };
+}
