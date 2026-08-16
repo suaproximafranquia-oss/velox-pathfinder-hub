@@ -203,7 +203,9 @@ function TemplatesPage() {
       }
       resetImport();
       setView("lista");
-      setStatus("Template cadastrado na Central de Templates.");
+      setStatus(
+        "Template cadastrado na Central de Templates e disponível no CRM de Relacionamento (nenhuma mensagem foi enviada).",
+      );
       await refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Falha ao salvar o template.");
