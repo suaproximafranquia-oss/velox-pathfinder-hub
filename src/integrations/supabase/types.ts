@@ -1163,6 +1163,368 @@ export type Database = {
           },
         ]
       }
+      relationship_cadences: {
+        Row: {
+          close_reason: string | null
+          closed_at: string | null
+          content_history: Json
+          created_at: string
+          current_step: string | null
+          executed_steps: Json
+          flow: string
+          id: string
+          last_event_at: string | null
+          last_event_type: string | null
+          last_executive_reply_at: string | null
+          last_inbound_at: string | null
+          last_outbound_at: string | null
+          lead_id: string
+          name_confirmed: boolean
+          opening_template_history: Json
+          previous_state: string | null
+          read_count: number
+          response_count: number
+          run_id: string | null
+          scheduled: boolean
+          scope: string
+          started_at: string | null
+          started_by: string | null
+          state: string
+          updated_at: string
+          window_open_until: string | null
+        }
+        Insert: {
+          close_reason?: string | null
+          closed_at?: string | null
+          content_history?: Json
+          created_at?: string
+          current_step?: string | null
+          executed_steps?: Json
+          flow: string
+          id?: string
+          last_event_at?: string | null
+          last_event_type?: string | null
+          last_executive_reply_at?: string | null
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          lead_id: string
+          name_confirmed?: boolean
+          opening_template_history?: Json
+          previous_state?: string | null
+          read_count?: number
+          response_count?: number
+          run_id?: string | null
+          scheduled?: boolean
+          scope: string
+          started_at?: string | null
+          started_by?: string | null
+          state: string
+          updated_at?: string
+          window_open_until?: string | null
+        }
+        Update: {
+          close_reason?: string | null
+          closed_at?: string | null
+          content_history?: Json
+          created_at?: string
+          current_step?: string | null
+          executed_steps?: Json
+          flow?: string
+          id?: string
+          last_event_at?: string | null
+          last_event_type?: string | null
+          last_executive_reply_at?: string | null
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          lead_id?: string
+          name_confirmed?: boolean
+          opening_template_history?: Json
+          previous_state?: string | null
+          read_count?: number
+          response_count?: number
+          run_id?: string | null
+          scheduled?: boolean
+          scope?: string
+          started_at?: string | null
+          started_by?: string | null
+          state?: string
+          updated_at?: string
+          window_open_until?: string | null
+        }
+        Relationships: []
+      }
+      relationship_contents: {
+        Row: {
+          active: boolean
+          content_group: string
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          scope: string
+          updated_at: string
+          url: string
+          usage_count: number
+        }
+        Insert: {
+          active?: boolean
+          content_group: string
+          created_at?: string
+          id?: string
+          kind: string
+          name: string
+          scope?: string
+          updated_at?: string
+          url: string
+          usage_count?: number
+        }
+        Update: {
+          active?: boolean
+          content_group?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          scope?: string
+          updated_at?: string
+          url?: string
+          usage_count?: number
+        }
+        Relationships: []
+      }
+      relationship_decisions: {
+        Row: {
+          content_id: string | null
+          created_at: string
+          decided_at: string
+          error: string | null
+          flow: string
+          id: string
+          lead_id: string
+          outcome: string
+          reason: string
+          run_id: string | null
+          scope: string
+          state_after: string
+          state_before: string
+          step: string | null
+          template_id: string | null
+          template_version: number | null
+        }
+        Insert: {
+          content_id?: string | null
+          created_at?: string
+          decided_at: string
+          error?: string | null
+          flow: string
+          id?: string
+          lead_id: string
+          outcome: string
+          reason: string
+          run_id?: string | null
+          scope: string
+          state_after: string
+          state_before: string
+          step?: string | null
+          template_id?: string | null
+          template_version?: number | null
+        }
+        Update: {
+          content_id?: string | null
+          created_at?: string
+          decided_at?: string
+          error?: string | null
+          flow?: string
+          id?: string
+          lead_id?: string
+          outcome?: string
+          reason?: string
+          run_id?: string | null
+          scope?: string
+          state_after?: string
+          state_before?: string
+          step?: string | null
+          template_id?: string | null
+          template_version?: number | null
+        }
+        Relationships: []
+      }
+      relationship_engine_log: {
+        Row: {
+          action: string
+          actor: string | null
+          created_at: string
+          details: Json
+          id: string
+          scope: string
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          scope: string
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          scope?: string
+        }
+        Relationships: []
+      }
+      relationship_events: {
+        Row: {
+          content_id: string | null
+          created_at: string
+          data: Json
+          event_key: string
+          historical: boolean
+          id: string
+          lead_id: string
+          occurred_at: string
+          run_id: string | null
+          scope: string
+          step: string | null
+          template_id: string | null
+          type: string
+        }
+        Insert: {
+          content_id?: string | null
+          created_at?: string
+          data?: Json
+          event_key: string
+          historical?: boolean
+          id?: string
+          lead_id: string
+          occurred_at: string
+          run_id?: string | null
+          scope: string
+          step?: string | null
+          template_id?: string | null
+          type: string
+        }
+        Update: {
+          content_id?: string | null
+          created_at?: string
+          data?: Json
+          event_key?: string
+          historical?: boolean
+          id?: string
+          lead_id?: string
+          occurred_at?: string
+          run_id?: string | null
+          scope?: string
+          step?: string | null
+          template_id?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      relationship_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          due_at: string
+          executed_at: string | null
+          flow: string
+          id: string
+          lead_id: string
+          priority: number
+          reason: string | null
+          result: string | null
+          run_id: string | null
+          scope: string
+          status: string
+          step: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          due_at: string
+          executed_at?: string | null
+          flow: string
+          id?: string
+          lead_id: string
+          priority?: number
+          reason?: string | null
+          result?: string | null
+          run_id?: string | null
+          scope: string
+          status?: string
+          step: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          due_at?: string
+          executed_at?: string | null
+          flow?: string
+          id?: string
+          lead_id?: string
+          priority?: number
+          reason?: string | null
+          result?: string | null
+          run_id?: string | null
+          scope?: string
+          status?: string
+          step?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      relationship_template_bindings: {
+        Row: {
+          approved: boolean
+          created_at: string
+          id: string
+          meta_id: string | null
+          notes: string | null
+          purpose: string
+          scope: string
+          template_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approved?: boolean
+          created_at?: string
+          id?: string
+          meta_id?: string | null
+          notes?: string | null
+          purpose: string
+          scope: string
+          template_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          approved?: boolean
+          created_at?: string
+          id?: string
+          meta_id?: string | null
+          notes?: string | null
+          purpose?: string
+          scope?: string
+          template_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_template_bindings_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "crm_meta_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
