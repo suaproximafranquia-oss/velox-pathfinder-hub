@@ -5,7 +5,7 @@
  * elegível para receber esta etapa?". A resposta é sempre acompanhada
  * de um motivo legível — tanto para enviar quanto para não enviar.
  */
-import { dueMomentAfterBusinessDays, isEligibleMoment } from "./calendar";
+import { dueMomentAfterBusinessDays, isEligibleMoment, nextEligibleMoment } from "./calendar";
 import { FLOW_SEQUENCE, RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { blocksAutomation, isWindowOpen } from "./machine";
 import type { CadenceFlow, CadenceRecord, CadenceStep, EngineAction } from "./types";
@@ -107,7 +107,9 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
   }
 
   if (!isEligibleMoment(ctx.nowIso, config)) {
-    const next = dueMomentAfterBusinessDays(ctx.nowIso, 0, config);
+    // Sempre para frente: o próximo instante operacional válido depois
+    // de agora — nunca o início do dia que já passou.
+    const next = nextEligibleMoment(ctx.nowIso, config);
     return {
       kind: "schedule_step",
       step,

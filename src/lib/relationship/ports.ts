@@ -46,6 +46,9 @@ export type DispatchRequest = {
   useTemplate: boolean;
   templateId: string | null;
   contentId: string | null;
+  /** Título real do conteúdo escolhido (nunca "conteúdo 1"). */
+  contentName?: string | null;
+  contentUrl?: string | null;
 };
 
 export type DispatchResult = {

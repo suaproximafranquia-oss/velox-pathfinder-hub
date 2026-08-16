@@ -1,0 +1,397 @@
+/**
+ * HOMOLOGAÇÃO DO MOTOR DE RELACIONAMENTO (COMANDO 3A).
+ *
+ * Duas responsabilidades permanentes: manter a biblioteca de conteúdos
+ * de valor e executar o simulador bilateral com leads fictícios
+ * TEST-XXXX. Nada aqui envia mensagem real nem toca o Portal dos Leads.
+ */
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  FlaskConical,
+  Library,
+  Loader2,
+  Play,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
+import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  CONTENT_GROUPS,
+  CONTENT_GROUP_LABELS,
+  contentLibraryGaps,
+  type ContentKind,
+  type ValueContent,
+} from "@/lib/relationship/content";
+import { SCENARIOS } from "@/lib/relationship/simulation";
+import {
+  deleteRelationshipContent,
+  listRelationshipContents,
+  listRelationshipRuns,
+  runRelationshipHomologation,
+  saveRelationshipContent,
+} from "@/lib/relationship-homologation.functions";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/executivo/homologacao")({
+  head: () => ({
+    meta: [
+      { title: "Homologação do Motor de Relacionamento — Atlas Platform" },
+      {
+        name: "description",
+        content:
+          "Biblioteca de conteúdos de valor e simulador bilateral com leads fictícios para validar o motor antes da produção.",
+      },
+      { property: "og:title", content: "Homologação do Motor — Atlas Platform" },
+      {
+        property: "og:description",
+        content: "Rodadas de simulação auditáveis do motor de relacionamento, sem disparos reais.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: HomologacaoPage,
+});
+
+const card = "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5";
+const gold =
+  "inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/10 px-4 py-2 text-xs text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-40";
+const ghost =
+  "inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition disabled:opacity-40";
+const field =
+  "w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50";
+
+const KINDS: ContentKind[] = ["pdf", "video", "imagem", "documento", "link", "arquivo"];
+
+type Draft = { group: string; name: string; kind: ContentKind; url: string };
+type RunSummary = Awaited<ReturnType<typeof listRelationshipRuns>>[number];
+
+const emptyDraft: Draft = { group: "E1", name: "", kind: "pdf", url: "" };
+
+function HomologacaoPage() {
+  const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [contents, setContents] = useState<ValueContent[]>([]);
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [busy, setBusy] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [executiveName, setExecutiveName] = useState("Thiago Rodrigues");
+  const [portalLink, setPortalLink] = useState(
+    "https://portal.velox.com.br/f/thiago-rodrigues",
+  );
+
+  useEffect(() => {
+    setSession(getSession());
+  }, []);
+
+  const load = useCallback(async () => {
+    try {
+      await ensureCloudSession();
+      const [list, history] = await Promise.all([
+        listRelationshipContents(),
+        listRelationshipRuns(),
+      ]);
+      setContents(list);
+      setRuns(history);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível carregar a homologação.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const gaps = contentLibraryGaps(contents);
+
+  async function handleSave() {
+    if (!draft.name.trim() || !draft.url.trim()) return;
+    setBusy(true);
+    try {
+      await ensureCloudSession();
+      const next = await saveRelationshipContent({
+        data: { ...draft, active: true },
+      });
+      setContents(next);
+      setDraft(emptyDraft);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível salvar o conteúdo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setBusy(true);
+    try {
+      await ensureCloudSession();
+      setContents(await deleteRelationshipContent({ data: { id } }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível remover o conteúdo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRun() {
+    setRunning(true);
+    setError(null);
+    try {
+      await ensureCloudSession();
+      await runRelationshipHomologation({
+        data: {
+          executiveName,
+          portalLink,
+          totalLeads: 300,
+          userName: session?.name ?? "Gestão",
+        },
+      });
+      setRuns(await listRelationshipRuns());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "A rodada não pôde ser concluída.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const last = runs[0] ?? null;
+
+  if (!session) return null;
+
+  return (
+    <ExecutiveShell session={session} title="Homologação do Motor">
+      <div className="space-y-6">
+        <header className={card}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-lg text-[color:var(--foreground)]">
+                Homologação do Motor de Relacionamento
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm text-[color:var(--muted-foreground)]">
+                Ambiente isolado com leads fictícios TEST-XXXX e relógio virtual. Nenhuma
+                mensagem real é enviada e nenhum dado do Portal dos Leads é alterado.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] text-emerald-400">
+              <ShieldCheck className="h-3.5 w-3.5" /> Disparo real bloqueado
+            </span>
+          </div>
+        </header>
+
+        {error ? (
+          <div className="flex items-start gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <p className="whitespace-pre-line">{error}</p>
+          </div>
+        ) : null}
+
+        <section className={card}>
+          <div className="mb-4 flex items-center gap-2">
+            <Library className="h-4 w-4 text-[color:var(--gold)]" />
+            <h2 className="text-sm text-[color:var(--foreground)]">
+              Biblioteca de conteúdos de valor
+            </h2>
+          </div>
+
+          {gaps.length > 0 ? (
+            <ul className="mb-4 space-y-1 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 p-3 text-[11px] text-[color:var(--gold)]">
+              {gaps.map((g) => (
+                <li key={g}>{g}</li>
+              ))}
+            </ul>
+          ) : null}
+
+          <div className="grid gap-2 md:grid-cols-[1fr_1fr_140px_140px_auto]">
+            <input
+              className={field}
+              placeholder="Nome do conteúdo"
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            />
+            <input
+              className={field}
+              placeholder="Link do conteúdo"
+              value={draft.url}
+              onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+            />
+            <select
+              className={field}
+              value={draft.group}
+              onChange={(e) => setDraft({ ...draft, group: e.target.value })}
+            >
+              {CONTENT_GROUPS.map((g) => (
+                <option key={g} value={g}>
+                  Grupo {g}
+                </option>
+              ))}
+            </select>
+            <select
+              className={field}
+              value={draft.kind}
+              onChange={(e) => setDraft({ ...draft, kind: e.target.value as ContentKind })}
+            >
+              {KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+            <button className={gold} onClick={() => void handleSave()} disabled={busy}>
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              Adicionar
+            </button>
+          </div>
+
+          <div className="mt-5 space-y-4">
+            {CONTENT_GROUPS.map((group) => {
+              const items = contents.filter((c) => c.group === group);
+              return (
+                <div key={group}>
+                  <p className="text-[11px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
+                    {group} — {CONTENT_GROUP_LABELS[group]}
+                  </p>
+                  {items.length === 0 ? (
+                    <p className="mt-1 text-xs text-[color:var(--muted-foreground)]/70">
+                      Nenhum conteúdo cadastrado.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-1">
+                      {items.map((c) => (
+                        <li
+                          key={c.id}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] px-3 py-2 text-xs"
+                        >
+                          <span className="truncate text-[color:var(--foreground)]">
+                            {c.name}
+                            <span className="ml-2 text-[color:var(--muted-foreground)]">
+                              {c.kind} · usado {c.usageCount}x
+                            </span>
+                          </span>
+                          <button
+                            className={ghost}
+                            onClick={() => void handleDelete(c.id)}
+                            disabled={busy}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Remover
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className={card}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm text-[color:var(--foreground)]">Simulador bilateral</h2>
+            <button className={gold} onClick={() => void handleRun()} disabled={running}>
+              {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+              {running ? "Executando rodada…" : "Executar rodada com 300 leads"}
+            </button>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <input
+              className={field}
+              value={executiveName}
+              onChange={(e) => setExecutiveName(e.target.value)}
+              placeholder="Nome do Executivo simulado"
+            />
+            <input
+              className={field}
+              value={portalLink}
+              onChange={(e) => setPortalLink(e.target.value)}
+              placeholder="Link do Portal do Investidor"
+            />
+          </div>
+
+          {last ? (
+            <div className="mt-5 space-y-3">
+              <div className="grid gap-2 sm:grid-cols-4">
+                {[
+                  { label: "Leads simulados", value: last.totalLeads },
+                  { label: "Conformes", value: last.passed },
+                  { label: "Divergentes", value: last.failed },
+                  { label: "Mensagens", value: last.messages },
+                ].map((k) => (
+                  <div
+                    key={k.label}
+                    className="rounded-xl border border-[color:var(--border)] p-3"
+                  >
+                    <p className="text-[11px] text-[color:var(--muted-foreground)]">{k.label}</p>
+                    <p className="text-lg text-[color:var(--foreground)]">{k.value}</p>
+                  </div>
+                ))}
+              </div>
+              <table className="w-full text-left text-xs">
+                <thead className="text-[color:var(--muted-foreground)]">
+                  <tr>
+                    <th className="py-1">Cenário</th>
+                    <th>Comportamento</th>
+                    <th>Esperado</th>
+                    <th className="text-right">Resultado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {last.scenarios.map((s) => (
+                    <tr key={s.scenario} className="border-t border-[color:var(--border)]/60">
+                      <td className="py-1.5 text-[color:var(--gold)]">{s.scenario}</td>
+                      <td className="text-[color:var(--foreground)]">{s.label}</td>
+                      <td className="text-[color:var(--muted-foreground)]">
+                        {s.expectedSteps.join(" → ") || "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "text-right",
+                          s.failed === 0 ? "text-emerald-400" : "text-red-400",
+                        )}
+                      >
+                        {s.passed}/{s.total}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="mt-4 text-xs text-[color:var(--muted-foreground)]">
+              Nenhuma rodada executada ainda. Os {Object.keys(SCENARIOS).length} cenários
+              previstos serão validados na primeira execução.
+            </p>
+          )}
+        </section>
+
+        {runs.length > 0 ? (
+          <section className={card}>
+            <h2 className="mb-3 text-sm text-[color:var(--foreground)]">Histórico de rodadas</h2>
+            <ul className="space-y-1 text-xs">
+              {runs.map((r) => (
+                <li
+                  key={r.runId}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] px-3 py-2"
+                >
+                  <span className="text-[color:var(--foreground)]">{r.label}</span>
+                  <span
+                    className={cn(r.failed === 0 ? "text-emerald-400" : "text-red-400")}
+                  >
+                    {r.passed}/{r.totalLeads} conformes
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </div>
+    </ExecutiveShell>
+  );
+}

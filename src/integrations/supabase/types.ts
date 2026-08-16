@@ -1478,6 +1478,60 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_sim_runs: {
+        Row: {
+          content_usage: Json
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          failed: number
+          id: string
+          label: string
+          messages_count: number
+          outside_hours: number
+          passed: number
+          report: Json
+          run_id: string
+          scenario_summary: Json
+          status: string
+          total_leads: number
+        }
+        Insert: {
+          content_usage?: Json
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          failed?: number
+          id?: string
+          label: string
+          messages_count?: number
+          outside_hours?: number
+          passed?: number
+          report?: Json
+          run_id: string
+          scenario_summary?: Json
+          status?: string
+          total_leads?: number
+        }
+        Update: {
+          content_usage?: Json
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          failed?: number
+          id?: string
+          label?: string
+          messages_count?: number
+          outside_hours?: number
+          passed?: number
+          report?: Json
+          run_id?: string
+          scenario_summary?: Json
+          status?: string
+          total_leads?: number
+        }
+        Relationships: []
+      }
       relationship_template_bindings: {
         Row: {
           approved: boolean

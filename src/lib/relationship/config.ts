@@ -42,7 +42,7 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "sem_resposta",
     businessDaysAfterReference: 1,
     templatePurpose: "segundo_contato",
-    contentGroup: "acompanhamento",
+    contentGroup: "E1",
     terminal: false,
   },
   E3: {
@@ -50,7 +50,7 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "sem_resposta",
     businessDaysAfterReference: 2,
     templatePurpose: "terceiro_contato",
-    contentGroup: "prova",
+    contentGroup: "E3",
     terminal: false,
   },
   E4: {
@@ -58,7 +58,8 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "sem_resposta",
     businessDaysAfterReference: 3,
     templatePurpose: "quarto_contato",
-    contentGroup: "definicao",
+    // §14 — E4 é uma mensagem objetiva, sem conteúdo anexado.
+    contentGroup: null,
     terminal: false,
   },
   E12: {
@@ -74,7 +75,8 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "visualizacao",
     businessDaysAfterReference: 2,
     templatePurpose: "visualizacao_sem_resposta",
-    contentGroup: "prova",
+    // §18 — não anexa conteúdo automaticamente.
+    contentGroup: null,
     terminal: false,
   },
   V4: {
@@ -82,7 +84,7 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "visualizacao",
     businessDaysAfterReference: 3,
     templatePurpose: "visualizacao_firme",
-    contentGroup: "definicao",
+    contentGroup: null,
     terminal: true,
   },
   R1: {
@@ -90,7 +92,7 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "reengajamento",
     businessDaysAfterReference: 2,
     templatePurpose: "reengajamento_1",
-    contentGroup: "reengajamento",
+    contentGroup: "R1",
     terminal: false,
   },
   R2: {
@@ -98,7 +100,7 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "reengajamento",
     businessDaysAfterReference: 2,
     templatePurpose: "reengajamento_2",
-    contentGroup: "reengajamento",
+    contentGroup: "R2",
     terminal: false,
   },
   R3: {
