@@ -744,6 +744,8 @@ export async function runSimulation(options: SimulationOptions): Promise<Simulat
     });
     leadResults.push(result);
     messages.push(...result.messages);
+    decisions.push(...result.decisions);
+    events.push(...result.events);
   }
 
   const contentUsage: Record<string, number> = {};
