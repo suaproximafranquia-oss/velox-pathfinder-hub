@@ -562,6 +562,16 @@ async function runLead(
     }
 
     if (decision.outcome !== "sent") {
+      // O motor pode ter apenas confirmado uma etapa já programada
+      // (por exemplo depois de uma visualização ou resposta): nesse caso
+      // o tempo avança até o vencimento em vez de encerrar a jornada.
+      const pending = (await repository.loadQueue(lead.leadId)).find(
+        (q) => q.status === "PENDING",
+      );
+      if (pending) {
+        now = pending.dueAt > now ? pending.dueAt : now;
+        continue;
+      }
       journey.push({
         at: now,
         event: "Motor não executou etapa",
