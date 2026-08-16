@@ -480,6 +480,69 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_meta_templates: {
+        Row: {
+          body: string | null
+          buttons: Json
+          category: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          footer: string | null
+          header: string | null
+          id: string
+          language: string | null
+          meta_id: string | null
+          meta_name: string
+          meta_updated_at: string | null
+          notes: string | null
+          purpose: string
+          status: string | null
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          body?: string | null
+          buttons?: Json
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          footer?: string | null
+          header?: string | null
+          id?: string
+          language?: string | null
+          meta_id?: string | null
+          meta_name: string
+          meta_updated_at?: string | null
+          notes?: string | null
+          purpose?: string
+          status?: string | null
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          body?: string | null
+          buttons?: Json
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          footer?: string | null
+          header?: string | null
+          id?: string
+          language?: string | null
+          meta_id?: string | null
+          meta_name?: string
+          meta_updated_at?: string | null
+          notes?: string | null
+          purpose?: string
+          status?: string | null
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: []
+      }
       crm_pipeline_stages: {
         Row: {
           created_at: string
