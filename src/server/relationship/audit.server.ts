@@ -80,7 +80,7 @@ export type TimelineEntry = {
 export async function readLeadTimeline(
   scope: EngineScope,
   leadId: string,
-): Promise<{ state: Record<string, unknown> | null; entries: TimelineEntry[] }> {
+): Promise<{ state: string | null; entries: TimelineEntry[] }> {
   const [record, events, decisions, queue] = await Promise.all([
     supabaseAdmin
       .from("relationship_cadences")
@@ -129,5 +129,6 @@ export async function readLeadTimeline(
     })),
   ].sort((a, b) => a.at.localeCompare(b.at));
 
-  return { state: (record.data as Record<string, unknown>) ?? null, entries };
+  // Serializado como JSON: a auditoria é leitura, não manipulação.
+  return { state: record.data ? JSON.stringify(record.data) : null, entries };
 }
