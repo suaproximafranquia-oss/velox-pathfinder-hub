@@ -126,8 +126,9 @@ function TemplatesPage() {
 
   useEffect(() => {
     if (view !== "importar") return;
-    const onPaste = async (event: ClipboardEvent) => {
-      for (const item of Array.from(event.clipboardData?.items ?? [])) {
+    const onPaste = async (event: Event) => {
+      const clipboard = (event as ClipboardEvent).clipboardData;
+      for (const item of Array.from(clipboard?.items ?? [])) {
         if (item.type.startsWith("image/")) {
           const file = item.getAsFile();
           if (file) {
@@ -138,8 +139,8 @@ function TemplatesPage() {
         }
       }
     };
-    window.addEventListener("paste", onPaste as EventListener);
-    return () => window.removeEventListener("paste", onPaste as EventListener);
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
   }, [view, receiveImage]);
 
   const resetImport = () => {

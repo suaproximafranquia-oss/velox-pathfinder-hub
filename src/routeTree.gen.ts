@@ -24,6 +24,7 @@ import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as FSlugRouteImport } from './routes/f.$slug'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
+import { Route as ExecutivoTemplatesRouteImport } from './routes/executivo.templates'
 import { Route as ExecutivoReunioesRouteImport } from './routes/executivo.reunioes'
 import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
 import { Route as ExecutivoRecursosRouteImport } from './routes/executivo.recursos'
@@ -125,6 +126,11 @@ const FSlugRoute = FSlugRouteImport.update({
 const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
   id: '/executivo/usuarios',
   path: '/executivo/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecutivoTemplatesRoute = ExecutivoTemplatesRouteImport.update({
+  id: '/executivo/templates',
+  path: '/executivo/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoReunioesRoute = ExecutivoReunioesRouteImport.update({
@@ -293,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
+  '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -336,6 +343,7 @@ export interface FileRoutesByTo {
   '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
+  '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -381,6 +389,7 @@ export interface FileRoutesById {
   '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
+  '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -427,6 +436,7 @@ export interface FileRouteTypes {
     | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
+    | '/executivo/templates'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -470,6 +480,7 @@ export interface FileRouteTypes {
     | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
+    | '/executivo/templates'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -514,6 +525,7 @@ export interface FileRouteTypes {
     | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
+    | '/executivo/templates'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -559,6 +571,7 @@ export interface RootRouteChildren {
   ExecutivoRecursosRoute: typeof ExecutivoRecursosRoute
   ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
   ExecutivoReunioesRoute: typeof ExecutivoReunioesRoute
+  ExecutivoTemplatesRoute: typeof ExecutivoTemplatesRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   FSlugRoute: typeof FSlugRoute
   ManualChapterRoute: typeof ManualChapterRoute
@@ -679,6 +692,13 @@ declare module '@tanstack/react-router' {
       path: '/executivo/usuarios'
       fullPath: '/executivo/usuarios'
       preLoaderRoute: typeof ExecutivoUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/executivo/templates': {
+      id: '/executivo/templates'
+      path: '/executivo/templates'
+      fullPath: '/executivo/templates'
+      preLoaderRoute: typeof ExecutivoTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/reunioes': {
@@ -912,6 +932,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoRecursosRoute: ExecutivoRecursosRoute,
   ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
   ExecutivoReunioesRoute: ExecutivoReunioesRoute,
+  ExecutivoTemplatesRoute: ExecutivoTemplatesRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   FSlugRoute: FSlugRoute,
   ManualChapterRoute: ManualChapterRoute,

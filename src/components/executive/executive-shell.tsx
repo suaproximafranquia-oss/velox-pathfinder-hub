@@ -21,6 +21,7 @@ import {
   FolderOpen,
   Archive,
   Radar,
+  LayoutList,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -75,6 +76,9 @@ export function ExecutiveShell({
 
   const administrative = [
     { to: "/executivo/captacao", label: "Central de Captação", icon: Radar },
+    ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
+      ? [{ to: "/executivo/templates", label: "Central de Templates", icon: LayoutList }]
+      : []),
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
     { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
