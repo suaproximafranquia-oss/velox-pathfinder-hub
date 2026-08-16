@@ -16,7 +16,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   interpretMetaTemplateCaptures,
   listMetaTemplates,
@@ -100,6 +100,7 @@ function TemplatesPage() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
+      await ensureCloudSession();
       setItems(await listMetaTemplates());
     } catch {
       setStatus("Não foi possível carregar a Central de Templates agora.");
@@ -157,6 +158,7 @@ function TemplatesPage() {
     setBusy(true);
     setStatus(null);
     try {
+      await ensureCloudSession();
       const result = await interpretMetaTemplateCaptures({
         data: { captureOne, captureTwo },
       });
@@ -176,6 +178,7 @@ function TemplatesPage() {
     }
     setBusy(true);
     try {
+      await ensureCloudSession();
       const res = await saveMetaTemplate({
         data: {
           name: reading.name,
@@ -212,6 +215,7 @@ function TemplatesPage() {
   const remove = async (id: string) => {
     setBusy(true);
     try {
+      await ensureCloudSession();
       await deleteMetaTemplate({ data: { id } });
       setView("lista");
       setDetail(null);

@@ -15,14 +15,11 @@ import type {
 } from "@/lib/crm/meta-templates";
 
 async function assertManager(context: { supabase: unknown; userId: string }) {
-  const supabase = context.supabase as {
-    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: boolean | null }>;
-  };
-  const [admin, manager] = await Promise.all([
-    supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
-    supabase.rpc("has_role", { _user_id: context.userId, _role: "manager" }),
-  ]);
-  if (!admin.data && !manager.data) throw new Error("Acesso restrito à gestão do CRM.");
+  const { getExecutiveRoleForUser } = await import("@/server/executive-auth.server");
+  const role = await getExecutiveRoleForUser(context.userId);
+  if (role !== "super_admin" && role !== "diretora") {
+    throw new Error("Acesso restrito à gestão do CRM.");
+  }
 }
 
 const clean = (value: unknown): string | null => {
