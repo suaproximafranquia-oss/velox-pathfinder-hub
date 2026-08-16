@@ -1,0 +1,143 @@
+/**
+ * DECISÃO DO MOTOR (COMANDO 2A §2, §57, §94).
+ *
+ * Antes de qualquer disparo o motor pergunta: "este lead ainda está
+ * elegível para receber esta etapa?". A resposta é sempre acompanhada
+ * de um motivo legível — tanto para enviar quanto para não enviar.
+ */
+import { dueMomentAfterBusinessDays, isEligibleMoment } from "./calendar";
+import { FLOW_SEQUENCE, RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
+import { blocksAutomation, isWindowOpen } from "./machine";
+import type { CadenceFlow, CadenceRecord, CadenceStep, EngineAction } from "./types";
+
+/** Evento de referência do fluxo atual para o cálculo de dias úteis. */
+function referenceMoment(record: CadenceRecord): string | null {
+  if (record.flow === "reengajamento") {
+    return record.lastInboundAt ?? record.lastOutboundAt ?? record.startedAt;
+  }
+  return record.lastOutboundAt ?? record.startedAt;
+}
+
+/** Próxima etapa permitida do fluxo — nunca fora de ordem. */
+export function nextStep(record: CadenceRecord): CadenceStep | null {
+  const sequence = FLOW_SEQUENCE[record.flow];
+  for (const step of sequence) {
+    if (!record.executedSteps.includes(step)) return step;
+  }
+  return null;
+}
+
+/** A etapa respeita a ordem do fluxo? */
+export function isStepInOrder(flow: CadenceFlow, step: CadenceStep, executed: CadenceStep[]) {
+  const sequence = FLOW_SEQUENCE[flow];
+  const index = sequence.indexOf(step);
+  if (index < 0) return false;
+  return sequence.slice(0, index).every((prev) => executed.includes(prev));
+}
+
+export type DecisionContext = {
+  nowIso: string;
+  /** Template oficial associado à finalidade existe e está aprovado? */
+  hasTemplateForPurpose: (purpose: string) => boolean;
+  /** Motor habilitado neste ambiente. */
+  enabled?: boolean;
+  config?: RelationshipConfig;
+};
+
+/**
+ * Única função autorizada a dizer o que acontece com um lead agora.
+ */
+export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): EngineAction {
+  const config = ctx.config ?? RELATIONSHIP_CONFIG;
+  const enabled = ctx.enabled ?? config.enabled;
+
+  if (!enabled) {
+    return { kind: "none", reason: "Motor desabilitado — nenhum novo disparo é criado." };
+  }
+
+  const blocked = blocksAutomation(record);
+  if (blocked) return { kind: "none", reason: blocked };
+
+  if (record.state === "RESPONDED" && record.flow === "reengajamento") {
+    // Respondeu: só volta a agir depois do silêncio de N dias úteis.
+    const reference = record.lastInboundAt;
+    if (!reference) {
+      return { kind: "none", reason: "Resposta registrada sem data — nada é executado." };
+    }
+    const due = dueMomentAfterBusinessDays(reference, config.reengagementBusinessDays, config);
+    if (ctx.nowIso < due) {
+      return {
+        kind: "none",
+        reason: `Investidor respondeu em ${reference}; o Executivo conduz até ${due}.`,
+      };
+    }
+  }
+
+  const step = nextStep(record);
+  if (!step) {
+    return { kind: "none", reason: "Todas as etapas do fluxo já foram executadas." };
+  }
+  if (!isStepInOrder(record.flow, step, record.executedSteps)) {
+    return { kind: "none", reason: `Etapa ${step} fora de ordem no fluxo ${record.flow}.` };
+  }
+  if (record.executedSteps.includes(step)) {
+    return { kind: "none", reason: `Etapa ${step} já executada — nenhuma repetição é permitida.` };
+  }
+
+  const definition = STEPS[step];
+  const reference = referenceMoment(record);
+  if (!reference) {
+    return { kind: "none", reason: "Cadência sem evento de referência — etapa não é criada." };
+  }
+
+  const businessDays =
+    record.flow === "reengajamento"
+      ? config.reengagementBusinessDays
+      : definition.businessDaysAfterReference;
+  const dueAt = dueMomentAfterBusinessDays(reference, businessDays, config);
+
+  if (ctx.nowIso < dueAt) {
+    return {
+      kind: "schedule_step",
+      step,
+      flow: record.flow,
+      dueAt,
+      reason: `Etapa ${step} programada para ${dueAt} (dias úteis e horário operacional aplicados).`,
+    };
+  }
+
+  if (!isEligibleMoment(ctx.nowIso, config)) {
+    const next = dueMomentAfterBusinessDays(ctx.nowIso, 0, config);
+    return {
+      kind: "schedule_step",
+      step,
+      flow: record.flow,
+      dueAt: next,
+      reason: `Momento atual fora do dia útil/horário permitido — ${step} reagendada para ${next}.`,
+    };
+  }
+
+  const windowOpen = isWindowOpen(record, ctx.nowIso);
+  const requiresTemplate = !windowOpen;
+  if (requiresTemplate && config.requireOfficialTemplate) {
+    const purpose = definition.templatePurpose;
+    if (!ctx.hasTemplateForPurpose(purpose)) {
+      return {
+        kind: "none",
+        reason: `Janela de 24 horas fechada e não existe template oficial associado à finalidade "${purpose}" — envio bloqueado.`,
+      };
+    }
+  }
+
+  return {
+    kind: "send_step",
+    step,
+    flow: record.flow,
+    requiresTemplate,
+    templatePurpose: definition.templatePurpose,
+    contentGroup: definition.contentGroup,
+    reason: windowOpen
+      ? `Janela aberta: ${step} enviada como mensagem do motor.`
+      : `Janela fechada: ${step} enviada através do template oficial de ${definition.templatePurpose}.`,
+  };
+}
