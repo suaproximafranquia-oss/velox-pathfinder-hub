@@ -10,7 +10,7 @@
  * despachante só aceita leads com prefixo TEST- e nunca chama API real.
  */
 import { RELATIONSHIP_CONFIG, type RelationshipConfig } from "./config";
-import { isEligibleMoment, operationalDate } from "./calendar";
+import { isEligibleMoment, nextEligibleMoment, operationalDate } from "./calendar";
 import { selectContent, type ValueContent } from "./content";
 import { createEngine } from "./engine";
 import { initialRecord } from "./machine";
@@ -503,6 +503,7 @@ async function runLead(
   let sends = 0;
   let raceApplied = false;
   let secondReplyApplied = false;
+  let idleAdvances = 0;
 
   for (let iteration = 0; iteration < 60; iteration += 1) {
     const record = (await repository.loadRecord(lead.leadId)) ??
@@ -570,6 +571,22 @@ async function runLead(
       );
       if (pending) {
         now = pending.dueAt > now ? pending.dueAt : now;
+        continue;
+      }
+      // Silêncio produtivo: o motor está apenas esperando o prazo do
+      // fluxo (ex.: o Executivo conduzindo após uma resposta). O relógio
+      // virtual avança um dia e o motor é consultado outra vez.
+      const record2 = await repository.loadRecord(lead.leadId);
+      const waiting =
+        record2 &&
+        !["COMPLETED", "CLOSED", "SCHEDULED", "INTERRUPTED", "PAUSED"].includes(record2.state) &&
+        !record2.scheduled;
+      if (waiting && idleAdvances < 25) {
+        idleAdvances += 1;
+        now = nextEligibleMoment(
+          new Date(new Date(now).getTime() + 24 * 60 * MINUTE).toISOString(),
+          ctx.config,
+        );
         continue;
       }
       journey.push({
