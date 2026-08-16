@@ -30,6 +30,8 @@ export type EngineOptions = {
   config?: RelationshipConfig;
   /** Sobrescreve o "habilitado" da configuração central (homologação). */
   enabled?: boolean;
+  /** Fonte de aleatoriedade controlada da seleção de conteúdo (§6). */
+  random?: () => number;
 };
 
 /** Eventos que invalidam etapas já programadas (§96, §97, §98). */
@@ -47,6 +49,7 @@ export function createEngine(options: EngineOptions): Engine {
   const clock = options.clock ?? realClock;
   const config = options.config ?? RELATIONSHIP_CONFIG;
   const enabled = options.enabled ?? config.enabled;
+  const random = options.random ?? Math.random;
 
   if (repository.scope !== dispatcher.scope) {
     throw new Error("Repositório e despachante pertencem a escopos diferentes.");
@@ -171,7 +174,14 @@ export function createEngine(options: EngineOptions): Engine {
     }
 
     const library = await repository.loadContentLibrary();
-    const selection = selectContent(library, action.contentGroup, record.contentHistory);
+    const selection = selectContent(library, action.contentGroup, record.contentHistory, random);
+    if (action.contentGroup && !selection.content) {
+      return log(record, {
+        step: action.step,
+        outcome: "blocked",
+        reason: selection.reason,
+      });
+    }
 
     const queue = await repository.loadQueue(record.leadId);
     const pending = queue.find(
@@ -218,6 +228,8 @@ export function createEngine(options: EngineOptions): Engine {
       useTemplate: action.requiresTemplate,
       templateId: binding?.templateId ?? null,
       contentId: selection.content?.id ?? null,
+      contentName: selection.content?.name ?? null,
+      contentUrl: selection.content?.url ?? null,
     });
 
     if (!result.delivered) {
