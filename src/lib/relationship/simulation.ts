@@ -536,7 +536,10 @@ async function runLead(
       if (!pending) break;
 
       // §48 — resposta chega ANTES da execução de uma etapa já elegível.
-      if (lead.raceProbe && !raceApplied && sends > 0 && lead.scenario !== "H") {
+      // Só provocamos a corrida em cenários que já preveem resposta do
+      // investidor: assim o teste de §48 não distorce o cenário.
+      const raceEligible = ["D", "E", "F", "G"].includes(lead.scenario);
+      if (lead.raceProbe && raceEligible && !raceApplied && sends > 0) {
         raceApplied = true;
         now = new Date(new Date(now).getTime() + 30 * MINUTE).toISOString();
         inbound("[SIMULAÇÃO] Resposta do investidor fictício antes da etapa programada.");
