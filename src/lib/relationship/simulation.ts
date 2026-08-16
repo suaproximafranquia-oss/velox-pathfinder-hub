@@ -219,6 +219,17 @@ export function buildSimulatedLeads(total = 300): SimulatedLead[] {
   return leads;
 }
 
+/**
+ * Expectativa efetiva do lead. O teste de "resposta durante a fila"
+ * (§48) antecipa a resposta e, por definição, cancela a etapa que
+ * estava programada — o esperado muda junto, sem mascarar nada.
+ */
+export function expectedStepsFor(lead: SimulatedLead): CadenceStep[] {
+  const base = SCENARIOS[lead.scenario].expectedSteps;
+  if (lead.raceProbe && lead.scenario === "E") return ["E0", "R1", "R2", "R3"];
+  return base;
+}
+
 /* ------------------------------------------------------------------ */
 /* Repositório em memória da rodada                                    */
 /* ------------------------------------------------------------------ */
