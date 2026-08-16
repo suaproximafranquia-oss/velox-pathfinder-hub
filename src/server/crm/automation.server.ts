@@ -12,6 +12,7 @@ import { investorPortalUrl } from "@/lib/portal-brands";
 import { CRM_TEMPLATES, getCrmTemplate, renderCrmTemplate } from "@/lib/crm/templates";
 import { recordEvent, type CrmLeadRow } from "@/server/crm/lead-service.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
+import { engineOwnsFirstContact } from "@/lib/relationship/config";
 
 export type AutomationSettings = {
   syncIntervalMinutes: number;
@@ -78,6 +79,13 @@ export async function processWelcome(
   lead: CrmLeadRow,
   settings: AutomationSettings,
 ): Promise<WelcomeOutcome> {
+  /**
+   * Um único motor responde pelo primeiro contato. Quando o Motor de
+   * Relacionamento estiver habilitado, esta automação legada se cala —
+   * nunca os dois disparam ao mesmo tempo (COMANDO 2A §109). Nada é
+   * apagado: o histórico e os estados existentes permanecem.
+   */
+  if (engineOwnsFirstContact()) return "ignorada";
   if (!settings.welcomeEnabled) return "ignorada";
   if (lead.welcome_status === "SENT" || lead.welcome_status === "SENDING") return "ignorada";
 

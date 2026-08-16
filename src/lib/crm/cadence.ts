@@ -23,7 +23,13 @@ export type CadenceConfig = {
 
 export const CADENCE_CONFIG: Record<CadenceChannel, CadenceConfig> = {
   call: { enabled: true, offsets: [0, 2, 1, 3] },
-  // Mensagens continuam desligadas nesta etapa (D1 · D2 · D4 · D5 · D12).
+  /**
+   * LEGADO — a cadência de MENSAGENS pertence agora exclusivamente ao
+   * Motor de Relacionamento (`src/lib/relationship`). Este canal
+   * permanece desligado permanentemente para que nunca existam dois
+   * motores disparando a mesma finalidade (COMANDO 2A §109). O histórico
+   * já gravado continua intacto; só a execução futura mudou de dono.
+   */
   message: { enabled: false, offsets: [0, 1, 2, 1, 7] },
 };
 
