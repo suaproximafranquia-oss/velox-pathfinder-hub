@@ -431,6 +431,40 @@ export function newUserId(): string {
   return `usr_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * Garante que a sessão autenticada do backend esteja ativa para o executivo
+ * já logado no workspace. Reaproveita exatamente o mesmo mecanismo do login
+ * oficial — nenhuma autenticação paralela é criada.
+ */
+export async function ensureCloudSession(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) return true;
+
+    const session = getSession();
+    if (!session) return false;
+    const user = loadUsers().find(
+      (u) => u.email.toLowerCase() === session.email.toLowerCase() && u.status === "ativo",
+    );
+    if (!user) return false;
+
+    const { ensureExecutiveAuthUser } = await import("@/lib/executive-auth.functions");
+    const provisioned = await ensureExecutiveAuthUser({
+      data: { email: user.email, password: user.password },
+    });
+    if (!provisioned.ok) return false;
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: user.password,
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 /* ---------------------- Resolução do Executivo Responsável ---------------------- */
 
 import { WORKSPACE } from "@/config/workspace";
