@@ -68,6 +68,31 @@ export const EVENT_PRIORITY: Record<EngineEventType, number> = {
 
 export type Transition = { record: CadenceRecord; reason: string; changed: boolean };
 
+/**
+ * Estados de bloqueio: só um evento de prioridade igual ou superior à
+ * do evento que os criou pode retirá-los. É isso que garante, de forma
+ * determinística, a ordem AGENDAMENTO > INTERRUPÇÃO > RESPOSTA >
+ * VISUALIZAÇÃO > TEMPO (§13) mesmo quando os eventos chegam fora de
+ * ordem cronológica.
+ */
+const LOCKING_STATE_PRIORITY: Partial<Record<CadenceRecord["state"], number>> = {
+  SCHEDULED: 1,
+  INTERRUPTED: 2,
+  PAUSED: 2,
+  COMPLETED: 4,
+  CLOSED: 4,
+};
+
+/** O evento tem autoridade para mudar o estado atual? */
+export function canOverrideState(
+  currentState: CadenceRecord["state"],
+  eventType: EngineEventType,
+): boolean {
+  const lock = LOCKING_STATE_PRIORITY[currentState];
+  if (lock === undefined) return true;
+  return EVENT_PRIORITY[eventType] <= lock;
+}
+
 function openWindow(at: string, config: RelationshipConfig): string {
   return new Date(new Date(at).getTime() + config.windowHours * 3_600_000).toISOString();
 }
@@ -103,6 +128,12 @@ export function applyEvent(
   }
 
   const setState = (state: CadenceRecord["state"], why: string) => {
+    if (!canOverrideState(next.state, event.type)) {
+      // Evento de menor prioridade: o fato é registrado (contadores,
+      // janela, timestamps), mas o estado de bloqueio permanece.
+      reason = `${why} Estado "${next.state}" preservado: evento ${event.type} tem prioridade inferior.`;
+      return;
+    }
     if (next.state !== state) {
       next.previousState = next.state;
       next.state = state;

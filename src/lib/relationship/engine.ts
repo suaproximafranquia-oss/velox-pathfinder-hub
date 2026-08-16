@@ -107,6 +107,18 @@ export function createEngine(options: EngineOptions): Engine {
     }
 
     if (action.kind === "schedule_step") {
+      // §4 — a trava do destinatário acontece ANTES de a tarefa entrar
+      // na fila, e não apenas no instante do envio.
+      const eligible = await dispatcher.assertRecipientAllowed(record.leadId);
+      if (!eligible.ok) {
+        return log(record, {
+          step: action.step,
+          outcome: "blocked",
+          reason:
+            eligible.reason ??
+            "Destinatário não pertence a este ambiente — tarefa não foi criada na fila.",
+        });
+      }
       const queue = await repository.loadQueue(record.leadId);
       const already = queue.find(
         (q) => q.step === action.step && (q.status === "PENDING" || q.status === "PROCESSING"),
@@ -181,12 +193,23 @@ export function createEngine(options: EngineOptions): Engine {
       step: action.step,
       dueAt: clock.nowIso(),
       priority: 5,
-      status: "PROCESSING",
+      status: "PENDING",
       attempts: (pending?.attempts ?? 0) + 1,
       executedAt: null,
       result: null,
       reason: action.reason,
     });
+
+    // Trava atômica: dois processos podem chegar aqui, mas apenas um
+    // consegue reservar a tarefa. O outro encerra sem enviar nada.
+    const claimed = await repository.claimQueueItem(item.id);
+    if (!claimed) {
+      return log(record, {
+        step: action.step,
+        outcome: "noop",
+        reason: `Etapa ${action.step} já reservada por outro processo — duplicidade evitada.`,
+      });
+    }
 
     const result = await dispatcher.send({
       scope: repository.scope,

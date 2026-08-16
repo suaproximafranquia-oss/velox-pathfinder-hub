@@ -88,10 +88,15 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     },
 
     async saveRecord(record) {
+      if (record.scope !== scope || (record.runId ?? null) !== runId) {
+        throw new Error(
+          "Registro de outro ambiente/rodada não pode ser gravado por este repositório.",
+        );
+      }
       await supabaseAdmin.from("relationship_cadences").upsert(
         {
-          scope: record.scope,
-          run_id: record.runId,
+          scope,
+          run_id: runId,
           lead_id: record.leadId,
           state: record.state,
           previous_state: record.previousState,
@@ -122,6 +127,9 @@ export function createRepository(scope: EngineScope, runId: string | null = null
 
     /** Idempotência: a mesma chave de evento nunca produz dois efeitos. */
     async registerEvent(event: EngineEvent) {
+      if (event.scope !== scope) {
+        throw new Error("Evento de outro ambiente não pode ser registrado por este repositório.");
+      }
       const { error } = await supabaseAdmin.from("relationship_events").insert({
         scope,
         run_id: runId,
@@ -148,6 +156,9 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     },
 
     async upsertQueueItem(item) {
+      if (item.scope !== scope || (item.runId ?? null) !== runId) {
+        throw new Error("Tarefa de outro ambiente/rodada não pode entrar nesta fila.");
+      }
       const payload = {
         scope,
         run_id: runId,
@@ -172,18 +183,33 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       return toQueueItem(data as Row);
     },
 
+    /**
+     * Reserva atômica: o UPDATE condicional só afeta a linha que ainda
+     * estiver PENDING. Dois workers simultâneos ⇒ uma única execução.
+     */
+    async claimQueueItem(id) {
+      const { data } = await supabaseAdmin
+        .from("relationship_queue")
+        .update({ status: "PROCESSING", updated_at: new Date().toISOString() } as any)
+        .eq("id", id)
+        .eq("scope", scope)
+        .eq("status", "PENDING")
+        .select("id");
+      return (data ?? []).length > 0;
+    },
+
     async updateQueueItem(id, patch) {
+      const update: Row = { updated_at: new Date().toISOString() };
+      if (patch.status !== undefined) update["status"] = patch.status;
+      if (patch.attempts !== undefined) update["attempts"] = patch.attempts;
+      if (patch.executedAt !== undefined) update["executed_at"] = patch.executedAt;
+      if (patch.result !== undefined) update["result"] = patch.result;
+      if (patch.reason !== undefined) update["reason"] = patch.reason;
       await supabaseAdmin
         .from("relationship_queue")
-        .update({
-          status: patch.status,
-          attempts: patch.attempts,
-          executed_at: patch.executedAt,
-          result: patch.result,
-          reason: patch.reason,
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq("id", id);
+        .update(update as any)
+        .eq("id", id)
+        .eq("scope", scope);
     },
 
     /** Resposta, agendamento e encerramento sempre vencem o timer. */

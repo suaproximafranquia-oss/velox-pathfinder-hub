@@ -25,6 +25,12 @@ export type EngineRepository = {
   registerEvent: (event: EngineEvent) => Promise<boolean>;
   loadQueue: (leadId: string) => Promise<QueueItem[]>;
   upsertQueueItem: (item: Omit<QueueItem, "id"> & { id?: string }) => Promise<QueueItem>;
+  /**
+   * Reserva atômica da tarefa: só UM processo consegue mover a tarefa de
+   * PENDING para PROCESSING. Retorna false quando outro processo já a
+   * reservou — é a trava contra execução duplicada (§7).
+   */
+  claimQueueItem: (id: string) => Promise<boolean>;
   updateQueueItem: (id: string, patch: Partial<QueueItem>) => Promise<void>;
   cancelPendingItems: (leadId: string, reason: string) => Promise<number>;
   recordDecision: (decision: EngineDecision) => Promise<void>;
