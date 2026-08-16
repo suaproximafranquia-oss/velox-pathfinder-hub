@@ -13,6 +13,7 @@ import type {
   MetaTemplateRecord,
   MetaTemplatePurpose,
 } from "@/lib/crm/meta-templates";
+import type { CrmMetaTemplateOption } from "@/lib/crm/meta-templates";
 
 async function assertManager(context: { supabase: unknown; userId: string }) {
   const { getExecutiveRoleForUser } = await import("@/server/executive-auth.server");
@@ -343,4 +344,26 @@ export const deleteMetaTemplate = createServerFn({ method: "POST" })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+/* --------------------------------------- Leitura pelo CRM de Relacionamento */
+
+/**
+ * Templates cadastrados na Central visíveis no CRM de Relacionamento.
+ * Somente leitura: nenhum envio, cadência ou chamada à Meta acontece aqui.
+ */
+export const listCrmRelationshipTemplates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async (): Promise<CrmMetaTemplateOption[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { metaTemplateToCrmOption } = await import("@/lib/crm/meta-templates");
+    const { data, error } = await supabaseAdmin
+      .from("crm_meta_templates")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? [])
+      .map((row) => toRecord(row as Record<string, unknown>))
+      .filter((r) => (r.name ?? "").trim().length > 0)
+      .map(metaTemplateToCrmOption);
   });
