@@ -32,6 +32,7 @@ import { Route as ExecutivoPerfilRouteImport } from './routes/executivo.perfil'
 import { Route as ExecutivoLaboratorioRouteImport } from './routes/executivo.laboratorio'
 import { Route as ExecutivoKpiRouteImport } from './routes/executivo.kpi'
 import { Route as ExecutivoInvestidoresRouteImport } from './routes/executivo.investidores'
+import { Route as ExecutivoHomologacaoRouteImport } from './routes/executivo.homologacao'
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoGreensalesSyncRouteImport } from './routes/executivo.greensales-sync'
 import { Route as ExecutivoGreensalesRouteImport } from './routes/executivo.greensales'
@@ -168,6 +169,11 @@ const ExecutivoInvestidoresRoute = ExecutivoInvestidoresRouteImport.update({
   path: '/executivo/investidores',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoHomologacaoRoute = ExecutivoHomologacaoRouteImport.update({
+  id: '/executivo/homologacao',
+  path: '/executivo/homologacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoHomeRoute = ExecutivoHomeRouteImport.update({
   id: '/executivo/home',
   path: '/executivo/home',
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
+  '/executivo/homologacao': typeof ExecutivoHomologacaoRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
@@ -336,6 +343,7 @@ export interface FileRoutesByTo {
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
+  '/executivo/homologacao': typeof ExecutivoHomologacaoRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
@@ -382,6 +390,7 @@ export interface FileRoutesById {
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
+  '/executivo/homologacao': typeof ExecutivoHomologacaoRoute
   '/executivo/investidores': typeof ExecutivoInvestidoresRoute
   '/executivo/kpi': typeof ExecutivoKpiRoute
   '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
@@ -429,6 +438,7 @@ export interface FileRouteTypes {
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
+    | '/executivo/homologacao'
     | '/executivo/investidores'
     | '/executivo/kpi'
     | '/executivo/laboratorio'
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
+    | '/executivo/homologacao'
     | '/executivo/investidores'
     | '/executivo/kpi'
     | '/executivo/laboratorio'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
+    | '/executivo/homologacao'
     | '/executivo/investidores'
     | '/executivo/kpi'
     | '/executivo/laboratorio'
@@ -564,6 +576,7 @@ export interface RootRouteChildren {
   ExecutivoGreensalesRoute: typeof ExecutivoGreensalesRoute
   ExecutivoGreensalesSyncRoute: typeof ExecutivoGreensalesSyncRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
+  ExecutivoHomologacaoRoute: typeof ExecutivoHomologacaoRoute
   ExecutivoInvestidoresRoute: typeof ExecutivoInvestidoresRoute
   ExecutivoKpiRoute: typeof ExecutivoKpiRoute
   ExecutivoLaboratorioRoute: typeof ExecutivoLaboratorioRoute
@@ -750,6 +763,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoInvestidoresRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/homologacao': {
+      id: '/executivo/homologacao'
+      path: '/executivo/homologacao'
+      fullPath: '/executivo/homologacao'
+      preLoaderRoute: typeof ExecutivoHomologacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/home': {
       id: '/executivo/home'
       path: '/executivo/home'
@@ -925,6 +945,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoGreensalesRoute: ExecutivoGreensalesRoute,
   ExecutivoGreensalesSyncRoute: ExecutivoGreensalesSyncRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
+  ExecutivoHomologacaoRoute: ExecutivoHomologacaoRoute,
   ExecutivoInvestidoresRoute: ExecutivoInvestidoresRoute,
   ExecutivoKpiRoute: ExecutivoKpiRoute,
   ExecutivoLaboratorioRoute: ExecutivoLaboratorioRoute,
