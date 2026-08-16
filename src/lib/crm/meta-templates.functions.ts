@@ -13,6 +13,7 @@ import type {
   MetaTemplateRecord,
   MetaTemplatePurpose,
 } from "@/lib/crm/meta-templates";
+import type { CrmMetaTemplateOption } from "@/lib/crm/meta-templates";
 
 async function assertManager(context: { supabase: unknown; userId: string }) {
   const { getExecutiveRoleForUser } = await import("@/server/executive-auth.server");
