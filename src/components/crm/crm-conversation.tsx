@@ -29,7 +29,37 @@ import {
   resolveCrmWindow,
   type CrmWindowStatus,
 } from "@/lib/crm/templates";
+import { useServerFn } from "@tanstack/react-start";
+import { listCrmRelationshipTemplates } from "@/lib/crm/meta-templates.functions";
+import type { CrmMetaTemplateOption } from "@/lib/crm/meta-templates";
+import { ensureCloudSession } from "@/lib/executive-auth";
 const CHATGPT_URL = "https://chatgpt.com/";
+
+/**
+ * Templates cadastrados na Central de Templates, visíveis no CRM.
+ * Somente leitura — nenhum envio ou automação é acionado.
+ */
+function useCentralTemplates(active: boolean) {
+  const fetchTemplates = useServerFn(listCrmRelationshipTemplates);
+  const [items, setItems] = useState<CrmMetaTemplateOption[]>([]);
+  useEffect(() => {
+    if (!active) return;
+    let alive = true;
+    void (async () => {
+      try {
+        await ensureCloudSession();
+        const rows = await fetchTemplates({ data: undefined } as never);
+        if (alive) setItems(rows as CrmMetaTemplateOption[]);
+      } catch {
+        if (alive) setItems([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [active, fetchTemplates]);
+  return items;
+}
 
 /** Contador vivo do cabeçalho — atualiza o rótulo a cada segundo. */
 function useSecondTick(active: boolean) {
