@@ -20,18 +20,27 @@ function isHomologationLeadId(leadId: string): boolean {
  * Homologação: só pode atuar sobre registros fictícios do próprio
  * ambiente. Um lead real jamais é aceito, mesmo que marcado como teste.
  */
-export async function assertHomologationRecipient(leadId: string): Promise<GuardResult> {
+export async function assertHomologationRecipient(
+  leadId: string,
+  runId: string | null = null,
+): Promise<GuardResult> {
   if (!isHomologationLeadId(leadId)) {
     return { ok: false, reason: "Lead não pertence à homologação — envio bloqueado." };
   }
-  const { data } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("relationship_cadences")
     .select("id")
     .eq("scope", "homologation")
-    .eq("lead_id", leadId)
-    .maybeSingle();
+    .eq("lead_id", leadId);
+  query = runId ? query.eq("run_id", runId) : query.is("run_id", null);
+  const { data } = await query.maybeSingle();
   if (!data) {
-    return { ok: false, reason: "Lead fictício não encontrado no escopo de homologação." };
+    return {
+      ok: false,
+      reason: runId
+        ? `Lead fictício não pertence à rodada ${runId} — envio bloqueado.`
+        : "Lead fictício não encontrado no escopo de homologação.",
+    };
   }
   return { ok: true };
 }
@@ -58,8 +67,9 @@ export async function assertProductionRecipient(leadId: string): Promise<GuardRe
 export async function assertRecipientForScope(
   scope: EngineScope,
   leadId: string,
+  runId: string | null = null,
 ): Promise<GuardResult> {
   return scope === "homologation"
-    ? assertHomologationRecipient(leadId)
+    ? assertHomologationRecipient(leadId, runId)
     : assertProductionRecipient(leadId);
 }
