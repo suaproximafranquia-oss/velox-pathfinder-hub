@@ -21,8 +21,6 @@ import {
   type SimulationOutput,
 } from "@/lib/relationship/simulation";
 
-type Row = Record<string, never> & Record<string, string | number | boolean | null>;
-
 const SCOPE = "homologation";
 
 /* ------------------------------------------------------------------ */
@@ -37,16 +35,16 @@ export async function listValueContents(): Promise<ValueContent[]> {
     .order("content_group", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row: Row) => ({
-    id: String(row["id"]),
-    group: String(row["content_group"]),
-    name: String(row["name"]),
-    kind: row["kind"] as ValueContent["kind"],
-    url: String(row["url"]),
-    active: Boolean(row["active"]),
-    createdAt: String(row["created_at"]),
-    updatedAt: String(row["updated_at"]),
-    usageCount: Number(row["usage_count"] ?? 0),
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    group: String(row.content_group),
+    name: String(row.name),
+    kind: row.kind as ValueContent["kind"],
+    url: String(row.url),
+    active: Boolean(row.active),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    usageCount: Number(row.usage_count ?? 0),
   }));
 }
 
@@ -128,7 +126,7 @@ function summarize(output: SimulationOutput): {
     const leads = output.leadResults.filter((r) => r.lead.scenario === key);
     return {
       scenario: key,
-      label: SCENARIOS[key].label,
+      label: SCENARIOS[key].name,
       total: leads.length,
       passed: leads.filter((r) => r.result === "PASS").length,
       failed: leads.filter((r) => r.result === "FAIL").length,
@@ -246,18 +244,18 @@ export async function listHomologationRuns(): Promise<RunSummary[]> {
     .order("created_at", { ascending: false })
     .limit(30);
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row: Row) => ({
-    runId: String(row["run_id"]),
-    label: String(row["label"]),
-    createdAt: String(row["created_at"]),
-    createdByName: String(row["created_by_name"] ?? ""),
-    totalLeads: Number(row["total_leads"] ?? 0),
-    passed: Number(row["passed"] ?? 0),
-    failed: Number(row["failed"] ?? 0),
-    messages: Number(row["messages_count"] ?? 0),
-    outsideHours: Number(row["outside_hours"] ?? 0),
-    scenarios: (row["scenario_summary"] as unknown as ScenarioSummary[]) ?? [],
-    contentUsage: (row["content_usage"] as unknown as Record<string, number>) ?? {},
+  return (data ?? []).map((row) => ({
+    runId: String(row.run_id),
+    label: String(row.label),
+    createdAt: String(row.created_at),
+    createdByName: String(row.created_by_name ?? ""),
+    totalLeads: Number(row.total_leads ?? 0),
+    passed: Number(row.passed ?? 0),
+    failed: Number(row.failed ?? 0),
+    messages: Number(row.messages_count ?? 0),
+    outsideHours: Number(row.outside_hours ?? 0),
+    scenarios: (row.scenario_summary as unknown as ScenarioSummary[]) ?? [],
+    contentUsage: (row.content_usage as unknown as Record<string, number>) ?? {},
     contentGaps: [],
   }));
 }

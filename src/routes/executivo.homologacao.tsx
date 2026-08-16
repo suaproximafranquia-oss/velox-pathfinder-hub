@@ -164,8 +164,10 @@ function HomologacaoPage() {
 
   const last = runs[0] ?? null;
 
+  if (!session) return null;
+
   return (
-    <ExecutiveShell title="Homologação do Motor" icon={FlaskConical}>
+    <ExecutiveShell session={session} title="Homologação do Motor">
       <div className="space-y-6">
         <header className={card}>
           <div className="flex flex-wrap items-center justify-between gap-3">
