@@ -335,6 +335,8 @@ export type LeadResult = {
   errors: string[];
   journey: LeadJourneyEntry[];
   messages: SimMessage[];
+  decisions: EngineDecision[];
+  events: EngineEvent[];
   result: "PASS" | "FAIL";
   divergence: string | null;
   expectedSteps: CadenceStep[];
@@ -475,6 +477,22 @@ async function runLead(
   });
   await emit("LEAD_CREATED", "created");
 
+  // Entrada no motor: automática (lead chegou) ou manual (Executivo
+  // iniciou o primeiro contato). Nos dois casos é o MESMO motor e a
+  // MESMA cadência — nunca uma segunda cadência (§36).
+  const startedBy: "automatic" | "manual" = lead.duplicityProbe ? "manual" : "automatic";
+  await repository.saveRecord({
+    ...initialRecord({
+      scope: "homologation",
+      leadId: lead.leadId,
+      runId: ctx.runId,
+      at: now,
+    }),
+    state: "CADENCE_ACTIVE",
+    startedAt: now,
+    startedBy,
+  });
+
   // §46 — reprocessamento do mesmo evento não pode duplicar efeito.
   if (lead.duplicityProbe) {
     const repeated = await emit("LEAD_CREATED", "created");
@@ -490,17 +508,9 @@ async function runLead(
     const record = (await repository.loadRecord(lead.leadId)) ??
       initialRecord({ scope: "homologation", leadId: lead.leadId, runId: ctx.runId, at: now });
 
+    void record;
     let decision: EngineDecision;
-    if (record.state === "CADENCE_NOT_STARTED") {
-      // Ponto de entrada equivalente ao E0, automático ou manual (§36).
-      decision = await engine.tick(lead.leadId);
-      if (decision.outcome === "noop") {
-        // Cadência ainda não iniciada: o primeiro contato entra pelo motor.
-        const forced = { ...record, state: "CADENCE_ACTIVE" as CadenceState };
-        await repository.saveRecord(forced);
-        decision = await engine.tick(lead.leadId);
-      }
-    } else if (lead.duplicityProbe && sends > 0) {
+    if (lead.duplicityProbe && sends > 0) {
       // §46 — dois "workers" disputando a mesma tarefa.
       const [first, second] = await Promise.all([
         engine.tick(lead.leadId),
@@ -692,6 +702,8 @@ async function runLead(
     errors,
     journey,
     messages,
+    decisions: repository.decisions,
+    events: repository.events,
     result: problems.length === 0 ? "PASS" : "FAIL",
     divergence: problems.length === 0 ? null : problems.join(" "),
     expectedSteps: scenario.expectedSteps,
