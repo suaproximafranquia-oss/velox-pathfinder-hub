@@ -362,3 +362,30 @@ export function parseWebhookReply(
     return null;
   }
 }
+/**
+ * COMANDO 3B §3 — a porta pública do Template Oficial deixa de aceitar
+ * qualquer número arbitrário. O disparo só é autorizado quando o par
+ * (jornada, telefone) corresponde a um lead real do Portal.
+ *
+ * Isto NÃO altera os dados do Portal dos Leads: é apenas leitura.
+ */
+export async function assertValidationRecipient(input: {
+  journeyId: string;
+  phone: string;
+}): Promise<{ ok: boolean; reason?: string }> {
+  const phone = onlyDigits(input.phone);
+  if (phone.length < 10) return { ok: false, reason: "Telefone inválido." };
+  if (input.journeyId.toUpperCase().startsWith("TEST-")) {
+    return { ok: false, reason: "Registro de teste não pode usar o canal oficial." };
+  }
+  const { data } = await supabaseAdmin
+    .from("portal_leads")
+    .select("id, whatsapp")
+    .eq("id", input.journeyId)
+    .maybeSingle();
+  if (!data) return { ok: false, reason: "Jornada não encontrada — envio bloqueado." };
+  if (onlyDigits(data.whatsapp ?? "") !== phone) {
+    return { ok: false, reason: "Telefone não corresponde à jornada — envio bloqueado." };
+  }
+  return { ok: true };
+}
