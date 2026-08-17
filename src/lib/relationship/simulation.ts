@@ -326,6 +326,8 @@ export type SimMessage = {
   contentId: string | null;
   contentName: string | null;
   at: string;
+  /** Botão do template (URL nunca aparece no corpo da mensagem). */
+  button?: { label: string; url: string } | null;
 };
 
 export type LeadJourneyEntry = { at: string; event: string; detail: string };
@@ -435,6 +437,7 @@ async function runLead(
         contentId: content?.id ?? null,
         contentName: content?.name ?? null,
         at: now,
+        button: rendered.button,
       });
       journey.push({
         at: now,
