@@ -33,6 +33,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listCrmRelationshipTemplates } from "@/lib/crm/meta-templates.functions";
 import type { CrmMetaTemplateOption } from "@/lib/crm/meta-templates";
 import { ensureCloudSession } from "@/lib/executive-auth";
+import { buildPostPresentationDraft } from "@/lib/crm/post-presentation";
 const CHATGPT_URL = "https://chatgpt.com/";
 
 /**
@@ -371,6 +372,7 @@ export function CrmComposer({
   investorName = "",
   executiveName = "",
   portalLink = "",
+  postPresentationVideoUrl = null,
   window: win,
   prefillText,
   prefillNonce = 0,
@@ -389,6 +391,11 @@ export function CrmComposer({
   executiveName?: string;
   /** Portal do Investidor do executivo — resolve {{link_portal_investidor}}. */
   portalLink?: string;
+  /**
+   * Vídeo de pós-apresentação do executivo responsável (individual).
+   * Ausente ⇒ a ação de Pós-apresentação fica bloqueada com aviso.
+   */
+  postPresentationVideoUrl?: string | null;
   window?: CrmWindowStatus;
   /** Texto carregado a partir do módulo Templates. */
   prefillText?: string | null;
@@ -406,6 +413,8 @@ export function CrmComposer({
   /** Seletor de contato do CRM (substitui o antigo arquivo .vcf). */
   const [contactsOpen, setContactsOpen] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
+  /** Aviso da ação manual de Pós-apresentação (COMANDO 3D §22). */
+  const [postWarning, setPostWarning] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   /** Áudio gravado aguardando revisão — nada é enviado sem confirmação. */
   const [recording, setRecording] = useState(false);
@@ -661,7 +670,39 @@ export function CrmComposer({
               {t.label}
             </button>
           ))}
+          {/* AÇÃO MANUAL — PÓS-APRESENTAÇÃO (COMANDO 3D §18–§25).
+              Não pertence à cadência automática e NUNCA envia sozinha:
+              apenas preenche o editor para revisão do Executivo. */}
+          <button
+            type="button"
+            title="Pós-apresentação — abre o editor para revisão antes do envio"
+            onClick={() => {
+              const draft = buildPostPresentationDraft({
+                investorName,
+                executiveName,
+                videoUrl: postPresentationVideoUrl,
+                portalLink,
+              });
+              if (draft.blocked) {
+                setPostWarning(draft.blockers.join(" "));
+                return;
+              }
+              setPostWarning(null);
+              setText(draft.body);
+              // Mensagem livre revisada pelo Executivo — não é template Meta.
+              setArmedTemplate(false);
+              setTemplatesOpen(false);
+            }}
+            className="cursor-pointer rounded-lg border border-[color:var(--crm-accent)]/40 px-2.5 py-1.5 text-[11px] font-medium text-[color:var(--crm-accent)] transition-all duration-150 hover:-translate-y-[1px] hover:bg-[color:var(--crm-hover)] active:translate-y-0"
+          >
+            Pós-apresentação
+          </button>
         </div>
+      ) : null}
+      {postWarning ? (
+        <p className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-500">
+          {postWarning}
+        </p>
       ) : null}
       <div className="flex items-center gap-2">
         <button

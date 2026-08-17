@@ -118,6 +118,7 @@ function ProfileFields({
     whatsapp: user?.whatsapp ?? user?.phone ?? "",
     admissionDate: user?.admissionDate ?? "",
     birthDate: user?.birthDate ?? "",
+    postPresentationVideoUrl: user?.postPresentationVideoUrl ?? "",
   });
 
   function startEdit() {
@@ -127,6 +128,7 @@ function ProfileFields({
       whatsapp: user?.whatsapp ?? user?.phone ?? "",
       admissionDate: user?.admissionDate ?? "",
       birthDate: user?.birthDate ?? "",
+      postPresentationVideoUrl: user?.postPresentationVideoUrl ?? "",
     });
     setEditing(true);
   }
@@ -142,6 +144,8 @@ function ProfileFields({
       whatsapp: draft.whatsapp.trim() || undefined,
       admissionDate: draft.admissionDate || undefined,
       birthDate: draft.birthDate || undefined,
+      // COMANDO 3D §17 — link individual, sem fallback de outro executivo.
+      postPresentationVideoUrl: draft.postPresentationVideoUrl.trim() || undefined,
     };
     const all = loadUsers().map((u) => (u.id === updated.id ? updated : u));
     saveUsers(all);
@@ -154,7 +158,8 @@ function ProfileFields({
     | "email"
     | "whatsapp"
     | "admissionDate"
-    | "birthDate";
+    | "birthDate"
+    | "postPresentationVideoUrl";
   const rows: Array<{
     icon: typeof UserCircle2;
     label: string;
@@ -200,6 +205,15 @@ function ProfileFields({
       icon: Shield,
       label: "Permissões atuais",
       value: ROLE_LABEL[session.activeRole],
+    },
+    {
+      icon: MessageCircle,
+      label: "Vídeo de pós-apresentação (individual)",
+      value:
+        user?.postPresentationVideoUrl ??
+        "Vídeo de pós-apresentação não configurado para este executivo.",
+      editable: "postPresentationVideoUrl",
+      inputType: "url",
     },
   ];
   return (

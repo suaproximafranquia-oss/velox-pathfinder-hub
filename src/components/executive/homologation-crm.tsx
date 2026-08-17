@@ -23,6 +23,9 @@ import { cn } from "@/lib/utils";
 
 export type HomologationMessageView = {
   direction: "outbound" | "inbound" | "system";
+  /** Autor explícito da mensagem (COMANDO 3D §7). */
+  author?: "EXECUTIVE" | "INVESTOR" | "SYSTEM";
+  authorName?: string;
   step: string | null;
   body: string;
   at: string;
@@ -113,6 +116,10 @@ export function HomologationCrm({
 }: {
   conversations: HomologationConversation[];
 }) {
+  /**
+   * A posição visual é definida pelo AUTOR da mensagem (COMANDO 3D §6/§7):
+   * OUTBOUND (Velox/Executivo) à direita, INBOUND (investidor) à esquerda.
+   */
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(conversations[0]?.leadId ?? "");
 
@@ -198,19 +205,38 @@ export function HomologationCrm({
           </header>
 
           <div className="max-h-[440px] space-y-2 overflow-y-auto p-4">
-            {current.messages.map((m, i) => (
+            {current.messages.map((m, i) => {
+              const author =
+                m.author ??
+                (m.direction === "inbound"
+                  ? "INVESTOR"
+                  : m.direction === "system"
+                    ? "SYSTEM"
+                    : "EXECUTIVE");
+              const isInvestor = author === "INVESTOR";
+              const label =
+                m.authorName ??
+                (isInvestor
+                  ? `Investidor ${current.leadId}`
+                  : author === "SYSTEM"
+                    ? "Sistema"
+                    : "Velox / Executivo");
+              return (
               <div
                 key={`${m.at}-${i}`}
-                className={cn("flex", m.direction === "inbound" ? "justify-start" : "justify-end")}
+                className={cn("flex", isInvestor ? "justify-start" : "justify-end")}
               >
                 <div
                   className={cn(
                     "max-w-[80%] rounded-2xl px-3 py-2 text-xs",
-                    m.direction === "inbound"
+                    isInvestor
                       ? "bg-[color:var(--card)]/70 text-[color:var(--foreground)]"
                       : "bg-[color:var(--gold)]/15 text-[color:var(--foreground)]",
                   )}
                 >
+                  <p className="mb-1 text-[10px] font-medium text-[color:var(--muted-foreground)]">
+                    {label}
+                  </p>
                   {m.step ? (
                     <p className="mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gold)]">
                       Etapa {m.step}
@@ -220,11 +246,12 @@ export function HomologationCrm({
                   <Attachment message={m} />
                   <p className="mt-1 flex items-center justify-end gap-1 text-[10px] text-[color:var(--muted-foreground)]">
                     {hour(m.at)}
-                    {m.direction === "outbound" ? <CheckCheck className="h-3 w-3" /> : null}
+                    {author === "EXECUTIVE" ? <CheckCheck className="h-3 w-3" /> : null}
                   </p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="grid gap-3 border-t border-[color:var(--border)] p-4 md:grid-cols-2">

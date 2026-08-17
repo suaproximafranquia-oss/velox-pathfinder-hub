@@ -33,6 +33,7 @@ import {
   listRelationshipRuns,
   readRelationshipRun,
   runRelationshipHomologation,
+  resetHomologationWorkspace,
 } from "@/lib/relationship-homologation.functions";
 import { cn } from "@/lib/utils";
 
@@ -150,6 +151,40 @@ function HomologacaoPage() {
 
   const last = runs[0] ?? null;
 
+  /* RESET CONTROLADO DO WORKSPACE (COMANDO 3D §1–§5, §29–§31). */
+  type ResetReport = {
+    executed: boolean;
+    blocked: boolean;
+    blockReason: string | null;
+    totalDeleted?: number;
+    candidates: {
+      leads: { id: string; name: string }[];
+      protectedLeads: number;
+      messages: number;
+      timelineNoise: number;
+      journeyEvents: number;
+      engagement: number;
+      homologationRows: number;
+    };
+  };
+  const [resetReport, setResetReport] = useState<ResetReport | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
+
+  async function handleReset(dryRun: boolean) {
+    setResetBusy(true);
+    setError(null);
+    try {
+      await ensureCloudSession();
+      const report = (await resetHomologationWorkspace({ data: { dryRun } })) as ResetReport;
+      setResetReport(report);
+      if (report.executed) await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "O reset não pôde ser concluído.");
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   if (!session) return null;
 
   return (
@@ -221,6 +256,63 @@ function HomologacaoPage() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className={card}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm text-[color:var(--foreground)]">
+                Reset controlado do Workspace de homologação
+              </h2>
+              <p className="mt-1 max-w-2xl text-xs text-[color:var(--muted-foreground)]">
+                Remove apenas leads, conversas e eventos fictícios de teste. Portal dos Leads,
+                GreenSales, usuários, templates e a Biblioteca de Conteúdos permanecem intocados.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className={ghost}
+                onClick={() => void handleReset(true)}
+                disabled={resetBusy}
+              >
+                Validar escopo
+              </button>
+              <button
+                className={gold}
+                onClick={() => void handleReset(false)}
+                disabled={resetBusy || !resetReport || resetReport.blocked}
+                title={
+                  resetReport ? "Executa a limpeza validada" : "Valide o escopo antes de executar"
+                }
+              >
+                Executar reset
+              </button>
+            </div>
+          </div>
+          {resetReport ? (
+            <div className="space-y-2 rounded-xl border border-[color:var(--border)] p-3 text-xs text-[color:var(--muted-foreground)]">
+              {resetReport.blocked ? (
+                <p className="text-red-400">{resetReport.blockReason}</p>
+              ) : null}
+              <p className="text-[color:var(--foreground)]">
+                {resetReport.executed
+                  ? `Reset concluído — ${resetReport.totalDeleted ?? 0} registro(s) removido(s).`
+                  : "Pré-visualização (nada foi apagado)."}
+              </p>
+              <p>
+                Leads fictícios: {resetReport.candidates.leads.length} · Preservados:{" "}
+                {resetReport.candidates.protectedLeads} · Mensagens:{" "}
+                {resetReport.candidates.messages} · Ruído de auditoria:{" "}
+                {resetReport.candidates.timelineNoise} · Jornada:{" "}
+                {resetReport.candidates.journeyEvents} · Engajamento:{" "}
+                {resetReport.candidates.engagement} · Motor (homologação):{" "}
+                {resetReport.candidates.homologationRows}
+              </p>
+              <p className="text-emerald-400">
+                Portal dos Leads e GreenSales elegíveis: 0 (proteção absoluta).
+              </p>
+            </div>
+          ) : null}
         </section>
 
         <section className={card}>

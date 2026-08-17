@@ -42,6 +42,9 @@ import { listCrmMessages } from "@/lib/crm/messages";
 function supervisorParticipates(investorId: string, userId: string): boolean {
   return listCrmMessages(investorId).some((m) => m.authorId === userId);
 }
+
+/** Duplicidade já auditada nesta sessão — evita repetir o mesmo evento. */
+const duplicateEventRecorded = new Set<string>();
 /**
  * WhatsApp do investidor (DEF 2.4.10 §4): sempre que o número existir em
  * qualquer camada oficial (cadastro ou jornada) ele é exibido.
@@ -171,7 +174,10 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
           dateIso: i.lastActivity,
         });
       }
-      if (dup) {
+      // O evento de duplicidade é registrado UMA única vez por relacionamento:
+      // antes ele era gravado a cada renderização, poluindo a auditoria.
+      if (dup && !duplicateEventRecorded.has(i.id)) {
+        duplicateEventRecorded.add(i.id);
         recordCrmEvent({
           investorId: i.id,
           event: "duplicidade_detectada",

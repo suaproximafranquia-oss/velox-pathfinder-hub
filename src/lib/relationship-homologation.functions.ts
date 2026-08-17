@@ -120,3 +120,21 @@ export const readRelationshipRun = createServerFn({ method: "POST" })
     const { readHomologationRun } = await import("@/server/relationship/homologation.server");
     return readHomologationRun(data.runId);
   });
+
+/**
+ * RESET CONTROLADO DO WORKSPACE DE HOMOLOGAÇÃO (COMANDO 3D §2, §29, §30).
+ * `dryRun` produz apenas o relatório de escopo; nada é apagado.
+ */
+export const resetHomologationWorkspace = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ dryRun: z.boolean().default(true) }).parse(data ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { executeWorkspaceReset } = await import(
+      "@/server/relationship/workspace-reset.server"
+    );
+    return executeWorkspaceReset(supabaseAdmin as never, { dryRun: data.dryRun });
+  });

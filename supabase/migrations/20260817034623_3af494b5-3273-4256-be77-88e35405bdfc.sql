@@ -1,0 +1,2 @@
+ALTER TABLE public.relationship_contents DROP CONSTRAINT IF EXISTS relationship_contents_kind_check;
+ALTER TABLE public.relationship_contents ADD CONSTRAINT relationship_contents_kind_check CHECK (kind = ANY (ARRAY['imagem'::text,'video'::text,'pdf'::text,'documento'::text,'apresentacao'::text,'arquivo'::text,'link'::text,'texto'::text,'audio'::text]));

@@ -349,6 +349,19 @@ export async function executeHomologationRun(input: {
       const content = m.contentId ? byId.get(m.contentId) ?? null : null;
       return {
         direction: m.direction,
+        // COMANDO 3D §7 — autoria explícita: define o lado da conversa.
+        author:
+          m.direction === "inbound"
+            ? ("INVESTOR" as const)
+            : m.direction === "system"
+              ? ("SYSTEM" as const)
+              : ("EXECUTIVE" as const),
+        authorName:
+          m.direction === "inbound"
+            ? `Investidor ${r.lead.leadId}`
+            : m.direction === "system"
+              ? "Sistema"
+              : `Velox / ${input.executiveName}`,
         step: m.step,
         body: m.body,
         at: m.at,
