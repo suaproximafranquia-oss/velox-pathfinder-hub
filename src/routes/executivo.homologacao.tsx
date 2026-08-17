@@ -339,18 +339,43 @@ function HomologacaoPage() {
               >
                 Validar escopo
               </button>
-              <button
-                className={gold}
-                onClick={() => void handleReset(false)}
-                disabled={resetBusy || !resetReport || resetReport.blocked}
-                title={
-                  resetReport ? "Executa a limpeza validada" : "Valide o escopo antes de executar"
-                }
-              >
-                Executar reset
-              </button>
+              {resetConfirm ? (
+                <>
+                  <button
+                    className={ghost}
+                    onClick={() => setResetConfirm(false)}
+                    disabled={resetBusy}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className={gold}
+                    onClick={() => void handleReset(false)}
+                    disabled={resetBusy}
+                  >
+                    Confirmar exclusão definitiva
+                  </button>
+                </>
+              ) : (
+                <button
+                  className={gold}
+                  onClick={() => setResetConfirm(true)}
+                  disabled={resetBusy || !resetReport || resetReport.blocked}
+                  title={
+                    resetReport ? "Executa a limpeza validada" : "Valide o escopo antes de executar"
+                  }
+                >
+                  Executar reset
+                </button>
+              )}
             </div>
           </div>
+          {resetConfirm ? (
+            <p className="mb-3 rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-3 py-2 text-xs text-[color:var(--gold)]">
+              Este reset remove somente dados de teste fora do ambiente de homologação. Confirme
+              para prosseguir — a exclusão é definitiva.
+            </p>
+          ) : null}
           {resetReport ? (
             <div className="space-y-2 rounded-xl border border-[color:var(--border)] p-3 text-xs text-[color:var(--muted-foreground)]">
               {resetReport.blocked ? (
