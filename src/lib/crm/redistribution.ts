@@ -354,6 +354,43 @@ export function listRedistributedLeads(): Array<{
  * Altera apenas o responsável operacional, o escopo e o histórico de
  * redistribuição. O proprietário ORIGINAL é sempre preservado.
  */
+/**
+ * COMANDO 4G §7/§8 — plano de confirmação. Nada é executado aqui: a
+ * fila só é consultada DEPOIS que a Gestora confirma.
+ */
+export type RedistributionPlan =
+  | { ok: false; reason: string }
+  | {
+      ok: true;
+      leadId: string;
+      leadName: string;
+      currentOwnerId: string | null;
+      currentOwnerName: string | null;
+      /** §8 — lead que já possui Executivo responsável. */
+      exceptional: boolean;
+      message: string;
+    };
+
+export function planRedistribution(leadId: string): RedistributionPlan {
+  const lead = loadLeads().find((l) => l.id === leadId);
+  if (!lead) return { ok: false, reason: "Lead não encontrado." };
+  const currentOwnerId = lead.operationalOwnerId ?? lead.responsibleExecutiveId ?? null;
+  const ownerName = currentOwnerId
+    ? (loadUsers().find((u) => u.id === currentOwnerId)?.name ?? null)
+    : null;
+  return {
+    ok: true,
+    leadId: lead.id,
+    leadName: lead.name,
+    currentOwnerId,
+    currentOwnerName: ownerName,
+    exceptional: Boolean(ownerName),
+    message: ownerName
+      ? `Este lead pertence ao Executivo ${ownerName}. Deseja redistribuí-lo mesmo assim?`
+      : "Este lead ainda não possui um Executivo responsável. Deseja redistribuí-lo agora?",
+  };
+}
+
 export function redistributeExistingLead(input: {
   leadId: string;
   actorId: string;
@@ -364,6 +401,12 @@ export function redistributeExistingLead(input: {
   if (!lead) return { ok: false, reason: "Lead não encontrado." };
 
   const currentOwner = lead.operationalOwnerId ?? lead.responsibleExecutiveId ?? null;
+  const queue = redistributionQueue();
+  const preview = pickRecipient({
+    queue: queue.map((q) => q.id),
+    pointer: readCursor(),
+    currentOwnerId: currentOwner,
+  });
   const executive = takeNextExecutive(currentOwner);
   if (!executive) {
     return { ok: false, reason: "Nenhum Executivo elegível na fila oficial." };
@@ -392,9 +435,15 @@ export function redistributeExistingLead(input: {
 
   recordRedistribution({
     leadId: routed.id,
+    leadName: routed.name,
     fromOwnerId: currentOwner,
+    originalOwnerId: decision.ownerId,
     recipientId: executive.id,
+    recipientName: executive.name,
     redistributedBy: input.actorId,
+    redistributedByName: input.actorName,
+    skipped: preview.skipped,
+    exceptional: Boolean(currentOwner),
     reason: input.reason ?? "Redistribuição operacional da Gestora.",
     at: new Date().toISOString(),
   });
