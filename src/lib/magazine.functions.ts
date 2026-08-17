@@ -62,12 +62,15 @@ export const saveMagazineEdition = createServerFn({ method: "POST" })
     return saveEdition(data);
   });
 
-export const deleteMagazineEdition = createServerFn({ method: "POST" })
+/** Edição nunca é excluída: apenas ativada/desativada no Portal. */
+export const setMagazineEditionPublished = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data) =>
+    z.object({ id: z.string().uuid(), published: z.boolean() }).parse(data),
+  )
   .handler(async ({ data }): Promise<MagazineEdition[]> => {
-    const { deleteEdition } = await import("@/server/magazine.server");
-    return deleteEdition(data.id);
+    const { setEditionPublished } = await import("@/server/magazine.server");
+    return setEditionPublished(data.id, data.published);
   });
 
 export const saveMagazinePage = createServerFn({ method: "POST" })
@@ -80,7 +83,7 @@ export const saveMagazinePage = createServerFn({ method: "POST" })
         position: z.number().int().min(1),
         eyebrow: z.string().nullable().optional(),
         title: z.string().min(2),
-        body: z.string(),
+        body: z.string().max(900),
         caption: z.string().nullable().optional(),
         mediaKind,
         mediaUrl: z.string().nullable().optional(),
@@ -92,12 +95,13 @@ export const saveMagazinePage = createServerFn({ method: "POST" })
     return savePage(data);
   });
 
+/** Exclui o CONTEÚDO inteiro (texto + mídia) e renumera a edição. */
 export const deleteMagazinePage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data }): Promise<MagazineEdition[]> => {
-    const { deletePage } = await import("@/server/magazine.server");
-    return deletePage(data.id);
+    const { deletePagePair } = await import("@/server/magazine.server");
+    return deletePagePair(data.id);
   });
 
 export const listInstitutionalContent = createServerFn({ method: "POST" })
