@@ -6,7 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { CONTENT_GROUPS } from "@/lib/relationship/content";
+import { CONTENT_GROUPS, CONTENT_KINDS } from "@/lib/relationship/content";
 
 async function assertManager(context: { supabase: never; userId: string }) {
   const supabase = context.supabase as unknown as {
@@ -23,7 +23,9 @@ const contentSchema = z.object({
   id: z.string().uuid().nullable().optional(),
   group: z.enum(CONTENT_GROUPS),
   name: z.string().min(2),
-  kind: z.enum(["imagem", "video", "pdf", "documento", "arquivo", "link"]),
+  description: z.string().max(400).nullable().optional(),
+  kind: z.enum(CONTENT_KINDS),
+  mimeType: z.string().max(120).nullable().optional(),
   url: z.string().min(4),
   active: z.boolean().default(true),
 });
