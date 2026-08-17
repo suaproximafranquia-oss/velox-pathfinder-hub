@@ -151,6 +151,40 @@ function HomologacaoPage() {
 
   const last = runs[0] ?? null;
 
+  /* RESET CONTROLADO DO WORKSPACE (COMANDO 3D §1–§5, §29–§31). */
+  type ResetReport = {
+    executed: boolean;
+    blocked: boolean;
+    blockReason: string | null;
+    totalDeleted?: number;
+    candidates: {
+      leads: { id: string; name: string }[];
+      protectedLeads: number;
+      messages: number;
+      timelineNoise: number;
+      journeyEvents: number;
+      engagement: number;
+      homologationRows: number;
+    };
+  };
+  const [resetReport, setResetReport] = useState<ResetReport | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
+
+  async function handleReset(dryRun: boolean) {
+    setResetBusy(true);
+    setError(null);
+    try {
+      await ensureCloudSession();
+      const report = (await resetHomologationWorkspace({ data: { dryRun } })) as ResetReport;
+      setResetReport(report);
+      if (report.executed) await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "O reset não pôde ser concluído.");
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   if (!session) return null;
 
   return (
