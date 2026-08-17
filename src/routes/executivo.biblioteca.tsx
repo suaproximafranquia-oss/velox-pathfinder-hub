@@ -433,11 +433,16 @@ function BibliotecaPage() {
                         ? `último uso ${new Date(c.lastUsedAt).toLocaleDateString("pt-BR")}`
                         : "nunca utilizado"}
                     </p>
+                    {c.url ? (
+                      <p className="mt-1 truncate text-[10px] text-[color:var(--muted-foreground)]">
+                        {c.url}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     {c.url ? (
                       <a className={ghost} href={c.url} target="_blank" rel="noreferrer">
-                        Abrir
+                        <ExternalLink className="h-3.5 w-3.5" /> Abrir conteúdo
                       </a>
                     ) : null}
                     <button className={ghost} onClick={() => startEdit(c)} disabled={busy}>

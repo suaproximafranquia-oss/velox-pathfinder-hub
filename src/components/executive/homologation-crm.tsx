@@ -89,11 +89,20 @@ function Attachment({ message }: { message: HomologationMessageView }) {
   if (!message.contentName) return null;
   const kind = (message.contentKind ?? "arquivo") as ContentKind;
   const Icon = KIND_ICON[kind] ?? Paperclip;
+  const url = message.contentUrl;
+  const openLabel =
+    kind === "video" ? "Assistir" : kind === "imagem" ? "Abrir imagem" : "Abrir conteúdo";
+  const headline =
+    kind === "video"
+      ? `🎥 Assistir conteúdo — ${message.contentName}`
+      : kind === "texto"
+        ? message.contentName
+        : message.contentName;
   return (
     <div className="mt-2 rounded-lg border border-[color:var(--border)]/70 bg-[color:var(--background)]/40 p-2">
-      {kind === "imagem" && message.contentUrl ? (
+      {kind === "imagem" && url ? (
         <img
-          src={message.contentUrl}
+          src={url}
           alt={message.contentName}
           loading="lazy"
           className="mb-2 max-h-40 w-full rounded-md object-cover"
@@ -101,12 +110,22 @@ function Attachment({ message }: { message: HomologationMessageView }) {
       ) : null}
       <div className="flex items-center gap-2 text-[11px]">
         <Icon className="h-3.5 w-3.5 text-[color:var(--gold)]" />
-        <span className="truncate text-[color:var(--foreground)]">{message.contentName}</span>
+        <span className="truncate text-[color:var(--foreground)]">{headline}</span>
         <span className="ml-auto shrink-0 uppercase text-[color:var(--muted-foreground)]">
           {kind}
           {message.contentGroup ? ` · ${message.contentGroup}` : ""}
         </span>
       </div>
+      {url && kind !== "texto" ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--gold)]/50 px-3 py-1 text-[10px] text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/10"
+        >
+          <Link2 className="h-3 w-3" /> {openLabel}
+        </a>
+      ) : null}
     </div>
   );
 }
