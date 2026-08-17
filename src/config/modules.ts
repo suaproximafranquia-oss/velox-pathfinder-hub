@@ -178,16 +178,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     requiresRole: ["super_admin", "diretora"],
   },
   {
-    id: "biblioteca-conteudos-legado",
-    name: "Biblioteca de Conteúdos",
-    description:
-      "Acervo permanente dos materiais de valor usados pelo Motor de Relacionamento, organizados por grupo.",
-    icon: Library,
-    to: "/executivo/biblioteca",
-    status: "ativo",
-    requiresRole: ["super_admin", "diretora"],
-  },
-  {
     id: "central-backup",
     name: "Central de Backup",
     description:
