@@ -73,6 +73,15 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     }
   }
 
+  // §8 — na reentrada, uma resposta encerra a automação: o Executivo
+  // conduz e o motor não cria novas etapas do fluxo RE.
+  if (record.flow === "reentrada" && record.responseCount > 0) {
+    return {
+      kind: "none",
+      reason: "Investidor respondeu durante a reentrada — a condução passa a ser do Executivo.",
+    };
+  }
+
   const step = nextStep(record);
   if (!step) {
     return { kind: "none", reason: "Todas as etapas do fluxo já foram executadas." };
