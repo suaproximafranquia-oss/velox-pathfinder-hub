@@ -23,11 +23,18 @@ export type HomologationMessage = {
   contentGroup: string | null;
   /** Trata o investidor pelo nome quando ele estiver confirmado. */
   usesInvestorName: boolean;
+  /**
+   * Botão do template: "portal" usa {{link_portal}}, "content" usa a URL
+   * do conteúdo da Biblioteca. A URL NUNCA aparece no corpo do texto.
+   * É apenas a representação visual do comportamento do template — nada
+   * é enviado ou registrado na Meta.
+   */
+  button: "portal" | "content" | null;
   text: string;
 };
 
 /** Variável de conteúdo da etapa: {{conteudo_e1}}, {{conteudo_r2}}… (§14). */
-const CONTENT_PLACEHOLDER = /\{\{conteudo_[a-z0-9]+\}\}/;
+const CONTENT_PLACEHOLDER = /\n*\{\{conteudo_[a-z0-9]+\}\}\n*/;
 
 export const HOMOLOGATION_MESSAGES: Record<CadenceStep, HomologationMessage> = {
   E0: {
