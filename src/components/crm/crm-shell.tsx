@@ -98,6 +98,12 @@ export function CrmShell({
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
 
+  // COMANDO 3B §3/§11 — sem permissão individual, nenhum componente ou
+  // dado do CRM é carregado, mesmo em acesso direto por URL.
+  if (!hasModuleAccess(session, "crm")) {
+    return <ModuleAccessDenied moduleKey="crm" />;
+  }
+
   return (
     <div
       style={themeVars}
