@@ -42,6 +42,9 @@ import { listCrmMessages } from "@/lib/crm/messages";
 function supervisorParticipates(investorId: string, userId: string): boolean {
   return listCrmMessages(investorId).some((m) => m.authorId === userId);
 }
+
+/** Duplicidade já auditada nesta sessão — evita repetir o mesmo evento. */
+const duplicateEventRecorded = new Set<string>();
 /**
  * WhatsApp do investidor (DEF 2.4.10 §4): sempre que o número existir em
  * qualquer camada oficial (cadastro ou jornada) ele é exibido.
