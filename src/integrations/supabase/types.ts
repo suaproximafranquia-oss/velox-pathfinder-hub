@@ -1258,8 +1258,11 @@ export type Database = {
           active: boolean
           content_group: string
           created_at: string
+          description: string | null
           id: string
           kind: string
+          last_used_at: string | null
+          mime_type: string | null
           name: string
           scope: string
           updated_at: string
@@ -1270,8 +1273,11 @@ export type Database = {
           active?: boolean
           content_group: string
           created_at?: string
+          description?: string | null
           id?: string
           kind: string
+          last_used_at?: string | null
+          mime_type?: string | null
           name: string
           scope?: string
           updated_at?: string
@@ -1282,8 +1288,11 @@ export type Database = {
           active?: boolean
           content_group?: string
           created_at?: string
+          description?: string | null
           id?: string
           kind?: string
+          last_used_at?: string | null
+          mime_type?: string | null
           name?: string
           scope?: string
           updated_at?: string
