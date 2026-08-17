@@ -118,14 +118,15 @@ export type CrmMetaTemplateOption = {
   source: "meta";
 };
 
-/** Passo de cadência sugerido pela finalidade (organização, não disparo). */
+/**
+ * A cadência pertence ao Motor de Relacionamento. Aqui só existe o
+ * primeiro contato manual; aberturas não têm passo de cadência.
+ */
 export const PURPOSE_CADENCE_STEP: Record<MetaTemplatePurpose, number | null> = {
   primeiro_contato: 1,
-  segundo_contato: 2,
-  terceiro_contato: 4,
-  quarto_contato: 5,
-  encerramento: 12,
-  abertura_conversa: null,
+  abertura_conversa_1: null,
+  abertura_conversa_2: null,
+  abertura_conversa_3: null,
   outro: null,
 };
 
