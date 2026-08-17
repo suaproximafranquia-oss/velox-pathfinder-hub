@@ -111,6 +111,46 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     contentGroup: null,
     terminal: true,
   },
+  /**
+   * FLUXO 4 — REENTRADA (COMANDO 2B §2, §7).
+   *
+   * Um lead já conhecido que se cadastra novamente NÃO recomeça o fluxo
+   * de primeiro contato: ele entra em uma sequência própria, mais curta
+   * e mais direta, que reconhece o histórico anterior. Os intervalos são
+   * configuráveis — mudam aqui, nunca em componentes.
+   */
+  RE0: {
+    step: "RE0",
+    flow: "reentrada",
+    businessDaysAfterReference: 0,
+    templatePurpose: "reentrada_contato",
+    contentGroup: null,
+    terminal: false,
+  },
+  RE1: {
+    step: "RE1",
+    flow: "reentrada",
+    businessDaysAfterReference: 2,
+    templatePurpose: "reentrada_criterios",
+    contentGroup: "RE1",
+    terminal: false,
+  },
+  RE2: {
+    step: "RE2",
+    flow: "reentrada",
+    businessDaysAfterReference: 3,
+    templatePurpose: "reentrada_estrutura",
+    contentGroup: "RE2",
+    terminal: false,
+  },
+  RE3: {
+    step: "RE3",
+    flow: "reentrada",
+    businessDaysAfterReference: 5,
+    templatePurpose: "reentrada_encerramento",
+    contentGroup: null,
+    terminal: true,
+  },
 };
 
 /** Sequência oficial de cada fluxo. Ordem é validada antes do disparo. */
@@ -118,6 +158,7 @@ export const FLOW_SEQUENCE: Record<CadenceFlow, CadenceStep[]> = {
   sem_resposta: ["E0", "E1", "E3", "E4", "E12"],
   visualizacao: ["E0", "E1", "V3", "V4"],
   reengajamento: ["R1", "R2", "R3"],
+  reentrada: ["RE0", "RE1", "RE2", "RE3"],
 };
 
 export type RelationshipConfig = {
