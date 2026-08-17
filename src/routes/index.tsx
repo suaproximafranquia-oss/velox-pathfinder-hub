@@ -25,6 +25,14 @@ const PhoneRegistryOverlay = lazy(() =>
     default: m.PhoneRegistryOverlay,
   })),
 );
+const MagazineOverlay = lazy(() =>
+  import("@/components/portal/magazine-overlay").then((m) => ({ default: m.MagazineOverlay })),
+);
+const InstitutionalOverlay = lazy(() =>
+  import("@/components/portal/institutional-overlay").then((m) => ({
+    default: m.InstitutionalOverlay,
+  })),
+);
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
 import manualCoverImg from "@/assets/portal-manual-cover.png.asset.json";
 import materialInstitucionalImg from "@/assets/portal-material-institucional.png.asset.json";
@@ -63,6 +71,14 @@ import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
 import { setActiveOverlay } from "@/lib/portal-overlay";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { clearResponsibleExecutive } from "@/lib/responsible-executive";
+import { pushPortalProgress } from "@/lib/portal-access";
+
+/** Registra no servidor o acesso real a um módulo institucional. */
+function trackModuleAccess(module: PortalModuleKey, detail: string) {
+  const investorId = getPortalSession()?.investorId ?? null;
+  if (!investorId) return;
+  pushPortalProgress({ investorId, event: "module.opened", module, detail });
+}
 
 type HomeSearch = {
   /** Executivo responsável (link personalizado). */
@@ -173,8 +189,9 @@ const MODULES: ModuleCard[] = [
       "Um panorama institucional da Velox: a matriz, os bastidores, os vídeos e as unidades da rede que sustentam nossa operação em todo o país.",
     icon: Building2,
     cover: sedeFachadaImg.url,
-    cta: "Em breve",
-    status: "em-preparacao",
+    moduleKey: "estrutura",
+    cta: "Conhecer a estrutura",
+    status: "aberto",
   },
   {
     key: "revista",
@@ -184,19 +201,21 @@ const MODULES: ModuleCard[] = [
       "Notícias, comunicados, conteúdos institucionais e novidades da rede reunidos em uma publicação viva do universo Velox.",
     icon: BookMarked,
     cover: revistaImg.url,
-    cta: "Em breve",
-    status: "em-preparacao",
+    moduleKey: "revista",
+    cta: "Abrir edição",
+    status: "aberto",
   },
   {
     key: "cultura",
     eyebrow: "Módulo VI",
-    title: "Cultura Velox",
+    title: "Princípios Velox",
     description:
-      "As pessoas, os encontros e os momentos que constroem a identidade da Velox e a jornada de quem faz parte da rede.",
+      "Os princípios que orientam a Velox: as pessoas, os encontros e as escolhas que constroem a identidade da rede.",
     icon: Users,
     cover: experienciasImg.url,
-    cta: "Em breve",
-    status: "em-preparacao",
+    moduleKey: "principios",
+    cta: "Conhecer os princípios",
+    status: "aberto",
   },
 ];
 
@@ -314,6 +333,7 @@ function PortalHome() {
     setActiveOverlay(key);
     setJourneyStatus(key === "simulador" ? "simulador" : key === "manual" ? "manual" : "portal");
     trackSessionNavigation(key, mod.title);
+    trackModuleAccess(key, mod.title);
   }, []);
 
   /** Abre o Gateway encerrando qualquer outro overlay ativo. */
@@ -403,6 +423,31 @@ function PortalHome() {
       <Suspense fallback={null}>
         {(overlaysReady || active?.key === "simulador") && (
           <SimulatorModal open={active?.key === "simulador"} onClose={closeActive} />
+        )}
+        {(overlaysReady || active?.key === "revista") && (
+          <MagazineOverlay
+            open={active?.key === "revista"}
+            onClose={closeActive}
+            onRead={(detail) => trackModuleAccess("revista", detail)}
+          />
+        )}
+        {(overlaysReady || active?.key === "estrutura") && (
+          <InstitutionalOverlay
+            open={active?.key === "estrutura"}
+            module="estrutura"
+            title="Nossa Estrutura"
+            intro="A matriz, os bastidores e as unidades que sustentam a operação Velox em todo o país — com os vídeos institucionais que mostram como trabalhamos."
+            onClose={closeActive}
+          />
+        )}
+        {(overlaysReady || active?.key === "principios") && (
+          <InstitutionalOverlay
+            open={active?.key === "principios"}
+            module="principios"
+            title="Princípios Velox"
+            intro="Os princípios que orientam nossas decisões, nossos encontros e a forma como recebemos quem escolhe caminhar com a Velox."
+            onClose={closeActive}
+          />
         )}
         {(overlaysReady || active?.key === "gateway") && (
           <GatewayOverlay

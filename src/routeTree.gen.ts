@@ -25,6 +25,7 @@ import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as FSlugRouteImport } from './routes/f.$slug'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
 import { Route as ExecutivoTemplatesRouteImport } from './routes/executivo.templates'
+import { Route as ExecutivoRevistaRouteImport } from './routes/executivo.revista'
 import { Route as ExecutivoReunioesRouteImport } from './routes/executivo.reunioes'
 import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
 import { Route as ExecutivoRecursosRouteImport } from './routes/executivo.recursos'
@@ -133,6 +134,11 @@ const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
 const ExecutivoTemplatesRoute = ExecutivoTemplatesRouteImport.update({
   id: '/executivo/templates',
   path: '/executivo/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecutivoRevistaRoute = ExecutivoRevistaRouteImport.update({
+  id: '/executivo/revista',
+  path: '/executivo/revista',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoReunioesRoute = ExecutivoReunioesRouteImport.update({
@@ -313,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
+  '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
@@ -359,6 +366,7 @@ export interface FileRoutesByTo {
   '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
+  '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
@@ -407,6 +415,7 @@ export interface FileRoutesById {
   '/executivo/recursos': typeof ExecutivoRecursosRoute
   '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
+  '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
@@ -456,6 +465,7 @@ export interface FileRouteTypes {
     | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
+    | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/usuarios'
     | '/f/$slug'
@@ -502,6 +512,7 @@ export interface FileRouteTypes {
     | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
+    | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/usuarios'
     | '/f/$slug'
@@ -549,6 +560,7 @@ export interface FileRouteTypes {
     | '/executivo/recursos'
     | '/executivo/relatorios'
     | '/executivo/reunioes'
+    | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/usuarios'
     | '/f/$slug'
@@ -597,6 +609,7 @@ export interface RootRouteChildren {
   ExecutivoRecursosRoute: typeof ExecutivoRecursosRoute
   ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
   ExecutivoReunioesRoute: typeof ExecutivoReunioesRoute
+  ExecutivoRevistaRoute: typeof ExecutivoRevistaRoute
   ExecutivoTemplatesRoute: typeof ExecutivoTemplatesRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   FSlugRoute: typeof FSlugRoute
@@ -725,6 +738,13 @@ declare module '@tanstack/react-router' {
       path: '/executivo/templates'
       fullPath: '/executivo/templates'
       preLoaderRoute: typeof ExecutivoTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/executivo/revista': {
+      id: '/executivo/revista'
+      path: '/executivo/revista'
+      fullPath: '/executivo/revista'
+      preLoaderRoute: typeof ExecutivoRevistaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/reunioes': {
@@ -974,6 +994,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoRecursosRoute: ExecutivoRecursosRoute,
   ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
   ExecutivoReunioesRoute: ExecutivoReunioesRoute,
+  ExecutivoRevistaRoute: ExecutivoRevistaRoute,
   ExecutivoTemplatesRoute: ExecutivoTemplatesRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   FSlugRoute: FSlugRoute,

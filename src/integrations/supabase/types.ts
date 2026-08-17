@@ -791,6 +791,98 @@ export type Database = {
         }
         Relationships: []
       }
+      magazine_editions: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          id: string
+          number: number
+          published: boolean
+          starts_on: string
+          subtitle: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          number: number
+          published?: boolean
+          starts_on?: string
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          number?: number
+          published?: boolean
+          starts_on?: string
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      magazine_pages: {
+        Row: {
+          body: string
+          caption: string | null
+          created_at: string
+          edition_id: string
+          eyebrow: string | null
+          id: string
+          media_kind: string
+          media_url: string | null
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          caption?: string | null
+          created_at?: string
+          edition_id: string
+          eyebrow?: string | null
+          id?: string
+          media_kind?: string
+          media_url?: string | null
+          position?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          caption?: string | null
+          created_at?: string
+          edition_id?: string
+          eyebrow?: string | null
+          id?: string
+          media_kind?: string
+          media_url?: string | null
+          position?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "magazine_pages_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "magazine_editions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meta_templates: {
         Row: {
           body: string
@@ -979,6 +1071,48 @@ export type Database = {
           returns?: number
           session_started_at?: string
           sessions?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      portal_institutional_blocks: {
+        Row: {
+          active: boolean
+          body: string
+          created_at: string
+          eyebrow: string | null
+          id: string
+          media_kind: string
+          media_url: string | null
+          module: string
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          body?: string
+          created_at?: string
+          eyebrow?: string | null
+          id?: string
+          media_kind?: string
+          media_url?: string | null
+          module: string
+          position?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          created_at?: string
+          eyebrow?: string | null
+          id?: string
+          media_kind?: string
+          media_url?: string | null
+          module?: string
+          position?: number
+          title?: string
           updated_at?: string
         }
         Relationships: []
