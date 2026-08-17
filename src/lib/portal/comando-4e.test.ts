@@ -116,24 +116,25 @@ describe("redistribuição", () => {
   });
 
   it("pula o próprio proprietário sem consumir o turno", () => {
-    const queue = [{ id: "usr_carlos" }, { id: "usr_talita" }, { id: "usr_milton" }];
-    const first = pickRecipient({ queue, pointer: 0, ownerId: "usr_carlos" });
-    expect(first.recipient?.id).toBe("usr_talita");
+    const queue = ["usr_carlos", "usr_talita", "usr_milton"];
+    const first = pickRecipient({ queue, pointer: 0, currentOwnerId: "usr_carlos" });
+    expect(first.recipientId).toBe("usr_talita");
+    expect(first.skipped).toContain("usr_carlos");
     const second = pickRecipient({
       queue,
       pointer: first.nextPointer,
-      ownerId: "usr_paulo",
+      currentOwnerId: "usr_paulo",
     });
-    expect(second.recipient?.id).toBe("usr_milton");
+    expect(second.recipientId).toBe("usr_milton");
   });
 
   it("não redistribui quando o único elegível é o proprietário", () => {
     const pick = pickRecipient({
-      queue: [{ id: "usr_carlos" }],
+      queue: ["usr_carlos"],
       pointer: 0,
-      ownerId: "usr_carlos",
+      currentOwnerId: "usr_carlos",
     });
-    expect(pick.recipient).toBeNull();
+    expect(pick.recipientId).toBeNull();
   });
 });
 
@@ -159,7 +160,8 @@ describe("identidade e jornada", () => {
     };
     const viewers = journeyViewers(record);
     expect(viewers).toEqual(expect.arrayContaining(["usr_carlos", "usr_talita", "usr_larissa"]));
-    expect(canViewJourney(record, "usr_larissa")).toBe(true);
-    expect(canViewJourney(record, "usr_paulo")).toBe(false);
+    expect(canViewJourney(record, { id: "usr_larissa" })).toBe(true);
+    expect(canViewJourney(record, { id: "usr_paulo" })).toBe(false);
+    expect(canViewJourney(record, { id: "usr_paulo", isGlobal: true })).toBe(true);
   });
 });
