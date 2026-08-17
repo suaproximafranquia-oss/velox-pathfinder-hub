@@ -418,6 +418,7 @@ async function runLead(
         executiveName: ctx.executiveName,
         portalLink: ctx.portalLink,
         confirmedInvestorName: nameConfirmed ? normalizeName(lead.rawName).split(" ")[0] : null,
+        rawInvestorName: lead.rawName,
         contentName: content?.name ?? null,
         contentUrl: content?.url ?? null,
       });
