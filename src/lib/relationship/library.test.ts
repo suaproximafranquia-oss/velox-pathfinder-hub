@@ -138,6 +138,16 @@ describe("carga inicial da biblioteca (links do Instagram)", () => {
       kind: "video",
       url: "https://www.instagram.com/p/DcIAbOrsb2I/",
     }),
+    // COMANDO 3D §21 — conteúdo padrão de finalização, compartilhado
+    // por E12, RE3 e RF1 como um único registro da Biblioteca.
+    item({
+      id: "finalizacao",
+      group: "FINALIZACAO",
+      groups: ["FINALIZACAO"],
+      name: "Conte a sua própria história",
+      kind: "video",
+      url: "https://www.instagram.com/p/DcJbxCqhOHu/",
+    }),
   ];
 
   it("não há lacuna nos grupos obrigatórios", () => {
