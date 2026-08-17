@@ -431,6 +431,42 @@ export async function executeHomologationRun(input: {
     totals,
     conversations,
     generatedAt: new Date().toISOString(),
+    /**
+     * COMANDO 3C §3 e §5 — execução REAL da rodada, separada das datas
+     * simuladas dos cenários (que continuam nas conversas).
+     */
+    execution: {
+      runId,
+      timezone: RUN_TIMEZONE,
+      startedAt: startedAt.toISOString(),
+      finishedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt.getTime(),
+      seed: output.seed,
+      totalLeads: output.leadResults.length,
+      messages: output.messages.length,
+      contents: Object.keys(output.contentUsage).length,
+      contentsSent: totals.contents,
+    },
+    /**
+     * COMANDO 3C §12 — qual conteúdo foi selecionado por lead e etapa.
+     * É esta tabela que permite verificar a alternância real de E1, E3,
+     * R1 e R2 entre rodadas.
+     */
+    selections: output.messages
+      .filter((m) => m.contentId)
+      .map((m) => {
+        const content = byId.get(m.contentId!) ?? null;
+        return {
+          leadId: m.leadId,
+          step: m.step,
+          contentId: m.contentId,
+          contentName: m.contentName ?? content?.name ?? "—",
+          contentUrl: content?.url ?? null,
+          contentGroup: content?.group ?? null,
+          /** Data simulada do cenário (relógio virtual). */
+          simulatedAt: m.at,
+        };
+      }),
     executiveName: input.executiveName,
     portalLink: input.portalLink,
     scenarios,
