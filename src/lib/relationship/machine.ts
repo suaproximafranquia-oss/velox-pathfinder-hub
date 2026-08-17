@@ -148,6 +148,9 @@ export function applyEvent(
 
   switch (event.type) {
     case "LEAD_CREATED":
+      // Lead já conhecido que volta: nasce direto no fluxo de reentrada
+      // (COMANDO 2B §1) — o primeiro contato nunca é repetido.
+      if (event.data?.["reentry"] === true) next.flow = "reentrada";
       reason = "Lead registrado no motor; cadência ainda não iniciada.";
       break;
 
