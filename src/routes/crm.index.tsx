@@ -640,6 +640,9 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               portalLink={investorPortalUrl(
                 loadUsers().find((u) => u.id === session.userId)?.slug ?? "",
               )}
+              postPresentationVideoUrl={
+                loadUsers().find((u) => u.id === session.userId)?.postPresentationVideoUrl ?? null
+              }
               window={chatWindow}
               contacts={conversations
                 .filter((c) => c.id !== selected.id && Boolean(c.phone))
