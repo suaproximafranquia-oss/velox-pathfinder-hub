@@ -23,6 +23,28 @@ export const BACKUP_TABLES = [
   { table: "app_user_connections", pk: "id" },
 ] as const;
 
+/**
+ * COMANDO 3C §19 — DOMÍNIOS QUE NUNCA SÃO RESTAURADOS.
+ *
+ * Portal dos Leads, CRM operacional e GreenSales têm o GreenSales como
+ * fonte da verdade. Restaurar um estado antigo dessas tabelas recriaria
+ * leads apagados e reverteria etapas reais. Elas continuam sendo
+ * capturadas (backup/exportação e auditoria), mas a restauração as
+ * ignora mesmo quando presentes no ponto de restauração.
+ */
+export const NEVER_RESTORE_TABLES: readonly string[] = [
+  "portal_leads",
+  "crm_leads",
+  "crm_pipelines",
+  "crm_pipeline_stages",
+  "crm_cadence_tasks",
+  "crm_sync_runs",
+  "crm_lead_events",
+  "crm_messages",
+  "crm_timeline",
+  "crm_connections",
+];
+
 export type BackupKind = "completo" | "conversas";
 export type BackupOrigin = "automatico" | "manual" | "pre_restauracao";
 
@@ -205,6 +227,8 @@ export function toRecord(row: Row): BackupRecord {
 
 export type RestoreResult = {
   restored: Record<string, number>;
+  /** Tabelas ignoradas por política (§19). */
+  skipped: string[];
   localState: Record<string, string> | null;
 };
 
@@ -215,8 +239,14 @@ export async function restoreBackupPayload(backupId: string): Promise<RestoreRes
   if (!payload) throw new Error("Ponto de restauração não encontrado.");
   const tables = payload?.tables ?? {};
   const restored: Record<string, number> = {};
+  const skipped: string[] = [];
 
   for (const { table, pk } of BACKUP_TABLES) {
+    // §19 — fonte da verdade externa: jamais sobrescrever.
+    if (NEVER_RESTORE_TABLES.includes(table)) {
+      if (tables[table]) skipped.push(table);
+      continue;
+    }
     const rows = tables[table];
     if (!rows) continue; // tabela ausente no ponto → mantida intacta
     const del = await supabaseAdmin.from(table).delete().not(pk, "is", null);
@@ -228,7 +258,7 @@ export async function restoreBackupPayload(backupId: string): Promise<RestoreRes
     }
     restored[table] = rows.length;
   }
-  return { restored, localState: payload?.localState ?? null };
+  return { restored, skipped, localState: payload?.localState ?? null };
 }
 
 /**
