@@ -228,6 +228,8 @@ function HomologacaoPage() {
   };
   const [resetReport, setResetReport] = useState<ResetReport | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
+  /** §2/§24 — nenhuma ação destrutiva acontece com um clique acidental. */
+  const [resetConfirm, setResetConfirm] = useState(false);
 
   async function handleReset(dryRun: boolean) {
     setResetBusy(true);
@@ -236,6 +238,7 @@ function HomologacaoPage() {
       await ensureCloudSession();
       const report = (await resetHomologationWorkspace({ data: { dryRun } })) as ResetReport;
       setResetReport(report);
+      if (!dryRun) setResetConfirm(false);
       if (report.executed) await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "O reset não pôde ser concluído.");
