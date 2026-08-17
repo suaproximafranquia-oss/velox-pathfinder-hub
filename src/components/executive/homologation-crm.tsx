@@ -14,6 +14,7 @@ import {
   Film,
   Image as ImageIcon,
   Link2,
+  Mic,
   Paperclip,
   Presentation,
 } from "lucide-react";
