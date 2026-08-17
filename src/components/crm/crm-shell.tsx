@@ -9,6 +9,7 @@ import { markCrmActivity, isCrmSessionExpired } from "@/lib/crm/session";
 import { crmCssVars, resolveCrmBranding } from "@/lib/crm/theme";
 import { findCrmTheme, getUserCrmTheme } from "@/lib/crm/themes";
 import { onSync } from "@/lib/sync-bus";
+import { ModuleAccessDenied, hasModuleAccess } from "@/components/executive/module-access-guard";
 
 /**
  * Shell do CRM de Relacionamento.
