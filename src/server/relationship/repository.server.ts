@@ -261,21 +261,10 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     },
 
     async loadContentLibrary(): Promise<ValueContent[]> {
-      const { data } = await supabaseAdmin
-        .from("relationship_contents")
-        .select("id,content_group,name,kind,url,active,usage_count,created_at,updated_at")
-        .eq("scope", scope);
-      return (data ?? []).map((row: Row) => ({
-        id: row.id,
-        group: row.content_group,
-        name: row.name,
-        kind: row.kind,
-        url: row.url,
-        active: Boolean(row.active),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        usageCount: row.usage_count ?? 0,
-      }));
+      // A Biblioteca de Conteúdos é PERMANENTE e única (COMANDO 3C §16):
+      // homologação e operação real leem exatamente o mesmo acervo.
+      const { listValueContents } = await import("./homologation.server");
+      return listValueContents();
     },
   };
 }

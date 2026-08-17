@@ -9,8 +9,10 @@
  * validação, persistência e renderização usam esta MESMA lista.
  */
 export const CONTENT_KINDS = [
+  "texto",
   "imagem",
   "video",
+  "audio",
   "pdf",
   "documento",
   "apresentacao",
@@ -19,13 +21,35 @@ export const CONTENT_KINDS = [
 ] as const;
 export type ContentKind = (typeof CONTENT_KINDS)[number];
 
+export const CONTENT_KIND_LABELS: Record<ContentKind, string> = {
+  texto: "Texto",
+  imagem: "Imagem (JPG/PNG)",
+  video: "Vídeo",
+  audio: "Áudio",
+  pdf: "PDF",
+  documento: "Documento",
+  apresentacao: "Apresentação",
+  arquivo: "Arquivo",
+  link: "Link",
+};
+
 export type ValueContent = {
   id: string;
+  /**
+   * Grupo principal (compatibilidade histórica). A verdade sobre a
+   * associação está em `groups` — COMANDO 3C §7: um único conteúdo
+   * físico pode servir a vários grupos sem duplicar o arquivo.
+   */
   group: string;
+  groups?: string[];
   name: string;
   description?: string | null;
   kind: ContentKind;
   url: string;
+  /** Conteúdo textual (kind = "texto"). */
+  body?: string | null;
+  /** Caminho no armazenamento quando o material foi enviado por upload. */
+  storagePath?: string | null;
   mimeType?: string | null;
   position?: number;
   active: boolean;
@@ -34,6 +58,17 @@ export type ValueContent = {
   usageCount: number;
   lastUsedAt?: string | null;
 };
+
+/** Grupos aos quais o conteúdo pertence (sempre inclui o principal). */
+export function contentGroupsOf(content: ValueContent): string[] {
+  const list = content.groups && content.groups.length > 0 ? content.groups : [content.group];
+  return Array.from(new Set(list.filter(Boolean)));
+}
+
+/** Conteúdos ativos associados a um grupo — nunca de outro grupo (§6, §11). */
+export function contentsForGroup(library: ValueContent[], group: string): ValueContent[] {
+  return library.filter((c) => c.active && contentGroupsOf(c).includes(group));
+}
 
 export type ContentSelection =
   | { content: ValueContent; reason: string }
@@ -53,7 +88,7 @@ export function selectContent(
   random: () => number = Math.random,
 ): ContentSelection {
   if (!group) return { content: null, reason: "Etapa não prevê conteúdo de valor." };
-  const active = library.filter((c) => c.active && c.group === group);
+  const active = contentsForGroup(library, group);
   if (active.length === 0) {
     return { content: null, reason: `Nenhum conteúdo ativo cadastrado no grupo "${group}".` };
   }
@@ -97,6 +132,24 @@ export const REQUIRED_CONTENT_GROUPS: ContentGroup[] = ["E1", "E3", "R1", "R2"];
  */
 export function contentLibraryGaps(library: ValueContent[]): string[] {
   return REQUIRED_CONTENT_GROUPS.filter(
-    (group) => library.filter((c) => c.active && c.group === group).length === 0,
+    (group) => contentsForGroup(library, group).length === 0,
   ).map((group) => `Grupo "${group}" (${CONTENT_GROUP_LABELS[group]}) não possui conteúdo ativo.`);
+}
+
+/** Resumo por grupo para a tela da Biblioteca (COMANDO 3C §19). */
+export function contentLibraryStats(library: ValueContent[]) {
+  const byGroup = CONTENT_GROUPS.map((group) => ({
+    group,
+    label: CONTENT_GROUP_LABELS[group],
+    active: contentsForGroup(library, group).length,
+    total: library.filter((c) => contentGroupsOf(c).includes(group)).length,
+    required: REQUIRED_CONTENT_GROUPS.includes(group),
+  }));
+  return {
+    total: library.length,
+    active: library.filter((c) => c.active).length,
+    inactive: library.filter((c) => !c.active).length,
+    byGroup,
+    missingRequired: byGroup.filter((g) => g.required && g.active === 0).map((g) => g.group),
+  };
 }

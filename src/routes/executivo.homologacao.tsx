@@ -5,7 +5,7 @@
  * de valor e executar o simulador bilateral com leads fictícios
  * TEST-XXXX. Nada aqui envia mensagem real nem toca o Portal dos Leads.
  */
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   FlaskConical,
@@ -13,19 +13,14 @@ import {
   Loader2,
   MessagesSquare,
   Play,
-  Plus,
   ShieldCheck,
-  Trash2,
   TriangleAlert,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
-  CONTENT_GROUPS,
-  CONTENT_GROUP_LABELS,
-  CONTENT_KINDS,
   contentLibraryGaps,
-  type ContentKind,
+  contentLibraryStats,
   type ValueContent,
 } from "@/lib/relationship/content";
 import {
@@ -34,12 +29,10 @@ import {
 } from "@/components/executive/homologation-crm";
 import { SCENARIOS } from "@/lib/relationship/simulation";
 import {
-  deleteRelationshipContent,
   listRelationshipContents,
   listRelationshipRuns,
   readRelationshipRun,
   runRelationshipHomologation,
-  saveRelationshipContent,
 } from "@/lib/relationship-homologation.functions";
 import { cn } from "@/lib/utils";
 
@@ -73,24 +66,12 @@ const ghost =
 const field =
   "w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50";
 
-const KINDS: readonly ContentKind[] = CONTENT_KINDS;
-
-type Draft = {
-  group: string;
-  name: string;
-  description: string;
-  kind: ContentKind;
-  url: string;
-};
 type RunSummary = Awaited<ReturnType<typeof listRelationshipRuns>>[number];
-
-const emptyDraft: Draft = { group: "E1", name: "", description: "", kind: "pdf", url: "" };
 
 function HomologacaoPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [contents, setContents] = useState<ValueContent[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [openRun, setOpenRun] = useState<string | null>(null);
@@ -127,36 +108,7 @@ function HomologacaoPage() {
   }, [load]);
 
   const gaps = contentLibraryGaps(contents);
-
-  async function handleSave() {
-    if (!draft.name.trim() || !draft.url.trim()) return;
-    setBusy(true);
-    try {
-      await ensureCloudSession();
-      const next = await saveRelationshipContent({
-        data: { ...draft, description: draft.description || null, active: true },
-      });
-      setContents(next);
-      setDraft(emptyDraft);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível salvar o conteúdo.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    setBusy(true);
-    try {
-      await ensureCloudSession();
-      setContents(await deleteRelationshipContent({ data: { id } }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível remover o conteúdo.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const stats = contentLibraryStats(contents);
 
   async function handleRun() {
     setRunning(true);
@@ -228,12 +180,22 @@ function HomologacaoPage() {
         ) : null}
 
         <section className={card}>
-          <div className="mb-4 flex items-center gap-2">
-            <Library className="h-4 w-4 text-[color:var(--gold)]" />
-            <h2 className="text-sm text-[color:var(--foreground)]">
-              Biblioteca de conteúdos de valor
-            </h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Library className="h-4 w-4 text-[color:var(--gold)]" />
+              <h2 className="text-sm text-[color:var(--foreground)]">
+                Biblioteca de Conteúdos
+              </h2>
+            </div>
+            <Link to="/executivo/biblioteca" className={ghost}>
+              Gerenciar biblioteca
+            </Link>
           </div>
+
+          <p className="mb-3 text-xs text-[color:var(--muted-foreground)]">
+            A biblioteca é permanente e única: a homologação usa exatamente o mesmo acervo da
+            operação real. Cadastros e alterações acontecem na tela Biblioteca de Conteúdos.
+          </p>
 
           {gaps.length > 0 ? (
             <ul className="mb-4 space-y-1 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 p-3 text-[11px] text-[color:var(--gold)]">
@@ -243,98 +205,21 @@ function HomologacaoPage() {
             </ul>
           ) : null}
 
-          <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_140px_140px_auto]">
-            <input
-              className={field}
-              placeholder="Nome do conteúdo"
-              value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            />
-            <input
-              className={field}
-              placeholder="Finalidade / descrição"
-              value={draft.description}
-              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            />
-            <input
-              className={field}
-              placeholder="Link do conteúdo"
-              value={draft.url}
-              onChange={(e) => setDraft({ ...draft, url: e.target.value })}
-            />
-            <select
-              className={field}
-              value={draft.group}
-              onChange={(e) => setDraft({ ...draft, group: e.target.value })}
-            >
-              {CONTENT_GROUPS.map((g) => (
-                <option key={g} value={g}>
-                  Grupo {g}
-                </option>
-              ))}
-            </select>
-            <select
-              className={field}
-              value={draft.kind}
-              onChange={(e) => setDraft({ ...draft, kind: e.target.value as ContentKind })}
-            >
-              {KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-            <button className={gold} onClick={() => void handleSave()} disabled={busy}>
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              Adicionar
-            </button>
-          </div>
-
-          <div className="mt-5 space-y-4">
-            {CONTENT_GROUPS.map((group) => {
-              const items = contents.filter((c) => c.group === group);
-              return (
-                <div key={group}>
-                  <p className="text-[11px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
-                    {group} — {CONTENT_GROUP_LABELS[group]}
-                  </p>
-                  {items.length === 0 ? (
-                    <p className="mt-1 text-xs text-[color:var(--muted-foreground)]/70">
-                      Nenhum conteúdo cadastrado.
-                    </p>
-                  ) : (
-                    <ul className="mt-2 space-y-1">
-                      {items.map((c) => (
-                        <li
-                          key={c.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] px-3 py-2 text-xs"
-                        >
-                          <span className="truncate text-[color:var(--foreground)]">
-                            {c.name}
-                            <span className="ml-2 text-[color:var(--muted-foreground)]">
-                              {c.kind} · usado {c.usageCount}x ·{" "}
-                              {c.lastUsedAt
-                                ? `último uso ${new Date(c.lastUsedAt).toLocaleDateString("pt-BR")}`
-                                : "nunca utilizado"}{" "}
-                              · cadastrado em{" "}
-                              {new Date(c.createdAt).toLocaleDateString("pt-BR")}
-                              {c.active ? "" : " · inativo"}
-                            </span>
-                          </span>
-                          <button
-                            className={ghost}
-                            onClick={() => void handleDelete(c.id)}
-                            disabled={busy}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" /> Remover
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {stats.byGroup.map((g) => (
+              <div
+                key={g.group}
+                className="rounded-xl border border-[color:var(--border)] px-3 py-2 text-xs"
+              >
+                <p className="text-[color:var(--foreground)]">
+                  {g.group}
+                  {g.required ? " · obrigatório" : ""}
+                </p>
+                <p className="mt-1 text-[color:var(--muted-foreground)]">
+                  {g.active} ativo(s) de {g.total} cadastrado(s)
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 

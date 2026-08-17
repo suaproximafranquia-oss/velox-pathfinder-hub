@@ -32,66 +32,183 @@ const LIBRARY_SCOPE = "library";
 /* Biblioteca de conteúdos de valor (permanente)                       */
 /* ------------------------------------------------------------------ */
 
+/** Bucket privado dos materiais enviados por upload (COMANDO 3C §9). */
+const LIBRARY_BUCKET = "biblioteca-conteudos";
+const SIGNED_URL_TTL = 60 * 60 * 24 * 7;
+
+/** Um arquivo físico, várias associações de grupo (COMANDO 3C §7). */
+async function groupsByContent(ids: string[]): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (ids.length === 0) return map;
+  const { data, error } = await supabaseAdmin
+    .from("relationship_content_groups")
+    .select("content_id,content_group")
+    .in("content_id", ids);
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    const key = String(row.content_id);
+    map.set(key, [...(map.get(key) ?? []), String(row.content_group)]);
+  }
+  return map;
+}
+
 export async function listValueContents(): Promise<ValueContent[]> {
   const { data, error } = await supabaseAdmin
     .from("relationship_contents")
-    .select("id,content_group,name,description,kind,url,mime_type,active,usage_count,last_used_at,created_at,updated_at")
+    .select(
+      "id,content_group,name,description,kind,url,body,mime_type,active,usage_count,last_used_at,created_at,updated_at",
+    )
     .eq("scope", LIBRARY_SCOPE)
-    .order("content_group", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
-    id: String(row.id),
-    group: String(row.content_group),
-    name: String(row.name),
-    description: (row.description as string | null) ?? null,
-    kind: row.kind as ValueContent["kind"],
-    mimeType: (row.mime_type as string | null) ?? null,
-    lastUsedAt: (row.last_used_at as string | null) ?? null,
-    url: String(row.url),
-    active: Boolean(row.active),
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
-    usageCount: Number(row.usage_count ?? 0),
-  }));
+  const rows = data ?? [];
+  const groups = await groupsByContent(rows.map((r) => String(r.id)));
+
+  // Materiais enviados por upload ficam em bucket privado: a interface e o
+  // CRM de homologação recebem uma URL assinada temporária.
+  const uploads = rows
+    .map((r) => String(r.url))
+    .filter((u) => u.startsWith("storage://"))
+    .map((u) => u.replace("storage://", ""));
+  const signed = new Map<string, string>();
+  if (uploads.length > 0) {
+    const { data: urls } = await supabaseAdmin.storage
+      .from(LIBRARY_BUCKET)
+      .createSignedUrls(uploads, SIGNED_URL_TTL);
+    for (const item of urls ?? []) {
+      if (item.path && item.signedUrl) signed.set(item.path, item.signedUrl);
+    }
+  }
+
+  return rows.map((row) => {
+    const raw = String(row.url ?? "");
+    const storagePath = raw.startsWith("storage://") ? raw.replace("storage://", "") : null;
+    const list = groups.get(String(row.id)) ?? [String(row.content_group)];
+    return {
+      id: String(row.id),
+      group: list[0] ?? String(row.content_group),
+      groups: list,
+      name: String(row.name),
+      description: (row.description as string | null) ?? null,
+      kind: row.kind as ValueContent["kind"],
+      mimeType: (row.mime_type as string | null) ?? null,
+      lastUsedAt: (row.last_used_at as string | null) ?? null,
+      body: ((row as { body?: string | null }).body as string | null) ?? null,
+      storagePath,
+      url: storagePath ? signed.get(storagePath) ?? "" : raw,
+      active: Boolean(row.active),
+      createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at),
+      usageCount: Number(row.usage_count ?? 0),
+    };
+  });
 }
 
 export type ContentInput = {
   id?: string | null;
-  group: string;
+  groups: string[];
   name: string;
   description?: string | null;
   kind: ValueContent["kind"];
-  url: string;
+  url?: string | null;
+  body?: string | null;
+  storagePath?: string | null;
   mimeType?: string | null;
   active: boolean;
 };
 
 export async function saveValueContent(input: ContentInput): Promise<ValueContent[]> {
-  if (!CONTENT_GROUPS.includes(input.group as never)) {
-    throw new Error(`Grupo de conteúdo desconhecido: ${input.group}.`);
+  const groups = Array.from(new Set(input.groups));
+  if (groups.length === 0) throw new Error("Selecione ao menos um grupo para o conteúdo.");
+  for (const g of groups) {
+    if (!CONTENT_GROUPS.includes(g as never)) throw new Error(`Grupo de conteúdo desconhecido: ${g}.`);
   }
+  const name = input.name.trim();
+  const body = input.body?.trim() || null;
+  const url = input.storagePath
+    ? `storage://${input.storagePath}`
+    : (input.url ?? "").trim();
+  if (!name) throw new Error("O nome do conteúdo é obrigatório.");
+  if (input.kind === "texto") {
+    if (!body) throw new Error("Informe o texto do conteúdo.");
+  } else if (!url) {
+    throw new Error("Envie um arquivo ou informe o link do conteúdo.");
+  }
+
   const payload = {
     scope: LIBRARY_SCOPE,
-    content_group: input.group,
-    name: input.name.trim(),
+    content_group: groups[0]!,
+    name,
     description: input.description?.trim() || null,
     kind: input.kind,
     mime_type: input.mimeType ?? null,
-    url: input.url.trim(),
+    url,
+    body,
     active: input.active,
     updated_at: new Date().toISOString(),
   };
-  if (!payload.name || !payload.url) throw new Error("Nome e link do conteúdo são obrigatórios.");
-  const query = input.id
-    ? supabaseAdmin.from("relationship_contents").update(payload).eq("id", input.id).eq("scope", LIBRARY_SCOPE)
-    : supabaseAdmin.from("relationship_contents").insert(payload);
-  const { error } = await query;
+
+  let contentId = input.id ?? null;
+  if (contentId) {
+    const { error } = await supabaseAdmin
+      .from("relationship_contents")
+      .update(payload)
+      .eq("id", contentId)
+      .eq("scope", LIBRARY_SCOPE);
+    if (error) throw new Error(error.message);
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from("relationship_contents")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    contentId = String(data.id);
+  }
+
+  // Associações: um conteúdo físico, N grupos.
+  await supabaseAdmin.from("relationship_content_groups").delete().eq("content_id", contentId);
+  const { error: linkError } = await supabaseAdmin
+    .from("relationship_content_groups")
+    .insert(groups.map((g) => ({ content_id: contentId, content_group: g })));
+  if (linkError) throw new Error(linkError.message);
+
+  return listValueContents();
+}
+
+/** Ativar/desativar sem perder histórico (COMANDO 3C §17). */
+export async function setValueContentActive(id: string, active: boolean): Promise<ValueContent[]> {
+  const { error } = await supabaseAdmin
+    .from("relationship_contents")
+    .update({ active, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("scope", LIBRARY_SCOPE);
   if (error) throw new Error(error.message);
   return listValueContents();
 }
 
+/**
+ * Exclusão física só quando não compromete auditoria (COMANDO 3C §18):
+ * conteúdo já utilizado em rodada permanece, apenas é desativado.
+ */
 export async function deleteValueContent(id: string): Promise<ValueContent[]> {
+  const { data: row, error: readError } = await supabaseAdmin
+    .from("relationship_contents")
+    .select("id,usage_count,url")
+    .eq("id", id)
+    .eq("scope", LIBRARY_SCOPE)
+    .maybeSingle();
+  if (readError) throw new Error(readError.message);
+  if (!row) throw new Error("Conteúdo não encontrado na biblioteca.");
+  if (Number(row.usage_count ?? 0) > 0) {
+    throw new Error(
+      "Este conteúdo já foi utilizado em uma rodada e não pode ser apagado. Desative-o para preservar o histórico.",
+    );
+  }
+  const raw = String(row.url ?? "");
+  if (raw.startsWith("storage://")) {
+    await supabaseAdmin.storage.from(LIBRARY_BUCKET).remove([raw.replace("storage://", "")]);
+  }
   const { error } = await supabaseAdmin
     .from("relationship_contents")
     .delete()
@@ -99,6 +216,24 @@ export async function deleteValueContent(id: string): Promise<ValueContent[]> {
     .eq("scope", LIBRARY_SCOPE);
   if (error) throw new Error(error.message);
   return listValueContents();
+}
+
+/** Upload de material para o bucket privado da biblioteca. */
+export async function uploadLibraryFile(input: {
+  fileName: string;
+  mimeType: string;
+  base64: string;
+}): Promise<{ storagePath: string }> {
+  const clean = input.base64.includes(",") ? input.base64.split(",")[1]! : input.base64;
+  const bytes = Buffer.from(clean, "base64");
+  if (bytes.byteLength === 0) throw new Error("Arquivo vazio.");
+  const safe = input.fileName.replace(/[^\w.\-]+/g, "_").slice(-80);
+  const path = `library/${crypto.randomUUID()}-${safe}`;
+  const { error } = await supabaseAdmin.storage
+    .from(LIBRARY_BUCKET)
+    .upload(path, bytes, { contentType: input.mimeType || "application/octet-stream", upsert: false });
+  if (error) throw new Error(error.message);
+  return { storagePath: path };
 }
 
 /* ------------------------------------------------------------------ */

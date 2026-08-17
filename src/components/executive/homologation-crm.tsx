@@ -14,6 +14,7 @@ import {
   Film,
   Image as ImageIcon,
   Link2,
+  Mic,
   Paperclip,
   Presentation,
 } from "lucide-react";
@@ -60,8 +61,10 @@ export type HomologationConversation = {
 };
 
 const KIND_ICON: Record<ContentKind, typeof FileText> = {
+  texto: FileText,
   imagem: ImageIcon,
   video: Film,
+  audio: Mic,
   pdf: FileText,
   documento: FileText,
   apresentacao: Presentation,
