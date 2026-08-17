@@ -33,6 +33,7 @@ export type InternalTemplate = {
 
 const LABELS: Record<CadenceStep, { label: string; }> = {
   E0: { label: "E0 — Primeiro contato" },
+  E0_V1: { label: "E0 V1 — Primeiro contato (entrada pelo Portal)" },
   E1: { label: "E1 — Segundo contato" },
   E3: { label: "E3 — Terceiro contato" },
   E4: { label: "E4 — Quarto contato" },
