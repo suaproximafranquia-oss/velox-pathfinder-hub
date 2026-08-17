@@ -1,24 +1,19 @@
 /**
  * CRM DE HOMOLOGAÇÃO (COMANDO 3B §17 e §19).
  *
- * Exibe as conversas fictícias da rodada exatamente como elas
- * aconteceriam na operação: mensagem, anexo com tipo, visualização,
- * resposta, horário virtual e decisão do motor. Nenhuma destas
- * mensagens existe fora da rodada — nada é enviado para a Meta.
+ * Exibe as conversas fictícias da rodada REUTILIZANDO a mesma interface
+ * de conversa do CRM de Relacionamento (`CrmThread`): não existe uma
+ * segunda interface de CRM. Aqui apenas o contexto é isolado e
+ * identificado como homologação. Nenhuma destas mensagens existe fora
+ * da rodada — nada é enviado para a Meta.
  */
 import { useMemo, useState } from "react";
-import {
-  CheckCheck,
-  Eye,
-  FileText,
-  Film,
-  Image as ImageIcon,
-  Link2,
-  Mic,
-  Paperclip,
-  Presentation,
-} from "lucide-react";
+import { Eye } from "lucide-react";
 import type { ContentKind } from "@/lib/relationship/content";
+import { CrmThread } from "@/components/crm/crm-conversation";
+import type { CrmMessage } from "@/lib/crm/messages";
+import { crmCssVars, resolveCrmBranding } from "@/lib/crm/theme";
+import { findCrmTheme, getUserCrmTheme } from "@/lib/crm/themes";
 import { cn } from "@/lib/utils";
 
 export type HomologationMessageView = {
@@ -34,6 +29,8 @@ export type HomologationMessageView = {
   contentKind: ContentKind | null;
   contentUrl: string | null;
   contentGroup: string | null;
+  /** Botão do template (URL nunca aparece no corpo da mensagem). */
+  button?: { label: string; url: string } | null;
 };
 
 export type HomologationConversation = {
@@ -63,18 +60,6 @@ export type HomologationConversation = {
   }[];
 };
 
-const KIND_ICON: Record<ContentKind, typeof FileText> = {
-  texto: FileText,
-  imagem: ImageIcon,
-  video: Film,
-  audio: Mic,
-  pdf: FileText,
-  documento: FileText,
-  apresentacao: Presentation,
-  arquivo: Paperclip,
-  link: Link2,
-};
-
 function hour(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
     timeZone: "America/Sao_Paulo",
@@ -85,49 +70,42 @@ function hour(iso: string): string {
   });
 }
 
-function Attachment({ message }: { message: HomologationMessageView }) {
-  if (!message.contentName) return null;
-  const kind = (message.contentKind ?? "arquivo") as ContentKind;
-  const Icon = KIND_ICON[kind] ?? Paperclip;
-  const url = message.contentUrl;
-  const openLabel =
-    kind === "video" ? "Assistir" : kind === "imagem" ? "Abrir imagem" : "Abrir conteúdo";
-  const headline =
-    kind === "video"
-      ? `🎥 Assistir conteúdo — ${message.contentName}`
-      : kind === "texto"
-        ? message.contentName
-        : message.contentName;
-  return (
-    <div className="mt-2 rounded-lg border border-[color:var(--border)]/70 bg-[color:var(--background)]/40 p-2">
-      {kind === "imagem" && url ? (
-        <img
-          src={url}
-          alt={message.contentName}
-          loading="lazy"
-          className="mb-2 max-h-40 w-full rounded-md object-cover"
-        />
-      ) : null}
-      <div className="flex items-center gap-2 text-[11px]">
-        <Icon className="h-3.5 w-3.5 text-[color:var(--gold)]" />
-        <span className="truncate text-[color:var(--foreground)]">{headline}</span>
-        <span className="ml-auto shrink-0 uppercase text-[color:var(--muted-foreground)]">
-          {kind}
-          {message.contentGroup ? ` · ${message.contentGroup}` : ""}
-        </span>
-      </div>
-      {url && kind !== "texto" ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--gold)]/50 px-3 py-1 text-[10px] text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/10"
-        >
-          <Link2 className="h-3 w-3" /> {openLabel}
-        </a>
-      ) : null}
-    </div>
-  );
+/**
+ * Converte a mensagem da rodada para o formato do CRM real, para que a
+ * renderização seja feita pelo MESMO componente de conversa.
+ */
+function toCrmMessages(conversation: HomologationConversation): CrmMessage[] {
+  return conversation.messages.map((m, i) => {
+    const author =
+      m.author ??
+      (m.direction === "inbound"
+        ? "INVESTOR"
+        : m.direction === "system"
+          ? "SYSTEM"
+          : "EXECUTIVE");
+    const kind = (m.contentKind ?? null) as ContentKind | null;
+    return {
+      id: `${conversation.leadId}-${i}`,
+      investorId: conversation.leadId,
+      // O lado é definido pelo autor: investidor à esquerda (recebida),
+      // Velox/Executivo à direita (enviada).
+      direction: author === "INVESTOR" ? "recebida" : "enviada",
+      body: m.body,
+      at: m.at,
+      authorId: author,
+      authorName: m.authorName,
+      step: m.step,
+      button: m.button ?? null,
+      attachment: m.contentName
+        ? {
+            name: m.contentName,
+            kind,
+            url: m.contentUrl,
+            group: m.contentGroup,
+          }
+        : null,
+    } satisfies CrmMessage;
+  });
 }
 
 export function HomologationCrm({
@@ -141,6 +119,10 @@ export function HomologationCrm({
    */
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(conversations[0]?.leadId ?? "");
+  const themeVars = useMemo(() => {
+    const theme = findCrmTheme(getUserCrmTheme(null));
+    return crmCssVars(resolveCrmBranding({ colors: theme.colors })) as React.CSSProperties;
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -154,6 +136,10 @@ export function HomologationCrm({
   }, [conversations, query]);
 
   const current = conversations.find((c) => c.leadId === selected) ?? filtered[0] ?? null;
+  const threadMessages = useMemo(
+    () => (current ? toCrmMessages(current) : []),
+    [current],
+  );
 
   if (conversations.length === 0) {
     return (
@@ -223,54 +209,21 @@ export function HomologationCrm({
             ) : null}
           </header>
 
-          <div className="max-h-[440px] space-y-2 overflow-y-auto p-4">
-            {current.messages.map((m, i) => {
-              const author =
-                m.author ??
-                (m.direction === "inbound"
-                  ? "INVESTOR"
-                  : m.direction === "system"
-                    ? "SYSTEM"
-                    : "EXECUTIVE");
-              const isInvestor = author === "INVESTOR";
-              const label =
-                m.authorName ??
-                (isInvestor
-                  ? `Investidor ${current.leadId}`
-                  : author === "SYSTEM"
-                    ? "Sistema"
-                    : "Velox / Executivo");
-              return (
-              <div
-                key={`${m.at}-${i}`}
-                className={cn("flex", isInvestor ? "justify-start" : "justify-end")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-2xl px-3 py-2 text-xs",
-                    isInvestor
-                      ? "bg-[color:var(--card)]/70 text-[color:var(--foreground)]"
-                      : "bg-[color:var(--gold)]/15 text-[color:var(--foreground)]",
-                  )}
-                >
-                  <p className="mb-1 text-[10px] font-medium text-[color:var(--muted-foreground)]">
-                    {label}
-                  </p>
-                  {m.step ? (
-                    <p className="mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gold)]">
-                      Etapa {m.step}
-                    </p>
-                  ) : null}
-                  <p className="whitespace-pre-line">{m.body}</p>
-                  <Attachment message={m} />
-                  <p className="mt-1 flex items-center justify-end gap-1 text-[10px] text-[color:var(--muted-foreground)]">
-                    {hour(m.at)}
-                    {author === "EXECUTIVE" ? <CheckCheck className="h-3 w-3" /> : null}
-                  </p>
-                </div>
-              </div>
-              );
-            })}
+          {/*
+            Mesma interface do CRM de Relacionamento — apenas isolada e
+            sinalizada como homologação (dados fictícios).
+          */}
+          <div
+            style={themeVars}
+            className="crm-root max-h-[460px] overflow-y-auto bg-[color:var(--crm-background)] p-4"
+          >
+            <p className="mx-auto mb-3 w-fit rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-amber-500">
+              Homologação · conversa fictícia · nada é enviado
+            </p>
+            <CrmThread
+              item={{ id: current.leadId, name: current.displayName }}
+              messages={threadMessages}
+            />
           </div>
 
           <div className="grid gap-3 border-t border-[color:var(--border)] p-4 md:grid-cols-2">
