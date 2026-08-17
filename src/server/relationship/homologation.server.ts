@@ -21,7 +21,12 @@ import {
   type SimulationOutput,
 } from "@/lib/relationship/simulation";
 
-const SCOPE = "homologation";
+/**
+ * A Biblioteca de Conteúdos é PERMANENTE (COMANDO 3B §5 e §9): vive em
+ * escopo próprio, é usada pela homologação e continuará servindo a
+ * operação real. Rodadas de teste nunca a apagam.
+ */
+const LIBRARY_SCOPE = "library";
 
 /* ------------------------------------------------------------------ */
 /* Biblioteca de conteúdos de valor (permanente)                       */
@@ -30,8 +35,8 @@ const SCOPE = "homologation";
 export async function listValueContents(): Promise<ValueContent[]> {
   const { data, error } = await supabaseAdmin
     .from("relationship_contents")
-    .select("id,content_group,name,kind,url,active,usage_count,created_at,updated_at")
-    .eq("scope", SCOPE)
+    .select("id,content_group,name,description,kind,url,mime_type,active,usage_count,last_used_at,created_at,updated_at")
+    .eq("scope", LIBRARY_SCOPE)
     .order("content_group", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
@@ -39,7 +44,10 @@ export async function listValueContents(): Promise<ValueContent[]> {
     id: String(row.id),
     group: String(row.content_group),
     name: String(row.name),
+    description: (row.description as string | null) ?? null,
     kind: row.kind as ValueContent["kind"],
+    mimeType: (row.mime_type as string | null) ?? null,
+    lastUsedAt: (row.last_used_at as string | null) ?? null,
     url: String(row.url),
     active: Boolean(row.active),
     createdAt: String(row.created_at),
@@ -52,8 +60,10 @@ export type ContentInput = {
   id?: string | null;
   group: string;
   name: string;
+  description?: string | null;
   kind: ValueContent["kind"];
   url: string;
+  mimeType?: string | null;
   active: boolean;
 };
 
@@ -62,17 +72,19 @@ export async function saveValueContent(input: ContentInput): Promise<ValueConten
     throw new Error(`Grupo de conteúdo desconhecido: ${input.group}.`);
   }
   const payload = {
-    scope: SCOPE,
+    scope: LIBRARY_SCOPE,
     content_group: input.group,
     name: input.name.trim(),
+    description: input.description?.trim() || null,
     kind: input.kind,
+    mime_type: input.mimeType ?? null,
     url: input.url.trim(),
     active: input.active,
     updated_at: new Date().toISOString(),
   };
   if (!payload.name || !payload.url) throw new Error("Nome e link do conteúdo são obrigatórios.");
   const query = input.id
-    ? supabaseAdmin.from("relationship_contents").update(payload).eq("id", input.id).eq("scope", SCOPE)
+    ? supabaseAdmin.from("relationship_contents").update(payload).eq("id", input.id).eq("scope", LIBRARY_SCOPE)
     : supabaseAdmin.from("relationship_contents").insert(payload);
   const { error } = await query;
   if (error) throw new Error(error.message);
@@ -84,7 +96,7 @@ export async function deleteValueContent(id: string): Promise<ValueContent[]> {
     .from("relationship_contents")
     .delete()
     .eq("id", id)
-    .eq("scope", SCOPE);
+    .eq("scope", LIBRARY_SCOPE);
   if (error) throw new Error(error.message);
   return listValueContents();
 }
