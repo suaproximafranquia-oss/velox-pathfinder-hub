@@ -457,6 +457,9 @@ async function runLead(
     config: ctx.config,
     enabled: true,
     random: ctx.random,
+    // §27 — homologação usa template VIRTUAL: nada é enviado à Meta e
+    // nenhuma etapa é bloqueada por ausência de template oficial.
+    virtualTemplates: true,
   });
 
   const emit = async (
