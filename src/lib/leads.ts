@@ -37,7 +37,21 @@ export type LeadRecord = VisitorIdentity & {
    * link personalizado; "portal" quando veio do acesso institucional;
    * "redistribuicao" quando entregue pela Gestão — ETAPA 02.1).
    */
-  scope?: "green_sales" | "redistribuicao" | "portal";
+  scope?: "green_sales" | "redistribuicao" | "portal" | "central_unica";
+  /**
+   * COMANDO 4E §36 — proprietário ORIGINAL/histórico do investidor. Nunca
+   * é alterado por redistribuição nem por acesso institucional.
+   */
+  originalOwnerId?: string | null;
+  /** Responsável operacional atual (destinatário da redistribuição). */
+  operationalOwnerId?: string | null;
+  /**
+   * §9/§10 — escopos de LEITURA compartilhada da MESMA jornada e do MESMO
+   * engajamento (ex.: Gestora que originou um novo acesso).
+   */
+  sharedExecutiveIds?: string[];
+  /** §22 — conflito de identidade aguardando revisão administrativa. */
+  identityConflict?: { note: string; withInvestorId: string; at: string } | null;
   /**
    * Espelho do progresso REAL registrado no servidor pela jornada do
    * investidor. O navegador do Executivo não possui os eventos locais do
@@ -203,7 +217,19 @@ export function deleteLead(id: string): void {
 export function updateLead(
   id: string,
   patch: Partial<VisitorIdentity> &
-    Partial<Pick<LeadRecord, "notes" | "scope" | "responsibleExecutiveId" | "personalized">>,
+    Partial<
+      Pick<
+        LeadRecord,
+        | "notes"
+        | "scope"
+        | "responsibleExecutiveId"
+        | "personalized"
+        | "originalOwnerId"
+        | "operationalOwnerId"
+        | "sharedExecutiveIds"
+        | "identityConflict"
+      >
+    >,
 ): LeadRecord | null {
   const all = loadLeads();
   const idx = all.findIndex((l) => l.id === id);
