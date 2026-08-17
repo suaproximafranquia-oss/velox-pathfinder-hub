@@ -23,6 +23,7 @@ export type CadenceFlow =
  */
 export type CadenceStep =
   | "E0" // primeiro contato
+  | "E0_V1" // primeiro contato de quem chegou pelo Portal do Investidor
   | "E1" // primeiro acompanhamento
   | "E3" // segundo acompanhamento
   | "E4" // acompanhamento mais firme

@@ -6,6 +6,7 @@
  * lógica usada pelo simulador e pela operação real.
  */
 import { RELATIONSHIP_CONFIG, type RelationshipConfig } from "./config";
+import { normalizeEntryOrigin, resolveInitialStep } from "./origin";
 import type { CadenceRecord, EngineEvent, EngineEventType } from "./types";
 
 export function initialRecord(input: {
@@ -160,10 +161,19 @@ export function applyEvent(
         next.startedBy ??
         ((event.data?.["origin"] as "automatic" | "manual" | undefined) ?? "automatic");
       {
-        // Reentrada abre em RE0; primeira entrada abre em E0.
-        const opening = event.step ?? (next.flow === "reentrada" ? "RE0" : "E0");
+        // Reentrada abre em RE0. Primeira entrada abre em E0 — ou em
+        // E0_V1 quando o investidor chegou pelo Portal (4F-B).
+        const entryOrigin = normalizeEntryOrigin(event.data?.["entryOrigin"]);
+        const opening =
+          event.step ??
+          (next.flow === "reentrada" ? "RE0" : (resolveInitialStep(entryOrigin) ?? "E0"));
         next.currentStep = opening;
         if (!next.executedSteps.includes(opening)) next.executedSteps.push(opening);
+        // E0_V1 ocupa a posição de E0: a ordem do fluxo permanece íntegra
+        // e o primeiro contato jamais é repetido.
+        if (opening === "E0_V1" && !next.executedSteps.includes("E0")) {
+          next.executedSteps.push("E0");
+        }
       }
       next.lastOutboundAt = event.at;
       setState(

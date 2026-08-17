@@ -20,7 +20,7 @@ export function executiveSignature(userId: string, fallbackName?: string): strin
   const user = loadUsers().find((u) => u.id === userId);
   const name = user?.name ?? fallbackName ?? "";
   if (!name) return "";
-  const title = user?.title?.trim() || "Executivo de Expansão";
+  const title = user?.title?.trim() || "Gerente de Expansão";
   return `${name}\n${title}\n${COMPANY}`;
 }
 

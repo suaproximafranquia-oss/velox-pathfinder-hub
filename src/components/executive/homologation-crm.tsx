@@ -227,7 +227,7 @@ export function HomologationCrm({
               item={{ id: current.leadId, name: current.displayName }}
               messages={threadMessages}
               self={{
-                name: executive?.name ?? "Executivo de Expansão",
+                name: executive?.name ?? "Gerente de Expansão",
                 photoUrl: executive?.photoUrl ?? null,
               }}
               peer={{ name: current.displayName }}

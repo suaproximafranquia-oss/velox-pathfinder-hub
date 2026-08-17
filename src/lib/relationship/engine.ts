@@ -32,6 +32,15 @@ export type EngineOptions = {
   enabled?: boolean;
   /** Fonte de aleatoriedade controlada da seleção de conteúdo (§6). */
   random?: () => number;
+  /**
+   * COMANDO 4F-B §27 — HOMOLOGAÇÃO COM TEMPLATE VIRTUAL.
+   *
+   * Na homologação nenhum template oficial da Meta existe e nenhuma
+   * janela real é aberta. O motor então usa um template VIRTUAL: a
+   * etapa é executada e registrada normalmente, apenas nunca sai do
+   * ambiente. Em produção esta opção é sempre falsa.
+   */
+  virtualTemplates?: boolean;
 };
 
 /** Eventos que invalidam etapas já programadas (§96, §97, §98). */
@@ -50,6 +59,7 @@ export function createEngine(options: EngineOptions): Engine {
   const config = options.config ?? RELATIONSHIP_CONFIG;
   const enabled = options.enabled ?? config.enabled;
   const random = options.random ?? Math.random;
+  const virtualTemplates = options.virtualTemplates ?? false;
 
   if (repository.scope !== dispatcher.scope) {
     throw new Error("Repositório e despachante pertencem a escopos diferentes.");
@@ -102,7 +112,8 @@ export function createEngine(options: EngineOptions): Engine {
       nowIso,
       enabled,
       config,
-      hasTemplateForPurpose: (purpose) => hasTemplateForPurpose(templates, purpose),
+      hasTemplateForPurpose: (purpose) =>
+        virtualTemplates || hasTemplateForPurpose(templates, purpose),
     });
 
     if (action.kind === "none") {
@@ -165,7 +176,12 @@ export function createEngine(options: EngineOptions): Engine {
     const binding = action.requiresTemplate
       ? findBinding(templates, action.templatePurpose)
       : null;
-    if (action.requiresTemplate && config.requireOfficialTemplate && !binding?.templateId) {
+    if (
+      action.requiresTemplate &&
+      config.requireOfficialTemplate &&
+      !binding?.templateId &&
+      !virtualTemplates
+    ) {
       return log(record, {
         step: action.step,
         outcome: "blocked",

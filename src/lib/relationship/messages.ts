@@ -46,13 +46,35 @@ export const HOMOLOGATION_MESSAGES: Record<CadenceStep, HomologationMessage> = {
     button: "portal",
     text: `Olá, caro investidor, tudo bem?
 
-Meu nome é {{nome_executivo}} e sou Executivo de Expansão da Velox Soluções Financeiras.
+Meu nome é {{nome_executivo}} e sou Gerente de Expansão da Velox Soluções Financeiras.
 
 Se você demonstrou interesse em conhecer a Velox, estou à disposição para apresentar nossa estrutura, modelo de negócio e oportunidade.
 
 Preparei um espaço com as principais informações para você conhecer nossa proposta com mais calma.
 
 Após analisar esse material, vamos alinhar um horário para conversarmos. Me informe duas opções de horário que funcionam melhor para você.`,
+  },
+  /**
+   * E0 V1 (COMANDO 4F-B) — o investidor JÁ entrou pelo Portal. Aqui o
+   * Portal nunca é apresentado como novidade: a mensagem reconhece a
+   * jornada iniciada e apenas retoma o contato.
+   */
+  E0_V1: {
+    code: "HOMOL-E0-V1",
+    step: "E0_V1",
+    purpose: "primeiro_contato_portal",
+    contentGroup: null,
+    usesInvestorName: false,
+    button: "portal",
+    text: `Olá, caro investidor, tudo bem?
+
+Meu nome é {{nome_executivo}} e sou Gerente de Expansão da Velox Soluções Financeiras.
+
+Vi que você acessou o Portal do Investidor e começou a conhecer nossa estrutura, nosso modelo de negócio e nossos números.
+
+Sou eu quem acompanha você a partir daqui. Se quiser, pode continuar a leitura no ponto em que parou.
+
+Quando fizer sentido, me informe dois horários que funcionem melhor para conversarmos sobre o que você viu até agora.`,
   },
   E1: {
     code: "HOMOL-E1",
@@ -246,7 +268,7 @@ Se quiser retomar, basta me chamar por este WhatsApp.`,
     button: "portal",
     text: `Olá, {{nome_investidor}}, tudo bem?
 
-Aqui é {{nome_executivo}}, Executivo de Expansão da Velox Soluções Financeiras.
+Aqui é {{nome_executivo}}, Gerente de Expansão da Velox Soluções Financeiras.
 
 Vi que você demonstrou interesse novamente em conhecer a Velox, e isso normalmente significa que o assunto continua fazendo sentido para você.
 

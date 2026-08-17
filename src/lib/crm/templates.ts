@@ -41,7 +41,7 @@ export type CrmTemplate = {
 export const CRM_FIRST_CONTACT: CrmTemplate = {
   id: "primeiro_contato",
   label: "Primeiro Contato",
-  purpose: "Apresentação do Executivo de Expansão e entrega do Portal do Investidor.",
+  purpose: "Apresentação do Gerente de Expansão e entrega do Portal do Investidor.",
   metaPurpose: "primeiro_contato",
   kind: "primeiro_contato",
   order: 1,
@@ -50,7 +50,7 @@ export const CRM_FIRST_CONTACT: CrmTemplate = {
   variables: ["nome_executivo", "link_portal"],
   body: `Olá, caro investidor, tudo bem?
 
-Meu nome é {{nome_executivo}} e sou Executivo de Expansão da Velox Soluções Financeiras.
+Meu nome é {{nome_executivo}} e sou Gerente de Expansão da Velox Soluções Financeiras.
 
 Se você demonstrou interesse em conhecer a Velox, estou à disposição para apresentar nossa estrutura, modelo de negócio e oportunidade.
 
