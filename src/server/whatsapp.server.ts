@@ -8,6 +8,11 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isProductionRequest } from "@/server/environment.server";
+import {
+  CHANNEL_UNAVAILABLE_MESSAGE,
+  resolveChannelMode,
+  type ChannelMode,
+} from "@/lib/relationship/channel";
 
 export type ValidationStatus = "enviado" | "confirmado" | "recusado";
 
@@ -103,15 +108,28 @@ const unavailableProvider: ChannelProvider = {
   async send() {
     return {
       delivered: false,
-      error: "Canal oficial do WhatsApp não configurado para este ambiente.",
+      error: CHANNEL_UNAVAILABLE_MESSAGE,
     };
   },
 };
 
+/**
+ * COMANDO 3B §4 — o AMBIENTE decide primeiro. Homologação nunca alcança
+ * a Meta, mesmo que as credenciais reais estejam configuradas.
+ */
+export function channelMode(): ChannelMode {
+  return resolveChannelMode({
+    production: isProductionRequest(),
+    hasCredentials: Boolean(
+      process.env["WHATSAPP_TOKEN"] && process.env["WHATSAPP_PHONE_NUMBER_ID"],
+    ),
+  });
+}
+
 export function activeProvider(): ChannelProvider {
-  const ready = Boolean(process.env["WHATSAPP_TOKEN"] && process.env["WHATSAPP_PHONE_NUMBER_ID"]);
-  if (ready) return metaProvider;
-  return isProductionRequest() ? unavailableProvider : internalProvider;
+  const mode = channelMode();
+  if (mode === "simulator") return internalProvider;
+  return mode === "meta" ? metaProvider : unavailableProvider;
 }
 
 /** Dispara o Template Oficial pelo provider ativo e registra o envio. */
@@ -137,21 +155,13 @@ export async function sendTextMessage(input: {
   body: string;
 }): Promise<{ ok: true; provider: ChannelProviderId; delivered: boolean; error?: string }> {
   const phone = onlyDigits(input.phone);
-  const ready = Boolean(
-    process.env["WHATSAPP_TOKEN"] && process.env["WHATSAPP_PHONE_NUMBER_ID"],
-  );
-  if (!ready) {
+  const mode = channelMode();
+  // Homologação: simulação sempre — nenhuma chamada HTTP para a Meta.
+  if (mode === "simulator") return { ok: true, provider: "interno", delivered: true };
+  if (mode === "unavailable") {
     // Produção nunca finge entrega: o executivo precisa saber que a
     // mensagem não saiu.
-    if (isProductionRequest()) {
-      return {
-        ok: true,
-        provider: "meta",
-        delivered: false,
-        error: "Canal oficial do WhatsApp não configurado para este ambiente.",
-      };
-    }
-    return { ok: true, provider: "interno", delivered: true };
+    return { ok: true, provider: "meta", delivered: false, error: CHANNEL_UNAVAILABLE_MESSAGE };
   }
   try {
     const res = await fetch(
@@ -211,14 +221,15 @@ export async function sendMediaMessage(input: {
   caption?: string;
 }): Promise<{ ok: true; delivered: boolean; error?: string }> {
   const phone = onlyDigits(input.phone);
+  const mode = channelMode();
+  if (mode === "simulator") {
+    // Homologação: o anexo é registrado como simulado e nunca sobe para a Meta.
+    return { ok: true, delivered: true };
+  }
   const token = process.env["WHATSAPP_TOKEN"];
   const phoneId = process.env["WHATSAPP_PHONE_NUMBER_ID"];
-  if (!token || !phoneId) {
-    return {
-      ok: true,
-      delivered: false,
-      error: "Canal oficial do WhatsApp não configurado para este ambiente.",
-    };
+  if (mode === "unavailable" || !token || !phoneId) {
+    return { ok: true, delivered: false, error: CHANNEL_UNAVAILABLE_MESSAGE };
   }
   try {
     const bytes = Uint8Array.from(atob(input.base64), (c) => c.charCodeAt(0));
