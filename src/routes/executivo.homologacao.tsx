@@ -457,7 +457,7 @@ function HomologacaoPage() {
             ) : null}
             <HomologationCrm
               conversations={conversations}
-              executive={{ name: session.name, photoUrl: session.photoUrl ?? null }}
+              executive={{ name: session.name, photoUrl: loadUsers().find((u) => u.id === session.userId)?.photoUrl ?? null }}
             />
           </section>
         ) : null}
