@@ -110,11 +110,29 @@ export function workspaceScopesFor(
   /**
    * COMANDO 4E §12/§13/§40 — a Gestora NÃO possui Green Sales: a carteira
    * própria dela é a Central Única. Executivos comuns operam Green Sales.
-   * Administrador e híbrido enxergam tudo.
+   * COMANDO 4G §2/§3 — a Central Única é OPERADA exclusivamente pela
+   * Gestora. O Administrador apenas a enxerga (auditoria); o perfil
+   * híbrido NÃO possui Central Única.
    */
-  if (role === "super_admin" || isHybridWorkspaceUser(userId)) {
+  if (role === "super_admin") {
     return ["green_sales", "central_unica", "redistribuicao", "portal"];
+  }
+  if (isHybridWorkspaceUser(userId)) {
+    return ["green_sales", "redistribuicao", "portal"];
   }
   if (role === "diretora") return ["central_unica", "redistribuicao"];
   return ["green_sales", "redistribuicao"];
+}
+
+/**
+ * COMANDO 4G §2 — somente a Gestora OPERA a Central Única (redistribuir,
+ * assumir, encerrar). Ninguém mais executa ações nesse escopo.
+ */
+export function canOperateCentralUnica(_userId: string, role: ExecutiveRole): boolean {
+  return role === "diretora";
+}
+
+/** §3 — leitura da Central Única: Gestora e Administrador (auditoria). */
+export function canViewCentralUnica(userId: string, role: ExecutiveRole): boolean {
+  return role === "diretora" || role === "super_admin" || canOperateCentralUnica(userId, role);
 }

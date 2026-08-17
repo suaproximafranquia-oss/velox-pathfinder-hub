@@ -296,6 +296,8 @@ export function redistributeContact(input: {
 export type InboundRouting =
   | { routed: "proprietario"; ownerId: string | null; leadId: string; leadName: string; scope: WorkspaceScope }
   | { routed: "fila"; ownerId: string; leadId: string; leadName: string; executiveName: string }
+  /** COMANDO 4G §5 — número desconhecido NÃO é redistribuído sozinho. */
+  | { routed: "sem_proprietario"; phone: string }
   | { routed: "indisponivel"; reason: string };
 
 export function routeInboundWhatsapp(input: {
@@ -313,23 +315,12 @@ export function routeInboundWhatsapp(input: {
       scope: ownership.scope,
     };
   }
-
-  const result = redistributeContact({
-    name: input.name?.trim() || `Contato ${input.phone}`,
-    phone: input.phone,
-    origin: input.origin ?? "WhatsApp institucional",
-    actorId: "sistema",
-    actorName: "Roteamento automático",
-  });
-
-  if (!result.ok) return { routed: "indisponivel", reason: result.reason };
-  return {
-    routed: "fila",
-    ownerId: result.executive.id,
-    leadId: result.leadId,
-    leadName: input.name?.trim() || `Contato ${input.phone}`,
-    executiveName: result.executive.name,
-  };
+  /**
+   * COMANDO 4G §1/§5/§6 — a redistribuição é 100% MANUAL. Um contato
+   * desconhecido apenas fica disponível para a Gestora decidir; a fila
+   * só é consultada depois do clique em [ Redistribuir ].
+   */
+  return { routed: "sem_proprietario", phone: input.phone };
 }
 
 /** Histórico de contatos já roteados pela fila oficial (somente leitura). */
@@ -363,6 +354,43 @@ export function listRedistributedLeads(): Array<{
  * Altera apenas o responsável operacional, o escopo e o histórico de
  * redistribuição. O proprietário ORIGINAL é sempre preservado.
  */
+/**
+ * COMANDO 4G §7/§8 — plano de confirmação. Nada é executado aqui: a
+ * fila só é consultada DEPOIS que a Gestora confirma.
+ */
+export type RedistributionPlan =
+  | { ok: false; reason: string }
+  | {
+      ok: true;
+      leadId: string;
+      leadName: string;
+      currentOwnerId: string | null;
+      currentOwnerName: string | null;
+      /** §8 — lead que já possui Executivo responsável. */
+      exceptional: boolean;
+      message: string;
+    };
+
+export function planRedistribution(leadId: string): RedistributionPlan {
+  const lead = loadLeads().find((l) => l.id === leadId);
+  if (!lead) return { ok: false, reason: "Lead não encontrado." };
+  const currentOwnerId = lead.operationalOwnerId ?? lead.responsibleExecutiveId ?? null;
+  const ownerName = currentOwnerId
+    ? (loadUsers().find((u) => u.id === currentOwnerId)?.name ?? null)
+    : null;
+  return {
+    ok: true,
+    leadId: lead.id,
+    leadName: lead.name,
+    currentOwnerId,
+    currentOwnerName: ownerName,
+    exceptional: Boolean(ownerName),
+    message: ownerName
+      ? `Este lead pertence ao Executivo ${ownerName}. Deseja redistribuí-lo mesmo assim?`
+      : "Este lead ainda não possui um Executivo responsável. Deseja redistribuí-lo agora?",
+  };
+}
+
 export function redistributeExistingLead(input: {
   leadId: string;
   actorId: string;
@@ -373,6 +401,12 @@ export function redistributeExistingLead(input: {
   if (!lead) return { ok: false, reason: "Lead não encontrado." };
 
   const currentOwner = lead.operationalOwnerId ?? lead.responsibleExecutiveId ?? null;
+  const queue = redistributionQueue();
+  const preview = pickRecipient({
+    queue: queue.map((q) => q.id),
+    pointer: readCursor(),
+    currentOwnerId: currentOwner,
+  });
   const executive = takeNextExecutive(currentOwner);
   if (!executive) {
     return { ok: false, reason: "Nenhum Executivo elegível na fila oficial." };
@@ -401,9 +435,15 @@ export function redistributeExistingLead(input: {
 
   recordRedistribution({
     leadId: routed.id,
+    leadName: routed.name,
     fromOwnerId: currentOwner,
+    originalOwnerId: decision.ownerId,
     recipientId: executive.id,
+    recipientName: executive.name,
     redistributedBy: input.actorId,
+    redistributedByName: input.actorName,
+    skipped: preview.skipped,
+    exceptional: Boolean(currentOwner),
     reason: input.reason ?? "Redistribuição operacional da Gestora.",
     at: new Date().toISOString(),
   });

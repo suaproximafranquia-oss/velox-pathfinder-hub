@@ -19,6 +19,7 @@ import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import { archiveRelationship } from "@/lib/crm/commercial";
 import {
   canViewFullWorkspace,
+  canOperateCentralUnica,
   isWorkspaceScope,
   workspaceScopesFor,
   WORKSPACE_SCOPE_LABEL,
@@ -26,6 +27,12 @@ import {
 } from "@/lib/portal-workspace";
 import { cn } from "@/lib/utils";
 import { RedistributionPanel } from "@/components/executive/workspace/redistribution-panel";
+import { RedistributionModal } from "@/components/executive/workspace/redistribution-modal";
+import {
+  planRedistribution,
+  redistributeExistingLead,
+  type RedistributionPlan,
+} from "@/lib/crm/redistribution";
 import { EngagementPanel } from "@/components/executive/workspace/engagement-panel";
 
 /**
@@ -73,6 +80,8 @@ function WorkspacePage() {
   const [tick, setTick] = useState(0);
   const scrollRef = useRef(0);
   const openProfileId = search.perfil ?? null;
+  const [plan, setPlan] = useState<Extract<RedistributionPlan, { ok: true }> | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   // ETAPA 02.1 §Doc01 — abas oficiais por perfil: Green Sales e
   // Redistribuição para todos; Portal apenas para Administrador/híbrido.
   const tabs: WorkspaceTab[] = session
@@ -174,7 +183,11 @@ function WorkspacePage() {
         ? i.origin === "portal"
         : scope === "redistribuicao"
           ? i.origin === "redistribuicao"
-          : i.origin !== "portal" && i.origin !== "redistribuicao",
+          : scope === "central_unica"
+            ? i.origin === "central_unica"
+            : i.origin !== "portal" &&
+              i.origin !== "redistribuicao" &&
+              i.origin !== "central_unica",
     );
 
     const q = query.trim().toLowerCase();
@@ -271,7 +284,41 @@ function WorkspacePage() {
     navigate({ to: "/executivo/reunioes" });
   }, [navigate]);
 
+  /**
+   * COMANDO 4G §5/§6 — a fila só é consultada depois da confirmação.
+   */
+  const askRedistribute = useCallback((id: string) => {
+    const next = planRedistribution(id);
+    if (!next.ok) {
+      setNotice(next.reason);
+      return;
+    }
+    setPlan(next);
+  }, []);
+
+  const confirmRedistribute = useCallback(() => {
+    if (!session || !plan) return;
+    const result = redistributeExistingLead({
+      leadId: plan.leadId,
+      actorId: session.userId,
+      actorName: session.name,
+      reason: plan.exceptional
+        ? "Redistribuição excepcional confirmada pela Gestora."
+        : "Redistribuição manual confirmada pela Gestora.",
+    });
+    setPlan(null);
+    setNotice(
+      result.ok
+        ? `Lead redistribuído para ${result.executive.name}. Proprietário original e histórico preservados.`
+        : result.reason,
+    );
+    setTick((v) => v + 1);
+  }, [session, plan]);
+
   if (!session) return null;
+
+  const canRedistribute =
+    scope === "central_unica" && canOperateCentralUnica(session.userId, session.activeRole);
 
   return (
     <ExecutiveShell session={session} title="Workspace do Executivo">
@@ -283,6 +330,21 @@ function WorkspacePage() {
         />
       ) : (
         <>
+          {notice ? (
+            <div
+              role="status"
+              className="mb-4 rounded-2xl border border-[color:var(--gold)]/40 bg-[color:var(--card)]/60 px-4 py-3 text-xs text-[color:var(--muted-foreground)]"
+            >
+              {notice}
+            </div>
+          ) : null}
+          {plan ? (
+            <RedistributionModal
+              plan={plan}
+              onCancel={() => setPlan(null)}
+              onConfirm={confirmRedistribute}
+            />
+          ) : null}
           {tabs.length > 1 && (
             <ScopeTabs items={tabs} current={scope} onChange={changeScope} />
           )}
@@ -309,6 +371,7 @@ function WorkspacePage() {
                   onNewMeeting={goToMeetings}
                   onComment={openProfile}
                   onDelete={removeLead}
+                  onRedistribute={canRedistribute ? askRedistribute : undefined}
                 />
               ))}
             </div>

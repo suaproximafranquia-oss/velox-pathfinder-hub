@@ -66,9 +66,18 @@ export function writePointer(value: number): void {
 
 export type RedistributionEntry = {
   leadId: string;
+  leadName?: string;
   fromOwnerId: string | null;
+  /** §19 — proprietário original, jamais alterado. */
+  originalOwnerId?: string | null;
   recipientId: string;
+  recipientName?: string;
   redistributedBy: string;
+  redistributedByName?: string;
+  /** §11 — executivos pulados por serem o proprietário atual. */
+  skipped?: string[];
+  /** §8 — redistribuição excepcional de lead que já possuía dono. */
+  exceptional?: boolean;
   reason: string;
   at: string;
 };
