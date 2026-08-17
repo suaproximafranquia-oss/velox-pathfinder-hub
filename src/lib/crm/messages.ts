@@ -18,6 +18,24 @@ export type CrmMessage = {
   at: string;
   authorId: string;
   authorName?: string;
+  /**
+   * Etapa da cadência (usada pela homologação). Mensagens reais não
+   * possuem etapa e o campo simplesmente não é gravado.
+   */
+  step?: string | null;
+  /**
+   * Botão do template: toda URL de ação do investidor vive aqui e NUNCA
+   * no corpo da mensagem. Representação visual do comportamento do
+   * template — não implica chamada à Meta.
+   */
+  button?: { label: string; url: string } | null;
+  /** Conteúdo anexado (Biblioteca), quando houver. */
+  attachment?: {
+    name: string;
+    kind: string | null;
+    url: string | null;
+    group: string | null;
+  } | null;
 };
 
 const STORAGE_KEY = "crm.messages.v1";
