@@ -456,29 +456,53 @@ function HomologacaoPage() {
         {runs.length > 0 ? (
           <section className={card}>
             <h2 className="mb-3 text-sm text-[color:var(--foreground)]">Histórico de rodadas</h2>
-            <ul className="space-y-1 text-xs">
-              {runs.map((r) => (
-                <li
-                  key={r.runId}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] px-3 py-2"
-                >
-                  <span className="text-[color:var(--foreground)]">{r.label}</span>
-                  <span className="flex items-center gap-3">
-                    <span className={cn(r.failed === 0 ? "text-emerald-400" : "text-red-400")}>
-                      {r.failed === 0 ? "TESTE FINALIZADO · " : ""}
-                      {r.passed}/{r.totalLeads} conformes
-                    </span>
-                    <button
-                      className={ghost}
-                      disabled={loadingRun}
-                      onClick={() => void handleOpenRun(r.runId)}
-                    >
-                      <MessagesSquare className="h-3.5 w-3.5" /> Abrir conversas
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px] text-left text-xs">
+                <thead className="text-[color:var(--muted-foreground)]">
+                  <tr>
+                    <th className="py-1">Rodada</th>
+                    <th>Data e hora da execução</th>
+                    <th>Duração</th>
+                    <th className="text-right">Leads</th>
+                    <th className="text-right">Mensagens</th>
+                    <th className="text-right">Conteúdos</th>
+                    <th>Status</th>
+                    <th className="text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runs.map((r) => (
+                    <tr key={r.runId} className="border-t border-[color:var(--border)]/60">
+                      <td className="py-2 text-[color:var(--gold)]">{r.runId}</td>
+                      <td className="text-[color:var(--foreground)]">
+                        {formatRunMoment(r.finishedAt ?? r.createdAt)}{" "}
+                        <span className="text-[10px] text-[color:var(--muted-foreground)]">
+                          {r.timezone}
+                        </span>
+                      </td>
+                      <td className="text-[color:var(--muted-foreground)]">
+                        {formatDuration(r.durationMs)}
+                      </td>
+                      <td className="text-right">{r.totalLeads}</td>
+                      <td className="text-right">{r.messages}</td>
+                      <td className="text-right">{r.contents}</td>
+                      <td className={cn(r.failed === 0 ? "text-emerald-400" : "text-red-400")}>
+                        {r.failed === 0 ? "Concluída" : `Divergências (${r.failed})`}
+                      </td>
+                      <td className="text-right">
+                        <button
+                          className={ghost}
+                          disabled={loadingRun}
+                          onClick={() => void handleOpenRun(r.runId)}
+                        >
+                          <MessagesSquare className="h-3.5 w-3.5" /> Ver detalhes
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         ) : null}
 
@@ -492,6 +516,15 @@ function HomologacaoPage() {
                 Chamadas à Meta nesta rodada: {totals?.["metaCalls"] ?? 0}
               </span>
             </div>
+            {execution ? (
+              <p className="mb-3 rounded-xl border border-[color:var(--border)] px-3 py-2 text-[11px] text-[color:var(--muted-foreground)]">
+                Execução real: início {formatRunMoment(execution.startedAt)} · conclusão{" "}
+                {formatRunMoment(execution.finishedAt)} · duração{" "}
+                {formatDuration(execution.durationMs)} ·{" "}
+                {execution.timezone ?? TZ} · semente {execution.seed ?? "—"}. As datas exibidas
+                dentro das conversas são <strong>datas simuladas</strong> do cenário.
+              </p>
+            ) : null}
             {totals ? (
               <div className="mb-4 grid gap-2 sm:grid-cols-4 lg:grid-cols-6">
                 {[
