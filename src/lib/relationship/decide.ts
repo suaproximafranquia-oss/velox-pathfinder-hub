@@ -8,6 +8,7 @@
 import { dueMomentAfterBusinessDays, isEligibleMoment, nextEligibleMoment } from "./calendar";
 import { FLOW_SEQUENCE, RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { blocksAutomation, isWindowOpen } from "./machine";
+import { isTerminalStage, isAutomationEligibleStage } from "./closing";
 import type { CadenceFlow, CadenceRecord, CadenceStep, EngineAction } from "./types";
 
 /** Evento de referência do fluxo atual para o cálculo de dias úteis. */
@@ -42,6 +43,12 @@ export type DecisionContext = {
   /** Motor habilitado neste ambiente. */
   enabled?: boolean;
   config?: RelationshipConfig;
+  /**
+   * Etapa do lead na origem no FECHAMENTO do dia (COMANDO 3D §3, §4).
+   * Quando informada, é ela — e não a etapa "de agora" — que autoriza
+   * ou impede a criação de novas etapas automáticas.
+   */
+  stageAtClosing?: string | null;
 };
 
 /**
@@ -53,6 +60,22 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
 
   if (!enabled) {
     return { kind: "none", reason: "Motor desabilitado — nenhum novo disparo é criado." };
+  }
+
+  if (ctx.stageAtClosing !== undefined) {
+    if (isTerminalStage(ctx.stageAtClosing)) {
+      return {
+        kind: "none",
+        reason:
+          "Lead em OPORTUNIDADE no fechamento do dia — etapa terminal: nenhuma cadência automática é criada.",
+      };
+    }
+    if (!isAutomationEligibleStage(ctx.stageAtClosing)) {
+      return {
+        kind: "none",
+        reason: `Etapa "${ctx.stageAtClosing ?? "sem etapa"}" no fechamento do dia não é elegível para cadência automática.`,
+      };
+    }
   }
 
   const blocked = blocksAutomation(record);

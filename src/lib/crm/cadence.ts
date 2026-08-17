@@ -12,8 +12,10 @@
 export type CadenceChannel = "call" | "message";
 
 /**
- * Resultado real de uma tentativa de ligação (COMANDO 2A §12).
- * Só existem dois desfechos: o investidor atendeu ou não atendeu.
+ * Resultado real de uma tentativa de ligação (COMANDO 2A §12,
+ * COMANDO 3D §14). "SIM" = a ligação foi realizada; "NAO" = não houve
+ * contato. Ligar não encerra a fila: quem encerra é a sequência de
+ * desfechos definida no §15.
  */
 export type CallOutcome = "SIM" | "NAO";
 
@@ -28,14 +30,21 @@ export type CadenceConfig = {
   enabled: boolean;
   /**
    * Intervalos em DIAS ÚTEIS a partir da ligação anterior efetivamente
-   * realizada. O primeiro elemento é sempre 0: a L1 vence na própria
-   * data da entrada comercial. L1 → +2 → L2 → +1 → L3 → +3 → L4.
+   * realizada (a primeira, a partir da entrada na etapa elegível).
    */
   offsets: number[];
 };
 
+/**
+ * COMANDO 3D §12, §13 — a L1 é MANUAL, feita pelo Executivo enquanto o
+ * lead ainda está em NOVOS. A fila automática começa em L2, quando a
+ * origem move o lead para ZERO CONTATO ou FRIO:
+ *   L2 = +2 dias úteis, L3 = +1 dia útil, L4 = +3 dias úteis.
+ */
+export const FIRST_AUTOMATED_CALL_STEP = 2;
+
 export const CADENCE_CONFIG: Record<CadenceChannel, CadenceConfig> = {
-  call: { enabled: true, offsets: [0, 2, 1, 3] },
+  call: { enabled: true, offsets: [2, 1, 3] },
   /**
    * LEGADO — a cadência de MENSAGENS pertence agora exclusivamente ao
    * Motor de Relacionamento (`src/lib/relationship`). Este canal
@@ -171,20 +180,16 @@ export function nextCallAttempt(
   const config = CADENCE_CONFIG.call;
   if (!config.enabled) return null;
   const history = [...attempts].sort((a, b) => a.step - b.step);
-  if (history.some((a) => a.outcome === "SIM")) return null;
-
   const done = history.length;
   if (done >= config.offsets.length) return null;
 
-  // §7 — duas recusas consecutivas em L2 e L3 encerram o ciclo.
-  if (done >= 3) {
-    const l2 = history.find((a) => a.step === 2);
-    const l3 = history.find((a) => a.step === 3);
-    if (l2?.outcome === "NAO" && l3?.outcome === "NAO") return null;
-  }
+  // §15 — L2 sem contato e L3 sem contato encerram o ciclo sem gerar L4.
+  const l2 = history.find((a) => a.step === 2);
+  const l3 = history.find((a) => a.step === 3);
+  if (l2?.outcome === "NAO" && l3?.outcome === "NAO") return null;
 
   const offset = config.offsets[done] ?? 0;
   const anchor = done === 0 ? baseDate : (history[done - 1]?.date ?? baseDate);
-  const dueDate = done === 0 ? nextBusinessDay(anchor) : addBusinessDays(anchor, offset);
-  return { step: done + 1, dueDate };
+  const dueDate = addBusinessDays(anchor, offset);
+  return { step: done + FIRST_AUTOMATED_CALL_STEP, dueDate };
 }

@@ -14,7 +14,8 @@ export type CadenceFlow =
   | "sem_resposta" // Fluxo 1 — nunca responde
   | "visualizacao" // Fluxo 2 — visualiza e não responde
   | "reengajamento" // Fluxo 3 — respondeu e desapareceu
-  | "reentrada"; // Fluxo 4 — lead já conhecido que se cadastra de novo
+  | "reentrada" // Fluxo 4 — lead já conhecido que se cadastra de novo
+  | "relacionamento_frio"; // Fluxo 5 — teve relacionamento real e esfriou
 
 /**
  * Etapas do motor. São identificadores internos (nunca exibidos ao
@@ -34,7 +35,9 @@ export type CadenceStep =
   | "RE0" // reentrada — retomada do contato
   | "RE1" // reentrada — como avaliar uma franquia
   | "RE2" // reentrada — estrutura e suporte
-  | "RE3"; // reentrada — encerramento
+  | "RE3" // reentrada — encerramento
+  | "RF0" // relacionamento esfriado — retomada
+  | "RF1"; // relacionamento esfriado — encerramento
 
 /** Estados persistentes da cadência. */
 export type CadenceState =

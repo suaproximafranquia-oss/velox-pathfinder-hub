@@ -148,7 +148,30 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "reentrada",
     businessDaysAfterReference: 5,
     templatePurpose: "reentrada_encerramento",
+    contentGroup: "FINALIZACAO",
+    terminal: true,
+  },
+  /**
+   * FLUXO 5 — RELACIONAMENTO ESFRIADO (COMANDO 3D §18–§20).
+   *
+   * Lead que JÁ teve conversa real (agendamento, vídeo ou apresentação)
+   * e voltou para FRIO. Nunca retorna a E0/E1: entra em RF0 no próximo
+   * dia útil (nunca no mesmo dia) e encerra em RF1 após 3 dias úteis.
+   */
+  RF0: {
+    step: "RF0",
+    flow: "relacionamento_frio",
+    businessDaysAfterReference: 1,
+    templatePurpose: "relacionamento_frio_retomada",
     contentGroup: null,
+    terminal: false,
+  },
+  RF1: {
+    step: "RF1",
+    flow: "relacionamento_frio",
+    businessDaysAfterReference: 3,
+    templatePurpose: "relacionamento_frio_encerramento",
+    contentGroup: "FINALIZACAO",
     terminal: true,
   },
 };
@@ -159,6 +182,7 @@ export const FLOW_SEQUENCE: Record<CadenceFlow, CadenceStep[]> = {
   visualizacao: ["E0", "E1", "V3", "V4"],
   reengajamento: ["R1", "R2", "R3"],
   reentrada: ["RE0", "RE1", "RE2", "RE3"],
+  relacionamento_frio: ["RF0", "RF1"],
 };
 
 export type RelationshipConfig = {
@@ -166,8 +190,15 @@ export type RelationshipConfig = {
   enabled: boolean;
   /** Janela de conversação livre, em horas. */
   windowHours: number;
-  /** Horário operacional (hora local da operação). */
+  /** Horário operacional (hora local da operação) de segunda a sexta. */
   businessHours: { start: number; end: number };
+  /**
+   * Janela de ENVIO no sábado (COMANDO 3D §8 e ajuste do §11).
+   * `null` desliga o sábado. Domingo nunca envia.
+   */
+  saturdayHours: { start: number; end: number } | null;
+  /** Fechamento operacional do dia (hora local) — §3. */
+  dailyClosingHour: number;
   timeZone: string;
   /** Feriados YYYY-MM-DD tratados como dias não úteis. */
   nonBusinessDays: string[];
@@ -190,7 +221,9 @@ export const RELATIONSHIP_CONFIG: RelationshipConfig = {
    */
   enabled: false,
   windowHours: 24,
-  businessHours: { start: 9, end: 20 },
+  businessHours: { start: 9, end: 21 },
+  saturdayHours: { start: 9, end: 21 },
+  dailyClosingHour: 22,
   timeZone: "America/Sao_Paulo",
   nonBusinessDays: [],
   readsToSwitchFlow: 2,

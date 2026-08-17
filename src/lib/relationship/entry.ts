@@ -42,3 +42,28 @@ export function resolveEntryFlow(history: EntryHistory): EntryResolution {
     reason: "Lead já conhecido com nova entrada comercial — cadência de reentrada (RE0 → RE3).",
   };
 }
+
+/**
+ * RELACIONAMENTO QUE ESFRIOU (COMANDO 3D §18).
+ *
+ * Lead que JÁ teve conversa real — agendamento marcado, vídeo enviado
+ * ou apresentação realizada — e voltou para FRIO. Não é reentrada nem
+ * primeiro contato: ele entra no fluxo RF, que reconhece o histórico.
+ */
+export type CooledHistory = {
+  /** Etapa vigente na origem no fechamento do dia. */
+  stageKey: string | null;
+  /** Houve agendamento, envio de vídeo ou apresentação realizada. */
+  hadRealConversation: boolean;
+};
+
+export function resolveCooledFlow(history: CooledHistory): EntryResolution | null {
+  if (history.stageKey !== "frio") return null;
+  if (!history.hadRealConversation) return null;
+  return {
+    flow: "relacionamento_frio",
+    reentry: false,
+    reason:
+      "Relacionamento real anterior que esfriou — cadência RF0 → RF1, nunca o fluxo de primeiro contato.",
+  };
+}
