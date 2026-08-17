@@ -174,6 +174,8 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         external_id: input.externalId,
         ingested_at: now,
         last_entry_at: input.lastEntryAt ?? input.externalCreatedAt ?? now,
+        // Data de entrada na etapa atual — referência da fila de ligações.
+        stage_entered_at: now,
         entry_count: 1,
         // PENDING representa uma operação real de envio aguardando
         // processamento — nunca "nunca recebeu mensagem".
@@ -216,6 +218,10 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
       ...base,
       stage_key: stageKey,
       external_stage_id: externalStageId,
+      // A contagem da cadência de ligações parte da TRANSIÇÃO de etapa.
+      stage_entered_at: stageChanged
+        ? now
+        : ((previous as unknown as { stage_entered_at?: string | null }).stage_entered_at ?? now),
       last_entry_at: newEntry
         ? (input.lastEntryAt as string)
         : (previous.last_entry_at ?? input.lastEntryAt ?? input.externalCreatedAt),

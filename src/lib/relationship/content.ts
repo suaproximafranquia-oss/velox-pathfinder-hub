@@ -140,14 +140,14 @@ export const CONTENT_GROUP_LABELS: Record<ContentGroup, string> = {
   R1: "Conteúdos de valor — primeira tentativa após desaparecimento",
   R2: "Conteúdos de valor — segunda tentativa após desaparecimento",
   R3: "Etapa preparada — interrupção das tentativas",
-  RE1: "Reentrada — conteúdos preparados (fluxo ainda não ativo)",
-  RE2: "Reentrada — conteúdos preparados (fluxo ainda não ativo)",
+  RE1: "Reentrada — como avaliar uma franquia",
+  RE2: "Reentrada — estrutura e suporte ao franqueado",
   V3: "Conteúdos de valor — visualização repetida",
   V4: "Conteúdos de valor — encerramento de interação visualizada",
 };
 
 /** Grupos efetivamente exigidos pelas etapas que anexam conteúdo. */
-export const REQUIRED_CONTENT_GROUPS: ContentGroup[] = ["E1", "E3", "R1", "R2"];
+export const REQUIRED_CONTENT_GROUPS: ContentGroup[] = ["E1", "E3", "R1", "R2", "RE1", "RE2"];
 
 /**
  * Um grupo exigido sem nenhum conteúdo ativo é uma lacuna real: a etapa

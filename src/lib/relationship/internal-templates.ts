@@ -42,6 +42,10 @@ const LABELS: Record<CadenceStep, { label: string; }> = {
   R1: { label: "R1 — Reengajamento 1" },
   R2: { label: "R2 — Reengajamento 2" },
   R3: { label: "R3 — Reengajamento (encerramento)" },
+  RE0: { label: "RE0 — Reentrada (retomada do contato)" },
+  RE1: { label: "RE1 — Reentrada (como avaliar uma franquia)" },
+  RE2: { label: "RE2 — Reentrada (estrutura e suporte)" },
+  RE3: { label: "RE3 — Reentrada (encerramento)" },
 };
 
 function extractVariables(body: string): string[] {

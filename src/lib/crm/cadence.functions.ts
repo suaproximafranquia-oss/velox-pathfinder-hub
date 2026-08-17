@@ -16,6 +16,7 @@ export type CadenceQueueView = {
   step: number;
   dueDate: string;
   overdue: boolean;
+  attempts: { step: number; date: string; outcome: "SIM" | "NAO" }[];
 };
 
 export type CadenceSummaryView = { overdue: number; today: number; total: number };
@@ -68,6 +69,7 @@ export const completeCadenceTaskFn = createServerFn({ method: "POST" })
         dueDate: z.string(),
         cycleDate: z.string(),
         channel: z.enum(["call", "message"]).default("call"),
+        outcome: z.enum(["SIM", "NAO"]).default("SIM"),
       })
       .parse(data),
   )
@@ -75,5 +77,27 @@ export const completeCadenceTaskFn = createServerFn({ method: "POST" })
     await assertManager(context as never);
     const { completeCadenceTask } = await import("@/server/crm/cadence.server");
     await completeCadenceTask({ ...data, userId: context.userId });
+    return { ok: true as const };
+  });
+
+/**
+ * Registra a tentativa manual de ligação pelo WhatsApp — atividade de
+ * histórico apenas; a tentativa do dia continua em aberto.
+ */
+export const registerWhatsappCallAttemptFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        leadId: z.string().uuid(),
+        step: z.number().int().positive(),
+        cycleDate: z.string(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const { registerWhatsappCallAttempt } = await import("@/server/crm/cadence.server");
+    await registerWhatsappCallAttempt({ ...data, userId: context.userId });
     return { ok: true as const };
   });
