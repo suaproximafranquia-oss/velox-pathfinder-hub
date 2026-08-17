@@ -83,7 +83,11 @@ export function buildThreadRows(
     const name = message.authorName?.trim() || person?.name || "";
     return {
       message,
-      side: author === "self" ? "right" : "left",
+      // SYSTEM permanece com a regra atual (segue a direção da mensagem).
+      side:
+        author === "peer" || (author === "system" && message.direction === "recebida")
+          ? "left"
+          : "right",
       author,
       body: sanitizeThreadBody(message),
       showAvatar: author !== "system" && lastOfBlock,
