@@ -25,12 +25,12 @@ describe("Central de Templates — estrutura operacional", () => {
     }
   });
 
-  it("primeiro contato assina como Executivo de Expansão e resolve variáveis", () => {
+  it("primeiro contato assina como Gerente de Expansão e resolve variáveis", () => {
     const body = renderCrmTemplate(CRM_TEMPLATES[0]!, {
       executiveName: "Thiago",
       portalLink: "https://exemplo/f/thiago",
     });
-    expect(body).toContain("Executivo de Expansão");
+    expect(body).toContain("Gerente de Expansão");
     expect(body).not.toContain("Administrador Geral");
     expect(body).toContain("https://exemplo/f/thiago");
     expect(body).not.toMatch(/\{\{/);

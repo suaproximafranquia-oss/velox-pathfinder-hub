@@ -4,10 +4,10 @@ export type AskPassage = { source: string; text: string };
 export type AskResult = { answer: string; sources: string[] };
 
 const NO_INFO =
-  "Não localizei essa informação na documentação oficial da empresa. Recomendo confirmar essa informação com o Executivo de Expansão ou com a Gestora.";
+  "Não localizei essa informação na documentação oficial da empresa. Recomendo confirmar essa informação com o Gerente de Expansão ou com a Gestora.";
 
 const CORPORATE_DISCLAIMER =
-  "\n\n---\nResposta construída com base na documentação oficial da empresa combinada com conhecimento técnico de caráter educativo. Informações institucionais devem ser confirmadas com o Executivo de Expansão.";
+  "\n\n---\nResposta construída com base na documentação oficial da empresa combinada com conhecimento técnico de caráter educativo. Informações institucionais devem ser confirmadas com o Gerente de Expansão.";
 
 /**
  * IA Corporativa — modelo híbrido (ITEM 02 da auditoria da ETAPA 02.1):
@@ -60,7 +60,7 @@ EXPERIÊNCIA DA RESPOSTA (obrigatório):
 5. NUNCA diga que uma frase foi retirada de um documento específico.
 6. Fale como um especialista da empresa, em fluxo natural.
 7. Quando pertinente, recomende confirmar informações institucionais com o
-   Executivo de Expansão.
+   Gerente de Expansão.
 8. Nunca ofereça aconselhamento financeiro personalizado nem promessa de retorno.
 
 DOCUMENTAÇÃO OFICIAL DA EMPRESA (uso interno, não mencione sua existência como arquivos):

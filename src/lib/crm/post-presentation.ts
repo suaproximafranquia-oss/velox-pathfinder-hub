@@ -47,7 +47,7 @@ Posteriormente, quando tiver mais tempo, recomendo que você avance pelo conteú
 Depois dessa análise, me fale quais pontos você gostaria de aprofundar e seguimos a partir daí.
 
 {{nome_executivo}}
-Executivo de Expansão — Velox`;
+Gerente de Expansão — Velox`;
 
 /** Manual do Investidor do executivo responsável (nunca de outro). */
 export function manualLinkFor(portalLink?: string | null): string {

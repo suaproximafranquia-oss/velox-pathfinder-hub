@@ -181,7 +181,7 @@ export function generateSimulatorPdf(input: {
   doc.setFontSize(10);
   doc.setTextColor(60);
   const steps = [
-    "1. Conversar com seu Executivo de Expansão para revisar o cenário e alinhar expectativas.",
+    "1. Conversar com seu Gerente de Expansão para revisar o cenário e alinhar expectativas.",
     "2. Aprofundar produtos e frentes priorizadas de acordo com o seu perfil e mercado.",
     "3. Avaliar o modelo de operação (Home Office ou Loja) e o plano de implantação.",
   ];
