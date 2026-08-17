@@ -24,6 +24,9 @@ import {
 import type { InstitutionalBlock } from "@/server/magazine.server";
 import {
   editionStatus,
+  editionNeedsSuccessor,
+  EDITION_STATUS_LABEL,
+  PAGE_BODY_MAX,
   formatEditionCode,
   formatPeriod,
   nextEditionNumber,
