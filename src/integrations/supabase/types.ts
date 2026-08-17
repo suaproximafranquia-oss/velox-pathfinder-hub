@@ -1253,9 +1253,39 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_content_groups: {
+        Row: {
+          content_group: string
+          content_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          content_group: string
+          content_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          content_group?: string
+          content_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_content_groups_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_contents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       relationship_contents: {
         Row: {
           active: boolean
+          body: string | null
           content_group: string
           created_at: string
           description: string | null
@@ -1271,6 +1301,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          body?: string | null
           content_group: string
           created_at?: string
           description?: string | null
@@ -1281,11 +1312,12 @@ export type Database = {
           name: string
           scope?: string
           updated_at?: string
-          url: string
+          url?: string
           usage_count?: number
         }
         Update: {
           active?: boolean
+          body?: string | null
           content_group?: string
           created_at?: string
           description?: string | null
