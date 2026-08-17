@@ -113,6 +113,8 @@ const SCOPE_REASON: Record<WorkspaceScope, string> = {
     "Este investidor já foi redistribuído anteriormente. O proprietário atual é mantido.",
   portal:
     "Este investidor pertence ao Portal do Investidor. Nenhuma redistribuição é permitida.",
+  central_unica:
+    "Este investidor pertence à Central Única da Gestora. A redistribuição é decidida por ela.",
 };
 
 /**
@@ -124,7 +126,12 @@ export function checkOwnershipByPhone(phone: string): OwnershipCheck {
   if (key.length < 8) return { owned: false };
   const leads = loadLeads().filter((l) => leadPhoneKey(l.whatsapp) === key);
   if (leads.length === 0) return { owned: false };
-  const order: WorkspaceScope[] = ["green_sales", "redistribuicao", "portal"];
+  const order: WorkspaceScope[] = [
+    "green_sales",
+    "redistribuicao",
+    "central_unica",
+    "portal",
+  ];
   for (const scope of order) {
     const hit = leads.find((l) => (l.scope ?? "portal") === scope);
     if (hit) {
@@ -346,4 +353,84 @@ export function listRedistributedLeads(): Array<{
       at: l.createdAt,
     }))
     .sort((a, b) => (a.at < b.at ? 1 : -1));
+}
+
+/**
+ * COMANDO 4E §31/§32/§35/§36 — redistribuição de um lead JÁ EXISTENTE a
+ * partir da Central Única da Gestora.
+ *
+ * Não cria novo lead comercial: preserva identidade, histórico e jornada.
+ * Altera apenas o responsável operacional, o escopo e o histórico de
+ * redistribuição. O proprietário ORIGINAL é sempre preservado.
+ */
+export function redistributeExistingLead(input: {
+  leadId: string;
+  actorId: string;
+  actorName: string;
+  reason?: string;
+}): RedistributionResult {
+  const lead = loadLeads().find((l) => l.id === input.leadId);
+  if (!lead) return { ok: false, reason: "Lead não encontrado." };
+
+  const currentOwner = lead.operationalOwnerId ?? lead.responsibleExecutiveId ?? null;
+  const executive = takeNextExecutive(currentOwner);
+  if (!executive) {
+    return { ok: false, reason: "Nenhum Executivo elegível na fila oficial." };
+  }
+
+  const decision = applyRedistributionOwnership({
+    current: {
+      ownerId: lead.originalOwnerId ?? lead.responsibleExecutiveId ?? null,
+      operationalOwnerId: currentOwner,
+      scope: lead.scope ?? null,
+      sharedExecutiveIds: lead.sharedExecutiveIds ?? [],
+    },
+    recipientId: executive.id,
+    redistributedBy: input.actorId,
+  });
+
+  const routed =
+    updateLead(lead.id, {
+      scope: "redistribuicao",
+      responsibleExecutiveId: executive.id,
+      operationalOwnerId: executive.id,
+      originalOwnerId: decision.ownerId,
+      sharedExecutiveIds: decision.sharedExecutiveIds,
+      personalized: true,
+    }) ?? lead;
+
+  recordRedistribution({
+    leadId: routed.id,
+    fromOwnerId: currentOwner,
+    recipientId: executive.id,
+    redistributedBy: input.actorId,
+    reason: input.reason ?? "Redistribuição operacional da Gestora.",
+    at: new Date().toISOString(),
+  });
+
+  recordCrmEvent({
+    investorId: routed.id,
+    event: "distribuicao_realizada",
+    origin: routed.origin ?? "Central Única",
+    reason: `Redistribuição pela Gestora — responsável operacional: ${executive.name}.`,
+    ownerId: executive.id,
+    actorId: input.actorId,
+  });
+
+  logAudit({
+    actorId: input.actorId,
+    actorName: input.actorName,
+    actorRole: "Gestor",
+    module: "investidores",
+    action: "Lead redistribuído (Central Única)",
+    target: routed.name,
+    details: `Proprietário original preservado. Responsável operacional: ${executive.name}. Jornada e engajamento seguem compartilhados.`,
+    severity: "info",
+  });
+
+  notifySync("leads");
+  notifySync("commercial");
+  notifySync("timeline");
+
+  return { ok: true, executive, leadId: routed.id };
 }
