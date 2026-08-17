@@ -74,20 +74,33 @@ export function ExecutiveShell({
       : []),
   ];
 
-  const administrative = [
+  /**
+   * COMANDO 3C §5 — as "Centrais" ficam agrupadas e a Biblioteca de
+   * Conteúdos passa a ser um item permanente do menu administrativo.
+   */
+  const centrais = [
     { to: "/executivo/captacao", label: "Central de Captação", icon: Radar },
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
       ? [{ to: "/executivo/templates", label: "Central de Templates", icon: LayoutList }]
       : []),
-    ...(session.activeRole === "super_admin"
-      ? [{ to: "/executivo/homologacao", label: "Homologação do Motor", icon: FlaskConical }]
-      : []),
     { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
-    { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
     ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/central-backup", label: "Central de Backup", icon: Archive }]
       : []),
+  ];
+
+  const relationship = [
+    ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
+      ? [{ to: "/executivo/biblioteca", label: "Biblioteca de Conteúdos", icon: LibraryBig }]
+      : []),
+    ...(session.activeRole === "super_admin"
+      ? [{ to: "/executivo/homologacao", label: "Homologação do Motor", icon: FlaskConical }]
+      : []),
+    { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
+  ];
+
+  const administrative = [
     ...(canManageUsers(session.activeRole)
       ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
@@ -99,6 +112,14 @@ export function ExecutiveShell({
       ? [{ to: "/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical }]
       : []),
   ];
+
+  const separator = (key: string) => (
+    <span
+      key={key}
+      aria-hidden
+      className="my-2 hidden h-px w-full bg-[color:var(--border)] md:block"
+    />
+  );
 
   const renderLink = (n: {
     to: string;
@@ -199,10 +220,11 @@ export function ExecutiveShell({
         >
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
             {daily.map(renderLink)}
-            <span
-              aria-hidden
-              className="my-2 hidden h-px w-full bg-[color:var(--border)] md:block"
-            />
+            {separator("sep-centrais")}
+            {centrais.map(renderLink)}
+            {relationship.length > 0 ? separator("sep-relacionamento") : null}
+            {relationship.map(renderLink)}
+            {separator("sep-admin")}
             {administrative.map(renderLink)}
           </nav>
         </aside>
