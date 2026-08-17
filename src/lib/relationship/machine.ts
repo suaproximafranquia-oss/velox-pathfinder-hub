@@ -13,6 +13,11 @@ export function initialRecord(input: {
   leadId: string;
   runId?: string | null;
   at: string;
+  /**
+   * Fluxo inicial. Um lead já conhecido que se cadastra novamente nasce
+   * em "reentrada" — nunca no fluxo de primeiro contato (COMANDO 2B §1).
+   */
+  flow?: CadenceRecord["flow"];
 }): CadenceRecord {
   return {
     scope: input.scope,
@@ -20,7 +25,7 @@ export function initialRecord(input: {
     runId: input.runId ?? null,
     state: "CADENCE_NOT_STARTED",
     previousState: null,
-    flow: "sem_resposta",
+    flow: input.flow ?? "sem_resposta",
     currentStep: null,
     executedSteps: [],
     startedAt: null,
@@ -151,10 +156,19 @@ export function applyEvent(
       next.startedBy =
         next.startedBy ??
         ((event.data?.["origin"] as "automatic" | "manual" | undefined) ?? "automatic");
-      next.currentStep = "E0";
-      if (!next.executedSteps.includes("E0")) next.executedSteps.push("E0");
+      {
+        // Reentrada abre em RE0; primeira entrada abre em E0.
+        const opening = event.step ?? (next.flow === "reentrada" ? "RE0" : "E0");
+        next.currentStep = opening;
+        if (!next.executedSteps.includes(opening)) next.executedSteps.push(opening);
+      }
       next.lastOutboundAt = event.at;
-      setState("CADENCE_ACTIVE", "Primeiro contato enviado — cadência ativa a partir de E0.");
+      setState(
+        "CADENCE_ACTIVE",
+        next.flow === "reentrada"
+          ? "Reentrada iniciada — cadência ativa a partir de RE0."
+          : "Primeiro contato enviado — cadência ativa a partir de E0.",
+      );
       break;
 
     case "MESSAGE_SENT":
@@ -183,7 +197,11 @@ export function applyEvent(
 
     case "MESSAGE_READ":
       next.readCount += 1;
-      if (next.responseCount === 0 && next.readCount >= config.readsToSwitchFlow) {
+      if (
+        next.flow !== "reentrada" &&
+        next.responseCount === 0 &&
+        next.readCount >= config.readsToSwitchFlow
+      ) {
         next.flow = "visualizacao";
         setState(
           "VISUALIZED_NO_RESPONSE",
@@ -198,7 +216,9 @@ export function applyEvent(
       next.responseCount += 1;
       next.lastInboundAt = event.at;
       next.windowOpenUntil = openWindow(event.at, config);
-      next.flow = "reengajamento";
+      // §8 — fluxos nunca se misturam: quem responde durante a
+      // reentrada permanece na reentrada, apenas com a automação parada.
+      if (next.flow !== "reentrada") next.flow = "reengajamento";
       setState(
         "RESPONDED",
         "Investidor respondeu — cadência automática interrompida; o Executivo conduz.",
