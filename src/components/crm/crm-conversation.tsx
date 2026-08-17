@@ -33,6 +33,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listCrmRelationshipTemplates } from "@/lib/crm/meta-templates.functions";
 import type { CrmMetaTemplateOption } from "@/lib/crm/meta-templates";
 import { ensureCloudSession } from "@/lib/executive-auth";
+import { buildPostPresentationDraft } from "@/lib/crm/post-presentation";
 const CHATGPT_URL = "https://chatgpt.com/";
 
 /**
