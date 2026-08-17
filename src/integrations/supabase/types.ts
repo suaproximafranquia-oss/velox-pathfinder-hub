@@ -235,6 +235,7 @@ export type Database = {
           id: string
           lead_id: string
           note: string | null
+          outcome: string | null
           status: string
           step_day: number
           updated_at: string
@@ -249,6 +250,7 @@ export type Database = {
           id?: string
           lead_id: string
           note?: string | null
+          outcome?: string | null
           status?: string
           step_day: number
           updated_at?: string
@@ -263,6 +265,7 @@ export type Database = {
           id?: string
           lead_id?: string
           note?: string | null
+          outcome?: string | null
           status?: string
           step_day?: number
           updated_at?: string
@@ -371,6 +374,7 @@ export type Database = {
           phone: string
           pipeline_name: string | null
           raw_payload: Json | null
+          stage_entered_at: string | null
           stage_key: string | null
           sync_error: string | null
           sync_status: string
@@ -402,6 +406,7 @@ export type Database = {
           phone?: string
           pipeline_name?: string | null
           raw_payload?: Json | null
+          stage_entered_at?: string | null
           stage_key?: string | null
           sync_error?: string | null
           sync_status?: string
@@ -433,6 +438,7 @@ export type Database = {
           phone?: string
           pipeline_name?: string | null
           raw_payload?: Json | null
+          stage_entered_at?: string | null
           stage_key?: string | null
           sync_error?: string | null
           sync_status?: string
