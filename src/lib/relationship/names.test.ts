@@ -77,8 +77,8 @@ describe("personalização segura de nome", () => {
 });
 
 describe("templates internos", () => {
-  it("registra 10 etapas sem ID da Meta", () => {
-    expect(INTERNAL_CADENCE_TEMPLATES).toHaveLength(10);
+  it("registra 14 etapas sem ID da Meta", () => {
+    expect(INTERNAL_CADENCE_TEMPLATES).toHaveLength(14);
     for (const t of INTERNAL_CADENCE_TEMPLATES) {
       expect(t.status).toBe("NAO_SUBMETIDO_META");
       expect(t.metaTemplateId).toBeNull();

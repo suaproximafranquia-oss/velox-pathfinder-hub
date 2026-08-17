@@ -36,18 +36,21 @@ describe("biblioteca de conteúdos", () => {
   });
 
   it("conteúdo inativo não é selecionado nem conta como cobertura", () => {
-    const library = [item({ id: "off", groups: ["E1", "E3", "R1", "R2"], active: false })];
+    const library = [
+      item({ id: "off", groups: ["E1", "E3", "R1", "R2", "RE1", "RE2"], active: false }),
+    ];
     expect(selectContent(library, "E1", []).content).toBeNull();
-    expect(contentLibraryGaps(library)).toHaveLength(4);
+    expect(contentLibraryGaps(library)).toHaveLength(6);
   });
 
   it("estatística reflete grupos obrigatórios cobertos", () => {
     const library = [
       item({ id: "a", groups: ["E1", "E3"] }),
       item({ id: "b", groups: ["R1", "R2"] }),
+      item({ id: "c", groups: ["RE1", "RE2"] }),
     ];
     const stats = contentLibraryStats(library);
-    expect(stats.total).toBe(2);
+    expect(stats.total).toBe(3);
     expect(stats.missingRequired).toEqual([]);
     expect(stats.byGroup.find((g) => g.group === "E1")?.active).toBe(1);
   });
@@ -113,6 +116,22 @@ describe("carga inicial da biblioteca (links do Instagram)", () => {
       name: "Começar sem garantia",
       kind: "video",
       url: "https://www.instagram.com/p/DcIAbOrsb2G/",
+    }),
+    item({
+      id: "re1",
+      group: "RE1",
+      groups: ["RE1"],
+      name: "Como avaliar uma franquia",
+      kind: "video",
+      url: "https://www.instagram.com/p/DcIAbOrsb2H/",
+    }),
+    item({
+      id: "re2",
+      group: "RE2",
+      groups: ["RE2"],
+      name: "Estrutura e suporte ao franqueado",
+      kind: "video",
+      url: "https://www.instagram.com/p/DcIAbOrsb2I/",
     }),
   ];
 
