@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Pencil, Power, Plus, Trash2 } from "lucide-react";
+import { Pencil, Power, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { WorkspacePermissionsDialog } from "@/components/executive/workspace-permissions-dialog";
 import {
   getSession,
   loadUsers,
@@ -58,6 +59,7 @@ function UsuariosPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [users, setUsers] = useState<ExecutiveUser[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [permissionsFor, setPermissionsFor] = useState<ExecutiveUser | null>(null);
 
   useEffect(() => {
     const s = getSession();
@@ -82,9 +84,19 @@ function UsuariosPage() {
     const target = users.find((u) => u.id === id);
     if (!target || !session) return;
     if (!canManageTargetUser(session.activeRole, target.role)) return;
+    const next = target.status === "ativo" ? "inativo" : "ativo";
+    if (
+      !confirm(
+        next === "ativo"
+          ? `Ativar o usuário ${target.name}?`
+          : `Desativar o usuário ${target.name}?`,
+      )
+    ) {
+      return;
+    }
     persist(
       users.map((u) =>
-        u.id === id ? { ...u, status: u.status === "ativo" ? "inativo" : "ativo" } : u,
+        u.id === id ? { ...u, status: next } : u,
       ),
     );
   }
@@ -189,6 +201,13 @@ function UsuariosPage() {
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
+                          onClick={() => setPermissionsFor(u)}
+                          title="Permissões do Workspace"
+                          className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--gold)] hover:bg-[color:var(--accent)]/60"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => toggleStatus(u.id)}
                           title={u.status === "ativo" ? "Desativar" : "Ativar"}
                           className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60"
@@ -215,6 +234,13 @@ function UsuariosPage() {
           </tbody>
         </table>
       </div>
+
+      {permissionsFor && (
+        <WorkspacePermissionsDialog
+          user={permissionsFor}
+          onClose={() => setPermissionsFor(null)}
+        />
+      )}
 
       {draft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--navy-deep)]/70 backdrop-blur-sm p-6">
