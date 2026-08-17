@@ -5,7 +5,8 @@
  * do lead é PULADO sem consumir o turno: o ponteiro continua a partir
  * do destinatário real.
  */
-const POINTER_KEY = "velox:workspace:redistribution-pointer:v1";
+/** Mesmo ponteiro já utilizado pela fila oficial — nunca um segundo. */
+const POINTER_KEY = "atlas:redistribution:cursor:v1";
 const HISTORY_KEY = "velox:workspace:redistribution-history:v1";
 
 export type RedistributionPick = {
