@@ -101,7 +101,19 @@ describe("Biblioteca de Conteúdos", () => {
       expect(sel.content?.kind).toBe(kind);
     }
   });
-  it("os grupos permanentes cobrem as finalidades do comando", () => {
-    expect([...CONTENT_GROUPS]).toEqual(["E1", "E3", "R1", "R2", "V3", "V4"]);
+  it("os grupos permanentes cobrem todas as etapas do motor", () => {
+    // COMANDO 3D §12 — a biblioteca cobre a estrutura completa de etapas.
+    expect([...CONTENT_GROUPS]).toEqual([
+      "E1",
+      "E2",
+      "E3",
+      "E4",
+      "E12",
+      "R1",
+      "R2",
+      "R3",
+      "V3",
+      "V4",
+    ]);
   });
 });
