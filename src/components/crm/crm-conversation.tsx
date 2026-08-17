@@ -389,6 +389,11 @@ export function CrmComposer({
   executiveName?: string;
   /** Portal do Investidor do executivo — resolve {{link_portal_investidor}}. */
   portalLink?: string;
+  /**
+   * Vídeo de pós-apresentação do executivo responsável (individual).
+   * Ausente ⇒ a ação de Pós-apresentação fica bloqueada com aviso.
+   */
+  postPresentationVideoUrl?: string | null;
   window?: CrmWindowStatus;
   /** Texto carregado a partir do módulo Templates. */
   prefillText?: string | null;
