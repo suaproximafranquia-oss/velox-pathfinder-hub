@@ -12,7 +12,7 @@ import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   deleteInstitutionalContent,
-  deleteMagazineEdition,
+  setMagazineEditionPublished,
   deleteMagazinePage,
   listInstitutionalContent,
   listMagazineEditions,
@@ -24,6 +24,9 @@ import {
 import type { InstitutionalBlock } from "@/server/magazine.server";
 import {
   editionStatus,
+  editionNeedsSuccessor,
+  EDITION_STATUS_LABEL,
+  PAGE_BODY_MAX,
   formatEditionCode,
   formatPeriod,
   nextEditionNumber,
@@ -240,6 +243,16 @@ function RevistaAdminPage() {
 
         {/* Edições */}
         <section className={card}>
+          {/* §16 — aviso quando o ciclo terminou e não há edição vigente. */}
+          {(() => {
+            const ended = editionNeedsSuccessor(editions);
+            return ended ? (
+              <p className="mb-4 rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-4 py-3 text-xs text-[color:var(--gold)]">
+                A {formatEditionCode(ended.number)} encerrou seu ciclo de 10 dias e foi para o
+                acervo. Crie a próxima edição para manter a Revista viva no Portal.
+              </p>
+            ) : null;
+          })()}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-sm">Edições</h3>
             <button
@@ -287,8 +300,10 @@ function RevistaAdminPage() {
                     {formatEditionCode(item.number)} — {item.title}
                   </p>
                   <p className="text-[11px] text-[color:var(--muted-foreground)]">
-                    {formatPeriod(item.startsOn)} · {editionStatus(item)} · {item.pages.length}{" "}
-                    página(s)
+                    {item.pages.length === 0
+                      ? "Contagem inicia no primeiro conteúdo publicado"
+                      : formatPeriod(item.startsOn)}{" "}
+                    · {EDITION_STATUS_LABEL[editionStatus(item)]} · {item.pages.length} conteúdo(s)
                   </p>
                 </button>
                 <div className="flex items-center gap-2">
@@ -316,12 +331,22 @@ function RevistaAdminPage() {
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
-                        setEditions(await deleteMagazineEdition({ data: { id: item.id } }));
-                        if (selectedId === item.id) setSelectedId(null);
-                      }, "Edição removida.")
+                        if (
+                          item.published &&
+                          !window.confirm(
+                            `Desativar a ${formatEditionCode(item.number)}? Ela deixa de aparecer no Portal, mas nada é apagado.`,
+                          )
+                        )
+                          return;
+                        setEditions(
+                          await setMagazineEditionPublished({
+                            data: { id: item.id, published: !item.published },
+                          }),
+                        );
+                      }, item.published ? "Edição desativada." : "Edição ativada.")
                     }
                   >
-                    <Trash2 className="h-3.5 w-3.5" /> Excluir
+                    {item.published ? "Desativar" : "Ativar"}
                   </button>
                 </div>
               </div>
@@ -432,8 +457,12 @@ function RevistaAdminPage() {
         {edition && (
           <section className={card}>
             <h3 className="text-sm">
-              Páginas de {formatEditionCode(edition.number)} — {edition.title}
+              Conteúdos de {formatEditionCode(edition.number)} — {edition.title}
             </h3>
+            <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
+              Cada conteúdo ocupa uma página dupla: texto à esquerda e mídia à direita. Excluir um
+              conteúdo remove o par inteiro e renumera a edição.
+            </p>
             <div className="mt-3 space-y-2">
               {edition.pages.map((page) => (
                 <div
@@ -474,8 +503,14 @@ function RevistaAdminPage() {
                       disabled={busy}
                       onClick={() =>
                         void run(async () => {
+                          if (
+                            !window.confirm(
+                              `Excluir o conteúdo "${page.title}"? O par completo (texto + mídia) será removido e a edição renumerada.`,
+                            )
+                          )
+                            return;
                           setEditions(await deleteMagazinePage({ data: { id: page.id } }));
-                        }, "Página removida.")
+                        }, "Conteúdo removido e edição renumerada.")
                       }
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Excluir
@@ -485,7 +520,8 @@ function RevistaAdminPage() {
               ))}
               {edition.pages.length === 0 && (
                 <p className="text-xs text-[color:var(--muted-foreground)]">
-                  Nenhuma página nesta edição.
+                  Nenhum conteúdo nesta edição — a contagem de 10 dias começa quando o primeiro
+                  conteúdo for publicado.
                 </p>
               )}
             </div>
@@ -538,9 +574,13 @@ function RevistaAdminPage() {
                 Texto (uma linha em branco separa parágrafos)
                 <textarea
                   className={field + " min-h-32"}
+                  maxLength={PAGE_BODY_MAX}
                   value={pageDraft.body}
                   onChange={(e) => setPageDraft({ ...pageDraft, body: e.target.value })}
                 />
+                <span className="mt-1 block text-right text-[10px]">
+                  {pageDraft.body.length}/{PAGE_BODY_MAX} caracteres
+                </span>
               </label>
               <label className="text-xs text-[color:var(--muted-foreground)]">
                 Legenda da mídia

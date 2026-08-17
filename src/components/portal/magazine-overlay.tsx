@@ -151,10 +151,11 @@ export function MagazineOverlay({
               )}
             </header>
 
-            <div className="relative flex-1 overflow-hidden">
-              <div className="grid h-full grid-cols-1 md:grid-cols-2">
+            {/* No celular a página dupla vira leitura vertical: texto e depois mídia. */}
+            <div className="relative flex-1 overflow-y-auto md:overflow-hidden">
+              <div className="grid min-h-full grid-cols-1 md:h-full md:grid-cols-2">
                 {/* Página esquerda — texto */}
-                <div className="flex h-full flex-col justify-center overflow-y-auto px-8 py-10 md:px-14">
+                <div className="flex flex-col justify-center px-6 py-8 sm:px-8 md:h-full md:overflow-y-auto md:px-14 md:py-10">
                   {!spread ? (
                     <>
                       <span className="portal-eyebrow">Revista Velox</span>
@@ -190,7 +191,7 @@ export function MagazineOverlay({
 
                 {/* Página direita — imagem ou vídeo */}
                 <div
-                  className="relative hidden h-full items-center justify-center overflow-hidden md:flex"
+                  className="relative flex min-h-[38vh] items-center justify-center overflow-hidden md:h-full md:min-h-0"
                   style={{ background: "color-mix(in oklab, var(--ink) 92%, transparent)" }}
                 >
                   {!spread && edition.coverUrl && (
