@@ -1,37 +1,30 @@
 /**
- * DEF 2.4.18 — Confirmação obrigatória do WhatsApp.
+ * COMANDO 4E §24/§25/§45 — IDENTIFICAÇÃO CADASTRAL (sem validação real).
  *
- * Após a identificação (Gateway) o Visitante Identificado acessa
- * EXCLUSIVAMENTE o Manual do Investidor. Qualquer outro módulo exige a
- * confirmação do WhatsApp — validação de identidade, nunca solicitação
- * de contato comercial.
+ * A validação real por WhatsApp foi REMOVIDA da plataforma: não existe
+ * OTP, código, template de confirmação, envio automático, chamada à Meta
+ * nem resposta "CONFIRMAR / NÃO CONFIRMAR". O Gateway apenas identifica
+ * o investidor pelos dados cadastrais (nome, e-mail e WhatsApp).
  *
- * Nada aqui cria Lead operacional, Card, Workspace ou Executivo
- * responsável: o visitante permanece em Jornada Digital.
+ * Este módulo registra apenas o número informado, para que a jornada
+ * possa ser reencontrada no futuro. Nenhuma mensagem é enviada.
  */
 import { logAudit } from "@/lib/audit-log";
-import { recordCrmEvent } from "@/lib/crm/timeline";
-import { isPortalReleased } from "@/lib/crm/portal-release";
-import { dispatchValidationTemplate } from "@/lib/crm/whatsapp-official";
-import { loadLeads, updateLead } from "@/lib/leads";
+import { updateLead } from "@/lib/leads";
 import { notifySync } from "@/lib/sync-bus";
 
-/** Número oficial que recebe as confirmações de identidade. */
-export const VELOX_OFFICIAL_WHATSAPP = "5517997727337";
+const KEY = "velox:portal:phone-registry:v1";
 
-const KEY = "velox:portal:whatsapp-verification:v1";
-
-export type VerificationRecord = {
+export type PhoneRegistryRecord = {
   investorId: string;
   phone: string;
-  sentAt: string | null;
-  sendCount: number;
-  confirmedAt: string | null;
-  confirmedIp: string | null;
-  confirmedUserAgent: string | null;
+  /** Momento em que o número foi informado/atualizado pelo investidor. */
+  registeredAt: string;
+  /** Quantas vezes o investidor revisou o número. */
+  updates: number;
 };
 
-type Store = Record<string, VerificationRecord>;
+type Store = Record<string, PhoneRegistryRecord>;
 
 function read(): Store {
   if (typeof window === "undefined") return {};
@@ -54,39 +47,59 @@ function write(store: Store) {
   notifySync("commercial");
 }
 
-export function getVerification(investorId: string): VerificationRecord | null {
+export function getPhoneRegistry(investorId: string): PhoneRegistryRecord | null {
   return read()[investorId] ?? null;
 }
 
 /**
- * Espelha a confirmação já registrada no servidor. Permite que o
- * investidor troque de navegador ou dispositivo sem refazer nada.
+ * §28 — "Usar este número" ou "Salvar número": atualiza o cadastro
+ * existente. Nunca cria outro registro, nunca envia mensagem.
  */
-export function applyRemoteConfirmation(
-  investorId: string,
-  confirmedAt: string | null,
-  phone?: string,
-): void {
-  if (!confirmedAt) return;
+export function registerPortalPhone(input: {
+  investorId: string;
+  investorName: string;
+  phone: string;
+}): PhoneRegistryRecord {
   const store = read();
-  const current = store[investorId];
-  if (current?.confirmedAt) return;
-  store[investorId] = {
-    investorId,
-    phone: current?.phone ?? (phone ?? ""),
-    sentAt: current?.sentAt ?? confirmedAt,
-    sendCount: current?.sendCount ?? 1,
-    confirmedAt,
-    confirmedIp: current?.confirmedIp ?? null,
-    confirmedUserAgent: current?.confirmedUserAgent ?? null,
+  const previous = store[input.investorId];
+  const phone = input.phone.replace(/\D/g, "");
+  const record: PhoneRegistryRecord = {
+    investorId: input.investorId,
+    phone,
+    registeredAt: new Date().toISOString(),
+    updates: (previous?.updates ?? 0) + 1,
   };
+  store[input.investorId] = record;
   write(store);
+
+  if (!previous || previous.phone !== phone) {
+    updateLead(input.investorId, { whatsapp: phone });
+    logAudit({
+      actorId: input.investorId,
+      actorName: input.investorName,
+      actorRole: "Investidor identificado",
+      module: "investidores",
+      action: previous
+        ? "Número de WhatsApp atualizado no cadastro da jornada"
+        : "Número de WhatsApp informado no cadastro da jornada",
+      target: input.investorName,
+      details:
+        "Identificação cadastral. Nenhuma mensagem foi enviada e nenhuma validação técnica foi realizada.",
+      severity: "info",
+    });
+  }
+  return record;
 }
 
 /**
- * DEF 2.5.1 — ao promover a Jornada Digital a Relacionamento Comercial,
- * a confirmação já realizada acompanha o novo identificador.
+ * §30 — a identificação cadastral é suficiente: todos os módulos do
+ * Portal ficam disponíveis. Nenhuma barreira artificial permanece.
  */
+export function isPortalUnlocked(investorId: string | null | undefined): boolean {
+  return Boolean(investorId);
+}
+
+/** Compatibilidade: o cadastro acompanha a promoção do registro. */
 export function transferVerification(fromId: string, toId: string): void {
   const store = read();
   const record = store[fromId];
@@ -97,204 +110,14 @@ export function transferVerification(fromId: string, toId: string): void {
 }
 
 /**
- * Portal liberado =
- *  - investidor vindo de LINK PERSONALIZADO (o relacionamento já existia
- *    antes do acesso: nada a confirmar), OU
- *  - WhatsApp confirmado, OU
- *  - liberação manual (Admin/Gestora).
+ * Compatibilidade com a sincronização servidor→navegador. Não existe
+ * mais confirmação a espelhar: mantido como no-op explícito para que
+ * nenhum caminho antigo reative a validação removida.
  */
-export function isPortalUnlocked(investorId: string | null | undefined): boolean {
-  if (!investorId) return false;
-  if (isPortalReleased(investorId)) return true;
-  const lead = loadLeads().find((l) => l.id === investorId);
-  if (lead?.personalized && lead.responsibleExecutiveId) return true;
-  return Boolean(read()[investorId]?.confirmedAt);
-}
-
-/**
- * PASSO 07 — envia automaticamente a mensagem com o código seguro.
- * PASSO 08 — reenvio e troca de número atualizam o cadastro existente,
- * jamais criam outro registro.
- */
-export function requestWhatsappConfirmation(input: {
-  investorId: string;
-  investorName: string;
-  phone: string;
-  origin?: string;
-  ownerId?: string | null;
-  /** Lead originado de link personalizado de executivo (Green Sales). */
-  personalized?: boolean;
-}): VerificationRecord {
-  const store = read();
-  const previous = store[input.investorId];
-  const phone = input.phone.replace(/\D/g, "");
-  const changedPhone = Boolean(previous && previous.phone !== phone);
-  const record: VerificationRecord = {
-    investorId: input.investorId,
-    phone,
-    sentAt: new Date().toISOString(),
-    sendCount: (previous?.sendCount ?? 0) + 1,
-    confirmedAt: null,
-    confirmedIp: null,
-    confirmedUserAgent: null,
-  };
-  store[input.investorId] = record;
-  write(store);
-
-  // Atualiza SEMPRE o cadastro existente — nunca cria outro.
-  if (changedPhone || !previous) updateLead(input.investorId, { whatsapp: phone });
-
-  /**
-   * DEF 3.0.2 §3 — quem envia é o CRM, através da Cloud API oficial.
-   * O Portal nunca abre WhatsApp Web nem o aplicativo.
-   */
-  dispatchValidationTemplate({
-    investorId: input.investorId,
-    investorName: input.investorName,
-    phone,
-    ownerId: input.ownerId ?? null,
-    origin: input.origin,
-    resend: Boolean(previous),
-    personalized: Boolean(input.personalized),
-  });
-
-  logAudit({
-    actorId: input.investorId,
-    actorName: input.investorName,
-    actorRole: "Visitante identificado",
-    module: "investidores",
-    action: changedPhone
-      ? "Número de WhatsApp alterado e nova confirmação enviada"
-      : "Mensagem oficial de confirmação de WhatsApp enviada",
-    target: input.investorName,
-    details: `Envio nº ${record.sendCount} para ${phone} em ${new Date(record.sentAt!).toLocaleString("pt-BR")}. Nenhum Lead, Card ou Executivo foi criado.`,
-    severity: "info",
-  });
-  recordCrmEvent({
-    investorId: input.investorId,
-    event: "atividade_portal",
-    origin: input.origin ?? "Portal do Investidor",
-    reason: changedPhone
-      ? "Visitante alterou o número e recebeu nova mensagem oficial de confirmação."
-      : "Mensagem oficial de confirmação enviada ao visitante (CONFIRMAR / NÃO CONFIRMAR).",
-    ownerId: input.ownerId ?? "sistema",
-    actorId: input.investorId,
-  });
-  return record;
-}
-
-/**
- * DEF 3.0.1 §9 — a confirmação chega pelo botão CONFIRMAR da mensagem
- * oficial do WhatsApp. Nenhum código, OTP ou PIN é utilizado: o CRM
- * identifica automaticamente a resposta e registra data, hora, IP e
- * navegador.
- */
-export function confirmWhatsapp(input: {
-  investorId: string;
-  investorName: string;
-  origin?: string;
-  ownerId?: string | null;
-}): { ok: boolean; record: VerificationRecord | null } {
-  const store = read();
-  const record = store[input.investorId];
-  if (!record) return { ok: false, record: null };
-
-  const now = new Date().toISOString();
-  const confirmed: VerificationRecord = {
-    ...record,
-    confirmedAt: now,
-    confirmedIp: null,
-    confirmedUserAgent: typeof navigator === "undefined" ? null : navigator.userAgent.slice(0, 180),
-  };
-  store[input.investorId] = confirmed;
-  write(store);
-
-  // A confirmação é gravada no servidor: passa a valer em qualquer
-  // navegador e é vista imediatamente pelo CRM.
-  if (typeof window !== "undefined") {
-    void import("@/lib/portal-token")
-      .then((t) => t.ensurePortalToken(input.investorId))
-      .then(async (token) => {
-        if (!token) return;
-        const m = await import("@/lib/portal-access.functions");
-        await m.confirmPortalWhatsapp({ data: { investorId: input.investorId, token } });
-      })
-      .catch(() => {
-        /* nova tentativa ocorre no próximo acesso ao Portal */
-      });
-  }
-
-  // IP é resolvido em segundo plano — a liberação nunca depende dele.
-  void resolveIp().then((ip) => {
-    if (!ip) return;
-    const current = read();
-    const entry = current[input.investorId];
-    if (!entry) return;
-    current[input.investorId] = { ...entry, confirmedIp: ip };
-    write(current);
-  });
-
-  logAudit({
-    actorId: input.investorId,
-    actorName: input.investorName,
-    actorRole: "Visitante identificado",
-    module: "investidores",
-    action: "WhatsApp confirmado — Portal do Investidor desbloqueado",
-    target: input.investorName,
-    details: `Confirmado em ${new Date(now).toLocaleString("pt-BR")} · Navegador: ${confirmed.confirmedUserAgent ?? "não informado"} · WhatsApp ${confirmed.phone}. Nenhum Lead, Card, Workspace ou Executivo responsável foi criado.`,
-    severity: "success",
-  });
-  recordCrmEvent({
-    investorId: input.investorId,
-    event: "atividade_portal",
-    origin: input.origin ?? "Portal do Investidor",
-    reason: "WhatsApp confirmado pelo visitante — módulos do Portal liberados.",
-    ownerId: input.ownerId ?? "sistema",
-    actorId: input.investorId,
-  });
-  return { ok: true, record: confirmed };
-}
-
-async function resolveIp(): Promise<string | null> {
-  if (typeof fetch === "undefined") return null;
-  try {
-    const res = await fetch("https://api.ipify.org?format=json");
-    if (!res.ok) return null;
-    const data = (await res.json()) as { ip?: string };
-    return data.ip ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** Resposta "NÃO CONFIRMAR" — o relacionamento segue aguardando validação. */
-export function declineWhatsapp(input: {
-  investorId: string;
-  investorName: string;
-  origin?: string;
-  ownerId?: string | null;
-}): void {
-  const store = read();
-  const record = store[input.investorId];
-  if (!record) return;
-  store[input.investorId] = { ...record, confirmedAt: null };
-  write(store);
-  logAudit({
-    actorId: input.investorId,
-    actorName: input.investorName,
-    actorRole: "Visitante identificado",
-    module: "investidores",
-    action: "Confirmação de WhatsApp recusada pelo visitante",
-    target: input.investorName,
-    details: "Resposta 'NÃO CONFIRMAR' na mensagem oficial. Módulos permanecem bloqueados.",
-    severity: "warning",
-  });
-  recordCrmEvent({
-    investorId: input.investorId,
-    event: "atividade_portal",
-    origin: input.origin ?? "Portal do Investidor",
-    reason: "Visitante respondeu NÃO CONFIRMAR na mensagem oficial do WhatsApp.",
-    ownerId: input.ownerId ?? "sistema",
-    actorId: input.investorId,
-  });
+export function applyRemoteConfirmation(
+  _investorId: string,
+  _confirmedAt?: string | null,
+  _phone?: string,
+): void {
+  /* validação real removida — COMANDO 4E §24 */
 }

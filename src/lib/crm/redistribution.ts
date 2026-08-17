@@ -21,6 +21,13 @@ import { recordOperationalAlert } from "@/lib/workspace-alerts";
 import { startRelationship, hasCommercialRelationship } from "@/lib/crm/commercial";
 import { notifySync } from "@/lib/sync-bus";
 import type { WorkspaceScope } from "@/lib/portal-workspace";
+import {
+  pickRecipient,
+  readPointer,
+  writePointer,
+  recordRedistribution,
+} from "@/lib/portal/redistribution";
+import { applyRedistributionOwnership } from "@/lib/portal/ownership";
 
 /** Ordem oficial da fila (ITEM 03). Resolvida contra os usuários reais. */
 export const REDISTRIBUTION_ORDER = [
@@ -31,8 +38,6 @@ export const REDISTRIBUTION_ORDER = [
   "Carlos",
   "Talita",
 ] as const;
-
-const CURSOR_KEY = "atlas:redistribution:cursor:v1";
 
 export type RedistributionTarget = { id: string; name: string };
 
@@ -57,19 +62,9 @@ export function redistributionQueue(): RedistributionTarget[] {
   return queue;
 }
 
+/** Ponteiro único da plataforma (ver `@/lib/portal/redistribution`). */
 function readCursor(): number {
-  if (typeof window === "undefined") return 0;
-  const raw = Number(window.localStorage.getItem(CURSOR_KEY));
-  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
-}
-
-function writeCursor(value: number) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(CURSOR_KEY, String(value));
-  } catch {
-    /* armazenamento indisponível */
-  }
+  return readPointer();
 }
 
 /**
@@ -82,13 +77,22 @@ export function peekNextExecutive(): RedistributionTarget | null {
   return queue[readCursor() % queue.length] ?? queue[0];
 }
 
-/** Avança a fila e devolve o Executivo sorteado sequencialmente. */
-function takeNextExecutive(): RedistributionTarget | null {
+/**
+ * Avança a fila e devolve o Executivo da vez. COMANDO 4E §34: quando o
+ * próximo da fila é o próprio proprietário do lead, ele é PULADO sem
+ * consumir o turno e o ponteiro segue a partir do destinatário real.
+ */
+function takeNextExecutive(currentOwnerId?: string | null): RedistributionTarget | null {
   const queue = redistributionQueue();
   if (queue.length === 0) return null;
-  const index = readCursor() % queue.length;
-  writeCursor((index + 1) % queue.length);
-  return queue[index] ?? null;
+  const pick = pickRecipient({
+    queue: queue.map((q) => q.id),
+    pointer: readCursor(),
+    currentOwnerId: currentOwnerId ?? null,
+  });
+  if (!pick.recipientId) return null;
+  writePointer(pick.nextPointer);
+  return queue.find((q) => q.id === pick.recipientId) ?? null;
 }
 
 export type OwnershipCheck =
@@ -109,6 +113,8 @@ const SCOPE_REASON: Record<WorkspaceScope, string> = {
     "Este investidor já foi redistribuído anteriormente. O proprietário atual é mantido.",
   portal:
     "Este investidor pertence ao Portal do Investidor. Nenhuma redistribuição é permitida.",
+  central_unica:
+    "Este investidor pertence à Central Única da Gestora. A redistribuição é decidida por ela.",
 };
 
 /**
@@ -120,7 +126,12 @@ export function checkOwnershipByPhone(phone: string): OwnershipCheck {
   if (key.length < 8) return { owned: false };
   const leads = loadLeads().filter((l) => leadPhoneKey(l.whatsapp) === key);
   if (leads.length === 0) return { owned: false };
-  const order: WorkspaceScope[] = ["green_sales", "redistribuicao", "portal"];
+  const order: WorkspaceScope[] = [
+    "green_sales",
+    "redistribuicao",
+    "central_unica",
+    "portal",
+  ];
   for (const scope of order) {
     const hit = leads.find((l) => (l.scope ?? "portal") === scope);
     if (hit) {
@@ -342,4 +353,84 @@ export function listRedistributedLeads(): Array<{
       at: l.createdAt,
     }))
     .sort((a, b) => (a.at < b.at ? 1 : -1));
+}
+
+/**
+ * COMANDO 4E §31/§32/§35/§36 — redistribuição de um lead JÁ EXISTENTE a
+ * partir da Central Única da Gestora.
+ *
+ * Não cria novo lead comercial: preserva identidade, histórico e jornada.
+ * Altera apenas o responsável operacional, o escopo e o histórico de
+ * redistribuição. O proprietário ORIGINAL é sempre preservado.
+ */
+export function redistributeExistingLead(input: {
+  leadId: string;
+  actorId: string;
+  actorName: string;
+  reason?: string;
+}): RedistributionResult {
+  const lead = loadLeads().find((l) => l.id === input.leadId);
+  if (!lead) return { ok: false, reason: "Lead não encontrado." };
+
+  const currentOwner = lead.operationalOwnerId ?? lead.responsibleExecutiveId ?? null;
+  const executive = takeNextExecutive(currentOwner);
+  if (!executive) {
+    return { ok: false, reason: "Nenhum Executivo elegível na fila oficial." };
+  }
+
+  const decision = applyRedistributionOwnership({
+    current: {
+      ownerId: lead.originalOwnerId ?? lead.responsibleExecutiveId ?? null,
+      operationalOwnerId: currentOwner,
+      scope: lead.scope ?? null,
+      sharedExecutiveIds: lead.sharedExecutiveIds ?? [],
+    },
+    recipientId: executive.id,
+    redistributedBy: input.actorId,
+  });
+
+  const routed =
+    updateLead(lead.id, {
+      scope: "redistribuicao",
+      responsibleExecutiveId: executive.id,
+      operationalOwnerId: executive.id,
+      originalOwnerId: decision.ownerId,
+      sharedExecutiveIds: decision.sharedExecutiveIds,
+      personalized: true,
+    }) ?? lead;
+
+  recordRedistribution({
+    leadId: routed.id,
+    fromOwnerId: currentOwner,
+    recipientId: executive.id,
+    redistributedBy: input.actorId,
+    reason: input.reason ?? "Redistribuição operacional da Gestora.",
+    at: new Date().toISOString(),
+  });
+
+  recordCrmEvent({
+    investorId: routed.id,
+    event: "distribuicao_realizada",
+    origin: routed.origin ?? "Central Única",
+    reason: `Redistribuição pela Gestora — responsável operacional: ${executive.name}.`,
+    ownerId: executive.id,
+    actorId: input.actorId,
+  });
+
+  logAudit({
+    actorId: input.actorId,
+    actorName: input.actorName,
+    actorRole: "Gestor",
+    module: "investidores",
+    action: "Lead redistribuído (Central Única)",
+    target: routed.name,
+    details: `Proprietário original preservado. Responsável operacional: ${executive.name}. Jornada e engajamento seguem compartilhados.`,
+    severity: "info",
+  });
+
+  notifySync("leads");
+  notifySync("commercial");
+  notifySync("timeline");
+
+  return { ok: true, executive, leadId: routed.id };
 }

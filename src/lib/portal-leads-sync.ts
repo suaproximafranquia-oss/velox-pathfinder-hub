@@ -32,6 +32,9 @@ export function pushLead(lead: LeadRecord, extra?: {
       personalized: lead.personalized,
       responsibleExecutiveId: lead.responsibleExecutiveId,
     });
+  // O espelho no servidor mantém três escopos: a Central Única da
+  // Gestora é persistida como carteira própria (green_sales).
+  const remoteScope = scope === "central_unica" ? "green_sales" : scope;
   void syncPortalLead({
     data: {
       id: lead.id,
@@ -41,7 +44,7 @@ export function pushLead(lead: LeadRecord, extra?: {
       city: lead.city,
       origin: lead.origin,
       material: lead.material,
-      scope,
+      scope: remoteScope,
       personalized: lead.personalized,
       responsibleExecutiveId: lead.responsibleExecutiveId,
       responsibleExecutiveSlug: extra?.responsibleExecutiveSlug ?? null,

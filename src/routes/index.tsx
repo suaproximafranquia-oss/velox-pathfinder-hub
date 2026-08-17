@@ -20,9 +20,9 @@ const SimulatorModal = lazy(() =>
 const GatewayOverlay = lazy(() =>
   import("@/components/portal/gateway-overlay").then((m) => ({ default: m.GatewayOverlay })),
 );
-const WhatsappConfirmOverlay = lazy(() =>
-  import("@/components/portal/whatsapp-confirm-overlay").then((m) => ({
-    default: m.WhatsappConfirmOverlay,
+const PhoneRegistryOverlay = lazy(() =>
+  import("@/components/portal/phone-registry-overlay").then((m) => ({
+    default: m.PhoneRegistryOverlay,
   })),
 );
 import heroImg from "@/assets/velox-sede-hero.png.asset.json";
@@ -214,8 +214,9 @@ function PortalHome() {
   /** Overlays secundários entram em cena assim que a Home fica ociosa. */
   const [overlaysReady, setOverlaysReady] = useState(false);
   /**
-   * DEF 2.4.18 — enquanto o WhatsApp não for confirmado, o Visitante
-   * Identificado acessa exclusivamente o Manual do Investidor.
+   * COMANDO 4E §24/§30 — a identificação cadastral libera o Portal
+   * imediatamente. A segunda tela existe apenas para conferência do
+   * número em entradas institucionais e nunca bloqueia o acesso.
    */
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
@@ -419,7 +420,7 @@ function PortalHome() {
           />
         )}
         {confirmOpen && (
-          <WhatsappConfirmOverlay
+          <PhoneRegistryOverlay
             open={confirmOpen}
             investorId={getPortalSession()?.investorId ?? ""}
             investorName={getPortalSession()?.name ?? "Visitante"}
@@ -428,9 +429,9 @@ function PortalHome() {
               setConfirmOpen(false);
               writeEntryContext({ pendingModule: null });
             }}
-            onConfirmed={() => {
+            onContinue={() => {
               setConfirmOpen(false);
-              // DEF 2.5.1 §09 — o relacionamento comercial nasce aqui.
+              // O relacionamento comercial nasce com a identificação.
               promotePortalSession();
               setUnlocked(true);
               const pending = readEntryContext().pendingModule;
