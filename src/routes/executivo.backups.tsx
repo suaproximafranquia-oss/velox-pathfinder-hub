@@ -33,7 +33,10 @@ import {
 import { CRM_TIMELINE_LABEL, formatCrmTimestamp } from "@/lib/crm/timeline";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { canAccessPortalWorkspace } from "@/lib/portal-workspace";
-import { canUseConversationBackups } from "@/lib/workspace-permissions";
+import {
+  canUseConversationBackups,
+  canViewConversationBackupOf,
+} from "@/lib/workspace-permissions";
 import { restoreRelationship } from "@/lib/crm/commercial";
 import { onSync } from "@/lib/sync-bus";
 
@@ -119,7 +122,16 @@ function BackupsPage() {
     // Backup de conversas é registro pessoal: cada usuário enxerga apenas
     // os próprios relacionamentos. A Gestora não acessa backups de
     // terceiros; somente o Administrador mantém visão integral.
-    const scoped = isAdmin ? all : all.filter((r) => r.executiveId === session.userId);
+    // COMANDO 3B §6 — Administrador vê todos; demais perfis apenas o
+    // próprio, salvo autorização temporária já existente.
+    const scoped = all.filter((r) =>
+      canViewConversationBackupOf({
+        actorRole: session.activeRole,
+        actorId: session.userId,
+        ownerId: r.executiveId,
+        temporaryGrant: Boolean(backupGrantFor(r.investorId)),
+      }),
+    );
     const q = query.trim().toLowerCase();
     if (!q) return scoped;
     return scoped.filter(
