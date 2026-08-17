@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   MessageSquare,
   CalendarPlus,
@@ -23,6 +23,7 @@ import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
+import { buildThreadRows, type ThreadParticipant } from "@/lib/crm/thread-view";
 import {
   CRM_TEMPLATES,
   renderCrmTemplate,
