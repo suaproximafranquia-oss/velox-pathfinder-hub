@@ -7,17 +7,17 @@
  * duplicado, e nada nesta tela dispara mensagem.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Eye,
   EyeOff,
+  ExternalLink,
   LibraryBig,
   Loader2,
   Pencil,
   Plus,
   Trash2,
   TriangleAlert,
-  Upload,
   X,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
@@ -25,7 +25,6 @@ import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/exe
 import {
   CONTENT_GROUPS,
   CONTENT_GROUP_LABELS,
-  CONTENT_KINDS,
   CONTENT_KIND_LABELS,
   contentGroupsOf,
   contentLibraryStats,
@@ -38,7 +37,6 @@ import {
   listRelationshipContents,
   saveRelationshipContent,
   toggleRelationshipContent,
-  uploadRelationshipContentFile,
 } from "@/lib/relationship-homologation.functions";
 import { cn } from "@/lib/utils";
 
@@ -80,23 +78,23 @@ type Draft = {
   kind: ContentKind;
   url: string;
   body: string;
-  storagePath: string | null;
-  fileLabel: string | null;
-  mimeType: string | null;
   active: boolean;
 };
+
+/**
+ * COMANDO 3F: o cadastro é por LINK. O formato existe apenas para o motor
+ * saber como apresentar o conteúdo — não é mais método de cadastro.
+ */
+const LINK_KINDS: ContentKind[] = ["link", "video", "imagem", "texto"];
 
 const emptyDraft: Draft = {
   id: null,
   groups: ["E1"],
   name: "",
   description: "",
-  kind: "pdf",
+  kind: "link",
   url: "",
   body: "",
-  storagePath: null,
-  fileLabel: null,
-  mimeType: null,
   active: true,
 };
 
@@ -105,12 +103,10 @@ function BibliotecaPage() {
   const [contents, setContents] = useState<ValueContent[]>([]);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [filterGroup, setFilterGroup] = useState<"todos" | ContentGroup>("todos");
   const [query, setQuery] = useState("");
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setSession(getSession());
@@ -151,40 +147,6 @@ function BibliotecaPage() {
     }));
   }
 
-  async function handleFile(file: File) {
-    setUploading(true);
-    setError(null);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
-        reader.readAsDataURL(file);
-      });
-      await ensureCloudSession();
-      const { storagePath } = await uploadRelationshipContentFile({
-        data: {
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          base64,
-        },
-      });
-      setDraft((d) => ({
-        ...d,
-        storagePath,
-        fileLabel: file.name,
-        mimeType: file.type || null,
-        url: "",
-        name: d.name || file.name.replace(/\.[^.]+$/, ""),
-      }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível enviar o arquivo.");
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
-
   async function handleSave() {
     setBusy(true);
     setError(null);
@@ -200,8 +162,8 @@ function BibliotecaPage() {
           kind: draft.kind,
           url: draft.url || null,
           body: draft.body || null,
-          storagePath: draft.storagePath,
-          mimeType: draft.mimeType,
+          storagePath: null,
+          mimeType: null,
           active: draft.active,
         },
       });
@@ -222,11 +184,8 @@ function BibliotecaPage() {
       name: content.name,
       description: content.description ?? "",
       kind: content.kind,
-      url: content.storagePath ? "" : content.url,
+      url: content.url,
       body: content.body ?? "",
-      storagePath: content.storagePath ?? null,
-      fileLabel: content.storagePath ? content.storagePath.split("-").slice(1).join("-") : null,
-      mimeType: content.mimeType ?? null,
       active: content.active,
     });
     setNotice(null);
