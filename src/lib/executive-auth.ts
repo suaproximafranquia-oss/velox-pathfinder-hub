@@ -141,6 +141,12 @@ export type ExecutiveUser = {
    * com as iniciais do nome oficial.
    */
   photoUrl?: string;
+  /**
+   * COMANDO 3D §17 — vídeo de pós-apresentação INDIVIDUAL do executivo.
+   * Nunca há fallback para o link de outro executivo: sem este valor a
+   * ação manual de Pós-apresentação permanece bloqueada.
+   */
+  postPresentationVideoUrl?: string;
   /** Data de admissão (ISO). Origem única para Recognition e Perfil. */
   admissionDate?: string;
   /** Data de nascimento (ISO). Utilizada por notificações e automações internas. */
