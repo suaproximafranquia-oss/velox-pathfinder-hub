@@ -33,6 +33,7 @@ import {
 import { CRM_TIMELINE_LABEL, formatCrmTimestamp } from "@/lib/crm/timeline";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { canAccessPortalWorkspace } from "@/lib/portal-workspace";
+import { canUseConversationBackups } from "@/lib/workspace-permissions";
 import { restoreRelationship } from "@/lib/crm/commercial";
 import { onSync } from "@/lib/sync-bus";
 
@@ -75,6 +76,11 @@ function BackupsPage() {
     const s = getSession();
     if (!s) {
       navigate({ to: "/executivo" });
+      return;
+    }
+    // COMANDO 3B §5 — Backup de Conversas depende do CRM.
+    if (!canUseConversationBackups(s.userId, s.activeRole)) {
+      navigate({ to: "/executivo/home" });
       return;
     }
     setSession(s);
