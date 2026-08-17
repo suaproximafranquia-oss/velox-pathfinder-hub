@@ -13,7 +13,8 @@ export type EngineScope = "production" | "homologation";
 export type CadenceFlow =
   | "sem_resposta" // Fluxo 1 — nunca responde
   | "visualizacao" // Fluxo 2 — visualiza e não responde
-  | "reengajamento"; // Fluxo 3 — respondeu e desapareceu
+  | "reengajamento" // Fluxo 3 — respondeu e desapareceu
+  | "reentrada"; // Fluxo 4 — lead já conhecido que se cadastra de novo
 
 /**
  * Etapas do motor. São identificadores internos (nunca exibidos ao
@@ -29,7 +30,11 @@ export type CadenceStep =
   | "V4" // acompanhamento firme do fluxo de visualização
   | "R1" // primeira tentativa de reengajamento
   | "R2" // segunda tentativa de reengajamento
-  | "R3"; // interrupção das tentativas
+  | "R3" // interrupção das tentativas
+  | "RE0" // reentrada — retomada do contato
+  | "RE1" // reentrada — como avaliar uma franquia
+  | "RE2" // reentrada — estrutura e suporte
+  | "RE3"; // reentrada — encerramento
 
 /** Estados persistentes da cadência. */
 export type CadenceState =
