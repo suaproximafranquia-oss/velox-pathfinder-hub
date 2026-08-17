@@ -37,10 +37,14 @@ describe("biblioteca de conteúdos", () => {
 
   it("conteúdo inativo não é selecionado nem conta como cobertura", () => {
     const library = [
-      item({ id: "off", groups: ["E1", "E3", "R1", "R2", "RE1", "RE2"], active: false }),
+      item({
+        id: "off",
+        groups: ["E1", "E3", "R1", "R2", "RE1", "RE2", "FINALIZACAO"],
+        active: false,
+      }),
     ];
     expect(selectContent(library, "E1", []).content).toBeNull();
-    expect(contentLibraryGaps(library)).toHaveLength(6);
+    expect(contentLibraryGaps(library)).toHaveLength(7);
   });
 
   it("estatística reflete grupos obrigatórios cobertos", () => {
@@ -48,9 +52,10 @@ describe("biblioteca de conteúdos", () => {
       item({ id: "a", groups: ["E1", "E3"] }),
       item({ id: "b", groups: ["R1", "R2"] }),
       item({ id: "c", groups: ["RE1", "RE2"] }),
+      item({ id: "d", groups: ["FINALIZACAO"] }),
     ];
     const stats = contentLibraryStats(library);
-    expect(stats.total).toBe(3);
+    expect(stats.total).toBe(4);
     expect(stats.missingRequired).toEqual([]);
     expect(stats.byGroup.find((g) => g.group === "E1")?.active).toBe(1);
   });
@@ -214,7 +219,7 @@ describe("complementação da biblioteca (COMANDO 1B)", () => {
     item({
       id: "historia",
       group: "R2",
-      groups: ["R2"],
+      groups: ["R2", "FINALIZACAO"],
       kind: "video",
       name: "Conte a sua própria história",
       url: "https://www.instagram.com/p/DcJbxCqhOHu/",

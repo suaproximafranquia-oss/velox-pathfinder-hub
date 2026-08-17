@@ -8,8 +8,10 @@ import { resolveCooledFlow } from "./entry";
 import { CONTENT_GROUPS, REQUIRED_CONTENT_GROUPS } from "./content";
 
 // Fusos: America/Sao_Paulo = UTC-3.
-const local = (day: string, hour: number) =>
-  `${day}T${String(hour + 3).padStart(2, "0")}:00:00.000Z`;
+const local = (day: string, hour: number) => {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y!, m! - 1, d!, hour + 3, 0, 0)).toISOString();
+};
 
 describe("§8/§11 — janela de envio de mensagens", () => {
   it("segunda a sexta envia das 09:00 às 21:00", () => {

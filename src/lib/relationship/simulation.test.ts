@@ -7,7 +7,7 @@ import { buildSimulatedLeads, runSimulation, SCENARIOS } from "./simulation";
 import type { ValueContent } from "./content";
 
 function library(): ValueContent[] {
-  const groups = ["E1", "E3", "R1", "R2", "V3", "V4"];
+  const groups = ["E1", "E3", "R1", "R2", "V3", "V4", "RE1", "RE2", "FINALIZACAO"];
   const items: ValueContent[] = [];
   for (const group of groups) {
     for (let i = 1; i <= 5; i += 1) {

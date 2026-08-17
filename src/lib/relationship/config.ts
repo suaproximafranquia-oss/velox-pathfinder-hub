@@ -67,7 +67,7 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "sem_resposta",
     businessDaysAfterReference: 5,
     templatePurpose: "encerramento",
-    contentGroup: null,
+    contentGroup: "FINALIZACAO",
     terminal: true,
   },
   V3: {

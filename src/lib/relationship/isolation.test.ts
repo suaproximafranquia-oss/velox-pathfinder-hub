@@ -117,6 +117,8 @@ describe("Biblioteca de Conteúdos", () => {
       "RE2",
       "V3",
       "V4",
+      // COMANDO 3D §21 — conteúdo padrão de finalização (E12, RE3, RF1).
+      "FINALIZACAO",
     ]);
   });
 });
