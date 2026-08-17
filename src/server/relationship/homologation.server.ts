@@ -287,13 +287,32 @@ function summarize(output: SimulationOutput): {
   };
 }
 
-/** Próximo identificador sequencial de rodada (#001, #002, ...). */
-async function nextRunId(): Promise<string> {
-  const { count } = await supabaseAdmin
-    .from("relationship_sim_runs")
-    .select("id", { count: "exact", head: true });
-  return `RUN-${String((count ?? 0) + 1).padStart(3, "0")}`;
+/**
+ * Próximo identificador sequencial de rodada (COMANDO 3C §3).
+ *
+ * A numeração vem do MAIOR número já registrado no domínio de
+ * homologação — nunca da contagem de linhas nem da tela. Apagar uma
+ * rodada antiga não faz a sequência retroceder para 001.
+ */
+export function nextRunNumber(existing: string[]): number {
+  let max = 0;
+  for (const id of existing) {
+    const match = /(\d+)\s*$/.exec(String(id ?? ""));
+    if (!match) continue;
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value > max) max = value;
+  }
+  return max + 1;
 }
+
+async function nextRunId(): Promise<string> {
+  const { data } = await supabaseAdmin.from("relationship_sim_runs").select("run_id");
+  const numbers = (data ?? []).map((r) => String(r.run_id));
+  return `RUN-${String(nextRunNumber(numbers)).padStart(3, "0")}`;
+}
+
+/** Fuso oficial de referência das rodadas. */
+export const RUN_TIMEZONE = "America/Sao_Paulo";
 
 export async function executeHomologationRun(input: {
   executiveName: string;
@@ -310,6 +329,7 @@ export async function executeHomologationRun(input: {
     );
   }
   const runId = await nextRunId();
+  const startedAt = new Date();
   const leads = buildSimulatedLeads(input.totalLeads);
   const output = await runSimulation({
     runId,
