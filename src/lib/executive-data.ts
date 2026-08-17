@@ -26,6 +26,8 @@ export type InvestorOrigin =
   | "green_sales"
   | "redistribuicao"
   | "portal"
+  /** COMANDO 4G — carteira própria da Gestora. */
+  | "central_unica"
   | "manual";
 
 /**
@@ -155,7 +157,9 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
           ? "green_sales"
           : scope === "redistribuicao"
             ? "redistribuicao"
-            : "portal",
+            : scope === "central_unica"
+              ? "central_unica"
+              : "portal",
       priority: simulatorDone ? "high" : interestsCaptured ? "medium" : "none",
       lastEventLabel,
     };
