@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   MessageSquare,
   CalendarPlus,
@@ -23,6 +23,7 @@ import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
+import { buildThreadRows, type ThreadParticipant } from "@/lib/crm/thread-view";
 import {
   CRM_TEMPLATES,
   renderCrmTemplate,
@@ -834,15 +835,30 @@ export function CrmComposer({
 export function CrmThread({
   item,
   messages,
+  self,
+  peer,
 }: {
-  item: Pick<CrmConversation, "id" | "name">;
+  item: Pick<CrmConversation, "id" | "name"> & { photoUrl?: string | null };
   messages: CrmMessage[];
+  /** Executivo/Velox — lado direito. */
+  self?: ThreadParticipant;
+  /** Investidor — lado esquerdo. Por padrão, o próprio contato da conversa. */
+  peer?: ThreadParticipant;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, item.id]);
+
+  const rows = useMemo(
+    () =>
+      buildThreadRows(messages, {
+        self: self ?? { name: "Velox" },
+        peer: peer ?? { name: item.name, photoUrl: item.photoUrl ?? null },
+      }),
+    [messages, self, peer, item.name, item.photoUrl],
+  );
 
   if (messages.length === 0) {
     return (
@@ -863,11 +879,12 @@ export function CrmThread({
   let lastDay = "";
   return (
     <div key={item.id} className="crm-enter mx-auto flex w-full max-w-2xl flex-col gap-1.5 pb-1">
-      {messages.map((m) => {
+      {rows.map((row) => {
+        const m = row.message;
         const day = formatCrmMessageDay(m.at);
         const showDay = day !== lastDay;
         lastDay = day;
-        const sent = m.direction === "enviada";
+        const sent = row.side === "right";
         return (
           <div key={m.id} className="flex flex-col">
             {showDay ? (
@@ -877,17 +894,34 @@ export function CrmThread({
                 </span>
               </div>
             ) : null}
-            {/* DEF 2.5.2 §1 — Executivo à direita, Investidor à esquerda. */}
-            <div className={sent ? "flex justify-end" : "flex justify-start"}>
+            {/* COMANDO 1A §1/§2 — lado e avatar seguem o AUTOR da mensagem. */}
+            <div
+              className={[
+                "flex w-full items-end gap-2",
+                sent ? "justify-end" : "justify-start",
+              ].join(" ")}
+            >
+              {!sent ? (
+                <span className="w-7 shrink-0">
+                  {row.showAvatar && row.avatar ? (
+                    <CrmAvatar
+                      name={row.avatar.name}
+                      initials={row.avatar.initials}
+                      photoUrl={row.avatar.photoUrl}
+                      size={28}
+                    />
+                  ) : null}
+                </span>
+              ) : null}
               <div
                 className={[
-                  "max-w-[78%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed shadow-[0_1px_2px_rgba(16,24,40,0.05)]",
+                  "min-w-0 max-w-[calc(100%-3rem)] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed shadow-[0_1px_2px_rgba(16,24,40,0.05)] sm:max-w-[72%]",
                   sent
                     ? "rounded-br-md bg-[color:var(--crm-accent)] text-white"
                     : "rounded-bl-md border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-foreground)]",
                 ].join(" ")}
               >
-                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                <p className="whitespace-pre-wrap break-words">{row.body}</p>
                 {m.attachment ? (
                   <div
                     className={[
@@ -913,7 +947,7 @@ export function CrmThread({
                     target="_blank"
                     rel="noreferrer"
                     className={[
-                      "mt-2 flex items-center justify-center rounded-lg px-3 py-2 text-[12px] font-medium transition",
+                      "mt-2 flex items-center justify-center rounded-lg px-3 py-2 text-center text-[12px] font-medium break-words transition",
                       sent
                         ? "bg-white/15 text-white hover:bg-white/25"
                         : "border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]",
@@ -931,6 +965,18 @@ export function CrmThread({
                   {formatCrmMessageTime(m.at)}
                 </span>
               </div>
+              {sent ? (
+                <span className="w-7 shrink-0">
+                  {row.showAvatar && row.avatar ? (
+                    <CrmAvatar
+                      name={row.avatar.name}
+                      initials={row.avatar.initials}
+                      photoUrl={row.avatar.photoUrl}
+                      size={28}
+                    />
+                  ) : null}
+                </span>
+              ) : null}
             </div>
           </div>
         );

@@ -731,7 +731,15 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             <>
               <CrmDuplicateNotice item={selected} />
               {journeyOnly && !portalReleased ? <CrmJourneyBadge /> : null}
-              <CrmThread item={selected} messages={messages} />
+              <CrmThread
+                item={selected}
+                messages={messages}
+                self={{
+                  name: session.name,
+                  photoUrl:
+                    loadUsers().find((u) => u.id === session.userId)?.photoUrl ?? null,
+                }}
+              />
             </>
           )
         ) : isDistribuicao && selectedIntake ? (

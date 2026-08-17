@@ -124,6 +124,8 @@ export const CONTENT_GROUPS = [
   "R1",
   "R2",
   "R3",
+  "RE1",
+  "RE2",
   "V3",
   "V4",
 ] as const;
@@ -138,6 +140,8 @@ export const CONTENT_GROUP_LABELS: Record<ContentGroup, string> = {
   R1: "Conteúdos de valor — primeira tentativa após desaparecimento",
   R2: "Conteúdos de valor — segunda tentativa após desaparecimento",
   R3: "Etapa preparada — interrupção das tentativas",
+  RE1: "Reentrada — conteúdos preparados (fluxo ainda não ativo)",
+  RE2: "Reentrada — conteúdos preparados (fluxo ainda não ativo)",
   V3: "Conteúdos de valor — visualização repetida",
   V4: "Conteúdos de valor — encerramento de interação visualizada",
 };

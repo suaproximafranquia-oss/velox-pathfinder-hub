@@ -17,7 +17,12 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  ensureCloudSession,
+  getSession,
+  loadUsers,
+  type ExecutiveSession,
+} from "@/lib/executive-auth";
 import {
   contentLibraryGaps,
   contentLibraryStats,
@@ -455,7 +460,10 @@ function HomologacaoPage() {
                 ))}
               </div>
             ) : null}
-            <HomologationCrm conversations={conversations} />
+            <HomologationCrm
+              conversations={conversations}
+              executive={{ name: session.name, photoUrl: loadUsers().find((u) => u.id === session.userId)?.photoUrl ?? null }}
+            />
           </section>
         ) : null}
       </div>

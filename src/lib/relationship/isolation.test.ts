@@ -112,6 +112,9 @@ describe("Biblioteca de Conteúdos", () => {
       "R1",
       "R2",
       "R3",
+      // COMANDO 1B — etapas de reentrada preparadas (fluxo ainda não ativo).
+      "RE1",
+      "RE2",
       "V3",
       "V4",
     ]);
