@@ -21,6 +21,13 @@ import { recordOperationalAlert } from "@/lib/workspace-alerts";
 import { startRelationship, hasCommercialRelationship } from "@/lib/crm/commercial";
 import { notifySync } from "@/lib/sync-bus";
 import type { WorkspaceScope } from "@/lib/portal-workspace";
+import {
+  pickRecipient,
+  readPointer,
+  writePointer,
+  recordRedistribution,
+} from "@/lib/portal/redistribution";
+import { applyRedistributionOwnership } from "@/lib/portal/ownership";
 
 /** Ordem oficial da fila (ITEM 03). Resolvida contra os usuários reais. */
 export const REDISTRIBUTION_ORDER = [
@@ -31,8 +38,6 @@ export const REDISTRIBUTION_ORDER = [
   "Carlos",
   "Talita",
 ] as const;
-
-const CURSOR_KEY = "atlas:redistribution:cursor:v1";
 
 export type RedistributionTarget = { id: string; name: string };
 
@@ -57,19 +62,9 @@ export function redistributionQueue(): RedistributionTarget[] {
   return queue;
 }
 
+/** Ponteiro único da plataforma (ver `@/lib/portal/redistribution`). */
 function readCursor(): number {
-  if (typeof window === "undefined") return 0;
-  const raw = Number(window.localStorage.getItem(CURSOR_KEY));
-  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
-}
-
-function writeCursor(value: number) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(CURSOR_KEY, String(value));
-  } catch {
-    /* armazenamento indisponível */
-  }
+  return readPointer();
 }
 
 /**
@@ -82,13 +77,22 @@ export function peekNextExecutive(): RedistributionTarget | null {
   return queue[readCursor() % queue.length] ?? queue[0];
 }
 
-/** Avança a fila e devolve o Executivo sorteado sequencialmente. */
-function takeNextExecutive(): RedistributionTarget | null {
+/**
+ * Avança a fila e devolve o Executivo da vez. COMANDO 4E §34: quando o
+ * próximo da fila é o próprio proprietário do lead, ele é PULADO sem
+ * consumir o turno e o ponteiro segue a partir do destinatário real.
+ */
+function takeNextExecutive(currentOwnerId?: string | null): RedistributionTarget | null {
   const queue = redistributionQueue();
   if (queue.length === 0) return null;
-  const index = readCursor() % queue.length;
-  writeCursor((index + 1) % queue.length);
-  return queue[index] ?? null;
+  const pick = pickRecipient({
+    queue: queue.map((q) => q.id),
+    pointer: readCursor(),
+    currentOwnerId: currentOwnerId ?? null,
+  });
+  if (!pick.recipientId) return null;
+  writePointer(pick.nextPointer);
+  return queue.find((q) => q.id === pick.recipientId) ?? null;
 }
 
 export type OwnershipCheck =
