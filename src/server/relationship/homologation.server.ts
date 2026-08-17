@@ -262,6 +262,13 @@ export type RunSummary = {
   scenarios: ScenarioSummary[];
   contentUsage: Record<string, number>;
   contentGaps: string[];
+  /** COMANDO 3C §3/§4 — identificação e cronometragem da execução real. */
+  status: string;
+  timezone: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  contents: number;
 };
 
 function summarize(output: SimulationOutput): {
@@ -287,13 +294,32 @@ function summarize(output: SimulationOutput): {
   };
 }
 
-/** Próximo identificador sequencial de rodada (#001, #002, ...). */
-async function nextRunId(): Promise<string> {
-  const { count } = await supabaseAdmin
-    .from("relationship_sim_runs")
-    .select("id", { count: "exact", head: true });
-  return `RUN-${String((count ?? 0) + 1).padStart(3, "0")}`;
+/**
+ * Próximo identificador sequencial de rodada (COMANDO 3C §3).
+ *
+ * A numeração vem do MAIOR número já registrado no domínio de
+ * homologação — nunca da contagem de linhas nem da tela. Apagar uma
+ * rodada antiga não faz a sequência retroceder para 001.
+ */
+export function nextRunNumber(existing: string[]): number {
+  let max = 0;
+  for (const id of existing) {
+    const match = /(\d+)\s*$/.exec(String(id ?? ""));
+    if (!match) continue;
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value > max) max = value;
+  }
+  return max + 1;
 }
+
+async function nextRunId(): Promise<string> {
+  const { data } = await supabaseAdmin.from("relationship_sim_runs").select("run_id");
+  const numbers = (data ?? []).map((r) => String(r.run_id));
+  return `RUN-${String(nextRunNumber(numbers)).padStart(3, "0")}`;
+}
+
+/** Fuso oficial de referência das rodadas. */
+export const RUN_TIMEZONE = "America/Sao_Paulo";
 
 export async function executeHomologationRun(input: {
   executiveName: string;
@@ -310,6 +336,7 @@ export async function executeHomologationRun(input: {
     );
   }
   const runId = await nextRunId();
+  const startedAt = new Date();
   const leads = buildSimulatedLeads(input.totalLeads);
   const output = await runSimulation({
     runId,
@@ -411,6 +438,42 @@ export async function executeHomologationRun(input: {
     totals,
     conversations,
     generatedAt: new Date().toISOString(),
+    /**
+     * COMANDO 3C §3 e §5 — execução REAL da rodada, separada das datas
+     * simuladas dos cenários (que continuam nas conversas).
+     */
+    execution: {
+      runId,
+      timezone: RUN_TIMEZONE,
+      startedAt: startedAt.toISOString(),
+      finishedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt.getTime(),
+      seed: output.seed,
+      totalLeads: output.leadResults.length,
+      messages: output.messages.length,
+      contents: Object.keys(output.contentUsage).length,
+      contentsSent: totals.contents,
+    },
+    /**
+     * COMANDO 3C §12 — qual conteúdo foi selecionado por lead e etapa.
+     * É esta tabela que permite verificar a alternância real de E1, E3,
+     * R1 e R2 entre rodadas.
+     */
+    selections: output.messages
+      .filter((m) => m.contentId)
+      .map((m) => {
+        const content = byId.get(m.contentId!) ?? null;
+        return {
+          leadId: m.leadId,
+          step: m.step,
+          contentId: m.contentId,
+          contentName: m.contentName ?? content?.name ?? "—",
+          contentUrl: content?.url ?? null,
+          contentGroup: content?.group ?? null,
+          /** Data simulada do cenário (relógio virtual). */
+          simulatedAt: m.at,
+        };
+      }),
     executiveName: input.executiveName,
     portalLink: input.portalLink,
     scenarios,
@@ -468,6 +531,12 @@ export async function executeHomologationRun(input: {
     scenarios,
     contentUsage: output.contentUsage,
     contentGaps: [],
+    status: failed === 0 ? "APROVADA" : "COM_DIVERGENCIAS",
+    timezone: RUN_TIMEZONE,
+    startedAt: report.execution.startedAt,
+    finishedAt: report.execution.finishedAt,
+    durationMs: report.execution.durationMs,
+    contents: report.execution.contentsSent,
   };
 }
 
@@ -478,20 +547,39 @@ export async function listHomologationRuns(): Promise<RunSummary[]> {
     .order("created_at", { ascending: false })
     .limit(30);
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
-    runId: String(row.run_id),
-    label: String(row.label),
-    createdAt: String(row.created_at),
-    createdByName: String(row.created_by_name ?? ""),
-    totalLeads: Number(row.total_leads ?? 0),
-    passed: Number(row.passed ?? 0),
-    failed: Number(row.failed ?? 0),
-    messages: Number(row.messages_count ?? 0),
-    outsideHours: Number(row.outside_hours ?? 0),
-    scenarios: (row.scenario_summary as unknown as ScenarioSummary[]) ?? [],
-    contentUsage: (row.content_usage as unknown as Record<string, number>) ?? {},
-    contentGaps: [],
-  }));
+  return (data ?? []).map((row) => {
+    const execution = ((row.report as Record<string, unknown> | null)?.["execution"] ?? null) as {
+      startedAt?: string;
+      finishedAt?: string;
+      durationMs?: number;
+      timezone?: string;
+      contentsSent?: number;
+    } | null;
+    const usage = (row.content_usage as unknown as Record<string, number>) ?? {};
+    return {
+      runId: String(row.run_id),
+      label: String(row.label),
+      createdAt: String(row.created_at),
+      createdByName: String(row.created_by_name ?? ""),
+      totalLeads: Number(row.total_leads ?? 0),
+      passed: Number(row.passed ?? 0),
+      failed: Number(row.failed ?? 0),
+      messages: Number(row.messages_count ?? 0),
+      outsideHours: Number(row.outside_hours ?? 0),
+      scenarios: (row.scenario_summary as unknown as ScenarioSummary[]) ?? [],
+      contentUsage: usage,
+      contentGaps: [],
+      status: String(row.status ?? ""),
+      timezone: execution?.timezone ?? RUN_TIMEZONE,
+      startedAt: execution?.startedAt ?? null,
+      finishedAt: execution?.finishedAt ?? String(row.created_at),
+      durationMs: typeof execution?.durationMs === "number" ? execution.durationMs : null,
+      contents:
+        typeof execution?.contentsSent === "number"
+          ? execution.contentsSent
+          : Object.values(usage).reduce((a, b) => a + Number(b || 0), 0),
+    };
+  });
 }
 
 export async function readHomologationRun(runId: string) {

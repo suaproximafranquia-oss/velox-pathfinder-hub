@@ -368,6 +368,8 @@ export type SimulationOptions = {
 
 export type SimulationOutput = {
   runId: string;
+  /** Semente efetiva da rodada (§10 — sorteada quando não informada). */
+  seed: number;
   leadResults: LeadResult[];
   decisions: EngineDecision[];
   events: EngineEvent[];
@@ -758,8 +760,13 @@ async function runLead(
 }
 
 /**
- * Roda a simulação inteira. Determinística: mesma semente, mesmo
- * resultado — é isso que torna o relatório auditável.
+ * Roda a simulação inteira.
+ *
+ * COMANDO 3C §10/§11 — a semente NÃO é fixa entre rodadas: cada execução
+ * sorteia a própria semente, de modo que a escolha de conteúdo varie de
+ * verdade quando o grupo tem mais de uma opção ativa. A semente efetiva
+ * é devolvida no resultado: informando a mesma semente, a rodada é
+ * reproduzida integralmente para auditoria.
  */
 export async function runSimulation(options: SimulationOptions): Promise<SimulationOutput> {
   const config: RelationshipConfig = options.config ?? {
@@ -769,7 +776,8 @@ export async function runSimulation(options: SimulationOptions): Promise<Simulat
     // template oficial da Meta continua valendo integralmente em produção.
     requireOfficialTemplate: false,
   };
-  const random = seededRandom(options.seed ?? 20260816);
+  const seed = options.seed ?? Math.floor(Math.random() * 0xffffffff);
+  const random = seededRandom(seed);
   // A biblioteca é copiada: a contagem de uso da simulação nunca altera
   // os registros permanentes.
   const library = options.library.map((c) => ({ ...c }));
@@ -799,6 +807,7 @@ export async function runSimulation(options: SimulationOptions): Promise<Simulat
 
   return {
     runId: options.runId,
+    seed,
     leadResults,
     decisions,
     events,

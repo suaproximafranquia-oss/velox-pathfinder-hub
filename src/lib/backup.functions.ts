@@ -145,7 +145,12 @@ export const restorePortalBackup = createServerFn({ method: "POST" })
         status: "concluida",
         details: Object.entries(result.restored)
           .map(([t, n]) => `${t}: ${n}`)
-          .join(" · "),
+          .join(" · ")
+          .concat(
+            result.skipped.length > 0
+              ? ` | preservadas por política (fonte da verdade externa): ${result.skipped.join(", ")}`
+              : "",
+          ),
         performed_by: context.userId,
         performed_by_name: data.actorName || "Administrador",
       });

@@ -74,6 +74,49 @@ const field =
 
 type RunSummary = Awaited<ReturnType<typeof listRelationshipRuns>>[number];
 
+/** COMANDO 3C §3/§5 — execução real da rodada (não a data simulada). */
+type RunExecution = {
+  runId?: string;
+  timezone?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  durationMs?: number;
+  seed?: number;
+  contentsSent?: number;
+};
+
+/** COMANDO 3C §12 — conteúdo selecionado por lead e etapa. */
+type RunSelection = {
+  leadId: string;
+  step: string | null;
+  contentId: string | null;
+  contentName: string;
+  contentUrl: string | null;
+  contentGroup: string | null;
+  simulatedAt: string;
+};
+
+const TZ = "America/Sao_Paulo";
+
+function formatRunMoment(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: TZ,
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(date);
+}
+
+function formatDuration(ms: number | null | undefined): string {
+  if (typeof ms !== "number" || !Number.isFinite(ms)) return "—";
+  if (ms < 1000) return `${ms} ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  return `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`;
+}
+
 function HomologacaoPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [contents, setContents] = useState<ValueContent[]>([]);
@@ -83,6 +126,8 @@ function HomologacaoPage() {
   const [openRun, setOpenRun] = useState<string | null>(null);
   const [conversations, setConversations] = useState<HomologationConversation[]>([]);
   const [totals, setTotals] = useState<Record<string, number> | null>(null);
+  const [execution, setExecution] = useState<RunExecution | null>(null);
+  const [selections, setSelections] = useState<RunSelection[]>([]);
   const [loadingRun, setLoadingRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [executiveName, setExecutiveName] = useState("Thiago Rodrigues");
@@ -142,10 +187,19 @@ function HomologacaoPage() {
     try {
       await ensureCloudSession();
       const row = (await readRelationshipRun({ data: { runId } })) as
-        | { report?: { conversations?: HomologationConversation[]; totals?: Record<string, number> } }
+        | {
+            report?: {
+              conversations?: HomologationConversation[];
+              totals?: Record<string, number>;
+              execution?: RunExecution;
+              selections?: RunSelection[];
+            };
+          }
         | null;
       setConversations(row?.report?.conversations ?? []);
       setTotals(row?.report?.totals ?? null);
+      setExecution(row?.report?.execution ?? null);
+      setSelections(row?.report?.selections ?? []);
       setOpenRun(runId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível abrir a rodada.");
@@ -174,6 +228,8 @@ function HomologacaoPage() {
   };
   const [resetReport, setResetReport] = useState<ResetReport | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
+  /** §2/§24 — nenhuma ação destrutiva acontece com um clique acidental. */
+  const [resetConfirm, setResetConfirm] = useState(false);
 
   async function handleReset(dryRun: boolean) {
     setResetBusy(true);
@@ -182,6 +238,7 @@ function HomologacaoPage() {
       await ensureCloudSession();
       const report = (await resetHomologationWorkspace({ data: { dryRun } })) as ResetReport;
       setResetReport(report);
+      if (!dryRun) setResetConfirm(false);
       if (report.executed) await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "O reset não pôde ser concluído.");
@@ -282,18 +339,43 @@ function HomologacaoPage() {
               >
                 Validar escopo
               </button>
-              <button
-                className={gold}
-                onClick={() => void handleReset(false)}
-                disabled={resetBusy || !resetReport || resetReport.blocked}
-                title={
-                  resetReport ? "Executa a limpeza validada" : "Valide o escopo antes de executar"
-                }
-              >
-                Executar reset
-              </button>
+              {resetConfirm ? (
+                <>
+                  <button
+                    className={ghost}
+                    onClick={() => setResetConfirm(false)}
+                    disabled={resetBusy}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className={gold}
+                    onClick={() => void handleReset(false)}
+                    disabled={resetBusy}
+                  >
+                    Confirmar exclusão definitiva
+                  </button>
+                </>
+              ) : (
+                <button
+                  className={gold}
+                  onClick={() => setResetConfirm(true)}
+                  disabled={resetBusy || !resetReport || resetReport.blocked}
+                  title={
+                    resetReport ? "Executa a limpeza validada" : "Valide o escopo antes de executar"
+                  }
+                >
+                  Executar reset
+                </button>
+              )}
             </div>
           </div>
+          {resetConfirm ? (
+            <p className="mb-3 rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-3 py-2 text-xs text-[color:var(--gold)]">
+              Este reset remove somente dados de teste fora do ambiente de homologação. Confirme
+              para prosseguir — a exclusão é definitiva.
+            </p>
+          ) : null}
           {resetReport ? (
             <div className="space-y-2 rounded-xl border border-[color:var(--border)] p-3 text-xs text-[color:var(--muted-foreground)]">
               {resetReport.blocked ? (
@@ -402,29 +484,53 @@ function HomologacaoPage() {
         {runs.length > 0 ? (
           <section className={card}>
             <h2 className="mb-3 text-sm text-[color:var(--foreground)]">Histórico de rodadas</h2>
-            <ul className="space-y-1 text-xs">
-              {runs.map((r) => (
-                <li
-                  key={r.runId}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] px-3 py-2"
-                >
-                  <span className="text-[color:var(--foreground)]">{r.label}</span>
-                  <span className="flex items-center gap-3">
-                    <span className={cn(r.failed === 0 ? "text-emerald-400" : "text-red-400")}>
-                      {r.failed === 0 ? "TESTE FINALIZADO · " : ""}
-                      {r.passed}/{r.totalLeads} conformes
-                    </span>
-                    <button
-                      className={ghost}
-                      disabled={loadingRun}
-                      onClick={() => void handleOpenRun(r.runId)}
-                    >
-                      <MessagesSquare className="h-3.5 w-3.5" /> Abrir conversas
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px] text-left text-xs">
+                <thead className="text-[color:var(--muted-foreground)]">
+                  <tr>
+                    <th className="py-1">Rodada</th>
+                    <th>Data e hora da execução</th>
+                    <th>Duração</th>
+                    <th className="text-right">Leads</th>
+                    <th className="text-right">Mensagens</th>
+                    <th className="text-right">Conteúdos</th>
+                    <th>Status</th>
+                    <th className="text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runs.map((r) => (
+                    <tr key={r.runId} className="border-t border-[color:var(--border)]/60">
+                      <td className="py-2 text-[color:var(--gold)]">{r.runId}</td>
+                      <td className="text-[color:var(--foreground)]">
+                        {formatRunMoment(r.finishedAt ?? r.createdAt)}{" "}
+                        <span className="text-[10px] text-[color:var(--muted-foreground)]">
+                          {r.timezone}
+                        </span>
+                      </td>
+                      <td className="text-[color:var(--muted-foreground)]">
+                        {formatDuration(r.durationMs)}
+                      </td>
+                      <td className="text-right">{r.totalLeads}</td>
+                      <td className="text-right">{r.messages}</td>
+                      <td className="text-right">{r.contents}</td>
+                      <td className={cn(r.failed === 0 ? "text-emerald-400" : "text-red-400")}>
+                        {r.failed === 0 ? "Concluída" : `Divergências (${r.failed})`}
+                      </td>
+                      <td className="text-right">
+                        <button
+                          className={ghost}
+                          disabled={loadingRun}
+                          onClick={() => void handleOpenRun(r.runId)}
+                        >
+                          <MessagesSquare className="h-3.5 w-3.5" /> Ver detalhes
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         ) : null}
 
@@ -438,6 +544,15 @@ function HomologacaoPage() {
                 Chamadas à Meta nesta rodada: {totals?.["metaCalls"] ?? 0}
               </span>
             </div>
+            {execution ? (
+              <p className="mb-3 rounded-xl border border-[color:var(--border)] px-3 py-2 text-[11px] text-[color:var(--muted-foreground)]">
+                Execução real: início {formatRunMoment(execution.startedAt)} · conclusão{" "}
+                {formatRunMoment(execution.finishedAt)} · duração{" "}
+                {formatDuration(execution.durationMs)} ·{" "}
+                {execution.timezone ?? TZ} · semente {execution.seed ?? "—"}. As datas exibidas
+                dentro das conversas são <strong>datas simuladas</strong> do cenário.
+              </p>
+            ) : null}
             {totals ? (
               <div className="mb-4 grid gap-2 sm:grid-cols-4 lg:grid-cols-6">
                 {[
@@ -464,6 +579,70 @@ function HomologacaoPage() {
               conversations={conversations}
               executive={{ name: session.name, photoUrl: loadUsers().find((u) => u.id === session.userId)?.photoUrl ?? null }}
             />
+
+            {selections.length > 0 ? (
+              <div className="mt-6">
+                <h3 className="mb-2 text-sm text-[color:var(--foreground)]">
+                  Conteúdo selecionado por lead e etapa
+                </h3>
+                <p className="mb-2 text-[11px] text-[color:var(--muted-foreground)]">
+                  {selections.length} seleção(ões) nesta rodada. Exibindo as 200 primeiras —
+                  permite conferir a alternância real de E1, E3, R1 e R2.
+                </p>
+                <div className="max-h-[420px] overflow-auto rounded-xl border border-[color:var(--border)]">
+                  <table className="w-full min-w-[860px] text-left text-[11px]">
+                    <thead className="sticky top-0 bg-[color:var(--card)] text-[color:var(--muted-foreground)]">
+                      <tr>
+                        <th className="px-2 py-1.5">Lead</th>
+                        <th>Etapa</th>
+                        <th>Conteúdo</th>
+                        <th>ID</th>
+                        <th>Grupo</th>
+                        <th>URL</th>
+                        <th>Data simulada</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selections.slice(0, 200).map((s, i) => (
+                        <tr
+                          key={`${s.leadId}-${s.step}-${i}`}
+                          className="border-t border-[color:var(--border)]/60"
+                        >
+                          <td className="px-2 py-1.5 text-[color:var(--foreground)]">
+                            {s.leadId}
+                          </td>
+                          <td className="text-[color:var(--gold)]">{s.step ?? "—"}</td>
+                          <td className="text-[color:var(--foreground)]">{s.contentName}</td>
+                          <td className="text-[color:var(--muted-foreground)]">
+                            {s.contentId ?? "—"}
+                          </td>
+                          <td className="text-[color:var(--muted-foreground)]">
+                            {s.contentGroup ?? "—"}
+                          </td>
+                          <td className="max-w-[220px] truncate">
+                            {s.contentUrl ? (
+                              <a
+                                href={s.contentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[color:var(--gold)] underline-offset-2 hover:underline"
+                              >
+                                Abrir
+                              </a>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="text-[color:var(--muted-foreground)]">
+                            {formatRunMoment(s.simulatedAt)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
           </section>
         ) : null}
       </div>
