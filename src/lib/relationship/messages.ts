@@ -111,9 +111,9 @@ Me informe sua disponibilidade e vamos organizar esse próximo passo.`,
     code: "HOMOL-E12",
     step: "E12",
     purpose: "encerramento",
-    contentGroup: null,
+    contentGroup: "FINALIZACAO",
     usesInvestorName: false,
-    button: null,
+    button: "content",
     text: `Olá, caro investidor.
 
 Recebi seu cadastro e, desde então, tentei estabelecer contato algumas vezes por mensagem e ligação, mas por algum motivo não conseguimos avançar.
@@ -125,6 +125,10 @@ Gosto de ser persistente, mas não de ser insistente.
 Minha disponibilidade continua ampla caso você queira conversar em outro momento.
 
 Se a oportunidade voltar a fazer sentido para você, basta me chamar por este WhatsApp ou realizar um novo cadastro em um dos nossos canais.
+
+Antes de encerrar, quero deixar com você uma última reflexão: como nunca conseguimos evoluir para uma conversa, fica a pergunta — você prefere continuar acompanhando a história de quem está crescendo ou começar a construir a sua própria história?
+
+{{conteudo_final}}
 
 Desejo sucesso na sua análise e nos seus próximos projetos.`,
   },
@@ -288,16 +292,59 @@ Se fizer sentido, me informe sua disponibilidade e organizamos uma conversa obje
     code: "HOMOL-RE3",
     step: "RE3",
     purpose: "reentrada_encerramento",
-    contentGroup: null,
+    contentGroup: "FINALIZACAO",
     usesInvestorName: true,
-    button: null,
+    button: "content",
     text: `Olá, {{nome_investidor}}.
 
 Compartilhei com você as principais informações sobre a Velox e percebi que ainda não conseguimos encontrar um momento para conversar.
 
 Vou encerrar minhas tentativas por aqui para não transformar esse contato em uma sequência de cobranças.
 
+Como você voltou a demonstrar interesse recentemente, deixo uma última reflexão antes de encerrar: você prefere continuar acompanhando a história de quem está crescendo ou começar a construir a sua própria história?
+
+{{conteudo_final}}
+
 Minha disponibilidade continua aberta pela manhã, à tarde ou à noite. Se o assunto voltar a fazer sentido, basta me chamar por este WhatsApp.`,
+  },
+  /**
+   * FLUXO 5 — RELACIONAMENTO ESFRIADO (COMANDO 3D §19, §20).
+   * O investidor JÁ conversou de verdade: as mensagens reconhecem isso
+   * e nunca tratam o lead como um contato novo.
+   */
+  RF0: {
+    code: "HOMOL-RF0",
+    step: "RF0",
+    purpose: "relacionamento_frio_retomada",
+    contentGroup: null,
+    usesInvestorName: true,
+    button: null,
+    text: `Olá, {{nome_investidor}}, tudo bem?
+
+Nós tínhamos combinado um horário para conversarmos, mas acabou que não conseguimos evoluir com este bate-papo.
+
+Eu entendo que a correria do dia a dia muitas vezes atrapalha e está tudo bem.
+
+Quando fizer sentido para você, me envie duas opções de horário que funcionem melhor e eu organizo um novo horário para conversarmos.
+
+Fico à disposição.`,
+  },
+  RF1: {
+    code: "HOMOL-RF1",
+    step: "RF1",
+    purpose: "relacionamento_frio_encerramento",
+    contentGroup: "FINALIZACAO",
+    usesInvestorName: true,
+    button: "content",
+    text: `Olá, {{nome_investidor}}.
+
+Como não conseguimos retomar nossa conversa, não quero ser insistente e vou encerrar minhas tentativas de contato por aqui.
+
+Antes de encerrar, quero deixar com você uma última reflexão que acredito que faça sentido neste momento.
+
+Afinal, você prefere continuar acompanhando a história de quem está crescendo ou começar a construir a sua própria história?
+
+{{conteudo_final}}`,
   },
 };
 

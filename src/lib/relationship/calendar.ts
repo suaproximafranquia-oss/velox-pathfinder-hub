@@ -40,6 +40,41 @@ export function isBusinessDay(isoDate: string, config = RELATIONSHIP_CONFIG): bo
   return isBusinessDayIso(isoDate);
 }
 
+/** Dia da semana (0 = domingo) de uma data ISO. */
+export function weekdayOf(isoDate: string): number {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).getUTCDay();
+}
+
+/**
+ * Janela de ENVIO de mensagens do dia (COMANDO 3D §8, §11).
+ *
+ * Segunda a sexta: horário operacional cheio. Sábado: janela própria.
+ * Domingo e feriados: nenhum envio — a etapa é apenas deslocada, nunca
+ * perdida nem substituída pela seguinte (§9, §10).
+ */
+export function messagingHours(
+  isoDate: string,
+  config = RELATIONSHIP_CONFIG,
+): { start: number; end: number } | null {
+  if (config.nonBusinessDays.includes(isoDate)) return null;
+  const weekday = weekdayOf(isoDate);
+  if (weekday === 0) return null;
+  if (weekday === 6) return config.saturdayHours;
+  return config.businessHours;
+}
+
+export function isMessagingDay(isoDate: string, config = RELATIONSHIP_CONFIG): boolean {
+  return messagingHours(isoDate, config) !== null;
+}
+
+/** Próximo dia (inclusive?) em que existe janela de envio. */
+export function nextMessagingDay(isoDate: string, config = RELATIONSHIP_CONFIG): string {
+  let date = isoDate;
+  for (let i = 0; i < 30 && !isMessagingDay(date, config); i += 1) date = addDays(date, 1);
+  return date;
+}
+
 export function nextBusinessDay(isoDate: string, config = RELATIONSHIP_CONFIG): string {
   let date = nextBusinessDayIso(isoDate);
   for (let i = 0; i < 30 && !isBusinessDay(date, config); i += 1) {
@@ -58,20 +93,27 @@ export function addBusinessDays(
   return addBusinessDaysIso(date, 0);
 }
 
-/** Instante (ISO) correspondente ao início do horário permitido de um dia. */
+/** Instante (ISO) correspondente ao início da janela de envio de um dia. */
 export function atBusinessStart(isoDate: string, config = RELATIONSHIP_CONFIG): string {
   // A operação está em UTC-3 o ano inteiro; somamos o deslocamento para
   // obter o instante UTC equivalente ao horário local de abertura.
   const [y, m, d] = isoDate.split("-").map(Number);
-  const utcHour = config.businessHours.start + 3;
+  const window = messagingHours(isoDate, config) ?? config.businessHours;
+  const utcHour = window.start + 3;
   return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, utcHour, 0, 0)).toISOString();
 }
 
-/** O instante está dentro do horário operacional de um dia útil? */
+/** O instante está dentro da janela de envio permitida? */
 export function isEligibleMoment(iso: string, config = RELATIONSHIP_CONFIG): boolean {
-  if (!isBusinessDay(operationalDate(iso, config), config)) return false;
+  const window = messagingHours(operationalDate(iso, config), config);
+  if (!window) return false;
   const hour = operationalHour(iso, config);
-  return hour >= config.businessHours.start && hour < config.businessHours.end;
+  return hour >= window.start && hour < window.end;
+}
+
+/** Passou o fechamento operacional do dia (§3)? */
+export function isAfterDailyClosing(iso: string, config = RELATIONSHIP_CONFIG): boolean {
+  return operationalHour(iso, config) >= config.dailyClosingHour;
 }
 
 /**
@@ -82,9 +124,9 @@ export function nextEligibleMoment(iso: string, config = RELATIONSHIP_CONFIG): s
   if (isEligibleMoment(iso, config)) return iso;
   const date = operationalDate(iso, config);
   const hour = operationalHour(iso, config);
-  const sameDayStillPossible =
-    isBusinessDay(date, config) && hour < config.businessHours.start;
-  const target = sameDayStillPossible ? date : nextBusinessDay(addDays(date, 1), config);
+  const window = messagingHours(date, config);
+  const sameDayStillPossible = window !== null && hour < window.start;
+  const target = sameDayStillPossible ? date : nextMessagingDay(addDays(date, 1), config);
   return atBusinessStart(target, config);
 }
 

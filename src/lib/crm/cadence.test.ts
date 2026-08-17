@@ -26,31 +26,28 @@ describe("elegibilidade", () => {
 });
 
 describe("sequência de ligações", () => {
-  it("L1 vence na transição para a etapa elegível (dia útil)", () => {
-    // 2026-08-17 é segunda-feira.
-    expect(nextCallAttempt("2026-08-17", [])).toEqual({ step: 1, dueDate: "2026-08-17" });
+  it("a fila automática começa em L2, +2 dias úteis da entrada na etapa", () => {
+    // 2026-08-17 é segunda-feira; a L1 é manual, feita ainda em NOVOS.
+    expect(nextCallAttempt("2026-08-17", [])).toEqual({ step: 2, dueDate: "2026-08-19" });
   });
 
-  it("conta a partir da ligação realmente executada", () => {
-    const next = nextCallAttempt("2026-08-17", [attempt(1, "2026-08-18", "NAO")]);
-    expect(next).toEqual({ step: 2, dueDate: "2026-08-20" });
+  it("L3 vence 1 dia útil após a L2 realmente executada", () => {
+    const next = nextCallAttempt("2026-08-17", [attempt(2, "2026-08-19", "NAO")]);
+    expect(next).toEqual({ step: 3, dueDate: "2026-08-20" });
   });
 
-  it("atendeu (SIM) encerra a fila do ciclo", () => {
-    expect(nextCallAttempt("2026-08-17", [attempt(1, "2026-08-17", "SIM")])).toBeNull();
+  it("ligar (SIM) não encerra a fila — L4 continua prevista", () => {
+    const history = [attempt(2, "2026-08-19", "SIM"), attempt(3, "2026-08-20", "SIM")];
+    expect(nextCallAttempt("2026-08-17", history)).toEqual({ step: 4, dueDate: "2026-08-25" });
   });
 
   it("L2 NÃO + L3 NÃO encerram o ciclo sem gerar L4", () => {
-    const history = [
-      attempt(1, "2026-08-17", "NAO"),
-      attempt(2, "2026-08-19", "NAO"),
-      attempt(3, "2026-08-20", "NAO"),
-    ];
+    const history = [attempt(2, "2026-08-19", "NAO"), attempt(3, "2026-08-20", "NAO")];
     expect(nextCallAttempt("2026-08-17", history)).toBeNull();
   });
 
-  it("esgotadas as tentativas, nada mais é gerado", () => {
-    const history = [1, 2, 3, 4].map((s) => attempt(s, "2026-08-17", "NAO"));
+  it("esgotadas as tentativas (L2, L3, L4), nada mais é gerado", () => {
+    const history = [2, 3, 4].map((s) => attempt(s, "2026-08-17", "SIM"));
     expect(nextCallAttempt("2026-08-17", history)).toBeNull();
   });
 });

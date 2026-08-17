@@ -128,6 +128,7 @@ export const CONTENT_GROUPS = [
   "RE2",
   "V3",
   "V4",
+  "FINALIZACAO",
 ] as const;
 export type ContentGroup = (typeof CONTENT_GROUPS)[number];
 
@@ -144,10 +145,27 @@ export const CONTENT_GROUP_LABELS: Record<ContentGroup, string> = {
   RE2: "Reentrada — estrutura e suporte ao franqueado",
   V3: "Conteúdos de valor — visualização repetida",
   V4: "Conteúdos de valor — encerramento de interação visualizada",
+  FINALIZACAO:
+    "Conteúdo padrão de finalização — encerramentos por silêncio/não evolução (E12, RE3, RF1)",
 };
 
 /** Grupos efetivamente exigidos pelas etapas que anexam conteúdo. */
-export const REQUIRED_CONTENT_GROUPS: ContentGroup[] = ["E1", "E3", "R1", "R2", "RE1", "RE2"];
+export const REQUIRED_CONTENT_GROUPS: ContentGroup[] = [
+  "E1",
+  "E3",
+  "R1",
+  "R2",
+  "RE1",
+  "RE2",
+  "FINALIZACAO",
+];
+
+/**
+ * Vídeo padrão de finalização (COMANDO 3D §21). É UM ÚNICO registro da
+ * Biblioteca associado a várias etapas de encerramento — nunca cópias.
+ */
+export const CLOSING_CONTENT_URL = "https://www.instagram.com/p/DcJbxCqhOHu/";
+export const CLOSING_CONTENT_NAME = "Conte a sua própria história";
 
 /**
  * Um grupo exigido sem nenhum conteúdo ativo é uma lacuna real: a etapa
