@@ -10,6 +10,7 @@ import type {
   MagazinePage,
   MediaKind,
 } from "@/lib/magazine/edition";
+import { PAGE_BODY_MAX, renumberPages, todayInSaoPaulo } from "@/lib/magazine/edition";
 
 export const MAGAZINE_BUCKET = "revista";
 const SIGNED_URL_TTL = 60 * 60 * 6; // 6 horas
@@ -152,9 +153,19 @@ export async function saveEdition(input: EditionInput): Promise<MagazineEdition[
   return listEditions();
 }
 
-export async function deleteEdition(id: string): Promise<MagazineEdition[]> {
+/**
+ * §10/§11 — a edição NUNCA é excluída. Desativar apenas a oculta do
+ * Portal do Investidor, preservando numeração, páginas e histórico.
+ */
+export async function setEditionPublished(
+  id: string,
+  published: boolean,
+): Promise<MagazineEdition[]> {
   const supabase = await admin();
-  const { error } = await supabase.from("magazine_editions").delete().eq("id", id);
+  const { error } = await supabase
+    .from("magazine_editions")
+    .update({ published } as never)
+    .eq("id", id);
   if (error) throw new Error(error.message);
   return listEditions();
 }
@@ -173,6 +184,9 @@ export type PageInput = {
 
 export async function savePage(input: PageInput): Promise<MagazineEdition[]> {
   const supabase = await admin();
+  if (input.body.length > PAGE_BODY_MAX) {
+    throw new Error(`O texto da página excede ${PAGE_BODY_MAX} caracteres.`);
+  }
   const payload = {
     edition_id: input.editionId,
     position: input.position,
@@ -190,17 +204,58 @@ export async function savePage(input: PageInput): Promise<MagazineEdition[]> {
       .eq("id", input.id);
     if (error) throw new Error(error.message);
   } else {
+    // §2 — a contagem dos 10 dias começa no primeiro conteúdo publicado.
+    const { count } = await supabase
+      .from("magazine_pages")
+      .select("id", { count: "exact", head: true })
+      .eq("edition_id", input.editionId);
     const { error } = await supabase.from("magazine_pages").insert(payload as never);
     if (error) throw new Error(error.message);
+    if ((count ?? 0) === 0) {
+      await supabase
+        .from("magazine_editions")
+        .update({ starts_on: todayInSaoPaulo() } as never)
+        .eq("id", input.editionId);
+    }
+  }
+  return reindexEdition(input.editionId);
+}
+
+/** Reconstrói a numeração contínua das páginas de uma edição (§15). */
+async function reindexEdition(editionId: string): Promise<MagazineEdition[]> {
+  const supabase = await admin();
+  const editions = await listEditions();
+  const edition = editions.find((e) => e.id === editionId);
+  if (!edition) return editions;
+  const updates = renumberPages(edition.pages).filter((target) => {
+    const current = edition.pages.find((p) => p.id === target.id);
+    return current && current.position !== target.position;
+  });
+  if (updates.length === 0) return editions;
+  for (const update of updates) {
+    await supabase
+      .from("magazine_pages")
+      .update({ position: update.position } as never)
+      .eq("id", update.id);
   }
   return listEditions();
 }
 
-export async function deletePage(id: string): Promise<MagazineEdition[]> {
+/**
+ * §6/§14 — o conteúdo é um PAR indivisível (texto + mídia). Excluir o
+ * conteúdo remove o par inteiro e a numeração é reconstruída.
+ */
+export async function deletePagePair(id: string): Promise<MagazineEdition[]> {
   const supabase = await admin();
+  const { data: row } = await supabase
+    .from("magazine_pages")
+    .select("edition_id")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("magazine_pages").delete().eq("id", id);
   if (error) throw new Error(error.message);
-  return listEditions();
+  const editionId = row ? String((row as { edition_id: string }).edition_id) : null;
+  return editionId ? reindexEdition(editionId) : listEditions();
 }
 
 /* --------------------------- Módulos institucionais --------------------------- */
