@@ -45,6 +45,7 @@ import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.cele
 import { Route as ExecutivoCaptacaoRouteImport } from './routes/executivo.captacao'
 import { Route as ExecutivoCampanhasRouteImport } from './routes/executivo.campanhas'
 import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
+import { Route as ExecutivoBibliotecaRouteImport } from './routes/executivo.biblioteca'
 import { Route as ExecutivoBackupsRouteImport } from './routes/executivo.backups'
 import { Route as ExecutivoAlertasRouteImport } from './routes/executivo.alertas'
 import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.administracao'
@@ -234,6 +235,11 @@ const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
   path: '/executivo/brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoBibliotecaRoute = ExecutivoBibliotecaRouteImport.update({
+  id: '/executivo/biblioteca',
+  path: '/executivo/biblioteca',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoBackupsRoute = ExecutivoBackupsRouteImport.update({
   id: '/executivo/backups',
   path: '/executivo/backups',
@@ -286,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/backups': typeof ExecutivoBackupsRoute
+  '/executivo/biblioteca': typeof ExecutivoBibliotecaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/backups': typeof ExecutivoBackupsRoute
+  '/executivo/biblioteca': typeof ExecutivoBibliotecaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
@@ -378,6 +386,7 @@ export interface FileRoutesById {
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
   '/executivo/backups': typeof ExecutivoBackupsRoute
+  '/executivo/biblioteca': typeof ExecutivoBibliotecaRoute
   '/executivo/brain': typeof ExecutivoBrainRoute
   '/executivo/campanhas': typeof ExecutivoCampanhasRoute
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
@@ -426,6 +435,7 @@ export interface FileRouteTypes {
     | '/executivo/administracao'
     | '/executivo/alertas'
     | '/executivo/backups'
+    | '/executivo/biblioteca'
     | '/executivo/brain'
     | '/executivo/campanhas'
     | '/executivo/captacao'
@@ -471,6 +481,7 @@ export interface FileRouteTypes {
     | '/executivo/administracao'
     | '/executivo/alertas'
     | '/executivo/backups'
+    | '/executivo/biblioteca'
     | '/executivo/brain'
     | '/executivo/campanhas'
     | '/executivo/captacao'
@@ -517,6 +528,7 @@ export interface FileRouteTypes {
     | '/executivo/administracao'
     | '/executivo/alertas'
     | '/executivo/backups'
+    | '/executivo/biblioteca'
     | '/executivo/brain'
     | '/executivo/campanhas'
     | '/executivo/captacao'
@@ -564,6 +576,7 @@ export interface RootRouteChildren {
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
   ExecutivoAlertasRoute: typeof ExecutivoAlertasRoute
   ExecutivoBackupsRoute: typeof ExecutivoBackupsRoute
+  ExecutivoBibliotecaRoute: typeof ExecutivoBibliotecaRoute
   ExecutivoBrainRoute: typeof ExecutivoBrainRoute
   ExecutivoCampanhasRoute: typeof ExecutivoCampanhasRoute
   ExecutivoCaptacaoRoute: typeof ExecutivoCaptacaoRoute
@@ -854,6 +867,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/biblioteca': {
+      id: '/executivo/biblioteca'
+      path: '/executivo/biblioteca'
+      fullPath: '/executivo/biblioteca'
+      preLoaderRoute: typeof ExecutivoBibliotecaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/backups': {
       id: '/executivo/backups'
       path: '/executivo/backups'
@@ -933,6 +953,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
   ExecutivoAlertasRoute: ExecutivoAlertasRoute,
   ExecutivoBackupsRoute: ExecutivoBackupsRoute,
+  ExecutivoBibliotecaRoute: ExecutivoBibliotecaRoute,
   ExecutivoBrainRoute: ExecutivoBrainRoute,
   ExecutivoCampanhasRoute: ExecutivoCampanhasRoute,
   ExecutivoCaptacaoRoute: ExecutivoCaptacaoRoute,
