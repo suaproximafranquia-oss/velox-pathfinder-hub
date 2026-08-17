@@ -39,6 +39,7 @@ import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
 import { GoogleStatusIndicator } from "@/components/executive/google-status-indicator";
+import { canUseWorkspaceModule } from "@/lib/workspace-permissions";
 
 export function ExecutiveShell({
   session,
@@ -57,6 +58,17 @@ export function ExecutiveShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   /**
+   * COMANDO 3B §3/§4 — permissões individuais de módulo. Quando OFF, o
+   * item some do menu (a rota permanece bloqueada pelo guard próprio).
+   */
+  const canCrm = canUseWorkspaceModule(session.userId, session.activeRole, "crm");
+  const canPortalLeads = canUseWorkspaceModule(
+    session.userId,
+    session.activeRole,
+    "portal_leads",
+  );
+
+  /**
    * DEF 2.4.17 §1 — ordem oficial do menu lateral. O CRM abre em nova aba
    * (§3) para que o Executivo alterne entre Workspace e CRM sem perder o
    * contexto. "Manual do Investidor", "Central de Recursos" e o antigo
@@ -65,12 +77,12 @@ export function ExecutiveShell({
   const daily = [
     { to: "/executivo/home", label: "Home", icon: LayoutGrid },
     { to: "/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
-    { to: "/crm", label: "CRM", icon: Contact, newTab: true },
+    ...(canCrm ? [{ to: "/crm", label: "CRM", icon: Contact, newTab: true }] : []),
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
     { to: "/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
     { to: "/executivo/criativa", label: "IA Criativa", icon: Wand2 },
-    ...(session.activeRole === "super_admin"
+    ...(canPortalLeads
       ? [{ to: "/portal-leads", label: "Portal dos Leads", icon: Sprout, newTab: true }]
       : []),
   ];
@@ -98,7 +110,9 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/homologacao", label: "Homologação do Motor", icon: FlaskConical }]
       : []),
-    { to: "/executivo/backups", label: "Backup de Conversas", icon: Archive },
+    ...(canCrm
+      ? [{ to: "/executivo/backups", label: "Backup de Conversas", icon: Archive }]
+      : []),
   ];
 
   const administrative = [
