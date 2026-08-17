@@ -371,6 +371,7 @@ export function CrmComposer({
   investorName = "",
   executiveName = "",
   portalLink = "",
+  postPresentationVideoUrl = null,
   window: win,
   prefillText,
   prefillNonce = 0,
@@ -411,6 +412,8 @@ export function CrmComposer({
   /** Seletor de contato do CRM (substitui o antigo arquivo .vcf). */
   const [contactsOpen, setContactsOpen] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
+  /** Aviso da ação manual de Pós-apresentação (COMANDO 3D §22). */
+  const [postWarning, setPostWarning] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   /** Áudio gravado aguardando revisão — nada é enviado sem confirmação. */
   const [recording, setRecording] = useState(false);
