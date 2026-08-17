@@ -23,6 +23,9 @@ import { cn } from "@/lib/utils";
 
 export type HomologationMessageView = {
   direction: "outbound" | "inbound" | "system";
+  /** Autor explícito da mensagem (COMANDO 3D §7). */
+  author?: "EXECUTIVE" | "INVESTOR" | "SYSTEM";
+  authorName?: string;
   step: string | null;
   body: string;
   at: string;
