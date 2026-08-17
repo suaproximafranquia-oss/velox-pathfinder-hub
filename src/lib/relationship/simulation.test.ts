@@ -50,4 +50,26 @@ describe("simulador de homologação", () => {
     expect(out.outsideBusinessHours.length).toBe(0);
     expect(Object.keys(SCENARIOS).length).toBe(10);
   });
+
+  /** COMANDO 3C §3 — cada rodada sorteia conteúdos de forma independente. */
+  it("reproduz a rodada com a mesma semente e diverge com sementes diferentes", async () => {
+    const leads = buildSimulatedLeads(20);
+    const base = {
+      leads,
+      library: library(),
+      executiveName: "Thiago Rodrigues",
+      portalLink: "https://exemplo.invalido/f/thiago-rodrigues",
+    };
+    const contents = (out: Awaited<ReturnType<typeof runSimulation>>) =>
+      out.messages.filter((m) => m.contentId).map((m) => `${m.leadId}:${m.step}:${m.contentId}`);
+
+    const a = await runSimulation({ ...base, runId: "TEST-SEED-A", seed: 111 });
+    const b = await runSimulation({ ...base, runId: "TEST-SEED-B", seed: 111 });
+    const c = await runSimulation({ ...base, runId: "TEST-SEED-C", seed: 999 });
+
+    expect(a.seed).toBe(111);
+    expect(contents(a)).toEqual(contents(b));
+    expect(contents(a).length).toBeGreaterThan(0);
+    expect(contents(a)).not.toEqual(contents(c));
+  });
 });
