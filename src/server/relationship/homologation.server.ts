@@ -185,9 +185,81 @@ export async function executeHomologationRun(input: {
   });
   const { scenarios, passed, failed } = summarize(output);
 
+  /**
+   * COMANDO 3B §17 e §19 — cada conversa fictícia é persistida para que
+   * possa ser INSPECIONADA VISUALMENTE no CRM de homologação: mensagem,
+   * anexo, tipo do anexo, visualização, resposta, horário virtual e
+   * decisão do motor (inclusive os NÃO ENVIOS e seus motivos, §20).
+   */
+  const byId = new Map(library.map((c) => [c.id, c]));
+  const conversations = output.leadResults.map((r) => ({
+    leadId: r.lead.leadId,
+    displayName: r.lead.displayName,
+    scenario: r.lead.scenario,
+    scenarioLabel: SCENARIOS[r.lead.scenario].name,
+    entryAt: r.lead.entryAt,
+    entryLabel: r.lead.entryLabel,
+    result: r.result,
+    divergence: r.divergence,
+    finalState: r.finalState,
+    finalFlow: r.finalFlow,
+    reads: r.reads,
+    responses: r.responses,
+    scheduled: r.scheduled,
+    nameConfirmed: r.nameConfirmed,
+    expectedSteps: r.expectedSteps,
+    executedSteps: r.executedSteps,
+    contentsUsed: r.contentsUsed,
+    messages: r.messages.map((m) => {
+      const content = m.contentId ? byId.get(m.contentId) ?? null : null;
+      return {
+        direction: m.direction,
+        step: m.step,
+        body: m.body,
+        at: m.at,
+        contentId: m.contentId,
+        contentName: m.contentName,
+        contentKind: content?.kind ?? null,
+        contentUrl: content?.url ?? null,
+        contentGroup: content?.group ?? null,
+      };
+    }),
+    journey: r.journey,
+    decisions: r.decisions.map((d) => ({
+      at: d.at,
+      step: d.step,
+      flow: d.flow,
+      stateBefore: d.stateBefore,
+      stateAfter: d.stateAfter,
+      outcome: d.outcome,
+      reason: d.reason,
+      contentId: d.contentId ?? null,
+      error: d.error ?? null,
+    })),
+  }));
+
+  const blocked = output.decisions.filter((d) => d.outcome === "blocked").length;
+  const totals = {
+    leads: output.leadResults.length,
+    messages: output.messages.length,
+    outbound: output.messages.filter((m) => m.direction === "outbound").length,
+    inbound: output.messages.filter((m) => m.direction === "inbound").length,
+    contents: output.messages.filter((m) => m.contentId).length,
+    reads: output.leadResults.reduce((n, r) => n + r.reads, 0),
+    responses: output.leadResults.reduce((n, r) => n + r.responses, 0),
+    scheduled: output.leadResults.filter((r) => r.scheduled).length,
+    blocked,
+    divergences: failed,
+    errors: output.leadResults.reduce((n, r) => n + r.errors.length, 0),
+    /** COMANDO 3B §25 — obrigatoriamente ZERO. O simulador não possui canal. */
+    metaCalls: 0,
+  };
+
   // O relatório completo fica guardado para auditoria posterior; só as
   // jornadas divergentes vão em detalhe para não inflar o registro.
   const report = {
+    totals,
+    conversations,
     generatedAt: new Date().toISOString(),
     executiveName: input.executiveName,
     portalLink: input.portalLink,
