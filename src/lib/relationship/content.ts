@@ -132,6 +132,24 @@ export const REQUIRED_CONTENT_GROUPS: ContentGroup[] = ["E1", "E3", "R1", "R2"];
  */
 export function contentLibraryGaps(library: ValueContent[]): string[] {
   return REQUIRED_CONTENT_GROUPS.filter(
-    (group) => library.filter((c) => c.active && c.group === group).length === 0,
+    (group) => contentsForGroup(library, group).length === 0,
   ).map((group) => `Grupo "${group}" (${CONTENT_GROUP_LABELS[group]}) não possui conteúdo ativo.`);
+}
+
+/** Resumo por grupo para a tela da Biblioteca (COMANDO 3C §19). */
+export function contentLibraryStats(library: ValueContent[]) {
+  const byGroup = CONTENT_GROUPS.map((group) => ({
+    group,
+    label: CONTENT_GROUP_LABELS[group],
+    active: contentsForGroup(library, group).length,
+    total: library.filter((c) => contentGroupsOf(c).includes(group)).length,
+    required: REQUIRED_CONTENT_GROUPS.includes(group),
+  }));
+  return {
+    total: library.length,
+    active: library.filter((c) => c.active).length,
+    inactive: library.filter((c) => !c.active).length,
+    byGroup,
+    missingRequired: byGroup.filter((g) => g.required && g.active === 0).map((g) => g.group),
+  };
 }
