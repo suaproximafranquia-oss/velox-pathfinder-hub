@@ -368,6 +368,8 @@ export type SimulationOptions = {
 
 export type SimulationOutput = {
   runId: string;
+  /** Semente efetiva da rodada (§10 — sorteada quando não informada). */
+  seed: number;
   leadResults: LeadResult[];
   decisions: EngineDecision[];
   events: EngineEvent[];
