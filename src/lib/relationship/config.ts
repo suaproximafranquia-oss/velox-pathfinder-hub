@@ -37,6 +37,19 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     contentGroup: null,
     terminal: false,
   },
+  /**
+   * COMANDO 4F-B §E0 V1 — variante de primeiro contato para quem entrou
+   * pelo Portal do Investidor. Mesma posição do fluxo; muda apenas o
+   * texto, que reconhece a jornada já iniciada.
+   */
+  E0_V1: {
+    step: "E0_V1",
+    flow: "sem_resposta",
+    businessDaysAfterReference: 0,
+    templatePurpose: "primeiro_contato_portal",
+    contentGroup: null,
+    terminal: false,
+  },
   E1: {
     step: "E1",
     flow: "sem_resposta",
@@ -222,7 +235,8 @@ export const RELATIONSHIP_CONFIG: RelationshipConfig = {
   enabled: false,
   windowHours: 24,
   businessHours: { start: 9, end: 21 },
-  saturdayHours: { start: 9, end: 21 },
+  /** §11 — no sábado o envio vai apenas até 12:00. */
+  saturdayHours: { start: 9, end: 12 },
   dailyClosingHour: 22,
   timeZone: "America/Sao_Paulo",
   nonBusinessDays: [],
