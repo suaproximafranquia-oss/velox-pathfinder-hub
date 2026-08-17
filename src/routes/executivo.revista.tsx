@@ -243,6 +243,16 @@ function RevistaAdminPage() {
 
         {/* Edições */}
         <section className={card}>
+          {/* §16 — aviso quando o ciclo terminou e não há edição vigente. */}
+          {(() => {
+            const ended = editionNeedsSuccessor(editions);
+            return ended ? (
+              <p className="mb-4 rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-4 py-3 text-xs text-[color:var(--gold)]">
+                A {formatEditionCode(ended.number)} encerrou seu ciclo de 10 dias e foi para o
+                acervo. Crie a próxima edição para manter a Revista viva no Portal.
+              </p>
+            ) : null;
+          })()}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-sm">Edições</h3>
             <button
