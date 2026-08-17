@@ -1686,6 +1686,10 @@ export type Database = {
     }
     Functions: {
       can_access_investor: { Args: { _investor_id: string }; Returns: boolean }
+      can_access_relationship: {
+        Args: { _lead_id: string; _scope: string }
+        Returns: boolean
+      }
       current_executive_id: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -1694,6 +1698,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_portal_member: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
