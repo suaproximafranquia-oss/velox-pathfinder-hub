@@ -1,12 +1,17 @@
 /**
  * REVISTA VELOX — regra editorial oficial.
  *
- * Cada edição vive exatamente 10 DIAS CORRIDOS a partir da data de
- * início. Depois disso ela é encerrada automaticamente e passa ao
- * acervo: continua legível, mas deixa de ser a edição vigente. Nenhuma
- * data é inventada — o ciclo deriva sempre de `startsOn`.
+ * Cada edição vive exatamente 10 DIAS CORRIDOS. A contagem NÃO começa
+ * pelo calendário: ela começa no dia em que o primeiro conteúdo da
+ * edição é efetivamente publicado. Enquanto a edição não tiver nenhum
+ * conteúdo, ela está "não iniciada" e nenhum prazo corre. Depois dos 10
+ * dias a edição é encerrada e passa ao acervo — continua legível e
+ * numerada, nunca é excluída.
  */
 export const EDITION_DURATION_DAYS = 10;
+
+/** Limite de caracteres do texto de uma página (preserva a diagramação). */
+export const PAGE_BODY_MAX = 900;
 
 export type MediaKind = "none" | "imagem" | "video";
 
@@ -36,7 +41,22 @@ export type MagazineEdition = {
   pages: MagazinePage[];
 };
 
-export type EditionStatus = "rascunho" | "vigente" | "encerrada" | "agendada";
+export type EditionStatus =
+  /** Sem conteúdo: a contagem de 10 dias ainda não começou. */
+  | "nao_iniciada"
+  /** Oculta do Portal (desativada) — continua existindo e numerada. */
+  | "desativada"
+  | "vigente"
+  | "encerrada"
+  | "agendada";
+
+export const EDITION_STATUS_LABEL: Record<EditionStatus, string> = {
+  nao_iniciada: "não iniciada",
+  desativada: "desativada",
+  vigente: "vigente",
+  encerrada: "encerrada",
+  agendada: "agendada",
+};
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -61,11 +81,17 @@ export function todayInSaoPaulo(now: Date = new Date()): string {
   }).format(now);
 }
 
+/** A edição só existe editorialmente depois do primeiro conteúdo. */
+export function editionHasStarted(edition: Pick<MagazineEdition, "pages">): boolean {
+  return edition.pages.length > 0;
+}
+
 export function editionStatus(
-  edition: Pick<MagazineEdition, "startsOn" | "published">,
+  edition: Pick<MagazineEdition, "startsOn" | "published" | "pages">,
   today: string = todayInSaoPaulo(),
 ): EditionStatus {
-  if (!edition.published) return "rascunho";
+  if (!editionHasStarted(edition)) return "nao_iniciada";
+  if (!edition.published) return "desativada";
   const start = parseDay(edition.startsOn);
   const reference = parseDay(today);
   if (reference < start) return "agendada";
@@ -75,7 +101,7 @@ export function editionStatus(
 
 /** Dias restantes da edição vigente (0 quando encerra hoje). */
 export function daysRemaining(
-  edition: Pick<MagazineEdition, "startsOn" | "published">,
+  edition: Pick<MagazineEdition, "startsOn" | "published" | "pages">,
   today: string = todayInSaoPaulo(),
 ): number {
   if (editionStatus(edition, today) !== "vigente") return 0;
@@ -126,4 +152,26 @@ export function formatPeriod(startsOn: string): string {
 /** Páginas em ordem editorial (esquerda = texto, direita = mídia). */
 export function spreadsOf(pages: MagazinePage[]): MagazinePage[] {
   return [...pages].sort((a, b) => a.position - b.position);
+}
+
+/**
+ * Numeração contínua: depois de excluir um conteúdo, as posições são
+ * reconstruídas de 1..n. Nunca sobram buracos na sequência.
+ */
+export function renumberPages(pages: MagazinePage[]): Array<{ id: string; position: number }> {
+  return spreadsOf(pages).map((page, index) => ({ id: page.id, position: index + 1 }));
+}
+
+/** Edição encerrada que precisa de aviso ao administrador (§16). */
+export function editionNeedsSuccessor(
+  editions: MagazineEdition[],
+  today: string = todayInSaoPaulo(),
+): MagazineEdition | null {
+  const started = editions.filter((e) => editionHasStarted(e));
+  if (started.some((e) => editionStatus(e, today) === "vigente")) return null;
+  return (
+    started
+      .filter((e) => editionStatus(e, today) === "encerrada")
+      .sort((a, b) => b.number - a.number)[0] ?? null
+  );
 }
