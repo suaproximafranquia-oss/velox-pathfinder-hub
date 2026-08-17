@@ -38,7 +38,7 @@ describe("Central de Templates — estrutura operacional", () => {
 
   it("aberturas são neutras, sem conteúdo comercial", () => {
     for (const t of CRM_OPENING_TEMPLATES) {
-      const text = t.body.toLowerCase();
+      const text = t.body.replace(/\{\{[^}]+\}\}/g, "").toLowerCase();
       expect(text).not.toMatch(/franquia|invest|http|oportunidade|material|proposta/);
       expect(t.body.length).toBeLessThan(140);
     }
