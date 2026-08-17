@@ -831,7 +831,13 @@ export function CrmComposer({
  * Histórico completo da conversa — ordem cronológica, rolagem automática
  * e separação visual entre mensagens enviadas e recebidas.
  */
-export function CrmThread({ item, messages }: { item: CrmConversation; messages: CrmMessage[] }) {
+export function CrmThread({
+  item,
+  messages,
+}: {
+  item: Pick<CrmConversation, "id" | "name">;
+  messages: CrmMessage[];
+}) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -882,6 +888,40 @@ export function CrmThread({ item, messages }: { item: CrmConversation; messages:
                 ].join(" ")}
               >
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                {m.attachment ? (
+                  <div
+                    className={[
+                      "mt-2 rounded-lg px-2.5 py-2 text-[11px]",
+                      sent
+                        ? "bg-white/10 text-white/85"
+                        : "border border-[color:var(--crm-border)] bg-[color:var(--crm-hover)] text-[color:var(--crm-muted)]",
+                    ].join(" ")}
+                  >
+                    <span className="block truncate">
+                      {m.attachment.name}
+                      {m.attachment.kind ? ` · ${m.attachment.kind}` : ""}
+                      {m.attachment.group ? ` · ${m.attachment.group}` : ""}
+                    </span>
+                  </div>
+                ) : null}
+                {/*
+                  Botão do template: a URL vive no botão, nunca no texto.
+                */}
+                {m.button ? (
+                  <a
+                    href={m.button.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={[
+                      "mt-2 flex items-center justify-center rounded-lg px-3 py-2 text-[12px] font-medium transition",
+                      sent
+                        ? "bg-white/15 text-white hover:bg-white/25"
+                        : "border border-[color:var(--crm-border)] bg-[color:var(--crm-surface)] text-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)]",
+                    ].join(" ")}
+                  >
+                    {m.button.label}
+                  </a>
+                ) : null}
                 <span
                   className={[
                     "mt-1 block text-right text-[10px] tabular-nums",
