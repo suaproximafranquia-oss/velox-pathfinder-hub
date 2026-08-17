@@ -229,6 +229,76 @@ Minha disponibilidade continua aberta para conversarmos pela manhã, à tarde ou
 
 Se quiser retomar, basta me chamar por este WhatsApp.`,
   },
+  /**
+   * FLUXO 4 — REENTRADA (COMANDO 2B §3–§6). Reconhece o histórico
+   * anterior sem cobrar o investidor por não ter dado retorno.
+   */
+  RE0: {
+    code: "HOMOL-RE0",
+    step: "RE0",
+    purpose: "reentrada_contato",
+    contentGroup: null,
+    usesInvestorName: true,
+    button: "portal",
+    text: `Olá, {{nome_investidor}}, tudo bem?
+
+Aqui é {{nome_executivo}}, Executivo de Expansão da Velox Soluções Financeiras.
+
+Vi que você demonstrou interesse novamente em conhecer a Velox, e isso normalmente significa que o assunto continua fazendo sentido para você.
+
+Deixo aqui novamente o espaço com as informações sobre nossa estrutura, modelo de negócio e investimento, para que você possa retomar sua análise de onde parou.
+
+Quando quiser conversar, me informe dois horários que funcionem melhor para você.`,
+  },
+  RE1: {
+    code: "HOMOL-RE1",
+    step: "RE1",
+    purpose: "reentrada_criterios",
+    contentGroup: "RE1",
+    usesInvestorName: true,
+    button: "content",
+    text: `Olá, {{nome_investidor}}.
+
+Como você voltou a se interessar pelo tema, quero contribuir com algo prático: os critérios que realmente importam ao avaliar uma franquia.
+
+Entender rentabilidade, suporte, maturação e perfil do franqueado costuma evitar decisões precipitadas — em qualquer marca.
+
+{{conteudo_re1}}
+
+Se preferir, podemos conversar e analisar esses pontos juntos. Minha disponibilidade é ampla: manhã, tarde ou noite.`,
+  },
+  RE2: {
+    code: "HOMOL-RE2",
+    step: "RE2",
+    purpose: "reentrada_estrutura",
+    contentGroup: "RE2",
+    usesInvestorName: true,
+    button: "content",
+    text: `Olá, {{nome_investidor}}.
+
+Além dos números, o que costuma diferenciar uma operação é a estrutura por trás dela: treinamento, acompanhamento e suporte contínuo ao franqueado.
+
+Separei uma informação que mostra como esse suporte funciona na prática dentro da Velox.
+
+{{conteudo_re2}}
+
+Se fizer sentido, me informe sua disponibilidade e organizamos uma conversa objetiva.`,
+  },
+  RE3: {
+    code: "HOMOL-RE3",
+    step: "RE3",
+    purpose: "reentrada_encerramento",
+    contentGroup: null,
+    usesInvestorName: true,
+    button: null,
+    text: `Olá, {{nome_investidor}}.
+
+Compartilhei com você as principais informações sobre a Velox e percebi que ainda não conseguimos encontrar um momento para conversar.
+
+Vou encerrar minhas tentativas por aqui para não transformar esse contato em uma sequência de cobranças.
+
+Minha disponibilidade continua aberta pela manhã, à tarde ou à noite. Se o assunto voltar a fazer sentido, basta me chamar por este WhatsApp.`,
+  },
 };
 
 export type RenderInput = {
