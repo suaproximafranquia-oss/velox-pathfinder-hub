@@ -12,6 +12,7 @@
  * `templates.ts` — as duas estruturas nunca se misturam.
  */
 import type { CadenceStep } from "./types";
+import { NEUTRAL_TREATMENT, resolveTreatment, type TreatmentSource } from "./names";
 
 export type HomologationMessage = {
   /** Código interno da mensagem de homologação (nunca um ID da Meta). */
@@ -220,13 +221,19 @@ export type RenderInput = {
   portalLink: string;
   /** Nome do investidor SOMENTE quando confirmado (§11, §21). */
   confirmedInvestorName?: string | null;
+  /** Nome bruto do cadastro — só vira tratamento se a base reconhecer (§24). */
+  rawInvestorName?: string | null;
+  /** Nome digitado manualmente pelo Executivo (§23). */
+  executiveProvidedName?: string | null;
+  /** Executivo respondeu NÃO à sugestão de nome (§22). */
+  nameRejected?: boolean;
   /** Título real do conteúdo escolhido na Biblioteca (§6). */
   contentName?: string | null;
   contentUrl?: string | null;
 };
 
 export type RenderResult =
-  | { ok: true; body: string; usedName: boolean }
+  | { ok: true; body: string; usedName: boolean; treatment: string; treatmentSource: TreatmentSource }
   | { ok: false; reason: string };
 
 /**
@@ -249,8 +256,13 @@ export function renderHomologationMessage(
     return { ok: false, reason: "Variável {{link_portal}} sem valor — mensagem não enviada." };
   }
 
-  const confirmed = (input.confirmedInvestorName ?? "").trim();
-  const treatment = confirmed || "caro investidor";
+  const resolution = resolveTreatment({
+    confirmedName: input.confirmedInvestorName ?? null,
+    executiveProvidedName: input.executiveProvidedName ?? null,
+    rawName: input.rawInvestorName ?? null,
+    manuallyRejected: input.nameRejected ?? false,
+  });
+  const treatment = message.usesInvestorName ? resolution.treatment : NEUTRAL_TREATMENT;
 
   let body = message.text
     .replaceAll("{{nome_executivo}}", executive)
@@ -274,5 +286,11 @@ export function renderHomologationMessage(
     return { ok: false, reason: "Mensagem contém variável não resolvida — envio bloqueado." };
   }
 
-  return { ok: true, body, usedName: message.usesInvestorName && Boolean(confirmed) };
+  return {
+    ok: true,
+    body,
+    usedName: message.usesInvestorName && resolution.personalized,
+    treatment,
+    treatmentSource: message.usesInvestorName ? resolution.source : "fallback",
+  };
 }
