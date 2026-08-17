@@ -23,11 +23,18 @@ export type HomologationMessage = {
   contentGroup: string | null;
   /** Trata o investidor pelo nome quando ele estiver confirmado. */
   usesInvestorName: boolean;
+  /**
+   * Botão do template: "portal" usa {{link_portal}}, "content" usa a URL
+   * do conteúdo da Biblioteca. A URL NUNCA aparece no corpo do texto.
+   * É apenas a representação visual do comportamento do template — nada
+   * é enviado ou registrado na Meta.
+   */
+  button: "portal" | "content" | null;
   text: string;
 };
 
 /** Variável de conteúdo da etapa: {{conteudo_e1}}, {{conteudo_r2}}… (§14). */
-const CONTENT_PLACEHOLDER = /\{\{conteudo_[a-z0-9]+\}\}/;
+const CONTENT_PLACEHOLDER = /\n*\{\{conteudo_[a-z0-9]+\}\}\n*/;
 
 export const HOMOLOGATION_MESSAGES: Record<CadenceStep, HomologationMessage> = {
   E0: {
@@ -36,6 +43,7 @@ export const HOMOLOGATION_MESSAGES: Record<CadenceStep, HomologationMessage> = {
     purpose: "primeiro_contato",
     contentGroup: null,
     usesInvestorName: false,
+    button: "portal",
     text: `Olá, caro investidor, tudo bem?
 
 Meu nome é {{nome_executivo}} e sou Executivo de Expansão da Velox Soluções Financeiras.
@@ -43,8 +51,6 @@ Meu nome é {{nome_executivo}} e sou Executivo de Expansão da Velox Soluções 
 Se você demonstrou interesse em conhecer a Velox, estou à disposição para apresentar nossa estrutura, modelo de negócio e oportunidade.
 
 Preparei um espaço com as principais informações para você conhecer nossa proposta com mais calma.
-
-{{link_portal}}
 
 Após analisar esse material, vamos alinhar um horário para conversarmos. Me informe duas opções de horário que funcionam melhor para você.`,
   },
@@ -54,6 +60,7 @@ Após analisar esse material, vamos alinhar um horário para conversarmos. Me in
     purpose: "segundo_contato",
     contentGroup: "E1",
     usesInvestorName: false,
+    button: "content",
     text: `Olá, caro investidor.
 
 Passando para saber se você conseguiu acessar as informações que enviei sobre a Velox.
@@ -72,6 +79,7 @@ Depois de analisar esse material, podemos alinhar um horário para conversar e e
     purpose: "terceiro_contato",
     contentGroup: "E3",
     usesInvestorName: false,
+    button: "content",
     text: `Olá, caro investidor.
 
 Os dias passam rapidamente e sei que a rotina pode acabar dificultando esse tipo de análise.
@@ -90,6 +98,7 @@ Me informe sua disponibilidade e vamos organizar esse próximo passo.`,
     purpose: "quarto_contato",
     contentGroup: null,
     usesInvestorName: false,
+    button: null,
     text: `Olá, caro investidor.
 
 Já compartilhei com você o Portal do Investidor e algumas informações sobre a Velox, e neste momento acredito que uma conversa objetiva seja o melhor caminho para entendermos se essa oportunidade realmente está alinhada ao que você procura.
@@ -104,6 +113,7 @@ Me informe sua disponibilidade e vamos organizar esse próximo passo.`,
     purpose: "encerramento",
     contentGroup: null,
     usesInvestorName: false,
+    button: null,
     text: `Olá, caro investidor.
 
 Recebi seu cadastro e, desde então, tentei estabelecer contato algumas vezes por mensagem e ligação, mas por algum motivo não conseguimos avançar.
@@ -126,6 +136,7 @@ Desejo sucesso na sua análise e nos seus próximos projetos.`,
     // explícita para usar o grupo V3.
     contentGroup: null,
     usesInvestorName: false,
+    button: null,
     text: `Olá, caro investidor, tudo bem?
 
 Sei que a rotina é corrida e que conhecer uma nova oportunidade exige tempo e atenção.
@@ -144,6 +155,7 @@ Neste momento, mais do que uma nova cobrança, acredito que seja importante voc�
     purpose: "visualizacao_firme",
     contentGroup: null,
     usesInvestorName: false,
+    button: null,
     text: `Olá, caro investidor.
 
 Já compartilhei com você o Portal do Investidor e algumas informações sobre a Velox, e percebi que você teve contato com esse material.
@@ -162,6 +174,7 @@ Caso a oportunidade faça sentido para você posteriormente, este canal continua
     purpose: "reengajamento_1",
     contentGroup: "R1",
     usesInvestorName: true,
+    button: "content",
     text: `Olá, {{nome_investidor}}, tudo bem?
 
 Vi que conseguimos iniciar nossa conversa, mas acabamos não conseguindo evoluir para o próximo passo.
@@ -184,6 +197,7 @@ Enquanto isso, também quero compartilhar uma informação que pode contribuir p
     purpose: "reengajamento_2",
     contentGroup: "R2",
     usesInvestorName: true,
+    button: "content",
     text: `Olá, {{nome_investidor}}, tudo bem?
 
 Percebi que nossa conversa acabou ficando sem continuidade.
@@ -202,6 +216,7 @@ Quando fizer sentido avançarmos, me informe sua disponibilidade e ajustamos o h
     purpose: "reengajamento_encerramento",
     contentGroup: null,
     usesInvestorName: true,
+    button: null,
     text: `Olá, {{nome_investidor}}, tudo bem?
 
 Já tentei retomar nossa conversa algumas vezes e percebi que, mesmo tendo iniciado o contato anteriormente, não conseguimos encontrar um momento para evoluir.
