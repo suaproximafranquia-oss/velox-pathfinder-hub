@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Library,
   Loader2,
+  MessagesSquare,
   Play,
   Plus,
   ShieldCheck,
@@ -22,15 +23,21 @@ import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/exe
 import {
   CONTENT_GROUPS,
   CONTENT_GROUP_LABELS,
+  CONTENT_KINDS,
   contentLibraryGaps,
   type ContentKind,
   type ValueContent,
 } from "@/lib/relationship/content";
+import {
+  HomologationCrm,
+  type HomologationConversation,
+} from "@/components/executive/homologation-crm";
 import { SCENARIOS } from "@/lib/relationship/simulation";
 import {
   deleteRelationshipContent,
   listRelationshipContents,
   listRelationshipRuns,
+  readRelationshipRun,
   runRelationshipHomologation,
   saveRelationshipContent,
 } from "@/lib/relationship-homologation.functions";
@@ -66,12 +73,18 @@ const ghost =
 const field =
   "w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50";
 
-const KINDS: ContentKind[] = ["pdf", "video", "imagem", "documento", "link", "arquivo"];
+const KINDS: readonly ContentKind[] = CONTENT_KINDS;
 
-type Draft = { group: string; name: string; kind: ContentKind; url: string };
+type Draft = {
+  group: string;
+  name: string;
+  description: string;
+  kind: ContentKind;
+  url: string;
+};
 type RunSummary = Awaited<ReturnType<typeof listRelationshipRuns>>[number];
 
-const emptyDraft: Draft = { group: "E1", name: "", kind: "pdf", url: "" };
+const emptyDraft: Draft = { group: "E1", name: "", description: "", kind: "pdf", url: "" };
 
 function HomologacaoPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
@@ -80,6 +93,10 @@ function HomologacaoPage() {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
+  const [openRun, setOpenRun] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<HomologationConversation[]>([]);
+  const [totals, setTotals] = useState<Record<string, number> | null>(null);
+  const [loadingRun, setLoadingRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [executiveName, setExecutiveName] = useState("Thiago Rodrigues");
   const [portalLink, setPortalLink] = useState(
@@ -117,7 +134,7 @@ function HomologacaoPage() {
     try {
       await ensureCloudSession();
       const next = await saveRelationshipContent({
-        data: { ...draft, active: true },
+        data: { ...draft, description: draft.description || null, active: true },
       });
       setContents(next);
       setDraft(emptyDraft);
@@ -159,6 +176,23 @@ function HomologacaoPage() {
       setError(e instanceof Error ? e.message : "A rodada não pôde ser concluída.");
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function handleOpenRun(runId: string) {
+    setLoadingRun(true);
+    try {
+      await ensureCloudSession();
+      const row = (await readRelationshipRun({ data: { runId } })) as
+        | { report?: { conversations?: HomologationConversation[]; totals?: Record<string, number> } }
+        | null;
+      setConversations(row?.report?.conversations ?? []);
+      setTotals(row?.report?.totals ?? null);
+      setOpenRun(runId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível abrir a rodada.");
+    } finally {
+      setLoadingRun(false);
     }
   }
 
@@ -209,12 +243,18 @@ function HomologacaoPage() {
             </ul>
           ) : null}
 
-          <div className="grid gap-2 md:grid-cols-[1fr_1fr_140px_140px_auto]">
+          <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_140px_140px_auto]">
             <input
               className={field}
               placeholder="Nome do conteúdo"
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            />
+            <input
+              className={field}
+              placeholder="Finalidade / descrição"
+              value={draft.description}
+              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
             />
             <input
               className={field}
@@ -272,7 +312,13 @@ function HomologacaoPage() {
                           <span className="truncate text-[color:var(--foreground)]">
                             {c.name}
                             <span className="ml-2 text-[color:var(--muted-foreground)]">
-                              {c.kind} · usado {c.usageCount}x
+                              {c.kind} · usado {c.usageCount}x ·{" "}
+                              {c.lastUsedAt
+                                ? `último uso ${new Date(c.lastUsedAt).toLocaleDateString("pt-BR")}`
+                                : "nunca utilizado"}{" "}
+                              · cadastrado em{" "}
+                              {new Date(c.createdAt).toLocaleDateString("pt-BR")}
+                              {c.active ? "" : " · inativo"}
                             </span>
                           </span>
                           <button
@@ -381,14 +427,58 @@ function HomologacaoPage() {
                   className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] px-3 py-2"
                 >
                   <span className="text-[color:var(--foreground)]">{r.label}</span>
-                  <span
-                    className={cn(r.failed === 0 ? "text-emerald-400" : "text-red-400")}
-                  >
-                    {r.passed}/{r.totalLeads} conformes
+                  <span className="flex items-center gap-3">
+                    <span className={cn(r.failed === 0 ? "text-emerald-400" : "text-red-400")}>
+                      {r.failed === 0 ? "TESTE FINALIZADO · " : ""}
+                      {r.passed}/{r.totalLeads} conformes
+                    </span>
+                    <button
+                      className={ghost}
+                      disabled={loadingRun}
+                      onClick={() => void handleOpenRun(r.runId)}
+                    >
+                      <MessagesSquare className="h-3.5 w-3.5" /> Abrir conversas
+                    </button>
                   </span>
                 </li>
               ))}
             </ul>
+          </section>
+        ) : null}
+
+        {openRun ? (
+          <section className={card}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm text-[color:var(--foreground)]">
+                CRM de homologação — {openRun}
+              </h2>
+              <span className="text-[11px] text-emerald-400">
+                Chamadas à Meta nesta rodada: {totals?.["metaCalls"] ?? 0}
+              </span>
+            </div>
+            {totals ? (
+              <div className="mb-4 grid gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                {[
+                  ["Leads", totals["leads"]],
+                  ["Mensagens", totals["messages"]],
+                  ["Conteúdos", totals["contents"]],
+                  ["Visualizações", totals["reads"]],
+                  ["Respostas", totals["responses"]],
+                  ["Agendamentos", totals["scheduled"]],
+                  ["Bloqueios", totals["blocked"]],
+                  ["Divergências", totals["divergences"]],
+                ].map(([label, value]) => (
+                  <div
+                    key={String(label)}
+                    className="rounded-xl border border-[color:var(--border)] p-2"
+                  >
+                    <p className="text-[10px] text-[color:var(--muted-foreground)]">{label}</p>
+                    <p className="text-sm text-[color:var(--foreground)]">{value ?? 0}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <HomologationCrm conversations={conversations} />
           </section>
         ) : null}
       </div>
