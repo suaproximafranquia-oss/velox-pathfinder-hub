@@ -303,6 +303,8 @@ export function loadUsers(): ExecutiveUser[] {
               phone: stored.phone ?? seed.phone,
               whatsapp: stored.whatsapp ?? seed.whatsapp,
               photoUrl: stored.photoUrl ?? seed.photoUrl,
+              postPresentationVideoUrl:
+                stored.postPresentationVideoUrl ?? seed.postPresentationVideoUrl,
               admissionDate: stored.admissionDate ?? seed.admissionDate,
               birthDate: stored.birthDate ?? seed.birthDate,
             }
