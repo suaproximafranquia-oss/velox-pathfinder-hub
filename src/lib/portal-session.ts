@@ -12,6 +12,7 @@ import {
   registerLead,
   saveVisitorIdentity,
   applyLeadRouting,
+  updateLead,
   type LeadRecord,
 } from "@/lib/leads";
 import { addComment } from "@/lib/investor-comments";
@@ -43,10 +44,9 @@ import {
   isJourneyId,
   saveDigitalJourney,
 } from "@/lib/portal-journey";
-import {
-  requestWhatsappConfirmation,
-  transferVerification,
-} from "@/lib/portal-verification";
+import { transferVerification } from "@/lib/portal-verification";
+import { resolveEntryOrigin } from "@/lib/portal/entry-origin";
+import { resolveOwnership, resolveIdentityMatch } from "@/lib/portal/ownership";
 import { logAudit } from "@/lib/audit-log";
 import { notifySync } from "@/lib/sync-bus";
 
@@ -257,15 +257,78 @@ export function startPortalSession(input: {
     });
   }
 
-  // Roteamento obrigatório também para investidor recorrente: quem volta
-  // por link personalizado é reconduzido ao Green Sales do executivo.
+  /**
+   * COMANDO 4E §47/§48 — origem e proprietário são decididos por UMA
+   * ÚNICA fonte central. Nenhuma tela reimplementa a regra.
+   */
+  const entryExecutive = responsible.personalized ? (responsible.executive ?? null) : null;
+  const originKind = resolveEntryOrigin({
+    executive: entryExecutive,
+    campaign: entry.campaign,
+  });
+  const decision = resolveOwnership({
+    origin: originKind,
+    entryExecutiveId: entryExecutive?.id ?? null,
+    existing: existing
+      ? {
+          ownerId: existing.originalOwnerId ?? existing.responsibleExecutiveId ?? null,
+          operationalOwnerId:
+            existing.operationalOwnerId ?? existing.responsibleExecutiveId ?? null,
+          scope: existing.scope ?? null,
+          sharedExecutiveIds: existing.sharedExecutiveIds ?? [],
+        }
+      : null,
+    defaultOwnerId: portalOwnerId,
+  });
+
+  /**
+   * §38 — lead redistribuído nunca volta a Green Sales: apenas o escopo
+   * de leitura compartilhada é ampliado.
+   */
+  const keepRedistribution = (base.scope ?? null) === "redistribuicao";
   const lead =
+    updateLead(base.id, {
+      scope: keepRedistribution ? "redistribuicao" : decision.scope,
+      responsibleExecutiveId: keepRedistribution
+        ? (base.responsibleExecutiveId ?? decision.operationalOwnerId)
+        : decision.operationalOwnerId,
+      operationalOwnerId: keepRedistribution
+        ? (base.operationalOwnerId ?? base.responsibleExecutiveId ?? null)
+        : decision.operationalOwnerId,
+      originalOwnerId: keepRedistribution
+        ? (base.originalOwnerId ?? decision.ownerId)
+        : decision.ownerId,
+      sharedExecutiveIds: decision.sharedExecutiveIds,
+      personalized: decision.personalized,
+    }) ??
     applyLeadRouting(base.id, {
       personalized: responsible.personalized,
-      responsibleExecutiveId: responsible.personalized
-        ? (responsible.executive?.id ?? null)
-        : null,
-    }) ?? base;
+      responsibleExecutiveId: entryExecutive?.id ?? null,
+    }) ??
+    base;
+
+  /**
+   * §22 — conflito de identidade (e-mail de uma pessoa, telefone de
+   * outra) nunca faz merge automático: fica marcado para revisão.
+   */
+  const emailMatch = findLeadByEmail(input.email);
+  const phoneMatch = findLeadByPhone(input.phone);
+  const identityResolution = resolveIdentityMatch({
+    byEmail: emailMatch?.id ?? null,
+    byPhone: phoneMatch?.id ?? null,
+  });
+  if (identityResolution.kind === "conflict") {
+    updateLead(lead.id, {
+      identityConflict: {
+        note: identityResolution.note,
+        withInvestorId:
+          identityResolution.emailInvestorId === lead.id
+            ? identityResolution.phoneInvestorId
+            : identityResolution.emailInvestorId,
+        at: new Date().toISOString(),
+      },
+    });
+  }
 
   attachLeadToIdentity(identity.id, lead.id);
 
@@ -412,9 +475,9 @@ export function startPortalSession(input: {
       actorName: "Portal Velox",
       actorRole: "Automatizado",
       module: "investidores",
-      action: "Jornada Digital criada — aguardando confirmação do WhatsApp",
+      action: "Jornada Digital criada — investidor identificado no Gateway",
       target: lead.name,
-      details: `Origem: ${origin}. Nenhum Lead Comercial foi criado: o relacionamento permanece bloqueado até a resposta oficial do investidor.`,
+      details: `Origem: ${origin}. Identificação cadastral concluída — nenhuma mensagem foi enviada.`,
       severity: "info",
     });
     recordCrmEvent({
@@ -422,18 +485,12 @@ export function startPortalSession(input: {
       event: "atividade_portal",
       origin,
       reason:
-        "Jornada Digital iniciada no Gateway — status: aguardando confirmação do WhatsApp.",
+        "Jornada Digital iniciada no Gateway — investidor identificado pelo cadastro.",
       ownerId: lead.responsibleExecutiveId ?? portalOwnerId,
       actorId: "sistema",
     });
-    requestWhatsappConfirmation({
-      investorId: lead.id,
-      investorName: lead.name,
-      phone: lead.whatsapp || (input.phone ?? ""),
-      origin,
-      ownerId: lead.responsibleExecutiveId ?? portalOwnerId,
-      personalized: Boolean(session.personalized && lead.responsibleExecutiveId),
-    });
+    // COMANDO 4E §24/§45 — nenhum template, nenhuma chamada à Meta e
+    // nenhuma validação real: a identificação cadastral é suficiente.
     notifySync("leads");
     notifySync("commercial");
     notifySync("timeline");
@@ -547,7 +604,7 @@ export function promotePortalSession(): PortalSession | null {
     appendCrmMessage({
       investorId: routed.id,
       direction: "enviada",
-      body: `Olá, ${routed.name}. Seja bem-vindo ao Portal Velox. Sua identidade foi confirmada e sua jornada ficará salva.`,
+      body: `Olá, ${routed.name}. Seja bem-vindo ao Portal Velox. Sua jornada ficará salva neste cadastro.`,
       authorId: "sistema",
     });
   }
@@ -555,7 +612,7 @@ export function promotePortalSession(): PortalSession | null {
     investorId: routed.id,
     event: "atividade_portal",
     origin,
-    reason: "WhatsApp confirmado no Portal — relacionamento comercial criado automaticamente.",
+    reason: "Investidor identificado no Portal — relacionamento comercial criado automaticamente.",
     ownerId: routed.responsibleExecutiveId ?? "sistema",
     actorId: "sistema",
   });
@@ -572,7 +629,7 @@ export function promotePortalSession(): PortalSession | null {
       origin,
       unit: session.unit,
       campaign: session.campaign,
-      whatsappConfirmed: true,
+      identified: true,
     },
   });
 
@@ -580,7 +637,7 @@ export function promotePortalSession(): PortalSession | null {
     investorId: routed.id,
     authorId: "ai_corporate",
     authorName: "IA Corporativa",
-    body: "WhatsApp confirmado pelo visitante. Relacionamento comercial criado com Card, conversa e Executivo responsável registrados.",
+    body: "Investidor identificado pelo cadastro. Relacionamento comercial criado com Card, conversa e Executivo responsável registrados.",
   });
 
   transferVerification(session.investorId, routed.id);
