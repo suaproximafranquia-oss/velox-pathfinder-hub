@@ -12,7 +12,7 @@ import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   deleteInstitutionalContent,
-  deleteMagazineEdition,
+  setMagazineEditionPublished,
   deleteMagazinePage,
   listInstitutionalContent,
   listMagazineEditions,
@@ -287,8 +287,10 @@ function RevistaAdminPage() {
                     {formatEditionCode(item.number)} — {item.title}
                   </p>
                   <p className="text-[11px] text-[color:var(--muted-foreground)]">
-                    {formatPeriod(item.startsOn)} · {editionStatus(item)} · {item.pages.length}{" "}
-                    página(s)
+                    {item.pages.length === 0
+                      ? "Contagem inicia no primeiro conteúdo publicado"
+                      : formatPeriod(item.startsOn)}{" "}
+                    · {EDITION_STATUS_LABEL[editionStatus(item)]} · {item.pages.length} conteúdo(s)
                   </p>
                 </button>
                 <div className="flex items-center gap-2">
@@ -316,12 +318,22 @@ function RevistaAdminPage() {
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
-                        setEditions(await deleteMagazineEdition({ data: { id: item.id } }));
-                        if (selectedId === item.id) setSelectedId(null);
-                      }, "Edição removida.")
+                        if (
+                          item.published &&
+                          !window.confirm(
+                            `Desativar a ${formatEditionCode(item.number)}? Ela deixa de aparecer no Portal, mas nada é apagado.`,
+                          )
+                        )
+                          return;
+                        setEditions(
+                          await setMagazineEditionPublished({
+                            data: { id: item.id, published: !item.published },
+                          }),
+                        );
+                      }, item.published ? "Edição desativada." : "Edição ativada.")
                     }
                   >
-                    <Trash2 className="h-3.5 w-3.5" /> Excluir
+                    {item.published ? "Desativar" : "Ativar"}
                   </button>
                 </div>
               </div>
