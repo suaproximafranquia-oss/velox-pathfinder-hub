@@ -5,8 +5,11 @@
  * apenas remove o restante da interface do Portal para dar largura ao
  * quadro. Continua somente leitura: a movimentação real é na origem.
  */
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PortalLeadsBoard } from "@/components/crm/portal-leads-board";
+import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import { ModuleAccessDenied, hasModuleAccess } from "@/components/executive/module-access-guard";
 
 export const Route = createFileRoute("/portal-leads")({
   head: () => ({
@@ -31,5 +34,25 @@ export const Route = createFileRoute("/portal-leads")({
 });
 
 function PortalLeadsPage() {
+  const navigate = useNavigate();
+  const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const s = getSession();
+    if (!s) {
+      navigate({ to: "/executivo" });
+      return;
+    }
+    setSession(s);
+    setReady(true);
+  }, [navigate]);
+
+  // COMANDO 3B §4/§11 — acesso direto por URL é bloqueado e nenhum dado
+  // do Portal dos Leads é carregado sem permissão individual.
+  if (!ready || !session) return null;
+  if (!hasModuleAccess(session, "portal_leads")) {
+    return <ModuleAccessDenied moduleKey="portal_leads" />;
+  }
   return <PortalLeadsBoard standalone />;
 }

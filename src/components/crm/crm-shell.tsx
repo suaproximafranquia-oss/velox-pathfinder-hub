@@ -9,6 +9,7 @@ import { markCrmActivity, isCrmSessionExpired } from "@/lib/crm/session";
 import { crmCssVars, resolveCrmBranding } from "@/lib/crm/theme";
 import { findCrmTheme, getUserCrmTheme } from "@/lib/crm/themes";
 import { onSync } from "@/lib/sync-bus";
+import { ModuleAccessDenied, hasModuleAccess } from "@/components/executive/module-access-guard";
 
 /**
  * Shell do CRM de Relacionamento.
@@ -96,6 +97,12 @@ export function CrmShell({
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
+
+  // COMANDO 3B §3/§11 — sem permissão individual, nenhum componente ou
+  // dado do CRM é carregado, mesmo em acesso direto por URL.
+  if (!hasModuleAccess(session, "crm")) {
+    return <ModuleAccessDenied moduleKey="crm" />;
+  }
 
   return (
     <div
