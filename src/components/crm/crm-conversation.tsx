@@ -630,13 +630,15 @@ export function CrmComposer({
       ) : null}
       {templatesOpen && !disabled ? (
         <div className="crm-enter mb-2 flex flex-wrap gap-1.5">
-          {centralTemplates.map((t) => (
+          {centralTemplates
+            .filter((t) => t.purpose === "primeiro_contato" || t.purpose.startsWith("abertura_conversa_"))
+            .map((t) => (
             <button
               key={`meta-${t.id}-${t.language ?? ""}`}
               type="button"
               title={`${t.id}${t.language ? ` · ${t.language}` : ""}`}
               onClick={() => {
-                setText(renderCrmTemplate(t.body, { executiveName, portalLink }));
+                setText(renderCrmTemplate(t.body, { executiveName, portalLink, investorName }));
                 setArmedTemplate(true);
                 setTemplatesOpen(false);
               }}
@@ -650,7 +652,7 @@ export function CrmComposer({
               key={t.id}
               type="button"
               onClick={() => {
-                setText(renderCrmTemplate(t, { executiveName, portalLink }));
+                setText(renderCrmTemplate(t, { executiveName, portalLink, investorName }));
                 setArmedTemplate(true);
                 setTemplatesOpen(false);
               }}

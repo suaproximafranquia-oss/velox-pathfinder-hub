@@ -6,25 +6,51 @@
  */
 export type MetaTemplatePurpose =
   | "primeiro_contato"
-  | "segundo_contato"
-  | "terceiro_contato"
-  | "quarto_contato"
-  | "encerramento"
-  | "abertura_conversa"
+  | "abertura_conversa_1"
+  | "abertura_conversa_2"
+  | "abertura_conversa_3"
   | "outro";
 
+/**
+ * Finalidades operacionais disponíveis ao Executivo — somente quatro.
+ * As etapas E1/E3/E4/E12/R1/R2/R3/V3/V4 pertencem ao Motor de
+ * Relacionamento e não são oferecidas aqui.
+ */
 export const TEMPLATE_PURPOSES: { value: MetaTemplatePurpose; label: string }[] = [
   { value: "primeiro_contato", label: "Primeiro contato" },
-  { value: "segundo_contato", label: "Segundo contato" },
-  { value: "terceiro_contato", label: "Terceiro contato" },
-  { value: "quarto_contato", label: "Quarto contato" },
-  { value: "encerramento", label: "Encerramento" },
-  { value: "abertura_conversa", label: "Abertura de conversa" },
+  { value: "abertura_conversa_1", label: "Abertura de conversa 1" },
+  { value: "abertura_conversa_2", label: "Abertura de conversa 2" },
+  { value: "abertura_conversa_3", label: "Abertura de conversa 3" },
   { value: "outro", label: "Outro" },
 ];
 
+/** Rótulos apenas para leitura de cadastros antigos — fora de operação. */
+const LEGACY_PURPOSE_LABELS: Record<string, string> = {
+  segundo_contato: "Segundo contato (motor)",
+  terceiro_contato: "Terceiro contato (motor)",
+  quarto_contato: "Quarto contato (motor)",
+  encerramento: "Encerramento (motor)",
+  abertura_conversa: "Abertura de conversa (legado)",
+};
+
+/** Ordem oficial de exibição na Central. */
+export const PURPOSE_ORDER: Record<string, number> = {
+  primeiro_contato: 1,
+  abertura_conversa_1: 2,
+  abertura_conversa_2: 3,
+  abertura_conversa_3: 4,
+};
+
+export function isOperationalPurpose(value: string | null | undefined): boolean {
+  return Boolean(value && value in PURPOSE_ORDER);
+}
+
 export function purposeLabel(value: string | null | undefined): string {
-  return TEMPLATE_PURPOSES.find((p) => p.value === value)?.label ?? "Outro";
+  return (
+    TEMPLATE_PURPOSES.find((p) => p.value === value)?.label ??
+    LEGACY_PURPOSE_LABELS[value ?? ""] ??
+    "Outro"
+  );
 }
 
 export type MetaTemplateVariable = { name: string; sample: string | null };
@@ -92,14 +118,15 @@ export type CrmMetaTemplateOption = {
   source: "meta";
 };
 
-/** Passo de cadência sugerido pela finalidade (organização, não disparo). */
+/**
+ * A cadência pertence ao Motor de Relacionamento. Aqui só existe o
+ * primeiro contato manual; aberturas não têm passo de cadência.
+ */
 export const PURPOSE_CADENCE_STEP: Record<MetaTemplatePurpose, number | null> = {
   primeiro_contato: 1,
-  segundo_contato: 2,
-  terceiro_contato: 4,
-  quarto_contato: 5,
-  encerramento: 12,
-  abertura_conversa: null,
+  abertura_conversa_1: null,
+  abertura_conversa_2: null,
+  abertura_conversa_3: null,
   outro: null,
 };
 

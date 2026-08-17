@@ -27,10 +27,13 @@ import {
   TEMPLATE_PURPOSES,
   purposeLabel,
   display,
+  PURPOSE_ORDER,
+  isOperationalPurpose,
   type MetaTemplateReading,
   type MetaTemplateRecord,
   type MetaTemplatePurpose,
 } from "@/lib/crm/meta-templates";
+import { CRM_TEMPLATES } from "@/lib/crm/templates";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/executivo/templates")({
@@ -279,6 +282,65 @@ function TemplatesPage() {
       ) : null}
 
       {view === "lista" ? (
+        <section className={cn(card, "mb-4")}>
+          <h2 className="font-display text-base">Estrutura operacional</h2>
+          <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+            Apenas quatro templates ficam disponíveis para uso manual do Executivo: o
+            primeiro contato e as três aberturas de conversa. As etapas de relacionamento
+            (E1, E3, E4, E12, R1, R2, R3, V3, V4) pertencem ao motor e não aparecem aqui.
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-[color:var(--muted-foreground)]">
+                <tr>
+                  <th className="py-2 pr-4 font-normal">Nome</th>
+                  <th className="py-2 pr-4 font-normal">Finalidade</th>
+                  <th className="py-2 pr-4 font-normal">Status</th>
+                  <th className="py-2 pr-4 font-normal">Versão</th>
+                  <th className="py-2 pr-4 font-normal">ID Meta</th>
+                  <th className="py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {CRM_TEMPLATES.map((t) => {
+                  const record = items.find((i) => i.purpose === t.metaPurpose) ?? null;
+                  return (
+                    <tr key={t.id} className="border-t border-[color:var(--border)]/60 align-top">
+                      <td className="py-2 pr-4">{t.label}</td>
+                      <td className="py-2 pr-4 text-[color:var(--muted-foreground)]">
+                        {t.purpose}
+                      </td>
+                      <td className="py-2 pr-4">
+                        {record ? display(record.status) : "Não cadastrado na Meta"}
+                      </td>
+                      <td className="py-2 pr-4">{record ? "1" : "—"}</td>
+                      <td className="py-2 pr-4 font-mono text-[11px]">
+                        {record ? display(record.metaId) : "—"}
+                      </td>
+                      <td className="py-2 text-right">
+                        <button
+                          type="button"
+                          className={ghost}
+                          disabled={!record}
+                          onClick={() => {
+                            if (!record) return;
+                            setDetail(record);
+                            setView("detalhe");
+                          }}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {view === "lista" ? (
         <section className={card}>
           {loading ? (
             <p className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
@@ -302,12 +364,24 @@ function TemplatesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((t) => (
+                  {[...items]
+                    .sort(
+                      (a, b) =>
+                        (PURPOSE_ORDER[a.purpose] ?? 99) - (PURPOSE_ORDER[b.purpose] ?? 99),
+                    )
+                    .map((t) => (
                     <tr
                       key={t.id}
                       className="border-t border-[color:var(--border)]/60 hover:bg-[color:var(--accent)]/40"
                     >
-                      <td className="py-2 pr-4">{purposeLabel(t.purpose)}</td>
+                      <td className="py-2 pr-4">
+                        {purposeLabel(t.purpose)}
+                        {isOperationalPurpose(t.purpose) ? null : (
+                          <span className="ml-1 text-[10px] text-[color:var(--muted-foreground)]">
+                            (fora de operação)
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2 pr-4 font-mono text-[11px]">{display(t.name)}</td>
                       <td className="py-2 pr-4">{display(t.language)}</td>
                       <td className="py-2 pr-4">{display(t.category)}</td>
