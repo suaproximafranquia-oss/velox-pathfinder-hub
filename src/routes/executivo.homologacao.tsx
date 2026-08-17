@@ -5,7 +5,7 @@
  * de valor e executar o simulador bilateral com leads fictícios
  * TEST-XXXX. Nada aqui envia mensagem real nem toca o Portal dos Leads.
  */
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   FlaskConical,
@@ -13,19 +13,14 @@ import {
   Loader2,
   MessagesSquare,
   Play,
-  Plus,
   ShieldCheck,
-  Trash2,
   TriangleAlert,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
-  CONTENT_GROUPS,
-  CONTENT_GROUP_LABELS,
-  CONTENT_KINDS,
   contentLibraryGaps,
-  type ContentKind,
+  contentLibraryStats,
   type ValueContent,
 } from "@/lib/relationship/content";
 import {
@@ -34,12 +29,10 @@ import {
 } from "@/components/executive/homologation-crm";
 import { SCENARIOS } from "@/lib/relationship/simulation";
 import {
-  deleteRelationshipContent,
   listRelationshipContents,
   listRelationshipRuns,
   readRelationshipRun,
   runRelationshipHomologation,
-  saveRelationshipContent,
 } from "@/lib/relationship-homologation.functions";
 import { cn } from "@/lib/utils";
 
@@ -73,24 +66,12 @@ const ghost =
 const field =
   "w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50";
 
-const KINDS: readonly ContentKind[] = CONTENT_KINDS;
-
-type Draft = {
-  group: string;
-  name: string;
-  description: string;
-  kind: ContentKind;
-  url: string;
-};
 type RunSummary = Awaited<ReturnType<typeof listRelationshipRuns>>[number];
-
-const emptyDraft: Draft = { group: "E1", name: "", description: "", kind: "pdf", url: "" };
 
 function HomologacaoPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [contents, setContents] = useState<ValueContent[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [openRun, setOpenRun] = useState<string | null>(null);
@@ -127,36 +108,7 @@ function HomologacaoPage() {
   }, [load]);
 
   const gaps = contentLibraryGaps(contents);
-
-  async function handleSave() {
-    if (!draft.name.trim() || !draft.url.trim()) return;
-    setBusy(true);
-    try {
-      await ensureCloudSession();
-      const next = await saveRelationshipContent({
-        data: { ...draft, description: draft.description || null, active: true },
-      });
-      setContents(next);
-      setDraft(emptyDraft);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível salvar o conteúdo.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    setBusy(true);
-    try {
-      await ensureCloudSession();
-      setContents(await deleteRelationshipContent({ data: { id } }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível remover o conteúdo.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const stats = contentLibraryStats(contents);
 
   async function handleRun() {
     setRunning(true);
