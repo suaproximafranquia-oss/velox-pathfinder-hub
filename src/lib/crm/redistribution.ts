@@ -296,6 +296,8 @@ export function redistributeContact(input: {
 export type InboundRouting =
   | { routed: "proprietario"; ownerId: string | null; leadId: string; leadName: string; scope: WorkspaceScope }
   | { routed: "fila"; ownerId: string; leadId: string; leadName: string; executiveName: string }
+  /** COMANDO 4G §5 — número desconhecido NÃO é redistribuído sozinho. */
+  | { routed: "sem_proprietario"; phone: string }
   | { routed: "indisponivel"; reason: string };
 
 export function routeInboundWhatsapp(input: {
@@ -313,23 +315,12 @@ export function routeInboundWhatsapp(input: {
       scope: ownership.scope,
     };
   }
-
-  const result = redistributeContact({
-    name: input.name?.trim() || `Contato ${input.phone}`,
-    phone: input.phone,
-    origin: input.origin ?? "WhatsApp institucional",
-    actorId: "sistema",
-    actorName: "Roteamento automático",
-  });
-
-  if (!result.ok) return { routed: "indisponivel", reason: result.reason };
-  return {
-    routed: "fila",
-    ownerId: result.executive.id,
-    leadId: result.leadId,
-    leadName: input.name?.trim() || `Contato ${input.phone}`,
-    executiveName: result.executive.name,
-  };
+  /**
+   * COMANDO 4G §1/§5/§6 — a redistribuição é 100% MANUAL. Um contato
+   * desconhecido apenas fica disponível para a Gestora decidir; a fila
+   * só é consultada depois do clique em [ Redistribuir ].
+   */
+  return { routed: "sem_proprietario", phone: input.phone };
 }
 
 /** Histórico de contatos já roteados pela fila oficial (somente leitura). */
