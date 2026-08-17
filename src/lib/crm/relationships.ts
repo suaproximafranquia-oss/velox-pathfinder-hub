@@ -171,7 +171,10 @@ export function listConversations(actor: CrmActor): CrmConversation[] {
           dateIso: i.lastActivity,
         });
       }
-      if (dup) {
+      // O evento de duplicidade é registrado UMA única vez por relacionamento:
+      // antes ele era gravado a cada renderização, poluindo a auditoria.
+      if (dup && !duplicateEventRecorded.has(i.id)) {
+        duplicateEventRecorded.add(i.id);
         recordCrmEvent({
           investorId: i.id,
           event: "duplicidade_detectada",
