@@ -261,7 +261,8 @@ function HomologacaoPage() {
         <section className={card}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm text-[color:var(--foreground)]">Simulador bilateral</h2>
-            {/* marcador */}
+          </div>
+        </section>
             <button className={gold} onClick={() => void handleRun()} disabled={running}>
               {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
               {running ? "Executando rodada…" : "Executar rodada com 300 leads"}
