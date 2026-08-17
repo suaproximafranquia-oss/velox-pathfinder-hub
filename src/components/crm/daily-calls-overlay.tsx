@@ -7,10 +7,11 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, ExternalLink, Phone, RefreshCw, X } from "lucide-react";
+import { Check, ExternalLink, MessageCircle, Phone, RefreshCw, X } from "lucide-react";
 import {
   completeCadenceTaskFn,
   listCadenceQueue,
+  registerWhatsappCallAttemptFn,
   type CadenceQueueView,
 } from "@/lib/crm/cadence.functions";
 
@@ -31,6 +32,7 @@ export function DailyCallsOverlay({
 }) {
   const fetchQueue = useServerFn(listCadenceQueue);
   const completeTask = useServerFn(completeCadenceTaskFn);
+  const registerWhatsapp = useServerFn(registerWhatsappCallAttemptFn);
 
   const [queue, setQueue] = useState<CadenceQueueView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export function DailyCallsOverlay({
 
   const overdueCount = useMemo(() => queue.filter((item) => item.overdue).length, [queue]);
 
-  async function handleDone(item: CadenceQueueView) {
+  async function handleDone(item: CadenceQueueView, outcome: "SIM" | "NAO") {
     setBusy(true);
     try {
       await completeTask({
@@ -81,6 +83,7 @@ export function DailyCallsOverlay({
           dueDate: item.dueDate,
           cycleDate: item.entryDate,
           channel: "call",
+          outcome,
         },
       });
       setQueue((prev) => {
@@ -91,6 +94,19 @@ export function DailyCallsOverlay({
       });
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** §13 — tentativa manual pelo WhatsApp; não conclui a tentativa do dia. */
+  async function handleWhatsappAttempt(item: CadenceQueueView) {
+    const digits = item.phone.replace(/\D/g, "");
+    window.open(`https://wa.me/${digits}`, "_blank", "noopener");
+    try {
+      await registerWhatsapp({
+        data: { leadId: item.leadId, step: item.step, cycleDate: item.entryDate },
+      });
+    } catch {
+      /* o registro de histórico nunca bloqueia a operação */
     }
   }
 
@@ -173,16 +189,47 @@ export function DailyCallsOverlay({
                   >
                     {selected.phone || "Sem telefone"}
                   </a>
+                  {selected.attempts.length > 0 && (
+                    <p className="mt-3 text-[11px] text-white/45">
+                      Histórico:{" "}
+                      {selected.attempts
+                        .map(
+                          (a) =>
+                            `L${a.step} ${formatDay(a.date)} — ${
+                              a.outcome === "SIM" ? "atendeu" : "não atendeu"
+                            }`,
+                        )
+                        .join(" · ")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
+                    O investidor atendeu?
+                  </span>
                   <button
                     type="button"
-                    onClick={() => void handleDone(selected)}
+                    onClick={() => void handleDone(selected, "SIM")}
                     disabled={busy}
                     className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
                   >
-                    <Check className="h-4 w-4" /> Ligação concluída
+                    <Check className="h-4 w-4" /> Sim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDone(selected, "NAO")}
+                    disabled={busy}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-white/75 transition hover:bg-white/[0.08] disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" /> Não
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleWhatsappAttempt(selected)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Tentar ligação pelo WhatsApp
                   </button>
                   <button
                     type="button"
@@ -193,8 +240,9 @@ export function DailyCallsOverlay({
                   </button>
                 </div>
                 <p className="text-[11px] text-white/35">
-                  Concluir registra apenas a tentativa de hoje. O lead permanece na cadência e
-                  volta na próxima data prevista.
+                  O desfecho registra apenas a tentativa de hoje. Atendeu encerra a sequência de
+                  ligações do ciclo; não atendeu mantém o lead na cadência para a próxima data
+                  prevista.
                 </p>
               </>
             )}
@@ -238,10 +286,10 @@ export function DailyCallsOverlay({
                     </button>
                     <button
                       type="button"
-                      onClick={() => void handleDone(item)}
+                      onClick={() => void handleDone(item, "NAO")}
                       disabled={busy}
-                      aria-label={`Concluir ligação de ${item.name}`}
-                      title="Ligação realizada — remover da fila de hoje"
+                      aria-label={`Registrar que ${item.name} não atendeu`}
+                      title="Não atendeu — remover da fila de hoje"
                       className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 text-white/60 transition hover:border-[color:var(--gold)]/50 hover:text-[color:var(--gold)] disabled:opacity-50"
                     >
                       <X className="h-3.5 w-3.5" />
