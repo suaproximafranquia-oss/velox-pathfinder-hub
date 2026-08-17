@@ -110,8 +110,11 @@ function toCrmMessages(conversation: HomologationConversation): CrmMessage[] {
 
 export function HomologationCrm({
   conversations,
+  executive,
 }: {
   conversations: HomologationConversation[];
+  /** Executivo responsável — avatar das mensagens enviadas (COMANDO 1A §9). */
+  executive?: { name: string; photoUrl?: string | null };
 }) {
   /**
    * A posição visual é definida pelo AUTOR da mensagem (COMANDO 3D §6/§7):
@@ -223,6 +226,11 @@ export function HomologationCrm({
             <CrmThread
               item={{ id: current.leadId, name: current.displayName }}
               messages={threadMessages}
+              self={{
+                name: executive?.name ?? "Executivo de Expansão",
+                photoUrl: executive?.photoUrl ?? null,
+              }}
+              peer={{ name: current.displayName }}
             />
           </div>
 

@@ -455,7 +455,10 @@ function HomologacaoPage() {
                 ))}
               </div>
             ) : null}
-            <HomologationCrm conversations={conversations} />
+            <HomologationCrm
+              conversations={conversations}
+              executive={{ name: session.name, photoUrl: session.photoUrl ?? null }}
+            />
           </section>
         ) : null}
       </div>
