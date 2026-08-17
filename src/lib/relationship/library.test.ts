@@ -152,7 +152,13 @@ describe("complementação da biblioteca (COMANDO 1B)", () => {
     url: "https://www.instagram.com/p/DcJciSdhpvF/",
   });
   const library: ValueContent[] = [
-    item({ id: "e3-antigo", group: "E3", groups: ["E3"], name: "Home Office ou Loja Física" }),
+    item({
+      id: "e3-antigo",
+      group: "E3",
+      groups: ["E3"],
+      name: "Home Office ou Loja Física",
+      url: "https://www.instagram.com/p/DcH-vj7Mw6a/",
+    }),
     avaliar,
     estrutura,
     item({
@@ -171,7 +177,13 @@ describe("complementação da biblioteca (COMANDO 1B)", () => {
       name: "Flávio — 11 meses de Velox",
       url: "https://www.instagram.com/p/DcH_mtbgkNp/",
     }),
-    item({ id: "r2-antigo", group: "R2", groups: ["R2"], name: "Começar sem garantia" }),
+    item({
+      id: "r2-antigo",
+      group: "R2",
+      groups: ["R2"],
+      name: "Começar sem garantia",
+      url: "https://www.instagram.com/p/DcIAbOrsb2G/",
+    }),
     item({
       id: "objetivos",
       group: "R2",
