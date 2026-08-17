@@ -551,6 +551,70 @@ function HomologacaoPage() {
               conversations={conversations}
               executive={{ name: session.name, photoUrl: loadUsers().find((u) => u.id === session.userId)?.photoUrl ?? null }}
             />
+
+            {selections.length > 0 ? (
+              <div className="mt-6">
+                <h3 className="mb-2 text-sm text-[color:var(--foreground)]">
+                  Conteúdo selecionado por lead e etapa
+                </h3>
+                <p className="mb-2 text-[11px] text-[color:var(--muted-foreground)]">
+                  {selections.length} seleção(ões) nesta rodada. Exibindo as 200 primeiras —
+                  permite conferir a alternância real de E1, E3, R1 e R2.
+                </p>
+                <div className="max-h-[420px] overflow-auto rounded-xl border border-[color:var(--border)]">
+                  <table className="w-full min-w-[860px] text-left text-[11px]">
+                    <thead className="sticky top-0 bg-[color:var(--card)] text-[color:var(--muted-foreground)]">
+                      <tr>
+                        <th className="px-2 py-1.5">Lead</th>
+                        <th>Etapa</th>
+                        <th>Conteúdo</th>
+                        <th>ID</th>
+                        <th>Grupo</th>
+                        <th>URL</th>
+                        <th>Data simulada</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selections.slice(0, 200).map((s, i) => (
+                        <tr
+                          key={`${s.leadId}-${s.step}-${i}`}
+                          className="border-t border-[color:var(--border)]/60"
+                        >
+                          <td className="px-2 py-1.5 text-[color:var(--foreground)]">
+                            {s.leadId}
+                          </td>
+                          <td className="text-[color:var(--gold)]">{s.step ?? "—"}</td>
+                          <td className="text-[color:var(--foreground)]">{s.contentName}</td>
+                          <td className="text-[color:var(--muted-foreground)]">
+                            {s.contentId ?? "—"}
+                          </td>
+                          <td className="text-[color:var(--muted-foreground)]">
+                            {s.contentGroup ?? "—"}
+                          </td>
+                          <td className="max-w-[220px] truncate">
+                            {s.contentUrl ? (
+                              <a
+                                href={s.contentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[color:var(--gold)] underline-offset-2 hover:underline"
+                              >
+                                Abrir
+                              </a>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="text-[color:var(--muted-foreground)]">
+                            {formatRunMoment(s.simulatedAt)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
           </section>
         ) : null}
       </div>
