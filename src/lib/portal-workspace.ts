@@ -75,16 +75,27 @@ export function getPortalAdministratorId(): string {
  *  - redistribuicao: Lead institucional sem dono, atribuído pela Gestão;
  *  - portal:         Lead Orgânico do Portal do Investidor (só o híbrido).
  */
-export type WorkspaceScope = "green_sales" | "redistribuicao" | "portal";
+export type WorkspaceScope =
+  | "green_sales"
+  | "redistribuicao"
+  | "portal"
+  /** COMANDO 4E §12 — carteira própria da Gestora (nunca "Green Sales"). */
+  | "central_unica";
 
 export const WORKSPACE_SCOPE_LABEL: Record<WorkspaceScope, string> = {
   green_sales: "Green Sales",
   redistribuicao: "Redistribuição",
   portal: "Portal",
+  central_unica: "Central Única",
 };
 
 export function isWorkspaceScope(value: unknown): value is WorkspaceScope {
-  return value === "green_sales" || value === "redistribuicao" || value === "portal";
+  return (
+    value === "green_sales" ||
+    value === "redistribuicao" ||
+    value === "portal" ||
+    value === "central_unica"
+  );
 }
 
 /**
@@ -96,7 +107,14 @@ export function workspaceScopesFor(
   userId: string,
   role: ExecutiveRole,
 ): WorkspaceScope[] {
-  return canAccessPortalWorkspace(userId, role)
-    ? ["green_sales", "redistribuicao", "portal"]
-    : ["green_sales", "redistribuicao"];
+  /**
+   * COMANDO 4E §12/§13/§40 — a Gestora NÃO possui Green Sales: a carteira
+   * própria dela é a Central Única. Executivos comuns operam Green Sales.
+   * Administrador e híbrido enxergam tudo.
+   */
+  if (role === "super_admin" || isHybridWorkspaceUser(userId)) {
+    return ["green_sales", "central_unica", "redistribuicao", "portal"];
+  }
+  if (role === "diretora") return ["central_unica", "redistribuicao"];
+  return ["green_sales", "redistribuicao"];
 }
