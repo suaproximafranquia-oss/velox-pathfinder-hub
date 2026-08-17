@@ -4,7 +4,20 @@
  * O motor não inventa conteúdo: ele escolhe, de forma determinística,
  * um item ativo do grupo autorizado que o investidor ainda não recebeu.
  */
-export type ContentKind = "imagem" | "video" | "pdf" | "documento" | "arquivo" | "link";
+/**
+ * Tipos suportados de ponta a ponta (COMANDO 3B §21): interface,
+ * validação, persistência e renderização usam esta MESMA lista.
+ */
+export const CONTENT_KINDS = [
+  "imagem",
+  "video",
+  "pdf",
+  "documento",
+  "apresentacao",
+  "arquivo",
+  "link",
+] as const;
+export type ContentKind = (typeof CONTENT_KINDS)[number];
 
 export type ValueContent = {
   id: string;
@@ -19,6 +32,7 @@ export type ValueContent = {
   createdAt: string;
   updatedAt: string;
   usageCount: number;
+  lastUsedAt?: string | null;
 };
 
 export type ContentSelection =
