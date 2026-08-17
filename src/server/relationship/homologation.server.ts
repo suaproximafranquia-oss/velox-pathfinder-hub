@@ -370,6 +370,8 @@ export async function executeHomologationRun(input: {
         contentKind: content?.kind ?? null,
         contentUrl: content?.url ?? null,
         contentGroup: content?.group ?? null,
+        // Representação visual do botão do template (sem Meta).
+        button: m.button ?? null,
       };
     }),
     journey: r.journey,
