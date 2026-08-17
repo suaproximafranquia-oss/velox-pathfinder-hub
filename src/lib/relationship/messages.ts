@@ -248,7 +248,15 @@ export type RenderInput = {
 };
 
 export type RenderResult =
-  | { ok: true; body: string; usedName: boolean; treatment: string; treatmentSource: TreatmentSource }
+  | {
+      ok: true;
+      body: string;
+      usedName: boolean;
+      treatment: string;
+      treatmentSource: TreatmentSource;
+      /** Botão do template — a URL vive aqui, nunca no corpo. */
+      button: { label: string; url: string } | null;
+    }
   | { ok: false; reason: string };
 
 /**
@@ -267,7 +275,7 @@ export function renderHomologationMessage(
   if (message.text.includes("{{nome_executivo}}") && !executive) {
     return { ok: false, reason: "Variável {{nome_executivo}} sem valor — mensagem não enviada." };
   }
-  if (message.text.includes("{{link_portal}}") && !portal) {
+  if (message.button === "portal" && !portal) {
     return { ok: false, reason: "Variável {{link_portal}} sem valor — mensagem não enviada." };
   }
 
@@ -284,6 +292,11 @@ export function renderHomologationMessage(
     .replaceAll("{{link_portal}}", portal)
     .replaceAll("{{nome_investidor}}", treatment);
 
+  let button: { label: string; url: string } | null =
+    message.button === "portal"
+      ? { label: "Acessar Portal do Investidor", url: portal }
+      : null;
+
   if (CONTENT_PLACEHOLDER.test(body)) {
     if (!input.contentName) {
       return {
@@ -291,10 +304,14 @@ export function renderHomologationMessage(
         reason: `Etapa ${step} exige conteúdo do grupo ${message.contentGroup} e nenhum conteúdo ativo foi selecionado.`,
       };
     }
-    const line = input.contentUrl
-      ? `${input.contentName}\n${input.contentUrl}`
-      : input.contentName;
-    body = body.replace(CONTENT_PLACEHOLDER, line);
+    // A URL do conteúdo sai do texto e passa a viver no botão.
+    body = body.replace(CONTENT_PLACEHOLDER, "\n\n").trim();
+    if (input.contentUrl) {
+      button = {
+        label: `▶ Assistir conteúdo — ${input.contentName}`,
+        url: input.contentUrl,
+      };
+    }
   }
 
   if (/\{\{\s*[\w.]+\s*\}\}/.test(body)) {
@@ -307,5 +324,6 @@ export function renderHomologationMessage(
     usedName: message.usesInvestorName && resolution.personalized,
     treatment,
     treatmentSource: message.usesInvestorName ? resolution.source : "fallback",
+    button,
   };
 }

@@ -61,7 +61,12 @@ export const INTERNAL_CADENCE_TEMPLATES: InternalTemplate[] = (
     metaTemplateId: null,
     metaTemplateName: null,
     contentGroup: message.contentGroup,
-    variables: extractVariables(message.text),
+    // A URL do botão não aparece no texto, mas continua sendo variável
+    // declarada do template (E0 = {{link_portal}}).
+    variables: [
+      ...extractVariables(message.text),
+      ...(message.button === "portal" ? ["link_portal"] : []),
+    ],
     usesInvestorName: message.usesInvestorName,
     body: message.text,
   };
