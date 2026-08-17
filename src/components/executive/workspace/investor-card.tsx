@@ -7,6 +7,7 @@ import {
   Trash2,
   CircleSlash,
   RotateCcw,
+  ArrowRightLeft,
 } from "lucide-react";
 import type { Investor, InvestorOrigin, InvestorPriority } from "@/lib/executive-data";
 import { formatRelative } from "@/lib/executive-data";
@@ -75,12 +76,15 @@ function InvestorCardBase({
   onNewMeeting,
   onComment,
   onDelete,
+  onRedistribute,
 }: {
   investor: InvestorCardData;
   onOpen: (id: string) => void;
   onNewMeeting: (id: string) => void;
   onComment: (id: string) => void;
   onDelete: (id: string) => void;
+  /** COMANDO 4G §6 — ação manual disponível apenas na Central Única. */
+  onRedistribute?: (id: string) => void;
 }) {
   const origin = ORIGIN_META[investor.origin ?? "manual"];
   const priority = PRIORITY_META[investor.priority ?? "none"];
@@ -204,6 +208,19 @@ function InvestorCardBase({
         </button>
         {menuOpen && (
           <div className="absolute right-0 mt-1 w-44 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--navy)] shadow-xl">
+            {onRedistribute ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onRedistribute(investor.id);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-[color:var(--muted-foreground)] hover:bg-[color:var(--accent)] hover:text-[color:var(--foreground)] transition"
+              >
+                <ArrowRightLeft className="h-3.5 w-3.5" /> Redistribuir
+              </button>
+            ) : null}
             {leadState === "encerrado" ? (
               <button
                 type="button"
