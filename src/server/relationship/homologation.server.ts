@@ -531,6 +531,12 @@ export async function executeHomologationRun(input: {
     scenarios,
     contentUsage: output.contentUsage,
     contentGaps: [],
+    status: failed === 0 ? "APROVADA" : "COM_DIVERGENCIAS",
+    timezone: RUN_TIMEZONE,
+    startedAt: report.execution.startedAt,
+    finishedAt: report.execution.finishedAt,
+    durationMs: report.execution.durationMs,
+    contents: report.execution.contentsSent,
   };
 }
 
@@ -541,20 +547,39 @@ export async function listHomologationRuns(): Promise<RunSummary[]> {
     .order("created_at", { ascending: false })
     .limit(30);
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
-    runId: String(row.run_id),
-    label: String(row.label),
-    createdAt: String(row.created_at),
-    createdByName: String(row.created_by_name ?? ""),
-    totalLeads: Number(row.total_leads ?? 0),
-    passed: Number(row.passed ?? 0),
-    failed: Number(row.failed ?? 0),
-    messages: Number(row.messages_count ?? 0),
-    outsideHours: Number(row.outside_hours ?? 0),
-    scenarios: (row.scenario_summary as unknown as ScenarioSummary[]) ?? [],
-    contentUsage: (row.content_usage as unknown as Record<string, number>) ?? {},
-    contentGaps: [],
-  }));
+  return (data ?? []).map((row) => {
+    const execution = ((row.report as Record<string, unknown> | null)?.["execution"] ?? null) as {
+      startedAt?: string;
+      finishedAt?: string;
+      durationMs?: number;
+      timezone?: string;
+      contentsSent?: number;
+    } | null;
+    const usage = (row.content_usage as unknown as Record<string, number>) ?? {};
+    return {
+      runId: String(row.run_id),
+      label: String(row.label),
+      createdAt: String(row.created_at),
+      createdByName: String(row.created_by_name ?? ""),
+      totalLeads: Number(row.total_leads ?? 0),
+      passed: Number(row.passed ?? 0),
+      failed: Number(row.failed ?? 0),
+      messages: Number(row.messages_count ?? 0),
+      outsideHours: Number(row.outside_hours ?? 0),
+      scenarios: (row.scenario_summary as unknown as ScenarioSummary[]) ?? [],
+      contentUsage: usage,
+      contentGaps: [],
+      status: String(row.status ?? ""),
+      timezone: execution?.timezone ?? RUN_TIMEZONE,
+      startedAt: execution?.startedAt ?? null,
+      finishedAt: execution?.finishedAt ?? String(row.created_at),
+      durationMs: typeof execution?.durationMs === "number" ? execution.durationMs : null,
+      contents:
+        typeof execution?.contentsSent === "number"
+          ? execution.contentsSent
+          : Object.values(usage).reduce((a, b) => a + Number(b || 0), 0),
+    };
+  });
 }
 
 export async function readHomologationRun(runId: string) {
