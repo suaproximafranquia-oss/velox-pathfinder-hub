@@ -75,3 +75,57 @@ describe("biblioteca de conteúdos", () => {
     expect(selectContent([depois], "R2", []).content).toBeNull();
   });
 });
+
+/**
+ * COMANDO FINAL §12 — validação mínima da carga inicial por link:
+ * cada etapa deve selecionar o conteúdo do seu próprio grupo.
+ */
+describe("carga inicial da biblioteca (links do Instagram)", () => {
+  const seeded: ValueContent[] = [
+    item({
+      id: "e1",
+      group: "E1",
+      groups: ["E1"],
+      name: "Desertos financeiros",
+      kind: "video",
+      url: "https://www.instagram.com/p/DcIAyu-A5yv/",
+    }),
+    item({
+      id: "e3",
+      group: "E3",
+      groups: ["E3"],
+      name: "Home Office ou Loja Física",
+      kind: "video",
+      url: "https://www.instagram.com/p/DcH-vj7Mw6a/",
+    }),
+    item({
+      id: "r1",
+      group: "R1",
+      groups: ["R1"],
+      name: "Como conhecemos e escolhemos a Velox",
+      kind: "video",
+      url: "https://www.instagram.com/p/DcH_mtbgkNp/",
+    }),
+    item({
+      id: "r2",
+      group: "R2",
+      groups: ["R2"],
+      name: "Começar sem garantia",
+      kind: "video",
+      url: "https://www.instagram.com/p/DcIAbOrsb2G/",
+    }),
+  ];
+
+  it("não há lacuna nos grupos obrigatórios", () => {
+    expect(contentLibraryGaps(seeded)).toEqual([]);
+    expect(contentLibraryStats(seeded).missingRequired).toEqual([]);
+  });
+
+  it("cada etapa seleciona o conteúdo do próprio grupo", () => {
+    for (const group of ["E1", "E3", "R1", "R2"] as const) {
+      const chosen = selectContent(seeded, group, []).content;
+      expect(chosen?.id).toBe(group.toLowerCase());
+      expect(chosen?.url.startsWith("https://www.instagram.com/p/")).toBe(true);
+    }
+  });
+});
