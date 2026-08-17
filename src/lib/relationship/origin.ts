@@ -10,6 +10,8 @@ import type { CadenceStep } from "./types";
 export type EntryOrigin =
   /** Entrou pelo Portal do Investidor (jornada já iniciada). */
   | "PORTAL"
+  /** Veio do GreenSales (Portal dos Leads) — origem comercial real. */
+  | "GREENSALES"
   /** Anúncio pago (Meta/Google) — nunca convertido em Portal. */
   | "TRAFEGO_PAGO"
   /** Link pessoal de um Executivo. */
@@ -21,6 +23,7 @@ export type EntryOrigin =
 
 export const ENTRY_ORIGIN_LABEL: Record<EntryOrigin, string> = {
   PORTAL: "Portal do Investidor",
+  GREENSALES: "GreenSales",
   TRAFEGO_PAGO: "Tráfego pago",
   LINK_PERSONALIZADO: "Link personalizado",
   REDISTRIBUICAO: "Redistribuição",
@@ -30,6 +33,7 @@ export const ENTRY_ORIGIN_LABEL: Record<EntryOrigin, string> = {
 export function isEntryOrigin(value: unknown): value is EntryOrigin {
   return (
     value === "PORTAL" ||
+    value === "GREENSALES" ||
     value === "TRAFEGO_PAGO" ||
     value === "LINK_PERSONALIZADO" ||
     value === "REDISTRIBUICAO" ||
