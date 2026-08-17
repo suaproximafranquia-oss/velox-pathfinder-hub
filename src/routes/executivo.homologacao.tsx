@@ -17,7 +17,12 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import {
+  ensureCloudSession,
+  getSession,
+  loadUsers,
+  type ExecutiveSession,
+} from "@/lib/executive-auth";
 import {
   contentLibraryGaps,
   contentLibraryStats,
