@@ -25,7 +25,7 @@ describe("canal — o ambiente decide antes das credenciais", () => {
     expect(resolveChannelMode({ production: false, hasCredentials: false })).toBe("simulator");
   });
   it("CENÁRIO B: homologação COM credenciais reais continua simulando", () => {
-    expect(resolveChannelMode({ production: true === false, hasCredentials: true })).toBe(
+    expect(resolveChannelMode({ production: false, hasCredentials: true })).toBe(
       "simulator",
     );
   });
