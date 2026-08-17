@@ -25,7 +25,8 @@ export type HomologationMessage = {
   text: string;
 };
 
-const CONTENT_PLACEHOLDER = /\[CONTEÚDO DE VALOR — GRUPO [A-Z0-9]+\]/;
+/** Variável de conteúdo da etapa: {{conteudo_e1}}, {{conteudo_r2}}… (§14). */
+const CONTENT_PLACEHOLDER = /\{\{conteudo_[a-z0-9]+\}\}/;
 
 export const HOMOLOGATION_MESSAGES: Record<CadenceStep, HomologationMessage> = {
   E0: {
@@ -38,7 +39,7 @@ export const HOMOLOGATION_MESSAGES: Record<CadenceStep, HomologationMessage> = {
 
 Meu nome é {{nome_executivo}} e sou Executivo de Expansão da Velox Soluções Financeiras.
 
-Sei que você demonstrou interesse em conhecer a Velox e estou à disposição para apresentar nossa estrutura, modelo de negócio e oportunidade.
+Se você demonstrou interesse em conhecer a Velox, estou à disposição para apresentar nossa estrutura, modelo de negócio e oportunidade.
 
 Preparei um espaço com as principais informações para você conhecer nossa proposta com mais calma.
 
@@ -56,9 +57,11 @@ Após analisar esse material, vamos alinhar um horário para conversarmos. Me in
 
 Passando para saber se você conseguiu acessar as informações que enviei sobre a Velox.
 
-Sei que conhecer uma nova oportunidade exige atenção, por isso quero compartilhar com você um conteúdo que pode ajudar na sua análise e trazer um pouco mais de clareza sobre o nosso modelo.
+Se tiver alguma dúvida sobre o modelo de negócio, investimento ou estrutura da franquia, posso ajudá-lo a entender os principais pontos.
 
-[CONTEÚDO DE VALOR — GRUPO E1]
+Também quero compartilhar com você uma informação que pode contribuir para a sua análise.
+
+{{conteudo_e1}}
 
 Depois de analisar esse material, podemos alinhar um horário para conversar e entender melhor o que você busca.`,
   },
@@ -74,9 +77,11 @@ Os dias passam rapidamente e sei que a rotina pode acabar dificultando esse tipo
 
 Por isso, não quero apenas ficar cobrando um retorno. Quero compartilhar com você mais uma informação que pode contribuir para entender melhor a oportunidade da Velox.
 
-[CONTEÚDO DE VALOR — GRUPO E3]
+{{conteudo_e3}}
 
-Como eu já havia mencionado, minha disponibilidade é bem ampla. Podemos ajustar de manhã, à tarde ou à noite. Quando você definir sua disponibilidade, nós ajustamos a agenda.`,
+Como eu já havia mencionado, minha disponibilidade é bem ampla. Podemos ajustar de manhã, à tarde ou à noite.
+
+Me informe sua disponibilidade e vamos organizar esse próximo passo.`,
   },
   E4: {
     code: "HOMOL-E4",
@@ -126,9 +131,11 @@ Sei que a rotina é corrida e que conhecer uma nova oportunidade exige tempo e a
 
 Porém, percebi que você visualizou minhas mensagens e ainda não conseguimos conversar.
 
-Não quero transformar isso em uma sequência de cobranças. Prefiro continuar contribuindo para a sua análise e deixar claro que estou disponível para entender se a Velox realmente faz sentido para o seu próximo projeto.
+Não quero transformar isso em uma sequência de cobranças.
 
-Nesse momento, mais do que uma nova cobrança, acredito que seja importante você avaliar se essa oportunidade está alinhada ao que procura.`,
+Prefiro continuar contribuindo para a sua análise e deixar claro que estou disponível para entender se a Velox realmente faz sentido para o seu próximo projeto.
+
+Neste momento, mais do que uma nova cobrança, acredito que seja importante você avaliar se essa oportunidade está alinhada ao que procura.`,
   },
   V4: {
     code: "HOMOL-V4",
@@ -138,7 +145,7 @@ Nesse momento, mais do que uma nova cobrança, acredito que seja importante voc�
     usesInvestorName: false,
     text: `Olá, caro investidor.
 
-Já compartilhei com você o Portal e algumas informações sobre a Velox, e percebi que você teve contato com esse material.
+Já compartilhei com você o Portal do Investidor e algumas informações sobre a Velox, e percebi que você teve contato com esse material.
 
 Por isso, prefiro não continuar insistindo.
 
@@ -168,7 +175,7 @@ Me diga qual período funciona melhor para você e seguimos a partir daí.
 
 Enquanto isso, também quero compartilhar uma informação que pode contribuir para você conhecer melhor a Velox.
 
-[CONTEÚDO DE VALOR — GRUPO R1]`,
+{{conteudo_r1}}`,
   },
   R2: {
     code: "HOMOL-R2",
@@ -184,7 +191,7 @@ Não quero ficar insistindo de forma excessiva, porque meu objetivo aqui é ajud
 
 Por isso, além de tentar novamente o contato, quero deixar com você mais uma informação sobre a Velox que pode contribuir para sua análise.
 
-[CONTEÚDO DE VALOR — GRUPO R2]
+{{conteudo_r2}}
 
 Quando fizer sentido avançarmos, me informe sua disponibilidade e ajustamos o horário da conversa.`,
   },
