@@ -74,6 +74,49 @@ const field =
 
 type RunSummary = Awaited<ReturnType<typeof listRelationshipRuns>>[number];
 
+/** COMANDO 3C §3/§5 — execução real da rodada (não a data simulada). */
+type RunExecution = {
+  runId?: string;
+  timezone?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  durationMs?: number;
+  seed?: number;
+  contentsSent?: number;
+};
+
+/** COMANDO 3C §12 — conteúdo selecionado por lead e etapa. */
+type RunSelection = {
+  leadId: string;
+  step: string | null;
+  contentId: string | null;
+  contentName: string;
+  contentUrl: string | null;
+  contentGroup: string | null;
+  simulatedAt: string;
+};
+
+const TZ = "America/Sao_Paulo";
+
+function formatRunMoment(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: TZ,
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(date);
+}
+
+function formatDuration(ms: number | null | undefined): string {
+  if (typeof ms !== "number" || !Number.isFinite(ms)) return "—";
+  if (ms < 1000) return `${ms} ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  return `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`;
+}
+
 function HomologacaoPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [contents, setContents] = useState<ValueContent[]>([]);
