@@ -7,17 +7,17 @@
  * duplicado, e nada nesta tela dispara mensagem.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Eye,
   EyeOff,
+  ExternalLink,
   LibraryBig,
   Loader2,
   Pencil,
   Plus,
   Trash2,
   TriangleAlert,
-  Upload,
   X,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
@@ -25,7 +25,6 @@ import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/exe
 import {
   CONTENT_GROUPS,
   CONTENT_GROUP_LABELS,
-  CONTENT_KINDS,
   CONTENT_KIND_LABELS,
   contentGroupsOf,
   contentLibraryStats,
@@ -38,7 +37,6 @@ import {
   listRelationshipContents,
   saveRelationshipContent,
   toggleRelationshipContent,
-  uploadRelationshipContentFile,
 } from "@/lib/relationship-homologation.functions";
 import { cn } from "@/lib/utils";
 
@@ -80,23 +78,23 @@ type Draft = {
   kind: ContentKind;
   url: string;
   body: string;
-  storagePath: string | null;
-  fileLabel: string | null;
-  mimeType: string | null;
   active: boolean;
 };
+
+/**
+ * COMANDO 3F: o cadastro é por LINK. O formato existe apenas para o motor
+ * saber como apresentar o conteúdo — não é mais método de cadastro.
+ */
+const LINK_KINDS: ContentKind[] = ["link", "video", "imagem", "texto"];
 
 const emptyDraft: Draft = {
   id: null,
   groups: ["E1"],
   name: "",
   description: "",
-  kind: "pdf",
+  kind: "link",
   url: "",
   body: "",
-  storagePath: null,
-  fileLabel: null,
-  mimeType: null,
   active: true,
 };
 
@@ -105,12 +103,10 @@ function BibliotecaPage() {
   const [contents, setContents] = useState<ValueContent[]>([]);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [filterGroup, setFilterGroup] = useState<"todos" | ContentGroup>("todos");
   const [query, setQuery] = useState("");
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setSession(getSession());
@@ -151,40 +147,6 @@ function BibliotecaPage() {
     }));
   }
 
-  async function handleFile(file: File) {
-    setUploading(true);
-    setError(null);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
-        reader.readAsDataURL(file);
-      });
-      await ensureCloudSession();
-      const { storagePath } = await uploadRelationshipContentFile({
-        data: {
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          base64,
-        },
-      });
-      setDraft((d) => ({
-        ...d,
-        storagePath,
-        fileLabel: file.name,
-        mimeType: file.type || null,
-        url: "",
-        name: d.name || file.name.replace(/\.[^.]+$/, ""),
-      }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível enviar o arquivo.");
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
-
   async function handleSave() {
     setBusy(true);
     setError(null);
@@ -200,8 +162,8 @@ function BibliotecaPage() {
           kind: draft.kind,
           url: draft.url || null,
           body: draft.body || null,
-          storagePath: draft.storagePath,
-          mimeType: draft.mimeType,
+          storagePath: null,
+          mimeType: null,
           active: draft.active,
         },
       });
@@ -222,11 +184,8 @@ function BibliotecaPage() {
       name: content.name,
       description: content.description ?? "",
       kind: content.kind,
-      url: content.storagePath ? "" : content.url,
+      url: content.url,
       body: content.body ?? "",
-      storagePath: content.storagePath ?? null,
-      fileLabel: content.storagePath ? content.storagePath.split("-").slice(1).join("-") : null,
-      mimeType: content.mimeType ?? null,
       active: content.active,
     });
     setNotice(null);
@@ -352,7 +311,7 @@ function BibliotecaPage() {
               value={draft.kind}
               onChange={(e) => setDraft({ ...draft, kind: e.target.value as ContentKind })}
             >
-              {CONTENT_KINDS.map((k) => (
+              {LINK_KINDS.map((k) => (
                 <option key={k} value={k}>
                   {CONTENT_KIND_LABELS[k]}
                 </option>
@@ -376,46 +335,19 @@ function BibliotecaPage() {
               onChange={(e) => setDraft({ ...draft, body: e.target.value })}
             />
           ) : (
-            <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]">
+            <div className="mt-3">
               <input
                 className={field}
-                placeholder="Link do conteúdo (ou envie um arquivo)"
+                placeholder="Link do conteúdo (ex.: https://www.instagram.com/p/ABC/)"
                 value={draft.url}
-                onChange={(e) =>
-                  setDraft({ ...draft, url: e.target.value, storagePath: null, fileLabel: null })
-                }
+                onChange={(e) => setDraft({ ...draft, url: e.target.value })}
               />
-              <div className="flex items-center gap-2">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handleFile(file);
-                  }}
-                />
-                <button
-                  className={ghost}
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading}
-                >
-                  {uploading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Upload className="h-3.5 w-3.5" />
-                  )}
-                  Enviar arquivo
-                </button>
-              </div>
+              <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+                O conteúdo é enviado como link no WhatsApp. Para trocar o material publicado,
+                basta atualizar esta URL — nenhum código, template ou etapa muda.
+              </p>
             </div>
           )}
-
-          {draft.fileLabel ? (
-            <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
-              Arquivo anexado: {draft.fileLabel}
-            </p>
-          ) : null}
 
           <div className="mt-4">
             <p className="text-[11px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
@@ -501,11 +433,16 @@ function BibliotecaPage() {
                         ? `último uso ${new Date(c.lastUsedAt).toLocaleDateString("pt-BR")}`
                         : "nunca utilizado"}
                     </p>
+                    {c.url ? (
+                      <p className="mt-1 truncate text-[10px] text-[color:var(--muted-foreground)]">
+                        {c.url}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     {c.url ? (
                       <a className={ghost} href={c.url} target="_blank" rel="noreferrer">
-                        Abrir
+                        <ExternalLink className="h-3.5 w-3.5" /> Abrir conteúdo
                       </a>
                     ) : null}
                     <button className={ghost} onClick={() => startEdit(c)} disabled={busy}>

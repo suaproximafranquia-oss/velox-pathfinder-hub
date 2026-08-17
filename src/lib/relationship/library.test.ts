@@ -51,4 +51,27 @@ describe("biblioteca de conteúdos", () => {
     expect(stats.missingRequired).toEqual([]);
     expect(stats.byGroup.find((g) => g.group === "E1")?.active).toBe(1);
   });
+
+  it("conteúdo por link é selecionado e a troca de URL vale para os próximos envios", () => {
+    const antes = item({
+      id: "insta",
+      group: "E1",
+      groups: ["E1"],
+      kind: "link",
+      name: "TESTE — Vídeo Instagram E1",
+      url: "https://www.instagram.com/p/ABC/",
+    });
+    expect(selectContent([antes], "E1", []).content?.url).toBe(
+      "https://www.instagram.com/p/ABC/",
+    );
+    // Somente a URL muda: nenhuma etapa, template ou motor é alterado.
+    const depois = { ...antes, url: "https://www.instagram.com/p/XYZ/" };
+    expect(selectContent([depois], "E1", []).content?.url).toBe(
+      "https://www.instagram.com/p/XYZ/",
+    );
+    // Isolamento por etapa: E1 nunca alimenta E3/R1/R2.
+    expect(selectContent([depois], "E3", []).content).toBeNull();
+    expect(selectContent([depois], "R1", []).content).toBeNull();
+    expect(selectContent([depois], "R2", []).content).toBeNull();
+  });
 });
