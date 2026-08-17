@@ -262,6 +262,13 @@ export type RunSummary = {
   scenarios: ScenarioSummary[];
   contentUsage: Record<string, number>;
   contentGaps: string[];
+  /** COMANDO 3C §3/§4 — identificação e cronometragem da execução real. */
+  status: string;
+  timezone: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  contents: number;
 };
 
 function summarize(output: SimulationOutput): {
