@@ -162,7 +162,8 @@ export function renderCrmTemplate(
     .replace(/\{\{\s*link_portal\s*\}\}/gi, portal)
     .replace(/\{\{\s*nome_investidor\s*\}\}/gi, (context.investorName ?? "").trim())
     .replace(/[ \t]+\n/g, "\n")
-    .replace(/\s+([,.!?])/g, "$1")
+    .replace(/,\s*,/g, ",")
+    .replace(/ {2,}/g, " ")
     .trim();
 }
 
