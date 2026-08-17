@@ -109,15 +109,35 @@ export function selectContent(
   };
 }
 
-/** Grupos permanentes da Biblioteca de Conteúdos (COMANDO 3A §5). */
-export const CONTENT_GROUPS = ["E1", "E3", "R1", "R2", "V3", "V4"] as const;
+/**
+ * Grupos permanentes da Biblioteca de Conteúdos (COMANDO 3A §5,
+ * ampliados pelo COMANDO 3D §12). A Biblioteca NÃO cria etapas: ela
+ * apenas vincula conteúdo às etapas que o MOTOR já conhece. Etapas sem
+ * uso atual ficam preparadas, sem alterar o comportamento do motor.
+ */
+export const CONTENT_GROUPS = [
+  "E1",
+  "E2",
+  "E3",
+  "E4",
+  "E12",
+  "R1",
+  "R2",
+  "R3",
+  "V3",
+  "V4",
+] as const;
 export type ContentGroup = (typeof CONTENT_GROUPS)[number];
 
 export const CONTENT_GROUP_LABELS: Record<ContentGroup, string> = {
   E1: "Conteúdos de valor — primeiro acompanhamento",
+  E2: "Etapa preparada — sem uso atual pelo motor",
   E3: "Conteúdos de valor — segundo acompanhamento",
+  E4: "Etapa preparada — acompanhamento mais firme",
+  E12: "Etapa preparada — encerramento do fluxo sem resposta",
   R1: "Conteúdos de valor — primeira tentativa após desaparecimento",
   R2: "Conteúdos de valor — segunda tentativa após desaparecimento",
+  R3: "Etapa preparada — interrupção das tentativas",
   V3: "Conteúdos de valor — visualização repetida",
   V4: "Conteúdos de valor — encerramento de interação visualizada",
 };
