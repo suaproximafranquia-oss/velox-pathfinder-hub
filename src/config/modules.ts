@@ -168,6 +168,16 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     requiresRole: ["super_admin", "diretora"],
   },
   {
+    id: "revista",
+    name: "Revista Velox",
+    description:
+      "Publicação institucional do Portal: edições de 10 dias em página dupla e conteúdos de Nossa Estrutura e Princípios Velox.",
+    icon: BookOpen,
+    to: "/executivo/revista",
+    status: "ativo",
+    requiresRole: ["super_admin", "diretora"],
+  },
+  {
     id: "central-backup",
     name: "Central de Backup",
     description:

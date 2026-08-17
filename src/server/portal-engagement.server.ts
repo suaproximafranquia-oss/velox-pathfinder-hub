@@ -30,7 +30,16 @@ export type EngagementResult = {
 };
 
 /** Módulos comercialmente relevantes — o restante não vira métrica. */
-const TRACKED = new Set(["manual", "material", "simulador", "ia", "portal"]);
+const TRACKED = new Set([
+  "manual",
+  "material",
+  "simulador",
+  "ia",
+  "portal",
+  "revista",
+  "estrutura",
+  "principios",
+]);
 
 export async function applyEngagementEvent(
   input: EngagementUpdate,

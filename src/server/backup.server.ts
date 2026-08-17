@@ -21,6 +21,9 @@ export const BACKUP_TABLES = [
   { table: "user_roles", pk: "id" },
   { table: "whatsapp_validations", pk: "id" },
   { table: "app_user_connections", pk: "id" },
+  { table: "magazine_editions", pk: "id" },
+  { table: "magazine_pages", pk: "id" },
+  { table: "portal_institutional_blocks", pk: "id" },
 ] as const;
 
 /**

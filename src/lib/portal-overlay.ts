@@ -14,6 +14,9 @@ export type OverlayKey =
   | "manual"
   | "universo"
   | "simulador"
+  | "estrutura"
+  | "revista"
+  | "principios"
   | "agenda"
   | null;
 

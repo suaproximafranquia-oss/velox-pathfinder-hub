@@ -7,7 +7,13 @@
  * rotas internas correspondentes (usadas apenas para proteger acessos
  * diretos por URL).
  */
-export type PortalModuleKey = "manual" | "universo" | "simulador";
+export type PortalModuleKey =
+  | "manual"
+  | "universo"
+  | "simulador"
+  | "estrutura"
+  | "revista"
+  | "principios";
 
 export type PortalModuleDef = {
   key: PortalModuleKey;
@@ -15,7 +21,7 @@ export type PortalModuleDef = {
   /** Conteúdo interno carregado dentro do overlay (quando aplicável). */
   panelSrc?: string;
   /** Módulos que abrem um componente próprio (ex.: Simulador). */
-  action?: "simulator" | "scheduling";
+  action?: "simulator" | "scheduling" | "magazine" | "institutional";
   /** Prefixos de rota interna protegidos contra acesso público direto. */
   guardedPaths: string[];
 };
@@ -32,6 +38,24 @@ export const PORTAL_MODULES: PortalModuleDef[] = [
     key: "simulador",
     title: "Simulador Inteligente de Potencial de Receita",
     action: "simulator",
+    guardedPaths: [],
+  },
+  {
+    key: "estrutura",
+    title: "Nossa Estrutura",
+    action: "institutional",
+    guardedPaths: [],
+  },
+  {
+    key: "revista",
+    title: "Revista Velox",
+    action: "magazine",
+    guardedPaths: [],
+  },
+  {
+    key: "principios",
+    title: "Princípios Velox",
+    action: "institutional",
     guardedPaths: [],
   },
 ];
