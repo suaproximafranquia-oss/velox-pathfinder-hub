@@ -11,6 +11,19 @@
  */
 export type CadenceChannel = "call" | "message";
 
+/**
+ * Resultado real de uma tentativa de ligação (COMANDO 2A §12).
+ * Só existem dois desfechos: o investidor atendeu ou não atendeu.
+ */
+export type CallOutcome = "SIM" | "NAO";
+
+export type CadenceAttempt = {
+  step: number;
+  /** Data real (YYYY-MM-DD) em que a tentativa foi executada. */
+  date: string;
+  outcome: CallOutcome;
+};
+
 export type CadenceConfig = {
   enabled: boolean;
   /**
@@ -38,8 +51,13 @@ export function totalSteps(channel: CadenceChannel): number {
   return CADENCE_CONFIG[channel].offsets.length;
 }
 
-/** Etapas da origem em que o lead ainda precisa de tentativa de contato. */
-export const ELIGIBLE_STAGE_KEYS = ["novos", "zero_contato", "frio"] as const;
+/**
+ * Etapas da origem em que o lead ainda precisa de tentativa de contato
+ * (COMANDO 2A §2). "NOVOS" foi removido: enquanto o lead está em NOVOS
+ * ele pertence ao primeiro contato por mensagem; a fila de ligações só
+ * começa quando a origem o move para ZERO CONTATO ou FRIO.
+ */
+export const ELIGIBLE_STAGE_KEYS = ["zero_contato", "frio"] as const;
 
 export function isEligibleStage(stageKey: string | null): boolean {
   return Boolean(stageKey && (ELIGIBLE_STAGE_KEYS as readonly string[]).includes(stageKey));
@@ -130,6 +148,43 @@ export function nextCadenceStep(
   if (done >= config.offsets.length) return null;
   const offset = config.offsets[done] ?? 0;
   const anchor = done === 0 ? cycleDate : (completedDates[done - 1] ?? cycleDate);
+  const dueDate = done === 0 ? nextBusinessDay(anchor) : addBusinessDays(anchor, offset);
+  return { step: done + 1, dueDate };
+}
+
+/**
+ * Sequência de ligações do ciclo (COMANDO 2A §3, §7).
+ *
+ * `baseDate` é a data em que o lead ENTROU na etapa elegível (transição
+ * para ZERO CONTATO / FRIO) — nunca a data de cadastro. As tentativas
+ * seguintes partem sempre da ligação realmente executada.
+ *
+ * Regras de encerramento:
+ *   • qualquer tentativa com resultado SIM encerra a fila do ciclo — o
+ *     contato aconteceu e a condução passa a ser do Executivo;
+ *   • L2 = NÃO e L3 = NÃO encerram o ciclo sem gerar L4.
+ */
+export function nextCallAttempt(
+  baseDate: string,
+  attempts: CadenceAttempt[],
+): { step: number; dueDate: string } | null {
+  const config = CADENCE_CONFIG.call;
+  if (!config.enabled) return null;
+  const history = [...attempts].sort((a, b) => a.step - b.step);
+  if (history.some((a) => a.outcome === "SIM")) return null;
+
+  const done = history.length;
+  if (done >= config.offsets.length) return null;
+
+  // §7 — duas recusas consecutivas em L2 e L3 encerram o ciclo.
+  if (done >= 3) {
+    const l2 = history.find((a) => a.step === 2);
+    const l3 = history.find((a) => a.step === 3);
+    if (l2?.outcome === "NAO" && l3?.outcome === "NAO") return null;
+  }
+
+  const offset = config.offsets[done] ?? 0;
+  const anchor = done === 0 ? baseDate : (history[done - 1]?.date ?? baseDate);
   const dueDate = done === 0 ? nextBusinessDay(anchor) : addBusinessDays(anchor, offset);
   return { step: done + 1, dueDate };
 }
