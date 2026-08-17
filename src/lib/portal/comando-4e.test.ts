@@ -17,7 +17,7 @@ const ADMIN = "usr_thiago";
 
 describe("origem da entrada", () => {
   it("link de executivo comum é entrada personalizada", () => {
-    expect(resolveEntryOrigin({ executive: { id: "usr_paulo", role: "colaborador" } })).toBe(
+    expect(resolveEntryOrigin({ executive: { id: "usr_paulo", role: "executivo" } })).toBe(
       "PERSONALIZED_EXECUTIVE",
     );
   });
