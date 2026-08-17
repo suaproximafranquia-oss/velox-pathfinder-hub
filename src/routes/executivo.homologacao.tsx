@@ -83,6 +83,8 @@ function HomologacaoPage() {
   const [openRun, setOpenRun] = useState<string | null>(null);
   const [conversations, setConversations] = useState<HomologationConversation[]>([]);
   const [totals, setTotals] = useState<Record<string, number> | null>(null);
+  const [execution, setExecution] = useState<RunExecution | null>(null);
+  const [selections, setSelections] = useState<RunSelection[]>([]);
   const [loadingRun, setLoadingRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [executiveName, setExecutiveName] = useState("Thiago Rodrigues");
@@ -142,10 +144,19 @@ function HomologacaoPage() {
     try {
       await ensureCloudSession();
       const row = (await readRelationshipRun({ data: { runId } })) as
-        | { report?: { conversations?: HomologationConversation[]; totals?: Record<string, number> } }
+        | {
+            report?: {
+              conversations?: HomologationConversation[];
+              totals?: Record<string, number>;
+              execution?: RunExecution;
+              selections?: RunSelection[];
+            };
+          }
         | null;
       setConversations(row?.report?.conversations ?? []);
       setTotals(row?.report?.totals ?? null);
+      setExecution(row?.report?.execution ?? null);
+      setSelections(row?.report?.selections ?? []);
       setOpenRun(runId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível abrir a rodada.");
