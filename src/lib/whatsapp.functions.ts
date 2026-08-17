@@ -13,7 +13,18 @@ export const dispatchWhatsappTemplate = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const { sendOfficialTemplate } = await import("@/server/whatsapp.server");
+    const { assertValidationRecipient, sendOfficialTemplate } = await import(
+      "@/server/whatsapp.server"
+    );
+    // COMANDO 3B §3 — porta pública não envia para número arbitrário:
+    // o par (jornada, telefone) precisa existir no Portal.
+    const allowed = await assertValidationRecipient({
+      journeyId: data.journeyId,
+      phone: data.phone,
+    });
+    if (!allowed.ok) {
+      return { ok: true as const, provider: "meta" as const, delivered: false, error: allowed.reason };
+    }
     return sendOfficialTemplate(data);
   });
 
