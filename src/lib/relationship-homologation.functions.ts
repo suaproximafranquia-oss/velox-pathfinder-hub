@@ -21,12 +21,14 @@ async function assertManager(context: { supabase: never; userId: string }) {
 
 const contentSchema = z.object({
   id: z.string().uuid().nullable().optional(),
-  group: z.enum(CONTENT_GROUPS),
+  groups: z.array(z.enum(CONTENT_GROUPS)).min(1),
   name: z.string().min(2),
   description: z.string().max(400).nullable().optional(),
   kind: z.enum(CONTENT_KINDS),
   mimeType: z.string().max(120).nullable().optional(),
-  url: z.string().min(4),
+  url: z.string().max(2000).nullable().optional(),
+  body: z.string().max(8000).nullable().optional(),
+  storagePath: z.string().max(400).nullable().optional(),
   active: z.boolean().default(true),
 });
 
@@ -54,6 +56,34 @@ export const deleteRelationshipContent = createServerFn({ method: "POST" })
     await assertManager(context as never);
     const { deleteValueContent } = await import("@/server/relationship/homologation.server");
     return deleteValueContent(data.id);
+  });
+
+export const toggleRelationshipContent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), active: z.boolean() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const { setValueContentActive } = await import("@/server/relationship/homologation.server");
+    return setValueContentActive(data.id, data.active);
+  });
+
+export const uploadRelationshipContentFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        fileName: z.string().min(1).max(200),
+        mimeType: z.string().max(160).default("application/octet-stream"),
+        base64: z.string().min(8),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const { uploadLibraryFile } = await import("@/server/relationship/homologation.server");
+    return uploadLibraryFile(data);
   });
 
 export const runRelationshipHomologation = createServerFn({ method: "POST" })
