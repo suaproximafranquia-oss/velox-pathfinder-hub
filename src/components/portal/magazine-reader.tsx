@@ -290,7 +290,6 @@ function NavArrow({
 function Side({
   kind,
   spread,
-  edition,
   onDeletePage,
 }: {
   kind: "text" | "media";
