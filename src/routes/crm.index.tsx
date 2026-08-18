@@ -198,6 +198,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       setMessageTick((v) => v + 1);
     });
     void pullLeads().then(refresh).catch(refresh);
+    void import("@/lib/meetings")
+      .then(({ hydrateMeetingsFromServer }) => hydrateMeetingsFromServer())
+      .then(refresh)
+      .catch(refresh);
     // Fonte de verdade no servidor: histórico de mensagens e Timeline
     // chegam do banco, independentemente do computador utilizado.
     void import("@/lib/crm/server-sync")

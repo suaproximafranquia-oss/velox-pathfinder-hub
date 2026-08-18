@@ -11,6 +11,7 @@ import { logAudit } from "@/lib/audit-log";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { notifySync } from "@/lib/sync-bus";
 import { emitEvent } from "@/lib/events/bus";
+import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
 
 export type LeadFicha = {
   name: string;
@@ -81,6 +82,9 @@ export function saveLeadFicha(input: {
     personalized: scope === "green_sales",
   });
   if (!updated) return null;
+  void updateWorkspaceOperational({
+    data: { id: input.investorId, notes: next.notes },
+  }).catch(() => undefined);
 
   // Trocar o responsável é uma transferência oficial: propaga para CRM,
   // base real, Timeline, Auditoria e Alertas — não é só a ficha.

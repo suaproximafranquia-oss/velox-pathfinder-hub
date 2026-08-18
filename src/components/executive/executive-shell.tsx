@@ -59,6 +59,12 @@ export function ExecutiveShell({
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  useEffect(() => {
+    void import("@/lib/meetings")
+      .then(({ hydrateMeetingsFromServer }) => hydrateMeetingsFromServer())
+      .catch(() => undefined);
+  }, [session.userId]);
+
   /**
    * COMANDO 3B §3/§4 — permissões individuais de módulo. Quando OFF, o
    * item some do menu (a rota permanece bloqueada pelo guard próprio).
