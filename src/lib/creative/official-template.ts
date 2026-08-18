@@ -30,6 +30,11 @@ export type TextBlock = {
   baselineY: number;
   /** Altura das maiúsculas, em fração da altura do template. */
   capHeight: number;
+  /**
+   * Altura mínima das maiúsculas. Cidades longas reduzem progressivamente
+   * até este limite — nunca abaixo dele.
+   */
+  capHeightMin?: number;
   maxWidth: number;
   tracking?: number;
   weight: number;
@@ -87,46 +92,41 @@ export type TemplateLayout = {
 export const TEMPLATE_FONT =
   '"Poppins", "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
+/** Laranja OFICIAL amostrado no próprio template (255, 138, 45). */
+export const TEMPLATE_ORANGE = "#FF8A2D";
+
+/**
+ * Modelo A — template oficial do Canva (2025 × 3600).
+ * O PNG é camada fixa e imutável. Somente dois campos são dinâmicos:
+ *  - CAMPO A: cidade principal, centralizada, abaixo de "nossa nova unidade em";
+ *  - CAMPO B: "CIDADE - UF" logo após o texto fixo "agora em" (X inicial fixo).
+ * Todas as medidas foram lidas diretamente do arquivo oficial em uso.
+ */
 const INSTITUTIONAL: TemplateLayout = {
-  photoArea: { y0: 0, y1: 0.6 },
-  badgeArea: { x0: 0.298, x1: 0.722, y0: 0.008, y1: 0.114 },
+  // Janela real da fotografia no arquivo oficial (y 643 → 2465 de 3600).
+  photoArea: { x0: 0, x1: 1, y0: 0.1786, y1: 0.6847 },
+  // CAMPO A — cidade principal. Y fixo, centro fixo, corpo proporcional
+  // com limite máximo (referência TAUBATÉ) e mínimo (cidades longas).
   city: {
     align: "center",
-    baselineY: 0.5141,
-    capHeight: 0.0455,
-    maxWidth: 0.94,
+    baselineY: 0.1694, // y = 610 px
+    capHeight: 0.04167, // máximo  = 150 px
+    capHeightMin: 0.02361, // mínimo = 85 px
+    maxWidth: 0.8,
     weight: 700,
-    color: "#F26A12",
+    color: TEMPLATE_ORANGE,
   },
-  state: {
-    align: "center",
-    baselineY: 0.5729,
-    capHeight: 0.0168,
-    maxWidth: 0.86,
-    tracking: 0.34,
-    weight: 600,
-    color: "#FFFFFF",
-  },
+  // CAMPO B — continuação da linha fixa "agora em" (termina em x = 588 px).
+  // O X inicial é FIXO: a cidade cresce sempre para a direita.
   tail: {
-    // Continuação EXATA da linha "AGORA EM" já impressa no template.
-    // Medido no arquivo oficial em uso: a palavra "EM" termina em
-    // x = 0.2444 e a linha de base do parágrafo está em y = 0.6851.
-    // O prefixo de espaço cria o intervalo tipográfico entre "EM" e a
-    // cidade, mantendo tudo em UMA única linha contínua.
-    x: 0.2560,
-    prefix: " ",
+    x: 0.3062, // x = 620 px
     align: "left",
-    baselineY: 0.6851,
-    capHeight: 0.0131,
-    maxWidth: 0.7,
-    tracking: 0.02,
+    baselineY: 0.67, // y = 2412 px
+    capHeight: 0.01444, // = 52 px (mesma altura do parágrafo fixo)
+    capHeightMin: 0.0105,
+    maxWidth: 0.575,
     weight: 700,
-    // "AGORA EM" já está impresso em laranja no template; a parte dinâmica
-    // (CIDADE - UF) acompanha o branco do restante do texto institucional.
-    color: "#FFFFFF",
-    // Apaga apenas o exemplo laranja impresso após "AGORA EM" (amostra de
-    // cor colhida à direita, longe do texto institucional laranja).
-    clear: { x0: 0.2530, x1: 0.62, y0: 0.6665, y1: 0.6905, sample: "right" },
+    color: TEMPLATE_ORANGE,
   },
 };
 
