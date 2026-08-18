@@ -60,7 +60,7 @@ const mockEdition = {
   ],
 };
 
-export const Route = createFileRoute("/universo/test-revista")({
+export const Route = createFileRoute("/crm/test-revista")({
   component: () => (
     <div className="h-screen w-screen">
       <MagazineReader edition={mockEdition} onBack={() => {}} />

@@ -17,7 +17,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ManualIndexRouteImport } from './routes/manual/index'
 import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as CrmIndexRouteImport } from './routes/crm.index'
-import { Route as UniversoTestRevistaRouteImport } from './routes/universo.test-revista'
 import { Route as SegSlugRouteImport } from './routes/seg.$slug'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
@@ -52,6 +51,7 @@ import { Route as ExecutivoBackupsRouteImport } from './routes/executivo.backups
 import { Route as ExecutivoAlertasRouteImport } from './routes/executivo.alertas'
 import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.administracao'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
+import { Route as CrmTestRevistaRouteImport } from './routes/crm.test-revista'
 import { Route as OauthGoogleConnectorRouteImport } from './routes/oauth.google.$connector'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicCrmSyncRouteImport } from './routes/api/public/crm/sync'
@@ -96,11 +96,6 @@ const CrmIndexRoute = CrmIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => CrmRoute,
-} as any)
-const UniversoTestRevistaRoute = UniversoTestRevistaRouteImport.update({
-  id: '/test-revista',
-  path: '/test-revista',
-  getParentRoute: () => UniversoRoute,
 } as any)
 const SegSlugRoute = SegSlugRouteImport.update({
   id: '/seg/$slug',
@@ -272,6 +267,11 @@ const ESlugRoute = ESlugRouteImport.update({
   path: '/e/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmTestRevistaRoute = CrmTestRevistaRouteImport.update({
+  id: '/test-revista',
+  path: '/test-revista',
+  getParentRoute: () => CrmRoute,
+} as any)
 const OauthGoogleConnectorRoute = OauthGoogleConnectorRouteImport.update({
   id: '/oauth/google/$connector',
   path: '/oauth/google/$connector',
@@ -299,7 +299,8 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/universo': typeof UniversoRouteWithChildren
+  '/universo': typeof UniversoRoute
+  '/crm/test-revista': typeof CrmTestRevistaRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
@@ -334,7 +335,6 @@ export interface FileRoutesByFullPath {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
-  '/universo/test-revista': typeof UniversoTestRevistaRoute
   '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
@@ -347,7 +347,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/universo': typeof UniversoRouteWithChildren
+  '/universo': typeof UniversoRoute
+  '/crm/test-revista': typeof CrmTestRevistaRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
@@ -382,7 +383,6 @@ export interface FileRoutesByTo {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
-  '/universo/test-revista': typeof UniversoTestRevistaRoute
   '/crm': typeof CrmIndexRoute
   '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
@@ -397,7 +397,8 @@ export interface FileRoutesById {
   '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/universo': typeof UniversoRouteWithChildren
+  '/universo': typeof UniversoRoute
+  '/crm/test-revista': typeof CrmTestRevistaRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
@@ -432,7 +433,6 @@ export interface FileRoutesById {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
-  '/universo/test-revista': typeof UniversoTestRevistaRoute
   '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
@@ -449,6 +449,7 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/portal-leads'
     | '/universo'
+    | '/crm/test-revista'
     | '/e/$slug'
     | '/executivo/administracao'
     | '/executivo/alertas'
@@ -483,7 +484,6 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/s/$slug'
     | '/seg/$slug'
-    | '/universo/test-revista'
     | '/crm/'
     | '/executivo/'
     | '/manual/'
@@ -497,6 +497,7 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/portal-leads'
     | '/universo'
+    | '/crm/test-revista'
     | '/e/$slug'
     | '/executivo/administracao'
     | '/executivo/alertas'
@@ -531,7 +532,6 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/s/$slug'
     | '/seg/$slug'
-    | '/universo/test-revista'
     | '/crm'
     | '/executivo'
     | '/manual'
@@ -546,6 +546,7 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/portal-leads'
     | '/universo'
+    | '/crm/test-revista'
     | '/e/$slug'
     | '/executivo/administracao'
     | '/executivo/alertas'
@@ -580,7 +581,6 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/s/$slug'
     | '/seg/$slug'
-    | '/universo/test-revista'
     | '/crm/'
     | '/executivo/'
     | '/manual/'
@@ -595,7 +595,7 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRouteWithChildren
   EntrarRoute: typeof EntrarRoute
   PortalLeadsRoute: typeof PortalLeadsRoute
-  UniversoRoute: typeof UniversoRouteWithChildren
+  UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
   ExecutivoAlertasRoute: typeof ExecutivoAlertasRoute
@@ -695,13 +695,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/crm/'
       preLoaderRoute: typeof CrmIndexRouteImport
       parentRoute: typeof CrmRoute
-    }
-    '/universo/test-revista': {
-      id: '/universo/test-revista'
-      path: '/test-revista'
-      fullPath: '/universo/test-revista'
-      preLoaderRoute: typeof UniversoTestRevistaRouteImport
-      parentRoute: typeof UniversoRoute
     }
     '/seg/$slug': {
       id: '/seg/$slug'
@@ -941,6 +934,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ESlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/test-revista': {
+      id: '/crm/test-revista'
+      path: '/test-revista'
+      fullPath: '/crm/test-revista'
+      preLoaderRoute: typeof CrmTestRevistaRouteImport
+      parentRoute: typeof CrmRoute
+    }
     '/oauth/google/$connector': {
       id: '/oauth/google/$connector'
       path: '/oauth/google/$connector'
@@ -973,33 +973,23 @@ declare module '@tanstack/react-router' {
 }
 
 interface CrmRouteChildren {
+  CrmTestRevistaRoute: typeof CrmTestRevistaRoute
   CrmIndexRoute: typeof CrmIndexRoute
 }
 
 const CrmRouteChildren: CrmRouteChildren = {
+  CrmTestRevistaRoute: CrmTestRevistaRoute,
   CrmIndexRoute: CrmIndexRoute,
 }
 
 const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
-
-interface UniversoRouteChildren {
-  UniversoTestRevistaRoute: typeof UniversoTestRevistaRoute
-}
-
-const UniversoRouteChildren: UniversoRouteChildren = {
-  UniversoTestRevistaRoute: UniversoTestRevistaRoute,
-}
-
-const UniversoRouteWithChildren = UniversoRoute._addFileChildren(
-  UniversoRouteChildren,
-)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CrmRoute: CrmRouteWithChildren,
   EntrarRoute: EntrarRoute,
   PortalLeadsRoute: PortalLeadsRoute,
-  UniversoRoute: UniversoRouteWithChildren,
+  UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
   ExecutivoAlertasRoute: ExecutivoAlertasRoute,
