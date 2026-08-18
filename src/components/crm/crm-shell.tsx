@@ -52,6 +52,8 @@ export function CrmShell({
       markCrmActivity();
       setSession(s);
       setThemeId(getUserCrmTheme(s.userId));
+      // Reabre a sessão real do backend neste navegador antes das leituras.
+      void import("@/lib/auth-bearer").then(({ getAccessToken }) => getAccessToken());
     }
     setReady(true);
   }, []);
