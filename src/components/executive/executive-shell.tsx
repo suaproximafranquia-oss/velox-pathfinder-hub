@@ -60,11 +60,20 @@ export function ExecutiveShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
-    void Promise.all([
-      import("@/lib/meetings").then(({ hydrateMeetingsFromServer }) => hydrateMeetingsFromServer()),
-      import("@/lib/portal-leads-sync").then(({ pullLeads }) => pullLeads()),
-      import("@/lib/crm/server-sync").then(({ hydrateCrmFromServer }) => hydrateCrmFromServer()),
-    ]).catch(() => undefined);
+    void (async () => {
+      // A sessão real do backend é aberta ANTES de qualquer leitura: sem
+      // ela as chamadas seguiriam sem Authorization e a tela cairia no
+      // cache local, divergindo entre navegadores.
+      const { getAccessToken } = await import("@/lib/auth-bearer");
+      await getAccessToken();
+      await Promise.all([
+        import("@/lib/meetings").then(({ hydrateMeetingsFromServer }) =>
+          hydrateMeetingsFromServer(),
+        ),
+        import("@/lib/portal-leads-sync").then(({ pullLeads }) => pullLeads()),
+        import("@/lib/crm/server-sync").then(({ hydrateCrmFromServer }) => hydrateCrmFromServer()),
+      ]).catch(() => undefined);
+    })();
   }, [session.userId]);
 
   /**

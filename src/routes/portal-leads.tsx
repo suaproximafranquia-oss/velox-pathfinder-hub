@@ -45,7 +45,10 @@ function PortalLeadsPage() {
       return;
     }
     setSession(s);
-    setReady(true);
+    // Garante a sessão real do backend antes de qualquer consulta.
+    void import("@/lib/auth-bearer")
+      .then(({ getAccessToken }) => getAccessToken())
+      .finally(() => setReady(true));
   }, [navigate]);
 
   // COMANDO 3B §4/§11 — acesso direto por URL é bloqueado e nenhum dado
