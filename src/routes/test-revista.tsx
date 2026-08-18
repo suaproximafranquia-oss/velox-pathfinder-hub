@@ -5,8 +5,13 @@ const mockEdition = {
   id: "test-edition",
   number: 1,
   title: "Edição de Teste",
+  subtitle: "Referência visual editorial",
+  coverUrl: null,
   startsOn: "2026-08-01",
   endsOn: "2026-08-10",
+  published: true,
+  createdByName: "Test",
+  createdAt: "2026-08-01T00:00:00Z",
   pages: [
     {
       id: "p1",
