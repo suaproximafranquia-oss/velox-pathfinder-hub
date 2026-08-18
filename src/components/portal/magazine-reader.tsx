@@ -26,7 +26,6 @@ import {
 const TURN_MS = 900;
 
 export function MagazineReader({
-  edition,
   onRead,
   onBack,
   backLabel = "Edições",
@@ -104,7 +103,6 @@ export function MagazineReader({
     return (
       <div className="flex h-full flex-col" style={{ background: "radial-gradient(120% 90% at 50% -10%, #16234A 0%, #0B1330 45%, #060B1C 100%)", color: "var(--paper)" }}>
         <ReaderBar
-          edition={edition}
           onBack={onBack}
           backLabel={backLabel}
           full={full}
@@ -123,7 +121,6 @@ export function MagazineReader({
   return (
     <div className="flex h-full flex-col" style={{ background: "radial-gradient(120% 90% at 50% -10%, #16234A 0%, #0B1330 45%, #060B1C 100%)", color: "var(--paper)" }}>
       <ReaderBar
-        edition={edition}
         onBack={onBack}
         backLabel={backLabel}
         full={full}
@@ -140,7 +137,6 @@ export function MagazineReader({
             <Side
               kind={leftFace === "text" ? "media" : "text"}
               spread={spread}
-              edition={edition}
               onDeletePage={onDeletePage}
             />
           </div>
@@ -166,14 +162,12 @@ export function MagazineReader({
                         : "text"
                   }
                   spread={leaf.from}
-                  edition={edition}
                 />
               </div>
               <div className="magazine-leaf-face magazine-leaf-back">
                 <Side
                   kind={leaf.dir === "next" ? leftFace : leftFace === "text" ? "media" : "text"}
                   spread={spread}
-                  edition={edition}
                 />
               </div>
               <div className="magazine-leaf-shade" />
@@ -298,7 +292,6 @@ function Side({
 }: {
   kind: "text" | "media";
   spread: MagazinePage;
-  edition: MagazineEdition;
   onDeletePage?: (page: MagazinePage) => void;
 }) {
   if (kind === "media") {
