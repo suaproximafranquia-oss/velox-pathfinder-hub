@@ -335,7 +335,9 @@ function Side({
       style={{ background: "#ffffff", color: "#101A33" }}
     >
       {spread.eyebrow && <span className="portal-eyebrow">{spread.eyebrow}</span>}
-      <h2 className="portal-serif mt-3 text-3xl md:text-4xl">{spread.title}</h2>
+      <h2 className="portal-serif mt-3 text-3xl md:text-4xl" style={{ color: "#101A33" }}>
+        {spread.title}
+      </h2>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-[color:var(--muted-foreground)] md:text-base">
         {spread.body
           .split(/\n{2,}/)
