@@ -12,6 +12,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildWelcomeMessage, loadSettings } from "@/server/crm/automation.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
+import { cadenceEligibility } from "@/lib/crm/cutover";
 
 export type FirstContactInput = {
   leadId: string;
@@ -21,6 +22,8 @@ export type FirstContactInput = {
   ownerId: string | null;
   executiveName?: string | null;
   executiveSlug?: string | null;
+  /** Entrada REAL do lead na origem — decide histórico x novo. */
+  entryAt?: string | null;
 };
 
 export type FirstContactResult =
@@ -30,6 +33,9 @@ export type FirstContactResult =
 export async function registerFirstContact(
   input: FirstContactInput,
 ): Promise<FirstContactResult> {
+  // Lead histórico nunca inicia primeiro contato, mesmo reimportado.
+  const eligibility = cadenceEligibility({ lastEntryAt: input.entryAt ?? null });
+  if (!eligibility.eligible) return { registered: false, reason: eligibility.reason };
   const messageId = `msg_e0_${input.leadId}`;
   const { data: existing } = await supabaseAdmin
     .from("crm_messages")
