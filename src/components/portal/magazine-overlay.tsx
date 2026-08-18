@@ -69,14 +69,21 @@ export function MagazineOverlay({
           backLabel="Edições"
         />
       ) : (
-        <div className="flex h-full flex-col overflow-y-auto" style={{ background: "var(--paper)" }}>
+        <div
+          className="flex h-full flex-col overflow-y-auto"
+          style={{
+            background:
+              "radial-gradient(120% 90% at 50% -10%, #16234A 0%, #0B1330 45%, #060B1C 100%)",
+            color: "var(--paper)",
+          }}
+        >
           {!editions && !error && (
-            <div className="flex h-full items-center justify-center gap-3 text-sm text-[color:var(--muted-foreground)]">
+            <div className="flex h-full items-center justify-center gap-3 text-sm opacity-70">
               <Loader2 className="h-4 w-4 animate-spin" /> Abrindo a Revista Velox...
             </div>
           )}
           {error && (
-            <div className="flex h-full items-center justify-center px-8 text-center text-sm text-[color:var(--muted-foreground)]">
+            <div className="flex h-full items-center justify-center px-8 text-center text-sm opacity-70">
               {error}
             </div>
           )}
@@ -84,7 +91,7 @@ export function MagazineOverlay({
             <div className="flex h-full flex-col items-center justify-center gap-4 px-10 text-center">
               <BookMarked className="h-8 w-8" style={{ color: "var(--brand-orange)" }} />
               <h2 className="portal-serif text-3xl">A primeira edição está sendo preparada.</h2>
-              <p className="max-w-md text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+              <p className="max-w-md text-sm leading-relaxed opacity-70">
                 A Revista Velox reúne bastidores, comunicados e histórias da rede. Assim que a
                 edição for publicada, ela aparece aqui.
               </p>
@@ -97,7 +104,7 @@ export function MagazineOverlay({
                 <BookMarked className="h-6 w-6 shrink-0" style={{ color: "var(--brand-orange)" }} />
                 <div className="min-w-0">
                   <h2 className="portal-serif text-3xl md:text-4xl">Revista Velox</h2>
-                  <p className="text-xs text-[color:var(--muted-foreground)]">
+                  <p className="text-xs opacity-65">
                     Conteúdo estratégico para os investidores da Velox
                   </p>
                 </div>
@@ -113,7 +120,7 @@ export function MagazineOverlay({
                 ))}
               </div>
 
-              <p className="mt-8 text-center text-xs text-[color:var(--muted-foreground)]">
+              <p className="mt-8 text-center text-xs opacity-55">
                 Clique em uma edição para iniciar a leitura
               </p>
             </div>
