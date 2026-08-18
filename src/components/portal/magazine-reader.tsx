@@ -1,14 +1,9 @@
 /**
- * REVISTA VELOX — leitor de página dupla.
+ * REVISTA VELOX — leitor digital editorial de páginas planas.
  *
- * Componente único usado tanto pelo Portal do Investidor quanto pela
- * pré-visualização da Gestão. Reproduz a sensação de uma revista física
- * aberta: perspectiva, profundidade, vinco central, espessura das folhas
- * e uma FOLHA que realmente atravessa o eixo e completa a virada.
- *
- * Regra editorial: cada conteúdo é um PAR indivisível (texto + mídia).
- * A cada conteúdo os lados se alternam. Não existe página "Capa": a capa
- * é o card da edição na banca — aqui a leitura começa no conteúdo real.
+ * Cada conteúdo é um PAR indivisível (texto + mídia). A cada par os lados
+ * se alternam. A navegação é simples: o par atual é substituído pelo próximo
+ * com uma transição discreta (fade + leve deslocamento), sem efeito de virada.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Trash2 } from "lucide-react";
@@ -22,8 +17,7 @@ import {
   type MagazinePage,
 } from "@/lib/magazine/edition";
 
-/** Duração da virada — leve o bastante para não pesar em mobile. */
-const TURN_MS = 1600;
+const TRANSITION_MS = 320;
 
 export function MagazineReader({
   edition,
@@ -41,14 +35,14 @@ export function MagazineReader({
 }) {
   const pages = useMemo(() => spreadsOf(edition.pages), [edition.pages]);
   const [index, setIndex] = useState(0);
-  /** Folha em movimento: direção + conteúdo das faces. */
-  const [leaf, setLeaf] = useState<{ dir: "next" | "prev"; from: MagazinePage } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [transition, setTransition] = useState<{ dir: "next" | "prev"; active: boolean } | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stage = useRef<HTMLDivElement | null>(null);
   const [full, setFull] = useState(false);
 
   useEffect(() => setIndex(0), [edition.id]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
+
   /** Recolhe elementos externos enquanto a revista está aberta. */
   useEffect(() => {
     setReaderFocus(true);
@@ -57,22 +51,23 @@ export function MagazineReader({
 
   const go = useCallback(
     (delta: number) => {
-      if (timer.current) return; // uma virada por vez: nunca volta ao estado anterior
-      setIndex((current) => {
-        const next = current + delta;
-        if (next < 0 || next > pages.length - 1) return current;
-        const from = pages[current];
-        if (from) setLeaf({ dir: delta > 0 ? "next" : "prev", from });
-        timer.current = setTimeout(() => {
-          timer.current = null;
-          setLeaf(null);
-        }, TURN_MS);
+      if (transition?.active) return;
+      const next = index + delta;
+      if (next < 0 || next > pages.length - 1) return;
+      const dir = delta > 0 ? "next" : "prev";
+
+      setTransition({ dir, active: true });
+      timeoutRef.current = setTimeout(() => {
+        setIndex(next);
         const target = pages[next];
         if (target && onRead) onRead(target.title);
-        return next;
-      });
+        requestAnimationFrame(() => {
+          setTransition({ dir, active: false });
+          timeoutRef.current = setTimeout(() => setTransition(null), TRANSITION_MS);
+        });
+      }, TRANSITION_MS / 2);
     },
-    [pages, onRead],
+    [index, pages, onRead, transition],
   );
 
   useEffect(() => {
@@ -120,6 +115,10 @@ export function MagazineReader({
   const inverted = mediaOnLeft(spread.position);
   const leftFace = inverted ? "media" : "text";
 
+  const transitionClass = transition?.active
+    ? `magazine-page-pair--exit magazine-page-pair--${transition.dir}`
+    : "";
+
   return (
     <div className="flex h-full flex-col" style={{ background: "radial-gradient(120% 90% at 50% -10%, #16234A 0%, #0B1330 45%, #060B1C 100%)", color: "var(--paper)" }}>
       <ReaderBar
@@ -135,7 +134,7 @@ export function MagazineReader({
         className="magazine-stage relative flex-1 overflow-hidden px-3 py-4 md:px-16 md:py-8"
       >
         <div className="magazine-book relative mx-auto h-full w-full max-w-6xl overflow-hidden rounded-[8px]">
-          <div className="grid h-full grid-cols-1 grid-rows-[auto_auto] overflow-y-auto md:grid-cols-2 md:grid-rows-1 md:overflow-hidden">
+          <div className={`magazine-page-pair grid h-full grid-cols-1 grid-rows-[auto_auto] overflow-y-auto md:grid-cols-2 md:grid-rows-1 md:overflow-hidden ${transitionClass}`}>
             <Side kind={leftFace} spread={spread} onDeletePage={onDeletePage} />
             <Side
               kind={leftFace === "text" ? "media" : "text"}
@@ -143,53 +142,6 @@ export function MagazineReader({
               onDeletePage={onDeletePage}
             />
           </div>
-
-          {/* Folha em virada — atravessa o eixo central e conclui o giro. */}
-          {leaf && (
-            <div
-              aria-hidden
-              className={
-                "magazine-leaf pointer-events-none absolute inset-y-0 hidden md:block " +
-                (leaf.dir === "next" ? "magazine-leaf--next right-0" : "magazine-leaf--prev left-0")
-              }
-            >
-              <div className="magazine-leaf-face magazine-leaf-front">
-                <Side
-                  kind={
-                    leaf.dir === "next"
-                      ? mediaOnLeft(leaf.from.position)
-                        ? "text"
-                        : "media"
-                      : mediaOnLeft(leaf.from.position)
-                        ? "media"
-                        : "text"
-                  }
-                  spread={leaf.from}
-                />
-              </div>
-              <div className="magazine-leaf-face magazine-leaf-back">
-                <Side
-                  kind={leaf.dir === "next" ? leftFace : leftFace === "text" ? "media" : "text"}
-                  spread={spread}
-                />
-              </div>
-              <div className="magazine-leaf-shade" />
-            </div>
-          )}
-
-          {/* Vinco central e espessura do bloco de folhas. */}
-          <div
-            aria-hidden
-            className="magazine-fold pointer-events-none absolute inset-y-0 left-1/2 hidden w-16 -translate-x-1/2 md:block"
-          />
-          <div
-            aria-hidden
-            className="magazine-edge-left pointer-events-none absolute inset-y-0 left-0 hidden w-3 md:block"
-          />
-          <div
-            aria-hidden
-            className="magazine-edge-right pointer-events-none absolute inset-y-0 right-0 hidden w-3 md:block"
-          />
         </div>
 
         {/* Navegação flutuante — sempre acima da revista, nunca coberta. */}
@@ -286,7 +238,7 @@ function NavArrow({
   );
 }
 
-/** Uma página física: lado de texto ou lado de mídia. */
+/** Uma página: lado de texto ou lado de mídia. */
 function Side({
   kind,
   spread,
@@ -312,7 +264,6 @@ function Side({
         {spread.mediaKind === "video" && spread.mediaUrl && (
           <video src={spread.mediaUrl} controls playsInline className="h-full w-full object-cover" />
         )}
-        {/* Sem mídia: a folha permanece branca — nunca navy. */}
         {spread.caption && (
           <span
             className="absolute inset-x-0 bottom-0 px-6 py-4 text-xs"
