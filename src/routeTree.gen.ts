@@ -40,6 +40,7 @@ import { Route as ExecutivoHomologacaoRouteImport } from './routes/executivo.hom
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoGreensalesSyncRouteImport } from './routes/executivo.greensales-sync'
 import { Route as ExecutivoGreensalesRouteImport } from './routes/executivo.greensales'
+import { Route as ExecutivoFooRouteImport } from './routes/executivo.foo'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
 import { Route as ExecutivoCriativaRouteImport } from './routes/executivo.criativa'
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
@@ -213,6 +214,11 @@ const ExecutivoGreensalesRoute = ExecutivoGreensalesRouteImport.update({
   path: '/executivo/greensales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExecutivoFooRoute = ExecutivoFooRouteImport.update({
+  id: '/executivo/foo',
+  path: '/executivo/foo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutivoDashboardRoute = ExecutivoDashboardRouteImport.update({
   id: '/executivo/dashboard',
   path: '/executivo/dashboard',
@@ -319,6 +325,7 @@ export interface FileRoutesByFullPath {
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
+  '/executivo/foo': typeof ExecutivoFooRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -368,6 +375,7 @@ export interface FileRoutesByTo {
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
+  '/executivo/foo': typeof ExecutivoFooRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -419,6 +427,7 @@ export interface FileRoutesById {
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
+  '/executivo/foo': typeof ExecutivoFooRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -471,6 +480,7 @@ export interface FileRouteTypes {
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
+    | '/executivo/foo'
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
@@ -520,6 +530,7 @@ export interface FileRouteTypes {
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
+    | '/executivo/foo'
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
@@ -570,6 +581,7 @@ export interface FileRouteTypes {
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
+    | '/executivo/foo'
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
@@ -621,6 +633,7 @@ export interface RootRouteChildren {
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoCriativaRoute: typeof ExecutivoCriativaRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
+  ExecutivoFooRoute: typeof ExecutivoFooRoute
   ExecutivoGreensalesRoute: typeof ExecutivoGreensalesRoute
   ExecutivoGreensalesSyncRoute: typeof ExecutivoGreensalesSyncRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
@@ -871,6 +884,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoGreensalesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/executivo/foo': {
+      id: '/executivo/foo'
+      path: '/executivo/foo'
+      fullPath: '/executivo/foo'
+      preLoaderRoute: typeof ExecutivoFooRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executivo/dashboard': {
       id: '/executivo/dashboard'
       path: '/executivo/dashboard'
@@ -1022,6 +1042,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoCriativaRoute: ExecutivoCriativaRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
+  ExecutivoFooRoute: ExecutivoFooRoute,
   ExecutivoGreensalesRoute: ExecutivoGreensalesRoute,
   ExecutivoGreensalesSyncRoute: ExecutivoGreensalesSyncRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
@@ -1055,3 +1076,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
