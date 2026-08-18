@@ -26,7 +26,6 @@ import { moduleForPath } from "../lib/portal-modules";
 import { writeEntryContext } from "../lib/portal-entry";
 import { WhatsAppFloating } from "../components/shared/whatsapp-floating";
 import { JourneyTracker } from "../components/journey/journey-tracker";
-import { enforcePhysicalReset } from "../lib/homologation-reset";
 import { HomologationGate } from "../components/portal/homologation-gate";
 
 function NotFoundComponent() {
@@ -179,7 +178,6 @@ function RootComponent() {
 }
 
 function RootRoutes() {
-  enforcePhysicalReset();
   const { queryClient } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
