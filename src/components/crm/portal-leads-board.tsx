@@ -272,6 +272,25 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     void fetchLead({ data: { id: selectedId } }).then((res) => setEvents(res.events));
   }, [fetchLead, selectedId]);
 
+  /**
+   * Espelho do agendador: o quadro não sincroniza, apenas percebe quando o
+   * servidor concluiu uma sincronização automática e relê o banco.
+   */
+  const lastRunId = runs[0]?.id ?? null;
+  useEffect(() => {
+    if (!allowed) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void fetchRuns({})
+        .then((history) => {
+          const latest = history[0]?.id ?? null;
+          if (latest && latest !== lastRunId) void load();
+        })
+        .catch(() => undefined);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [allowed, fetchRuns, lastRunId, load]);
+
   const selected = useMemo(
     () => leads.find((l) => l.id === selectedId) ?? null,
     [leads, selectedId],
