@@ -13,6 +13,7 @@ import { CRM_TEMPLATES, getCrmTemplate, renderCrmTemplate } from "@/lib/crm/temp
 import { recordEvent, type CrmLeadRow } from "@/server/crm/lead-service.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { engineOwnsFirstContact } from "@/lib/relationship/config";
+import { firstName, looksLikeName, NEUTRAL_TREATMENT } from "@/lib/relationship/names";
 
 export type AutomationSettings = {
   syncIntervalMinutes: number;
@@ -47,7 +48,7 @@ export async function loadSettings(): Promise<AutomationSettings> {
  */
 export function buildWelcomeMessage(
   settings: AutomationSettings,
-  _leadName?: string,
+  leadName?: string,
   responsible?: { name?: string | null; slug?: string | null } | null,
 ): { body: string; templateId: string; link: string } {
   const executive = responsible?.slug
@@ -64,7 +65,11 @@ export function buildWelcomeMessage(
   const context = { executiveName: executive?.name ?? "", portalLink: link };
   const template = getCrmTemplate(settings.welcomeTemplateId) ?? CRM_TEMPLATES[0]!;
   const raw = settings.welcomeBody?.trim() ? settings.welcomeBody : template.body;
-  const body = renderCrmTemplate(raw, context);
+  const rendered = renderCrmTemplate(raw, context);
+  // Saudação: existindo nome válido, ele é usado. "caro investidor" é
+  // reservado a quem realmente não tem nome utilizável no cadastro.
+  const treatment = looksLikeName(leadName) ? firstName(leadName) : NEUTRAL_TREATMENT;
+  const body = rendered.replace(NEUTRAL_TREATMENT, treatment);
   const withLink = body.includes(link) ? body : `${body}\n\n${link}`;
   return { body: withLink, templateId: template.id, link };
 }

@@ -1,74 +1,41 @@
 /**
- * DEF 2.4.19 §12 / DEF 2.4.20 §13 — RESET do ambiente de homologação.
+ * RESET DE HOMOLOGAÇÃO — ESCOPO DEFINITIVAMENTE RESTRITO.
  *
- * Remove definitivamente dados operacionais (leads,
- * conversas, alertas, auditorias, reuniões, cards, timeline, eventos
- * simulados, jornadas e sessões do Portal).
+ * NÃO EXISTE MAIS RESET GLOBAL. Esta rotina limpa apenas o cache LOCAL
+ * de artefatos de homologação/simulação do navegador. Ela NUNCA toca:
+ * Portal dos Leads, espelho do GreenSales, leads e jornadas reais,
+ * conversas do CRM, Biblioteca de Conteúdos, usuários, permissões,
+ * templates, integrações, backups ou qualquer dado do servidor.
  *
- * Preserva integralmente: usuários, permissões, templates, estrutura,
- * banco e integrações.
+ * O banco de dados é a fonte da verdade e permanece intocado.
  */
 import { notifySync } from "@/lib/sync-bus";
 
-const RESET_VERSION_KEY = "velox:physical-reset:operacional.1";
+/**
+ * Únicas chaves removíveis: artefatos locais de homologação/simulação.
+ * Qualquer chave fora desta lista é permanente para esta rotina.
+ */
+const HOMOLOGATION_KEYS = [
+  "atlas:recognition:homolog:v1",
+  "velox:simulator:history:v1",
+  "atlas.creative.history.v1",
+] as const;
 
-/** Chaves operacionais removidas pelo RESET. */
-const OPERATIONAL_KEYS = [
-  // Leads, jornada e portal
+/**
+ * Dados reais jamais tocados por qualquer rotina de reset. Lista
+ * explícita para auditoria — inclui o espelho do Portal dos Leads.
+ */
+export const PRESERVED_KEYS = [
   "velox:leads:v1",
-  "velox:visitor:identity:v1",
-  "velox:visitor:id",
+  "velox:journey:v1",
   "velox:portal:session:v1",
   "velox:portal:identities:v1",
-  "velox:portal:entry-context:v1",
-  "velox:portal:whatsapp-verification:v1",
-  "velox:scheduling-draft:v1",
-  "velox:journey:v1",
-  "velox:manual:v1",
-  "velox:interests-profile:v1",
-  "velox:simulations:v1",
-  "velox:lead-state:v2",
-  // CRM e relacionamento
   "crm.commercial.v1",
   "crm.messages.v1",
   "crm.timeline.v1",
   "crm.ownership.v1",
-  "crm.intake.v1",
-  "crm.private-leads.v1",
-  "crm.portal-release.v1",
-  "crm.backup.access.v1",
-  "crm.backup.grants.v1",
-  "velox:crm:relationship-state:v1",
-  "velox:crm:whatsapp-presence:v1",
-  // Centrais
-  "atlas.audit.log.v1",
-  "atlas.audit.seeded.v1",
-  "atlas:workspace-alerts:v1",
-  "atlas:workspace-alerts-read:v1",
-  "atlas:investor-last-seen:v1",
-  "atlas:brain:alerts:v3",
-  "velox:notifications:v1",
-  "velox:meetings:v1",
-  "velox:google-calendar:v2",
-  "velox:events:v1",
-  "velox:investor-comments:v1",
-  "atlas:recognition:events:v1",
-  "atlas:recognition:homolog:v1",
-  "atlas:recognition:scheduled:v1",
-  "atlas.creative.history.v1",
-  // Backups, KPI e demais registros temporários de homologação
   "crm.backups.v1",
   "atlas:backups:v1",
-  "velox:simulator:history:v1",
-  "velox:portal:activity:v1",
-  "velox:scheduling:v1",
-  "atlas:kpi:context:v2",
-  "crm:lastActivity:v1",
-  "velox:sync:ping",
-] as const;
-
-/** Chaves jamais tocadas — estrutura, usuários, permissões e integrações. */
-export const PRESERVED_KEYS = [
   "atlas:session:v3",
   "atlas:users:v3",
   "atlas:activeRole:v1",
@@ -85,43 +52,15 @@ export type ResetSummary = { removed: string[]; preserved: number };
 export function resetHomologationData(): ResetSummary {
   if (typeof window === "undefined") return { removed: [], preserved: 0 };
   const removed: string[] = [];
-  for (const key of OPERATIONAL_KEYS) {
+  for (const key of HOMOLOGATION_KEYS) {
     if (window.localStorage.getItem(key) !== null) {
       window.localStorage.removeItem(key);
       removed.push(key);
     }
   }
-  // Registros operacionais prefixados também são removidos.
-  for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
-    const key = window.localStorage.key(i);
-    if (!key) continue;
-    if (
-      key.startsWith("atlas:kpi:v1:") ||
-      key.startsWith("crm.backup") ||
-      key.startsWith("velox:meeting-provider-default:v1:")
-    ) {
-      window.localStorage.removeItem(key);
-      removed.push(key);
-    }
-  }
-  window.sessionStorage.removeItem("velox:portal:entry-context:v1");
-  notifySync("commercial");
   notifySync("audit");
   return {
     removed,
     preserved: PRESERVED_KEYS.filter((k) => window.localStorage.getItem(k) !== null).length,
   };
-}
-
-/**
- * Executa o RESET físico uma única vez em cada navegador. O reset
- * operacional apaga o cache local de leads, conversas e jornadas em
- * QUALQUER ambiente — o banco é a única fonte da verdade e já foi
- * limpo. Estrutura, usuários, permissões e integrações são preservados.
- */
-export function enforcePhysicalReset(): void {
-  if (typeof window === "undefined") return;
-  if (window.localStorage.getItem(RESET_VERSION_KEY) === "done") return;
-  resetHomologationData();
-  window.localStorage.setItem(RESET_VERSION_KEY, "done");
 }

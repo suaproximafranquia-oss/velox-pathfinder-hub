@@ -432,16 +432,16 @@ function ResetCardBody() {
           <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--destructive)]">
             Homologação Release 2.4
           </p>
-          <h2 className="font-display text-xl mt-1">RESET do ambiente de homologação</h2>
+          <h2 className="font-display text-xl mt-1">Limpar cache local de homologação</h2>
           <p className="text-sm text-[color:var(--muted-foreground)] mt-2 leading-relaxed">
-            Remove definitivamente Leads, conversas, alertas, auditorias, reuniões, cards, timeline,
-            jornadas e eventos simulados. Usuários, permissões, templates, estrutura, banco e
-            integrações permanecem intactos. A partir do RESET a homologação utiliza exclusivamente
-            dados reais.
+            Não existe reset global. Esta ação limpa apenas artefatos locais de simulação deste
+            navegador. Portal dos Leads, GreenSales espelhado, leads e jornadas reais, conversas do
+            CRM, Biblioteca de Conteúdos, usuários, permissões, templates, integrações e backups
+            permanecem intactos — o banco de dados não é tocado.
           </p>
           {done !== null ? (
             <p className="mt-3 text-sm text-[color:var(--gold)]">
-              RESET concluído — {done} bases operacionais limpas. Recarregando…
+              Cache local de homologação limpo — {done} registro(s). Recarregando…
             </p>
           ) : confirming ? (
             <div className="mt-4 flex flex-wrap gap-3">
@@ -450,7 +450,7 @@ function ResetCardBody() {
                 onClick={run}
                 className="cursor-pointer rounded-xl border border-[color:var(--destructive)]/50 bg-[color:var(--destructive)]/15 px-4 py-2 text-sm transition hover:scale-[1.02]"
               >
-                Confirmar RESET definitivo
+                Confirmar limpeza do cache local
               </button>
               <button
                 type="button"
@@ -466,7 +466,7 @@ function ResetCardBody() {
               onClick={() => setConfirming(true)}
               className="mt-4 cursor-pointer rounded-xl border border-[color:var(--destructive)]/40 px-4 py-2 text-sm transition hover:scale-[1.02] hover:bg-[color:var(--destructive)]/10"
             >
-              Executar RESET
+              Limpar cache local
             </button>
           )}
         </div>
