@@ -79,6 +79,25 @@ type RemoteLead = {
   journey_last_event_at?: string | null;
   portal_released_at?: string | null;
   whatsapp_confirmed_at?: string | null;
+  notes?: string | null;
+  viewed_at?: string | null;
+  closed_at?: string | null;
+  commercial_state?: "journey" | "active" | "archived" | null;
+  journey_started_at?: string | null;
+  relationship_started_at?: string | null;
+  relationship_started_by?: string | null;
+  relationship_started_by_name?: string | null;
+  relationship_source?: "executive" | "investor_request" | null;
+  archived_at?: string | null;
+  archived_by?: string | null;
+  restored_at?: string | null;
+  restored_by?: string | null;
+  is_private?: boolean | null;
+  ownership_claimed_at?: string | null;
+  ownership_origin?: string | null;
+  last_outbound_at?: string | null;
+  last_inbound_at?: string | null;
+  conversation_window_opened_at?: string | null;
 };
 
 function toLocal(row: RemoteLead): LeadRecord {
@@ -102,6 +121,25 @@ function toLocal(row: RemoteLead): LeadRecord {
     portalReleasedAt: row.portal_released_at ?? null,
     whatsappConfirmedAt: row.whatsapp_confirmed_at ?? null,
     lastActivityAt: row.last_activity_at ?? null,
+    notes: row.notes ?? "",
+    viewedAt: row.viewed_at ?? null,
+    closedAt: row.closed_at ?? null,
+    commercialState: row.commercial_state ?? "active",
+    journeyStartedAt: row.journey_started_at ?? null,
+    relationshipStartedAt: row.relationship_started_at ?? null,
+    relationshipStartedBy: row.relationship_started_by ?? null,
+    relationshipStartedByName: row.relationship_started_by_name ?? null,
+    relationshipSource: row.relationship_source ?? null,
+    archivedAt: row.archived_at ?? null,
+    archivedBy: row.archived_by ?? null,
+    restoredAt: row.restored_at ?? null,
+    restoredBy: row.restored_by ?? null,
+    isPrivate: row.is_private ?? false,
+    ownershipClaimedAt: row.ownership_claimed_at ?? null,
+    ownershipOrigin: row.ownership_origin ?? null,
+    lastOutboundAt: row.last_outbound_at ?? null,
+    lastInboundAt: row.last_inbound_at ?? null,
+    conversationWindowOpenedAt: row.conversation_window_opened_at ?? null,
   };
 }
 
@@ -112,17 +150,9 @@ function toLocal(row: RemoteLead): LeadRecord {
 export async function pullLeads(): Promise<number> {
   const rows = (await listPortalLeads()) as unknown as RemoteLead[];
   const remote = rows.map(toLocal);
-  const remoteIds = new Set(remote.map((l) => l.id));
-  const local = loadLeads();
-  const localById = new Map(local.map((l) => [l.id, l]));
-  // DEF 2.5.3 §6 — campos operacionais mantidos apenas no Workspace
-  // (ex.: Notas do Executivo) não podem ser perdidos ao espelhar a base.
-  const merged = remote.map((l) => {
-    const notes = localById.get(l.id)?.notes;
-    return notes ? { ...l, notes } : l;
-  });
-  const localOnly = local.filter((l) => !remoteIds.has(l.id));
-  replaceLeads([...merged, ...localOnly]);
+  // Substituição autoritativa: registros ausentes no servidor não podem ser
+  // restaurados por outro navegador. O armazenamento local é apenas cache.
+  replaceLeads(remote);
   return remote.length;
 }
 

@@ -44,8 +44,12 @@ export type LeadLike = {
   external_source?: string | null;
 };
 
+/** Lead real de validação preservado integralmente por chave canônica. */
+export const PROTECTED_VALIDATION_LEAD_IDS = new Set(["ld_msy1onox18t1"]);
+
 /** Registro protegido: origem real (GreenSales/Portal dos Leads). */
 export function isProtectedLead(lead: LeadLike): boolean {
+  if (PROTECTED_VALIDATION_LEAD_IDS.has(lead.id)) return true;
   if (/^gs_/i.test(lead.id)) return true;
   if ((lead.external_source ?? "").trim() !== "") return true;
   if (/green\s*sales/i.test(lead.origin ?? "")) return true;

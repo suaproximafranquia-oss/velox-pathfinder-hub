@@ -63,28 +63,30 @@ type Entry = {
 
 type StateMap = Record<string, Entry>;
 
-const KEY = "velox:crm:relationship-state:v1";
 const CONFIG_KEY = "velox:crm:relationship-inactivity-days:v1";
 /** DF 2.4.7 — inatividade oficial: 10 dias sem interação. */
 const DEFAULT_INACTIVITY_DAYS = 10;
 
+import { loadLeads, patchCachedLead } from "@/lib/leads";
+import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
+
 function read(): StateMap {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    const parsed = raw ? (JSON.parse(raw) as StateMap) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  return Object.fromEntries(loadLeads().map((lead) => [lead.id, {
+    lastOutboundAt: lead.lastOutboundAt ?? undefined,
+    lastInboundAt: lead.lastInboundAt ?? undefined,
+    lastWindowOpenedAt: lead.conversationWindowOpenedAt ?? undefined,
+  }]));
 }
 
 function write(map: StateMap) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(map));
-  } catch {
-    /* noop */
+  for (const [id, entry] of Object.entries(map)) {
+    const patch = {
+      lastOutboundAt: entry.lastOutboundAt ?? null,
+      lastInboundAt: entry.lastInboundAt ?? null,
+      conversationWindowOpenedAt: entry.lastWindowOpenedAt ?? null,
+    };
+    patchCachedLead(id, patch);
+    void updateWorkspaceOperational({ data: { id, ...patch } }).catch(() => undefined);
   }
 }
 

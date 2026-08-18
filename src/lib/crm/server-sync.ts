@@ -8,14 +8,10 @@
  * nada é duplicado (o identificador do registro é a chave).
  */
 import { pushCrmRecords, pullCrmRecords, pushPortalCrmRecords } from "@/lib/crm/crm-sync.functions";
-import { mergeRemoteMessages, readAllMessages, type CrmMessage } from "@/lib/crm/messages";
-import { mergeRemoteTimeline, readAllTimeline, type CrmTimelineEntry } from "@/lib/crm/timeline";
+import { mergeRemoteMessages, type CrmMessage } from "@/lib/crm/messages";
+import { mergeRemoteTimeline, type CrmTimelineEntry } from "@/lib/crm/timeline";
 
 type Batch = { messages: CrmMessage[]; timeline: CrmTimelineEntry[] };
-
-const pendingMessages: CrmMessage[] = [];
-const pendingTimeline: CrmTimelineEntry[] = [];
-let flushTimer: number | null = null;
 
 async function send(batch: Batch): Promise<void> {
   try {
@@ -42,28 +38,18 @@ export function mirrorCrmRecords(input: {
   timeline?: CrmTimelineEntry[];
 }): void {
   if (typeof window === "undefined") return;
-  if (input.messages?.length) pendingMessages.push(...input.messages);
-  if (input.timeline?.length) pendingTimeline.push(...input.timeline);
-  if (flushTimer !== null) return;
-  flushTimer = window.setTimeout(() => {
-    flushTimer = null;
-    const batch: Batch = {
-      messages: pendingMessages.splice(0, pendingMessages.length),
-      timeline: pendingTimeline.splice(0, pendingTimeline.length),
-    };
-    if (!batch.messages.length && !batch.timeline.length) return;
-    // Agrupado por investidor: a via do visitante só aceita o próprio id.
-    const ids = new Set([
-      ...batch.messages.map((m) => m.investorId),
-      ...batch.timeline.map((t) => t.investorId),
-    ]);
-    for (const id of ids) {
-      void send({
-        messages: batch.messages.filter((m) => m.investorId === id),
-        timeline: batch.timeline.filter((t) => t.investorId === id),
-      });
-    }
-  }, 800);
+  const batch: Batch = { messages: input.messages ?? [], timeline: input.timeline ?? [] };
+  if (!batch.messages.length && !batch.timeline.length) return;
+  const ids = new Set([
+    ...batch.messages.map((message) => message.investorId),
+    ...batch.timeline.map((entry) => entry.investorId),
+  ]);
+  for (const id of ids) {
+    void send({
+      messages: batch.messages.filter((message) => message.investorId === id),
+      timeline: batch.timeline.filter((entry) => entry.investorId === id),
+    });
+  }
 }
 
 let hydrating: Promise<boolean> | null = null;
@@ -99,25 +85,8 @@ export function hydrateCrmFromServer(): Promise<boolean> {
         at: t.at,
       }));
 
-      const knownMessages = new Set(remoteMessages.map((m) => m.id));
-      const knownTimeline = new Set(remoteTimeline.map((t) => t.id));
-      const localOnlyMessages = readAllMessages().filter((m) => !knownMessages.has(m.id));
-      const localOnlyTimeline = readAllTimeline().filter((t) => !knownTimeline.has(t.id));
-
       mergeRemoteMessages(remoteMessages);
       mergeRemoteTimeline(remoteTimeline);
-
-      // Preserva o histórico anterior: sobe em lotes para a base oficial.
-      for (let i = 0; i < localOnlyMessages.length; i += 200) {
-        await pushCrmRecords({
-          data: { messages: localOnlyMessages.slice(i, i + 200), timeline: [] },
-        }).catch(() => null);
-      }
-      for (let i = 0; i < localOnlyTimeline.length; i += 200) {
-        await pushCrmRecords({
-          data: { messages: [], timeline: localOnlyTimeline.slice(i, i + 200) },
-        }).catch(() => null);
-      }
       return true;
     } catch {
       return false;

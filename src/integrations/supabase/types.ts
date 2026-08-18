@@ -1164,8 +1164,13 @@ export type Database = {
       }
       portal_leads: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           campaign: string | null
           city: string
+          closed_at: string | null
+          commercial_state: string
+          conversation_window_opened_at: string | null
           created_at: string
           device: string | null
           email: string
@@ -1175,6 +1180,7 @@ export type Database = {
           external_source: string | null
           external_updated_at: string | null
           id: string
+          is_private: boolean
           journey: Json
           journey_chapter: string | null
           journey_completed_at: string | null
@@ -1184,23 +1190,40 @@ export type Database = {
           journey_stage: string | null
           journey_started_at: string | null
           last_activity_at: string
+          last_inbound_at: string | null
+          last_outbound_at: string | null
           material: string
           name: string
+          notes: string
           origin: string
+          ownership_claimed_at: string | null
+          ownership_origin: string | null
           personalized: boolean
           portal_release_reason: string | null
           portal_released_at: string | null
           portal_released_by: string | null
+          relationship_source: string | null
+          relationship_started_at: string | null
+          relationship_started_by: string | null
+          relationship_started_by_name: string | null
           responsible_executive_id: string | null
           responsible_executive_slug: string | null
+          restored_at: string | null
+          restored_by: string | null
           scope: string
           updated_at: string
+          viewed_at: string | null
           whatsapp: string
           whatsapp_confirmed_at: string | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           campaign?: string | null
           city?: string
+          closed_at?: string | null
+          commercial_state?: string
+          conversation_window_opened_at?: string | null
           created_at?: string
           device?: string | null
           email: string
@@ -1210,6 +1233,7 @@ export type Database = {
           external_source?: string | null
           external_updated_at?: string | null
           id: string
+          is_private?: boolean
           journey?: Json
           journey_chapter?: string | null
           journey_completed_at?: string | null
@@ -1219,23 +1243,40 @@ export type Database = {
           journey_stage?: string | null
           journey_started_at?: string | null
           last_activity_at?: string
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
           material?: string
           name: string
+          notes?: string
           origin?: string
+          ownership_claimed_at?: string | null
+          ownership_origin?: string | null
           personalized?: boolean
           portal_release_reason?: string | null
           portal_released_at?: string | null
           portal_released_by?: string | null
+          relationship_source?: string | null
+          relationship_started_at?: string | null
+          relationship_started_by?: string | null
+          relationship_started_by_name?: string | null
           responsible_executive_id?: string | null
           responsible_executive_slug?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
           scope?: string
           updated_at?: string
+          viewed_at?: string | null
           whatsapp?: string
           whatsapp_confirmed_at?: string | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           campaign?: string | null
           city?: string
+          closed_at?: string | null
+          commercial_state?: string
+          conversation_window_opened_at?: string | null
           created_at?: string
           device?: string | null
           email?: string
@@ -1245,6 +1286,7 @@ export type Database = {
           external_source?: string | null
           external_updated_at?: string | null
           id?: string
+          is_private?: boolean
           journey?: Json
           journey_chapter?: string | null
           journey_completed_at?: string | null
@@ -1254,19 +1296,115 @@ export type Database = {
           journey_stage?: string | null
           journey_started_at?: string | null
           last_activity_at?: string
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
           material?: string
           name?: string
+          notes?: string
           origin?: string
+          ownership_claimed_at?: string | null
+          ownership_origin?: string | null
           personalized?: boolean
           portal_release_reason?: string | null
           portal_released_at?: string | null
           portal_released_by?: string | null
+          relationship_source?: string | null
+          relationship_started_at?: string | null
+          relationship_started_by?: string | null
+          relationship_started_by_name?: string | null
           responsible_executive_id?: string | null
           responsible_executive_slug?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
           scope?: string
           updated_at?: string
+          viewed_at?: string | null
           whatsapp?: string
           whatsapp_confirmed_at?: string | null
+        }
+        Relationships: []
+      }
+      portal_meetings: {
+        Row: {
+          cancel_reason: string | null
+          created_at: string
+          duration_min: number
+          executive_id: string
+          executive_name: string
+          google_event_id: string | null
+          google_sync: string
+          google_sync_error: string | null
+          google_synced_at: string | null
+          id: string
+          investor_email: string | null
+          investor_id: string
+          investor_name: string
+          meet_url: string | null
+          meeting_provider: string | null
+          meeting_provider_meeting_id: string | null
+          meeting_provider_status: string | null
+          meeting_provider_url: string | null
+          notes: Json
+          origin: string
+          requested_slots: Json
+          scheduled_at: string
+          status: string
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          created_at?: string
+          duration_min?: number
+          executive_id: string
+          executive_name: string
+          google_event_id?: string | null
+          google_sync?: string
+          google_sync_error?: string | null
+          google_synced_at?: string | null
+          id: string
+          investor_email?: string | null
+          investor_id: string
+          investor_name: string
+          meet_url?: string | null
+          meeting_provider?: string | null
+          meeting_provider_meeting_id?: string | null
+          meeting_provider_status?: string | null
+          meeting_provider_url?: string | null
+          notes?: Json
+          origin?: string
+          requested_slots?: Json
+          scheduled_at: string
+          status: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          created_at?: string
+          duration_min?: number
+          executive_id?: string
+          executive_name?: string
+          google_event_id?: string | null
+          google_sync?: string
+          google_sync_error?: string | null
+          google_synced_at?: string | null
+          id?: string
+          investor_email?: string | null
+          investor_id?: string
+          investor_name?: string
+          meet_url?: string | null
+          meeting_provider?: string | null
+          meeting_provider_meeting_id?: string | null
+          meeting_provider_status?: string | null
+          meeting_provider_url?: string | null
+          notes?: Json
+          origin?: string
+          requested_slots?: Json
+          scheduled_at?: string
+          status?: string
+          topic?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

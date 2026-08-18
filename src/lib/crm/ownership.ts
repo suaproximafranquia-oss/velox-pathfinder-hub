@@ -11,6 +11,8 @@
  */
 import type { Investor } from "@/lib/executive-data";
 import { notifySync } from "@/lib/sync-bus";
+import { loadLeads, patchCachedLead } from "@/lib/leads";
+import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
 
 export type CrmOwnershipRecord = {
   /** Identificador do investidor na base oficial (Portal do Executivo). */
@@ -26,8 +28,6 @@ export type CrmOwnershipRecord = {
   claimedAt: string;
 };
 
-const STORAGE_KEY = "crm.ownership.v1";
-
 /** Normalização de telefone: apenas dígitos, comparando os 11 finais. */
 export function phoneKeyOf(phone: string): string {
   const digits = (phone ?? "").replace(/\D+/g, "");
@@ -39,22 +39,36 @@ export function emailKeyOf(email: string): string {
 }
 
 function readAll(): CrmOwnershipRecord[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as CrmOwnershipRecord[]) : [];
-  } catch {
-    return [];
-  }
+  return loadLeads()
+    .filter((lead) => Boolean(lead.responsibleExecutiveId))
+    .map((lead) => ({
+      investorId: lead.id,
+      ownerId: lead.responsibleExecutiveId ?? "",
+      phoneKey: phoneKeyOf(lead.whatsapp),
+      emailKey: emailKeyOf(lead.email),
+      origin: lead.ownershipOrigin ?? lead.origin,
+      claimedAt: lead.ownershipClaimedAt ?? lead.createdAt,
+    }));
 }
 
 function writeAll(records: CrmOwnershipRecord[]) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-  } catch {
-    /* armazenamento indisponível — o vínculo é recalculado na próxima leitura */
+  const current = new Map(loadLeads().map((lead) => [lead.id, lead]));
+  for (const record of records) {
+    const lead = current.get(record.investorId);
+    if (!lead) continue;
+    patchCachedLead(record.investorId, {
+      responsibleExecutiveId: record.ownerId,
+      ownershipOrigin: record.origin,
+      ownershipClaimedAt: record.claimedAt,
+    });
+    void updateWorkspaceOperational({
+      data: {
+        id: record.investorId,
+        responsibleExecutiveId: record.ownerId,
+        ownershipOrigin: record.origin,
+        ownershipClaimedAt: record.claimedAt,
+      },
+    }).catch(() => undefined);
   }
   notifySync("ownership");
 }

@@ -17,6 +17,8 @@
 import { logAudit } from "@/lib/audit-log";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { notifySync } from "@/lib/sync-bus";
+import { loadLeads, patchCachedLead } from "@/lib/leads";
+import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
 
 export type CommercialState = "jornada" | "ativo" | "arquivado";
 
@@ -37,27 +39,42 @@ export type CommercialRecord = {
   restoredBy?: string;
 };
 
-const KEY = "crm.commercial.v1";
-
 type Store = Record<string, CommercialRecord>;
 
 function read(): Store {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? (parsed as Store) : {};
-  } catch {
-    return {};
-  }
+  return Object.fromEntries(
+    loadLeads().map((lead) => [lead.id, {
+      investorId: lead.id,
+      state: lead.commercialState === "journey" ? "jornada" : lead.commercialState === "archived" ? "arquivado" : "ativo",
+      journeyStartedAt: lead.journeyStartedAt ?? lead.createdAt,
+      startedAt: lead.relationshipStartedAt ?? undefined,
+      startedBy: lead.relationshipStartedBy ?? undefined,
+      startedByName: lead.relationshipStartedByName ?? undefined,
+      source: lead.relationshipSource === "investor_request" ? "solicitacao_investidor" : lead.relationshipSource === "executive" ? "executivo" : undefined,
+      archivedAt: lead.archivedAt ?? undefined,
+      archivedBy: lead.archivedBy ?? undefined,
+      restoredAt: lead.restoredAt ?? undefined,
+      restoredBy: lead.restoredBy ?? undefined,
+    } satisfies CommercialRecord]),
+  );
 }
 
 function write(store: Store) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(store));
-  } catch {
-    /* armazenamento indisponível */
+  for (const record of Object.values(store)) {
+    const patch = {
+      commercialState: record.state === "ativo" ? "active" as const : record.state === "arquivado" ? "archived" as const : "journey" as const,
+      journeyStartedAt: record.journeyStartedAt,
+      relationshipStartedAt: record.startedAt ?? null,
+      relationshipStartedBy: record.startedBy ?? null,
+      relationshipStartedByName: record.startedByName ?? null,
+      relationshipSource: record.source === "executivo" ? "executive" as const : record.source === "solicitacao_investidor" ? "investor_request" as const : null,
+      archivedAt: record.archivedAt ?? null,
+      archivedBy: record.archivedBy ?? null,
+      restoredAt: record.restoredAt ?? null,
+      restoredBy: record.restoredBy ?? null,
+    };
+    patchCachedLead(record.investorId, patch);
+    void updateWorkspaceOperational({ data: { id: record.investorId, ...patch } }).catch(() => undefined);
   }
   // Workspace, CRM, Backup e Alertas passam a refletir a mudança na hora.
   notifySync("commercial");

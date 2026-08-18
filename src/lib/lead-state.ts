@@ -12,6 +12,8 @@
  */
 import { emitEvent, onEvent } from "@/lib/events/bus";
 import { notifySync } from "@/lib/sync-bus";
+import { loadLeads, patchCachedLead } from "@/lib/leads";
+import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
 
 export type LeadState = "novo" | "em_andamento" | "encerrado";
 
@@ -42,37 +44,22 @@ export const LEAD_STATE_META: Record<
   },
 };
 
-type Entry = { viewedAt?: string; closedAt?: string };
-type StateMap = Record<string, Entry>;
-
-const KEY = "velox:lead-state:v2";
-
-function read(): StateMap {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    const parsed = raw ? (JSON.parse(raw) as StateMap) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+function entryFor(leadId: string) {
+  return loadLeads().find((lead) => lead.id === leadId);
 }
 
-function write(map: StateMap) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(map));
-  } catch {
-    /* noop */
-  }
-  notifySync("status");
+function persist(leadId: string, patch: { viewedAt?: string | null; closedAt?: string | null }) {
+  patchCachedLead(leadId, patch);
+  void updateWorkspaceOperational({ data: { id: leadId, ...patch } })
+    .then(() => notifySync("status"))
+    .catch(() => undefined);
 }
 
 export type LeadStateSubject = { id: string; lastActivity?: string };
 
 /** Regra automática — nunca depende de escolha manual de cor. */
 export function resolveLeadState(subject: LeadStateSubject): LeadState {
-  const entry = read()[subject.id];
+  const entry = entryFor(subject.id);
   if (entry?.closedAt) return "encerrado";
   if (!entry?.viewedAt) return "novo";
   const activity = subject.lastActivity ? Date.parse(subject.lastActivity) : 0;
@@ -83,11 +70,9 @@ export function resolveLeadState(subject: LeadStateSubject): LeadState {
 
 /** Chamado quando o executivo abre o card/perfil: verde → amarelo. */
 export function markLeadViewed(leadId: string, actorId?: string | null): void {
-  const map = read();
-  const entry = map[leadId] ?? {};
-  if (entry.closedAt) return;
-  map[leadId] = { ...entry, viewedAt: new Date().toISOString() };
-  write(map);
+  const entry = entryFor(leadId);
+  if (entry?.closedAt) return;
+  persist(leadId, { viewedAt: new Date().toISOString() });
   emitEvent({
     type: "lead.status.changed",
     investorId: leadId,
@@ -98,9 +83,7 @@ export function markLeadViewed(leadId: string, actorId?: string | null): void {
 
 /** Encerramento manual — disponível apenas no menu de três pontos. */
 export function closeLead(leadId: string, actorId?: string | null): void {
-  const map = read();
-  map[leadId] = { ...(map[leadId] ?? {}), closedAt: new Date().toISOString() };
-  write(map);
+  persist(leadId, { closedAt: new Date().toISOString() });
   emitEvent({
     type: "lead.status.changed",
     investorId: leadId,
@@ -111,21 +94,18 @@ export function closeLead(leadId: string, actorId?: string | null): void {
 
 /** Reabertura manual — volta ao ciclo automático. */
 export function reopenLead(leadId: string, actorId?: string | null): void {
-  const map = read();
-  const entry = map[leadId] ?? {};
-  delete entry.closedAt;
-  map[leadId] = entry;
-  write(map);
+  const entry = entryFor(leadId);
+  persist(leadId, { closedAt: null });
   emitEvent({
     type: "lead.status.changed",
     investorId: leadId,
     actorId: actorId ?? null,
-    payload: { to: entry.viewedAt ? "em_andamento" : "novo" },
+    payload: { to: entry?.viewedAt ? "em_andamento" : "novo" },
   });
 }
 
 export function isLeadClosed(leadId: string): boolean {
-  return !!read()[leadId]?.closedAt;
+  return !!entryFor(leadId)?.closedAt;
 }
 
 export function onLeadStateChange(cb: (leadId: string | null) => void): () => void {

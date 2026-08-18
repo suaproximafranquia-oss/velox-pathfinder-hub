@@ -65,6 +65,24 @@ export type LeadRecord = VisitorIdentity & {
   portalReleasedAt?: string | null;
   whatsappConfirmedAt?: string | null;
   lastActivityAt?: string | null;
+  viewedAt?: string | null;
+  closedAt?: string | null;
+  commercialState?: "journey" | "active" | "archived";
+  journeyStartedAt?: string | null;
+  relationshipStartedAt?: string | null;
+  relationshipStartedBy?: string | null;
+  relationshipStartedByName?: string | null;
+  relationshipSource?: "executive" | "investor_request" | null;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
+  restoredAt?: string | null;
+  restoredBy?: string | null;
+  isPrivate?: boolean;
+  ownershipClaimedAt?: string | null;
+  ownershipOrigin?: string | null;
+  lastOutboundAt?: string | null;
+  lastInboundAt?: string | null;
+  conversationWindowOpenedAt?: string | null;
 };
 
 function safeRead<T>(key: string): T | null {
@@ -105,6 +123,17 @@ export function loadLeads(): LeadRecord[] {
  */
 export function replaceLeads(leads: LeadRecord[]): void {
   safeWrite(LEADS_KEY, leads);
+}
+
+/** Atualiza somente o cache descartável já hidratado, sem tocar no cadastro. */
+export function patchCachedLead(id: string, patch: Partial<LeadRecord>): LeadRecord | null {
+  const all = loadLeads();
+  const idx = all.findIndex((lead) => lead.id === id);
+  if (idx < 0) return null;
+  const next = { ...all[idx], ...patch };
+  all[idx] = next;
+  safeWrite(LEADS_KEY, all);
+  return next;
 }
 
 /**
@@ -228,6 +257,24 @@ export function updateLead(
         | "operationalOwnerId"
         | "sharedExecutiveIds"
         | "identityConflict"
+        | "viewedAt"
+        | "closedAt"
+        | "commercialState"
+        | "journeyStartedAt"
+        | "relationshipStartedAt"
+        | "relationshipStartedBy"
+        | "relationshipStartedByName"
+        | "relationshipSource"
+        | "archivedAt"
+        | "archivedBy"
+        | "restoredAt"
+        | "restoredBy"
+        | "isPrivate"
+        | "ownershipClaimedAt"
+        | "ownershipOrigin"
+        | "lastOutboundAt"
+        | "lastInboundAt"
+        | "conversationWindowOpenedAt"
       >
     >,
 ): LeadRecord | null {

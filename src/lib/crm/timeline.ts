@@ -94,14 +94,12 @@ export function readAllTimeline(): CrmTimelineEntry[] {
   return readAll();
 }
 
-/** Mescla a Timeline oficial do banco sem duplicar nem perder registros. */
+/** Substitui o cache pela Timeline oficial autorizada do banco. */
 export function mergeRemoteTimeline(remote: CrmTimelineEntry[]): void {
-  if (typeof window === "undefined" || remote.length === 0) return;
-  const byId = new Map(readAll().map((e) => [e.id, e]));
-  for (const entry of remote) byId.set(entry.id, entry);
-  const merged = [...byId.values()].sort((a, b) => (a.at < b.at ? -1 : 1)).slice(-LIMIT);
+  if (typeof window === "undefined") return;
+  const official = remote.slice().sort((a, b) => (a.at < b.at ? -1 : 1)).slice(-LIMIT);
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(official));
   } catch {
     /* armazenamento indisponível */
   }

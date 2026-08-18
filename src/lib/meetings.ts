@@ -91,6 +91,47 @@ function safeWrite(list: Meeting[]) {
   notifySync("meetings");
 }
 
+function persistMeeting(meeting: Meeting) {
+  if (typeof window === "undefined") return;
+  void import("@/lib/meetings.functions")
+    .then(({ upsertMeetingOnServer }) => upsertMeetingOnServer({ data: meeting }))
+    .catch(() => undefined);
+}
+
+export async function hydrateMeetingsFromServer(): Promise<number> {
+  const { listMeetingsFromServer } = await import("@/lib/meetings.functions");
+  const rows = await listMeetingsFromServer();
+  const meetings: Meeting[] = rows.map((row) => ({
+    id: row.id,
+    investorId: row.investor_id,
+    investorName: row.investor_name,
+    investorEmail: row.investor_email ?? undefined,
+    executiveId: row.executive_id,
+    executiveName: row.executive_name,
+    scheduledAt: row.scheduled_at,
+    durationMin: row.duration_min,
+    status: row.status as MeetingStatus,
+    meetUrl: row.meet_url ?? undefined,
+    notes: (row.notes as MeetingNote[]) ?? [],
+    cancelReason: row.cancel_reason ?? undefined,
+    requestedSlots: (row.requested_slots as string[]) ?? [],
+    topic: row.topic ?? undefined,
+    origin: row.origin as "portal" | "executivo",
+    googleEventId: row.google_event_id ?? undefined,
+    googleSync: row.google_sync as GoogleSyncState,
+    googleSyncError: row.google_sync_error ?? undefined,
+    googleSyncedAt: row.google_synced_at ?? undefined,
+    meetingProvider: row.meeting_provider as MeetingProviderId | undefined,
+    meetingProviderStatus: row.meeting_provider_status as MeetingProviderStatus | undefined,
+    meetingProviderMeetingId: row.meeting_provider_meeting_id ?? undefined,
+    meetingProviderUrl: row.meeting_provider_url ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+  safeWrite(meetings);
+  return meetings.length;
+}
+
 function newId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -140,6 +181,7 @@ export function createMeeting(input: {
   const all = safeRead();
   all.push(meeting);
   safeWrite(all);
+  persistMeeting(meeting);
   emitEvent({
     type: meeting.status === "Solicitada" ? "meeting.requested" : "meeting.created",
     actorId: input.executiveId,
@@ -202,6 +244,7 @@ export function confirmMeetingRequest(
   };
   all[idx] = next;
   safeWrite(all);
+  persistMeeting(next);
   emitEvent({
     type: "meeting.confirmed",
     actorId: actor.actorId,
@@ -254,6 +297,7 @@ export function applyGoogleSyncPatch(
   };
   all[idx] = next;
   safeWrite(all);
+  persistMeeting(next);
   return next;
 }
 
@@ -275,6 +319,7 @@ export function updateMeetingStatus(
   };
   all[idx] = next;
   safeWrite(all);
+  persistMeeting(next);
   const type =
     status === "Concluída" ? "meeting.completed" :
     status === "Cancelada" ? "meeting.cancelled" :
@@ -320,6 +365,7 @@ export function updateMeeting(
   };
   all[idx] = next;
   safeWrite(all);
+  persistMeeting(all[idx]);
   emitEvent({
     type: "meeting.rescheduled",
     actorId: actor?.actorId ?? next.executiveId,
@@ -368,6 +414,9 @@ export function deleteMeeting(
   if (idx < 0) return false;
   const [removed] = all.splice(idx, 1);
   safeWrite(all);
+  void import("@/lib/meetings.functions")
+    .then(({ deleteMeetingOnServer }) => deleteMeetingOnServer({ data: { id: removed.id } }))
+    .catch(() => undefined);
   emitEvent({
     type: "meeting.deleted",
     actorId: actor?.actorId ?? removed.executiveId,
