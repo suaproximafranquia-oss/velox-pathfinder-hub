@@ -337,7 +337,10 @@ function Side({
   }
 
   return (
-    <div className="relative flex flex-col justify-center bg-white px-6 py-8 sm:px-8 md:h-full md:overflow-y-auto md:px-12 md:py-10">
+    <div
+      className="relative flex flex-col justify-center px-6 py-8 sm:px-8 md:h-full md:overflow-y-auto md:px-12 md:py-10"
+      style={{ background: "#ffffff" }}
+    >
       {spread.eyebrow && <span className="portal-eyebrow">{spread.eyebrow}</span>}
       <h2 className="portal-serif mt-3 text-3xl md:text-4xl">{spread.title}</h2>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-[color:var(--muted-foreground)] md:text-base">
