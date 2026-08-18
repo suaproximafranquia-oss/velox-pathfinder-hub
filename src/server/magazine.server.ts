@@ -203,9 +203,11 @@ export async function savePage(input: PageInput): Promise<MagazineEdition[]> {
     media_url: input.mediaUrl || null,
   };
   if (input.id) {
+    const { position: _ignored, ...rest } = payload;
+    const updatePayload = input.position ? payload : rest;
     const { error } = await supabase
       .from("magazine_pages")
-      .update(payload as never)
+      .update(updatePayload as never)
       .eq("id", input.id);
     if (error) throw new Error(error.message);
   } else {

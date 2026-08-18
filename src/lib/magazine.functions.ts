@@ -80,7 +80,7 @@ export const saveMagazinePage = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid().nullable().optional(),
         editionId: z.string().uuid(),
-        position: z.number().int().min(1),
+        position: z.number().int().min(1).nullable().optional(),
         eyebrow: z.string().nullable().optional(),
         title: z.string().min(2),
         body: z.string().max(900),
