@@ -1029,6 +1029,7 @@ body[data-shell="universo"] :focus-visible {
     0 2px 0 0 color-mix(in oklab, var(--ink) 8%, transparent),
     0 40px 90px -40px color-mix(in oklab, var(--ink) 60%, transparent);
   transform-style: preserve-3d;
+  perspective: 2000px;
 }
 
 /* Vinco central: sombra dupla que sugere as folhas encontrando-se. */
