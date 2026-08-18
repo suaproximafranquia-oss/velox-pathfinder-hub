@@ -1013,3 +1013,73 @@ body[data-shell="universo"] :focus-visible {
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------- */
+/* REVISTA VELOX — profundidade, dobra central e virada de página.   */
+/* ---------------------------------------------------------------- */
+.magazine-stage {
+  perspective: 2200px;
+}
+
+.magazine-book {
+  position: relative;
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow:
+    0 2px 0 0 color-mix(in oklab, var(--ink) 8%, transparent),
+    0 40px 90px -40px color-mix(in oklab, var(--ink) 60%, transparent);
+  transform-style: preserve-3d;
+}
+
+/* Vinco central: sombra dupla que sugere as folhas encontrando-se. */
+.magazine-fold {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--ink) 4%, transparent) 34%,
+    color-mix(in oklab, var(--ink) 20%, transparent) 49%,
+    color-mix(in oklab, var(--ink) 6%, transparent) 51%,
+    color-mix(in oklab, var(--ink) 3%, transparent) 66%,
+    transparent 100%
+  );
+}
+
+/* Espessura do bloco de páginas nas laterais. */
+.magazine-edge-left,
+.magazine-edge-right {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--ink) 12%, transparent),
+    transparent
+  );
+}
+.magazine-edge-right {
+  transform: scaleX(-1);
+}
+
+@keyframes magazine-turn-next {
+  0% { transform: rotateY(0deg); opacity: 1; }
+  45% { transform: rotateY(-14deg); opacity: 0.55; }
+  100% { transform: rotateY(0deg); opacity: 1; }
+}
+@keyframes magazine-turn-prev {
+  0% { transform: rotateY(0deg); opacity: 1; }
+  45% { transform: rotateY(14deg); opacity: 0.55; }
+  100% { transform: rotateY(0deg); opacity: 1; }
+}
+
+.magazine-turn-next {
+  animation: magazine-turn-next 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transform-origin: center left;
+}
+.magazine-turn-prev {
+  animation: magazine-turn-prev 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transform-origin: center right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .magazine-turn-next,
+  .magazine-turn-prev {
+    animation: none;
+  }
+}

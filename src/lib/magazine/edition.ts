@@ -155,6 +155,29 @@ export function spreadsOf(pages: MagazinePage[]): MagazinePage[] {
 }
 
 /**
+ * Alternância editorial das páginas duplas: conteúdos ímpares abrem com
+ * o texto à esquerda; os pares invertem (mídia à esquerda). No celular a
+ * leitura é sempre vertical — texto primeiro, mídia depois.
+ */
+export function mediaOnLeft(position: number): boolean {
+  return position % 2 === 0;
+}
+
+/**
+ * §Sequência — só existe UMA edição em preparação/vigência por vez. A
+ * próxima edição só pode ser criada quando a atual encerrou o ciclo.
+ */
+export function canCreateEdition(
+  editions: MagazineEdition[],
+  today: string = todayInSaoPaulo(),
+): boolean {
+  return !editions.some((e) => {
+    const status = editionStatus(e, today);
+    return status === "vigente" || status === "agendada" || status === "nao_iniciada";
+  });
+}
+
+/**
  * Numeração contínua: depois de excluir um conteúdo, as posições são
  * reconstruídas de 1..n. Nunca sobram buracos na sequência.
  */

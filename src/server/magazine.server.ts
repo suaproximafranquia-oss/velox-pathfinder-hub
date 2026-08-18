@@ -173,7 +173,8 @@ export async function setEditionPublished(
 export type PageInput = {
   id?: string | null;
   editionId: string;
-  position: number;
+  /** Opcional: quando ausente, o conteúdo é anexado ao fim da edição. */
+  position?: number | null;
   eyebrow?: string | null;
   title: string;
   body: string;
@@ -187,9 +188,13 @@ export async function savePage(input: PageInput): Promise<MagazineEdition[]> {
   if (input.body.length > PAGE_BODY_MAX) {
     throw new Error(`O texto da página excede ${PAGE_BODY_MAX} caracteres.`);
   }
+  const { count: existing } = await supabase
+    .from("magazine_pages")
+    .select("id", { count: "exact", head: true })
+    .eq("edition_id", input.editionId);
   const payload = {
     edition_id: input.editionId,
-    position: input.position,
+    position: input.position ?? (existing ?? 0) + 1,
     eyebrow: input.eyebrow?.trim() || null,
     title: input.title.trim(),
     body: input.body,
@@ -198,20 +203,18 @@ export async function savePage(input: PageInput): Promise<MagazineEdition[]> {
     media_url: input.mediaUrl || null,
   };
   if (input.id) {
+    const { position: _ignored, ...rest } = payload;
+    const updatePayload = input.position ? payload : rest;
     const { error } = await supabase
       .from("magazine_pages")
-      .update(payload as never)
+      .update(updatePayload as never)
       .eq("id", input.id);
     if (error) throw new Error(error.message);
   } else {
     // §2 — a contagem dos 10 dias começa no primeiro conteúdo publicado.
-    const { count } = await supabase
-      .from("magazine_pages")
-      .select("id", { count: "exact", head: true })
-      .eq("edition_id", input.editionId);
     const { error } = await supabase.from("magazine_pages").insert(payload as never);
     if (error) throw new Error(error.message);
-    if ((count ?? 0) === 0) {
+    if ((existing ?? 0) === 0) {
       await supabase
         .from("magazine_editions")
         .update({ starts_on: todayInSaoPaulo() } as never)

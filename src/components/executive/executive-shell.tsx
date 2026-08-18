@@ -23,6 +23,8 @@ import {
   Radar,
   LayoutList,
   LibraryBig,
+  BookOpen,
+  Building2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -100,6 +102,12 @@ export function ExecutiveShell({
     { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
     ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/central-backup", label: "Central de Backup", icon: Archive }]
+      : []),
+    ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
+      ? [
+          { to: "/executivo/revista", label: "Revista Velox", icon: BookOpen },
+          { to: "/executivo/institucional", label: "Módulos Institucionais", icon: Building2 },
+        ]
       : []),
   ];
 
