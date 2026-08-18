@@ -73,12 +73,11 @@ export function isEligibleStage(stageKey: string | null): boolean {
 }
 
 /**
- * Data de ativação da cadência = DATA DE CORTE OPERACIONAL (01/09).
- * Leads históricos (entrada comercial anterior a esta data) NÃO recebem
- * fila retroativa, mesmo que sejam ressincronizados ou reimportados.
- * O valor vive em `@/lib/crm/cutover` — fonte única da verdade.
+ * A data de ativação da cadência NÃO é fixa no código: é configuração
+ * operacional (`crm_automation_settings.cadence_activation_date`), lida
+ * pelo servidor. Enquanto não estiver definida, nenhuma fila é gerada e
+ * nenhum lead histórico recebe etapa retroativa.
  */
-export const CADENCE_ACTIVATION_DATE = "2026-09-01";
 
 /** Feriados (YYYY-MM-DD) tratados como dias não úteis. Evolutivo. */
 export const NON_BUSINESS_DAYS: string[] = [];

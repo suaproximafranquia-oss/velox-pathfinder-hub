@@ -138,7 +138,9 @@ export async function processWelcome(
   if (!claim.data) return "ignorada";
 
   await recordEvent(lead.id, "boas_vindas_iniciada", "Automação de boas-vindas iniciada.");
-  const message = buildWelcomeMessage(settings, lead.name);
+  const message = buildWelcomeMessage(settings, lead.name, null, {
+    reactivation: Boolean((lead as unknown as { remarketing?: boolean }).remarketing),
+  });
   const result = await sendWhatsappText({ phone: lead.phone, body: message.body });
 
   if (result.delivered) {
