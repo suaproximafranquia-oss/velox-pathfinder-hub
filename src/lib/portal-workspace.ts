@@ -120,7 +120,12 @@ export function workspaceScopesFor(
   if (isHybridWorkspaceUser(userId)) {
     return ["green_sales", "redistribuicao", "portal"];
   }
-  if (role === "diretora") return ["central_unica", "redistribuicao"];
+  /**
+   * MATRIZ OFICIAL (reset operacional): o Gestor opera GreenSales,
+   * Central Única e Redistribuição — e NUNCA o Portal, que permanece
+   * exclusivo do Administrador.
+   */
+  if (role === "diretora") return ["green_sales", "central_unica", "redistribuicao"];
   return ["green_sales", "redistribuicao"];
 }
 
