@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { isReaderFocused, subscribeReaderFocus } from "@/lib/portal-reader-focus";
 import { MessageCircle, X, ArrowRight } from "lucide-react";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
