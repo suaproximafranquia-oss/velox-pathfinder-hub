@@ -196,6 +196,7 @@ export type Database = {
       }
       crm_automation_settings: {
         Row: {
+          cadence_activation_date: string | null
           id: boolean
           material_url: string | null
           sync_interval_minutes: number
@@ -205,6 +206,7 @@ export type Database = {
           welcome_template_id: string
         }
         Insert: {
+          cadence_activation_date?: string | null
           id?: boolean
           material_url?: string | null
           sync_interval_minutes?: number
@@ -214,6 +216,7 @@ export type Database = {
           welcome_template_id?: string
         }
         Update: {
+          cadence_activation_date?: string | null
           id?: boolean
           material_url?: string | null
           sync_interval_minutes?: number
@@ -359,12 +362,14 @@ export type Database = {
           capture_form: string | null
           created_at: string
           email: string
+          entered_entry_stage_at: string | null
           entry_count: number
           external_created_at: string | null
           external_id: string
           external_pipeline_id: string | null
           external_source: string
           external_stage_id: string | null
+          external_status: string | null
           id: string
           ingested_at: string
           last_entry_at: string | null
@@ -374,10 +379,12 @@ export type Database = {
           phone: string
           pipeline_name: string | null
           raw_payload: Json | null
+          remarketing: boolean
           stage_entered_at: string | null
           stage_key: string | null
           sync_error: string | null
           sync_status: string
+          tags: Json
           updated_at: string
           welcome_attempts: number
           welcome_error: string | null
@@ -391,12 +398,14 @@ export type Database = {
           capture_form?: string | null
           created_at?: string
           email?: string
+          entered_entry_stage_at?: string | null
           entry_count?: number
           external_created_at?: string | null
           external_id: string
           external_pipeline_id?: string | null
           external_source?: string
           external_stage_id?: string | null
+          external_status?: string | null
           id?: string
           ingested_at?: string
           last_entry_at?: string | null
@@ -406,10 +415,12 @@ export type Database = {
           phone?: string
           pipeline_name?: string | null
           raw_payload?: Json | null
+          remarketing?: boolean
           stage_entered_at?: string | null
           stage_key?: string | null
           sync_error?: string | null
           sync_status?: string
+          tags?: Json
           updated_at?: string
           welcome_attempts?: number
           welcome_error?: string | null
@@ -423,12 +434,14 @@ export type Database = {
           capture_form?: string | null
           created_at?: string
           email?: string
+          entered_entry_stage_at?: string | null
           entry_count?: number
           external_created_at?: string | null
           external_id?: string
           external_pipeline_id?: string | null
           external_source?: string
           external_stage_id?: string | null
+          external_status?: string | null
           id?: string
           ingested_at?: string
           last_entry_at?: string | null
@@ -438,10 +451,12 @@ export type Database = {
           phone?: string
           pipeline_name?: string | null
           raw_payload?: Json | null
+          remarketing?: boolean
           stage_entered_at?: string | null
           stage_key?: string | null
           sync_error?: string | null
           sync_status?: string
+          tags?: Json
           updated_at?: string
           welcome_attempts?: number
           welcome_error?: string | null
