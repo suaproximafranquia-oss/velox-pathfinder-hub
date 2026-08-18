@@ -743,16 +743,15 @@ export function CrmComposer({
         >
           <FileText className="h-4 w-4" />
         </button>
-        <button
-          type="button"
+        <a
+          href={CHATGPT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           aria-label="Abrir o ChatGPT em uma nova aba"
           title="Abrir o ChatGPT em uma nova aba"
-          onClick={() => {
-            setTemplatesOpen(false);
-            // Atalho simples: o ChatGPT bloqueia carregamento embutido,
-            // então abrimos uma nova aba e mantemos o Portal aberto.
-            window.open(CHATGPT_URL, "_blank", "noopener,noreferrer");
-          }}
+          // Link real: dentro do Portal (e do preview em iframe) o
+          // window.open programático era bloqueado e o destino não abria.
+          onClick={() => setTemplatesOpen(false)}
           className={[
             "inline-flex h-[42px] shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-[color:var(--crm-border)] px-3 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:text-[color:var(--crm-accent)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0",
             "text-[color:var(--crm-muted)]",
@@ -760,7 +759,7 @@ export function CrmComposer({
         >
           <Sparkles className="h-4 w-4" />
           IA
-        </button>
+        </a>
         <input
           value={text}
           disabled={disabled}

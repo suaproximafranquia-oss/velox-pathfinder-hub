@@ -27,6 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Archive, Download } from "lucide-react";
+import { CORPORATE_DRIVE_URL } from "@/lib/corporate-drive";
 
 export type PlatformModule = {
   id: string;
@@ -61,7 +62,8 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     description:
       "Acervo institucional de arquivos do Portal. Abre a pasta oficial da Conta Google corporativa.",
     icon: Library,
-    href: "https://drive.google.com/",
+    // Pasta corporativa fixa — nunca o Drive genérico da conta do navegador.
+    href: CORPORATE_DRIVE_URL,
     external: true,
     status: "ativo",
   },
