@@ -65,6 +65,24 @@ export type LeadRecord = VisitorIdentity & {
   portalReleasedAt?: string | null;
   whatsappConfirmedAt?: string | null;
   lastActivityAt?: string | null;
+  viewedAt?: string | null;
+  closedAt?: string | null;
+  commercialState?: "journey" | "active" | "archived";
+  journeyStartedAt?: string | null;
+  relationshipStartedAt?: string | null;
+  relationshipStartedBy?: string | null;
+  relationshipStartedByName?: string | null;
+  relationshipSource?: "executive" | "investor_request" | null;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
+  restoredAt?: string | null;
+  restoredBy?: string | null;
+  isPrivate?: boolean;
+  ownershipClaimedAt?: string | null;
+  ownershipOrigin?: string | null;
+  lastOutboundAt?: string | null;
+  lastInboundAt?: string | null;
+  conversationWindowOpenedAt?: string | null;
 };
 
 function safeRead<T>(key: string): T | null {
@@ -228,6 +246,24 @@ export function updateLead(
         | "operationalOwnerId"
         | "sharedExecutiveIds"
         | "identityConflict"
+        | "viewedAt"
+        | "closedAt"
+        | "commercialState"
+        | "journeyStartedAt"
+        | "relationshipStartedAt"
+        | "relationshipStartedBy"
+        | "relationshipStartedByName"
+        | "relationshipSource"
+        | "archivedAt"
+        | "archivedBy"
+        | "restoredAt"
+        | "restoredBy"
+        | "isPrivate"
+        | "ownershipClaimedAt"
+        | "ownershipOrigin"
+        | "lastOutboundAt"
+        | "lastInboundAt"
+        | "conversationWindowOpenedAt"
       >
     >,
 ): LeadRecord | null {
