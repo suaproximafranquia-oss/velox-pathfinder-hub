@@ -102,7 +102,7 @@ export function MagazineReader({
 
   if (!spread) {
     return (
-      <div className="flex h-full flex-col" style={{ background: "var(--paper)" }}>
+      <div className="flex h-full flex-col" style={{ background: "radial-gradient(120% 90% at 50% -10%, #16234A 0%, #0B1330 45%, #060B1C 100%)", color: "var(--paper)" }}>
         <ReaderBar
           edition={edition}
           onBack={onBack}
@@ -121,7 +121,7 @@ export function MagazineReader({
   const leftFace = inverted ? "media" : "text";
 
   return (
-    <div className="flex h-full flex-col" style={{ background: "var(--paper)" }}>
+    <div className="flex h-full flex-col" style={{ background: "radial-gradient(120% 90% at 50% -10%, #16234A 0%, #0B1330 45%, #060B1C 100%)", color: "var(--paper)" }}>
       <ReaderBar
         edition={edition}
         onBack={onBack}
@@ -133,7 +133,6 @@ export function MagazineReader({
       <div
         ref={stage}
         className="magazine-stage relative flex-1 overflow-hidden px-3 py-4 md:px-16 md:py-8"
-        style={{ background: "var(--paper)" }}
       >
         <div className="magazine-book relative mx-auto h-full w-full max-w-6xl overflow-hidden rounded-[8px]">
           <div className="grid h-full grid-cols-1 grid-rows-[auto_auto] overflow-y-auto md:grid-cols-2 md:grid-rows-1 md:overflow-hidden">
