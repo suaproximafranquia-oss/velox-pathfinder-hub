@@ -9,7 +9,12 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getDefaultExecutive } from "@/lib/executive-auth";
 import { investorPortalUrl } from "@/lib/portal-brands";
-import { CRM_TEMPLATES, getCrmTemplate, renderCrmTemplate } from "@/lib/crm/templates";
+import {
+  CRM_TEMPLATES,
+  getCrmTemplate,
+  pickOpeningTemplate,
+  renderCrmTemplate,
+} from "@/lib/crm/templates";
 import { recordEvent, type CrmLeadRow } from "@/server/crm/lead-service.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { engineOwnsFirstContact } from "@/lib/relationship/config";
@@ -65,6 +70,7 @@ export function buildWelcomeMessage(
   settings: AutomationSettings,
   leadName?: string,
   responsible?: { name?: string | null; slug?: string | null } | null,
+  options: { reactivation?: boolean } = {},
 ): { body: string; templateId: string; link: string } {
   const executive = responsible?.slug
     ? { name: responsible.name ?? "", slug: responsible.slug }
@@ -78,14 +84,24 @@ export function buildWelcomeMessage(
     (executive ? investorPortalUrl(executive.slug) : DEFAULT_MATERIAL_URL);
 
   const context = { executiveName: executive?.name ?? "", portalLink: link };
-  const template = getCrmTemplate(settings.welcomeTemplateId) ?? CRM_TEMPLATES[0]!;
-  const raw = settings.welcomeBody?.trim() ? settings.welcomeBody : template.body;
+  /**
+   * Recadastro/reativação (lead voltou para NOVOS com etiqueta
+   * REMARKETING) usa a comunicação de REABERTURA já definida no
+   * sistema — nunca a apresentação destinada a um lead virgem e nunca
+   * um texto novo inventado aqui.
+   */
+  const template = options.reactivation
+    ? pickOpeningTemplate()
+    : (getCrmTemplate(settings.welcomeTemplateId) ?? CRM_TEMPLATES[0]!);
+  const raw =
+    !options.reactivation && settings.welcomeBody?.trim() ? settings.welcomeBody : template.body;
   const rendered = renderCrmTemplate(raw, context);
   // Saudação: existindo nome válido, ele é usado. "caro investidor" é
   // reservado a quem realmente não tem nome utilizável no cadastro.
   const treatment = looksLikeName(leadName) ? firstName(leadName) : NEUTRAL_TREATMENT;
   const body = rendered.replace(NEUTRAL_TREATMENT, treatment);
-  const withLink = body.includes(link) ? body : `${body}\n\n${link}`;
+  // A reabertura é neutra: não carrega link nem conteúdo comercial.
+  const withLink = options.reactivation || body.includes(link) ? body : `${body}\n\n${link}`;
   return { body: withLink, templateId: template.id, link };
 }
 

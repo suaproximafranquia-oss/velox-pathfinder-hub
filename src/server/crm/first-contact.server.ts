@@ -24,6 +24,10 @@ export type FirstContactInput = {
   executiveSlug?: string | null;
   /** Entrada REAL do lead na origem — decide histórico x novo. */
   entryAt?: string | null;
+  /** Entrada REAL na coluna NOVOS do quadro. */
+  enteredEntryStageAt?: string | null;
+  /** Recadastro/reativação (etiqueta REMARKETING na origem). */
+  reactivation?: boolean;
 };
 
 export type FirstContactResult =
@@ -33,8 +37,16 @@ export type FirstContactResult =
 export async function registerFirstContact(
   input: FirstContactInput,
 ): Promise<FirstContactResult> {
+  const settings = await loadSettings();
   // Lead histórico nunca inicia primeiro contato, mesmo reimportado.
-  const eligibility = cadenceEligibility({ lastEntryAt: input.entryAt ?? null });
+  // A data de ativação é configuração operacional, nunca valor fixo.
+  const eligibility = cadenceEligibility(
+    {
+      enteredEntryStageAt: input.enteredEntryStageAt ?? null,
+      lastEntryAt: input.entryAt ?? null,
+    },
+    settings.cadenceActivationDate,
+  );
   if (!eligibility.eligible) return { registered: false, reason: eligibility.reason };
   const messageId = `msg_e0_${input.leadId}`;
   const { data: existing } = await supabaseAdmin
@@ -44,13 +56,16 @@ export async function registerFirstContact(
     .maybeSingle();
   if (existing) return { registered: false, reason: "primeiro contato já registrado" };
 
-  const settings = await loadSettings();
   if (!settings.welcomeEnabled) return { registered: false, reason: "boas-vindas desativadas" };
 
-  const message = buildWelcomeMessage(settings, input.name, {
-    name: input.executiveName ?? null,
-    slug: input.executiveSlug ?? null,
-  });
+  const message = buildWelcomeMessage(
+    settings,
+    input.name,
+    { name: input.executiveName ?? null, slug: input.executiveSlug ?? null },
+    // Recadastro usa a comunicação de reabertura já definida — nenhum
+    // texto novo é criado para esta situação.
+    { reactivation: Boolean(input.reactivation) },
+  );
   const at = new Date().toISOString();
 
   await supabaseAdmin.from("crm_messages").insert({
