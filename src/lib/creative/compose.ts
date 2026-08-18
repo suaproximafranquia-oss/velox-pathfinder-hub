@@ -187,7 +187,11 @@ function clearPlaceholder(
   }
 }
 
-/** Maior corpo que respeita a altura oficial e a largura disponível. */
+/**
+ * Dimensionamento proporcional com LIMITES: parte do corpo máximo
+ * (referência visual do template) e reduz progressivamente enquanto o
+ * texto ultrapassar a área disponível — nunca abaixo do mínimo.
+ */
 function fitSize(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -195,14 +199,15 @@ function fitSize(
   maxWidth: number,
   tracking: number,
   weight: number,
+  minSize = 6,
 ): number {
   let size = ideal;
-  while (size > 6) {
+  while (size > minSize) {
     setFont(ctx, size, size * tracking, weight);
     if (ctx.measureText(text).width <= maxWidth) break;
     size -= 1;
   }
-  return size;
+  return Math.max(minSize, size);
 }
 
 /**
@@ -226,15 +231,22 @@ function writeField(
     block.maxWidth * w,
     tracking,
     block.weight,
+    block.capHeightMin ? (block.capHeightMin / 0.72) * h : 6,
   );
   setFont(ctx, size, size * tracking, block.weight);
   ctx.fillStyle = block.color;
   ctx.textBaseline = "alphabetic";
-  ctx.textAlign = block.align;
-  // O tracking acrescenta uma folga após o último caractere: em textos
-  // centralizados compensamos meia unidade para manter o eixo da arte.
-  const nudge = block.align === "center" ? (size * tracking) / 2 : 0;
-  const x = block.align === "center" ? w / 2 - nudge : (block.x ?? 0.06) * w;
+  // Sempre desenhamos a partir da esquerda e calculamos o X: assim o
+  // centro ÓPTICO real (tinta desenhada) fica no eixo do template,
+  // independentemente de tracking ou de folgas laterais da fonte.
+  ctx.textAlign = "left";
+  let x = (block.x ?? 0.06) * w;
+  if (block.align === "center") {
+    const m = ctx.measureText(text);
+    const inkLeft = m.actualBoundingBoxLeft ?? 0;
+    const inkRight = m.actualBoundingBoxRight ?? m.width;
+    x = w / 2 - (inkRight - inkLeft) / 2;
+  }
   ctx.fillText(text, x, block.baselineY * h);
 }
 
