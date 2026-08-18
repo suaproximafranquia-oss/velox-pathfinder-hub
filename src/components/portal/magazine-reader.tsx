@@ -133,7 +133,7 @@ export function MagazineReader({
       >
         <div className="magazine-book relative mx-auto h-full w-full max-w-6xl overflow-hidden rounded-[8px]">
           <div className="grid h-full grid-cols-1 grid-rows-[auto_auto] overflow-y-auto md:grid-cols-2 md:grid-rows-1 md:overflow-hidden">
-            <Side kind={leftFace} spread={spread} edition={edition} onDeletePage={onDeletePage} />
+            <Side kind={leftFace} spread={spread} onDeletePage={onDeletePage} />
             <Side
               kind={leftFace === "text" ? "media" : "text"}
               spread={spread}
