@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UniversoRouteImport } from './routes/universo'
-import { Route as TestRevistaRouteImport } from './routes/test-revista'
 import { Route as PortalLeadsRouteImport } from './routes/portal-leads'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as CrmRouteImport } from './routes/crm'
@@ -60,11 +59,6 @@ import { Route as ApiPublicBackupRunRouteImport } from './routes/api/public/back
 const UniversoRoute = UniversoRouteImport.update({
   id: '/universo',
   path: '/universo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TestRevistaRoute = TestRevistaRouteImport.update({
-  id: '/test-revista',
-  path: '/test-revista',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortalLeadsRoute = PortalLeadsRouteImport.update({
@@ -299,7 +293,6 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/test-revista': typeof TestRevistaRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -347,7 +340,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/test-revista': typeof TestRevistaRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -397,7 +389,6 @@ export interface FileRoutesById {
   '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/test-revista': typeof TestRevistaRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -448,7 +439,6 @@ export interface FileRouteTypes {
     | '/crm'
     | '/entrar'
     | '/portal-leads'
-    | '/test-revista'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -496,7 +486,6 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/portal-leads'
-    | '/test-revista'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -545,7 +534,6 @@ export interface FileRouteTypes {
     | '/crm'
     | '/entrar'
     | '/portal-leads'
-    | '/test-revista'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -595,7 +583,6 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRouteWithChildren
   EntrarRoute: typeof EntrarRoute
   PortalLeadsRoute: typeof PortalLeadsRoute
-  TestRevistaRoute: typeof TestRevistaRoute
   UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
@@ -646,13 +633,6 @@ declare module '@tanstack/react-router' {
       path: '/universo'
       fullPath: '/universo'
       preLoaderRoute: typeof UniversoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/test-revista': {
-      id: '/test-revista'
-      path: '/test-revista'
-      fullPath: '/test-revista'
-      preLoaderRoute: typeof TestRevistaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portal-leads': {
@@ -988,7 +968,6 @@ const rootRouteChildren: RootRouteChildren = {
   CrmRoute: CrmRouteWithChildren,
   EntrarRoute: EntrarRoute,
   PortalLeadsRoute: PortalLeadsRoute,
-  TestRevistaRoute: TestRevistaRoute,
   UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
