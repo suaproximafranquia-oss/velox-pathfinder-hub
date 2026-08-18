@@ -1,11 +1,11 @@
-// @vitest-environment jsdom
-
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 /**
  * Autenticação server-first: nenhuma chamada pode sair sem Authorization
  * quando existe sessão de workspace neste navegador.
  */
+(globalThis as unknown as { window?: unknown }).window ??= {};
+
 const getSession = vi.fn();
 const ensureCloudSession = vi.fn();
 
