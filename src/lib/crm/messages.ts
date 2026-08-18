@@ -58,14 +58,11 @@ export function readAllMessages(): CrmMessage[] {
 }
 
 /**
- * Mescla o histórico oficial vindo do banco. O identificador é a chave:
- * nada é duplicado e nenhuma mensagem local é descartada.
+ * Substitui o cache pelo histórico oficial autorizado vindo do banco.
  */
 export function mergeRemoteMessages(remote: CrmMessage[]): void {
-  if (typeof window === "undefined" || remote.length === 0) return;
-  const byId = new Map(readAll().map((m) => [m.id, m]));
-  for (const message of remote) byId.set(message.id, message);
-  writeAll([...byId.values()].sort((a, b) => (a.at < b.at ? -1 : 1)));
+  if (typeof window === "undefined") return;
+  writeAll(remote.slice().sort((a, b) => (a.at < b.at ? -1 : 1)));
 }
 
 function writeAll(list: CrmMessage[]) {

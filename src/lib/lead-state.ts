@@ -12,7 +12,7 @@
  */
 import { emitEvent, onEvent } from "@/lib/events/bus";
 import { notifySync } from "@/lib/sync-bus";
-import { loadLeads, updateLead } from "@/lib/leads";
+import { loadLeads, patchCachedLead } from "@/lib/leads";
 import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
 
 export type LeadState = "novo" | "em_andamento" | "encerrado";
@@ -49,7 +49,7 @@ function entryFor(leadId: string) {
 }
 
 function persist(leadId: string, patch: { viewedAt?: string | null; closedAt?: string | null }) {
-  updateLead(leadId, patch);
+  patchCachedLead(leadId, patch);
   void updateWorkspaceOperational({ data: { id: leadId, ...patch } })
     .then(() => notifySync("status"))
     .catch(() => undefined);

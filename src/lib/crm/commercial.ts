@@ -17,7 +17,7 @@
 import { logAudit } from "@/lib/audit-log";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { notifySync } from "@/lib/sync-bus";
-import { loadLeads, updateLead } from "@/lib/leads";
+import { loadLeads, patchCachedLead } from "@/lib/leads";
 import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
 
 export type CommercialState = "jornada" | "ativo" | "arquivado";
@@ -73,7 +73,7 @@ function write(store: Store) {
       restoredAt: record.restoredAt ?? null,
       restoredBy: record.restoredBy ?? null,
     };
-    updateLead(record.investorId, patch);
+    patchCachedLead(record.investorId, patch);
     void updateWorkspaceOperational({ data: { id: record.investorId, ...patch } }).catch(() => undefined);
   }
   // Workspace, CRM, Backup e Alertas passam a refletir a mudança na hora.

@@ -63,12 +63,11 @@ type Entry = {
 
 type StateMap = Record<string, Entry>;
 
-const KEY = "velox:crm:relationship-state:v1";
 const CONFIG_KEY = "velox:crm:relationship-inactivity-days:v1";
 /** DF 2.4.7 — inatividade oficial: 10 dias sem interação. */
 const DEFAULT_INACTIVITY_DAYS = 10;
 
-import { loadLeads, updateLead } from "@/lib/leads";
+import { loadLeads, patchCachedLead } from "@/lib/leads";
 import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
 
 function read(): StateMap {
@@ -86,7 +85,7 @@ function write(map: StateMap) {
       lastInboundAt: entry.lastInboundAt ?? null,
       conversationWindowOpenedAt: entry.lastWindowOpenedAt ?? null,
     };
-    updateLead(id, patch);
+    patchCachedLead(id, patch);
     void updateWorkspaceOperational({ data: { id, ...patch } }).catch(() => undefined);
   }
 }

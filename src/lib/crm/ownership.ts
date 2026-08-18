@@ -11,7 +11,7 @@
  */
 import type { Investor } from "@/lib/executive-data";
 import { notifySync } from "@/lib/sync-bus";
-import { loadLeads, updateLead } from "@/lib/leads";
+import { loadLeads, patchCachedLead } from "@/lib/leads";
 import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
 
 export type CrmOwnershipRecord = {
@@ -56,7 +56,7 @@ function writeAll(records: CrmOwnershipRecord[]) {
   for (const record of records) {
     const lead = current.get(record.investorId);
     if (!lead) continue;
-    updateLead(record.investorId, {
+    patchCachedLead(record.investorId, {
       responsibleExecutiveId: record.ownerId,
       ownershipOrigin: record.origin,
       ownershipClaimedAt: record.claimedAt,

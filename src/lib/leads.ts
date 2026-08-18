@@ -125,6 +125,17 @@ export function replaceLeads(leads: LeadRecord[]): void {
   safeWrite(LEADS_KEY, leads);
 }
 
+/** Atualiza somente o cache descartável já hidratado, sem tocar no cadastro. */
+export function patchCachedLead(id: string, patch: Partial<LeadRecord>): LeadRecord | null {
+  const all = loadLeads();
+  const idx = all.findIndex((lead) => lead.id === id);
+  if (idx < 0) return null;
+  const next = { ...all[idx], ...patch };
+  all[idx] = next;
+  safeWrite(LEADS_KEY, all);
+  return next;
+}
+
 /**
  * Sincronização com o servidor sem criar dependência circular
  * (`portal-leads-sync` importa este módulo).
