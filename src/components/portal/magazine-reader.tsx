@@ -317,9 +317,7 @@ function Side({
         {spread.mediaKind === "video" && spread.mediaUrl && (
           <video src={spread.mediaUrl} controls playsInline className="h-full w-full object-cover" />
         )}
-        {spread.mediaKind === "none" && edition.coverUrl && (
-          <img src={edition.coverUrl} alt="" className="h-full w-full object-cover opacity-70" />
-        )}
+        {/* Sem mídia: a folha permanece branca — nunca navy. */}
         {spread.caption && (
           <span
             className="absolute inset-x-0 bottom-0 px-6 py-4 text-xs"
