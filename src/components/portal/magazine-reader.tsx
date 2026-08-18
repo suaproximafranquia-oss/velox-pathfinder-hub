@@ -26,6 +26,7 @@ import {
 const TURN_MS = 900;
 
 export function MagazineReader({
+  edition,
   onRead,
   onBack,
   backLabel = "Edições",
