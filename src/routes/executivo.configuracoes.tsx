@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2 } from "lucide-react";
+import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock } from "lucide-react";
 import {
   loadHomologationConfig,
   saveHomologationConfig,
@@ -104,6 +104,7 @@ function ConfiguracoesPage() {
         </p>
         <div className="grid gap-4">
           <VideoconferenciaSection session={session} />
+          <CadenciaAtivacaoSection />
           <ProtecaoHomologacaoSection />
           <IntegracoesSection session={session} />
           <GreenSalesConnectionSection />
