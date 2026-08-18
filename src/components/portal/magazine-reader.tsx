@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Trash2 } from "lucide-react";
+import { setReaderFocus } from "@/lib/portal-reader-focus";
 import {
   formatEditionCode,
   formatEditionMonth,
@@ -48,6 +49,11 @@ export function MagazineReader({
 
   useEffect(() => setIndex(0), [edition.id]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  /** Recolhe elementos externos enquanto a revista está aberta. */
+  useEffect(() => {
+    setReaderFocus(true);
+    return () => setReaderFocus(false);
+  }, []);
 
   const go = useCallback(
     (delta: number) => {
