@@ -1018,18 +1018,59 @@ body[data-shell="universo"] :focus-visible {
 /* REVISTA VELOX — profundidade, dobra central e virada de página.   */
 /* ---------------------------------------------------------------- */
 .magazine-stage {
-  perspective: 2200px;
+  perspective: 2400px;
+  perspective-origin: 50% 45%;
 }
 
 .magazine-book {
   position: relative;
   border-radius: 6px;
-  background: var(--paper);
+  background: #ffffff;
   box-shadow:
     0 2px 0 0 color-mix(in oklab, var(--ink) 8%, transparent),
     0 40px 90px -40px color-mix(in oklab, var(--ink) 60%, transparent);
   transform-style: preserve-3d;
   perspective: 2000px;
+  transform: rotateX(3deg);
+}
+
+/* Curvatura das duas metades: cada lado inclina levemente em direção à lombada. */
+@media (min-width: 768px) {
+  .magazine-book > .grid > *:first-child {
+    transform: perspective(1600px) rotateY(1.6deg);
+    transform-origin: right center;
+  }
+  .magazine-book > .grid > *:last-child {
+    transform: perspective(1600px) rotateY(-1.6deg);
+    transform-origin: left center;
+  }
+  /* Arqueamento: sombra interna suave crescendo em direção ao vinco. */
+  .magazine-book > .grid > *:first-child::after,
+  .magazine-book > .grid > *:last-child::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .magazine-book > .grid > *:first-child::after {
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--ink) 10%, transparent) 0%,
+      transparent 12%,
+      transparent 72%,
+      color-mix(in oklab, var(--ink) 16%, transparent) 100%
+    );
+  }
+  .magazine-book > .grid > *:last-child::after {
+    background: linear-gradient(
+      270deg,
+      color-mix(in oklab, var(--ink) 10%, transparent) 0%,
+      transparent 12%,
+      transparent 72%,
+      color-mix(in oklab, var(--ink) 16%, transparent) 100%
+    );
+  }
 }
 
 /* Vinco central: sombra dupla que sugere as folhas encontrando-se. */
@@ -1037,12 +1078,14 @@ body[data-shell="universo"] :focus-visible {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    color-mix(in oklab, var(--ink) 4%, transparent) 34%,
-    color-mix(in oklab, var(--ink) 20%, transparent) 49%,
-    color-mix(in oklab, var(--ink) 6%, transparent) 51%,
-    color-mix(in oklab, var(--ink) 3%, transparent) 66%,
+    color-mix(in oklab, var(--ink) 6%, transparent) 30%,
+    color-mix(in oklab, var(--ink) 30%, transparent) 48%,
+    color-mix(in oklab, var(--ink) 34%, transparent) 50%,
+    color-mix(in oklab, var(--ink) 12%, transparent) 54%,
+    color-mix(in oklab, var(--ink) 4%, transparent) 70%,
     transparent 100%
   );
+  z-index: 6;
 }
 
 /* Espessura do bloco de páginas nas laterais. */
@@ -1064,14 +1107,15 @@ body[data-shell="universo"] :focus-visible {
   transform-style: preserve-3d;
   will-change: transform;
   z-index: 15;
+  background: #ffffff;
 }
 .magazine-leaf--next {
   transform-origin: left center;
-  animation: magazine-leaf-next 720ms cubic-bezier(0.42, 0.02, 0.34, 1) forwards;
+  animation: magazine-leaf-next 900ms cubic-bezier(0.45, 0.05, 0.3, 1) forwards;
 }
 .magazine-leaf--prev {
   transform-origin: right center;
-  animation: magazine-leaf-prev 720ms cubic-bezier(0.42, 0.02, 0.34, 1) forwards;
+  animation: magazine-leaf-prev 900ms cubic-bezier(0.45, 0.05, 0.3, 1) forwards;
 }
 .magazine-leaf-face {
   position: absolute;
@@ -1079,7 +1123,11 @@ body[data-shell="universo"] :focus-visible {
   overflow: hidden;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  background: var(--paper);
+  background: #ffffff;
+}
+/* A folha em virada é sempre branca: nenhum painel interno pinta navy. */
+.magazine-leaf-face .magazine-media-side {
+  background: #ffffff !important;
 }
 .magazine-leaf-back {
   transform: rotateY(180deg);
@@ -1093,16 +1141,18 @@ body[data-shell="universo"] :focus-visible {
     color-mix(in oklab, var(--ink) 26%, transparent),
     transparent 45%
   );
-  animation: magazine-leaf-shade 720ms ease-in-out forwards;
+  animation: magazine-leaf-shade 900ms ease-in-out forwards;
 }
 
 @keyframes magazine-leaf-next {
-  from { transform: rotateY(0deg); }
-  to { transform: rotateY(-180deg); }
+  from { transform: rotateY(0deg) translateZ(0); }
+  50% { transform: rotateY(-90deg) translateZ(14px); }
+  to { transform: rotateY(-180deg) translateZ(0); }
 }
 @keyframes magazine-leaf-prev {
-  from { transform: rotateY(0deg); }
-  to { transform: rotateY(180deg); }
+  from { transform: rotateY(0deg) translateZ(0); }
+  50% { transform: rotateY(90deg) translateZ(14px); }
+  to { transform: rotateY(180deg) translateZ(0); }
 }
 @keyframes magazine-leaf-shade {
   0% { opacity: 0; }

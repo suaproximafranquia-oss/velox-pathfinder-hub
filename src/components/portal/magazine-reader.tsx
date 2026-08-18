@@ -23,7 +23,7 @@ import {
 } from "@/lib/magazine/edition";
 
 /** Duração da virada — leve o bastante para não pesar em mobile. */
-const TURN_MS = 720;
+const TURN_MS = 900;
 
 export function MagazineReader({
   edition,
@@ -136,11 +136,10 @@ export function MagazineReader({
       >
         <div className="magazine-book relative mx-auto h-full w-full max-w-6xl overflow-hidden rounded-[8px]">
           <div className="grid h-full grid-cols-1 grid-rows-[auto_auto] overflow-y-auto md:grid-cols-2 md:grid-rows-1 md:overflow-hidden">
-            <Side kind={leftFace} spread={spread} edition={edition} onDeletePage={onDeletePage} />
+            <Side kind={leftFace} spread={spread} onDeletePage={onDeletePage} />
             <Side
               kind={leftFace === "text" ? "media" : "text"}
               spread={spread}
-              edition={edition}
               onDeletePage={onDeletePage}
             />
           </div>
@@ -166,14 +165,12 @@ export function MagazineReader({
                         : "text"
                   }
                   spread={leaf.from}
-                  edition={edition}
                 />
               </div>
               <div className="magazine-leaf-face magazine-leaf-back">
                 <Side
                   kind={leaf.dir === "next" ? leftFace : leftFace === "text" ? "media" : "text"}
                   spread={spread}
-                  edition={edition}
                 />
               </div>
               <div className="magazine-leaf-shade" />
@@ -293,19 +290,17 @@ function NavArrow({
 function Side({
   kind,
   spread,
-  edition,
   onDeletePage,
 }: {
   kind: "text" | "media";
   spread: MagazinePage;
-  edition: MagazineEdition;
   onDeletePage?: (page: MagazinePage) => void;
 }) {
   if (kind === "media") {
     return (
       <div
-        className="relative flex min-h-[34vh] items-center justify-center overflow-hidden md:h-full md:min-h-0"
-        style={{ background: "color-mix(in oklab, var(--ink) 92%, transparent)" }}
+        className="magazine-media-side relative flex min-h-[34vh] items-center justify-center overflow-hidden md:h-full md:min-h-0"
+        style={{ background: "#ffffff" }}
       >
         {spread.mediaKind === "imagem" && spread.mediaUrl && (
           <img
@@ -317,9 +312,7 @@ function Side({
         {spread.mediaKind === "video" && spread.mediaUrl && (
           <video src={spread.mediaUrl} controls playsInline className="h-full w-full object-cover" />
         )}
-        {spread.mediaKind === "none" && edition.coverUrl && (
-          <img src={edition.coverUrl} alt="" className="h-full w-full object-cover opacity-70" />
-        )}
+        {/* Sem mídia: a folha permanece branca — nunca navy. */}
         {spread.caption && (
           <span
             className="absolute inset-x-0 bottom-0 px-6 py-4 text-xs"
@@ -337,9 +330,14 @@ function Side({
   }
 
   return (
-    <div className="flex flex-col justify-center px-6 py-8 sm:px-8 md:h-full md:overflow-y-auto md:px-12 md:py-10">
+    <div
+      className="relative flex flex-col justify-center px-6 py-8 sm:px-8 md:h-full md:overflow-y-auto md:px-12 md:py-10"
+      style={{ background: "#ffffff", color: "#101A33" }}
+    >
       {spread.eyebrow && <span className="portal-eyebrow">{spread.eyebrow}</span>}
-      <h2 className="portal-serif mt-3 text-3xl md:text-4xl">{spread.title}</h2>
+      <h2 className="portal-serif mt-3 text-3xl md:text-4xl" style={{ color: "#101A33" }}>
+        {spread.title}
+      </h2>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-[color:var(--muted-foreground)] md:text-base">
         {spread.body
           .split(/\n{2,}/)
