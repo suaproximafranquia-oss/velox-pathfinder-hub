@@ -11,6 +11,7 @@ import {
   GREENSALES_INTAKE_PAUSED,
   GREENSALES_INTAKE_PAUSED_MESSAGE,
 } from "@/lib/crm/ingestion";
+import { cadenceEligibility } from "@/lib/crm/cutover";
 import { loadSettings, processWelcome } from "@/server/crm/automation.server";
 import {
   getLeadEntryState,
@@ -190,9 +191,17 @@ export async function runLeadSync(
       if (outcome.created) summary.created += 1;
       else if (outcome.changed) summary.updated += 1;
 
-      // Primeiro contato reage APENAS a uma entrada realmente nova em
-      // NOVOS. Lead já conhecido (ou histórico) nunca reabre a operação.
-      if (stage?.isEntry && outcome.created) {
+      /**
+       * Primeiro contato reage APENAS a uma entrada realmente nova em
+       * NOVOS e posterior à data de corte operacional. Lead histórico —
+       * ainda que apareça agora na sincronização — nunca inicia cadência:
+       * sincronizar não é criar (ver `@/lib/crm/cutover`).
+       */
+      const eligibility = cadenceEligibility({
+        lastEntryAt,
+        externalCreatedAt: (raw["created_at"] as string) ?? null,
+      });
+      if (stage?.isEntry && outcome.created && eligibility.eligible) {
         const welcome = await processWelcome(outcome.lead, settings);
         if (welcome === "enviada") summary.welcomeSent += 1;
         if (welcome === "falhou") summary.welcomeFailed += 1;
