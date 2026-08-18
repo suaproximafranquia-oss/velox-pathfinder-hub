@@ -21,6 +21,11 @@ export type AutomationSettings = {
   welcomeTemplateId: string;
   welcomeBody: string | null;
   materialUrl: string | null;
+  /**
+   * Data (YYYY-MM-DD) a partir da qual a cadência automática pode
+   * começar. Vazia = nenhuma cadência é iniciada para lead algum.
+   */
+  cadenceActivationDate: string | null;
 };
 
 /** Link padrão do material — sobrescrito pela configuração quando definida. */
@@ -30,7 +35,9 @@ const MAX_WELCOME_ATTEMPTS = 3;
 export async function loadSettings(): Promise<AutomationSettings> {
   const { data } = await supabaseAdmin
     .from("crm_automation_settings")
-    .select("sync_interval_minutes,welcome_enabled,welcome_template_id,welcome_body,material_url")
+    .select(
+      "sync_interval_minutes,welcome_enabled,welcome_template_id,welcome_body,material_url,cadence_activation_date",
+    )
     .eq("id", true)
     .maybeSingle();
   return {
@@ -39,7 +46,15 @@ export async function loadSettings(): Promise<AutomationSettings> {
     welcomeTemplateId: data?.welcome_template_id ?? "primeiro_contato",
     welcomeBody: data?.welcome_body ?? null,
     materialUrl: data?.material_url ?? null,
+    cadenceActivationDate:
+      (data as { cadence_activation_date?: string | null } | null)?.cadence_activation_date ?? null,
   };
+}
+
+/** Data de ativação da cadência — leitura direta, sem valor embutido. */
+export async function loadCadenceActivationDate(): Promise<string | null> {
+  const settings = await loadSettings();
+  return settings.cadenceActivationDate;
 }
 
 /**
