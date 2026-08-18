@@ -1029,6 +1029,7 @@ body[data-shell="universo"] :focus-visible {
     0 2px 0 0 color-mix(in oklab, var(--ink) 8%, transparent),
     0 40px 90px -40px color-mix(in oklab, var(--ink) 60%, transparent);
   transform-style: preserve-3d;
+  perspective: 2000px;
 }
 
 /* Vinco central: sombra dupla que sugere as folhas encontrando-se. */
@@ -1057,29 +1058,62 @@ body[data-shell="universo"] :focus-visible {
   transform: scaleX(-1);
 }
 
-@keyframes magazine-turn-next {
-  0% { transform: rotateY(0deg); opacity: 1; }
-  45% { transform: rotateY(-14deg); opacity: 0.55; }
-  100% { transform: rotateY(0deg); opacity: 1; }
+/* Folha em virada: gira 180° a partir do vinco e conclui o movimento. */
+.magazine-leaf {
+  width: 50%;
+  transform-style: preserve-3d;
+  will-change: transform;
+  z-index: 15;
 }
-@keyframes magazine-turn-prev {
-  0% { transform: rotateY(0deg); opacity: 1; }
-  45% { transform: rotateY(14deg); opacity: 0.55; }
-  100% { transform: rotateY(0deg); opacity: 1; }
+.magazine-leaf--next {
+  transform-origin: left center;
+  animation: magazine-leaf-next 720ms cubic-bezier(0.42, 0.02, 0.34, 1) forwards;
+}
+.magazine-leaf--prev {
+  transform-origin: right center;
+  animation: magazine-leaf-prev 720ms cubic-bezier(0.42, 0.02, 0.34, 1) forwards;
+}
+.magazine-leaf-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: var(--paper);
+}
+.magazine-leaf-back {
+  transform: rotateY(180deg);
+}
+.magazine-leaf-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--ink) 26%, transparent),
+    transparent 45%
+  );
+  animation: magazine-leaf-shade 720ms ease-in-out forwards;
 }
 
-.magazine-turn-next {
-  animation: magazine-turn-next 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
-  transform-origin: center left;
+@keyframes magazine-leaf-next {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(-180deg); }
 }
-.magazine-turn-prev {
-  animation: magazine-turn-prev 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
-  transform-origin: center right;
+@keyframes magazine-leaf-prev {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(180deg); }
+}
+@keyframes magazine-leaf-shade {
+  0% { opacity: 0; }
+  45% { opacity: 0.9; }
+  100% { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .magazine-turn-next,
-  .magazine-turn-prev {
-    animation: none;
+  .magazine-leaf,
+  .magazine-leaf-shade {
+    animation-duration: 1ms;
   }
 }
+

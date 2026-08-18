@@ -149,6 +149,34 @@ export function formatPeriod(startsOn: string): string {
   return `${fmt(startsOn)} — ${fmt(editionEndsOn(startsOn))}`;
 }
 
+const MONTHS_PT = [
+  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+];
+
+/** Mês/ano da edição — identificação curta usada nos cards da banca. */
+export function formatEditionMonth(startsOn: string): string {
+  const [y, m] = startsOn.slice(0, 10).split("-").map(Number);
+  return `${MONTHS_PT[(m ?? 1) - 1] ?? ""}/${y ?? ""}`;
+}
+
+/**
+ * Banca de edições do Portal: tudo o que já foi publicado com conteúdo
+ * (vigente ou acervo) mais as edições agendadas, que aparecem
+ * bloqueadas. Edições desativadas e sem conteúdo nunca aparecem.
+ */
+export function galleryEditions(
+  editions: MagazineEdition[],
+  today: string = todayInSaoPaulo(),
+): MagazineEdition[] {
+  return editions
+    .filter((e) => {
+      const status = editionStatus(e, today);
+      return status === "vigente" || status === "encerrada" || status === "agendada";
+    })
+    .sort((a, b) => b.number - a.number);
+}
+
 /** Páginas em ordem editorial (esquerda = texto, direita = mídia). */
 export function spreadsOf(pages: MagazinePage[]): MagazinePage[] {
   return [...pages].sort((a, b) => a.position - b.position);

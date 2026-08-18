@@ -202,7 +202,7 @@ const MODULES: ModuleCard[] = [
     icon: BookMarked,
     cover: revistaImg.url,
     moduleKey: "revista",
-    cta: "Abrir edição",
+    cta: "Ver edições",
     status: "aberto",
   },
   {

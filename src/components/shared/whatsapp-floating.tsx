@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { isReaderFocused, subscribeReaderFocus } from "@/lib/portal-reader-focus";
 import { MessageCircle, X, ArrowRight } from "lucide-react";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
@@ -60,15 +61,24 @@ export function WhatsAppFloating() {
   const [modalOpen, setModalOpen] = useState(false);
   /** Dentro de um overlay (iframe) o botão da Home já está visível. */
   const [insideOverlay, setInsideOverlay] = useState(false);
+  /** Durante a leitura da Revista o botão se recolhe (§5). */
+  const [reading, setReading] = useState(false);
 
   useEffect(() => {
     setResolved(getResponsibleExecutive());
     setInsideOverlay(typeof window !== "undefined" && window.self !== window.top);
   }, []);
 
+  useEffect(() => {
+    setReading(isReaderFocused());
+    return subscribeReaderFocus(setReading);
+  }, []);
+
   // O botão permanece fixo em toda a navegação do investidor, inclusive
   // com módulos abertos (Manual, Material, Simulador).
   if (insideOverlay) return null;
+  // Nunca dentro do leitor da Revista.
+  if (reading) return null;
 
   const label = "Solicitar Atendimento";
 
