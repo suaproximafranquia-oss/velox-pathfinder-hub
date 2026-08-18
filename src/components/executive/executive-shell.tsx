@@ -101,6 +101,12 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/central-backup", label: "Central de Backup", icon: Archive }]
       : []),
+    ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
+      ? [
+          { to: "/executivo/revista", label: "Revista Velox", icon: BookOpen },
+          { to: "/executivo/institucional", label: "Módulos Institucionais", icon: Building2 },
+        ]
+      : []),
   ];
 
   const relationship = [
