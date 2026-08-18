@@ -41,7 +41,6 @@ import { Route as ExecutivoGreensalesRouteImport } from './routes/executivo.gree
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
 import { Route as ExecutivoCriativaRouteImport } from './routes/executivo.criativa'
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
-import { Route as ExecutivoComunicacaoRouteImport } from './routes/executivo.comunicacao'
 import { Route as ExecutivoCentralBackupRouteImport } from './routes/executivo.central-backup'
 import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
 import { Route as ExecutivoCaptacaoRouteImport } from './routes/executivo.captacao'
@@ -217,11 +216,6 @@ const ExecutivoConfiguracoesRoute = ExecutivoConfiguracoesRouteImport.update({
   path: '/executivo/configuracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExecutivoComunicacaoRoute = ExecutivoComunicacaoRouteImport.update({
-  id: '/executivo/comunicacao',
-  path: '/executivo/comunicacao',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ExecutivoCentralBackupRoute = ExecutivoCentralBackupRouteImport.update({
   id: '/executivo/central-backup',
   path: '/executivo/central-backup',
@@ -310,7 +304,6 @@ export interface FileRoutesByFullPath {
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
-  '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
@@ -358,7 +351,6 @@ export interface FileRoutesByTo {
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
-  '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
@@ -408,7 +400,6 @@ export interface FileRoutesById {
   '/executivo/captacao': typeof ExecutivoCaptacaoRoute
   '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
   '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
-  '/executivo/comunicacao': typeof ExecutivoComunicacaoRoute
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
@@ -459,7 +450,6 @@ export interface FileRouteTypes {
     | '/executivo/captacao'
     | '/executivo/celebracao'
     | '/executivo/central-backup'
-    | '/executivo/comunicacao'
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
@@ -507,7 +497,6 @@ export interface FileRouteTypes {
     | '/executivo/captacao'
     | '/executivo/celebracao'
     | '/executivo/central-backup'
-    | '/executivo/comunicacao'
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
@@ -556,7 +545,6 @@ export interface FileRouteTypes {
     | '/executivo/captacao'
     | '/executivo/celebracao'
     | '/executivo/central-backup'
-    | '/executivo/comunicacao'
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
@@ -606,7 +594,6 @@ export interface RootRouteChildren {
   ExecutivoCaptacaoRoute: typeof ExecutivoCaptacaoRoute
   ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
   ExecutivoCentralBackupRoute: typeof ExecutivoCentralBackupRoute
-  ExecutivoComunicacaoRoute: typeof ExecutivoComunicacaoRoute
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoCriativaRoute: typeof ExecutivoCriativaRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
@@ -865,13 +852,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoConfiguracoesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/executivo/comunicacao': {
-      id: '/executivo/comunicacao'
-      path: '/executivo/comunicacao'
-      fullPath: '/executivo/comunicacao'
-      preLoaderRoute: typeof ExecutivoComunicacaoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/executivo/central-backup': {
       id: '/executivo/central-backup'
       path: '/executivo/central-backup'
@@ -999,7 +979,6 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoCaptacaoRoute: ExecutivoCaptacaoRoute,
   ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,
   ExecutivoCentralBackupRoute: ExecutivoCentralBackupRoute,
-  ExecutivoComunicacaoRoute: ExecutivoComunicacaoRoute,
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoCriativaRoute: ExecutivoCriativaRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
