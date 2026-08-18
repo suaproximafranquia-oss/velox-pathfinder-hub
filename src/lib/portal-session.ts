@@ -36,7 +36,7 @@ import {
   restoreRelationship,
   startRelationship,
 } from "@/lib/crm/commercial";
-import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
+import { listCrmMessages } from "@/lib/crm/messages";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import {
   clearDigitalJourney,
