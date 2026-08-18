@@ -110,7 +110,7 @@ export function MagazineReader({
           full={full}
           onToggleFullscreen={toggleFullscreen}
         />
-        <div className="flex flex-1 items-center justify-center px-8 text-center text-sm text-[color:var(--muted-foreground)]">
+        <div className="flex flex-1 items-center justify-center px-8 text-center text-sm opacity-70">
           Esta edição ainda não possui conteúdo publicado.
         </div>
       </div>
@@ -200,7 +200,7 @@ export function MagazineReader({
         <NavArrow side="right" disabled={index >= total - 1} onClick={() => go(1)} />
 
         <span
-          className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[11px] tracking-[0.18em] text-[color:var(--muted-foreground)]"
+          className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[11px] tracking-[0.18em] opacity-60"
         >
           {index + 1} / {total}
         </span>
@@ -225,29 +225,29 @@ function ReaderBar({
   return (
     <header
       className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3 md:px-8"
-      style={{ borderColor: "var(--paper-edge)" }}
+      style={{ borderColor: "color-mix(in oklab, #F4F1EA 22%, transparent)" }}
     >
       {onBack ? (
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] uppercase tracking-[0.2em]"
-          style={{ borderColor: "var(--paper-edge)" }}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] transition hover:opacity-80"
+          style={{ borderColor: "color-mix(in oklab, #F4F1EA 22%, transparent)" }}
         >
           <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
         </button>
       ) : (
         <span />
       )}
-      <span className="truncate text-center text-xs text-[color:var(--muted-foreground)]">
+      <span className="truncate text-center text-xs opacity-65">
         Revista Velox — {formatEditionCode(edition.number)} | {formatEditionMonth(edition.startsOn)}
       </span>
       <button
         type="button"
         onClick={onToggleFullscreen}
         aria-label={full ? "Sair da tela cheia" : "Tela cheia"}
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
-        style={{ borderColor: "var(--paper-edge)" }}
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition hover:opacity-80"
+        style={{ borderColor: "color-mix(in oklab, #F4F1EA 22%, transparent)" }}
       >
         {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
       </button>
@@ -275,8 +275,9 @@ function NavArrow({
         (side === "left" ? "left-1 md:left-4" : "right-1 md:right-4")
       }
       style={{
-        borderColor: "var(--paper-edge)",
-        background: "color-mix(in oklab, var(--paper) 88%, transparent)",
+        borderColor: "color-mix(in oklab, #F4F1EA 28%, transparent)",
+        background: "color-mix(in oklab, #0B1330 70%, transparent)",
+        color: "#F4F1EA",
       }}
     >
       {side === "left" ? (
