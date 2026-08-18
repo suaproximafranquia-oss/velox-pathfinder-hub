@@ -74,6 +74,14 @@ export type UpsertInput = {
   stageKey: string | null;
   externalStageId: string | null;
   externalCreatedAt: string | null;
+  /** Todas as etiquetas da origem — preservadas como informação. */
+  tags?: unknown[];
+  /** Status técnico informado pela origem (active, bounce, ...). */
+  externalStatus?: string | null;
+  /** Lead marcado como recadastro/reativação pela origem. */
+  remarketing?: boolean;
+  /** A coluna atual é a coluna de entrada (NOVOS) do quadro. */
+  entryStage?: boolean;
   /**
    * Data/hora da última entrada comercial informada pela origem
    * (novo cadastro da MESMA pessoa). Nunca substitui o histórico.
@@ -93,6 +101,10 @@ export type UpsertOutcome = {
   changed: boolean;
   /** Mesma pessoa, novo cadastro na origem — nova oportunidade comercial. */
   newEntry: boolean;
+  /** Houve transição de coluna nesta sincronização. */
+  stageChanged: boolean;
+  /** O lead ENTROU agora na coluna de entrada (NOVOS). */
+  enteredEntryStage: boolean;
 };
 
 const SELECT = "*";
@@ -164,6 +176,11 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
     sync_status: "OK",
     sync_error: null,
     raw_payload: input.rawPayload as never,
+    // Etiquetas e status técnico NUNCA filtram nada — são preservados
+    // integralmente como informação do lead.
+    tags: (input.tags ?? []) as never,
+    external_status: input.externalStatus ?? null,
+    remarketing: Boolean(input.remarketing),
   };
 
   if (!existing) {
@@ -176,6 +193,7 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         last_entry_at: input.lastEntryAt ?? input.externalCreatedAt ?? now,
         // Data de entrada na etapa atual — referência da fila de ligações.
         stage_entered_at: now,
+        entered_entry_stage_at: input.entryStage ? now : null,
         entry_count: 1,
         // PENDING representa uma operação real de envio aguardando
         // processamento — nunca "nunca recebeu mensagem".
@@ -194,7 +212,14 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         : "Lead recebido da origem externa.",
       { externalId: input.externalId, stage: input.stageKey, historico: Boolean(input.historical) },
     );
-    return { lead, created: true, changed: true, newEntry: false };
+    return {
+      lead,
+      created: true,
+      changed: true,
+      newEntry: false,
+      stageChanged: true,
+      enteredEntryStage: Boolean(input.entryStage),
+    };
   }
 
   const previous = existing as unknown as CrmLeadRow;
@@ -204,6 +229,10 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
   const stageKey = input.stageKey ?? previous.stage_key;
   const externalStageId = input.stageKey ? input.externalStageId : previous.external_stage_id;
   const stageChanged = previous.stage_key !== stageKey;
+  const previousEnteredEntry = (previous as unknown as { entered_entry_stage_at?: string | null })
+    .entered_entry_stage_at ?? null;
+  // Entrou AGORA em NOVOS: só conta a transição real de coluna.
+  const enteredEntryStage = Boolean(input.entryStage) && stageChanged;
   const changed =
     stageChanged ||
     newEntry ||
@@ -222,6 +251,9 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
       stage_entered_at: stageChanged
         ? now
         : ((previous as unknown as { stage_entered_at?: string | null }).stage_entered_at ?? now),
+      // Registro explícito de quando o lead entrou na coluna NOVOS —
+      // é essa data que decide a elegibilidade da cadência.
+      entered_entry_stage_at: enteredEntryStage ? now : previousEnteredEntry,
       last_entry_at: newEntry
         ? (input.lastEntryAt as string)
         : (previous.last_entry_at ?? input.lastEntryAt ?? input.externalCreatedAt),
@@ -256,7 +288,7 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
   } else if (!changed) {
     await recordEvent(lead.id, "lead_sincronizado", "Lead reconhecido — sem alterações.");
   }
-  return { lead, created: false, changed, newEntry };
+  return { lead, created: false, changed, newEntry, stageChanged, enteredEntryStage };
 }
 
 export async function markSyncFailure(externalId: string, message: string): Promise<void> {

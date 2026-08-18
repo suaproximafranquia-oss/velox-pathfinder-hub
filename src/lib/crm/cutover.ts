@@ -1,8 +1,12 @@
 /**
- * DATA DE CORTE OPERACIONAL — HISTÓRICO x LEAD NOVO.
+ * DATA DE ATIVAÇÃO DA CADÊNCIA — HISTÓRICO x LEAD NOVO.
  *
- * Fonte única da verdade sobre quem pode entrar em cadência. A regra é
- * simples e não admite exceção:
+ * A data NÃO é fixa no código: ela é uma CONFIGURAÇÃO operacional
+ * (`crm_automation_settings.cadence_activation_date`) que pode ser
+ * definida quando a operação real começar. Enquanto não estiver
+ * definida, NENHUM lead é elegível — na dúvida, jamais disparar.
+ *
+ * A regra não admite exceção:
  *
  *   • lead cuja ENTRADA REAL (cadastro/entrada comercial na origem) é
  *     anterior à data de corte é HISTÓRICO — permanece disponível para
@@ -18,12 +22,14 @@
  */
 import { commercialDate } from "@/lib/crm/cadence";
 
-/** 01/09 — início oficial da nova operação (America/Sao_Paulo). */
-export const OPERATIONAL_CUTOVER_DATE = "2026-09-01";
+/** Data de ativação ainda não definida = nenhuma cadência automática. */
+export type ActivationDate = string | null | undefined;
 
 export type LeadEntryDates = {
   /** Nova entrada comercial registrada pela origem. */
   lastEntryAt?: string | null;
+  /** Entrada REAL na coluna NOVOS do quadro (fonte preferencial). */
+  enteredEntryStageAt?: string | null;
   /** Criação do lead na origem. */
   externalCreatedAt?: string | null;
   /** Criação do registro no Portal do Investidor. */
@@ -35,7 +41,8 @@ export type LeadEntryDates = {
  * `last_synced_at` ou o instante da execução: essas são datas técnicas.
  */
 export function leadEntryDate(lead: LeadEntryDates): string | null {
-  const source = lead.lastEntryAt ?? lead.externalCreatedAt ?? lead.createdAt ?? null;
+  const source =
+    lead.enteredEntryStageAt ?? lead.lastEntryAt ?? lead.externalCreatedAt ?? lead.createdAt ?? null;
   if (!source) return null;
   return commercialDate(source) || null;
 }
@@ -44,16 +51,28 @@ export function leadEntryDate(lead: LeadEntryDates): string | null {
  * Sem data de entrada confiável o lead é tratado como HISTÓRICO: na
  * dúvida, jamais disparar.
  */
-export function isHistoricalLead(lead: LeadEntryDates): boolean {
+export function isHistoricalLead(lead: LeadEntryDates, activationDate: ActivationDate): boolean {
+  if (!activationDate) return true;
   const entry = leadEntryDate(lead);
   if (!entry) return true;
-  return entry < OPERATIONAL_CUTOVER_DATE;
+  return entry < activationDate;
 }
 
 export type CadenceEligibility = { eligible: boolean; entryDate: string | null; reason: string };
 
 /** Decisão explícita e auditável usada por todo ponto de disparo. */
-export function cadenceEligibility(lead: LeadEntryDates): CadenceEligibility {
+export function cadenceEligibility(
+  lead: LeadEntryDates,
+  activationDate: ActivationDate,
+): CadenceEligibility {
+  if (!activationDate) {
+    return {
+      eligible: false,
+      entryDate: leadEntryDate(lead),
+      reason:
+        "Data de ativação da cadência ainda não definida — nenhuma cadência automática é iniciada.",
+    };
+  }
   const entryDate = leadEntryDate(lead);
   if (!entryDate) {
     return {
@@ -62,11 +81,11 @@ export function cadenceEligibility(lead: LeadEntryDates): CadenceEligibility {
       reason: "Sem data de entrada real — tratado como histórico, nenhuma cadência é iniciada.",
     };
   }
-  if (entryDate < OPERATIONAL_CUTOVER_DATE) {
+  if (entryDate < activationDate) {
     return {
       eligible: false,
       entryDate,
-      reason: `Lead histórico (entrada em ${entryDate}, anterior a ${OPERATIONAL_CUTOVER_DATE}) — nenhuma cadência automática.`,
+      reason: `Lead histórico (entrada em ${entryDate}, anterior à ativação em ${activationDate}) — nenhuma cadência automática.`,
     };
   }
   return {
