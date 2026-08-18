@@ -13,7 +13,7 @@ import { TEMPLATE_LAYOUT, type CopyBlock, type TemplateLayout, type TextBlock } 
 
 /** Resolução de referência do material oficial da Velox. */
 export const REFERENCE_SIZE: Record<CreativeModel, { width: number; height: number }> = {
-  institucional: { width: 941, height: 1672 },
+  institucional: { width: 2025, height: 3600 },
   marketing: { width: 1092, height: 1440 },
 };
 
