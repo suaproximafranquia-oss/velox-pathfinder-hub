@@ -84,30 +84,12 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     /**
-     * Lead NOVO: a mesma regra de primeiro contato de qualquer lead
-     * orgânico é acionada aqui — registro no CRM, histórico e tentativa
-     * de entrega. Uma falha externa nunca invalida o cadastro.
+     * SEPARAÇÃO DE CONTEXTOS: iniciar a jornada no Portal do Investidor
+     * é um evento do PORTAL. Ele não gera mensagem automática no CRM de
+     * Relacionamento — o primeiro contato do CRM pertence à entrada do
+     * lead pela origem comercial (GreenSales → Workspace → CRM).
      */
-    let firstContact: { registered: boolean; delivered?: boolean } = { registered: false };
-    if (!current) {
-      try {
-        const { registerFirstContact } = await import("@/server/crm/first-contact.server");
-        const result = await registerFirstContact({
-          leadId: data.id,
-          name: data.name,
-          phone: data.whatsapp ?? "",
-          origin: data.origin ?? "Portal Velox",
-          ownerId: preservedOwner,
-          executiveSlug: data.responsibleExecutiveSlug ?? null,
-        });
-        firstContact = result.registered
-          ? { registered: true, delivered: result.delivered }
-          : { registered: false };
-      } catch {
-        firstContact = { registered: false };
-      }
-    }
-    return { ok: true as const, scope, firstContact };
+    return { ok: true as const, scope };
   });
 
 /**
