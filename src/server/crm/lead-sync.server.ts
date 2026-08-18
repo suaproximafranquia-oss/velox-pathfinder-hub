@@ -12,13 +12,16 @@ import {
   GREENSALES_INTAKE_PAUSED_MESSAGE,
 } from "@/lib/crm/ingestion";
 import { cadenceEligibility } from "@/lib/crm/cutover";
+import { E0_SIMULATION_ENABLED, E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
 import { loadSettings, processWelcome } from "@/server/crm/automation.server";
 import {
   getLeadEntryState,
   isNewCommercialEntry,
   markSyncFailure,
+  recordEvent,
   upsertLead,
 } from "@/server/crm/lead-service.server";
+import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
 import {
   DEFAULT_PIPELINE_EXTERNAL_ID,
   loadPipeline,
@@ -213,7 +216,71 @@ export async function runLeadSync(
         settings.cadenceActivationDate,
       );
       const enteredNow = outcome.created ? Boolean(stage?.isEntry) : outcome.enteredEntryStage;
-      if (enteredNow && eligibility.eligible) {
+      if (enteredNow && !eligibility.eligible) {
+        await recordEvent(outcome.lead.id, "e0_ignorada", eligibility.reason);
+      }
+      if (enteredNow && eligibility.eligible && E0_SIMULATION_ENABLED) {
+        /**
+         * TESTE END-TO-END: origem → servidor → Workspace GreenSales →
+         * E0 simulada. O card operacional é criado no NOSSO Workspace
+         * (carteira `portal_leads`, escopo green_sales) e é nele que a
+         * mensagem e a timeline ficam registradas.
+         */
+        await recordEvent(
+          outcome.lead.id,
+          "e0_identificada",
+          `Lead novo identificado na coluna de entrada. ${eligibility.reason}`,
+        );
+        const card = await ensureWorkspaceCard({
+          externalId,
+          name: normalized.name,
+          email: normalized.email,
+          whatsapp: normalized.whatsapp,
+          city: normalized.city,
+          material: normalized.material,
+          campaign: normalized.campaign,
+          externalCreatedAt: (raw["created_at"] as string) ?? null,
+          externalUpdatedAt: (raw["updated_at"] as string) ?? null,
+          rawPayload: raw,
+        });
+        if (!card.ok) {
+          summary.failed += 1;
+          summary.errors.push(`Lead ${externalId}: card do Workspace — ${card.error}`);
+          await recordEvent(outcome.lead.id, "workspace_card_falhou", card.error);
+        } else {
+          await recordEvent(
+            outcome.lead.id,
+            "workspace_card_criado",
+            card.created
+              ? `Card operacional criado no Workspace GreenSales (${card.cardId}).`
+              : `Card operacional já existente no Workspace GreenSales (${card.cardId}).`,
+          );
+          const { registerFirstContact } = await import("@/server/crm/first-contact.server");
+          const e0 = await registerFirstContact({
+            leadId: card.cardId,
+            name: normalized.name,
+            phone: normalized.whatsapp,
+            origin: "GreenSales",
+            ownerId: null,
+            entryAt: lastEntryAt,
+            enteredEntryStageAt: (outcome.lead as unknown as {
+              entered_entry_stage_at?: string | null;
+            }).entered_entry_stage_at,
+            reactivation: remarketing,
+            simulated: true,
+          });
+          if (e0.registered) {
+            summary.welcomeSent += 1;
+            await recordEvent(
+              outcome.lead.id,
+              "e0_simulada",
+              `${E0_SIMULATION_LABEL} — mensagem registrada no card ${card.cardId} sem entrega real.`,
+            );
+          } else {
+            await recordEvent(outcome.lead.id, "e0_ignorada", e0.reason);
+          }
+        }
+      } else if (enteredNow && eligibility.eligible) {
         const welcome = await processWelcome(outcome.lead, settings);
         if (welcome === "enviada") summary.welcomeSent += 1;
         if (welcome === "falhou") summary.welcomeFailed += 1;
