@@ -60,9 +60,11 @@ export function ExecutiveShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
-    void import("@/lib/meetings")
-      .then(({ hydrateMeetingsFromServer }) => hydrateMeetingsFromServer())
-      .catch(() => undefined);
+    void Promise.all([
+      import("@/lib/meetings").then(({ hydrateMeetingsFromServer }) => hydrateMeetingsFromServer()),
+      import("@/lib/portal-leads-sync").then(({ pullLeads }) => pullLeads()),
+      import("@/lib/crm/server-sync").then(({ hydrateCrmFromServer }) => hydrateCrmFromServer()),
+    ]).catch(() => undefined);
   }, [session.userId]);
 
   /**
