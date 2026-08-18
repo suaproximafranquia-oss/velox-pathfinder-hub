@@ -23,7 +23,7 @@ import {
 } from "@/lib/magazine/edition";
 
 /** Duração da virada — leve o bastante para não pesar em mobile. */
-const TURN_MS = 900;
+const TURN_MS = 1600;
 
 export function MagazineReader({
   edition,
