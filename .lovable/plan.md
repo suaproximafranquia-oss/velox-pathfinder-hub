@@ -1,83 +1,60 @@
-# Portal Velox — Implementação Mestra, Parte 1/3
+# Fonte única no servidor e reset operacional seguro
 
-Objetivo: consolidar a arquitetura já homologada — sem reconstruir nada — introduzindo apenas as camadas mínimas que a Parte 1 pede (Perfil Inteligente, Linha do Tempo, Pendências, Central de Notificações e Central de Reuniões) e preparando o terreno para o Motor de Eventos da Parte 2.
+## Objetivo
+Eliminar estados operacionais exclusivos do navegador sem alterar layout ou regras homologadas. O reset real permanece bloqueado até a persistência servidor ser validada e o lead protegido ser confirmado por identificador estável.
 
-## Princípios aplicados
+## Diagnóstico confirmado
+- Leads do Workspace ainda são lidos de `localStorage` e o pull atual reincorpora registros `localOnly`.
+- Ownership, status visual/encerramento, estado comercial/arquivamento, janela de relacionamento, eventos, reuniões e leads privados ainda possuem fonte operacional local.
+- Mensagens e timeline existem no servidor, mas são mescladas com histórico local e a fila de gravação pode se perder antes do envio.
+- Pipeline/Board/Coluna e a Data de Ativação da Cadência já estão persistidos no servidor; a posição atual é resolvida por coluna, mantendo tags apenas como informação.
+- O banco contém um lead recente chamado `Thiago`, ID `ld_msy1onox18t1`, com primeiro contato e histórico. Não existe correspondência literal `Thiago Rodrigues`; nenhuma exclusão será permitida até confirmar esse ID como o lead protegido.
 
-- Zero mudanças em auth, rotas, overlays, permissões, atribuição investidor↔executivo, KPI Manager e Manual.
-- Reuso máximo: `ExecutiveShell`, `executive-auth`, `teams`, `leads`, `investor-report`, `audit-log`, `simulator-modal`, `ai-assistant`, `journey-progress`.
-- Baixo acoplamento: eventos passam por um único emissor central, módulos não se conhecem entre si.
+## Implementação
 
-## Escopo desta Parte 1
+### 1. Modelo operacional no servidor
+- Criar estrutura persistente para o Workspace/CRM com: proprietário oficial, estado comercial, visualização/encerramento, privacidade, observações e âncoras da janela de relacionamento.
+- Persistir eventos operacionais hoje mantidos no bus local e reuniões hoje mantidas apenas no navegador.
+- Aplicar GRANTs, RLS por responsável/gestão e índices de leitura; preservar políticas existentes.
+- Fazer backfill somente aditivo a partir das tabelas já persistidas. Não importar dados do navegador e não apagar registros.
 
-### 1. Motor de Eventos (semente, não implementação completa)
-- Novo `src/lib/events/bus.ts`: emissor tipado leve (pub/sub em memória + persistência opcional em `localStorage`) com tipos:
-  `journey.started | manual.completed | material.viewed | simulator.started | simulator.completed | meeting.created | meeting.rescheduled | meeting.completed | meeting.cancelled | profile.updated`.
-- Sem lógica de negócio dentro do bus. Cada módulo apenas emite. Parte 2 conecta consumidores reais.
+### 2. Leitura e escrita server-first
+- Criar server functions autenticadas e finas para listar e alterar Workspace, ownership, status, relacionamento, eventos e reuniões.
+- Converter ações operacionais para aguardar confirmação do servidor; cache local não poderá confirmar sucesso nem restaurar registros ausentes no banco.
+- Remover `localOnly` do merge de leads. Limpar storage deixará apenas a interface vazia durante carregamento e, em seguida, reconstruirá tudo pelo servidor.
+- Mensagens/timeline passam a ler substituição autoritativa do servidor, sem mesclar registros locais desconhecidos; gravações deixam de depender do debounce em memória.
+- Manter local apenas: sessão/autenticação, preferências visuais, rascunhos e cache descartável.
 
-### 2. Perfil Inteligente do Investidor + Linha do Tempo
-- Novo `src/lib/investor-profile.ts`: agrega, para um `leadId`/investidor, dados já existentes (lead capturado, progresso da jornada, simulações, reuniões) numa estrutura única `InvestorProfile { identity, journey, timeline[], pendings[] }`.
-- Novo componente `src/components/executive/investor-profile-panel.tsx` renderizado como overlay (padrão modal-sobre-modal já usado).
-- Linha do tempo: consome `bus` + histórico persistido; ordem cronológica, sem exclusão.
+### 3. Separação das camadas
+- Portal dos Leads continua como espelho da origem.
+- Workspace passa a fornecer a carteira operacional persistida.
+- CRM lê e altera exclusivamente essa carteira; não dispara cadência diretamente do espelho do Portal.
+- Cadência continua sem retroatividade e desabilitada quando não houver Data de Ativação.
 
-### 3. Pendências inteligentes
-- Novo `src/lib/pendings.ts`: deriva pendências a partir do estado atual (jornada interrompida, simulação não finalizada, reunião próxima, retorno pendente). Puro/derivado — sem tabela nova.
-- Card "Pendências" na Central do Executivo (`executivo.home.tsx`), respeitando permissões via `visibleCollaborators`.
+### 4. Compatibilidade e proteção
+- Preservar usuários, perfis, permissões, templates, Biblioteca, Revista, configurações e dados reais.
+- Não criar seeds, mocks, leads ou mensagens artificiais.
+- Desabilitar os resets locais como operações operacionais; homologação local só poderá limpar preferências/artefatos explicitamente não operacionais.
+- Adicionar testes para coluna sobre tag, ausência de ativação, histórico anterior à ativação e transição real para Novos.
 
-### 4. Central de Notificações
-- Novo `src/lib/notifications.ts`: consome eventos do bus, mantém lista persistida por usuário, contador de não lidas.
-- Novo `src/components/executive/notifications-bell.tsx` no header do `ExecutiveShell` (ícone + badge + popover cronológico, acesso rápido ao Perfil Inteligente).
-- Não interrompe fluxo: sem toasts obrigatórios.
+### 5. Validação obrigatória antes do reset
+- Comparar snapshots de dados retornados pelo servidor em dois contextos isolados de navegador autenticados com a mesma conta.
+- Limpar cookies/cache/storage de um contexto, autenticar novamente e confirmar o mesmo snapshot.
+- Executar uma alteração operacional reversível em um contexto e comprovar a leitura no outro.
+- Validar mensagens, timeline, ownership, estado, posição, reuniões, jornada, cadência e eventos.
+- Confirmar no banco que nenhuma linha foi apagada durante esta fase.
 
-### 5. Central de Reuniões
-- Novo `src/lib/meetings.ts`: modelo `Meeting { id, investorId, executiveId, scheduledAt, status, notes[], postMeeting? }` com status `Agendada | Confirmada | Reagendada | Em andamento | Concluída | Cancelada`. Persistência local; arquitetura pronta para backend/Meet futuros.
-- Nova rota `src/routes/executivo.reunioes.tsx` (não altera rotas existentes; apenas adiciona).
-- Registro pós-reunião aditivo (nunca sobrescreve). Cancelamento preserva motivo.
-- Emite eventos no bus → alimenta Linha do Tempo e Notificações automaticamente.
-- Novo módulo em `src/config/modules.ts` ("Central de Reuniões"), respeitando padrão de card existente. O card externo "Reuniões" (Google Meet) permanece intacto.
+### 6. Reset real — etapa separada e bloqueada
+- Primeiro executar somente dry-run no servidor, com contagens e IDs candidatos por tabela.
+- Proteger o lead confirmado por ID estável e excluir também seus relacionamentos do conjunto candidato. Nunca proteger apenas por nome.
+- Gerar snapshot de segurança e hash do escopo antes da execução.
+- Exigir aprovação explícita do relatório de dry-run; somente depois executar uma rotina transacional no servidor.
+- Validar contagens pós-reset e provar que cadastro, posição, mensagens, timeline, eventos, cadência e jornada do lead protegido permanecem idênticos.
 
-### 6. Simulador — apenas ajustes de nomenclatura e integração
-- Renomear rótulos visíveis para "Simulador Inteligente de Potencial de Receita" onde ainda houver variação (auditar `simulator-modal.tsx`, `modules.ts`, `universo.tsx`, textos do Portal). Nenhuma mudança de UX/cálculo.
-- Ao concluir simulação: emitir `simulator.completed` no bus com payload mínimo (produtos, volume total, receita estimada, leadId quando existir). Isso já alimenta Perfil, Timeline, Notificações e Pendências sem acoplamento.
-
-### 7. Dashboard Executivo
-- Sem reconstrução. Apenas adicionar seções derivadas: "Pendências" e atalho "Notificações recentes" reutilizando os módulos acima.
-- Indicadores continuam do KPI Manager (segregação Portal ↔ KPI preservada — nenhum cruzamento novo).
-
-### 8. Auditoria
-- Reusar `src/lib/audit-log.ts`. Ações relevantes de reuniões e simulações registram entrada de auditoria via o mesmo helper.
-
-## O que NÃO muda
-
-- `src/routes/__root.tsx`, shells editoriais, Manual, Material Institucional, KPI Manager, Brain, IA (prompt), login, permissões, atribuição de executivos, identidade visual, URLs, integrações externas.
-- Nenhum componente homologado é substituído.
-
-## Estrutura de arquivos (novos)
-
-```text
-src/lib/
-  events/bus.ts
-  investor-profile.ts
-  pendings.ts
-  notifications.ts
-  meetings.ts
-src/components/executive/
-  investor-profile-panel.tsx
-  notifications-bell.tsx
-  pendings-card.tsx
-  meetings/
-    meetings-list.tsx
-    meeting-dialog.tsx
-src/routes/
-  executivo.reunioes.tsx
-```
-
-## Validação ao final
-
-- Typecheck limpo.
-- `/`, `/manual`, `/universo`, `/executivo/*` existentes inalterados visualmente.
-- Simulador segue funcionando idêntico; agora emite evento.
-- Novo bell aparece no header executivo; nova rota `/executivo/reunioes` acessível; Perfil Inteligente abre em overlay a partir da lista de investidores.
-- Nenhuma dependência externa nova é obrigatória.
-
-Ao aprovar, executo tudo em uma sequência de edits paralelas e valido typecheck antes de encerrar.
+## Critérios de conclusão
+- Dois navegadores exibem o mesmo estado e uma limpeza local não altera dados.
+- Toda mutação operacional confirmada num navegador aparece no outro.
+- Pipeline/Board/Coluna continua governando a posição; tags não governam fluxo.
+- O reset local não existe como reset operacional.
+- Nenhuma exclusão ocorre antes da validação e da aprovação do dry-run.
+- O lead protegido é preservado integralmente por ID confirmado.
