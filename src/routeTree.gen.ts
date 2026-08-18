@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ManualIndexRouteImport } from './routes/manual/index'
 import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as CrmIndexRouteImport } from './routes/crm.index'
+import { Route as UniversoTestRevistaRouteImport } from './routes/universo.test-revista'
 import { Route as SegSlugRouteImport } from './routes/seg.$slug'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
@@ -38,7 +39,6 @@ import { Route as ExecutivoHomologacaoRouteImport } from './routes/executivo.hom
 import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
 import { Route as ExecutivoGreensalesSyncRouteImport } from './routes/executivo.greensales-sync'
 import { Route as ExecutivoGreensalesRouteImport } from './routes/executivo.greensales'
-import { Route as ExecutivoFooRouteImport } from './routes/executivo.foo'
 import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
 import { Route as ExecutivoCriativaRouteImport } from './routes/executivo.criativa'
 import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
@@ -96,6 +96,11 @@ const CrmIndexRoute = CrmIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => CrmRoute,
+} as any)
+const UniversoTestRevistaRoute = UniversoTestRevistaRouteImport.update({
+  id: '/test-revista',
+  path: '/test-revista',
+  getParentRoute: () => UniversoRoute,
 } as any)
 const SegSlugRoute = SegSlugRouteImport.update({
   id: '/seg/$slug',
@@ -202,11 +207,6 @@ const ExecutivoGreensalesRoute = ExecutivoGreensalesRouteImport.update({
   path: '/executivo/greensales',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExecutivoFooRoute = ExecutivoFooRouteImport.update({
-  id: '/executivo/foo',
-  path: '/executivo/foo',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ExecutivoDashboardRoute = ExecutivoDashboardRouteImport.update({
   id: '/executivo/dashboard',
   path: '/executivo/dashboard',
@@ -299,7 +299,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/universo': typeof UniversoRoute
+  '/universo': typeof UniversoRouteWithChildren
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
@@ -313,7 +313,6 @@ export interface FileRoutesByFullPath {
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
-  '/executivo/foo': typeof ExecutivoFooRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -335,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
+  '/universo/test-revista': typeof UniversoTestRevistaRoute
   '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
@@ -347,7 +347,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/universo': typeof UniversoRoute
+  '/universo': typeof UniversoRouteWithChildren
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
@@ -361,7 +361,6 @@ export interface FileRoutesByTo {
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
-  '/executivo/foo': typeof ExecutivoFooRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -383,6 +382,7 @@ export interface FileRoutesByTo {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
+  '/universo/test-revista': typeof UniversoTestRevistaRoute
   '/crm': typeof CrmIndexRoute
   '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
@@ -397,7 +397,7 @@ export interface FileRoutesById {
   '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/universo': typeof UniversoRoute
+  '/universo': typeof UniversoRouteWithChildren
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
   '/executivo/alertas': typeof ExecutivoAlertasRoute
@@ -411,7 +411,6 @@ export interface FileRoutesById {
   '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
   '/executivo/criativa': typeof ExecutivoCriativaRoute
   '/executivo/dashboard': typeof ExecutivoDashboardRoute
-  '/executivo/foo': typeof ExecutivoFooRoute
   '/executivo/greensales': typeof ExecutivoGreensalesRoute
   '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
   '/executivo/home': typeof ExecutivoHomeRoute
@@ -433,6 +432,7 @@ export interface FileRoutesById {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
+  '/universo/test-revista': typeof UniversoTestRevistaRoute
   '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
@@ -462,7 +462,6 @@ export interface FileRouteTypes {
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
-    | '/executivo/foo'
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
@@ -484,6 +483,7 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/s/$slug'
     | '/seg/$slug'
+    | '/universo/test-revista'
     | '/crm/'
     | '/executivo/'
     | '/manual/'
@@ -510,7 +510,6 @@ export interface FileRouteTypes {
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
-    | '/executivo/foo'
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
@@ -532,6 +531,7 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/s/$slug'
     | '/seg/$slug'
+    | '/universo/test-revista'
     | '/crm'
     | '/executivo'
     | '/manual'
@@ -559,7 +559,6 @@ export interface FileRouteTypes {
     | '/executivo/configuracoes'
     | '/executivo/criativa'
     | '/executivo/dashboard'
-    | '/executivo/foo'
     | '/executivo/greensales'
     | '/executivo/greensales-sync'
     | '/executivo/home'
@@ -581,6 +580,7 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/s/$slug'
     | '/seg/$slug'
+    | '/universo/test-revista'
     | '/crm/'
     | '/executivo/'
     | '/manual/'
@@ -595,7 +595,7 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRouteWithChildren
   EntrarRoute: typeof EntrarRoute
   PortalLeadsRoute: typeof PortalLeadsRoute
-  UniversoRoute: typeof UniversoRoute
+  UniversoRoute: typeof UniversoRouteWithChildren
   ESlugRoute: typeof ESlugRoute
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
   ExecutivoAlertasRoute: typeof ExecutivoAlertasRoute
@@ -609,7 +609,6 @@ export interface RootRouteChildren {
   ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
   ExecutivoCriativaRoute: typeof ExecutivoCriativaRoute
   ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
-  ExecutivoFooRoute: typeof ExecutivoFooRoute
   ExecutivoGreensalesRoute: typeof ExecutivoGreensalesRoute
   ExecutivoGreensalesSyncRoute: typeof ExecutivoGreensalesSyncRoute
   ExecutivoHomeRoute: typeof ExecutivoHomeRoute
@@ -696,6 +695,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/crm/'
       preLoaderRoute: typeof CrmIndexRouteImport
       parentRoute: typeof CrmRoute
+    }
+    '/universo/test-revista': {
+      id: '/universo/test-revista'
+      path: '/test-revista'
+      fullPath: '/universo/test-revista'
+      preLoaderRoute: typeof UniversoTestRevistaRouteImport
+      parentRoute: typeof UniversoRoute
     }
     '/seg/$slug': {
       id: '/seg/$slug'
@@ -844,13 +850,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExecutivoGreensalesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/executivo/foo': {
-      id: '/executivo/foo'
-      path: '/executivo/foo'
-      fullPath: '/executivo/foo'
-      preLoaderRoute: typeof ExecutivoFooRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/executivo/dashboard': {
       id: '/executivo/dashboard'
       path: '/executivo/dashboard'
@@ -983,12 +982,24 @@ const CrmRouteChildren: CrmRouteChildren = {
 
 const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
 
+interface UniversoRouteChildren {
+  UniversoTestRevistaRoute: typeof UniversoTestRevistaRoute
+}
+
+const UniversoRouteChildren: UniversoRouteChildren = {
+  UniversoTestRevistaRoute: UniversoTestRevistaRoute,
+}
+
+const UniversoRouteWithChildren = UniversoRoute._addFileChildren(
+  UniversoRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CrmRoute: CrmRouteWithChildren,
   EntrarRoute: EntrarRoute,
   PortalLeadsRoute: PortalLeadsRoute,
-  UniversoRoute: UniversoRoute,
+  UniversoRoute: UniversoRouteWithChildren,
   ESlugRoute: ESlugRoute,
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
   ExecutivoAlertasRoute: ExecutivoAlertasRoute,
@@ -1002,7 +1013,6 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
   ExecutivoCriativaRoute: ExecutivoCriativaRoute,
   ExecutivoDashboardRoute: ExecutivoDashboardRoute,
-  ExecutivoFooRoute: ExecutivoFooRoute,
   ExecutivoGreensalesRoute: ExecutivoGreensalesRoute,
   ExecutivoGreensalesSyncRoute: ExecutivoGreensalesSyncRoute,
   ExecutivoHomeRoute: ExecutivoHomeRoute,
