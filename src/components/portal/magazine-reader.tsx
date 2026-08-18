@@ -23,7 +23,7 @@ import {
 } from "@/lib/magazine/edition";
 
 /** Duração da virada — leve o bastante para não pesar em mobile. */
-const TURN_MS = 720;
+const TURN_MS = 900;
 
 export function MagazineReader({
   edition,
@@ -304,7 +304,7 @@ function Side({
   if (kind === "media") {
     return (
       <div
-        className="relative flex min-h-[34vh] items-center justify-center overflow-hidden md:h-full md:min-h-0"
+        className="magazine-media-side relative flex min-h-[34vh] items-center justify-center overflow-hidden md:h-full md:min-h-0"
         style={{ background: "color-mix(in oklab, var(--ink) 92%, transparent)" }}
       >
         {spread.mediaKind === "imagem" && spread.mediaUrl && (
@@ -337,7 +337,7 @@ function Side({
   }
 
   return (
-    <div className="flex flex-col justify-center px-6 py-8 sm:px-8 md:h-full md:overflow-y-auto md:px-12 md:py-10">
+    <div className="relative flex flex-col justify-center bg-white px-6 py-8 sm:px-8 md:h-full md:overflow-y-auto md:px-12 md:py-10">
       {spread.eyebrow && <span className="portal-eyebrow">{spread.eyebrow}</span>}
       <h2 className="portal-serif mt-3 text-3xl md:text-4xl">{spread.title}</h2>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-[color:var(--muted-foreground)] md:text-base">
