@@ -6,6 +6,7 @@
  * é espalhado pelo código: a resolução é sempre feita por consulta.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { resolveBoardColumn, type BoardResolution } from "@/lib/crm/board";
 
 export const DEFAULT_PIPELINE_EXTERNAL_ID = "2";
 export const ENTRY_STAGE_KEY = "novos";
@@ -57,30 +58,37 @@ export async function loadPipeline(
 }
 
 /**
- * Resolve a etapa a partir da relação real do lead com o funil da origem.
+ * Resolve a COLUNA/BOARD atual do lead no funil da origem.
  *
- * Regras:
- * - somente relações que existem no funil configurado são consideradas;
- *   qualquer outra marcação (marketing, formulário, remarketing antigo)
- *   é dado auxiliar e nunca decide a coluna;
- * - quando existe uma NOVA ENTRADA comercial (a pessoa se cadastrou de
- *   novo) e a origem devolve a relação de entrada, a etapa atual é a de
- *   entrada — relações antigas não bloqueiam o novo ciclo;
- * - sem nova entrada, prevalece a relação mais avançada do funil;
- * - ausência de relação NÃO é movimentação: devolve `null` e o chamador
- *   preserva a última etapa conhecida.
+ * A decisão inteira vive em `@/lib/crm/board`: a posição no quadro é a
+ * fonte da verdade e as demais etiquetas são apenas informação. Aqui só
+ * traduzimos a coluna encontrada para a etapa interna do CRM.
  */
-export function resolveStage(
+export type StageResolution = {
+  stage: PipelineStage | null;
+  remarketing: boolean;
+};
+
+export function resolveBoardStage(
   pipeline: PipelineMap,
-  tagIds: string[],
-  options: { newEntry?: boolean } = {},
-): PipelineStage | null {
-  const wanted = new Set(tagIds.map((t) => String(t)));
-  const matched = pipeline.stages.filter((s) => wanted.has(s.externalTag));
-  if (!matched.length) return null;
-  if (options.newEntry) {
-    const entry = matched.find((s) => s.isEntry);
-    if (entry) return entry;
-  }
-  return matched.reduce((a, b) => (b.position > a.position ? b : a));
+  tagIds: (string | number)[],
+): StageResolution {
+  const resolution: BoardResolution = resolveBoardColumn(
+    pipeline.stages.map((s) => ({
+      key: s.key,
+      externalTag: s.externalTag,
+      position: s.position,
+      isEntry: s.isEntry,
+    })),
+    tagIds,
+  );
+  const stage = resolution.column
+    ? (pipeline.stages.find((s) => s.key === resolution.column!.key) ?? null)
+    : null;
+  return { stage, remarketing: resolution.remarketing };
+}
+
+/** Compatibilidade: devolve apenas a etapa resolvida pela board. */
+export function resolveStage(pipeline: PipelineMap, tagIds: (string | number)[]): PipelineStage | null {
+  return resolveBoardStage(pipeline, tagIds).stage;
 }

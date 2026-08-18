@@ -22,7 +22,7 @@ import {
 import {
   DEFAULT_PIPELINE_EXTERNAL_ID,
   loadPipeline,
-  resolveStage,
+  resolveBoardStage,
 } from "@/server/crm/pipeline-service.server";
 
 export type SyncSummary = {
@@ -156,9 +156,10 @@ export async function runLeadSync(
       const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
       const raw = { ...listed, ...detail } as Record<string, unknown>;
       const normalized = normalizeGreenSalesLead(raw as never);
-      const tags = Array.isArray(raw["tags"])
-        ? (raw["tags"] as { id: number | string }[]).map((t) => String(t.id))
-        : [];
+      // Etiquetas são PRESERVADAS integralmente: nenhuma delas filtra,
+      // exclui ou impede a sincronização deste lead.
+      const rawTags = Array.isArray(raw["tags"]) ? (raw["tags"] as { id: number | string }[]) : [];
+      const tagIds = rawTags.map((t) => String(t.id));
       // Nova entrada comercial: a MESMA pessoa realizou um novo cadastro.
       // A origem devolve isso em `last_register_at` (fallback `register`).
       const lastEntryAt =
@@ -167,10 +168,10 @@ export async function runLeadSync(
         (raw["created_at"] as string) ??
         null;
       const known = await getLeadEntryState(externalId);
-      const newEntry = isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
-      // Etapa vem da relação real com o funil; marcações auxiliares
-      // (remarketing, formulário, campanha) nunca decidem a coluna.
-      const stage = resolveStage(pipeline, tags, { newEntry });
+      void isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
+      // A COLUNA/BOARD atual é a fonte da verdade: etiquetas auxiliares
+      // (formulário, campanha, remarketing) nunca decidem a posição.
+      const { stage, remarketing } = resolveBoardStage(pipeline, tagIds);
       const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
 
       const outcome = await upsertLead({
@@ -186,22 +187,33 @@ export async function runLeadSync(
         externalStageId: stage?.externalTag ?? null,
         externalCreatedAt: (raw["created_at"] as string) ?? null,
         lastEntryAt,
+        tags: rawTags,
+        externalStatus: (raw["status"] as string) ?? null,
+        remarketing,
+        entryStage: Boolean(stage?.isEntry),
         rawPayload: raw,
       });
       if (outcome.created) summary.created += 1;
       else if (outcome.changed) summary.updated += 1;
 
       /**
-       * Primeiro contato reage APENAS a uma entrada realmente nova em
-       * NOVOS e posterior à data de corte operacional. Lead histórico —
-       * ainda que apareça agora na sincronização — nunca inicia cadência:
-       * sincronizar não é criar (ver `@/lib/crm/cutover`).
+       * Primeiro contato reage APENAS à ENTRADA REAL na coluna NOVOS e
+       * somente a partir da data de ativação configurada. Lead histórico
+       * — ainda que apareça agora na sincronização — nunca inicia
+       * cadência: sincronizar não é entrar (ver `@/lib/crm/cutover`).
        */
-      const eligibility = cadenceEligibility({
-        lastEntryAt,
-        externalCreatedAt: (raw["created_at"] as string) ?? null,
-      });
-      if (stage?.isEntry && outcome.created && eligibility.eligible) {
+      const eligibility = cadenceEligibility(
+        {
+          enteredEntryStageAt: (outcome.lead as unknown as {
+            entered_entry_stage_at?: string | null;
+          }).entered_entry_stage_at,
+          lastEntryAt,
+          externalCreatedAt: (raw["created_at"] as string) ?? null,
+        },
+        settings.cadenceActivationDate,
+      );
+      const enteredNow = outcome.created ? Boolean(stage?.isEntry) : outcome.enteredEntryStage;
+      if (enteredNow && eligibility.eligible) {
         const welcome = await processWelcome(outcome.lead, settings);
         if (welcome === "enviada") summary.welcomeSent += 1;
         if (welcome === "falhou") summary.welcomeFailed += 1;
@@ -319,9 +331,8 @@ export async function runGreenSalesBackfill(
       const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
       const raw = { ...listed, ...detail } as Record<string, unknown>;
       const normalized = normalizeGreenSalesLead(raw as never);
-      const tags = Array.isArray(raw["tags"])
-        ? (raw["tags"] as { id: number | string }[]).map((t) => String(t.id))
-        : [];
+      const rawTags = Array.isArray(raw["tags"]) ? (raw["tags"] as { id: number | string }[]) : [];
+      const tagIds = rawTags.map((t) => String(t.id));
       // Nova entrada comercial: a MESMA pessoa realizou um novo cadastro.
       // A origem devolve isso em `last_register_at` (fallback `register`).
       const lastEntryAt =
@@ -330,10 +341,9 @@ export async function runGreenSalesBackfill(
         (raw["created_at"] as string) ??
         null;
       const known = await getLeadEntryState(externalId);
-      const newEntry = isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
-      // Etapa vem da relação real com o funil; marcações auxiliares
-      // (remarketing, formulário, campanha) nunca decidem a coluna.
-      const stage = resolveStage(pipeline, tags, { newEntry });
+      void isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
+      // Board é a fonte da verdade também na carga histórica.
+      const { stage, remarketing } = resolveBoardStage(pipeline, tagIds);
       const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
 
       const outcome = await upsertLead({
@@ -349,6 +359,10 @@ export async function runGreenSalesBackfill(
         externalStageId: stage?.externalTag ?? null,
         externalCreatedAt: (raw["created_at"] as string) ?? null,
         lastEntryAt,
+        tags: rawTags,
+        externalStatus: (raw["status"] as string) ?? null,
+        remarketing,
+        entryStage: Boolean(stage?.isEntry),
         rawPayload: raw,
         historical: true,
       });

@@ -9,7 +9,12 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getDefaultExecutive } from "@/lib/executive-auth";
 import { investorPortalUrl } from "@/lib/portal-brands";
-import { CRM_TEMPLATES, getCrmTemplate, renderCrmTemplate } from "@/lib/crm/templates";
+import {
+  CRM_TEMPLATES,
+  getCrmTemplate,
+  pickOpeningTemplate,
+  renderCrmTemplate,
+} from "@/lib/crm/templates";
 import { recordEvent, type CrmLeadRow } from "@/server/crm/lead-service.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { engineOwnsFirstContact } from "@/lib/relationship/config";
@@ -21,6 +26,11 @@ export type AutomationSettings = {
   welcomeTemplateId: string;
   welcomeBody: string | null;
   materialUrl: string | null;
+  /**
+   * Data (YYYY-MM-DD) a partir da qual a cadência automática pode
+   * começar. Vazia = nenhuma cadência é iniciada para lead algum.
+   */
+  cadenceActivationDate: string | null;
 };
 
 /** Link padrão do material — sobrescrito pela configuração quando definida. */
@@ -30,7 +40,9 @@ const MAX_WELCOME_ATTEMPTS = 3;
 export async function loadSettings(): Promise<AutomationSettings> {
   const { data } = await supabaseAdmin
     .from("crm_automation_settings")
-    .select("sync_interval_minutes,welcome_enabled,welcome_template_id,welcome_body,material_url")
+    .select(
+      "sync_interval_minutes,welcome_enabled,welcome_template_id,welcome_body,material_url,cadence_activation_date",
+    )
     .eq("id", true)
     .maybeSingle();
   return {
@@ -39,7 +51,15 @@ export async function loadSettings(): Promise<AutomationSettings> {
     welcomeTemplateId: data?.welcome_template_id ?? "primeiro_contato",
     welcomeBody: data?.welcome_body ?? null,
     materialUrl: data?.material_url ?? null,
+    cadenceActivationDate:
+      (data as { cadence_activation_date?: string | null } | null)?.cadence_activation_date ?? null,
   };
+}
+
+/** Data de ativação da cadência — leitura direta, sem valor embutido. */
+export async function loadCadenceActivationDate(): Promise<string | null> {
+  const settings = await loadSettings();
+  return settings.cadenceActivationDate;
 }
 
 /**
@@ -50,6 +70,7 @@ export function buildWelcomeMessage(
   settings: AutomationSettings,
   leadName?: string,
   responsible?: { name?: string | null; slug?: string | null } | null,
+  options: { reactivation?: boolean } = {},
 ): { body: string; templateId: string; link: string } {
   const executive = responsible?.slug
     ? { name: responsible.name ?? "", slug: responsible.slug }
@@ -63,14 +84,24 @@ export function buildWelcomeMessage(
     (executive ? investorPortalUrl(executive.slug) : DEFAULT_MATERIAL_URL);
 
   const context = { executiveName: executive?.name ?? "", portalLink: link };
-  const template = getCrmTemplate(settings.welcomeTemplateId) ?? CRM_TEMPLATES[0]!;
-  const raw = settings.welcomeBody?.trim() ? settings.welcomeBody : template.body;
+  /**
+   * Recadastro/reativação (lead voltou para NOVOS com etiqueta
+   * REMARKETING) usa a comunicação de REABERTURA já definida no
+   * sistema — nunca a apresentação destinada a um lead virgem e nunca
+   * um texto novo inventado aqui.
+   */
+  const template = options.reactivation
+    ? pickOpeningTemplate()
+    : (getCrmTemplate(settings.welcomeTemplateId) ?? CRM_TEMPLATES[0]!);
+  const raw =
+    !options.reactivation && settings.welcomeBody?.trim() ? settings.welcomeBody : template.body;
   const rendered = renderCrmTemplate(raw, context);
   // Saudação: existindo nome válido, ele é usado. "caro investidor" é
   // reservado a quem realmente não tem nome utilizável no cadastro.
   const treatment = looksLikeName(leadName) ? firstName(leadName) : NEUTRAL_TREATMENT;
   const body = rendered.replace(NEUTRAL_TREATMENT, treatment);
-  const withLink = body.includes(link) ? body : `${body}\n\n${link}`;
+  // A reabertura é neutra: não carrega link nem conteúdo comercial.
+  const withLink = options.reactivation || body.includes(link) ? body : `${body}\n\n${link}`;
   return { body: withLink, templateId: template.id, link };
 }
 
@@ -107,7 +138,9 @@ export async function processWelcome(
   if (!claim.data) return "ignorada";
 
   await recordEvent(lead.id, "boas_vindas_iniciada", "Automação de boas-vindas iniciada.");
-  const message = buildWelcomeMessage(settings, lead.name);
+  const message = buildWelcomeMessage(settings, lead.name, null, {
+    reactivation: Boolean((lead as unknown as { remarketing?: boolean }).remarketing),
+  });
   const result = await sendWhatsappText({ phone: lead.phone, body: message.body });
 
   if (result.delivered) {

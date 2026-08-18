@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2 } from "lucide-react";
+import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock } from "lucide-react";
 import {
   loadHomologationConfig,
   saveHomologationConfig,
@@ -104,6 +104,7 @@ function ConfiguracoesPage() {
         </p>
         <div className="grid gap-4">
           <VideoconferenciaSection session={session} />
+          <CadenciaAtivacaoSection />
           <ProtecaoHomologacaoSection />
           <IntegracoesSection session={session} />
           <GreenSalesConnectionSection />
@@ -138,6 +139,95 @@ function ConfiguracoesPage() {
 
 function VideoconferenciaSection({ session }: { session: ExecutiveSession }) {
   return <VideoconferenciaSectionInner session={session} />;
+}
+
+/**
+ * Data de ativação da cadência — configuração operacional persistida no
+ * servidor. Nenhuma data fica embutida no código e definir a data não
+ * cria etapas retroativas para leads antigos.
+ */
+function CadenciaAtivacaoSection() {
+  const [value, setValue] = useState("");
+  const [saved, setSaved] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const { getCadenceActivation } = await import("@/lib/crm/cadence-activation.functions");
+        const result = await getCadenceActivation({ data: undefined });
+        setSaved(result.activationDate);
+        setValue(result.activationDate ?? "");
+      } catch {
+        setStatus("Não foi possível carregar a configuração.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  async function persist(next: string | null) {
+    setStatus(null);
+    const { setCadenceActivation } = await import("@/lib/crm/cadence-activation.functions");
+    const result = await setCadenceActivation({ data: { activationDate: next } });
+    if (!result.ok) {
+      setStatus(result.reason);
+      return;
+    }
+    setSaved(next);
+    setValue(next ?? "");
+    setStatus(
+      next
+        ? `Cadência ativa para leads que entrarem em NOVOS a partir de ${next}.`
+        : "Cadência automática desativada — nenhum lead inicia etapas.",
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
+          <CalendarClock className="h-4 w-4" strokeWidth={1.6} />
+        </span>
+        <h2 className="font-display text-base">Data de Ativação da Cadência</h2>
+      </div>
+      <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed mb-4">
+        Somente leads que entrarem na coluna NOVOS a partir desta data iniciam cadência.
+        Leads anteriores permanecem no quadro, sem mensagens, ligações ou etapas retroativas.
+        Sem data definida, nenhuma cadência automática é iniciada.
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          type="date"
+          value={value}
+          disabled={loading}
+          onChange={(e) => setValue(e.target.value)}
+          className="rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/60 px-3 py-2 text-sm"
+        />
+        <button
+          type="button"
+          disabled={loading || !value}
+          onClick={() => void persist(value || null)}
+          className="rounded-lg border border-[color:var(--gold)]/50 px-4 py-2 text-sm text-[color:var(--gold)] disabled:opacity-40"
+        >
+          Salvar data
+        </button>
+        <button
+          type="button"
+          disabled={loading || !saved}
+          onClick={() => void persist(null)}
+          className="rounded-lg border border-[color:var(--border)] px-4 py-2 text-sm text-[color:var(--muted-foreground)] disabled:opacity-40"
+        >
+          Remover data
+        </button>
+      </div>
+      <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">
+        {status ??
+          (saved ? `Ativação configurada: ${saved}.` : "Nenhuma data de ativação definida.")}
+      </p>
+    </section>
+  );
 }
 
 /**

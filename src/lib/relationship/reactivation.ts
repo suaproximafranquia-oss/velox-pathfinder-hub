@@ -7,7 +7,7 @@
  * fica disponível para a ativação futura, sem texto inventado.
  */
 import { addBusinessDays, commercialDate } from "@/lib/crm/cadence";
-import { isHistoricalLead, type LeadEntryDates } from "@/lib/crm/cutover";
+import { isHistoricalLead, type ActivationDate, type LeadEntryDates } from "@/lib/crm/cutover";
 
 /** Enquanto falso, nenhuma etapa E30 é criada, agendada ou disparada. */
 export const E30_ENABLED = false;
@@ -21,9 +21,11 @@ export function planE30(input: {
   lead: LeadEntryDates;
   /** Início REAL da jornada do lead novo (E0 executado). */
   journeyStartedAt: string | null;
+  /** Data de ativação configurada; vazia = nada é agendado. */
+  activationDate?: ActivationDate;
 }): E30Plan {
   if (!E30_ENABLED) return { scheduled: false, reason: "E30 ainda não ativado." };
-  if (isHistoricalLead(input.lead)) {
+  if (isHistoricalLead(input.lead, input.activationDate ?? null)) {
     return { scheduled: false, reason: "Lead histórico — E30 nunca é criado." };
   }
   const start = input.journeyStartedAt ? commercialDate(input.journeyStartedAt) : "";

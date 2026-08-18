@@ -7,7 +7,6 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
-  CADENCE_ACTIVATION_DATE,
   cadenceCycleDate,
   commercialDate,
   ELIGIBLE_STAGE_KEYS,
@@ -18,6 +17,7 @@ import {
   type CadenceAttempt,
   type CallOutcome,
 } from "@/lib/crm/cadence";
+import { loadCadenceActivationDate } from "@/server/crm/automation.server";
 
 export type CadenceQueueItem = {
   leadId: string;
@@ -37,6 +37,12 @@ export async function buildCadenceQueue(
   channel: CadenceChannel = "call",
 ): Promise<CadenceQueueItem[]> {
   const today = commercialDate();
+  /**
+   * Sem data de ativação configurada não existe fila: nenhum lead —
+   * novo ou histórico — recebe etapa retroativa.
+   */
+  const activationDate = await loadCadenceActivationDate();
+  if (!activationDate) return [];
 
   const { data: leads, error } = await supabaseAdmin
     .from("crm_leads")
@@ -84,7 +90,7 @@ export async function buildCadenceQueue(
     });
     if (!cycleDate) continue;
     // Histórico anterior à ativação não vira fila retroativa.
-    if (cycleDate < CADENCE_ACTIVATION_DATE) continue;
+    if (cycleDate < activationDate) continue;
 
     // §3 — a contagem começa na TRANSIÇÃO para a etapa elegível
     // (ZERO CONTATO / FRIO). Sem transição registrada, a entrada
