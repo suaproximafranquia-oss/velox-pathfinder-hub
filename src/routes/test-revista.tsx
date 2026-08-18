@@ -15,6 +15,7 @@ const mockEdition = {
   pages: [
     {
       id: "p1",
+      editionId: "test-edition",
       position: 1,
       title: "A Velox em números",
       eyebrow: "Nossa Estrutura",
@@ -25,6 +26,7 @@ const mockEdition = {
     },
     {
       id: "p2",
+      editionId: "test-edition",
       position: 2,
       title: "O ecossistema de produtos",
       eyebrow: "Modelo de Negócio",
@@ -35,6 +37,7 @@ const mockEdition = {
     },
     {
       id: "p3",
+      editionId: "test-edition",
       position: 3,
       title: "Cultura e princípios",
       eyebrow: "Princípios Velox",
@@ -45,6 +48,7 @@ const mockEdition = {
     },
     {
       id: "p4",
+      editionId: "test-edition",
       position: 4,
       title: "Jornada do investidor",
       eyebrow: "Próximos Passos",
