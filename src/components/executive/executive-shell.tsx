@@ -23,6 +23,8 @@ import {
   Radar,
   LayoutList,
   LibraryBig,
+  BookOpen,
+  Building2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
