@@ -9,9 +9,8 @@
  * banco e integrações.
  */
 import { notifySync } from "@/lib/sync-bus";
-import { isProductionEnvironment } from "@/lib/environment";
 
-const RESET_VERSION_KEY = "velox:physical-reset:2.4.reset.2";
+const RESET_VERSION_KEY = "velox:physical-reset:operacional.1";
 
 /** Chaves operacionais removidas pelo RESET. */
 const OPERATIONAL_KEYS = [
@@ -115,14 +114,13 @@ export function resetHomologationData(): ResetSummary {
 }
 
 /**
- * Executa o RESET físico uma única vez em cada navegador que ainda possa
- * conter registros operacionais da homologação. A marca de versão impede
- * novas limpezas e não representa dado operacional.
+ * Executa o RESET físico uma única vez em cada navegador. O reset
+ * operacional apaga o cache local de leads, conversas e jornadas em
+ * QUALQUER ambiente — o banco é a única fonte da verdade e já foi
+ * limpo. Estrutura, usuários, permissões e integrações são preservados.
  */
 export function enforcePhysicalReset(): void {
   if (typeof window === "undefined") return;
-  // Em produção nada é apagado automaticamente: os registros são reais.
-  if (isProductionEnvironment()) return;
   if (window.localStorage.getItem(RESET_VERSION_KEY) === "done") return;
   resetHomologationData();
   window.localStorage.setItem(RESET_VERSION_KEY, "done");
