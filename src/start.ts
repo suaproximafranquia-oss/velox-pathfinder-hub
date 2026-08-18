@@ -1,7 +1,9 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+// Anexador próprio do projeto: além de ler a sessão, ele a reabre quando o
+// navegador possui apenas a sessão do workspace (ver src/lib/auth-bearer.ts).
+import { attachAuthorizedSession } from "@/lib/supabase-bearer.middleware";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -19,6 +21,6 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  functionMiddleware: [attachAuthorizedSession],
   requestMiddleware: [errorMiddleware],
 }));
