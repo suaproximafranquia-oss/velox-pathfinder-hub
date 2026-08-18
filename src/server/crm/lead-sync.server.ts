@@ -7,6 +7,10 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normalizeGreenSalesLead } from "@/lib/greensales/normalize";
+import {
+  GREENSALES_INTAKE_PAUSED,
+  GREENSALES_INTAKE_PAUSED_MESSAGE,
+} from "@/lib/crm/ingestion";
 import { loadSettings, processWelcome } from "@/server/crm/automation.server";
 import {
   getLeadEntryState,
@@ -44,6 +48,26 @@ export async function runLeadSync(
   actorUserId?: string | null,
 ): Promise<SyncSummary> {
   const startedAt = new Date();
+  /**
+   * Ingestão pausada: nada é consultado, nada é importado e nenhuma
+   * execução é registrada. A estrutura da integração permanece intacta.
+   */
+  if (GREENSALES_INTAKE_PAUSED) {
+    return {
+      ok: true,
+      runId: null,
+      trigger,
+      windowStart: startedAt.toISOString(),
+      found: 0,
+      created: 0,
+      updated: 0,
+      failed: 0,
+      welcomeSent: 0,
+      welcomeFailed: 0,
+      message: GREENSALES_INTAKE_PAUSED_MESSAGE,
+      errors: [],
+    };
+  }
   const { data: lastRun } = await supabaseAdmin
     .from("crm_sync_runs")
     .select("finished_at")
