@@ -305,7 +305,7 @@ function Side({
     return (
       <div
         className="magazine-media-side relative flex min-h-[34vh] items-center justify-center overflow-hidden md:h-full md:min-h-0"
-        style={{ background: "color-mix(in oklab, var(--ink) 92%, transparent)" }}
+        style={{ background: "#ffffff" }}
       >
         {spread.mediaKind === "imagem" && spread.mediaUrl && (
           <img
