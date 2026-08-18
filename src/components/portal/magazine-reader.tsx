@@ -104,6 +104,7 @@ export function MagazineReader({
     return (
       <div className="flex h-full flex-col" style={{ background: "radial-gradient(120% 90% at 50% -10%, #16234A 0%, #0B1330 45%, #060B1C 100%)", color: "var(--paper)" }}>
         <ReaderBar
+          edition={edition}
           onBack={onBack}
           backLabel={backLabel}
           full={full}
@@ -122,6 +123,7 @@ export function MagazineReader({
   return (
     <div className="flex h-full flex-col" style={{ background: "radial-gradient(120% 90% at 50% -10%, #16234A 0%, #0B1330 45%, #060B1C 100%)", color: "var(--paper)" }}>
       <ReaderBar
+        edition={edition}
         onBack={onBack}
         backLabel={backLabel}
         full={full}
