@@ -92,9 +92,7 @@ import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
 import { startRelationship, archiveRelationship, restoreRelationship } from "@/lib/crm/commercial";
-import { isPortalReleased, releasePortal } from "@/lib/crm/portal-release";
-import { isCrmSupervisor as isSupervisorRole } from "@/lib/crm/permissions";
-import { Unlock } from "lucide-react";
+import { isPortalReleased } from "@/lib/crm/portal-release";
 
 export const Route = createFileRoute("/crm/")({
   head: () => ({
@@ -361,9 +359,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   );
   const executiveName = (id?: string) => executives.find((e) => e.id === id)?.name ?? "—";
   const privateOk = selected ? canSeePrivateContent(selected.access) : false;
-  /** Liberar Portal: exclusivo de Administrador e Gestora. */
-  const canReleasePortal =
-    Boolean(selected) && (isCrmAdministrator(actor.role) || isSupervisorRole(actor.role));
   const portalReleased = selected ? isPortalReleased(selected.id) : false;
   // Jornada Digital: conversa congelada — envio manual bloqueado.
   const journeyOnly = Boolean(selected?.journeyOnly);
@@ -842,38 +837,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               </div>
               <CrmRecordRow label="Executivo responsável" value={selected.ownerName} />
               <CrmRecordRow label="Workspace" value={selected.workspaceLabel} />
-              {/* DEF 2.4.16 §9 — liberação imediata do Portal. Nunca cria
-                  Lead e nunca altera o Executivo responsável. */}
-              {canReleasePortal ? (
-                portalReleased ? (
-                  <p className="text-[11px] text-emerald-700">
-                    Portal liberado manualmente para este investidor.
-                  </p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const reason = window.prompt("Informe o motivo da liberação do Portal:");
-                      if (!reason?.trim()) return;
-                      releasePortal({
-                        investorId: selected.id,
-                        investorName: selected.name,
-                        actorId: actor.userId,
-                        actorName: session.name,
-                        actorRole: session.activeRole,
-                        ownerId: selected.ownerId,
-                        origin: selected.originLabel,
-                        reason,
-                      });
-                      setTick((v) => v + 1);
-                    }}
-                    className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[color:var(--crm-border)] px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150 hover:-translate-y-[1px] hover:border-[color:var(--crm-accent)] hover:bg-[color:var(--crm-hover)] hover:text-[color:var(--crm-accent)] active:translate-y-0"
-                  >
-                    <Unlock className="h-3.5 w-3.5" />
-                    Liberar Portal
-                  </button>
-                )
-              ) : null}
               {/* DEF 2.4.11 — único comando disponível durante a Jornada
                   Digital. Ao confirmar, o relacionamento comercial nasce
                   preservando integralmente todo o histórico anterior. */}
