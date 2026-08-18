@@ -71,7 +71,7 @@ export function resolveLeadState(subject: LeadStateSubject): LeadState {
 /** Chamado quando o executivo abre o card/perfil: verde → amarelo. */
 export function markLeadViewed(leadId: string, actorId?: string | null): void {
   const entry = entryFor(leadId);
-  if (entry.closedAt) return;
+  if (entry?.closedAt) return;
   persist(leadId, { viewedAt: new Date().toISOString() });
   emitEvent({
     type: "lead.status.changed",

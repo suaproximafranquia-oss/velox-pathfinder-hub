@@ -45,7 +45,7 @@ function read(): Store {
   return Object.fromEntries(
     loadLeads().map((lead) => [lead.id, {
       investorId: lead.id,
-      state: lead.commercialState ?? "active",
+      state: lead.commercialState === "journey" ? "jornada" : lead.commercialState === "archived" ? "arquivado" : "ativo",
       journeyStartedAt: lead.journeyStartedAt ?? lead.createdAt,
       startedAt: lead.relationshipStartedAt ?? undefined,
       startedBy: lead.relationshipStartedBy ?? undefined,
