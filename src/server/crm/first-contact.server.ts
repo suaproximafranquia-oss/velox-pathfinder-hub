@@ -13,6 +13,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildWelcomeMessage, loadSettings } from "@/server/crm/automation.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { cadenceEligibility } from "@/lib/crm/cutover";
+import { E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
 
 export type FirstContactInput = {
   leadId: string;
@@ -28,11 +29,16 @@ export type FirstContactInput = {
   enteredEntryStageAt?: string | null;
   /** Recadastro/reativação (etiqueta REMARKETING na origem). */
   reactivation?: boolean;
+  /**
+   * Teste end-to-end: a lógica roda inteira até o ponto imediatamente
+   * anterior à entrega real. A Meta nunca é chamada.
+   */
+  simulated?: boolean;
 };
 
 export type FirstContactResult =
   | { registered: false; reason: string }
-  | { registered: true; delivered: boolean; error?: string };
+  | { registered: true; delivered: boolean; simulated: boolean; error?: string };
 
 export async function registerFirstContact(
   input: FirstContactInput,
@@ -72,28 +78,38 @@ export async function registerFirstContact(
     id: messageId,
     investor_id: input.leadId,
     direction: "enviada",
-    body: message.body,
+    body: input.simulated ? `[${E0_SIMULATION_LABEL}]\n\n${message.body}` : message.body,
     author_id: input.ownerId ?? "sistema",
-    author_name: "Primeiro contato",
+    author_name: input.simulated ? `Primeiro contato (${E0_SIMULATION_LABEL})` : "Primeiro contato",
     at,
   });
 
-  // A entrega externa é tentada; o resultado é registrado, jamais
-  // impede o registro interno nem a continuidade da cadência.
-  const delivery = await sendWhatsappText({ phone: input.phone, body: message.body });
+  // Em modo de teste a entrega externa NÃO é tentada: nenhuma chamada à
+  // Meta, nenhum WhatsApp real. Fora do teste, a entrega é tentada e o
+  // resultado registrado — jamais impede o registro interno.
+  const delivery = input.simulated
+    ? { delivered: false as const, error: undefined as string | undefined }
+    : await sendWhatsappText({ phone: input.phone, body: message.body });
 
   await supabaseAdmin.from("crm_timeline").insert({
     id: `tl_e0_${input.leadId}`,
     investor_id: input.leadId,
     event: "primeiro_contato",
     origin: input.origin,
-    reason: delivery.delivered
-      ? "Primeiro contato enviado pelo canal oficial."
-      : `Primeiro contato processado e registrado. Entrega externa pendente: ${delivery.error ?? "canal indisponível"}.`,
+    reason: input.simulated
+      ? `${E0_SIMULATION_LABEL} — E0 executada até o ponto de envio. Mensagem registrada sem entrega real (Meta não acionada).`
+      : delivery.delivered
+        ? "Primeiro contato enviado pelo canal oficial."
+        : `Primeiro contato processado e registrado. Entrega externa pendente: ${delivery.error ?? "canal indisponível"}.`,
     owner_id: input.ownerId,
     actor_id: "sistema",
     at,
   });
 
-  return { registered: true, delivered: delivery.delivered, error: delivery.error };
+  return {
+    registered: true,
+    delivered: delivery.delivered,
+    simulated: Boolean(input.simulated),
+    error: delivery.error,
+  };
 }
