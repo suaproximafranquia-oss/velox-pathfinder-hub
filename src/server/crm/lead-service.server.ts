@@ -17,6 +17,11 @@ export type LeadEventType =
   | "boas_vindas_iniciada"
   | "boas_vindas_enviada"
   | "boas_vindas_falhou"
+  | "workspace_card_criado"
+  | "workspace_card_falhou"
+  | "e0_identificada"
+  | "e0_simulada"
+  | "e0_ignorada"
   | "sincronizacao_falhou"
   | "sincronizacao_recuperada"
   | "tentativa_sincronizacao";
