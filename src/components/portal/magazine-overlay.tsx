@@ -1,23 +1,22 @@
 /**
  * REVISTA VELOX — banca de edições + leitura.
  *
- * A revista abre como overlay sobre a Home do Portal e NÃO cai direto na
- * leitura: primeiro o investidor vê a edição vigente em destaque e as
- * edições anteriores no acervo. Ao escolher uma, entra no leitor de
- * página dupla.
+ * A revista NUNCA abre direto em uma edição: primeiro o investidor vê a
+ * BANCA, com um card por edição (a capa da edição é o próprio card).
+ * Só o clique em um card abre o leitor daquela edição — e o leitor
+ * trabalha exclusivamente com o conteúdo dela.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, BookMarked } from "lucide-react";
+import { Loader2, BookMarked, Lock } from "lucide-react";
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { MagazineReader } from "@/components/portal/magazine-reader";
 import { fetchPortalMagazine } from "@/lib/magazine.functions";
 import {
-  archivedEditions,
-  currentEdition,
   daysRemaining,
   editionStatus,
   formatEditionCode,
-  formatPeriod,
+  formatEditionMonth,
+  galleryEditions,
   type MagazineEdition,
 } from "@/lib/magazine/edition";
 
@@ -49,16 +48,16 @@ export function MagazineOverlay({
     };
   }, [open, editions]);
 
+  /** Ao sair do leitor, o investidor sempre volta para a banca. */
+  useEffect(() => {
+    if (!open) setReadingId(null);
+  }, [open]);
+
   const reading = useMemo(
     () => editions?.find((e) => e.id === readingId) ?? null,
     [editions, readingId],
   );
-  const featured = useMemo(() => (editions ? currentEdition(editions) : null), [editions]);
-  const archive = useMemo(() => (editions ? archivedEditions(editions) : []), [editions]);
-  const shelf = useMemo(
-    () => archive.filter((item) => item.id !== featured?.id),
-    [archive, featured],
-  );
+  const shelf = useMemo(() => (editions ? galleryEditions(editions) : []), [editions]);
 
   return (
     <PortalOverlayShell open={open} title="Revista Velox" onClose={onClose}>
@@ -70,131 +69,171 @@ export function MagazineOverlay({
           backLabel="Edições"
         />
       ) : (
-        <div
-          className="flex h-full flex-col overflow-y-auto"
-          style={{ background: "var(--paper)" }}
-        >
+        <div className="flex h-full flex-col overflow-y-auto" style={{ background: "var(--paper)" }}>
           {!editions && !error && (
-          <div className="flex h-full items-center justify-center gap-3 text-sm text-[color:var(--muted-foreground)]">
-            <Loader2 className="h-4 w-4 animate-spin" /> Abrindo a Revista Velox...
-          </div>
-        )}
-        {error && (
-          <div className="flex h-full items-center justify-center px-8 text-center text-sm text-[color:var(--muted-foreground)]">
-            {error}
-          </div>
-        )}
-        {editions && !error && !featured && shelf.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-4 px-10 text-center">
-            <BookMarked className="h-8 w-8" style={{ color: "var(--brand-orange)" }} />
-            <h2 className="portal-serif text-3xl">A primeira edição está sendo preparada.</h2>
-            <p className="max-w-md text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-              A Revista Velox reúne bastidores, comunicados e histórias da rede. Assim que a edição
-              for publicada, ela aparece aqui.
-            </p>
-          </div>
-        )}
-
-          {editions && !error && (featured || shelf.length > 0) && (
-            <div className="px-6 py-10 md:px-14 md:py-14">
-              <span className="portal-eyebrow">Revista Velox</span>
-              <h2 className="portal-serif mt-3 text-4xl md:text-5xl">Edições</h2>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-                A edição vigente fica disponível por dez dias. As anteriores permanecem no acervo e
-                podem ser lidas a qualquer momento.
+            <div className="flex h-full items-center justify-center gap-3 text-sm text-[color:var(--muted-foreground)]">
+              <Loader2 className="h-4 w-4 animate-spin" /> Abrindo a Revista Velox...
+            </div>
+          )}
+          {error && (
+            <div className="flex h-full items-center justify-center px-8 text-center text-sm text-[color:var(--muted-foreground)]">
+              {error}
+            </div>
+          )}
+          {editions && !error && shelf.length === 0 && (
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-10 text-center">
+              <BookMarked className="h-8 w-8" style={{ color: "var(--brand-orange)" }} />
+              <h2 className="portal-serif text-3xl">A primeira edição está sendo preparada.</h2>
+              <p className="max-w-md text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+                A Revista Velox reúne bastidores, comunicados e histórias da rede. Assim que a
+                edição for publicada, ela aparece aqui.
               </p>
+            </div>
+          )}
 
-              {featured && (
-                <button
-                  type="button"
-                  onClick={() => setReadingId(featured.id)}
-                  className="mt-8 grid w-full grid-cols-1 overflow-hidden rounded-2xl border text-left transition hover:-translate-y-0.5 md:grid-cols-[1.1fr_1fr]"
-                  style={{
-                    borderColor: "var(--paper-edge)",
-                    boxShadow: "0 30px 60px -40px color-mix(in oklab, var(--ink) 60%, transparent)",
-                  }}
-                >
-                  <span
-                    className="relative block min-h-[34vh]"
-                    style={{ background: "color-mix(in oklab, var(--ink) 92%, transparent)" }}
-                  >
-                    {featured.coverUrl && (
-                      <img
-                        src={featured.coverUrl}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover"
-                      />
-                    )}
-                  </span>
-                  <span className="flex flex-col justify-center gap-3 px-7 py-8">
-                    <span
-                      className="w-fit border px-2 py-1 text-[10px] uppercase tracking-[0.22em]"
-                      style={{ borderColor: "var(--brand-orange)", color: "var(--brand-orange)" }}
-                    >
-                      {editionStatus(featured) === "vigente"
-                        ? `Vigente · ${daysRemaining(featured)} dia(s)`
-                        : "Última edição"}
-                    </span>
-                    <span className="portal-eyebrow">{formatEditionCode(featured.number)}</span>
-                    <span className="portal-serif text-3xl">{featured.title}</span>
-                    {featured.subtitle && (
-                      <span className="text-sm text-[color:var(--muted-foreground)]">
-                        {featured.subtitle}
-                      </span>
-                    )}
-                    <span className="text-xs text-[color:var(--muted-foreground)]">
-                      {formatPeriod(featured.startsOn)} · {featured.pages.length} conteúdo(s)
-                    </span>
-                    <span
-                      className="mt-2 w-fit rounded-full px-5 py-2 text-xs uppercase tracking-[0.22em]"
-                      style={{ background: "var(--brand-orange)", color: "#fff" }}
-                    >
-                      Ler edição
-                    </span>
-                  </span>
-                </button>
-              )}
+          {editions && !error && shelf.length > 0 && (
+            <div className="px-6 py-10 md:px-14 md:py-12">
+              <header className="flex min-w-0 items-center gap-3">
+                <BookMarked className="h-6 w-6 shrink-0" style={{ color: "var(--brand-orange)" }} />
+                <div className="min-w-0">
+                  <h2 className="portal-serif text-3xl md:text-4xl">Revista Velox</h2>
+                  <p className="text-xs text-[color:var(--muted-foreground)]">
+                    Conteúdo estratégico para os investidores da Velox
+                  </p>
+                </div>
+              </header>
 
-              {shelf.length > 0 && (
-                <>
-                  <h3 className="portal-serif mt-12 text-2xl">Acervo</h3>
-                  <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {shelf.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setReadingId(item.id)}
-                        className="overflow-hidden rounded-xl border text-left transition hover:-translate-y-0.5"
-                        style={{ borderColor: "var(--paper-edge)" }}
-                      >
-                        <span
-                          className="relative block h-36"
-                          style={{ background: "color-mix(in oklab, var(--ink) 92%, transparent)" }}
-                        >
-                          {item.coverUrl && (
-                            <img
-                              src={item.coverUrl}
-                              alt=""
-                              className="absolute inset-0 h-full w-full object-cover"
-                            />
-                          )}
-                        </span>
-                        <span className="block px-4 py-4">
-                          <span className="portal-eyebrow">{formatEditionCode(item.number)}</span>
-                          <span className="portal-serif mt-1 block text-lg">{item.title}</span>
-                          <span className="mt-1 block text-[11px] text-[color:var(--muted-foreground)]">
-                            {formatPeriod(item.startsOn)}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                {shelf.map((item) => (
+                  <EditionCard
+                    key={item.id}
+                    edition={item}
+                    onOpen={() => setReadingId(item.id)}
+                  />
+                ))}
+              </div>
+
+              <p className="mt-8 text-center text-xs text-[color:var(--muted-foreground)]">
+                Clique em uma edição para iniciar a leitura
+              </p>
             </div>
           )}
         </div>
       )}
     </PortalOverlayShell>
+  );
+}
+
+/** O card É a capa da edição — não existe página "Capa" dentro do leitor. */
+function EditionCard({
+  edition,
+  onOpen,
+}: {
+  edition: MagazineEdition;
+  onOpen: () => void;
+}) {
+  const status = editionStatus(edition);
+  const locked = status === "agendada";
+
+  return (
+    <button
+      type="button"
+      onClick={locked ? undefined : onOpen}
+      disabled={locked}
+      aria-label={`${formatEditionCode(edition.number)} — ${edition.title}`}
+      className={
+        "group relative aspect-[3/4] overflow-hidden rounded-xl border text-left transition " +
+        (locked ? "cursor-default opacity-60" : "hover:-translate-y-1 hover:shadow-2xl")
+      }
+      style={{
+        borderColor:
+          status === "vigente" ? "var(--brand-orange)" : "var(--paper-edge)",
+        background: "color-mix(in oklab, var(--ink) 94%, transparent)",
+        boxShadow: "0 26px 50px -34px color-mix(in oklab, var(--ink) 70%, transparent)",
+      }}
+    >
+      {edition.coverUrl ? (
+        <img
+          src={edition.coverUrl}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+        />
+      ) : (
+        <span
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(120% 90% at 50% 0%, color-mix(in oklab, var(--brand-orange) 22%, transparent), transparent 65%)",
+          }}
+        />
+      )}
+
+      <span
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(180deg, color-mix(in oklab, var(--ink) 25%, transparent) 0%, transparent 35%, color-mix(in oklab, var(--ink) 85%, transparent) 100%)",
+        }}
+      />
+
+      <span className="absolute inset-x-0 top-6 flex flex-col items-center gap-1 px-4 text-center">
+        <span
+          className="text-[9px] uppercase tracking-[0.42em]"
+          style={{ color: "color-mix(in oklab, var(--paper) 75%, transparent)" }}
+        >
+          Revista
+        </span>
+        <span
+          className="portal-serif text-2xl uppercase tracking-[0.18em]"
+          style={{ color: "var(--paper)" }}
+        >
+          Velox
+        </span>
+        <span
+          className="text-[8px] uppercase tracking-[0.28em]"
+          style={{ color: "color-mix(in oklab, var(--paper) 60%, transparent)" }}
+        >
+          Estratégia. Performance. Crescimento.
+        </span>
+      </span>
+
+      {locked && (
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <Lock className="h-5 w-5" style={{ color: "var(--paper)" }} />
+          <span
+            className="text-[10px] uppercase tracking-[0.24em]"
+            style={{ color: "var(--paper)" }}
+          >
+            Em breve
+          </span>
+        </span>
+      )}
+
+      <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 px-4 py-4">
+        <span
+          className="text-xs font-medium uppercase tracking-[0.16em]"
+          style={{ color: "var(--paper)" }}
+        >
+          {formatEditionCode(edition.number)}
+        </span>
+        <span
+          className="text-[11px]"
+          style={{ color: "color-mix(in oklab, var(--paper) 70%, transparent)" }}
+        >
+          {formatEditionMonth(edition.startsOn)}
+        </span>
+        {status === "vigente" && (
+          <span
+            className="mt-1 w-fit rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.2em]"
+            style={{ background: "var(--brand-orange)", color: "#fff" }}
+          >
+            Vigente · {daysRemaining(edition)} dia(s)
+          </span>
+        )}
+      </span>
+    </button>
   );
 }
