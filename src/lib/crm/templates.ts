@@ -183,11 +183,17 @@ export function resolveCrmWindow(
   now = Date.now(),
 ): CrmWindowStatus {
   const at = anchorIso ? Date.parse(anchorIso) : NaN;
+  /**
+   * Nunca houve resposta do investidor. Pela regra da Meta a janela de
+   * 24h só abre com uma mensagem RECEBIDA — o estado correto não é
+   * "encerrada", é "aguardando a primeira resposta". O envio segue
+   * exigindo template oficial aprovado.
+   */
   if (!Number.isFinite(at)) {
     return {
       open: false,
-      label: "Janela encerrada",
-      hint: "Envio livre bloqueado. Selecione um Template aprovado para reabrir a conversa.",
+      label: "Aguardando resposta",
+      hint: "A janela de 24 horas abre quando o investidor responder. Até lá, o envio exige um Template aprovado.",
     };
   }
   const remaining = at + CRM_WINDOW_MS - now;
