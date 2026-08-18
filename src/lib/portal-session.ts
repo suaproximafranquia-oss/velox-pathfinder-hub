@@ -415,25 +415,17 @@ export function startPortalSession(input: {
     city: lead.city,
   });
 
-  // Template automático do sistema — única mensagem possível durante a
-  // Jornada Digital. Registrado uma única vez por relacionamento.
-  // Na Jornada Digital orgânica a única comunicação é a mensagem
-  // institucional oficial (enviada logo abaixo): nada de mensagem
-  // duplicada de boas-vindas.
+  // SEPARAÇÃO DE CONTEXTOS: iniciar a jornada é um evento do PORTAL DO
+  // INVESTIDOR. Nenhuma mensagem do Portal é injetada na conversa do CRM
+  // de Relacionamento — o CRM registra apenas o EVENTO no histórico.
   if (!journeyBorn && listCrmMessages(lead.id).length === 0) {
-    appendCrmMessage({
-      investorId: lead.id,
-      direction: "enviada",
-      body: existing
-        ? `Olá, ${lead.name}. Que bom ver você novamente. Seu progresso foi restaurado.`
-        : `Olá, ${lead.name}. Seja bem-vindo ao Portal Velox. Sua jornada foi iniciada e seu progresso ficará salvo.`,
-      authorId: "sistema",
-    });
     recordCrmEvent({
       investorId: lead.id,
-      event: "template_automatico",
+      event: "atividade_portal",
       origin: input.origin ?? entry.origin ?? "Portal Velox",
-      reason: "Mensagem automática de boas-vindas enviada pelo sistema.",
+      reason: existing
+        ? "Investidor retomou a Jornada Digital no Portal do Investidor."
+        : "Jornada Digital iniciada pelo investidor no Portal do Investidor.",
       ownerId: lead.responsibleExecutiveId ?? portalOwnerId,
       actorId: "sistema",
     });
@@ -600,14 +592,6 @@ export function promotePortalSession(): PortalSession | null {
     city: routed.city,
   });
 
-  if (listCrmMessages(routed.id).length === 0) {
-    appendCrmMessage({
-      investorId: routed.id,
-      direction: "enviada",
-      body: `Olá, ${routed.name}. Seja bem-vindo ao Portal Velox. Sua jornada ficará salva neste cadastro.`,
-      authorId: "sistema",
-    });
-  }
   recordCrmEvent({
     investorId: routed.id,
     event: "atividade_portal",
