@@ -9,6 +9,8 @@
  * elegibilidade, dias úteis, data de ativação). A interface não decide
  * nada — apenas apresenta o que este motor calcula.
  */
+import { preferNonCollidingCallDate } from "./call-planning";
+
 export type CadenceChannel = "call" | "message";
 
 /**

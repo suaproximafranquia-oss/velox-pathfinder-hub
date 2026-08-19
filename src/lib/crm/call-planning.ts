@@ -8,7 +8,26 @@
  * não haja mensagem prevista. Se não houver alternativa, a coincidência
  * é permitida e nada quebra.
  */
-import { addDays, nextBusinessDay } from "./cadence";
+/**
+ * As funções de calendário são locais e puras para evitar dependência
+ * circular com o motor de cadência (que consome este planejamento).
+ */
+function addDays(isoDate: string, days: number): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const base = Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+  return new Date(base + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+function nextBusinessDay(isoDate: string): string {
+  let date = isoDate;
+  for (let i = 0; i < 30; i += 1) {
+    const [y, m, d] = date.split("-").map(Number);
+    const weekday = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).getUTCDay();
+    if (weekday !== 0 && weekday !== 6) return date;
+    date = addDays(date, 1);
+  }
+  return date;
+}
 
 export type CallDatePreference = {
   date: string;
