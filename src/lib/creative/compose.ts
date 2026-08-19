@@ -251,7 +251,7 @@ function writeField(
     tracking,
     block.weight,
     // A largura disponível tem prioridade: nenhum texto ultrapassa a área.
-    Math.min(floor, ideal),
+    6,
   );
   setFont(ctx, size, size * tracking, block.weight);
   ctx.fillStyle = block.color;
