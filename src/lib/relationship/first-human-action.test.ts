@@ -6,7 +6,7 @@ import type { CadenceRecord } from "./types";
 
 function record(patch: Partial<CadenceRecord> = {}): CadenceRecord {
   return {
-    ...initialRecord({ scope: "homologacao", leadId: "TEST-1", at: "2026-08-17T12:00:00.000Z" }),
+    ...initialRecord({ scope: "homologation", leadId: "TEST-1", at: "2026-08-17T12:00:00.000Z" }),
     state: "ACTIVE",
     startedAt: "2026-08-17T12:00:00.000Z",
     lastOutboundAt: "2026-08-17T12:00:00.000Z",
