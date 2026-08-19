@@ -13,7 +13,7 @@ import {
 } from "@/lib/crm/ingestion";
 import { cadenceEligibility } from "@/lib/crm/cutover";
 import { E0_SIMULATION_ENABLED, E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
-import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
+import { isE0NightWindow } from "@/lib/crm/e0-window";
 import {
   deferFirstContact,
   processDeferredFirstContacts,
@@ -231,8 +231,6 @@ export async function runLeadSync(
        */
       if (enteredNow && eligibility.eligible && isE0NightWindow()) {
         await deferFirstContact(outcome.lead.id);
-        summary.errors.length; // nenhum erro: apenas adiamento registrado
-        void nightDeferralReason();
       } else if (enteredNow && eligibility.eligible && E0_SIMULATION_ENABLED) {
         /**
          * TESTE END-TO-END: origem → servidor → Workspace GreenSales →
