@@ -13,6 +13,7 @@ import type { EngineDispatcher } from "@/lib/relationship/ports";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createRepository } from "./repository.server";
 import { assertProductionRecipient } from "./guard.server";
+import { loadLeadStageContext } from "./lead-context.server";
 
 /**
  * Despachante de produção. Enquanto o motor estiver desabilitado ou uma
@@ -54,6 +55,9 @@ export function productionEngine(): Engine {
     dispatcher: productionDispatcher,
     clock: realClock,
     config: RELATIONSHIP_CONFIG,
+    // O relógio da cadência só começa depois da primeira ação humana:
+    // enquanto o lead estiver em NOVOS, nada é programado.
+    leadContext: loadLeadStageContext,
   });
 }
 
