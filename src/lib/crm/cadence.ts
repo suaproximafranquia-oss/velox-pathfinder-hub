@@ -43,8 +43,22 @@ export type CadenceConfig = {
  */
 export const FIRST_AUTOMATED_CALL_STEP = 2;
 
+/**
+ * QUARTA TENTATIVA (nova regra).
+ *
+ * Depois da última tentativa da sequência de dias úteis existe mais uma
+ * ligação, aproximadamente 7 dias corridos após a tentativa anterior.
+ * Caindo em sábado/domingo/feriado, ela vai para o próximo dia útil.
+ * Esta tentativa NÃO altera a cadência de mensagens.
+ */
+export const FOURTH_ATTEMPT_CALENDAR_DAYS = 7;
+
 export const CADENCE_CONFIG: Record<CadenceChannel, CadenceConfig> = {
-  call: { enabled: true, offsets: [2, 1, 3] },
+  /**
+   * L2 = +2 dias úteis, L3 = +1, L4 = +3 e a quarta tentativa
+   * automática (L5) ≈ 7 dias corridos após a anterior.
+   */
+  call: { enabled: true, offsets: [2, 1, 3, FOURTH_ATTEMPT_CALENDAR_DAYS] },
   /**
    * LEGADO — a cadência de MENSAGENS pertence agora exclusivamente ao
    * Motor de Relacionamento (`src/lib/relationship`). Este canal
@@ -177,6 +191,12 @@ export function nextCadenceStep(
 export function nextCallAttempt(
   baseDate: string,
   attempts: CadenceAttempt[],
+  /**
+   * Datas de mensagens já previstas para este lead. Uso exclusivo de
+   * PREFERÊNCIA de calendário: nunca altera a cadência de mensagens e
+   * nunca cria dependência entre os motores.
+   */
+  plannedMessageDates: readonly string[] = [],
 ): { step: number; dueDate: string } | null {
   const config = CADENCE_CONFIG.call;
   if (!config.enabled) return null;
@@ -191,6 +211,12 @@ export function nextCallAttempt(
 
   const offset = config.offsets[done] ?? 0;
   const anchor = done === 0 ? baseDate : (history[done - 1]?.date ?? baseDate);
-  const dueDate = addBusinessDays(anchor, offset);
-  return { step: done + FIRST_AUTOMATED_CALL_STEP, dueDate };
+  // A última tentativa conta DIAS CORRIDOS (≈7) e depois é empurrada
+  // para o próximo dia útil; as demais seguem em dias úteis.
+  const isFourthAttempt = done === config.offsets.length - 1;
+  const dueDate = isFourthAttempt
+    ? nextBusinessDay(addDays(anchor, FOURTH_ATTEMPT_CALENDAR_DAYS))
+    : addBusinessDays(anchor, offset);
+  const preference = preferNonCollidingCallDate(dueDate, plannedMessageDates);
+  return { step: done + FIRST_AUTOMATED_CALL_STEP, dueDate: preference.date };
 }
