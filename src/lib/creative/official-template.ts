@@ -120,30 +120,28 @@ const INSTITUTIONAL: TemplateLayout = {
   // com limite máximo (referência TAUBATÉ) e mínimo (cidades longas).
   city: {
     align: "center",
-    // Pequeno ajuste vertical: a linha de base desce ~34 px (y = 644 px)
-    // e permanece a MESMA para cidade curta, média ou longa.
-    baselineY: 0.1789,
-    capHeight: 0.04167, // máximo  = 150 px (≈125% da referência)
-    capHeightRef: 0.03333, // referência = 120 px (100%)
-    capHeightMin: 0.025, // mínimo = 90 px (≈75%)
+    baselineY: 0.5141,
+    capHeight: 0.056875, // máximo = 125% da referência
+    capHeightRef: 0.0455, // referência = 100%
+    capHeightMin: 0.034125, // mínimo = 75% da referência
     targetWidth: 0.39,
-    maxWidth: 0.8,
+    maxWidth: 0.94,
     weight: 700,
     color: TEMPLATE_ORANGE,
   },
-  // CAMPO B — continuação da linha fixa "agora em" (termina em x = 588 px).
+  // CAMPO B — continuação da linha fixa "agora em".
   // O X inicial é FIXO: a cidade cresce sempre para a direita.
   tail: {
-    x: 0.3062, // x = 620 px
+    x: 0.2560,
     align: "left",
-    // Mesmo tipo de ajuste: desce ~20 px (y = 2432 px). "agora em"
-    // pertence ao template e não é movido.
-    baselineY: 0.6756,
-    capHeight: 0.01444, // = 52 px (mesma altura do parágrafo fixo)
-    capHeightMin: 0.0105,
-    maxWidth: 0.575,
+    baselineY: 0.6851,
+    capHeight: 0.0131,
+    maxWidth: 0.70,
+    tracking: 0.02,
     weight: 700,
-    color: TEMPLATE_ORANGE,
+    color: "#FFFFFF",
+    prefix: " ",
+    clear: { x0: 0.2530, x1: 0.62, y0: 0.6665, y1: 0.6905, sample: "right" },
   },
 };
 
