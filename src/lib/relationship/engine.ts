@@ -41,6 +41,19 @@ export type EngineOptions = {
    * ambiente. Em produção esta opção é sempre falsa.
    */
   virtualTemplates?: boolean;
+  /**
+   * CONTEXTO OPERACIONAL DO LEAD (etapa atual na origem).
+   *
+   * É por aqui que o motor sabe se o lead ainda está em NOVOS — ou
+   * seja, se a primeira ação humana ainda não aconteceu — e quando ele
+   * saiu dessa coluna. Sem esse contexto o motor mantém o comportamento
+   * anterior e não bloqueia nada.
+   */
+  leadContext?: (leadId: string) => Promise<{
+    awaitingFirstHumanAction?: boolean;
+    leftEntryStageAt?: string | null;
+    stageAtClosing?: string | null;
+  } | null>;
 };
 
 /** Eventos que invalidam etapas já programadas (§96, §97, §98). */
@@ -60,6 +73,7 @@ export function createEngine(options: EngineOptions): Engine {
   const enabled = options.enabled ?? config.enabled;
   const random = options.random ?? Math.random;
   const virtualTemplates = options.virtualTemplates ?? false;
+  const leadContext = options.leadContext;
 
   if (repository.scope !== dispatcher.scope) {
     throw new Error("Repositório e despachante pertencem a escopos diferentes.");
@@ -107,11 +121,13 @@ export function createEngine(options: EngineOptions): Engine {
   async function evaluate(record: CadenceRecord): Promise<EngineDecision> {
     const nowIso = clock.nowIso();
     const templates = await repository.loadTemplates();
+    const context = leadContext ? ((await leadContext(record.leadId)) ?? {}) : {};
 
     const action = decideNextAction(record, {
       nowIso,
       enabled,
       config,
+      ...context,
       hasTemplateForPurpose: (purpose) =>
         virtualTemplates || hasTemplateForPurpose(templates, purpose),
     });

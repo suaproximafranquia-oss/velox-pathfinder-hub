@@ -11,12 +11,24 @@ import { blocksAutomation, isWindowOpen } from "./machine";
 import { isTerminalStage, isAutomationEligibleStage } from "./closing";
 import type { CadenceFlow, CadenceRecord, CadenceStep, EngineAction } from "./types";
 
+/** Etapas de PRIMEIRO CONTATO — as únicas permitidas enquanto o lead está em NOVOS. */
+const FIRST_CONTACT_STEPS: CadenceStep[] = ["E0", "E0_V1"];
+
 /** Evento de referência do fluxo atual para o cálculo de dias úteis. */
-function referenceMoment(record: CadenceRecord): string | null {
+function referenceMoment(record: CadenceRecord, ctx?: DecisionContext): string | null {
   if (record.flow === "reengajamento") {
     return record.lastInboundAt ?? record.lastOutboundAt ?? record.startedAt;
   }
-  return record.lastOutboundAt ?? record.startedAt;
+  const base = record.lastOutboundAt ?? record.startedAt;
+  /**
+   * A cadência de acompanhamento (E1 em diante) só começa a contar da
+   * SAÍDA do lead da coluna NOVOS — a primeira ação humana. Nunca do
+   * simples cadastro nem da E0.
+   */
+  const left = ctx?.leftEntryStageAt ?? null;
+  if (!left) return base;
+  if (!base) return left;
+  return base > left ? base : left;
 }
 
 /** Próxima etapa permitida do fluxo — nunca fora de ordem. */
@@ -49,6 +61,13 @@ export type DecisionContext = {
    * ou impede a criação de novas etapas automáticas.
    */
   stageAtClosing?: string | null;
+  /**
+   * O lead continua na coluna de entrada (NOVOS) aguardando a primeira
+   * ação humana. Enquanto for true, nenhuma etapa após a E0 é criada.
+   */
+  awaitingFirstHumanAction?: boolean;
+  /** Instante em que o lead saiu de NOVOS — referência real da E1. */
+  leftEntryStageAt?: string | null;
 };
 
 /**
@@ -116,8 +135,21 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     return { kind: "none", reason: `Etapa ${step} já executada — nenhuma repetição é permitida.` };
   }
 
+  /**
+   * NOVOS = "lead recebido, aguardando a primeira ação humana". A E0 é
+   * o único disparo permitido; a cadência de acompanhamento só começa
+   * depois que o Executivo movimenta o lead para fora de NOVOS.
+   */
+  if (ctx.awaitingFirstHumanAction && !FIRST_CONTACT_STEPS.includes(step)) {
+    return {
+      kind: "none",
+      reason:
+        "Lead ainda em NOVOS — aguardando a primeira ação humana. A cadência de acompanhamento não é iniciada.",
+    };
+  }
+
   const definition = STEPS[step];
-  const reference = referenceMoment(record);
+  const reference = referenceMoment(record, ctx);
   if (!reference) {
     return { kind: "none", reason: "Cadência sem evento de referência — etapa não é criada." };
   }

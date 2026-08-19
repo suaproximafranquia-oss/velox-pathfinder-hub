@@ -14,6 +14,7 @@ import { buildWelcomeMessage, loadSettings } from "@/server/crm/automation.serve
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { cadenceEligibility } from "@/lib/crm/cutover";
 import { E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
+import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
 
 export type FirstContactInput = {
   leadId: string;
@@ -54,6 +55,12 @@ export async function registerFirstContact(
     settings.cadenceActivationDate,
   );
   if (!eligibility.eligible) return { registered: false, reason: eligibility.reason };
+  /**
+   * Trava final de horário: nenhuma E0 sai na madrugada (22:30–06:59),
+   * mesmo que alguém chame esta função diretamente. A etapa fica
+   * pendente para a abertura da janela às 07:00.
+   */
+  if (isE0NightWindow()) return { registered: false, reason: nightDeferralReason() };
   const messageId = `msg_e0_${input.leadId}`;
   const { data: existing } = await supabaseAdmin
     .from("crm_messages")

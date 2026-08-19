@@ -46,6 +46,34 @@ export function firstName(raw: string | null | undefined): string {
   return normalized.split(" ")[0] ?? "";
 }
 
+/** Partículas que permanecem em minúsculas em nomes brasileiros. */
+const NAME_PARTICLES = ["de", "da", "do", "das", "dos", "e", "di", "du", "del", "van", "von"];
+
+/**
+ * APRESENTAÇÃO DO NOME (padronização).
+ *
+ * "JOÃO", "joão" e "jOãO" viram "João" — sem alterar o dado original
+ * armazenado. Acentos são preservados, partículas ficam em minúsculas e
+ * sobrenomes compostos com hífen mantêm a estrutura.
+ */
+export function displayName(raw: string | null | undefined): string {
+  const value = (raw ?? "").replace(/\s+/g, " ").trim();
+  if (!value) return "";
+  return value
+    .split(" ")
+    .map((word, index) => {
+      const lower = word.toLocaleLowerCase("pt-BR");
+      if (index > 0 && NAME_PARTICLES.includes(lower)) return lower;
+      return lower
+        .split("-")
+        .map((part) =>
+          part ? part.charAt(0).toLocaleUpperCase("pt-BR") + part.slice(1) : part,
+        )
+        .join("-");
+    })
+    .join(" ");
+}
+
 /**
  * O cadastro sozinho nunca confirma o nome: ele apenas indica se existe
  * um candidato plausível para confirmação manual pelo Executivo.

@@ -31,6 +31,17 @@ export type TextBlock = {
   /** Altura das maiúsculas, em fração da altura do template. */
   capHeight: number;
   /**
+   * Altura de REFERÊNCIA (100%) das maiúsculas. Cidades curtas podem
+   * crescer até `capHeight` (≈125%) e cidades longas reduzem até
+   * `capHeightMin` (≈75%) — sempre na mesma linha de base.
+   */
+  capHeightRef?: number;
+  /**
+   * Largura visual desejada da tinta, em fração da largura do template.
+   * É ela que define o quanto o texto cresce ou reduz.
+   */
+  targetWidth?: number;
+  /**
    * Altura mínima das maiúsculas. Cidades longas reduzem progressivamente
    * até este limite — nunca abaixo dele.
    */
@@ -109,9 +120,13 @@ const INSTITUTIONAL: TemplateLayout = {
   // com limite máximo (referência TAUBATÉ) e mínimo (cidades longas).
   city: {
     align: "center",
-    baselineY: 0.1694, // y = 610 px
-    capHeight: 0.04167, // máximo  = 150 px
-    capHeightMin: 0.02361, // mínimo = 85 px
+    // Pequeno ajuste vertical: a linha de base desce ~34 px (y = 644 px)
+    // e permanece a MESMA para cidade curta, média ou longa.
+    baselineY: 0.1789,
+    capHeight: 0.04167, // máximo  = 150 px (≈125% da referência)
+    capHeightRef: 0.03333, // referência = 120 px (100%)
+    capHeightMin: 0.025, // mínimo = 90 px (≈75%)
+    targetWidth: 0.39,
     maxWidth: 0.8,
     weight: 700,
     color: TEMPLATE_ORANGE,
@@ -121,7 +136,9 @@ const INSTITUTIONAL: TemplateLayout = {
   tail: {
     x: 0.3062, // x = 620 px
     align: "left",
-    baselineY: 0.67, // y = 2412 px
+    // Mesmo tipo de ajuste: desce ~20 px (y = 2432 px). "agora em"
+    // pertence ao template e não é movido.
+    baselineY: 0.6756,
     capHeight: 0.01444, // = 52 px (mesma altura do parágrafo fixo)
     capHeightMin: 0.0105,
     maxWidth: 0.575,

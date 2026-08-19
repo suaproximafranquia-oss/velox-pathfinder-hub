@@ -46,8 +46,35 @@ describe("sequência de ligações", () => {
     expect(nextCallAttempt("2026-08-17", history)).toBeNull();
   });
 
-  it("esgotadas as tentativas (L2, L3, L4), nada mais é gerado", () => {
+  it("quarta tentativa automática ≈7 dias corridos após a anterior, em dia útil", () => {
     const history = [2, 3, 4].map((s) => attempt(s, "2026-08-17", "SIM"));
+    // 2026-08-17 + 7 dias = 2026-08-24 (segunda-feira).
+    expect(nextCallAttempt("2026-08-17", history)).toEqual({ step: 5, dueDate: "2026-08-24" });
+  });
+
+  it("quarta tentativa em fim de semana vai para o próximo dia útil", () => {
+    const history = [2, 3, 4].map((s) => attempt(s, "2026-08-15", "SIM"));
+    // 2026-08-15 + 7 = 2026-08-22 (sábado) → 2026-08-24 (segunda).
+    expect(nextCallAttempt("2026-08-15", history)?.dueDate).toBe("2026-08-24");
+  });
+
+  it("esgotadas as quatro tentativas automáticas, nada mais é gerado", () => {
+    const history = [2, 3, 4, 5].map((s) => attempt(s, "2026-08-17", "SIM"));
     expect(nextCallAttempt("2026-08-17", history)).toBeNull();
+  });
+
+  it("prefere um dia útil livre quando há mensagem prevista no mesmo dia", () => {
+    const history = [attempt(2, "2026-08-19", "SIM")];
+    const semPreferencia = nextCallAttempt("2026-08-17", history)!;
+    const comPreferencia = nextCallAttempt("2026-08-17", history, [semPreferencia.dueDate])!;
+    expect(comPreferencia.dueDate).not.toBe(semPreferencia.dueDate);
+    expect(comPreferencia.step).toBe(semPreferencia.step);
+  });
+
+  it("coincidência inevitável é permitida — a ligação não é perdida", () => {
+    const history = [attempt(2, "2026-08-19", "SIM")];
+    const base = nextCallAttempt("2026-08-17", history)!;
+    const bloqueado = nextCallAttempt("2026-08-17", history, [base.dueDate, "2026-08-21", "2026-08-24"])!;
+    expect(bloqueado.dueDate).toBe(base.dueDate);
   });
 });

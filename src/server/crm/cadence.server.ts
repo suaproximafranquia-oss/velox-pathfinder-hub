@@ -65,6 +65,23 @@ export async function buildCadenceQueue(
       rows.map((r) => r.id),
     );
 
+  /**
+   * Mensagens já PREVISTAS (fila do Motor de Relacionamento). Servem
+   * apenas como PREFERÊNCIA de calendário das ligações: a cadência de
+   * mensagens nunca é alterada por causa de uma ligação.
+   */
+  const { data: plannedMessages } = await supabaseAdmin
+    .from("relationship_queue")
+    .select("lead_id,due_at,status")
+    .eq("status", "PENDING")
+    .limit(5000);
+  const messageDates = new Map<string, string[]>();
+  for (const item of plannedMessages ?? []) {
+    const list = messageDates.get(item.lead_id) ?? [];
+    list.push(commercialDate(item.due_at));
+    messageDates.set(item.lead_id, list);
+  }
+
   // Histórico real por lead + ciclo: cada conclusão guarda a data em que
   // a ligação aconteceu de verdade e o desfecho informado pelo
   // Executivo — é daí que parte (ou não) o próximo passo.
@@ -99,9 +116,10 @@ export async function buildCadenceQueue(
     const baseDate = stageDate && stageDate > cycleDate ? stageDate : cycleDate;
 
     const history = (done.get(`${row.id}::${cycleDate}`) ?? []).sort((a, b) => a.step - b.step);
+    const planned = messageDates.get(row.id) ?? messageDates.get(`gs_${row.external_id}`) ?? [];
     const next =
       channel === "call"
-        ? nextCallAttempt(baseDate, history)
+        ? nextCallAttempt(baseDate, history, planned)
         : nextCadenceStep(
             channel,
             baseDate,

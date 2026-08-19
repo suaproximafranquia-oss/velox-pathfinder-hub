@@ -22,6 +22,8 @@ export type LeadEventType =
   | "e0_identificada"
   | "e0_simulada"
   | "e0_ignorada"
+  | "e0_adiada"
+  | "e0_reentrada"
   | "sincronizacao_falhou"
   | "sincronizacao_recuperada"
   | "tentativa_sincronizacao";

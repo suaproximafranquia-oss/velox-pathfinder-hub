@@ -13,6 +13,12 @@ import {
 } from "@/lib/crm/ingestion";
 import { cadenceEligibility } from "@/lib/crm/cutover";
 import { E0_SIMULATION_ENABLED, E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
+import { isE0NightWindow } from "@/lib/crm/e0-window";
+import {
+  deferFirstContact,
+  processDeferredFirstContacts,
+} from "@/server/crm/first-contact-queue.server";
+import { resolveEntryFlow } from "@/lib/relationship/entry";
 import { loadSettings, processWelcome } from "@/server/crm/automation.server";
 import {
   getLeadEntryState,
@@ -171,7 +177,7 @@ export async function runLeadSync(
         (raw["created_at"] as string) ??
         null;
       const known = await getLeadEntryState(externalId);
-      void isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
+      const newCommercialEntry = isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
       // A COLUNA/BOARD atual é a fonte da verdade: etiquetas auxiliares
       // (formulário, campanha, remarketing) nunca decidem a posição.
       const { stage, remarketing } = resolveBoardStage(pipeline, tagIds);
@@ -219,7 +225,13 @@ export async function runLeadSync(
       if (enteredNow && !eligibility.eligible) {
         await recordEvent(outcome.lead.id, "e0_ignorada", eligibility.reason);
       }
-      if (enteredNow && eligibility.eligible && E0_SIMULATION_ENABLED) {
+      /**
+       * JANELA OPERACIONAL DA E0: entre 22:30 e 06:59 nada é entregue.
+       * A etapa é preservada e executada na abertura das 07:00.
+       */
+      if (enteredNow && eligibility.eligible && isE0NightWindow()) {
+        await deferFirstContact(outcome.lead.id);
+      } else if (enteredNow && eligibility.eligible && E0_SIMULATION_ENABLED) {
         /**
          * TESTE END-TO-END: origem → servidor → Workspace GreenSales →
          * E0 simulada. O card operacional é criado no NOSSO Workspace
@@ -255,6 +267,29 @@ export async function runLeadSync(
               ? `Card operacional criado no Workspace GreenSales (${card.cardId}).`
               : `Card operacional já existente no Workspace GreenSales (${card.cardId}).`,
           );
+          /**
+           * RETORNO DE REMARKETING PARA NOVOS.
+           *
+           * Lead que a operação já conhece e volta para a coluna de
+           * entrada NÃO é um lead virgem: a entrada é classificada com
+           * a regra oficial (`resolveEntryFlow`) e o primeiro contato
+           * usa a comunicação de REABERTURA já existente — nenhum texto
+           * novo é inventado e nenhum histórico é apagado.
+           */
+          const entry = resolveEntryFlow({
+            entryCount: known.entryCount,
+            hasPreviousRelationship: known.exists,
+            newCommercialEntry,
+          });
+          const returning = remarketing || entry.reentry;
+          if (returning) {
+            await recordEvent(
+              outcome.lead.id,
+              "e0_reentrada",
+              `Retorno para NOVOS de lead já conhecido${remarketing ? " (etiqueta REMARKETING preservada)" : ""} — ${entry.reason}`,
+              { flow: entry.flow, remarketing, entryCount: known.entryCount },
+            );
+          }
           const { registerFirstContact } = await import("@/server/crm/first-contact.server");
           const e0 = await registerFirstContact({
             leadId: card.cardId,
@@ -266,7 +301,7 @@ export async function runLeadSync(
             enteredEntryStageAt: (outcome.lead as unknown as {
               entered_entry_stage_at?: string | null;
             }).entered_entry_stage_at,
-            reactivation: remarketing,
+            reactivation: returning,
             simulated: true,
           });
           if (e0.registered) {
@@ -292,6 +327,14 @@ export async function runLeadSync(
       await markSyncFailure(externalId, message);
     }
   }
+
+  /**
+   * Fecha o ciclo executando as E0 adiadas pela madrugada assim que a
+   * janela operacional estiver aberta.
+   */
+  const deferredRun = await processDeferredFirstContacts();
+  summary.welcomeSent += deferredRun.sent;
+  summary.errors.push(...deferredRun.errors);
 
   return finish("OK");
 }

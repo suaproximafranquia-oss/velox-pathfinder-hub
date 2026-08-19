@@ -224,14 +224,34 @@ function writeField(
 ) {
   if (!text) return;
   const tracking = block.tracking ?? 0;
+  const floor = block.capHeightMin ? (block.capHeightMin / 0.72) * h : 6;
+  const maxSize = (block.capHeight / 0.72) * h;
+  /**
+   * TAMANHO PROPORCIONAL À LARGURA VISUAL REAL.
+   *
+   * A partir do corpo de referência (100%) medimos a tinta do texto e
+   * comparamos com a largura desejada: cidades curtas crescem até o
+   * máximo (≈125%) e cidades longas reduzem até o mínimo (≈75%). Não é
+   * contagem de caracteres — é medição real da fonte.
+   */
+  let ideal = maxSize;
+  if (block.capHeightRef && block.targetWidth) {
+    const refSize = (block.capHeightRef / 0.72) * h;
+    setFont(ctx, refSize, refSize * tracking, block.weight);
+    const measured = ctx.measureText(text).width || 1;
+    const ratio = (block.targetWidth * w) / measured;
+    const clamped = Math.min(maxSize / refSize, Math.max(floor / refSize, ratio));
+    ideal = refSize * clamped;
+  }
   const size = fitSize(
     ctx,
     text,
-    (block.capHeight / 0.72) * h,
+    ideal,
     block.maxWidth * w,
     tracking,
     block.weight,
-    block.capHeightMin ? (block.capHeightMin / 0.72) * h : 6,
+    // A largura disponível tem prioridade: nenhum texto ultrapassa a área.
+    6,
   );
   setFont(ctx, size, size * tracking, block.weight);
   ctx.fillStyle = block.color;
