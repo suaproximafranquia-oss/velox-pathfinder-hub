@@ -126,7 +126,7 @@ const INSTITUTIONAL: TemplateLayout = {
     capHeight: 0.04167, // máximo  = 150 px (≈125% da referência)
     capHeightRef: 0.03333, // referência = 120 px (100%)
     capHeightMin: 0.025, // mínimo = 90 px (≈75%)
-    targetWidth: 0.36,
+    targetWidth: 0.39,
     maxWidth: 0.8,
     weight: 700,
     color: TEMPLATE_ORANGE,
