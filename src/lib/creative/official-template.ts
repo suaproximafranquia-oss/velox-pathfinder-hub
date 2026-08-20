@@ -117,13 +117,13 @@ const INSTITUTIONAL: TemplateLayout = {
   // Janela real da fotografia no arquivo oficial (y 643 → 2465 de 3600).
   photoArea: { x0: 0, x1: 1, y0: 0.1786, y1: 0.6847 },
   // CAMPO A — cidade principal. Y fixo, centro fixo, corpo proporcional
-  // com limite máximo (referência TAUBATÉ) e mínimo (cidades longas).
+  // com a nova referência tipográfica 25% maior; o fit reduz cidades longas.
   city: {
     align: "center",
     baselineY: 0.5141,
-    capHeight: 0.056875, // máximo = 125% da referência
-    capHeightRef: 0.0455, // referência = 100%
-    capHeightMin: 0.034125, // mínimo = 75% da referência
+    capHeight: 0.056875, // referência = 100% (0.0455 × 1.25)
+    capHeightRef: 0.056875, // referência de tamanho atualizada
+    capHeightMin: 0.034125, // limite inferior absoluto preservado
     targetWidth: 0.39,
     maxWidth: 0.94,
     weight: 700,
