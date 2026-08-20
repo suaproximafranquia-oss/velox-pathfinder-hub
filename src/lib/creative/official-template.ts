@@ -116,32 +116,36 @@ export const TEMPLATE_ORANGE = "#FF8A2D";
 const INSTITUTIONAL: TemplateLayout = {
   // Janela real da fotografia no arquivo oficial (y 643 → 2465 de 3600).
   photoArea: { x0: 0, x1: 1, y0: 0.1786, y1: 0.6847 },
-  // CAMPO A — cidade principal. Y fixo, centro fixo, corpo proporcional
-  // com a nova referência tipográfica 25% maior; o fit reduz cidades longas.
+  // CAMPO A — cidade principal, logo abaixo de "nossa nova unidade em"
+  // (parte SUPERIOR da arte, medida no material de referência oficial:
+  // linha de base 0.2239 e altura de maiúsculas de referência 0.0644).
+  // O corpo é proporcional: cidades curtas crescem até o máximo e as
+  // longas reduzem até o mínimo, sempre na mesma linha de base.
   city: {
     align: "center",
-    baselineY: 0.5141,
-    capHeight: 0.056875, // referência = 100% (0.0455 × 1.25)
-    capHeightRef: 0.056875, // referência de tamanho atualizada
-    capHeightMin: 0.034125, // limite inferior absoluto preservado
-    targetWidth: 0.39,
-    maxWidth: 0.94,
+    baselineY: 0.2239,
+    capHeight: 0.07, // teto absoluto (cidades muito curtas)
+    capHeightRef: 0.0644, // referência oficial (Rio de Janeiro)
+    capHeightMin: 0.033, // piso absoluto (cidades muito longas)
+    targetWidth: 0.78,
+    maxWidth: 0.9,
     weight: 700,
     color: TEMPLATE_ORANGE,
   },
-  // CAMPO B — continuação da linha fixa "agora em".
-  // O X inicial é FIXO: a cidade cresce sempre para a direita.
+  // CAMPO B — continuação da linha fixa "agora em" do parágrafo.
+  // O texto fixo termina em x = 0.2904; o campo variável começa logo
+  // após o espaço, na mesma linha de base (0.6703), em LARANJA.
   tail: {
-    x: 0.2560,
+    x: 0.2993,
     align: "left",
-    baselineY: 0.6851,
-    capHeight: 0.0131,
-    maxWidth: 0.70,
-    tracking: 0.02,
+    baselineY: 0.6703,
+    capHeight: 0.015,
+    capHeightRef: 0.015,
+    capHeightMin: 0.0105,
+    targetWidth: 0.34,
+    maxWidth: 0.66,
     weight: 700,
-    color: "#FFFFFF",
-    prefix: " ",
-    clear: { x0: 0.2530, x1: 0.62, y0: 0.6665, y1: 0.6905, sample: "right" },
+    color: TEMPLATE_ORANGE,
   },
 };
 
