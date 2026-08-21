@@ -805,7 +805,10 @@ function Index() {
             A Velox Soluções Financeiras nasceu com um propósito muito claro: conectar pessoas às melhores soluções financeiras por meio de um modelo de negócio baseado em relacionamento, conhecimento e atendimento consultivo.
           </p>
           <p>
-            Hoje somos a única rede a reunir, sob uma mesma marca, cinco frentes de atuação complementares — crédito e consórcios, energia e imobiliário, agronegócio, home equity e limpa nome — apoiadas por mais de cinquenta instituições financeiras e mais de duzentos tipos de serviços.
+            O grupo reúne três frentes de atuação complementares — Soluções Financeiras, Energia Solar e
+            Corretora de Seguros —, sendo a empresa de energia solar e a corretora de seguros companhias
+            próprias do grupo. Essas frentes são sustentadas por instituições financeiras, seguradoras,
+            administradoras e fintechs parceiras, que dão origem ao portfólio de soluções da rede.
           </p>
           <p>
             Ao longo de sua trajetória, a empresa consolidou uma atuação voltada para a construção de parcerias duradouras, reunindo soluções capazes de atender diferentes perfis de clientes e necessidades financeiras.
@@ -814,6 +817,49 @@ function Index() {
             Mais do que disponibilizar produtos, a Velox acredita que seu papel é oferecer orientação, segurança e alternativas para que cada cliente encontre a solução mais adequada ao seu momento.
           </p>
         </FeaturePanel>
+
+        {/* 05.5 · O conceito do negócio */}
+        <SectionShell id="conceito" labelledBy="conceito-title" surface="ink" pattern="grid" watermark className="py-28 md:py-40">
+          <div className="relative mx-auto max-w-6xl px-6 md:px-10">
+            <div className="grid gap-16 md:grid-cols-12 md:gap-20">
+              <Reveal className="md:col-span-5">
+                <div className="font-serif text-sm italic on-dark-muted">Capítulo I · Apresentação</div>
+                <div className="mt-4"><Eyebrow tone="dark">O conceito do negócio</Eyebrow></div>
+                <h2 id="conceito-title" className="mt-6 text-balance text-4xl leading-[1.08] on-dark sm:text-5xl md:text-6xl">
+                  Em uma frase: <em style={{ color: "var(--brand-orange)" }}>uma consultoria financeira com estrutura de rede.</em>
+                </h2>
+              </Reveal>
+              <Reveal delay={120} className="md:col-span-7">
+                <div className="space-y-6 text-lg leading-relaxed on-dark-muted">
+                  <p>
+                    A unidade Velox não é uma loja de um único produto. Ela funciona como um ponto de
+                    atendimento onde uma pessoa ou empresa apresenta uma necessidade — comprar um bem,
+                    organizar dívidas, obter capital, proteger um patrimônio ou reduzir custo de energia —
+                    e recebe alternativas comparadas entre as instituições parceiras da rede.
+                  </p>
+                  <p>
+                    O franqueado não é o financiador nem o segurador. Ele é o profissional que faz o
+                    diagnóstico, apresenta as opções e conduz a operação até a contratação, apoiado pela
+                    plataforma, pelas equipes de retaguarda e pelo portfólio das três frentes do grupo.
+                  </p>
+                  <p className="on-dark">
+                    É esse desenho que sustenta tudo o que vem a seguir neste material: a forma de atuar,
+                    a origem da receita, o portfólio e a estrutura de suporte.
+                  </p>
+                </div>
+                <div className="mt-12">
+                  <MediaSlot
+                    kind="video"
+                    label="[ESPAÇO PARA VÍDEO INSTITUCIONAL]"
+                    note="Reservado para o vídeo institucional oficial da Velox, com apresentação da empresa e do modelo de negócio."
+                    ratio="16 / 9"
+                  />
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </SectionShell>
+
 
         {/* 06 · Parcerias */}
         <FeaturePanel
