@@ -1023,6 +1023,59 @@ function Index() {
           </div>
         </SectionShell>
 
+        {/* 11.5 · Como o franqueado gera receita */}
+        <EditorialSection
+          id="receita"
+          chapter="Capítulo II · O Modelo"
+          eyebrow="Como o franqueado gera receita"
+          title="De onde vem a receita da unidade."
+          lead="Esta é, provavelmente, a pergunta mais importante para quem avalia o modelo. Explicamos o mecanismo comercial de forma direta — sem projeções de faturamento e sem promessa de retorno."
+          surface="graphite"
+        >
+          <div
+            className="grid gap-px overflow-hidden border md:grid-cols-2"
+            style={{ background: "var(--on-dark-border)", borderColor: "var(--on-dark-border)" }}
+          >
+            {REVENUE_MECHANICS.map((r) => (
+              <Reveal key={r.n}>
+                <div className="flex h-full flex-col p-8 md:p-10" style={{ background: "var(--graphite)" }}>
+                  <div className="flex items-center gap-4">
+                    <span className="num text-xs on-dark-muted">{r.n}</span>
+                    <span aria-hidden="true" className="h-px w-10" style={{ background: "var(--brand-orange)" }} />
+                  </div>
+                  <h3 className="mt-6 font-serif text-2xl leading-snug on-dark md:text-3xl">{r.title}</h3>
+                  <p className="mt-4 text-sm leading-relaxed on-dark-muted">{r.body}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-14 max-w-3xl text-center font-serif text-lg italic leading-relaxed on-dark-muted">
+              A Velox não projeta faturamento nem promete retorno. O resultado de cada unidade depende do
+              mercado local, da dedicação do franqueado e da carteira construída ao longo do tempo.
+            </p>
+          </Reveal>
+        </EditorialSection>
+
+        {/* 11.6 · Portfólio de soluções — por categoria */}
+        <EditorialSection
+          id="portfolio"
+          chapter="Capítulo II · O Modelo"
+          eyebrow="Portfólio de soluções"
+          title="Você não depende de uma única solução."
+          lead="O portfólio está organizado por tipo de necessidade do cliente. Ao lado de cada solução está a remuneração oficial praticada pela rede. Esta é uma seleção: a operação reúne mais de 200 produtos e serviços ativos."
+          surface="ink"
+          watermark
+        >
+          <PortfolioCatalog categories={PORTFOLIO} />
+          <p className="mx-auto mt-14 max-w-3xl text-center font-serif text-lg italic leading-relaxed on-dark-muted">
+            Novas soluções são incorporadas continuamente ao portfólio, sempre por meio de instituições
+            e parceiros homologados pela rede.
+          </p>
+        </EditorialSection>
+
+
+
         {/* 12 · Parceiros estratégicos */}
         <SectionShell id="parceiros" labelledBy="parceiros-title" surface="graphite" pattern="dots" className="py-28 md:py-40">
           <div className="relative mx-auto max-w-6xl px-6 md:px-10">
