@@ -53,16 +53,18 @@ export const Route = createFileRoute("/universo")({
 const SECTIONS: ModuleChromeSection[] = [
   { id: "capa", label: "Capa" },
   { id: "carta", label: "Carta de Boas-vindas" },
-  { id: "manual", label: "Como utilizar este manual" },
+  { id: "manual", label: "Como utilizar este material" },
   { id: "antes", label: "Antes de falar da Velox" },
   { id: "velox", label: "Quem é a Velox" },
-  { id: "parcerias", label: "Nossa forma de construir parcerias" },
+  { id: "conceito", label: "O conceito do negócio" },
   { id: "valores", label: "Nossos valores" },
   { id: "mercado", label: "Panorama do mercado" },
   { id: "consumidor", label: "Evolução do consumidor" },
-  { id: "ecossistema", label: "Ecossistema Velox" },
-  { id: "especialidades", label: "Três franquias em uma" },
-  { id: "parceiros", label: "Parceiros estratégicos" },
+  { id: "operacao", label: "Como o franqueado atua" },
+  { id: "frentes", label: "As três frentes do ecossistema" },
+  { id: "receita", label: "Como o franqueado gera receita" },
+  { id: "portfolio", label: "Portfólio de soluções" },
+  { id: "parceiros", label: "Parceiros e instituições" },
   { id: "implantacao", label: "Processo de implantação" },
   { id: "equipe", label: "Equipe de suporte" },
   { id: "consultoria", label: "Consultoria de negócios" },
@@ -72,10 +74,13 @@ const SECTIONS: ModuleChromeSection[] = [
   { id: "comunidade", label: "Comunidade de franqueados" },
   { id: "franquia", label: "Modelos de franquia" },
   { id: "investimento", label: "Investimento" },
+  { id: "perfil", label: "Perfil do investidor" },
+  { id: "diagnostico", label: "Diagnóstico do investidor" },
   { id: "processo", label: "Como funciona o processo" },
   { id: "etapas", label: "Próximas etapas" },
   { id: "encerramento", label: "Contato" },
 ];
+
 
 const PRODUCTS: Product[] = [
   {
