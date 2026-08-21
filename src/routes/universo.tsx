@@ -159,34 +159,166 @@ const PRODUCTS: PortfolioItem[] = [
   },
 ];
 
-const SPECIALTIES: {
+/** Busca uma solução oficial pelo nome, sem duplicar textos. */
+function solution(name: string): PortfolioItem {
+  const found = PRODUCTS.find((p) => p.name === name);
+  if (!found) throw new Error(`Solução não catalogada: ${name}`);
+  return found;
+}
+
+/**
+ * PORTFÓLIO — organizado por CATEGORIA de necessidade do cliente.
+ * Aparece apenas depois de o modelo de negócio ter sido explicado.
+ */
+const PORTFOLIO: PortfolioCategory[] = [
+  {
+    name: "Crédito",
+    summary:
+      "Modalidades para pessoa física, empresas e produtores rurais — cada uma indicada a um momento diferente do cliente.",
+    items: [
+      solution("Crédito Consignado"),
+      solution("Cartão de Crédito Consignado"),
+      solution("Crédito Empresarial & Capital de Giro"),
+      solution("Home Equity"),
+      solution("Crédito Rural & Agronegócio"),
+      solution("FGTS · Antecipação"),
+    ],
+  },
+  {
+    name: "Consórcio e Financiamento",
+    summary:
+      "Aquisição planejada ou financiada de bens, com estruturas de prazo e custo distintas para o mesmo objetivo.",
+    items: [
+      solution("Consórcios"),
+      solution("Financiamento Imobiliário"),
+      solution("Financiamento e Refin de Veículos"),
+    ],
+  },
+  {
+    name: "Proteção",
+    summary:
+      "Frente conduzida pela corretora própria do grupo, base de qualquer planejamento financeiro consistente.",
+    items: [solution("Seguros")],
+  },
+  {
+    name: "Energia",
+    summary:
+      "Soluções da empresa de energia solar do grupo, voltadas à previsibilidade de custos e à transição energética.",
+    items: [solution("Energia Solar & Renováveis")],
+  },
+  {
+    name: "Outras soluções",
+    summary:
+      "Serviços complementares que ampliam a recorrência da unidade e a permanência do cliente na carteira.",
+    items: [solution("Maquininhas & Meios de Pagamento")],
+  },
+];
+
+/**
+ * AS TRÊS FRENTES DE ATUAÇÃO do ecossistema Velox.
+ * Produtos e soluções NÃO são frentes: aparecem depois, no portfólio.
+ */
+const FRENTES: {
   name: string;
   eyebrow: string;
   description: string;
   highlight: string;
 }[] = [
   {
-    eyebrow: "Franquia 01",
-    name: "Velox Financeira",
+    eyebrow: "Frente 01",
+    name: "Soluções Financeiras",
     description:
-      "O núcleo da operação. Consórcios, crédito empresarial, capital de giro, financiamentos, home equity, antecipações, agronegócio, maquininhas, FGTS e consignado — mais de 200 produtos financeiros conectados a bancos, fintechs, fundos e administradoras de todo o país.",
+      "O núcleo da operação. Crédito, consórcios, capital de giro, financiamentos, home equity, antecipações, agronegócio, maquininhas, FGTS e consignado — conectados a bancos, fintechs, fundos e administradoras de todo o país.",
     highlight: "+200 produtos e serviços · +200 parceiros estratégicos",
   },
   {
-    eyebrow: "Franquia 02",
-    name: "Velox Solar",
+    eyebrow: "Frente 02",
+    name: "Energia Solar",
     description:
-      "Frente dedicada à transição energética. Projetos fotovoltaicos residenciais, comerciais e rurais, usinas de investimento e crédito de carbono. Atende famílias, empresas e produtores que buscam previsibilidade de custos e sustentabilidade de longo prazo.",
-    highlight: "Portfólio completo em energia renovável · Cobertura nacional",
+      "Empresa própria do grupo, dedicada à transição energética. Projetos fotovoltaicos residenciais, comerciais e rurais, usinas de investimento e crédito de carbono, para famílias, empresas e produtores que buscam previsibilidade de custos.",
+    highlight: "Empresa própria do grupo · Cobertura nacional",
   },
   {
-    eyebrow: "Franquia 03",
-    name: "Velox Seguros",
+    eyebrow: "Frente 03",
+    name: "Corretora de Seguros",
     description:
-      "Corretora integrada com mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Vida, patrimonial, empresarial, frota, agro, saúde e benefícios — a base de qualquer planejamento financeiro consistente.",
-    highlight: "+180 tipos de seguros · +30 categorias · Recorrência mensal",
+      "Corretora própria do grupo, com mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Vida, patrimonial, empresarial, frota, agro, saúde e benefícios.",
+    highlight: "Corretora própria · +180 tipos de seguros · +30 categorias",
   },
 ];
+
+/** Como o franqueado atua — operação em quatro movimentos. */
+const OPERATION_FLOW: FlowStep[] = [
+  {
+    marker: "01",
+    title: "Conexão",
+    description:
+      "O franqueado atende pessoas e empresas da sua região — por indicação, prospecção ativa ou pelos leads gerados nas campanhas apoiadas pela rede.",
+  },
+  {
+    marker: "02",
+    title: "Diagnóstico",
+    description:
+      "Antes de oferecer qualquer solução, entende-se o objetivo do cliente: liquidez, aquisição planejada, proteção, redução de custo ou capital para o negócio.",
+  },
+  {
+    marker: "03",
+    title: "Solução",
+    description:
+      "Com o portfólio das três frentes disponíveis, a unidade compara alternativas entre as instituições parceiras e apresenta a mais adequada ao momento do cliente.",
+  },
+  {
+    marker: "04",
+    title: "Operação e relacionamento",
+    description:
+      "A contratação é conduzida com apoio da plataforma e das equipes de retaguarda. O cliente permanece na carteira e pode voltar a ser atendido em outras necessidades.",
+  },
+];
+
+/** Como o franqueado gera receita — mecanismo comercial, sem promessa de ganho. */
+const REVENUE_MECHANICS: { n: string; title: string; body: string }[] = [
+  {
+    n: "01",
+    title: "A receita vem da operação concluída",
+    body: "Cada solução contratada pelo cliente gera uma remuneração para a unidade, paga pela instituição, seguradora ou administradora parceira — conforme as condições oficiais de cada produto.",
+  },
+  {
+    n: "02",
+    title: "Cada solução tem sua própria remuneração",
+    body: "Os percentuais variam conforme o produto contratado. Eles estão indicados, de forma transparente, ao lado de cada solução na seção de portfólio deste material.",
+  },
+  {
+    n: "03",
+    title: "Receita recorrente",
+    body: "Parte do portfólio gera remuneração continuada, como os meios de pagamento (recorrência conforme o faturamento do cliente) e as renovações da carteira de seguros.",
+  },
+  {
+    n: "04",
+    title: "Diversificação",
+    body: "Como a unidade opera três frentes, o mesmo cliente pode ser atendido em necessidades diferentes ao longo do tempo. A receita não depende de uma única solução nem de um único mercado.",
+  },
+];
+
+/** Perfil do investidor — critérios extraídos dos modelos oficiais da rede. */
+const INVESTOR_PROFILE: { title: string; body: string }[] = [
+  {
+    title: "Perfil comercial e consultivo",
+    body: "O negócio é conduzido por relacionamento. Faz sentido para quem gosta de conversar, escutar e orientar pessoas — e não apenas de vender um produto.",
+  },
+  {
+    title: "Disposição para aprender",
+    body: "Não é exigida experiência prévia no mercado financeiro. A formação técnica é oferecida pela Universidade Corporativa, mas exige dedicação real do franqueado.",
+  },
+  {
+    title: "Visão de longo prazo",
+    body: "A carteira é construída ao longo do tempo. O modelo é indicado para quem avalia um projeto de anos, não um retorno imediato.",
+  },
+  {
+    title: "Escolha do formato",
+    body: "Home Office, para iniciar com estrutura enxuta e escalar gradualmente. Loja Física, para construir presença regional e ampliar a visibilidade da marca.",
+  },
+];
+
 
 const NEXT_STEPS: RailItem[] = [
   {
