@@ -10,8 +10,9 @@ import { CONTENT_GROUPS, REQUIRED_CONTENT_GROUPS } from "./content";
 // Fusos: America/Sao_Paulo = UTC-3.
 const local = (day: string, hour: number) => {
   const [y, m, d] = day.split("-").map(Number);
-  return new Date(Date.UTC(y!, m! - 1, d!, hour + 3, 0, 0)).toISOString();
+  return new Date(Date.UTC(y!, m! - 1, d!, 0, Math.round((hour + 3) * 60), 0)).toISOString();
 };
+
 
 describe("janela ÚNICA de envio de mensagens — 07:00 às 22:30", () => {
   it("segunda a sexta envia das 07:00 às 22:30", () => {
