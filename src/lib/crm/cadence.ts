@@ -57,10 +57,15 @@ export const FOURTH_ATTEMPT_CALENDAR_DAYS = 7;
 
 export const CADENCE_CONFIG: Record<CadenceChannel, CadenceConfig> = {
   /**
-   * L2 = +2 dias úteis, L3 = +1, L4 = +3 e a quarta tentativa
-   * automática (L5) ≈ 7 dias corridos após a anterior.
+   * DIA OPERACIONAL, NUNCA "+24 HORAS".
+   *
+   * A primeira tentativa automática pertence ao PRÓXIMO DIA OPERACIONAL
+   * após a movimentação para ZERO CONTATO / FRIO — não importa se o lead
+   * foi movido às 08:00 ou às 18:00: no dia seguinte ele já pertence à
+   * fila da manhã. Depois: L3 = +1 dia útil, L4 = +3 dias úteis e a
+   * quarta tentativa automática (L5) ≈ 7 dias corridos.
    */
-  call: { enabled: true, offsets: [2, 1, 3, FOURTH_ATTEMPT_CALENDAR_DAYS] },
+  call: { enabled: true, offsets: [1, 1, 3, FOURTH_ATTEMPT_CALENDAR_DAYS] },
   /**
    * LEGADO — a cadência de MENSAGENS pertence agora exclusivamente ao
    * Motor de Relacionamento (`src/lib/relationship`). Este canal
