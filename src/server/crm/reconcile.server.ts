@@ -39,6 +39,9 @@ export async function reconcileMissingLeads(
     .from("crm_leads")
     .select("id,external_id,name,stage_key")
     .eq("stage_key", "novos")
+    // Lead de TESTE não existe na origem por definição: ausência ali
+    // nunca significa redistribuição e jamais move a coluna dele.
+    .eq("is_test", false)
     .limit(5000);
 
   const now = new Date().toISOString();

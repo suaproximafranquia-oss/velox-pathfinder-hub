@@ -24,6 +24,9 @@ export type WorkspaceCardInput = {
   externalCreatedAt?: string | null;
   externalUpdatedAt?: string | null;
   rawPayload: unknown;
+  /** Marcação técnica de teste — jamais aplicada a lead real. */
+  isTest?: boolean;
+  testBatchId?: string | null;
 };
 
 export type WorkspaceCardResult =
@@ -65,6 +68,8 @@ export async function ensureWorkspaceCard(
     external_created_at: input.externalCreatedAt ?? null,
     external_updated_at: input.externalUpdatedAt ?? null,
     external_payload: input.rawPayload as never,
+    is_test: Boolean(input.isTest),
+    test_batch_id: input.testBatchId ?? null,
   });
   if (error) return { ok: false, cardId, created: false, error: error.message };
   return { ok: true, cardId, created: true };

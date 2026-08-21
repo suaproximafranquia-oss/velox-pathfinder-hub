@@ -372,6 +372,7 @@ export type Database = {
           external_status: string | null
           id: string
           ingested_at: string
+          is_test: boolean
           last_entry_at: string | null
           last_synced_at: string | null
           name: string
@@ -385,6 +386,7 @@ export type Database = {
           sync_error: string | null
           sync_status: string
           tags: Json
+          test_batch_id: string | null
           updated_at: string
           welcome_attempts: number
           welcome_error: string | null
@@ -408,6 +410,7 @@ export type Database = {
           external_status?: string | null
           id?: string
           ingested_at?: string
+          is_test?: boolean
           last_entry_at?: string | null
           last_synced_at?: string | null
           name?: string
@@ -421,6 +424,7 @@ export type Database = {
           sync_error?: string | null
           sync_status?: string
           tags?: Json
+          test_batch_id?: string | null
           updated_at?: string
           welcome_attempts?: number
           welcome_error?: string | null
@@ -444,6 +448,7 @@ export type Database = {
           external_status?: string | null
           id?: string
           ingested_at?: string
+          is_test?: boolean
           last_entry_at?: string | null
           last_synced_at?: string | null
           name?: string
@@ -457,6 +462,7 @@ export type Database = {
           sync_error?: string | null
           sync_status?: string
           tags?: Json
+          test_batch_id?: string | null
           updated_at?: string
           welcome_attempts?: number
           welcome_error?: string | null
@@ -1181,6 +1187,7 @@ export type Database = {
           external_updated_at: string | null
           id: string
           is_private: boolean
+          is_test: boolean
           journey: Json
           journey_chapter: string | null
           journey_completed_at: string | null
@@ -1211,6 +1218,7 @@ export type Database = {
           restored_at: string | null
           restored_by: string | null
           scope: string
+          test_batch_id: string | null
           updated_at: string
           viewed_at: string | null
           whatsapp: string
@@ -1234,6 +1242,7 @@ export type Database = {
           external_updated_at?: string | null
           id: string
           is_private?: boolean
+          is_test?: boolean
           journey?: Json
           journey_chapter?: string | null
           journey_completed_at?: string | null
@@ -1264,6 +1273,7 @@ export type Database = {
           restored_at?: string | null
           restored_by?: string | null
           scope?: string
+          test_batch_id?: string | null
           updated_at?: string
           viewed_at?: string | null
           whatsapp?: string
@@ -1287,6 +1297,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_private?: boolean
+          is_test?: boolean
           journey?: Json
           journey_chapter?: string | null
           journey_completed_at?: string | null
@@ -1317,6 +1328,7 @@ export type Database = {
           restored_at?: string | null
           restored_by?: string | null
           scope?: string
+          test_batch_id?: string | null
           updated_at?: string
           viewed_at?: string | null
           whatsapp?: string
@@ -1912,6 +1924,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      test_batches: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          id: string
+          label: string
+          lead_count: number
+          notes: string | null
+          scenarios: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id: string
+          label: string
+          lead_count?: number
+          notes?: string | null
+          scenarios?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          label?: string
+          lead_count?: number
+          notes?: string | null
+          scenarios?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
