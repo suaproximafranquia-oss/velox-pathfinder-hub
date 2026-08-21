@@ -31,6 +31,8 @@ import { assertProductionRecipient, resolveRecipientPhone } from "./guard.server
 type Recipient = {
   name: string | null;
   phone: string;
+  /** Lead de LOTE DE TESTE: nunca pode sair para o canal externo. */
+  isTest: boolean;
   executiveName: string;
   portalLink: string;
 };
@@ -42,7 +44,7 @@ async function loadRecipient(leadId: string): Promise<Recipient | null> {
 
   const { data: card } = await supabaseAdmin
     .from("portal_leads")
-    .select("name,responsible_executive_slug")
+    .select("name,responsible_executive_slug,is_test")
     .eq("id", leadId)
     .maybeSingle();
 
@@ -62,6 +64,7 @@ async function loadRecipient(leadId: string): Promise<Recipient | null> {
   return {
     name,
     phone,
+    isTest: Boolean(card?.is_test),
     executiveName: fallback?.name ?? "",
     portalLink: slug ? investorPortalUrl(slug) : "",
   };
@@ -94,7 +97,13 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     return { delivered: false, error: rendered.reason };
   }
 
-  const simulated = E0_SIMULATION_ENABLED;
+  /**
+   * AMBIENTE ANTES DE CREDENCIAL (regra do projeto). Um lead marcado
+   * como TESTE é simulado SEMPRE, mesmo que a simulação global esteja
+   * desligada e o token real da Meta esteja presente. Esta é a última
+   * barreira: nenhum lote de teste consegue produzir entrega externa.
+   */
+  const simulated = E0_SIMULATION_ENABLED || recipient.isTest;
   const body = rendered.button ? `${rendered.body}\n\n${rendered.button.url}` : rendered.body;
   const messageId = `msg_${step.toLowerCase()}_${request.leadId}`;
   const at = new Date().toISOString();
