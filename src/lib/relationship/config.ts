@@ -203,7 +203,11 @@ export type RelationshipConfig = {
   enabled: boolean;
   /** Janela de conversação livre, em horas. */
   windowHours: number;
-  /** Horário operacional (hora local da operação) de segunda a sexta. */
+  /**
+   * JANELA OPERACIONAL DE ENVIO (hora local da operação), de segunda a
+   * sexta. Aceita fração de hora: 22.5 = 22:30. É a ÚNICA definição de
+   * horário permitido — nenhuma etapa (E0, E1, E3…) tem regra própria.
+   */
   businessHours: { start: number; end: number };
   /**
    * Janela de ENVIO no sábado (COMANDO 3D §8 e ajuste do §11).
@@ -213,6 +217,7 @@ export type RelationshipConfig = {
   /** Fechamento operacional do dia (hora local) — §3. */
   dailyClosingHour: number;
   timeZone: string;
+
   /** Feriados YYYY-MM-DD tratados como dias não úteis. */
   nonBusinessDays: string[];
   /** Visualizações sem resposta que trocam o lead para o fluxo 2. */
