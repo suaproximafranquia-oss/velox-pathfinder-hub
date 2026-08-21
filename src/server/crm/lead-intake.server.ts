@@ -142,7 +142,7 @@ export async function intakeLead(
     return result;
   }
 
-  if (enteredNow && eligibility.eligible && E0_SIMULATION_ENABLED) {
+  if (enteredNow && eligibility.eligible && (E0_SIMULATION_ENABLED || isTest)) {
     /**
      * origem → servidor → Workspace GreenSales → E0 simulada. O card
      * operacional é criado no NOSSO Workspace (carteira `portal_leads`,
