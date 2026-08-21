@@ -7,3 +7,10 @@ export { TimelineRail, type RailItem } from "./TimelineRail";
 export { Gallery, type GalleryItem } from "./Gallery";
 export { Pullquote } from "./Pullquote";
 export { SectionShell, Eyebrow, EdgeRule } from "./Chrome";
+export { MediaSlot } from "./MediaSlot";
+export { FlowDiagram, type FlowStep } from "./FlowDiagram";
+export {
+  PortfolioCatalog,
+  type PortfolioCategory,
+  type PortfolioItem,
+} from "./PortfolioCatalog";

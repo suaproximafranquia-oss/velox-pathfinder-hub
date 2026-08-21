@@ -10,16 +10,21 @@ import {
   EditorialSection,
   FeaturePanel,
   StatBand,
-  ProductGrid,
   TimelineRail,
   Gallery,
   Pullquote,
   SectionShell,
   Eyebrow,
-  type Product,
+  MediaSlot,
+  FlowDiagram,
+  PortfolioCatalog,
   type RailItem,
   type GalleryItem,
+  type FlowStep,
+  type PortfolioCategory,
+  type PortfolioItem,
 } from "@/components/site/v2";
+
 
 import heroImg from "@/assets/editorial/velox-sede.jpg.asset.json";
 import founderImg from "@/assets/editorial/mario-sergio.png.asset.json";
@@ -42,22 +47,50 @@ import marioConsultoresImg from "@/assets/editorial/velox-mario-consultores.png.
 import homeOfficeImg from "@/assets/editorial/velox-home-office.jpg.asset.json";
 
 export const Route = createFileRoute("/universo")({
+  head: () => ({
+    meta: [
+      { title: "Material Institucional Velox — Apresentação ao Investidor" },
+      {
+        name: "description",
+        content:
+          "Entenda o modelo de franquia Velox: as três frentes do ecossistema, como o franqueado atua, como gera receita, o portfólio de soluções, a estrutura de suporte e o investimento oficial.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:title", content: "Material Institucional Velox — Apresentação ao Investidor" },
+      {
+        property: "og:description",
+        content:
+          "Apresentação institucional da Velox: conceito do negócio, três frentes de atuação, portfólio, suporte e investimento — com transparência e sem promessas de ganho.",
+      },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Material Institucional Velox — Apresentação ao Investidor" },
+      {
+        name: "twitter:description",
+        content:
+          "Conheça o modelo de franquia Velox de forma progressiva: conceito, operação, receita, portfólio, estrutura e investimento.",
+      },
+    ],
+  }),
   component: Index,
 });
+
 
 const SECTIONS: ModuleChromeSection[] = [
   { id: "capa", label: "Capa" },
   { id: "carta", label: "Carta de Boas-vindas" },
-  { id: "manual", label: "Como utilizar este manual" },
+  { id: "manual", label: "Como utilizar este material" },
+  { id: "parcerias", label: "Nossa forma de construir parcerias" },
   { id: "antes", label: "Antes de falar da Velox" },
   { id: "velox", label: "Quem é a Velox" },
-  { id: "parcerias", label: "Nossa forma de construir parcerias" },
+  { id: "conceito", label: "O conceito do negócio" },
   { id: "valores", label: "Nossos valores" },
   { id: "mercado", label: "Panorama do mercado" },
   { id: "consumidor", label: "Evolução do consumidor" },
-  { id: "ecossistema", label: "Ecossistema Velox" },
-  { id: "especialidades", label: "Três franquias em uma" },
-  { id: "parceiros", label: "Parceiros estratégicos" },
+  { id: "operacao", label: "Como o franqueado atua" },
+  { id: "frentes", label: "As três frentes do ecossistema" },
+  { id: "receita", label: "Como o franqueado gera receita" },
+  { id: "portfolio", label: "Portfólio de soluções" },
+  { id: "parceiros", label: "Parceiros e instituições" },
   { id: "implantacao", label: "Processo de implantação" },
   { id: "equipe", label: "Equipe de suporte" },
   { id: "consultoria", label: "Consultoria de negócios" },
@@ -67,12 +100,17 @@ const SECTIONS: ModuleChromeSection[] = [
   { id: "comunidade", label: "Comunidade de franqueados" },
   { id: "franquia", label: "Modelos de franquia" },
   { id: "investimento", label: "Investimento" },
+  { id: "perfil", label: "Perfil do investidor" },
+  { id: "diagnostico", label: "Diagnóstico do investidor" },
   { id: "processo", label: "Como funciona o processo" },
   { id: "etapas", label: "Próximas etapas" },
   { id: "encerramento", label: "Contato" },
 ];
 
-const PRODUCTS: Product[] = [
+
+/** Catálogo oficial de soluções — dados e comissões preservados verbatim. */
+const PRODUCTS: PortfolioItem[] = [
+
   {
     name: "Consórcios",
     description:
@@ -147,40 +185,172 @@ const PRODUCTS: Product[] = [
   },
 ];
 
-const SPECIALTIES: {
+/** Busca uma solução oficial pelo nome, sem duplicar textos. */
+function solution(name: string): PortfolioItem {
+  const found = PRODUCTS.find((p) => p.name === name);
+  if (!found) throw new Error(`Solução não catalogada: ${name}`);
+  return found;
+}
+
+/**
+ * PORTFÓLIO — organizado por CATEGORIA de necessidade do cliente.
+ * Aparece apenas depois de o modelo de negócio ter sido explicado.
+ */
+const PORTFOLIO: PortfolioCategory[] = [
+  {
+    name: "Crédito",
+    summary:
+      "Modalidades para pessoa física, empresas e produtores rurais — cada uma indicada a um momento diferente do cliente.",
+    items: [
+      solution("Crédito Consignado"),
+      solution("Cartão de Crédito Consignado"),
+      solution("Crédito Empresarial & Capital de Giro"),
+      solution("Home Equity"),
+      solution("Crédito Rural & Agronegócio"),
+      solution("FGTS · Antecipação"),
+    ],
+  },
+  {
+    name: "Consórcio e Financiamento",
+    summary:
+      "Aquisição planejada ou financiada de bens, com estruturas de prazo e custo distintas para o mesmo objetivo.",
+    items: [
+      solution("Consórcios"),
+      solution("Financiamento Imobiliário"),
+      solution("Financiamento e Refin de Veículos"),
+    ],
+  },
+  {
+    name: "Proteção",
+    summary:
+      "Frente conduzida pela corretora própria do grupo, base de qualquer planejamento financeiro consistente.",
+    items: [solution("Seguros")],
+  },
+  {
+    name: "Energia",
+    summary:
+      "Soluções da empresa de energia solar do grupo, voltadas à previsibilidade de custos e à transição energética.",
+    items: [solution("Energia Solar & Renováveis")],
+  },
+  {
+    name: "Outras soluções",
+    summary:
+      "Serviços complementares que ampliam a recorrência da unidade e a permanência do cliente na carteira.",
+    items: [solution("Maquininhas & Meios de Pagamento")],
+  },
+];
+
+/**
+ * AS TRÊS FRENTES DE ATUAÇÃO do ecossistema Velox.
+ * Produtos e soluções NÃO são frentes: aparecem depois, no portfólio.
+ */
+const FRENTES: {
   name: string;
   eyebrow: string;
   description: string;
   highlight: string;
 }[] = [
   {
-    eyebrow: "Franquia 01",
-    name: "Velox Financeira",
+    eyebrow: "Frente 01",
+    name: "Soluções Financeiras",
     description:
-      "O núcleo da operação. Consórcios, crédito empresarial, capital de giro, financiamentos, home equity, antecipações, agronegócio, maquininhas, FGTS e consignado — mais de 200 produtos financeiros conectados a bancos, fintechs, fundos e administradoras de todo o país.",
+      "O núcleo da operação. Crédito, consórcios, capital de giro, financiamentos, home equity, antecipações, agronegócio, maquininhas, FGTS e consignado — conectados a bancos, fintechs, fundos e administradoras de todo o país.",
     highlight: "+200 produtos e serviços · +200 parceiros estratégicos",
   },
   {
-    eyebrow: "Franquia 02",
-    name: "Velox Solar",
+    eyebrow: "Frente 02",
+    name: "Energia Solar",
     description:
-      "Frente dedicada à transição energética. Projetos fotovoltaicos residenciais, comerciais e rurais, usinas de investimento e crédito de carbono. Atende famílias, empresas e produtores que buscam previsibilidade de custos e sustentabilidade de longo prazo.",
-    highlight: "Portfólio completo em energia renovável · Cobertura nacional",
+      "Empresa própria do grupo, dedicada à transição energética. Projetos fotovoltaicos residenciais, comerciais e rurais, usinas de investimento e crédito de carbono, para famílias, empresas e produtores que buscam previsibilidade de custos.",
+    highlight: "Empresa própria do grupo · Cobertura nacional",
   },
   {
-    eyebrow: "Franquia 03",
-    name: "Velox Seguros",
+    eyebrow: "Frente 03",
+    name: "Corretora de Seguros",
     description:
-      "Corretora integrada com mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Vida, patrimonial, empresarial, frota, agro, saúde e benefícios — a base de qualquer planejamento financeiro consistente.",
-    highlight: "+180 tipos de seguros · +30 categorias · Recorrência mensal",
+      "Corretora própria do grupo, com mais de 180 tipos de seguros em mais de 30 categorias, das principais seguradoras do mundo. Vida, patrimonial, empresarial, frota, agro, saúde e benefícios.",
+    highlight: "Corretora própria · +180 tipos de seguros · +30 categorias",
   },
 ];
+
+/** Como o franqueado atua — operação em quatro movimentos. */
+const OPERATION_FLOW: FlowStep[] = [
+  {
+    marker: "01",
+    title: "Conexão",
+    description:
+      "O franqueado atende pessoas e empresas da sua região — por indicação, prospecção ativa ou pelos leads gerados nas campanhas apoiadas pela rede.",
+  },
+  {
+    marker: "02",
+    title: "Diagnóstico",
+    description:
+      "Antes de oferecer qualquer solução, entende-se o objetivo do cliente: liquidez, aquisição planejada, proteção, redução de custo ou capital para o negócio.",
+  },
+  {
+    marker: "03",
+    title: "Solução",
+    description:
+      "Com o portfólio das três frentes disponíveis, a unidade compara alternativas entre as instituições parceiras e apresenta a mais adequada ao momento do cliente.",
+  },
+  {
+    marker: "04",
+    title: "Operação e relacionamento",
+    description:
+      "A contratação é conduzida com apoio da plataforma e das equipes de retaguarda. O cliente permanece na carteira e pode voltar a ser atendido em outras necessidades.",
+  },
+];
+
+/** Como o franqueado gera receita — mecanismo comercial, sem promessa de ganho. */
+const REVENUE_MECHANICS: { n: string; title: string; body: string }[] = [
+  {
+    n: "01",
+    title: "A receita vem da operação concluída",
+    body: "Cada solução contratada pelo cliente gera uma remuneração para a unidade, paga pela instituição, seguradora ou administradora parceira — conforme as condições oficiais de cada produto.",
+  },
+  {
+    n: "02",
+    title: "Cada solução tem sua própria remuneração",
+    body: "Os percentuais variam conforme o produto contratado. Eles estão indicados, de forma transparente, ao lado de cada solução na seção de portfólio deste material.",
+  },
+  {
+    n: "03",
+    title: "Receita recorrente",
+    body: "Parte do portfólio gera remuneração continuada, como os meios de pagamento (recorrência conforme o faturamento do cliente) e as renovações da carteira de seguros.",
+  },
+  {
+    n: "04",
+    title: "Diversificação",
+    body: "Como a unidade opera três frentes, o mesmo cliente pode ser atendido em necessidades diferentes ao longo do tempo. A receita não depende de uma única solução nem de um único mercado.",
+  },
+];
+
+/** Perfil do investidor — critérios extraídos dos modelos oficiais da rede. */
+const INVESTOR_PROFILE: { title: string; body: string }[] = [
+  {
+    title: "Perfil comercial e consultivo",
+    body: "O negócio é conduzido por relacionamento. Faz sentido para quem gosta de conversar, escutar e orientar pessoas — e não apenas de vender um produto.",
+  },
+  {
+    title: "Disposição para aprender",
+    body: "Não é exigida experiência prévia no mercado financeiro. A formação técnica é oferecida pela Universidade Corporativa, mas exige dedicação real do franqueado.",
+  },
+  {
+    title: "Visão de longo prazo",
+    body: "A carteira é construída ao longo do tempo. O modelo é indicado para quem avalia um projeto de anos, não um retorno imediato.",
+  },
+  {
+    title: "Escolha do formato",
+    body: "Home Office, para iniciar com estrutura enxuta e escalar gradualmente. Loja Física, para construir presença regional e ampliar a visibilidade da marca.",
+  },
+];
+
 
 const NEXT_STEPS: RailItem[] = [
   {
     marker: "01",
     meta: "Etapa 01",
-    title: "Leitura do manual",
+    title: "Leitura do material",
     description:
       "Percorra este material com calma. Ele foi elaborado para apresentar a empresa, o mercado e o modelo de negócio de forma clara e completa.",
   },
@@ -236,13 +406,15 @@ const VALORES: { title: string; body: string }[] = [
 
 const MANUAL_TOPICS: string[] = [
   "A história da Velox e os princípios que orientam nossa atuação.",
-  "Como funciona o mercado de soluções financeiras e por que ele continua em constante expansão.",
-  "Nosso ecossistema de produtos e serviços.",
+  "O conceito do negócio e como o franqueado atua no dia a dia.",
+  "As três frentes do ecossistema: Soluções Financeiras, Energia Solar e Corretora de Seguros.",
+  "Como o franqueado gera receita — o mecanismo comercial, sem promessas.",
+  "O portfólio de soluções disponível para atender diferentes necessidades.",
   "A estrutura de suporte oferecida aos franqueados.",
-  "Os modelos de franquia disponíveis.",
-  "O investimento necessário e o que está incluído.",
+  "Os modelos de franquia e o investimento necessário.",
   "As próximas etapas para quem desejar aprofundar essa conversa.",
 ];
+
 
 const UNIDADES: GalleryItem[] = [
   { src: lojaFachadaImg.url, alt: "Fachada de unidade Velox", caption: "Unidade da rede · Fachada institucional", span: 2 },
@@ -358,16 +530,17 @@ function Hero() {
                 <div className="eyebrow eyebrow-on-dark">Sumário</div>
                 <div className="mt-6 space-y-3 font-serif text-lg italic on-dark md:text-xl">
                   {[
-                    ["I", "Apresentação · Quem é a Velox"],
-                    ["II", "Ecossistema Velox"],
-                    ["III", "Produtos Financeiros"],
-                    ["IV", "Três Franquias em Uma"],
-                    ["V", "Marketplace de Parceiros"],
-                    ["VI", "Suporte ao Franqueado"],
-                    ["VII", "Marketing e Geração de Clientes"],
-                    ["VIII", "Tecnologia"],
-                    ["IX", "Modelos de Franquia · Investimento"],
-                    ["X", "Próximos Passos"],
+                    ["I", "Quem é a Velox · O conceito"],
+                    ["II", "Mercado e oportunidade"],
+                    ["III", "Como o franqueado atua"],
+                    ["IV", "As três frentes do ecossistema"],
+                    ["V", "Como o franqueado gera receita"],
+                    ["VI", "Portfólio de soluções"],
+                    ["VII", "Parceiros e instituições"],
+                    ["VIII", "Estrutura e suporte"],
+                    ["IX", "Modelos de franquia · Investimento"],
+                    ["X", "Perfil, diagnóstico e próximo passo"],
+
                   ].map(([n, label]) => (
                     <div key={n} className="flex items-baseline gap-4">
                       <span className="num text-xs opacity-60" style={{ minWidth: "2ch" }}>{n}</span>
@@ -468,7 +641,7 @@ function Index() {
                 <p>
                   Por isso, acreditamos que toda decisão deve ser tomada com informação, transparência e segurança.
                 </p>
-                <p>Este manual foi desenvolvido justamente com esse propósito.</p>
+                <p>Este material foi desenvolvido justamente com esse propósito.</p>
                 <p>
                   Ao longo das próximas páginas você conhecerá nossa história, entenderá como funciona o mercado em que atuamos, descobrirá nossa estrutura de suporte e compreenderá como trabalhamos ao lado dos nossos franqueados em cada etapa da jornada.
                 </p>
@@ -501,7 +674,7 @@ function Index() {
               <Reveal>
                 <div className="font-serif text-sm italic on-dark-muted">Capítulo I · Apresentação</div>
                 <div className="mt-4">
-                  <Eyebrow tone="dark">Como utilizar este manual</Eyebrow>
+                  <Eyebrow tone="dark">Como utilizar este material</Eyebrow>
                 </div>
                 <h2 id="manual-title" className="mt-6 text-balance text-4xl leading-[1.08] on-dark sm:text-5xl md:text-6xl">
                   Um material feito para <em style={{ color: "var(--brand-orange)" }}>ler com calma.</em>
@@ -636,7 +809,10 @@ function Index() {
             A Velox Soluções Financeiras nasceu com um propósito muito claro: conectar pessoas às melhores soluções financeiras por meio de um modelo de negócio baseado em relacionamento, conhecimento e atendimento consultivo.
           </p>
           <p>
-            Hoje somos a única rede a reunir, sob uma mesma marca, cinco frentes de atuação complementares — crédito e consórcios, energia e imobiliário, agronegócio, home equity e limpa nome — apoiadas por mais de cinquenta instituições financeiras e mais de duzentos tipos de serviços.
+            O grupo reúne três frentes de atuação complementares — Soluções Financeiras, Energia Solar e
+            Corretora de Seguros —, sendo a empresa de energia solar e a corretora de seguros companhias
+            próprias do grupo. Essas frentes são sustentadas por instituições financeiras, seguradoras,
+            administradoras e fintechs parceiras, que dão origem ao portfólio de soluções da rede.
           </p>
           <p>
             Ao longo de sua trajetória, a empresa consolidou uma atuação voltada para a construção de parcerias duradouras, reunindo soluções capazes de atender diferentes perfis de clientes e necessidades financeiras.
@@ -645,6 +821,49 @@ function Index() {
             Mais do que disponibilizar produtos, a Velox acredita que seu papel é oferecer orientação, segurança e alternativas para que cada cliente encontre a solução mais adequada ao seu momento.
           </p>
         </FeaturePanel>
+
+        {/* 05.5 · O conceito do negócio */}
+        <SectionShell id="conceito" labelledBy="conceito-title" surface="ink" pattern="grid" watermark className="py-28 md:py-40">
+          <div className="relative mx-auto max-w-6xl px-6 md:px-10">
+            <div className="grid gap-16 md:grid-cols-12 md:gap-20">
+              <Reveal className="md:col-span-5">
+                <div className="font-serif text-sm italic on-dark-muted">Capítulo I · Apresentação</div>
+                <div className="mt-4"><Eyebrow tone="dark">O conceito do negócio</Eyebrow></div>
+                <h2 id="conceito-title" className="mt-6 text-balance text-4xl leading-[1.08] on-dark sm:text-5xl md:text-6xl">
+                  Em uma frase: <em style={{ color: "var(--brand-orange)" }}>uma consultoria financeira com estrutura de rede.</em>
+                </h2>
+              </Reveal>
+              <Reveal delay={120} className="md:col-span-7">
+                <div className="space-y-6 text-lg leading-relaxed on-dark-muted">
+                  <p>
+                    A unidade Velox não é uma loja de um único produto. Ela funciona como um ponto de
+                    atendimento onde uma pessoa ou empresa apresenta uma necessidade — comprar um bem,
+                    organizar dívidas, obter capital, proteger um patrimônio ou reduzir custo de energia —
+                    e recebe alternativas comparadas entre as instituições parceiras da rede.
+                  </p>
+                  <p>
+                    O franqueado não é o financiador nem o segurador. Ele é o profissional que faz o
+                    diagnóstico, apresenta as opções e conduz a operação até a contratação, apoiado pela
+                    plataforma, pelas equipes de retaguarda e pelo portfólio das três frentes do grupo.
+                  </p>
+                  <p className="on-dark">
+                    É esse desenho que sustenta tudo o que vem a seguir neste material: a forma de atuar,
+                    a origem da receita, o portfólio e a estrutura de suporte.
+                  </p>
+                </div>
+                <div className="mt-12">
+                  <MediaSlot
+                    kind="video"
+                    label="[ESPAÇO PARA VÍDEO INSTITUCIONAL]"
+                    note="Reservado para o vídeo institucional oficial da Velox, com apresentação da empresa e do modelo de negócio."
+                    ratio="16 / 9"
+                  />
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </SectionShell>
+
 
         {/* 06 · Parcerias */}
         <FeaturePanel
@@ -734,7 +953,7 @@ function Index() {
           eyebrow="A rede em números"
           title="Uma estrutura ampla, integrada e em constante expansão."
           items={[
-            { value: "3", label: "Franquias em uma: Financeira, Solar e Seguros", note: "Modelo integrado" },
+            { value: "3", label: "Frentes de atuação: Soluções Financeiras, Energia Solar e Corretora de Seguros", note: "Ecossistema integrado" },
             { value: "+200", label: "Produtos e serviços financeiros ativos", note: "Portfólio em expansão" },
             { value: "+200", label: "Parceiros estratégicos entre bancos, seguradoras e fintechs", note: "Instituições parceiras" },
             { value: "BR", label: "Cobertura nacional em todas as regiões", note: "Presença consolidada" },
@@ -792,39 +1011,50 @@ function Index() {
           </p>
         </FeaturePanel>
 
-        {/* 10 · Ecossistema — Products */}
+        {/* 10 · Como o franqueado atua */}
         <EditorialSection
-          id="ecossistema"
-          chapter="Capítulo II · O Mercado"
-          eyebrow="O ecossistema Velox"
-          title="Mais de 200 soluções financeiras sob a mesma marca."
-          lead="Reunimos, em uma única estrutura, dezenas de linhas de produtos e serviços financeiros complementares. A seguir, uma seleção conceitual das principais frentes que compõem o portfólio da rede."
-          surface="ink"
-          watermark
+          id="operacao"
+          chapter="Capítulo II · O Modelo"
+          eyebrow="Como o franqueado atua"
+          title="A operação, do primeiro contato à contratação."
+          lead="O dia a dia da unidade segue uma sequência simples e repetível. Entender esse fluxo é o passo anterior a qualquer discussão sobre produtos ou investimento."
+          surface="paper"
         >
-          <ProductGrid items={PRODUCTS} />
-          <p className="mx-auto mt-14 max-w-3xl text-center font-serif text-lg italic leading-relaxed on-dark-muted">
-            Esta é apenas uma seleção. A rede opera mais de 200 produtos e serviços ativos, com novas frentes sendo incorporadas continuamente.
-          </p>
+          <FlowDiagram steps={OPERATION_FLOW} />
+          <Reveal delay={200}>
+            <div className="mt-14">
+              <MediaSlot
+                kind="video"
+                label="[ESPAÇO PARA VÍDEO EXPLICATIVO — COMO FUNCIONA A OPERAÇÃO]"
+                note="Reservado para o vídeo em que a equipe demonstra, na prática, um atendimento do início ao fim."
+                ratio="16 / 9"
+                tone="light"
+              />
+            </div>
+          </Reveal>
         </EditorialSection>
 
-        {/* 11 · Especialidades */}
-        <SectionShell id="especialidades" labelledBy="especialidades-title" surface="paper" pattern="diag" className="py-28 md:py-40">
+        {/* 11 · As três frentes do ecossistema */}
+        <SectionShell id="frentes" labelledBy="frentes-title" surface="paper" pattern="diag" className="py-28 md:py-40">
           <div className="relative mx-auto max-w-6xl px-6 md:px-10">
             <div className="max-w-3xl">
               <Reveal>
-                <div className="font-serif text-sm italic text-muted-foreground">Capítulo II · O Mercado</div>
-                <div className="mt-4"><Eyebrow>Três franquias em uma</Eyebrow></div>
-                <h2 id="especialidades-title" className="mt-6 text-balance text-4xl leading-[1.08] sm:text-5xl md:text-6xl">
-                  Três franquias em uma, <em style={{ color: "var(--brand-orange)" }}>sob a mesma marca.</em>
+                <div className="font-serif text-sm italic text-muted-foreground">Capítulo II · O Modelo</div>
+                <div className="mt-4"><Eyebrow>As três frentes do ecossistema</Eyebrow></div>
+                <h2 id="frentes-title" className="mt-6 text-balance text-4xl leading-[1.08] sm:text-5xl md:text-6xl">
+                  Três frentes de atuação, <em style={{ color: "var(--brand-orange)" }}>um mesmo ecossistema.</em>
                 </h2>
                 <p className="mt-8 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">
-                  Com uma única unidade, o franqueado Velox opera três frentes complementares — Velox Financeira, Velox Solar e Velox Seguros. Cada uma com portfólio próprio, parceiros dedicados e fontes de receita distintas, ampliando o alcance comercial e a previsibilidade da operação.
+                  O grupo atua em três frentes complementares: Soluções Financeiras, Energia Solar e Corretora de
+                  Seguros — sendo a empresa de energia solar e a corretora de seguros companhias próprias do grupo.
+                  Com uma única unidade, o franqueado tem acesso às três, ampliando o alcance comercial e as
+                  possibilidades de atendimento de um mesmo cliente.
                 </p>
               </Reveal>
             </div>
             <div className="mt-16 space-y-4">
-              {SPECIALTIES.map((s, i) => (
+              {FRENTES.map((s, i) => (
+
                 <Reveal key={s.name} delay={i * 80}>
                   <article
                     className="group relative grid gap-8 border p-8 transition-colors duration-500 hover:shadow-[var(--shadow-soft)] md:grid-cols-12 md:gap-12 md:p-12"
@@ -853,6 +1083,59 @@ function Index() {
             </div>
           </div>
         </SectionShell>
+
+        {/* 11.5 · Como o franqueado gera receita */}
+        <EditorialSection
+          id="receita"
+          chapter="Capítulo II · O Modelo"
+          eyebrow="Como o franqueado gera receita"
+          title="De onde vem a receita da unidade."
+          lead="Esta é, provavelmente, a pergunta mais importante para quem avalia o modelo. Explicamos o mecanismo comercial de forma direta — sem projeções de faturamento e sem promessa de retorno."
+          surface="graphite"
+        >
+          <div
+            className="grid gap-px overflow-hidden border md:grid-cols-2"
+            style={{ background: "var(--on-dark-border)", borderColor: "var(--on-dark-border)" }}
+          >
+            {REVENUE_MECHANICS.map((r) => (
+              <Reveal key={r.n}>
+                <div className="flex h-full flex-col p-8 md:p-10" style={{ background: "var(--graphite)" }}>
+                  <div className="flex items-center gap-4">
+                    <span className="num text-xs on-dark-muted">{r.n}</span>
+                    <span aria-hidden="true" className="h-px w-10" style={{ background: "var(--brand-orange)" }} />
+                  </div>
+                  <h3 className="mt-6 font-serif text-2xl leading-snug on-dark md:text-3xl">{r.title}</h3>
+                  <p className="mt-4 text-sm leading-relaxed on-dark-muted">{r.body}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-14 max-w-3xl text-center font-serif text-lg italic leading-relaxed on-dark-muted">
+              A Velox não projeta faturamento nem promete retorno. O resultado de cada unidade depende do
+              mercado local, da dedicação do franqueado e da carteira construída ao longo do tempo.
+            </p>
+          </Reveal>
+        </EditorialSection>
+
+        {/* 11.6 · Portfólio de soluções — por categoria */}
+        <EditorialSection
+          id="portfolio"
+          chapter="Capítulo II · O Modelo"
+          eyebrow="Portfólio de soluções"
+          title="Você não depende de uma única solução."
+          lead="O portfólio está organizado por tipo de necessidade do cliente. Ao lado de cada solução está a remuneração oficial praticada pela rede. Esta é uma seleção: a operação reúne mais de 200 produtos e serviços ativos."
+          surface="ink"
+          watermark
+        >
+          <PortfolioCatalog categories={PORTFOLIO} />
+          <p className="mx-auto mt-14 max-w-3xl text-center font-serif text-lg italic leading-relaxed on-dark-muted">
+            Novas soluções são incorporadas continuamente ao portfólio, sempre por meio de instituições
+            e parceiros homologados pela rede.
+          </p>
+        </EditorialSection>
+
+
 
         {/* 12 · Parceiros estratégicos */}
         <SectionShell id="parceiros" labelledBy="parceiros-title" surface="graphite" pattern="dots" className="py-28 md:py-40">
@@ -1380,9 +1663,96 @@ function Index() {
           </div>
         </SectionShell>
 
+        {/* 20.5 · Perfil do investidor */}
+        <EditorialSection
+          id="perfil"
+          chapter="Capítulo IV · Modelos de Franquia"
+          eyebrow="Perfil do investidor"
+          title="Para quem este modelo costuma fazer sentido."
+          lead="Não acreditamos que qualquer pessoa deva ser franqueada. Os pontos abaixo descrevem o perfil que, na prática, se adapta melhor à operação — e ajudam você a avaliar, com honestidade, se esse é o seu caso."
+          surface="graphite"
+        >
+          <div
+            className="grid gap-px overflow-hidden border md:grid-cols-2"
+            style={{ background: "var(--on-dark-border)", borderColor: "var(--on-dark-border)" }}
+          >
+            {INVESTOR_PROFILE.map((p, i) => (
+              <Reveal key={p.title} delay={i * 80}>
+                <div className="flex h-full flex-col p-8 md:p-10" style={{ background: "var(--graphite)" }}>
+                  <div className="flex items-center gap-4">
+                    <span className="num text-xs on-dark-muted">{String(i + 1).padStart(2, "0")}</span>
+                    <span aria-hidden="true" className="h-px w-10" style={{ background: "var(--brand-orange)" }} />
+                  </div>
+                  <h3 className="mt-6 font-serif text-2xl leading-snug on-dark md:text-3xl">{p.title}</h3>
+                  <p className="mt-4 text-sm leading-relaxed on-dark-muted">{p.body}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={200}>
+            <div className="mt-14">
+              <MediaSlot
+                kind="video"
+                label="[ESPAÇO PARA DEPOIMENTOS DE FRANQUEADOS]"
+                note="Reservado para depoimentos reais gravados com franqueados da rede. Nenhum depoimento será publicado sem origem verificada."
+                ratio="16 / 9"
+              />
+            </div>
+          </Reveal>
+        </EditorialSection>
+
+        {/* 20.6 · Diagnóstico do investidor */}
+        <SectionShell id="diagnostico" labelledBy="diagnostico-title" surface="paper" pattern="dots" className="py-28 md:py-40">
+          <div className="relative mx-auto grid max-w-6xl gap-16 px-6 md:grid-cols-12 md:gap-20 md:px-10">
+            <Reveal className="md:col-span-6">
+              <div className="font-serif text-sm italic text-muted-foreground">Capítulo IV · Modelos de Franquia</div>
+              <div className="mt-4"><Eyebrow>Diagnóstico do investidor</Eyebrow></div>
+              <h2 id="diagnostico-title" className="mt-6 text-balance text-4xl leading-[1.08] sm:text-5xl md:text-6xl">
+                Antes de decidir, <em style={{ color: "var(--brand-orange)" }}>vamos entender o seu contexto.</em>
+              </h2>
+              <p className="mt-8 text-lg leading-relaxed text-muted-foreground">
+                Nossa conversa não começa por um contrato. Começa por um diagnóstico: entender o seu momento,
+                seus objetivos, o tempo que você pretende dedicar e a região em que pretende atuar.
+              </p>
+              <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
+                A partir dessa leitura, apresentamos o modelo com o nível de detalhe que a sua decisão exige —
+                e dizemos com clareza quando entendemos que ainda não é o momento adequado.
+              </p>
+            </Reveal>
+            <Reveal delay={120} className="md:col-span-6">
+              <div
+                className="border-l-2 pl-8 md:sticky md:top-32"
+                style={{ borderColor: "var(--brand-orange)" }}
+              >
+                <div className="eyebrow">O que avaliamos juntos</div>
+                <ul className="mt-8 space-y-5 text-base leading-relaxed text-muted-foreground">
+                  {[
+                    "Objetivo com o negócio: renda complementar, transição de carreira ou operação principal.",
+                    "Tempo disponível e forma de atuação pretendida.",
+                    "Afinidade com atendimento consultivo e relacionamento comercial.",
+                    "Formato mais adequado ao seu momento: Home Office ou Loja Física.",
+                    "Região de atuação e potencial de carteira.",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-4">
+                      <span
+                        aria-hidden="true"
+                        className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: "var(--brand-orange)" }}
+                      />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+          </div>
+        </SectionShell>
+
         <Pullquote surface="graphite">
           As melhores oportunidades são construídas sobre transparência e tempo bem investido.
         </Pullquote>
+
+
 
         {/* ==================================================== */}
         {/*  CAPÍTULO V — PRÓXIMOS PASSOS                          */}
@@ -1418,7 +1788,7 @@ function Index() {
             Somente após essa etapa de compreensão mútua avançamos para a fase contratual. Acreditamos que essa é a maneira mais adequada de iniciar uma parceria de longo prazo: com informação, tranquilidade e respeito ao tempo de decisão de cada investidor.
           </p>
           <p>
-            Este manual é o ponto de partida. Os próximos passos serão sempre conduzidos no ritmo em que fizer sentido para você.
+            Este material é o ponto de partida. Os próximos passos serão sempre conduzidos no ritmo em que fizer sentido para você.
           </p>
         </FeaturePanel>
 
@@ -1462,7 +1832,7 @@ function Index() {
               <Reveal delay={220}>
                 <div className="mt-10 space-y-6 text-lg leading-relaxed on-dark-muted">
                   <p>
-                    A leitura deste manual representa, para nós, um passo importante. Ele reúne a essência do que somos e da forma como acreditamos que uma parceria deve ser construída.
+                    A leitura deste material representa, para nós, um passo importante. Ele reúne a essência do que somos e da forma como acreditamos que uma parceria deve ser construída.
                   </p>
                   <p>
                     Se, ao encerrar este material, você sentir que existe alinhamento entre seus objetivos e nossa maneira de trabalhar, será uma satisfação continuar essa conversa. Se, por outro lado, este não for o momento adequado, respeitamos integralmente essa decisão.
