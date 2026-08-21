@@ -232,17 +232,26 @@ export type RelationshipConfig = {
 
 export const RELATIONSHIP_CONFIG: RelationshipConfig = {
   /**
-   * Nasce DESLIGADO. Enquanto estiver desligado o motor calcula,
-   * registra e explica decisões, mas não executa nenhum disparo — e a
-   * automação legada de boas-vindas segue respondendo pelo primeiro
-   * contato. Ligar o motor desliga automaticamente a legada (§109).
+   * ATIVAÇÃO CONTROLADA.
+   *
+   * O motor está LIGADO: ele decide, agenda, executa e registra as
+   * etapas existentes. A saída externa continua governada pela chave de
+   * simulação end-to-end (`E0_SIMULATION_ENABLED`) e pelo canal oficial
+   * — ligar o motor NÃO significa disparar para a Meta. Ligar o motor
+   * também cala a automação legada de boas-vindas (§109): nunca dois
+   * motores respondendo pelo primeiro contato.
    */
-  enabled: false,
+  enabled: true,
   windowHours: 24,
-  businessHours: { start: 9, end: 21 },
+  /**
+   * JANELA ÚNICA DA OPERAÇÃO: 07:00 → 22:30. Fora dela a etapa não é
+   * perdida nem cancelada — apenas reagendada para a próxima abertura.
+   */
+  businessHours: { start: 7, end: 22.5 },
   /** §11 — no sábado o envio vai apenas até 12:00. */
-  saturdayHours: { start: 9, end: 12 },
+  saturdayHours: { start: 7, end: 12 },
   dailyClosingHour: 22,
+
   timeZone: "America/Sao_Paulo",
   nonBusinessDays: [],
   readsToSwitchFlow: 2,
