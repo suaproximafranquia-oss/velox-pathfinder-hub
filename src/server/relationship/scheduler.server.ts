@@ -70,6 +70,56 @@ async function eligibleLeadIds(nowIso: string): Promise<string[]> {
   return Array.from(ids).slice(0, BATCH);
 }
 
+/**
+ * RESGATE DA E0 (falha observada em produção): existem leads cuja E0 foi
+ * enviada e registrada em `crm_messages`, mas que nunca chegaram a
+ * existir para o motor — sem cadência, todo ciclo apenas repetia
+ * "cadência não iniciada" e nenhuma etapa avançava.
+ *
+ * Aqui a E0 já ocorrida é registrada no motor com a MESMA chave de
+ * evento usada no envio (`e0_<lead>`): se já existir, nada acontece;
+ * nenhuma mensagem é reenviada, apenas o estado passa a existir.
+ */
+async function bootstrapMissingCadences(leadIds: string[]): Promise<number> {
+  if (leadIds.length === 0) return 0;
+  const engine = productionEngine();
+
+  const { data: existing } = await supabaseAdmin
+    .from("relationship_cadences")
+    .select("lead_id")
+    .eq("scope", "production")
+    .is("run_id", null)
+    .in("lead_id", leadIds);
+  const known = new Set((existing ?? []).map((row) => row.lead_id));
+
+  const missing = leadIds.filter((id) => !known.has(id));
+  if (missing.length === 0) return 0;
+
+  const { data: firstContacts } = await supabaseAdmin
+    .from("crm_messages")
+    .select("investor_id,at")
+    .in("investor_id", missing)
+    .like("id", "msg_e0_%");
+
+  let recovered = 0;
+  for (const row of firstContacts ?? []) {
+    try {
+      await engine.handleEvent({
+        id: `e0_${row.investor_id}`,
+        scope: "production",
+        leadId: row.investor_id,
+        type: "FIRST_CONTACT_SENT",
+        at: row.at,
+        step: "E0",
+      });
+      recovered += 1;
+    } catch {
+      /* um lead com problema nunca interrompe os demais */
+    }
+  }
+  return recovered;
+}
+
 export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
   const summary: RelationshipTickSummary = {
     evaluated: 0,
@@ -82,6 +132,8 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
   const engine = productionEngine();
   const startedAt = new Date().toISOString();
   const leadIds = await eligibleLeadIds(startedAt);
+  const recovered = await bootstrapMissingCadences(leadIds);
+
 
   for (const leadId of leadIds) {
     try {
@@ -109,8 +161,14 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
     await supabaseAdmin.from("relationship_engine_log").insert({
       scope: "production",
       action: "ciclo_motor",
-      details: { startedAt, finishedAt: new Date().toISOString(), ...summary } as any,
+      details: {
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        cadenciasResgatadas: recovered,
+        ...summary,
+      } as any,
     } as any);
+
   } catch {
     /* registro do ciclo é auxiliar */
   }

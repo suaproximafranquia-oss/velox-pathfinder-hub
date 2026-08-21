@@ -466,3 +466,149 @@ describe("COMANDO 2B — cenários de validação", () => {
     expect(sent.filter((s) => s === "TEST-0010:E1")).toHaveLength(1);
   });
 });
+
+/**
+ * COMANDO 2 — MATRIZ DE HOMOLOGAÇÃO. Prova que uma cadência sai da E0,
+ * programa a etapa seguinte, respeita a janela, executa uma única vez,
+ * registra tudo e trata a falha sem se perder.
+ */
+describe("COMANDO 2 — matriz de homologação", () => {
+  const engineFor = (
+    scope: EngineScope,
+    iso: string,
+    opts: { allow?: boolean; enabled?: boolean } = {},
+  ) => {
+    const memory = memoryRepository(scope);
+    const disp = memoryDispatcher(scope, opts.allow ?? true);
+    const engine = createEngine({
+      repository: memory.repo,
+      dispatcher: disp.dispatcher,
+      config: { ...config, enabled: opts.enabled ?? true },
+      clock: homologationClock(iso),
+    });
+    return { engine, ...memory, ...disp };
+  };
+
+  it("11 — executar uma etapa deixa a PRÓXIMA já programada na fila", async () => {
+    const t = engineFor("homologation", "2026-08-18T12:00:00Z");
+    await t.engine.handleEvent({
+      id: "m11",
+      scope: "homologation",
+      leadId: "TEST-0011",
+      type: "FIRST_CONTACT_SENT",
+      at: "2026-08-17T12:00:00Z",
+      step: "E0",
+    });
+    expect(t.sent).toEqual(["TEST-0011:E1"]);
+    const next = [...t.queue.values()].find((q) => q.status === "PENDING");
+    expect(next).toBeTruthy();
+    expect(next?.step).not.toBe("E1");
+  });
+
+  it("12 — tarefa vencida durante a noite é executada na abertura seguinte", async () => {
+    const t = engineFor("homologation", "2026-08-19T10:30:00Z");
+    await t.engine.handleEvent({
+      id: "m12",
+      scope: "homologation",
+      leadId: "TEST-0012",
+      type: "FIRST_CONTACT_SENT",
+      at: "2026-08-17T12:00:00Z",
+      step: "E0",
+    });
+    expect(t.sent).toContain("TEST-0012:E1");
+  });
+
+  it("13 — fora da janela a etapa é adiada, nunca perdida", async () => {
+    const t = engineFor("homologation", "2026-08-18T02:00:00Z"); // 23h local
+    await t.engine.handleEvent({
+      id: "m13",
+      scope: "homologation",
+      leadId: "TEST-0013",
+      type: "FIRST_CONTACT_SENT",
+      at: "2026-08-17T12:00:00Z",
+      step: "E0",
+    });
+    expect(t.sent).toEqual([]);
+    const pending = [...t.queue.values()].find((q) => q.status === "PENDING");
+    expect(pending?.step).toBe("E1");
+  });
+
+  it("14 — motor desligado não envia e registra o motivo", async () => {
+    const t = engineFor("homologation", "2026-08-18T12:00:00Z", { enabled: false });
+    await t.engine.handleEvent({
+      id: "m14",
+      scope: "homologation",
+      leadId: "TEST-0014",
+      type: "FIRST_CONTACT_SENT",
+      at: "2026-08-17T12:00:00Z",
+      step: "E0",
+    });
+    expect(t.sent).toEqual([]);
+    expect(t.decisions.at(-1)?.reason).toContain("desabilitado");
+  });
+
+  it("15 — falha de envio mantém a tarefa viva e não avança a cadência", async () => {
+    const memory = memoryRepository("homologation");
+    const sent: string[] = [];
+    const dispatcher: EngineDispatcher = {
+      scope: "homologation",
+      async assertRecipientAllowed() {
+        return { ok: true };
+      },
+      async send(request) {
+        sent.push(request.step);
+        return { delivered: false, error: "canal indisponível" };
+      },
+    };
+    const engine = createEngine({
+      repository: memory.repo,
+      dispatcher,
+      config,
+      clock: homologationClock("2026-08-18T12:00:00Z"),
+    });
+    await engine.handleEvent({
+      id: "m15",
+      scope: "homologation",
+      leadId: "TEST-0015",
+      type: "FIRST_CONTACT_SENT",
+      at: "2026-08-17T12:00:00Z",
+      step: "E0",
+    });
+    const item = [...memory.queue.values()].find((q) => q.step === "E1");
+    expect(item?.status).toBe("PENDING");
+    expect(memory.decisions.at(-1)?.outcome).toBe("failed");
+    expect(memory.records.get("TEST-0015")?.executedSteps).not.toContain("E1");
+  });
+
+  it("16 — etapa que esgotou as tentativas para de ser reenviada", async () => {
+    const memory = memoryRepository("homologation");
+    const sent: string[] = [];
+    const dispatcher: EngineDispatcher = {
+      scope: "homologation",
+      async assertRecipientAllowed() {
+        return { ok: true };
+      },
+      async send(request) {
+        sent.push(request.step);
+        return { delivered: false, error: "canal indisponível" };
+      },
+    };
+    const engine = createEngine({
+      repository: memory.repo,
+      dispatcher,
+      config,
+      clock: homologationClock("2026-08-18T12:00:00Z"),
+    });
+    await engine.handleEvent({
+      id: "m16",
+      scope: "homologation",
+      leadId: "TEST-0016",
+      type: "FIRST_CONTACT_SENT",
+      at: "2026-08-17T12:00:00Z",
+      step: "E0",
+    });
+    for (let i = 0; i < 6; i += 1) await engine.tick("TEST-0016");
+    expect(sent.length).toBeLessThanOrEqual(config.maxAttempts);
+    expect(memory.decisions.at(-1)?.reason).toContain("tentativas");
+  });
+});
