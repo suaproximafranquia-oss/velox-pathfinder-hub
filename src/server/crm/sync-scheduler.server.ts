@@ -42,5 +42,19 @@ export async function runScheduledLeadSync(): Promise<ScheduledSyncResult> {
   }
 
   const summary = await runLeadSync("cron");
+  /**
+   * Depois de sincronizar, o MOTOR DE MENSAGENS é reavaliado. Os dois
+   * motores continuam independentes: uma falha aqui não invalida a
+   * sincronização, e a fila de ligações é calculada em outro lugar.
+   */
+  try {
+    const { runRelationshipTick } = await import("@/server/relationship/scheduler.server");
+    await runRelationshipTick();
+  } catch (error) {
+    console.error(
+      "[crm-sync] motor de relacionamento não pôde ser reavaliado:",
+      error instanceof Error ? error.message : error,
+    );
+  }
   return { ran: true, summary, intervalMinutes };
 }
