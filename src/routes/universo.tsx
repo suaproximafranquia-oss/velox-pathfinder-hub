@@ -1549,9 +1549,96 @@ function Index() {
           </div>
         </SectionShell>
 
+        {/* 20.5 · Perfil do investidor */}
+        <EditorialSection
+          id="perfil"
+          chapter="Capítulo IV · Modelos de Franquia"
+          eyebrow="Perfil do investidor"
+          title="Para quem este modelo costuma fazer sentido."
+          lead="Não acreditamos que qualquer pessoa deva ser franqueada. Os pontos abaixo descrevem o perfil que, na prática, se adapta melhor à operação — e ajudam você a avaliar, com honestidade, se esse é o seu caso."
+          surface="graphite"
+        >
+          <div
+            className="grid gap-px overflow-hidden border md:grid-cols-2"
+            style={{ background: "var(--on-dark-border)", borderColor: "var(--on-dark-border)" }}
+          >
+            {INVESTOR_PROFILE.map((p, i) => (
+              <Reveal key={p.title} delay={i * 80}>
+                <div className="flex h-full flex-col p-8 md:p-10" style={{ background: "var(--graphite)" }}>
+                  <div className="flex items-center gap-4">
+                    <span className="num text-xs on-dark-muted">{String(i + 1).padStart(2, "0")}</span>
+                    <span aria-hidden="true" className="h-px w-10" style={{ background: "var(--brand-orange)" }} />
+                  </div>
+                  <h3 className="mt-6 font-serif text-2xl leading-snug on-dark md:text-3xl">{p.title}</h3>
+                  <p className="mt-4 text-sm leading-relaxed on-dark-muted">{p.body}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={200}>
+            <div className="mt-14">
+              <MediaSlot
+                kind="video"
+                label="[ESPAÇO PARA DEPOIMENTOS DE FRANQUEADOS]"
+                note="Reservado para depoimentos reais gravados com franqueados da rede. Nenhum depoimento será publicado sem origem verificada."
+                ratio="16 / 9"
+              />
+            </div>
+          </Reveal>
+        </EditorialSection>
+
+        {/* 20.6 · Diagnóstico do investidor */}
+        <SectionShell id="diagnostico" labelledBy="diagnostico-title" surface="paper" pattern="dots" className="py-28 md:py-40">
+          <div className="relative mx-auto grid max-w-6xl gap-16 px-6 md:grid-cols-12 md:gap-20 md:px-10">
+            <Reveal className="md:col-span-6">
+              <div className="font-serif text-sm italic text-muted-foreground">Capítulo IV · Modelos de Franquia</div>
+              <div className="mt-4"><Eyebrow>Diagnóstico do investidor</Eyebrow></div>
+              <h2 id="diagnostico-title" className="mt-6 text-balance text-4xl leading-[1.08] sm:text-5xl md:text-6xl">
+                Antes de decidir, <em style={{ color: "var(--brand-orange)" }}>vamos entender o seu contexto.</em>
+              </h2>
+              <p className="mt-8 text-lg leading-relaxed text-muted-foreground">
+                Nossa conversa não começa por um contrato. Começa por um diagnóstico: entender o seu momento,
+                seus objetivos, o tempo que você pretende dedicar e a região em que pretende atuar.
+              </p>
+              <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
+                A partir dessa leitura, apresentamos o modelo com o nível de detalhe que a sua decisão exige —
+                e dizemos com clareza quando entendemos que ainda não é o momento adequado.
+              </p>
+            </Reveal>
+            <Reveal delay={120} className="md:col-span-6">
+              <div
+                className="border-l-2 pl-8 md:sticky md:top-32"
+                style={{ borderColor: "var(--brand-orange)" }}
+              >
+                <div className="eyebrow">O que avaliamos juntos</div>
+                <ul className="mt-8 space-y-5 text-base leading-relaxed text-muted-foreground">
+                  {[
+                    "Objetivo com o negócio: renda complementar, transição de carreira ou operação principal.",
+                    "Tempo disponível e forma de atuação pretendida.",
+                    "Afinidade com atendimento consultivo e relacionamento comercial.",
+                    "Formato mais adequado ao seu momento: Home Office ou Loja Física.",
+                    "Região de atuação e potencial de carteira.",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-4">
+                      <span
+                        aria-hidden="true"
+                        className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: "var(--brand-orange)" }}
+                      />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+          </div>
+        </SectionShell>
+
         <Pullquote surface="graphite">
           As melhores oportunidades são construídas sobre transparência e tempo bem investido.
         </Pullquote>
+
+
 
         {/* ==================================================== */}
         {/*  CAPÍTULO V — PRÓXIMOS PASSOS                          */}
