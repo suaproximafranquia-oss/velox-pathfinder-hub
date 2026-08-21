@@ -527,16 +527,17 @@ function Hero() {
                 <div className="eyebrow eyebrow-on-dark">Sumário</div>
                 <div className="mt-6 space-y-3 font-serif text-lg italic on-dark md:text-xl">
                   {[
-                    ["I", "Apresentação · Quem é a Velox"],
-                    ["II", "Ecossistema Velox"],
-                    ["III", "Produtos Financeiros"],
-                    ["IV", "Três Franquias em Uma"],
-                    ["V", "Marketplace de Parceiros"],
-                    ["VI", "Suporte ao Franqueado"],
-                    ["VII", "Marketing e Geração de Clientes"],
-                    ["VIII", "Tecnologia"],
-                    ["IX", "Modelos de Franquia · Investimento"],
-                    ["X", "Próximos Passos"],
+                    ["I", "Quem é a Velox · O conceito"],
+                    ["II", "Mercado e oportunidade"],
+                    ["III", "Como o franqueado atua"],
+                    ["IV", "As três frentes do ecossistema"],
+                    ["V", "Como o franqueado gera receita"],
+                    ["VI", "Portfólio de soluções"],
+                    ["VII", "Parceiros e instituições"],
+                    ["VIII", "Estrutura e suporte"],
+                    ["IX", "Modelos de franquia · Investimento"],
+                    ["X", "Perfil, diagnóstico e próximo passo"],
+
                   ].map(([n, label]) => (
                     <div key={n} className="flex items-baseline gap-4">
                       <span className="num text-xs opacity-60" style={{ minWidth: "2ch" }}>{n}</span>
