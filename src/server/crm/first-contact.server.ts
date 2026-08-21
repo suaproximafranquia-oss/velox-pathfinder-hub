@@ -113,6 +113,32 @@ export async function registerFirstContact(
     at,
   });
 
+  /**
+   * ELO QUE FALTAVA: a E0 passa a existir também para o MOTOR DE
+   * RELACIONAMENTO. Sem este registro o lead nunca ganhava cadência e
+   * nenhuma etapa posterior (E1 em diante) era calculada — a mensagem
+   * de entrada acontecia e a sequência morria ali.
+   *
+   * O motor apenas registra o evento e recalcula: enquanto estiver
+   * desligado, nada é enviado. Falha aqui nunca invalida a E0.
+   */
+  try {
+    const { productionEngine } = await import("@/server/relationship/engine.server");
+    await productionEngine().handleEvent({
+      id: `e0_${input.leadId}`,
+      scope: "production",
+      leadId: input.leadId,
+      type: "FIRST_CONTACT_SENT",
+      at,
+      step: "E0",
+    });
+  } catch (error) {
+    console.error(
+      "[first-contact] motor de relacionamento não registrou a E0:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+
   return {
     registered: true,
     delivered: delivery.delivered,

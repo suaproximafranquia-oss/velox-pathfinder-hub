@@ -26,9 +26,10 @@ describe("elegibilidade", () => {
 });
 
 describe("sequência de ligações", () => {
-  it("a fila automática começa em L2, +2 dias úteis da entrada na etapa", () => {
+  it("a fila automática começa em L2, no PRÓXIMO DIA OPERACIONAL", () => {
     // 2026-08-17 é segunda-feira; a L1 é manual, feita ainda em NOVOS.
-    expect(nextCallAttempt("2026-08-17", [])).toEqual({ step: 2, dueDate: "2026-08-19" });
+    // Movimentado em 17/08 (a qualquer hora) ⇒ tentativa em 18/08.
+    expect(nextCallAttempt("2026-08-17", [])).toEqual({ step: 2, dueDate: "2026-08-18" });
   });
 
   it("L3 vence 1 dia útil após a L2 realmente executada", () => {

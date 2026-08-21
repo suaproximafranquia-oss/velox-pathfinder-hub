@@ -106,14 +106,22 @@ export async function buildCadenceQueue(
       ingestedAt: row.ingested_at,
     });
     if (!cycleDate) continue;
-    // Histórico anterior à ativação não vira fila retroativa.
-    if (cycleDate < activationDate) continue;
 
     // §3 — a contagem começa na TRANSIÇÃO para a etapa elegível
     // (ZERO CONTATO / FRIO). Sem transição registrada, a entrada
     // comercial do ciclo permanece como referência.
     const stageDate = row.stage_entered_at ? commercialDate(row.stage_entered_at) : "";
     const baseDate = stageDate && stageDate > cycleDate ? stageDate : cycleDate;
+
+    /**
+     * ATIVAÇÃO — o que não pode existir é fila RETROATIVA.
+     *
+     * Antes olhávamos apenas a data de cadastro: um lead antigo movido
+     * pela operação para ZERO CONTATO / FRIO DEPOIS da ativação ficava
+     * fora da fila para sempre, mesmo sendo uma tentativa viva. O que
+     * vale é a data da atividade que origina a tentativa.
+     */
+    if (baseDate < activationDate) continue;
 
     const history = (done.get(`${row.id}::${cycleDate}`) ?? []).sort((a, b) => a.step - b.step);
     const planned = messageDates.get(row.id) ?? messageDates.get(`gs_${row.external_id}`) ?? [];

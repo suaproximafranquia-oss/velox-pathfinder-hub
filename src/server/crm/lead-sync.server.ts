@@ -489,5 +489,26 @@ export async function runGreenSalesBackfill(
     }
   }
 
+  /**
+   * A varredura COMPLETA é o único momento em que a ausência de um lead
+   * significa alguma coisa. Quem estava em NOVOS e não apareceu foi
+   * redistribuído: preservamos o registro na coluna local NÃO
+   * LOCALIZADOS, sem tocar na origem nem nas colunas espelho.
+   */
+  try {
+    const { reconcileMissingLeads } = await import("@/server/crm/reconcile.server");
+    const reconciled = await reconcileMissingLeads(page.leads.map((l) => String(l.id)));
+    if (reconciled.moved > 0) {
+      summary.errors.push(
+        `${reconciled.moved} lead(s) de NOVOS não localizados na origem — preservados em NÃO LOCALIZADOS.`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[backfill] reconciliação de leads não localizados falhou:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+
   return finish("OK");
 }
