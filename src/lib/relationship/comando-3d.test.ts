@@ -13,13 +13,16 @@ const local = (day: string, hour: number) => {
   return new Date(Date.UTC(y!, m! - 1, d!, hour + 3, 0, 0)).toISOString();
 };
 
-describe("§8/§11 — janela de envio de mensagens", () => {
-  it("segunda a sexta envia das 09:00 às 21:00", () => {
-    expect(isEligibleMoment(local("2026-08-17", 9))).toBe(true);
-    expect(isEligibleMoment(local("2026-08-17", 20))).toBe(true);
-    expect(isEligibleMoment(local("2026-08-17", 8))).toBe(false);
-    expect(isEligibleMoment(local("2026-08-17", 21))).toBe(false);
+describe("janela ÚNICA de envio de mensagens — 07:00 às 22:30", () => {
+  it("segunda a sexta envia das 07:00 às 22:30", () => {
+    expect(isEligibleMoment(local("2026-08-17", 7))).toBe(true);
+    expect(isEligibleMoment(local("2026-08-17", 21))).toBe(true);
+    expect(isEligibleMoment(local("2026-08-17", 6))).toBe(false);
+    // 22:20 ainda envia; 22:30 já está fora.
+    expect(isEligibleMoment(local("2026-08-17", 22 + 20 / 60))).toBe(true);
+    expect(isEligibleMoment(local("2026-08-17", 22.5))).toBe(false);
   });
+
 
   it("sábado tem janela própria e domingo nunca envia", () => {
     expect(messagingHours("2026-08-22")).not.toBeNull(); // sábado
