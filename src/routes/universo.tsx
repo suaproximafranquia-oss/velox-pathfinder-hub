@@ -961,39 +961,50 @@ function Index() {
           </p>
         </FeaturePanel>
 
-        {/* 10 · Ecossistema — Products */}
+        {/* 10 · Como o franqueado atua */}
         <EditorialSection
-          id="ecossistema"
-          chapter="Capítulo II · O Mercado"
-          eyebrow="O ecossistema Velox"
-          title="Mais de 200 soluções financeiras sob a mesma marca."
-          lead="Reunimos, em uma única estrutura, dezenas de linhas de produtos e serviços financeiros complementares. A seguir, uma seleção conceitual das principais frentes que compõem o portfólio da rede."
-          surface="ink"
-          watermark
+          id="operacao"
+          chapter="Capítulo II · O Modelo"
+          eyebrow="Como o franqueado atua"
+          title="A operação, do primeiro contato à contratação."
+          lead="O dia a dia da unidade segue uma sequência simples e repetível. Entender esse fluxo é o passo anterior a qualquer discussão sobre produtos ou investimento."
+          surface="paper"
         >
-          <ProductGrid items={PRODUCTS} />
-          <p className="mx-auto mt-14 max-w-3xl text-center font-serif text-lg italic leading-relaxed on-dark-muted">
-            Esta é apenas uma seleção. A rede opera mais de 200 produtos e serviços ativos, com novas frentes sendo incorporadas continuamente.
-          </p>
+          <FlowDiagram steps={OPERATION_FLOW} />
+          <Reveal delay={200}>
+            <div className="mt-14">
+              <MediaSlot
+                kind="video"
+                label="[ESPAÇO PARA VÍDEO EXPLICATIVO — COMO FUNCIONA A OPERAÇÃO]"
+                note="Reservado para o vídeo em que a equipe demonstra, na prática, um atendimento do início ao fim."
+                ratio="16 / 9"
+                tone="light"
+              />
+            </div>
+          </Reveal>
         </EditorialSection>
 
-        {/* 11 · Especialidades */}
-        <SectionShell id="especialidades" labelledBy="especialidades-title" surface="paper" pattern="diag" className="py-28 md:py-40">
+        {/* 11 · As três frentes do ecossistema */}
+        <SectionShell id="frentes" labelledBy="frentes-title" surface="paper" pattern="diag" className="py-28 md:py-40">
           <div className="relative mx-auto max-w-6xl px-6 md:px-10">
             <div className="max-w-3xl">
               <Reveal>
-                <div className="font-serif text-sm italic text-muted-foreground">Capítulo II · O Mercado</div>
-                <div className="mt-4"><Eyebrow>Três franquias em uma</Eyebrow></div>
-                <h2 id="especialidades-title" className="mt-6 text-balance text-4xl leading-[1.08] sm:text-5xl md:text-6xl">
-                  Três franquias em uma, <em style={{ color: "var(--brand-orange)" }}>sob a mesma marca.</em>
+                <div className="font-serif text-sm italic text-muted-foreground">Capítulo II · O Modelo</div>
+                <div className="mt-4"><Eyebrow>As três frentes do ecossistema</Eyebrow></div>
+                <h2 id="frentes-title" className="mt-6 text-balance text-4xl leading-[1.08] sm:text-5xl md:text-6xl">
+                  Três frentes de atuação, <em style={{ color: "var(--brand-orange)" }}>um mesmo ecossistema.</em>
                 </h2>
                 <p className="mt-8 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">
-                  Com uma única unidade, o franqueado Velox opera três frentes complementares — Velox Financeira, Velox Solar e Velox Seguros. Cada uma com portfólio próprio, parceiros dedicados e fontes de receita distintas, ampliando o alcance comercial e a previsibilidade da operação.
+                  O grupo atua em três frentes complementares: Soluções Financeiras, Energia Solar e Corretora de
+                  Seguros — sendo a empresa de energia solar e a corretora de seguros companhias próprias do grupo.
+                  Com uma única unidade, o franqueado tem acesso às três, ampliando o alcance comercial e as
+                  possibilidades de atendimento de um mesmo cliente.
                 </p>
               </Reveal>
             </div>
             <div className="mt-16 space-y-4">
-              {SPECIALTIES.map((s, i) => (
+              {FRENTES.map((s, i) => (
+
                 <Reveal key={s.name} delay={i * 80}>
                   <article
                     className="group relative grid gap-8 border p-8 transition-colors duration-500 hover:shadow-[var(--shadow-soft)] md:grid-cols-12 md:gap-12 md:p-12"
