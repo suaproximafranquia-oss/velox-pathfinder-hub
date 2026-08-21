@@ -154,10 +154,13 @@ export function createEngine(options: EngineOptions): Engine {
         (q) => q.step === action.step && (q.status === "PENDING" || q.status === "PROCESSING"),
       );
       if (already && already.dueAt === action.dueAt) {
+        // A etapa ESTÁ programada — o resultado é "scheduled", e não um
+        // "nada aconteceu". Reportar noop aqui escondia a fila real.
         return log(record, {
           step: action.step,
-          outcome: "noop",
+          outcome: "scheduled",
           reason: `Etapa ${action.step} já está programada para ${action.dueAt}.`,
+
         });
       }
       const item: Omit<QueueItem, "id"> & { id?: string } = {
@@ -226,8 +229,23 @@ export function createEngine(options: EngineOptions): Engine {
         reason: `Etapa ${action.step} já está em execução por outro processo.`,
       });
     }
+    /**
+     * CONTINUIDADE DAS TENTATIVAS. Uma etapa que já esgotou o limite não
+     * pode voltar à estaca zero a cada ciclo: sem isto, o mesmo envio
+     * falho era tentado indefinidamente e o limite de tentativas nunca
+     * se aplicava de fato.
+     */
+    const failed = queue.find((q) => q.step === action.step && q.status === "FAILED");
+    if (failed && failed.attempts >= config.maxAttempts) {
+      return log(record, {
+        step: action.step,
+        outcome: "blocked",
+        reason: `Etapa ${action.step} esgotou ${failed.attempts} tentativas e permanece parada para revisão humana. Último erro: ${failed.reason ?? "não registrado"}.`,
+      });
+    }
+    const previousAttempts = pending?.attempts ?? failed?.attempts ?? 0;
     const item = await repository.upsertQueueItem({
-      id: pending?.id,
+      id: pending?.id ?? failed?.id,
       scope: repository.scope,
       runId: repository.runId,
       leadId: record.leadId,
@@ -236,11 +254,12 @@ export function createEngine(options: EngineOptions): Engine {
       dueAt: clock.nowIso(),
       priority: 5,
       status: "PENDING",
-      attempts: (pending?.attempts ?? 0) + 1,
+      attempts: previousAttempts + 1,
       executedAt: null,
       result: null,
       reason: action.reason,
     });
+
 
     // Trava atômica: dois processos podem chegar aqui, mas apenas um
     // consegue reservar a tarefa. O outro encerra sem enviar nada.
@@ -319,10 +338,19 @@ export function createEngine(options: EngineOptions): Engine {
     }
 
     await repository.saveRecord(updated);
+    /**
+     * ENCADEAMENTO: executar uma etapa precisa deixar a PRÓXIMA já
+     * programada na fila. Sem isto a continuidade dependia inteiramente
+     * do próximo ciclo do agendador — e um lead ficava sem nenhuma
+     * tarefa visível no intervalo, dando a impressão de cadência parada.
+     */
+    const nextStep = await scheduleFollowUp(updated);
     return log(updated, {
       step: action.step,
       outcome: "sent",
-      reason: `${action.reason} Conteúdo: ${selection.reason}`,
+      reason: `${action.reason} Conteúdo: ${selection.reason}${
+        nextStep ? ` Próxima etapa programada: ${nextStep}.` : ""
+      }`,
       templateId: binding?.templateId ?? null,
       templateVersion: binding?.version ?? null,
       contentId: selection.content?.id ?? null,
@@ -330,6 +358,53 @@ export function createEngine(options: EngineOptions): Engine {
       stateAfter: updated.state,
     });
   }
+
+  /**
+   * Programa (sem executar) a próxima etapa permitida. Nunca envia:
+   * apenas garante que a tarefa exista na fila com o vencimento certo.
+   */
+  async function scheduleFollowUp(record: CadenceRecord): Promise<string | null> {
+    try {
+      const templates = await repository.loadTemplates();
+      const context = leadContext ? ((await leadContext(record.leadId)) ?? {}) : {};
+      const action = decideNextAction(record, {
+        nowIso: clock.nowIso(),
+        enabled,
+        config,
+        ...context,
+        hasTemplateForPurpose: (purpose) =>
+          virtualTemplates || hasTemplateForPurpose(templates, purpose),
+      });
+      if (action.kind === "none") return null;
+      const dueAt = action.kind === "schedule_step" ? action.dueAt : clock.nowIso();
+      const queue = await repository.loadQueue(record.leadId);
+      const existing = queue.find(
+        (q) => q.step === action.step && (q.status === "PENDING" || q.status === "PROCESSING"),
+      );
+      if (existing && existing.dueAt === dueAt) return action.step;
+      await repository.upsertQueueItem({
+        id: existing?.id,
+        scope: repository.scope,
+        runId: repository.runId,
+        leadId: record.leadId,
+        flow: action.flow,
+        step: action.step,
+        dueAt,
+        priority: 5,
+        status: "PENDING",
+        attempts: existing?.attempts ?? 0,
+        executedAt: null,
+        result: null,
+        reason: action.reason,
+      });
+      return action.step;
+    } catch {
+      // Programar a próxima etapa é complementar: a etapa já executada
+      // permanece válida mesmo se este passo falhar.
+      return null;
+    }
+  }
+
 
   return {
     scope: repository.scope,
