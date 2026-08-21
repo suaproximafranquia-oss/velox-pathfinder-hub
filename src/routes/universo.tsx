@@ -10,16 +10,21 @@ import {
   EditorialSection,
   FeaturePanel,
   StatBand,
-  ProductGrid,
   TimelineRail,
   Gallery,
   Pullquote,
   SectionShell,
   Eyebrow,
-  type Product,
+  MediaSlot,
+  FlowDiagram,
+  PortfolioCatalog,
   type RailItem,
   type GalleryItem,
+  type FlowStep,
+  type PortfolioCategory,
+  type PortfolioItem,
 } from "@/components/site/v2";
+
 
 import heroImg from "@/assets/editorial/velox-sede.jpg.asset.json";
 import founderImg from "@/assets/editorial/mario-sergio.png.asset.json";
