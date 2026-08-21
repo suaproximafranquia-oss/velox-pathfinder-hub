@@ -11,28 +11,21 @@ import {
   GREENSALES_INTAKE_PAUSED,
   GREENSALES_INTAKE_PAUSED_MESSAGE,
 } from "@/lib/crm/ingestion";
-import { cadenceEligibility } from "@/lib/crm/cutover";
-import { E0_SIMULATION_ENABLED, E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
-import { isE0NightWindow } from "@/lib/crm/e0-window";
-import {
-  deferFirstContact,
-  processDeferredFirstContacts,
-} from "@/server/crm/first-contact-queue.server";
-import { resolveEntryFlow } from "@/lib/relationship/entry";
-import { loadSettings, processWelcome } from "@/server/crm/automation.server";
+import { processDeferredFirstContacts } from "@/server/crm/first-contact-queue.server";
+import { loadSettings } from "@/server/crm/automation.server";
 import {
   getLeadEntryState,
   isNewCommercialEntry,
   markSyncFailure,
-  recordEvent,
   upsertLead,
 } from "@/server/crm/lead-service.server";
-import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
+import { intakeLead } from "@/server/crm/lead-intake.server";
 import {
   DEFAULT_PIPELINE_EXTERNAL_ID,
   loadPipeline,
   resolveBoardStage,
 } from "@/server/crm/pipeline-service.server";
+
 
 export type SyncSummary = {
   ok: boolean;
