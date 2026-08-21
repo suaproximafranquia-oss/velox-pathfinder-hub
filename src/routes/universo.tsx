@@ -406,13 +406,15 @@ const VALORES: { title: string; body: string }[] = [
 
 const MANUAL_TOPICS: string[] = [
   "A história da Velox e os princípios que orientam nossa atuação.",
-  "Como funciona o mercado de soluções financeiras e por que ele continua em constante expansão.",
-  "Nosso ecossistema de produtos e serviços.",
+  "O conceito do negócio e como o franqueado atua no dia a dia.",
+  "As três frentes do ecossistema: Soluções Financeiras, Energia Solar e Corretora de Seguros.",
+  "Como o franqueado gera receita — o mecanismo comercial, sem promessas.",
+  "O portfólio de soluções disponível para atender diferentes necessidades.",
   "A estrutura de suporte oferecida aos franqueados.",
-  "Os modelos de franquia disponíveis.",
-  "O investimento necessário e o que está incluído.",
+  "Os modelos de franquia e o investimento necessário.",
   "As próximas etapas para quem desejar aprofundar essa conversa.",
 ];
+
 
 const UNIDADES: GalleryItem[] = [
   { src: lojaFachadaImg.url, alt: "Fachada de unidade Velox", caption: "Unidade da rede · Fachada institucional", span: 2 },
