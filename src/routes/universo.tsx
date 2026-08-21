@@ -79,6 +79,7 @@ const SECTIONS: ModuleChromeSection[] = [
   { id: "capa", label: "Capa" },
   { id: "carta", label: "Carta de Boas-vindas" },
   { id: "manual", label: "Como utilizar este material" },
+  { id: "parcerias", label: "Nossa forma de construir parcerias" },
   { id: "antes", label: "Antes de falar da Velox" },
   { id: "velox", label: "Quem é a Velox" },
   { id: "conceito", label: "O conceito do negócio" },
@@ -349,7 +350,7 @@ const NEXT_STEPS: RailItem[] = [
   {
     marker: "01",
     meta: "Etapa 01",
-    title: "Leitura do manual",
+    title: "Leitura do material",
     description:
       "Percorra este material com calma. Ele foi elaborado para apresentar a empresa, o mercado e o modelo de negócio de forma clara e completa.",
   },
@@ -638,7 +639,7 @@ function Index() {
                 <p>
                   Por isso, acreditamos que toda decisão deve ser tomada com informação, transparência e segurança.
                 </p>
-                <p>Este manual foi desenvolvido justamente com esse propósito.</p>
+                <p>Este material foi desenvolvido justamente com esse propósito.</p>
                 <p>
                   Ao longo das próximas páginas você conhecerá nossa história, entenderá como funciona o mercado em que atuamos, descobrirá nossa estrutura de suporte e compreenderá como trabalhamos ao lado dos nossos franqueados em cada etapa da jornada.
                 </p>
@@ -671,7 +672,7 @@ function Index() {
               <Reveal>
                 <div className="font-serif text-sm italic on-dark-muted">Capítulo I · Apresentação</div>
                 <div className="mt-4">
-                  <Eyebrow tone="dark">Como utilizar este manual</Eyebrow>
+                  <Eyebrow tone="dark">Como utilizar este material</Eyebrow>
                 </div>
                 <h2 id="manual-title" className="mt-6 text-balance text-4xl leading-[1.08] on-dark sm:text-5xl md:text-6xl">
                   Um material feito para <em style={{ color: "var(--brand-orange)" }}>ler com calma.</em>
@@ -1785,7 +1786,7 @@ function Index() {
             Somente após essa etapa de compreensão mútua avançamos para a fase contratual. Acreditamos que essa é a maneira mais adequada de iniciar uma parceria de longo prazo: com informação, tranquilidade e respeito ao tempo de decisão de cada investidor.
           </p>
           <p>
-            Este manual é o ponto de partida. Os próximos passos serão sempre conduzidos no ritmo em que fizer sentido para você.
+            Este material é o ponto de partida. Os próximos passos serão sempre conduzidos no ritmo em que fizer sentido para você.
           </p>
         </FeaturePanel>
 
@@ -1829,7 +1830,7 @@ function Index() {
               <Reveal delay={220}>
                 <div className="mt-10 space-y-6 text-lg leading-relaxed on-dark-muted">
                   <p>
-                    A leitura deste manual representa, para nós, um passo importante. Ele reúne a essência do que somos e da forma como acreditamos que uma parceria deve ser construída.
+                    A leitura deste material representa, para nós, um passo importante. Ele reúne a essência do que somos e da forma como acreditamos que uma parceria deve ser construída.
                   </p>
                   <p>
                     Se, ao encerrar este material, você sentir que existe alinhamento entre seus objetivos e nossa maneira de trabalhar, será uma satisfação continuar essa conversa. Se, por outro lado, este não for o momento adequado, respeitamos integralmente essa decisão.
