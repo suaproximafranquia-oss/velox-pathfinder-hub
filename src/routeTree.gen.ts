@@ -24,6 +24,7 @@ import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as FSlugRouteImport } from './routes/f.$slug'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
+import { Route as ExecutivoTesteCadenciaRouteImport } from './routes/executivo.teste-cadencia'
 import { Route as ExecutivoTemplatesRouteImport } from './routes/executivo.templates'
 import { Route as ExecutivoRevistaRouteImport } from './routes/executivo.revista'
 import { Route as ExecutivoReunioesRouteImport } from './routes/executivo.reunioes'
@@ -129,6 +130,11 @@ const FSlugRoute = FSlugRouteImport.update({
 const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
   id: '/executivo/usuarios',
   path: '/executivo/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecutivoTesteCadenciaRoute = ExecutivoTesteCadenciaRouteImport.update({
+  id: '/executivo/teste-cadencia',
+  path: '/executivo/teste-cadencia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutivoTemplatesRoute = ExecutivoTemplatesRouteImport.update({
@@ -321,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
+  '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -368,6 +375,7 @@ export interface FileRoutesByTo {
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
+  '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -417,6 +425,7 @@ export interface FileRoutesById {
   '/executivo/reunioes': typeof ExecutivoReunioesRoute
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
+  '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -467,6 +476,7 @@ export interface FileRouteTypes {
     | '/executivo/reunioes'
     | '/executivo/revista'
     | '/executivo/templates'
+    | '/executivo/teste-cadencia'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -514,6 +524,7 @@ export interface FileRouteTypes {
     | '/executivo/reunioes'
     | '/executivo/revista'
     | '/executivo/templates'
+    | '/executivo/teste-cadencia'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -562,6 +573,7 @@ export interface FileRouteTypes {
     | '/executivo/reunioes'
     | '/executivo/revista'
     | '/executivo/templates'
+    | '/executivo/teste-cadencia'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -611,6 +623,7 @@ export interface RootRouteChildren {
   ExecutivoReunioesRoute: typeof ExecutivoReunioesRoute
   ExecutivoRevistaRoute: typeof ExecutivoRevistaRoute
   ExecutivoTemplatesRoute: typeof ExecutivoTemplatesRoute
+  ExecutivoTesteCadenciaRoute: typeof ExecutivoTesteCadenciaRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   FSlugRoute: typeof FSlugRoute
   ManualChapterRoute: typeof ManualChapterRoute
@@ -731,6 +744,13 @@ declare module '@tanstack/react-router' {
       path: '/executivo/usuarios'
       fullPath: '/executivo/usuarios'
       preLoaderRoute: typeof ExecutivoUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/executivo/teste-cadencia': {
+      id: '/executivo/teste-cadencia'
+      path: '/executivo/teste-cadencia'
+      fullPath: '/executivo/teste-cadencia'
+      preLoaderRoute: typeof ExecutivoTesteCadenciaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/templates': {
@@ -996,6 +1016,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoReunioesRoute: ExecutivoReunioesRoute,
   ExecutivoRevistaRoute: ExecutivoRevistaRoute,
   ExecutivoTemplatesRoute: ExecutivoTemplatesRoute,
+  ExecutivoTesteCadenciaRoute: ExecutivoTesteCadenciaRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   FSlugRoute: FSlugRoute,
   ManualChapterRoute: ManualChapterRoute,
