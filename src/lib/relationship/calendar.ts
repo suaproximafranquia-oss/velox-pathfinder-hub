@@ -26,14 +26,25 @@ export function operationalDate(value: string | Date, config = RELATIONSHIP_CONF
 
 /** Hora local (0-23) da operação para um instante. */
 export function operationalHour(value: string | Date, config = RELATIONSHIP_CONFIG): number {
+  return Math.floor(operationalMinutes(value, config) / 60);
+}
+
+/**
+ * Minutos locais decorridos desde a meia-noite. É a precisão exigida
+ * pela janela oficial, que termina às 22:30 — hora cheia não basta.
+ */
+export function operationalMinutes(value: string | Date, config = RELATIONSHIP_CONFIG): number {
   const date = typeof value === "string" ? new Date(value) : value;
-  const formatted = new Intl.DateTimeFormat("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: config.timeZone,
     hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
-  }).format(date);
-  return Number(formatted);
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
+  return (get("hour") % 24) * 60 + get("minute");
 }
+
 
 export function isBusinessDay(isoDate: string, config = RELATIONSHIP_CONFIG): boolean {
   if (config.nonBusinessDays.includes(isoDate)) return false;
