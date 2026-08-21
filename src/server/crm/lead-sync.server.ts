@@ -163,163 +163,22 @@ export async function runLeadSync(
     const externalId = String(listed.id);
     try {
       const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
-      const raw = { ...listed, ...detail } as Record<string, unknown>;
-      const normalized = normalizeGreenSalesLead(raw as never);
-      // Etiquetas são PRESERVADAS integralmente: nenhuma delas filtra,
-      // exclui ou impede a sincronização deste lead.
-      const rawTags = Array.isArray(raw["tags"]) ? (raw["tags"] as { id: number | string }[]) : [];
-      const tagIds = rawTags.map((t) => String(t.id));
-      // Nova entrada comercial: a MESMA pessoa realizou um novo cadastro.
-      // A origem devolve isso em `last_register_at` (fallback `register`).
-      const lastEntryAt =
-        (raw["last_register_at"] as string) ??
-        (raw["register"] as string) ??
-        (raw["created_at"] as string) ??
-        null;
-      const known = await getLeadEntryState(externalId);
-      const newCommercialEntry = isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
-      // A COLUNA/BOARD atual é a fonte da verdade: etiquetas auxiliares
-      // (formulário, campanha, remarketing) nunca decidem a posição.
-      const { stage, remarketing } = resolveBoardStage(pipeline, tagIds);
-      const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
-
-      const outcome = await upsertLead({
-        externalId,
-        name: normalized.name,
-        phone: normalized.whatsapp,
-        email: normalized.email,
-        origin: (raw["origin"] as string) ?? null,
-        captureForm: forms[0]?.title ?? null,
-        externalPipelineId: pipeline.externalId,
-        pipelineName: pipeline.name,
-        stageKey: stage?.key ?? null,
-        externalStageId: stage?.externalTag ?? null,
-        externalCreatedAt: (raw["created_at"] as string) ?? null,
-        lastEntryAt,
-        tags: rawTags,
-        externalStatus: (raw["status"] as string) ?? null,
-        remarketing,
-        entryStage: Boolean(stage?.isEntry),
-        rawPayload: raw,
-      });
+      const raw = { ...listed, ...detail, id: externalId } as Record<string, unknown>;
+      /**
+       * CAMINHO ÚNICO DE ENTRADA (`intakeLead`): espelho → card do
+       * Workspace → E0 → motor. Extraído sem mudança de comportamento,
+       * para que o ambiente de teste percorra exatamente este caminho.
+       */
+      const outcome = await intakeLead(raw, { pipeline, settings });
       if (outcome.created) summary.created += 1;
       else if (outcome.changed) summary.updated += 1;
+      summary.welcomeSent += outcome.welcomeSent;
+      summary.welcomeFailed += outcome.welcomeFailed;
+      if (outcome.failed) {
+        summary.failed += 1;
+        summary.errors.push(`Lead ${externalId}: ${outcome.error ?? "falha desconhecida"}`);
+      }
 
-      /**
-       * Primeiro contato reage APENAS à ENTRADA REAL na coluna NOVOS e
-       * somente a partir da data de ativação configurada. Lead histórico
-       * — ainda que apareça agora na sincronização — nunca inicia
-       * cadência: sincronizar não é entrar (ver `@/lib/crm/cutover`).
-       */
-      const eligibility = cadenceEligibility(
-        {
-          enteredEntryStageAt: (outcome.lead as unknown as {
-            entered_entry_stage_at?: string | null;
-          }).entered_entry_stage_at,
-          lastEntryAt,
-          externalCreatedAt: (raw["created_at"] as string) ?? null,
-        },
-        settings.cadenceActivationDate,
-      );
-      const enteredNow = outcome.created ? Boolean(stage?.isEntry) : outcome.enteredEntryStage;
-      if (enteredNow && !eligibility.eligible) {
-        await recordEvent(outcome.lead.id, "e0_ignorada", eligibility.reason);
-      }
-      /**
-       * JANELA OPERACIONAL DA E0: entre 22:30 e 06:59 nada é entregue.
-       * A etapa é preservada e executada na abertura das 07:00.
-       */
-      if (enteredNow && eligibility.eligible && isE0NightWindow()) {
-        await deferFirstContact(outcome.lead.id);
-      } else if (enteredNow && eligibility.eligible && E0_SIMULATION_ENABLED) {
-        /**
-         * TESTE END-TO-END: origem → servidor → Workspace GreenSales →
-         * E0 simulada. O card operacional é criado no NOSSO Workspace
-         * (carteira `portal_leads`, escopo green_sales) e é nele que a
-         * mensagem e a timeline ficam registradas.
-         */
-        await recordEvent(
-          outcome.lead.id,
-          "e0_identificada",
-          `Lead novo identificado na coluna de entrada. ${eligibility.reason}`,
-        );
-        const card = await ensureWorkspaceCard({
-          externalId,
-          name: normalized.name,
-          email: normalized.email,
-          whatsapp: normalized.whatsapp,
-          city: normalized.city,
-          material: normalized.material,
-          campaign: normalized.campaign,
-          externalCreatedAt: (raw["created_at"] as string) ?? null,
-          externalUpdatedAt: (raw["updated_at"] as string) ?? null,
-          rawPayload: raw,
-        });
-        if (!card.ok) {
-          summary.failed += 1;
-          summary.errors.push(`Lead ${externalId}: card do Workspace — ${card.error}`);
-          await recordEvent(outcome.lead.id, "workspace_card_falhou", card.error);
-        } else {
-          await recordEvent(
-            outcome.lead.id,
-            "workspace_card_criado",
-            card.created
-              ? `Card operacional criado no Workspace GreenSales (${card.cardId}).`
-              : `Card operacional já existente no Workspace GreenSales (${card.cardId}).`,
-          );
-          /**
-           * RETORNO DE REMARKETING PARA NOVOS.
-           *
-           * Lead que a operação já conhece e volta para a coluna de
-           * entrada NÃO é um lead virgem: a entrada é classificada com
-           * a regra oficial (`resolveEntryFlow`) e o primeiro contato
-           * usa a comunicação de REABERTURA já existente — nenhum texto
-           * novo é inventado e nenhum histórico é apagado.
-           */
-          const entry = resolveEntryFlow({
-            entryCount: known.entryCount,
-            hasPreviousRelationship: known.exists,
-            newCommercialEntry,
-          });
-          const returning = remarketing || entry.reentry;
-          if (returning) {
-            await recordEvent(
-              outcome.lead.id,
-              "e0_reentrada",
-              `Retorno para NOVOS de lead já conhecido${remarketing ? " (etiqueta REMARKETING preservada)" : ""} — ${entry.reason}`,
-              { flow: entry.flow, remarketing, entryCount: known.entryCount },
-            );
-          }
-          const { registerFirstContact } = await import("@/server/crm/first-contact.server");
-          const e0 = await registerFirstContact({
-            leadId: card.cardId,
-            name: normalized.name,
-            phone: normalized.whatsapp,
-            origin: "GreenSales",
-            ownerId: null,
-            entryAt: lastEntryAt,
-            enteredEntryStageAt: (outcome.lead as unknown as {
-              entered_entry_stage_at?: string | null;
-            }).entered_entry_stage_at,
-            reactivation: returning,
-            simulated: true,
-          });
-          if (e0.registered) {
-            summary.welcomeSent += 1;
-            await recordEvent(
-              outcome.lead.id,
-              "e0_simulada",
-              `${E0_SIMULATION_LABEL} — mensagem registrada no card ${card.cardId} sem entrega real.`,
-            );
-          } else {
-            await recordEvent(outcome.lead.id, "e0_ignorada", e0.reason);
-          }
-        }
-      } else if (enteredNow && eligibility.eligible) {
-        const welcome = await processWelcome(outcome.lead, settings);
-        if (welcome === "enviada") summary.welcomeSent += 1;
-        if (welcome === "falhou") summary.welcomeFailed += 1;
-      }
     } catch (error) {
       summary.failed += 1;
       const message = error instanceof Error ? error.message : "Falha desconhecida.";
