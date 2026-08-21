@@ -33,8 +33,9 @@ describe("janela ÚNICA de envio de mensagens — 07:00 às 22:30", () => {
 
   it("§9/§10 — fora da janela a etapa é deslocada para frente, nunca perdida", () => {
     const next = nextEligibleMoment(local("2026-08-23", 10));
-    expect(next).toBe(local("2026-08-24", 9));
+    expect(next).toBe(local("2026-08-24", 7));
   });
+
 });
 
 describe("§3 — fechamento operacional às 22:00", () => {
