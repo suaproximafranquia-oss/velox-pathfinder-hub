@@ -47,8 +47,33 @@ import marioConsultoresImg from "@/assets/editorial/velox-mario-consultores.png.
 import homeOfficeImg from "@/assets/editorial/velox-home-office.jpg.asset.json";
 
 export const Route = createFileRoute("/universo")({
+  head: () => ({
+    meta: [
+      { title: "Material Institucional Velox — Apresentação ao Investidor" },
+      {
+        name: "description",
+        content:
+          "Entenda o modelo de franquia Velox: as três frentes do ecossistema, como o franqueado atua, como gera receita, o portfólio de soluções, a estrutura de suporte e o investimento oficial.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:title", content: "Material Institucional Velox — Apresentação ao Investidor" },
+      {
+        property: "og:description",
+        content:
+          "Apresentação institucional da Velox: conceito do negócio, três frentes de atuação, portfólio, suporte e investimento — com transparência e sem promessas de ganho.",
+      },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Material Institucional Velox — Apresentação ao Investidor" },
+      {
+        name: "twitter:description",
+        content:
+          "Conheça o modelo de franquia Velox de forma progressiva: conceito, operação, receita, portfólio, estrutura e investimento.",
+      },
+    ],
+  }),
   component: Index,
 });
+
 
 const SECTIONS: ModuleChromeSection[] = [
   { id: "capa", label: "Capa" },
