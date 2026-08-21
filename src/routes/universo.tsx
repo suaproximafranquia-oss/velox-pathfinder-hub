@@ -82,7 +82,9 @@ const SECTIONS: ModuleChromeSection[] = [
 ];
 
 
-const PRODUCTS: Product[] = [
+/** Catálogo oficial de soluções — dados e comissões preservados verbatim. */
+const PRODUCTS: PortfolioItem[] = [
+
   {
     name: "Consórcios",
     description:
