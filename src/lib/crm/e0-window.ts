@@ -62,9 +62,11 @@ export function nextE0Moment(value: string | Date = new Date()): string {
   const target = minutes >= E0_NIGHT_START_MINUTES ? addCalendarDay(date) : date;
   const [y, m, d] = target.split("-").map(Number);
   return new Date(
-    Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, E0_WINDOW_OPEN_MINUTES / 60 + UTC_OFFSET_HOURS, 0, 0),
+    Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, UTC_OFFSET_HOURS, 0, 0, 0) +
+      E0_WINDOW_OPEN_MINUTES * 60_000,
   ).toISOString();
 }
+
 
 /** Texto padrão do adiamento — usado em eventos e auditoria. */
 export function nightDeferralReason(value: string | Date = new Date()): string {
