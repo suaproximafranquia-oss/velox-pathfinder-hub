@@ -48,21 +48,57 @@ export async function assertHomologationRecipient(
 /**
  * Produção: o destinatário precisa ser um lead real com telefone válido
  * e nunca pode ser um registro de teste.
+ *
+ * IDENTIDADE — o motor trabalha com o card operacional do Workspace
+ * (`gs_<external_id>`, carteira `portal_leads`), enquanto o espelho da
+ * origem vive em `crm_leads` com id próprio. Sem esta tradução TODA
+ * etapa era bloqueada com "Lead real não encontrado", e a cadência
+ * morria logo após a E0.
  */
 export async function assertProductionRecipient(leadId: string): Promise<GuardResult> {
   if (isHomologationLeadId(leadId)) {
     return { ok: false, reason: "Registro de teste não pode receber mensagem em produção." };
   }
-  const { data } = await supabaseAdmin
-    .from("crm_leads")
-    .select("id,phone")
-    .eq("id", leadId)
-    .maybeSingle();
-  if (!data) return { ok: false, reason: "Lead real não encontrado — envio bloqueado." };
-  const digits = (data.phone ?? "").replace(/\D/g, "");
-  if (digits.length < 10) return { ok: false, reason: "Lead sem telefone válido." };
+  const phone = await resolveRecipientPhone(leadId);
+  if (phone === null) return { ok: false, reason: "Lead real não encontrado — envio bloqueado." };
+  if (phone.replace(/\D/g, "").length < 10) {
+    return { ok: false, reason: "Lead sem telefone válido." };
+  }
   return { ok: true };
 }
+
+/** Telefone real do destinatário, aceitando as duas identidades. */
+export async function resolveRecipientPhone(leadId: string): Promise<string | null> {
+  const externalId = leadId.startsWith("gs_") ? leadId.slice(3) : null;
+  if (externalId) {
+    const { data: card } = await supabaseAdmin
+      .from("portal_leads")
+      .select("whatsapp")
+      .eq("id", leadId)
+      .maybeSingle();
+    if (card?.whatsapp) return card.whatsapp;
+    const { data: mirror } = await supabaseAdmin
+      .from("crm_leads")
+      .select("phone")
+      .eq("external_source", "greensales")
+      .eq("external_id", externalId)
+      .maybeSingle();
+    return mirror?.phone ?? null;
+  }
+  const { data } = await supabaseAdmin
+    .from("crm_leads")
+    .select("phone")
+    .eq("id", leadId)
+    .maybeSingle();
+  if (data) return data.phone ?? "";
+  const { data: card } = await supabaseAdmin
+    .from("portal_leads")
+    .select("whatsapp")
+    .eq("id", leadId)
+    .maybeSingle();
+  return card?.whatsapp ?? null;
+}
+
 
 export async function assertRecipientForScope(
   scope: EngineScope,

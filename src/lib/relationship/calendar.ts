@@ -26,14 +26,25 @@ export function operationalDate(value: string | Date, config = RELATIONSHIP_CONF
 
 /** Hora local (0-23) da operação para um instante. */
 export function operationalHour(value: string | Date, config = RELATIONSHIP_CONFIG): number {
+  return Math.floor(operationalMinutes(value, config) / 60);
+}
+
+/**
+ * Minutos locais decorridos desde a meia-noite. É a precisão exigida
+ * pela janela oficial, que termina às 22:30 — hora cheia não basta.
+ */
+export function operationalMinutes(value: string | Date, config = RELATIONSHIP_CONFIG): number {
   const date = typeof value === "string" ? new Date(value) : value;
-  const formatted = new Intl.DateTimeFormat("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: config.timeZone,
     hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
-  }).format(date);
-  return Number(formatted);
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
+  return (get("hour") % 24) * 60 + get("minute");
 }
+
 
 export function isBusinessDay(isoDate: string, config = RELATIONSHIP_CONFIG): boolean {
   if (config.nonBusinessDays.includes(isoDate)) return false;
@@ -99,36 +110,40 @@ export function atBusinessStart(isoDate: string, config = RELATIONSHIP_CONFIG): 
   // obter o instante UTC equivalente ao horário local de abertura.
   const [y, m, d] = isoDate.split("-").map(Number);
   const window = messagingHours(isoDate, config) ?? config.businessHours;
-  const utcHour = window.start + 3;
-  return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, utcHour, 0, 0)).toISOString();
+  const utcMinutes = Math.round(window.start * 60) + 3 * 60;
+  return new Date(
+    Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, 0, utcMinutes, 0),
+  ).toISOString();
 }
 
 /** O instante está dentro da janela de envio permitida? */
 export function isEligibleMoment(iso: string, config = RELATIONSHIP_CONFIG): boolean {
   const window = messagingHours(operationalDate(iso, config), config);
   if (!window) return false;
-  const hour = operationalHour(iso, config);
-  return hour >= window.start && hour < window.end;
+  const minutes = operationalMinutes(iso, config);
+  return minutes >= window.start * 60 && minutes < window.end * 60;
 }
 
 /** Passou o fechamento operacional do dia (§3)? */
 export function isAfterDailyClosing(iso: string, config = RELATIONSHIP_CONFIG): boolean {
-  return operationalHour(iso, config) >= config.dailyClosingHour;
+  return operationalMinutes(iso, config) >= config.dailyClosingHour * 60;
 }
 
 /**
  * Próximo momento em que uma etapa pode ser executada. Nunca antecipa:
- * se o instante já é elegível, ele mesmo é retornado.
+ * se o instante já é elegível, ele mesmo é retornado. Fora da janela a
+ * etapa NÃO se perde — ela é empurrada para a próxima abertura.
  */
 export function nextEligibleMoment(iso: string, config = RELATIONSHIP_CONFIG): string {
   if (isEligibleMoment(iso, config)) return iso;
   const date = operationalDate(iso, config);
-  const hour = operationalHour(iso, config);
+  const minutes = operationalMinutes(iso, config);
   const window = messagingHours(date, config);
-  const sameDayStillPossible = window !== null && hour < window.start;
+  const sameDayStillPossible = window !== null && minutes < window.start * 60;
   const target = sameDayStillPossible ? date : nextMessagingDay(addDays(date, 1), config);
   return atBusinessStart(target, config);
 }
+
 
 /**
  * Vencimento de uma etapa: N dias úteis após a referência, sempre
