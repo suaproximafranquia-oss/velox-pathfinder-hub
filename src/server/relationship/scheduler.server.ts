@@ -80,7 +80,8 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
     errors: [],
   };
   const engine = productionEngine();
-  const leadIds = await eligibleLeadIds(new Date().toISOString());
+  const startedAt = new Date().toISOString();
+  const leadIds = await eligibleLeadIds(startedAt);
 
   for (const leadId of leadIds) {
     try {
@@ -98,5 +99,21 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
       }
     }
   }
+
+  /**
+   * OBSERVABILIDADE DO CICLO: cada execução do executor deixa rastro
+   * próprio. Sem isso é impossível responder "o motor rodou e não fez
+   * nada" x "o motor não rodou". Falha de log nunca invalida o ciclo.
+   */
+  try {
+    await supabaseAdmin.from("relationship_engine_log").insert({
+      scope: "production",
+      action: "ciclo_motor",
+      details: { startedAt, finishedAt: new Date().toISOString(), ...summary } as any,
+    } as any);
+  } catch {
+    /* registro do ciclo é auxiliar */
+  }
   return summary;
 }
+
