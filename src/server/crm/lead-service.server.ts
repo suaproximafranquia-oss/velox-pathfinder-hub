@@ -101,6 +101,13 @@ export type UpsertInput = {
    * apenas descoberto agora e NUNCA entra na fila de primeiro contato.
    */
   historical?: boolean;
+  /**
+   * MARCAÇÃO TÉCNICA DE TESTE. Só o mecanismo de lotes de teste envia
+   * estes campos. Lead real NUNCA recebe marcação — e a marcação nunca
+   * depende de nome, telefone, e-mail, coluna, data ou origem.
+   */
+  isTest?: boolean;
+  testBatchId?: string | null;
 };
 
 export type UpsertOutcome = {
@@ -206,6 +213,8 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         // PENDING representa uma operação real de envio aguardando
         // processamento — nunca "nunca recebeu mensagem".
         welcome_status: input.historical ? "NOT_APPLICABLE" : "PENDING",
+        is_test: Boolean(input.isTest),
+        test_batch_id: input.testBatchId ?? null,
         ...base,
       })
       .select(SELECT)
