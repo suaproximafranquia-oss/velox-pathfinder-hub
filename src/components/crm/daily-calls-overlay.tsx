@@ -71,7 +71,14 @@ export function DailyCallsOverlay({
     [queue, selectedId],
   );
 
-  const overdueCount = useMemo(() => queue.filter((item) => item.overdue).length, [queue]);
+  /**
+   * ETAPA 3 §19 — atrasada NUNCA conta como ligação de hoje. As duas
+   * filas são exibidas separadamente e nenhuma ligação é criada apenas
+   * para preencher a tela.
+   */
+  const overdueItems = useMemo(() => queue.filter((item) => item.overdue), [queue]);
+  const todayItems = useMemo(() => queue.filter((item) => !item.overdue), [queue]);
+  const overdueCount = overdueItems.length;
 
   async function handleDone(item: CadenceQueueView, outcome: "SIM" | "NAO") {
     setBusy(true);
