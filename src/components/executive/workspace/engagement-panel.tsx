@@ -19,14 +19,17 @@ import {
   engagementScore,
   formatActiveTime,
   moduleCount,
+  engagementReason,
   relativeTime,
 } from "@/lib/engagement/score";
 import { cn } from "@/lib/utils";
 
 const LEVEL_STYLE: Record<string, string> = {
+  muito_alto: "border-emerald-400/60 text-emerald-200",
   alto: "border-emerald-400/40 text-emerald-300",
   moderado: "border-[color:var(--gold)]/40 text-[color:var(--gold)]",
   baixo: "border-[color:var(--border)] text-[color:var(--muted-foreground)]",
+  inicial: "border-[color:var(--border)] text-[color:var(--muted-foreground)]/70",
 };
 
 export function EngagementPanel({ onOpen }: { onOpen: (investorId: string) => void }) {
@@ -117,6 +120,9 @@ export function EngagementPanel({ onOpen }: { onOpen: (investorId: string) => vo
                             {MODULE_LABEL[m]} {row.modules[m] ? "✓" : "—"}
                           </span>
                         ))}
+                      </span>
+                      <span className="mt-1 block text-xs text-[color:var(--muted-foreground)]">
+                        Critério: {engagementReason(row)}
                       </span>
                       <span className="mt-1 block text-xs text-[color:var(--muted-foreground)]">
                         Último acesso: {relativeTime(row.lastAccessAt)}
