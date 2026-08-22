@@ -142,8 +142,8 @@ export function DailyCallsOverlay({
               <h2 className="font-display text-base leading-tight text-white">Ligações do Dia</h2>
               <p className="text-[11px] text-white/45">
                 {overdueCount > 0
-                  ? `${overdueCount} atrasada(s) · ${queue.length - overdueCount} para hoje`
-                  : `${queue.length} para hoje`}
+                  ? `${overdueCount} atrasada(s) · ${todayItems.length} para hoje`
+                  : `${todayItems.length} para hoje`}
                 {" · próxima tentativa em dias úteis"}
               </p>
             </div>
@@ -306,5 +306,53 @@ export function DailyCallsOverlay({
         </div>
       </div>
     </div>
+  );
+}
+/** Linha da fila lateral — usada tanto por Atrasadas quanto por Para hoje. */
+function QueueRow({
+  item,
+  selected,
+  busy,
+  onSelect,
+  onSkip,
+}: {
+  item: CadenceQueueView;
+  selected: boolean;
+  busy: boolean;
+  onSelect: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <li>
+      <div
+        className={`flex items-center gap-2 rounded-xl border px-3 py-2 transition ${
+          selected
+            ? "border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10"
+            : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+        }`}
+      >
+        <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left">
+          <p className="truncate text-[13px] font-medium text-white/90">
+            {item.name || "Sem nome"}
+            {item.overdue && (
+              <span className="ml-2 rounded-full bg-red-400/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-red-300">
+                atrasada
+              </span>
+            )}
+          </p>
+          <p className="truncate text-[11px] text-white/50">{item.phone || "Sem telefone"}</p>
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={busy}
+          aria-label={`Registrar que ${item.name} não atendeu`}
+          title="Não atendeu — remover da fila de hoje"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 text-white/60 transition hover:border-[color:var(--gold)]/50 hover:text-[color:var(--gold)] disabled:opacity-50"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </li>
   );
 }
