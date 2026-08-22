@@ -530,10 +530,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     key={item.id}
                     item={item}
                     active={selected?.id === item.id}
-                    unread={
-                      manualUnread.includes(item.id) ||
-                      (item.state === "novo" && !openedIds.includes(item.id))
-                    }
+                    visualState={visualStateOf(item)}
                     movement={movements[item.id]}
                     onSelect={() => {
                       setTempId(null);
