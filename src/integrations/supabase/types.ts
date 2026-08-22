@@ -1949,41 +1949,127 @@ export type Database = {
           },
         ]
       }
+      test_batch_events: {
+        Row: {
+          attempts: number
+          batch_id: string
+          card_id: string | null
+          created_at: string
+          created_lead_at: string | null
+          e0_reason: string | null
+          e0_result: string | null
+          entry_type: string
+          error: string | null
+          executed_at: string | null
+          external_id: string
+          id: string
+          lead_name: string
+          position: number
+          scheduled_at: string
+          slot: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          batch_id: string
+          card_id?: string | null
+          created_at?: string
+          created_lead_at?: string | null
+          e0_reason?: string | null
+          e0_result?: string | null
+          entry_type: string
+          error?: string | null
+          executed_at?: string | null
+          external_id: string
+          id?: string
+          lead_name: string
+          position: number
+          scheduled_at: string
+          slot: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          batch_id?: string
+          card_id?: string | null
+          created_at?: string
+          created_lead_at?: string | null
+          e0_reason?: string | null
+          e0_result?: string | null
+          entry_type?: string
+          error?: string | null
+          executed_at?: string | null
+          external_id?: string
+          id?: string
+          lead_name?: string
+          position?: number
+          scheduled_at?: string
+          slot?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_batch_events_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "test_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_batches: {
         Row: {
           created_at: string
           created_by: string | null
           created_by_name: string
+          ends_at: string | null
           id: string
+          kind: string
           label: string
           lead_count: number
           notes: string | null
           scenarios: Json
+          seed: string | null
+          started_at: string | null
           status: string
+          time_zone: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           created_by_name?: string
+          ends_at?: string | null
           id: string
+          kind?: string
           label: string
           lead_count?: number
           notes?: string | null
           scenarios?: Json
+          seed?: string | null
+          started_at?: string | null
           status?: string
+          time_zone?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
           created_by_name?: string
+          ends_at?: string | null
           id?: string
+          kind?: string
           label?: string
           lead_count?: number
           notes?: string | null
           scenarios?: Json
+          seed?: string | null
+          started_at?: string | null
           status?: string
+          time_zone?: string
           updated_at?: string
         }
         Relationships: []
