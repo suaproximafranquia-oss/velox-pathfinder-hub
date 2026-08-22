@@ -214,6 +214,16 @@ export type RelationshipConfig = {
    * `null` desliga o sábado. Domingo nunca envia.
    */
   saturdayHours: { start: number; end: number } | null;
+  /**
+   * EXCEÇÃO EXPLÍCITA E CENTRALIZADA DA E0/A0.
+   *
+   * O primeiro contato responde a um lead que ACABOU de se cadastrar:
+   * ele vale TODOS os dias da semana (inclusive sábado e domingo),
+   * limitado apenas à faixa horária abaixo. Nenhuma outra etapa
+   * (E1, E3, E4, E12, V, R, RE, RF) usa esta janela — elas continuam
+   * submetidas a `businessHours`/`saturdayHours` e a dias úteis.
+   */
+  e0Hours: { start: number; end: number };
   /** Fechamento operacional do dia (hora local) — §3. */
   dailyClosingHour: number;
   timeZone: string;
