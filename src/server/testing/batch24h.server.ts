@@ -27,6 +27,7 @@ import {
   isSyntheticRecipient,
   localParts,
   planBatch24h,
+  rebuildPlannedEvent,
   type EntryType,
   type PlannedEvent,
   type TimeSlot,
@@ -313,27 +314,6 @@ type EventRow = {
   status: string;
 };
 
-function plannedFromRow(row: EventRow): PlannedEvent {
-  const planned = planBatch24hLookup(row);
-  return planned;
-}
-
-/** Reconstrói o lead fictício a partir do registro persistido. */
-function planBatch24hLookup(row: EventRow): PlannedEvent {
-  const index = row.position - 1;
-  return {
-    position: row.position,
-    entryType: row.entry_type,
-    slot: row.slot,
-    externalId: row.external_id,
-    name: row.lead_name,
-    phone: `5500${String(910000000 + index).slice(0, 9)}`,
-    email: `${row.external_id.toLowerCase()}@teste.velox.local`,
-    city: "Ribeirão Preto",
-    scheduledAt: row.scheduled_at,
-  };
-}
-
 export type TickResult = { executed: number; skipped: number; errors: string[] };
 
 export async function runBatch24hTick(): Promise<TickResult> {
@@ -377,7 +357,7 @@ export async function runBatch24hTick(): Promise<TickResult> {
       continue;
     }
 
-    const lead = plannedFromRow(row);
+    const lead = rebuildPlannedEvent(row);
     if (!isSyntheticRecipient(lead)) {
       await supabaseAdmin
         .from("test_batch_events")
