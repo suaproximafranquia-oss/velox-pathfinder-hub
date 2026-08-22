@@ -1,39 +1,26 @@
 /**
- * Redistribuição automática (DF 2.4.6 §6).
+ * COMANDO 2 §8/§34 — FILA CIRCULAR ÚNICA DA PLATAFORMA.
  *
- * Nenhum usuário escolhe o Executivo: a Gestora apenas confirma. A ordem
- * é fixa e circular.
+ * Este módulo NÃO possui ordem própria. Existe apenas uma fila oficial
+ * (`@/lib/crm/redistribution`), evitando que duas listas divergentes
+ * distribuam leads para Executivos diferentes. Nenhum usuário escolhe o
+ * Executivo: a ordem é fixa, circular e resolvida contra os
+ * colaboradores ativos.
  */
-import { loadUsers } from "@/lib/executive-auth";
+import {
+  REDISTRIBUTION_ORDER,
+  redistributionQueue,
+  type RedistributionTarget,
+} from "@/lib/crm/redistribution";
 
-export const ROUND_ROBIN_ORDER = [
-  "Marton",
-  "Paulo",
-  "Milton",
-  "Carlos",
-  "Talita",
-  "Thiago",
-] as const;
+/** Mantido por compatibilidade — a fonte é a fila de redistribuição. */
+export const ROUND_ROBIN_ORDER = REDISTRIBUTION_ORDER;
 
-function normalize(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
-export type RoundRobinTarget = { id: string; name: string };
+export type RoundRobinTarget = RedistributionTarget;
 
 /** Fila oficial resolvida contra os usuários reais da plataforma. */
 export function roundRobinQueue(): RoundRobinTarget[] {
-  const users = loadUsers();
-  const queue: RoundRobinTarget[] = [];
-  for (const label of ROUND_ROBIN_ORDER) {
-    const match = users.find((u) => normalize(u.name).startsWith(normalize(label)));
-    if (match) queue.push({ id: match.id, name: match.name });
-  }
-  return queue;
+  return redistributionQueue();
 }
 
 /** Próximo Executivo da ordem fixa, a partir do responsável atual. */
@@ -41,6 +28,6 @@ export function nextRoundRobinOwner(currentOwnerId: string): RoundRobinTarget | 
   const queue = roundRobinQueue();
   if (queue.length === 0) return null;
   const index = queue.findIndex((t) => t.id === currentOwnerId);
-  if (index < 0) return queue[0];
-  return queue[(index + 1) % queue.length];
+  if (index < 0) return queue[0] ?? null;
+  return queue[(index + 1) % queue.length] ?? null;
 }

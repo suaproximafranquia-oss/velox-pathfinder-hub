@@ -37,6 +37,11 @@ import {
   Archive,
   ArchiveRestore,
 } from "lucide-react";
+import {
+  clearConversationUnread,
+  listManuallyUnread,
+  markConversationUnread,
+} from "@/lib/crm/conversation-read";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
@@ -144,6 +149,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Conversas já abertas nesta sessão — o indicador some ao abrir.
   const [openedIds, setOpenedIds] = useState<string[]>([]);
+  /**
+   * COMANDO 2 §12 — marcação pessoal "não lida" (Azul). Persiste entre
+   * sessões: o Executivo decide o que ainda precisa de atenção.
+   */
+  const [manualUnread, setManualUnread] = useState<string[]>([]);
+  useEffect(() => {
+    setManualUnread(listManuallyUnread());
+  }, []);
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
@@ -406,10 +419,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     });
   }, [selected?.id, selected?.access, actor.userId]);
 
-  // Ao selecionar, a conversa deixa de estar "nova".
+  // Ao selecionar, a conversa deixa de estar "nova" — e a marcação
+  // manual de "não lida" é sempre limpa ao abrir.
   useEffect(() => {
     if (!selected) return;
     setOpenedIds((prev) => (prev.includes(selected.id) ? prev : [...prev, selected.id]));
+    clearConversationUnread(selected.id);
+    setManualUnread((prev) => prev.filter((id) => id !== selected.id));
   }, [selected?.id]);
 
   // Próxima reunião — apenas a mais próxima ainda válida.
@@ -498,7 +514,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     key={item.id}
                     item={item}
                     active={selected?.id === item.id}
-                    unread={item.state === "novo" && !openedIds.includes(item.id)}
+                    unread={
+                      manualUnread.includes(item.id) ||
+                      (item.state === "novo" && !openedIds.includes(item.id))
+                    }
                     movement={movements[item.id]}
                     onSelect={() => {
                       setTempId(null);
@@ -618,6 +637,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               item={selected}
               window={chatWindow}
               windowAnchor={privateOk ? windowAnchorAt(selected.id) : null}
+              onMarkUnread={() => {
+                markConversationUnread(selected.id);
+                setManualUnread((prev) =>
+                  prev.includes(selected.id) ? prev : [...prev, selected.id],
+                );
+                setSelectedId(null);
+              }}
             />
           ) : undefined
         }

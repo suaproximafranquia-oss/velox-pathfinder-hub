@@ -116,10 +116,11 @@ function defaultLabel(kind: BackupKind, origin: BackupOrigin): string {
 export const RETENTION = {
   /** Últimas 48 horas: todos os pontos (um a cada 15 minutos). */
   fullHours: 48,
-  /** De 48 horas a 30 dias: um ponto por dia. */
-  dailyDays: 30,
-  /** Após 30 dias: um ponto por semana, por 8 semanas. */
-  weeklyWeeks: 8,
+  /**
+   * COMANDO 2 §27 — depois das 48 horas permanece apenas o ÚLTIMO ponto
+   * de cada dia (fechamento do dia, ~23:45), por 7 dias corridos.
+   */
+  dailyDays: 7,
 } as const;
 
 /**
@@ -265,11 +266,11 @@ export async function restoreBackupPayload(backupId: string): Promise<RestoreRes
 }
 
 /**
- * Retenção oficial dos pontos automáticos:
+ * Retenção oficial dos pontos automáticos (COMANDO 2 §27):
  *  · últimas 48 horas — todos (a cada 15 minutos);
- *  · de 48 horas a 30 dias — 1 por dia;
- *  · acima de 30 dias — 1 por semana, por 8 semanas;
- *  · além disso, o ponto é descartado.
+ *  · de 48 horas a 7 dias — apenas o ÚLTIMO ponto de cada dia
+ *    (fechamento do dia, próximo das 23:45);
+ *  · além de 7 dias — o ponto é descartado.
  * Backups manuais e de segurança seguem política própria e nunca são
  * removidos aqui. Ao final, conteúdos sem nenhum ponto associado são
  * liberados — nenhum dado do Portal é tocado.
@@ -301,9 +302,9 @@ export async function pruneBackups(): Promise<number> {
     if (age <= RETENTION.fullHours * hour) {
       bucket = `raw:${id}`; // 48h: todos os pontos de 15 em 15 minutos
     } else if (age <= RETENTION.dailyDays * day) {
-      bucket = `day:${Math.floor(at / day)}`; // até 30 dias: 1 por dia
-    } else if (age <= (RETENTION.dailyDays + RETENTION.weeklyWeeks * 7) * day) {
-      bucket = `week:${Math.floor(at / (7 * day))}`; // 8 semanas: 1 por semana
+      // A lista vem em ordem decrescente: o primeiro ponto de cada dia
+      // é justamente o ÚLTIMO gerado naquele dia (fechamento do dia).
+      bucket = `day:${Math.floor(at / day)}`;
     } else {
       drop.push(id); // além do horizonte de retenção
       continue;
