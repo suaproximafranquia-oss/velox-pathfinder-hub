@@ -16,7 +16,9 @@ import {
   type ExecutiveUser,
   type ExecutiveRole,
 } from "@/lib/executive-auth";
+import { setExecutiveStatus } from "@/lib/executive-status.functions";
 import { ACTIVE_WORKSPACE_ID } from "@/config/workspace";
+
 
 export const Route = createFileRoute("/executivo/usuarios")({
   head: () => ({
