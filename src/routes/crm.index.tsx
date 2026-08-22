@@ -414,10 +414,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     });
   }, [selected?.id, selected?.access, actor.userId]);
 
-  // Ao selecionar, a conversa deixa de estar "nova".
+  // Ao selecionar, a conversa deixa de estar "nova" — e a marcação
+  // manual de "não lida" é sempre limpa ao abrir.
   useEffect(() => {
     if (!selected) return;
     setOpenedIds((prev) => (prev.includes(selected.id) ? prev : [...prev, selected.id]));
+    clearConversationUnread(selected.id);
+    setManualUnread((prev) => prev.filter((id) => id !== selected.id));
   }, [selected?.id]);
 
   // Próxima reunião — apenas a mais próxima ainda válida.
