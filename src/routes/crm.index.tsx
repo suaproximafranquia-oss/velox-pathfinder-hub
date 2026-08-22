@@ -40,6 +40,8 @@ import {
 import {
   clearConversationUnread,
   listManuallyUnread,
+  listOpenedConversations,
+  markConversationOpened,
   markConversationUnread,
 } from "@/lib/crm/conversation-read";
 import { listMeetings } from "@/lib/meetings";
@@ -48,6 +50,7 @@ import {
   markOutboundMessage,
   markWindowOpened,
   windowAnchorAt,
+  type CrmVisualState,
 } from "@/lib/crm/relationship-state";
 import { resolveCrmWindow } from "@/lib/crm/templates";
 import { CRM_THEMES, getUserCrmTheme, setUserCrmTheme, type CrmThemeId } from "@/lib/crm/themes";
