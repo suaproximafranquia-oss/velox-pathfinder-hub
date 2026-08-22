@@ -35,6 +35,11 @@ export type IntakeContext = {
   settings: IntakeSettings;
   /** Marcação técnica de TESTE. Ausente = lead real. */
   test?: { batchId: string } | null;
+  /**
+   * Origem oficial da entrada. Ausente = GreenSales (comportamento
+   * histórico e único caminho dos leads reais da sincronização).
+   */
+  entryOrigin?: import("@/lib/relationship/origin").EntryOrigin;
 };
 
 export type IntakeOutcome = {
