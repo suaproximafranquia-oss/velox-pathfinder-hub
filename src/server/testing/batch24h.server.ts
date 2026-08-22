@@ -44,6 +44,10 @@ import {
 import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
 import { logEngineAction } from "@/server/relationship/engine.server";
 
+/** Acesso por nome de tabela em laços de limpeza (tipagem gerada é literal). */
+const anyTable = (table: string) =>
+  (supabaseAdmin.from as unknown as (t: string) => any)(table);
+
 /** Leads reais que jamais podem constar como candidatos (auditoria). */
 const NEVER_DELETE_CARD_IDS = new Set(["ld_msy1onox18t1"]);
 
@@ -160,11 +164,11 @@ export async function resetHomologation(options: { dryRun: boolean }): Promise<R
       "relationship_events",
       "relationship_cadences",
     ]) {
-      await supabaseAdmin.from(table).delete().in("lead_id" as never, cardIds as never);
+      await anyTable(table).delete().in("lead_id", cardIds);
       affected.push(table);
     }
     for (const table of ["crm_messages", "crm_timeline", "portal_journey_events", "portal_engagement"]) {
-      await supabaseAdmin.from(table).delete().in("investor_id" as never, cardIds as never);
+      await anyTable(table).delete().in("investor_id", cardIds);
       affected.push(table);
     }
     const { count } = await supabaseAdmin
