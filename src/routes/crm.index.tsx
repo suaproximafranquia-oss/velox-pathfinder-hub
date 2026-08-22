@@ -467,17 +467,32 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const meetingUrl = nextMeeting?.meetUrl ?? nextMeeting?.meetingProviderUrl ?? null;
 
   /**
-   * ETAPA 3 §8 — o card do Portal mostra apenas o ÚLTIMO acesso de cada
-   * item. O histórico completo permanece na jornada/auditoria.
+   * §7 — bloco compacto do Portal: SEMPRE os quatro módulos oficiais,
+   * com o ÚLTIMO acesso real vindo do servidor ou "Sem acesso
+   * registrado". Nada é estimado e o institucional não entra aqui.
    */
-  const portalSummary = useMemo(
-    () =>
-      selected && privateOk
-        ? summarizePortalActivity(selected.id)
-        : { items: [], lastPortalAt: null },
+  const [portalModules, setPortalModules] = useState<Record<string, string>>({});
+  const [portalLastAt, setPortalLastAt] = useState<string | null>(null);
+  useEffect(() => {
+    if (!selected || !privateOk) {
+      setPortalModules({});
+      setPortalLastAt(null);
+      return;
+    }
+    let alive = true;
+    void getPortalEngagement({ data: { investorId: selected.id } })
+      .then((row) => {
+        if (!alive) return;
+        setPortalModules(row?.modulesLast ?? {});
+        setPortalLastAt(row?.lastAccessAt ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected?.id, privateOk, tick],
-  );
+  }, [selected?.id, privateOk, tick]);
+
 
   return (
     <>
