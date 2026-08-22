@@ -1,11 +1,15 @@
 /**
- * JANELA OPERACIONAL DA E0 (madrugada).
+ * JANELA OPERACIONAL DA E0/A0 (exceção explícita do calendário).
  *
- * A E0 continua sendo o primeiro contato automático do lead novo. O
- * HORÁRIO permitido NÃO é uma regra própria da E0: ele vem da janela
- * única do Motor de Relacionamento (`RELATIONSHIP_CONFIG.businessHours`,
- * hoje 07:00–22:30). Fora dela nada é entregue — a E0 fica pendente e é
- * executada na abertura seguinte.
+ * A E0 é o primeiro contato de um lead que ACABOU de se cadastrar. Ela
+ * é a ÚNICA etapa que vale todos os dias da semana — inclusive sábado
+ * e domingo — limitada apenas à faixa horária central
+ * `RELATIONSHIP_CONFIG.e0Hours` (hoje 07:00–22:30). Fora dela nada é
+ * entregue: a E0 fica pendente e é executada na abertura seguinte.
+ *
+ * As demais etapas (E1, E3, E4, E12, V, R, RE, RF) NÃO usam este
+ * arquivo: elas continuam governadas por `messagingHours` (dias úteis,
+ * janela própria de sábado, domingo e feriados sem envio).
  *
  * Regra pura, sem banco e sem canal: quem decide é o servidor/motor.
  */
@@ -15,10 +19,10 @@ const TIME_ZONE = RELATIONSHIP_CONFIG.timeZone;
 /** A operação está em UTC-3 o ano inteiro. */
 const UTC_OFFSET_HOURS = 3;
 
-/** Início do bloqueio noturno (fim da janela central, 22:30). */
-export const E0_NIGHT_START_MINUTES = Math.round(RELATIONSHIP_CONFIG.businessHours.end * 60);
-/** Abertura da janela operacional da E0 (início da janela central, 07:00). */
-export const E0_WINDOW_OPEN_MINUTES = Math.round(RELATIONSHIP_CONFIG.businessHours.start * 60);
+/** Início do bloqueio noturno da E0 (fim da faixa da E0, 22:30). */
+export const E0_NIGHT_START_MINUTES = Math.round(RELATIONSHIP_CONFIG.e0Hours.end * 60);
+/** Abertura da janela operacional da E0 (início da faixa da E0, 07:00). */
+export const E0_WINDOW_OPEN_MINUTES = Math.round(RELATIONSHIP_CONFIG.e0Hours.start * 60);
 
 
 function localParts(value: string | Date): { date: string; minutes: number } {

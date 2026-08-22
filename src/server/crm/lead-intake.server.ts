@@ -35,6 +35,11 @@ export type IntakeContext = {
   settings: IntakeSettings;
   /** Marcação técnica de TESTE. Ausente = lead real. */
   test?: { batchId: string } | null;
+  /**
+   * Origem oficial da entrada. Ausente = GreenSales (comportamento
+   * histórico e único caminho dos leads reais da sincronização).
+   */
+  entryOrigin?: import("@/lib/relationship/origin").EntryOrigin;
 };
 
 export type IntakeOutcome = {
@@ -203,7 +208,8 @@ export async function intakeLead(
       leadId: card.cardId,
       name: normalized.name,
       phone: normalized.whatsapp,
-      origin: "GreenSales",
+      origin: context.entryOrigin === "PORTAL" ? "Portal do Investidor" : "GreenSales",
+      entryOrigin: context.entryOrigin ?? "GREENSALES",
       ownerId: null,
       entryAt: lastEntryAt,
       enteredEntryStageAt: (outcome.lead as unknown as {
