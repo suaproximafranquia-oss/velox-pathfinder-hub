@@ -154,7 +154,7 @@ export function CrmStartRelationshipDialog({
 /** Indicador padronizado — um único estado visual por conversa. */
 export function CrmStateDot({ item, state }: { item: CrmConversation; state?: CrmVisualState }) {
   const meta = CRM_VISUAL_META[state ?? item.relationshipState];
-
+  return (
     <span
       className="relative flex h-2 w-2 shrink-0 items-center justify-center"
       title={meta.label}
