@@ -996,36 +996,26 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             </CrmRecordSection>
 
             <CrmRecordSection title="Portal do investidor" tone="roxo" icon={Compass}>
-              <CrmRecordRow
-                label="Manual"
-                value={privateOk ? `${selected.readingPct}% concluído` : undefined}
-              />
-              {privateOk
-                ? portalSummary.items.map((a) => (
-                    <CrmRecordRow
-                      key={a.module}
-                      label={a.label}
-                      value={`último acesso ${new Date(a.at).toLocaleString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}`}
-                    />
-                  ))
-                : null}
+              {PORTAL_FICHA_MODULES.map((m) => (
+                <CrmRecordRow
+                  key={m.key}
+                  label={m.label}
+                  value={
+                    privateOk
+                      ? portalModules[m.key]
+                        ? `último acesso ${fmtPortalDate(portalModules[m.key]!)}`
+                        : "Sem acesso registrado"
+                      : undefined
+                  }
+                />
+              ))}
               <CrmRecordRow
                 label="Último acesso ao Portal"
                 value={
                   privateOk
-                    ? portalSummary.lastPortalAt
-                      ? new Date(portalSummary.lastPortalAt).toLocaleString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : selected.lastActivityLabel
+                    ? portalLastAt
+                      ? fmtPortalDate(portalLastAt)
+                      : "Sem acesso registrado"
                     : undefined
                 }
               />
@@ -1033,6 +1023,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 Resumo executivo — o histórico completo da jornada permanece no Workspace.
               </p>
             </CrmRecordSection>
+
 
 
             <CrmRecordSection title="Agenda" tone="laranja" icon={CalendarClock}>
