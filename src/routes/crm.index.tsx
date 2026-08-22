@@ -93,7 +93,11 @@ import { investorPortalUrl } from "@/lib/portal-brands";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { actorFromSession } from "@/lib/crm/access";
 import { CRM_AREAS, type CrmAreaKey } from "@/lib/crm/modules";
-import { listConversations, filterConversations } from "@/lib/crm/relationships";
+import {
+  listConversations,
+  filterConversations,
+  type CrmConversation,
+} from "@/lib/crm/relationships";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
