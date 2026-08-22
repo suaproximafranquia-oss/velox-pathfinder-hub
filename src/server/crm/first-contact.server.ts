@@ -35,6 +35,11 @@ export type FirstContactInput = {
    * anterior à entrega real. A Meta nunca é chamada.
    */
   simulated?: boolean;
+  /**
+   * Origem oficial da entrada (4F-B). Decide a abertura: PORTAL → E0_V1,
+   * demais → E0. Nunca converte uma origem em outra.
+   */
+  entryOrigin?: import("@/lib/relationship/origin").EntryOrigin;
 };
 
 export type FirstContactResult =
