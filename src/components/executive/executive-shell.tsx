@@ -41,7 +41,7 @@ import { WORKSPACE } from "@/config/workspace";
 import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
 import { GoogleStatusIndicator } from "@/components/executive/google-status-indicator";
-import { canUseWorkspaceModule } from "@/lib/workspace-permissions";
+import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 
 export function ExecutiveShell({
   session,
