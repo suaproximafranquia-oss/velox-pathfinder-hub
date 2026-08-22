@@ -77,15 +77,14 @@ export function ExecutiveShell({
   }, [session.userId]);
 
   /**
-   * COMANDO 3B §3/§4 — permissões individuais de módulo. Quando OFF, o
-   * item some do menu (a rota permanece bloqueada pelo guard próprio).
+   * ATUALIZAÇÃO ESTRUTURAL §1 — permissões vindas do SERVIDOR. Quando o
+   * Administrador desliga um módulo, esta sessão percebe a alteração
+   * sozinha (sem logout e sem F5): o item some do menu e a rota
+   * permanece bloqueada pelo guard próprio.
    */
-  const canCrm = canUseWorkspaceModule(session.userId, session.activeRole, "crm");
-  const canPortalLeads = canUseWorkspaceModule(
-    session.userId,
-    session.activeRole,
-    "portal_leads",
-  );
+  const canCrm = useModuleAccess(session.userId, session.activeRole, "crm");
+  const canPortalLeads = useModuleAccess(session.userId, session.activeRole, "portal_leads");
+
 
   /**
    * DEF 2.4.17 §1 — ordem oficial do menu lateral. O CRM abre em nova aba
