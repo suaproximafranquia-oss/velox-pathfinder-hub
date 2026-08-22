@@ -9,7 +9,8 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PortalLeadsBoard } from "@/components/crm/portal-leads-board";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import { ModuleAccessDenied, hasModuleAccess } from "@/components/executive/module-access-guard";
+import { ModuleAccessDenied } from "@/components/executive/module-access-guard";
+import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 
 export const Route = createFileRoute("/portal-leads")({
   head: () => ({
@@ -51,10 +52,18 @@ function PortalLeadsPage() {
       .finally(() => setReady(true));
   }, [navigate]);
 
-  // COMANDO 3B §4/§11 — acesso direto por URL é bloqueado e nenhum dado
-  // do Portal dos Leads é carregado sem permissão individual.
+  const portalAllowed = useModuleAccess(
+    session?.userId ?? "",
+    session?.activeRole ?? "executivo",
+    "portal_leads",
+  );
+
+
+
+  // ATUALIZAÇÃO ESTRUTURAL §1 — autorização reativa vinda do servidor:
+  // acesso direto por URL é bloqueado e a revogação vale na hora.
   if (!ready || !session) return null;
-  if (!hasModuleAccess(session, "portal_leads")) {
+  if (!portalAllowed) {
     return <ModuleAccessDenied moduleKey="portal_leads" />;
   }
   return <PortalLeadsBoard standalone />;

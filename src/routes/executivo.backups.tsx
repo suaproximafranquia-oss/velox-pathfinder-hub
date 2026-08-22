@@ -33,10 +33,8 @@ import {
 import { CRM_TIMELINE_LABEL, formatCrmTimestamp } from "@/lib/crm/timeline";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { canAccessPortalWorkspace } from "@/lib/portal-workspace";
-import {
-  canUseConversationBackups,
-  canViewConversationBackupOf,
-} from "@/lib/workspace-permissions";
+import { canViewConversationBackupOf } from "@/lib/workspace-permissions";
+import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 import { restoreRelationship } from "@/lib/crm/commercial";
 import { onSync } from "@/lib/sync-bus";
 
@@ -81,16 +79,26 @@ function BackupsPage() {
       navigate({ to: "/executivo" });
       return;
     }
-    // COMANDO 3B §5 — Backup de Conversas depende do CRM.
-    if (!canUseConversationBackups(s.userId, s.activeRole)) {
-      navigate({ to: "/executivo/home" });
-      return;
-    }
     setSession(s);
   }, [navigate]);
 
+  /**
+   * ATUALIZAÇÃO ESTRUTURAL §1 — o Backup de Conversas depende do CRM e a
+   * autorização vem do servidor: se o Administrador revogar o módulo
+   * enquanto a tela estiver aberta, a sessão sai imediatamente.
+   */
+  const crmAllowed = useModuleAccess(
+    session?.userId ?? "",
+    session?.activeRole ?? "executivo",
+    "crm",
+  );
+  useEffect(() => {
+    if (session && !crmAllowed) navigate({ to: "/executivo/home" });
+  }, [session, crmAllowed, navigate]);
+
   // Arquivamento, restauração e auditoria refletem na hora.
   useEffect(() => onSync(() => setTick((v) => v + 1)), []);
+
 
   const isAdmin = session ? isCrmAdministrator(session.activeRole) : false;
   const isSupervisor = session ? isCrmSupervisor(session.activeRole) : false;

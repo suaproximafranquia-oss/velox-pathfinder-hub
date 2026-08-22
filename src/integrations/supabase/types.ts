@@ -2024,6 +2024,33 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_module_permissions: {
+        Row: {
+          enabled: boolean
+          module_key: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string
+          user_id: string
+        }
+        Insert: {
+          enabled: boolean
+          module_key: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          module_key?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

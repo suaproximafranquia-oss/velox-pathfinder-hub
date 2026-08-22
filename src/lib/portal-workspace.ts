@@ -108,25 +108,25 @@ export function workspaceScopesFor(
   role: ExecutiveRole,
 ): WorkspaceScope[] {
   /**
-   * COMANDO 4E §12/§13/§40 — a Gestora NÃO possui Green Sales: a carteira
-   * própria dela é a Central Única. Executivos comuns operam Green Sales.
-   * COMANDO 4G §2/§3 — a Central Única é OPERADA exclusivamente pela
-   * Gestora. O Administrador apenas a enxerga (auditoria); o perfil
-   * híbrido NÃO possui Central Única.
+   * ATUALIZAÇÃO ESTRUTURAL §3 — matriz definitiva do Workspace:
+   *
+   *  • Colaborador comum ....... GreenSales + Redistribuição
+   *  • Administrador (ativo) ... GreenSales + Redistribuição + Portal
+   *  • Administrador como
+   *    Colaborador ............. GreenSales + Redistribuição
+   *  • Gestora ................. Central Única (carteira própria dela)
+   *
+   * A Central Única deixou de aparecer como área operacional do
+   * Administrador: ela pertence à Gestão. O perfil híbrido não abre mais
+   * o Portal quando está atuando como Colaborador — a aba Portal existe
+   * apenas no perfil ATIVO de Administrador.
    */
   if (role === "super_admin") {
-    return ["green_sales", "central_unica", "redistribuicao", "portal"];
-  }
-  if (isHybridWorkspaceUser(userId)) {
     return ["green_sales", "redistribuicao", "portal"];
   }
-  /**
-   * MATRIZ OFICIAL (reset operacional): o Gestor opera GreenSales,
-   * Central Única e Redistribuição — e NUNCA o Portal, que permanece
-   * exclusivo do Administrador.
-   */
-  if (role === "diretora") return ["green_sales", "central_unica", "redistribuicao"];
+  if (role === "diretora") return ["central_unica"];
   return ["green_sales", "redistribuicao"];
+
 }
 
 /**

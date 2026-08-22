@@ -13,6 +13,10 @@
  */
 import type { ExecutiveRole } from "@/lib/executive-auth";
 import { canAccessPortalWorkspace } from "@/lib/portal-workspace";
+import {
+  getWorkspacePermissionCache,
+  persistWorkspacePermission,
+} from "@/lib/workspace-permissions-store";
 
 export type WorkspaceModuleKey = "crm" | "portal_leads";
 
@@ -80,41 +84,31 @@ export function canViewConversationBackupOf(input: {
   return input.temporaryGrant === true;
 }
 
-/* --------------------------- persistência local --------------------------- */
+/* ------------------ persistência: o servidor é a autoridade ------------------ */
 
+/**
+ * ATUALIZAÇÃO ESTRUTURAL §1 — a decisão vive no banco. O que existe aqui
+ * é apenas a leitura do cache reativo alimentado pelo servidor
+ * (`workspace-permissions-store`), nunca uma fonte de verdade local.
+ */
 export function loadWorkspacePermissions(): WorkspacePermissionMap {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? (parsed as WorkspacePermissionMap) : {};
-  } catch {
-    return {};
-  }
+  return getWorkspacePermissionCache();
 }
 
-export function saveWorkspacePermissions(map: WorkspacePermissionMap): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-  } catch {
-    /* armazenamento indisponível — nenhuma permissão é perdida em memória */
-  }
-}
-
-/** Altera a permissão de UM usuário sem tocar em nenhum outro (§12-L). */
-export function setWorkspaceModuleAccess(
+/** Altera a permissão de UM usuário no servidor, sem tocar em nenhum outro. */
+export async function setWorkspaceModuleAccess(
   userId: string,
   moduleKey: WorkspaceModuleKey,
   enabled: boolean,
-): WorkspacePermissionMap {
-  const map = loadWorkspacePermissions();
-  const next: WorkspacePermissionMap = {
-    ...map,
-    [userId]: { ...(map[userId] ?? {}), [moduleKey]: enabled },
-  };
-  saveWorkspacePermissions(next);
-  return next;
+  actorName?: string,
+): Promise<WorkspacePermissionMap> {
+  await persistWorkspacePermission({
+    userId,
+    moduleKey,
+    enabled,
+    ...(actorName ? { actorName } : {}),
+  });
+  return getWorkspacePermissionCache();
 }
 
 export function canUseWorkspaceModule(
@@ -122,9 +116,10 @@ export function canUseWorkspaceModule(
   role: ExecutiveRole,
   moduleKey: WorkspaceModuleKey,
 ): boolean {
-  return resolveModuleAccess(loadWorkspacePermissions(), userId, role, moduleKey);
+  return resolveModuleAccess(getWorkspacePermissionCache(), userId, role, moduleKey);
 }
 
 export function canUseConversationBackups(userId: string, role: ExecutiveRole): boolean {
   return canUseWorkspaceModule(userId, role, "crm");
 }
+

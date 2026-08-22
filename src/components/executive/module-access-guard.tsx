@@ -7,12 +7,14 @@
  */
 import { Lock } from "lucide-react";
 import type { ExecutiveSession } from "@/lib/executive-auth";
+import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 import {
   WORKSPACE_MODULE_LABEL,
   canUseWorkspaceModule,
   type WorkspaceModuleKey,
 } from "@/lib/workspace-permissions";
 
+/** Checagem imperativa (fora de render). A reativa é `useModuleAccess`. */
 export function hasModuleAccess(
   session: ExecutiveSession,
   moduleKey: WorkspaceModuleKey,
@@ -20,6 +22,11 @@ export function hasModuleAccess(
   return canUseWorkspaceModule(session.userId, session.activeRole, moduleKey);
 }
 
+/**
+ * ATUALIZAÇÃO ESTRUTURAL §1 — o guard acompanha o servidor em tempo real:
+ * se a autorização for revogada enquanto o usuário estiver dentro do
+ * módulo, a tela é bloqueada imediatamente, sem esperar recarregamento.
+ */
 export function ModuleAccessGuard({
   session,
   moduleKey,
@@ -29,9 +36,11 @@ export function ModuleAccessGuard({
   moduleKey: WorkspaceModuleKey;
   children: React.ReactNode;
 }) {
-  if (hasModuleAccess(session, moduleKey)) return <>{children}</>;
+  const allowed = useModuleAccess(session.userId, session.activeRole, moduleKey);
+  if (allowed) return <>{children}</>;
   return <ModuleAccessDenied moduleKey={moduleKey} />;
 }
+
 
 export function ModuleAccessDenied({ moduleKey }: { moduleKey: WorkspaceModuleKey }) {
   return (
