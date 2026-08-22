@@ -208,7 +208,8 @@ export async function intakeLead(
       leadId: card.cardId,
       name: normalized.name,
       phone: normalized.whatsapp,
-      origin: "GreenSales",
+      origin: context.entryOrigin === "PORTAL" ? "Portal do Investidor" : "GreenSales",
+      entryOrigin: context.entryOrigin ?? "GREENSALES",
       ownerId: null,
       entryAt: lastEntryAt,
       enteredEntryStageAt: (outcome.lead as unknown as {
