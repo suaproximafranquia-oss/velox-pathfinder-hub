@@ -266,11 +266,11 @@ export async function restoreBackupPayload(backupId: string): Promise<RestoreRes
 }
 
 /**
- * Retenção oficial dos pontos automáticos:
+ * Retenção oficial dos pontos automáticos (COMANDO 2 §27):
  *  · últimas 48 horas — todos (a cada 15 minutos);
- *  · de 48 horas a 30 dias — 1 por dia;
- *  · acima de 30 dias — 1 por semana, por 8 semanas;
- *  · além disso, o ponto é descartado.
+ *  · de 48 horas a 7 dias — apenas o ÚLTIMO ponto de cada dia
+ *    (fechamento do dia, próximo das 23:45);
+ *  · além de 7 dias — o ponto é descartado.
  * Backups manuais e de segurança seguem política própria e nunca são
  * removidos aqui. Ao final, conteúdos sem nenhum ponto associado são
  * liberados — nenhum dado do Portal é tocado.
