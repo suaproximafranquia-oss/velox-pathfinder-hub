@@ -16,7 +16,9 @@ import {
   type ExecutiveUser,
   type ExecutiveRole,
 } from "@/lib/executive-auth";
+import { setExecutiveStatus } from "@/lib/executive-status.functions";
 import { ACTIVE_WORKSPACE_ID } from "@/config/workspace";
+
 
 export const Route = createFileRoute("/executivo/usuarios")({
   head: () => ({
@@ -99,6 +101,14 @@ function UsuariosPage() {
         u.id === id ? { ...u, status: next } : u,
       ),
     );
+    // §13/§14 — a situação vale no SERVIDOR: a sessão do usuário
+    // desativado é encerrada e um novo login é recusado. Nenhum
+    // histórico, conversa ou lead é apagado (§16).
+    void setExecutiveStatus({
+      data: { executiveId: id, status: next, actorName: session.name },
+    }).catch(() => {
+      alert("Não foi possível registrar a alteração no servidor. Tente novamente.");
+    });
   }
 
   function remove(id: string) {

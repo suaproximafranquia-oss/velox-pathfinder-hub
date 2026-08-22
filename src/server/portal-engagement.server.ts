@@ -51,7 +51,7 @@ export async function applyEngagementEvent(
 
   const { data: row } = await supabaseAdmin
     .from("portal_engagement")
-    .select("investor_id,sessions,returns,active_ms,modules,first_access_at,last_access_at")
+    .select("investor_id,sessions,returns,active_ms,modules,modules_last,first_access_at,last_access_at")
     .eq("investor_id", input.investorId)
     .maybeSingle();
 
@@ -63,6 +63,7 @@ export async function applyEngagementEvent(
       returns: 0,
       active_ms: 0,
       modules,
+      modules_last: modules,
       first_access_at: now,
       last_access_at: now,
       session_started_at: now,
@@ -76,10 +77,15 @@ export async function applyEngagementEvent(
   const modules = { ...((row.modules as Record<string, string> | null) ?? {}) };
   const firstModuleAccess = Boolean(module && !modules[module]);
   if (module && !modules[module]) modules[module] = now;
+  // `modules` guarda o PRIMEIRO acesso; `modules_last`, o mais recente —
+  // é este que a Ficha do Investidor exibe.
+  const modulesLast = { ...((row.modules_last as Record<string, string> | null) ?? {}) };
+  if (module) modulesLast[module] = now;
 
   const patch: Record<string, unknown> = {
     last_access_at: now,
     modules,
+    modules_last: modulesLast,
   };
   if (newSession) {
     patch["sessions"] = Number(row.sessions ?? 0) + 1;

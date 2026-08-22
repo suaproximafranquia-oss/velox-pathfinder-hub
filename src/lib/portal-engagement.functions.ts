@@ -20,6 +20,8 @@ export type PortalEngagementRow = {
   returns: number;
   activeMs: number;
   modules: Record<string, string>;
+  /** Último acesso registrado por módulo (fonte da Ficha do Investidor). */
+  modulesLast: Record<string, string>;
   firstAccessAt: string;
   lastAccessAt: string;
 };
@@ -38,6 +40,7 @@ function toRow(
     returns: Number(engagement["returns"] ?? 0),
     activeMs: Number(engagement["active_ms"] ?? 0),
     modules: (engagement["modules"] as Record<string, string> | null) ?? {},
+    modulesLast: (engagement["modules_last"] as Record<string, string> | null) ?? {},
     firstAccessAt: String(engagement["first_access_at"]),
     lastAccessAt: String(engagement["last_access_at"]),
   };
@@ -55,7 +58,7 @@ export const listPortalEngagement = createServerFn({ method: "POST" })
     if (ids.length === 0) return [];
     const { data: rows, error: engagementError } = await context.supabase
       .from("portal_engagement")
-      .select("investor_id,sessions,returns,active_ms,modules,first_access_at,last_access_at")
+      .select("investor_id,sessions,returns,active_ms,modules,modules_last,first_access_at,last_access_at")
       .in("investor_id", ids);
     if (engagementError) throw new Error(engagementError.message);
     const byId = new Map((leads ?? []).map((l) => [l.id, l]));
@@ -80,7 +83,7 @@ export const getPortalEngagement = createServerFn({ method: "POST" })
     if (!lead) return null;
     const { data: row } = await context.supabase
       .from("portal_engagement")
-      .select("investor_id,sessions,returns,active_ms,modules,first_access_at,last_access_at")
+      .select("investor_id,sessions,returns,active_ms,modules,modules_last,first_access_at,last_access_at")
       .eq("investor_id", data.investorId)
       .maybeSingle();
     return row ? toRow(lead, row as Record<string, unknown>) : null;

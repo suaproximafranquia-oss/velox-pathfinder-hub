@@ -761,6 +761,27 @@ export type Database = {
         }
         Relationships: []
       }
+      executive_user_status: {
+        Row: {
+          executive_id: string
+          status: string
+          updated_at: string
+          updated_by_name: string | null
+        }
+        Insert: {
+          executive_id: string
+          status?: string
+          updated_at?: string
+          updated_by_name?: string | null
+        }
+        Update: {
+          executive_id?: string
+          status?: string
+          updated_at?: string
+          updated_by_name?: string | null
+        }
+        Relationships: []
+      }
       knowledge_documents: {
         Row: {
           chunks: Json
@@ -1065,6 +1086,7 @@ export type Database = {
           investor_id: string
           last_access_at: string
           modules: Json
+          modules_last: Json
           returns: number
           session_started_at: string
           sessions: number
@@ -1077,6 +1099,7 @@ export type Database = {
           investor_id: string
           last_access_at?: string
           modules?: Json
+          modules_last?: Json
           returns?: number
           session_started_at?: string
           sessions?: number
@@ -1089,6 +1112,7 @@ export type Database = {
           investor_id?: string
           last_access_at?: string
           modules?: Json
+          modules_last?: Json
           returns?: number
           session_started_at?: string
           sessions?: number

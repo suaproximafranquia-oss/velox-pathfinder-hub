@@ -102,7 +102,28 @@ import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
-import { syncPortalActivity, listPortalActivities, summarizePortalActivity } from "@/lib/crm/portal-activity";
+import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
+import { getPortalEngagement } from "@/lib/portal-engagement.functions";
+
+/**
+ * §7 — os quatro módulos da Ficha. Blocos institucionais NÃO entram:
+ * eles não contam como engajamento comercial do investidor.
+ */
+const PORTAL_FICHA_MODULES = [
+  { key: "manual", label: "Manual" },
+  { key: "material", label: "Material Institucional" },
+  { key: "simulador", label: "Calculadora" },
+  { key: "revista", label: "Revista" },
+] as const;
+
+function fmtPortalDate(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 import { startRelationship, archiveRelationship, restoreRelationship } from "@/lib/crm/commercial";
 import { isPortalReleased } from "@/lib/crm/portal-release";
 
@@ -467,17 +488,32 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const meetingUrl = nextMeeting?.meetUrl ?? nextMeeting?.meetingProviderUrl ?? null;
 
   /**
-   * ETAPA 3 §8 — o card do Portal mostra apenas o ÚLTIMO acesso de cada
-   * item. O histórico completo permanece na jornada/auditoria.
+   * §7 — bloco compacto do Portal: SEMPRE os quatro módulos oficiais,
+   * com o ÚLTIMO acesso real vindo do servidor ou "Sem acesso
+   * registrado". Nada é estimado e o institucional não entra aqui.
    */
-  const portalSummary = useMemo(
-    () =>
-      selected && privateOk
-        ? summarizePortalActivity(selected.id)
-        : { items: [], lastPortalAt: null },
+  const [portalModules, setPortalModules] = useState<Record<string, string>>({});
+  const [portalLastAt, setPortalLastAt] = useState<string | null>(null);
+  useEffect(() => {
+    if (!selected || !privateOk) {
+      setPortalModules({});
+      setPortalLastAt(null);
+      return;
+    }
+    let alive = true;
+    void getPortalEngagement({ data: { investorId: selected.id } })
+      .then((row) => {
+        if (!alive) return;
+        setPortalModules(row?.modulesLast ?? {});
+        setPortalLastAt(row?.lastAccessAt ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected?.id, privateOk, tick],
-  );
+  }, [selected?.id, privateOk, tick]);
+
 
   return (
     <>
@@ -545,6 +581,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     onSelect={() => {
                       setTempId(null);
                       setSelectedId(item.id);
+                      // Abrir sempre resolve o azul, inclusive quando a
+                      // conversa já era a selecionada.
+                      markConversationOpened(item.id);
+                      clearConversationUnread(item.id);
+                      setOpenedIds((prev) =>
+                        prev.includes(item.id) ? prev : [...prev, item.id],
+                      );
+                      setManualUnread((prev) => prev.filter((id) => id !== item.id));
                     }}
                   />
                 ))}
@@ -665,7 +709,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 setManualUnread((prev) =>
                   prev.includes(selected.id) ? prev : [...prev, selected.id],
                 );
-                setSelectedId(null);
+                // §2 — marcar como não lida NUNCA altera a conversa
+                // selecionada nem devolve a lista ao primeiro item.
               }}
             />
           ) : undefined
@@ -981,36 +1026,26 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             </CrmRecordSection>
 
             <CrmRecordSection title="Portal do investidor" tone="roxo" icon={Compass}>
-              <CrmRecordRow
-                label="Manual"
-                value={privateOk ? `${selected.readingPct}% concluído` : undefined}
-              />
-              {privateOk
-                ? portalSummary.items.map((a) => (
-                    <CrmRecordRow
-                      key={a.module}
-                      label={a.label}
-                      value={`último acesso ${new Date(a.at).toLocaleString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}`}
-                    />
-                  ))
-                : null}
+              {PORTAL_FICHA_MODULES.map((m) => (
+                <CrmRecordRow
+                  key={m.key}
+                  label={m.label}
+                  value={
+                    privateOk
+                      ? portalModules[m.key]
+                        ? `último acesso ${fmtPortalDate(portalModules[m.key]!)}`
+                        : "Sem acesso registrado"
+                      : undefined
+                  }
+                />
+              ))}
               <CrmRecordRow
                 label="Último acesso ao Portal"
                 value={
                   privateOk
-                    ? portalSummary.lastPortalAt
-                      ? new Date(portalSummary.lastPortalAt).toLocaleString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : selected.lastActivityLabel
+                    ? portalLastAt
+                      ? fmtPortalDate(portalLastAt)
+                      : "Sem acesso registrado"
                     : undefined
                 }
               />
@@ -1018,6 +1053,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 Resumo executivo — o histórico completo da jornada permanece no Workspace.
               </p>
             </CrmRecordSection>
+
 
 
             <CrmRecordSection title="Agenda" tone="laranja" icon={CalendarClock}>
