@@ -260,6 +260,11 @@ export const RELATIONSHIP_CONFIG: RelationshipConfig = {
   businessHours: { start: 7, end: 22.5 },
   /** §11 — no sábado o envio vai apenas até 12:00. */
   saturdayHours: { start: 7, end: 12 },
+  /**
+   * E0/A0: 07:00 → 22:30 em TODOS os dias, inclusive sábado e domingo.
+   * Um lead que entra sábado às 15:00 recebe a E0 no próprio sábado.
+   */
+  e0Hours: { start: 7, end: 22.5 },
   dailyClosingHour: 22,
 
   timeZone: "America/Sao_Paulo",
