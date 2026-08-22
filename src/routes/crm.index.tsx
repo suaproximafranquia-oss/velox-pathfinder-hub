@@ -37,6 +37,11 @@ import {
   Archive,
   ArchiveRestore,
 } from "lucide-react";
+import {
+  clearConversationUnread,
+  listManuallyUnread,
+  markConversationUnread,
+} from "@/lib/crm/conversation-read";
 import { listMeetings } from "@/lib/meetings";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
@@ -509,7 +514,10 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     key={item.id}
                     item={item}
                     active={selected?.id === item.id}
-                    unread={item.state === "novo" && !openedIds.includes(item.id)}
+                    unread={
+                      manualUnread.includes(item.id) ||
+                      (item.state === "novo" && !openedIds.includes(item.id))
+                    }
                     movement={movements[item.id]}
                     onSelect={() => {
                       setTempId(null);
@@ -629,6 +637,13 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               item={selected}
               window={chatWindow}
               windowAnchor={privateOk ? windowAnchorAt(selected.id) : null}
+              onMarkUnread={() => {
+                markConversationUnread(selected.id);
+                setManualUnread((prev) =>
+                  prev.includes(selected.id) ? prev : [...prev, selected.id],
+                );
+                setSelectedId(null);
+              }}
             />
           ) : undefined
         }
