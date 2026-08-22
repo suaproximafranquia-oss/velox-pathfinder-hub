@@ -102,7 +102,7 @@ import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
-import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
+import { syncPortalActivity, listPortalActivities, summarizePortalActivity } from "@/lib/crm/portal-activity";
 import { startRelationship, archiveRelationship, restoreRelationship } from "@/lib/crm/commercial";
 import { isPortalReleased } from "@/lib/crm/portal-release";
 
