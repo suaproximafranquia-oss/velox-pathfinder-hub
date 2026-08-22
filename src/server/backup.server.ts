@@ -302,9 +302,9 @@ export async function pruneBackups(): Promise<number> {
     if (age <= RETENTION.fullHours * hour) {
       bucket = `raw:${id}`; // 48h: todos os pontos de 15 em 15 minutos
     } else if (age <= RETENTION.dailyDays * day) {
-      bucket = `day:${Math.floor(at / day)}`; // até 30 dias: 1 por dia
-    } else if (age <= (RETENTION.dailyDays + RETENTION.weeklyWeeks * 7) * day) {
-      bucket = `week:${Math.floor(at / (7 * day))}`; // 8 semanas: 1 por semana
+      // A lista vem em ordem decrescente: o primeiro ponto de cada dia
+      // é justamente o ÚLTIMO gerado naquele dia (fechamento do dia).
+      bucket = `day:${Math.floor(at / day)}`;
     } else {
       drop.push(id); // além do horizonte de retenção
       continue;
