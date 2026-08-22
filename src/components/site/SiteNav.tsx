@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import veloxLogo from "@/assets/editorial/velox-logo.png.asset.json";
+import { assetUrl } from "@/lib/assets/registry";
+
+const veloxLogo = { url: assetUrl("logo-velox") };
 
 export type NavSection = { id: string; label: string };
 
