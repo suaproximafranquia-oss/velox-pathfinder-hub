@@ -116,10 +116,11 @@ function defaultLabel(kind: BackupKind, origin: BackupOrigin): string {
 export const RETENTION = {
   /** Últimas 48 horas: todos os pontos (um a cada 15 minutos). */
   fullHours: 48,
-  /** De 48 horas a 30 dias: um ponto por dia. */
-  dailyDays: 30,
-  /** Após 30 dias: um ponto por semana, por 8 semanas. */
-  weeklyWeeks: 8,
+  /**
+   * COMANDO 2 §27 — depois das 48 horas permanece apenas o ÚLTIMO ponto
+   * de cada dia (fechamento do dia, ~23:45), por 7 dias corridos.
+   */
+  dailyDays: 7,
 } as const;
 
 /**
