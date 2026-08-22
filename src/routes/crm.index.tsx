@@ -144,6 +144,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Conversas já abertas nesta sessão — o indicador some ao abrir.
   const [openedIds, setOpenedIds] = useState<string[]>([]);
+  /**
+   * COMANDO 2 §12 — marcação pessoal "não lida" (Azul). Persiste entre
+   * sessões: o Executivo decide o que ainda precisa de atenção.
+   */
+  const [manualUnread, setManualUnread] = useState<string[]>([]);
+  useEffect(() => {
+    setManualUnread(listManuallyUnread());
+  }, []);
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
