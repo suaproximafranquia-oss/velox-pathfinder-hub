@@ -9,7 +9,8 @@ import { markCrmActivity, isCrmSessionExpired } from "@/lib/crm/session";
 import { crmCssVars, resolveCrmBranding } from "@/lib/crm/theme";
 import { findCrmTheme, getUserCrmTheme } from "@/lib/crm/themes";
 import { onSync } from "@/lib/sync-bus";
-import { ModuleAccessDenied, hasModuleAccess } from "@/components/executive/module-access-guard";
+import { ModuleAccessDenied } from "@/components/executive/module-access-guard";
+import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 
 /**
  * Shell do CRM de Relacionamento.
@@ -76,6 +77,17 @@ export function CrmShell({
     };
   }, [session]);
 
+  /**
+   * ATUALIZAÇÃO ESTRUTURAL §1 — a autorização do CRM vem do servidor e é
+   * reavaliada continuamente: revogar o módulo bloqueia a sessão aberta,
+   * sem depender de recarregamento.
+   */
+  const crmAllowed = useModuleAccess(
+    session?.userId ?? "",
+    session?.activeRole ?? "executivo",
+    "crm",
+  );
+
   if (!ready) return null;
 
   if (!session) {
@@ -102,7 +114,7 @@ export function CrmShell({
 
   // COMANDO 3B §3/§11 — sem permissão individual, nenhum componente ou
   // dado do CRM é carregado, mesmo em acesso direto por URL.
-  if (!hasModuleAccess(session, "crm")) {
+  if (!crmAllowed) {
     return <ModuleAccessDenied moduleKey="crm" />;
   }
 
