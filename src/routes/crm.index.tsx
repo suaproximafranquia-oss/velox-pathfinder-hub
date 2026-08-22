@@ -423,14 +423,26 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     });
   }, [selected?.id, selected?.access, actor.userId]);
 
-  // Ao selecionar, a conversa deixa de estar "nova" — e a marcação
-  // manual de "não lida" é sempre limpa ao abrir.
+  // Abrir a conversa (mensagens carregadas no painel central) encerra
+  // "Novo" e "Não lida": o estado passa a ser "Em atendimento".
   useEffect(() => {
     if (!selected) return;
+    markConversationOpened(selected.id);
     setOpenedIds((prev) => (prev.includes(selected.id) ? prev : [...prev, selected.id]));
     clearConversationUnread(selected.id);
     setManualUnread((prev) => prev.filter((id) => id !== selected.id));
   }, [selected?.id]);
+
+  /**
+   * Estado visual único por conversa — mutuamente exclusivo.
+   * Azul (não lida) › Laranja (aberta/em atendimento) › estado automático.
+   */
+  const visualStateOf = (item: CrmConversation): CrmVisualState => {
+    if (manualUnread.includes(item.id)) return "nao_lida";
+    if (openedIds.includes(item.id)) return "em_atendimento";
+    return item.relationshipState;
+  };
+
 
   // Próxima reunião — apenas a mais próxima ainda válida.
   const nextMeeting = useMemo(() => {
