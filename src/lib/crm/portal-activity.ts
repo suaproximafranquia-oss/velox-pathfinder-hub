@@ -112,3 +112,50 @@ export function syncPortalActivity(
     syncing = false;
   }
 }
+/**
+ * ETAPA 3 §8 — RESUMO EXECUTIVO DO PORTAL.
+ *
+ * O card do CRM NÃO é uma timeline: mostra apenas o ÚLTIMO acesso de
+ * cada item relevante e o último acesso geral ao Portal. O histórico
+ * completo continua íntegro na jornada/auditoria do Workspace.
+ */
+export type PortalLastAccess = {
+  module: JourneyModule;
+  label: string;
+  at: string;
+  detail?: string;
+};
+
+const SUMMARY_ORDER: JourneyModule[] = [
+  "manual",
+  "material",
+  "simulador",
+  "ia",
+  "reuniao",
+  "contato",
+];
+
+export function summarizePortalActivity(investorId: string): {
+  items: PortalLastAccess[];
+  lastPortalAt: string | null;
+} {
+  const journey = getJourney(investorId);
+  if (!journey) return { items: [], lastPortalAt: null };
+  const latest = new Map<JourneyModule, PortalLastAccess>();
+  let lastPortalAt: string | null = null;
+  for (const entry of journey.timeline) {
+    if (!lastPortalAt || entry.at > lastPortalAt) lastPortalAt = entry.at;
+    const current = latest.get(entry.module);
+    if (current && current.at >= entry.at) continue;
+    latest.set(entry.module, {
+      module: entry.module,
+      label: MODULE_LABEL[entry.module],
+      at: entry.at,
+      detail: entry.detail,
+    });
+  }
+  const items = SUMMARY_ORDER.map((m) => latest.get(m)).filter(
+    (v): v is PortalLastAccess => Boolean(v),
+  );
+  return { items, lastPortalAt };
+}
