@@ -77,6 +77,40 @@ export function ExecutiveShell({
   }, [session.userId]);
 
   /**
+   * §13 — invalidação imediata da sessão. A situação do usuário vive no
+   * servidor; se o perfil for desativado enquanto ele estiver dentro da
+   * plataforma, a sessão é encerrada na hora e o novo login é recusado
+   * pelo próprio backend. Nenhum dado é apagado (§16).
+   */
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      try {
+        const { listExecutiveStatus } = await import("@/lib/executive-status.functions");
+        const rows = await listExecutiveStatus();
+        if (!alive) return;
+        const mine = rows.find((r) => r.executiveId === session.userId);
+        if (mine?.status === "inativo") {
+          signOut();
+          navigate({ to: "/entrar" });
+        }
+      } catch {
+        /* indisponibilidade momentânea nunca derruba a sessão */
+      }
+    };
+    void check();
+    const timer = window.setInterval(check, 20_000);
+    const onFocus = () => void check();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [session.userId, navigate]);
+
+
+  /**
    * ATUALIZAÇÃO ESTRUTURAL §1 — permissões vindas do SERVIDOR. Quando o
    * Administrador desliga um módulo, esta sessão percebe a alteração
    * sozinha (sem logout e sem F5): o item some do menu e a rota
