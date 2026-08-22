@@ -17,7 +17,7 @@ import {
   Trash2,
   Square,
 } from "lucide-react";
-import { FileText, Clock3 } from "lucide-react";
+import { FileText, Clock3, MailOpen } from "lucide-react";
 import { type CrmConversation } from "@/lib/crm/relationships";
 import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
 import { whatsappPresence } from "@/lib/crm/presence";
