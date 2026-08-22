@@ -761,6 +761,27 @@ export type Database = {
         }
         Relationships: []
       }
+      executive_user_status: {
+        Row: {
+          executive_id: string
+          status: string
+          updated_at: string
+          updated_by_name: string | null
+        }
+        Insert: {
+          executive_id: string
+          status?: string
+          updated_at?: string
+          updated_by_name?: string | null
+        }
+        Update: {
+          executive_id?: string
+          status?: string
+          updated_at?: string
+          updated_by_name?: string | null
+        }
+        Relationships: []
+      }
       knowledge_documents: {
         Row: {
           chunks: Json
