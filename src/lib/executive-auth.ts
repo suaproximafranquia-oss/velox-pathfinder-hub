@@ -435,6 +435,10 @@ export async function signInWithCloud(
     const provisioned = await ensureExecutiveAuthUser({ data: { email, password } });
     if (provisioned.ok) {
       await supabase.auth.signInWithPassword({ email, password });
+    } else if (provisioned.reason === "inativo") {
+      // §13 — o servidor é a autoridade: perfil desativado NÃO entra.
+      signOut();
+      return null;
     }
   } catch {
     /* o acesso ao workspace nunca é bloqueado por indisponibilidade externa */
