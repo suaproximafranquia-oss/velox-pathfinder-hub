@@ -33,10 +33,8 @@ import {
 import { CRM_TIMELINE_LABEL, formatCrmTimestamp } from "@/lib/crm/timeline";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import { canAccessPortalWorkspace } from "@/lib/portal-workspace";
-import {
-  canUseConversationBackups,
-  canViewConversationBackupOf,
-} from "@/lib/workspace-permissions";
+import { canViewConversationBackupOf } from "@/lib/workspace-permissions";
+import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 import { restoreRelationship } from "@/lib/crm/commercial";
 import { onSync } from "@/lib/sync-bus";
 
