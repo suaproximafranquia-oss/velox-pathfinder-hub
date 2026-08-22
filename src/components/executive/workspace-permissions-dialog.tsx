@@ -9,11 +9,11 @@ import { ShieldCheck, X } from "lucide-react";
 import { ROLE_LABEL, type ExecutiveUser } from "@/lib/executive-auth";
 import {
   WORKSPACE_MODULE_LABEL,
-  loadWorkspacePermissions,
   resolveModuleAccess,
   setWorkspaceModuleAccess,
   type WorkspaceModuleKey,
 } from "@/lib/workspace-permissions";
+import { useWorkspacePermissions } from "@/hooks/use-workspace-permissions";
 
 export function WorkspacePermissionsDialog({
   user,
@@ -22,12 +22,19 @@ export function WorkspacePermissionsDialog({
   user: ExecutiveUser;
   onClose: () => void;
 }) {
-  const [map, setMap] = useState(() => loadWorkspacePermissions());
+  const map = useWorkspacePermissions();
+  const [saving, setSaving] = useState<WorkspaceModuleKey | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const value = (key: WorkspaceModuleKey) =>
     resolveModuleAccess(map, user.id, user.role, key);
 
-  function toggle(key: WorkspaceModuleKey) {
+  /**
+   * ATUALIZAÇÃO ESTRUTURAL §1 — a decisão é gravada no SERVIDOR. Só
+   * consideramos a permissão alterada quando o banco confirma; as demais
+   * sessões percebem a mudança automaticamente.
+   */
+  async function toggle(key: WorkspaceModuleKey) {
     const next = !value(key);
     const label = WORKSPACE_MODULE_LABEL[key];
     const extra = key === "crm" ? " O Backup de Conversas acompanha esta decisão." : "";
@@ -37,7 +44,15 @@ export function WorkspacePermissionsDialog({
         : `Remover o acesso ao módulo ${label} de ${user.name}?${extra}`,
     );
     if (!ok) return;
-    setMap(setWorkspaceModuleAccess(user.id, key, next));
+    setSaving(key);
+    setError(null);
+    try {
+      await setWorkspaceModuleAccess(user.id, key, next);
+    } catch {
+      setError("Não foi possível gravar a permissão no servidor. Nada foi alterado.");
+    } finally {
+      setSaving(null);
+    }
   }
 
   return (
@@ -91,7 +106,8 @@ export function WorkspacePermissionsDialog({
                 role="switch"
                 aria-checked={value(key)}
                 aria-label={`${WORKSPACE_MODULE_LABEL[key]} — ${value(key) ? "ON" : "OFF"}`}
-                onClick={() => toggle(key)}
+                disabled={saving === key}
+                onClick={() => void toggle(key)}
                 className={
                   "cursor-pointer rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.18em] transition " +
                   (value(key)
@@ -104,6 +120,14 @@ export function WorkspacePermissionsDialog({
             </div>
           ))}
         </div>
+
+        {error ? (
+          <p className="text-xs text-[color:var(--destructive)]">{error}</p>
+        ) : (
+          <p className="text-[11px] text-[color:var(--muted-foreground)]">
+            A permissão é gravada no servidor e vale imediatamente em todas as sessões.
+          </p>
+        )}
 
         <div className="flex justify-end">
           <button
