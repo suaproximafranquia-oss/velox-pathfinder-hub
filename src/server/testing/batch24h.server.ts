@@ -160,11 +160,11 @@ export async function resetHomologation(options: { dryRun: boolean }): Promise<R
       "relationship_events",
       "relationship_cadences",
     ]) {
-      await supabaseAdmin.from(table).delete().in("lead_id", cardIds);
+      await supabaseAdmin.from(table).delete().in("lead_id" as never, cardIds as never);
       affected.push(table);
     }
     for (const table of ["crm_messages", "crm_timeline", "portal_journey_events", "portal_engagement"]) {
-      await supabaseAdmin.from(table).delete().in("investor_id", cardIds);
+      await supabaseAdmin.from(table).delete().in("investor_id" as never, cardIds as never);
       affected.push(table);
     }
     const { count } = await supabaseAdmin
@@ -686,6 +686,7 @@ export async function readBatch24hReport(batchId: string): Promise<Batch24hRepor
     timeZone: String(b["time_zone"] ?? TEST_TIME_ZONE),
     startedAt: (b["started_at"] as string) ?? null,
     endsAt: (b["ends_at"] as string) ?? null,
+    rows,
     planned: events.length,
     created: rows.filter((r) => r.createdLeadAt).length,
     pending: rows.filter((r) => r.status === "PENDENTE").length,

@@ -219,7 +219,7 @@ function Batch24hPage() {
   }
 
   return (
-    <ExecutiveShell session={session} active="teste-entrada-24h">
+    <ExecutiveShell session={session} title="Teste de Entrada — 24 horas">
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.32em] text-amber-300/80">Homologação controlada</p>
