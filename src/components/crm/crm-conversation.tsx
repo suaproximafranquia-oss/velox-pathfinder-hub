@@ -151,10 +151,10 @@ export function CrmStartRelationshipDialog({
   );
 }
 
-/** Indicador padronizado do estágio automático do relacionamento. */
-export function CrmStateDot({ item }: { item: CrmConversation }) {
-  const meta = CRM_RELATIONSHIP_META[item.relationshipState];
-  return (
+/** Indicador padronizado — um único estado visual por conversa. */
+export function CrmStateDot({ item, state }: { item: CrmConversation; state?: CrmVisualState }) {
+  const meta = CRM_VISUAL_META[state ?? item.relationshipState];
+
     <span
       className="relative flex h-2 w-2 shrink-0 items-center justify-center"
       title={meta.label}
