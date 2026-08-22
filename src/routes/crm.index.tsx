@@ -150,7 +150,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Conversas já abertas nesta sessão — o indicador some ao abrir.
+  // Conversas já abertas — "Novo" (verde) vira "Em atendimento" (laranja).
   const [openedIds, setOpenedIds] = useState<string[]>([]);
   /**
    * COMANDO 2 §12 — marcação pessoal "não lida" (Azul). Persiste entre
@@ -159,6 +159,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [manualUnread, setManualUnread] = useState<string[]>([]);
   useEffect(() => {
     setManualUnread(listManuallyUnread());
+    setOpenedIds(listOpenedConversations());
   }, []);
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
