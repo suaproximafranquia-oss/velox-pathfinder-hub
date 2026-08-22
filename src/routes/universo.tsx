@@ -26,25 +26,30 @@ import {
 } from "@/components/site/v2";
 
 
-import heroImg from "@/assets/editorial/velox-sede.jpg.asset.json";
-import founderImg from "@/assets/editorial/mario-sergio.png.asset.json";
-import lojaFachadaImg from "@/assets/editorial/velox-loja-fachada.jpg.asset.json";
-import lojaFachada2Img from "@/assets/editorial/velox-loja-fachada2.jpg.asset.json";
-import lojaInauguracaoImg from "@/assets/editorial/velox-loja-inauguracao.jpg.asset.json";
-import treinamentoImg from "@/assets/editorial/velox-treinamento.png.asset.json";
-import ciroImg from "@/assets/editorial/velox-ciro-bottini.png.asset.json";
-import decisaoImg from "@/assets/editorial/velox-decisao-ref.png.asset.json";
-import relationshipImg from "@/assets/editorial/relationship.jpg.asset.json";
-import marketImg from "@/assets/editorial/market.jpg.asset.json";
-import consumerImg from "@/assets/editorial/consumer.jpg.asset.json";
-import collabImg from "@/assets/editorial/collab.jpg.asset.json";
-import techImg from "@/assets/editorial/tech.jpg.asset.json";
-import closingImg from "@/assets/editorial/closing.jpg.asset.json";
-import executivosImg from "@/assets/editorial/velox-executivos.png.asset.json";
-import larissaImg from "@/assets/editorial/velox-larissa.png.asset.json";
-import parceirosImg from "@/assets/editorial/velox-marketplace-parceiros.png.asset.json";
-import marioConsultoresImg from "@/assets/editorial/velox-mario-consultores.png.asset.json";
-import homeOfficeImg from "@/assets/editorial/velox-home-office.jpg.asset.json";
+// Mídias do material institucional — resolvidas pelo registro central de
+// assets (src/lib/assets/registry.ts). Cada posição depende de uma chave
+// semântica; trocar a foto = trocar o ponteiro no registro, sem mexer aqui.
+import { assetUrl } from "@/lib/assets/registry";
+
+const heroImg = { url: assetUrl("sede-velox") };
+const founderImg = { url: assetUrl("fundador-mario-sergio") };
+const lojaFachadaImg = { url: assetUrl("unidade-fachada") };
+const lojaFachada2Img = { url: assetUrl("unidade-fachada-alternativa") };
+const lojaInauguracaoImg = { url: assetUrl("unidade-inauguracao") };
+const treinamentoImg = { url: assetUrl("treinamento-rede") };
+const ciroImg = { url: assetUrl("embaixador-ciro-bottini") };
+const decisaoImg = { url: assetUrl("decisao-investidor") };
+const relationshipImg = { url: assetUrl("atendimento-consultivo") };
+const marketImg = { url: assetUrl("mercado-distrito-financeiro") };
+const consumerImg = { url: assetUrl("consumidor-financeiro") };
+const collabImg = { url: assetUrl("reuniao-colaborativa") };
+const techImg = { url: assetUrl("plataforma-tecnologica") };
+const closingImg = { url: assetUrl("encerramento-edificio") };
+const executivosImg = { url: assetUrl("equipe-expansao") };
+const larissaImg = { url: assetUrl("diretora-expansao-larissa") };
+const parceirosImg = { url: assetUrl("marketplace-parceiros") };
+const marioConsultoresImg = { url: assetUrl("fundador-com-consultores") };
+const homeOfficeImg = { url: assetUrl("modelo-home-office") };
 
 export const Route = createFileRoute("/universo")({
   head: () => ({

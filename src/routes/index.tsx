@@ -33,13 +33,15 @@ const InstitutionalOverlay = lazy(() =>
     default: m.InstitutionalOverlay,
   })),
 );
-import heroImg from "@/assets/velox-sede-hero.png.asset.json";
-import manualCoverImg from "@/assets/portal-manual-cover.png.asset.json";
-import materialInstitucionalImg from "@/assets/portal-material-institucional.png.asset.json";
-import sedeFachadaImg from "@/assets/portal-sede-fachada.png.asset.json";
-import revistaImg from "@/assets/portal-revista-velox.png.asset.json";
-import experienciasImg from "@/assets/portal-experiencias.png.asset.json";
-import simuladorImg from "@/assets/portal-simulador.jpg.asset.json";
+import { assetUrl } from "@/lib/assets/registry";
+
+const heroImg = { url: assetUrl("portal-hero-sede") };
+const manualCoverImg = { url: assetUrl("portal-capa-manual") };
+const materialInstitucionalImg = { url: assetUrl("portal-capa-material-institucional") };
+const sedeFachadaImg = { url: assetUrl("portal-capa-sede") };
+const revistaImg = { url: assetUrl("portal-capa-revista") };
+const experienciasImg = { url: assetUrl("portal-capa-experiencias") };
+const simuladorImg = { url: assetUrl("portal-capa-simulador") };
 import {
   hasPortalSession,
   setJourneyStatus,
