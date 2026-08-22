@@ -221,3 +221,30 @@ export function buildBatch24hPayload(
     ],
   };
 }
+
+/**
+ * Reconstrói o lead fictício a partir do registro persistido do evento.
+ * Mantém a mesma fórmula usada no planejamento — o banco guarda apenas
+ * a identidade; telefone, e-mail e cidade continuam derivados aqui.
+ */
+export function rebuildPlannedEvent(row: {
+  position: number;
+  entry_type: EntryType;
+  slot: TimeSlot;
+  external_id: string;
+  lead_name: string;
+  scheduled_at: string;
+}): PlannedEvent {
+  const index = row.position - 1;
+  return {
+    position: row.position,
+    entryType: row.entry_type,
+    slot: row.slot,
+    externalId: row.external_id,
+    name: row.lead_name,
+    phone: `${TEST_PHONE_PREFIX}${String(910000000 + index).slice(0, 9)}`,
+    email: `${row.external_id.toLowerCase()}@${TEST_EMAIL_DOMAIN}`,
+    city: CITIES[index % CITIES.length]!,
+    scheduledAt: row.scheduled_at,
+  };
+}
