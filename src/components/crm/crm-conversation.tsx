@@ -223,13 +223,17 @@ export function CrmAvatar({
 export function CrmConversationItem({
   item,
   active,
-  unread = false,
+  visualState,
   movement,
   onSelect,
 }: {
   item: CrmConversation;
   active: boolean;
-  unread?: boolean;
+  /**
+   * Estado visual único (Novo / Em atendimento / Não lida). Nunca há um
+   * segundo indicador: a bolinha e o rótulo sempre descrevem o mesmo estado.
+   */
+  visualState?: CrmVisualState;
   /**
    * DEF 2.4.15 §5 — nenhum alerta sobe a conversa sem informar o motivo.
    * Quando presente, descreve a movimentação que trouxe a conversa ao topo.
@@ -237,6 +241,7 @@ export function CrmConversationItem({
   movement?: string | null;
   onSelect: () => void;
 }) {
+  const state: CrmVisualState = visualState ?? item.relationshipState;
   return (
     <button
       type="button"
@@ -256,18 +261,19 @@ export function CrmConversationItem({
           </span>
         </span>
         <span className="mt-1 flex items-center gap-2">
-          <CrmStateDot item={item} />
-          <span className="min-w-0 flex-1 truncate text-[11px] text-[color:var(--crm-muted)]">
-            {CRM_RELATIONSHIP_META[item.relationshipState].label}
+          <CrmStateDot item={item} state={state} />
+          <span
+            className={[
+              "min-w-0 flex-1 truncate text-[11px]",
+              state === "nao_lida"
+                ? "font-semibold text-blue-600"
+                : "text-[color:var(--crm-muted)]",
+            ].join(" ")}
+          >
+            {CRM_VISUAL_META[state].label}
           </span>
-          {unread ? (
-            <span
-              aria-label="Mensagens novas"
-              title="Mensagens novas"
-              className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--crm-accent)]"
-            />
-          ) : null}
         </span>
+
         {movement ? (
           <span className="crm-enter mt-1.5 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[10px] leading-snug text-amber-800">
             <AlertTriangle className="mt-[1px] h-3 w-3 shrink-0" />
