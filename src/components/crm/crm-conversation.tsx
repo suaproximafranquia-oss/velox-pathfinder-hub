@@ -19,7 +19,12 @@ import {
 } from "lucide-react";
 import { FileText, Clock3, MailOpen } from "lucide-react";
 import { type CrmConversation } from "@/lib/crm/relationships";
-import { CRM_RELATIONSHIP_META } from "@/lib/crm/relationship-state";
+import {
+  CRM_RELATIONSHIP_META,
+  CRM_VISUAL_META,
+  type CrmVisualState,
+} from "@/lib/crm/relationship-state";
+
 import { whatsappPresence } from "@/lib/crm/presence";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
