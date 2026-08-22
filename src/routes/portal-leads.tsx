@@ -52,6 +52,14 @@ function PortalLeadsPage() {
       .finally(() => setReady(true));
   }, [navigate]);
 
+  const portalAllowed = useModuleAccess(
+    session?.userId ?? "",
+    session?.activeRole ?? "executivo",
+    "portal_leads",
+  );
+
+
+
   // ATUALIZAÇÃO ESTRUTURAL §1 — autorização reativa vinda do servidor:
   // acesso direto por URL é bloqueado e a revogação vale na hora.
   if (!ready || !session) return null;
