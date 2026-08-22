@@ -259,53 +259,50 @@ export function DailyCallsOverlay({
             <p className="border-b border-white/10 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-white/40">
               Pendentes
             </p>
-            <ul className="flex-1 space-y-1 overflow-y-auto p-2">
-              {queue.length === 0 && (
-                <li className="px-2 py-6 text-center text-[11px] text-white/30">
-                  Nenhuma ligação pendente
-                </li>
+            <div className="flex-1 overflow-y-auto p-2">
+              {overdueItems.length > 0 && (
+                <>
+                  <p className="px-2 pb-1 pt-1 text-[10px] uppercase tracking-[0.16em] text-red-300/80">
+                    Atrasadas · {overdueItems.length}
+                  </p>
+                  <ul className="space-y-1">
+                    {overdueItems.map((item) => (
+                      <QueueRow
+                        key={item.leadId}
+                        item={item}
+                        selected={item.leadId === selectedId}
+                        busy={busy}
+                        onSelect={() => setSelectedId(item.leadId)}
+                        onSkip={() => void handleDone(item, "NAO")}
+                      />
+                    ))}
+                  </ul>
+                </>
               )}
-              {queue.map((item) => (
-                <li key={item.leadId}>
-                  <div
-                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 transition ${
-                      item.leadId === selectedId
-                        ? "border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10"
-                        : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(item.leadId)}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <p className="truncate text-[13px] font-medium text-white/90">
-                        {item.name || "Sem nome"}
-                        {item.overdue && (
-                          <span className="ml-2 rounded-full bg-red-400/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-red-300">
-                            atrasada
-                          </span>
-                        )}
-                      </p>
-                      <p className="truncate text-[11px] text-white/50">
-                        {item.phone || "Sem telefone"}
-                      </p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDone(item, "NAO")}
-                      disabled={busy}
-                      aria-label={`Registrar que ${item.name} não atendeu`}
-                      title="Não atendeu — remover da fila de hoje"
-                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 text-white/60 transition hover:border-[color:var(--gold)]/50 hover:text-[color:var(--gold)] disabled:opacity-50"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+              <p className="px-2 pb-1 pt-3 text-[10px] uppercase tracking-[0.16em] text-white/40">
+                Para hoje · {todayItems.length}
+              </p>
+              {todayItems.length === 0 ? (
+                <p className="px-2 py-4 text-[11px] text-white/35">
+                  Nenhuma ligação programada para hoje.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {todayItems.map((item) => (
+                    <QueueRow
+                      key={item.leadId}
+                      item={item}
+                      selected={item.leadId === selectedId}
+                      busy={busy}
+                      onSelect={() => setSelectedId(item.leadId)}
+                      onSkip={() => void handleDone(item, "NAO")}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
           </aside>
+
         </div>
       </div>
     </div>
