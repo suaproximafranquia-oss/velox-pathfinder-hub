@@ -466,9 +466,15 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
   const meetingUrl = nextMeeting?.meetUrl ?? nextMeeting?.meetingProviderUrl ?? null;
 
-  // Atividades reais do investidor no Portal — exibidas na própria ficha.
-  const portalActivities = useMemo(
-    () => (selected && privateOk ? listPortalActivities(selected.id, 5) : []),
+  /**
+   * ETAPA 3 §8 — o card do Portal mostra apenas o ÚLTIMO acesso de cada
+   * item. O histórico completo permanece na jornada/auditoria.
+   */
+  const portalSummary = useMemo(
+    () =>
+      selected && privateOk
+        ? summarizePortalActivity(selected.id)
+        : { items: [], lastPortalAt: null },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selected?.id, privateOk, tick],
   );
