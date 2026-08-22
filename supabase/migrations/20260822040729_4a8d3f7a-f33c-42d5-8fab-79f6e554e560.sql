@@ -1,0 +1,1 @@
+ALTER TABLE public.portal_engagement ADD COLUMN IF NOT EXISTS modules_last jsonb NOT NULL DEFAULT '{}'::jsonb;

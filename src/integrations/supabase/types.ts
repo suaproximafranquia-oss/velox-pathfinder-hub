@@ -1065,6 +1065,7 @@ export type Database = {
           investor_id: string
           last_access_at: string
           modules: Json
+          modules_last: Json
           returns: number
           session_started_at: string
           sessions: number
@@ -1077,6 +1078,7 @@ export type Database = {
           investor_id: string
           last_access_at?: string
           modules?: Json
+          modules_last?: Json
           returns?: number
           session_started_at?: string
           sessions?: number
@@ -1089,6 +1091,7 @@ export type Database = {
           investor_id?: string
           last_access_at?: string
           modules?: Json
+          modules_last?: Json
           returns?: number
           session_started_at?: string
           sessions?: number
