@@ -124,13 +124,33 @@ export async function registerFirstContact(
    */
   try {
     const { productionEngine } = await import("@/server/relationship/engine.server");
-    await productionEngine().handleEvent({
+    const engine = productionEngine();
+    /**
+     * REENTRADA x PRIMEIRA ENTRADA: a etapa de abertura NÃO é fixada
+     * aqui. Quem decide é a máquina de estados — reentrada abre em RE0,
+     * entrada pelo Portal abre em E0_V1 e a entrada comum abre em E0.
+     * Fixar "E0" fazia toda reentrada ser confundida com primeiro contato.
+     */
+    if (input.reactivation) {
+      await engine.handleEvent({
+        id: `reentry_${input.leadId}`,
+        scope: "production",
+        leadId: input.leadId,
+        type: "LEAD_CREATED",
+        at,
+        data: { reentry: true },
+      });
+    }
+    await engine.handleEvent({
       id: `e0_${input.leadId}`,
       scope: "production",
       leadId: input.leadId,
       type: "FIRST_CONTACT_SENT",
       at,
-      step: "E0",
+      data: {
+        reentry: Boolean(input.reactivation),
+        entryOrigin: input.entryOrigin ?? "GREENSALES",
+      },
     });
   } catch (error) {
     console.error(
