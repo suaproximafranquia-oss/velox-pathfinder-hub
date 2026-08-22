@@ -39,8 +39,8 @@ export const CRM_RELATIONSHIP_META: Record<
   em_atendimento: {
     label: "Em atendimento",
     hint: "O investidor respondeu — conversa ativa.",
-    dot: "bg-blue-500",
-    chip: "bg-blue-50 text-blue-700",
+    dot: "bg-orange-500",
+    chip: "bg-orange-50 text-orange-700",
     pulse: true,
   },
   inativo: {
@@ -51,6 +51,31 @@ export const CRM_RELATIONSHIP_META: Record<
     pulse: false,
   },
 };
+
+/**
+ * MICROCOMANDO — estado VISUAL único da conversa.
+ *
+ * A lista do CRM nunca exibe dois indicadores: "não lida" (azul) é um
+ * estado, não um selo adicional. Verde (Novo) → Laranja (Em atendimento)
+ * ao abrir; Laranja → Azul ao marcar como não lida; Azul → Laranja ao
+ * abrir novamente. Sempre por conversa, nunca em lote.
+ */
+export type CrmVisualState = CrmRelationshipState | "nao_lida";
+
+export const CRM_VISUAL_META: Record<
+  CrmVisualState,
+  { label: string; hint: string; dot: string; chip: string; pulse: boolean }
+> = {
+  ...CRM_RELATIONSHIP_META,
+  nao_lida: {
+    label: "Não lida",
+    hint: "Marcada manualmente pelo Executivo como pendente de leitura.",
+    dot: "bg-blue-500",
+    chip: "bg-blue-50 text-blue-700",
+    pulse: false,
+  },
+};
+
 
 type Entry = {
   /** Último envio registrado do Executivo. */
