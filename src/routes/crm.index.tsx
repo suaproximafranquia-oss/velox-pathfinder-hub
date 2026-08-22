@@ -102,7 +102,7 @@ import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
-import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
+import { syncPortalActivity, listPortalActivities, summarizePortalActivity } from "@/lib/crm/portal-activity";
 import { startRelationship, archiveRelationship, restoreRelationship } from "@/lib/crm/commercial";
 import { isPortalReleased } from "@/lib/crm/portal-release";
 
@@ -466,9 +466,15 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
 
   const meetingUrl = nextMeeting?.meetUrl ?? nextMeeting?.meetingProviderUrl ?? null;
 
-  // Atividades reais do investidor no Portal — exibidas na própria ficha.
-  const portalActivities = useMemo(
-    () => (selected && privateOk ? listPortalActivities(selected.id, 5) : []),
+  /**
+   * ETAPA 3 §8 — o card do Portal mostra apenas o ÚLTIMO acesso de cada
+   * item. O histórico completo permanece na jornada/auditoria.
+   */
+  const portalSummary = useMemo(
+    () =>
+      selected && privateOk
+        ? summarizePortalActivity(selected.id)
+        : { items: [], lastPortalAt: null },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selected?.id, privateOk, tick],
   );
@@ -979,30 +985,40 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 label="Manual"
                 value={privateOk ? `${selected.readingPct}% concluído` : undefined}
               />
-              <CrmRecordRow label="Material" value={undefined} />
-              <CrmRecordRow label="Calculadora" value={undefined} />
+              {privateOk
+                ? portalSummary.items.map((a) => (
+                    <CrmRecordRow
+                      key={a.module}
+                      label={a.label}
+                      value={`último acesso ${new Date(a.at).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`}
+                    />
+                  ))
+                : null}
               <CrmRecordRow
                 label="Último acesso ao Portal"
-                value={privateOk ? selected.lastActivityLabel : undefined}
-              />
-              {portalActivities.length > 0 ? (
-                <ul className="mt-1 space-y-1.5 border-t border-[color:var(--crm-border)] pt-2.5">
-                  {portalActivities.map((a) => (
-                    <li key={a.id} className="crm-enter flex items-start justify-between gap-3">
-                      <span className="min-w-0 truncate text-xs">{a.label}</span>
-                      <span className="shrink-0 text-[11px] tabular-nums text-[color:var(--crm-muted)]">
-                        {new Date(a.at).toLocaleString("pt-BR", {
+                value={
+                  privateOk
+                    ? portalSummary.lastPortalAt
+                      ? new Date(portalSummary.lastPortalAt).toLocaleString("pt-BR", {
                           day: "2-digit",
                           month: "2-digit",
                           hour: "2-digit",
                           minute: "2-digit",
-                        })}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+                        })
+                      : selected.lastActivityLabel
+                    : undefined
+                }
+              />
+              <p className="pt-1 text-[10px] leading-snug text-[color:var(--crm-muted)]">
+                Resumo executivo — o histórico completo da jornada permanece no Workspace.
+              </p>
             </CrmRecordSection>
+
 
             <CrmRecordSection title="Agenda" tone="laranja" icon={CalendarClock}>
               {nextMeeting ? (
