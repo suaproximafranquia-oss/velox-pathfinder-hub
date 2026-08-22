@@ -102,7 +102,28 @@ import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
-import { syncPortalActivity, listPortalActivities, summarizePortalActivity } from "@/lib/crm/portal-activity";
+import { syncPortalActivity, listPortalActivities } from "@/lib/crm/portal-activity";
+import { getPortalEngagement } from "@/lib/portal-engagement.functions";
+
+/**
+ * §7 — os quatro módulos da Ficha. Blocos institucionais NÃO entram:
+ * eles não contam como engajamento comercial do investidor.
+ */
+const PORTAL_FICHA_MODULES = [
+  { key: "manual", label: "Manual" },
+  { key: "material", label: "Material Institucional" },
+  { key: "simulador", label: "Calculadora" },
+  { key: "revista", label: "Revista" },
+] as const;
+
+function fmtPortalDate(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 import { startRelationship, archiveRelationship, restoreRelationship } from "@/lib/crm/commercial";
 import { isPortalReleased } from "@/lib/crm/portal-release";
 
@@ -560,6 +581,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     onSelect={() => {
                       setTempId(null);
                       setSelectedId(item.id);
+                      // Abrir sempre resolve o azul, inclusive quando a
+                      // conversa já era a selecionada.
+                      markConversationOpened(item.id);
+                      clearConversationUnread(item.id);
+                      setOpenedIds((prev) =>
+                        prev.includes(item.id) ? prev : [...prev, item.id],
+                      );
+                      setManualUnread((prev) => prev.filter((id) => id !== item.id));
                     }}
                   />
                 ))}
@@ -680,7 +709,8 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                 setManualUnread((prev) =>
                   prev.includes(selected.id) ? prev : [...prev, selected.id],
                 );
-                setSelectedId(null);
+                // §2 — marcar como não lida NUNCA altera a conversa
+                // selecionada nem devolve a lista ao primeiro item.
               }}
             />
           ) : undefined
