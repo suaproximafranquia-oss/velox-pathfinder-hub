@@ -51,3 +51,37 @@ export function clearConversationUnread(conversationId: string): void {
 export function listManuallyUnread(): string[] {
   return Object.keys(read());
 }
+
+/**
+ * Conversas já abertas pelo Executivo (painel central carregado).
+ * Abrir encerra o estado "Novo" e fixa "Em atendimento" — persistente,
+ * para que o estado visual não regrida ao recarregar a página.
+ */
+const OPENED_KEY = "atlas:crm:opened:v1";
+
+function readOpened(): Store {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(OPENED_KEY);
+    return raw ? (JSON.parse(raw) as Store) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function listOpenedConversations(): string[] {
+  return Object.keys(readOpened());
+}
+
+export function markConversationOpened(conversationId: string): void {
+  const store = readOpened();
+  if (store[conversationId]) return;
+  store[conversationId] = true;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(OPENED_KEY, JSON.stringify(store));
+  } catch {
+    /* armazenamento indisponível — vale apenas na sessão */
+  }
+}
+

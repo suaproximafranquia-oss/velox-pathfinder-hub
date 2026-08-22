@@ -40,6 +40,8 @@ import {
 import {
   clearConversationUnread,
   listManuallyUnread,
+  listOpenedConversations,
+  markConversationOpened,
   markConversationUnread,
 } from "@/lib/crm/conversation-read";
 import { listMeetings } from "@/lib/meetings";
@@ -48,6 +50,7 @@ import {
   markOutboundMessage,
   markWindowOpened,
   windowAnchorAt,
+  type CrmVisualState,
 } from "@/lib/crm/relationship-state";
 import { resolveCrmWindow } from "@/lib/crm/templates";
 import { CRM_THEMES, getUserCrmTheme, setUserCrmTheme, type CrmThemeId } from "@/lib/crm/themes";
@@ -90,7 +93,11 @@ import { investorPortalUrl } from "@/lib/portal-brands";
 import { recordCrmEvent } from "@/lib/crm/timeline";
 import { actorFromSession } from "@/lib/crm/access";
 import { CRM_AREAS, type CrmAreaKey } from "@/lib/crm/modules";
-import { listConversations, filterConversations } from "@/lib/crm/relationships";
+import {
+  listConversations,
+  filterConversations,
+  type CrmConversation,
+} from "@/lib/crm/relationships";
 import type { ExecutiveSession } from "@/lib/executive-auth";
 import { onEvent } from "@/lib/events/bus";
 import { onSync } from "@/lib/sync-bus";
@@ -147,7 +154,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Conversas já abertas nesta sessão — o indicador some ao abrir.
+  // Conversas já abertas — "Novo" (verde) vira "Em atendimento" (laranja).
   const [openedIds, setOpenedIds] = useState<string[]>([]);
   /**
    * COMANDO 2 §12 — marcação pessoal "não lida" (Azul). Persiste entre
@@ -156,6 +163,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
   const [manualUnread, setManualUnread] = useState<string[]>([]);
   useEffect(() => {
     setManualUnread(listManuallyUnread());
+    setOpenedIds(listOpenedConversations());
   }, []);
   const [tick, setTick] = useState(0);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
@@ -419,14 +427,26 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     });
   }, [selected?.id, selected?.access, actor.userId]);
 
-  // Ao selecionar, a conversa deixa de estar "nova" — e a marcação
-  // manual de "não lida" é sempre limpa ao abrir.
+  // Abrir a conversa (mensagens carregadas no painel central) encerra
+  // "Novo" e "Não lida": o estado passa a ser "Em atendimento".
   useEffect(() => {
     if (!selected) return;
+    markConversationOpened(selected.id);
     setOpenedIds((prev) => (prev.includes(selected.id) ? prev : [...prev, selected.id]));
     clearConversationUnread(selected.id);
     setManualUnread((prev) => prev.filter((id) => id !== selected.id));
   }, [selected?.id]);
+
+  /**
+   * Estado visual único por conversa — mutuamente exclusivo.
+   * Azul (não lida) › Laranja (aberta/em atendimento) › estado automático.
+   */
+  const visualStateOf = (item: CrmConversation): CrmVisualState => {
+    if (manualUnread.includes(item.id)) return "nao_lida";
+    if (openedIds.includes(item.id)) return "em_atendimento";
+    return item.relationshipState;
+  };
+
 
   // Próxima reunião — apenas a mais próxima ainda válida.
   const nextMeeting = useMemo(() => {
@@ -514,10 +534,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
                     key={item.id}
                     item={item}
                     active={selected?.id === item.id}
-                    unread={
-                      manualUnread.includes(item.id) ||
-                      (item.state === "novo" && !openedIds.includes(item.id))
-                    }
+                    visualState={visualStateOf(item)}
                     movement={movements[item.id]}
                     onSelect={() => {
                       setTempId(null);
