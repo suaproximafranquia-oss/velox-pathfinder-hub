@@ -289,11 +289,14 @@ export function CrmConversationHeader({
   item,
   window: win,
   windowAnchor,
+  onMarkUnread,
 }: {
   item: CrmConversation;
   window?: CrmWindowStatus;
   /** Âncora da janela de 24h — permite o contador regressivo ao vivo. */
   windowAnchor?: string | null;
+  /** COMANDO 2 §12 — devolve a conversa ao estado "não lida" (Azul). */
+  onMarkUnread?: () => void;
 }) {
   const presence = whatsappPresence(item.id);
   useSecondTick(Boolean(win?.open));
@@ -328,6 +331,20 @@ export function CrmConversationHeader({
           <Clock3 className="h-3.5 w-3.5" />
           {live.label}
         </span>
+      ) : null}
+      {onMarkUnread ? (
+        <button
+          type="button"
+          onClick={onMarkUnread}
+          title="Marcar como não lida"
+          className={[
+            "inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--crm-border)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--crm-muted)] transition-colors hover:text-[color:var(--crm-accent)]",
+            live ? "" : "ml-auto",
+          ].join(" ")}
+        >
+          <MailOpen className="h-3.5 w-3.5" />
+          Marcar como não lida
+        </button>
       ) : null}
     </div>
   );
