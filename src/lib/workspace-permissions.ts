@@ -13,6 +13,10 @@
  */
 import type { ExecutiveRole } from "@/lib/executive-auth";
 import { canAccessPortalWorkspace } from "@/lib/portal-workspace";
+import {
+  getWorkspacePermissionCache,
+  persistWorkspacePermission,
+} from "@/lib/workspace-permissions-store";
 
 export type WorkspaceModuleKey = "crm" | "portal_leads";
 
