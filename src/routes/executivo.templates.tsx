@@ -328,7 +328,7 @@ function TemplatesPage() {
                             setView("detalhe");
                           }}
                         >
-                          Editar
+                          Visualizar
                         </button>
                       </td>
                     </tr>
