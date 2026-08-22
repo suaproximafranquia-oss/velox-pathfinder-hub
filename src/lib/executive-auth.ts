@@ -94,14 +94,21 @@ const ROLE_WEIGHT: Record<ExecutiveRole, number> = {
 };
 
 /**
- * Perfis que um usuário pode assumir para navegação/teste. Um Administrador
- * pode atuar como Gestor ou Colaborador; um Gestor pode atuar como Colaborador;
- * um Colaborador só pode ser Colaborador.
+ * Perfis que um usuário pode assumir para navegação/teste.
+ *
+ * ATUALIZAÇÃO ESTRUTURAL §2 — perfil REAL e perfil ATIVO são coisas
+ * distintas. O Administrador alterna apenas entre Administrador e
+ * Colaborador: ele nunca assume "Gestor", porque a Gestão possui uma
+ * carteira própria (Central Única) que não lhe pertence. O perfil real
+ * da Gestora permanece intacto — ela continua alternando para
+ * Colaborador quando quiser.
  */
 export function availableRoles(grantedRole: ExecutiveRole): ExecutiveRole[] {
+  if (grantedRole === "super_admin") return ["super_admin", "executivo"];
   const w = ROLE_WEIGHT[grantedRole];
   return (Object.keys(ROLE_WEIGHT) as ExecutiveRole[]).filter((r) => ROLE_WEIGHT[r] <= w);
 }
+
 
 /** Retorna a permissão para acessar o módulo Central de Conhecimento. */
 export function canManageKnowledge(role: ExecutiveRole): boolean {
