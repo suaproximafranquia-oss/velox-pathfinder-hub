@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import type { Investor } from "@/lib/executive-data";
 import { STATUS_LABEL, formatRelative } from "@/lib/executive-data";
+import { PORTAL_ACCESS_POLL_MS } from "@/lib/portal-access";
+import {
+  getInvestorJourneyState,
+  type InvestorJourneyState,
+} from "@/lib/portal-access.functions";
 import { loadUsers, type ExecutiveSession } from "@/lib/executive-auth";
 import { buildInvestorProfile, type InvestorProfile } from "@/lib/investor-profile";
 import { onEvent } from "@/lib/events/bus";
@@ -37,7 +42,6 @@ import {
 } from "@/lib/workspace-lead-edit";
 import {
   listSimulations,
-  getLastSimulation,
   openSimulationPdf,
   formatSimulationDate,
   type SimulationRecord,
@@ -68,15 +72,6 @@ const ORIGIN_LABEL: Record<string, string> = {
   portal: "Portal Velox",
   manual: "Manual do Investidor",
 };
-
-const MODULES = [
-  { key: "manual", label: "Manual do Investidor" },
-  { key: "material", label: "Material Institucional" },
-  { key: "simulador", label: "Simulador Inteligente" },
-  { key: "sede", label: "Nossa Estrutura" },
-  { key: "revista", label: "Revista Velox" },
-  { key: "cultura", label: "Cultura Velox" },
-] as const;
 
 export function InvestorProfileView({
   investor,
@@ -779,37 +774,6 @@ function SimulationsHistoryDialog({
       </div>
     </div>
   );
-}
-
-function deriveModuleProgress(inv: Investor): Record<
-  (typeof MODULES)[number]["key"],
-  { pct: number; status: "nao_iniciado" | "em_andamento" | "concluido"; lastActivity: string }
-> {
-  const rel = formatRelative(inv.lastActivity);
-  const manualPct = inv.readingPct;
-  const manualStatus =
-    manualPct >= 100 ? "concluido" : manualPct > 0 ? "em_andamento" : "nao_iniciado";
-  return {
-    manual: { pct: manualPct, status: manualStatus, lastActivity: rel },
-    material: {
-      pct: manualPct >= 60 ? 40 : 0,
-      status: manualPct >= 60 ? "em_andamento" : "nao_iniciado",
-      lastActivity: manualPct >= 60 ? rel : "—",
-    },
-    simulador: {
-      pct: inv.diagnostic === "concluído" ? 100 : inv.diagnostic === "em andamento" ? 50 : 0,
-      status:
-        inv.diagnostic === "concluído"
-          ? "concluido"
-          : inv.diagnostic === "em andamento"
-            ? "em_andamento"
-            : "nao_iniciado",
-      lastActivity: inv.diagnostic === "não iniciado" ? "—" : rel,
-    },
-    sede: { pct: 0, status: "nao_iniciado", lastActivity: "—" },
-    revista: { pct: 0, status: "nao_iniciado", lastActivity: "—" },
-    cultura: { pct: 0, status: "nao_iniciado", lastActivity: "—" },
-  };
 }
 
 /* ---------- Aba Linha do Tempo ---------- */
