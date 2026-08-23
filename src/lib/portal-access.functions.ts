@@ -214,3 +214,145 @@ export const listPortalJourneyEvents = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
+/* ------------------------------------------------------------------ */
+/* JORNADA — ESTADO ÚNICO POR MÓDULO (fonte de verdade no servidor)     */
+/* ------------------------------------------------------------------ */
+
+export type ModuleProgressStatus = "nao_iniciado" | "em_andamento" | "concluido";
+export type ModuleAccessStatus = "nao_acessado" | "acessado" | "concluido";
+export type SimulatorStatus = "nao_iniciado" | "iniciado" | "simulado";
+
+export type InvestorJourneyState = {
+  investorId: string;
+  /** Última atividade REAL do investidor no Portal. */
+  lastPortalAt: string | null;
+  sessions: number;
+  returns: number;
+  activeMs: number;
+  /** Módulos com pelo menos um acesso registrado. */
+  modulesAccessed: number;
+  manual: {
+    status: ModuleProgressStatus;
+    /** Percentual REAL de leitura — nunca estimado. */
+    percent: number;
+    chapter: string | null;
+    firstAt: string | null;
+    lastAt: string | null;
+    completedAt: string | null;
+  };
+  /** Progresso mensurável só existe quando o conteúdo o produz. */
+  material: { status: ModuleProgressStatus; firstAt: string | null; lastAt: string | null };
+  simulador: {
+    status: SimulatorStatus;
+    simulations: number;
+    lastSimulationAt: string | null;
+    firstAt: string | null;
+    lastAt: string | null;
+  };
+  /** Conteúdos de leitura: acessado ou não — sem percentual. */
+  estrutura: { status: ModuleAccessStatus; lastAt: string | null };
+  revista: { status: ModuleAccessStatus; lastAt: string | null; detail: string | null };
+  principios: { status: ModuleAccessStatus; lastAt: string | null };
+};
+
+/**
+ * Estado consolidado da jornada — lido por Ficha, aba Jornada,
+ * Engajamento e Central do Executivo. Deriva EXCLUSIVAMENTE do que está
+ * persistido: `portal_leads` (progresso do Manual), `portal_engagement`
+ * (sessões/tempo/módulos) e `portal_journey_events` (eventos reais).
+ * Nenhum percentual é inventado e nenhum estado é inferido do navegador.
+ */
+export const getInvestorJourneyState = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ investorId: z.string().min(3) }).parse(data))
+  .handler(async ({ data, context }): Promise<InvestorJourneyState | null> => {
+    const { data: lead } = await context.supabase
+      .from("portal_leads")
+      .select(
+        "id,journey_percent,journey_chapter,journey_started_at,journey_completed_at,journey_first_access_at,journey_last_event_at",
+      )
+      .eq("id", data.investorId)
+      .maybeSingle();
+    if (!lead) return null;
+
+    const [{ data: eng }, { data: events }] = await Promise.all([
+      context.supabase
+        .from("portal_engagement")
+        .select("sessions,returns,active_ms,modules,modules_last,last_access_at")
+        .eq("investor_id", data.investorId)
+        .maybeSingle(),
+      context.supabase
+        .from("portal_journey_events")
+        .select("event,module,detail,created_at")
+        .eq("investor_id", data.investorId)
+        .order("created_at", { ascending: false })
+        .limit(500),
+    ]);
+
+    const row = lead as Record<string, unknown>;
+    const first = (eng?.modules as Record<string, string> | null) ?? {};
+    const last = (eng?.modules_last as Record<string, string> | null) ?? {};
+    const list = (events ?? []) as {
+      event: string;
+      module: string | null;
+      detail: string | null;
+      created_at: string;
+    }[];
+
+    const has = (event: string) => list.some((e) => e.event === event);
+    const simulations = list.filter((e) => e.event === "simulator.completed");
+    const revistaEvent = list.find((e) => e.module === "revista");
+
+    const manualPercent = Number(row["journey_percent"] ?? 0);
+    const manualCompletedAt = (row["journey_completed_at"] as string) ?? null;
+    const manualFirst = first["manual"] ?? (row["journey_started_at"] as string) ?? null;
+
+    const access = (key: string): ModuleAccessStatus =>
+      last[key] ? "acessado" : "nao_acessado";
+
+    return {
+      investorId: data.investorId,
+      lastPortalAt: (eng?.last_access_at as string) ?? (row["journey_last_event_at"] as string) ?? null,
+      sessions: Number(eng?.sessions ?? 0),
+      returns: Number(eng?.returns ?? 0),
+      activeMs: Number(eng?.active_ms ?? 0),
+      modulesAccessed: Object.keys(last).filter((k) => k !== "portal").length,
+      manual: {
+        status: manualCompletedAt
+          ? "concluido"
+          : manualFirst || manualPercent > 0
+            ? "em_andamento"
+            : "nao_iniciado",
+        percent: manualCompletedAt ? 100 : Math.max(0, Math.min(100, manualPercent)),
+        chapter: (row["journey_chapter"] as string) ?? null,
+        firstAt: manualFirst,
+        lastAt: last["manual"] ?? null,
+        completedAt: manualCompletedAt,
+      },
+      material: {
+        // Nunca "em andamento" sem primeiro acesso real.
+        status: has("material.completed")
+          ? "concluido"
+          : last["material"]
+            ? "em_andamento"
+            : "nao_iniciado",
+        firstAt: first["material"] ?? null,
+        lastAt: last["material"] ?? null,
+      },
+      simulador: {
+        status: simulations.length > 0 ? "simulado" : last["simulador"] ? "iniciado" : "nao_iniciado",
+        simulations: simulations.length,
+        lastSimulationAt: simulations[0]?.created_at ?? null,
+        firstAt: first["simulador"] ?? null,
+        lastAt: last["simulador"] ?? null,
+      },
+      estrutura: { status: access("estrutura"), lastAt: last["estrutura"] ?? null },
+      revista: {
+        status: access("revista"),
+        lastAt: last["revista"] ?? null,
+        detail: revistaEvent?.detail ?? null,
+      },
+      principios: { status: access("principios"), lastAt: last["principios"] ?? null },
+    };
+  });
