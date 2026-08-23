@@ -24,7 +24,6 @@ import {
   LayoutList,
   LibraryBig,
   BookOpen,
-  Building2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -156,7 +155,6 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
       ? [
           { to: "/executivo/revista", label: "Revista Velox", icon: BookOpen },
-          { to: "/executivo/institucional", label: "Módulos Institucionais", icon: Building2 },
         ]
       : []),
   ];

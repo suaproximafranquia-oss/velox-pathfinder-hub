@@ -184,7 +184,7 @@ export const SEED_USERS: ExecutiveUser[] = [
     name: "Thiago Rodrigues",
     email: "thiago.rodrigues@veloxsolucoes.com.br",
     phone: "5517997727337",
-    title: "Administrador Geral",
+    title: "Gerente de Expansão",
     admissionDate: "2020-01-15",
     username: "thiago.rodrigues",
     password: "VLX_Th48",

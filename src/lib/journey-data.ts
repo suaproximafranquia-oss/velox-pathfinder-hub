@@ -79,7 +79,7 @@ export const CHAPTERS: Chapter[] = [
     eyebrow: "Capítulo 4 · O modelo de negócio",
     title: "Uma franquia de serviços — não de estoque.",
     subtitle:
-      "A Velox conecta clientes às soluções oferecidas por parceiros homologados, atuando de forma consultiva durante todo o processo. O franqueado trabalha sem estoque, com receita vinculada às operações concretizadas.",
+      "O franqueado trabalha sem estoque, com receita vinculada às operações concretizadas.",
     minutesLeft: 7,
     seoTitle: "Como funciona a franquia Velox — Manual do Investidor",
     seoDescription:

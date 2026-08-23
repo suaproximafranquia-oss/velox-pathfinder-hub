@@ -7,12 +7,14 @@
  * módulos derivam exclusivamente dos eventos recebidos.
  *
  * Regras objetivas:
- *  • Sessão nova    → mais de 2 horas sem nenhum evento.
+ *  • Sessão nova    → mais de 4 horas sem NENHUMA atividade real. O
+ *                     relógio parte sempre da ÚLTIMA atividade
+ *                     (`last_access_at`), nunca da entrada do dia.
  *  • Tempo ativo    → soma dos intervalos entre eventos, cada intervalo
  *                     limitado a 5 minutos. Aba aberta e parada NÃO conta.
  *  • Primeiro acesso a um módulo → gravado uma única vez.
  */
-export const SESSION_GAP_MS = 2 * 60 * 60 * 1000;
+export const SESSION_GAP_MS = 4 * 60 * 60 * 1000;
 export const MAX_ACTIVE_GAP_MS = 5 * 60 * 1000;
 
 export type EngagementUpdate = {
@@ -29,7 +31,11 @@ export type EngagementResult = {
   returns: number;
 };
 
-/** Módulos comercialmente relevantes — o restante não vira métrica. */
+/**
+ * Módulos comercialmente relevantes. A chave chega normalizada pelo
+ * dicionário único (`universo` → `material`, `cultura` → `principios`):
+ * nenhum acesso real é descartado por diferença de nomenclatura.
+ */
 const TRACKED = new Set([
   "manual",
   "material",
@@ -47,7 +53,9 @@ export async function applyEngagementEvent(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
-  const module = input.module && TRACKED.has(input.module) ? input.module : null;
+  const { canonicalModule } = await import("@/lib/portal-module-keys");
+  const normalized = canonicalModule(input.module);
+  const module = normalized && TRACKED.has(normalized) ? normalized : null;
 
   const { data: row } = await supabaseAdmin
     .from("portal_engagement")
