@@ -489,26 +489,146 @@ function ReadOnly({ label, value }: { label: string; value: string }) {
 }
 
 /* ---------- Aba Jornada ---------- */
+
+type JourneyCard = {
+  key: string;
+  label: string;
+  /** Rótulo oficial do estado deste módulo. */
+  status: string;
+  tone: "neutro" | "andamento" | "concluido";
+  /** Percentual só existe onde o conteúdo realmente o produz. */
+  percent?: number;
+  detail: string;
+  lastAt: string | null;
+};
+
+const NEVER = "Sem acesso registrado";
+
+function fmtWhen(at: string | null): string {
+  if (!at) return "—";
+  const d = new Date(at);
+  return Number.isNaN(d.getTime())
+    ? "—"
+    : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function buildJourneyCards(state: InvestorJourneyState): JourneyCard[] {
+  const progressLabel = (s: "nao_iniciado" | "em_andamento" | "concluido") =>
+    s === "concluido" ? "Concluído" : s === "em_andamento" ? "Em andamento" : "Não iniciado";
+  const tone = (s: string): JourneyCard["tone"] =>
+    s === "concluido" ? "concluido" : s === "nao_iniciado" || s === "nao_acessado" ? "neutro" : "andamento";
+  const acesso = (m: { status: string; lastAt: string | null }, key: string, label: string): JourneyCard => ({
+    key,
+    label,
+    status: m.status === "nao_acessado" ? "Não acessado" : "Acessado",
+    tone: tone(m.status),
+    detail: m.status === "nao_acessado" ? NEVER : `Último acesso em ${fmtWhen(m.lastAt)}.`,
+    lastAt: m.lastAt,
+  });
+
+  return [
+    {
+      key: "manual",
+      label: "Manual do Investidor",
+      status: progressLabel(state.manual.status),
+      tone: tone(state.manual.status),
+      percent: state.manual.percent,
+      detail:
+        state.manual.status === "nao_iniciado"
+          ? NEVER
+          : state.manual.chapter
+            ? `Capítulo atual: ${state.manual.chapter}.`
+            : "Leitura em curso.",
+      lastAt: state.manual.lastAt ?? state.manual.completedAt,
+    },
+    {
+      key: "material",
+      label: "Material Institucional",
+      status: progressLabel(state.material.status),
+      tone: tone(state.material.status),
+      detail:
+        state.material.status === "nao_iniciado"
+          ? NEVER
+          : `Primeiro acesso em ${fmtWhen(state.material.firstAt)}.`,
+      lastAt: state.material.lastAt,
+    },
+    {
+      key: "simulador",
+      label: "Simulador Inteligente",
+      status:
+        state.simulador.status === "simulado"
+          ? "Simulação realizada"
+          : state.simulador.status === "iniciado"
+            ? "Iniciado"
+            : "Não iniciado",
+      tone:
+        state.simulador.status === "simulado"
+          ? "concluido"
+          : state.simulador.status === "iniciado"
+            ? "andamento"
+            : "neutro",
+      detail:
+        state.simulador.simulations > 0
+          ? `${state.simulador.simulations} ${state.simulador.simulations === 1 ? "simulação realizada" : "simulações realizadas"} — última em ${fmtWhen(state.simulador.lastSimulationAt)}.`
+          : state.simulador.status === "iniciado"
+            ? "Abriu o simulador, ainda sem simulação concluída."
+            : NEVER,
+      lastAt: state.simulador.lastAt,
+    },
+    acesso(state.estrutura, "estrutura", "Nossa Estrutura"),
+    acesso(state.revista, "revista", "Revista Velox"),
+    acesso(state.principios, "principios", "Cultura Velox"),
+  ];
+}
+
+/**
+ * A Jornada lê o estado consolidado no SERVIDOR e se atualiza sozinha:
+ * nenhum número vem do navegador e nenhuma tela exige F5.
+ */
 function TabJornada({ investor }: { investor: Investor }) {
-  const progresses = deriveModuleProgress(investor);
+  const [state, setState] = useState<InvestorJourneyState | null>(null);
+  const [loading, setLoading] = useState(true);
   const [simOpen, setSimOpen] = useState(false);
   const [sims, setSims] = useState<SimulationRecord[]>([]);
+
   useEffect(() => {
     setSims(listSimulations(investor.id));
   }, [investor.id, simOpen]);
-  const last = sims[0] ?? getLastSimulation(investor.id);
-  const simulatorStatus = last
-    ? `Última simulação realizada em ${formatSimulationDate(last.createdAt)}.`
-    : "Nenhuma simulação realizada.";
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const next = await getInvestorJourneyState({ data: { investorId: investor.id } });
+        if (alive) setState(next);
+      } catch {
+        /* rede instável: mantém o último estado conhecido */
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), PORTAL_ACCESS_POLL_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [investor.id]);
+
+  if (loading && !state) {
+    return <EmptyState icon={Clock} text="Carregando a jornada registrada no servidor…" />;
+  }
+  if (!state) {
+    return <EmptyState icon={Clock} text="Nenhuma jornada registrada para este investidor." />;
+  }
+
+  const cards = buildJourneyCards(state);
   return (
     <>
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {MODULES.map((m) => {
-        const p = progresses[m.key];
-        const isSim = m.key === "simulador";
-        return (
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {cards.map((c) => (
           <article
-            key={m.key}
+            key={c.key}
             className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5"
           >
             <div className="flex items-start justify-between gap-3">
@@ -516,70 +636,59 @@ function TabJornada({ investor }: { investor: Investor }) {
                 <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
                   Módulo
                 </p>
-                <h3 className="mt-0.5 font-display text-base">{m.label}</h3>
+                <h3 className="mt-0.5 font-display text-base">{c.label}</h3>
               </div>
               <span
                 className={cn(
                   "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]",
-                  p.status === "concluido"
+                  c.tone === "concluido"
                     ? "border-emerald-500/40 text-emerald-400"
-                    : p.status === "em_andamento"
+                    : c.tone === "andamento"
                       ? "border-[color:var(--gold)]/50 text-[color:var(--gold)]"
                       : "border-[color:var(--border)] text-[color:var(--muted-foreground)]",
                 )}
               >
-                {p.status === "concluido"
-                  ? "Concluído"
-                  : p.status === "em_andamento"
-                    ? "Em andamento"
-                    : "Não iniciado"}
+                {c.status}
               </span>
             </div>
-            {isSim ? (
-              <div className="mt-4 space-y-3">
-                <p className="text-[12px] leading-relaxed text-[color:var(--muted-foreground)]">
-                  {simulatorStatus}
-                </p>
-                {sims.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setSimOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-3.5 py-2 text-xs hover:border-[color:var(--gold)] transition"
-                  >
-                    <FileText className="h-3.5 w-3.5" /> Ver Simulações
-                    <span className="rounded-full bg-[color:var(--gold)]/20 px-2 py-0.5 text-[10px] text-[color:var(--gold)]">
-                      {sims.length}
-                    </span>
-                  </button>
-                )}
-              </div>
-            ) : (
+            {typeof c.percent === "number" && (
               <div className="mt-4">
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--accent)]">
                   <div
                     className="h-full rounded-full bg-[color:var(--gold)] transition-all"
-                    style={{ width: `${p.pct}%` }}
+                    style={{ width: `${c.percent}%` }}
                   />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
-                  <span>{p.pct}% concluído</span>
-                  <span>{p.lastActivity}</span>
-                </div>
+                <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+                  {c.percent}% concluído
+                </p>
               </div>
             )}
+            <p className="mt-3 text-[12px] leading-relaxed text-[color:var(--muted-foreground)]">
+              {c.detail}
+            </p>
+            {c.key === "simulador" && sims.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSimOpen(true)}
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-3.5 py-2 text-xs hover:border-[color:var(--gold)] transition"
+              >
+                <FileText className="h-3.5 w-3.5" /> Ver Simulações
+                <span className="rounded-full bg-[color:var(--gold)]/20 px-2 py-0.5 text-[10px] text-[color:var(--gold)]">
+                  {sims.length}
+                </span>
+              </button>
+            )}
           </article>
-        );
-      })}
-    </div>
+        ))}
+      </div>
       {simOpen && (
-        <SimulationsHistoryDialog
-          simulations={sims}
-          onClose={() => setSimOpen(false)}
-        />
+        <SimulationsHistoryDialog simulations={sims} onClose={() => setSimOpen(false)} />
       )}
     </>
   );
 }
+
 
 function SimulationsHistoryDialog({
   simulations,
