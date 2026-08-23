@@ -494,6 +494,7 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
    */
   const [portalModules, setPortalModules] = useState<Record<string, string>>({});
   const [portalLastAt, setPortalLastAt] = useState<string | null>(null);
+  // Atualização automática: o bloco do Portal acompanha o servidor sem F5.
   useEffect(() => {
     if (!selected || !privateOk) {
       setPortalModules({});
@@ -501,18 +502,23 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
       return;
     }
     let alive = true;
-    void getPortalEngagement({ data: { investorId: selected.id } })
-      .then((row) => {
-        if (!alive) return;
-        setPortalModules(row?.modulesLast ?? {});
-        setPortalLastAt(row?.lastAccessAt ?? null);
-      })
-      .catch(() => undefined);
+    const load = () =>
+      void getPortalEngagement({ data: { investorId: selected.id } })
+        .then((row) => {
+          if (!alive) return;
+          setPortalModules(row?.modulesLast ?? {});
+          setPortalLastAt(row?.lastAccessAt ?? null);
+        })
+        .catch(() => undefined);
+    load();
+    const timer = window.setInterval(load, 20_000);
     return () => {
       alive = false;
+      window.clearInterval(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id, privateOk, tick]);
+
 
 
   return (
