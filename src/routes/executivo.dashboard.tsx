@@ -443,10 +443,16 @@ function WorkspaceHeader({
 function ScopeTabs({
   items,
   current,
+  counts,
   onChange,
 }: {
   items: WorkspaceTab[];
   current: WorkspaceTab;
+  /**
+   * Contadores oficiais por carteira. A aba Engajamento nunca recebe
+   * contador de Leads — ela não é um Workspace de Leads.
+   */
+  counts?: Partial<Record<WorkspaceTab, number>>;
   onChange: (s: WorkspaceTab) => void;
 }) {
   return (
@@ -457,21 +463,39 @@ function ScopeTabs({
     >
       {items.map((s) => {
         const active = s === current;
+        const count = s === "engajamento" ? undefined : counts?.[s];
         return (
           <button
             key={s}
             type="button"
             role="tab"
             aria-selected={active}
+            aria-label={
+              typeof count === "number"
+                ? `${TAB_LABEL[s]} — ${count} ${count === 1 ? "Lead" : "Leads"}`
+                : TAB_LABEL[s]
+            }
             onClick={() => onChange(s)}
             className={cn(
-              "rounded-full px-4 py-1.5 text-xs uppercase tracking-[0.16em] transition",
+              "inline-flex items-center rounded-full px-4 py-1.5 text-xs uppercase tracking-[0.16em] transition",
               active
                 ? "bg-[color:var(--accent)] text-[color:var(--foreground)] border border-[color:var(--gold)]/50"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
             )}
           >
             {TAB_LABEL[s]}
+            {typeof count === "number" ? (
+              <span
+                className={cn(
+                  "ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums normal-case tracking-normal",
+                  active
+                    ? "bg-[color:var(--gold)]/20 text-[color:var(--gold)]"
+                    : "bg-[color:var(--border)]/60 text-[color:var(--muted-foreground)]",
+                )}
+              >
+                {count}
+              </span>
+            ) : null}
           </button>
         );
       })}
