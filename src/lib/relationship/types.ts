@@ -38,7 +38,10 @@ export type CadenceStep =
   | "RE2" // reentrada — estrutura e suporte
   | "RE3" // reentrada — encerramento
   | "RF0" // relacionamento esfriado — retomada
-  | "RF1"; // relacionamento esfriado — encerramento
+  | "RF1" // relacionamento esfriado — encerramento
+  // COMANDO 4A §8 — recontato tardio do fluxo sem resposta (integrado,
+  // ativação controlada por E30_ENABLED enquanto não há texto oficial).
+  | "E30";
 
 /** Estados persistentes da cadência. */
 export type CadenceState =
