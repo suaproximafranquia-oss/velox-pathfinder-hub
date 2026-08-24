@@ -72,6 +72,7 @@ export async function intakeLead(
     cardId: null,
     created: false,
     changed: false,
+    deduplicated: false,
     welcomeSent: 0,
     welcomeFailed: 0,
     failed: false,
@@ -119,6 +120,12 @@ export async function intakeLead(
   result.leadId = outcome.lead.id;
   result.created = outcome.created;
   result.changed = outcome.changed;
+  result.deduplicated = outcome.deduplicated;
+  /**
+   * Duplicidade por telefone: a entrada foi absorvida pelo lead
+   * existente — nenhum card, nenhuma E0, nenhuma cadência nova.
+   */
+  if (outcome.deduplicated) return result;
 
   const eligibility = cadenceEligibility(
     {
