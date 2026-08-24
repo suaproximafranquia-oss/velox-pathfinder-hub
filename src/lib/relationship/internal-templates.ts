@@ -49,6 +49,8 @@ const LABELS: Record<CadenceStep, { label: string; }> = {
   RE3: { label: "RE3 — Reentrada (encerramento)" },
   RF0: { label: "RF0 — Relacionamento esfriado (retomada)" },
   RF1: { label: "RF1 — Relacionamento esfriado (encerramento)" },
+  // COMANDO 4A §8 — integrada ao fluxo, sem texto oficial (desativada).
+  E30: { label: "E30 — Recontato tardio" },
 };
 
 function extractVariables(body: string): string[] {
@@ -56,7 +58,7 @@ function extractVariables(body: string): string[] {
 }
 
 export const INTERNAL_CADENCE_TEMPLATES: InternalTemplate[] = (
-  Object.keys(HOMOLOGATION_MESSAGES) as CadenceStep[]
+  Object.keys(HOMOLOGATION_MESSAGES) as (keyof typeof HOMOLOGATION_MESSAGES)[]
 ).map((step) => {
   const message = HOMOLOGATION_MESSAGES[step];
   return {
