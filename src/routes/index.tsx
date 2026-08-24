@@ -28,10 +28,11 @@ const PhoneRegistryOverlay = lazy(() =>
 const MagazineOverlay = lazy(() =>
   import("@/components/portal/magazine-overlay").then((m) => ({ default: m.MagazineOverlay })),
 );
-const InstitutionalOverlay = lazy(() =>
-  import("@/components/portal/institutional-overlay").then((m) => ({
-    default: m.InstitutionalOverlay,
-  })),
+const EstruturaOverlay = lazy(() =>
+  import("@/components/portal/estrutura-overlay").then((m) => ({ default: m.EstruturaOverlay })),
+);
+const PrincipiosOverlay = lazy(() =>
+  import("@/components/portal/principios-overlay").then((m) => ({ default: m.PrincipiosOverlay })),
 );
 import { assetUrl } from "@/lib/assets/registry";
 
@@ -444,22 +445,10 @@ function PortalHome() {
           />
         )}
         {(overlaysReady || active?.key === "estrutura") && (
-          <InstitutionalOverlay
-            open={active?.key === "estrutura"}
-            module="estrutura"
-            title="Nossa Estrutura"
-            intro="A matriz, os bastidores e as unidades que sustentam a operação Velox em todo o país — com os vídeos institucionais que mostram como trabalhamos."
-            onClose={closeActive}
-          />
+          <EstruturaOverlay open={active?.key === "estrutura"} onClose={closeActive} />
         )}
         {(overlaysReady || active?.key === "principios") && (
-          <InstitutionalOverlay
-            open={active?.key === "principios"}
-            module="principios"
-            title="Princípios Velox"
-            intro="Os princípios que orientam nossas decisões, nossos encontros e a forma como recebemos quem escolhe caminhar com a Velox."
-            onClose={closeActive}
-          />
+          <PrincipiosOverlay open={active?.key === "principios"} onClose={closeActive} />
         )}
         {(overlaysReady || active?.key === "gateway") && (
           <GatewayOverlay

@@ -60,6 +60,7 @@ import portalSedeFachada from "@/assets/portal-sede-fachada.png.asset.json";
 import portalCapaRevista from "@/assets/portal-revista-velox.png.asset.json";
 import portalExperiencias from "@/assets/portal-experiencias.png.asset.json";
 import portalSimulador from "@/assets/portal-simulador.jpg.asset.json";
+import portalPrincipios from "@/assets/portal-principios.jpg";
 
 /* ------------------------------- tipos --------------------------------- */
 
@@ -251,6 +252,16 @@ export const ASSETS = {
     "portal-capa-simulador",
     "Capa do módulo Simulador",
     portalSimulador,
+  ),
+  "portal-capa-principios": entry(
+    "images",
+    "portal-capa-principios",
+    "Imagem institucional do módulo Princípios Velox",
+    {
+      url: portalPrincipios,
+      original_filename: "portal-principios.jpg",
+      content_type: "image/jpeg",
+    },
   ),
 } satisfies Record<string, AssetEntry>;
 
