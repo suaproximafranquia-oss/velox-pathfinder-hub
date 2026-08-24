@@ -6,6 +6,7 @@
  * continua representando UM único lead interno.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { normalizePhone } from "@/lib/greensales/normalize";
 
 export type LeadEventType =
   | "lead_criado"
@@ -25,6 +26,8 @@ export type LeadEventType =
   | "e0_adiada"
   | "e0_reentrada"
   | "lead_nao_localizado"
+  | "duplicidade_evitada"
+  | "movimentacao_manual"
   | "sincronizacao_falhou"
   | "sincronizacao_recuperada"
   | "tentativa_sincronizacao";
@@ -120,6 +123,12 @@ export type UpsertOutcome = {
   stageChanged: boolean;
   /** O lead ENTROU agora na coluna de entrada (NOVOS). */
   enteredEntryStage: boolean;
+  /**
+   * SEGUNDA TRAVA DE DEDUPLICAÇÃO (telefone): a entrada foi ignorada
+   * porque o mesmo telefone já existe sob outro external_id. Nada foi
+   * criado, fundido ou apagado — o lead existente foi preservado.
+   */
+  deduplicated: boolean;
 };
 
 const SELECT = "*";
@@ -199,6 +208,62 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
   };
 
   if (!existing) {
+    /**
+     * SEGUNDA TRAVA DE DEDUPLICAÇÃO (plano aprovado, item 2): antes de
+     * criar, compara o telefone normalizado. Encontrando o MESMO
+     * telefone sob OUTRO external_id, nada é criado, fundido ou apagado
+     * — o lead existente é preservado e a duplicidade é auditada uma
+     * única vez por par de IDs (sem spam de eventos a cada ciclo).
+     *
+     * GUARDA CRÍTICA: telefone vazio/inválido NUNCA deduplica — dois
+     * leads sem telefone não podem ser tratados como a mesma pessoa.
+     */
+    const phoneKey = normalizePhone(input.phone);
+    if (phoneKey) {
+      const { data: phoneMatch } = await supabaseAdmin
+        .from("crm_leads")
+        .select(SELECT)
+        .eq("external_source", "greensales")
+        .eq("phone", phoneKey)
+        .neq("external_id", input.externalId)
+        .limit(1)
+        .maybeSingle();
+      if (phoneMatch) {
+        const clash = phoneMatch as unknown as CrmLeadRow;
+        const { data: prior } = await supabaseAdmin
+          .from("crm_lead_events")
+          .select("id")
+          .eq("lead_id", clash.id)
+          .eq("type", "duplicidade_evitada")
+          .filter("data->>duplicateExternalId", "eq", input.externalId)
+          .limit(1);
+        if (!prior || prior.length === 0) {
+          await recordEvent(
+            clash.id,
+            "duplicidade_evitada",
+            `Entrada ${input.externalId} ignorada pela trava de telefone: este lead já existe como ${clash.external_id}. Nenhum registro foi criado, fundido ou apagado.`,
+            { duplicateExternalId: input.externalId, phone: phoneKey },
+          );
+        }
+        return {
+          lead: clash,
+          created: false,
+          changed: false,
+          newEntry: false,
+          stageChanged: false,
+          enteredEntryStage: false,
+          deduplicated: true,
+        };
+      }
+    }
+
+    /**
+     * DATAS REAIS NA RECUPERAÇÃO HISTÓRICA: um lead descoberto agora
+     * entrou na etapa dele na ORIGEM, não hoje. Usar "agora" faria um
+     * histórico parecer lead novo (elegível a cadência e à fila de
+     * ligações) — o que as regras 3 e 5 proíbem.
+     */
+    const realEntryAt = input.lastEntryAt ?? input.externalCreatedAt ?? now;
     const { data, error } = await supabaseAdmin
       .from("crm_leads")
       .insert({
@@ -207,8 +272,12 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
         ingested_at: now,
         last_entry_at: input.lastEntryAt ?? input.externalCreatedAt ?? now,
         // Data de entrada na etapa atual — referência da fila de ligações.
-        stage_entered_at: now,
-        entered_entry_stage_at: input.entryStage ? now : null,
+        stage_entered_at: input.historical ? realEntryAt : now,
+        entered_entry_stage_at: input.entryStage
+          ? input.historical
+            ? realEntryAt
+            : now
+          : null,
         entry_count: 1,
         // PENDING representa uma operação real de envio aguardando
         // processamento — nunca "nunca recebeu mensagem".
@@ -236,6 +305,7 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
       newEntry: false,
       stageChanged: true,
       enteredEntryStage: Boolean(input.entryStage),
+      deduplicated: false,
     };
   }
 
@@ -305,7 +375,7 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
   } else if (!changed) {
     await recordEvent(lead.id, "lead_sincronizado", "Lead reconhecido — sem alterações.");
   }
-  return { lead, created: false, changed, newEntry, stageChanged, enteredEntryStage };
+  return { lead, created: false, changed, newEntry, stageChanged, enteredEntryStage, deduplicated: false };
 }
 
 export async function markSyncFailure(externalId: string, message: string): Promise<void> {

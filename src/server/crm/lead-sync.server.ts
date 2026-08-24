@@ -405,8 +405,15 @@ export async function runGreenSalesBackfill(
    */
   try {
     const { reconcileMissingLeads } = await import("@/server/crm/reconcile.server");
-    const reconciled = await reconcileMissingLeads(page.leads.map((l) => String(l.id)));
-    if (reconciled.moved > 0) {
+    const reconciled = await reconcileMissingLeads(
+      page.leads.map((l) => String(l.id)),
+      page.completeness,
+    );
+    if (reconciled.aborted) {
+      summary.errors.push(
+        `Reconciliação de NÃO LOCALIZADOS abortada: ${reconciled.abortReason ?? "varredura incompleta"}. Nenhum estágio foi alterado.`,
+      );
+    } else if (reconciled.moved > 0) {
       summary.errors.push(
         `${reconciled.moved} lead(s) de NOVOS não localizados na origem — preservados em NÃO LOCALIZADOS.`,
       );
