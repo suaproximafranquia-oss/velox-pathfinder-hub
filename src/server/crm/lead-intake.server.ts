@@ -147,8 +147,9 @@ export async function intakeLead(
   }
 
   /**
-   * JANELA OPERACIONAL DA E0: entre 22:30 e 06:59 nada é entregue.
-   * A etapa é preservada e executada na abertura das 07:00.
+   * JANELA OPERACIONAL DA E0 (§16): fora de Seg–Sex 07:00–22:30 e
+   * Sáb 07:00–12:00 nada é entregue. A etapa é preservada e executada
+   * na próxima abertura da janela.
    */
   if (enteredNow && eligibility.eligible && isE0NightWindow()) {
     await deferFirstContact(outcome.lead.id);

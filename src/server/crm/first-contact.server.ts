@@ -61,9 +61,10 @@ export async function registerFirstContact(
   );
   if (!eligibility.eligible) return { registered: false, reason: eligibility.reason };
   /**
-   * Trava final de horário: nenhuma E0 sai na madrugada (22:30–06:59),
+   * Trava final de horário (§16): nenhuma E0 sai fora da janela
+   * operacional (Seg–Sex 07:00–22:30, Sáb 07:00–12:00, Dom sem envio),
    * mesmo que alguém chame esta função diretamente. A etapa fica
-   * pendente para a abertura da janela às 07:00.
+   * pendente para a próxima abertura da janela.
    */
   if (isE0NightWindow()) return { registered: false, reason: nightDeferralReason() };
   const messageId = `msg_e0_${input.leadId}`;

@@ -19,6 +19,7 @@ import {
   markSyncFailure,
   upsertLead,
 } from "@/server/crm/lead-service.server";
+import { classifyScannedLead } from "@/lib/crm/sync-classification";
 import { intakeLead } from "@/server/crm/lead-intake.server";
 import {
   DEFAULT_PIPELINE_EXTERNAL_ID,
@@ -34,7 +35,11 @@ export type SyncSummary = {
   windowStart: string;
   found: number;
   created: number;
+  /** Destes criados, quantos são recuperação histórica (CASO B, sem E0). */
+  recovered: number;
   updated: number;
+  /** Entradas ignoradas pela segunda trava de deduplicação (telefone). */
+  duplicatesAvoided: number;
   failed: number;
   welcomeSent: number;
   welcomeFailed: number;
@@ -63,7 +68,9 @@ export async function runLeadSync(
       windowStart: startedAt.toISOString(),
       found: 0,
       created: 0,
+      recovered: 0,
       updated: 0,
+      duplicatesAvoided: 0,
       failed: 0,
       welcomeSent: 0,
       welcomeFailed: 0,
@@ -97,7 +104,9 @@ export async function runLeadSync(
     windowStart: since.toISOString(),
     found: 0,
     created: 0,
+    recovered: 0,
     updated: 0,
+    duplicatesAvoided: 0,
     failed: 0,
     welcomeSent: 0,
     welcomeFailed: 0,
@@ -156,11 +165,21 @@ export async function runLeadSync(
   summary.found = leads.length;
 
   /**
-   * RECONCILIAÇÃO CONTÍNUA DO ESPELHO — a varredura já trouxe a base
-   * inteira com etiquetas. Qualquer lead cuja coluna resolvida na origem
-   * difira da coluna espelhada entra no processamento deste ciclo, mesmo
-   * fora da janela temporal. A divergência de estágio deixa de depender
-   * de carga histórica: cada ciclo de 5 minutos se autocorrige.
+   * CLASSIFICAÇÃO EXPLÍCITA A/B/C/D (plano aprovado — regra central).
+   *
+   * "Ausente do espelho" NÃO significa "lead novo":
+   *   A — entrada recente comprovada → intake normal (E0 pelas regras
+   *       atuais, comportamento de lead novo preservado);
+   *   B — histórico nunca ingerido → recuperação silenciosa via
+   *       upsertLead({ historical: true }): SEM E0, SEM card, SEM
+   *       cadência. NUNCA passa pelo intake, que marcaria a entrada
+   *       como "agora" e tornaria o histórico elegível a disparos;
+   *   C — espelho com estágio divergente → intake (só atualiza o
+   *       espelho; E0 só em transição real para NOVOS, como sempre);
+   *   D — sem mudança → ignorado.
+   *
+   * A guarda antiga (`!storedStage.has → continue`) tornava invisível
+   * para sempre um lead nunca ingerido (caso Reginaldo, 54339).
    */
   const inWindow = new Set(leads.map((l) => String(l.id)));
   const { data: mirror } = await supabaseAdmin
@@ -168,27 +187,64 @@ export async function runLeadSync(
     .select("external_id,stage_key")
     .eq("external_source", "greensales");
   const storedStage = new Map((mirror ?? []).map((r) => [r.external_id, r.stage_key]));
-  const divergent: typeof leads = [];
+
+  type ScannedLead = (typeof scanned)[number];
+  const entryAtOf = (lead: ScannedLead): string | null =>
+    ((lead as Record<string, unknown>)["last_register_at"] as string) ??
+    ((lead as Record<string, unknown>)["register"] as string) ??
+    lead.created_at ??
+    null;
+  const stageKeyOf = (lead: ScannedLead): string | null => {
+    const tagIds = Array.isArray(lead.tags)
+      ? (lead.tags as { id: number | string }[]).map((t) => String(t.id))
+      : [];
+    return resolveBoardStage(pipeline, tagIds).stage?.key ?? null;
+  };
+
+  const toProcess: { listed: ScannedLead; cls: "A" | "B" | "C" }[] = [];
+  for (const listed of leads) {
+    const externalId = String(listed.id);
+    if (storedStage.has(externalId)) {
+      // Já espelhado e dentro da janela: o intake aplica o upsert
+      // idempotente (casos C/D internos) — comportamento preservado.
+      toProcess.push({ listed, cls: "A" });
+      continue;
+    }
+    const cls = classifyScannedLead({
+      inWindow: true,
+      inMirror: false,
+      mirrorStage: null,
+      resolvedStage: stageKeyOf(listed),
+      entryAt: entryAtOf(listed),
+      since,
+    });
+    toProcess.push({ listed, cls });
+  }
+  let divergentCount = 0;
   for (const listed of scanned) {
     const externalId = String(listed.id);
     if (inWindow.has(externalId)) continue;
-    if (!storedStage.has(externalId)) continue;
-    const tagIds = Array.isArray(listed.tags) ? listed.tags.map((t) => String(t.id)) : [];
-    const { stage } = resolveBoardStage(pipeline, tagIds);
+    if (!storedStage.has(externalId)) {
+      // Histórico ausente do espelho — recuperação (CASO B), nunca E0.
+      toProcess.push({ listed, cls: "B" });
+      continue;
+    }
+    const resolved = stageKeyOf(listed);
     // Sem etiqueta de coluna resolvida NÃO há evidência de mudança —
     // jamais rebaixamos um lead por ausência de informação.
-    if (stage && stage.key !== storedStage.get(externalId)) {
-      divergent.push(listed);
+    if (resolved && resolved !== storedStage.get(externalId)) {
+      divergentCount += 1;
+      toProcess.push({ listed, cls: "C" });
     }
   }
-  const toProcess = [...leads, ...divergent];
-  if (divergent.length) {
+  const caseBCount = toProcess.filter((t) => t.cls === "B").length;
+  if (divergentCount || caseBCount) {
     console.warn(
-      `[crm-sync] reconciliação de espelho: ${divergent.length} lead(s) com coluna divergente reprocessados.`,
+      `[crm-sync] reconciliação: ${divergentCount} divergente(s), ${caseBCount} histórico(s) ausente(s) do espelho.`,
     );
   }
 
-  for (const listed of toProcess) {
+  for (const { listed, cls } of toProcess) {
     const externalId = String(listed.id);
     try {
       const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
@@ -205,13 +261,65 @@ export async function runLeadSync(
       if (!Array.isArray(raw["forms"]) || (raw["forms"] as unknown[]).length === 0) {
         raw["forms"] = (listed as { forms?: unknown[] }).forms ?? [];
       }
+
+      if (cls === "B") {
+        /**
+         * CASO B — RECUPERAÇÃO HISTÓRICA: mesma semântica da carga
+         * histórica (upsert com historical:true). O lead entra no
+         * espelho no estágio da origem, com as datas REAIS de entrada —
+         * sem E0, sem card de Workspace, sem cadência nova.
+         */
+        const normalized = normalizeGreenSalesLead(raw as never);
+        const rawTags = Array.isArray(raw["tags"])
+          ? (raw["tags"] as { id: number | string }[])
+          : [];
+        const { stage, remarketing } = resolveBoardStage(
+          pipeline,
+          rawTags.map((t) => String(t.id)),
+        );
+        const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
+        const lastEntryAt =
+          (raw["last_register_at"] as string) ??
+          (raw["register"] as string) ??
+          (raw["created_at"] as string) ??
+          null;
+        const outcome = await upsertLead({
+          externalId,
+          name: normalized.name,
+          phone: normalized.whatsapp,
+          email: normalized.email,
+          origin: (raw["origin"] as string) ?? null,
+          captureForm: forms[0]?.title ?? null,
+          externalPipelineId: pipeline.externalId,
+          pipelineName: pipeline.name,
+          stageKey: stage?.key ?? null,
+          externalStageId: stage?.externalTag ?? null,
+          externalCreatedAt: (raw["created_at"] as string) ?? null,
+          lastEntryAt,
+          tags: rawTags,
+          externalStatus: (raw["status"] as string) ?? null,
+          remarketing,
+          entryStage: Boolean(stage?.isEntry),
+          rawPayload: raw,
+          historical: true,
+        });
+        if (outcome.deduplicated) summary.duplicatesAvoided += 1;
+        else if (outcome.created) {
+          summary.created += 1;
+          summary.recovered += 1;
+        } else if (outcome.changed) summary.updated += 1;
+        continue;
+      }
+
       /**
-       * CAMINHO ÚNICO DE ENTRADA (`intakeLead`): espelho → card do
-       * Workspace → E0 → motor. Extraído sem mudança de comportamento,
-       * para que o ambiente de teste percorra exatamente este caminho.
+       * CASOS A e C — CAMINHO ÚNICO DE ENTRADA (`intakeLead`): espelho →
+       * card do Workspace → E0 → motor. Extraído sem mudança de
+       * comportamento, para que o ambiente de teste percorra exatamente
+       * este caminho.
        */
       const outcome = await intakeLead(raw, { pipeline, settings });
-      if (outcome.created) summary.created += 1;
+      if (outcome.deduplicated) summary.duplicatesAvoided += 1;
+      else if (outcome.created) summary.created += 1;
       else if (outcome.changed) summary.updated += 1;
       summary.welcomeSent += outcome.welcomeSent;
       summary.welcomeFailed += outcome.welcomeFailed;
