@@ -33,38 +33,108 @@ export const syncPortalLead = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const executiveId = data.responsibleExecutiveId ?? null;
-    // ETAPA 02.1 §Doc02 — um Lead redistribuído nunca é rebaixado por uma
-    // sincronização posterior do Portal: escopo e proprietário permanecem.
+    const email = data.email.trim().toLowerCase();
+    const digits = (data.whatsapp ?? "").replace(/\D+/g, "");
+    const phoneKey = digits.length > 11 ? digits.slice(-11) : digits;
+
+    /**
+     * DEDUPE OFICIAL — a MESMA pessoa nunca vira dois leads.
+     *
+     * Um investidor que já existe (ex.: carteira do Thiago) e volta pelo
+     * link personalizado de outro executivo (ex.: Larissa) NÃO gera novo
+     * registro: reaproveitamos o lead existente, preservamos o
+     * proprietário atual e gravamos a nova entrada como EVENTO,
+     * atribuído ao executivo do link.
+     */
+    const { data: byIdentity } = await supabaseAdmin
+      .from("portal_leads")
+      .select("id,scope,responsible_executive_id,responsible_executive_slug,whatsapp")
+      .eq("email", email)
+      .limit(10);
+    const duplicate = (byIdentity ?? []).find((row) => {
+      if (row.id === data.id) return false;
+      if (!phoneKey) return true; // mesmo e-mail já basta quando não há telefone
+      const d = (row.whatsapp ?? "").replace(/\D+/g, "");
+      const key = d.length > 11 ? d.slice(-11) : d;
+      return !key || key === phoneKey;
+    });
+
+    const targetId = duplicate?.id ?? data.id;
     const { data: current } = await supabaseAdmin
       .from("portal_leads")
       .select("scope,responsible_executive_id,responsible_executive_slug")
-      .eq("id", data.id)
+      .eq("id", targetId)
       .maybeSingle();
+
+    const registerEntry = async (reason: string) => {
+      await supabaseAdmin.from("portal_journey_events").insert({
+        investor_id: targetId,
+        event: "journey.entry.registered",
+        module: "portal",
+        detail: reason,
+      } as never);
+    };
+
+    if (duplicate) {
+      // Ownership respeitado: quem já responde pelo lead continua
+      // respondendo. Apenas atualizamos os dados e registramos a entrada.
+      const { error: dedupeError } = await supabaseAdmin
+        .from("portal_leads")
+        .update({
+          name: data.name,
+          email,
+          whatsapp: data.whatsapp ?? "",
+          city: data.city ?? "",
+          last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
+        })
+        .eq("id", targetId);
+      if (dedupeError) throw new Error(dedupeError.message);
+      await registerEntry(
+        data.personalized && data.responsibleExecutiveSlug
+          ? `Nova entrada pelo link personalizado de ${data.responsibleExecutiveSlug} — lead já existente, sem duplicação.`
+          : "Nova entrada pelo Portal institucional — lead já existente, sem duplicação.",
+      );
+      return {
+        ok: true as const,
+        scope: (current?.scope ?? "portal") as "green_sales" | "redistribuicao" | "portal",
+        leadId: targetId,
+        deduped: true as const,
+      };
+    }
+
+    // ETAPA 02.1 §Doc02 — um Lead redistribuído nunca é rebaixado por uma
+    // sincronização posterior do Portal: escopo e proprietário permanecem.
     if (current?.scope === "redistribuicao") {
       const { error: keepError } = await supabaseAdmin
         .from("portal_leads")
         .update({
           name: data.name,
-          email: data.email.toLowerCase(),
+          email,
           whatsapp: data.whatsapp ?? "",
           city: data.city ?? "",
           last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
         })
-        .eq("id", data.id);
+        .eq("id", targetId);
       if (keepError) throw new Error(keepError.message);
-      return { ok: true as const, scope: "redistribuicao" as const };
+      return {
+        ok: true as const,
+        scope: "redistribuicao" as const,
+        leadId: targetId,
+        deduped: false as const,
+      };
     }
     // Revalidação do roteamento obrigatório: green_sales exige executivo.
     const scope = data.personalized && executiveId ? "green_sales" : "portal";
     // O proprietário definido por uma transferência oficial nunca é
     // apagado por uma sincronização posterior da jornada.
     const preservedOwner =
-      scope === "green_sales" ? executiveId : (current?.responsible_executive_id ?? null);
+      current?.responsible_executive_id ??
+      (scope === "green_sales" ? executiveId : null);
     const { error } = await supabaseAdmin.from("portal_leads").upsert(
       {
-        id: data.id,
+        id: targetId,
         name: data.name,
-        email: data.email.toLowerCase(),
+        email,
         whatsapp: data.whatsapp ?? "",
         city: data.city ?? "",
         origin: data.origin ?? "Portal Velox",
@@ -73,7 +143,9 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         personalized: Boolean(data.personalized && executiveId),
         responsible_executive_id: preservedOwner,
         responsible_executive_slug:
-          scope === "green_sales" ? (data.responsibleExecutiveSlug ?? null) : null,
+          scope === "green_sales"
+            ? (current?.responsible_executive_slug ?? data.responsibleExecutiveSlug ?? null)
+            : null,
         campaign: data.campaign ?? null,
         device: data.device ?? null,
         created_at: data.createdAt ?? new Date().toISOString(),
@@ -89,8 +161,9 @@ export const syncPortalLead = createServerFn({ method: "POST" })
      * Relacionamento — o primeiro contato do CRM pertence à entrada do
      * lead pela origem comercial (GreenSales → Workspace → CRM).
      */
-    return { ok: true as const, scope };
+    return { ok: true as const, scope, leadId: targetId, deduped: false as const };
   });
+
 
 /**
  * ETAPA 02.1 §Doc02 ITEM 03 — redistribuição oficial executada pela
