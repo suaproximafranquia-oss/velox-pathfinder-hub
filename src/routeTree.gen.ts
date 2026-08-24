@@ -19,6 +19,7 @@ import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as CrmIndexRouteImport } from './routes/crm.index'
 import { Route as SegSlugRouteImport } from './routes/seg.$slug'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
+import { Route as OrigemChannelRouteImport } from './routes/origem.$channel'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
@@ -106,6 +107,11 @@ const SegSlugRoute = SegSlugRouteImport.update({
 const SSlugRoute = SSlugRouteImport.update({
   id: '/s/$slug',
   path: '/s/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrigemChannelRoute = OrigemChannelRouteImport.update({
+  id: '/origem/$channel',
+  path: '/origem/$channel',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManualConcluidoRoute = ManualConcluidoRouteImport.update({
@@ -341,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/crm/': typeof CrmIndexRoute
@@ -390,6 +397,7 @@ export interface FileRoutesByTo {
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/crm': typeof CrmIndexRoute
@@ -441,6 +449,7 @@ export interface FileRoutesById {
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/crm/': typeof CrmIndexRoute
@@ -493,6 +502,7 @@ export interface FileRouteTypes {
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
     | '/crm/'
@@ -542,6 +552,7 @@ export interface FileRouteTypes {
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
     | '/crm'
@@ -592,6 +603,7 @@ export interface FileRouteTypes {
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
     | '/crm/'
@@ -643,6 +655,7 @@ export interface RootRouteChildren {
   ManualChapterRoute: typeof ManualChapterRoute
   ManualAnuncioRoute: typeof ManualAnuncioRoute
   ManualConcluidoRoute: typeof ManualConcluidoRoute
+  OrigemChannelRoute: typeof OrigemChannelRoute
   SSlugRoute: typeof SSlugRoute
   SegSlugRoute: typeof SegSlugRoute
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
@@ -723,6 +736,13 @@ declare module '@tanstack/react-router' {
       path: '/s/$slug'
       fullPath: '/s/$slug'
       preLoaderRoute: typeof SSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/origem/$channel': {
+      id: '/origem/$channel'
+      path: '/origem/$channel'
+      fullPath: '/origem/$channel'
+      preLoaderRoute: typeof OrigemChannelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manual/concluido': {
@@ -1044,6 +1064,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManualChapterRoute: ManualChapterRoute,
   ManualAnuncioRoute: ManualAnuncioRoute,
   ManualConcluidoRoute: ManualConcluidoRoute,
+  OrigemChannelRoute: OrigemChannelRoute,
   SSlugRoute: SSlugRoute,
   SegSlugRoute: SegSlugRoute,
   ExecutivoIndexRoute: ExecutivoIndexRoute,
