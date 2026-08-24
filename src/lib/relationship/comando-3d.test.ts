@@ -14,13 +14,14 @@ const local = (day: string, hour: number) => {
 };
 
 
-describe("janela ÚNICA de envio de mensagens — 07:00 às 22:30", () => {
-  it("segunda a sexta envia das 07:00 às 22:30", () => {
+describe("janela ÚNICA de envio de mensagens (E1+, §16) — 07:00 às 22:00", () => {
+  it("segunda a sexta envia das 07:00 às 22:00", () => {
     expect(isEligibleMoment(local("2026-08-17", 7))).toBe(true);
     expect(isEligibleMoment(local("2026-08-17", 21))).toBe(true);
     expect(isEligibleMoment(local("2026-08-17", 6))).toBe(false);
-    // 22:20 ainda envia; 22:30 já está fora.
-    expect(isEligibleMoment(local("2026-08-17", 22 + 20 / 60))).toBe(true);
+    // §16 — 21:50 ainda envia; a partir das 22:00 já está fora.
+    expect(isEligibleMoment(local("2026-08-17", 21 + 50 / 60))).toBe(true);
+    expect(isEligibleMoment(local("2026-08-17", 22))).toBe(false);
     expect(isEligibleMoment(local("2026-08-17", 22.5))).toBe(false);
   });
 
