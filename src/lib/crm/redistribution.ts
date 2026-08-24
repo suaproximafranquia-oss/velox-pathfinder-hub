@@ -115,6 +115,10 @@ const SCOPE_REASON: Record<WorkspaceScope, string> = {
     "Este investidor pertence ao Portal do Investidor. Nenhuma redistribuição é permitida.",
   central_unica:
     "Este investidor pertence à Central Única da Gestora. A redistribuição é decidida por ela.",
+  tiktok:
+    "Este investidor pertence à carteira oficial TikTok. Nenhuma redistribuição é permitida.",
+  meta:
+    "Este investidor pertence à carteira oficial Meta. Nenhuma redistribuição é permitida.",
 };
 
 /**
