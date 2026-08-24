@@ -192,14 +192,16 @@ export async function fetchLeadsSince(
   token: string,
   since: Date,
   _maxPages = 20,
-): Promise<{ leads: GreenSalesLead[]; pagesScanned: number }> {
+): Promise<{ leads: GreenSalesLead[]; scanned: GreenSalesLead[]; pagesScanned: number }> {
   const leads: GreenSalesLead[] = [];
+  const scanned: GreenSalesLead[] = [];
   let page = 1;
   let lastPage = 1;
   while (page <= lastPage) {
     const body = await fetchPage(token, page);
     lastPage = body.last_page ?? 1;
     for (const lead of body.data ?? []) {
+      scanned.push(lead);
       const stamp = lead.updated_at ?? lead.created_at;
       const at = stamp ? new Date(stamp) : null;
       if (!at || Number.isNaN(at.getTime())) continue;
@@ -208,7 +210,7 @@ export async function fetchLeadsSince(
     }
     page += 1;
   }
-  return { leads, pagesScanned: page - 1 };
+  return { leads, scanned, pagesScanned: page - 1 };
 }
 
 /**

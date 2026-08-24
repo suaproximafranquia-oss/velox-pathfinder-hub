@@ -145,14 +145,50 @@ export async function runLeadSync(
   }
 
   let leads: Awaited<ReturnType<typeof fetchLeadsSince>>["leads"];
+  let scanned: Awaited<ReturnType<typeof fetchLeadsSince>>["scanned"] = [];
   try {
-    leads = (await fetchLeadsSince(token, since)).leads;
+    const result = await fetchLeadsSince(token, since);
+    leads = result.leads;
+    scanned = result.scanned;
   } catch (error) {
     return finish("ERRO", error instanceof Error ? error.message : "Falha na consulta de leads.");
   }
   summary.found = leads.length;
 
-  for (const listed of leads) {
+  /**
+   * RECONCILIAÇÃO CONTÍNUA DO ESPELHO — a varredura já trouxe a base
+   * inteira com etiquetas. Qualquer lead cuja coluna resolvida na origem
+   * difira da coluna espelhada entra no processamento deste ciclo, mesmo
+   * fora da janela temporal. A divergência de estágio deixa de depender
+   * de carga histórica: cada ciclo de 5 minutos se autocorrige.
+   */
+  const inWindow = new Set(leads.map((l) => String(l.id)));
+  const { data: mirror } = await supabaseAdmin
+    .from("crm_leads")
+    .select("external_id,stage_key")
+    .eq("external_source", "greensales");
+  const storedStage = new Map((mirror ?? []).map((r) => [r.external_id, r.stage_key]));
+  const divergent: typeof leads = [];
+  for (const listed of scanned) {
+    const externalId = String(listed.id);
+    if (inWindow.has(externalId)) continue;
+    if (!storedStage.has(externalId)) continue;
+    const tagIds = Array.isArray(listed.tags) ? listed.tags.map((t) => String(t.id)) : [];
+    const { stage } = resolveBoardStage(pipeline, tagIds);
+    // Sem etiqueta de coluna resolvida NÃO há evidência de mudança —
+    // jamais rebaixamos um lead por ausência de informação.
+    if (stage && stage.key !== storedStage.get(externalId)) {
+      divergent.push(listed);
+    }
+  }
+  const toProcess = [...leads, ...divergent];
+  if (divergent.length) {
+    console.warn(
+      `[crm-sync] reconciliação de espelho: ${divergent.length} lead(s) com coluna divergente reprocessados.`,
+    );
+  }
+
+  for (const listed of toProcess) {
     const externalId = String(listed.id);
     try {
       const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
