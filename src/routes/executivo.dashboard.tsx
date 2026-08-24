@@ -51,6 +51,23 @@ function isWorkspaceTab(value: unknown): value is WorkspaceTab {
   return isWorkspaceScope(value) || value === "engajamento";
 }
 
+/**
+ * Pertencimento por escopo — regra ÚNICA, usada tanto pela listagem de
+ * cards quanto pelos contadores das abas. Portal jamais mistura com
+ * Green Sales; Engajamento não é carteira (nunca conta Leads).
+ */
+function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
+  if (scope === "portal") return i.origin === "portal";
+  if (scope === "redistribuicao") return i.origin === "redistribuicao";
+  if (scope === "central_unica") return i.origin === "central_unica";
+  if (scope === "engajamento") return false;
+  return (
+    i.origin !== "portal" &&
+    i.origin !== "redistribuicao" &&
+    i.origin !== "central_unica"
+  );
+}
+
 type DashboardSearch = { perfil?: string; escopo?: WorkspaceTab };
 
 export const Route = createFileRoute("/executivo/dashboard")({
@@ -178,17 +195,7 @@ function WorkspacePage() {
     // Isolamento absoluto por escopo: Portal jamais mistura com Green
     // Sales — inclusive para quem não tem acesso à aba Portal, que vê
     // exclusivamente Leads de link personalizado (Green Sales).
-    const base = visible.filter((i) =>
-      scope === "portal"
-        ? i.origin === "portal"
-        : scope === "redistribuicao"
-          ? i.origin === "redistribuicao"
-          : scope === "central_unica"
-            ? i.origin === "central_unica"
-            : i.origin !== "portal" &&
-              i.origin !== "redistribuicao" &&
-              i.origin !== "central_unica",
-    );
+    const base = visible.filter((i) => belongsToScope(i, scope));
 
     const q = query.trim().toLowerCase();
     const filtered = q
