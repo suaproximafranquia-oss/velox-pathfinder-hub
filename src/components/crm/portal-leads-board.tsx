@@ -22,6 +22,7 @@ import {
   getCrmLead,
   listCrmLeads,
   listCrmSyncRuns,
+  moveCrmLeadStage,
   retryCrmWelcome,
   runCrmBackfillNow,
   runCrmSyncNow,
@@ -270,6 +271,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const runSync = useServerFn(runCrmSyncNow);
   const runBackfill = useServerFn(runCrmBackfillNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
+  const moveLead = useServerFn(moveCrmLeadStage);
   const fetchCallsSummary = useServerFn(getCadenceSummary);
 
   useEffect(() => {
@@ -372,7 +374,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       const summary = await runSync({});
       setNotice(
         summary.ok
-          ? `Sincronização concluída: ${summary.created} novos, ${summary.updated} atualizados, ${summary.welcomeSent} boas-vindas enviadas.`
+          ? `Sincronização concluída: ${summary.created} novos (destes, ${summary.recovered} recuperações históricas sem primeiro contato), ${summary.updated} atualizados, ${summary.duplicatesAvoided} duplicidades evitadas, ${summary.welcomeSent} boas-vindas enviadas.`
           : `Sincronização com falha: ${summary.message ?? "erro desconhecido"}.`,
       );
       await load();
@@ -380,6 +382,20 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       setNotice(error instanceof Error ? error.message : "Falha na sincronização.");
     } finally {
       setSyncing(false);
+    }
+  }
+
+  /**
+   * Movimentação manual de contingência: ajuste LOCAL do espelho,
+   * auditado, sem tocar a origem e sem disparar cadência ou E0.
+   */
+  async function handleMove(lead: CrmLeadView, stage: CrmStageView) {
+    setNotice(null);
+    const res = await moveLead({ data: { id: lead.id, stageKey: stage.key, stageLabel: stage.label } });
+    setNotice(res.message);
+    await load();
+    if (selectedId) {
+      void fetchLead({ data: { id: selectedId } }).then((r) => setEvents(r.events));
     }
   }
 
@@ -563,8 +579,10 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
         <LeadDialog
           lead={selected}
           events={events}
+          stages={stages}
           onClose={() => setSelectedId(null)}
           onRetry={handleRetry}
+          onMove={handleMove}
         />
       )}
 
