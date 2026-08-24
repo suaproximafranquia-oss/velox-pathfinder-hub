@@ -38,9 +38,21 @@ import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 import { restoreRelationship } from "@/lib/crm/commercial";
 import { onSync } from "@/lib/sync-bus";
 
-/** Abas oficiais da Central única de Backup (DEF 2.4.11). */
-const BACKUP_TABS = ["GreenSales", "Redistribuição", "Portal"] as const;
+/**
+ * Abas oficiais da Central única de Backup (DEF 2.4.11 + COMANDO 3A §12):
+ * cada carteira é exibida separadamente, inclusive os canais oficiais
+ * TikTok e Meta, visíveis aos usuários autorizados ao ambiente do Portal.
+ */
+const BACKUP_TABS = ["GreenSales", "Redistribuição", "Portal", "TikTok", "Meta"] as const;
 type BackupTab = (typeof BACKUP_TABS)[number];
+
+const TAB_KIND: Record<BackupTab, "green_sales" | "redistribuicao" | "portal" | "tiktok" | "meta"> = {
+  GreenSales: "green_sales",
+  Redistribuição: "redistribuicao",
+  Portal: "portal",
+  TikTok: "tiktok",
+  Meta: "meta",
+};
 
 export const Route = createFileRoute("/executivo/backups")({
   head: () => ({
@@ -122,9 +134,7 @@ function BackupsPage() {
     if (!session) return [];
     // DEF 3.0.1 §7 — segregação total: cada aba enxerga exclusivamente os
     // backups do seu próprio ambiente, sem qualquer mistura de registros.
-    const kind =
-      tab === "GreenSales" ? "green_sales" : tab === "Redistribuição" ? "redistribuicao" : "portal";
-    const all = listConversationBackups().filter((r) => r.workspaceKind === kind);
+    const all = listConversationBackups().filter((r) => r.workspaceKind === TAB_KIND[tab]);
     // A Gestora nunca vê conversas automaticamente: apenas as cópias
     // temporárias autorizadas pelo Administrador (24 horas).
     // Backup de conversas é registro pessoal: cada usuário enxerga apenas

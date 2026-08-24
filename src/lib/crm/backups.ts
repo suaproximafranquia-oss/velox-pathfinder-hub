@@ -31,8 +31,8 @@ export type CrmBackupRecord = {
   email: string;
   originLabel: string;
   readingPct: number;
-  /** Carteira de origem: Green Sales, Redistribuição ou Portal. */
-  workspaceKind: "green_sales" | "redistribuicao" | "portal";
+  /** Carteira de origem: Green Sales, Redistribuição, Portal, TikTok ou Meta. */
+  workspaceKind: "green_sales" | "redistribuicao" | "portal" | "tiktok" | "meta";
   /** Relacionamento arquivado — disponível para restauração. */
   archived: boolean;
   archivedAtLabel?: string;
@@ -42,6 +42,8 @@ const ORIGIN_LABEL: Record<string, string> = {
   green_sales: "Green Sales",
   redistribuicao: "Redistribuição",
   portal: "Portal Velox",
+  tiktok: "TikTok",
+  meta: "Meta",
   manual: "Cadastro manual",
 };
 
@@ -55,13 +57,18 @@ export function listConversationBackups(): CrmBackupRecord[] {
       const origin = i.origin ?? "portal";
       const commercial = getCommercial(i.id);
       // A carteira do backup acompanha exatamente a carteira operacional
-      // do Lead — Redistribuição nunca se mistura com Green Sales.
+      // do Lead — Redistribuição nunca se mistura com Green Sales, e os
+      // canais oficiais (TikTok/Meta) têm carteira própria (COMANDO 3A §12).
       const kind: CrmBackupRecord["workspaceKind"] =
         origin === "green_sales"
           ? "green_sales"
           : origin === "redistribuicao"
             ? "redistribuicao"
-            : "portal";
+            : origin === "tiktok"
+              ? "tiktok"
+              : origin === "meta"
+                ? "meta"
+                : "portal";
       return {
         investorId: i.id,
         name: i.name,
@@ -72,7 +79,11 @@ export function listConversationBackups(): CrmBackupRecord[] {
             ? "Green Sales"
             : kind === "redistribuicao"
               ? "Redistribuição"
-              : "Portal",
+              : kind === "tiktok"
+                ? "TikTok"
+                : kind === "meta"
+                  ? "Meta"
+                  : "Portal",
         statusLabel: STATUS_LABEL[i.status],
         stateLabel: LEAD_STATE_META[state].label,
         lastMovementIso: i.lastActivity,
