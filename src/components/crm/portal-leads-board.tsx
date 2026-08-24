@@ -1,9 +1,13 @@
 /**
- * Green Sales — CRM visual do Portal Velox (quadro Kanban, somente leitura).
+ * Green Sales — CRM visual do Portal Velox (quadro Kanban).
  *
  * A origem externa continua sendo a fonte da verdade: o quadro apenas
- * espelha as etapas. Nenhum lead pode ser movido manualmente aqui.
- * A conexão com a origem pertence ao Executivo autenticado.
+ * espelha as etapas. A única escrita é a MOVIMENTAÇÃO MANUAL DE
+ * CONTINGÊNCIA (regras 9 e 10 do plano aprovado): ajuste local,
+ * auditado, que não altera a origem, não cria cadência e não dispara
+ * primeiro contato — a próxima sincronização corrige o espelho se a
+ * origem divergir. A conexão com a origem pertence ao Executivo
+ * autenticado.
  */
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -112,14 +116,20 @@ function LeadCard({
 function LeadDialog({
   lead,
   events,
+  stages,
   onClose,
   onRetry,
+  onMove,
 }: {
   lead: CrmLeadView;
   events: CrmLeadEventView[];
+  stages: CrmStageView[];
   onClose: () => void;
   onRetry: (id: string) => Promise<void>;
+  onMove: (lead: CrmLeadView, stage: CrmStageView) => Promise<void>;
 }) {
+  const [moveTarget, setMoveTarget] = useState("");
+  const moveOptions = stages.filter((s) => s.key !== lead.stageKey);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -171,6 +181,47 @@ function LeadDialog({
             </button>
           )}
           {lead.welcomeError && <span className="text-xs text-red-400">{lead.welcomeError}</span>}
+        </div>
+
+        <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
+          <p className="text-[11px] font-medium text-amber-300">Mover para (contingência local)</p>
+          <p className="mt-1 text-[10px] leading-relaxed text-white/50">
+            Ajuste somente do espelho do Portal: não altera a origem, não cria cadência e não
+            dispara primeiro contato. Se a origem divergir, a próxima sincronização corrige o
+            espelho automaticamente.
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <select
+              value={moveTarget}
+              onChange={(e) => setMoveTarget(e.target.value)}
+              className="h-8 flex-1 rounded-lg border border-white/10 bg-white/[0.06] px-2 text-xs text-white/80"
+            >
+              <option value="">Selecionar etapa…</option>
+              {moveOptions.map((stage) => (
+                <option key={stage.key} value={stage.key}>
+                  {stage.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!moveTarget}
+              onClick={() => {
+                const stage = moveOptions.find((s) => s.key === moveTarget);
+                if (!stage) return;
+                if (
+                  !window.confirm(
+                    `Mover "${lead.name || "este lead"}" localmente para "${stage.label}"? A origem não será alterada e nenhuma mensagem será enviada.`,
+                  )
+                )
+                  return;
+                void onMove(lead, stage).then(() => setMoveTarget(""));
+              }}
+              className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs text-amber-300 transition hover:bg-amber-500/10 disabled:opacity-40"
+            >
+              Mover
+            </button>
+          </div>
         </div>
 
         <h3 className="mt-6 mb-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
