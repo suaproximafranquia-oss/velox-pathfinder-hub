@@ -62,7 +62,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     const targetId = duplicate?.id ?? data.id;
     const { data: current } = await supabaseAdmin
       .from("portal_leads")
-      .select("scope,responsible_executive_id,responsible_executive_slug")
+      .select("scope,responsible_executive_id,responsible_executive_slug,last_activity_at")
       .eq("id", targetId)
       .maybeSingle();
 
@@ -142,6 +142,27 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     const preservedOwner =
       current?.responsible_executive_id ??
       (scope === "green_sales" ? executiveId : null);
+    /**
+     * COMANDO 3A §3 — ATIVIDADE SÓ AVANÇA COM ATIVIDADE REAL.
+     *
+     * `last_activity_at` alimenta o estado "Novo" do Workspace. Antes,
+     * qualquer sincronização operacional (nota do executivo, hidratação
+     * de cache, push sem atividade) gravava `now()` e o lead voltava
+     * indevidamente para "Novo". Agora o campo só avança quando o
+     * navegador informa uma atividade real do investidor — e nunca
+     * retrocede o valor oficial já registrado.
+     */
+    const nowIso = new Date().toISOString();
+    const providedActivity =
+      data.lastActivityAt && !Number.isNaN(Date.parse(data.lastActivityAt))
+        ? data.lastActivityAt
+        : null;
+    const existingActivity = current?.last_activity_at ?? null;
+    const effectiveActivity = !current
+      ? (providedActivity ?? data.createdAt ?? nowIso)
+      : providedActivity && (!existingActivity || providedActivity > existingActivity)
+        ? providedActivity
+        : existingActivity;
     const { error } = await supabaseAdmin.from("portal_leads").upsert(
       {
         id: targetId,
@@ -160,19 +181,44 @@ export const syncPortalLead = createServerFn({ method: "POST" })
             : null,
         campaign: data.campaign ?? null,
         device: data.device ?? null,
-        created_at: data.createdAt ?? new Date().toISOString(),
-        last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
+        created_at: data.createdAt ?? nowIso,
+        last_activity_at: effectiveActivity,
         journey: (data.journey ?? {}) as never,
       },
       { onConflict: "id" },
     );
     if (error) throw new Error(error.message);
     /**
-     * SEPARAÇÃO DE CONTEXTOS: iniciar a jornada no Portal do Investidor
-     * é um evento do PORTAL. Ele não gera mensagem automática no CRM de
-     * Relacionamento — o primeiro contato do CRM pertence à entrada do
-     * lead pela origem comercial (GreenSales → Workspace → CRM).
+     * COMANDO 3A §4 — PRIMEIRO CONTATO TAMBÉM NASCE NO PORTAL.
+     *
+     * Um lead NOVO criado por qualquer link operacional do Portal (Home,
+     * link personalizado, TikTok ou Meta) entra na MESMA regra oficial
+     * de primeiro contato: elegibilidade pela data de ativação, trava de
+     * madrugada com retomada às 07:00, idempotência por `msg_e0_` e
+     * abertura E0_V1 no motor de relacionamento. Em homologação a E0 é
+     * SIMULADA — nenhuma chamada real à Meta. Falha aqui nunca quebra a
+     * jornada do investidor.
      */
+    if (!current) {
+      try {
+        const { kickoffPortalFirstContact } = await import(
+          "@/server/crm/portal-first-contact.server"
+        );
+        await kickoffPortalFirstContact({
+          leadId: targetId,
+          name: data.name,
+          phone: data.whatsapp ?? "",
+          scope,
+          ownerId: preservedOwner,
+          entryAt: data.createdAt ?? nowIso,
+        });
+      } catch (kickoffError) {
+        console.error(
+          "[portal-leads] primeiro contato do lead do Portal não pode ser avaliado:",
+          kickoffError instanceof Error ? kickoffError.message : kickoffError,
+        );
+      }
+    }
     return { ok: true as const, scope, leadId: targetId, deduped: false as const };
   });
 
