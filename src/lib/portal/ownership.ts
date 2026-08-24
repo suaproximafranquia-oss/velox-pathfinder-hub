@@ -51,7 +51,9 @@ function uniq(list: (string | null | undefined)[]): string[] {
  * C — link da Gestora + pessoa sem proprietário → proprietário = Gestora,
  *     escopo Central Única;
  * D — link cru + pessoa existente → proprietário preservado;
- * E — link cru + pessoa nova → proprietário padrão (Administrador).
+ * E — link cru + pessoa nova → proprietário padrão (Administrador);
+ *     COMANDO 3 §8 — quando o acesso veio pelo link oficial de um canal
+ *     (TikTok/Meta), o escopo é o do canal, nunca o Portal genérico.
  */
 export function resolveOwnership(input: {
   origin: EntryOriginKind;
@@ -59,6 +61,8 @@ export function resolveOwnership(input: {
   existing: ExistingOwnership | null;
   /** Proprietário padrão do acesso institucional (Administrador). */
   defaultOwnerId: string;
+  /** COMANDO 3 §8 — canal oficial de origem (links /origem/tiktok|meta). */
+  channelScope?: "tiktok" | "meta" | null;
 }): OwnershipDecision {
   const existing = input.existing;
   const shared = uniq(existing?.sharedExecutiveIds ?? []);
@@ -119,14 +123,17 @@ export function resolveOwnership(input: {
   }
 
   // §19 — novo investidor sem proprietário: padrão do Administrador.
+  // COMANDO 3 §8 — link oficial de canal direciona para a carteira do canal.
   return {
     case: "E",
     ownerId: input.defaultOwnerId,
     operationalOwnerId: input.defaultOwnerId,
-    scope: "portal",
+    scope: input.channelScope ?? "portal",
     sharedExecutiveIds: shared.filter((id) => id !== input.defaultOwnerId),
     personalized: false,
-    reason: "Acesso institucional de novo investidor — proprietário padrão do Portal.",
+    reason: input.channelScope
+      ? `Acesso pelo link oficial ${input.channelScope === "tiktok" ? "TikTok" : "Meta"} — carteira própria do canal.`
+      : "Acesso institucional de novo investidor — proprietário padrão do Portal.",
   };
 }
 

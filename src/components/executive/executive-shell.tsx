@@ -182,7 +182,6 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin" && isHomologationEnvironment()
       ? [
           { to: "/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical },
-          { to: "/executivo/teste-entrada-24h", label: "Teste de Entrada 24h", icon: FlaskConical },
         ]
       : []),
   ];

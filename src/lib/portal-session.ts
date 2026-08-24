@@ -279,6 +279,12 @@ export function startPortalSession(input: {
         }
       : null,
     defaultOwnerId: portalOwnerId,
+    /**
+     * COMANDO 3 §8 — links oficiais de canal (/origem/tiktok|meta)
+     * direcionam o novo investidor para a carteira própria do canal.
+     */
+    channelScope:
+      entry.channel === "tiktok" || entry.channel === "meta" ? entry.channel : null,
   });
 
   /**

@@ -45,15 +45,4 @@ export const getCityPhoto = createServerFn({ method: "POST" })
     }));
   });
 
-/** Arquiva automaticamente a arte gerada na pasta corporativa oficial. */
-export const saveCreativeArt = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: { name: string; contentBase64: string; mimeType?: string }) => data)
-  .handler(async ({ data, context }) => {
-    const { saveToCorporateFolder } = await import("@/server/google-drive.server");
-    return saveToCorporateFolder(context.userId, {
-      name: data.name,
-      mimeType: data.mimeType || "image/png",
-      contentBase64: data.contentBase64,
-    });
   });

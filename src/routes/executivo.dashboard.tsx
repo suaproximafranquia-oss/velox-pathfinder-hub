@@ -60,11 +60,16 @@ function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
   if (scope === "portal") return i.origin === "portal";
   if (scope === "redistribuicao") return i.origin === "redistribuicao";
   if (scope === "central_unica") return i.origin === "central_unica";
+  // COMANDO 3 §8 — carteiras próprias dos links oficiais de canal.
+  if (scope === "tiktok") return i.origin === "tiktok";
+  if (scope === "meta") return i.origin === "meta";
   if (scope === "engajamento") return false;
   return (
     i.origin !== "portal" &&
     i.origin !== "redistribuicao" &&
-    i.origin !== "central_unica"
+    i.origin !== "central_unica" &&
+    i.origin !== "tiktok" &&
+    i.origin !== "meta"
   );
 }
 

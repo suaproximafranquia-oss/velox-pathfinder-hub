@@ -28,10 +28,11 @@ const PhoneRegistryOverlay = lazy(() =>
 const MagazineOverlay = lazy(() =>
   import("@/components/portal/magazine-overlay").then((m) => ({ default: m.MagazineOverlay })),
 );
-const InstitutionalOverlay = lazy(() =>
-  import("@/components/portal/institutional-overlay").then((m) => ({
-    default: m.InstitutionalOverlay,
-  })),
+const EstruturaOverlay = lazy(() =>
+  import("@/components/portal/estrutura-overlay").then((m) => ({ default: m.EstruturaOverlay })),
+);
+const PrincipiosOverlay = lazy(() =>
+  import("@/components/portal/principios-overlay").then((m) => ({ default: m.PrincipiosOverlay })),
 );
 import { assetUrl } from "@/lib/assets/registry";
 
@@ -95,6 +96,8 @@ type HomeSearch = {
   c?: string;
   /** Marca/operação de origem (`financeira`, `solar`, `seguros`). */
   b?: string;
+  /** COMANDO 3 §8 — canal oficial de origem (`tiktok` | `meta`). */
+  ch?: string;
 };
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
@@ -107,6 +110,7 @@ export const Route = createFileRoute("/")({
     u: str(search.u),
     c: str(search.c),
     b: str(search.b),
+    ch: str(search.ch),
   }),
   head: () => ({
     meta: [
@@ -351,7 +355,9 @@ function PortalHome() {
    * pendente — nunca navegação. Em seguida a URL volta a ser a Home.
    */
   useEffect(() => {
-    const hasParams = Boolean(search.e || search.m || search.o || search.u || search.c || search.b);
+    const hasParams = Boolean(
+      search.e || search.m || search.o || search.u || search.c || search.b || search.ch,
+    );
     if (hasParams) {
       const ctx = writeEntryContext({
         executiveSlug: search.e ?? readEntryContext().executiveSlug,
@@ -359,6 +365,11 @@ function PortalHome() {
         origin: search.o ?? readEntryContext().origin,
         campaign: search.c ?? readEntryContext().campaign,
         brand: search.b ?? readEntryContext().brand,
+        // COMANDO 3 §8 — canal oficial do link de origem (TikTok/Meta).
+        channel:
+          search.ch === "tiktok" || search.ch === "meta"
+            ? search.ch
+            : readEntryContext().channel,
         pendingModule: (getPortalModule(search.m)?.key ??
           (search.e ? "manual" : null)) as PortalModuleKey | null,
       });
@@ -434,22 +445,10 @@ function PortalHome() {
           />
         )}
         {(overlaysReady || active?.key === "estrutura") && (
-          <InstitutionalOverlay
-            open={active?.key === "estrutura"}
-            module="estrutura"
-            title="Nossa Estrutura"
-            intro="A matriz, os bastidores e as unidades que sustentam a operação Velox em todo o país — com os vídeos institucionais que mostram como trabalhamos."
-            onClose={closeActive}
-          />
+          <EstruturaOverlay open={active?.key === "estrutura"} onClose={closeActive} />
         )}
         {(overlaysReady || active?.key === "principios") && (
-          <InstitutionalOverlay
-            open={active?.key === "principios"}
-            module="principios"
-            title="Princípios Velox"
-            intro="Os princípios que orientam nossas decisões, nossos encontros e a forma como recebemos quem escolhe caminhar com a Velox."
-            onClose={closeActive}
-          />
+          <PrincipiosOverlay open={active?.key === "principios"} onClose={closeActive} />
         )}
         {(overlaysReady || active?.key === "gateway") && (
           <GatewayOverlay

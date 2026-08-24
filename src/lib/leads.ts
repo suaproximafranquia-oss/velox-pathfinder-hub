@@ -11,6 +11,7 @@
  */
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import type { ExecutiveUser } from "@/lib/executive-auth";
+import type { WorkspaceScope } from "@/lib/portal-workspace";
 import { notifySync } from "@/lib/sync-bus";
 
 const LEADS_KEY = "velox:leads:v1";
@@ -35,9 +36,10 @@ export type LeadRecord = VisitorIdentity & {
   /**
    * Escopo permanente do Lead no Workspace ("green_sales" quando veio de
    * link personalizado; "portal" quando veio do acesso institucional;
+   * "tiktok"/"meta" quando veio do link oficial do canal — COMANDO 3 §8;
    * "redistribuicao" quando entregue pela Gestão — ETAPA 02.1).
    */
-  scope?: "green_sales" | "redistribuicao" | "portal" | "central_unica";
+  scope?: WorkspaceScope;
   /**
    * COMANDO 4E §36 — proprietário ORIGINAL/histórico do investidor. Nunca
    * é alterado por redistribuição nem por acesso institucional.

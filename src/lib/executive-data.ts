@@ -20,12 +20,15 @@ export type InvestorStatus =
  *  - green_sales:    reconhecido via integração Green Sales
  *  - redistribuicao: entregue pela Gestão (ETAPA 02.1)
  *  - portal:         originado diretamente pelo Portal Velox
+ *  - tiktok / meta:  captado pelo link oficial do canal (COMANDO 3 §8)
  *  - manual:         cadastro manual pelo executivo
  */
 export type InvestorOrigin =
   | "green_sales"
   | "redistribuicao"
   | "portal"
+  | "tiktok"
+  | "meta"
   /** COMANDO 4G — carteira própria da Gestora. */
   | "central_unica"
   | "manual";
@@ -97,7 +100,18 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
         responsibleExecutiveId: lead.responsibleExecutiveId,
       });
     const isPortal = scope === "portal";
-    const events = listEvents({ investorId: lead.id });
+    /**
+     * COMANDO 3 §2/§5 — ações do EXECUTIVO (abrir/fechar card, marcar
+     * visualização) nunca são atividade do investidor. O evento
+     * "lead.status.changed" é emitido quando o card é aberto; se ele
+     * entrasse no cálculo de lastActivity, o lead voltaria a "novo" um
+     * milissegundo depois de ser marcado como visualizado (o bug do
+     * estado "Novo" que piscava). Apenas eventos reais do investidor
+     * alimentam atividade, último evento e métricas.
+     */
+    const events = listEvents({ investorId: lead.id }).filter(
+      (event) => event.type !== "lead.status.changed",
+    );
     const manualEvents = events.filter((event) => event.type === "manual.chapter.completed");
     const manualDone = events.some((event) => event.type === "manual.completed");
     const simulatorDone = events.some((event) => event.type === "simulator.completed");
@@ -159,7 +173,9 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
             ? "redistribuicao"
             : scope === "central_unica"
               ? "central_unica"
-              : "portal",
+              : scope === "tiktok" || scope === "meta"
+                ? scope
+                : "portal",
       priority: simulatorDone ? "high" : interestsCaptured ? "medium" : "none",
       lastEventLabel,
     };

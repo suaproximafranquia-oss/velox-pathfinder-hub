@@ -8,7 +8,6 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { PLATFORM_MODULES, type PlatformModule } from "@/config/modules";
-import { getCorporateDriveLink } from "@/lib/google-drive.functions";
 import { WORKSPACE } from "@/config/workspace";
 
 export const Route = createFileRoute("/executivo/home")({
@@ -89,47 +88,6 @@ function ModuleCard({ module: mod }: { module: PlatformModule }) {
   return <ModuleCardBody module={mod} />;
 }
 
-/**
- * Drive Corporativo — abre sempre a pasta oficial da Conta Google do
- * Portal, nunca o Drive da conta logada no navegador.
- */
-function CorporateDriveCard({ children }: { children: ReactNode }) {
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  async function open() {
-    if (busy) return;
-    setBusy(true);
-    setMessage(null);
-    const tab = window.open("", "_blank", "noopener,noreferrer");
-    try {
-      const { url } = await getCorporateDriveLink({ data: {} });
-      if (url) {
-        if (tab) tab.location.href = url;
-        else window.open(url, "_blank", "noopener,noreferrer");
-      } else {
-        tab?.close();
-        setMessage("Conecte a Conta Google do Portal para abrir o Drive corporativo.");
-      }
-    } catch {
-      tab?.close();
-      setMessage("Não foi possível abrir o Drive corporativo agora. Tente novamente.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div>
-      <button type="button" onClick={() => void open()} className="block w-full text-left">
-        {children}
-      </button>
-      {message ? (
-        <p className="mt-2 text-[11px] text-amber-400">{message}</p>
-      ) : null}
-    </div>
-  );
-}
 
 function ModuleCardBody({ module: mod }: { module: PlatformModule }) {
   const Icon = mod.icon;
@@ -177,7 +135,6 @@ function ModuleCardBody({ module: mod }: { module: PlatformModule }) {
 
   if (isActive && mod.href) {
     const isExternal = mod.external === true;
-    if (mod.id === "drive") return <CorporateDriveCard>{body}</CorporateDriveCard>;
     return (
       <a
         href={mod.href}

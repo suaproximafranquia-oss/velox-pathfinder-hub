@@ -20,28 +20,13 @@ export const Route = createFileRoute("/api/public/crm/sync")({
           return new Response("Não autorizado", { status: 401 });
         }
         const { runScheduledLeadSync } = await import("@/server/crm/sync-scheduler.server");
-        /**
-         * O mesmo gatilho de minuto executa as entradas programadas do
-         * teste de 24 horas. É trabalho limitado (no máximo 5 eventos
-         * por passagem) e nunca interrompe a sincronização real.
-         */
-        let batch24h: unknown = null;
-        try {
-          const { runBatch24hTick } = await import("@/server/testing/batch24h.server");
-          batch24h = await runBatch24hTick();
-        } catch (error) {
-          console.error(
-            "[teste-24h] worker não executou:",
-            error instanceof Error ? error.message : error,
-          );
-        }
         try {
           const result = await runScheduledLeadSync();
-          return Response.json({ ...result, batch24h });
+          return Response.json(result);
         } catch (error) {
           const message = error instanceof Error ? error.message : "erro";
           console.error("[crm-sync] rotina automática falhou:", message);
-          return Response.json({ ok: false, error: message, batch24h }, { status: 500 });
+          return Response.json({ ok: false, error: message }, { status: 500 });
         }
       },
     },

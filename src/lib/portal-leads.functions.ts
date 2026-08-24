@@ -9,7 +9,7 @@ export type PortalLeadPayload = {
   city?: string;
   origin?: string;
   material?: string;
-  scope: "green_sales" | "redistribuicao" | "portal";
+  scope: "green_sales" | "redistribuicao" | "portal" | "tiktok" | "meta";
   personalized?: boolean;
   responsibleExecutiveId?: string | null;
   responsibleExecutiveSlug?: string | null;
@@ -96,7 +96,12 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       );
       return {
         ok: true as const,
-        scope: (current?.scope ?? "portal") as "green_sales" | "redistribuicao" | "portal",
+        scope: (current?.scope ?? "portal") as
+          | "green_sales"
+          | "redistribuicao"
+          | "portal"
+          | "tiktok"
+          | "meta",
         leadId: targetId,
         deduped: true as const,
       };
@@ -124,7 +129,14 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       };
     }
     // Revalidação do roteamento obrigatório: green_sales exige executivo.
-    const scope = data.personalized && executiveId ? "green_sales" : "portal";
+    // COMANDO 3 §8 — escopo de canal (TikTok/Meta) é preservado tal como
+    // decidido pela fonte central de propriedade (ownership).
+    const scope =
+      data.personalized && executiveId
+        ? ("green_sales" as const)
+        : data.scope === "tiktok" || data.scope === "meta"
+          ? data.scope
+          : ("portal" as const);
     // O proprietário definido por uma transferência oficial nunca é
     // apagado por uma sincronização posterior da jornada.
     const preservedOwner =

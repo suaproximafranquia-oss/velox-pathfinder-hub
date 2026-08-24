@@ -19,12 +19,12 @@ import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as CrmIndexRouteImport } from './routes/crm.index'
 import { Route as SegSlugRouteImport } from './routes/seg.$slug'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
+import { Route as OrigemChannelRouteImport } from './routes/origem.$channel'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as FSlugRouteImport } from './routes/f.$slug'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
-import { Route as ExecutivoTesteEntrada24hRouteImport } from './routes/executivo.teste-entrada-24h'
 import { Route as ExecutivoTesteCadenciaRouteImport } from './routes/executivo.teste-cadencia'
 import { Route as ExecutivoTemplatesRouteImport } from './routes/executivo.templates'
 import { Route as ExecutivoRevistaRouteImport } from './routes/executivo.revista'
@@ -108,6 +108,11 @@ const SSlugRoute = SSlugRouteImport.update({
   path: '/s/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrigemChannelRoute = OrigemChannelRouteImport.update({
+  id: '/origem/$channel',
+  path: '/origem/$channel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ManualConcluidoRoute = ManualConcluidoRouteImport.update({
   id: '/manual/concluido',
   path: '/manual/concluido',
@@ -133,12 +138,6 @@ const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
   path: '/executivo/usuarios',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExecutivoTesteEntrada24hRoute =
-  ExecutivoTesteEntrada24hRouteImport.update({
-    id: '/executivo/teste-entrada-24h',
-    path: '/executivo/teste-entrada-24h',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ExecutivoTesteCadenciaRoute = ExecutivoTesteCadenciaRouteImport.update({
   id: '/executivo/teste-cadencia',
   path: '/executivo/teste-cadencia',
@@ -335,12 +334,12 @@ export interface FileRoutesByFullPath {
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/teste-entrada-24h': typeof ExecutivoTesteEntrada24hRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/crm/': typeof CrmIndexRoute
@@ -384,12 +383,12 @@ export interface FileRoutesByTo {
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/teste-entrada-24h': typeof ExecutivoTesteEntrada24hRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/crm': typeof CrmIndexRoute
@@ -435,12 +434,12 @@ export interface FileRoutesById {
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/teste-entrada-24h': typeof ExecutivoTesteEntrada24hRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
+  '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/crm/': typeof CrmIndexRoute
@@ -487,12 +486,12 @@ export interface FileRouteTypes {
     | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/teste-cadencia'
-    | '/executivo/teste-entrada-24h'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
     | '/crm/'
@@ -536,12 +535,12 @@ export interface FileRouteTypes {
     | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/teste-cadencia'
-    | '/executivo/teste-entrada-24h'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
     | '/crm'
@@ -586,12 +585,12 @@ export interface FileRouteTypes {
     | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/teste-cadencia'
-    | '/executivo/teste-entrada-24h'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
+    | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
     | '/crm/'
@@ -637,12 +636,12 @@ export interface RootRouteChildren {
   ExecutivoRevistaRoute: typeof ExecutivoRevistaRoute
   ExecutivoTemplatesRoute: typeof ExecutivoTemplatesRoute
   ExecutivoTesteCadenciaRoute: typeof ExecutivoTesteCadenciaRoute
-  ExecutivoTesteEntrada24hRoute: typeof ExecutivoTesteEntrada24hRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   FSlugRoute: typeof FSlugRoute
   ManualChapterRoute: typeof ManualChapterRoute
   ManualAnuncioRoute: typeof ManualAnuncioRoute
   ManualConcluidoRoute: typeof ManualConcluidoRoute
+  OrigemChannelRoute: typeof OrigemChannelRoute
   SSlugRoute: typeof SSlugRoute
   SegSlugRoute: typeof SegSlugRoute
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
@@ -725,6 +724,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/origem/$channel': {
+      id: '/origem/$channel'
+      path: '/origem/$channel'
+      fullPath: '/origem/$channel'
+      preLoaderRoute: typeof OrigemChannelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/manual/concluido': {
       id: '/manual/concluido'
       path: '/manual/concluido'
@@ -758,13 +764,6 @@ declare module '@tanstack/react-router' {
       path: '/executivo/usuarios'
       fullPath: '/executivo/usuarios'
       preLoaderRoute: typeof ExecutivoUsuariosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/teste-entrada-24h': {
-      id: '/executivo/teste-entrada-24h'
-      path: '/executivo/teste-entrada-24h'
-      fullPath: '/executivo/teste-entrada-24h'
-      preLoaderRoute: typeof ExecutivoTesteEntrada24hRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/teste-cadencia': {
@@ -1038,12 +1037,12 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoRevistaRoute: ExecutivoRevistaRoute,
   ExecutivoTemplatesRoute: ExecutivoTemplatesRoute,
   ExecutivoTesteCadenciaRoute: ExecutivoTesteCadenciaRoute,
-  ExecutivoTesteEntrada24hRoute: ExecutivoTesteEntrada24hRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   FSlugRoute: FSlugRoute,
   ManualChapterRoute: ManualChapterRoute,
   ManualAnuncioRoute: ManualAnuncioRoute,
   ManualConcluidoRoute: ManualConcluidoRoute,
+  OrigemChannelRoute: OrigemChannelRoute,
   SSlugRoute: SSlugRoute,
   SegSlugRoute: SegSlugRoute,
   ExecutivoIndexRoute: ExecutivoIndexRoute,
