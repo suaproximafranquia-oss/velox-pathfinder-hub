@@ -221,7 +221,7 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
     last_synced_at: now,
     sync_status: "OK",
     sync_error: null,
-    raw_payload: input.rawPayload as never,
+    raw_payload: sanitizeRawPayload(input.rawPayload) as never,
     // Etiquetas e status técnico NUNCA filtram nada — são preservados
     // integralmente como informação do lead.
     tags: (input.tags ?? []) as never,
