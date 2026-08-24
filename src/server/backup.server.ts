@@ -139,11 +139,11 @@ function defaultLabel(kind: BackupKind, origin: BackupOrigin): string {
  * removidos pela rotina.
  */
 export const RETENTION = {
-  /** Últimas 48 horas: todos os pontos (um a cada 15 minutos). */
+  /** Últimas 48 horas: todos os pontos (um a cada hora — COMANDO 3A §15). */
   fullHours: 48,
   /**
    * COMANDO 2 §27 — depois das 48 horas permanece apenas o ÚLTIMO ponto
-   * de cada dia (fechamento do dia, ~23:45), por 7 dias corridos.
+   * de cada dia (fechamento do dia), por 7 dias corridos.
    */
   dailyDays: 7,
 } as const;
@@ -291,10 +291,10 @@ export async function restoreBackupPayload(backupId: string): Promise<RestoreRes
 }
 
 /**
- * Retenção oficial dos pontos automáticos (COMANDO 2 §27):
- *  · últimas 48 horas — todos (a cada 15 minutos);
+ * Retenção oficial dos pontos automáticos (COMANDO 2 §27 + 3A §15):
+ *  · últimas 48 horas — todos (um por hora);
  *  · de 48 horas a 7 dias — apenas o ÚLTIMO ponto de cada dia
- *    (fechamento do dia, próximo das 23:45);
+ *    (fechamento do dia);
  *  · além de 7 dias — o ponto é descartado.
  * Backups manuais e de segurança seguem política própria e nunca são
  * removidos aqui. Ao final, conteúdos sem nenhum ponto associado são
@@ -325,7 +325,7 @@ export async function pruneBackups(): Promise<number> {
     const age = now - at;
     let bucket: string;
     if (age <= RETENTION.fullHours * hour) {
-      bucket = `raw:${id}`; // 48h: todos os pontos de 15 em 15 minutos
+      bucket = `raw:${id}`; // 48h: todos os pontos (um por hora)
     } else if (age <= RETENTION.dailyDays * day) {
       // A lista vem em ordem decrescente: o primeiro ponto de cada dia
       // é justamente o ÚLTIMO gerado naquele dia (fechamento do dia).

@@ -396,16 +396,13 @@ type IntegrationDef = {
   google?: GoogleConnectorKey;
 };
 
+/**
+ * COMANDO 3A §13 — Green Sales NÃO é configurável por tela: é integração
+ * fixa via variáveis de ambiente do servidor (seção própria abaixo). O
+ * Google Drive foi removido da plataforma. Permanecem editáveis apenas as
+ * integrações operacionais reais: Google Meet e WhatsApp.
+ */
 const INTEGRATION_DEFS: IntegrationDef[] = [
-  {
-    id: "crm",
-    label: "CRM · Green Sales",
-    hint: "Redirecionamento externo para o CRM comercial.",
-    fields: [
-      { id: "baseUrl", label: "URL do CRM", placeholder: "https://crm.veloxsolucoes.com.br" },
-      { id: "apiKey", label: "API Key", placeholder: "gs_live_...", secret: true },
-    ],
-  },
   {
     id: "meet",
     label: "Reuniões · Google Meet",
@@ -413,15 +410,6 @@ const INTEGRATION_DEFS: IntegrationDef[] = [
     google: "google_calendar",
     fields: [
       { id: "calendarId", label: "Agenda padrão", placeholder: "primary" },
-    ],
-  },
-  {
-    id: "drive",
-    label: "Drive · Google Drive",
-    hint: "Repositório de documentos institucionais.",
-    google: "google_drive",
-    fields: [
-      { id: "folderId", label: "ID da pasta oficial", placeholder: "1AbCdEf..." },
     ],
   },
   {

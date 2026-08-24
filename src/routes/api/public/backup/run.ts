@@ -1,10 +1,10 @@
 /**
  * Rotina automática da Central de Backup.
  *
- * Chamada pelo servidor em intervalos regulares (15 minutos), sem
- * depender de qualquer usuário logado. Cria um ponto de restauração do
- * estado do banco e aplica a política de retenção — que remove apenas
- * pontos automáticos antigos, nunca dados do Portal.
+ * Chamada pelo servidor em intervalos regulares (1 hora — COMANDO 3A
+ * §15), sem depender de qualquer usuário logado. Cria um ponto de
+ * restauração do estado do banco e aplica a política de retenção — que
+ * remove apenas pontos automáticos antigos, nunca dados do Portal.
  */
 import { createFileRoute } from "@tanstack/react-router";
 
