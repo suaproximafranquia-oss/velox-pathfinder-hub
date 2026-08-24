@@ -70,15 +70,20 @@ export function getPortalAdministratorId(): string {
 }
 
 /**
- * ETAPA 02.1 §Doc01/Doc02 — três origens operacionais distintas:
+ * ETAPA 02.1 §Doc01/Doc02 — origens operacionais distintas:
  *  - green_sales:    Lead captado diretamente pelo Executivo (link pessoal);
  *  - redistribuicao: Lead institucional sem dono, atribuído pela Gestão;
- *  - portal:         Lead Orgânico do Portal do Investidor (só o híbrido).
+ *  - portal:         Lead Orgânico do Portal do Investidor (só o híbrido);
+ *  - tiktok / meta:  Lead captado pelo link oficial do canal
+ *                    (COMANDO 3 §8) — carteira própria do canal,
+ *                    administrada pelo Administrador do Portal.
  */
 export type WorkspaceScope =
   | "green_sales"
   | "redistribuicao"
   | "portal"
+  | "tiktok"
+  | "meta"
   /** COMANDO 4E §12 — carteira própria da Gestora (nunca "Green Sales"). */
   | "central_unica";
 
@@ -86,6 +91,8 @@ export const WORKSPACE_SCOPE_LABEL: Record<WorkspaceScope, string> = {
   green_sales: "Green Sales",
   redistribuicao: "Redistribuição",
   portal: "Portal",
+  tiktok: "TikTok",
+  meta: "Meta",
   central_unica: "Central Única",
 };
 
@@ -94,6 +101,8 @@ export function isWorkspaceScope(value: unknown): value is WorkspaceScope {
     value === "green_sales" ||
     value === "redistribuicao" ||
     value === "portal" ||
+    value === "tiktok" ||
+    value === "meta" ||
     value === "central_unica"
   );
 }
@@ -112,6 +121,7 @@ export function workspaceScopesFor(
    *
    *  • Colaborador comum ....... GreenSales + Redistribuição
    *  • Administrador (ativo) ... GreenSales + Redistribuição + Portal
+   *                              + TikTok + Meta (COMANDO 3 §7)
    *  • Administrador como
    *    Colaborador ............. GreenSales + Redistribuição
    *  • Gestora ................. Central Única (carteira própria dela)
@@ -119,10 +129,11 @@ export function workspaceScopesFor(
    * A Central Única deixou de aparecer como área operacional do
    * Administrador: ela pertence à Gestão. O perfil híbrido não abre mais
    * o Portal quando está atuando como Colaborador — a aba Portal existe
-   * apenas no perfil ATIVO de Administrador.
+   * apenas no perfil ATIVO de Administrador. TikTok e Meta seguem a
+   * mesma regra do Portal (somente o Administrador).
    */
   if (role === "super_admin") {
-    return ["green_sales", "redistribuicao", "portal"];
+    return ["green_sales", "redistribuicao", "portal", "tiktok", "meta"];
   }
   if (role === "diretora") return ["central_unica"];
   return ["green_sales", "redistribuicao"];
