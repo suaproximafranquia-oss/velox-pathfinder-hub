@@ -8,6 +8,28 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normalizePhone } from "@/lib/greensales/normalize";
 
+/**
+ * O Postgres rejeita jsonb com NUL (\u0000) — "unsupported Unicode escape
+ * sequence". A API de origem às vezes devolve o caractere embutido em
+ * textos de leads; varremos o payload e removemos antes de gravar.
+ */
+export function sanitizeRawPayload<T>(value: T): T {
+  if (typeof value === "string") {
+    return value.replace(/\u0000/g, "") as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeRawPayload(item)) as T;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = sanitizeRawPayload(item);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 export type LeadEventType =
   | "lead_criado"
   | "lead_sincronizado"
@@ -199,7 +221,7 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
     last_synced_at: now,
     sync_status: "OK",
     sync_error: null,
-    raw_payload: input.rawPayload as never,
+    raw_payload: sanitizeRawPayload(input.rawPayload) as never,
     // Etiquetas e status técnico NUNCA filtram nada — são preservados
     // integralmente como informação do lead.
     tags: (input.tags ?? []) as never,

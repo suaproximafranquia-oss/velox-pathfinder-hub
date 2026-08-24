@@ -218,6 +218,9 @@ export async function runLeadSync(
       entryAt: entryAtOf(listed),
       since,
     });
+    // Fora do espelho a classificação só produz A ou B; a guarda é só
+    // para o tipo. Um "D" aqui seria contradição — não processar.
+    if (cls === "D") continue;
     toProcess.push({ listed, cls });
   }
   let divergentCount = 0;
