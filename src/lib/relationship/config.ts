@@ -278,15 +278,18 @@ export const RELATIONSHIP_CONFIG: RelationshipConfig = {
   enabled: true,
   windowHours: 24,
   /**
-   * JANELA ÚNICA DA OPERAÇÃO: 07:00 → 22:30. Fora dela a etapa não é
-   * perdida nem cancelada — apenas reagendada para a próxima abertura.
+   * JANELA DAS ETAPAS E1+ (§16): Seg–Sex 07:00 → 22:00. Fora dela a
+   * etapa não é perdida nem cancelada — apenas reagendada para a
+   * próxima abertura.
    */
-  businessHours: { start: 7, end: 22.5 },
-  /** §11 — no sábado o envio vai apenas até 12:00. */
+  businessHours: { start: 7, end: 22 },
+  /** §16 — no sábado o envio (E1+) vai apenas até 12:00. */
   saturdayHours: { start: 7, end: 12 },
   /**
-   * E0/A0: 07:00 → 22:30 em TODOS os dias, inclusive sábado e domingo.
-   * Um lead que entra sábado às 15:00 recebe a E0 no próprio sábado.
+   * E0/A0 (§16): Seg–Sex 07:00 → 22:30 e Sáb 07:00 → 12:00. Domingo
+   * SEM envio. A consciência de dia da semana é aplicada em
+   * `src/lib/crm/e0-window.ts` — este campo registra a faixa horária
+   * dos dias em que a E0 opera.
    */
   e0Hours: { start: 7, end: 22.5 },
   dailyClosingHour: 22,

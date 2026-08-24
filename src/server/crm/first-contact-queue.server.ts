@@ -1,10 +1,11 @@
 /**
- * FILA DA E0 ADIADA PELA MADRUGADA.
+ * FILA DA E0 ADIADA PELA JANELA OPERACIONAL (§16).
  *
- * Quando o lead novo é detectado entre 22:30 e 06:59 a E0 não é enviada:
- * ela fica pendente e é executada na próxima abertura da janela (07:00).
- * Nada é recalculado e nenhum lead antigo entra aqui — só participa da
- * fila quem foi adiado DEPOIS desta atualização (evento `e0_adiada`).
+ * Quando o lead novo é detectado fora da janela E0 (Seg–Sex 07:00–22:30,
+ * Sáb 07:00–12:00, Dom sem envio) a E0 não é enviada: ela fica pendente
+ * e é executada na próxima abertura da janela. Nada é recalculado e
+ * nenhum lead antigo entra aqui — só participa da fila quem foi adiado
+ * DEPOIS desta atualização (evento `e0_adiada`).
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";

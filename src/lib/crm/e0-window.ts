@@ -1,78 +1,88 @@
 /**
- * JANELA OPERACIONAL DA E0/A0 (exceção explícita do calendário).
+ * JANELA OPERACIONAL E0 (regra §16, aprovada no plano final).
  *
- * A E0 é o primeiro contato de um lead que ACABOU de se cadastrar. Ela
- * é a ÚNICA etapa que vale todos os dias da semana — inclusive sábado
- * e domingo — limitada apenas à faixa horária central
- * `RELATIONSHIP_CONFIG.e0Hours` (hoje 07:00–22:30). Fora dela nada é
- * entregue: a E0 fica pendente e é executada na abertura seguinte.
+ *   E0: Seg–Sex 07:00–22:30 · Sábado 07:00–12:00 · Domingo sem envio.
  *
- * As demais etapas (E1, E3, E4, E12, V, R, RE, RF) NÃO usam este
- * arquivo: elas continuam governadas por `messagingHours` (dias úteis,
- * janela própria de sábado, domingo e feriados sem envio).
+ * Fora da janela NADA é disparado: a entrada é enfileirada/adiada e
+ * executada na próxima abertura. Regra pura, sem banco e sem canal.
  *
- * Regra pura, sem banco e sem canal: quem decide é o servidor/motor.
+ * Observação histórica: esta função já foi apenas "noturna" e já foi
+ * "integral todos os dias". A regra vigente é a §16 acima — alterações
+ * de calendário pertencem a este arquivo e aos seus testes.
+ *
+ * Assinaturas preservadas: os consumidores chamam sem argumento
+ * (instante atual) — `date` é opcional apenas para testes.
  */
-import { RELATIONSHIP_CONFIG } from "@/lib/relationship/config";
 
-const TIME_ZONE = RELATIONSHIP_CONFIG.timeZone;
-/** A operação está em UTC-3 o ano inteiro. */
-const UTC_OFFSET_HOURS = 3;
+export const E0_WINDOW_RESUME_MIN = 70;
 
-/** Início do bloqueio noturno da E0 (fim da faixa da E0, 22:30). */
-export const E0_NIGHT_START_MINUTES = Math.round(RELATIONSHIP_CONFIG.e0Hours.end * 60);
-/** Abertura da janela operacional da E0 (início da faixa da E0, 07:00). */
-export const E0_WINDOW_OPEN_MINUTES = Math.round(RELATIONSHIP_CONFIG.e0Hours.start * 60);
+const OPEN_HOUR = 7;
+const CLOSE_HOUR = 22;
+const CLOSE_MINUTE = 30;
+const SATURDAY_CLOSE_HOUR = 12;
 
+const minutesOfDay = (d: Date) => d.getHours() * 60 + d.getMinutes();
 
-function localParts(value: string | Date): { date: string; minutes: number } {
-  const instant = typeof value === "string" ? new Date(value) : value;
-  const formatted = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(instant);
-  const get = (type: string) => formatted.find((p) => p.type === type)?.value ?? "00";
-  const hour = Number(get("hour")) % 24;
-  return {
-    date: `${get("year")}-${get("month")}-${get("day")}`,
-    minutes: hour * 60 + Number(get("minute")),
-  };
-}
-
-/** O instante está dentro da madrugada bloqueada para a E0? */
-export function isE0NightWindow(value: string | Date = new Date()): boolean {
-  const { minutes } = localParts(value);
-  return minutes >= E0_NIGHT_START_MINUTES || minutes < E0_WINDOW_OPEN_MINUTES;
-}
-
-function addCalendarDay(isoDate: string): string {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, (d ?? 1) + 1)).toISOString().slice(0, 10);
-}
+/** Dia da semana: 0 = domingo, 6 = sábado (hora local). */
+const weekdayOf = (d: Date) => d.getDay();
 
 /**
- * Próximo instante em que a E0 pode ser executada. Fora da madrugada é
- * o próprio instante; dentro dela, as 07:00 da próxima abertura.
+ * Verdadeiro quando a janela E0 está FECHADA no instante informado:
+ * madrugada/fechamento (qualquer dia), sábado a partir das 12:00 e
+ * domingo o dia inteiro.
  */
-export function nextE0Moment(value: string | Date = new Date()): string {
-  const instant = typeof value === "string" ? new Date(value) : value;
-  if (!isE0NightWindow(instant)) return instant.toISOString();
-  const { date, minutes } = localParts(instant);
-  const target = minutes >= E0_NIGHT_START_MINUTES ? addCalendarDay(date) : date;
-  const [y, m, d] = target.split("-").map(Number);
-  return new Date(
-    Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, UTC_OFFSET_HOURS, 0, 0, 0) +
-      E0_WINDOW_OPEN_MINUTES * 60_000,
-  ).toISOString();
+export function isE0Blocked(date: Date = new Date()): boolean {
+  const day = weekdayOf(date);
+  if (day === 0) return true; // domingo — sem envio
+  const minutes = minutesOfDay(date);
+  if (day === 6) return minutes < OPEN_HOUR * 60 || minutes >= SATURDAY_CLOSE_HOUR * 60;
+  return minutes < OPEN_HOUR * 60 || minutes >= CLOSE_HOUR * 60 + CLOSE_MINUTE;
 }
 
+/** Nome histórico mantido para os consumidores existentes. */
+export const isE0NightWindow = isE0Blocked;
 
-/** Texto padrão do adiamento — usado em eventos e auditoria. */
-export function nightDeferralReason(value: string | Date = new Date()): string {
-  return `E0 recebida na madrugada (22:30–06:59). Envio adiado para ${nextE0Moment(value)} (07:00 da operação).`;
+/**
+ * Próximo instante em que a janela E0 estará aberta a partir de `date`.
+ * Se já estiver aberta, devolve o próprio instante.
+ */
+export function nextE0Moment(date: Date = new Date()): Date {
+  const candidate = new Date(date.getTime());
+  for (let i = 0; i < 10; i += 1) {
+    const day = weekdayOf(candidate);
+    const minutes = minutesOfDay(candidate);
+    if (!isE0Blocked(candidate)) return candidate;
+    if (day === 0) {
+      // Domingo → segunda-feira 07:00.
+      candidate.setDate(candidate.getDate() + 1);
+      candidate.setHours(OPEN_HOUR, 0, 0, 0);
+      continue;
+    }
+    const closeMinutes =
+      day === 6 ? SATURDAY_CLOSE_HOUR * 60 : CLOSE_HOUR * 60 + CLOSE_MINUTE;
+    if (minutes >= closeMinutes) {
+      // Após o fechamento do dia → próxima abertura (o laço pula o domingo).
+      candidate.setDate(candidate.getDate() + 1);
+      candidate.setHours(OPEN_HOUR, 0, 0, 0);
+      continue;
+    }
+    if (minutes < OPEN_HOUR * 60) {
+      candidate.setHours(OPEN_HOUR, 0, 0, 0);
+      continue;
+    }
+    // Caso residual (não deveria ocorrer): avança um dia por segurança.
+    candidate.setDate(candidate.getDate() + 1);
+    candidate.setHours(OPEN_HOUR, 0, 0, 0);
+  }
+  return candidate;
+}
+
+/** Texto oficial do adiamento — auditado no evento `e0_adiada`. */
+export function nightDeferralReason(at: Date = new Date()): string {
+  const resume = nextE0Moment(at);
+  const hh = String(resume.getHours()).padStart(2, "0");
+  const mm = String(resume.getMinutes()).padStart(2, "0");
+  const day = String(resume.getDate()).padStart(2, "0");
+  const month = String(resume.getMonth() + 1).padStart(2, "0");
+  return `E0 adiada — fora da janela operacional (§16: Seg–Sex 07:00–22:30, Sáb 07:00–12:00, Dom sem envio). Retomada automática em ${day}/${month} às ${hh}:${mm}.`;
 }
