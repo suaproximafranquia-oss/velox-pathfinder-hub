@@ -21,7 +21,8 @@ export type StepDefinition = {
 };
 
 /**
- * FLUXO 1 — lead que nunca responde: E0 → E1 → E3 → E4 → E12.
+ * FLUXO 1 — lead que nunca responde: E0 → E1 → E3 → E4 → E12 → E30
+ * (E30 integrada pelo COMANDO 4A §8; ativação controlada por E30_ENABLED).
  * FLUXO 2 — visualizou duas vezes sem responder: E0 → E1 → V3 → V4 (fim).
  * FLUXO 3 — respondeu e sumiu: R1 → R2 → R3, sempre 2 dias úteis após a
  * última interação válida.
@@ -82,6 +83,25 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     businessDaysAfterReference: 5,
     templatePurpose: "encerramento",
     contentGroup: "FINALIZACAO",
+    // Enquanto a E30 estiver desativada a E12 encerra o fluxo; com a E30
+    // ativa, o fluxo continua até o recontato tardio.
+    terminal: !E30_ENABLED,
+  },
+  /**
+   * COMANDO 4A §8 — E30 integrada ao fluxo existente (nunca uma cadência
+   * independente). A regra de negócio já definida vive em
+   * `reactivation.ts`: 22 dias úteis contados a partir do INÍCIO DA
+   * JORNADA, nunca para leads históricos. Permanece travada por
+   * `E30_ENABLED` até existir texto oficial aprovado — enquanto
+   * desativada, a guarda de ordem do fluxo a mantém fora da fila e a E12
+   * segue como encerramento.
+   */
+  E30: {
+    step: "E30",
+    flow: "sem_resposta",
+    businessDaysAfterReference: E30_BUSINESS_DAYS_AFTER_START,
+    templatePurpose: "recontato_e30",
+    contentGroup: null,
     terminal: true,
   },
   V3: {
