@@ -289,7 +289,15 @@ function Side({
       <h2 className="portal-serif mt-3 text-3xl md:text-4xl" style={{ color: "#101A33" }}>
         {spread.title}
       </h2>
-      <div className="mt-6 space-y-4 text-sm leading-relaxed text-[color:var(--muted-foreground)] md:text-base">
+      {/*
+        COMANDO 3A §16 — cor editorial fixa: a página é papel branco em
+        QUALQUER tema (Portal ou pré-visualização administrativa). Usar o
+        token do tema fazia o texto ficar claro demais no tema escuro.
+      */}
+      <div
+        className="mt-6 space-y-4 text-sm leading-relaxed md:text-base"
+        style={{ color: "#3E4C6B" }}
+      >
         {spread.body
           .split(/\n{2,}/)
           .filter(Boolean)
