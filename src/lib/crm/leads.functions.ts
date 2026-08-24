@@ -218,6 +218,72 @@ export const runCrmBackfillNow = createServerFn({ method: "POST" })
     return runGreenSalesBackfill(context.userId);
   });
 
+/**
+ * MOVIMENTAÇÃO MANUAL DE CONTINGÊNCIA (plano aprovado — regras 9 e 10).
+ *
+ * Ajuste LOCAL do espelho operacional, decidido pela gestão:
+ *  - NUNCA altera a origem externa (GreenSales é a fonte da verdade);
+ *  - NUNCA cria cadência nova e NUNCA dispara E0 (a data de entrada na
+ *    etapa de entrada não é tocada);
+ *  - salva o estágio imediatamente e audita a ação;
+ *  - a próxima sincronização CORRIGE o espelho se a origem divergir —
+ *    a contingência é temporária por definição.
+ */
+export const moveCrmLeadStage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        stageKey: z.string().min(1),
+        stageLabel: z.string().min(1).max(120),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: boolean; message: string }> => {
+    await assertManager(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { recordEvent } = await import("@/server/crm/lead-service.server");
+
+    const { data: lead } = await supabaseAdmin
+      .from("crm_leads")
+      .select("id,external_id,stage_key,is_test")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!lead) return { ok: false, message: "Lead não encontrado no espelho." };
+
+    const from = (lead.stage_key as string | null) ?? "sem_etapa";
+    if (from === data.stageKey) return { ok: true, message: "O lead já está nesta etapa." };
+
+    const { error } = await supabaseAdmin
+      .from("crm_leads")
+      .update({
+        stage_key: data.stageKey,
+        stage_entered_at: new Date().toISOString(),
+        // entered_entry_stage_at NÃO é tocado: mover manualmente para
+        // NOVOS não pode tornar o lead elegível a E0/cadência.
+      })
+      .eq("id", data.id);
+    if (error) return { ok: false, message: error.message };
+
+    await recordEvent(
+      lead.id as string,
+      "movimentacao_manual",
+      `Contingência local: ${from} → ${data.stageKey}. Não altera a origem, não cria cadência e não dispara E0. A próxima sincronização corrige o espelho se a origem divergir.`,
+      {
+        from,
+        to: data.stageKey,
+        toLabel: data.stageLabel,
+        actorUserId: context.userId,
+        scope: "espelho_local",
+      },
+    );
+    return {
+      ok: true,
+      message: `Lead movido localmente para ${data.stageLabel}. Contingência do espelho — a origem não foi alterada.`,
+    };
+  });
+
 /** Reenvio manual e controlado das boas-vindas de um lead. */
 export const retryCrmWelcome = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
