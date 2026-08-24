@@ -99,8 +99,12 @@ type ListPage = {
  *   coluna sem mudar de posição na listagem. Foi exatamente assim que o
  *   caso Marcelo (cadastro 22/08 → ZERO CONTATO em 24/08) ficou
  *   invisível para a sincronização incremental.
+ * - `total_pagina = 100` é o tamanho comprovado no HAR da própria
+ *   interface do GreenSales (6 páginas para 554 leads).
  */
-const PAGE_SIZE = 50;
+import { evaluateScanCompleteness, type ScanCompleteness } from "@/lib/crm/scan-completeness";
+
+const PAGE_SIZE = 100;
 
 async function fetchPage(token: string, page: number): Promise<ListPage> {
   const res = await fetch(`${BASE_URL}lead/list`, {
@@ -192,15 +196,33 @@ export async function fetchLeadsSince(
   token: string,
   since: Date,
   _maxPages = 20,
-): Promise<{ leads: GreenSalesLead[]; scanned: GreenSalesLead[]; pagesScanned: number }> {
+): Promise<{
+  leads: GreenSalesLead[];
+  scanned: GreenSalesLead[];
+  pagesScanned: number;
+  completeness: ScanCompleteness;
+}> {
   const leads: GreenSalesLead[] = [];
   const scanned: GreenSalesLead[] = [];
+  const seen = new Set<string>();
   let page = 1;
   let lastPage = 1;
+  let rowsReceived = 0;
+  let totalReported: number | null = null;
+  let unexpectedEmptyPage: number | null = null;
   while (page <= lastPage) {
     const body = await fetchPage(token, page);
     lastPage = body.last_page ?? 1;
-    for (const lead of body.data ?? []) {
+    totalReported = body.total ?? totalReported;
+    const rows = body.data ?? [];
+    if (rows.length === 0 && page < lastPage && unexpectedEmptyPage === null) {
+      unexpectedEmptyPage = page;
+    }
+    rowsReceived += rows.length;
+    for (const lead of rows) {
+      const key = String(lead.id);
+      if (seen.has(key)) continue;
+      seen.add(key);
       scanned.push(lead);
       const stamp = lead.updated_at ?? lead.created_at;
       const at = stamp ? new Date(stamp) : null;
@@ -210,7 +232,15 @@ export async function fetchLeadsSince(
     }
     page += 1;
   }
-  return { leads, scanned, pagesScanned: page - 1 };
+  const completeness = evaluateScanCompleteness({
+    pagesExpected: lastPage,
+    pagesScanned: page - 1,
+    totalReported,
+    rowsReceived,
+    uniqueProcessed: seen.size,
+    unexpectedEmptyPage,
+  });
+  return { leads, scanned, pagesScanned: page - 1, completeness };
 }
 
 /**
@@ -223,18 +253,34 @@ export async function fetchLeadsSince(
 export async function fetchAllLeads(
   token: string,
   maxPages = 500,
-): Promise<{ leads: GreenSalesLead[]; pagesScanned: number; totalReported: number | null }> {
+): Promise<{
+  leads: GreenSalesLead[];
+  pagesScanned: number;
+  totalReported: number | null;
+  completeness: ScanCompleteness;
+}> {
   const leads: GreenSalesLead[] = [];
   const seen = new Set<string>();
   let page = 1;
   let lastPage = 1;
+  let rowsReceived = 0;
   let totalReported: number | null = null;
+  let unexpectedEmptyPage: number | null = null;
   while (page <= lastPage && page <= maxPages) {
     const body = await fetchPage(token, page);
     lastPage = body.last_page ?? 1;
     totalReported = body.total ?? totalReported;
     const rows = body.data ?? [];
-    if (rows.length === 0) break;
+    /**
+     * Página vazia ANTES do fim da paginação é uma resposta parcial da
+     * origem: a varredura deixa de ser comprovadamente completa e a
+     * reconciliação de NÃO LOCALIZADOS será abortada (viés conservador).
+     */
+    if (rows.length === 0) {
+      if (page <= lastPage) unexpectedEmptyPage = page;
+      break;
+    }
+    rowsReceived += rows.length;
     for (const lead of rows) {
       const key = String(lead.id);
       if (seen.has(key)) continue;
@@ -243,5 +289,14 @@ export async function fetchAllLeads(
     }
     page += 1;
   }
-  return { leads, pagesScanned: page - 1, totalReported };
+  const pagesScanned = page - 1;
+  const completeness = evaluateScanCompleteness({
+    pagesExpected: lastPage,
+    pagesScanned,
+    totalReported,
+    rowsReceived,
+    uniqueProcessed: seen.size,
+    unexpectedEmptyPage,
+  });
+  return { leads, pagesScanned, totalReported, completeness };
 }

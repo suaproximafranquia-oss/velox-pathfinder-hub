@@ -17,23 +17,49 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { recordEvent } from "@/server/crm/lead-service.server";
+import type { ScanCompleteness } from "@/lib/crm/scan-completeness";
 
 /** Coluna local do Portal. NÃO existe no GreenSales. */
 export const UNLOCATED_STAGE_KEY = "nao_localizado";
 
-export type ReconcileSummary = { checked: number; moved: number; ids: string[] };
+export type ReconcileSummary = {
+  checked: number;
+  moved: number;
+  ids: string[];
+  /** Varredura não comprovadamente completa — NADA foi movido. */
+  aborted: boolean;
+  abortReason: string | null;
+};
 
 /**
- * Executada SOMENTE após uma varredura COMPLETA da origem — nunca depois
- * de uma sincronização incremental, que por definição não lista todos os
- * leads e faria qualquer ausência parecer um desaparecimento.
+ * Executada SOMENTE após uma varredura COMPROVADAMENTE COMPLETA da
+ * origem — nunca depois de uma sincronização incremental, que por
+ * definição não lista todos os leads e faria qualquer ausência parecer
+ * um desaparecimento.
+ *
+ * TRAVA DE SEGURANÇA (plano aprovado, item 3): se a varredura tiver
+ * qualquer incerteza (página ausente, página vazia inesperada, total
+ * incoerente, resposta parcial), a reconciliação ABORTA sem mover
+ * ninguém. Uma falha transitória da API jamais transforma leads válidos
+ * em NÃO LOCALIZADOS.
  */
 export async function reconcileMissingLeads(
   seenExternalIds: Iterable<string>,
+  completeness: ScanCompleteness,
 ): Promise<ReconcileSummary> {
   const seen = new Set(Array.from(seenExternalIds, (id) => String(id)));
-  const summary: ReconcileSummary = { checked: 0, moved: 0, ids: [] };
-  if (seen.size === 0) return summary;
+  const summary: ReconcileSummary = { checked: 0, moved: 0, ids: [], aborted: false, abortReason: null };
+  if (!completeness.complete) {
+    summary.aborted = true;
+    summary.abortReason =
+      completeness.reason ?? "Varredura não comprovadamente completa — reconciliação abortada.";
+    return summary;
+  }
+  if (seen.size === 0) {
+    summary.aborted = true;
+    summary.abortReason = "Varredura completa não trouxe nenhum registro — reconciliação abortada.";
+    return summary;
+  }
 
   const { data: leads } = await supabaseAdmin
     .from("crm_leads")
@@ -128,7 +154,14 @@ export async function runDailyReconciliation(
     const credentials = await resolveCredentials(actorUserId);
     const token = await greenSalesLogin(credentials);
     const page = await fetchAllLeads(token);
-    const reconciled = await reconcileMissingLeads(page.leads.map((l) => String(l.id)));
+    const reconciled = await reconcileMissingLeads(
+      page.leads.map((l) => String(l.id)),
+      page.completeness,
+    );
+    if (reconciled.aborted) {
+      const reason = `Reconciliação abortada — ${reconciled.abortReason ?? "varredura incompleta"}. Nenhum estágio foi alterado.`;
+      return finish("ERRO", { ran: false, reason }, reason);
+    }
     return finish("OK", { ran: true, found: page.leads.length, moved: reconciled.moved });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha desconhecida.";
