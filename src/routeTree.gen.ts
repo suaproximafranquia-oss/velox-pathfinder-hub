@@ -25,7 +25,6 @@ import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
 import { Route as FSlugRouteImport } from './routes/f.$slug'
 import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
-import { Route as ExecutivoTesteEntrada24hRouteImport } from './routes/executivo.teste-entrada-24h'
 import { Route as ExecutivoTesteCadenciaRouteImport } from './routes/executivo.teste-cadencia'
 import { Route as ExecutivoTemplatesRouteImport } from './routes/executivo.templates'
 import { Route as ExecutivoRevistaRouteImport } from './routes/executivo.revista'
@@ -139,12 +138,6 @@ const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
   path: '/executivo/usuarios',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExecutivoTesteEntrada24hRoute =
-  ExecutivoTesteEntrada24hRouteImport.update({
-    id: '/executivo/teste-entrada-24h',
-    path: '/executivo/teste-entrada-24h',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ExecutivoTesteCadenciaRoute = ExecutivoTesteCadenciaRouteImport.update({
   id: '/executivo/teste-cadencia',
   path: '/executivo/teste-cadencia',
@@ -341,7 +334,6 @@ export interface FileRoutesByFullPath {
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/teste-entrada-24h': typeof ExecutivoTesteEntrada24hRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -391,7 +383,6 @@ export interface FileRoutesByTo {
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/teste-entrada-24h': typeof ExecutivoTesteEntrada24hRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -443,7 +434,6 @@ export interface FileRoutesById {
   '/executivo/revista': typeof ExecutivoRevistaRoute
   '/executivo/templates': typeof ExecutivoTemplatesRoute
   '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/teste-entrada-24h': typeof ExecutivoTesteEntrada24hRoute
   '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
   '/manual/$chapter': typeof ManualChapterRoute
@@ -496,7 +486,6 @@ export interface FileRouteTypes {
     | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/teste-cadencia'
-    | '/executivo/teste-entrada-24h'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -546,7 +535,6 @@ export interface FileRouteTypes {
     | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/teste-cadencia'
-    | '/executivo/teste-entrada-24h'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -597,7 +585,6 @@ export interface FileRouteTypes {
     | '/executivo/revista'
     | '/executivo/templates'
     | '/executivo/teste-cadencia'
-    | '/executivo/teste-entrada-24h'
     | '/executivo/usuarios'
     | '/f/$slug'
     | '/manual/$chapter'
@@ -649,7 +636,6 @@ export interface RootRouteChildren {
   ExecutivoRevistaRoute: typeof ExecutivoRevistaRoute
   ExecutivoTemplatesRoute: typeof ExecutivoTemplatesRoute
   ExecutivoTesteCadenciaRoute: typeof ExecutivoTesteCadenciaRoute
-  ExecutivoTesteEntrada24hRoute: typeof ExecutivoTesteEntrada24hRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   FSlugRoute: typeof FSlugRoute
   ManualChapterRoute: typeof ManualChapterRoute
@@ -778,13 +764,6 @@ declare module '@tanstack/react-router' {
       path: '/executivo/usuarios'
       fullPath: '/executivo/usuarios'
       preLoaderRoute: typeof ExecutivoUsuariosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/teste-entrada-24h': {
-      id: '/executivo/teste-entrada-24h'
-      path: '/executivo/teste-entrada-24h'
-      fullPath: '/executivo/teste-entrada-24h'
-      preLoaderRoute: typeof ExecutivoTesteEntrada24hRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executivo/teste-cadencia': {
@@ -1058,7 +1037,6 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoRevistaRoute: ExecutivoRevistaRoute,
   ExecutivoTemplatesRoute: ExecutivoTemplatesRoute,
   ExecutivoTesteCadenciaRoute: ExecutivoTesteCadenciaRoute,
-  ExecutivoTesteEntrada24hRoute: ExecutivoTesteEntrada24hRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   FSlugRoute: FSlugRoute,
   ManualChapterRoute: ManualChapterRoute,
