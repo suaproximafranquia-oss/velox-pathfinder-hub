@@ -55,7 +55,7 @@ import {
 import { resolveCrmWindow } from "@/lib/crm/templates";
 import { CRM_THEMES, getUserCrmTheme, setUserCrmTheme, type CrmThemeId } from "@/lib/crm/themes";
 import { appendCrmMessage, listCrmMessages } from "@/lib/crm/messages";
-import { CRM_ACCESS_LABEL, canSeePrivateContent } from "@/lib/crm/permissions";
+import { canSeePrivateContent } from "@/lib/crm/permissions";
 import { CrmIntakeItem, CrmIntakeDetail } from "@/components/crm/crm-distribution";
 import {
   CrmNewLeadButton,
@@ -432,21 +432,14 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
     [selected?.id, privateOk, messageTick, tick, now],
   );
 
-  // Registro automático da ocorrência — sem interação do usuário.
-  useEffect(() => {
-    if (!selected) return;
-    recordCrmEvent({
-      investorId: selected.id,
-      event: selected.access === "bloqueado" ? "acesso_bloqueado" : "conversa_aberta",
-      origin: selected.originLabel,
-      reason:
-        selected.access === "bloqueado"
-          ? "Investidor pertencente a outro Executivo."
-          : `Conversa aberta em modo ${CRM_ACCESS_LABEL[selected.access]}.`,
-      ownerId: selected.ownerId,
-      actorId: actor.userId,
-    });
-  }, [selected?.id, selected?.access, actor.userId]);
+  /**
+   * SEPARAÇÃO DE RESPONSABILIDADES — abrir uma conversa é uma AÇÃO
+   * VISUAL do Executivo, nunca uma atividade do investidor. Nenhum
+   * evento é gravado aqui: a Timeline do CRM registra apenas
+   * movimentações reais (mensagens, atividade do investidor no Portal,
+   * transferências e demais acontecimentos operacionais). O histórico
+   * anterior de "conversa aberta" permanece preservado na auditoria.
+   */
 
   // Abrir a conversa (mensagens carregadas no painel central) encerra
   // "Novo" e "Não lida": o estado passa a ser "Em atendimento".
