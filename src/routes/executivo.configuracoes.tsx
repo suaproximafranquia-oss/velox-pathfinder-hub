@@ -104,7 +104,6 @@ function ConfiguracoesPage() {
         </p>
         <div className="grid gap-4">
           <VideoconferenciaSection session={session} />
-          <CadenciaAtivacaoSection />
           <ProtecaoHomologacaoSection />
           <IntegracoesSection session={session} />
           <GreenSalesConnectionSection />
