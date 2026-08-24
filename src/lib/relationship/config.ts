@@ -4,6 +4,7 @@
  * Nenhuma constante de cadência pode ser declarada fora deste arquivo.
  * Se uma regra precisar mudar, muda aqui — não em componentes.
  */
+import { E30_BUSINESS_DAYS_AFTER_START, E30_ENABLED } from "./reactivation";
 import type { CadenceFlow, CadenceStep } from "./types";
 
 export type StepDefinition = {
@@ -191,7 +192,10 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
 
 /** Sequência oficial de cada fluxo. Ordem é validada antes do disparo. */
 export const FLOW_SEQUENCE: Record<CadenceFlow, CadenceStep[]> = {
-  sem_resposta: ["E0", "E1", "E3", "E4", "E12"],
+  // COMANDO 4A §8/§18 — E30 é a etapa posterior de recontato do MESMO
+  // fluxo (nunca uma cadência independente). A guarda de ordem garante
+  // que ela só é considerada depois da E12.
+  sem_resposta: ["E0", "E1", "E3", "E4", "E12", "E30"],
   visualizacao: ["E0", "E1", "V3", "V4"],
   reengajamento: ["R1", "R2", "R3"],
   reentrada: ["RE0", "RE1", "RE2", "RE3"],
