@@ -20,12 +20,15 @@ export type InvestorStatus =
  *  - green_sales:    reconhecido via integração Green Sales
  *  - redistribuicao: entregue pela Gestão (ETAPA 02.1)
  *  - portal:         originado diretamente pelo Portal Velox
+ *  - tiktok / meta:  captado pelo link oficial do canal (COMANDO 3 §8)
  *  - manual:         cadastro manual pelo executivo
  */
 export type InvestorOrigin =
   | "green_sales"
   | "redistribuicao"
   | "portal"
+  | "tiktok"
+  | "meta"
   /** COMANDO 4G — carteira própria da Gestora. */
   | "central_unica"
   | "manual";
@@ -159,7 +162,9 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
             ? "redistribuicao"
             : scope === "central_unica"
               ? "central_unica"
-              : "portal",
+              : scope === "tiktok" || scope === "meta"
+                ? scope
+                : "portal",
       priority: simulatorDone ? "high" : interestsCaptured ? "medium" : "none",
       lastEventLabel,
     };

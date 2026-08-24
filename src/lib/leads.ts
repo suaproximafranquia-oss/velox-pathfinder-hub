@@ -11,6 +11,7 @@
  */
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import type { ExecutiveUser } from "@/lib/executive-auth";
+import type { WorkspaceScope } from "@/lib/portal-workspace";
 import { notifySync } from "@/lib/sync-bus";
 
 const LEADS_KEY = "velox:leads:v1";
