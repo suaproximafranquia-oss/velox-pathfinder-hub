@@ -50,7 +50,14 @@ export function pushLead(lead: LeadRecord, extra?: {
       campaign: extra?.campaign ?? null,
       device: extra?.device ?? null,
       createdAt: lead.createdAt,
-      lastActivityAt: extra?.lastActivityAt ?? new Date().toISOString(),
+      /**
+       * COMANDO 3A §3 — `last_activity_at` só é enviado quando existe uma
+       * ATIVIDADE REAL do investidor (jornada, calculadora, retorno).
+       * Sincronizações operacionais do executivo (notas, status, cache)
+       * não informam o campo e o servidor preserva o valor oficial —
+       * sem isso o lead voltava indevidamente ao estado "Novo".
+       */
+      lastActivityAt: extra?.lastActivityAt,
       journey: extra?.journey ?? {},
     },
   }).catch(() => {

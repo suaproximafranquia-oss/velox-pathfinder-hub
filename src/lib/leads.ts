@@ -372,6 +372,9 @@ export function registerLead(input: {
   saveVisitorIdentity(input.identity);
   // Criação IMEDIATA do Card no Workspace: o Lead é enviado ao servidor no
   // mesmo instante da identificação, sem aguardar qualquer outra ação.
-  syncToCloud(lead);
+  // A entrada do investidor É atividade real: nasce com lastActivityAt.
+  void import("@/lib/portal-leads-sync")
+    .then((m) => m.pushLead(lead, { lastActivityAt: lead.createdAt }))
+    .catch(() => {});
   return { lead, executive: responsible.executive, personalized: responsible.personalized };
 }
