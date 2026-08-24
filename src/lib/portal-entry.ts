@@ -18,6 +18,11 @@ export type EntryContext = {
   unit: string | null;
   origin: string | null;
   campaign: string | null;
+  /**
+   * COMANDO 3 §8 — canal oficial de origem do link (`/origem/tiktok`,
+   * `/origem/meta`). Valores válidos: "tiktok" | "meta".
+   */
+  channel: string | null;
   /** Módulo solicitado antes do Gateway — reaberto após a sessão. */
   pendingModule: PortalModuleKey | null;
   at: string;
@@ -29,6 +34,7 @@ const EMPTY: EntryContext = {
   unit: null,
   origin: null,
   campaign: null,
+  channel: null,
   pendingModule: null,
   at: new Date(0).toISOString(),
 };
