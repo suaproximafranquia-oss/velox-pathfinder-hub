@@ -104,5 +104,61 @@ export async function processDeferredFirstContacts(): Promise<DeferredSummary> {
       );
     }
   }
+
+  /**
+   * COMANDO 3A §4/§8 — Leads nascidos no PORTAL também adiam a E0 na
+   * madrugada. Eles não existem em `crm_leads`: a marca de adiamento fica
+   * na jornada do Portal (`portal_journey_events`, `e0_adiada`) e a
+   * retomada usa o MESMO `registerFirstContact` — nenhum fluxo paralelo.
+   * Idempotente: quem já tem `msg_e0_` é ignorado.
+   */
+  const { data: portalDeferred } = await supabaseAdmin
+    .from("portal_journey_events")
+    .select("investor_id")
+    .eq("event", "e0_adiada")
+    .gte("created_at", since)
+    .limit(200);
+  const portalIds = Array.from(
+    new Set((portalDeferred ?? []).map((row) => String(row.investor_id))),
+  );
+  if (portalIds.length > 0) {
+    const { data: portalDone } = await supabaseAdmin
+      .from("crm_messages")
+      .select("id")
+      .in("id", portalIds.map((id) => `msg_e0_${id}`));
+    const doneIds = new Set(
+      (portalDone ?? []).map((row) => String(row.id).replace(/^msg_e0_/, "")),
+    );
+    const pendingPortal = portalIds.filter((id) => !doneIds.has(id));
+    if (pendingPortal.length > 0) {
+      const { data: portalLeads } = await supabaseAdmin
+        .from("portal_leads")
+        .select("id,name,whatsapp,created_at,responsible_executive_id,scope,is_test")
+        .in("id", pendingPortal);
+      const { kickoffPortalFirstContact } = await import(
+        "@/server/crm/portal-first-contact.server"
+      );
+      for (const lead of portalLeads ?? []) {
+        // Lead de homologação segue apenas o Laboratório de Cadência.
+        if (lead.is_test) continue;
+        summary.processed += 1;
+        try {
+          const outcome = await kickoffPortalFirstContact({
+            leadId: lead.id,
+            name: lead.name,
+            phone: lead.whatsapp ?? "",
+            scope: lead.scope,
+            ownerId: lead.responsible_executive_id ?? null,
+            entryAt: lead.created_at,
+          });
+          if (outcome === "registered") summary.sent += 1;
+        } catch (error) {
+          summary.errors.push(
+            `Lead Portal ${lead.id}: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+          );
+        }
+      }
+    }
+  }
   return summary;
 }

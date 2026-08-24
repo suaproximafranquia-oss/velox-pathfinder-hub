@@ -41,7 +41,28 @@ export async function runScheduledLeadSync(): Promise<ScheduledSyncResult> {
     }
   }
 
-  const summary = await runLeadSync("cron");
+  let summary: SyncSummary;
+  try {
+    summary = await runLeadSync("cron");
+  } finally {
+    /**
+     * COMANDO 3A §4/§8 — a fila da E0 adiada pela madrugada pertence ao
+     * Portal inteiro (GreenSales E leads nascidos no Portal), não à
+     * consulta da origem externa: mesmo se a sincronização falhar, a
+     * abertura da janela das 07:00 é sempre honrada. Idempotente.
+     */
+    try {
+      const { processDeferredFirstContacts } = await import(
+        "@/server/crm/first-contact-queue.server"
+      );
+      await processDeferredFirstContacts();
+    } catch (error) {
+      console.error(
+        "[crm-sync] fila da E0 adiada não pôde ser processada:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
   /**
    * Depois de sincronizar, o MOTOR DE MENSAGENS é reavaliado. Os dois
    * motores continuam independentes: uma falha aqui não invalida a
@@ -53,6 +74,20 @@ export async function runScheduledLeadSync(): Promise<ScheduledSyncResult> {
   } catch (error) {
     console.error(
       "[crm-sync] motor de relacionamento não pôde ser reavaliado:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+  /**
+   * COMANDO 3A §6 — reconciliação periódica (1x ao dia): quem saiu da
+   * visão da origem sem deixar de existir é preservado na coluna local
+   * NÃO LOCALIZADOS. Nada é apagado — a blindagem dos Leads permanece.
+   */
+  try {
+    const { runDailyReconciliation } = await import("@/server/crm/reconcile.server");
+    await runDailyReconciliation();
+  } catch (error) {
+    console.error(
+      "[crm-sync] reconciliação periódica não pôde ser avaliada:",
       error instanceof Error ? error.message : error,
     );
   }
