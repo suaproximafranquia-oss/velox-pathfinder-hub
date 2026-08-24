@@ -48,6 +48,8 @@ export type IntakeOutcome = {
   cardId: string | null;
   created: boolean;
   changed: boolean;
+  /** Entrada ignorada pela segunda trava de deduplicação (telefone). */
+  deduplicated: boolean;
   welcomeSent: number;
   welcomeFailed: number;
   failed: boolean;
