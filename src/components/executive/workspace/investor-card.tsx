@@ -45,6 +45,16 @@ const ORIGIN_META: Record<
     dot: "bg-sky-500",
     hover: "hover:border-sky-500/60 hover:shadow-[0_18px_40px_-24px_rgba(14,165,233,0.55)]",
   },
+  tiktok: {
+    label: "TikTok",
+    dot: "bg-cyan-400",
+    hover: "hover:border-cyan-400/60 hover:shadow-[0_18px_40px_-24px_rgba(34,211,238,0.55)]",
+  },
+  meta: {
+    label: "Meta",
+    dot: "bg-blue-500",
+    hover: "hover:border-blue-500/60 hover:shadow-[0_18px_40px_-24px_rgba(59,130,246,0.55)]",
+  },
   manual: {
     label: "Manual",
     dot: "bg-violet-500",

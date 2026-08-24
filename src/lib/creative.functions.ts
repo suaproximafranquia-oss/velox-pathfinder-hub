@@ -44,5 +44,3 @@ export const getCityPhoto = createServerFn({ method: "POST" })
       credit: null,
     }));
   });
-
-  });
