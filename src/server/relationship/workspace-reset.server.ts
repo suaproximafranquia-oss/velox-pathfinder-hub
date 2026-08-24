@@ -42,6 +42,8 @@ export type LeadLike = {
   email?: string | null;
   origin?: string | null;
   external_source?: string | null;
+  /** Marcação técnica de teste — única condição que permite remoção. */
+  is_test?: boolean | null;
 };
 
 /** Lead real de validação preservado integralmente por chave canônica. */
@@ -86,6 +88,14 @@ export type ResetScopeReport = {
     engagement: number;
     homologationRows: number;
   };
+  /**
+   * BLINDAGEM DEFINITIVA — registros com aparência de teste mas SEM a
+   * marcação técnica (`is_test`/TEST-). Pela regra absoluta eles são
+   * Leads do Portal e jamais são removidos: o reset os ignora e cada
+   * tentativa fica registrada na auditoria (`portal_lead_guard_log`).
+   */
+  protectedByGuardLeads: { id: string; name: string }[];
+  guardMessage: string;
   protectedTables: readonly string[];
   portalDosLeadsElegiveis: 0;
   greenSalesElegiveis: 0;
@@ -102,12 +112,20 @@ async function countOf(supabase: Admin, table: string, apply: (q: any) => any): 
 
 /** §29 — validação de escopo antes de qualquer exclusão. */
 export async function buildResetScope(supabase: Admin): Promise<ResetScopeReport> {
+  const { LEAD_GUARD_MESSAGE, isTestLeadRecord } = await import("@/lib/lead-guard");
   const { data: leads } = await supabase
     .from("portal_leads")
-    .select("id,name,email,origin,external_source");
+    .select("id,name,email,origin,external_source,is_test");
   const all = (leads ?? []) as LeadLike[];
   const fictitious = all.filter(isFictitiousLead);
-  const ids = fictitious.map((l) => l.id);
+  /**
+   * BLINDAGEM DEFINITIVA — a heurística de texto apenas SUSPEITA de um
+   * registro. Sem a marcação técnica de teste o registro é um Lead do
+   * Portal e a regra absoluta se aplica: nunca é excluído.
+   */
+  const deletable = fictitious.filter((l) => isTestLeadRecord(l));
+  const protectedByGuard = fictitious.filter((l) => !isTestLeadRecord(l));
+  const ids = deletable.map((l) => l.id);
 
   const messages = ids.length
     ? await countOf(supabase, "crm_messages", (q) => q.in("investor_id", ids))
@@ -132,7 +150,7 @@ export async function buildResetScope(supabase: Admin): Promise<ResetScopeReport
     homologationRows += await countOf(supabase, table, (q) => q.eq("scope", "homologation"));
   }
 
-  const realLeakage = fictitious.filter(isProtectedLead);
+  const realLeakage = deletable.filter(isProtectedLead);
   return {
     blocked: realLeakage.length > 0,
     blockReason:
@@ -140,7 +158,7 @@ export async function buildResetScope(supabase: Admin): Promise<ResetScopeReport
         ? "Registro real identificado na lista de candidatos — operação bloqueada."
         : null,
     candidates: {
-      leads: fictitious.map((l) => ({ id: l.id, name: l.name ?? "—" })),
+      leads: deletable.map((l) => ({ id: l.id, name: l.name ?? "—" })),
       protectedLeads: all.length - fictitious.length,
       messages,
       timelineNoise,
@@ -148,6 +166,8 @@ export async function buildResetScope(supabase: Admin): Promise<ResetScopeReport
       engagement,
       homologationRows,
     },
+    protectedByGuardLeads: protectedByGuard.map((l) => ({ id: l.id, name: l.name ?? "—" })),
+    guardMessage: LEAD_GUARD_MESSAGE,
     protectedTables: PROTECTED_TABLES,
     portalDosLeadsElegiveis: 0,
     greenSalesElegiveis: 0,
@@ -170,6 +190,22 @@ export async function executeWorkspaceReset(
     return { ...scope, executed: false, deleted: {}, totalDeleted: 0 };
   }
   const ids = scope.candidates.leads.map((l) => l.id);
+
+  // BLINDAGEM — registros protegidos jamais são tocados; a tentativa de
+  // reset sobre eles fica registrada na auditoria oficial.
+  if (scope.protectedByGuardLeads.length > 0) {
+    const { logBlockedLeadOperation } = await import("@/server/lead-guard.server");
+    for (const lead of scope.protectedByGuardLeads) {
+      await logBlockedLeadOperation({
+        tableName: "portal_leads",
+        leadId: lead.id,
+        leadName: lead.name,
+        operation: "reset",
+        actorLabel: "reset do workspace",
+        reason: "Reset administrativo solicitado sobre Lead protegido — bloqueado pela blindagem definitiva.",
+      });
+    }
+  }
   const deleted: Record<string, number> = {};
 
   // Ruído de auditoria gerado por testes antigos (evento repetido em laço).
