@@ -36,6 +36,7 @@ import {
   Handshake,
   Archive,
   ArchiveRestore,
+  AlertTriangle,
 } from "lucide-react";
 import {
   clearConversationUnread,
@@ -1025,6 +1026,19 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
             </CrmRecordSection>
 
             <CrmRecordSection title="Portal do investidor" tone="roxo" icon={Compass}>
+              {/* Alerta ≠ mensagem: a movimentação do investidor aparece
+                  com selo próprio e origem identificada — nunca como se
+                  fosse uma mensagem trocada na conversa. */}
+              {privateOk && movements[selected.id] ? (
+                <p className="mb-1 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800">
+                  <AlertTriangle className="mt-[1px] h-3 w-3 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="font-semibold">Movimentação identificada</span>
+                    {" · "}
+                    {movements[selected.id]}
+                  </span>
+                </p>
+              ) : null}
               {PORTAL_FICHA_MODULES.map((m) => (
                 <CrmRecordRow
                   key={m.key}
