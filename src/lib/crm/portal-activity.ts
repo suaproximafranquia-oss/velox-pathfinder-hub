@@ -12,7 +12,7 @@
  * dado é inventado.
  */
 import { getJourney, type JourneyModule } from "@/lib/journey/engine";
-import { recordCrmEvent } from "@/lib/crm/timeline";
+import { listCrmTimeline, recordCrmEvent } from "@/lib/crm/timeline";
 import { recordPortalActivityAlert } from "@/lib/workspace-alerts";
 
 export type CrmPortalActivity = {
@@ -98,11 +98,23 @@ export function syncPortalActivity(
         description: activity.detail ?? activity.label,
         dateIso: activity.at,
       });
+      /**
+       * IDEMPOTÊNCIA DURÁVEL — a trava em memória só vale nesta sessão.
+       * Antes de gravar, a Timeline oficial (hidratada do servidor) é
+       * consultada pela assinatura exata da atividade: a mesma
+       * movimentação jamais gera um segundo registro, mesmo recarregando
+       * a página ou trocando de dispositivo.
+       */
+      const reason = `${MODULE_LABEL[activity.module]}${activity.detail ? ` — ${activity.detail}` : ""}.`;
+      const alreadyRecorded = listCrmTimeline(item.id).some(
+        (e) => e.event === "atividade_portal" && e.reason === reason,
+      );
+      if (alreadyRecorded) continue;
       recordCrmEvent({
         investorId: item.id,
         event: "atividade_portal",
         origin: item.originLabel,
-        reason: `${MODULE_LABEL[activity.module]}${activity.detail ? ` — ${activity.detail}` : ""}.`,
+        reason,
         ownerId: item.ownerId,
         actorId: "sistema",
       });

@@ -51,6 +51,23 @@ function isWorkspaceTab(value: unknown): value is WorkspaceTab {
   return isWorkspaceScope(value) || value === "engajamento";
 }
 
+/**
+ * Pertencimento por escopo — regra ÚNICA, usada tanto pela listagem de
+ * cards quanto pelos contadores das abas. Portal jamais mistura com
+ * Green Sales; Engajamento não é carteira (nunca conta Leads).
+ */
+function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
+  if (scope === "portal") return i.origin === "portal";
+  if (scope === "redistribuicao") return i.origin === "redistribuicao";
+  if (scope === "central_unica") return i.origin === "central_unica";
+  if (scope === "engajamento") return false;
+  return (
+    i.origin !== "portal" &&
+    i.origin !== "redistribuicao" &&
+    i.origin !== "central_unica"
+  );
+}
+
 type DashboardSearch = { perfil?: string; escopo?: WorkspaceTab };
 
 export const Route = createFileRoute("/executivo/dashboard")({
@@ -178,17 +195,7 @@ function WorkspacePage() {
     // Isolamento absoluto por escopo: Portal jamais mistura com Green
     // Sales — inclusive para quem não tem acesso à aba Portal, que vê
     // exclusivamente Leads de link personalizado (Green Sales).
-    const base = visible.filter((i) =>
-      scope === "portal"
-        ? i.origin === "portal"
-        : scope === "redistribuicao"
-          ? i.origin === "redistribuicao"
-          : scope === "central_unica"
-            ? i.origin === "central_unica"
-            : i.origin !== "portal" &&
-              i.origin !== "redistribuicao" &&
-              i.origin !== "central_unica",
-    );
+    const base = visible.filter((i) => belongsToScope(i, scope));
 
     const q = query.trim().toLowerCase();
     const filtered = q
@@ -223,6 +230,28 @@ function WorkspacePage() {
         return am - bm;
       });
   }, [session, query, nextMeetingByInvestor, scope, tick]);
+
+  /**
+   * Contadores oficiais por Workspace: cada aba de carteira mostra o
+   * total real de Leads daquele escopo, com a mesma regra de
+   * visibilidade da listagem. Engajamento não é carteira — nunca
+   * recebe contador de Leads.
+   */
+  const scopeCounts = useMemo(() => {
+    void tick;
+    const counts: Partial<Record<WorkspaceTab, number>> = {};
+    if (!session) return counts;
+    const allInvestors = listAllInvestors();
+    const visible = canViewFullWorkspace(session.userId, session.activeRole)
+      ? allInvestors
+      : allInvestors.filter((i) => i.assignedToUserId === session.userId);
+    for (const tab of tabs) {
+      if (tab === "engajamento") continue;
+      counts[tab] = visible.filter((i) => belongsToScope(i, tab)).length;
+    }
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, tick]);
 
   const personalLink = useMemo(
     () => (session ? buildPersonalLink(session) : ""),
@@ -346,7 +375,7 @@ function WorkspacePage() {
             />
           ) : null}
           {tabs.length > 1 && (
-            <ScopeTabs items={tabs} current={scope} onChange={changeScope} />
+            <ScopeTabs items={tabs} current={scope} counts={scopeCounts} onChange={changeScope} />
           )}
           {scope === "redistribuicao" && <RedistributionPanel tick={tick} />}
           {scope === "engajamento" ? (
@@ -414,10 +443,16 @@ function WorkspaceHeader({
 function ScopeTabs({
   items,
   current,
+  counts,
   onChange,
 }: {
   items: WorkspaceTab[];
   current: WorkspaceTab;
+  /**
+   * Contadores oficiais por carteira. A aba Engajamento nunca recebe
+   * contador de Leads — ela não é um Workspace de Leads.
+   */
+  counts?: Partial<Record<WorkspaceTab, number>>;
   onChange: (s: WorkspaceTab) => void;
 }) {
   return (
@@ -428,21 +463,39 @@ function ScopeTabs({
     >
       {items.map((s) => {
         const active = s === current;
+        const count = s === "engajamento" ? undefined : counts?.[s];
         return (
           <button
             key={s}
             type="button"
             role="tab"
             aria-selected={active}
+            aria-label={
+              typeof count === "number"
+                ? `${TAB_LABEL[s]} — ${count} ${count === 1 ? "Lead" : "Leads"}`
+                : TAB_LABEL[s]
+            }
             onClick={() => onChange(s)}
             className={cn(
-              "rounded-full px-4 py-1.5 text-xs uppercase tracking-[0.16em] transition",
+              "inline-flex items-center rounded-full px-4 py-1.5 text-xs uppercase tracking-[0.16em] transition",
               active
                 ? "bg-[color:var(--accent)] text-[color:var(--foreground)] border border-[color:var(--gold)]/50"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
             )}
           >
             {TAB_LABEL[s]}
+            {typeof count === "number" ? (
+              <span
+                className={cn(
+                  "ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums normal-case tracking-normal",
+                  active
+                    ? "bg-[color:var(--gold)]/20 text-[color:var(--gold)]"
+                    : "bg-[color:var(--border)]/60 text-[color:var(--muted-foreground)]",
+                )}
+              >
+                {count}
+              </span>
+            ) : null}
           </button>
         );
       })}
