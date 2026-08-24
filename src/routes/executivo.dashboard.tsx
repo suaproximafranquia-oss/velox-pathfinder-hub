@@ -231,6 +231,28 @@ function WorkspacePage() {
       });
   }, [session, query, nextMeetingByInvestor, scope, tick]);
 
+  /**
+   * Contadores oficiais por Workspace: cada aba de carteira mostra o
+   * total real de Leads daquele escopo, com a mesma regra de
+   * visibilidade da listagem. Engajamento não é carteira — nunca
+   * recebe contador de Leads.
+   */
+  const scopeCounts = useMemo(() => {
+    void tick;
+    const counts: Partial<Record<WorkspaceTab, number>> = {};
+    if (!session) return counts;
+    const allInvestors = listAllInvestors();
+    const visible = canViewFullWorkspace(session.userId, session.activeRole)
+      ? allInvestors
+      : allInvestors.filter((i) => i.assignedToUserId === session.userId);
+    for (const tab of tabs) {
+      if (tab === "engajamento") continue;
+      counts[tab] = visible.filter((i) => belongsToScope(i, tab)).length;
+    }
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, tick]);
+
   const personalLink = useMemo(
     () => (session ? buildPersonalLink(session) : ""),
     [session],
@@ -353,7 +375,7 @@ function WorkspacePage() {
             />
           ) : null}
           {tabs.length > 1 && (
-            <ScopeTabs items={tabs} current={scope} onChange={changeScope} />
+            <ScopeTabs items={tabs} current={scope} counts={scopeCounts} onChange={changeScope} />
           )}
           {scope === "redistribuicao" && <RedistributionPanel tick={tick} />}
           {scope === "engajamento" ? (
