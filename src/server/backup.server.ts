@@ -325,7 +325,7 @@ export async function pruneBackups(): Promise<number> {
     const age = now - at;
     let bucket: string;
     if (age <= RETENTION.fullHours * hour) {
-      bucket = `raw:${id}`; // 48h: todos os pontos de 15 em 15 minutos
+      bucket = `raw:${id}`; // 48h: todos os pontos (um por hora)
     } else if (age <= RETENTION.dailyDays * day) {
       // A lista vem em ordem decrescente: o primeiro ponto de cada dia
       // é justamente o ÚLTIMO gerado naquele dia (fechamento do dia).
