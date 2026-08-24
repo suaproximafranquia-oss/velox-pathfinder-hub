@@ -225,6 +225,8 @@ function HomologacaoPage() {
       engagement: number;
       homologationRows: number;
     };
+    protectedByGuardLeads?: { id: string; name: string }[];
+    guardMessage?: string;
   };
   const [resetReport, setResetReport] = useState<ResetReport | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
@@ -398,6 +400,12 @@ function HomologacaoPage() {
               <p className="text-emerald-400">
                 Portal dos Leads e GreenSales elegíveis: 0 (proteção absoluta).
               </p>
+              {(resetReport.protectedByGuardLeads?.length ?? 0) > 0 ? (
+                <p className="text-[color:var(--gold)]">
+                  Protegidos pela blindagem (não removidos):{" "}
+                  {resetReport.protectedByGuardLeads!.length} — {resetReport.guardMessage}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </section>

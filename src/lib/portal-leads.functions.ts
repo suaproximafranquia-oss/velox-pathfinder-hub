@@ -228,15 +228,46 @@ export const listPortalLeads = createServerFn({ method: "POST" })
     return data ?? [];
   });
 
+/**
+ * BLINDAGEM DEFINITIVA — não existe operação normal de exclusão de Lead.
+ *
+ * Qualquer solicitação de remoção de um Lead real é registrada em
+ * auditoria (usuário, data/hora, operação, motivo) e bloqueada com a
+ * mensagem oficial. O gatilho `guard_lead_delete` no banco é a última
+ * linha de defesa e vale para qualquer rotina, inclusive serviços.
+ *
+ * Única exceção: registros marcadamente de teste (homologação).
+ */
 export const deletePortalLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { id: string }) => data)
   .handler(async ({ data, context }) => {
-    // A exclusão respeita as políticas de acesso: apenas o executivo
-    // responsável pelo Lead ou um Administrador consegue removê-lo.
-    const { error } = await context.supabase.from("portal_leads").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { isTestLeadRecord, LEAD_GUARD_MESSAGE } = await import("@/lib/lead-guard");
+    const { data: lead } = await supabaseAdmin
+      .from("portal_leads")
+      .select("id,name,is_test")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    // Limpeza de homologação: somente registros marcadamente de teste.
+    if (lead && isTestLeadRecord(lead as { id: string; is_test?: boolean | null })) {
+      const { error } = await supabaseAdmin.from("portal_leads").delete().eq("id", data.id);
+      if (error) throw new Error(error.message);
+      return { ok: true as const };
+    }
+
+    const { logBlockedLeadOperation } = await import("@/server/lead-guard.server");
+    await logBlockedLeadOperation({
+      tableName: "portal_leads",
+      leadId: data.id,
+      leadName: (lead as { name?: string } | null)?.name ?? null,
+      operation: "delete",
+      actorUserId: context.userId,
+      actorLabel: (context.claims as { email?: string } | null)?.email ?? null,
+      reason: "Solicitação de exclusão de Lead bloqueada pela blindagem definitiva.",
+    });
+    throw new Error(LEAD_GUARD_MESSAGE);
   });
 
 /**

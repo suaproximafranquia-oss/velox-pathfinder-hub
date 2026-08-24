@@ -8,9 +8,26 @@
  * estado atual ter sido preservado em um Backup de Segurança.
  */
 
-/** Tabelas que compõem o estado operacional do Portal. */
+/**
+ * Tabelas que compõem o estado operacional do Portal.
+ *
+ * BLINDAGEM DOS LEADS — o backup preserva o universo completo: Leads,
+ * histórico, eventos, mensagens, Workspace, jornada, ownership e
+ * redistribuições. As tabelas do ecossistema de leads são CAPTURADAS
+ * em todo ponto (inclusive as já existentes — a regra vale
+ * retroativamente), mas figuram em NEVER_RESTORE_TABLES: a restauração
+ * jamais as apaga ou sobrescreve.
+ */
 export const BACKUP_TABLES = [
   { table: "portal_leads", pk: "id" },
+  { table: "crm_leads", pk: "id" },
+  { table: "crm_messages", pk: "id" },
+  { table: "crm_timeline", pk: "id" },
+  { table: "crm_lead_events", pk: "id" },
+  { table: "portal_journey_events", pk: "id" },
+  { table: "portal_engagement", pk: "investor_id" },
+  { table: "portal_meetings", pk: "id" },
+  { table: "portal_lead_guard_log", pk: "id" },
   { table: "campaigns", pk: "id" },
   { table: "meta_templates", pk: "id" },
   { table: "news_posts", pk: "id" },
@@ -34,6 +51,10 @@ export const BACKUP_TABLES = [
  * leads apagados e reverteria etapas reais. Elas continuam sendo
  * capturadas (backup/exportação e auditoria), mas a restauração as
  * ignora mesmo quando presentes no ponto de restauração.
+ *
+ * BLINDAGEM DEFINITIVA — nenhuma restauração pode remover, sobrescrever
+ * ou fazer regredir Leads, conversas, eventos, jornada, engajamento,
+ * reuniões ou a auditoria de proteção.
  */
 export const NEVER_RESTORE_TABLES: readonly string[] = [
   "portal_leads",
@@ -46,6 +67,10 @@ export const NEVER_RESTORE_TABLES: readonly string[] = [
   "crm_messages",
   "crm_timeline",
   "crm_connections",
+  "portal_journey_events",
+  "portal_engagement",
+  "portal_meetings",
+  "portal_lead_guard_log",
 ];
 
 export type BackupKind = "completo" | "conversas";

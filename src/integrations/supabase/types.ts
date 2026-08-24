@@ -1192,6 +1192,42 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_lead_guard_log: {
+        Row: {
+          actor_label: string | null
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          lead_id: string | null
+          lead_name: string | null
+          operation: string
+          reason: string
+          table_name: string
+        }
+        Insert: {
+          actor_label?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          lead_name?: string | null
+          operation: string
+          reason: string
+          table_name: string
+        }
+        Update: {
+          actor_label?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          lead_name?: string | null
+          operation?: string
+          reason?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       portal_leads: {
         Row: {
           archived_at: string | null

@@ -11,7 +11,6 @@
 import {
   syncPortalLead,
   listPortalLeads,
-  deletePortalLead,
   lookupPortalLead,
 } from "@/lib/portal-leads.functions";
 import { resolveLeadScope } from "@/lib/lead-routing";
@@ -156,13 +155,12 @@ export async function pullLeads(): Promise<number> {
   return remote.length;
 }
 
-export async function removeLeadEverywhere(id: string): Promise<void> {
-  try {
-    await deletePortalLead({ data: { id } });
-  } catch {
-    /* remoção local já ocorreu */
-  }
-}
+/**
+ * BLINDAGEM DEFINITIVA — não existe mais remoção de Lead por esta
+ * camada. Um Lead registrado no Portal jamais é excluído (ver
+ * `src/lib/lead-guard.ts`); leads ausentes na origem recebem o estado
+ * NÃO LOCALIZADO e permanecem armazenados.
+ */
 
 /**
  * Recupera a jornada do investidor em outro navegador ou dispositivo.
