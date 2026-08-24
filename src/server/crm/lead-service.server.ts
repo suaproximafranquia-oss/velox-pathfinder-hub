@@ -6,6 +6,7 @@
  * continua representando UM único lead interno.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { normalizePhone } from "@/lib/greensales/normalize";
 
 export type LeadEventType =
   | "lead_criado"
@@ -25,6 +26,8 @@ export type LeadEventType =
   | "e0_adiada"
   | "e0_reentrada"
   | "lead_nao_localizado"
+  | "duplicidade_evitada"
+  | "movimentacao_manual"
   | "sincronizacao_falhou"
   | "sincronizacao_recuperada"
   | "tentativa_sincronizacao";
@@ -120,6 +123,12 @@ export type UpsertOutcome = {
   stageChanged: boolean;
   /** O lead ENTROU agora na coluna de entrada (NOVOS). */
   enteredEntryStage: boolean;
+  /**
+   * SEGUNDA TRAVA DE DEDUPLICAÇÃO (telefone): a entrada foi ignorada
+   * porque o mesmo telefone já existe sob outro external_id. Nada foi
+   * criado, fundido ou apagado — o lead existente foi preservado.
+   */
+  deduplicated: boolean;
 };
 
 const SELECT = "*";
