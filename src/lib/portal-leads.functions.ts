@@ -182,7 +182,8 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         campaign: data.campaign ?? null,
         device: data.device ?? null,
         created_at: data.createdAt ?? nowIso,
-        last_activity_at: effectiveActivity,
+        // A coluna é NOT NULL: o fallback só cobre registros legados.
+        last_activity_at: effectiveActivity ?? nowIso,
         journey: (data.journey ?? {}) as never,
       },
       { onConflict: "id" },
