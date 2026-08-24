@@ -36,7 +36,14 @@ export type HomologationMessage = {
 /** Variável de conteúdo da etapa: {{conteudo_e1}}, {{conteudo_r2}}… (§14). */
 const CONTENT_PLACEHOLDER = /\n*\{\{conteudo_[a-z0-9]+\}\}\n*/;
 
-export const HOMOLOGATION_MESSAGES: Record<CadenceStep, HomologationMessage> = {
+/**
+ * COMANDO 4A §8 — a E30 está integrada ao fluxo, mas NÃO possui texto
+ * oficial aprovado: nenhuma mensagem é inventada para ela. Por isso o
+ * mapa é parcial — a etapa permanece desativada (E30_ENABLED = false) e,
+ * se algum dia for alcançada sem texto, `renderHomologationMessage`
+ * bloqueia com motivo legível em vez de enviar qualquer coisa.
+ */
+export const HOMOLOGATION_MESSAGES: Partial<Record<CadenceStep, HomologationMessage>> = {
   E0: {
     code: "HOMOL-E0",
     step: "E0",
