@@ -158,6 +158,18 @@ export async function runLeadSync(
       const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
       const raw = { ...listed, ...detail, id: externalId } as Record<string, unknown>;
       /**
+       * A listagem agora traz etiquetas (`withs`). Se o detalhe vier sem
+       * elas, o spread não pode apagar a informação da listagem — sem as
+       * etiquetas a coluna do quadro não é resolvida e o lead ficaria
+       * preso na etapa anterior (foi um dos fatores do caso Marcelo).
+       */
+      if (!Array.isArray(raw["tags"]) || (raw["tags"] as unknown[]).length === 0) {
+        raw["tags"] = (listed as { tags?: unknown[] }).tags ?? [];
+      }
+      if (!Array.isArray(raw["forms"]) || (raw["forms"] as unknown[]).length === 0) {
+        raw["forms"] = (listed as { forms?: unknown[] }).forms ?? [];
+      }
+      /**
        * CAMINHO ÚNICO DE ENTRADA (`intakeLead`): espelho → card do
        * Workspace → E0 → motor. Extraído sem mudança de comportamento,
        * para que o ambiente de teste percorra exatamente este caminho.
@@ -292,6 +304,14 @@ export async function runGreenSalesBackfill(
     try {
       const detail = (await fetchLeadDetail(token, listed.id)) ?? listed;
       const raw = { ...listed, ...detail } as Record<string, unknown>;
+      // Mesma proteção da sincronização incremental: as etiquetas da
+      // listagem (withs) prevalecem quando o detalhe não as traz.
+      if (!Array.isArray(raw["tags"]) || (raw["tags"] as unknown[]).length === 0) {
+        raw["tags"] = (listed as { tags?: unknown[] }).tags ?? [];
+      }
+      if (!Array.isArray(raw["forms"]) || (raw["forms"] as unknown[]).length === 0) {
+        raw["forms"] = (listed as { forms?: unknown[] }).forms ?? [];
+      }
       const normalized = normalizeGreenSalesLead(raw as never);
       const rawTags = Array.isArray(raw["tags"]) ? (raw["tags"] as { id: number | string }[]) : [];
       const tagIds = rawTags.map((t) => String(t.id));

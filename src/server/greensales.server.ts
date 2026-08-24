@@ -82,11 +82,39 @@ type ListPage = {
   total?: number;
 };
 
+/**
+ * CONTRATO REAL DA ORIGEM (provado por auditoria forense com HAR + sonda):
+ *
+ * - `page`/`pagina` = NÚMERO da página; `total_pagina` = TAMANHO da página
+ *   (o campo `per_page` é ignorado; sem `total_pagina` a origem entrega 10).
+ * - `filters.status: "allExceptInactive"` é o filtro padrão do próprio
+ *   quadro do GreenSales (554 leads). Sem ele, a listagem cobre apenas um
+ *   subconjunto (311) e leads ativos ficam invisíveis para o espelho.
+ * - `withs: ["Tags","Forms"]` faz a listagem devolver as etiquetas — sem
+ *   isso `tags` chega vazio e a coluna do quadro não pode ser resolvida.
+ * - A ordenação é SEMPRE por data de cadastro (register) DESC: a origem
+ *   ignora `orderby: "updated_at"` (provado: a ordem retornada é idêntica
+ *   com qualquer `orderby`). Por isso NENHUMA varredura pode parar cedo
+ *   ao encontrar um registro antigo — um lead cadastrado há dias sobe de
+ *   coluna sem mudar de posição na listagem. Foi exatamente assim que o
+ *   caso Marcelo (cadastro 22/08 → ZERO CONTATO em 24/08) ficou
+ *   invisível para a sincronização incremental.
+ */
+const PAGE_SIZE = 50;
+
 async function fetchPage(token: string, page: number): Promise<ListPage> {
   const res = await fetch(`${BASE_URL}lead/list`, {
     method: "POST",
     headers: { ...BROWSER_HEADERS, Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ page, pagina: 50, per_page: 50, filters: {} }),
+    body: JSON.stringify({
+      filters: { status: "allExceptInactive" },
+      order: "DESC",
+      orderby: "register",
+      page,
+      pagina: page,
+      total_pagina: PAGE_SIZE,
+      withs: ["Tags", "Forms"],
+    }),
   });
   if (!res.ok) {
     throw new GreenSalesError(
@@ -119,9 +147,10 @@ export function operationDayWindow(now = new Date()): { startUtc: Date; endUtc: 
 }
 
 /**
- * Percorre a paginação até cobrir todos os leads criados hoje.
- * A listagem vem ordenada do mais recente para o mais antigo, então a
- * varredura encerra ao alcançar registros anteriores ao início do dia.
+ * Percorre TODA a paginação e filtra localmente os leads criados hoje.
+ * A parada precoce foi abolida: um recadastro sobe para o topo da
+ * listagem com `created_at` antigo (register ≠ created_at), o que
+ * interromperia a varredura antes dos cadastros novos mais abaixo.
  */
 export async function fetchTodayLeads(token: string): Promise<{
   leads: GreenSalesLead[];
@@ -132,18 +161,14 @@ export async function fetchTodayLeads(token: string): Promise<{
   const leads: GreenSalesLead[] = [];
   let page = 1;
   let lastPage = 1;
-  let olderReached = false;
-  while (page <= lastPage && page <= 40 && !olderReached) {
+  while (page <= lastPage && page <= 40) {
     const body = await fetchPage(token, page);
     lastPage = body.last_page ?? 1;
     for (const lead of body.data ?? []) {
       const created = lead.created_at ? new Date(lead.created_at) : null;
       if (!created || Number.isNaN(created.getTime())) continue;
       if (created >= win.endUtc) continue;
-      if (created < win.startUtc) {
-        olderReached = true;
-        continue;
-      }
+      if (created < win.startUtc) continue;
       leads.push(lead);
     }
     page += 1;
@@ -154,29 +179,31 @@ export async function fetchTodayLeads(token: string): Promise<{
 /**
  * Sincronização contínua — leads criados/atualizados a partir de `since`.
  *
- * A listagem vem do mais recente para o mais antigo, então a varredura
- * encerra assim que alcança registros anteriores à janela pedida.
+ * CORREÇÃO DEFINITIVA (caso Marcelo): a origem NÃO ordena por
+ * atualização — prova forense com sonda mostrou que `orderby` é ignorado
+ * e a listagem vem sempre por data de cadastro. A parada precoce fazia um
+ * lead cadastrado há dias ficar invisível quando mudava de coluna sem se
+ * recadastrar. Agora a varredura percorre TODAS as páginas e o filtro da
+ * janela é local, lead a lead. Com `total_pagina = 50` a base inteira
+ * cabe em poucas requisições, então a varredura completa a cada ciclo é
+ * barata — e nunca mais perde uma movimentação de coluna.
  */
 export async function fetchLeadsSince(
   token: string,
   since: Date,
-  maxPages = 20,
+  _maxPages = 20,
 ): Promise<{ leads: GreenSalesLead[]; pagesScanned: number }> {
   const leads: GreenSalesLead[] = [];
   let page = 1;
   let lastPage = 1;
-  let olderReached = false;
-  while (page <= lastPage && page <= maxPages && !olderReached) {
+  while (page <= lastPage) {
     const body = await fetchPage(token, page);
     lastPage = body.last_page ?? 1;
     for (const lead of body.data ?? []) {
       const stamp = lead.updated_at ?? lead.created_at;
       const at = stamp ? new Date(stamp) : null;
       if (!at || Number.isNaN(at.getTime())) continue;
-      if (at < since) {
-        olderReached = true;
-        continue;
-      }
+      if (at < since) continue;
       leads.push(lead);
     }
     page += 1;
