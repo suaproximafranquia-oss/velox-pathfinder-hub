@@ -8,7 +8,6 @@
 
 import {
   BookOpen,
-  Library,
   Sparkles,
   Users2,
   BarChart3,
@@ -27,7 +26,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Archive, Download } from "lucide-react";
-import { CORPORATE_DRIVE_URL } from "@/lib/corporate-drive";
 
 export type PlatformModule = {
   id: string;
@@ -53,17 +51,6 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Home do Portal do Investidor. O Manual é apenas o primeiro conteúdo da jornada.",
     icon: BookOpen,
     href: "/",
-    external: true,
-    status: "ativo",
-  },
-  {
-    id: "biblioteca",
-    name: "Biblioteca Corporativa",
-    description:
-      "Acervo institucional de arquivos do Portal. Abre a pasta oficial da Conta Google corporativa.",
-    icon: Library,
-    // Pasta corporativa fixa — nunca o Drive genérico da conta do navegador.
-    href: CORPORATE_DRIVE_URL,
     external: true,
     status: "ativo",
   },
