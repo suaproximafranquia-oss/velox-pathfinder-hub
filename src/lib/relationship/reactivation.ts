@@ -1,10 +1,14 @@
 /**
- * E30 — REATIVAÇÃO TARDIA (arquitetura preparada, ainda não ativada).
+ * E30 — REATIVAÇÃO TARDIA (integrada ao fluxo pelo COMANDO 4A §8,
+ * ainda não ativada).
  *
- * E30 é contado a partir do INÍCIO DA JORNADA do lead novo — nunca a
- * partir de uma importação, sincronização ou carga histórica. Enquanto
- * `E30_ENABLED` for falso, nada é agendado nem enviado: apenas o cálculo
- * fica disponível para a ativação futura, sem texto inventado.
+ * A E30 pertence ao fluxo SEM RESPOSTA do motor (`STEPS`/`FLOW_SEQUENCE`
+ * em `config.ts`) — nunca é uma cadência independente. É contada a
+ * partir do INÍCIO DA JORNADA do lead novo — nunca a partir de uma
+ * importação, sincronização ou carga histórica. Enquanto `E30_ENABLED`
+ * for falso, nada é agendado nem enviado: a E12 permanece como
+ * encerramento do fluxo e a guarda de ordem mantém a E30 fora da fila.
+ * A ativação futura exige texto oficial aprovado — sem texto inventado.
  */
 import { addBusinessDays, commercialDate } from "@/lib/crm/cadence";
 import { isHistoricalLead, type ActivationDate, type LeadEntryDates } from "@/lib/crm/cutover";

@@ -36,7 +36,15 @@ export type HomologationMessage = {
 /** Variável de conteúdo da etapa: {{conteudo_e1}}, {{conteudo_r2}}… (§14). */
 const CONTENT_PLACEHOLDER = /\n*\{\{conteudo_[a-z0-9]+\}\}\n*/;
 
-export const HOMOLOGATION_MESSAGES: Record<CadenceStep, HomologationMessage> = {
+/**
+ * COMANDO 4A §8 — a E30 está integrada ao fluxo, mas NÃO possui texto
+ * oficial aprovado: nenhuma mensagem é inventada para ela. Por isso o
+ * mapa simplesmente NÃO inclui a E30 — a etapa permanece desativada
+ * (E30_ENABLED = false) e, se algum dia for alcançada sem texto,
+ * `renderHomologationMessage` bloqueia com motivo legível em vez de
+ * enviar qualquer coisa.
+ */
+export const HOMOLOGATION_MESSAGES: Record<Exclude<CadenceStep, "E30">, HomologationMessage> = {
   E0: {
     code: "HOMOL-E0",
     step: "E0",
@@ -406,7 +414,10 @@ export function renderHomologationMessage(
   step: CadenceStep,
   input: RenderInput,
 ): RenderResult {
-  const message = HOMOLOGATION_MESSAGES[step];
+  // Visão parcial: a E30 (integrada, porém sem texto oficial) não
+  // consta no mapa e cai no bloqueio legível abaixo.
+  const lookup: Partial<Record<CadenceStep, HomologationMessage>> = HOMOLOGATION_MESSAGES;
+  const message = lookup[step];
   if (!message) return { ok: false, reason: `Etapa ${step} sem mensagem de homologação.` };
 
   const executive = (input.executiveName ?? "").trim();

@@ -149,7 +149,13 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
   }
 
   const definition = STEPS[step];
-  const reference = referenceMoment(record, ctx);
+  /**
+   * COMANDO 4A §8 — a E30 é contada a partir do INÍCIO DA JORNADA
+   * (regra já definida em `reactivation.ts`), não da última mensagem.
+   * As demais etapas seguem a referência padrão do fluxo.
+   */
+  const reference =
+    step === "E30" ? (record.startedAt ?? referenceMoment(record, ctx)) : referenceMoment(record, ctx);
   if (!reference) {
     return { kind: "none", reason: "Cadência sem evento de referência — etapa não é criada." };
   }

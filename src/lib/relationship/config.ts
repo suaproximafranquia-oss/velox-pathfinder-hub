@@ -4,6 +4,7 @@
  * Nenhuma constante de cadência pode ser declarada fora deste arquivo.
  * Se uma regra precisar mudar, muda aqui — não em componentes.
  */
+import { E30_BUSINESS_DAYS_AFTER_START, E30_ENABLED } from "./reactivation";
 import type { CadenceFlow, CadenceStep } from "./types";
 
 export type StepDefinition = {
@@ -20,7 +21,8 @@ export type StepDefinition = {
 };
 
 /**
- * FLUXO 1 — lead que nunca responde: E0 → E1 → E3 → E4 → E12.
+ * FLUXO 1 — lead que nunca responde: E0 → E1 → E3 → E4 → E12 → E30
+ * (E30 integrada pelo COMANDO 4A §8; ativação controlada por E30_ENABLED).
  * FLUXO 2 — visualizou duas vezes sem responder: E0 → E1 → V3 → V4 (fim).
  * FLUXO 3 — respondeu e sumiu: R1 → R2 → R3, sempre 2 dias úteis após a
  * última interação válida.
@@ -81,6 +83,25 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     businessDaysAfterReference: 5,
     templatePurpose: "encerramento",
     contentGroup: "FINALIZACAO",
+    // Enquanto a E30 estiver desativada a E12 encerra o fluxo; com a E30
+    // ativa, o fluxo continua até o recontato tardio.
+    terminal: !E30_ENABLED,
+  },
+  /**
+   * COMANDO 4A §8 — E30 integrada ao fluxo existente (nunca uma cadência
+   * independente). A regra de negócio já definida vive em
+   * `reactivation.ts`: 22 dias úteis contados a partir do INÍCIO DA
+   * JORNADA, nunca para leads históricos. Permanece travada por
+   * `E30_ENABLED` até existir texto oficial aprovado — enquanto
+   * desativada, a guarda de ordem do fluxo a mantém fora da fila e a E12
+   * segue como encerramento.
+   */
+  E30: {
+    step: "E30",
+    flow: "sem_resposta",
+    businessDaysAfterReference: E30_BUSINESS_DAYS_AFTER_START,
+    templatePurpose: "recontato_e30",
+    contentGroup: null,
     terminal: true,
   },
   V3: {
@@ -191,7 +212,10 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
 
 /** Sequência oficial de cada fluxo. Ordem é validada antes do disparo. */
 export const FLOW_SEQUENCE: Record<CadenceFlow, CadenceStep[]> = {
-  sem_resposta: ["E0", "E1", "E3", "E4", "E12"],
+  // COMANDO 4A §8/§18 — E30 é a etapa posterior de recontato do MESMO
+  // fluxo (nunca uma cadência independente). A guarda de ordem garante
+  // que ela só é considerada depois da E12.
+  sem_resposta: ["E0", "E1", "E3", "E4", "E12", "E30"],
   visualizacao: ["E0", "E1", "V3", "V4"],
   reengajamento: ["R1", "R2", "R3"],
   reentrada: ["RE0", "RE1", "RE2", "RE3"],
