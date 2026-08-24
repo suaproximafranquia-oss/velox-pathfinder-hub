@@ -63,3 +63,75 @@ export async function reconcileMissingLeads(
   }
   return summary;
 }
+
+/** Intervalo oficial da reconciliação periódica (COMANDO 3A §6). */
+const RECONCILE_INTERVAL_MS = 24 * 3_600_000;
+
+export type DailyReconciliationResult =
+  | { ran: true; found: number; moved: number }
+  | { ran: false; reason: string };
+
+/**
+ * Reconciliação periódica — no máximo 1x a cada 24 horas.
+ *
+ * A sincronização incremental é, por definição, uma janela parcial: a
+ * ausência de um lead nela nunca significa desaparecimento. Por isso a
+ * reconciliação só roda sobre uma VARREDURA COMPLETA da origem, com
+ * cadência diária, registrada em `crm_sync_runs` (trigger
+ * "reconciliacao"). Nada é apagado: leads ausentes da origem são
+ * preservados na coluna local NÃO LOCALIZADOS.
+ */
+export async function runDailyReconciliation(
+  actorUserId?: string | null,
+): Promise<DailyReconciliationResult> {
+  const { data: last } = await supabaseAdmin
+    .from("crm_sync_runs")
+    .select("started_at")
+    .eq("trigger", "reconciliacao")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (last?.started_at && Date.now() - Date.parse(last.started_at) < RECONCILE_INTERVAL_MS) {
+    return { ran: false, reason: "intervalo" };
+  }
+
+  const { data: run } = await supabaseAdmin
+    .from("crm_sync_runs")
+    .insert({ trigger: "reconciliacao", status: "RUNNING", started_at: new Date().toISOString() })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  const finish = async (
+    status: "OK" | "ERRO",
+    result: DailyReconciliationResult,
+    message?: string,
+  ) => {
+    if (runId) {
+      await supabaseAdmin
+        .from("crm_sync_runs")
+        .update({
+          status,
+          finished_at: new Date().toISOString(),
+          found_count: result.ran ? result.found : 0,
+          updated_count: result.ran ? result.moved : 0,
+          last_error: message ?? null,
+        })
+        .eq("id", runId);
+    }
+    return result;
+  };
+
+  try {
+    const { greenSalesLogin, fetchAllLeads } = await import("@/server/greensales.server");
+    const { resolveCredentials } = await import("@/server/crm/connections.server");
+    const credentials = await resolveCredentials(actorUserId);
+    const token = await greenSalesLogin(credentials);
+    const page = await fetchAllLeads(token);
+    const reconciled = await reconcileMissingLeads(page.leads.map((l) => String(l.id)));
+    return finish("OK", { ran: true, found: page.leads.length, moved: reconciled.moved });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha desconhecida.";
+    return finish("ERRO", { ran: false, reason: message }, message);
+  }
+}

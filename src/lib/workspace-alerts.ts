@@ -356,7 +356,19 @@ export function evaluateJourneyAlerts(session: ExecutiveSession) {
   }
 }
 
+/**
+ * COMANDO 3A §22 — a avaliação percorre toda a carteira e toda a
+ * jornada; executá-la a cada evento do barramento derrubava o desempenho
+ * da Central com carteiras grandes. O resultado muda no máximo uma vez
+ * a cada poucos segundos, então avaliações em rajada são coalescidas.
+ */
+const EVALUATION_THROTTLE_MS = 5_000;
+let lastEvaluationAt = 0;
+
 export function runWorkspaceAlertEvaluation(session: ExecutiveSession) {
+  const now = Date.now();
+  if (now - lastEvaluationAt < EVALUATION_THROTTLE_MS) return;
+  lastEvaluationAt = now;
   /**
    * Alertas automáticos do Journey Engine — todo evento relevante da
    * jornada gera um alerta para o executivo responsável, sem qualquer
