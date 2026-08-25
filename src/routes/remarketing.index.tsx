@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { LogOut, Megaphone } from "lucide-react";
+import { LogOut, Megaphone, MessagesSquare } from "lucide-react";
 import {
   getSession,
   signOut,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
 import { RemarketingWorkspace } from "@/components/remarketing/remarketing-workspace";
+import { RemarketingChat } from "@/components/remarketing/remarketing-chat";
 
 
 /**
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/remarketing/")({
 function RemarketingPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [tab, setTab] = useState<"campanhas" | "conversas">("campanhas");
 
   useEffect(() => {
     const s = getSession();
@@ -80,7 +82,7 @@ function RemarketingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 pt-24 pb-16 md:pt-28">
+      <main className="mx-auto max-w-7xl px-6 pt-24 pb-16 md:pt-28">
         <div className="mb-8 flex items-center gap-3">
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/50 text-[color:var(--gold)]">
             <Megaphone className="h-5 w-5" strokeWidth={1.5} />
@@ -93,7 +95,36 @@ function RemarketingPage() {
           </div>
         </div>
 
-        <RemarketingWorkspace operatorName={session.name} />
+        <div className="mb-6 inline-flex rounded-full border border-[color:var(--border)] p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setTab("campanhas")}
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 transition ${
+              tab === "campanhas"
+                ? "bg-[color:var(--gold)] text-[color:var(--navy-deep,#0b1220)]"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+            }`}
+          >
+            <Megaphone className="h-3.5 w-3.5" /> Campanhas
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("conversas")}
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 transition ${
+              tab === "conversas"
+                ? "bg-[color:var(--gold)] text-[color:var(--navy-deep,#0b1220)]"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+            }`}
+          >
+            <MessagesSquare className="h-3.5 w-3.5" /> Conversas
+          </button>
+        </div>
+
+        {tab === "campanhas" ? (
+          <RemarketingWorkspace operatorName={session.name} />
+        ) : (
+          <RemarketingChat operatorName={session.name} />
+        )}
       </main>
 
     </div>
