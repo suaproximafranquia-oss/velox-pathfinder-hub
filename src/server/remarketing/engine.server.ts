@@ -174,9 +174,15 @@ export async function setCampaignStatus(
   campaignId: string,
   status: RemarketingCampaignStatus,
 ): Promise<void> {
-  const patch: Record<string, unknown> = { status };
-  if (status === "em_execucao") patch["started_at"] = new Date().toISOString();
-  if (status === "cancelada" || status === "concluida") patch["finished_at"] = new Date().toISOString();
+  const patch: {
+    status: RemarketingCampaignStatus;
+    started_at?: string;
+    finished_at?: string;
+  } = { status };
+  if (status === "em_execucao") patch.started_at = new Date().toISOString();
+  if (status === "cancelada" || status === "concluida")
+    patch.finished_at = new Date().toISOString();
+
   const { error } = await supabaseAdmin
     .from("remarketing_campaigns")
     .update(patch)
