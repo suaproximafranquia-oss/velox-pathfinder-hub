@@ -8,6 +8,8 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
+import { RemarketingWorkspace } from "@/components/remarketing/remarketing-workspace";
+
 
 /**
  * Ambiente de Remarketing — módulo independente.
@@ -79,32 +81,21 @@ function RemarketingPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pt-24 pb-16 md:pt-28">
-        <h1 className="font-display text-2xl md:text-3xl mb-8">Ambiente de Remarketing</h1>
-
-        <section className="relative overflow-hidden rounded-3xl border border-[color:var(--gold)]/25 bg-gradient-to-br from-[color:var(--card)]/70 via-[color:var(--card)]/40 to-transparent px-8 py-10 md:px-12 md:py-14">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-40 blur-3xl"
-            style={{ background: "radial-gradient(circle, var(--gold) 0%, transparent 70%)" }}
-          />
-          <div className="relative max-w-3xl">
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/50 text-[color:var(--gold)]">
-              <Megaphone className="h-5 w-5" strokeWidth={1.5} />
-            </span>
-            <p className="mt-6 text-[11px] uppercase tracking-[0.32em] text-[color:var(--gold)]">
-              Módulo independente
-            </p>
-            <h2 className="mt-4 font-display text-3xl leading-tight md:text-4xl">
-              Remarketing
-            </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[color:var(--muted-foreground)] md:text-base">
-              Este ambiente roda em aba própria do navegador, com URL
-              dedicada, sem sobrepor o Portal/Workspace. Você pode alternar
-              livremente entre esta aba e a aba original.
+        <div className="mb-8 flex items-center gap-3">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/50 text-[color:var(--gold)]">
+            <Megaphone className="h-5 w-5" strokeWidth={1.5} />
+          </span>
+          <div>
+            <h1 className="font-display text-2xl md:text-3xl">Ambiente de Remarketing</h1>
+            <p className="text-xs text-[color:var(--muted-foreground)]">
+              CRM operacional independente — isolado do CRM de Relacionamento.
             </p>
           </div>
-        </section>
+        </div>
+
+        <RemarketingWorkspace operatorName={session.name} />
       </main>
+
     </div>
   );
 }

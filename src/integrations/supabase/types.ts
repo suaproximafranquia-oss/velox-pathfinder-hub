@@ -1985,6 +1985,113 @@ export type Database = {
           },
         ]
       }
+      remarketing_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          duplicate_count: number
+          finished_at: string | null
+          id: string
+          invalid_count: number
+          last_run_at: string | null
+          name: string
+          started_at: string | null
+          status: string
+          template_body: string
+          template_label: string
+          template_language: string | null
+          template_name: string
+          total_count: number
+          updated_at: string
+          valid_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          duplicate_count?: number
+          finished_at?: string | null
+          id?: string
+          invalid_count?: number
+          last_run_at?: string | null
+          name: string
+          started_at?: string | null
+          status?: string
+          template_body?: string
+          template_label?: string
+          template_language?: string | null
+          template_name: string
+          total_count?: number
+          updated_at?: string
+          valid_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          duplicate_count?: number
+          finished_at?: string | null
+          id?: string
+          invalid_count?: number
+          last_run_at?: string | null
+          name?: string
+          started_at?: string | null
+          status?: string
+          template_body?: string
+          template_label?: string
+          template_language?: string | null
+          template_name?: string
+          total_count?: number
+          updated_at?: string
+          valid_count?: number
+        }
+        Relationships: []
+      }
+      remarketing_contacts: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          error: string | null
+          id: string
+          phone: string
+          raw_input: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          phone: string
+          raw_input?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          phone?: string
+          raw_input?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_batch_events: {
         Row: {
           attempts: number
