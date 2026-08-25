@@ -1,19 +1,63 @@
 /**
- * @vitest-environment jsdom
- *
  * INTERVENÇÃO DE ESTABILIDADE — prova do laço de requisições.
  *
  * O barramento avisa a PRÓPRIA aba. Quando o ouvinte reage relendo o
  * servidor e a releitura regrava o cache local, a gravação reavisava o
  * barramento: pull → grava → notifica → pull, indefinidamente. Este
  * teste fixa o contrato que interrompe o ciclo.
+ *
+ * O ambiente de teste é Node puro (sem jsdom): montamos apenas as peças
+ * de navegador que o barramento realmente utiliza.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { notifySync, onSync, runSyncMuted } from "@/lib/sync-bus";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+
+type Listener = (event: unknown) => void;
+
+let notifySync: typeof import("@/lib/sync-bus").notifySync;
+let onSync: typeof import("@/lib/sync-bus").onSync;
+let runSyncMuted: typeof import("@/lib/sync-bus").runSyncMuted;
+
+beforeAll(async () => {
+  const listeners = new Map<string, Set<Listener>>();
+  const store = new Map<string, string>();
+  const win = {
+    addEventListener(type: string, fn: Listener) {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type)!.add(fn);
+    },
+    removeEventListener(type: string, fn: Listener) {
+      listeners.get(type)?.delete(fn);
+    },
+    dispatchEvent(event: { type: string }) {
+      for (const fn of listeners.get(event.type) ?? []) fn(event);
+      return true;
+    },
+    localStorage: {
+      setItem: (k: string, v: string) => void store.set(k, v),
+      getItem: (k: string) => store.get(k) ?? null,
+      clear: () => store.clear(),
+    },
+  };
+  // `CustomEvent` só precisa carregar `type` e `detail`.
+  class CustomEventStub {
+    type: string;
+    detail: unknown;
+    constructor(type: string, init?: { detail?: unknown }) {
+      this.type = type;
+      this.detail = init?.detail;
+    }
+  }
+  Object.assign(globalThis, { window: win, CustomEvent: CustomEventStub });
+
+  const mod = await import("@/lib/sync-bus");
+  notifySync = mod.notifySync;
+  onSync = mod.onSync;
+  runSyncMuted = mod.runSyncMuted;
+});
 
 describe("barramento de sincronização", () => {
   beforeEach(() => {
-    window.localStorage.clear();
+    (globalThis as { window: { localStorage: { clear(): void } } }).window.localStorage.clear();
   });
 
   it("entrega a notificação na própria aba (comportamento preservado)", () => {
