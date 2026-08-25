@@ -18,6 +18,7 @@ import {
   Trophy,
   Bell,
   Contact,
+  Megaphone,
   FolderOpen,
   Archive,
   Radar,
@@ -129,6 +130,16 @@ export function ExecutiveShell({
     { to: "/executivo/home", label: "Home", icon: LayoutGrid },
     { to: "/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
     ...(canCrm ? [{ to: "/crm", label: "CRM", icon: Contact, newTab: true }] : []),
+    /**
+     * Remarketing — ambiente independente com URL própria (`/remarketing`).
+     * Segue o mesmo comportamento do CRM: abre em NOVA ABA do navegador
+     * (`newTab: true` → `<a target="_blank" rel="noreferrer">`), sem modal,
+     * drawer ou sobreposição sobre o Workspace; a aba original permanece
+     * intacta. Visível para o mesmo público com acesso ao CRM.
+     */
+    ...(canCrm
+      ? [{ to: "/remarketing", label: "Remarketing", icon: Megaphone, newTab: true }]
+      : []),
     { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
     { to: "/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
     { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },

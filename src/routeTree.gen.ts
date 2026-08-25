@@ -10,10 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UniversoRouteImport } from './routes/universo'
+import { Route as RemarketingRouteImport } from './routes/remarketing'
 import { Route as PortalLeadsRouteImport } from './routes/portal-leads'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RemarketingIndexRouteImport } from './routes/remarketing.index'
 import { Route as ManualIndexRouteImport } from './routes/manual/index'
 import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as CrmIndexRouteImport } from './routes/crm.index'
@@ -63,6 +65,11 @@ const UniversoRoute = UniversoRouteImport.update({
   path: '/universo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RemarketingRoute = RemarketingRouteImport.update({
+  id: '/remarketing',
+  path: '/remarketing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalLeadsRoute = PortalLeadsRouteImport.update({
   id: '/portal-leads',
   path: '/portal-leads',
@@ -82,6 +89,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const RemarketingIndexRoute = RemarketingIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RemarketingRoute,
 } as any)
 const ManualIndexRoute = ManualIndexRouteImport.update({
   id: '/manual/',
@@ -305,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
+  '/remarketing': typeof RemarketingRouteWithChildren
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -345,6 +358,7 @@ export interface FileRoutesByFullPath {
   '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
+  '/remarketing/': typeof RemarketingIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
@@ -394,6 +408,7 @@ export interface FileRoutesByTo {
   '/crm': typeof CrmIndexRoute
   '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
+  '/remarketing': typeof RemarketingIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
@@ -405,6 +420,7 @@ export interface FileRoutesById {
   '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/portal-leads': typeof PortalLeadsRoute
+  '/remarketing': typeof RemarketingRouteWithChildren
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -445,6 +461,7 @@ export interface FileRoutesById {
   '/crm/': typeof CrmIndexRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
+  '/remarketing/': typeof RemarketingIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
@@ -457,6 +474,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/entrar'
     | '/portal-leads'
+    | '/remarketing'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -497,6 +515,7 @@ export interface FileRouteTypes {
     | '/crm/'
     | '/executivo/'
     | '/manual/'
+    | '/remarketing/'
     | '/oauth/google/$connector'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
@@ -546,6 +565,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/executivo'
     | '/manual'
+    | '/remarketing'
     | '/oauth/google/$connector'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
@@ -556,6 +576,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/entrar'
     | '/portal-leads'
+    | '/remarketing'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -596,6 +617,7 @@ export interface FileRouteTypes {
     | '/crm/'
     | '/executivo/'
     | '/manual/'
+    | '/remarketing/'
     | '/oauth/google/$connector'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
@@ -607,6 +629,7 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRouteWithChildren
   EntrarRoute: typeof EntrarRoute
   PortalLeadsRoute: typeof PortalLeadsRoute
+  RemarketingRoute: typeof RemarketingRouteWithChildren
   UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
@@ -661,6 +684,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UniversoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/remarketing': {
+      id: '/remarketing'
+      path: '/remarketing'
+      fullPath: '/remarketing'
+      preLoaderRoute: typeof RemarketingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal-leads': {
       id: '/portal-leads'
       path: '/portal-leads'
@@ -688,6 +718,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/remarketing/': {
+      id: '/remarketing/'
+      path: '/'
+      fullPath: '/remarketing/'
+      preLoaderRoute: typeof RemarketingIndexRouteImport
+      parentRoute: typeof RemarketingRoute
     }
     '/manual/': {
       id: '/manual/'
@@ -1003,11 +1040,24 @@ const CrmRouteChildren: CrmRouteChildren = {
 
 const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
 
+interface RemarketingRouteChildren {
+  RemarketingIndexRoute: typeof RemarketingIndexRoute
+}
+
+const RemarketingRouteChildren: RemarketingRouteChildren = {
+  RemarketingIndexRoute: RemarketingIndexRoute,
+}
+
+const RemarketingRouteWithChildren = RemarketingRoute._addFileChildren(
+  RemarketingRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CrmRoute: CrmRouteWithChildren,
   EntrarRoute: EntrarRoute,
   PortalLeadsRoute: PortalLeadsRoute,
+  RemarketingRoute: RemarketingRouteWithChildren,
   UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
