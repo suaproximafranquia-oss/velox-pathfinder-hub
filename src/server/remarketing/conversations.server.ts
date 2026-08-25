@@ -141,7 +141,7 @@ async function appendMessage(input: {
       .select("unread_count")
       .eq("id", input.conversationId)
       .maybeSingle();
-    patch["unread_count"] = Number((current as Row | null)?.["unread_count"] ?? 0) + 1;
+    patch.unread_count = Number((current as Row | null)?.["unread_count"] ?? 0) + 1;
   }
   await supabaseAdmin
     .from("remarketing_conversations")
