@@ -8,6 +8,8 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
+import { RemarketingWorkspace } from "@/components/remarketing/remarketing-workspace";
+
 
 /**
  * Ambiente de Remarketing — módulo independente.
