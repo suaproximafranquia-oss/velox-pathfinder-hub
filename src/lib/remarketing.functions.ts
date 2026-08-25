@@ -73,3 +73,61 @@ export const deleteRemarketingCampaign = createServerFn({ method: "POST" })
     await deleteCampaign(data.campaignId);
     return listCampaigns();
   });
+
+/* ---------------------------------------------------------------------
+ * Caixa de Conversas — ambiente isolado.
+ * ------------------------------------------------------------------ */
+export const listRemarketingConversations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { listConversations } = await import("@/server/remarketing/conversations.server");
+    return listConversations();
+  });
+
+export const listRemarketingMessages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ conversationId: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    const { listMessages, markConversationRead } = await import(
+      "@/server/remarketing/conversations.server"
+    );
+    await markConversationRead(data.conversationId);
+    return listMessages(data.conversationId);
+  });
+
+export const sendRemarketingReply = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        conversationId: z.string().uuid(),
+        body: z.string().trim().min(1).max(3000),
+        authorName: z.string().trim().max(120).default(""),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { replyManually } = await import("@/server/remarketing/conversations.server");
+    return replyManually(data);
+  });
+
+export const updateRemarketingConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        conversationId: z.string().uuid(),
+        status: z.enum(["aguardando", "respondeu", "em_atendimento", "encerrada"]).optional(),
+        contactName: z.string().trim().max(120).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { setConversationStatus, renameConversation, listConversations } = await import(
+      "@/server/remarketing/conversations.server"
+    );
+    if (data.status) await setConversationStatus(data.conversationId, data.status);
+    if (data.contactName !== undefined)
+      await renameConversation(data.conversationId, data.contactName);
+    return listConversations();
+  });

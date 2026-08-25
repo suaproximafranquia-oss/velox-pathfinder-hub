@@ -30,6 +30,17 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook")({
         } catch {
           return new Response("Invalid payload", { status: 400 });
         }
+        // ISOLAMENTO: se o número pertence ao ambiente de Remarketing, a
+        // resposta fica lá e NUNCA entra no CRM de Relacionamento.
+        const { parseInboundText, isRemarketingPhone, recordInbound } = await import(
+          "@/server/remarketing/conversations.server"
+        );
+        const inbound = parseInboundText(payload);
+        if (inbound && (await isRemarketingPhone(inbound.phone))) {
+          await recordInbound({ phone: inbound.phone, body: inbound.body });
+          return new Response("ok");
+        }
+
         const reply = parseWebhookReply(payload);
         if (!reply) return new Response("ok");
         await recordReply({ phone: reply.phone, status: reply.status, raw: payload });

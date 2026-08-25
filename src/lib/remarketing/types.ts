@@ -82,3 +82,48 @@ export function canPause(status: RemarketingCampaignStatus): boolean {
 export function canCancel(status: RemarketingCampaignStatus): boolean {
   return status !== "cancelada" && status !== "concluida";
 }
+
+/* ---------------------------------------------------------------------
+ * Caixa de Conversas — isolada do CRM de Relacionamento.
+ * ------------------------------------------------------------------ */
+export type RemarketingConversationStatus =
+  | "aguardando"
+  | "respondeu"
+  | "em_atendimento"
+  | "encerrada";
+
+export const CONVERSATION_STATUS_LABEL: Record<RemarketingConversationStatus, string> = {
+  aguardando: "Aguardando resposta",
+  respondeu: "Respondeu",
+  em_atendimento: "Em atendimento",
+  encerrada: "Encerrada",
+};
+
+export type RemarketingConversation = {
+  id: string;
+  phone: string;
+  contactName: string | null;
+  campaignId: string | null;
+  campaignName: string | null;
+  status: RemarketingConversationStatus;
+  lastMessageAt: string;
+  lastMessagePreview: string;
+  lastDirection: "saida" | "entrada";
+  unreadCount: number;
+  createdAt: string;
+};
+
+export type RemarketingMessage = {
+  id: string;
+  conversationId: string;
+  campaignId: string | null;
+  direction: "saida" | "entrada";
+  kind: "template" | "texto";
+  body: string;
+  templateName: string | null;
+  authorName: string | null;
+  delivered: boolean;
+  error: string | null;
+  simulated: boolean;
+  occurredAt: string;
+};

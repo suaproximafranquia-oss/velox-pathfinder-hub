@@ -2092,6 +2092,122 @@ export type Database = {
           },
         ]
       }
+      remarketing_conversations: {
+        Row: {
+          campaign_id: string | null
+          campaign_name: string | null
+          contact_name: string | null
+          created_at: string
+          id: string
+          last_direction: string
+          last_message_at: string
+          last_message_preview: string
+          phone: string
+          status: string
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          campaign_name?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          last_direction?: string
+          last_message_at?: string
+          last_message_preview?: string
+          phone: string
+          status?: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          campaign_name?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          last_direction?: string
+          last_message_at?: string
+          last_message_preview?: string
+          phone?: string
+          status?: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_conversations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remarketing_messages: {
+        Row: {
+          author_name: string | null
+          body: string
+          campaign_id: string | null
+          conversation_id: string
+          created_at: string
+          delivered: boolean
+          direction: string
+          error: string | null
+          id: string
+          kind: string
+          occurred_at: string
+          simulated: boolean
+          template_name: string | null
+        }
+        Insert: {
+          author_name?: string | null
+          body?: string
+          campaign_id?: string | null
+          conversation_id: string
+          created_at?: string
+          delivered?: boolean
+          direction: string
+          error?: string | null
+          id?: string
+          kind?: string
+          occurred_at?: string
+          simulated?: boolean
+          template_name?: string | null
+        }
+        Update: {
+          author_name?: string | null
+          body?: string
+          campaign_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          delivered?: boolean
+          direction?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          occurred_at?: string
+          simulated?: boolean
+          template_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_batch_events: {
         Row: {
           attempts: number

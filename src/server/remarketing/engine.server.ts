@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { channelMode, onlyDigits } from "@/server/whatsapp.server";
+import { recordCampaignDispatch } from "@/server/remarketing/conversations.server";
 import type {
   RemarketingCampaign,
   RemarketingCampaignStatus,
@@ -294,6 +295,17 @@ export async function runRemarketingEngine(now = new Date()): Promise<Remarketin
       const result = await sendTemplate({ phone: contact.phone, templateName, language });
       if (result.delivered) sent += 1;
       else failed += 1;
+      // Caixa de Conversas do Remarketing — registro isolado do disparo.
+      await recordCampaignDispatch({
+        phone: contact.phone,
+        campaignId,
+        campaignName: String(row["name"] ?? ""),
+        templateName,
+        templateBody: String(row["template_body"] ?? ""),
+        delivered: result.delivered,
+        error: result.error ?? null,
+        simulated: channelMode() === "simulator",
+      }).catch(() => undefined);
       await supabaseAdmin
         .from("remarketing_contacts")
         .update({
