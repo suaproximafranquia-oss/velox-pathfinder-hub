@@ -27,8 +27,28 @@ export type SyncChannel =
 const EVENT_NAME = "velox:sync";
 const PING_KEY = "velox:sync:ping";
 
+/**
+ * INTERVENÇÃO DE ESTABILIDADE — escritas que são apenas ESPELHO do
+ * servidor (ex.: `pullLeads` regravando o cache local) não representam
+ * uma alteração de negócio. Sem esta trava, o ciclo
+ * pull → grava cache → notifySync → ouvinte → pull se repetia sem fim:
+ * ~50 requisições/segundo por aba e travamento do navegador.
+ */
+let muteDepth = 0;
+
+/** Executa `fn` sem emitir notificações do barramento durante a escrita. */
+export function runSyncMuted<T>(fn: () => T): T {
+  muteDepth += 1;
+  try {
+    return fn();
+  } finally {
+    muteDepth -= 1;
+  }
+}
+
 export function notifySync(channel: SyncChannel): void {
   if (typeof window === "undefined") return;
+  if (muteDepth > 0) return;
   try {
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: channel }));
   } catch {

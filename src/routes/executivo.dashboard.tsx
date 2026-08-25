@@ -158,14 +158,17 @@ function WorkspacePage() {
       if (document.visibilityState === "visible") refresh();
     };
     const offSync = onSync(refresh);
-    window.addEventListener("storage", refresh);
+    // INTERVENÇÃO DE ESTABILIDADE — o ouvinte cru de "storage" foi
+    // removido: ele disparava um download completo da base para QUALQUER
+    // escrita em localStorage feita por outras abas (heartbeat do Portal
+    // a cada 15s, pings, caches). O barramento (onSync) já cobre o
+    // cross-tab com o ping filtrado por canal.
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
       unsubscribe();
       offSync();
-      window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);
     };

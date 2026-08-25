@@ -9,7 +9,7 @@
 import { emitEvent } from "@/lib/events/bus";
 import { logAudit } from "@/lib/audit-log";
 
-import { notifySync } from "@/lib/sync-bus";
+import { notifySync, runSyncMuted } from "@/lib/sync-bus";
 
 export type MeetingStatus =
   | "Solicitada"
@@ -128,7 +128,8 @@ export async function hydrateMeetingsFromServer(): Promise<number> {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
-  safeWrite(meetings);
+  // Espelho do servidor: grava sem reavisar o barramento (estabilidade).
+  runSyncMuted(() => safeWrite(meetings));
   return meetings.length;
 }
 
