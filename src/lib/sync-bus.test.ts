@@ -1,4 +1,6 @@
 /**
+ * @vitest-environment jsdom
+ *
  * INTERVENÇÃO DE ESTABILIDADE — prova do laço de requisições.
  *
  * O barramento avisa a PRÓPRIA aba. Quando o ouvinte reage relendo o
