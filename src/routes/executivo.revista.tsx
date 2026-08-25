@@ -15,7 +15,9 @@ import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   setMagazineEditionPublished,
+  deleteMagazineEdition,
   deleteMagazinePage,
+
   listMagazineEditions,
   saveMagazineEdition,
   saveMagazinePage,
