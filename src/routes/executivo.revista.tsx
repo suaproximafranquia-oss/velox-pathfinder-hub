@@ -325,7 +325,29 @@ function RevistaAdminPage() {
                   >
                     {item.published ? "Desativar" : "Ativar"}
                   </button>
+                  {/* §20 — exclusão da edição inteira, junto das demais ações. */}
+                  <button
+                    type="button"
+                    className={`${ghost} border-red-500/40 text-red-300 hover:bg-red-500/10`}
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          `Excluir a edição ${formatEditionCode(item.number)} — "${item.title}" inteira? Todos os conteúdos serão removidos. Esta ação é irreversível.`,
+                        )
+                      )
+                        return;
+                      void run(async () => {
+                        const rows = await deleteMagazineEdition({ data: { id: item.id } });
+                        setEditions(rows);
+                        setSelectedId(rows[0]?.id ?? null);
+                      }, "Edição excluída.");
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Excluir
+                  </button>
                 </div>
+
               </div>
             ))}
           </div>
