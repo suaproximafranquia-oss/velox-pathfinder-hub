@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isE0Blocked, isE0NightWindow, nextE0Moment } from "./e0-window";
+import { isE0Blocked, isE0NightWindow, localParts, nextE0Moment } from "./e0-window";
 
 /**
  * Janela E0 (§16): Seg–Sex 07:00–22:30 · Sáb 07:00–12:00 · Dom sem envio.
  *
- * Os horários são lidos no fuso local do runtime. Cada instante abaixo
+ * Os horários são SEMPRE lidos em America/Sao_Paulo. Cada instante abaixo
  * foi escolhido de modo que a interpretação seja a MESMA em UTC e em
  * UTC-3 (horário da operação); as retomadas são verificadas por
  * propriedades (dia da semana + 07:00 local), não por instante absoluto.
@@ -14,9 +14,10 @@ const at = (iso: string) => new Date(iso);
 // 2026-08-19 = quarta · 2026-08-22 = sábado · 2026-08-23 = domingo
 
 const opensAtSevenOn = (d: Date, weekday: number) => {
-  expect(d.getDay()).toBe(weekday);
-  expect(d.getHours()).toBe(7);
-  expect(d.getMinutes()).toBe(0);
+  const p = localParts(d);
+  expect(p.weekday).toBe(weekday);
+  expect(p.hour).toBe(7);
+  expect(p.minute).toBe(0);
 };
 
 describe("janela operacional da E0 (§16)", () => {

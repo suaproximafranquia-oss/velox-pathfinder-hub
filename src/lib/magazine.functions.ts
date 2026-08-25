@@ -104,6 +104,16 @@ export const deleteMagazinePage = createServerFn({ method: "POST" })
     return deletePagePair(data.id);
   });
 
+/** §20 — exclui a EDIÇÃO INTEIRA (todos os conteúdos + a edição). */
+export const deleteMagazineEdition = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data }): Promise<MagazineEdition[]> => {
+    const { deleteEditionCompletely } = await import("@/server/magazine.server");
+    return deleteEditionCompletely(data.id);
+  });
+
+
 export const listInstitutionalContent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async (): Promise<InstitutionalBlock[]> => {

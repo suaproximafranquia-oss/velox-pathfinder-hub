@@ -224,6 +224,18 @@ export async function runLeadSync(
     toProcess.push({ listed, cls });
   }
   let divergentCount = 0;
+  /**
+   * §4 — RECONCILIAÇÃO DE ETAPA IGUAL À DA CARGA HISTÓRICA.
+   *
+   * A listagem devolve as etiquetas (`withs`), mas nem sempre: quando
+   * ela vem sem `tags`, a coluna não é resolvida e a sincronização
+   * incremental simplesmente não via a mudança — o lead permanecia
+   * indevidamente na etapa anterior, enquanto a carga histórica (que
+   * sempre consulta o detalhe) corrigia. Agora, todo lead já espelhado
+   * cuja listagem NÃO resolve coluna é verificado pelo detalhe, com
+   * limite por execução para não sobrecarregar a origem.
+   */
+  const needsDetailCheck: ScannedLead[] = [];
   for (const listed of scanned) {
     const externalId = String(listed.id);
     if (inWindow.has(externalId)) continue;
@@ -233,19 +245,47 @@ export async function runLeadSync(
       continue;
     }
     const resolved = stageKeyOf(listed);
-    // Sem etiqueta de coluna resolvida NÃO há evidência de mudança —
-    // jamais rebaixamos um lead por ausência de informação.
-    if (resolved && resolved !== storedStage.get(externalId)) {
+    if (!resolved) {
+      needsDetailCheck.push(listed);
+      continue;
+    }
+    if (resolved !== storedStage.get(externalId)) {
       divergentCount += 1;
       toProcess.push({ listed, cls: "C" });
     }
   }
+
+  const DETAIL_CHECK_LIMIT = 80;
+  let detailChecked = 0;
+  for (const listed of needsDetailCheck.slice(0, DETAIL_CHECK_LIMIT)) {
+    const externalId = String(listed.id);
+    try {
+      const detail = await fetchLeadDetail(token, listed.id);
+      detailChecked += 1;
+      if (!detail) continue;
+      const merged = { ...listed, ...detail } as ScannedLead;
+      const resolved = stageKeyOf(merged);
+      // Sem etiqueta de coluna resolvida NÃO há evidência de mudança —
+      // jamais rebaixamos um lead por ausência de informação.
+      if (resolved && resolved !== storedStage.get(externalId)) {
+        divergentCount += 1;
+        toProcess.push({ listed: merged, cls: "C" });
+      }
+    } catch (error) {
+      // Um lead problemático nunca derruba a execução (§5).
+      summary.errors.push(
+        `Lead ${externalId} (verificação de etapa): ${error instanceof Error ? error.message : "falha desconhecida"}`,
+      );
+    }
+  }
+
   const caseBCount = toProcess.filter((t) => t.cls === "B").length;
-  if (divergentCount || caseBCount) {
+  if (divergentCount || caseBCount || detailChecked) {
     console.warn(
-      `[crm-sync] reconciliação: ${divergentCount} divergente(s), ${caseBCount} histórico(s) ausente(s) do espelho.`,
+      `[crm-sync] reconciliação: ${divergentCount} divergente(s), ${caseBCount} histórico(s) ausente(s), ${detailChecked} verificação(ões) por detalhe.`,
     );
   }
+
 
   for (const { listed, cls } of toProcess) {
     const externalId = String(listed.id);

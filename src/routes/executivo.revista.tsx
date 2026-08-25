@@ -15,7 +15,9 @@ import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   setMagazineEditionPublished,
+  deleteMagazineEdition,
   deleteMagazinePage,
+
   listMagazineEditions,
   saveMagazineEdition,
   saveMagazinePage,
@@ -421,9 +423,33 @@ function RevistaAdminPage() {
               <h3 className="text-sm">
                 Conteúdos de {formatEditionCode(edition.number)} — {edition.title}
               </h3>
-              <button type="button" className={ghost} onClick={() => setPreviewId(edition.id)}>
-                <Eye className="h-3.5 w-3.5" /> Visualizar revista
-              </button>
+              <div className="flex items-center gap-2">
+                <button type="button" className={ghost} onClick={() => setPreviewId(edition.id)}>
+                  <Eye className="h-3.5 w-3.5" /> Visualizar revista
+                </button>
+                {/* §20 — exclusão da edição inteira (conteúdos + edição). */}
+                <button
+                  type="button"
+                  className={`${ghost} border-red-500/40 text-red-300 hover:bg-red-500/10`}
+                  disabled={busy}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        `Excluir a edição ${formatEditionCode(edition.number)} — "${edition.title}" inteira? Todos os conteúdos serão removidos. Esta ação é irreversível.`,
+                      )
+                    )
+                      return;
+                    void run(async () => {
+                      const rows = await deleteMagazineEdition({ data: { id: edition.id } });
+                      setEditions(rows);
+                      setSelectedId(rows[0]?.id ?? null);
+                    }, "Edição excluída.");
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Excluir edição
+                </button>
+              </div>
+
             </div>
             <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
               Cada conteúdo é um par indivisível: texto e mídia ocupam a mesma página dupla. A ordem

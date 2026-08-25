@@ -261,6 +261,21 @@ export async function deletePagePair(id: string): Promise<MagazineEdition[]> {
   return editionId ? reindexEdition(editionId) : listEditions();
 }
 
+/**
+ * §20 — exclusão da EDIÇÃO INTEIRA. Remove todos os conteúdos (pares de
+ * texto + mídia) e a própria edição. Ação irreversível, restrita à
+ * administração da Revista.
+ */
+export async function deleteEditionCompletely(id: string): Promise<MagazineEdition[]> {
+  const supabase = await admin();
+  const pages = await supabase.from("magazine_pages").delete().eq("edition_id", id);
+  if (pages.error) throw new Error(pages.error.message);
+  const { error } = await supabase.from("magazine_editions").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  return listEditions();
+}
+
+
 /* --------------------------- Módulos institucionais --------------------------- */
 
 export async function listInstitutionalBlocks(
