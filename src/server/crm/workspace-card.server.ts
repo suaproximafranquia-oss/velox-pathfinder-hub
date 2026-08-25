@@ -12,6 +12,7 @@
  * operacional já existente é sobrescrito.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { sanitizeRawPayload } from "@/server/crm/lead-service.server";
 
 export type WorkspaceCardInput = {
   externalId: string;
@@ -45,7 +46,12 @@ export async function ensureWorkspaceCard(
   if (existing) return { ok: true, cardId, created: false };
 
   const now = new Date().toISOString();
-  const { error } = await supabaseAdmin.from("portal_leads").insert({
+    /**
+   * §5 — o card também recebe texto vindo da origem. Sem a limpeza do
+   * NUL (\u0000) o Postgres rejeita a linha inteira e o lead ficava sem
+   * card, sem que a execução inteira precisasse falhar por isso.
+   */
+  const { error } = await supabaseAdmin.from("portal_leads").insert(sanitizeRawPayload({
     id: cardId,
     name: input.name,
     email: input.email,
@@ -70,7 +76,7 @@ export async function ensureWorkspaceCard(
     external_payload: input.rawPayload as never,
     is_test: Boolean(input.isTest),
     test_batch_id: input.testBatchId ?? null,
-  });
+  }));
   if (error) return { ok: false, cardId, created: false, error: error.message };
   return { ok: true, cardId, created: true };
 }

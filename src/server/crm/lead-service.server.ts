@@ -87,13 +87,16 @@ export async function recordEvent(
   message?: string,
   data?: Record<string, unknown>,
 ): Promise<void> {
-  await supabaseAdmin.from("crm_lead_events").insert({
-    lead_id: leadId,
-    type,
-    message: message ?? null,
-    data: (data ?? null) as never,
-  });
+  await supabaseAdmin.from("crm_lead_events").insert(
+    sanitizeRawPayload({
+      lead_id: leadId,
+      type,
+      message: message ?? null,
+      data: (data ?? null) as never,
+    }),
+  );
 }
+
 
 export type UpsertInput = {
   externalId: string;
@@ -207,7 +210,15 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
     .eq("external_id", input.externalId)
     .maybeSingle();
 
-  const base = {
+  /**
+   * §5 — RESILIÊNCIA A CARACTERE INVÁLIDO.
+   *
+   * O NUL (\u0000) não vem só no payload bruto: nome, origem e etiquetas
+   * da origem também já chegaram com ele, e o Postgres rejeita a linha
+   * inteira ("unsupported Unicode escape sequence"), derrubando o lead
+   * da execução. A limpeza passa a ser aplicada ao registro COMPLETO.
+   */
+  const base = sanitizeRawPayload({
     name: input.name,
     phone: input.phone,
     email: input.email,
@@ -221,13 +232,14 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
     last_synced_at: now,
     sync_status: "OK",
     sync_error: null,
-    raw_payload: sanitizeRawPayload(input.rawPayload) as never,
+    raw_payload: input.rawPayload as never,
     // Etiquetas e status técnico NUNCA filtram nada — são preservados
     // integralmente como informação do lead.
     tags: (input.tags ?? []) as never,
     external_status: input.externalStatus ?? null,
     remarketing: Boolean(input.remarketing),
-  };
+  });
+
 
   if (!existing) {
     /**

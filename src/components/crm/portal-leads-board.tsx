@@ -130,7 +130,9 @@ function LeadDialog({
   onMove: (lead: CrmLeadView, stage: CrmStageView) => Promise<void>;
 }) {
   const [moveTarget, setMoveTarget] = useState("");
+  const [moving, setMoving] = useState(false);
   const moveOptions = stages.filter((s) => s.key !== lead.stageKey);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -192,22 +194,43 @@ function LeadDialog({
             espelho automaticamente.
           </p>
           <div className="mt-2 flex items-center gap-2">
+            {/*
+              §7 — o `select` nativo herdava o fundo branco do sistema
+              operacional e as opções ficavam ilegíveis. As cores das
+              OPTIONS precisam ser declaradas explicitamente: o Tailwind
+              da caixa não alcança a lista renderizada pelo navegador.
+            */}
             <select
               value={moveTarget}
+              disabled={moving}
               onChange={(e) => setMoveTarget(e.target.value)}
-              className="h-8 flex-1 rounded-lg border border-white/10 bg-white/[0.06] px-2 text-xs text-white/80"
+              className="h-8 flex-1 rounded-lg border border-white/15 bg-[color:var(--navy-deep,#0b1220)] px-2 text-xs text-white/90 outline-none transition focus:border-amber-400/60 disabled:opacity-50 [&>option:checked]:bg-amber-500/20"
+              style={{ colorScheme: "dark" }}
             >
-              <option value="">Selecionar etapa…</option>
+              <option value="" style={{ backgroundColor: "#0b1220", color: "#e5e7eb" }}>
+                Selecionar etapa…
+              </option>
               {moveOptions.map((stage) => (
-                <option key={stage.key} value={stage.key}>
+                <option
+                  key={stage.key}
+                  value={stage.key}
+                  style={{ backgroundColor: "#0b1220", color: "#e5e7eb" }}
+                >
                   {stage.label}
                 </option>
               ))}
             </select>
             <button
               type="button"
-              disabled={!moveTarget}
+              disabled={!moveTarget || moving}
               onClick={() => {
+                /*
+                 * §8 — clique idempotente: enquanto a movimentação está
+                 * em curso o controle fica bloqueado e exibe o estado de
+                 * processamento. Só volta a ficar disponível depois que
+                 * o servidor confirma o resultado.
+                 */
+                if (moving) return;
                 const stage = moveOptions.find((s) => s.key === moveTarget);
                 if (!stage) return;
                 if (
@@ -216,13 +239,17 @@ function LeadDialog({
                   )
                 )
                   return;
-                void onMove(lead, stage).then(() => setMoveTarget(""));
+                setMoving(true);
+                void onMove(lead, stage)
+                  .then(() => setMoveTarget(""))
+                  .finally(() => setMoving(false));
               }}
               className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs text-amber-300 transition hover:bg-amber-500/10 disabled:opacity-40"
             >
-              Mover
+              {moving ? "Movendo…" : "Mover"}
             </button>
           </div>
+
         </div>
 
         <h3 className="mt-6 mb-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
