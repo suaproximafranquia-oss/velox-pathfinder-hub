@@ -57,6 +57,7 @@ import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.a
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 import { Route as OauthGoogleConnectorRouteImport } from './routes/oauth.google.$connector'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
+import { Route as ApiPublicRemarketingRunRouteImport } from './routes/api/public/remarketing/run'
 import { Route as ApiPublicCrmSyncRouteImport } from './routes/api/public/crm/sync'
 import { Route as ApiPublicBackupRunRouteImport } from './routes/api/public/backup/run'
 
@@ -301,6 +302,11 @@ const ApiPublicWhatsappWebhookRoute =
     path: '/api/public/whatsapp/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRemarketingRunRoute = ApiPublicRemarketingRunRouteImport.update({
+  id: '/api/public/remarketing/run',
+  path: '/api/public/remarketing/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCrmSyncRoute = ApiPublicCrmSyncRouteImport.update({
   id: '/api/public/crm/sync',
   path: '/api/public/crm/sync',
@@ -362,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
+  '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -412,6 +419,7 @@ export interface FileRoutesByTo {
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
+  '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRoutesById {
@@ -465,6 +473,7 @@ export interface FileRoutesById {
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
+  '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
 }
 export interface FileRouteTypes {
@@ -519,6 +528,7 @@ export interface FileRouteTypes {
     | '/oauth/google/$connector'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
+    | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -569,6 +579,7 @@ export interface FileRouteTypes {
     | '/oauth/google/$connector'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
+    | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
   id:
     | '__root__'
@@ -621,6 +632,7 @@ export interface FileRouteTypes {
     | '/oauth/google/$connector'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
+    | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -672,6 +684,7 @@ export interface RootRouteChildren {
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
   ApiPublicBackupRunRoute: typeof ApiPublicBackupRunRoute
   ApiPublicCrmSyncRoute: typeof ApiPublicCrmSyncRoute
+  ApiPublicRemarketingRunRoute: typeof ApiPublicRemarketingRunRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
 
@@ -1013,6 +1026,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/remarketing/run': {
+      id: '/api/public/remarketing/run'
+      path: '/api/public/remarketing/run'
+      fullPath: '/api/public/remarketing/run'
+      preLoaderRoute: typeof ApiPublicRemarketingRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/crm/sync': {
       id: '/api/public/crm/sync'
       path: '/api/public/crm/sync'
@@ -1100,6 +1120,7 @@ const rootRouteChildren: RootRouteChildren = {
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
   ApiPublicBackupRunRoute: ApiPublicBackupRunRoute,
   ApiPublicCrmSyncRoute: ApiPublicCrmSyncRoute,
+  ApiPublicRemarketingRunRoute: ApiPublicRemarketingRunRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }
 export const routeTree = rootRouteImport
