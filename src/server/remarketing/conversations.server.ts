@@ -122,12 +122,19 @@ async function appendMessage(input: {
     .single();
   if (error) throw new Error(error.message);
 
-  const patch: Record<string, unknown> = {
+  const patch: {
+    last_message_at: string;
+    last_message_preview: string;
+    last_direction: string;
+    status?: string;
+    unread_count?: number;
+  } = {
     last_message_at: occurredAt,
     last_message_preview: input.body.slice(0, 160),
     last_direction: input.direction,
   };
-  if (input.status) patch["status"] = input.status;
+  if (input.status) patch.status = input.status;
+
   if (input.direction === "entrada") {
     const { data: current } = await supabaseAdmin
       .from("remarketing_conversations")
