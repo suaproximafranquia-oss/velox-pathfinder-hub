@@ -15,6 +15,7 @@ import {
 } from "@/lib/portal-leads.functions";
 import { resolveLeadScope } from "@/lib/lead-routing";
 import { loadLeads, replaceLeads, type LeadRecord } from "@/lib/leads";
+import { runSyncMuted } from "@/lib/sync-bus";
 
 /** Envia (fire-and-forget) o Lead para o servidor. Nunca bloqueia a UI. */
 export function pushLead(lead: LeadRecord, extra?: {
@@ -150,16 +151,33 @@ function toLocal(row: RemoteLead): LeadRecord {
 }
 
 /**
+ * INTERVENÇÃO DE ESTABILIDADE — uma única leitura em voo por aba.
+ * Antes, eventos em rajada (realtime, storage, foco) empilhavam
+ * downloads completos da base; agora chamadas concorrentes dividem a
+ * mesma promessa.
+ */
+let pullInFlight: Promise<number> | null = null;
+
+/**
  * Busca a base real e espelha no armazenamento local usado por
  * `listAllInvestors()`. O servidor é a fonte de verdade do escopo.
  */
-export async function pullLeads(): Promise<number> {
-  const rows = (await listPortalLeads()) as unknown as RemoteLead[];
-  const remote = rows.map(toLocal);
-  // Substituição autoritativa: registros ausentes no servidor não podem ser
-  // restaurados por outro navegador. O armazenamento local é apenas cache.
-  replaceLeads(remote);
-  return remote.length;
+export function pullLeads(): Promise<number> {
+  if (pullInFlight) return pullInFlight;
+  pullInFlight = (async () => {
+    const rows = (await listPortalLeads()) as unknown as RemoteLead[];
+    const remote = rows.map(toLocal);
+    // Substituição autoritativa: registros ausentes no servidor não podem ser
+    // restaurados por outro navegador. O armazenamento local é apenas cache.
+    // A escrita é SILENCIOSA (runSyncMuted): espelhar o servidor não é uma
+    // alteração de negócio e não pode reavisar o barramento — era esse o
+    // laço que gerava a tempestade de requisições.
+    runSyncMuted(() => replaceLeads(remote));
+    return remote.length;
+  })().finally(() => {
+    pullInFlight = null;
+  });
+  return pullInFlight;
 }
 
 /**
@@ -203,9 +221,27 @@ export async function restoreLeadFromCloud(input: {
  * O cliente de tempo real é carregado sob demanda: só o Workspace do
  * executivo precisa dele, então o investidor nunca paga esse download.
  */
+/**
+ * INTERVENÇÃO DE ESTABILIDADE — a sincronização automática do servidor
+ * grava CENTENAS de linhas de uma vez; sem coalescência, cada UPDATE
+ * disparava um download completo da base por aba aberta (a rajada que
+ * derrubava o navegador). Agora os eventos são agrupados: avisos em
+ * sequência viram UMA notificação, ~1,5s após a última alteração.
+ */
+const REALTIME_DEBOUNCE_MS = 1_500;
+
 export function subscribeLeads(onChange: () => void): () => void {
   let dispose: (() => void) | null = null;
   let cancelled = false;
+  let debounceTimer: number | null = null;
+
+  const schedule = () => {
+    if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(() => {
+      debounceTimer = null;
+      onChange();
+    }, REALTIME_DEBOUNCE_MS);
+  };
 
   void (async () => {
     const { supabase } = await import("@/integrations/supabase/client");
@@ -215,7 +251,7 @@ export function subscribeLeads(onChange: () => void): () => void {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "portal_leads" },
-        () => onChange(),
+        schedule,
       )
       .subscribe();
     dispose = () => {
@@ -225,6 +261,7 @@ export function subscribeLeads(onChange: () => void): () => void {
 
   return () => {
     cancelled = true;
+    if (debounceTimer !== null) window.clearTimeout(debounceTimer);
     dispose?.();
   };
 }

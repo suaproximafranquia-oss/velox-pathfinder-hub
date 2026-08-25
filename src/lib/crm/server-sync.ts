@@ -10,6 +10,7 @@
 import { pushCrmRecords, pullCrmRecords, pushPortalCrmRecords } from "@/lib/crm/crm-sync.functions";
 import { mergeRemoteMessages, type CrmMessage } from "@/lib/crm/messages";
 import { mergeRemoteTimeline, type CrmTimelineEntry } from "@/lib/crm/timeline";
+import { runSyncMuted } from "@/lib/sync-bus";
 
 type Batch = { messages: CrmMessage[]; timeline: CrmTimelineEntry[] };
 
@@ -85,8 +86,11 @@ export function hydrateCrmFromServer(): Promise<boolean> {
         at: t.at,
       }));
 
-      mergeRemoteMessages(remoteMessages);
-      mergeRemoteTimeline(remoteTimeline);
+      // Espelho do servidor: grava sem reavisar o barramento (estabilidade).
+      runSyncMuted(() => {
+        mergeRemoteMessages(remoteMessages);
+        mergeRemoteTimeline(remoteTimeline);
+      });
       return true;
     } catch {
       return false;
