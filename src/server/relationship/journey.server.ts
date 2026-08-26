@@ -30,6 +30,16 @@ export type JourneyEntryKind =
   | "oportunidade"
   | "evento";
 
+/**
+ * CAMADA DA ENTRADA.
+ *
+ * `relacional` = a Jornada do Investidor propriamente dita: o que interessa
+ * ao executivo. `tecnico` = auditoria interna (sincronização, distribuição,
+ * definição de responsável, duplicidade, simulações). Nada é apagado: a
+ * camada técnica continua legível na aba de auditoria.
+ */
+export type JourneyLayer = "relacional" | "tecnico";
+
 export type JourneyEntry = {
   id: string;
   at: string;
@@ -45,6 +55,7 @@ export type JourneyEntry = {
   step?: string | null;
   version?: number | null;
   simulated?: boolean;
+  layer: JourneyLayer;
 };
 
 function digitsOnly(value: string | null | undefined): string {
@@ -67,6 +78,27 @@ const TIMELINE_TITLES: Record<string, string> = {
   oportunidade: "OPORTUNIDADE",
 };
 
+/**
+ * WHITELIST RELACIONAL — só estes eventos da `crm_timeline` contam como
+ * jornada. Todo o resto é auditoria técnica por padrão: nada de
+ * sincronização, distribuição, duplicidade, conversa aberta ou definição
+ * interna de responsável aparece para o executivo.
+ */
+const RELATIONAL_TIMELINE_EVENTS = new Set([
+  "lead_criado",
+  "contato_recebido",
+  "atividade_portal",
+  "nota_executivo",
+  "mudanca_coluna",
+  "oportunidade",
+  "primeiro_contato",
+]);
+
+function timelineLayer(event: string): JourneyLayer {
+  if (event.startsWith("cadencia_")) return "relacional";
+  return RELATIONAL_TIMELINE_EVENTS.has(event) ? "relacional" : "tecnico";
+}
+
 function timelineKind(event: string): JourneyEntryKind {
   if (event === "nota_executivo") return "nota";
   if (event === "mudanca_coluna") return "coluna";
@@ -77,6 +109,18 @@ function timelineKind(event: string): JourneyEntryKind {
   if (event === "lead_criado") return "entrada";
   return "evento";
 }
+
+/**
+ * Simulação registrada em `crm_messages`: a tabela não tem coluna própria,
+ * então o rótulo gravado no envio é a única marca disponível.
+ */
+function isSimulatedMessage(row: { body?: string | null; author_name?: string | null }): boolean {
+  const marker = E0_SIMULATION_LABEL;
+  return (
+    String(row.body ?? "").includes(marker) || String(row.author_name ?? "").includes(marker)
+  );
+}
+
 
 /** Jornada completa do lead, em ordem cronológica crescente. */
 export async function loadLeadJourney(leadId: string): Promise<JourneyEntry[]> {
