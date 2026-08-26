@@ -101,6 +101,10 @@ async function appendMessage(input: {
   error?: string | null;
   simulated?: boolean;
   status?: RemarketingConversationStatus;
+  /** SNAPSHOT: versão/rótulo/idioma da campanha no instante do envio. */
+  campaignVersion?: number | null;
+  templateLabel?: string | null;
+  templateLanguage?: string | null;
 }): Promise<RemarketingMessage> {
   const occurredAt = new Date().toISOString();
   const { data, error } = await supabaseAdmin
@@ -112,6 +116,9 @@ async function appendMessage(input: {
       kind: input.kind,
       body: input.body,
       template_name: input.templateName ?? null,
+      campaign_version: input.campaignVersion ?? null,
+      template_label: input.templateLabel ?? null,
+      template_language: input.templateLanguage ?? null,
       author_name: input.authorName ?? null,
       delivered: input.delivered ?? true,
       error: input.error ?? null,
@@ -161,6 +168,9 @@ export async function recordCampaignDispatch(input: {
   delivered: boolean;
   error?: string | null;
   simulated: boolean;
+  campaignVersion?: number | null;
+  templateLabel?: string | null;
+  templateLanguage?: string | null;
 }): Promise<void> {
   const conversation = await ensureConversation({
     phone: input.phone,
@@ -179,6 +189,14 @@ export async function recordCampaignDispatch(input: {
     delivered: input.delivered,
     error: input.error ?? null,
     simulated: input.simulated,
+    /**
+     * SNAPSHOT DO REMARKETING: o corpo gravado é o que realmente saiu, e
+     * a versão da campanha fica congelada nesta linha. Editar a campanha
+     * depois cria uma nova versão e NÃO reescreve este histórico.
+     */
+    campaignVersion: input.campaignVersion ?? null,
+    templateLabel: input.templateLabel ?? null,
+    templateLanguage: input.templateLanguage ?? null,
   });
 }
 
