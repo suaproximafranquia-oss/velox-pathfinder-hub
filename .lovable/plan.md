@@ -242,3 +242,51 @@ Sim, **assim que os 7 pontos da seção B forem respondidos**. Todo o restante e
 4. Jornada consolidada, notas e eventos de Remarketing.
 
 Nenhuma decisão foi assumida por conta própria: os itens da seção B aguardam sua resposta antes de qualquer construção.
+
+---
+
+# Quarta rodada — fechamento final das 6 decisões
+
+Nada foi implementado, criado ou alterado nesta etapa.
+
+## A) Confirmação das 6 decisões incorporadas
+
+1. **AGENDAMENTO** — elegível para cadência de MENSAGENS; não entra na fila automática de LIGAÇÕES. Canais independentes. OPORTUNIDADE encerra qualquer cadência. **Incorporado.**
+2. **SEGUNDA E20** — nunca substitui nem sobrescreve. Com uma ocorrência ativa, a geração é impedida. Depois de encerrada/expirada, uma nova geração cria uma NOVA instância. Cada ocorrência fica historicamente intacta. **Incorporado** (substitui a recomendação anterior de "substituir": prevalece a sua regra).
+3. **REENGAJAMENTO** — RE0–RE3 assistido, via Ação do Dia. E0 automática só para lead realmente novo. NOVOS sozinho = novo; NOVOS + qualquer outra tag de etapa = reengajamento; REMARKETING fora da decisão. **Incorporado.**
+4. **LEAD SEM EXECUTIVO** — sem fallback algum. O botão "Falar com o executivo" só aparece com responsável + telefone cadastrado; caso contrário é ocultado e a ausência é registrada como pendência de configuração. **Incorporado** (cancela a proposta anterior de número institucional).
+5. **RESPOSTA AUTOMÁTICA** — apenas com janela aberta por mensagem recebida; no máximo UMA por janela; nova janela permite nova resposta; sempre com primeiro nome do lead e executivo responsável correspondente. **Incorporado** (prevalece "uma por janela", sem teto mensal adicional).
+6. **E30** — retirada como etapa fixa. Modelo definitivo: **GERAR E20 → link 7 dias corridos → E27 (+7 corridos) → FINALIZAÇÃO da ocorrência (regra de dia útil)**. A finalização não se chama E30. OPORTUNIDADE antes disso cancela a finalização. Após a finalização, a instância encerra. **Incorporado.**
+
+Todas as decisões anteriores (H, I, J, K, L, imutabilidade por snapshot, jornada consolidada, precedência manual, fim do `lead_sincronizado` vazio, remoção de "Reenviar boas-vindas" e do seletor de templates) permanecem válidas e inalteradas.
+
+## B) Conflitos com a arquitetura existente
+
+Todos com solução conhecida e não bloqueante:
+
+1. `relationship_cadences` é uma linha por lead → migração aditiva (`instance_seq`, `active`); a linha atual vira a instância 1; leitores filtram a ativa.
+2. OPORTUNIDADE chega por sincronização → verificar o estágio também no momento do despacho, além da varredura.
+3. Chave da etapa `agendamentos` (plural, em `src/lib/crm/integrations.ts`) x AGENDAMENTO → chave canônica única, normalizada na entrada.
+4. Telefone do executivo hoje é literal em `src/lib/executive-auth.ts` → passa a coluna em `executive_profiles`; sem valor cadastrado, botão oculto (decisão 4).
+5. Motor usa textos fixos em `src/lib/relationship/messages.ts`, com grupos `FINALIZACAO`, `RE1`, `RE2` vazios → a Biblioteca vira fonte oficial na Fase 3; até lá o texto atual permanece, e etapas sem versão aprovada ficam visivelmente bloqueadas.
+6. `E30_ENABLED = false` já hoje → retirá-la como etapa não muda comportamento; o literal `E30` permanece apenas para leitura de histórico.
+7. `issueToken` tem TTL global de 30 dias → passa a aceitar TTL por emissão, e o resgate valida a OCORRÊNCIA, não só a assinatura.
+
+## C) Decisões adicionais ainda necessárias
+
+Nenhuma bloqueante. Ficam como ajustes de execução, com o padrão que adotarei se você não indicar outro:
+
+1. **Encerrar E20 manualmente** — como a segunda geração é impedida, o card terá a ação "encerrar ocorrência E20", disponível ao responsável e à gestão. Padrão adotado: disponível para ambos, com registro de autor e motivo.
+2. **E20 gerada com cadência ativa** — padrão adotado: a instância anterior é **encerrada** (não pausada), evitando dois relógios; o histórico permanece intacto.
+3. **Lista oficial de "tags de etapa"** — padrão adotado: contam como etapa apenas as tags espelhadas nas colunas do funil (ZERO CONTATO, FRIO, AGENDAMENTO, OPORTUNIDADE e equivalentes cadastradas em `crm_pipeline_stages`); tags operacionais (LEAD FORM TAG, campanhas, REMARKETING) são ignoradas.
+4. **Retorno de OPORTUNIDADE para etapa anterior** — padrão adotado: não reabre cadência automaticamente; depende de ação do executivo.
+5. **Prioridade na Ação do Dia** — padrão adotado: finalização vencida > E27 > etapas assistidas de mensagem (RE0–RE3) > ligações, ordenadas por atraso.
+
+## D) Ordem final das fases
+
+1. **Fase 1 — Higiene e identidade**: fim do evento `lead_sincronizado` sem alteração; regra NOVOS x tags em ponto único; remoção de "Reenviar boas-vindas" e do seletor de templates; edição manual de nome/telefone com precedência e override auditável; campo de WhatsApp no perfil do executivo com botão condicional.
+2. **Fase 2 — Instâncias, E20 e finalização**: `instance_seq`/`active`; OPORTUNIDADE terminal com cancelamento de fila; ocorrência E20 (link 7 dias, generated_at/expires_at, autor, snapshot); E27 +7 corridos; finalização por dia útil na Ação do Dia; RE0–RE3 assistido.
+3. **Fase 3 — Biblioteca e congelamento**: mensagens versionadas por finalidade, vídeos vinculados por grupo, snapshot obrigatório no envio.
+4. **Fase 4 — Jornada consolidada**: leitura única entre Portal, Workspace e Remarketing; notas manuais; prévia com reticências e expansão para o snapshot exato; eventos de remarketing com data, hora e campanha.
+
+**Arquitetura fechada para implementação.**
