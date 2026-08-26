@@ -375,6 +375,7 @@ export type Database = {
           is_test: boolean
           last_entry_at: string | null
           last_synced_at: string | null
+          manual_overrides: Json
           name: string
           origin: string | null
           phone: string
@@ -413,6 +414,7 @@ export type Database = {
           is_test?: boolean
           last_entry_at?: string | null
           last_synced_at?: string | null
+          manual_overrides?: Json
           name?: string
           origin?: string | null
           phone?: string
@@ -451,6 +453,7 @@ export type Database = {
           is_test?: boolean
           last_entry_at?: string | null
           last_synced_at?: string | null
+          manual_overrides?: Json
           name?: string
           origin?: string | null
           phone?: string
@@ -742,6 +745,7 @@ export type Database = {
           name: string | null
           updated_at: string
           user_id: string
+          whatsapp: string | null
         }
         Insert: {
           created_at?: string
@@ -750,6 +754,7 @@ export type Database = {
           name?: string | null
           updated_at?: string
           user_id: string
+          whatsapp?: string | null
         }
         Update: {
           created_at?: string
@@ -758,6 +763,7 @@ export type Database = {
           name?: string | null
           updated_at?: string
           user_id?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }
@@ -1259,6 +1265,7 @@ export type Database = {
           last_activity_at: string
           last_inbound_at: string | null
           last_outbound_at: string | null
+          manual_overrides: Json
           material: string
           name: string
           notes: string
@@ -1314,6 +1321,7 @@ export type Database = {
           last_activity_at?: string
           last_inbound_at?: string | null
           last_outbound_at?: string | null
+          manual_overrides?: Json
           material?: string
           name: string
           notes?: string
@@ -1369,6 +1377,7 @@ export type Database = {
           last_activity_at?: string
           last_inbound_at?: string | null
           last_outbound_at?: string | null
+          manual_overrides?: Json
           material?: string
           name?: string
           notes?: string
@@ -1530,14 +1539,21 @@ export type Database = {
       }
       relationship_cadences: {
         Row: {
+          active: boolean
+          auto_reply_last_at: string | null
+          auto_reply_total_count: number
+          auto_reply_window_count: number
+          auto_reply_window_started_at: string | null
           close_reason: string | null
           closed_at: string | null
           content_history: Json
           created_at: string
           current_step: string | null
+          ended_at: string | null
           executed_steps: Json
           flow: string
           id: string
+          instance_seq: number
           last_event_at: string | null
           last_event_type: string | null
           last_executive_reply_at: string | null
@@ -1545,6 +1561,7 @@ export type Database = {
           last_outbound_at: string | null
           lead_id: string
           name_confirmed: boolean
+          opened_reason: string | null
           opening_template_history: Json
           previous_state: string | null
           read_count: number
@@ -1559,14 +1576,21 @@ export type Database = {
           window_open_until: string | null
         }
         Insert: {
+          active?: boolean
+          auto_reply_last_at?: string | null
+          auto_reply_total_count?: number
+          auto_reply_window_count?: number
+          auto_reply_window_started_at?: string | null
           close_reason?: string | null
           closed_at?: string | null
           content_history?: Json
           created_at?: string
           current_step?: string | null
+          ended_at?: string | null
           executed_steps?: Json
           flow: string
           id?: string
+          instance_seq?: number
           last_event_at?: string | null
           last_event_type?: string | null
           last_executive_reply_at?: string | null
@@ -1574,6 +1598,7 @@ export type Database = {
           last_outbound_at?: string | null
           lead_id: string
           name_confirmed?: boolean
+          opened_reason?: string | null
           opening_template_history?: Json
           previous_state?: string | null
           read_count?: number
@@ -1588,14 +1613,21 @@ export type Database = {
           window_open_until?: string | null
         }
         Update: {
+          active?: boolean
+          auto_reply_last_at?: string | null
+          auto_reply_total_count?: number
+          auto_reply_window_count?: number
+          auto_reply_window_started_at?: string | null
           close_reason?: string | null
           closed_at?: string | null
           content_history?: Json
           created_at?: string
           current_step?: string | null
+          ended_at?: string | null
           executed_steps?: Json
           flow?: string
           id?: string
+          instance_seq?: number
           last_event_at?: string | null
           last_event_type?: string | null
           last_executive_reply_at?: string | null
@@ -1603,6 +1635,7 @@ export type Database = {
           last_outbound_at?: string | null
           lead_id?: string
           name_confirmed?: boolean
+          opened_reason?: string | null
           opening_template_history?: Json
           previous_state?: string | null
           read_count?: number
@@ -1755,6 +1788,125 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_e20_accesses: {
+        Row: {
+          accessed_at: string
+          created_at: string
+          id: string
+          lead_id: string
+          occurrence_id: string
+          outcome: string
+          user_agent: string | null
+        }
+        Insert: {
+          accessed_at?: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          occurrence_id: string
+          outcome?: string
+          user_agent?: string | null
+        }
+        Update: {
+          accessed_at?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          occurrence_id?: string
+          outcome?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_e20_accesses_occurrence_id_fkey"
+            columns: ["occurrence_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_e20_occurrences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_e20_occurrences: {
+        Row: {
+          cadence_id: string | null
+          checkpoint_done_at: string | null
+          checkpoint_due_at: string | null
+          close_reason: string | null
+          closed_at: string | null
+          created_at: string
+          expires_at: string
+          finalization_done_at: string | null
+          finalization_due_on: string | null
+          first_opened_at: string | null
+          generated_at: string
+          generated_by: string | null
+          generated_by_executive_id: string | null
+          generated_by_name: string
+          id: string
+          instance_seq: number
+          lead_id: string
+          link_url: string
+          open_count: number
+          scope: string
+          snapshot: Json
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          cadence_id?: string | null
+          checkpoint_done_at?: string | null
+          checkpoint_due_at?: string | null
+          close_reason?: string | null
+          closed_at?: string | null
+          created_at?: string
+          expires_at: string
+          finalization_done_at?: string | null
+          finalization_due_on?: string | null
+          first_opened_at?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          generated_by_executive_id?: string | null
+          generated_by_name?: string
+          id?: string
+          instance_seq?: number
+          lead_id: string
+          link_url: string
+          open_count?: number
+          scope?: string
+          snapshot?: Json
+          status?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          cadence_id?: string | null
+          checkpoint_done_at?: string | null
+          checkpoint_due_at?: string | null
+          close_reason?: string | null
+          closed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          finalization_done_at?: string | null
+          finalization_due_on?: string | null
+          first_opened_at?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          generated_by_executive_id?: string | null
+          generated_by_name?: string
+          id?: string
+          instance_seq?: number
+          lead_id?: string
+          link_url?: string
+          open_count?: number
+          scope?: string
+          snapshot?: Json
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       relationship_engine_log: {
         Row: {
           action: string
@@ -1827,6 +1979,123 @@ export type Database = {
           step?: string | null
           template_id?: string | null
           type?: string
+        }
+        Relationships: []
+      }
+      relationship_message_library: {
+        Row: {
+          active: boolean
+          body: string
+          content_group: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          id: string
+          meta_template_name: string | null
+          notes: string | null
+          purpose: string
+          requires_template: boolean
+          requires_video: boolean
+          scope: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          body: string
+          content_group?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          meta_template_name?: string | null
+          notes?: string | null
+          purpose: string
+          requires_template?: boolean
+          requires_video?: boolean
+          scope?: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          content_group?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          meta_template_name?: string | null
+          notes?: string | null
+          purpose?: string
+          requires_template?: boolean
+          requires_video?: boolean
+          scope?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      relationship_message_sends: {
+        Row: {
+          cadence_id: string | null
+          channel: string
+          content_id: string | null
+          content_url: string | null
+          created_at: string
+          id: string
+          instance_seq: number
+          lead_id: string
+          library_id: string | null
+          library_version: number | null
+          meta_template_name: string | null
+          purpose: string
+          rendered_body: string
+          scope: string
+          sent_at: string
+          simulated: boolean
+          step: string
+        }
+        Insert: {
+          cadence_id?: string | null
+          channel?: string
+          content_id?: string | null
+          content_url?: string | null
+          created_at?: string
+          id?: string
+          instance_seq?: number
+          lead_id: string
+          library_id?: string | null
+          library_version?: number | null
+          meta_template_name?: string | null
+          purpose: string
+          rendered_body: string
+          scope?: string
+          sent_at?: string
+          simulated?: boolean
+          step: string
+        }
+        Update: {
+          cadence_id?: string | null
+          channel?: string
+          content_id?: string | null
+          content_url?: string | null
+          created_at?: string
+          id?: string
+          instance_seq?: number
+          lead_id?: string
+          library_id?: string | null
+          library_version?: number | null
+          meta_template_name?: string | null
+          purpose?: string
+          rendered_body?: string
+          scope?: string
+          sent_at?: string
+          simulated?: boolean
+          step?: string
         }
         Relationships: []
       }
