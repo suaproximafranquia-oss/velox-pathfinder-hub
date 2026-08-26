@@ -22,7 +22,10 @@ type JourneyEntry = {
   step?: string | null;
   version?: number | null;
   simulated?: boolean;
+  layer?: "relacional" | "tecnico";
 };
+
+type JourneyLayer = "relacional" | "tecnico";
 
 const ORIGIN_LABEL: Record<string, string> = {
   motor: "Cadência",
@@ -119,6 +122,7 @@ function EntryRow({ entry }: { entry: JourneyEntry }) {
  * Biblioteca no futuro não reescreve o passado.
  */
 export function CrmLeadJourney({ investorId }: { investorId: string }) {
+  const [layer, setLayer] = useState<JourneyLayer>("relacional");
   const [entries, setEntries] = useState<JourneyEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
@@ -128,7 +132,7 @@ export function CrmLeadJourney({ investorId }: { investorId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await jornadaDoLead({ data: { leadId: investorId } });
+      const data = await jornadaDoLead({ data: { leadId: investorId, layer } });
       setEntries(data as JourneyEntry[]);
       setError(null);
     } catch (err) {
@@ -136,7 +140,7 @@ export function CrmLeadJourney({ investorId }: { investorId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [investorId]);
+  }, [investorId, layer]);
 
   useEffect(() => {
     void load();
@@ -177,6 +181,23 @@ export function CrmLeadJourney({ investorId }: { investorId: string }) {
           </button>
         </div>
 
+        <div className="flex items-center gap-1 rounded-lg border border-[color:var(--crm-border)] p-0.5 text-[10px]">
+          {(["relacional", "tecnico"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setLayer(value)}
+              className={`flex-1 cursor-pointer rounded-md px-2 py-1 font-medium transition ${
+                layer === value
+                  ? "bg-[color:var(--crm-accent)] text-white"
+                  : "text-[color:var(--crm-muted)] hover:text-[color:var(--crm-foreground)]"
+              }`}
+            >
+              {value === "relacional" ? "Jornada" : "Auditoria técnica"}
+            </button>
+          ))}
+        </div>
+
         {error ? <p className="text-[11px] text-rose-600">{error}</p> : null}
 
         {loading ? (
@@ -185,7 +206,10 @@ export function CrmLeadJourney({ investorId }: { investorId: string }) {
           </p>
         ) : entries.length === 0 ? (
           <p className="flex items-center gap-1.5 text-[11px] text-[color:var(--crm-muted)]">
-            <MessageSquare className="h-3.5 w-3.5" /> Nenhum evento registrado até agora.
+            <MessageSquare className="h-3.5 w-3.5" />{" "}
+            {layer === "relacional"
+              ? "Nenhum acontecimento de relacionamento registrado até agora."
+              : "Nenhum evento técnico registrado até agora."}
           </p>
         ) : (
           <ol className="max-h-[420px] space-y-3 overflow-y-auto border-l border-[color:var(--crm-border)] pl-1 pr-1">

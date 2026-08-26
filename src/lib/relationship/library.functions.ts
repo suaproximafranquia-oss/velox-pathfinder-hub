@@ -45,14 +45,15 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
 
 export const jornadaDoLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { leadId: string }) => {
+  .inputValidator((input: { leadId: string; layer?: "relacional" | "tecnico" | "todos" }) => {
     if (!input?.leadId) throw new Error("Lead obrigatório.");
     return input;
   })
   .handler(async ({ data }) => {
     const { loadLeadJourney } = await import("@/server/relationship/journey.server");
-    return loadLeadJourney(data.leadId);
+    return loadLeadJourney(data.leadId, { layer: data.layer ?? "relacional" });
   });
+
 
 export const registrarNotaDoLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
