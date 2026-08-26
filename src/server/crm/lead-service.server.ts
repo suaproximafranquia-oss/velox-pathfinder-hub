@@ -354,11 +354,30 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
     .entered_entry_stage_at ?? null;
   // Entrou AGORA em NOVOS: só conta a transição real de coluna.
   const enteredEntryStage = Boolean(input.entryStage) && stageChanged;
+
+  /**
+   * PRECEDÊNCIA DA EDIÇÃO MANUAL.
+   *
+   * O que o Executivo corrigiu à mão no Portal vale mais do que o dado
+   * da origem. Os campos marcados em `manual_overrides` são removidos
+   * do pacote de atualização: a sincronização continua acontecendo,
+   * apenas deixa de sobrescrever a correção humana. É reversível —
+   * basta remover a marca do campo.
+   */
+  const overrides = ((previous as unknown as { manual_overrides?: Record<string, unknown> })
+    .manual_overrides ?? {}) as Record<string, unknown>;
+  const protectedFields = Object.keys(overrides).filter((key) => overrides[key]);
+  for (const field of protectedFields) {
+    if (field in base) delete (base as Record<string, unknown>)[field];
+  }
+  const effectiveName = protectedFields.includes("name") ? previous.name : input.name;
+  const effectivePhone = protectedFields.includes("phone") ? previous.phone : input.phone;
+
   const changed =
     stageChanged ||
     newEntry ||
-    previous.name !== input.name ||
-    previous.phone !== input.phone ||
+    previous.name !== effectiveName ||
+    previous.phone !== effectivePhone ||
     previous.email !== input.email ||
     previous.origin !== input.origin;
 
