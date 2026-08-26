@@ -1,79 +1,80 @@
-# Análise Técnica — Portal dos Leads, GreenSales, Cadência, E20/E27 e Reengajamento
+# Diagnóstico Arquitetural — Motor de Relacionamento Velox
 
-Nada foi implementado. Nenhuma migration, nenhuma alteração de código ou banco.
+Análise apenas. Nada implementado, nenhuma migration, nenhum dado tocado.
 
-## A. Respostas às 20 perguntas (estado atual verificado)
+## 1. Entendi as regras — resumo do que li
 
-**1. Identificação do lead.** Chave de integração `external_source='greensales'` + `external_id` (o ID do GreenSales). O nome nunca é chave. Existe uma segunda trava de deduplicação por telefone normalizado. Portanto o cenário "ID 12 = Wagner, nome corrigido na origem" já funciona: o lead é reconhecido e o nome é atualizado.
+Sim. O núcleo é: **coluna decide posição, tags decidem histórico**; E0 é a única mensagem automática de entrada; recadastro com tag antiga = reengajamento, nunca E0; E20 é um **evento gerador de instância** (não um dia); OPORTUNIDADE encerra a cadência; a jornada precisa ser única entre Portal, Workspace e Remarketing; e a mensagem enviada precisa ficar congelada em versão, mesmo quando a biblioteca mudar.
 
-**2. Coluna.** `crm_leads.stage_key` (+ `external_stage_id`, `stage_entered_at`, `entered_entry_stage_at`). No Portal (`portal_leads`) o espelho tem campos próprios.
+## 2. Estado atual verificado
 
-**3. Tags.** `crm_leads.tags` (jsonb, etiquetas íntegras da origem) e `raw_payload`. As colunas do funil vivem em `crm_pipeline_stages` (`external_tag` = a etiqueta que representa a coluna).
+### Já existe e deve ser preservado
+- **Identidade**: `crm_leads.external_source + external_id` (ID do GreenSales). Nome nunca é chave. Dedup extra por telefone normalizado. Card do Workspace nasce como `gs_<external_id>`.
+- **Coluna x tag já são separadas**: `src/lib/crm/board.ts` resolve a coluna pelas etiquetas que **são colunas do funil** (`crm_pipeline_stages.external_tag`); etiquetas avulsas ficam preservadas em `crm_leads.tags` sem interferir.
+- **E0 automática** já é disparada só na **transição real** para a coluna de entrada (`entered_entry_stage_at`), com janela operacional, fila de adiadas e chave idempotente `msg_e0_<leadId>`. Hoje em modo simulado.
+- **Janela de 24h** já é real: `relationship_cadences.window_open_until`, aberta por mensagem recebida em `machine.ts`.
+- **Motor com estado, fila e auditoria**: `relationship_cadences`, `relationship_queue`, `relationship_events`, `relationship_decisions`.
+- **Fluxos de reentrada já existem**: `reentrada` (RE0–RE3) e `relacionamento_frio` (RF0/RF1) em `entry.ts`.
+- **Biblioteca de Conteúdos** já é central (`relationship_contents`, `/executivo/biblioteca`) e o motor consome dela por **grupo/finalidade**, não por texto fixo.
+- **Blindagem dos leads** (triggers contra DELETE/TRUNCATE) e `portal_lead_guard_log`.
 
-**4. ID do GreenSales.** `crm_leads.external_id`; no Workspace o card nasce com `id = gs_<external_id>`.
+### Parcialmente implementado
+- **Reengajamento**: a decisão hoje usa `hasPreviousRelationship` + `entry_count`/`last_entry_at`, e a etiqueta REMARKETING. **Não** olha "tem outra tag de etapa do funil". É onde sua regra entra.
+- **Biblioteca de mensagens**: conteúdos são centralizados, mas os **textos das etapas** de homologação estão fixos em `src/lib/relationship/messages.ts`, e os oficiais vivem em `crm_meta_templates` com `relationship_template_bindings` (que já tem coluna `version`). Ou seja: existe o esqueleto de versionamento, mas não a edição versionada nem o congelamento do texto enviado.
+- **Notas / jornada**: existem `crm_lead_events`, `crm_timeline`, `crm_messages`, `relationship_events` — quatro trilhas, sem uma leitura unificada. A aba "Notas do Executivo" existe em `investor-profile-view.tsx`.
+- **Encerramento**: existe terminal por etapa (E12/E30) e estados `COMPLETED/CLOSED/INTERRUPTED`, mas **não** por OPORTUNIDADE.
 
-**5. Escolha de cadência.** `resolveBoardColumn` (`src/lib/crm/board.ts`) resolve a coluna e `resolveEntryFlow` (`src/lib/relationship/entry.ts`) decide entrada x reentrada. Hoje a decisão usa **relacionamento anterior + nova entrada comercial** (`entry_count`, `last_entry_at`), **não** a presença de outras tags operacionais. Já existe a marca `remarketing` quando a etiqueta REMARKETING coexiste com NOVOS.
+### Não existe
+- Ação **GERAR E20** no card, link personalizado com 7 dias corridos, E27 e finalização derivada.
+- **Instância de cadência** (hoje há UM registro por lead em `relationship_cadences`; uma nova E20 dois anos depois não tem onde nascer sem sobrescrever a antiga).
+- **Congelamento do texto enviado** com referência de versão.
+- **Telefone do executivo** em `executive_profiles` (não há coluna) — o botão "Falar com o executivo" não tem fonte.
+- **Resposta automática dentro da janela** com botão dinâmico.
+- Ponte **Remarketing → jornada do lead** ("qual campanha foi enviada").
 
-**6. Registro de ações.** `crm_lead_events` (tipos enumerados em `lead-service.server.ts`), `relationship_events`, `relationship_decisions`, `crm_timeline` e `crm_messages`.
+## 3. Causa raiz do "Lead reconhecido — sem alterações"
 
-**7. Origem do "Lead reconhecido — sem alterações".** Encontrado: `src/server/crm/lead-service.server.ts`, último `else if (!changed)` do `upsertLead` grava `lead_sincronizado` **toda vez que o lead é revisto sem mudança**. Como o cron roda a cada 1 minuto e o agendador executa a cada 5 minutos varrendo **a base inteira**, cada lead gera ~288 eventos inúteis por dia. É ruído puro — a correção é não gravar evento quando nada mudou (no máximo atualizar `last_synced_at`).
+Encontrada: `src/server/crm/lead-service.server.ts`, no `upsertLead`, o ramo final `else if (!changed)` grava o evento `lead_sincronizado` **toda vez que o lead é revisto sem nenhuma mudança**. O `pg_cron` roda a cada minuto e o agendador executa a varredura **completa da base** a cada 5 minutos — logo cada lead gera ~288 eventos falsos por dia. Correção: não gravar evento nesse ramo (apenas `last_synced_at`).
 
-**8. E0.** `src/server/crm/lead-intake.server.ts`: só quando o lead **entra agora** na coluna de entrada (`enteredEntryStage`, transição real), passa pela elegibilidade de cutover, pela janela operacional (fora dela vai para a fila de adiadas) e então `registerFirstContact`. Hoje está em modo simulado (`E0_SIMULATION_ENABLED`).
+## 4. Modelo conceitual proposto (a separação que você pediu)
 
-**9. Janela de 24h.** `relationship_cadences.window_open_until`, aberta em `machine.ts` por eventos de mensagem recebida e consultada antes de qualquer envio livre. A infraestrutura existe e está correta.
+```text
+LEAD (pessoa)            → crm_leads / portal_leads, chave = external_id
+ ├─ COLUNA (posição)     → stage_key, resolvida pelo board
+ ├─ TAGS (histórico)     → tags[] íntegras, nunca decidem posição sozinhas
+ ├─ INSTÂNCIA DE CADÊNCIA→ NOVA tabela: 1 linha por ciclo (E0-ciclo, E20-ciclo…)
+ │    ├─ origem: entrada | reengajamento | e20_manual
+ │    ├─ started_at, deadline_at, closed_at, close_reason
+ │    └─ ETAPAS EXECUTADAS (E0, E1, E20, E27, finalização)
+ ├─ MENSAGEM (identidade)→ biblioteca: E1, E3, E20… com versão ativa
+ ├─ VERSÃO ENVIADA       → snapshot do texto no ato do envio (imutável)
+ └─ EVENTO HISTÓRICO     → trilha única e legível da jornada
+```
 
-**10. Cadência manual.** Não existe "manual" ainda: as etapas E1+ são disparadas pelo motor. A fila humana existente é só de **ligações** (`crm_cadence_tasks`), com desfecho SIM/NÃO.
+Isso resolve de uma vez: nova E20 após E30 = **nova instância**, histórico antigo intacto; OPORTUNIDADE = `closed_at` na instância ativa; "qual E1 ele recebeu" = o snapshot, não a biblioteca.
 
-**11–13. E20 / validade de 7 dias.** **Não existe.** Existe token HMAC do investidor (`portal-token.server.ts`) com TTL de 30 dias e sem rota curta, e existe rastreio de acesso (`portal_engagement`, `portal_journey_events`). É base suficiente, mas a ocorrência E20 (geração, link, expiração, ciclo) precisa ser criada.
+## 5. Respostas diretas às suas 18 perguntas (as que faltaram)
 
-**14–15. Finalização / encerrar cadência.** Existe encerramento por etapa terminal (E12/E30) e estados `COMPLETED`/`CLOSED`/`INTERRUPTED` — mas **não** existe encerramento por OPORTUNIDADE nem finalização derivada de E20+7.
+- **9. NOVOS + outra tag = reengajamento**: uma função pura nova sobre `board.ts` — o lead está na coluna de entrada **e** carrega pelo menos uma outra etiqueta que é coluna do funil → reengajamento. Aplicada em **um único ponto** (`lead-intake.server.ts`, antes do `registerFirstContact`), para não existirem duas verdades.
+- **11. OPORTUNIDADE encerra**: gatilho no `upsertLead` quando `stage_key` muda para oportunidade → fecha a instância ativa com motivo, cancela itens PENDING da `relationship_queue`. A fila de ligações já ignora essa etapa.
+- **13. Jornada unificada**: manter as trilhas de escrita como estão e criar uma **leitura consolidada** (uma view/servidor) que junta `crm_lead_events` + `crm_messages` + `relationship_events` + remarketing por lead, ordenada. Sem migrar dado, sem duplicar evento.
+- **14. Texto congelado**: no ato do envio, gravar `template_id + version + corpo renderizado` na própria mensagem. A biblioteca muda; o histórico não.
+- **16. Descontinuar no CRM**: o botão "Reenviar boas-vindas" (`portal-leads-board.tsx:183`) e o seletor de templates de cadência no composer (`crm-conversation.tsx`) — mantendo o composer para conversa humana dentro da janela.
+- **17. Riscos de regressão**: (a) mexer em `board.ts` afeta o Kanban inteiro; (b) fechar cadência por OPORTUNIDADE pode silenciar leads legítimos se a etapa vier errada da origem; (c) criar instâncias exige migrar o estado atual de `relationship_cadences` como "instância 1" sem perder `executed_steps`; (d) parar de gravar `lead_sincronizado` é seguro (evento puramente informativo).
+- **18. Ordem recomendada**: 1) higiene do histórico + PENDENTE; 2) regra NOVOS/reengajamento + remover reenvio de boas-vindas; 3) instância de cadência + OPORTUNIDADE encerra; 4) biblioteca versionada + snapshot da mensagem; 5) E20/E27/finalização + link 7 dias; 6) jornada unificada + notas + ponte do remarketing.
 
-**16–17. Reengajamento / recadastro.** Existem os fluxos `reentrada` (RE0–RE3) e `relacionamento_frio` (RF0/RF1). A trava contra E0 repetida hoje depende de `hasPreviousRelationship` (houve mensagem antes) — **não** da presença de outras tags operacionais. É exatamente aqui que sua regra nova entra.
+## 6. Preservação de dados
 
-**18. Alterações manuais.** O botão Editar existe na ficha, mas **não há campo de proteção**: a próxima sincronização sobrescreve nome/telefone com o valor da origem. Falta uma marca de "campo travado manualmente".
+Nada é apagado nem migrado destrutivamente. Toda estrutura nova é aditiva: colunas novas com default, tabelas novas, e o estado atual de cada lead vira a **instância 1** da nova estrutura. O histórico atual (inclusive os eventos poluídos) permanece — só paramos de **produzir** novos.
 
-**19. Impacto.** `lead-service.server.ts`, `lead-intake.server.ts`, `board.ts`, `entry.ts`, `config.ts`/`machine.ts`/`decide.ts`, `portal-leads-board.tsx`, `crm-lead-ficha.tsx`, `portal-token.server.ts`, + novas tabelas para ocorrências E20 e ações do dia.
+## 7. Pontos que preciso confirmar antes de implementar
 
-**20. Conflitos reais que já identifico.**
-- `resolveBoardColumn` hoje escolhe a **coluna mais avançada**. Um lead com NOVOS + OPORTUNIDADES é classificado como OPORTUNIDADES, não como NOVOS. Sua regra nova diz o oposto para o recadastro (está em NOVOS, mas com histórico → reengajamento). Precisa de decisão explícita: **o que a origem entende por "está na coluna NOVOS"** quando ele carrega duas etiquetas.
-- Remover o botão "Reenviar boas-vindas" é seguro (só interface, `portal-leads-board.tsx:183`).
-- Encerrar cadência em OPORTUNIDADE conflita com a fila de ligações, que só olha `zero_contato`/`frio` — coerente, mas a fila de mensagens não tem essa trava.
-
-## B. Proposta de implementação (5 blocos, dependentes nesta ordem)
-
-**Bloco 1 — Higiene do histórico e identidade (base de tudo)**
-- Deixar de gravar `lead_sincronizado` quando nada mudou.
-- Revisar o status PENDENTE para valer só enquanto o lead está em NOVOS aguardando processamento.
-- Registrar movimentação manual como evento próprio, distinto de sincronização.
-
-**Bloco 2 — Campos protegidos e edição no card**
-- Novo campo de campos travados manualmente (nome, telefone) em `crm_leads`/`portal_leads`; sincronização passa a respeitar a trava e registra "origem divergente" em vez de sobrescrever.
-- Editar no card do Portal dos Leads (nome, telefone) com evento `alteracao_manual`.
-- Primeiro nome como padrão nas mensagens (a função `firstName` já existe).
-
-**Bloco 3 — Regra NOVOS x reengajamento**
-- Nova função pura: está na coluna de entrada + possui **qualquer outra etiqueta operacional do funil** → reengajamento; sem nenhuma outra → E0.
-- `resolveEntryFlow` passa a receber esse sinal, mantendo `entry_count` como reforço, não como único critério.
-- Remover o botão "Reenviar boas-vindas" e qualquer caminho manual de reabrir janela para E0.
-
-**Bloco 4 — Resposta automática à E0 com botão dinâmico**
-- Ao receber resposta dentro da janela aberta, responder uma única vez com a orientação e o botão "Falar com o executivo", usando o telefone do executivo responsável (perfil), nunca fixo.
-
-**Bloco 5 — Ocorrências E20 / E27 / Finalização**
-- Nova tabela de **ocorrências** (uma linha por geração): lead, executivo, token/slug do link, gerado_em, expira_em (7 dias corridos), eventos de envio/acesso/conclusão, E27 prevista, finalização prevista, status.
-- Ação "Gerar E20" no card: cria a ocorrência, monta a mensagem com primeiro nome, permite copiar, registra tudo. Gerar ≠ lead respondeu.
-- E27 = 7 dias corridos após a geração; finalização = próximo dia útil após o vencimento (sábado/domingo → segunda).
-- OPORTUNIDADE encerra a cadência ativa; encerrar nunca apaga nem esconde o lead.
-- Reativação anos depois = **nova ocorrência**, histórico antigo intacto.
-
-## C. Perguntas que preciso responder antes do comando definitivo
-
-1. **A regra crítica**: quando o lead tem NOVOS + OPORTUNIDADES ao mesmo tempo, ele deve aparecer **na coluna NOVOS** do Portal (e ser tratado como reengajamento), ou permanecer visualmente em OPORTUNIDADES e apenas **não** receber E0? Isso muda o Kanban inteiro.
-2. **"Outra tag operacional"** = qualquer etiqueta que seja coluna do funil (ZERO CONTATO, FRIOS, AGENDAMENTO, OPORTUNIDADES, COF/CONTRATO, REMARKETING), ou existe alguma que deva ser ignorada nessa checagem?
-3. **Reengajamento**: usa o fluxo RE0–RE3 que já existe (e ele passa a ser assistido), ou é um fluxo novo?
-4. **E20 e cadência**: gerar E20 **pausa** a cadência corrente (E1/E3/E4...) ou as duas convivem?
-5. **E27 e finalização são automáticas ou assistidas?** Se automáticas, precisam de template oficial aprovado da Meta — hoje não existe template para essas finalidades.
-6. **Telefone do executivo**: onde está a fonte oficial? `executive_profiles` não tem coluna de telefone hoje — precisa ser criada e preenchida por cada executivo.
-7. **Link E20**: qual domínio/formato (`portal.velox.com.br/xxxxx`?) e o que o visitante vê depois de 7 dias — home do Portal ou página "link expirado"?
-8. **Alteração manual**: a trava é permanente ou expira/pode ser destravada pelo administrador?
-9. **Ordem de entrega**: aprova os 5 blocos nesta sequência, ou quer tudo em uma entrega única?
+1. **Kanban**: lead com NOVOS + OPORTUNIDADES aparece em qual coluna? Hoje aparece na mais avançada (OPORTUNIDADES). Manter assim e só bloquear a E0, ou movê-lo para NOVOS?
+2. **"Outra tag de etapa"** inclui REMARKETING nessa checagem, ou REMARKETING continua sendo tratado à parte?
+3. **Reengajamento** usa o fluxo RE0–RE3 existente ou é fluxo novo? E ele é automático ou assistido?
+4. **E20 pausa a cadência corrente** (E1/E3/E4) ou as duas convivem em paralelo?
+5. **E27 e finalização**: automáticas (exigem template Meta aprovado — não existe hoje) ou assistidas (executivo copia e envia)?
+6. **Telefone do executivo**: crio o campo em `executive_profiles` e cada executivo preenche no perfil? Confirma?
+7. **Link E20**: domínio/formato e o destino após 7 dias (home do Portal ou página "expirado").
+8. **Notas do Executivo**: leitura consolidada (nada é copiado entre ambientes) ou você quer as notas efetivamente gravadas nos dois lugares?
+9. **Botão de templates no CRM**: remover por completo ou manter só para respostas humanas fora de cadência?
