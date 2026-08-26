@@ -85,17 +85,28 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     return { delivered: false, error: "Destinatário sem telefone real — etapa não enviada." };
   }
 
-  const rendered = renderHomologationMessage(step, {
+  /**
+   * BLOCO 2: o texto vem da VERSÃO ATIVA da Biblioteca (fonte oficial).
+   * A versão 1 da Biblioteca é semeada com o texto já validado do
+   * projeto, então nada muda no conteúdo — muda a fonte, que agora é
+   * editável e versionada sem tocar no código.
+   */
+  const renderInput = {
     executiveName: recipient.executiveName,
     portalLink: recipient.portalLink,
     rawInvestorName: recipient.name,
     contentName: request.contentName ?? null,
     contentUrl: request.contentUrl ?? null,
-  });
+  };
+  const { result: rendered, message: libraryMessage } = await renderFromLibrary(
+    step,
+    renderInput,
+  );
   if (!rendered.ok) {
     await log("envio_bloqueado", { leadId: request.leadId, step, motivo: rendered.reason });
     return { delivered: false, error: rendered.reason };
   }
+
 
   /**
    * AMBIENTE ANTES DE CREDENCIAL (regra do projeto). Um lead marcado
