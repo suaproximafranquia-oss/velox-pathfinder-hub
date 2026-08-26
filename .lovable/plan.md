@@ -402,3 +402,88 @@ A instância de mensagens em curso é encerrada e a nova ocorrência E20 assume,
 As mensagens `PENDING` são canceladas e a instância é encerrada com motivo registrado; a ligação pendente desaparece da fila pela regra de elegibilidade; a finalização da E20, se estava programada, não aparece. O card passa a acompanhamento manual, com todo o histórico anterior visível na jornada.
 
 Nenhuma dessas respostas altera as decisões anteriores (H, I, J, K, L e as rodadas 2 a 5). **Arquitetura fechada para implementação**, aguardando sua próxima pergunta.
+
+---
+
+# Sétima rodada — fechamento das 6 decisões da Seção F
+
+Somente análise e recomendação. Nada implementado.
+
+## 1. AGENDAMENTO — separação de canais
+
+**Confirmado: é a opção mais segura.** Mensagens sim, fila automática de ligações não. Os canais são independentes por construção: a fila de ligações é recalculada a cada leitura a partir do estágio atual (`ELIGIBLE_STAGE_KEYS` = ZERO CONTATO, FRIO), enquanto as mensagens vivem em fila persistida. Manter AGENDAMENTO fora da elegibilidade de ligações significa que, ao mover o lead para lá, tentativas ainda não realizadas simplesmente deixam de ser geradas, sem apagar nada do histórico. O executivo continua livre para ligar manualmente.
+
+Impacto da alternativa (incluir AGENDAMENTO nas ligações): geraria L2/L3/L4 automáticas concorrendo com a reunião já marcada — insistência indevida com quem já avançou.
+
+## 2. Segunda E20 — **conflito a resolver**
+
+Aqui existe uma divergência entre duas rodadas suas:
+
+- **Rodada anterior (fechada como "incorporado")**: *"se existir uma E20 ativa, o sistema deve impedir a geração de outra"* — opção A.
+- **Agora**: preferência pela opção C — *encerrar a anterior e criar uma nova ocorrência*.
+
+As três alternativas:
+
+| Opção | Comportamento | Risco |
+| --- | --- | --- |
+| A — impedir | Nenhuma nova E20 enquanto houver ativa | Executivo travado por até 7 dias se o lead perder o link ou trocar de número; exige um botão "encerrar E20" para destravar |
+| B — substituir | A ocorrência anterior é sobrescrita | **Descartada**: viola a regra de histórico intacto |
+| C — encerrar e criar | A anterior é fechada com motivo e data; a nova nasce independente | Nenhum risco de histórico; exige apenas registro claro do encerramento e revogação do link antigo |
+
+**Recomendo C**, alinhado à sua preferência: é funcionalmente equivalente a A + botão de encerrar, porém em uma única ação, e satisfaz as duas invariantes — **uma só E20 ativa por vez** e **histórico integralmente preservado**. A ocorrência anterior fica com status `encerrada_por_nova`, `expires_at` truncado no momento do encerramento e o token antigo invalidado (o resgate valida a ocorrência no banco, não só a assinatura).
+
+Ponto a confirmar: **C substitui a decisão A da rodada anterior**. Se você concordar, registro C como definitiva.
+
+## 3. Reengajamento — RE0 assistido
+
+**Confirmado: assistido, na Ação do Dia.** E0 permanece como o único primeiro contato automático. O lead de reengajamento já tem histórico — pode ter sido atendido, ter dito não, ter reunião passada — e disparar automaticamente arriscaria uma reabordagem inesperada. O sistema identifica o reengajamento, abre a instância no fluxo `reentrada` e apresenta RE0 como ação pronta para o executivo enviar conscientemente. RE1–RE3 seguem o mesmo padrão.
+
+Impacto da alternativa (automático): ganho de velocidade irrelevante diante do risco de mensagem indevida a quem já conhece a operação.
+
+## 4. Lead sem executivo — comportamento seguro
+
+**Recomendo: botão oculto + pendência administrativa visível.** Sem fallback, sem número genérico, sem herdar o número de outro executivo.
+
+Comportamento concreto:
+- O botão só é renderizado quando existe executivo responsável **e** WhatsApp cadastrado no perfil dele.
+- Sem um dos dois, a mensagem automática é enviada apenas com o texto de orientação, sem botão.
+- A ausência é registrada como **pendência de configuração**, visível para a gestão (lead sem responsável, ou responsável sem número), para que seja corrigida em vez de ficar silenciosa.
+
+Impacto das alternativas: número institucional genérico quebra a promessa de "falar com o executivo responsável"; bloquear o envio inteiro deixaria o lead sem resposta alguma, o que é pior do que uma orientação sem botão.
+
+## 5. Resposta automática — limite de repetição
+
+Sua descrição pede duas orientações e depois silêncio. Regra recomendada:
+
+1. **Primeira resposta do lead** (janela recém-aberta): orientação completa + botão.
+2. **Segunda ocasião** (nova resposta em nova janela, ou nova resposta após 12h dentro de uma janela longa): orientação **curta** + botão.
+3. **A partir da terceira**: o motor silencia e o lead vira pendência na Ação do Dia do executivo — quem responde passa a ser gente.
+4. **Nunca mais de uma resposta automática por janela de 24h**, independentemente de quantas mensagens o lead enviar.
+5. **Supressão imediata** se o executivo já respondeu humanamente dentro da janela.
+6. **Reinício do contador** após 30 dias sem interação: se a pessoa voltar meses depois, o ciclo de orientação recomeça do nível 1.
+
+Por que é seguro nas duas direções: o teto por janela e o limite de duas orientações eliminam o loop; a escalada para o executivo garante que quem realmente quer falar seja atendido por uma pessoa em vez de continuar recebendo robô; e o reinício por inatividade evita que alguém fique permanentemente silenciado por interações antigas.
+
+## 6. E30 — abandonada como marcador temporal
+
+**Confirmado.** E30 deixa de ser etapa cronológica do fluxo. O encerramento passa a ser **derivado da ocorrência E20**: geração → link de 7 dias corridos → E27 (+7 corridos) → finalização no próximo dia útil (sábado/domingo → segunda). Nenhum relógio próprio, nenhum "dia 30".
+
+Situação atual do código: `E30_ENABLED = false` — nada é agendado nem enviado hoje, então a mudança é de conceito, não de comportamento. O literal `E30` permanece apenas como nome histórico, para que registros antigos continuem legíveis na jornada.
+
+## Conflitos remanescentes com regras já confirmadas
+
+1. **Segunda E20 (A → C)** — único conflito real; aguarda sua confirmação de que C prevalece.
+2. Nada mais conflita: itens 1, 3, 4, 5 e 6 são coerentes com H, I, J, K, L e com as rodadas 2 a 6. O item 5 apenas detalha o limite que antes estava definido só como "uma por janela".
+
+## A arquitetura está pronta?
+
+**Sim, imediatamente após sua confirmação do item 2.** Os pontos que restavam na Seção F ficam assim:
+
+- AGENDAMENTO nas ligações → resolvido (não entra).
+- Segunda E20 → opção C, pendente de confirmação.
+- RE0 automático x assistido → assistido.
+- Lead sem executivo → botão oculto + pendência de configuração.
+- Limite da resposta automática → duas orientações, uma por janela, depois escalada humana.
+- E30 → retirada como etapa fixa.
+
+Confirmado o item 2, emito o comando de implementação em quatro fases: 1) Higiene e identidade · 2) Instâncias, E20, E27 e finalização · 3) Biblioteca versionada e congelamento · 4) Jornada consolidada e Remarketing.
