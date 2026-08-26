@@ -114,7 +114,7 @@ export async function openInstance(params: {
   const current = await activeInstance(params.leadId, scope);
 
   // OPORTUNIDADE é o limite absoluto da jornada automática.
-  if (current && current.state === "OPORTUNIDADE") {
+  if (current && current.state === "COMPLETED") {
     return {
       opened: false,
       reason:
@@ -137,8 +137,8 @@ export async function openInstance(params: {
       instance_seq: seq,
       active: true,
       opened_reason: params.openedReason,
-      state: "NOVO",
-      flow: params.flow ?? "PRINCIPAL",
+      state: "CADENCE_NOT_STARTED",
+      flow: params.flow ?? "MAIN",
       executed_steps: [],
       started_at: at,
       started_by: params.startedBy ?? null,
