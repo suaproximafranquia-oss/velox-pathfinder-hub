@@ -172,19 +172,16 @@ function LeadDialog({
           ))}
         </dl>
 
+        {/**
+         * E0 é ÚNICA: não existe reenvio de boas-vindas. Se a entrega
+         * externa falhou, o estado fica visível e a retomada acontece
+         * pela jornada — nunca por um segundo primeiro contato.
+         */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <StatusPill status={lead.welcomeStatus} />
-          {lead.welcomeStatus !== "SENT" && lead.welcomeStatus !== "NOT_APPLICABLE" && (
-            <button
-              type="button"
-              onClick={() => void onRetry(lead.id)}
-              className="rounded-xl border border-[color:var(--gold)]/50 px-3 py-1.5 text-xs text-[color:var(--gold)]"
-            >
-              Reenviar boas-vindas
-            </button>
-          )}
           {lead.welcomeError && <span className="text-xs text-red-400">{lead.welcomeError}</span>}
         </div>
+
 
         <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
           <p className="text-[11px] font-medium text-amber-300">Mover para (contingência local)</p>

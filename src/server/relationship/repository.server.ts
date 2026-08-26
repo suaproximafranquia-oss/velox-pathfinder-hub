@@ -78,11 +78,19 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     scope,
     runId,
 
+    /**
+     * INSTÂNCIAS DE CADÊNCIA: um lead pode ter várias jornadas ao longo
+     * do tempo. O motor sempre trabalha sobre a instância ATIVA; as
+     * anteriores ficam intactas, apenas com `active = false`.
+     */
     async loadRecord(leadId) {
       const { data } = await scoped(
         supabaseAdmin.from("relationship_cadences").select("*") as any,
       )
         .eq("lead_id", leadId)
+        .eq("active", true)
+        .order("instance_seq", { ascending: false })
+        .limit(1)
         .maybeSingle();
       return data ? toRecord(data) : null;
     },
@@ -93,36 +101,51 @@ export function createRepository(scope: EngineScope, runId: string | null = null
           "Registro de outro ambiente/rodada não pode ser gravado por este repositório.",
         );
       }
-      await supabaseAdmin.from("relationship_cadences").upsert(
-        {
-          scope,
-          run_id: runId,
-          lead_id: record.leadId,
-          state: record.state,
-          previous_state: record.previousState,
-          flow: record.flow,
-          current_step: record.currentStep,
-          executed_steps: record.executedSteps,
-          started_at: record.startedAt,
-          started_by: record.startedBy,
-          last_event_type: record.lastEventType,
-          last_event_at: record.lastEventAt,
-          last_outbound_at: record.lastOutboundAt,
-          last_inbound_at: record.lastInboundAt,
-          last_executive_reply_at: record.lastExecutiveReplyAt,
-          window_open_until: record.windowOpenUntil,
-          read_count: record.readCount,
-          response_count: record.responseCount,
-          scheduled: record.scheduled,
-          name_confirmed: record.nameConfirmed,
-          content_history: record.contentHistory,
-          opening_template_history: record.openingTemplateHistory,
-          closed_at: record.closedAt,
-          close_reason: record.closeReason,
-          updated_at: new Date().toISOString(),
-        } as any,
-        { onConflict: "scope,run_id,lead_id" },
-      );
+      const payload = {
+        scope,
+        run_id: runId,
+        lead_id: record.leadId,
+        state: record.state,
+        previous_state: record.previousState,
+        flow: record.flow,
+        current_step: record.currentStep,
+        executed_steps: record.executedSteps,
+        started_at: record.startedAt,
+        started_by: record.startedBy,
+        last_event_type: record.lastEventType,
+        last_event_at: record.lastEventAt,
+        last_outbound_at: record.lastOutboundAt,
+        last_inbound_at: record.lastInboundAt,
+        last_executive_reply_at: record.lastExecutiveReplyAt,
+        window_open_until: record.windowOpenUntil,
+        read_count: record.readCount,
+        response_count: record.responseCount,
+        scheduled: record.scheduled,
+        name_confirmed: record.nameConfirmed,
+        content_history: record.contentHistory,
+        opening_template_history: record.openingTemplateHistory,
+        closed_at: record.closedAt,
+        close_reason: record.closeReason,
+        updated_at: new Date().toISOString(),
+      };
+      // Atualiza a instância ativa; se não houver, abre a instância 1.
+      const { data: current } = await scoped(
+        supabaseAdmin.from("relationship_cadences").select("id") as any,
+      )
+        .eq("lead_id", record.leadId)
+        .eq("active", true)
+        .limit(1)
+        .maybeSingle();
+      if (current?.id) {
+        await supabaseAdmin
+          .from("relationship_cadences")
+          .update(payload as any)
+          .eq("id", current.id);
+        return;
+      }
+      await supabaseAdmin
+        .from("relationship_cadences")
+        .insert({ ...payload, instance_seq: 1, active: true } as any);
     },
 
     /** Idempotência: a mesma chave de evento nunca produz dois efeitos. */
