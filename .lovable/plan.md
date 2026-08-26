@@ -611,3 +611,123 @@ Nada foi implementado, alterado ou migrado. Somente diagnóstico e recomendaçã
 ## Único ponto que precisa da sua confirmação
 
 A decisão 2 muda de "impedir" (registrado na rodada anterior) para "encerrar e criar nova". Confirmando isso, a arquitetura fica fechada e emito a implementação em quatro fases: 1) Higiene e identidade · 2) Instâncias, E20, E27 e finalização · 3) Biblioteca versionada e congelamento · 4) Jornada consolidada e Remarketing.
+
+---
+
+# CONSOLIDAÇÃO GERAL — fotografia do estado atual (26/08/2026)
+
+Nada foi implementado. Este bloco é apenas o retrato fiel do projeto depois de todas as rodadas de análise.
+
+## 0. O que está pendente no botão "Publicar alterações"
+
+Verificado no histórico real do repositório:
+
+- As **6 últimas rodadas de conversa alteraram exclusivamente `.lovable/plan.md`** — documentação. Nenhuma linha de `src/`, nenhuma migration.
+- A **última alteração real de código** foi em 26/08/2026 14:13 UTC, e são duas: `src/components/remarketing/remarketing-chat.tsx` (a Caixa de Conversas do Remarketing reaproveitando os componentes visuais do CRM de Relacionamento) e um ajuste de tipagem em `src/integrations/supabase/types.ts`.
+- Não há arquivos modificados fora de commit.
+
+**Conclusão: nada inesperado.** O que estiver pendente de publicação corresponde ao Remarketing visual já aprovado por você + o documento de arquitetura. Nenhuma das regras discutidas nas últimas rodadas foi para o código.
+
+## 1. JÁ EXISTE (funcionando, não mexer sem motivo)
+
+| Área | Estado atual |
+| --- | --- |
+| Portal dos Leads / Kanban | `src/routes/portal-leads.tsx`, sincronização GreenSales, blindagem contra exclusão (`portal_lead_guard_log`) |
+| Fila de ligações | `src/lib/crm/cadence.ts` + `src/server/crm/cadence.server.ts`; elegíveis: ZERO CONTATO e FRIO; L2/L3/L4 em dias úteis + L5 ≈7 corridos; recalculada a cada leitura |
+| Motor de mensagens | `src/lib/relationship/*`; fluxos sem_resposta, visualizacao, reengajamento, reentrada, relacionamento_frio; fila persistida em `relationship_queue` |
+| E0 automática | `src/server/crm/first-contact.server.ts`, com janela §16 e adiamento registrado (`e0_adiada`) |
+| Remarketing | Ambiente isolado em `/remarketing`, campanhas, contatos, conversas e mensagens próprias, com RLS separada |
+| Revista Velox | Edições de 10 dias, leitor em página dupla, exclusão no card da edição |
+| Links/tokens | `src/server/portal-token.server.ts`, TTL global de 30 dias |
+| Biblioteca de conteúdos | `relationship_contents` com 17 vídeos, bucket privado |
+
+## 2. JÁ FOI ALTERADO (nas rodadas recentes)
+
+- **Somente `.lovable/plan.md`** — 6 rodadas de diagnóstico e decisão arquitetural.
+- Antes disso, no mesmo dia: Caixa de Conversas do Remarketing alinhada visualmente ao CRM.
+- **Nenhuma regra nova de cadência, nenhuma tabela, nenhuma interface** foi tocada nas rodadas de arquitetura.
+
+## 3. PRECISA SER ALTERADO (planejado, nada feito)
+
+### Banco (tudo aditivo, nada destrutivo)
+1. `relationship_cadences`: colunas `instance_seq` e `active` — a linha existente vira a instância 1.
+2. Nova tabela de **ocorrências E20** (autor, `generated_at`, `expires_at`, status, snapshot, token vinculado).
+3. `executive_profiles`: coluna de WhatsApp do executivo.
+4. Contador de resposta automática por janela (coluna no registro de cadência).
+5. Suporte a versão/snapshot imutável de mensagem enviada.
+
+### Código
+6. `src/server/crm/lead-service.server.ts` — fim do evento `lead_sincronizado` sem alteração real; `manual_overrides` para nome/telefone.
+7. `src/server/crm/lead-intake.server.ts` — regra "NOVOS + qualquer outra tag = reengajamento" em ponto único.
+8. `src/lib/relationship/machine.ts` — modelo de instâncias; OPORTUNIDADE terminal cancelando a fila.
+9. `src/lib/executive-auth.ts` — telefones literais saem do código, passam a vir do banco.
+10. `src/server/portal-token.server.ts` — TTL por emissão (7 dias) e validação da **ocorrência**, não só da assinatura.
+11. `src/lib/crm/integrations.ts` — chave canônica única para AGENDAMENTO (hoje `agendamentos`, plural).
+
+### Interface
+12. `src/components/crm/portal-leads-board.tsx` — remover "Reenviar boas-vindas" e o seletor de templates; incluir "GERAR E20".
+13. `src/routes/executivo.perfil.tsx` — campo de WhatsApp, ligado ao botão condicional.
+14. Ação do Dia — fila única de ações assistidas (RE0–RE3, E27, finalização, escalada de resposta automática).
+15. Jornada consolidada — leitura única Portal/Workspace/Remarketing, notas com prévia e expansão, snapshot exato.
+16. Página de conteúdo expirado para links E20 vencidos.
+
+## 4. Estrutural x comportamental
+
+**Somente estrutural (não muda o que o usuário vê hoje):** itens 1, 2, 3, 4, 5, 11 e a retirada da E30 (já está desligada com `E30_ENABLED = false`).
+
+**Muda comportamento de verdade:** 6 (histórico deixa de poluir), 7 (leads de reengajamento param de receber E0), 8 (OPORTUNIDADE encerra tudo), 10 (links passam a expirar em 7 dias), 12 (botões somem do CRM), 14, 15, 16.
+
+## 5. PRECISA DA SUA APROVAÇÃO
+
+1. **Segunda E20** — recomendo "encerrar a anterior e criar nova ocorrência". A rodada anterior tinha registrado "impedir". Preciso da sua palavra final.
+2. **Resposta automática 24h** — recomendo: 1 por janela, no máximo 2 orientações no total, depois escalada humana, contador reiniciado após 30 dias sem interação.
+3. **Ordem de execução** — confirmar as 4 fases abaixo.
+
+Já fechadas e sem necessidade de nova aprovação: AGENDAMENTO só em mensagens; RE0–RE3 assistido; lead sem executivo = botão oculto + pendência de configuração; E30 fora da lógica ativa.
+
+## 6. NÃO DEVE SER ALTERADO
+
+- Portal dos Leads e integração GreenSales: nenhum reset, nenhuma exclusão, nenhum disparo de teste sobre dados reais.
+- Blindagem de exclusão de leads e `portal_lead_guard_log`.
+- Isolamento produção x homologação e a regra "ambiente decide antes das credenciais".
+- Textos, nomes e IDs de templates oficiais da Meta.
+- Arquivos gerados: `src/integrations/supabase/*` (client, types, middlewares), `.env`, `supabase/config.toml`.
+- Histórico já gravado — toda migração é aditiva.
+
+## 7. Riscos de regressão
+
+| Risco | Onde | Mitigação |
+| --- | --- | --- |
+| Alto | Instâncias em `relationship_cadences` — leitores que assumem uma linha por lead | Migração aditiva; a linha atual vira instância 1 ativa; leitores filtram `active` |
+| Alto | Links já emitidos com TTL de 30 dias | TTL por emissão só vale para novos; links antigos seguem pela regra antiga |
+| Médio | Remoção do evento `lead_sincronizado` | Só deixa de gravar quando não há alteração; mudanças reais continuam registradas |
+| Médio | Remover "Reenviar boas-vindas" | Executivos perdem um atalho hoje usado — precisa de aviso na entrega |
+| Médio | OPORTUNIDADE cancelando fila | Verificar o estágio também no despacho, não só na varredura |
+| Baixo | Chave `agendamentos` → AGENDAMENTO | Normalizar na entrada, aceitando ambas na leitura |
+
+## 8. Duplicidades e conflitos entre as regras
+
+1. **Segunda E20** — único conflito real entre rodadas ("impedir" x "encerrar e criar"). Aguarda sua decisão.
+2. **AGENDAMENTO** — nome canônico duplicado (singular no funil, plural no código).
+3. **Duas fontes de texto de mensagem** — `messages.ts` (ativo, simulação) x Biblioteca/templates (fonte oficial futura). Convivem até a Fase 3; depois a Biblioteca prevalece e etapas sem versão aprovada ficam bloqueadas.
+4. **Dois marcadores de encerramento** — E30 (legado) x finalização derivada da E20. Resolvido pela retirada da E30.
+5. **Grupos de conteúdo vazios** (`FINALIZACAO`, `RE1`, `RE2`) — bloqueiam etapas assistidas até a realocação já aprovada.
+6. Sem duplicidade entre Remarketing e Relacionamento: ambientes e tabelas separados, conversas do Remarketing nunca criam lead no CRM.
+
+## 9. Blocos por sinergia — ordem recomendada
+
+**BLOCO 1 — Higiene e identidade (primeiro, menor risco, maior ganho imediato)**
+Fim do histórico falso; regra NOVOS x tags em ponto único; precedência da edição manual de nome/telefone; WhatsApp no perfil do executivo com botão condicional; remoção de "Reenviar boas-vindas" e do seletor de templates.
+*Por que primeiro:* não depende de nenhuma decisão em aberto, corrige ruído que atrapalha o diagnóstico de tudo o mais e não mexe no relógio da cadência.
+
+**BLOCO 2 — Instâncias, E20, E27 e finalização**
+`instance_seq`/`active`; OPORTUNIDADE terminal; ocorrência E20 com link de 7 dias e página de expirado; E27 +7 corridos; finalização em dia útil; RE0–RE3 assistido na Ação do Dia; contador da resposta automática.
+*Depende de:* sua decisão sobre a segunda E20 e sobre o limite da resposta automática.
+
+**BLOCO 3 — Biblioteca versionada e congelamento**
+Mensagens por finalidade com versão aprovada, vídeos vinculados por grupo, snapshot obrigatório no envio, realocações aprovadas para FINALIZACAO/RE1/RE2.
+
+**BLOCO 4 — Jornada consolidada e Remarketing**
+Leitura única entre Portal, Workspace e Remarketing; notas manuais; prévia com expansão para o snapshot exato; eventos de remarketing com data, hora e campanha.
+
+**Recomendação:** aprovar o BLOCO 1 imediatamente (não depende de nada) e decidir os dois pontos em aberto enquanto ele é executado, liberando o BLOCO 2 em seguida.
