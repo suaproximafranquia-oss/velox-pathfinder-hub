@@ -1986,6 +1986,8 @@ export type Database = {
         Row: {
           active: boolean
           body: string
+          button_kind: string | null
+          code: string | null
           content_group: string | null
           created_at: string
           created_by: string | null
@@ -1997,6 +1999,8 @@ export type Database = {
           requires_template: boolean
           requires_video: boolean
           scope: string
+          step_key: string | null
+          supersedes_id: string | null
           title: string
           updated_at: string
           version: number
@@ -2004,6 +2008,8 @@ export type Database = {
         Insert: {
           active?: boolean
           body: string
+          button_kind?: string | null
+          code?: string | null
           content_group?: string | null
           created_at?: string
           created_by?: string | null
@@ -2015,6 +2021,8 @@ export type Database = {
           requires_template?: boolean
           requires_video?: boolean
           scope?: string
+          step_key?: string | null
+          supersedes_id?: string | null
           title: string
           updated_at?: string
           version?: number
@@ -2022,6 +2030,8 @@ export type Database = {
         Update: {
           active?: boolean
           body?: string
+          button_kind?: string | null
+          code?: string | null
           content_group?: string | null
           created_at?: string
           created_by?: string | null
@@ -2033,6 +2043,8 @@ export type Database = {
           requires_template?: boolean
           requires_video?: boolean
           scope?: string
+          step_key?: string | null
+          supersedes_id?: string | null
           title?: string
           updated_at?: string
           version?: number
@@ -2041,6 +2053,8 @@ export type Database = {
       }
       relationship_message_sends: {
         Row: {
+          actor_id: string | null
+          actor_name: string | null
           cadence_id: string | null
           channel: string
           content_id: string | null
@@ -2048,18 +2062,26 @@ export type Database = {
           created_at: string
           id: string
           instance_seq: number
+          investor_name_used: string | null
           lead_id: string
+          library_code: string | null
           library_id: string | null
           library_version: number | null
+          message_id: string | null
           meta_template_name: string | null
+          occurrence_id: string | null
+          origin: string
           purpose: string
           rendered_body: string
           scope: string
           sent_at: string
           simulated: boolean
           step: string
+          template_body: string | null
         }
         Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
           cadence_id?: string | null
           channel?: string
           content_id?: string | null
@@ -2067,18 +2089,26 @@ export type Database = {
           created_at?: string
           id?: string
           instance_seq?: number
+          investor_name_used?: string | null
           lead_id: string
+          library_code?: string | null
           library_id?: string | null
           library_version?: number | null
+          message_id?: string | null
           meta_template_name?: string | null
+          occurrence_id?: string | null
+          origin?: string
           purpose: string
           rendered_body: string
           scope?: string
           sent_at?: string
           simulated?: boolean
           step: string
+          template_body?: string | null
         }
         Update: {
+          actor_id?: string | null
+          actor_name?: string | null
           cadence_id?: string | null
           channel?: string
           content_id?: string | null
@@ -2086,16 +2116,22 @@ export type Database = {
           created_at?: string
           id?: string
           instance_seq?: number
+          investor_name_used?: string | null
           lead_id?: string
+          library_code?: string | null
           library_id?: string | null
           library_version?: number | null
+          message_id?: string | null
           meta_template_name?: string | null
+          occurrence_id?: string | null
+          origin?: string
           purpose?: string
           rendered_body?: string
           scope?: string
           sent_at?: string
           simulated?: boolean
           step?: string
+          template_body?: string | null
         }
         Relationships: []
       }
