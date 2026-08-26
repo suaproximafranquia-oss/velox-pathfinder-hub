@@ -2,14 +2,14 @@ import { ensureLibrarySeed, getActiveLibraryMessage, publishLibraryVersion, rend
 await ensureLibrarySeed();
 const v1 = await getActiveLibraryMessage("E1");
 console.log("CEN1 ativa inicial:", v1?.version, JSON.stringify(v1?.body.slice(0,40)));
-const r1 = await renderFromLibrary("E1", { executiveName: "Thiago", portalLink: "https://x", rawInvestorName: "João Silva" });
+const r1 = await renderFromLibrary("E1", { executiveName: "Thiago", portalLink: "https://x", rawInvestorName: "João Silva", contentName: "Material", contentUrl: "https://c" });
 console.log("render ok:", r1.result.ok);
 await recordMessageSnapshot({ leadId: "TEST-LIB-1", step: "E1", renderedBody: (r1.result as any).body, templateBody: v1!.body, libraryId: v1!.id, libraryVersion: v1!.version, origin: "motor", messageId: "msg_teste_lib_1" });
 const v2 = await publishLibraryVersion({ stepKey: "E1", body: (v1?.body ?? "") + "\n[edição de teste]", actorName: "Teste" });
 console.log("CEN1 nova versao:", v2.version, "ativa:", v2.active);
 const snaps = await listMessageSnapshots("TEST-LIB-1");
 console.log("CEN1 historico congelado:", snaps.map((s:any)=>[s.library_version, s.rendered_body.slice(0,25)]));
-const r2 = await renderFromLibrary("E1", { executiveName: "Thiago", portalLink: "https://x", rawInvestorName: "João Silva" });
+const r2 = await renderFromLibrary("E1", { executiveName: "Thiago", portalLink: "https://x", rawInvestorName: "João Silva", contentName: "Material", contentUrl: "https://c" });
 console.log("CEN2 novo envio usa versao:", (await getActiveLibraryMessage("E1"))?.version, String((r2.result as any).body).includes("[edição de teste]"));
 const e20 = await renderFromLibrary("E20", { executiveName: "T", portalLink: "https://x" });
 console.log("E20 slot:", e20.result.ok, (e20.result as any).reason ?? "");
