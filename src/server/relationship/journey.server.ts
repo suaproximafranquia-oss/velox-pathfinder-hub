@@ -122,8 +122,18 @@ function isSimulatedMessage(row: { body?: string | null; author_name?: string | 
 }
 
 
-/** Jornada completa do lead, em ordem cronológica crescente. */
-export async function loadLeadJourney(leadId: string): Promise<JourneyEntry[]> {
+/**
+ * Jornada do lead, em ordem cronológica crescente.
+ *
+ * `layer: "relacional"` (padrão) devolve apenas o que interessa ao
+ * executivo. `layer: "tecnico"` devolve TUDO — é a aba de auditoria.
+ * Nenhuma linha é apagada em nenhum dos dois casos.
+ */
+export async function loadLeadJourney(
+  leadId: string,
+  options: { layer?: JourneyLayer | "todos" } = {},
+): Promise<JourneyEntry[]> {
+  const layer = options.layer ?? "relacional";
   const { data: lead } = await supabaseAdmin
     .from("portal_leads")
     .select("id,name,origin,external_source,created_at,external_created_at")
@@ -162,6 +172,7 @@ export async function loadLeadJourney(leadId: string): Promise<JourneyEntry[]> {
       title: "Entrada do lead",
       subtitle: `Origem: ${(lead as any).origin ?? (lead as any).external_source ?? "não informada"}`,
       origin: "portal_leads",
+      layer: "relacional",
     });
   }
 
@@ -186,13 +197,20 @@ export async function loadLeadJourney(leadId: string): Promise<JourneyEntry[]> {
       step: row.step,
       version: row.library_version ?? null,
       simulated: Boolean(row.simulated),
+      // Envio simulado é teste: existe na auditoria, não na jornada.
+      layer: row.simulated ? "tecnico" : "relacional",
     });
   }
+
+  /** Momentos das mensagens de envio — usados para colapsar o marco de E0. */
+  const sentMoments: number[] = [];
 
   for (const row of (messages.data ?? []) as any[]) {
     // Já existe snapshot para esta mensagem — não duplicar na jornada.
     if (snapshotByMessageId.has(row.id)) continue;
     const received = row.direction !== "enviada";
+    const simulated = isSimulatedMessage(row);
+    if (!received && row.at) sentMoments.push(Date.parse(row.at));
     entries.push({
       id: `msg_${row.id}`,
       at: row.at,
@@ -201,11 +219,21 @@ export async function loadLeadJourney(leadId: string): Promise<JourneyEntry[]> {
       body: row.body,
       origin: "crm",
       actor: row.author_name ?? row.author_id ?? null,
+      simulated,
+      layer: simulated ? "tecnico" : "relacional",
     });
+  }
+
+  /** O marco "primeiro contato" é redundante quando a mensagem existe. */
+  function firstContactIsRedundant(at: string | null | undefined): boolean {
+    if (!at) return false;
+    const moment = Date.parse(at);
+    return sentMoments.some((m) => Math.abs(m - moment) < 10 * 60_000);
   }
 
   for (const row of (timeline.data ?? []) as any[]) {
     const event = String(row.event ?? "");
+    const redundant = event === "primeiro_contato" && firstContactIsRedundant(row.at);
     entries.push({
       id: `tl_${row.id}`,
       at: row.at,
@@ -215,8 +243,10 @@ export async function loadLeadJourney(leadId: string): Promise<JourneyEntry[]> {
       ...(event === "nota_executivo" ? { body: row.reason ?? null } : {}),
       origin: row.origin ?? "sistema",
       actor: row.actor_id ?? null,
+      layer: redundant ? "tecnico" : timelineLayer(event),
     });
   }
+
 
   for (const row of (occurrences.data ?? []) as any[]) {
     entries.push({
