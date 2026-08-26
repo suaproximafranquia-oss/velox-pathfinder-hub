@@ -199,6 +199,41 @@ export async function setCampaignStatus(
   }
 }
 
+/**
+ * Edição do texto/template de uma campanha. O conteúdo já enviado NUNCA
+ * é alterado: a campanha ganha a versão seguinte e apenas os próximos
+ * disparos usam o texto novo. O histórico permanece com a versão que
+ * saiu de fato.
+ */
+export async function updateCampaignTemplate(input: {
+  campaignId: string;
+  templateName: string;
+  templateLabel: string;
+  templateLanguage: string | null;
+  templateBody: string;
+}): Promise<number> {
+  const { data: current, error: readError } = await supabaseAdmin
+    .from("remarketing_campaigns")
+    .select("template_version")
+    .eq("id", input.campaignId)
+    .maybeSingle();
+  if (readError) throw new Error(readError.message);
+  const nextVersion = Number((current as CampaignRow | null)?.["template_version"] ?? 1) + 1;
+
+  const { error } = await supabaseAdmin
+    .from("remarketing_campaigns")
+    .update({
+      template_name: input.templateName,
+      template_label: input.templateLabel,
+      template_language: input.templateLanguage,
+      template_body: input.templateBody,
+      template_version: nextVersion,
+    })
+    .eq("id", input.campaignId);
+  if (error) throw new Error(error.message);
+  return nextVersion;
+}
+
 export async function deleteCampaign(campaignId: string): Promise<void> {
   const { error } = await supabaseAdmin
     .from("remarketing_campaigns")
@@ -302,6 +337,9 @@ export async function runRemarketingEngine(now = new Date()): Promise<Remarketin
         campaignName: String(row["name"] ?? ""),
         templateName,
         templateBody: String(row["template_body"] ?? ""),
+        campaignVersion: Number(row["template_version"] ?? 1),
+        templateLabel: (row["template_label"] as string | null) ?? null,
+        templateLanguage: language,
         delivered: result.delivered,
         error: result.error ?? null,
         simulated: channelMode() === "simulator",

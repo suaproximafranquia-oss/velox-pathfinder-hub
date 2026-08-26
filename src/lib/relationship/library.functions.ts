@@ -71,3 +71,58 @@ export const registrarNotaDoLead = createServerFn({ method: "POST" })
       actorName: String(name),
     });
   });
+
+/**
+ * VÍNCULO EXPLÍCITO ETAPA ↔ CONTEÚDO (VÍDEO). A Biblioteca de
+ * Conteúdos permanece a mesma: aqui apenas se declara qual material
+ * dela pertence a cada etapa. Nada é duplicado.
+ */
+export const listarConteudosDaBiblioteca = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { listValueContents } = await import("@/server/relationship/homologation.server");
+    return listValueContents();
+  });
+
+export const listarVinculosDeEtapa = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { listStepContentBindings } = await import(
+      "@/server/relationship/step-media.server"
+    );
+    return listStepContentBindings();
+  });
+
+export const vincularConteudoAEtapa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { stepKey: string; contentId: string; notes?: string | null }) => {
+    if (!input?.stepKey) throw new Error("Etapa obrigatória.");
+    if (!input?.contentId) throw new Error("Selecione o conteúdo da Biblioteca.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { setStepContentBinding } = await import(
+      "@/server/relationship/step-media.server"
+    );
+    const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
+    return setStepContentBinding({
+      stepKey: data.stepKey,
+      contentId: data.contentId,
+      notes: data.notes ?? null,
+      actorId: context.userId,
+      actorName: String(name),
+    });
+  });
+
+export const removerVinculoDeEtapa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { stepKey: string }) => {
+    if (!input?.stepKey) throw new Error("Etapa obrigatória.");
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const { clearStepContentBinding } = await import(
+      "@/server/relationship/step-media.server"
+    );
+    return clearStepContentBinding(data.stepKey);
+  });

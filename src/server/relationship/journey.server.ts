@@ -275,7 +275,9 @@ export async function loadLeadJourney(leadId: string): Promise<JourneyEntry[]> {
           at: row.occurred_at ?? row.created_at,
           kind: "remarketing",
           title: row.direction === "recebida" ? "Remarketing — resposta" : "Remarketing",
-          subtitle: `Campanha: ${campaignOf.get(row.conversation_id) ?? "não informada"}`,
+          subtitle: `Campanha: ${campaignOf.get(row.conversation_id) ?? "não informada"}${
+            row.campaign_version ? ` · versão ${row.campaign_version}` : ""
+          }`,
           body: row.body,
           origin: "remarketing",
           actor: row.author_name ?? null,

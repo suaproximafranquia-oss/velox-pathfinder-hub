@@ -36,6 +36,12 @@ export type EngineRepository = {
   recordDecision: (decision: EngineDecision) => Promise<void>;
   loadTemplates: () => Promise<TemplateResolver>;
   loadContentLibrary: () => Promise<ValueContent[]>;
+  /**
+   * Vínculo EXPLÍCITO etapa → conteúdo (vídeo) declarado pelo executivo.
+   * Opcional: sem vínculo, a escolha segue pelo grupo de conteúdo. O
+   * motor nunca infere o vídeo por nome ou posição na Biblioteca.
+   */
+  loadStepContentBindings?: () => Promise<Record<string, string>>;
 };
 
 export type DispatchRequest = {

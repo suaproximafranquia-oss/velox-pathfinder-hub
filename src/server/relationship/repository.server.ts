@@ -289,6 +289,12 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       const { listValueContents } = await import("./homologation.server");
       return listValueContents();
     },
+
+    async loadStepContentBindings(): Promise<Record<string, string>> {
+      // Vínculo declarado etapa → conteúdo. Nunca inferido.
+      const { loadStepContentBindings } = await import("./step-media.server");
+      return loadStepContentBindings();
+    },
   };
 }
 

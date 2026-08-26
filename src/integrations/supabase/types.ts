@@ -2243,6 +2243,53 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_step_content_bindings: {
+        Row: {
+          active: boolean
+          content_id: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string
+          id: string
+          notes: string | null
+          scope: string
+          step_key: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          content_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          notes?: string | null
+          scope?: string
+          step_key: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          content_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string
+          id?: string
+          notes?: string | null
+          scope?: string
+          step_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_step_content_bindings_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_contents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       relationship_template_bindings: {
         Row: {
           approved: boolean
@@ -2307,6 +2354,7 @@ export type Database = {
           template_label: string
           template_language: string | null
           template_name: string
+          template_version: number
           total_count: number
           updated_at: string
           valid_count: number
@@ -2327,6 +2375,7 @@ export type Database = {
           template_label?: string
           template_language?: string | null
           template_name: string
+          template_version?: number
           total_count?: number
           updated_at?: string
           valid_count?: number
@@ -2347,6 +2396,7 @@ export type Database = {
           template_label?: string
           template_language?: string | null
           template_name?: string
+          template_version?: number
           total_count?: number
           updated_at?: string
           valid_count?: number
@@ -2455,6 +2505,7 @@ export type Database = {
           author_name: string | null
           body: string
           campaign_id: string | null
+          campaign_version: number | null
           conversation_id: string
           created_at: string
           delivered: boolean
@@ -2464,12 +2515,15 @@ export type Database = {
           kind: string
           occurred_at: string
           simulated: boolean
+          template_label: string | null
+          template_language: string | null
           template_name: string | null
         }
         Insert: {
           author_name?: string | null
           body?: string
           campaign_id?: string | null
+          campaign_version?: number | null
           conversation_id: string
           created_at?: string
           delivered?: boolean
@@ -2479,12 +2533,15 @@ export type Database = {
           kind?: string
           occurred_at?: string
           simulated?: boolean
+          template_label?: string | null
+          template_language?: string | null
           template_name?: string | null
         }
         Update: {
           author_name?: string | null
           body?: string
           campaign_id?: string | null
+          campaign_version?: number | null
           conversation_id?: string
           created_at?: string
           delivered?: boolean
@@ -2494,6 +2551,8 @@ export type Database = {
           kind?: string
           occurred_at?: string
           simulated?: boolean
+          template_label?: string | null
+          template_language?: string | null
           template_name?: string | null
         }
         Relationships: [
