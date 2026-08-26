@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { History, Loader2, MessageSquareText, Save } from "lucide-react";
+import { Film, History, Loader2, MessageSquareText, Save } from "lucide-react";
 import {
+  listarConteudosDaBiblioteca,
   listarMensagensBiblioteca,
+  listarVinculosDeEtapa,
   publicarVersaoMensagem,
+  removerVinculoDeEtapa,
+  vincularConteudoAEtapa,
 } from "@/lib/relationship/library.functions";
 
 type LibraryMessage = {
@@ -16,6 +20,14 @@ type LibraryMessage = {
   createdAt: string;
   createdByName: string;
   notes: string | null;
+};
+
+type LibraryContent = { id: string; name: string; kind: string; active: boolean };
+type StepBinding = {
+  stepKey: string;
+  contentId: string;
+  contentName: string | null;
+  contentKind: string | null;
 };
 
 const card = "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5";
@@ -36,6 +48,9 @@ export function MessageLibraryPanel() {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contents, setContents] = useState<LibraryContent[]>([]);
+  const [bindings, setBindings] = useState<StepBinding[]>([]);
+  const [bindingBusy, setBindingBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,6 +68,41 @@ export function MessageLibraryPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Vínculo etapa ↔ conteúdo: a Biblioteca de Conteúdos é a mesma de
+  // sempre; aqui apenas declaramos qual material pertence a cada etapa.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const [lib, links] = await Promise.all([
+          listarConteudosDaBiblioteca() as Promise<LibraryContent[]>,
+          listarVinculosDeEtapa() as Promise<StepBinding[]>,
+        ]);
+        setContents(lib.filter((c) => c.active));
+        setBindings(links);
+      } catch {
+        /* a Biblioteca de Mensagens continua utilizável sem os vínculos */
+      }
+    })();
+  }, []);
+
+  const boundContent = step ? (bindings.find((b) => b.stepKey === step) ?? null) : null;
+
+  async function bindContent(contentId: string) {
+    if (!step || bindingBusy) return;
+    setBindingBusy(true);
+    try {
+      const next = contentId
+        ? ((await vincularConteudoAEtapa({ data: { stepKey: step, contentId } })) as StepBinding[])
+        : ((await removerVinculoDeEtapa({ data: { stepKey: step } })) as StepBinding[]);
+      setBindings(next);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao vincular o conteúdo.");
+    } finally {
+      setBindingBusy(false);
+    }
+  }
 
   const steps = useMemo(() => {
     const map = new Map<string, LibraryMessage[]>();
@@ -159,6 +209,29 @@ export function MessageLibraryPanel() {
                   <span className="text-[11px] text-[color:var(--muted-foreground)]">
                     Ativa hoje: {active ? `versão ${active.version}` : "nenhuma"}
                   </span>
+                </div>
+
+                <div className="rounded-xl border border-[color:var(--border)] p-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-[11px] text-[color:var(--muted-foreground)]">
+                    <Film className="h-3.5 w-3.5" /> Vídeo/conteúdo vinculado a esta etapa
+                  </p>
+                  <select
+                    value={boundContent?.contentId ?? ""}
+                    disabled={bindingBusy}
+                    onChange={(e) => void bindContent(e.target.value)}
+                    className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs outline-none focus:border-[color:var(--gold)]/50"
+                  >
+                    <option value="">Sem vínculo — o motor escolhe pelo grupo de conteúdo</option>
+                    {contents.map((content) => (
+                      <option key={content.id} value={content.id}>
+                        {content.name} ({content.kind})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
+                    O motor busca exatamente o material vinculado. Nada é inferido por nome
+                    ou posição e nenhum arquivo é duplicado.
+                  </p>
                 </div>
 
                 <div className="rounded-xl border border-[color:var(--border)] p-3">
