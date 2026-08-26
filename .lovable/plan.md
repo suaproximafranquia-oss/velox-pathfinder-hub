@@ -177,3 +177,68 @@ Regra objetiva:
 7. **Remarketing na jornada compartilhada**: o ambiente é isolado por telefone, e um mesmo telefone pode existir em Remarketing e no Portal. Falta definir o critério de vínculo (telefone normalizado, presumo) e se o vínculo é retroativo às campanhas já enviadas.
 8. **"Ação do Dia" como conceito único**: ligações (L2–L5), etapas assistidas de mensagem, RE0–RE3, E27 e finalização vão todos para a mesma fila do dia. Falta a regra de prioridade e de limite diário por executivo, senão a lista fica impraticável.
 9. **Definição de "tag de etapa"**: a regra NOVOS + qualquer outra tag depende de uma lista fechada de tags que contam como etapa do funil. Tags operacionais soltas (LEAD FORM TAG, campanhas) não podem transformar um lead novo em reengajamento por engano.
+
+---
+
+# Terceira rodada — fechamento das regras funcionais
+
+Somente validação. Nada foi implementado, criado ou alterado (banco, código, migration, dados, interface). As confirmações H, I, J, K e L permanecem válidas e inalteradas.
+
+## A) Regras totalmente claras (confirmadas, sem pendência)
+
+1. **AGENDAMENTO** — confirmado e coerente. Mensagens sim, ligações não. Os dois motores são independentes: `cadence.ts` decide ligações por `ELIGIBLE_STAGE_KEYS` (`zero_contato`, `frio`) e o motor `relationship/` decide mensagens por estado da instância. Efeito colateral: nenhum. Nenhuma tarefa de ligação já criada é afetada; apenas não se criam novas para quem está em AGENDAMENTO. Ligações agendadas manualmente pelo executivo continuam possíveis — a regra só desliga a fila automática.
+2. **Segunda E20 (opção B — impedir)** — abordagem segura e mais conservadora que a substituição. Garante um único relógio por lead por construção. Regra final: existe no máximo uma ocorrência E20 `ativa` por lead; a tentativa de gerar outra é recusada com aviso; após expiração, conclusão ou encerramento manual, uma nova geração cria uma ocorrência nova e independente. **Consequência a aceitar**: se o lead perder o link, o executivo precisa encerrar a ocorrência atual antes de gerar outra — por isso a ocorrência precisa de uma ação explícita de "encerrar E20" no card, senão o executivo fica travado por até 7 dias.
+3. **Reengajamento assistido** — confirmado. E0 é o único primeiro contato automático; RE0–RE3 nascem como Ação do Dia, com mensagem pronta. Preserva o princípio e evita reabordar automaticamente quem já foi atendido.
+4. **E30 retirada como etapa fixa** — confirmado. `E30_ENABLED` já é `false`, nada é agendado hoje. O conceito passa a ser **E20 → E27 (+7 dias corridos) → FINALIZAÇÃO (dia útil)**. O literal `E30` permanece apenas para leitura de histórico antigo.
+5. **Finalização derivada da E20 (item 7)** — confirmado exatamente como descrito: o sistema acompanha a OCORRÊNCIA, não a coluna. ZERO → FRIO → AGENDAMENTO não interrompem nada. Resposta do lead + evolução para OPORTUNIDADE encerram a ocorrência e suprimem a finalização.
+6. **Retorno anos depois (item 8)** — confirmado. Nova ocorrência = nova instância, novo link, novo ciclo de 7 dias, novo histórico. O ciclo antigo (incluindo E30 histórica) permanece intacto e legível.
+7. **Regra NOVOS + tags em ponto único (item 9)** — confirmado. Uma única função de decisão, consumida por sincronização, intake e board. Nenhuma tela reimplementa a regra.
+8. **E0 / CRM (item 13)** — confirmado. Sem "Reenviar boas-vindas", sem seletor de templates de cadência. O CRM permanece como canal humano dentro da janela aberta.
+9. **Histórico falso (item 14)** — confirmado. Sem alteração: apenas `last_synced_at`. Nenhum evento, nota ou "interação" é produzido. O histórico antigo é preservado.
+10. **Precedência manual (item 15)** — confirmado, com registro de override (campo, valor, autor, data/hora) e detecção da divergência externa sem sobrescrita.
+11. **Primeiro nome (item 16)** — confirmado. Normalização na renderização; histórico enviado nunca é reescrito.
+
+## Regra recomendada para o item 5 — repetição da resposta automática
+
+Escalonamento em três níveis, por lead:
+
+1. **Primeira resposta do lead** (janela recém-aberta): resposta completa — explica que o ambiente é automatizado, nomeia o executivo responsável e apresenta o botão "Falar com o executivo".
+2. **Nova resposta do lead dentro da mesma janela de 24h**: **nenhuma nova mensagem automática**. A orientação já foi dada; repetir dentro do mesmo dia é ruído.
+3. **Nova janela aberta depois (novo ciclo)**: resposta **curta** — uma linha + o botão. Aplica-se carência mínima de 24h desde a última resposta automática.
+4. **Limite de 3 respostas automáticas por lead em 30 dias**: atingido o limite, o motor silencia e a conversa fica pendente para o executivo na Ação do Dia.
+5. **Supressão imediata**: se houver resposta humana do executivo dentro da janela, nenhuma resposta automática é emitida naquela janela.
+
+Por que é seguro: cada disparo exige uma mensagem recebida (nunca "do nada"), o teto por janela impede loop imediato, a carência impede spam entre janelas curtas e o teto mensal garante que o robô nunca substitua o executivo indefinidamente.
+
+## B) Pontos que ainda possuem ambiguidade (precisam da sua decisão)
+
+1. **Encerrar E20 manualmente** — com a opção B, o executivo pode precisar cancelar uma ocorrência ativa (lead trocou de número, link perdido). Existe esse botão "encerrar E20" e quem pode usar: qualquer responsável ou só gestão?
+2. **E20 gerada durante cadência ativa** — a instância anterior é **pausada** ou **encerrada**? Recomendo encerrar: pausar e retomar depois reintroduz dois relógios. Preciso da sua confirmação.
+3. **Retorno de OPORTUNIDADE para etapa anterior** — se a origem devolver o lead, isso abre nova instância automaticamente ou exige ação do executivo? Recomendo exigir ação.
+4. **Lista fechada de "tags de etapa"** — a regra NOVOS + tag depende de saber quais tags contam como etapa do funil (ZERO CONTATO, FRIO, AGENDAMENTO, OPORTUNIDADE...) e quais são operacionais e devem ser ignoradas (LEAD FORM TAG, campanhas, REMARKETING). Preciso da lista oficial.
+5. **Número institucional de fallback (item 4)** — recomendo a cascata: executivo responsável → número institucional configurável → **botão não renderizado** se nenhum existir. Nunca herdar número de outro executivo. Preciso saber se o número institucional será cadastrado (e por quem) ou se a regra fica em "bloquear o botão".
+6. **Fonte do texto durante a transição da Biblioteca** — enquanto grupos como `FINALIZACAO`, `RE1` e `RE2` estiverem vazios, o motor deve falhar a etapa ou usar o texto atual como fallback? Recomendo falhar visivelmente na Ação do Dia, para não enviar texto não aprovado.
+7. **Prioridade e teto diário da Ação do Dia** — ligações, etapas assistidas, RE0–RE3, E27 e finalização compartilham a mesma fila. Falta a ordem de prioridade e se existe limite diário por executivo.
+
+## C) Conflitos técnicos encontrados e D) solução recomendada
+
+| Conflito | Solução recomendada |
+| --- | --- |
+| Chave da etapa: o código usa `agendamentos` (plural) em `src/lib/crm/integrations.ts`, as regras falam AGENDAMENTO | Fixar uma chave canônica única e mapear as variações no ponto de entrada, nunca em cada consumidor |
+| OPORTUNIDADE chega por sincronização — existe janela em que a fila ainda dispara | Verificar o estágio atual também no momento do despacho, não só na varredura |
+| `relationship_cadences` é uma linha por lead; instâncias exigem várias | Migração aditiva: `instance_seq` + `active`; todos os leitores passam a filtrar `active = true`; a linha atual vira a instância 1 |
+| Biblioteca como fonte única x textos fixos em `messages.ts` | Migração por finalidade, com a etapa bloqueada (e visível) enquanto não houver versão aprovada |
+| Duplicidade mensagem x conteúdo (item 12) | Separar claramente: **mensagem** (texto versionado, por finalidade) e **conteúdo** (vídeo/arquivo, por grupo). A mensagem referencia o grupo, nunca embute o arquivo — é assim que hoje já funciona com `contentGroup`, então não há duplicidade |
+| Jornada consolidada x cópia física de registros (itens 10 e 11) | Não copiar. Uma leitura consolidada (view/serviço) sobre as tabelas de origem, com `source_env`, `kind`, `preview` e referência ao snapshot. Notas do Executivo consomem a mesma leitura, com regra de expansão: mensagens expandem para o snapshot exato; ligações permanecem em linha única |
+| Remarketing x Portal: mesmo telefone em dois ambientes | Vínculo por telefone normalizado, aplicado na leitura consolidada; o Remarketing continua isolado nos seus próprios cards e tabelas |
+
+## E) A arquitetura está pronta para implementação em fases?
+
+Sim, **assim que os 7 pontos da seção B forem respondidos**. Todo o restante está fechado e coerente. A ordem de fases permanece:
+
+1. Higiene e identidade (histórico falso, NOVOS x tags, remoção dos controles do CRM, override manual, telefone do executivo).
+2. Instâncias e E20 (instância, OPORTUNIDADE terminal, ocorrência E20, link de 7 dias, E27, finalização).
+3. Biblioteca versionada e congelamento das mensagens.
+4. Jornada consolidada, notas e eventos de Remarketing.
+
+Nenhuma decisão foi assumida por conta própria: os itens da seção B aguardam sua resposta antes de qualquer construção.
