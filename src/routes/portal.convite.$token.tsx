@@ -45,7 +45,13 @@ function ConvitePage() {
         const result = await redeem({ data: { token } });
         if (cancelled) return;
         if (result.valid) {
-          void navigate({ to: "/portal", search: { lead: result.leadId } as never });
+          // Fluxo oficial: o convite entrega o visitante à Home com o
+          // contexto do lead — nenhum módulo é aberto por atalho.
+          void navigate({
+            to: "/",
+            replace: true,
+            search: { lead: result.leadId, m: "manual", o: "Convite do executivo" } as never,
+          });
           return;
         }
         setMessage(result.reason);
