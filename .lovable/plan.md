@@ -1,201 +1,88 @@
-# Diagnóstico Final Consolidado — Motor de Relacionamento, Portal dos Leads e Remarketing
+# Diagnóstico arquitetural consolidado — Portal dos Leads, Cadência, Biblioteca e Jornada
 
-Nada foi alterado: sem migration, sem código, sem dados, sem envio, sem mexer na biblioteca. Documento de validação.
+Documento de validação. Nenhuma implementação, migration ou alteração de dados nesta etapa (confirmação **L**).
 
-## 1. Correção registrada: E20 → E27 → Finalização
+## A) Regras já suportadas pelo código atual
 
-Confirmado, esta é a interpretação adotada:
+- **Fluxo de reengajamento RE0–RE3**: existe em `src/lib/relationship/config.ts` (`reentrada: ["RE0","RE1","RE2","RE3"]`) e é aberto por `machine.ts`. Só falta a regra de entrada correta.
+- **Janela de 24h**: `relationship_cadences.window_open_until`, `last_inbound_at`, `last_outbound_at` já mantêm o estado; o disparo já é reativo a mensagem recebida.
+- **Identidade por ID externo**: `crm_leads.external_id` + dedupe por telefone normalizado; nome nunca é chave.
+- **Ciclos de entrada**: `last_entry_at` / `entry_count` já distinguem reentradas.
+- **Links assinados**: `src/server/portal-token.server.ts` gera HMAC com expiração; hoje o TTL é global (30 dias).
+- **Histórico append-only**: `crm_lead_events`, `relationship_events`, `relationship_decisions`, `crm_timeline` já são somente-inserção.
+- **Registro de conteúdo enviado**: `content_history` e `opening_template_history` já existem na cadência.
 
-- **E20** = momento em que o executivo clica em GERAR E20 no card. Nasce a instância e o link personalizado com validade de **7 dias corridos exatos**.
-- **E27** = **+7 dias corridos** após a E20. Sem qualquer deslocamento. Segunda → segunda; sexta → sexta; atravessar sábado e domingo é irrelevante.
-- **Finalização** = ação posterior ao prazo da E20/E27. **Só ela** respeita o calendário operacional: caindo em sábado ou domingo, vai para o próximo dia útil.
+## B) Regras que exigem apenas ajuste
 
-Ou seja, o calendário de dias úteis (`src/lib/relationship/calendar.ts`) **não** se aplica ao vencimento do link nem à E27 — apenas à mensagem de finalização.
+1. **NOVOS x tags (§1)** — trocar a heurística atual por: coluna NOVOS + apenas tag NOVOS = novo (E0); coluna NOVOS + qualquer outra tag de etapa = reengajamento (RE0). REMARKETING fica fora da decisão (dimensão separada).
+2. **Etapas elegíveis (§4)** — `ELIGIBLE_STAGE_KEYS` em `src/lib/crm/cadence.ts` passa a `zero_contato`, `frio`, `agendamento`.
+3. **OPORTUNIDADE terminal (§4, §10)** — encerrar instância ativa, cancelar itens `relationship_queue` pendentes e bloquear novas etapas. Movimentação entre ZERO/FRIO/AGENDAMENTO não encerra nada.
+4. **Histórico falso (§23)** — `src/server/crm/lead-service.server.ts:410` grava `lead_sincronizado` "sem alterações" a cada varredura. Passa a só atualizar `last_synced_at`; eventos antigos permanecem.
+5. **CRM (§2, §22)** — remover "Reenviar boas-vindas" (`src/components/crm/portal-leads-board.tsx:183`) e o seletor de templates de cadência do composer; conversa humana na janela aberta permanece.
+6. **Primeiro nome (§18)** — normalizar o primeiro nome no ponto de renderização, nunca no histórico já gravado.
+7. **Dia útil da finalização (§8)** — prazo em dia útil → próximo dia útil; sábado/domingo → segunda. Sem empurrões extras. E27 é sempre +7 dias corridos, sem deslocamento.
 
-## 2. Regras fechadas
+## C) Regras que exigem nova estrutura
 
-**Identidade e coluna**
-- Identidade do lead = `external_source + external_id` (GreenSales). Nome nunca é chave. Telefone normalizado é dedup auxiliar.
-- NOVOS é decidido pela **coluna**. As demais etapas, por coluna + histórico/tags.
-- **NOVOS + qualquer outra tag de etapa do funil = REENGAJAMENTO**, nunca E0. Sem matriz de combinações.
-- Tags antigas nunca são removidas — são histórico.
-- **Kanban não muda**: a posição visual continua pela etapa mais avançada. NOVOS+OPORTUNIDADE aparece em OPORTUNIDADE, NOVOS+FRIO em FRIO, e assim por diante. A regra de NOVOS decide cadência, não posição.
-- Decisão sempre por **estado atual + histórico**, nunca pela fotografia de entrada.
+| Regra | Estrutura nova |
+| --- | --- |
+| §5, §6, §9 — múltiplas instâncias | `relationship_cadences` hoje é uma linha por lead. Nova coluna `instance_seq` + chave única (`scope`,`lead_id`,`instance_seq`) e `active` — aditivo; a linha atual vira a instância 1. |
+| §6 — evento E20 | Tabela `relationship_e20_occurrences`: instância, lead, executivo gerador, `link_token`, `generated_at`, `expires_at` (+7 corridos), `e27_due_on`, `finalization_due_on`, status. |
+| §6 — link com TTL próprio | `issueToken` passa a aceitar TTL por emissão (7 dias) + rota de resgate que valida a ocorrência. |
+| §11, §12 — versionamento | `library_messages` (finalidade/grupo, corpo, ativa) + `library_message_versions` (versão imutável). Envio grava snapshot: id da versão, conteúdo e texto renderizado. |
+| §13, §14, §15, §16 — jornada unificada | View/tabela `lead_journey_events` consolidando Portal, Workspace, Cadência e Remarketing, com `source_env`, `kind`, `preview`, `body`, `actor`. Notas manuais entram como `kind = 'nota_manual'`. |
+| §17 — precedência manual | `crm_leads.manual_overrides jsonb` (campo → valor, autor, data) respeitado pelo `upsertLead`, reversível. |
+| §19 — telefone do executivo | Coluna `whatsapp` em `executive_profiles`; hoje o número só existe em código (`src/lib/executive-auth.ts`). |
+| §2, §21 — resposta automática com botão | Binding de template/conteúdo da resposta de janela + resolução dinâmica do número do executivo responsável. |
 
-**Cadência**
-- E0 é o primeiro contato automático, uma única vez por ciclo de entrada. Sem "Reenviar boas-vindas", sem reabertura manual.
-- Reengajamento reutiliza **RE0–RE3**, sem motor paralelo, e passa a ser **assistido** pelas AÇÕES DO DIA.
-- ZERO CONTATO, FRIO e **AGENDAMENTO** permanecem elegíveis à cadência. AGENDAMENTO não encerra nada e não é rebaixado automaticamente para FRIO.
-- **OPORTUNIDADE encerra a cadência** daquele ciclo: fecha a instância ativa, cancela pendências, nada é enviado automaticamente. **COF** e estágios avançados (coffee, contrato, pagamento) também ficam fora de qualquer cadência de prospecção.
-- Retorno solicitado dentro de uma oportunidade vira **agenda/prioridade manual**, com prioridade máxima na central do dia. Oportunidade não é lead morto — é lead fora do motor.
+## D) Conflitos e riscos de regressão
 
-**Instâncias**
-- Cada ciclo é uma **instância** própria: origem (entrada / reengajamento / E20 manual), início, prazo, encerramento e motivo.
-- **GERAR E20 pausa a cadência corrente** e abre uma instância independente. Nunca dois fluxos de mensagem concorrendo pelo mesmo lead.
-- Qualquer executivo responsável pelo lead gera a E20, sem aprovação da gestão. A geração fica no histórico.
-- E20 depois de uma E30 já encerrada, meses ou anos depois, cria **nova instância**. O histórico anterior permanece intacto.
-- E20/E27/finalização são **assistidas** — o sistema prescreve, mostra a mensagem, gera o link, permite copiar e registra a execução. Nada é disparado pela Meta neste momento.
+- **Instância x código atual**: todo acesso a `relationship_cadences` hoje assume uma linha por lead. Migrar sem adaptar os leitores quebra o motor — a migração precisa ser aditiva e os leitores passam a filtrar `active = true`.
+- **E20 x cadência ativa**: E20 pausa a instância corrente e abre outra; sem trava, dois relógios disparariam para o mesmo lead.
+- **Ligações x mensagens**: `cadence.ts` (ligações) e `relationship/` (mensagens) são motores distintos; incluir AGENDAMENTO afeta a fila de ligações — precisa ser decidido por canal.
+- **Biblioteca como fonte oficial**: hoje o motor usa textos fixos em `src/lib/relationship/messages.ts` em modo simulação. Trocar a fonte sem fallback deixa etapas sem texto (`FINALIZACAO`, `RE1`, `RE2` estão vazias).
+- **Precedência manual x reconciliação**: sem `manual_overrides`, a próxima sincronização desfaz a correção do executivo.
+- **Remoção do `lead_sincronizado`**: telas que contam eventos para "última atividade" podem ficar vazias — usar `last_synced_at`.
 
-**Link E20**
-- TTL próprio de 7 dias corridos por instância, sobre a infraestrutura de token existente. Sem domínio novo.
-- Expirado: página de link expirado, conteúdo não liberado, e o lead não volta ao material pelo Portal sem um novo link válido.
-- Os links atuais de outros fluxos, com TTL diferente, não são alterados.
+## E) Ordem ideal de implementação
 
-**Mensagens e histórico**
-- Biblioteca com **versão ativa + versões anteriores preservadas**.
-- **Snapshot imutável no envio**: corpo renderizado, `template_id`, versão, conteúdo anexado e primeiro nome usado. Se a E1 mudar amanhã, o lead antigo continua mostrando a E1 que recebeu.
-- Mensagens usam **somente o primeiro nome**, derivado do cadastro corrigido.
-- **Jornada consolidada** entre Portal dos Leads, Workspace e Remarketing, em leitura única e cronológica.
-- **Notas automáticas e notas manuais** existem e são distintas dos eventos.
-- Mensagem longa: prévia com "…" e card com o conteúdo completo. Evento simples (ligação com data/hora) permanece compacto.
-- Fim dos eventos falsos `lead_sincronizado` sem alteração: só `last_synced_at` é atualizado. Timeline só com acontecimento real.
-- **PENDENTE** só existe enquanto o lead está em NOVOS e ainda não foi processado. Saiu de NOVOS, deixa de ser pendente.
+1. **Fase 1 — Higiene e identidade**: fim do `lead_sincronizado` vazio, regra NOVOS x tags, remoção de "Reenviar boas-vindas" e do seletor de templates, `manual_overrides`, campo de WhatsApp do executivo.
+2. **Fase 2 — Instâncias e E20**: `instance_seq`, encerramento por OPORTUNIDADE, tabela de ocorrências E20, link de 7 dias, E27 (+7 corridos) e finalização na Ação do Dia.
+3. **Fase 3 — Biblioteca e versionamento**: mensagens versionadas, snapshot no envio, reorganização de grupos e vídeos.
+4. **Fase 4 — Jornada unificada e Remarketing**: timeline consolidada com prévia/expansão, notas manuais, eventos de remarketing na jornada do executivo.
 
-**Remarketing**
-- Ambiente separado, base própria, nunca cria lead no CRM. Mas seus envios aparecem na jornada compartilhada da **mesma pessoa**: data, hora, campanha e mensagem. Sem duplicar o contato.
+Motivo da ordem: cada fase é independente e reversível; nada da fase 1 depende de estrutura nova pesada, e a fase 3 só faz sentido depois que as instâncias existem para ancorar o snapshot.
 
-**Executivo e janela de 24h**
-- Telefone individual passa a ter fonte confiável em `executive_profiles`.
-- Botão **"Falar com o Executivo"** dinâmico, resolvido pelo responsável atual do lead.
-- Resposta automática **somente dentro da janela de 24h** aberta por uma resposta do lead. Dentro da janela, conversa humana e do motor sem novo template. A interpretação do que o lead quis dizer continua humana.
+## F) Decisões ainda faltantes
 
-**Edição manual**
-- Nome e telefone editáveis no Portal dos Leads. **MANUAL > GREENSALES**; o sync não sobrescreve o valor corrigido; a alteração vai para o histórico.
-- Trava reversível: ação administrativa **"voltar a seguir origem"** devolve aquele campo ao GreenSales.
+1. AGENDAMENTO entra também na fila de **ligações** ou apenas na cadência de mensagens?
+2. Se o executivo gerar uma segunda E20 antes de vencer a primeira: substituir o link ou recusar?
+3. Reengajamento (RE0) é automático como a E0 ou assistido (ação do dia)?
+4. Lead sem executivo responsável: qual número usar no botão "Falar com o executivo"?
+5. A resposta automática da janela tem limite de repetição por período (evitar spam a cada resposta)?
+6. E30 continua desativada, ou entra como etapa oficial nesse novo modelo?
 
-## 3. Arquitetura atual (verificada)
+## G) Arquivos/componentes afetados
 
-| Camada | Onde vive | Situação |
-|---|---|---|
-| Coluna/posição | `src/lib/crm/board.ts` (`resolveBoardColumn`) | decide pela etapa mais avançada; REMARKETING tratado à parte |
-| Entrada x reentrada | `src/lib/relationship/entry.ts` (`resolveEntryFlow`, `resolveCooledFlow`) | decide por `hasPreviousRelationship`, `newCommercialEntry`, `entryCount` — **não olha tags** |
-| Máquina de estados | `src/lib/relationship/machine.ts`, `decide.ts`, `engine.ts` | estados incluem `PAUSED`, `INTERRUPTED`, `COMPLETED`, `CLOSED` |
-| Persistência da cadência | `relationship_cadences` | **1 linha por (scope, lead)** — sem noção de instância |
-| Fila e auditoria | `relationship_queue`, `relationship_events`, `relationship_decisions`, `relationship_engine_log` | completas |
-| Elegibilidade de ligações | `src/lib/crm/cadence.ts` (`ELIGIBLE_STAGE_KEYS`) | só `zero_contato` e `frio` |
-| Sincronização | `src/server/crm/lead-service.server.ts`, `lead-sync.server.ts`, `sync-scheduler.server.ts` | upsert sobrescreve nome/telefone e grava `lead_sincronizado` sem mudança |
-| Primeiro contato | `src/server/crm/lead-intake.server.ts`, `first-contact.server.ts`, `first-contact-queue.server.ts` | E0 na transição real para a coluna de entrada, com janela e fila de adiadas |
-| Token de link | `src/server/portal-token.server.ts` | HMAC `investorId.exp`, TTL **fixo de 30 dias** |
-| Rotas curtas | `/e/$slug`, `/s/$slug`, `/f/$slug` | só redirecionam para a Home com contexto; não gateiam nem expiram |
-| Telefone do executivo | `src/lib/executive-auth.ts` | campos `phone`/`whatsapp` existem, mas os 7 executivos estão com o mesmo número e o dado é local |
-| Remarketing | `remarketing_*` + `src/server/remarketing/*` | isolado, com conversas próprias |
-| Blindagem | triggers `guard_lead_delete` / `guard_lead_truncate`, `portal_lead_guard_log` | ativa |
+- `src/server/crm/lead-service.server.ts` — evento vazio, `manual_overrides`, precedência de sincronização.
+- `src/server/crm/lead-intake.server.ts`, `src/lib/crm/board.ts` — regra NOVOS x tags.
+- `src/lib/crm/cadence.ts`, `src/server/crm/cadence.server.ts` — etapas elegíveis, encerramento por OPORTUNIDADE.
+- `src/lib/relationship/machine.ts`, `config.ts`, `entry.ts`, `types.ts`, `messages.ts` — instâncias, E20/E27, fonte de texto.
+- `src/server/relationship/repository.server.ts`, `scheduler.server.ts`, `engine.server.ts` — leitura por instância ativa e cancelamento de fila.
+- `src/server/portal-token.server.ts` + nova rota de resgate — link E20 de 7 dias.
+- `src/components/crm/portal-leads-board.tsx`, `crm-conversation.tsx`, `crm-lead-ficha.tsx` — botões removidos, "GERAR E20", edição de nome/telefone, notas manuais, timeline.
+- `src/routes/executivo.biblioteca.tsx` + serviço de biblioteca — versionamento e grupos.
+- `src/server/remarketing/*` — publicação de eventos na jornada compartilhada.
+- `src/routes/executivo.perfil.tsx` / `executive_profiles` — telefone do executivo.
 
-## 4. Conflitos que permanecem
+## H–K) Confirmações explícitas
 
-1. **Uma linha de cadência por lead** — bloqueio estrutural único para instâncias, pausa por E20 e E20 recorrente.
-2. **RE0–RE3 são despachados**, não prescritos — tornar assistido muda o destino da decisão, não a decisão.
-3. **AGENDAMENTO fora de `ELIGIBLE_STAGE_KEYS`**.
-4. **Não existe encerramento por OPORTUNIDADE/COF**; os terminais atuais são por etapa (E12/E30) ou ação manual.
-5. **TTL do token é global (30 dias)** e assina só o investidor — a E20 precisa de validade e identificador por instância sem tocar nos links atuais.
-6. **Nenhuma rota gateia conteúdo** nem tem página de expirado.
-7. **Telefone do executivo sem fonte confiável.**
-8. **`upsertLead` sobrescreve nome/telefone** e polui a timeline.
-9. **Nenhum versionamento em uso**: `crm_meta_templates` e `relationship_template_bindings` estão **vazias**; o motor roda 100% sobre os textos fixos de `messages.ts`, em modo simulado.
+- **H)** Confirmado: **E20 cria uma NOVA instância de cadência**. A instância anterior é encerrada/pausada e permanece intacta; nada é sobrescrito, inclusive anos depois de uma E30.
+- **I)** Confirmado: **OPORTUNIDADE é o limite absoluto**. Encerra a instância, cancela a fila pendente e nenhuma etapa nova é executada; o acompanhamento passa a ser manual.
+- **J)** Confirmado: **coluna NOVOS com apenas a tag NOVOS = lead novo → E0**; **NOVOS + qualquer outra tag de etapa = reengajamento (RE0–RE3)**. REMARKETING não participa dessa decisão.
+- **K)** Confirmado: **mensagens enviadas ficam congeladas**. Cada envio grava versão, conteúdo e texto renderizado; editar a E1 amanhã não altera nenhuma E1 já enviada.
+- **L)** Confirmado: **nenhuma implementação nesta etapa**. Nenhum código, banco, migration, dado ou interface foi alterado.
 
-## 5. Mapa da biblioteca
+## Resposta à pergunta principal (§25)
 
-### 5.1 Camadas
-
-| Camada | Local | Conteúdo | Situação |
-|---|---|---|---|
-| A — Template oficial Meta | `crm_meta_templates` | 0 registros | vazia |
-| A — Vínculo finalidade→template | `relationship_template_bindings` (tem `version`, `approved`) | 0 registros | vazia |
-| B — Texto operante | `src/lib/relationship/messages.ts` | 18 etapas | **fonte real do motor hoje** |
-| B' — Espelho de gestão | `src/lib/relationship/internal-templates.ts` | deriva de `messages.ts` | derivado, sem duplicidade |
-| C — Conteúdo/vídeo | `relationship_contents` | 17 itens ativos | fonte real dos vídeos |
-| C' — Grupos declarados | `src/lib/relationship/content.ts` | 13 grupos | 5 sem conteúdo |
-| D — E0 simulada | `src/lib/crm/e0-simulation.ts` | prefixo `[TESTE — E0 SIMULADA]` | camada de teste |
-
-### 5.2 Mensagem por etapa
-
-| Etapa | Finalidade | Fluxo | Texto | Grupo | Botão |
-|---|---|---|---|---|---|
-| E0 | primeiro_contato | entrada | código | — | portal |
-| E0_V1 | primeiro_contato_portal | entrada via Portal | código | — | portal |
-| E1 | segundo_contato | sem_resposta | código | E1 | conteúdo |
-| E3 | terceiro_contato | sem_resposta | código | E3 | conteúdo |
-| E4 | quarto_contato | sem_resposta | código | **null** | — |
-| E12 | encerramento | sem_resposta | código | FINALIZACAO | conteúdo |
-| V3 / V4 | visualização | visualizacao | código | — | — |
-| R1 | reengajamento_1 | reengajamento | código | R1 | conteúdo |
-| R2 | reengajamento_2 | reengajamento | código | R2 | conteúdo |
-| R3 | encerramento | reengajamento | código | — | — |
-| RE0 | reentrada_contato | reentrada | código | — | portal |
-| RE1 | reentrada_criterios | reentrada | código | RE1 | conteúdo |
-| RE2 | reentrada_estrutura | reentrada | código | RE2 | conteúdo |
-| RE3 | reentrada_encerramento | reentrada | código | FINALIZACAO | conteúdo |
-| RF0 / RF1 | esfriado | relacionamento_frio | código | — / FINALIZACAO | — / conteúdo |
-| E30 | recontato tardio | sem_resposta | **sem texto** | — | desativada |
-| E2 | — | — | não existe | grupo vazio | — |
-| **E20 / E27** | — | — | **não existem** | grupos a criar | a definir |
-
-### 5.3 Vídeos (17 ativos)
-
-- **E1 (5)**: Democratização do acesso ao crédito · Desertos financeiros · Ecossistema de soluções Velox · O mercado financeiro está mudando · O mercado financeiro não é exclusividade dos grandes bancos
-- **E3 (6)**: Blindagem patrimonial · Como avaliar uma franquia antes de investir · Complementar renda e elevar ticket · Estrutura e suporte ao franqueado · Home Office ou Loja Física · Suporte e consultoria ao franqueado
-- **E4 (1)**: Franquia séria não vende promessa
-- **R1 (1)**: Flávio — 11 meses de Velox
-- **R2 (4)**: Começar sem garantia · Conte a sua própria história · Informação, ambiente e escolha · Objetivos, esforço e persistência
-
-### 5.4 Realocações aprovadas (a executar na FASE 3, não agora)
-
-| Vídeo | Grupo hoje | Passa a ter também | Duplicação |
-|---|---|---|---|
-| Conte a sua própria história | R2 | **FINALIZACAO** | não — mesmo registro, grupo adicional |
-| Como avaliar uma franquia antes de investir | E3 | **RE1** | não |
-| Estrutura e suporte ao franqueado | E3 | **RE2** | não |
-
-Depois dessas associações, os grupos exigidos ficam assim: `FINALIZACAO` 1 · `RE1` 1 · `RE2` 1 · `E1` 5 · `E3` 6 · `R1` 1 · `R2` 4. **Nenhum grupo exigido fica vazio.** Nenhum conteúdo novo é criado.
-
-### 5.5 Pendências registradas (sem ação agora)
-
-- **E4**: o vídeo "Franquia séria não vende promessa" está cadastrado em E4, mas a mensagem E4 tem `contentGroup: null` — o conteúdo nunca é usado. Registrado para revisão posterior da mensagem E4, por decisão sua. **Nada será associado sem seu aval.**
-- **E30**: integrada ao fluxo e desativada por não ter texto oficial. Continua desativada; nenhum texto será inventado.
-- **E2** e **R3**: grupos declarados sem conteúdo e sem uso pelo motor.
-- **E20 / E27**: grupos e textos inexistentes; serão criados na FASE 2/3 com texto aprovado por você.
-
-### 5.6 Versionamento e snapshot
-
-- **Versionamento**: as 17 mensagens com texto, mais E20, E27 e o texto futuro de E30.
-- **Snapshot imutável no envio**: corpo renderizado + `template_id` + versão + `content_id` do vídeo anexado + primeiro nome usado. Vale para mensagens de etapa, E20 gerada e envio de remarketing.
-- **Sem versionamento**: os vídeos em si — o snapshot guarda a referência e o item permanece.
-- **Sem duplicidade de texto hoje**; ela nasceria ao popular `crm_meta_templates` sem retirar o texto do código. A migração deve mover, não copiar.
-
-## 6. Dependências
-
-```text
-FASE 1 (higiene + identidade)
-  └─ habilita → FASE 2 (instâncias)
-        ├─ instância é pré-requisito de: pausa por E20, E20, E27, encerrar por OPORTUNIDADE
-        └─ link 7 dias = instância (id) + token com TTL próprio
-FASE 3 (biblioteca versionada)
-  ├─ depende do mapa (seção 5) aprovado
-  └─ snapshot depende de: instância + biblioteca versionada
-FASE 4
-  ├─ jornada consolidada (FASE 3) → eventos de remarketing
-  └─ botão dinâmico → telefone em executive_profiles
-```
-
-Transversal: nada é apagado; toda estrutura nova é aditiva; o estado atual de cada lead vira a **instância 1**.
-
-## 7. Riscos de regressão
-
-| Nível | Risco | Mitigação |
-|---|---|---|
-| Alto | Camada de instância sobre `relationship_cadences` | Tabela nova aditiva; linha atual vira instância 1 com `executed_steps` preservado; leitura cai na linha antiga se não houver instância |
-| Alto | RE0–RE3 assistidos | Se a AÇÃO DO DIA não for criada, o lead fica em silêncio — verificar que toda decisão prescrita gera item de fila |
-| Médio | Encerrar por OPORTUNIDADE/COF | Etapa errada na origem silencia lead legítimo; registrar motivo e reabrir ao sair da etapa |
-| Médio | AGENDAMENTO elegível | Aumenta o volume das ligações do dia; medir antes de ativar |
-| Médio | Trava manual de nome/telefone | Por campo e reversível via "voltar a seguir origem" |
-| Médio | TTL do token | E20 recebe caminho próprio; os links de 30 dias não são tocados |
-| Baixo | Fim do `lead_sincronizado` | Evento puramente informativo |
-| Baixo | Remoção do "Reenviar boas-vindas" e dos templates fictícios | Composer humano e Central de Templates permanecem |
-| Baixo | Realocação de grupos da biblioteca | Associação aditiva; nenhum texto ou vídeo alterado |
-
-## 8. Ordem de implementação (só após sua aprovação)
-
-- **FASE 1 — Higiene e identidade**: fim dos eventos falsos de sincronização; PENDENTE só em NOVOS não processado; regra NOVOS+tag alimentando `resolveEntryFlow`; remoção do "Reenviar boas-vindas" e dos templates fictícios de cadência; AGENDAMENTO elegível; edição manual de nome/telefone com prioridade reversível e registro; primeiro nome do cadastro corrigido.
-- **FASE 2 — Instâncias e E20**: camada de instância (estado atual = instância 1); OPORTUNIDADE/COF encerram e cancelam pendências; RE0–RE3 assistidos; GERAR E20 no card pausando a cadência corrente; E27 = +7 dias corridos exatos; link por instância com TTL de 7 dias corridos e página de expirado; finalização deslocada para dia útil quando cair no fim de semana.
-- **FASE 3 — Biblioteca e jornada**: realocações da seção 5.4; criação de E20/E27 com texto aprovado; versionamento com versão ativa e histórico; snapshot no envio; jornada consolidada com prévia "…" e card completo; notas manuais e automáticas.
-- **FASE 4 — Integrações**: eventos de remarketing na jornada compartilhada; telefone individual em `executive_profiles`; botão dinâmico "Falar com o Executivo"; resposta automática dentro da janela de 24h; agenda de retorno de oportunidade como prioridade máxima do dia.
+O modelo é consistente, mas ainda **não estava completo**: faltavam (i) a instância de cadência como entidade de primeira classe, (ii) a ocorrência E20 com relógio próprio, (iii) o versionamento imutável das mensagens e (iv) a jornada consolidada entre os três ambientes. Com os itens acima incorporados, a arquitetura fica fechada — exceto pelas seis decisões da seção F.
