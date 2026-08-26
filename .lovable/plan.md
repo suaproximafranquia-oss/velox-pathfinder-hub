@@ -290,3 +290,32 @@ Nenhuma bloqueante. Ficam como ajustes de execução, com o padrão que adotarei
 4. **Fase 4 — Jornada consolidada**: leitura única entre Portal, Workspace e Remarketing; notas manuais; prévia com reticências e expansão para o snapshot exato; eventos de remarketing com data, hora e campanha.
 
 **Arquitetura fechada para implementação.**
+
+---
+
+# Quinta rodada — confirmação de entendimento (itens 1 a 14)
+
+Nada implementado. Todos os pontos abaixo já estão incorporados às rodadas anteriores; nenhuma decisão nova foi assumida.
+
+| Item | Entendimento | Status |
+| --- | --- | --- |
+| 1. Coluna x tag | Coluna define posição; tags são histórico. Exceção única: NOVOS sozinho = novo (E0); NOVOS + qualquer tag de etapa = reengajamento. REMARKETING fora. Regra central única, sem variantes por combinação. | Fechado |
+| 2. E0 | Automática, uma vez por entrada real. Sem "Reenviar boas-vindas". Template centralizado. Janela de 24h respeitada; dentro dela não é preciso template. | Fechado |
+| 3. Resposta automática | Só com janela aberta por mensagem recebida. Orienta e apresenta botão dinâmico com o WhatsApp do executivo responsável (perfil). Uma por janela; suprimida quando o executivo já está conversando. | Fechado |
+| 4. Cadência | ZERO, FRIO e AGENDAMENTO elegíveis para mensagens. OPORTUNIDADE encerra instância e cancela fila. Movimentação entre as três não encerra nada. | Fechado |
+| 5. Instâncias | Cadência vira entidade com instâncias; ciclos antigos preservados; nova instância tem relógio, etapas, eventos e encerramento próprios. | Fechado |
+| 6. E20 como ação | Botão "GERAR E20" no card, disponível mesmo após finalização anterior. Registra link, momento, executivo, instância, validade e expiração; inicia o relógio da ocorrência. | Fechado |
+| 7. Mensagem E20 | Editável na Biblioteca; primeiro nome usado de forma natural, sem abertura padronizada obrigatória. | Fechado |
+| 8. Link E20 | 7 dias corridos a partir da GERAÇÃO, token próprio, individual; após expirar, acesso bloqueado com página de conteúdo expirado. | Fechado (a página de expirado é novidade desta rodada e entra na Fase 2) |
+| 9. E27 | +7 dias corridos da geração, sem deslocamento por fim de semana. Nome operacional, não dia do mês. | Fechado |
+| 10. Finalização | No próprio prazo final; sábado/domingo → segunda. Sem empurrar dias. Mensagem respeitosa de encerramento temporário. | Fechado |
+| 11. Nova E20 após finalização | Cria nova instância independente; a antiga (inclusive E30 histórica) não é reaberta nem sobrescrita. | Fechado |
+| 12. OPORTUNIDADE | Único estado que mata a instância. AGENDAMENTO não encerra. | Fechado |
+| 13. Biblioteca de mensagens | Fonte oficial de E1, E2, E3, E4, E12, E20, E27, FINALIZAÇÃO, RE0–RE3 etc. Edição gera nova versão para envios futuros; cada envio congela id, versão, texto original, texto renderizado, data/hora, lead, executivo e instância. | Fechado |
+| 14. Vídeos | Mensagem referencia grupo de conteúdo; vídeos permanecem vinculados à finalidade correta, sem duplicar mensagem e conteúdo. | Fechado — **o item 14 chegou cortado na sua mensagem**; se havia mais regras sobre vídeos, envie o trecho restante antes da implementação |
+
+Único acréscimo real desta rodada: **página de conteúdo expirado** para o link E20 vencido, incluída na Fase 2.
+
+A ordem das fases permanece: 1) Higiene e identidade · 2) Instâncias, E20, E27 e finalização · 3) Biblioteca versionada e congelamento · 4) Jornada consolidada e Remarketing.
+
+**Arquitetura fechada para implementação**, pendente apenas do trecho final do item 14.
