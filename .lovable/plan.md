@@ -86,3 +86,94 @@ Motivo da ordem: cada fase é independente e reversível; nada da fase 1 depende
 ## Resposta à pergunta principal (§25)
 
 O modelo é consistente, mas ainda **não estava completo**: faltavam (i) a instância de cadência como entidade de primeira classe, (ii) a ocorrência E20 com relógio próprio, (iii) o versionamento imutável das mensagens e (iv) a jornada consolidada entre os três ambientes. Com os itens acima incorporados, a arquitetura fica fechada — exceto pelas seis decisões da seção F.
+
+---
+
+# Segunda rodada — decisões pendentes fechadas
+
+Nenhuma implementação, migration, alteração de banco, dados ou interface nesta etapa.
+
+## 1. AGENDAMENTO na fila de ligações?
+
+Alternativas: (A) só cadência de mensagens; (B) mensagens + ligações; (C) só ligações.
+
+**Recomendação: (A) somente cadência de mensagens.**
+
+- **Motivo técnico**: os dois motores usam gatilhos diferentes. `cadence.ts` (ligações) parte da ENTRADA em etapa passiva (ZERO CONTATO / FRIO) — o lead não atende, então o sistema insiste. AGENDAMENTO é uma etapa ATIVA: já existe compromisso marcado, e a ligação relevante é a da reunião, que não pertence à fila L2–L5. Colocar AGENDAMENTO em `ELIGIBLE_STAGE_KEYS` de ligações geraria tarefas L2/L3/L4 concorrendo com a reunião real.
+- **Impacto**: `ELIGIBLE_STAGE_KEYS` de ligações permanece `zero_contato`, `frio`. A elegibilidade de AGENDAMENTO passa a existir apenas no motor de mensagens/instância (`relationship/`).
+- **Regressão**: baixa. Nenhuma tarefa existente muda; apenas não se criam novas.
+- **Tipo**: regra de negócio (a elegibilidade de mensagens já é separada da de ligações).
+
+## 2. Segunda E20 com uma ocorrência ainda válida
+
+Alternativas: (A) substituir/cancelar a anterior; (B) impedir; (C) permitir simultâneas.
+
+**Recomendação: (A) substituir, com confirmação explícita do executivo.**
+
+- **Motivo**: (C) viola diretamente o princípio de "nunca dois relógios"; (B) engessa o caso real de o lead perder o link ou trocar de número. (A) preserva o histórico (a ocorrência antiga fica `substituida`, com `expires_at` truncado e o token invalidado) e mantém um único relógio ativo.
+- **Impacto**: a tabela de ocorrências E20 precisa de status (`ativa`, `substituida`, `expirada`, `concluida`) e índice parcial garantindo no máximo uma `ativa` por lead. E27/finalização recalculam a partir da nova geração.
+- **Regressão**: risco de o link antigo continuar válido se o token não for revogado — o resgate deve validar a OCORRÊNCIA no banco, não apenas a assinatura HMAC.
+- **Tipo**: estrutural (status + unicidade parcial + validação de resgate por ocorrência).
+
+## 3. RE0 automático ou assistido?
+
+**Recomendação: (B) assistido — Ação do Dia.**
+
+- **Motivo**: a regra do ecossistema é "E0 é o único primeiro contato automático". O lead de reengajamento já tem histórico, já pode ter sido atendido, pode ter dito não, pode ter reunião passada. Disparar automaticamente arrisca reabordagem indevida de alguém que já conhece a operação. O executivo lê o histórico e envia.
+- **Impacto**: `machine.ts` continua abrindo a instância no fluxo `reentrada` a partir de RE0, mas RE0 nasce como item ASSISTIDO na fila (mensagem pronta para copiar) em vez de despacho automático. RE1–RE3 seguem o mesmo padrão assistido enquanto não houver template oficial aprovado.
+- **Regressão**: nenhuma — hoje o fluxo de reentrada praticamente não é acionado, pois a regra de entrada está incorreta.
+- **Tipo**: regra de negócio + marcação de "modo de execução" (automático x assistido) por etapa na configuração.
+
+## 4. Lead sem executivo responsável
+
+**Recomendação: número institucional configurável, com bloqueio como padrão.**
+
+Regra objetiva, em cascata:
+1. WhatsApp do executivo responsável (`executive_profiles.whatsapp`).
+2. Se não houver responsável ou o responsável não tiver número: usar o número institucional cadastrado em configuração operacional (não em código).
+3. Se o institucional não estiver configurado: **não renderizar o botão** e enviar apenas o texto de orientação.
+
+- **Motivo**: nunca inventar número e nunca herdar o número de outro executivo. O fallback institucional é uma decisão da gestão, feita uma vez e auditável.
+- **Impacto**: nova coluna `whatsapp` em `executive_profiles` + chave institucional em `crm_automation_settings`. O botão é resolvido no servidor no momento do envio, nunca no cliente.
+- **Regressão**: hoje o número está fixo em `src/lib/executive-auth.ts` (`5517997727337` para todos). Ao migrar, perfis sem número cadastrado cairiam no institucional — a migração deve popular o valor atual como ponto de partida, sem apagar nada.
+- **Tipo**: estrutural (dois campos) + regra de negócio (cascata).
+
+## 5. Limite de repetição da resposta automática na janela de 24h
+
+**Recomendação: no máximo 1 resposta automática por janela de 24h aberta, com carência mínima de 12 horas entre duas respostas automáticas ao mesmo lead.**
+
+Regra objetiva:
+- Só dispara em reação a uma mensagem RECEBIDA (nunca "do nada").
+- Uma única vez por janela: enquanto `window_open_until` não expirar, novas mensagens do lead não geram nova resposta automática.
+- Nova janela aberta depois da expiração pode gerar nova resposta, respeitando a carência de 12h.
+- Se o executivo já respondeu humanamente na janela (`last_executive_reply_at` dentro dela), a resposta automática é suprimida — a conversa já é humana.
+
+- **Motivo**: protege contra loop (lead que manda cinco mensagens seguidas), contra spam entre janelas curtas e contra a situação absurda de o robô interromper uma conversa humana em andamento.
+- **Impacto**: usa campos que já existem em `relationship_cadences` (`window_open_until`, `last_inbound_at`, `last_outbound_at`, `last_executive_reply_at`); acrescenta apenas um marcador de "última resposta automática enviada".
+- **Regressão**: baixa; o comportamento atual é reativo.
+- **Tipo**: regra de negócio + um campo de carimbo.
+
+## 6. E30 continua sendo etapa oficial?
+
+**Recomendação: retirar E30 como etapa fixa da cadência e mantê-la apenas como histórico.**
+
+- **Motivo**: E30 foi concebida como "reativação por calendário" (≈30 dias após o início da jornada), o que só fazia sentido enquanto a cadência era um trilho único e cronológico. No modelo de instâncias, o retorno tardio do lead é tratado por um EVENTO (E20 gerada pelo executivo), que abre uma nova instância com relógio próprio. Manter E30 criaria um segundo mecanismo de reativação, automático e por calendário, competindo com o E20 manual — exatamente o "dois motores" que a arquitetura proíbe.
+- **Estado atual**: `E30_ENABLED = false` em `src/lib/relationship/reactivation.ts` — nada é agendado nem enviado hoje, e nunca houve texto oficial aprovado. Retirá-la é, na prática, formalizar o estado real.
+- **Conceito final**: o fluxo sem resposta encerra em **E12**; a reativação posterior é **E20 → E27 (+7 dias corridos) → finalização (dia útil)**. Registros históricos de E30 que já existam permanecem intactos e legíveis na jornada.
+- **Impacto**: `E30` sai de `FLOW_SEQUENCE`/`STEPS` como etapa agendável, mas o valor continua aceito em `types.ts` para leitura de histórico. `reactivation.ts` deixa de ser fonte de agendamento.
+- **Regressão**: nenhuma no comportamento atual (já desligada); a única precaução é não remover o literal `"E30"` do tipo, para não quebrar leitura de eventos antigos.
+- **Tipo**: regra de negócio, com limpeza de configuração.
+
+---
+
+## CONTRADIÇÕES OU PONTOS AINDA NÃO FECHADOS
+
+1. **Chave da etapa AGENDAMENTO**: o código usa `agendamentos` (plural, `src/lib/crm/integrations.ts`), enquanto as regras falam em AGENDAMENTO. Precisa haver uma única chave canônica, senão o motor de mensagens e o board discordarão sobre o mesmo lead.
+2. **Quem encerra a instância na OPORTUNIDADE**: a etapa vem do GreenSales por sincronização. Se um executivo mover o lead direto no GreenSales, o encerramento só acontece na próxima varredura — existe uma janela em que a fila ainda pode disparar. Precisa ficar definido se o cancelamento é verificado também no momento do despacho (recomendado) ou só na sincronização.
+3. **Lead que volta de OPORTUNIDADE para ZERO/FRIO**: OPORTUNIDADE é terminal para a instância. Se a origem devolver o lead para uma etapa anterior, isso abre nova instância automaticamente ou exige ação do executivo? Hoje não há regra.
+4. **E20 durante cadência ativa**: ficou definido que "pausa". Falta dizer se a instância pausada pode ser RETOMADA depois (por exemplo, E20 expira sem resposta) ou se é encerrada de vez. Recomendo encerrar: retomar reintroduz dois relógios.
+5. **Precedência manual e reversão**: definiu-se que a edição manual vence a sincronização e é reversível. Falta definir QUEM reverte (só gestão? o próprio autor?) e se a reversão volta ao valor do GreenSales atual ou ao valor original.
+6. **Fonte do texto durante a transição da Biblioteca**: enquanto os grupos `FINALIZACAO`, `RE1` e `RE2` estiverem vazios, o motor precisa de uma regra explícita — falhar a etapa, ou cair no texto atual de `messages.ts`. Sem essa definição, a Fase 3 pode silenciar etapas.
+7. **Remarketing na jornada compartilhada**: o ambiente é isolado por telefone, e um mesmo telefone pode existir em Remarketing e no Portal. Falta definir o critério de vínculo (telefone normalizado, presumo) e se o vínculo é retroativo às campanhas já enviadas.
+8. **"Ação do Dia" como conceito único**: ligações (L2–L5), etapas assistidas de mensagem, RE0–RE3, E27 e finalização vão todos para a mesma fila do dia. Falta a regra de prioridade e de limite diário por executivo, senão a lista fica impraticável.
+9. **Definição de "tag de etapa"**: a regra NOVOS + qualquer outra tag depende de uma lista fechada de tags que contam como etapa do funil. Tags operacionais soltas (LEAD FORM TAG, campanhas) não podem transformar um lead novo em reengajamento por engano.
