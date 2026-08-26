@@ -138,7 +138,7 @@ export async function openInstance(params: {
       active: true,
       opened_reason: params.openedReason,
       state: "CADENCE_NOT_STARTED",
-      flow: params.flow ?? "MAIN",
+      flow: params.flow ?? "sem_resposta",
       executed_steps: [],
       started_at: at,
       started_by: params.startedBy ?? null,
