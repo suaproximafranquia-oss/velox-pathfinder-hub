@@ -38,6 +38,7 @@ import {
   saveRelationshipContent,
   toggleRelationshipContent,
 } from "@/lib/relationship-homologation.functions";
+import { MessageLibraryPanel } from "@/components/executive/message-library-panel";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/executivo/biblioteca")({
@@ -280,6 +281,9 @@ function BibliotecaPage() {
             {notice}
           </p>
         ) : null}
+
+        {/* Mensagens do Motor: fonte oficial versionada das cadências. */}
+        <MessageLibraryPanel />
 
         <section className={card}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
