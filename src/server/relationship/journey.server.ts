@@ -12,6 +12,7 @@
  * reconstruir histórico.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
 
 export type JourneyEntryKind =
   | "entrada"
@@ -259,6 +260,7 @@ export async function loadLeadJourney(
       origin: "motor",
       actor: row.generated_by_name ?? null,
       step: "E20",
+      layer: "relacional",
     });
     if (row.closed_at) {
       entries.push({
@@ -268,6 +270,7 @@ export async function loadLeadJourney(
         title: "E20 — ocorrência encerrada",
         subtitle: row.close_reason ?? null,
         origin: "motor",
+        layer: "relacional",
       });
     }
   }
@@ -280,6 +283,7 @@ export async function loadLeadJourney(
       title: "Acesso ao link do convite",
       subtitle: row.outcome ?? null,
       origin: "portal",
+      layer: "relacional",
     });
   }
 
@@ -294,6 +298,7 @@ export async function loadLeadJourney(
       ...(row.note ? { body: row.note } : {}),
       origin: "cadencia",
       actor: row.completed_by ?? null,
+      layer: "relacional",
     });
   }
 
@@ -306,6 +311,7 @@ export async function loadLeadJourney(
       subtitle: row.topic ?? row.executive_name ?? null,
       origin: row.origin ?? "reunioes",
       actor: row.executive_name ?? null,
+      layer: "relacional",
     });
   }
 
@@ -319,6 +325,7 @@ export async function loadLeadJourney(
         .filter(Boolean)
         .join(" · "),
       origin: "portal",
+      layer: "relacional",
     });
   }
 
@@ -356,6 +363,7 @@ export async function loadLeadJourney(
           origin: "remarketing",
           actor: row.author_name ?? null,
           simulated: Boolean(row.simulated),
+          layer: row.simulated ? "tecnico" : "relacional",
         });
       }
     }
@@ -363,6 +371,7 @@ export async function loadLeadJourney(
 
   return entries
     .filter((e) => Boolean(e.at))
+    .filter((e) => layer === "todos" || e.layer === layer)
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 }
 
@@ -397,5 +406,6 @@ export async function addLeadNote(params: {
     body: text,
     origin: "workspace",
     actor: params.actorName,
+    layer: "relacional",
   };
 }
