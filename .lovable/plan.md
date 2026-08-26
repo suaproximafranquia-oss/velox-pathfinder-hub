@@ -487,3 +487,127 @@ Situação atual do código: `E30_ENABLED = false` — nada é agendado nem envi
 - E30 → retirada como etapa fixa.
 
 Confirmado o item 2, emito o comando de implementação em quatro fases: 1) Higiene e identidade · 2) Instâncias, E20, E27 e finalização · 3) Biblioteca versionada e congelamento · 4) Jornada consolidada e Remarketing.
+
+---
+
+# Seção F — fechamento das 6 decisões pendentes (formato de decisão)
+
+Nada foi implementado, alterado ou migrado. Somente diagnóstico e recomendação.
+
+## Decisão 1 — AGENDAMENTO na fila de ligações
+
+**1. O que se decide:** se um lead na etapa AGENDAMENTO entra na fila automática de LIGAÇÕES ou apenas na cadência de MENSAGENS.
+
+**2. Como funciona hoje:** em `src/lib/crm/cadence.ts`, `ELIGIBLE_STAGE_KEYS = ["zero_contato", "frio"]`. AGENDAMENTO **já está fora** da fila de ligações. `buildCadenceQueue` recalcula a fila a cada leitura a partir do estágio atual, então mover um lead para AGENDAMENTO já faz as tentativas futuras deixarem de ser geradas, sem apagar histórico. A cadência de mensagens é do Motor de Relacionamento (`CADENCE_CONFIG.message.enabled = false` no motor legado).
+
+**3. Conflito/risco:** incluir AGENDAMENTO nas ligações geraria L2/L3/L4 automáticas concorrendo com uma reunião já marcada — insistência com quem já avançou. Manter fora cria a percepção de "lead esquecido" se ninguém acompanhar o compromisso.
+
+**4. Opções:** (a) só mensagens — estado atual; (b) mensagens + ligações; (c) mensagens + ligação única de confirmação véspera.
+
+**5. Recomendação:** **(a) só mensagens.** Zero mudança de código para o canal de ligações; o acompanhamento do compromisso pertence à agenda/reunião, não à fila de prospecção. Ligação manual continua sempre disponível.
+
+**6. Impacto:** confirma canais independentes com árbitro único de elegibilidade. Não afeta OPORTUNIDADE (que encerra ambos), nem a regra de preferência de calendário `preferNonCollidingCallDate`.
+
+## Decisão 2 — Segunda E20 com ocorrência ativa
+
+**1. O que se decide:** o que acontece ao gerar uma nova E20 enquanto a anterior ainda está dentro dos 7 dias.
+
+**2. Como funciona hoje:** não existe ocorrência E20 no banco. Links são emitidos por `src/server/portal-token.server.ts` com TTL global, sem vínculo a uma instância, sem `expires_at` por emissão e sem revogação. Qualquer geração hoje simplesmente cria mais um link válido.
+
+**3. Conflito/risco:** dois links ativos = dois relógios de 7 dias = duas finalizações concorrentes e ambiguidade sobre qual ocorrência a E27 acompanha.
+
+**4. Opções:**
+
+| Opção | Comportamento | Risco |
+| --- | --- | --- |
+| a — substituir/cancelar e criar nova | A anterior é encerrada com motivo, data e link revogado; nasce nova ocorrência | Nenhum, desde que a anterior fique legível no histórico (não é exclusão) |
+| b — impedir enquanto ativa | Nenhuma nova E20 por até 7 dias | Executivo travado se o lead perder o link ou trocar de número; exige botão "encerrar ocorrência" para destravar |
+| c — duas simultâneas | Dois links, dois prazos | Descartada: quebra E27 e finalização |
+
+**5. Recomendação:** **(a) encerrar a anterior e criar nova**, com status `encerrada_por_nova`, `expires_at` truncado no encerramento e token antigo invalidado na validação da ocorrência (não só da assinatura). É funcionalmente igual a (b) + botão de encerrar, em uma única ação.
+
+**6. Impacto:** preserva as duas invariantes já confirmadas — **uma E20 ativa por vez** e **histórico imutável**. Observação: a rodada anterior havia registrado (b) como "incorporado"; **(a) substitui essa decisão** caso você aprove.
+
+## Decisão 3 — RE0–RE3 automático ou assistido
+
+**1. O que se decide:** se o reengajamento (NOVOS + qualquer outra tag de etapa) dispara sozinho ou entra na Ação do Dia.
+
+**2. Como funciona hoje:** o fluxo `reentrada` existe em `src/lib/relationship/entry.ts` com RE0–RE3, mas os grupos de conteúdo `RE1` e `RE2` estão vazios; hoje só E0 é automática.
+
+**3. Conflito/risco:** o lead de reengajamento tem histórico (pode já ter recusado, ter tido reunião, ter conversado com um executivo). Envio automático arrisca reabordagem indevida e contradiz o histórico visível ao executivo.
+
+**4. Opções:** (a) automático como E0; (b) assistido na Ação do Dia; (c) híbrido — RE0 automático, RE1–RE3 assistido.
+
+**5. Recomendação:** **(b) assistido integralmente.** O sistema identifica o reengajamento, abre a instância no fluxo `reentrada` e apresenta RE0 pronto para envio consciente. O ganho de velocidade do automático é irrelevante diante do risco reputacional.
+
+**6. Impacto:** mantém "E0 é o único primeiro contato automático" intacta. Depende da Ação do Dia (Fase 2) e do desbloqueio de conteúdo dos grupos RE1/RE2 (Fase 3) — sem versão aprovada, a etapa aparece visivelmente bloqueada em vez de enviar texto improvisado.
+
+## Decisão 4 — Lead sem executivo responsável
+
+**1. O que se decide:** comportamento do botão "Falar com o executivo" quando não há responsável ou o responsável não tem WhatsApp cadastrado.
+
+**2. Como funciona hoje:** os telefones dos executivos são literais em `src/lib/executive-auth.ts`; não há coluna de WhatsApp em `executive_profiles`. Não existe hoje regra de ausência.
+
+**3. Conflito/risco:** número institucional genérico quebra a promessa de falar com o responsável; bloquear o envio inteiro deixa o lead sem qualquer resposta — pior que uma orientação sem botão.
+
+**4. Opções:** (a) ocultar o botão; (b) número institucional configurável; (c) bloquear o envio; (d) ocultar + registrar pendência administrativa.
+
+**5. Recomendação:** **(d).** O botão só é renderizado com responsável **e** WhatsApp cadastrado no perfil. Faltando qualquer um, a mensagem segue apenas com o texto de orientação, e a ausência vira **pendência de configuração** visível para a gestão (lead sem responsável, ou responsável sem número), para ser corrigida em vez de falhar em silêncio.
+
+**6. Impacto:** exige a coluna de WhatsApp em `executive_profiles` (Fase 1) e o fim dos números literais no código. Nenhum fallback, nenhum número inventado.
+
+## Decisão 5 — Limite da resposta automática na janela de 24h
+
+**1. O que se decide:** quantas vezes o motor responde automaticamente quando o lead escreve de novo sem clicar no botão.
+
+**2. Como funciona hoje:** `windowOpenUntil` já existe em `CadenceRecord` (24h após a última interação válida) e há evento `MESSAGE_RECEIVED`, mas não há contador de respostas automáticas por janela nem supressão por resposta humana.
+
+**3. Conflito/risco:** sem teto, cada mensagem do lead gera uma resposta — loop de robô e cara de spam. Com teto rígido demais, quem realmente quer falar fica sem retorno.
+
+**4. Opções:** (a) sempre responder; (b) uma única vez, para sempre; (c) escalonada com teto por janela e reinício por inatividade.
+
+**5. Recomendação:** **(c)**, com esta regra:
+1. Primeira resposta do lead: orientação completa + botão.
+2. Segunda ocasião (nova janela, ou nova resposta após 12h na mesma janela): orientação **curta** + botão.
+3. A partir da terceira: o motor silencia e o lead vira pendência na Ação do Dia — quem responde passa a ser gente.
+4. Nunca mais de **uma** resposta automática por janela de 24h, independente do volume de mensagens.
+5. Supressão imediata se o executivo já respondeu humanamente na janela.
+6. Reinício do contador após 30 dias sem interação.
+
+**6. Impacto:** exige contador por lead/janela no registro de cadência (Fase 2). Compatível com a regra já confirmada de "uma por janela" — apenas acrescenta o teto de duas orientações e a escalada humana.
+
+## Decisão 6 — E30
+
+**1. O que se decide:** se E30 volta como etapa oficial ou permanece fora da lógica ativa.
+
+**2. Como funciona hoje:** `E30` existe em `src/lib/relationship/types.ts` como `CadenceStep`, com `E30_ENABLED = false` — nada é agendado nem enviado.
+
+**3. Conflito/risco:** reativar E30 como "dia 30" criaria um segundo relógio concorrendo com o ciclo da E20 (link 7 dias → E27 → finalização), com risco de duas finalizações para o mesmo lead.
+
+**4. Opções:** (a) remover da lógica ativa e preservar só como literal histórico; (b) reativar como etapa fixa de calendário; (c) renomear e manter o conceito de recontato tardio.
+
+**5. Recomendação:** **(a).** O encerramento passa a ser **derivado da ocorrência E20**: geração → link de 7 dias corridos → E27 (+7 corridos, sem deslocamento) → finalização no próximo dia útil. Sem relógio próprio, sem "dia 30". O literal `E30` permanece apenas para que registros antigos continuem legíveis na jornada. Recontato tardio, se um dia for desejado, nasce como nova ocorrência E20 — não como etapa fixa.
+
+**6. Impacto:** nenhuma mudança de comportamento (já está desligada). Confirma finalização vinculada à ocorrência, não à coluna, e nova E20 após finalização criando nova instância.
+
+## Tabela consolidada
+
+| DECISÃO | RECOMENDAÇÃO | IMPACTO | DEPENDÊNCIAS |
+| --- | --- | --- | --- |
+| 1. AGENDAMENTO | Somente mensagens; fora da fila de ligações | Nenhuma mudança de código no canal de ligações | Regra OPORTUNIDADE terminal; árbitro único de elegibilidade |
+| 2. Segunda E20 | Encerrar a anterior (`encerrada_por_nova`) e criar nova ocorrência | Uma E20 ativa por vez, histórico intacto, token antigo revogado | Substitui a decisão anterior "impedir"; depende de ocorrências E20 e TTL por emissão (Fase 2) |
+| 3. Reengajamento | RE0–RE3 assistido na Ação do Dia | E0 segue como único automático | Ação do Dia (Fase 2); conteúdo de RE1/RE2 (Fase 3) |
+| 4. Lead sem executivo | Ocultar o botão + registrar pendência de configuração | Sem fallback e sem número inventado | Coluna de WhatsApp em `executive_profiles` (Fase 1) |
+| 5. Resposta automática 24h | Máx. 1 por janela, 2 orientações no total, depois escalada humana; reinício após 30 dias | Elimina loop sem silenciar quem volta meses depois | Contador por janela no registro de cadência (Fase 2); supressão por resposta humana |
+| 6. E30 | Removida da lógica ativa; literal preservado só no histórico | Comportamento inalterado (já desligada) | Ciclo E20 → E27 → finalização; nova E20 = nova instância |
+
+## Dependências diretas entre as decisões
+
+- **2 ↔ 6**: a finalização só é inequívoca porque existe uma única ocorrência E20 ativa. A decisão 6 depende da 2.
+- **3 ↔ 5**: ambas alimentam a Ação do Dia — o reengajamento assistido e a escalada da resposta automática caem na mesma fila do executivo.
+- **4 ↔ 5**: a resposta automática só inclui botão quando a decisão 4 permite; sem responsável, ela sai apenas com o texto de orientação.
+- **1** é independente das demais.
+
+## Único ponto que precisa da sua confirmação
+
+A decisão 2 muda de "impedir" (registrado na rodada anterior) para "encerrar e criar nova". Confirmando isso, a arquitetura fica fechada e emito a implementação em quatro fases: 1) Higiene e identidade · 2) Instâncias, E20, E27 e finalização · 3) Biblioteca versionada e congelamento · 4) Jornada consolidada e Remarketing.
