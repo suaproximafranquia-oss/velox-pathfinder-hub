@@ -12,6 +12,7 @@
  *  - OPORTUNIDADE é terminal: nenhuma instância nova nasce depois dela.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isTerminalStage } from "@/lib/relationship/closing";
 import type { EngineScope } from "@/lib/relationship/types";
 
 export type InstanceRow = {
@@ -108,13 +109,22 @@ export async function openInstance(params: {
   closeReason?: string;
   flow?: string;
   startedBy?: string | null;
+  /** Etapa atual do lead no quadro — decide a trava terminal. */
+  stageKey?: string | null;
   scope?: EngineScope;
 }): Promise<OpenInstanceResult> {
   const scope = params.scope ?? "production";
   const current = await activeInstance(params.leadId, scope);
 
-  // OPORTUNIDADE é o limite absoluto da jornada automática.
-  if (current && current.state === "COMPLETED") {
+  // OPORTUNIDADE é o limite absoluto: nenhuma instância nova nasce
+  // depois dela. A etapa vem do quadro, não do estado interno.
+  const { data: leadRow } = await supabaseAdmin
+    .from("portal_leads")
+    .select("commercial_state")
+    .eq("id", params.leadId)
+    .maybeSingle();
+  const stage = params.stageKey ?? (leadRow as Record<string, any> | null)?.["commercial_state"];
+  if (isTerminalStage(stage)) {
     return {
       opened: false,
       reason:
