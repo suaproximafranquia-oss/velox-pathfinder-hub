@@ -425,9 +425,13 @@ export async function upsertLead(input: UpsertInput): Promise<UpsertOutcome> {
     });
   } else if (changed && !newEntry) {
     await recordEvent(lead.id, "lead_atualizado", "Dados atualizados pela origem externa.");
-  } else if (!changed) {
-    await recordEvent(lead.id, "lead_sincronizado", "Lead reconhecido — sem alterações.");
   }
+  /**
+   * HIGIENE DO HISTÓRICO: sincronização SEM alteração não é uma ação e
+   * não gera evento. O estado técnico (`last_synced_at`, `sync_status`)
+   * já foi atualizado acima. Os eventos antigos permanecem intactos.
+   */
+
   return { lead, created: false, changed, newEntry, stageChanged, enteredEntryStage, deduplicated: false };
 }
 
