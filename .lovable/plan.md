@@ -319,3 +319,86 @@ Nada implementado. Todos os pontos abaixo já estão incorporados às rodadas an
 A ordem das fases permanece: 1) Higiene e identidade · 2) Instâncias, E20, E27 e finalização · 3) Biblioteca versionada e congelamento · 4) Jornada consolidada e Remarketing.
 
 **Arquitetura fechada para implementação**, pendente apenas do trecho final do item 14.
+
+---
+
+# Sexta rodada — relação entre o motor de MENSAGENS e o motor de LIGAÇÕES
+
+Somente análise. Nada foi alterado em código, banco, migrations, dados ou interface.
+
+## Fato técnico que governa todas as respostas
+
+A fila de ligações **não é persistida como agenda**: `buildCadenceQueue` em `src/server/crm/cadence.server.ts` recalcula a fila a cada leitura, partindo do estágio atual do lead (`.in("stage_key", ELIGIBLE_STAGE_KEYS)`) somado ao histórico real de execução em `crm_cadence_tasks`. Ou seja:
+
+- não existe "tarefa de ligação agendada" no banco — só existe **conclusão** de tentativa;
+- quando o lead sai das etapas elegíveis, a tentativa pendente **desaparece da fila sozinha**, sem precisar de cancelamento;
+- o histórico de tentativas já realizadas permanece intacto para sempre.
+
+Já o motor de mensagens **é persistido**: `relationship_queue` guarda itens `PENDING` com `due_at`. Esse é o motor que precisa de cancelamento explícito.
+
+Consequência prática: "cancelar ligações pendentes" é uma consequência automática da regra de elegibilidade; "cancelar mensagens pendentes" exige ação no banco.
+
+## 1. AGENDAMENTO participa da fila de ligações?
+
+**Não.** A partir de AGENDAMENTO a cadência automática é exclusivamente de relacionamento/mensagens.
+
+Motivo: a fila de ligações existe para o lead que **não foi alcançado** (ZERO CONTATO, FRIO) — é uma sequência de insistência. Em AGENDAMENTO já existe compromisso marcado; a ligação relevante é a da reunião, conduzida pelo executivo, não uma L2/L3/L4 gerada por calendário. Manter AGENDAMENTO fora de `ELIGIBLE_STAGE_KEYS` também significa que, ao mover o lead de FRIO para AGENDAMENTO, qualquer tentativa pendente simplesmente sai da fila — sem apagar histórico.
+
+Isso não impede o executivo de ligar; impede apenas a **geração automática** de tentativas.
+
+## 2. Os dois motores podem coexistir?
+
+**Sim, coexistem por canal — e essa é a arquitetura correta.** Não se deve impedir sobreposição por princípio; deve-se impedir **colisão de calendário**.
+
+- Cada motor é dono do seu canal e do seu relógio: ligações em `crm_cadence_tasks`, mensagens em `relationship_queue`.
+- Já existe um mecanismo de convivência: `buildCadenceQueue` lê as mensagens previstas e passa as datas para `preferNonCollidingCallDate`, que **prefere** outro dia para a ligação quando há mensagem prevista no mesmo dia. A preferência nunca altera a cadência de mensagens — a hierarquia é explícita: mensagem manda, ligação se ajusta.
+- Como AGENDAMENTO fica fora da fila de ligações (item 1), no caso concreto de AGENDAMENTO não haverá sobreposição alguma: só mensagens.
+
+## 3. E20 pausa só mensagens ou tudo?
+
+**Pausa/encerra a cadência de MENSAGENS; não precisa mexer nas ligações.**
+
+Razão: a E20 é um evento do canal de mensagens — o executivo enviou material e abriu um relógio de 7 dias. A fila de ligações continua sendo governada pela etapa do lead:
+
+- se o lead está em ZERO CONTATO ou FRIO, tentativas ainda não realizadas continuam válidas e úteis (a ligação é justamente a tentativa de alcançar quem não responde);
+- se o lead está em AGENDAMENTO, não há fila de ligações a considerar.
+
+Recomendação operacional: enquanto a ocorrência E20 estiver ativa, a ligação do dia continua aparecendo, mas com o contexto visível ("material enviado em DD/MM, vence em DD/MM"), para o executivo não ligar às cegas. Nada além de contexto — nenhuma regra nova entre motores.
+
+## 4. OPORTUNIDADE encerra os dois canais?
+
+**Confirmado.** Ao entrar em OPORTUNIDADE:
+
+- a instância de cadência de mensagens é encerrada e os itens `PENDING` de `relationship_queue` são cancelados explicitamente;
+- as tentativas de ligação deixam de ser geradas automaticamente — como a fila é recalculada por estágio, o lead simplesmente sai dela;
+- a ocorrência E20 ativa, se houver, é encerrada e a finalização não aparece;
+- todo acompanhamento posterior é manual.
+
+Histórico de ligações e mensagens já executadas permanece integralmente preservado.
+
+## 5. Arquitetura recomendada para evitar ações conflitantes
+
+Quatro regras, todas alinhadas ao que já existe:
+
+1. **Um dono por canal.** `relationship/` decide mensagens; `cadence.ts` decide ligações. Nenhum dos dois escreve no estado do outro.
+2. **Um árbitro único de elegibilidade.** Uma função central responde "este lead está em cadência?" e "em qual etapa/instância?". Mensagens e ligações consultam esse árbitro; ninguém reimplementa a regra. É onde OPORTUNIDADE, instância ativa e reengajamento são decididos uma única vez.
+3. **Hierarquia explícita no calendário.** Mensagem tem prioridade; ligação usa `preferNonCollidingCallDate` para não cair no mesmo dia. Nunca o inverso.
+4. **Verificação no momento do despacho.** Como a etapa vem por sincronização, o motor de mensagens confere o estágio atual antes de disparar, não só na varredura — fecha a janela em que uma mensagem sairia depois de o lead já ter virado OPORTUNIDADE.
+
+Uma quinta camada, de apresentação: a **Ação do Dia** é a fila única que o executivo vê, reunindo ligações e etapas assistidas de mensagem em uma lista priorizada — os motores continuam separados por trás, mas a operação enxerga uma agenda só.
+
+## 6. Cenários práticos
+
+**a) FRIO + cadência de mensagens ativa + ligação pendente**
+Coexistem. A mensagem prevista mantém sua data; a ligação, se cairia no mesmo dia, é deslocada pela preferência de calendário. Os dois aparecem na Ação do Dia, com a mensagem primeiro.
+
+**b) AGENDAMENTO + cadência de mensagens + ligação pendente**
+Ao entrar em AGENDAMENTO, o lead sai da fila de ligações (não é etapa elegível) e a tentativa pendente deixa de ser gerada — sem apagar tentativas já concluídas. A cadência de mensagens continua normalmente. Resultado: só mensagens.
+
+**c) E20 gerada enquanto existe ligação pendente**
+A instância de mensagens em curso é encerrada e a nova ocorrência E20 assume, com relógio de 7 dias corridos. A ligação pendente (se o lead estiver em ZERO/FRIO) permanece na fila, agora exibindo o contexto do material enviado. Em AGENDAMENTO, não há ligação a considerar.
+
+**d) Lead movido para OPORTUNIDADE com mensagens e ligações pendentes**
+As mensagens `PENDING` são canceladas e a instância é encerrada com motivo registrado; a ligação pendente desaparece da fila pela regra de elegibilidade; a finalização da E20, se estava programada, não aparece. O card passa a acompanhamento manual, com todo o histórico anterior visível na jornada.
+
+Nenhuma dessas respostas altera as decisões anteriores (H, I, J, K, L e as rodadas 2 a 5). **Arquitetura fechada para implementação**, aguardando sua próxima pergunta.
