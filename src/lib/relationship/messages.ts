@@ -407,6 +407,19 @@ export type RenderResult =
   | { ok: false; reason: string };
 
 /**
+ * Especificação mínima para renderizar QUALQUER mensagem do motor —
+ * venha ela do texto fixo do projeto ou da versão ativa da Biblioteca.
+ * A Biblioteca é a fonte oficial; este renderizador é a única régua.
+ */
+export type MessageSpec = {
+  step: string;
+  text: string;
+  usesInvestorName: boolean;
+  button: "portal" | "content" | null;
+  contentGroup: string | null;
+};
+
+/**
  * Renderiza a mensagem de homologação. Nenhum texto sai com variável
  * pendente: se faltar valor obrigatório, a mensagem NÃO é produzida.
  */
@@ -417,8 +430,16 @@ export function renderHomologationMessage(
   // Visão parcial: a E30 (integrada, porém sem texto oficial) não
   // consta no mapa e cai no bloqueio legível abaixo.
   const lookup: Partial<Record<CadenceStep, HomologationMessage>> = HOMOLOGATION_MESSAGES;
-  const message = lookup[step];
-  if (!message) return { ok: false, reason: `Etapa ${step} sem mensagem de homologação.` };
+  const found = lookup[step];
+  if (!found) return { ok: false, reason: `Etapa ${step} sem mensagem de homologação.` };
+  return renderMessageSpec(found, input);
+}
+
+/** Renderiza a partir de uma especificação (Biblioteca ou texto fixo). */
+export function renderMessageSpec(spec: MessageSpec, input: RenderInput): RenderResult {
+  const step = spec.step;
+  const message = spec;
+
 
   const executive = (input.executiveName ?? "").trim();
   const portal = (input.portalLink ?? "").trim();

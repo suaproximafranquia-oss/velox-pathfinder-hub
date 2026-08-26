@@ -15,6 +15,10 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { openInstance } from "./instances.server";
+import {
+  renderFromLibrary,
+  recordMessageSnapshot,
+} from "./message-library.server";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -81,7 +85,15 @@ export async function listE20Occurrences(leadId: string): Promise<E20Occurrence[
 
 export type IssueE20Result =
   | { issued: false; reason: string }
-  | { issued: true; occurrence: E20Occurrence; replaced: E20Occurrence | null };
+  | {
+      issued: true;
+      occurrence: E20Occurrence;
+      replaced: E20Occurrence | null;
+      /** Texto oficial da E20 (versão ativa da Biblioteca) já renderizado. */
+      message: { body: string; version: number | null } | null;
+      /** Motivo legível quando a Biblioteca ainda não tem texto ativo. */
+      messageBlockedReason: string | null;
+    };
 
 export async function issueE20(params: {
   leadId: string;
@@ -140,7 +152,60 @@ export async function issueE20(params: {
     .single();
   if (error) throw new Error(error.message);
 
-  return { issued: true, occurrence: toOccurrence(data as Record<string, any>), replaced };
+  const occurrence = toOccurrence(data as Record<string, any>);
+
+  /**
+   * A mensagem da E20 vem da BIBLIOTECA (versão ativa) — nunca de texto
+   * fixo no código — e o que sair é congelado como snapshot vinculado a
+   * esta ocorrência. Alterar a Biblioteca depois não muda o histórico.
+   */
+  const { data: leadRow } = await supabaseAdmin
+    .from("portal_leads")
+    .select("name")
+    .eq("id", params.leadId)
+    .maybeSingle();
+  const { result, message: libraryMessage } = await renderFromLibrary("E20", {
+    executiveName: params.generatedByName,
+    portalLink: linkUrl,
+    rawInvestorName: leadRow?.name ?? null,
+  });
+
+  if (!result.ok) {
+    return {
+      issued: true,
+      occurrence,
+      replaced,
+      message: null,
+      messageBlockedReason: result.reason,
+    };
+  }
+
+  const body = result.button ? `${result.body}\n\n${result.button.url}` : result.body;
+  await recordMessageSnapshot({
+    leadId: params.leadId,
+    step: "E20",
+    renderedBody: body,
+    templateBody: libraryMessage?.body ?? body,
+    libraryId: libraryMessage?.id ?? null,
+    libraryVersion: libraryMessage?.version ?? null,
+    libraryCode: libraryMessage?.code ?? null,
+    investorNameUsed: result.treatment,
+    actorId: params.generatedBy ?? null,
+    actorName: params.generatedByName,
+    origin: "executivo",
+    instanceSeq: instance.instanceSeq,
+    occurrenceId: occurrence.id,
+    contentUrl: linkUrl,
+    sentAt: at,
+  });
+
+  return {
+    issued: true,
+    occurrence,
+    replaced,
+    message: { body, version: libraryMessage?.version ?? null },
+    messageBlockedReason: null,
+  };
 }
 
 export type E20Redemption =

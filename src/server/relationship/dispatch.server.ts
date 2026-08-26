@@ -19,7 +19,10 @@
  *     entregue e o motor mantém a tarefa para nova tentativa.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { renderHomologationMessage } from "@/lib/relationship/messages";
+import {
+  renderFromLibrary,
+  recordMessageSnapshot,
+} from "./message-library.server";
 import type { CadenceStep } from "@/lib/relationship/types";
 import type { DispatchRequest, DispatchResult, EngineDispatcher } from "@/lib/relationship/ports";
 import { E0_SIMULATION_ENABLED, E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
@@ -85,17 +88,28 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     return { delivered: false, error: "Destinatário sem telefone real — etapa não enviada." };
   }
 
-  const rendered = renderHomologationMessage(step, {
+  /**
+   * BLOCO 2: o texto vem da VERSÃO ATIVA da Biblioteca (fonte oficial).
+   * A versão 1 da Biblioteca é semeada com o texto já validado do
+   * projeto, então nada muda no conteúdo — muda a fonte, que agora é
+   * editável e versionada sem tocar no código.
+   */
+  const renderInput = {
     executiveName: recipient.executiveName,
     portalLink: recipient.portalLink,
     rawInvestorName: recipient.name,
     contentName: request.contentName ?? null,
     contentUrl: request.contentUrl ?? null,
-  });
+  };
+  const { result: rendered, message: libraryMessage } = await renderFromLibrary(
+    step,
+    renderInput,
+  );
   if (!rendered.ok) {
     await log("envio_bloqueado", { leadId: request.leadId, step, motivo: rendered.reason });
     return { delivered: false, error: rendered.reason };
   }
+
 
   /**
    * AMBIENTE ANTES DE CREDENCIAL (regra do projeto). Um lead marcado
@@ -128,6 +142,29 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     }
     return { delivered: false, error: insertError.message };
   }
+
+  /**
+   * SNAPSHOT IMUTÁVEL: congela o que saiu AGORA (template + texto
+   * renderizado + versão). Uma edição futura da Biblioteca não altera
+   * esta linha do histórico.
+   */
+  await recordMessageSnapshot({
+    leadId: request.leadId,
+    step,
+    renderedBody: body,
+    templateBody: libraryMessage?.body ?? body,
+    libraryId: libraryMessage?.id ?? null,
+    libraryVersion: libraryMessage?.version ?? null,
+    libraryCode: libraryMessage?.code ?? null,
+    investorNameUsed: rendered.treatment,
+    actorName: "Motor de Relacionamento",
+    origin: "motor",
+    messageId,
+    contentId: request.contentId ?? null,
+    contentUrl: request.contentUrl ?? null,
+    simulated,
+    sentAt: at,
+  });
 
   const delivery = simulated
     ? { delivered: false as const, provider: "simulador", error: undefined as string | undefined }
