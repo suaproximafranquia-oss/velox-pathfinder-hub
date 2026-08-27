@@ -1303,6 +1303,9 @@ export type Database = {
           external_source: string | null
           external_updated_at: string | null
           id: string
+          identity_alternates: Json
+          identity_conflict: Json | null
+          identity_key: string | null
           is_private: boolean
           is_test: boolean
           journey: Json
@@ -1359,6 +1362,9 @@ export type Database = {
           external_source?: string | null
           external_updated_at?: string | null
           id: string
+          identity_alternates?: Json
+          identity_conflict?: Json | null
+          identity_key?: string | null
           is_private?: boolean
           is_test?: boolean
           journey?: Json
@@ -1415,6 +1421,9 @@ export type Database = {
           external_source?: string | null
           external_updated_at?: string | null
           id?: string
+          identity_alternates?: Json
+          identity_conflict?: Json | null
+          identity_key?: string | null
           is_private?: boolean
           is_test?: boolean
           journey?: Json
@@ -2854,6 +2863,25 @@ export type Database = {
         Returns: boolean
       }
       is_portal_member: { Args: never; Returns: boolean }
+      portal_email_key: { Args: { _email: string }; Returns: string }
+      portal_phone_key: { Args: { _phone: string }; Returns: string }
+      resolve_portal_identity: {
+        Args: {
+          _campaign?: string
+          _city?: string
+          _device?: string
+          _email: string
+          _executive_id?: string
+          _executive_slug?: string
+          _material?: string
+          _name: string
+          _origin?: string
+          _personalized?: boolean
+          _phone: string
+          _scope?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
