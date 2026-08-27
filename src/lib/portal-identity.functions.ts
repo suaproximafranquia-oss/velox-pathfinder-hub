@@ -188,3 +188,39 @@ export const listIdentityConflicts = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
+/**
+ * PRECEDÊNCIA DA CORREÇÃO MANUAL (§6).
+ *
+ * A estrutura existente `manual_overrides` continua sendo a ÚNICA fonte
+ * de precedência. Quando o executivo corrige nome, e-mail, telefone ou
+ * cidade, o campo é marcado aqui e o Portal deixa de sobrescrevê-lo.
+ */
+export const markManualOverrides = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string; fields: string[]; actor?: string | null }) => data)
+  .handler(async ({ data, context }) => {
+    const allowed = ["name", "email", "whatsapp", "city"];
+    const fields = data.fields.filter((field) => allowed.includes(field));
+    if (fields.length === 0) return { ok: true as const, fields: [] as string[] };
+
+    const { data: row, error: readError } = await context.supabase
+      .from("portal_leads")
+      .select("manual_overrides")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+
+    const current = ((row?.manual_overrides ?? {}) as Record<string, unknown>) ?? {};
+    const at = new Date().toISOString();
+    const next = { ...current };
+    for (const field of fields) {
+      next[field] = { locked: true, at, by: data.actor ?? context.userId };
+    }
+    const { error } = await context.supabase
+      .from("portal_leads")
+      .update({ manual_overrides: next as never })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const, fields };
+  });
