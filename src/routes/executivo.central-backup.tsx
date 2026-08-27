@@ -276,6 +276,65 @@ function BackupCenterPage() {
           </dl>
         </section>
 
+        {/* Fila automática — leitura */}
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
+          <h2 className="text-lg font-semibold">Execuções Automáticas por Hora</h2>
+          <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
+            Cada hora cheia gera uma solicitação. Uma chamada interrompida não
+            perde a hora: a solicitação permanece na fila e é retomada no ciclo
+            seguinte.
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
+                <tr>
+                  <th className="py-2">Hora de referência</th>
+                  <th className="py-2">Situação</th>
+                  <th className="py-2">Tentativas</th>
+                  <th className="py-2">Concluída em</th>
+                  <th className="py-2">Último erro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {queue.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-3 text-[color:var(--muted-foreground)]">
+                      {loading ? "Carregando fila…" : "Nenhuma solicitação registrada ainda."}
+                    </td>
+                  </tr>
+                ) : (
+                  queue.map((item) => (
+                    <tr key={item.id} className="border-t border-[color:var(--border)]/60">
+                      <td className="py-2">{formatMoment(item.referenceHour)}</td>
+                      <td className="py-2">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs",
+                            item.status === "concluido"
+                              ? "bg-emerald-500/10 text-emerald-300"
+                              : item.status === "falha"
+                                ? "bg-red-500/10 text-red-300"
+                                : "bg-[color:var(--accent)] text-[color:var(--muted-foreground)]",
+                          )}
+                        >
+                          {QUEUE_STATUS_LABEL[item.status] ?? item.status}
+                        </span>
+                      </td>
+                      <td className="py-2">{item.attempts}</td>
+                      <td className="py-2">
+                        {item.completedAt ? formatMoment(item.completedAt) : "—"}
+                      </td>
+                      <td className="py-2 text-[color:var(--muted-foreground)]">
+                        {item.lastError ?? "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         {/* Histórico de pontos de restauração */}
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
           <h2 className="text-lg font-semibold">Histórico de Pontos de Restauração</h2>
@@ -290,6 +349,7 @@ function BackupCenterPage() {
             onRestore={setPending}
           />
         </section>
+
 
         {/* Backup de Conversas */}
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
