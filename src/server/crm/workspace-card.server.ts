@@ -67,7 +67,12 @@ export async function ensureWorkspaceCard(
     campaign: input.campaign ?? null,
     device: null,
     created_at: input.externalCreatedAt ?? now,
-    last_activity_at: input.externalUpdatedAt ?? input.externalCreatedAt ?? now,
+    /**
+     * ATIVIDADE É DO INVESTIDOR — edições feitas pela equipe no GreenSales
+     * (refletidas em `external_updated_at`) NÃO são atividade e não podem
+     * reclassificar o lead como "Novo". Só a entrada real conta.
+     */
+    last_activity_at: input.externalCreatedAt ?? now,
     journey: {} as never,
     external_source: "greensales",
     external_id: input.externalId,

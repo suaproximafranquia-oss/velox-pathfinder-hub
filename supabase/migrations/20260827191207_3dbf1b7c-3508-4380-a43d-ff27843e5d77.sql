@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.set_lead_operational(text, timestamptz, timestamptz, text, boolean, boolean, boolean) FROM anon;

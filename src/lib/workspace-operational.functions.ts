@@ -51,8 +51,64 @@ export const updateWorkspaceOperational = createServerFn({ method: "POST" })
       last_inbound_at: data.lastInboundAt,
       conversation_window_opened_at: data.conversationWindowOpenedAt,
     };
-    if (Object.values(patch).every((value) => value === undefined)) return { ok: true as const };
-    const { error } = await context.supabase.from("portal_leads").update(patch).eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
+    if (Object.values(patch).every((value) => value === undefined)) {
+      return { ok: true as const, updated: 0 };
+    }
+
+    /**
+     * CAMPOS OPERACIONAIS (visualizado / encerrado / anotação).
+     *
+     * A política de UPDATE de `portal_leads` continua exatamente como
+     * está: a Gestora não pode alterar identidade, proprietário, escopo
+     * ou dados comerciais. Para os TRÊS campos operacionais usamos uma
+     * função dedicada no banco, que autoriza administrador, executivo
+     * responsável e Gestora — apenas nos leads que ela já enxerga — e
+     * grava somente esses campos. Antes, o UPDATE bloqueado atingia 0
+     * linhas SEM erro e o Workspace exibia um estado que não existia.
+     */
+    const operationalOnly =
+      patch.viewed_at !== undefined ||
+      patch.closed_at !== undefined ||
+      patch.notes !== undefined;
+    const otherFields = Object.entries(patch).filter(
+      ([key, value]) =>
+        value !== undefined && !["viewed_at", "closed_at", "notes"].includes(key),
+    );
+
+    let updated = 0;
+
+    if (operationalOnly) {
+      const { data: affected, error: rpcError } = await context.supabase.rpc(
+        "set_lead_operational",
+        {
+          _id: data.id,
+          _viewed_at: patch.viewed_at ?? null,
+          _closed_at: patch.closed_at ?? null,
+          _notes: patch.notes ?? null,
+          _set_viewed: patch.viewed_at !== undefined,
+          _set_closed: patch.closed_at !== undefined,
+          _set_notes: patch.notes !== undefined,
+        } as never,
+      );
+      if (rpcError) throw new Error(rpcError.message);
+      updated = Number(affected ?? 0);
+      if (updated === 0) {
+        throw new Error("Lead não encontrado ou sem permissão para esta operação.");
+      }
+    }
+
+    if (otherFields.length > 0) {
+      const rest = Object.fromEntries(otherFields) as Record<string, never>;
+      const { count, error } = await context.supabase
+        .from("portal_leads")
+        .update(rest, { count: "exact" })
+        .eq("id", data.id);
+      if (error) throw new Error(error.message);
+      if (!count) {
+        throw new Error("Alteração não autorizada para este lead.");
+      }
+      updated = Math.max(updated, count);
+    }
+
+    return { ok: true as const, updated };
   });

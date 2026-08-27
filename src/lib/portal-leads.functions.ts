@@ -149,7 +149,9 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         .from("portal_leads")
         .update({
           ...guarded,
-          last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
+          // Atividade só avança com atividade REAL informada pelo navegador
+          // do investidor; nunca `now()` por sincronização.
+          ...(data.lastActivityAt ? { last_activity_at: data.lastActivityAt } : {}),
         })
         .eq("id", targetId);
       if (dedupeError) throw new Error(dedupeError.message);
@@ -179,7 +181,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         .from("portal_leads")
         .update({
           ...guarded,
-          last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
+          ...(data.lastActivityAt ? { last_activity_at: data.lastActivityAt } : {}),
         })
         .eq("id", targetId);
       if (keepError) throw new Error(keepError.message);
@@ -308,7 +310,7 @@ export const redistributePortalLead = createServerFn({ method: "POST" })
         personalized: false,
         responsible_executive_id: data.executiveId,
         responsible_executive_slug: null,
-        last_activity_at: new Date().toISOString(),
+        // Ação ADMINISTRATIVA: nunca grava atividade do investidor.
       })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -332,7 +334,7 @@ export const assignPortalLeadOwner = createServerFn({ method: "POST" })
       .from("portal_leads")
       .update({
         responsible_executive_id: data.executiveId,
-        last_activity_at: new Date().toISOString(),
+        // Ação ADMINISTRATIVA: nunca grava atividade do investidor.
       })
       .eq("id", data.id);
     if (error) throw new Error(error.message);

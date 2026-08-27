@@ -48,11 +48,46 @@ function entryFor(leadId: string) {
   return loadLeads().find((lead) => lead.id === leadId);
 }
 
-function persist(leadId: string, patch: { viewedAt?: string | null; closedAt?: string | null }) {
+/**
+ * PERSISTÊNCIA CONFIRMADA — nunca mais otimista nem silenciosa.
+ *
+ * O cache local só é atualizado DEPOIS que o servidor confirma a
+ * gravação. Se a gravação falhar (erro ou nenhuma linha afetada), o
+ * estado anterior é mantido, o cache é revertido e o executivo é
+ * avisado — antes, o Workspace mostrava "em andamento" e o lead voltava
+ * para "Novo" na próxima sincronização.
+ */
+function persist(
+  leadId: string,
+  patch: { viewedAt?: string | null; closedAt?: string | null },
+): Promise<boolean> {
+  const previous = entryFor(leadId);
+  const rollback: { viewedAt?: string | null; closedAt?: string | null } = {};
+  if (patch.viewedAt !== undefined) rollback.viewedAt = previous?.viewedAt ?? null;
+  if (patch.closedAt !== undefined) rollback.closedAt = previous?.closedAt ?? null;
+
   patchCachedLead(leadId, patch);
-  void updateWorkspaceOperational({ data: { id: leadId, ...patch } })
-    .then(() => notifySync("status"))
-    .catch(() => undefined);
+  return updateWorkspaceOperational({ data: { id: leadId, ...patch } })
+    .then((result) => {
+      const updated = (result as { updated?: number } | undefined)?.updated ?? 0;
+      if (!updated) throw new Error("Nenhum registro atualizado.");
+      notifySync("status");
+      return true;
+    })
+    .catch((error: unknown) => {
+      patchCachedLead(leadId, rollback);
+      notifySync("status");
+      const message =
+        error instanceof Error ? error.message : "Falha ao registrar a operação.";
+      void import("sonner")
+        .then(({ toast }) =>
+          toast.error("Não foi possível registrar esta operação no servidor.", {
+            description: message,
+          }),
+        )
+        .catch(() => undefined);
+      return false;
+    });
 }
 
 export type LeadStateSubject = { id: string; lastActivity?: string };
@@ -72,35 +107,41 @@ export function resolveLeadState(subject: LeadStateSubject): LeadState {
 export function markLeadViewed(leadId: string, actorId?: string | null): void {
   const entry = entryFor(leadId);
   if (entry?.closedAt) return;
-  persist(leadId, { viewedAt: new Date().toISOString() });
-  emitEvent({
-    type: "lead.status.changed",
-    investorId: leadId,
-    actorId: actorId ?? null,
-    payload: { to: "em_andamento" },
+  void persist(leadId, { viewedAt: new Date().toISOString() }).then((ok) => {
+    if (!ok) return;
+    emitEvent({
+      type: "lead.status.changed",
+      investorId: leadId,
+      actorId: actorId ?? null,
+      payload: { to: "em_andamento" },
+    });
   });
 }
 
 /** Encerramento manual — disponível apenas no menu de três pontos. */
 export function closeLead(leadId: string, actorId?: string | null): void {
-  persist(leadId, { closedAt: new Date().toISOString() });
-  emitEvent({
-    type: "lead.status.changed",
-    investorId: leadId,
-    actorId: actorId ?? null,
-    payload: { to: "encerrado" },
+  void persist(leadId, { closedAt: new Date().toISOString() }).then((ok) => {
+    if (!ok) return;
+    emitEvent({
+      type: "lead.status.changed",
+      investorId: leadId,
+      actorId: actorId ?? null,
+      payload: { to: "encerrado" },
+    });
   });
 }
 
 /** Reabertura manual — volta ao ciclo automático. */
 export function reopenLead(leadId: string, actorId?: string | null): void {
   const entry = entryFor(leadId);
-  persist(leadId, { closedAt: null });
-  emitEvent({
-    type: "lead.status.changed",
-    investorId: leadId,
-    actorId: actorId ?? null,
-    payload: { to: entry?.viewedAt ? "em_andamento" : "novo" },
+  void persist(leadId, { closedAt: null }).then((ok) => {
+    if (!ok) return;
+    emitEvent({
+      type: "lead.status.changed",
+      investorId: leadId,
+      actorId: actorId ?? null,
+      payload: { to: entry?.viewedAt ? "em_andamento" : "novo" },
+    });
   });
 }
 
