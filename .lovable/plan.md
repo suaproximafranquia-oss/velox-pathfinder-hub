@@ -1,56 +1,65 @@
-# Consolidação da Parte 1 — Templates, Biblioteca e Jornada × Engajamento
+# Segunda rodada de validação — diagnóstico técnico (sem implementação)
 
-Respostas às três perguntas e o que muda em cada frente. Nada do Portal dos Leads é tocado; nenhum dado é apagado.
+Nenhum código, banco, Portal dos Leads ou comportamento foi alterado. Abaixo, o que a leitura do código e a consulta ao banco mostraram.
 
-## 1. Central de Templates — confirmado
+## 1. Identificação de retorno do mesmo lead
 
-Sim: a Biblioteca de Conteúdo permanece; a Central de Templates deixa de participar da lógica normal da cadência.
+Situação real hoje, verificada em `src/lib/portal-session.ts`, `src/lib/leads.ts` e `src/server/crm/lead-service.server.ts`:
 
-Situação atual verificada: o motor já decide `requiresTemplate = !windowOpen` (`src/lib/relationship/decide.ts`), ou seja, template só é exigido quando a janela de 24h está fechada. Existe também a trava `config.requireOfficialTemplate` e o modo `virtualTemplates` usado na homologação. Portanto a regra já está correta no núcleo — o que sobra é a exigência operacional na interface.
+**A identificação no Portal do Investidor NÃO acontece no servidor.** Em `startPortalSession()` o reconhecimento é feito por duas funções locais:
 
-O que muda:
-- A Central de Templates sai do menu operacional e passa a ser uma área técnica restrita (administração), contendo apenas os templates realmente obrigatórios para reabertura de janela.
-- Nenhuma etapa de conteúdo (E1, E2, E3, E15, E22…) passa a exigir cadastro de template para poder ser enviada dentro da janela.
-- A integração técnica com a Meta (envio por template, binding, versão) permanece intacta.
-- Quando a janela estiver fechada e não houver template para aquele propósito, o motor continua bloqueando o envio e explicando o motivo — sem inventar template.
+- `findLeadByEmail()` — compara o e-mail normalizado;
+- `findLeadByPhone()` — compara só os dígitos do WhatsApp, exigindo 10+ dígitos.
 
-## 2. Biblioteca de Conteúdo — confirmado
+Ambas leem `loadLeads()`, que é `localStorage` (`velox:leads:v1`). A sessão em si também é `localStorage` (`velox:portal:session:v1`).
 
-Sim: a estrutura correta é ETAPA → mensagem → conteúdos elegíveis, e o dia de disparo fica exclusivamente na camada de cadência.
+Consequências diretas:
 
-O que muda:
-- A Biblioteca passa a ser organizada por ETAPA (E0, E1, E2, E3, E15, E22, E30 e as etapas de reengajamento/finalização já existentes), com rótulos que descrevem a finalidade, sem qualquer referência a "dia".
-- A mensagem da etapa vem da Biblioteca de Mensagens versionada (já existente); o conteúdo complementar é vinculado à etapa e pode ser nenhum, um ou vários.
-- Seleção entre conteúdos elegíveis: não repetir o que o investidor já recebeu enquanto houver alternativa; havendo um único conteúdo, ele é reutilizado normalmente. Essa regra já existe em `src/lib/relationship/content.ts` e será mantida.
-- O uso do conteúdo é registrado no próprio registro da mensagem enviada (etapa, texto congelado, conteúdo/link). Não será criada nenhuma estrutura paralela redundante só para "qual vídeo foi usado".
-- Etapa sem conteúdo é um estado válido: o motor envia a mensagem normalmente.
-- Nenhum vínculo, conteúdo ou arquivo existente é removido; apenas reorganizados e renomeados conceitualmente.
+- **Outro navegador/dispositivo:** o cache local está vazio, `existing` volta `null` e o fluxo cai em `registerLead(...)` — ou seja, **um segundo lead é criado** para a mesma pessoa. O risco não é teórico; é o comportamento atual do caminho.
+- **Nome não é usado** na identificação (só e-mail e telefone) — e isso está correto conceitualmente, nome não deve identificar.
+- Existe tratamento de conflito (`resolveIdentityMatch`): e-mail de um lead e telefone de outro marca `identityConflict` para revisão manual, sem merge automático. Essa parte está bem resolvida.
+- Existe deduplicação **no servidor**, mas apenas na entrada da sincronização GreenSales (`upsertLead` compara `phone` normalizado dentro de `external_source = 'greensales'` e registra `duplicidade_evitada`). Ela não cobre o lead nascido pelo Portal.
 
-## 3. Jornada × Engajamento — confirmado
+**Fonte de verdade:** hoje é ambígua. O banco (`crm_leads` / `portal_leads`) é a verdade para a operação do CRM; o `localStorage` é a verdade para a identificação no Portal. Só mensagens e timeline têm ponte oficial servidor↔navegador (`src/lib/crm/server-sync.ts`); o cadastro do lead não tem.
 
-Sim, como regra estrutural: ação do executivo nunca é engajamento do investidor. Só entra como atividade/engajamento aquilo produzido pelo investidor.
+Conclusão: a regra que você quer ("identidade pertence ao cadastro, não ao navegador") **ainda não existe**. Falta um resolvedor de identidade no servidor, consultado antes de criar qualquer lead pelo Portal.
 
-Situação atual verificada: `executive-contact-dialog.tsx` emite `lead.status.changed` em contexto de abertura, e `src/lib/executive-data.ts` já filtra esse evento por gambiarra de leitura ("é emitido quando o card é aberto"). Ou seja, o evento errado continua sendo produzido e apenas escondido depois.
+## 2. Eventos gerados pelo acesso ao Portal
 
-O que muda:
-- Corrigir na origem: abrir card/ficha/conversa deixa de emitir qualquer evento de alteração de lead. O sinal de "card aberto" vira presença/telemetria interna, não evento de jornada.
-- Remover o filtro corretivo em `executive-data.ts` assim que a origem parar de emitir.
-- Três camadas explícitas e separadas:
-  - Jornada do Investidor: entrada, mensagem enviada, ligação realizada/atendida/não atendida, material/apresentação/calculadora acessados, retorno, reentrada, mudança real de etapa.
-  - Engajamento: interações mensuráveis do investidor (acesso ao Portal, abertura de material, clique em link, acesso a conteúdo externo) — alimentam o indicador, sem poluir a jornada.
-  - Auditoria Técnica: sincronizações, logs, decisões do motor, simulações. Continua completa e acessível pelo alternador já existente na ficha.
-- Eventos de "atividade no portal" repetidos passam a ser agrupados por sessão/recurso na Jornada (um item legível), mantendo cada ocorrência individual na camada de engajamento/auditoria.
-- Semântica distinta preservada: MENSAGEM ENVIADA ≠ VISUALIZADA ≠ LINK CLICADO ≠ RECURSO ACESSADO.
+Comportamento atual por cenário:
 
-## Detalhes técnicos
+| Cenário | Evento gerado hoje | Camada | Jornada | Engajamento | Auditoria |
+|---|---|---|---|---|---|
+| A) Cadastro + 1º acesso | `lead_criado` (timeline) + Jornada Digital criada; `journey.module.opened` por módulo | relacional | Sim | Não separado | Sim |
+| B) Recebe E0 e acessa | `primeiro_contato` + mensagem `msg_e0_*`; depois `atividade_portal` | relacional | Sim (com dedup de `primeiro_contato` quando há E0 na mesma janela) | Não separado | Sim |
+| C) Retorno posterior | `atividade_portal` por módulo acessado, com trava de idempotência por assinatura `módulo+detalhe` | relacional | Sim — e é aqui que a jornada polui, pois cada módulo vira um item | Não separado | Sim |
+| D) Executivo abre a ficha | `lead.status.changed` emitido em `executive-contact-dialog.tsx`; `conversa_aberta` na timeline | mistura | `conversa_aberta` já é técnico; `lead.status.changed` é filtrado por leitura em `executive-data.ts` | Não | Sim |
+| E) Acessa material específico | `atividade_portal` com detalhe do módulo + alerta `atividade_portal` (só no 1º acesso a cada módulo) | relacional | Sim | Não separado | Sim |
+| F) Clica em link externo (Instagram) | **Nenhum evento** — não existe rastreamento de clique | — | Não | Não | Não |
 
-Arquivos previstos:
-- `src/routes/executivo.templates.tsx` e config de módulos — reclassificar a Central de Templates como área técnica restrita.
-- `src/lib/relationship/content.ts`, `src/routes/executivo.biblioteca.tsx` — reorganização por etapa, rótulos sem referência a dia.
-- `src/components/shared/executive-contact-dialog.tsx`, `src/lib/executive-data.ts`, `src/lib/crm/timeline.ts` — parar de emitir evento de alteração ao abrir card e remover o filtro paliativo.
-- `src/server/relationship/journey.server.ts` — agrupamento de atividades repetidas e classificação de camada.
-- `src/lib/crm/portal-activity.ts`, `src/lib/portal-session.ts` — atividade do investidor roteada para engajamento.
+Pontos que a análise confirma:
 
-Fora do escopo desta etapa: Portal dos Leads (intocável), configuração temporal da cadência, backup horário, nome manual/validação de nome — entram nos próximos blocos da consolidação.
+- **Não existe camada de Engajamento própria.** Tudo que o investidor faz vira `atividade_portal` na timeline; o indicador de engajamento lê os mesmos registros. Por isso a Jornada fica repetitiva.
+- **Não existe distinção entre primeiro acesso e retorno.** Ambos produzem o mesmo tipo de evento.
+- **Ação do executivo ainda produz evento de lead.** `lead.status.changed` continua sendo emitido ao abrir; `src/lib/executive-data.ts` apenas o descarta na leitura — correção paliativa, não na origem.
+- **Clique em link não existe tecnicamente.** Sem URL rastreável não há como registrar clique; hoje "mensagem enviada" é o último evento da cadeia.
 
-Nenhuma migration destrutiva. Nenhum dado histórico apagado.
+## 3. Backup — causa real da inconsistência
+
+Regra configurada e verificada:
+
+- `pg_cron` job `portal-backup-automatico`, schedule `0 * * * *` — **de hora em hora, corretamente configurado**.
+- O disparo é sempre por tempo. `createBackup()` **não** verifica se algo mudou: sempre insere uma linha em `portal_backups`. Por isso existem pontos de madrugada.
+- Deduplicação existe, mas **só no conteúdo**: o payload é hasheado (SHA-256) e gravado uma única vez em `portal_backup_blobs`; o ponto de restauração continua sendo criado, apontando para o blob. Isso economiza armazenamento sem perder pontos.
+- Retenção: 48 h com todos os pontos horários; de 48 h a 7 dias, apenas o último ponto de cada dia; manuais e pré-restauração nunca são apagados. **A retenção não é a causa dos buracos** — dentro de 48 h ela preserva tudo.
+- Não há política específica de madrugada, nem fila, nem retry, nem debounce, nem trava de concorrência nessa rotina.
+
+**Causa confirmada dos intervalos de 2 h:** o `cron.job_run_details` mostra **todas** as execuções horárias com status `succeeded`, inclusive nas horas sem snapshot (ex.: 27/08 às 00, 02, 04, 06, 08 e 10 UTC). Já `net._http_response` mostra, para a rota de backup, respostas com `Timeout of 5000 ms reached` — o limite padrão do `pg_net`. Ou seja: o cron dispara certo; a rota demora mais de 5 s (a captura completa gera ~6 MB), o `pg_net` corta a conexão, e em parte das execuções o trabalho é abortado antes da gravação. Quando o servidor consegue concluir mesmo assim, o snapshot aparece ~7 s após a hora cheia — o que bate com os registros existentes.
+
+Resumindo: não é bug de agendamento nem de retenção, é **tempo de execução acima do timeout da chamada HTTP disparada pelo banco**, sem retry.
+
+**Garantia atual de recuperação:** cada ponto contém um snapshot completo das tabelas do Portal mais o estado local opcional; a restauração cria antes um ponto de segurança (`pre_restauracao`, protegido). A fragilidade não é o conteúdo do ponto — é a lacuna de horas em que o ponto não chegou a ser gravado.
+
+## Nada foi alterado
+
+Portal dos Leads, dados históricos, banco, estrutura de leads, cadência, mensagens, Biblioteca de Conteúdo e templates da Meta permanecem exatamente como estavam. As correções para os três itens acima ficam para a rodada seguinte, quando você autorizar.
