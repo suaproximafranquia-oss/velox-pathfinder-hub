@@ -172,7 +172,10 @@ export function ExecutiveShell({
 
   const relationship = [
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
-      ? [{ to: "/executivo/biblioteca", label: "Biblioteca de Conteúdos", icon: LibraryBig }]
+      ? [
+          { to: "/executivo/biblioteca", label: "Biblioteca de Conteúdos", icon: LibraryBig },
+          { to: "/executivo/identidade", label: "Pendências de Identidade", icon: Fingerprint },
+        ]
       : []),
     ...(session.activeRole === "super_admin"
       ? [{ to: "/executivo/homologacao", label: "Homologação do Motor", icon: FlaskConical }]
