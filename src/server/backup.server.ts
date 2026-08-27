@@ -235,11 +235,42 @@ export async function createBackup(input: CreateBackupInput): Promise<BackupReco
       protected: input.origin !== "automatico",
       created_by: input.createdBy ?? null,
       created_by_name: input.createdByName ?? "Sistema",
-    })
+      reference_hour: input.referenceHour ?? null,
+    } as never)
     .select("id,label,kind,origin,status,size_bytes,table_counts,created_at,created_by_name")
     .single();
   if (error || !data) throw new Error(error?.message ?? "Falha ao gravar o ponto de restauração.");
   return toRecord(data as Row);
+}
+
+/**
+ * Prova de conclusão de um ponto de restauração: a linha existe, tem
+ * tamanho e o conteúdo é legível. Uma resposta HTTP bem-sucedida não
+ * substitui esta verificação.
+ */
+export async function validateBackupPersisted(
+  backupId: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("portal_backups")
+    .select("id,size_bytes,table_counts,payload_hash")
+    .eq("id", backupId)
+    .maybeSingle();
+  if (!data) return { ok: false, reason: "O ponto de restauração não foi encontrado após a gravação." };
+  const row = data as Row;
+  if (Number(row["size_bytes"] ?? 0) <= 0) {
+    return { ok: false, reason: "O ponto de restauração foi gravado sem conteúdo." };
+  }
+  const counts = (row["table_counts"] ?? {}) as Record<string, number>;
+  if (Object.keys(counts).length === 0) {
+    return { ok: false, reason: "O ponto de restauração não registrou nenhuma tabela." };
+  }
+  const payload = await readBackupPayload(backupId);
+  if (!payload || !payload.tables || Object.keys(payload.tables).length === 0) {
+    return { ok: false, reason: "O conteúdo do ponto de restauração não pôde ser lido." };
+  }
+  return { ok: true };
 }
 
 export function toRecord(row: Row): BackupRecord {
