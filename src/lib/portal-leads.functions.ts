@@ -225,13 +225,13 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       : providedActivity && (!existingActivity || providedActivity > existingActivity)
         ? providedActivity
         : existingActivity;
+    const guardedIdentity = current
+      ? await applyIdentityGuard(targetId)
+      : { name: data.name, email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
     const { error } = await supabaseAdmin.from("portal_leads").upsert(
       {
         id: targetId,
-        name: data.name,
-        email,
-        whatsapp: data.whatsapp ?? "",
-        city: data.city ?? "",
+        ...guardedIdentity,
         origin: data.origin ?? "Portal Velox",
         material: data.material ?? "",
         scope,
