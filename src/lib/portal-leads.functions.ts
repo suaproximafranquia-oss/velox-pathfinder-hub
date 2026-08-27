@@ -174,13 +174,11 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     // ETAPA 02.1 §Doc02 — um Lead redistribuído nunca é rebaixado por uma
     // sincronização posterior do Portal: escopo e proprietário permanecem.
     if (current?.scope === "redistribuicao") {
+      const guarded = await applyIdentityGuard(targetId);
       const { error: keepError } = await supabaseAdmin
         .from("portal_leads")
         .update({
-          name: data.name,
-          email,
-          whatsapp: data.whatsapp ?? "",
-          city: data.city ?? "",
+          ...guarded,
           last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
         })
         .eq("id", targetId);
