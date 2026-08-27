@@ -1,66 +1,86 @@
-# Auditoria — Leads trabalhados voltando para "NOVO"
+# Semântica definitiva do estado NOVO no Workspace
 
-Somente diagnóstico. Nada foi alterado no código, no banco ou nos dados.
+Somente análise e definição de regra. Nada foi implementado, nenhum dado ou schema alterado.
 
-## A) Origem real do "NOVO"
+## A) Regra definitiva (confirmada)
 
-"NOVO" **não existe como valor armazenado**. É uma classificação calculada em tempo de execução por `resolveLeadState()` em `src/lib/lead-state.ts`:
+A regra que você descreveu é exatamente a que o código pretende aplicar hoje (`resolveLeadState`, `src/lib/lead-state.ts` linhas 61–69), na seguinte ordem de precedência:
 
-```text
-portal_leads (banco)
-  -> listPortalLeads()            src/lib/portal-leads.functions.ts  (select *)
-  -> pullLeads() / toLocal()      src/lib/portal-leads-sync.ts       (espelha em localStorage)
-  -> loadLeads()                  src/lib/leads.ts                   (cache do navegador)
-  -> listAllInvestors()           src/lib/executive-data.ts          (calcula lastActivity)
-  -> resolveLeadState()           src/lib/lead-state.ts              -> "novo"
-  -> investor-card.tsx / investor-profile-view.tsx  (badge)
-```
+1. `closed_at` preenchido -> **ENCERRADO** (só por ação manual no menu ⋮).
+2. `viewed_at` vazio -> **NOVO** (nunca visualizado).
+3. `lastActivity > viewed_at` -> **NOVO novamente** (nova atividade real do investidor após a visualização).
+4. Caso contrário -> **EM ANDAMENTO**.
 
-Condição exata (linhas 61–69 de `lead-state.ts`):
+Portanto "NOVO" é **fila/classificação derivada**, não um status armazenado. Ajuste semântico único recomendado: item 3 deve considerar **exclusivamente atividade do investidor**; hoje entram na conta timestamps escritos por rotinas administrativas e de sincronização (ver C).
 
-1. `closedAt` preenchido -> `encerrado`;
-2. senão, **`viewedAt` ausente -> `novo`**;
-3. senão, `lastActivity > viewedAt` -> `novo`;
-4. senão -> `em_andamento`.
+## B) Deve contar como atividade do investidor
 
-## B) Campo/tabela responsável
+Escrevem `last_activity_at`/alimentam `lastActivity` e são legítimos:
 
-`public.portal_leads.viewed_at` (e `closed_at`). Não há coluna `status`. `lastActivity` é derivado em `executive-data.ts` (linhas 154–159) do maior valor entre `created_at`, `last_activity_at`, `journey_last_event_at` e eventos locais do bus (já com `lead.status.changed` filtrado — linha 111).
+| Onde | Função | Quem executa | Evento |
+|---|---|---|---|
+| `src/lib/portal-access.functions.ts:162` | `recordPortalProgress` (token assinado) | navegador do investidor | acesso ao Portal, capítulo, módulo, conclusão |
+| `src/lib/leads.ts:418-420` | criação do lead -> `pushLead({ lastActivityAt: createdAt })` | investidor | entrada/cadastro |
+| `src/lib/crm/lead-intake.ts:145` | entrada de lead pelo canal | investidor | nova entrada |
+| `src/lib/portal-leads.functions.ts:219-256` | `syncPortalLead` com `lastActivityAt` informado | investidor | retorno/reconhecimento (já protegido: nunca retrocede e só avança com atividade informada) |
+| `public.resolve_portal_identity` (banco) | reconhecimento de identidade | investidor no Portal | retorno do lead |
+| Eventos do bus em `executive-data.ts:154-159` | `journey.*`, `manual.*`, `simulator.completed`, `profile.interests.captured`, `ai.query.answered` | investidor | leitura, simulador, IA |
 
-## C) Função que grava
+Somam-se ainda respostas do investidor no WhatsApp (`last_inbound_at`), hoje **não** consideradas em `lastActivity` — deveriam contar.
 
-`markLeadViewed()` -> `persist()` -> `patchCachedLead()` (cache) + `updateWorkspaceOperational()` (`src/lib/workspace-operational.functions.ts`), que faz `context.supabase.from("portal_leads").update({ viewed_at })` **como o usuário autenticado** (RLS aplicada).
+## C) NÃO deve contar (e hoje alguns contam)
 
-## D) Momento exato do retorno
+| Onde | Função | Natureza | Situação atual |
+|---|---|---|---|
+| `src/lib/portal-leads.functions.ts:311` | `redistributePortalLead` | administrativa | **grava `last_activity_at = now()` — incorreto** |
+| `src/lib/portal-leads.functions.ts:335` | `assignPortalLeadOwner` | administrativa | **grava `last_activity_at = now()` — incorreto** |
+| `src/server/crm/workspace-card.server.ts:70` | criação do card a partir do CRM/GreenSales | sincronização | usa `externalUpdatedAt` da origem; uma edição administrativa no GreenSales reclassifica o lead como NOVO |
+| `src/lib/greensales-sync.functions.ts:135` | importação GreenSales | sincronização | usa `updated_at` externo — mesmo efeito |
+| `src/lib/portal-leads.functions.ts:152` e `:182` | ramos de deduplicação e de escopo `redistribuicao` do `syncPortalLead` | sincronização | fazem `?? now()` sem passar pela trava do ramo principal |
+| `src/lib/lead-state.ts` (`markLeadViewed`, `closeLead`, `reopenLead`) | abrir/encerrar card | administrativa | correto: escreve só `viewed_at`/`closed_at`; o evento `lead.status.changed` é emitido, mas já é filtrado em `executive-data.ts:113` e nenhum listener recalcula status a partir dele |
+| polling/realtime/refresh (`pullLeads`, `subscribeLeads`) | espelho do servidor | técnica | correto: não escreve nada |
 
-Na próxima leitura autoritativa: `pullLeads()` executa `replaceLeads(remote)` (substituição integral do cache). Se `viewed_at` não foi realmente gravado no servidor, o cache otimista é descartado e o badge volta a "NOVO" — normalmente ao reabrir o Workspace, na troca de aba, no realtime ou no polling.
+## D) Regra correta para a Gestora (decisão necessária)
 
-## E) Onde está o problema
+Hoje, política de UPDATE de `portal_leads`: apenas `admin` ou o executivo responsável. A Gestora (`manager`) **vê** o lead (SELECT permite `manager` para qualquer lead com responsável) mas **não consegue gravar** `viewed_at`/`closed_at` — o UPDATE atinge 0 linhas, sem erro, e o estado volta para NOVO no próximo refresh.
 
-Não é o banco "voltando" para novo, e não é o localStorage por si só. É **falha silenciosa de gravação por RLS**, com a interface exibindo um estado otimista que depois é revertido.
+Regra proposta: a Gestora pode gravar **somente campos operacionais** (`viewed_at`, `closed_at`, `notes`) dos leads que já enxerga, sem poder alterar identidade, proprietário, escopo ou dados comerciais. Implementação típica: função `SECURITY DEFINER` restrita a esses campos (a política de UPDATE por coluna não existe em RLS de forma direta), mantendo a política atual intacta para os demais campos.
 
-## F) Evidência técnica
+Alternativa: manter a Gestora sem escrita e, nesse caso, a interface precisa **não oferecer** a marcação de visualizado para ela, em vez de fingir sucesso.
 
-1. Política de UPDATE em `portal_leads`:
-   `has_role(auth.uid(),'admin') OR (responsible_executive_id = current_executive_id())`.
-   **A Gestora (`manager`) tem SELECT, mas NÃO tem UPDATE.** Ela enxerga o card, abre, marca como visto — e o UPDATE atinge 0 linhas.
-2. Um UPDATE bloqueado por RLS **não retorna erro**: afeta 0 linhas. Em `lead-state.ts` linha 53–56 o `.then(...)` é tratado como sucesso e o `.catch(() => undefined)` engoliria qualquer erro remanescente. Nada é registrado nem reexibido ao usuário.
-3. Estado atual do banco: 52 leads, **52 com `viewed_at` preenchido** e **0 com atividade posterior ao `viewed_at`** — ou seja, hoje nenhum lead deveria aparecer como NOVO por regra de atividade. O que sobra como causa é (a) cache ainda não hidratado/gravação não persistida e (b) usuários sem permissão de UPDATE.
-4. Vetor secundário confirmado no código: `redistributePortalLead` e `assignPortalLeadOwner` (`portal-leads.functions.ts`) escrevem `last_activity_at = now()` em uma **ação do executivo**. Isso empurra `lastActivity` para depois de `viewed_at` e reclassifica o lead como NOVO pela regra 3. Hoje não há caso ativo no banco, mas a regra existe e pode reproduzir o sintoma a cada transferência/redistribuição.
-5. `lead.status.changed` continua sendo emitido na origem (`markLeadViewed`, `closeLead`, `reopenLead`), mas a correção aplicada foi **excluí-lo do cálculo de `lastActivity`** em `executive-data.ts` (linha 111). Nenhum listener recalcula status a partir dele: os listeners (`onLeadStateChange` em `investor-card.tsx` e `investor-profile-view.tsx`) apenas reexecutam `resolveLeadState`, que relê o cache. Portanto o evento não é a causa — mas ele é justamente o gatilho que revela o cache revertido.
-6. Cache: `replaceLeads()` é substituição total pelo retorno do servidor; `toLocal()` mapeia `viewed_at` corretamente e não aplica fallback do tipo `status ?? 'NOVO'`. Não há reconstrução parcial de lead nesse caminho.
+Semântica de `viewed_at`: hoje é sobrescrito a cada abertura, ou seja, **última visualização**, e é justamente isso que a regra 3 exige (comparação com a última atividade). Recomendação: manter "última visualização" e, se houver necessidade de auditoria de primeira abertura, registrar em evento separado — nunca substituir a semântica atual.
 
-## G) Se confirmado o bug, o que precisaria mudar (não fazer agora)
+## E) Regra correta para redistribuição/transferência
 
-- `src/lib/lead-state.ts` — `persist()`: verificar o resultado real da gravação (linhas afetadas) e sinalizar falha em vez de silenciar; só atualizar o cache após confirmação.
-- `src/lib/workspace-operational.functions.ts` — retornar a contagem de linhas afetadas para distinguir "gravado" de "bloqueado".
-- Política de UPDATE de `portal_leads` — decidir se `manager` pode gravar campos operacionais (`viewed_at`/`closed_at`) dos leads que já enxerga.
-- `redistributePortalLead` / `assignPortalLeadOwner` — parar de escrever `last_activity_at` em ação do executivo (atividade é do investidor).
+Deve: alterar proprietário, registrar evento administrativo e auditoria, e carimbar o horário **no evento administrativo**. Não deve: tocar `last_activity_at`, `viewed_at` ou `closed_at`. Consequência prática: o lead transferido continua "em andamento" para o novo responsável a menos que exista atividade real do investidor.
 
-## H) O que NÃO deve ser alterado
+## F) Mapa completo dos escritores dos campos
 
-Portal dos Leads, identidade (Bloco 2), cadência/motor de relacionamento, CRM, Backup, dados existentes, e a semântica de `lastActivity` como atividade real do investidor. Nenhuma migration destrutiva; nenhuma alteração de status de lead.
+- `viewed_at`: `src/lib/lead-state.ts` (`markLeadViewed`) -> `src/lib/workspace-operational.functions.ts` (única gravação de produção); `src/server/testing/test-lab.server.ts:254` (laboratório de testes).
+- `closed_at` (em `portal_leads`): `src/lib/lead-state.ts` (`closeLead`/`reopenLead`) -> `workspace-operational.functions.ts`. Outras ocorrências de `closed_at` no repositório pertencem a `relationship_e20_occurrences` e `crm_*` — tabelas distintas, sem relação com o badge.
+- `last_activity_at`: os sete pontos listados em B e C.
+- `lead.status.changed`: emitido só em `src/lib/lead-state.ts` (3 pontos). Consumidores: `executive-data.ts` (filtra), `workspace-alerts.ts:573` (alerta), `investor-profile.ts:48` e `executive-data.ts:213` (rótulos), listeners de card/ficha (apenas reexecutam `resolveLeadState`). Nenhum consumidor grava status.
+- `lastActivity` (derivado): calculado apenas em `src/lib/executive-data.ts:154-159`.
 
-## Caso concreto
+## G) Correção mínima (quando autorizada)
 
-Não há hoje, no banco, nenhum lead em estado inconsistente (`viewed_at` nulo ou atividade posterior). Para fechar o caso com fotografia antes/depois é necessário o `investorId` e o usuário (perfil) que observou o retorno para "NOVO" — a hipótese principal prevê que o observador seja um perfil **Gestora/manager** ou um lead aberto logo após redistribuição/transferência.
+1. Remover `last_activity_at` de `redistributePortalLead` e `assignPortalLeadOwner`.
+2. Não usar `now()` como atividade nos ramos de dedupe/escopo `redistribuicao` do `syncPortalLead`; aplicar a mesma trava "só avança com atividade informada" do ramo principal.
+3. Confirmar a gravação de `viewed_at`/`closed_at`: `updateWorkspaceOperational` retorna linhas afetadas; `persist()` só atualiza o cache após confirmação e sinaliza falha (sem `.catch` silencioso).
+4. Decidir e aplicar a regra da Gestora (D) — via função `SECURITY DEFINER` limitada a campos operacionais, se a resposta for "sim".
+5. Opcional: passar a considerar `last_inbound_at` (resposta do investidor) em `lastActivity`.
+6. Avaliar se a sincronização GreenSales deve usar o `updated_at` externo como atividade do investidor ou apenas como marca de sincronização.
+
+## H) Arquivos que seriam alterados
+
+`src/lib/portal-leads.functions.ts`, `src/lib/lead-state.ts`, `src/lib/workspace-operational.functions.ts`, eventualmente `src/lib/executive-data.ts` (inclusão de `last_inbound_at`), `src/server/crm/workspace-card.server.ts` e `src/lib/greensales-sync.functions.ts`, mais uma migration apenas se a regra da Gestora for aprovada.
+
+## I) Permanece intocado
+
+Portal dos Leads, Bloco 2 de identidade e `resolve_portal_identity`, cadência/motor de relacionamento, CRM, Remarketing, Backup, dados existentes, blindagem contra exclusão, e a semântica de `lastActivity` como atividade exclusiva do investidor.
+
+## Confirmações que preciso de você antes de qualquer implementação
+
+1. A Gestora pode marcar visualizado/encerrar leads que enxerga (somente campos operacionais)? Sim ou não.
+2. Atualização no GreenSales (edição feita por pessoa da equipe lá) conta como atividade do investidor? Presumo que **não**.
+3. Resposta do investidor no WhatsApp (`last_inbound_at`) deve reclassificar o lead como NOVO? Presumo que **sim**.
