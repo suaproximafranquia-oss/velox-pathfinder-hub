@@ -74,17 +74,38 @@ export function GatewayOverlay({
   }, [open]);
 
   /**
-   * DEF 2.4.11 — quem chega pelo link personalizado do Executivo (ou já
-   * foi identificado antes) nunca é questionado novamente: apenas
-   * recebe a confirmação de continuidade da experiência.
+   * O cache do navegador apenas SUGERE quem é o visitante; quem confirma
+   * o retorno é o servidor (`recognizePortalIdentity`).
    */
-  const known = useMemo(() => {
+  const cached = useMemo(() => {
     if (!open) return null;
     const identity = getVisitorIdentity();
     if (!identity?.name || !identity?.email) return null;
     return identity;
   }, [open]);
+  const [serverKnown, setServerKnown] = useState(false);
+  const known = serverKnown ? cached : null;
   const welcomeBack = Boolean(known);
+
+  useEffect(() => {
+    if (!open || !cached) {
+      setServerKnown(false);
+      return;
+    }
+    let active = true;
+    void recognizePortalIdentity({
+      data: { email: cached.email, phone: cached.whatsapp },
+    })
+      .then((result) => {
+        if (active) setServerKnown(Boolean((result as { recognized?: boolean }).recognized));
+      })
+      .catch(() => {
+        if (active) setServerKnown(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, cached]);
 
   useEffect(() => {
     if (!open) return;
@@ -98,6 +119,44 @@ export function GatewayOverlay({
       window.removeEventListener("keydown", onKey);
     };
   }, [open, executive, onClose]);
+
+  /** Caminho único: servidor decide identidade, cria ou reaproveita. */
+  const enter = async (identity: { name: string; email: string; phone: string }) => {
+    const entry = readEntryContext();
+    if (executive) setResponsibleExecutiveSlug(executive.slug);
+    setError("");
+    setChecking(true);
+    const origin =
+      entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox");
+    const result = await resolveIdentityOnServer({
+      name: identity.name,
+      email: identity.email,
+      phone: identity.phone,
+      origin,
+      executiveId: executive?.id ?? null,
+      executiveSlug: executive?.slug ?? null,
+      personalized: Boolean(executive),
+      campaign: entry.campaign ?? null,
+    });
+    setChecking(false);
+    if (!result.ok) {
+      setError(
+        result.reason === "identity_invalid"
+          ? "Não conseguimos identificar seus dados. Confira o WhatsApp e o e-mail informados."
+          : "Não foi possível concluir sua identificação agora. Tente novamente em instantes.",
+      );
+      return;
+    }
+    startPortalSession({
+      investorId: result.investorId,
+      recognized: result.recognized,
+      name: identity.name,
+      email: identity.email,
+      phone: identity.phone,
+      origin,
+    });
+    onDone();
+  };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -115,41 +174,13 @@ export function GatewayOverlay({
       setError("Informe um WhatsApp válido para identificar sua jornada.");
       return;
     }
-    const entry = readEntryContext();
-    if (executive) setResponsibleExecutiveSlug(executive.slug);
-    setError("");
-    setChecking(true);
-    // Identificar não é criar: se esta pessoa já existe na plataforma
-    // (mesmo em outro navegador ou dispositivo), a jornada é restaurada
-    // antes de qualquer novo registro ser criado.
-    await restoreLeadFromCloud({ email: trimmedEmail, phone: phone.trim() });
-    startPortalSession({
-      name: trimmedName,
-      email: trimmedEmail,
-      phone: phone.trim(),
-      origin:
-        entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox"),
-    });
-    setChecking(false);
-    onDone();
+    await enter({ name: trimmedName, email: trimmedEmail, phone: phone.trim() });
   };
 
-  /** Retorno reconhecido: continuidade imediata, sem qualquer formulário. */
+  /** Retorno reconhecido pelo servidor: continuidade imediata. */
   const continueKnown = async () => {
     if (!known) return;
-    const entry = readEntryContext();
-    if (executive) setResponsibleExecutiveSlug(executive.slug);
-    setChecking(true);
-    await restoreLeadFromCloud({ email: known.email, phone: known.whatsapp });
-    startPortalSession({
-      name: known.name,
-      email: known.email,
-      phone: known.whatsapp,
-      origin:
-        entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox"),
-    });
-    setChecking(false);
-    onDone();
+    await enter({ name: known.name, email: known.email, phone: known.whatsapp });
   };
 
   if (!open) return null;
