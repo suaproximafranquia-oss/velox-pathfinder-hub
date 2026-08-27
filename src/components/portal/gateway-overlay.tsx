@@ -12,7 +12,11 @@ import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { readEntryContext } from "@/lib/portal-entry";
 import { startPortalSession } from "@/lib/portal-session";
 import { getVisitorIdentity } from "@/lib/leads";
-import { resolvePortalIdentity, type IdentityResult } from "@/lib/portal-identity.functions";
+import {
+  resolvePortalIdentity,
+  recognizePortalIdentity,
+  type IdentityResult,
+} from "@/lib/portal-identity.functions";
 
 /**
  * BLOCO 2 — o SERVIDOR é a autoridade da identidade.
