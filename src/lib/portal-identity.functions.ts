@@ -211,7 +211,7 @@ export const markManualOverrides = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readError) throw new Error(readError.message);
 
-    const current = ((row?.manual_overrides ?? {}) as Record<string, unknown>) ?? {};
+    const current = (row?.manual_overrides ?? {}) as Record<string, unknown>;
     const at = new Date().toISOString();
     const next = { ...current };
     for (const field of fields) {
