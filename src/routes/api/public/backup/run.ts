@@ -1,10 +1,13 @@
 /**
- * Rotina automática da Central de Backup.
+ * Rotina automática da Central de Backup — REGISTRO DA HORA.
  *
- * Chamada pelo servidor em intervalos regulares (1 hora — COMANDO 3A
- * §15), sem depender de qualquer usuário logado. Cria um ponto de
- * restauração do estado do banco e aplica a política de retenção — que
- * remove apenas pontos automáticos antigos, nunca dados do Portal.
+ * Esta rota não executa mais a captura. Ela apenas registra a
+ * solicitação da hora cheia, operação de milissegundos, imune ao
+ * timeout de 5 segundos do agendador. O trabalho pesado é feito pelo
+ * processador (`/api/public/backup/process`), acionado a cada minuto.
+ *
+ * Mantida por compatibilidade: qualquer agendamento antigo que ainda
+ * chame esta URL continua alimentando a fila corretamente.
  */
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -28,14 +31,13 @@ export const Route = createFileRoute("/api/public/backup/run")({
             headers: { "Content-Type": "application/json" },
           });
         }
-        const { createBackup, pruneBackups } = await import("@/server/backup.server");
+        const { enqueueBackupRequest } = await import("@/server/backup-queue.server");
         try {
-          const record = await createBackup({ kind: "completo", origin: "automatico" });
-          const pruned = await pruneBackups();
-          return Response.json({ ok: true, id: record.id, size: record.sizeBytes, pruned });
+          const result = await enqueueBackupRequest();
+          return Response.json({ ok: true, ...result });
         } catch (error) {
           const message = error instanceof Error ? error.message : "erro";
-          console.error("[backup] rotina automática falhou:", message);
+          console.error("[backup] registro da hora falhou:", message);
           return Response.json({ ok: false, error: message }, { status: 500 });
         }
       },
