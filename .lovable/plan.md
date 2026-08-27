@@ -1,115 +1,56 @@
-# Auditoria Final de Pré-Implementação — Bloco 2: Identidade e Retorno do Lead
+# Bloco 2 — Identidade e Retorno do Lead: plano de implantação
 
-Sem implementação. Abaixo, o que já está fechado e as decisões que ainda faltam. Sete perguntas ao final — nada além disso é necessário para começar.
+Decisões fechadas. Nada foi implementado ainda — este é o plano para aprovação.
 
-## 1. Regra de identidade
+## Decisões finais
 
-JÁ DEFINIDO:
-- Recorrente = telefone normalizado OU e-mail normalizado coincide com cadastro existente.
-- Prioridade: telefone é chave forte; e-mail é chave média.
-- Só telefone coincide → reaproveita o dono do telefone; e-mail novo entra como alternativo; conflito registrado; nada sobrescrito.
-- Só e-mail coincide → reaproveita o dono do e-mail; telefone novo como alternativo; conflito registrado; canal de conversa continua no telefone antigo até revisão manual.
-- Ambos coincidem → reaproveita, sem conflito.
-- Nenhum coincide → cria exatamente um cadastro novo.
-- Telefone de um e e-mail de outro → vence o telefone; os dois cadastros ficam marcados com conflito cruzado; sem merge.
-- Nome nunca identifica.
+| # | Decisão |
+|---|---|
+| P1 | Duplicados: elege relacionamento ativo → atividade mais recente → cadastro mais antigo → identificador. Após a primeira eleição, o vínculo é fixado e nunca alterna. |
+| P2 | Conflitos aparecem na ficha do investidor **e** em uma fila de pendências para a gestão. |
+| P3 | Normalização unificada **apenas** no caminho de identidade do Portal. Token e GreenSales permanecem exatamente como estão. |
+| P4 | Falha de servidor: nada é criado; nova tentativa automática curta e, persistindo, aviso pedindo para tentar de novo. |
+| P5 | Correção manual protege nome, e-mail, telefone e cidade. |
+| P6 | Telefone coincidente basta para reconhecer e emitir o token. |
+| P7 | Propriedade do lead: regra atual mantida — o dono permanece, a nova entrada vira evento. |
 
-EM ABERTO: nada.
+## O que será construído
 
-## 2. Duplicidades históricas
+**1. Resolvedor de identidade no servidor.** Uma única chamada faz normalização → busca por telefone **ou** e-mail → decisão → criação ou reaproveitamento → devolve o identificador. O telefone é a chave forte; o nome nunca identifica. Sem correspondência, cria exatamente um cadastro. Com correspondência parcial, reaproveita e guarda o dado divergente como alternativo, sem sobrescrever nada.
 
-JÁ DEFINIDO:
-- Nenhum lead histórico é apagado, fundido ou alterado automaticamente.
-- Escolha determinística e, após a primeira eleição, vínculo fixado para não alternar.
-- Estado real: 2 grupos de telefone repetido, 0 e-mails repetidos.
+**2. Proteção contra criação simultânea.** A sequência inteira roda dentro de uma transação com trava exclusiva derivada da chave normalizada, mais um índice único parcial que vale só para cadastros criados a partir da ativação (o acervo histórico não é abrangido, porque tem duplicados legítimos).
 
-EM ABERTO:
-- **(P1)** Ordem de desempate: (a) relacionamento ativo → atividade mais recente → mais antigo; ou (b) simplesmente o mais antigo sempre.
-- **(P2)** Onde o conflito precisa aparecer: só na ficha do investidor, ou também numa lista de pendências para a gestão.
+**3. Conflitos sinalizados, nunca resolvidos sozinhos.** Telefone de um cadastro com e-mail de outro marca os dois com referência cruzada. Nenhum merge, nenhuma exclusão, nenhuma reescrita. Tudo vai para a fila de pendências da gestão.
 
-## 3. Telefone e e-mail
+**4. localStorage rebaixado a cache.** Continua guardando sessão, token, ponto de retomada, histórico de navegação e preferências. Deixa de decidir novo × recorrente. A tela "Bem-vindo novamente" passa a depender da resposta do servidor.
 
-JÁ DEFINIDO:
-- Telefone: só dígitos, comparação pelos últimos 11.
-- E-mail: sem espaços, minúsculas; vazio/inválido = "sem chave".
-- Telefone ausente/inválido → busca só por e-mail; e-mail ausente/inválido → busca só por telefone; os dois inválidos → criação recusada.
-- Divergências reais a unificar: `portal-session.ts` compara todos os dígitos (sem cortar 11), `greensales/normalize.ts` usa regra própria (10–13 dígitos com "+55") e `portal-token.server.ts` compara pelos últimos 8.
+**5. Precedência da correção manual.** Ao editar a ficha, os campos alterados são marcados na estrutura já existente de correções manuais — que a sincronização do CRM já respeita. O caminho do Portal passa a consultar essa marca antes de gravar; o valor do formulário fica registrado apenas como "informado pelo investidor".
 
-EM ABERTO:
-- **(P3)** A normalização unificada deve valer também para a comparação do token (hoje últimos 8 dígitos, mais permissiva) e para a entrada do GreenSales, ou o GreenSales fica intocado como está hoje.
+**6. Consulta pública blindada.** Passa a devolver só reconhecimento e credencial de sessão. Nunca nome, cidade, executivo, escopo, histórico, mensagens ou jornada, com limite de tentativas e tempo de resposta constante.
 
-## 4. Criação de novo lead
+## Fora do escopo (não será tocado)
 
-JÁ DEFINIDO:
-- Consulta, decisão e criação passam para o servidor, em chamada única que devolve o identificador.
-- Anticorrida por trava no banco derivada da chave normalizada, mais índice único parcial só para cadastros novos.
-- Operação idempotente: mesma chave → mesmo cadastro.
-- Em falha, nada é criado; o Portal pede nova tentativa em vez de seguir adiante.
+Portal dos Leads (formulário, telas, campos, regras comerciais), sincronização GreenSales, CRM, cadência, mensagens, motor de relacionamento, Biblioteca, templates, backup e todo o acervo histórico — sem exclusão, fusão ou reescrita.
 
-EM ABERTO:
-- **(P4)** Confirmar que a mensagem de "tente novamente" em falha de servidor é aceitável na experiência do investidor (é a única mudança perceptível para ele).
+## Detalhes técnicos
 
-## 5. Sessão e localStorage
+- Nova função de servidor de resolução de identidade, chamada pelo overlay de identificação; o identificador deixa de nascer no navegador.
+- `src/lib/portal-leads.functions.ts`: consulta passa de "e-mail E telefone" para "e-mail OU telefone", com retorno mínimo.
+- `src/lib/portal-session.ts` e `src/components/portal/gateway-overlay.tsx`: passam a obedecer à resposta do servidor.
+- `src/lib/portal-leads-sync.ts`: erro deixa de ser tratado como "não encontrado".
+- `src/lib/workspace-lead-edit.ts`: grava as marcas de correção manual.
+- Migration aditiva: função de resolução atômica no banco, coluna de chave de identidade, índice único parcial (só cadastros novos) e índice não único por telefone normalizado. Preserva 100% dos dados; nenhum registro histórico é alterado ou recusado.
 
-JÁ DEFINIDO:
-- localStorage vira só cache: sessão, token, ponto de retomada, histórico de navegação e preferências.
-- Não decide mais novo × recorrente, identidade nem criação.
-- Reidratação: servidor identifica → devolve o mínimo → Portal cria a sessão a partir da resposta; troca de identificador descarta sessão e token antigos.
+## Testes de aceite
 
-EM ABERTO: nada.
-
-## 6. Precedência do nome
-
-JÁ DEFINIDO:
-- Nome corrigido pelo executivo nunca é sobrescrito pelo formulário.
-- Registro na estrutura já existente de correções manuais (hoje vazia), que a sincronização do CRM já respeita.
-- Nome do formulário passa a ser guardado apenas como "informado pelo investidor", para auditoria.
-
-EM ABERTO:
-- **(P5)** A proteção manual vale só para o nome, ou também para e-mail, telefone e cidade.
-
-## 7. Segurança
-
-JÁ DEFINIDO:
-- Consulta pública devolve apenas reconhecimento e credencial de sessão. Nunca nome, cidade, executivo, escopo, histórico, mensagens ou jornada.
-- Nome de boas-vindas só depois do token emitido com prova coerente.
-- Limite de tentativas por origem e por chave, resposta de tempo constante, registro de tentativas anômalas.
-- Hoje a consulta devolve nome, cidade e executivo — isso será fechado.
-
-EM ABERTO:
-- **(P6)** Com identificação por chave única, o token pode ser emitido quando só o telefone confere (só e-mail é prova mais fraca), ou deve continuar exigindo os dois — neste caso o retorno por e-mail apenas reconhece e pede o telefone para liberar a jornada.
-
-## 8. Integrações
-
-JÁ DEFINIDO: sem alteração em Portal dos Leads, GreenSales, CRM, cadência, mensagens, motor de relacionamento, Biblioteca, templates e backup.
-
-Dependências indiretas a preservar: emissão de token, gravação de eventos de jornada por identificador, roteamento por link personalizado do executivo, regra de escopo "redistribuição nunca é rebaixada", blindagem contra exclusão de leads e a precedência de campos manuais já usada pelo CRM.
-
-EM ABERTO:
-- **(P7)** Ao reaproveitar um cadastro que chega por link de outro executivo, confirma-se a regra atual (dono permanece, nova entrada vira evento) — sem alteração?
-
-## 9. Critérios de aceite
-
-1. Outro navegador, mesmos dados → mesmo cadastro, nenhum novo.
-2. Outro dispositivo / aba anônima → idem.
-3. Telefone igual (e-mail diferente) → nenhum cadastro novo; e-mail novo como alternativo; conflito registrado.
-4. E-mail igual (telefone diferente) → nenhum cadastro novo; telefone novo como alternativo; conflito registrado.
-5. Telefone de um e e-mail de outro → sessão no dono do telefone; conflito nos dois; nenhum merge.
-6. Dois acessos simultâneos → exatamente um cadastro.
-7. Leads históricos → os 51 permanecem; 2 grupos duplicados continuam intactos e o eleito é o mesmo em três acessos seguidos.
-8. Mesmo nome com telefone e e-mail diferentes → cadastro novo (nome não identifica).
-9. Sessão reidratada → jornada e progresso corretos, apontando para o cadastro certo.
-10. Servidor indisponível → nada criado; ao voltar, reconhece corretamente.
-11. Consulta pública → não devolve nome, executivo nem histórico de terceiros.
-
-## Perguntas finais (as sete)
-
-P1 — Ordem de desempate entre duplicados: relacionamento ativo primeiro, ou sempre o mais antigo?
-P2 — Conflitos aparecem só na ficha, ou também numa fila de pendências?
-P3 — A normalização unificada de telefone alcança o token e o GreenSales, ou apenas o caminho do Portal?
-P4 — Em falha de servidor, bloquear a criação com pedido de nova tentativa é aceitável?
-P5 — Proteção de correção manual só para o nome, ou também e-mail/telefone/cidade?
-P6 — Token pode ser emitido com prova por telefone apenas, ou continua exigindo telefone e e-mail?
-P7 — Reaproveitamento via link de outro executivo mantém a regra atual de propriedade?
-
-Respondidas essas sete, o Bloco 2 fica sem dúvidas arquiteturais e pronto para autorização de implantação.
+1. Outro navegador, aba anônima e outro dispositivo com os mesmos dados → mesmo cadastro, nenhum novo.
+2. Telefone igual e e-mail diferente → sem cadastro novo; e-mail novo como alternativo; conflito registrado.
+3. E-mail igual e telefone diferente → sem cadastro novo; telefone novo como alternativo; conflito registrado.
+4. Telefone de um e e-mail de outro → sessão no dono do telefone; conflito nos dois; nenhum merge.
+5. Dois acessos simultâneos → exatamente um cadastro.
+6. Duplicados históricos → os 51 cadastros intactos; o mesmo eleito em três acessos seguidos.
+7. Mesmo nome com contatos diferentes → cadastro novo (nome não identifica).
+8. Servidor indisponível → nada criado; ao voltar, reconhece corretamente.
+9. Nome corrigido pelo executivo → prevalece sobre o formulário.
+10. Consulta pública → não devolve nome, executivo nem histórico de terceiros.
+11. Sessão reidratada → jornada e progresso corretos no cadastro certo.
