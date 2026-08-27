@@ -23,7 +23,20 @@ import {
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator } from "@/lib/crm/permissions";
-import { listBackups, createBackupNow, restorePortalBackup } from "@/lib/backup.functions";
+import {
+  listBackups,
+  createBackupNow,
+  restorePortalBackup,
+  listBackupQueue,
+} from "@/lib/backup.functions";
+import type { BackupQueueItem } from "@/lib/backup.functions";
+
+const QUEUE_STATUS_LABEL: Record<string, string> = {
+  pendente: "Pendente",
+  processando: "Processando",
+  concluido: "Concluída",
+  falha: "Falha",
+};
 import type { BackupSummary, RestoreLogEntry } from "@/lib/backup.functions";
 import {
   captureLocalState,
@@ -87,10 +100,12 @@ function BackupCenterPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ tone: "ok" | "erro"; text: string } | null>(null);
   const [pending, setPending] = useState<BackupSummary | null>(null);
+  const [queue, setQueue] = useState<BackupQueueItem[]>([]);
 
   const fetchAll = useServerFn(listBackups);
   const createNow = useServerFn(createBackupNow);
   const restoreNow = useServerFn(restorePortalBackup);
+  const fetchQueue = useServerFn(listBackupQueue);
 
   useEffect(() => {
     const s = getSession();
@@ -105,7 +120,8 @@ function BackupCenterPage() {
 
   const reload = useCallback(async () => {
     try {
-      const result = await fetchAll();
+      const [result, queueItems] = await Promise.all([fetchAll(), fetchQueue()]);
+      setQueue(queueItems);
       setBackups(result.backups);
       setRestores(result.restores);
       setTotalBytes(result.totalBytes);
@@ -118,7 +134,7 @@ function BackupCenterPage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, [fetchAll, fetchQueue]);
 
   useEffect(() => {
     if (isAdmin) void reload();
