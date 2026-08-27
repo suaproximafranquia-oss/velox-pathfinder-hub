@@ -244,7 +244,8 @@ export function startPortalSession(input: {
   const portalOwnerId = getPortalAdministratorId();
   const base =
     existing ??
-    registerLead({
+    adoptServerLead({
+      id: input.investorId,
       identity: {
         name: input.name.trim(),
         email: normalizeEmail(input.email),
@@ -255,7 +256,7 @@ export function startPortalSession(input: {
         ? "Portal do Investidor — Link personalizado"
         : "Portal do Investidor — Jornada Digital",
       origin,
-    }).lead;
+    });
 
   if (journeyBorn) {
     // Estado oficial: Jornada Digital aguardando validação.
