@@ -38,6 +38,72 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     const phoneKey = digits.length > 11 ? digits.slice(-11) : digits;
 
     /**
+     * BLOCO 2 §6 — CORREÇÃO MANUAL TEM PRECEDÊNCIA.
+     *
+     * Campos travados pelo executivo (`manual_overrides`) nunca são
+     * sobrescritos por uma sincronização do Portal. O valor informado
+     * pelo investidor é preservado como dado alternativo e auditado.
+     */
+    const applyIdentityGuard = async (
+      leadId: string,
+    ): Promise<Record<string, string>> => {
+      const { data: row } = await supabaseAdmin
+        .from("portal_leads")
+        .select("name,email,whatsapp,city,manual_overrides,identity_alternates")
+        .eq("id", leadId)
+        .maybeSingle();
+      if (!row) return { name: data.name, email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
+      const overrides = (row.manual_overrides ?? {}) as Record<string, { locked?: boolean }>;
+      const incoming: Record<string, string> = {
+        name: data.name,
+        email,
+        whatsapp: data.whatsapp ?? "",
+        city: data.city ?? "",
+      };
+      const current: Record<string, string> = {
+        name: row.name ?? "",
+        email: row.email ?? "",
+        whatsapp: row.whatsapp ?? "",
+        city: row.city ?? "",
+      };
+      const alternates = (row.identity_alternates ?? {}) as Record<string, unknown[]>;
+      const at = new Date().toISOString();
+      let changedAlternates = false;
+      const patch: Record<string, string> = {};
+      for (const field of ["name", "email", "whatsapp", "city"] as const) {
+        const locked = Boolean(overrides[field]?.locked);
+        if (!locked) {
+          patch[field] = incoming[field];
+          continue;
+        }
+        patch[field] = current[field];
+        if (incoming[field] && incoming[field] !== current[field]) {
+          const bucket = Array.isArray(alternates[field]) ? alternates[field] : [];
+          alternates[field] = [
+            ...bucket,
+            { value: incoming[field], at, source: "portal", blockedBy: "manual_override" },
+          ];
+          changedAlternates = true;
+        }
+      }
+      if (changedAlternates) {
+        await supabaseAdmin
+          .from("portal_leads")
+          .update({ identity_alternates: alternates as never })
+          .eq("id", leadId);
+        await supabaseAdmin.from("portal_journey_events").insert({
+          investor_id: leadId,
+          event: "identity.divergence.blocked",
+          module: "portal",
+          detail:
+            "Valor informado pelo investidor divergiu de campo corrigido manualmente — preservado como dado alternativo.",
+        } as never);
+      }
+      return patch;
+    };
+
+
+    /**
      * DEDUPE OFICIAL — a MESMA pessoa nunca vira dois leads.
      *
      * Um investidor que já existe (ex.: carteira do Thiago) e volta pelo
@@ -78,13 +144,11 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     if (duplicate) {
       // Ownership respeitado: quem já responde pelo lead continua
       // respondendo. Apenas atualizamos os dados e registramos a entrada.
+      const guarded = await applyIdentityGuard(targetId);
       const { error: dedupeError } = await supabaseAdmin
         .from("portal_leads")
         .update({
-          name: data.name,
-          email,
-          whatsapp: data.whatsapp ?? "",
-          city: data.city ?? "",
+          ...guarded,
           last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
         })
         .eq("id", targetId);
@@ -110,13 +174,11 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     // ETAPA 02.1 §Doc02 — um Lead redistribuído nunca é rebaixado por uma
     // sincronização posterior do Portal: escopo e proprietário permanecem.
     if (current?.scope === "redistribuicao") {
+      const guarded = await applyIdentityGuard(targetId);
       const { error: keepError } = await supabaseAdmin
         .from("portal_leads")
         .update({
-          name: data.name,
-          email,
-          whatsapp: data.whatsapp ?? "",
-          city: data.city ?? "",
+          ...guarded,
           last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
         })
         .eq("id", targetId);
@@ -163,13 +225,19 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       : providedActivity && (!existingActivity || providedActivity > existingActivity)
         ? providedActivity
         : existingActivity;
+    const guardedRaw = current
+      ? await applyIdentityGuard(targetId)
+      : { name: data.name, email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
+    const guardedIdentity = {
+      name: guardedRaw["name"] ?? data.name,
+      email: guardedRaw["email"] ?? email,
+      whatsapp: guardedRaw["whatsapp"] ?? data.whatsapp ?? "",
+      city: guardedRaw["city"] ?? data.city ?? "",
+    };
     const { error } = await supabaseAdmin.from("portal_leads").upsert(
       {
         id: targetId,
-        name: data.name,
-        email,
-        whatsapp: data.whatsapp ?? "",
-        city: data.city ?? "",
+        ...guardedIdentity,
         origin: data.origin ?? "Portal Velox",
         material: data.material ?? "",
         scope,

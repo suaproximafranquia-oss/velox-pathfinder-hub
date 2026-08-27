@@ -9,7 +9,7 @@
 import { emitEvent } from "@/lib/events/bus";
 import {
   loadLeads,
-  registerLead,
+  adoptServerLead,
   saveVisitorIdentity,
   applyLeadRouting,
   updateLead,
@@ -189,6 +189,12 @@ export function getResumePoint(): { module: string; detail?: string; at: string 
 }
 
 export function startPortalSession(input: {
+  /**
+   * BLOCO 2 — identificador OFICIAL resolvido pelo servidor. O navegador
+   * nunca cria identidade: quem decide "novo x recorrente" é o cadastro.
+   */
+  investorId: string;
+  recognized: boolean;
   name: string;
   email: string;
   phone?: string;
@@ -202,8 +208,20 @@ export function startPortalSession(input: {
     email: input.email,
     phone: input.phone,
   });
-  const existing = findLeadByEmail(input.email) ?? findLeadByPhone(input.phone);
+  /**
+   * O cache local é apenas cache: se ele apontar para outro
+   * identificador, a sessão antiga é descartada e reidratada a partir do
+   * cadastro devolvido pelo servidor.
+   */
+  const previous = getPortalSession();
+  if (previous && previous.investorId !== input.investorId) clearPortalSession();
+  const existing = input.recognized
+    ? (loadLeads().find((lead) => lead.id === input.investorId) ??
+      findLeadByEmail(input.email) ??
+      findLeadByPhone(input.phone))
+    : null;
   const origin = input.origin ?? entry.origin ?? "Portal Velox";
+
 
   /**
    * Regra oficial dos dois cenários de entrada:
@@ -226,7 +244,8 @@ export function startPortalSession(input: {
   const portalOwnerId = getPortalAdministratorId();
   const base =
     existing ??
-    registerLead({
+    adoptServerLead({
+      id: input.investorId,
       identity: {
         name: input.name.trim(),
         email: normalizeEmail(input.email),
@@ -237,7 +256,7 @@ export function startPortalSession(input: {
         ? "Portal do Investidor — Link personalizado"
         : "Portal do Investidor — Jornada Digital",
       origin,
-    }).lead;
+    });
 
   if (journeyBorn) {
     // Estado oficial: Jornada Digital aguardando validação.

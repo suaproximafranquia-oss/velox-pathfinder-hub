@@ -12,6 +12,7 @@ import { recordCrmEvent } from "@/lib/crm/timeline";
 import { notifySync } from "@/lib/sync-bus";
 import { emitEvent } from "@/lib/events/bus";
 import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
+import { markManualOverrides } from "@/lib/portal-identity.functions";
 
 export type LeadFicha = {
   name: string;
@@ -85,6 +86,19 @@ export function saveLeadFicha(input: {
   void updateWorkspaceOperational({
     data: { id: input.investorId, notes: next.notes },
   }).catch(() => undefined);
+
+  /**
+   * BLOCO 2 §6 — a correção do executivo passa a ter precedência sobre
+   * qualquer sincronização futura do Portal para os campos de identidade.
+   */
+  const identityFields = (["name", "email", "whatsapp", "city"] as const).filter((field) =>
+    changed.includes(field),
+  );
+  if (identityFields.length > 0) {
+    void markManualOverrides({
+      data: { id: input.investorId, fields: [...identityFields], actor: input.actorName },
+    }).catch(() => undefined);
+  }
 
   // Trocar o responsável é uma transferência oficial: propaga para CRM,
   // base real, Timeline, Auditoria e Alertas — não é só a ficha.
