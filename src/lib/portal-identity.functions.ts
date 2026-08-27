@@ -50,6 +50,40 @@ export function portalEmailKey(email?: string | null): string | null {
   return /^\S+@\S+\.\S+$/.test(value) ? value : null;
 }
 
+/**
+ * Reconhecimento SEM efeito colateral: usado para decidir a tela de
+ * "Bem-vindo novamente" pelo servidor, e não pelo navegador. Não cria
+ * cadastro e não devolve nenhum dado do investidor.
+ */
+export const recognizePortalIdentity = createServerFn({ method: "POST" })
+  .inputValidator((data: { email?: string; phone?: string }) => data)
+  .handler(async ({ data }): Promise<{ recognized: boolean }> => {
+    const phoneKey = portalPhoneKey(data.phone);
+    const emailKey = portalEmailKey(data.email);
+    if (!phoneKey && !emailKey) return { recognized: false };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (phoneKey) {
+      const { data: rows } = await supabaseAdmin
+        .from("portal_leads")
+        .select("id,whatsapp")
+        .ilike("whatsapp", `%${phoneKey.slice(-8)}%`)
+        .limit(50);
+      if ((rows ?? []).some((row) => portalPhoneKey(row.whatsapp) === phoneKey)) {
+        return { recognized: true };
+      }
+    }
+    if (emailKey) {
+      const { data: rows } = await supabaseAdmin
+        .from("portal_leads")
+        .select("id")
+        .eq("email", emailKey)
+        .limit(1);
+      if ((rows ?? []).length > 0) return { recognized: true };
+    }
+    return { recognized: false };
+  });
+
+
 export const resolvePortalIdentity = createServerFn({ method: "POST" })
   .inputValidator((data: IdentityInput) => data)
   .handler(async ({ data }): Promise<IdentityResult> => {
