@@ -144,13 +144,11 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     if (duplicate) {
       // Ownership respeitado: quem já responde pelo lead continua
       // respondendo. Apenas atualizamos os dados e registramos a entrada.
+      const guarded = await applyIdentityGuard(targetId);
       const { error: dedupeError } = await supabaseAdmin
         .from("portal_leads")
         .update({
-          name: data.name,
-          email,
-          whatsapp: data.whatsapp ?? "",
-          city: data.city ?? "",
+          ...guarded,
           last_activity_at: data.lastActivityAt ?? new Date().toISOString(),
         })
         .eq("id", targetId);
