@@ -170,3 +170,35 @@ export const restorePortalBackup = createServerFn({ method: "POST" })
       );
     }
   });
+/**
+ * Situação da fila automática — leitura adicional, sem qualquer efeito
+ * sobre restauração ou retenção.
+ */
+export type BackupQueueItem = {
+  id: string;
+  referenceHour: string;
+  status: string;
+  attempts: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  lastError: string | null;
+  backupId: string | null;
+};
+
+export const listBackupQueue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context as never);
+    const { listBackupRequests } = await import("@/server/backup-queue.server");
+    const items = await listBackupRequests(48);
+    return items.map<BackupQueueItem>((i) => ({
+      id: i.id,
+      referenceHour: i.referenceHour,
+      status: i.status,
+      attempts: i.attempts,
+      startedAt: i.startedAt,
+      completedAt: i.completedAt,
+      lastError: i.lastError,
+      backupId: i.backupId,
+    }));
+  });
