@@ -61,6 +61,7 @@ import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/publi
 import { Route as ApiPublicRemarketingRunRouteImport } from './routes/api/public/remarketing/run'
 import { Route as ApiPublicCrmSyncRouteImport } from './routes/api/public/crm/sync'
 import { Route as ApiPublicBackupRunRouteImport } from './routes/api/public/backup/run'
+import { Route as ApiPublicBackupProcessRouteImport } from './routes/api/public/backup/process'
 
 const UniversoRoute = UniversoRouteImport.update({
   id: '/universo',
@@ -323,6 +324,11 @@ const ApiPublicBackupRunRoute = ApiPublicBackupRunRouteImport.update({
   path: '/api/public/backup/run',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBackupProcessRoute = ApiPublicBackupProcessRouteImport.update({
+  id: '/api/public/backup/process',
+  path: '/api/public/backup/process',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -373,6 +379,7 @@ export interface FileRoutesByFullPath {
   '/remarketing/': typeof RemarketingIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
+  '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
@@ -425,6 +432,7 @@ export interface FileRoutesByTo {
   '/remarketing': typeof RemarketingIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
+  '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
@@ -480,6 +488,7 @@ export interface FileRoutesById {
   '/remarketing/': typeof RemarketingIndexRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
+  '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
@@ -536,6 +545,7 @@ export interface FileRouteTypes {
     | '/remarketing/'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
+    | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
     | '/api/public/remarketing/run'
@@ -588,6 +598,7 @@ export interface FileRouteTypes {
     | '/remarketing'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
+    | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
     | '/api/public/remarketing/run'
@@ -642,6 +653,7 @@ export interface FileRouteTypes {
     | '/remarketing/'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
+    | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
     | '/api/public/remarketing/run'
@@ -695,6 +707,7 @@ export interface RootRouteChildren {
   ManualIndexRoute: typeof ManualIndexRoute
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
   PortalConviteTokenRoute: typeof PortalConviteTokenRoute
+  ApiPublicBackupProcessRoute: typeof ApiPublicBackupProcessRoute
   ApiPublicBackupRunRoute: typeof ApiPublicBackupRunRoute
   ApiPublicCrmSyncRoute: typeof ApiPublicCrmSyncRoute
   ApiPublicRemarketingRunRoute: typeof ApiPublicRemarketingRunRoute
@@ -1067,6 +1080,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBackupRunRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/backup/process': {
+      id: '/api/public/backup/process'
+      path: '/api/public/backup/process'
+      fullPath: '/api/public/backup/process'
+      preLoaderRoute: typeof ApiPublicBackupProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1139,6 +1159,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManualIndexRoute: ManualIndexRoute,
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
   PortalConviteTokenRoute: PortalConviteTokenRoute,
+  ApiPublicBackupProcessRoute: ApiPublicBackupProcessRoute,
   ApiPublicBackupRunRoute: ApiPublicBackupRunRoute,
   ApiPublicCrmSyncRoute: ApiPublicCrmSyncRoute,
   ApiPublicRemarketingRunRoute: ApiPublicRemarketingRunRoute,

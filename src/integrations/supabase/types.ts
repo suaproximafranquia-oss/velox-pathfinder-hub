@@ -1036,6 +1036,51 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_backup_requests: {
+        Row: {
+          attempts: number
+          backup_id: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          reference_hour: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          backup_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          reference_hour: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          backup_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          reference_hour?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       portal_backups: {
         Row: {
           created_at: string
@@ -1044,10 +1089,12 @@ export type Database = {
           id: string
           kind: string
           label: string
+          last_error: string | null
           origin: string
           payload: Json
           payload_hash: string | null
           protected: boolean
+          reference_hour: string | null
           size_bytes: number
           status: string
           table_counts: Json
@@ -1059,10 +1106,12 @@ export type Database = {
           id?: string
           kind?: string
           label: string
+          last_error?: string | null
           origin?: string
           payload?: Json
           payload_hash?: string | null
           protected?: boolean
+          reference_hour?: string | null
           size_bytes?: number
           status?: string
           table_counts?: Json
@@ -1074,10 +1123,12 @@ export type Database = {
           id?: string
           kind?: string
           label?: string
+          last_error?: string | null
           origin?: string
           payload?: Json
           payload_hash?: string | null
           protected?: boolean
+          reference_hour?: string | null
           size_bytes?: number
           status?: string
           table_counts?: Json
