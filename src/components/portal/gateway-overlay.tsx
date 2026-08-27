@@ -12,7 +12,43 @@ import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { readEntryContext } from "@/lib/portal-entry";
 import { startPortalSession } from "@/lib/portal-session";
 import { getVisitorIdentity } from "@/lib/leads";
-import { restoreLeadFromCloud } from "@/lib/portal-leads-sync";
+import { resolvePortalIdentity, type IdentityResult } from "@/lib/portal-identity.functions";
+
+/**
+ * BLOCO 2 — o SERVIDOR é a autoridade da identidade.
+ *
+ * Uma falha temporária de rede nunca pode gerar cadastro duplicado
+ * permanente: fazemos UMA nova tentativa curta e, persistindo a falha,
+ * bloqueamos a continuação em vez de criar identidade no navegador.
+ */
+async function resolveIdentityOnServer(payload: {
+  name: string;
+  email: string;
+  phone: string;
+  origin: string;
+  executiveId: string | null;
+  executiveSlug: string | null;
+  personalized: boolean;
+  campaign: string | null;
+}): Promise<IdentityResult> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const result = (await resolvePortalIdentity({
+        data: {
+          ...payload,
+          material: "Portal do Investidor",
+          scope: payload.personalized && payload.executiveId ? "green_sales" : "portal",
+          device: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 120) : null,
+        },
+      })) as IdentityResult;
+      if (result.ok || result.reason === "identity_invalid") return result;
+    } catch {
+      /* nova tentativa curta */
+    }
+    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 900));
+  }
+  return { ok: false, reason: "server_error" };
+}
 
 export function GatewayOverlay({
   open,
