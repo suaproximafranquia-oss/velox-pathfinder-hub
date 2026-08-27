@@ -9,7 +9,7 @@
 import { emitEvent } from "@/lib/events/bus";
 import {
   loadLeads,
-  registerLead,
+  adoptServerLead,
   saveVisitorIdentity,
   applyLeadRouting,
   updateLead,
