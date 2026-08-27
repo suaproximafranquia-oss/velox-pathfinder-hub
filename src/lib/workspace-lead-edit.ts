@@ -12,6 +12,7 @@ import { recordCrmEvent } from "@/lib/crm/timeline";
 import { notifySync } from "@/lib/sync-bus";
 import { emitEvent } from "@/lib/events/bus";
 import { updateWorkspaceOperational } from "@/lib/workspace-operational.functions";
+import { markManualOverrides } from "@/lib/portal-identity.functions";
 
 export type LeadFicha = {
   name: string;
