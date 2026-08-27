@@ -1,127 +1,183 @@
-# Segunda Rodada de Validação — Bloco 2: Identidade e Retorno do Lead
+# Segunda Rodada Final — Bloco 2: Identidade e Retorno do Lead (somente diagnóstico)
 
-Nada foi implementado, alterado ou executado. Abaixo, as sete respostas com base no código e no banco reais.
+Nada foi implementado, alterado, migrado ou publicado. Consultas ao banco foram apenas de leitura.
 
-## 1. Duplicados históricos
+## 1. Regra definitiva de identidade
 
-**Atual (confirmado).** Não existe nenhuma restrição de unicidade por telefone ou e-mail nas bases de leads — só existe unicidade para o par origem+identificador externo. Por isso já há duplicados reais: dois cadastros com o mesmo WhatsApp final 999887766 e e-mails diferentes (criados em 24 e 25/08), além de um grupo de três cadastros de teste com o mesmo telefone. Não há duplicidade por e-mail. A consulta prévia atual pega apenas o primeiro registro que casa e-mail e telefone juntos, sem critério de desempate.
+Chaves: telefone normalizado (chave forte) e e-mail normalizado (chave média). Nome nunca identifica.
 
-**Proposto.** Quando o telefone (ou o e-mail) encontrar dois ou mais cadastros, o servidor nunca cria um novo e nunca funde nada. Ele escolhe **um único vencedor determinístico** pela seguinte ordem, sempre a mesma:
+| Cenário | Lead reaproveitado | Cria novo? | Conflito | Auditoria | Ação manual |
+|---|---|---|---|---|---|
+| A. telefone + e-mail iguais | o próprio cadastro | não | não | entrada registrada | não |
+| B. só telefone igual | o dono do telefone | não | sim (e-mail divergente) | sim, guarda e-mail informado | revisão para eventual troca de e-mail |
+| C. só e-mail igual | o dono do e-mail | não | sim (telefone divergente) | sim, guarda telefone informado | revisão obrigatória (telefone é o canal de conversa) |
+| D. ambos diferentes | nenhum | sim | não | criação registrada | não |
+| E. e-mail de A + telefone de B | **B** (telefone vence) | não | sim, marcado nos dois | sim, referência cruzada A↔B | sim |
+| F. telefone compartilhado por pessoas diferentes | o eleito pelo critério do item 2 | não | sim | sim | sim — só o executivo separa as pessoas |
+| G. e-mail compartilhado por pessoas diferentes | desempata pelo telefone; se o telefone não bater com nenhum, trata como C sobre o eleito | não | sim | sim | sim |
+| H. telefone inválido/ausente | busca só por e-mail; se achar, reaproveita | cria só se e-mail também não achar | não | sim | não |
+| I. e-mail inválido/ausente | busca só por telefone; se achar, reaproveita | cria só se telefone também não achar | não | sim | não |
+| H+I (os dois inválidos) | nenhum | **não cria** — formulário recusa | — | tentativa registrada | não |
 
-1. cadastro com relacionamento comercial ativo (descarta arquivados e apenas-jornada);
-2. entre os ativos, o de **atividade real mais recente**;
-3. persistindo empate, o **mais antigo por data de criação** (o cadastro histórico original);
-4. último desempate: menor identificador, para ser 100% estável.
+Regra transversal: nenhum caso funde, apaga ou sobrescreve campo principal. Divergências entram como valor alternativo + marca de conflito.
 
-Os demais cadastros do grupo são apenas **apontados como duplicidade** em um registro de auditoria — permanecem intactos e visíveis.
+## 2. Duplicados já existentes
 
-**Garantia técnica.** O critério é aplicado em uma única consulta ordenada no servidor, não em código do navegador, então dois acessos com os mesmos dados devolvem sempre o mesmo cadastro. Adicionalmente, assim que um cadastro é eleito, ele é gravado como **vínculo de identidade fixo** para aquelas chaves (telefone/e-mail), de modo que acessos futuros nem dependam do desempate: eles seguem o vínculo já registrado.
+Estado real: 51 cadastros; **2 grupos** de telefone repetido; **0** e-mails repetidos; 1 sem telefone válido; 1 sem e-mail válido.
 
-**Riscos.** Se um duplicado histórico for arquivado e depois reativado manualmente, o vencedor poderia mudar — o vínculo fixo neutraliza isso. Se o executivo quiser trocar o cadastro eleito, isso é uma ação manual explícita.
+Critério determinístico recomendado (ordem fixa, sempre a mesma):
 
-**Decisão de negócio pendente:** confirmar a ordem de desempate (priorizar relacionamento ativo antes do mais antigo).
+1. cadastro com relacionamento comercial ativo (descarta arquivado/só-jornada);
+2. maior atividade real recente;
+3. **mais antigo por data de criação**;
+4. desempate final pelo identificador (ordem estável).
 
-## 2. Telefone igual + e-mail diferente
+Alternativas consideradas: (a) sempre o mais antigo — simples, porém pode devolver um cadastro abandonado enquanto o executivo trabalha o novo; (b) sempre o mais recente — instável, muda a cada nova entrada; (c) híbrido acima. **Recomendo (c)**, com um reforço decisivo: após a primeira eleição, o vínculo é **fixado** para aquelas chaves, e acessos futuros passam a seguir o vínculo gravado — assim a escolha nunca alterna, mesmo que a atividade mude.
 
-**Atual.** A consulta prévia exige os dois dados; como o e-mail difere, nada é encontrado e **um segundo lead é criado**. Foi exatamente isso que aconteceu com os dois cadastros reais citados no item 1.
+Nenhum duplicado é apagado, fundido ou reescrito; os perdedores ficam apenas apontados como duplicidade para revisão.
 
-**Proposto.**
+## 3. Concorrência / duplo cadastro
 
-- Lead reaproveitado: **o Lead A** (o dono do telefone). Telefone é a chave forte.
-- Novo e-mail: **salvo, porém como e-mail secundário/alternativo**, em um registro de identidade, não no campo principal.
-- E-mail anterior: **preservado integralmente** como principal. Nada é sobrescrito.
-- Sinal de conflito: **sim** — registro de divergência de e-mail com data, valor informado e origem do acesso, visível na auditoria da ficha.
-- Novo lead: **não é criado**.
+Hoje não há proteção: o identificador nasce no navegador, o envio é assíncrono e não existe unicidade por telefone/e-mail no banco — duas abas criam dois cadastros.
 
-**Garantia técnica.** O campo principal só muda por edição manual do executivo; o fluxo do Portal grava valores alternativos em estrutura própria.
+Desenho seguro: a sequência consultar → decidir → criar/reaproveitar roda **inteira dentro de uma transação no banco**, que primeiro adquire uma trava exclusiva derivada da chave normalizada (telefone; e-mail quando não houver telefone). A segunda requisição espera milissegundos, entra depois e já enxerga o cadastro criado — reaproveita. A trava cai sozinha ao fim da transação. Como rede de segurança, um índice único **parcial** sobre uma chave de identidade preenchida **somente nos cadastros novos** faz o próprio banco recusar a segunda inserção. O índice não pode abranger o acervo atual por causa dos 2 grupos duplicados históricos.
 
-**Risco.** Um investidor que realmente trocou de e-mail continuará vendo o e-mail antigo como principal até o executivo confirmar a troca. É o comportamento desejado (nada silencioso), mas gera trabalho manual.
+## 4. Falha de rede ou servidor
 
-**Decisão pendente:** se, no caso de e-mail alternativo repetido em vários acessos, o sistema deve sugerir a promoção do novo e-mail ao executivo.
+Risco real hoje: a restauração a partir do servidor captura qualquer erro e devolve "nada encontrado", e o fluxo segue criando cadastro. Uma instabilidade de 2 segundos vira duplicado permanente.
 
-## 3. E-mail igual + telefone diferente
+Recomendação: **bloquear temporariamente**. Diante de erro/timeout, o Portal não cria nada; mostra "não conseguimos confirmar seus dados agora, tente novamente" com nova tentativa automática curta (2 a 3 tentativas com espera crescente). Só há criação após uma resposta conclusiva do servidor. Duplicado é dano permanente; espera de alguns segundos é dano reversível.
 
-**Atual.** Também não encontra nada na consulta prévia (exige os dois) e cria um novo cadastro; o espelhamento posterior no servidor até deduplica por e-mail, mas o navegador já tratou como novo.
+## 5. localStorage
 
-**Proposto.**
+Continua responsável por: sessão ativa, token de portal, ponto de retomada da jornada, histórico de navegação e preferências. Deixa de decidir identidade.
 
-- Lead existente: **reaproveitado**.
-- Novo telefone: gravado como **telefone alternativo**, nunca no campo principal.
-- Telefone antigo: **preservado** — inclusive porque ele é a chave usada pelo relacionamento e pelas mensagens.
-- Marcação de conflito: **sim**, divergência de telefone registrada para revisão.
-- Quem revisa: o **executivo responsável** pelo cadastro; a gestão vê os casos em aberto.
-- Novo lead: **não**.
+Trechos atuais que hoje contradizem a regra e precisariam obedecer ao servidor:
 
-**Risco.** Se a pessoa realmente mudou de número, as mensagens continuarão indo para o número antigo até a confirmação manual. É intencional: trocar o canal oficial de conversa automaticamente seria perigoso.
+- `gateway-overlay.tsx` — a tela "Bem-vindo novamente" é decidida por `getVisitorIdentity()`, puro localStorage.
+- `portal-session.ts` — `findLeadByEmail` e `findLeadByPhone` procuram na lista local do navegador e decidem novo × recorrente.
+- `portal-leads-sync.ts` — em erro, devolve nulo e o fluxo assume "novo".
+- `portal-identity.ts` — a identidade permanente inteira vive em localStorage.
 
-**Decisão pendente:** confirmar que a troca de telefone principal permanece **exclusivamente manual**.
+## 6. Nome do investidor
 
-## 4. E-mail de um lead + telefone de outro
+- Onde é salvo: coluna `name` da base de leads (e cópia local no navegador).
+- De onde o Portal lê: da lista local restaurada do servidor / da sessão.
+- O formulário pode sobrescrever? **Sim, hoje pode** — a gravação do Portal atualiza `name` sem verificar correção manual.
+- Como diferenciar: a base **já possui** o campo `manual_overrides` (hoje vazio nos 51 cadastros) e a sincronização do CRM **já o respeita**, removendo do pacote os campos marcados. Falta apenas (a) a tela de edição marcar o campo ao corrigir e (b) o caminho do Portal consultar a marca antes de gravar.
+- Forma mais segura: usar essa mesma estrutura, com autor e data; o nome do formulário passa a ser guardado só como "nome informado pelo investidor" (auditoria). Reversível: remover a marca devolve a precedência à origem.
 
-**Atual.** A regra de decisão já existente (`resolveIdentityMatch`) trata esse caso como **conflito** e não funde nada — mas hoje ela roda com dados do navegador, então na prática quase nunca dispara: o resultado real é a criação de um terceiro cadastro.
+## 7. GreenSales / CRM
 
-**Proposto (mantendo a mesma semântica, agora no servidor).**
+**Sim, o bloco de identidade pode ser implementado sem tocar nessas áreas.** A resolução ocorre no caminho de entrada do Portal, antes da criação do cadastro. Sincronização GreenSales, criação/atualização no CRM, histórico, timeline, relacionamento, cadência e motor de mensagens leem o cadastro já resolvido e não mudam de contrato.
 
-- Telefone continua sendo a **chave forte**: sim.
-- Lead reaproveitado: **Lead B** (dono do telefone informado).
-- Marcação: **os dois cadastros** (A e B) recebem a marca de conflito de identidade, cada um apontando para o outro.
-- Merge: **nenhum**.
-- Exclusão: **nenhuma**.
-- Revisão posterior pelo executivo: **sim**, com os dois cadastros lado a lado e a decisão sempre manual.
+Único ponto de contato indireto: ao reaproveitar em vez de criar, o CRM recebe **menos** cadastros novos — é o efeito desejado, não uma alteração de código. E a precedência de nome (item 6) usa uma regra que o CRM já implementa, sem alterá-la.
 
-**Risco.** É o cenário típico de e-mail digitado errado ou telefone de familiar. Sem revisão humana, o caso fica em aberto acumulando; por isso ele precisa aparecer em uma lista de pendências.
+## 8. Portal dos Leads
 
-**Decisão pendente:** onde essa fila de conflitos deve aparecer para o executivo (ficha do investidor apenas, ou também um painel de pendências).
+Fora do escopo e **não precisa ser alterado**: formulário, layout, telas, campos, fluxo visual, experiência e regras comerciais permanecem. As mudanças ficam no caminho de entrada do investidor (overlay de identificação e camada de servidor). A única mudança perceptível ao investidor é o comportamento em falha do item 4 (mensagem de nova tentativa em vez de seguir adiante) — se isso for considerado alteração de experiência, precisa da sua aprovação explícita.
 
-## 5. Concorrência / dupla criação
+## 9. Segurança da consulta pública
 
-**Atual.** Não há proteção real: o identificador do lead é gerado no próprio navegador, o envio ao servidor é "dispare e esqueça" e não existe índice único por telefone ou e-mail. Dois dispositivos simultâneos criam dois cadastros.
+Situação atual: a consulta é pública e, ao acertar e-mail **e** telefone, devolve a linha quase inteira — nome, cidade, origem, escopo e **executivo responsável**. Com a regra nova (e-mail **ou** telefone), manter esse retorno seria grave: bastaria um telefone para descobrir nome e executivo de terceiros.
 
-**Proposto — duas camadas, ambas no banco.**
+Desenho seguro:
 
-1. **Trava por chave dentro da transação.** Toda a operação (consultar → decidir → criar ou reaproveitar) roda em **uma única função no banco**, que primeiro adquire uma trava exclusiva calculada a partir da chave normalizada (telefone; e-mail quando não houver telefone). A segunda requisição fica bloqueada por milissegundos, e quando entra já enxerga o cadastro criado pela primeira — então ela **reaproveita**, não cria. A trava é liberada automaticamente ao fim da transação.
-2. **Rede de segurança estrutural.** Um índice único **parcial**, aplicado somente aos cadastros criados a partir da ativação (uma nova coluna de chave de identidade, preenchida só nos novos registros). Assim, mesmo em falha de aplicação, o banco recusa a segunda inserção. O índice **não** pode ser aplicado ao acervo atual porque os duplicados históricos o violariam — e apagá-los é proibido.
+- Enviar: apenas e-mail e telefone normalizados.
+- Retornar: apenas um indicador de reconhecimento e um identificador opaco de sessão/token — nada mais.
+- Nunca retornar: nome, cidade, executivo, escopo, histórico, mensagens, jornada, estado comercial, nem confirmar "existe cadastro com este telefone" de forma isolada.
+- O nome de boas-vindas só aparece **depois** que o token é emitido com os dois dados coerentes — nunca a partir de uma chave só.
+- Proteções: limite de tentativas por origem e por chave, resposta de tempo constante para acerto e erro, e registro de tentativas anômalas.
 
-**Riscos.** A trava precisa ser curta (só a decisão e a inserção) para não segurar a entrada do investidor; nada de I/O externo dentro dela. O índice parcial exige uma coluna nova — alteração puramente aditiva, sem tocar em linha existente.
+## 10. Token e reidratação
 
-**Decisão pendente:** aprovar a criação da função no banco e da coluna/índice parcial (ambos aditivos).
+O mecanismo existente serve: o token só é emitido quando e-mail **e** telefone conferem com o cadastro, é guardado por identificador de investidor e há controle para não emitir em duplicidade na mesma aba.
 
-## 6. Precedência do nome corrigido manualmente
+Ajustes necessários e riscos:
 
-**Atual.** A base de leads do Portal **já possui** um campo de marcações de correção manual (`manual_overrides`), hoje **vazio nos 51 cadastros**. A sincronização externa do CRM **já respeita** esse campo: campos marcados são removidos do pacote de atualização e o valor corrigido é preservado. Porém: (a) a gravação vinda do Portal **não consulta** essas marcações; (b) a tela de edição da ficha **não grava** a marcação ao corrigir o nome. Ou seja, a proteção existe na sincronização externa, mas não no caminho do Portal.
+- Com identificação por chave única (só telefone ou só e-mail), a emissão precisa aceitar a mesma prova que o resolvedor aceitou — hoje ela exige os dois; caso contrário o retorno reconhece o lead e falha ao emitir o token.
+- Token duplicado não é risco: são credenciais válidas por investidor, e o cache é por identificador.
+- Sessão apontando para outro cadastro é o risco real, e ele vem do item 12; mitigado por: sessão sempre nasce do identificador devolvido pelo servidor, e troca de identificador descarta a sessão e o token antigos.
 
-**Proposto.**
+## 11. Criação de novo lead
 
-- Onde fica registrado: no **mesmo campo de correções manuais** já existente, com quem corrigiu e quando — sem inventar uma estrutura nova.
-- Como o sistema sabe: ao salvar a ficha, o campo alterado pelo executivo é marcado como corrigido manualmente.
-- Novos acessos/formulários: o nome informado no Portal passa a ser gravado apenas como **nome informado pelo investidor** (histórico/auditoria); o nome exibido continua o corrigido.
-- Sincronizações futuras: já são bloqueadas pela regra existente; o caminho do Portal passa a aplicar a mesma verificação antes de gravar.
-- Reversível: basta o executivo remover a marcação para voltar a aceitar o valor da origem.
+Hoje o identificador nasce no navegador. Deve passar para o servidor: normalização → resolução → criação → identificador, em uma única chamada que devolve o identificador definitivo. Impacto: o overlay deixa de "criar e depois sincronizar" e passa a "pedir e receber"; a sessão local passa a ser construída a partir da resposta. O restante do fluxo (jornada, eventos, token, módulos) continua consumindo o mesmo identificador e não muda.
 
-**Risco.** Marcar automaticamente qualquer edição pode congelar campos sem intenção; por isso a marca vale por campo e é reversível.
+## 12. Conflito real (e-mail de A + telefone de B)
 
-**Decisão pendente:** confirmar se a proteção vale só para o **nome** ou também para e-mail, telefone e cidade.
+Tecnicamente seguro: telefone decide a sessão (**B**), os dois cadastros recebem marca de conflito com referência cruzada, nada é fundido, apagado ou sobrescrito, e o executivo revisa depois.
 
-## 7. Escopo e preservação dos dados
+Casos de borda ainda a considerar:
 
-A implementação proposta:
+- casal/família com o mesmo telefone e e-mails distintos — o segundo é empurrado para o cadastro do primeiro; só a revisão humana separa;
+- pessoa que realmente trocou de número: fica no cadastro certo, mas as mensagens continuam indo para o número antigo até a confirmação manual;
+- e-mail digitado errado que coincide com o de outro investidor real;
+- lead histórico arquivado que passa a ser o eleito ao voltar pelo telefone;
+- cadastros de teste (`TEST-*`) e leads sem telefone válido devem ficar fora da elegibilidade de reaproveitamento.
 
-- não exclui leads — confirmado;
-- não funde leads automaticamente — confirmado (conflito é sinalizado, nunca resolvido);
-- não altera leads históricos — confirmado (nenhum valor principal é sobrescrito pelo fluxo automático);
-- não altera o Portal dos Leads — confirmado;
-- não altera a sincronização GreenSales — confirmado;
-- não altera CRM, cadência, motor de relacionamento, mensagens, Biblioteca de Conteúdo, templates nem backup — confirmado;
-- não cria migração destrutiva — confirmado.
+## 13. Telefone como chave forte
 
-**Alterações fora do "zero banco" que seriam tecnicamente necessárias (não serão feitas sem aprovação):**
+A regra "somente dígitos + últimos 11" **não é consistente hoje**. Divergências reais encontradas:
 
-1. Uma **função no banco** para a operação atômica de identidade (item 5). Sem ela não existe garantia real contra corrida — apenas mitigação no aplicativo.
-2. Uma **coluna nova de chave de identidade** e um **índice único parcial** sobre ela, válidos só para cadastros novos (item 5). Aditivos; nenhuma linha existente é lida, alterada ou recusada.
-3. Uma **estrutura para e-mails/telefones alternativos e conflitos** (itens 2, 3 e 4). Pode ser feita sem tabela nova, reaproveitando campos de dados já existentes no cadastro, ou com uma tabela própria — a decidir.
+- `src/lib/portal-identity.ts` — dígitos + últimos 11 (regra pretendida);
+- `src/lib/portal-leads.functions.ts` — mesma regra, repetida manualmente em três lugares distintos (consulta, dedupe e comparação);
+- `src/lib/portal-session.ts` — compara **todos os dígitos**, sem cortar em 11: "11999999999" e "5511999999999" são tratados como pessoas diferentes;
+- `src/lib/greensales/normalize.ts` — regra própria: aceita 10 a 13 dígitos e devolve com prefixo "+55" quando aplicável;
+- `src/server/portal-token.server.ts` — possui sua própria comparação de telefone.
 
-Nenhuma delas remove, funde ou reescreve dado histórico.
+Recomendação (não executada): uma única função compartilhada de normalização, usada por todos esses pontos.
 
-### Arquivos que a implementação tocaria (quando autorizada)
+## 14. E-mail como chave
 
-`src/components/portal/gateway-overlay.tsx`, `src/lib/portal-leads-sync.ts`, `src/lib/portal-leads.functions.ts` (ampliar a consulta de "e-mail E telefone" para "e-mail OU telefone"), `src/lib/portal-session.ts` (passar a obedecer ao servidor), `src/lib/workspace-lead-edit.ts` (marcar correção manual) e um novo arquivo de função de servidor para o resolvedor de identidade. `src/lib/portal/ownership.ts` é reutilizado **sem alteração**.
+Mais consistente, porém não único: `trim` + minúsculas aparece repetido em pelo menos quatro arquivos (overlay, gravação, consulta e identidade local), cada um com sua própria linha. Validação de formato só existe no overlay e no normalizador do GreenSales; a consulta do servidor apenas rejeita vazio. Vazio é tratado como "sem chave" na maioria dos pontos, mas a gravação aceita e-mail em branco. Comparação no banco é por igualdade exata da coluna, apoiada em índice sobre a versão minúscula — coerente, desde que a gravação sempre normalize (hoje sim, no caminho do Portal).
+
+## 15. Índices / performance
+
+Já existem em `portal_leads`: chave primária, índice por e-mail minúsculo, por escopo+data, por executivo, por executivo+estado, por data de criação, único parcial por origem externa e parcial de lotes de teste.
+
+Consultas que o resolvedor usaria: busca por e-mail normalizado (**coberta** pelo índice existente) e busca por telefone normalizado (**não coberta** — hoje o telefone nem é filtrado no banco, o corte dos últimos 11 dígitos é feito em memória).
+
+Com 51 cadastros, nada disso é problema de desempenho — uma leitura completa da tabela é instantânea. A necessidade de índice por telefone é **de correção futura e escala**, não de performance atual. Um índice **não único** sobre a expressão do telefone normalizado seria suficiente para a consulta, é puramente aditivo e não altera, valida nem rejeita nenhum dado existente. O índice **único** só é necessário como trava anticorrida e, nesse caso, obrigatoriamente parcial (só cadastros novos).
+
+## 16. Migration
+
+Sem migration é possível cobrir: consulta por e-mail ou telefone no servidor, critério determinístico, precedência de nome (o campo já existe) e mudança de responsabilidade do localStorage. Ou seja, a maior parte do bloco.
+
+Migration realmente necessária apenas para dois pontos:
+
+1. **Função no banco** para a operação atômica de identidade — sem ela não existe garantia real contra corrida, apenas mitigação. Aditiva; não toca dados.
+2. **Coluna de chave de identidade + índice único parcial** (só para cadastros criados a partir da ativação) e, opcionalmente, **índice não único por telefone normalizado**. Aditivos; preservam 100% dos dados; nenhum registro histórico é lido, alterado ou recusado.
+
+Estrutura de e-mails/telefones alternativos e marcas de conflito pode ficar em campo de dados já existente no cadastro — sem tabela nova, se preferirem o mínimo de alterações.
+
+## 17. Testes de aceite
+
+1. Mesmo telefone + mesmo e-mail → reaproveita o cadastro; nenhum novo; jornada restaurada.
+2. Mesmo telefone + e-mail diferente → reaproveita o dono do telefone; e-mail novo salvo como alternativo; e-mail principal intacto; conflito registrado.
+3. Mesmo e-mail + telefone diferente → reaproveita o dono do e-mail; telefone novo como alternativo; telefone principal intacto; conflito registrado; pendência para o executivo.
+4. Ambos diferentes → cria exatamente um cadastro novo; sem conflito.
+5. E-mail de A + telefone de B → sessão em B; conflito nos dois; nenhum merge; nenhuma exclusão.
+6. Navegador normal → reconhecimento vindo do servidor, não do cache.
+7. Aba anônima, mesmos dados → reconhece o mesmo cadastro; nenhum novo.
+8. Outro navegador → idem.
+9. Outro dispositivo → idem.
+10. Duas entradas simultâneas com os mesmos dados → exatamente um cadastro; a segunda reaproveita.
+11. Servidor indisponível → nada é criado; mensagem de nova tentativa; ao voltar, reconhece corretamente.
+12. Nome corrigido pelo executivo e novo acesso com o nome antigo → prevalece o corrigido; o informado fica só na auditoria.
+13. Duplicado histórico (os 2 grupos de telefone existentes) → sempre o mesmo cadastro eleito em 3 acessos seguidos; os outros intactos.
+14. Telefone inválido → busca só por e-mail; sem e-mail válido, criação recusada com mensagem clara.
+15. E-mail inválido → busca só por telefone; sem telefone válido, criação recusada.
+
+Complementares: a consulta pública nunca devolve nome/executivo de terceiros (item 9); os 51 cadastros continuam existindo, sem exclusão nem fusão.
+
+## 18. Conclusão
+
+**A) Confirmado.** Duplicados atuais: 2 grupos por telefone, 0 por e-mail. Não há unicidade por telefone/e-mail no banco. A consulta atual exige e-mail **e** telefone e devolve dados sensíveis. A decisão novo × recorrente ainda passa pelo navegador. O campo de precedência manual já existe e já é respeitado pela sincronização do CRM, mas está vazio e não é preenchido pela tela de edição. A normalização de telefone diverge entre cinco pontos do código.
+
+**B) A decidir por vocês.** (i) ordem de desempate do item 2; (ii) bloquear a criação em falha de servidor (item 4) — muda levemente a experiência; (iii) proteção manual só do nome ou também de e-mail/telefone/cidade; (iv) autorização da função no banco e do índice parcial (item 16); (v) onde a fila de conflitos aparece para o executivo.
+
+**C) Pode ser implementado com segurança.** Resolvedor de identidade no servidor por e-mail **ou** telefone; critério determinístico com vínculo fixado; retorno mínimo e seguro na consulta pública; identificador gerado no servidor; localStorage rebaixado a cache; precedência do nome corrigido; unificação da normalização de telefone/e-mail.
+
+**D) Não tocar.** Portal dos Leads (formulário, telas, campos, regras comerciais), sincronização GreenSales, CRM, cadência, motor de relacionamento, mensagens, Biblioteca, templates, backup e todo o acervo histórico — nenhuma exclusão, fusão ou reescrita.
+
+**E) Prontidão.** Tecnicamente sim: o bloco está maduro para implantação assim que os cinco pontos de (B) forem decididos. Recomendo implantar em duas etapas: primeiro o resolvedor no servidor com retorno seguro e localStorage como cache; depois a trava anticorrida no banco e a precedência do nome.
