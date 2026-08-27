@@ -2882,6 +2882,18 @@ export type Database = {
         }
         Returns: Json
       }
+      set_lead_operational: {
+        Args: {
+          _closed_at?: string
+          _id: string
+          _notes?: string
+          _set_closed?: boolean
+          _set_notes?: boolean
+          _set_viewed?: boolean
+          _viewed_at?: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"

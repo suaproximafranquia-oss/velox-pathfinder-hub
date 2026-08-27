@@ -132,7 +132,9 @@ export const importGreenSalesTodayLeads = createServerFn({ method: "POST" })
         campaign: normalized.campaign,
         device: null,
         created_at: lead.created_at ?? new Date().toISOString(),
-        last_activity_at: lead.updated_at ?? lead.created_at ?? new Date().toISOString(),
+        // Atividade = entrada real do investidor. `updated_at` do GreenSales
+        // reflete edição administrativa da equipe e nunca reclassifica o lead.
+        last_activity_at: lead.created_at ?? new Date().toISOString(),
         journey: {} as never,
         external_source: "greensales",
         external_id: externalId,

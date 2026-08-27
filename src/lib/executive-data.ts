@@ -155,6 +155,8 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
         lead.createdAt,
         lead.lastActivityAt ?? "",
         lead.journeyLastEventAt ?? "",
+        // Resposta do investidor no WhatsApp É atividade real.
+        lead.lastInboundAt ?? "",
         ...events.map((event) => event.at),
       ]),
       aiInteractions: events.filter((event) => event.type === "ai.query.answered").length +

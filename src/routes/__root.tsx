@@ -27,6 +27,7 @@ import { writeEntryContext } from "../lib/portal-entry";
 import { WhatsAppFloating } from "../components/shared/whatsapp-floating";
 import { JourneyTracker } from "../components/journey/journey-tracker";
 import { HomologationGate } from "../components/portal/homologation-gate";
+import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -255,6 +256,8 @@ function RootRoutes() {
       {!isGateway && <WhatsAppFloating />}
       {/* Registro silencioso da jornada — nunca interfere na navegação. */}
       <JourneyTracker />
+      {/* Avisos de falha de gravação: nada mais é salvo em silêncio. */}
+      <Toaster />
     </QueryClientProvider>
   );
 }
