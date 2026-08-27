@@ -114,6 +114,8 @@ export type CreateBackupInput = {
   createdByName?: string;
   /** Estado local do navegador do Administrador (CRM, agenda, alertas…). */
   localState?: Record<string, string> | null;
+  /** Hora cheia de referência, quando o ponto nasce da fila automática. */
+  referenceHour?: string | null;
 };
 
 export type BackupRecord = {
