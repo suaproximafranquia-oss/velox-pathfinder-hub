@@ -307,6 +307,49 @@ export function leadEmailKey(email: string): string {
 }
 
 /**
+ * BLOCO 2 — o identificador do investidor NÃO nasce mais no navegador.
+ *
+ * O servidor resolve a identidade (criar x reaproveitar) e devolve o
+ * `investorId` oficial; aqui apenas espelhamos esse cadastro no cache
+ * local para que os módulos do Portal continuem funcionando offline.
+ * Nada é enviado de volta ao servidor: o cadastro já existe lá.
+ */
+export function adoptServerLead(input: {
+  id: string;
+  identity: VisitorIdentity;
+  material: string;
+  origin: string;
+}): LeadRecord {
+  const all = loadLeads();
+  const existing = all.find((l) => l.id === input.id);
+  if (existing) {
+    const merged: LeadRecord = { ...existing, ...input.identity };
+    all[all.indexOf(existing)] = merged;
+    safeWrite(LEADS_KEY, all);
+    saveVisitorIdentity(input.identity);
+    return merged;
+  }
+  const responsible = getResponsibleExecutive();
+  const responsibleExecutiveId = responsible.personalized
+    ? (responsible.executive?.id ?? null)
+    : null;
+  const lead: LeadRecord = {
+    id: input.id,
+    ...input.identity,
+    origin: input.origin,
+    material: input.material,
+    createdAt: new Date().toISOString(),
+    responsibleExecutiveId,
+    personalized: responsible.personalized,
+    scope: responsible.personalized && responsibleExecutiveId ? "green_sales" : "portal",
+  };
+  all.push(lead);
+  safeWrite(LEADS_KEY, all);
+  saveVisitorIdentity(input.identity);
+  return lead;
+}
+
+/**
  * Localiza um relacionamento anterior por WhatsApp ou e-mail — inclusive
  * arquivado. Nenhum Card novo pode ser criado quando existe histórico.
  */
