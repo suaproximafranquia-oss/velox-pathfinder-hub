@@ -13,7 +13,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildWelcomeMessage, loadSettings } from "@/server/crm/automation.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { cadenceEligibility } from "@/lib/crm/cutover";
-import { E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
+import { SIMULATION_LABEL } from "@/server/relationship/execution-mode.server";
 import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
 
 export type FirstContactInput = {
@@ -91,9 +91,9 @@ export async function registerFirstContact(
     id: messageId,
     investor_id: input.leadId,
     direction: "enviada",
-    body: input.simulated ? `[${E0_SIMULATION_LABEL}]\n\n${message.body}` : message.body,
+    body: input.simulated ? `[${SIMULATION_LABEL}]\n\n${message.body}` : message.body,
     author_id: input.ownerId ?? "sistema",
-    author_name: input.simulated ? `Primeiro contato (${E0_SIMULATION_LABEL})` : "Primeiro contato",
+    author_name: input.simulated ? `Primeiro contato (${SIMULATION_LABEL})` : "Primeiro contato",
     at,
   });
 
@@ -110,7 +110,7 @@ export async function registerFirstContact(
     event: "primeiro_contato",
     origin: input.origin,
     reason: input.simulated
-      ? `${E0_SIMULATION_LABEL} — E0 executada até o ponto de envio. Mensagem registrada sem entrega real (Meta não acionada).`
+      ? `${SIMULATION_LABEL} — E0 executada até o ponto de envio. Mensagem registrada sem entrega real (Meta não acionada).`
       : delivery.delivered
         ? "Primeiro contato enviado pelo canal oficial."
         : `Primeiro contato processado e registrado. Entrega externa pendente: ${delivery.error ?? "canal indisponível"}.`,

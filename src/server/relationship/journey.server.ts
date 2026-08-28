@@ -12,7 +12,8 @@
  * reconstruir histórico.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
+import { LEGACY_E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
+import { SIMULATION_LABEL } from "@/lib/relationship/execution-mode";
 
 export type JourneyEntryKind =
   | "entrada"
@@ -116,10 +117,10 @@ function timelineKind(event: string): JourneyEntryKind {
  * então o rótulo gravado no envio é a única marca disponível.
  */
 function isSimulatedMessage(row: { body?: string | null; author_name?: string | null }): boolean {
-  const marker = E0_SIMULATION_LABEL;
-  return (
-    String(row.body ?? "").includes(marker) || String(row.author_name ?? "").includes(marker)
-  );
+  // Reconhece a marca atual e a marca histórica já gravada no banco.
+  const markers = [SIMULATION_LABEL, LEGACY_E0_SIMULATION_LABEL];
+  const haystack = `${String(row.body ?? "")} ${String(row.author_name ?? "")}`;
+  return markers.some((marker) => haystack.includes(marker));
 }
 
 

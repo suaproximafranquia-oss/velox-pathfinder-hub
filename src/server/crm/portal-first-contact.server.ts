@@ -19,7 +19,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
-import { E0_SIMULATION_ENABLED } from "@/lib/crm/e0-simulation";
+import { isSimulatedExecution } from "@/server/relationship/execution-mode.server";
 
 /** Evento de adiamento noturno gravado na jornada do Portal. */
 export const PORTAL_E0_DEFERRED_EVENT = "e0_adiada";
@@ -69,7 +69,7 @@ export async function kickoffPortalFirstContact(input: {
     entryAt: input.entryAt,
     enteredEntryStageAt: input.entryAt,
     entryOrigin: "PORTAL",
-    simulated: E0_SIMULATION_ENABLED,
+    simulated: isSimulatedExecution(),
   });
   return result.registered ? "registered" : "skipped";
 }

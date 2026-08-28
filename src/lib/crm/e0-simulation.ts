@@ -9,7 +9,11 @@
  *
  * Desligar esta chave devolve o comportamento normal de envio.
  */
-export const E0_SIMULATION_ENABLED = true;
-
-/** Marca obrigatória em toda mensagem/timeline gerada pelo teste. */
-export const E0_SIMULATION_LABEL = "TESTE — E0 SIMULADA";
+/**
+ * @deprecated O modo de execução agora é decidido em um único lugar:
+ * `@/lib/relationship/execution-mode` (regra pura) e
+ * `@/server/relationship/execution-mode.server` (ambiente real).
+ * Este rótulo permanece SOMENTE para reconhecer mensagens históricas
+ * já gravadas com a marca antiga. Não use em código novo.
+ */
+export const LEGACY_E0_SIMULATION_LABEL = "TESTE — E0 SIMULADA";
