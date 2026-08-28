@@ -1,186 +1,125 @@
-# Auditoria Técnica Final — estado real antes da Parte B
+# Auditoria Técnica — Estado Real do Projeto antes da PARTE B
 
-Nenhuma alteração foi feita. Cada item segue o formato pedido.
+Nada foi alterado: banco, código, rotas e componentes permanecem intactos.
+Todas as afirmações abaixo vieram de leitura de arquivos e consultas ao banco nesta rodada.
 
-## 1. Domínio institucional (portalvelox.com.br)
-STATUS ATUAL: única lógica de host é `src/server/environment.server.ts` (`getRequest()` → header `host`) usada só para decidir homologação × produção (`isHomologationHost`, fail-closed). Não há nenhuma referência a `portalvelox.com.br` no código; `.env` só contém as 6 variáveis do backend — nenhuma `VITE_INSTITUTIONAL_HOST`.
-IMPLEMENTADO: detecção de host para bloquear dados fictícios. Nada mais.
-CONFORMIDADE: não conforme com o conceito de host institucional do Grupo.
-RISCO: hoje **qualquer** host que sirva o build serve tudo — institucional e operacional. O preview da Lovable e o publicado são o mesmo app; o preview é tratado apenas como "não homologação" ⇒ produção.
-RECOMENDAÇÃO B: criar `src/lib/host-context.ts` com três modos (`institucional`, `operacional`, `preview/interno`) resolvidos no servidor a partir do host + `VITE_INSTITUTIONAL_HOST`/`VITE_OPERATIONAL_HOST` (vazias = comportamento atual); nunca inferir por caminho.
+## Respostas
 
-## 2. Bloqueio do ambiente operacional por host
-STATUS ATUAL: não existe. Digitar `/f/executivo` em qualquer host renderiza a rota; o único filtro é `OperationalGuard`, que checa `getSession()` no `localStorage`.
-IMPLEMENTADO: bloqueio por sessão, não por host.
-CONFORMIDADE: não conforme.
-RISCO: no host institucional a rota existirá e responderá (não 404). Sem sessão não há flash porque os layouts são `ssr: false` e o guard renderiza `null` até checar; **com** sessão válida (mesma origem, mesmo localStorage) o Workspace abre normalmente no host institucional.
-RECOMENDAÇÃO B: bloqueio no servidor, antes do componente — `beforeLoad` no layout `/f` (ou middleware de request) lendo o host e lançando `notFound()` (404 real, não redirect) quando o host for institucional. Guard de sessão continua como segunda camada.
+**1. Separar portalvelox.com.br de /f — ESTÁ PARCIAL (base pronta, lógica inexistente)**
+`src/server/environment.server.ts` já lê o host via `getRequest()`, mas apenas para decidir homologação x produção. Não existe nenhuma leitura de host para decidir conteúdo institucional. A raiz `/` (`src/routes/index.tsx`) é o Portal do Investidor Financeiro para qualquer host. É possível separar sem quebrar preview/localhost desde que a ativação dependa de uma variável configurada (host institucional declarado), com fallback = comportamento atual.
 
-## 3. Árvore real do /f
-STATUS ATUAL (TanStack, arquivos reais):
-- `f.tsx` layout neutro (SSR ligado, só `<Outlet/>`);
-- `f.executivo.tsx` (`ssr:false` + `OperationalGuard publicPaths=["/f/executivo"]`) com 33 folhas: index, home, dashboard, administracao, alertas, backups, biblioteca, brain, campanhas, captacao, celebracao, central-backup, configuracoes, criativa, greensales, greensales-sync, homologacao, identidade, institucional, investidores, kpi, laboratorio, perfil, recursos, relatorios, reunioes, revista, templates, teste-cadencia, usuarios;
-- `f.crm.tsx` + `f.crm.index.tsx`; `f.remarketing.tsx` + `f.remarketing.index.tsx`; `f.portal-leads.tsx` (folha com guard e `ssr:false`); `f.$slug.tsx`.
-IMPLEMENTADO: migração completa. As 34 rotas legadas (`executivo.*`, `crm`, `remarketing`, `portal-leads`) são stubs de 13 linhas: `beforeLoad` → `redirect({replace:true, search})`, `component: () => null`. Zero lógica remanescente.
-CONFORMIDADE: conforme.
-RISCO: `f.crm`/`f.remarketing` têm layout + index (2 arquivos) — subrotas futuras entram sem atrito; `f.portal-leads` é folha, então uma subrota exigirá promovê-la a layout.
-RECOMENDAÇÃO B: nenhuma mudança estrutural necessária.
+**2. /f/$slug — ESTÁ PRONTO e não conflita**
+`src/routes/f.$slug.tsx` só faz `beforeLoad` → `redirect` para `/` com `search { e, m, o, b }`. Não renderiza nada. Os segmentos estáticos (`/f/executivo`, `/f/crm`, `/f/remarketing`, `/f/portal-leads`) têm precedência no roteador sobre `$slug`. Risco real: se o institucional passar a viver em `/`, o redirect do link personalizado cairia na Home institucional — este é o ponto a decidir, não uma colisão de rotas.
 
-## 4. /f/$slug e slugs reservados
-STATUS ATUAL: o roteador dá precedência a segmentos estáticos; `/f/$slug` só recebe o que não casa com `executivo|crm|remarketing|portal-leads`. `f.$slug.tsx` redireciona para `/` com `search {e,m,o,b}`.
-IMPLEMENTADO: `RESERVED_UNIT_SLUGS = ["executivo","crm","remarketing","portal-leads"]`; `validateExecutiveSlug()` **rejeita** com mensagem + sugestão (não corrige em silêncio); UI de usuários valida na criação e na edição; `saveUsers()` lança `InvalidExecutiveSlugError` antes de gravar.
-CONFORMIDADE: conforme na regra.
-RISCO: o "ponto central de persistência" é `window.localStorage` — a base de executivos não está no banco. É proteção de cliente; nenhuma constraint de servidor existe.
-RECOMENDAÇÃO B: manter a regra e, se/quando executivos forem para tabela, replicar como CHECK/trigger.
+**3. Slug reservado — ESTÁ PRONTO (corrigido)**
+`validateExecutiveSlug` (em `src/lib/business-unit.ts`) normaliza, compara case-insensitive e REJEITA reservados. `safeExecutiveSlug` continua exportado apenas como alias deprecado de `suggestExecutiveSlug` e não é usado em lugar nenhum. A rejeição é aplicada na UI (`f.executivo.usuarios.tsx:147`) e no ponto de persistência (`src/lib/executive-auth.ts:345`).
 
-## 5. Business unit
-STATUS ATUAL: `unitPath()` existe e **não é chamado por nenhum arquivo** além do próprio módulo. Há ~166 literais `/f/...` no código.
-IMPLEMENTADO: `BUSINESS_UNITS`, `getUnit`, `currentUnit`, `isOperationalPath` (este sim em uso no `__root`), `normalizeSlug`, validação de slug.
-Arquivos mais afetados: `__root.tsx` (8), `src/config/modules.ts`, `components/executive/executive-shell.tsx`, `components/crm/portal-leads-board.tsx`, `recognition-host.tsx`, `google-status-indicator.tsx`, `lib/executive-auth.ts`, `lib/portal-brands.ts`, além de quase todas as rotas.
-CONFORMIDADE: parcialmente conforme (modelo pronto, uso ausente).
-RISCO: trocar 166 strings de uma vez é a maior fonte de regressão de navegação da Parte B; `<Link to>` do TanStack é tipado por rota literal, então `unitPath()` em `to=` quebra a tipagem.
-RECOMENDAÇÃO B: **não** varrer tudo. Usar `unitPath()` apenas onde a unidade é variável (menus, redirecionamentos, geração de links); manter literais nos `createFileRoute`/`<Link to>` de rotas fixas. `/s` e `/seg` já são viáveis sem reescrever a lógica de unidade.
+**4. Caminhos literais /f/... — EXISTE, MAS PRECISA SER ALTERADO**
+Hoje há 153 ocorrências literais de `"/f/..."` no código e `unitPath()` tem 0 usos reais (só a própria definição e comentários). Risco de migrar agora: `Link to=` do TanStack é tipado por literal; trocar por função quebra a inferência de tipos das rotas. Recomendação: NÃO migrar em massa na Parte B; usar `unitPath()` só em código novo e em navegação dinâmica.
 
-## 6. Guard operacional
-STATUS ATUAL: `src/components/auth/operational-guard.tsx`, aplicado nos layouts `f.executivo`, `f.crm`, `f.remarketing` e na folha `f.portal-leads`, todos `ssr:false`.
-IMPLEMENTADO: leitura de sessão em `useEffect`; enquanto `!checked || !session` renderiza `null`; sem sessão navega para `/f/executivo` (tela de acesso existente, declarada em `publicPaths`). Reutiliza a autenticação existente — **não** foi criada segunda autenticação.
-CONFORMIDADE: conforme quanto a "guard único" e "sem flash".
-RISCO: a checagem ocorre **depois** da montagem (efeito), não antes; funciona só porque nada é renderizado antes. Várias telas ainda chamam `getSession()` por conta própria (ex.: `f.portal-leads.tsx`, `f.remarketing.index.tsx`, `f.executivo.templates.tsx`) — redundante, não conflitante. Permissões por módulo continuam separadas e respeitadas (`useModuleAccess` + `ModuleAccessDenied`), pois o guard só trata sessão.
-RECOMENDAÇÃO B: mover a decisão para `beforeLoad` client-side do layout e remover os `getSession()` redundantes das folhas (baixo risco, ganho de clareza).
+**5. Agenda — EXISTE, MAS PRECISA SER ALTERADO**
+`src/lib/agenda.functions.ts` lê três fontes: `workspace_agenda_events`, `portal_meetings` e a função `agenda_cadence_tasks`, que lê `crm_cadence_tasks` e devolve `step_day`. O rótulo é montado como `D{step_day}`. Ou seja: a Agenda ainda está no motor ANTIGO. Não existe fonte única de etapa.
 
-## 7. Remarketing
-STATUS ATUAL: `__root.tsx` classifica `/f/remarketing` como operacional — `resolveShell` devolve `"executive"` e o ramo de render é o mesmo do CRM: `<Outlet/> + AgendaDock + Toaster`, **sem** `EditorialShell`, `JourneyChrome`, `JourneyTracker`, `WhatsAppFloating` e fora do redirecionamento do Gateway (o `useEffect` do Gateway ignora o path).
-IMPLEMENTADO: isolamento completo.
-CONFORMIDADE: conforme.
-RISCO: nenhum encontrado.
-RECOMENDAÇÃO B: nada a fazer.
+**6. Dois motores — fluxo real**
+- Antigo (ligações): `src/lib/crm/cadence.ts` + `src/server/crm/cadence.server.ts`, grava em `crm_cadence_tasks` (5 linhas) e `crm_lead_events`. Mensagens neste motor estão desligadas por configuração (`message.enabled = false`).
+- Novo (mensagens/relacionamento): `src/lib/relationship/*` + `src/server/relationship/*`, com `relationship_queue` (24 linhas), `relationship_message_sends` (7), `relationship_message_library` (20), `relationship_contents` (17).
+Conclusão: ligações vivem no motor antigo; mensagens vivem no novo. A Agenda só enxerga o antigo.
 
-## 8. Agenda — identidade do executivo
-STATUS ATUAL: `src/lib/agenda.functions.ts` resolve tudo por `supabase.rpc("current_executive_id")` sob `requireSupabaseAuth`; os tipos (`AgendaRange`, `AgendaDraft`) **não possuem** campo de executivo — o cliente não envia ID. RLS em `workspace_agenda_events`: 4 policies `has_role(auth.uid(),'admin') OR executive_id = current_executive_id()`.
-IMPLEMENTADO: identidade servidor + isolamento por RLS em SELECT/INSERT/UPDATE/DELETE.
-CONFORMIDADE: conforme.
-RISCO: `executive_id` é `text` sem FK para `executive_profiles`; `anon` tem grants de tabela (inócuo porque as policies exigem identidade, mas mais amplo que o necessário).
-RECOMENDAÇÃO B: revogar `anon` e avaliar FK.
+**7. E0…E7 como identificação única — ESTÁ PARCIAL**
+Preservar: `relationship_message_library.step_key`, `relationship_message_sends.step`, `relationship_step_content_bindings.step_key` — já são texto de etapa. Alterar: `crm_cadence_tasks` usa `step_day` inteiro; a função `agenda_cadence_tasks` devolve `step_day`; `agenda.functions.ts` rotula `D{n}`. Recomendação: acrescentar `step_key` (texto) às tarefas e à função, mantendo `step_day` para não quebrar histórico, e passar a Agenda a exibir a etapa textual.
 
-## 9. Agenda — conflito de horário
-STATUS ATUAL: dois mecanismos.
-- Banco: `EXCLUDE USING gist (executive_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE priority='maxima'` + CHECK `ends_at > starts_at`.
-- Código: antes do insert, varre `portal_meetings` (`scheduled_at` + `duration_min`) numa janela de ±12h e recusa se houver interseção.
-O caso 10:00–11:00 × 10:30–11:30 é bloqueado pelo banco (`23P01`, tratado e devolvido como `reason:"conflito"` com o item conflitante). Sobreposição parcial, total, evento começando antes ou terminando depois da faixa consultada: todos cobertos, porque `&&` compara intervalos, não a janela de listagem.
-CONFORMIDADE: conforme para evento × evento.
-RISCO: evento × **reunião** está protegido apenas no código — sem lock e sem constraint. Duas gravações concorrentes (compromisso + criação/reagendamento de reunião) podem produzir sobreposição. Além disso a janela ±12h falharia com reunião de duração muito longa.
-RECOMENDAÇÃO B: representar ocupação num único range consultável (tabela de ocupação ou espelho de reuniões com o mesmo EXCLUDE), ou `pg_advisory_xact_lock` por executivo + revalidação dentro da transação.
+**8. Templates Meta x Biblioteca — ESTÁ PRONTO como separação**
+`crm_meta_templates` (hoje 0 linhas) é o cadastro de templates aprovados pela Meta; `relationship_message_library` é a fonte operacional versionada. A estrutura já suporta o modelo pedido: a Biblioteca tem `requires_template` e `meta_template_name`, então E0 pode ser a linha que aponta para o template Meta, e E1…RF1 permanecem mensagens livres do motor. Falta apenas criar os slots E2, E5, E6, E7, R0 (ver item 9).
 
-## 10. Agenda — timezone
-STATUS ATUAL: criação usa `new Date("YYYY-MM-DDTHH:mm:00")` (fuso **do navegador**) → `toISOString()`; banco é `timestamptz` (absoluto, correto); consulta usa `dayRange()` também em fuso do navegador; exibição usa `toLocaleString("pt-BR")` **sem** `timeZone`; agrupamento por dia (`dayOf`) é feito no servidor **forçando** `America/Sao_Paulo`.
-CONFORMIDADE: correto para quem está em horário de Brasília.
-RISCO: estratégia incoerente entre camadas. Em máquina com outro fuso, o horário exibido (fuso local) e o dia calculado (São Paulo) divergem: um compromisso pode ser listado sob o dia errado, e o `date`+`time` digitados viram outro instante. Horário de verão em outros países agrava.
-RECOMENDAÇÃO B: fixar `America/Sao_Paulo` como fuso do negócio nos três pontos (montagem do instante, `dayRange`, `toLocaleString({timeZone})`).
+**9. Versionamento e snapshot — ESTÁ PRONTO**
+A tabela tem `version`, `active` e `supersedes_id`; editar cria a versão seguinte e desativa a anterior. O envio grava snapshot em `relationship_message_sends` (`rendered_body`, `template_body`, `library_id`, `library_version`, `library_code`, `investor_name_used`). Uma edição futura não toca linhas já enviadas. Hoje todas as 20 linhas estão em V1; E20, E27 e FINALIZACAO existem como slot vazio e inativo (o motor bloqueia o envio em vez de inventar texto).
 
-## 11. Agenda — ações de cadência
-STATUS ATUAL: `agenda_cadence_tasks(_from,_to,_executive_id)` é `STABLE SECURITY DEFINER`: resolve `current_executive_id()`, aceita `_executive_id` só para admin, e faz um SELECT de `crm_cadence_tasks` join `portal_leads` com `status='pendente'` e `due_date` na faixa. Nenhum ponto da Agenda escreve em cadência.
-IMPLEMENTADO: leitura pura; executivo comum vê as próprias tarefas (SECURITY DEFINER contorna RLS mas filtra por responsável).
-CONFORMIDADE: conforme.
-RISCO: nenhum de escrita. Só o vínculo de `responsible_executive_id` define visibilidade — lead sem responsável não aparece para ninguém.
-RECOMENDAÇÃO B: manter.
+**10. Conteúdo por etapa — ESTÁ PARCIAL**
+`relationship_step_content_bindings` já garante o vínculo declarado etapa → conteúdo, mas com no máximo UM vínculo ativo por etapa (índice único). Sem vínculo, o motor sorteia dentro do grupo de conteúdo. Para "E1 → vários conteúdos possíveis" é preciso relaxar a unicidade para permitir N conteúdos ativos por etapa com uma regra de seleção declarada (ordem/rodízio) — decisão a fechar.
 
-## 12. Agenda — nomenclatura da cadência
-STATUS ATUAL: `listAgenda` monta o título como `` `D${t.step_day} · ${t.channel === "ligacao" ? "Ligação" : "Mensagem"} — ${lead_name}` ``, direto da coluna `step_day` de `crm_cadence_tasks`.
-CONFORMIDADE: não conforme com E0/E1/E3/E5/E6/E7.
-RISCO: acoplamento em dois pontos exatos: (a) a assinatura de retorno de `agenda_cadence_tasks` (não devolve etapa); (b) a linha de título em `src/lib/agenda.functions.ts`.
-RECOMENDAÇÃO B: acrescentar `step_key`/`etapa` ao retorno da função e passar a Agenda a exibir rótulo de etapa, com `step_day` mantido apenas como dado interno de vencimento.
+**11. Nomes — ESTÁ PRONTO**
+`src/lib/relationship/names.ts` já possui `normalizeName`, `firstName`, `isPlausibleName`, `looksLikeName`, tratamento composto e `NEUTRAL_TREATMENT`. O uso real está em `src/server/crm/automation.server.ts:101`: usa o primeiro nome só quando o nome é plausível; caso contrário aplica o tratamento neutro. O sistema não tenta adivinhar nomes.
 
-## 13. Estrutura de cadência existente
-STATUS ATUAL: banco — `crm_cadence_tasks` (`lead_id, channel, step_day, due_date, status, completed_at/by, note, cycle_date, outcome`), `crm_automation_settings`, `crm_pipelines`/`crm_pipeline_stages`, `crm_lead_events`, `crm_timeline`, `relationship_cadences` (35 col.), `relationship_queue`, `relationship_decisions`, `relationship_events`, `relationship_message_sends`, `relationship_e20_occurrences/accesses`, `relationship_sim_runs`, `relationship_engine_log`. Função `agenda_cadence_tasks`. Código — motor antigo em `src/lib/crm/cadence.ts` (L2–L4 + 4ª tentativa ≈7 dias corridos, dias úteis) e motor novo em `src/lib/relationship/*` + `src/server/relationship/*` (machine, decide, calendar, clock, engine).
-CONFORMIDADE: dois vocabulários coexistem (D-n do Portal dos Leads × E-n do motor de relacionamento).
-RISCO: memória do projeto proíbe dois motores ativos simultaneamente; a Agenda hoje lê o **antigo**.
-RECOMENDAÇÃO B: definir na Parte B qual tabela passa a ser a fila oficial e apontar a Agenda para ela num único ponto (a função SQL).
+**12. E6 manual — ESTÁ PARCIAL (infra pronta, ação não existe)**
+Já existe: geração de token URL-safe, validade de 7 dias corridos por emissão, vínculo ao lead, `generated_at`/`expires_at`, encerramento da ocorrência anterior e bloqueio de link vencido (`src/server/relationship/e20.server.ts`, `relationship_e20_occurrences`, `relationship_e20_accesses`). Falta: o botão "Gerar apresentação digital" no card e o texto oficial da mensagem (slot E20 está vazio e inativo).
 
-## 14. Central de Templates
-STATUS ATUAL: `/f/executivo/templates` gerencia `crm_meta_templates` (nome Meta, id, idioma, categoria, status, header/body/footer, variáveis, botões, `purpose`) com leitura por OCR de capturas; é explicitamente "templates aprovados na Meta". A biblioteca operacional é outra coisa: `relationship_message_library`.
-CONFORMIDADE: parcialmente conforme — E0 (template Meta) já tem lugar; E1…RF1 não pertencem a essa tela.
-RISCO: duas telas com nomes próximos podem virar duas fontes de verdade.
-RECOMENDAÇÃO B: manter Templates = registro Meta (E0) e promover a Biblioteca (`/f/executivo/biblioteca`) a "Central de Mensagens do Motor", com o vínculo E0 → `meta_template_name` (coluna já existente em `relationship_message_library`).
+**13. Reaproveitar E20 para E6 — COMPATÍVEL**
+A tabela hoje tem 0 ocorrências, portanto não existe link antigo em circulação para quebrar. A rota `/portal/convite/$token` valida por token e não por etapa. Reaproveitar é seguro desde que só se acrescente rótulo/etapa, sem renomear coluna nem trocar o formato do token.
 
-## 15. Versionamento das mensagens
-STATUS ATUAL: já existe e é real. `relationship_message_library` tem `version`, `active`, `supersedes_id`, `step_key`, `code`, `scope`; `message-library.server.ts` cria nova versão ao editar e desativa a anterior (uma ativa por etapa, índice único), e `recordMessageSnapshot` congela o texto renderizado no envio. E20/E27/FINALIZACAO nascem como slot vazio e inativo — o motor bloqueia em vez de inventar texto.
-CONFORMIDADE: conforme ao conceito V1→V2→V3 com histórico preservado.
-RISCO: nenhum estrutural; falta apenas o texto oficial das etapas pendentes e as novas chaves (E2, E5, E6, E7, R0, RF0, RF1) que ainda não existem em `LIBRARY_STEP_ORDER`.
-RECOMENDAÇÃO B: só acrescentar as chaves novas e os textos aprovados.
+**14. E7 condicional à ligação — ESTÁ PARCIAL**
+`crm_cadence_tasks.outcome` já registra SIM/NAO e "sem registro" é distinguível (`status` diferente de DONE, `outcome` nulo) — `completeCadenceTask` grava o desfecho e o evento correspondente. Atenção: hoje `outcome` assume `"SIM"` como padrão quando não informado; para a regra da E7 isso precisa deixar de ter padrão. Não é necessário um segundo motor.
 
-## 16. Biblioteca de conteúdo
-STATUS ATUAL: `relationship_contents` (`scope, content_group, name, kind, url, active, usage_count, body`) + `relationship_step_content_bindings` (`step_key → content_id`, `active`) + `step-media.server.ts`. O motor prioriza o vínculo declarativo por etapa; não há inferência por nome/posição.
-CONFORMIDADE: conforme ao conceito "conteúdo classificado como E3 é o conteúdo da E3".
-RISCO: o vínculo é por `step_key` sem regra de desempate quando houver mais de um conteúdo ativo para a mesma etapa, e as etapas novas (E5/E6/E7) ainda não têm binding.
-RECOMENDAÇÃO B: definir a regra de elegibilidade (um ativo por etapa, ou ordem/rodízio explícito) e cadastrar os bindings das novas etapas.
+**15. Ações do Dia — ESTÁ PARCIAL**
+A Agenda já trata ações sem horário: `startsAt/endsAt` nulos, faixa própria do dia, ordenadas depois dos compromissos com hora. Nenhum horário é fabricado. Falta apenas incluir as ações de MENSAGEM (hoje só chegam ligações, via `agenda_cadence_tasks`). A regra de cadência deve permanecer no motor; a Agenda continua só lendo.
 
-## 17. Notas do executivo
-STATUS ATUAL: `portal_leads.notes` é um campo **texto livre único** (gravado por `set_lead_operational(_notes)`); `crm_cadence_tasks.note` e `crm_timeline` guardam registros pontuais. Não existe tabela de notas por evento, nem card compacto de ligação, nem nota de mensagem truncada clicável.
-IMPLEMENTADO: campo livre + trilhas de timeline/jornada.
-CONFORMIDADE: não conforme ao conceito descrito.
-RISCO: usar `notes` como acumulador de eventos destrói o texto livre atual e não é consultável.
-RECOMENDAÇÃO B: tabela `lead_notes` (lead_id, tipo `ligacao|mensagem`, ocorrido_em, etapa, resultado da ligação, corpo, autor) com RLS por responsável; card compacto para ligação e truncado+modal para mensagem, alimentado pelo snapshot já existente.
+**16. Notas do Executivo — ESTÁ PARCIAL**
+Existem `crm_lead_events` (tipo, mensagem, `data` JSON, data/hora) e `relationship_message_sends` (texto renderizado completo, etapa, executivo, conteúdo). Juntas cobrem quase tudo: ligação com resultado vem de `crm_lead_events`, texto completo vem do snapshot. Falta: uma nota livre escrita pelo executivo e uma leitura unificada por lead para alimentar os cards. Recomendação: não criar tabela paralela de histórico — criar no máximo uma tabela de nota manual e consolidar a exibição no agregador de jornada já existente.
 
-## 18. Ações do Dia
-STATUS ATUAL: existe `DailyCallsOverlay` ("Ligações do Dia"), que consome `listCadenceQueue({channel:"call"})` e oferece concluir, registrar tentativa e abrir a ficha. A Agenda já mostra ações sem horário sob o rótulo "Ação do dia".
-CONFORMIDADE: parcial — só ligações, sem mensagens nem "copiar mensagem".
-RISCO: duas superfícies (overlay + Agenda) podem divergir se cada uma ler uma fila diferente.
-RECOMENDAÇÃO B: renomear/generalizar o overlay para "Ações do Dia" com `channel` múltiplo, reaproveitando `DailyCallsOverlay`, `cadence.functions.ts` e o render da Biblioteca para o botão Copiar; a Agenda continua sendo só leitura da mesma fonte.
+**17. Snapshot do texto — CONFIRMADO e já é assim**
+`relationship_message_sends.rendered_body` guarda o texto efetivamente enviado; `library_version` guarda a versão usada. Se E3 virar V2 amanhã, o envio de ontem continua exibindo o texto de ontem.
 
-## 19. E6 — apresentação digital
-STATUS ATUAL: não existe E6. Existe o equivalente conceitual na E20: `src/server/relationship/e20.server.ts` gera ocorrência com token, `link_url`, validade de 7 dias, `checkpoint_due_at`, `finalization_due_on`, encerramento da anterior por `encerrada_por_nova`, snapshot da mensagem e abertura de instância de cadência; tabela `relationship_e20_occurrences` e `relationship_e20_accesses`.
-CONFORMIDADE: a mecânica pedida já existe, com outro nome; falta a ação no card do lead e a chave de biblioteca E6.
-RISCO: recriar do zero produziria dois geradores de link.
-RECOMENDAÇÃO B: renomear/mapear E20 → E6 na camada de apresentação e reaproveitar integralmente a infraestrutura.
+**18. Raiz / e domínio institucional — NÃO EXISTE diferenciação**
+`/` é `src/routes/index.tsx`, a Home do Portal do Investidor Financeiro, igual em qualquer host. Para transformar em Grupo Velox sem quebrar nada, os pontos tocados são: `src/routes/index.tsx` (decidir o que renderizar), uma resolução de host no servidor (a partir de `src/server/environment.server.ts`), `src/routes/f.$slug.tsx` (destino do redirect do link personalizado) e `src/lib/business-unit.ts` (unidades já declaradas).
 
-## 20. E7 — encerramento
-STATUS ATUAL: o encadeamento parcial existe (checkpoint em +7 dias = E27, finalização no dia útil seguinte), e `crm_cadence_tasks.outcome` + `CallOutcome "SIM"|"NAO"` já modelam o resultado da ligação. O que **não** existe é a regra "ligação primeiro; se ATENDEU=SIM, não envia a mensagem".
-CONFORMIDADE: parcial.
-RISCO: a condicional depende de o executivo registrar o desfecho; sem registro, indefinido.
-RECOMENDAÇÃO B: no novo motor, tornar a E7 uma tarefa dependente do `outcome` da ligação de checkpoint, com comportamento explícito para "sem registro".
+**19. Captação por modalidade — arquitetura recomendada**
+Rotas próprias por modalidade (`/solar`, `/seguros` institucionais) com o handler declarando a modalidade — nunca um campo escolhido pelo visitante. Financeira continua no fluxo atual intacto. Para impedir contaminação: o gravador de Solar/Seguros não deve importar nenhum módulo que escreva em `portal_leads`; a garantia forte é a tabela separada com política própria.
 
-## 21. Link personalizado temporário
-STATUS ATUAL: existe e está completo: token aleatório de 24 bytes URL-safe, `expires_at` de 7 dias, rota `/portal/convite/$token` (`ssr:false`) que valida no servidor e, quando inválido, exibe mensagem explicativa sem dar acesso a outras áreas; acessos registrados em `relationship_e20_accesses`.
-CONFORMIDADE: conforme.
-RISCO: o texto de expiração atual não é exatamente o exigido, e o convite válido entrega o visitante à Home com contexto (não a uma área restrita).
-RECOMENDAÇÃO B: ajustar somente o texto e, se desejado, o destino pós-validação.
+**20. group_leads — NÃO EXISTE**
+Nenhuma referência no código e nenhuma tabela no banco. Precisará ser criada com modalidade, dados de contato, origem, status e atendimento — sem chave estrangeira para leads financeiros e sem qualquer gatilho do ecossistema financeiro.
 
-## 22. Captação institucional do Grupo
-STATUS ATUAL: nada institucional do Grupo existe. Reaproveitável: `origem.$channel.tsx` (origem determinada pela rota, não por campo oculto — exatamente o padrão pedido), `s.$slug.tsx`/`seg.$slug.tsx`, `portal-brands.ts`, `resolve_portal_identity` e os formulários existentes.
-CONFORMIDADE: não implementado, mas com base sólida.
-RISCO: reutilizar o formulário da Financeira levaria leads de Solar/Seguros para `portal_leads`.
-RECOMENDAÇÃO B: rotas próprias por modalidade com a origem fixada no handler do servidor, gravando em tabela separada (ver item 23).
+**21. Tabela única x separadas — recomendação: tabela única `group_leads` com coluna de modalidade**
+O conjunto de campos é idêntico entre Solar e Seguros e o isolamento crítico é em relação à Financeira, não entre elas. Uma tabela só reduz duplicação de políticas e telas; a modalidade filtra a fila.
 
-## 23. Destino dos leads Solar e Seguros
-STATUS ATUAL: não existe `group_leads` nem qualquer tabela de fila Solar/Seguros. Hoje todo lead cai em `portal_leads`, que é a fonte de GreenSales, cadência, Portal dos Leads e backup.
-CONFORMIDADE: não conforme (por ausência).
-RISCO: alto — qualquer atalho que grave Solar/Seguros em `portal_leads` contamina cadência, GreenSales e backup financeiro, e esbarra na blindagem de leads.
-RECOMENDAÇÃO B: tabela independente, sem FK para `portal_leads`, sem trigger financeiro, fora de todas as rotinas atuais.
+**22. Filas simples — implementar como módulo próprio**
+Não reutilizar `portal-leads-board` (ele carrega cadência, jornada, engajamento e sincronização GreenSales). Uma tela de lista simples, com filtro por modalidade e ação única "marcar como atendido".
 
-## 24. Filas Solar e Seguros
-STATUS ATUAL: inexistentes. Nenhum componente minimalista de fila; o que existe (`portal-leads-board`) é o Kanban rico da Financeira.
-CONFORMIDADE: não implementado.
-RISCO: reaproveitar o board traria jornada, notas, cadência e reunião — tudo o que o conceito proíbe.
-RECOMENDAÇÃO B: componente novo e enxuto (nome, telefone, e-mail, origem, modalidade, data, status NOVO→ATENDIDO com `attended_by`/`attended_at`), sem exclusão.
+**23. Histórico do atendido — suportado**
+Marcar como atendido é atualização de status com `atendido_por`/`atendido_em`; nada é excluído. O banco suporta sem nenhuma restrição adicional.
 
-## 25. Regra geral de preservação — pontos sensíveis
-1. **Portal dos Leads / blindagem**: triggers `guard_lead_delete`/`guard_lead_truncate` e `portal_lead_guard_log`. Nada da Parte B pode tocar `portal_leads`.
-2. **GreenSales**: `greensales.server.ts` + `lead-sync.server.ts` leem `portal_leads` inteira; uma coluna nova de modalidade mudaria o comportamento de reconciliação.
-3. **Identidade**: `resolve_portal_identity` deduplica por telefone/e-mail globalmente — leads Solar/Seguros na mesma tabela criariam falsas fusões.
-4. **Backup**: `portal_backups`/`portal_backup_requests` fotografam o conjunto financeiro; novas tabelas precisam de decisão explícita de incluir/excluir.
-5. **Cadência**: risco de dois motores ativos ao trocar a fila lida pela Agenda e pelas Ações do Dia.
-6. **Portal do Investidor / E20**: mudar rota ou token invalidaria links já enviados (7 dias em circulação).
-7. **Links personalizados e origem TikTok/Meta**: `f.$slug`, `origem.$channel`, `portal-brands` — qualquer bloqueio por host precisa preservar esses caminhos públicos.
-8. **Permissões/ownership**: `workspace_module_permissions`, `useModuleAccess`, `current_executive_id()`, `manual_overrides` de nome; o guard não pode substituir a verificação por módulo.
-9. **Autenticação**: sessão em `localStorage` + bearer via `src/start.ts`; bloqueio por host não pode quebrar o anexador do token.
-10. **Navegação**: os ~166 literais `/f/...` — migração ampla para `unitPath()` é o item de maior chance de regressão silenciosa.
+**24. Conflito de horário — ESTÁ PARCIAL**
+Confirmado no banco: `workspace_agenda_events_no_overlap EXCLUDE USING gist (executive_id =, tstzrange(starts_at, ends_at, '[)') &&) WHERE (priority = 'maxima')`, mais `ends_at > starts_at`. Porém o conflito com `portal_meetings` continua verificado apenas em código (`agenda.functions.ts`), sujeito a corrida.
 
-## Síntese das decisões a fechar antes da Parte B
-1. Hosts institucional × operacional e valor das variáveis (ou adiar o bloqueio).
-2. 404 vs redirect para rota operacional em host institucional.
-3. E20 é renomeada para E6 ou passam a coexistir?
-4. Qual fila de cadência é a oficial para Agenda e Ações do Dia.
-5. Notas: tabela nova (recomendado) ou continuar no campo texto.
-6. Escopo da migração para `unitPath()`.
-7. Fuso fixo `America/Sao_Paulo` na Agenda.
-8. Solar/Seguros: uma tabela com coluna de modalidade ou duas tabelas.
+**25. Timezone — EXISTE, MAS PRECISA SER ALTERADO**
+O agrupamento por dia no servidor usa `America/Sao_Paulo`, mas `agenda-dock.tsx` cria o compromisso com `new Date("YYYY-MM-DDTHH:mm:00")` e exibe com `toLocaleString("pt-BR")` sem `timeZone` — ambos no fuso do navegador. Executivo em outro fuso grava e vê horário errado.
+
+## 26–27. Situação por item
+
+| Item | Situação | Arquivo/tabela | Necessário | Risco |
+|---|---|---|---|---|
+| Host institucional | NÃO EXISTE | index.tsx, environment.server.ts | resolver host no servidor | quebrar `/` em preview se ativar por padrão |
+| /f/$slug | PRONTO | f.$slug.tsx | rever destino do redirect | link personalizado cair no institucional |
+| Slug reservado | PRONTO | business-unit.ts | — | — |
+| unitPath | PRECISA ALTERAR | 153 literais | usar só em código novo | perda de tipagem de rotas |
+| Agenda x etapa | PRECISA ALTERAR | agenda_cadence_tasks | `step_key` textual | rótulos e histórico D-n |
+| Dois motores | PARCIAL | cadence.server / relationship | unificar leitura, não execução | duplicar disparo |
+| Slots E2/E5/E6/E7/R0 | NÃO EXISTE | relationship_message_library | criar slots vazios | motor bloquear envio |
+| Vários conteúdos por etapa | PARCIAL | step_content_bindings | permitir N ativos | índice único atual |
+| E6 manual | PARCIAL | e20.server.ts | botão + texto oficial | — |
+| E7 condicional | PARCIAL | crm_cadence_tasks.outcome | remover padrão "SIM" | assumir atendimento falso |
+| Notas do Executivo | PARCIAL | crm_lead_events, message_sends | nota manual + leitura única | histórico paralelo |
+| group_leads | NÃO EXISTE | — | criar isolada | contaminar portal_leads |
+| Conflito com reuniões | PARCIAL | portal_meetings | trava no banco | corrida |
+| Timezone | PRECISA ALTERAR | agenda-dock.tsx | fixar America/Sao_Paulo | reinterpretar horários já salvos |
+
+## 28. Divergências encontradas que não foram perguntadas
+
+- `crm_meta_templates` está VAZIA (0 linhas): E0 como template Meta automático hoje não tem template cadastrado.
+- `relationship_e20_occurrences` está vazia — nenhum convite jamais emitido; o fluxo E20 nunca rodou fim a fim em produção.
+- `workspace_agenda_events` está vazia: a Agenda global ainda não foi usada por ninguém.
+- `outcome` com padrão `"SIM"` em `completeCadenceTask` é a divergência mais perigosa para a Parte B.
+- Só existem 5 tarefas em `crm_cadence_tasks` contra 24 itens em `relationship_queue`: a Agenda enxerga a menor parte da operação real.
+- O rótulo da Agenda (`D{step_day}`) é vocabulário do motor antigo e já contradiz o vocabulário E-n adotado no restante do sistema.
+
+## DECISÕES QUE PRECISAM SER FECHADAS ANTES DA IMPLEMENTAÇÃO
+
+1. **Host institucional**: qual host exato ativa o Grupo Velox e o que acontece em preview/localhost (sugestão: institucional só com host declarado; todo o resto mantém o comportamento de hoje).
+2. **Destino do link personalizado** `/f/{executivo}` quando `/` virar institucional: continua indo para `/`, passa a ir para uma rota financeira própria, ou o Portal do Investidor ganha caminho próprio.
+3. **Identificação única de etapa**: acrescentar `step_key` textual às tarefas de cadência mantendo `step_day` (recomendado) ou migrar o histórico.
+4. **Quem manda na Agenda**: a Agenda passa a ler também o motor novo (mensagens) ou continua só ligações.
+5. **Conteúdo por etapa**: permitir vários conteúdos ativos por etapa e qual a regra de seleção (rodízio, ordem fixa, aleatório).
+6. **Textos oficiais** de E20/E6, E27, FINALIZAÇÃO e dos novos slots E2/E5/E7/R0 — sem eles o motor continua bloqueando o envio (não inventaremos texto).
+7. **E7**: remover o padrão "SIM" do desfecho de ligação, tratando ausência de registro como indefinido.
+8. **Notas do Executivo**: criar tabela de nota manual (recomendado) ou apenas consolidar a leitura do que já existe.
+9. **group_leads**: tabela única com modalidade (recomendado) e quem pode ver e atender cada fila.
+10. **Timezone**: fixar `America/Sao_Paulo` na criação e na exibição da Agenda, e como tratar eventuais registros já criados (hoje a tabela está vazia, então a correção é sem risco).
+11. **Conflito evento x reunião**: manter só a verificação em código ou levar a trava para o banco.
