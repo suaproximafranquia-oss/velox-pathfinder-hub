@@ -42,8 +42,22 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook")({
         }
 
         const reply = parseWebhookReply(payload);
-        if (!reply) return new Response("ok");
-        await recordReply({ phone: reply.phone, status: reply.status, raw: payload });
+        if (reply) {
+          await recordReply({ phone: reply.phone, status: reply.status, raw: payload });
+          return new Response("ok");
+        }
+
+        /**
+         * MENSAGEM COMUM DO INVESTIDOR: entra no Motor de
+         * Relacionamento pelo caminho único — identificação do lead,
+         * registro idempotente, janela de 24h da Meta e a decisão de
+         * resposta automática que já existia (`decideAutoReply`).
+         */
+        const { parseInboundMessage, handleInboundMessage } = await import(
+          "@/server/relationship/inbound.server"
+        );
+        const inboundMessage = parseInboundMessage(payload);
+        if (inboundMessage) await handleInboundMessage(inboundMessage);
         return new Response("ok");
       },
     },
