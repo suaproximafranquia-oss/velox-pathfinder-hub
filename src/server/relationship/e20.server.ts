@@ -126,6 +126,18 @@ export async function issueE20(params: {
     .select("*");
   const replaced = (previousRows ?? []).map(toOccurrence)[0] ?? null;
 
+  /**
+   * IDENTIDADE REAL NA E20 (COMANDO 2A §5): quem assina o convite é o
+   * EXECUTIVO RESPONSÁVEL pelo lead. O usuário que clicou permanece
+   * registrado como emissor, mas nunca substitui a assinatura.
+   */
+  const { resolveLeadExecutive } = await import("./executive-identity.server");
+  const responsible = await resolveLeadExecutive(params.leadId);
+  const signatureName = responsible.available ? responsible.name : params.generatedByName;
+  const responsibleId = responsible.available
+    ? responsible.executiveId
+    : (params.generatedByExecutiveId ?? null);
+
   const token = newToken();
   const expiresAt = new Date(now.getTime() + SEVEN_DAYS_MS).toISOString();
   const linkUrl = `${params.baseUrl.replace(/\/+$/, "")}/portal/convite/${token}`;
@@ -141,12 +153,16 @@ export async function issueE20(params: {
       status: "ativa",
       generated_by: params.generatedBy ?? null,
       generated_by_name: params.generatedByName,
-      generated_by_executive_id: params.generatedByExecutiveId ?? null,
+      generated_by_executive_id: responsibleId,
       generated_at: at,
       expires_at: expiresAt,
       checkpoint_due_at: expiresAt,
       finalization_due_on: nextBusinessDay(new Date(expiresAt)),
-      snapshot: { emitido_por: params.generatedByName, instancia: instance.instanceSeq },
+      snapshot: {
+        emitido_por: params.generatedByName,
+        assinatura: signatureName,
+        instancia: instance.instanceSeq,
+      },
     } as any)
     .select("*")
     .single();
@@ -165,7 +181,7 @@ export async function issueE20(params: {
     .eq("id", params.leadId)
     .maybeSingle();
   const { result, message: libraryMessage } = await renderFromLibrary("E20", {
-    executiveName: params.generatedByName,
+    executiveName: signatureName,
     portalLink: linkUrl,
     rawInvestorName: leadRow?.name ?? null,
   });
