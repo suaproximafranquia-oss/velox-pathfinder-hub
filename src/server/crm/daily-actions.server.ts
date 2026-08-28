@@ -192,14 +192,18 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       name: identity?.name ?? item.name,
       phone: identity?.phone ?? item.phone,
       scope: identity?.scope ?? null,
-      stepLabel: attemptLabel(item.step),
+      /**
+       * Tentativa só é exibida quando existe histórico REAL de tentativas
+       * registradas na origem. `step_day` é dia de cadência, não tentativa.
+       */
+      stepLabel: item.attempts.length > 0 ? attemptLabel(item.attempts.length + 1) : null,
       dueDate: item.dueDate,
       startsAt: null,
       endsAt: null,
       overdue: item.overdue,
       priorityMax: false,
       bucket: resolveBucket({ dueDate: item.dueDate, startsAt: null, nowIso }),
-      title: `Ligação — ${attemptLabel(item.step)}`,
+      title: item.attempts.length > 0 ? `Ligação — ${attemptLabel(item.attempts.length + 1)}` : "Ligação",
       responsibleName: null,
       attempts: item.attempts,
       cadence: {
