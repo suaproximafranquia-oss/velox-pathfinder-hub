@@ -240,6 +240,6 @@ export function nextCallAttempt(
  * ao que antes era só um número.
  */
 export function stepKey(channel: CadenceChannel, step: number): string {
-  const prefix = channel === "ligacao" ? "L" : "M";
+  const prefix = channel === "call" ? "L" : "M";
   return `${prefix}${step}`;
 }
