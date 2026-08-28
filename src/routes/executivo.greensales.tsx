@@ -1,11 +1,13 @@
-/**
- * Rota legada — o acesso oficial passou a ser o "Portal dos Leads",
- * aberto em aba própria. Mantida apenas para preservar links antigos.
- */
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
+/**
+ * Rota legada — a área operacional Financeira vive agora sob `/f`.
+ * Redirecionamento controlado, preservando `search` e sem criar
+ * histórico adicional.
+ */
 export const Route = createFileRoute("/executivo/greensales")({
-  beforeLoad: () => {
-    throw redirect({ to: "/portal-leads" });
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/f/executivo/greensales", replace: true, search: search as never });
   },
+  component: () => null,
 });

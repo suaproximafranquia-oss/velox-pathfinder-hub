@@ -1,18 +1,13 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 /**
- * Relatórios foi consolidado dentro do Brain Analytics. Esta rota
- * permanece apenas para não quebrar links/favoritos antigos.
+ * Rota legada — a área operacional Financeira vive agora sob `/f`.
+ * Redirecionamento controlado, preservando `search` e sem criar
+ * histórico adicional.
  */
 export const Route = createFileRoute("/executivo/relatorios")({
-  component: RelatoriosRedirect,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/f/executivo/relatorios", replace: true, search: search as never });
+  },
+  component: () => null,
 });
-
-function RelatoriosRedirect() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    navigate({ to: "/executivo/brain", replace: true });
-  }, [navigate]);
-  return null;
-}

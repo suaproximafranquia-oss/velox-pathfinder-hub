@@ -1,12 +1,13 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 /**
- * `/crm` — layout do módulo CRM de Relacionamento.
- *
- * Faz parte do mesmo projeto, mesmo servidor e mesmo ambiente. Nenhuma
- * rota existente é alterada. O gate de autenticação vive no shell do
- * módulo (`CrmShell`), reutilizando a sessão da Central do Executivo.
+ * Rota legada — a área operacional Financeira vive agora sob `/f`.
+ * Redirecionamento controlado, preservando `search` e sem criar
+ * histórico adicional.
  */
 export const Route = createFileRoute("/crm")({
-  component: () => <Outlet />,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/f/crm", replace: true, search: search as never });
+  },
+  component: () => null,
 });

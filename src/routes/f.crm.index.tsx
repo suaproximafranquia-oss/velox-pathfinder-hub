@@ -129,7 +129,7 @@ function fmtPortalDate(iso: string): string {
 import { startRelationship, archiveRelationship, restoreRelationship } from "@/lib/crm/commercial";
 import { isPortalReleased } from "@/lib/crm/portal-release";
 
-export const Route = createFileRoute("/crm/")({
+export const Route = createFileRoute("/f/crm/")({
   head: () => ({
     meta: [
       { title: "CRM de Relacionamento — Portal Velox" },

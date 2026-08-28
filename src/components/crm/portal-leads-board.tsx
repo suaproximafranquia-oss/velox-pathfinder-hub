@@ -301,7 +301,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   useEffect(() => {
     const s = getSession();
     if (!s) {
-      navigate({ to: "/executivo" });
+      navigate({ to: "/f/executivo" });
       return;
     }
     setSession(s);

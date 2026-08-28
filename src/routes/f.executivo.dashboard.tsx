@@ -1,0 +1,579 @@
+import { DEFAULT_BRAND_KEY, investorPortalUrl } from "@/lib/portal-brands";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Search, Share2, Link2, Check } from "lucide-react";
+import { ExecutiveShell } from "@/components/executive/executive-shell";
+import {
+  getSession,
+  loadUsers,
+  type ExecutiveSession,
+} from "@/lib/executive-auth";
+import { listAllInvestors } from "@/lib/executive-data";
+import { onSync } from "@/lib/sync-bus";
+import { listMeetings } from "@/lib/meetings";
+import { onEvent } from "@/lib/events/bus";
+import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
+import { InvestorProfileView } from "@/components/executive/workspace/investor-profile-view";
+import { resolveLeadState } from "@/lib/lead-state";
+import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
+import { archiveRelationship } from "@/lib/crm/commercial";
+import {
+  canViewFullWorkspace,
+  canOperateCentralUnica,
+  isWorkspaceScope,
+  workspaceScopesFor,
+  WORKSPACE_SCOPE_LABEL,
+  type WorkspaceScope,
+} from "@/lib/portal-workspace";
+import { cn } from "@/lib/utils";
+import { RedistributionPanel } from "@/components/executive/workspace/redistribution-panel";
+import { RedistributionModal } from "@/components/executive/workspace/redistribution-modal";
+import {
+  planRedistribution,
+  redistributeExistingLead,
+  type RedistributionPlan,
+} from "@/lib/crm/redistribution";
+import { EngagementPanel } from "@/components/executive/workspace/engagement-panel";
+
+/**
+ * Abas do Workspace. "Engajamento" é uma aba INDEPENDENTE, adicionada
+ * ao final: nenhuma aba existente (inclusive PORTAL) muda de posição,
+ * nome, permissão ou comportamento.
+ */
+type WorkspaceTab = WorkspaceScope | "engajamento";
+
+const TAB_LABEL: Record<WorkspaceTab, string> = {
+  ...WORKSPACE_SCOPE_LABEL,
+  engajamento: "Engajamento",
+};
+
+function isWorkspaceTab(value: unknown): value is WorkspaceTab {
+  return isWorkspaceScope(value) || value === "engajamento";
+}
+
+/**
+ * Pertencimento por escopo — regra ÚNICA, usada tanto pela listagem de
+ * cards quanto pelos contadores das abas. Portal jamais mistura com
+ * Green Sales; Engajamento não é carteira (nunca conta Leads).
+ */
+function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
+  if (scope === "portal") return i.origin === "portal";
+  if (scope === "redistribuicao") return i.origin === "redistribuicao";
+  if (scope === "central_unica") return i.origin === "central_unica";
+  // COMANDO 3 §8 — carteiras próprias dos links oficiais de canal.
+  if (scope === "tiktok") return i.origin === "tiktok";
+  if (scope === "meta") return i.origin === "meta";
+  if (scope === "engajamento") return false;
+  return (
+    i.origin !== "portal" &&
+    i.origin !== "redistribuicao" &&
+    i.origin !== "central_unica" &&
+    i.origin !== "tiktok" &&
+    i.origin !== "meta"
+  );
+}
+
+type DashboardSearch = { perfil?: string; escopo?: WorkspaceTab };
+
+export const Route = createFileRoute("/f/executivo/dashboard")({
+  validateSearch: (s: Record<string, unknown>): DashboardSearch => ({
+    perfil: typeof s.perfil === "string" ? s.perfil : undefined,
+    escopo: isWorkspaceTab(s.escopo) ? s.escopo : undefined,
+  }),
+  head: () => ({
+    meta: [
+      { title: "Workspace — Atlas Platform" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: WorkspacePage,
+});
+
+/**
+ * Workspace do Executivo — a carteira operacional em forma de pessoas.
+ * Estrutura visual e arquitetura preparada; lógica de ordenação
+ * inteligente e integrações completas ficam para blocos subsequentes.
+ */
+function WorkspacePage() {
+  const navigate = useNavigate();
+  const search = Route.useSearch() as DashboardSearch;
+  const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [query, setQuery] = useState("");
+  const [tick, setTick] = useState(0);
+  const scrollRef = useRef(0);
+  const openProfileId = search.perfil ?? null;
+  const [plan, setPlan] = useState<Extract<RedistributionPlan, { ok: true }> | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // ETAPA 02.1 §Doc01 — abas oficiais por perfil: Green Sales e
+  // Redistribuição para todos; Portal apenas para Administrador/híbrido.
+  const tabs: WorkspaceTab[] = session
+    ? [...workspaceScopesFor(session.userId, session.activeRole), "engajamento"]
+    : ["green_sales", "engajamento"];
+  const scope: WorkspaceTab =
+    search.escopo && tabs.includes(search.escopo) ? search.escopo : "green_sales";
+
+  useEffect(() => {
+    const s = getSession();
+    if (!s) navigate({ to: "/f/executivo" });
+    else setSession(s);
+  }, [navigate]);
+
+  // Reflete alterações nas reuniões (próxima reunião do card).
+  // Agrupadas em um único quadro: uma rajada de eventos gera apenas
+  // uma re-renderização, nunca uma por evento.
+  useEffect(() => {
+    let scheduled = false;
+    return onEvent(() => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        setTick((v) => v + 1);
+      });
+    });
+  }, []);
+
+  // Sincronização em TEMPO REAL com a base oficial de Leads.
+  // Todo investidor identificado no Gateway — em qualquer navegador ou
+  // dispositivo — vira Card aqui no mesmo instante, sem recarregar a
+  // página, sem trocar de aba e sem novo login.
+  useEffect(() => {
+    if (typeof window === "undefined" || !session) return;
+    let active = true;
+    const refresh = () => {
+      void pullLeads()
+        .then(() => {
+          if (active) setTick((v) => v + 1);
+        })
+        .catch(() => {
+          if (active) setTick((v) => v + 1);
+        });
+    };
+    refresh();
+    // Tempo real assinado no servidor: dispensa consulta periódica.
+    // A rede só é usada de novo quando o servidor avisa, quando outra
+    // aba grava algo ou quando o executivo volta para a janela.
+    const unsubscribe = subscribeLeads(refresh);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    const offSync = onSync(refresh);
+    // INTERVENÇÃO DE ESTABILIDADE — o ouvinte cru de "storage" foi
+    // removido: ele disparava um download completo da base para QUALQUER
+    // escrita em localStorage feita por outras abas (heartbeat do Portal
+    // a cada 15s, pings, caches). O barramento (onSync) já cobre o
+    // cross-tab com o ping filtrado por canal.
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      unsubscribe();
+      offSync();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [session]);
+
+  const nextMeetingByInvestor = useMemo(() => {
+    void tick;
+    const map = new Map<string, string>();
+    const now = Date.now();
+    for (const m of listMeetings()) {
+      if (m.status === "Cancelada" || m.status === "Concluída") continue;
+      const t = new Date(m.scheduledAt).getTime();
+      if (t < now) continue;
+      const current = map.get(m.investorId);
+      if (!current || new Date(current).getTime() > t) {
+        map.set(m.investorId, m.scheduledAt);
+      }
+    }
+    return map;
+  }, [tick]);
+
+  const cards: InvestorCardData[] = useMemo(() => {
+    void tick;
+    if (!session) return [];
+    const allInvestors = listAllInvestors();
+    // DEF 2.5.3 §1/§2 — Administrador e perfil híbrido enxergam a base
+    // completa (sem filtro de carteira); Executivos comuns veem apenas
+    // os seus, e sempre restritos ao Green Sales.
+    const visible = canViewFullWorkspace(session.userId, session.activeRole)
+      ? allInvestors
+      : allInvestors.filter((i) => i.assignedToUserId === session.userId);
+    // Isolamento absoluto por escopo: Portal jamais mistura com Green
+    // Sales — inclusive para quem não tem acesso à aba Portal, que vê
+    // exclusivamente Leads de link personalizado (Green Sales).
+    const base = visible.filter((i) => belongsToScope(i, scope));
+
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? base.filter(
+          (i) =>
+            i.name.toLowerCase().includes(q) ||
+            (i.email || "").toLowerCase().includes(q) ||
+            (i.phone || "").toLowerCase().includes(q) ||
+            (i.city || "").toLowerCase().includes(q),
+        )
+      : base;
+
+    // Ordenação inteligente em tempo real: o movimento manda.
+    // Leads novos/atualizados primeiro, depois atividade mais recente,
+    // e só então prioridade e proximidade da reunião. Nunca alfabética.
+    const priorityScore = (p?: string) => (p === "high" ? 2 : p === "medium" ? 1 : 0);
+    const stateScore = (i: InvestorCardData) => {
+      const s = resolveLeadState(i);
+      return s === "novo" ? 2 : s === "em_andamento" ? 1 : 0;
+    };
+    return filtered
+      .map<InvestorCardData>((i) => ({ ...i, nextMeetingAt: nextMeetingByInvestor.get(i.id) }))
+      .sort((a, b) => {
+        const sd = stateScore(b) - stateScore(a);
+        if (sd !== 0) return sd;
+        const ad = new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+        if (ad !== 0) return ad;
+        const pd = priorityScore(b.priority) - priorityScore(a.priority);
+        if (pd !== 0) return pd;
+        const am = a.nextMeetingAt ? new Date(a.nextMeetingAt).getTime() : Infinity;
+        const bm = b.nextMeetingAt ? new Date(b.nextMeetingAt).getTime() : Infinity;
+        return am - bm;
+      });
+  }, [session, query, nextMeetingByInvestor, scope, tick]);
+
+  /**
+   * Contadores oficiais por Workspace: cada aba de carteira mostra o
+   * total real de Leads daquele escopo, com a mesma regra de
+   * visibilidade da listagem. Engajamento não é carteira — nunca
+   * recebe contador de Leads.
+   */
+  const scopeCounts = useMemo(() => {
+    void tick;
+    const counts: Partial<Record<WorkspaceTab, number>> = {};
+    if (!session) return counts;
+    const allInvestors = listAllInvestors();
+    const visible = canViewFullWorkspace(session.userId, session.activeRole)
+      ? allInvestors
+      : allInvestors.filter((i) => i.assignedToUserId === session.userId);
+    for (const tab of tabs) {
+      if (tab === "engajamento") continue;
+      counts[tab] = visible.filter((i) => belongsToScope(i, tab)).length;
+    }
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, tick]);
+
+  const personalLink = useMemo(
+    () => (session ? buildPersonalLink(session) : ""),
+    [session],
+  );
+  // Reaproveita a carteira já calculada: evita varrer a base inteira
+  // novamente a cada re-renderização ao abrir um perfil.
+  const activeInvestor = useMemo(() => {
+    if (!openProfileId) return null;
+    void tick;
+    return listAllInvestors().find((i) => i.id === openProfileId) ?? null;
+  }, [openProfileId, tick]);
+
+  const openProfile = useCallback(
+    (id: string) => {
+      scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
+      navigate({ to: "/f/executivo/dashboard", search: { perfil: id, escopo: scope } });
+      if (typeof window !== "undefined")
+        window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    },
+    [navigate, scope],
+  );
+  const closeProfile = () => {
+    navigate({ to: "/f/executivo/dashboard", search: { escopo: scope } });
+    requestAnimationFrame(() => {
+      if (typeof window !== "undefined")
+        window.scrollTo({ top: scrollRef.current, behavior: "instant" as ScrollBehavior });
+    });
+  };
+
+  const changeScope = (next: WorkspaceTab) => {
+    navigate({ to: "/f/executivo/dashboard", search: { escopo: next } });
+  };
+
+  /**
+   * DEF 2.4.14 — a exclusão do Card é APENAS visual: o relacionamento é
+   * arquivado e permanece integralmente na Central de Backup, com
+   * histórico, jornada e auditoria preservados.
+   */
+  const removeLead = useCallback(
+    (id: string) => {
+      if (!session) return;
+      const investor = listAllInvestors({ includeArchived: true }).find((i) => i.id === id);
+      archiveRelationship({
+        investorId: id,
+        investorName: investor?.name ?? "Investidor",
+        actorId: session.userId,
+        actorName: session.name,
+        actorRole: session.activeRole,
+        ownerId: investor?.assignedToUserId,
+        origin: investor?.origin,
+      });
+      setTick((v) => v + 1);
+    },
+    [session],
+  );
+
+  const goToMeetings = useCallback(() => {
+    navigate({ to: "/f/executivo/reunioes" });
+  }, [navigate]);
+
+  /**
+   * COMANDO 4G §5/§6 — a fila só é consultada depois da confirmação.
+   */
+  const askRedistribute = useCallback((id: string) => {
+    const next = planRedistribution(id);
+    if (!next.ok) {
+      setNotice(next.reason);
+      return;
+    }
+    setPlan(next);
+  }, []);
+
+  const confirmRedistribute = useCallback(() => {
+    if (!session || !plan) return;
+    const result = redistributeExistingLead({
+      leadId: plan.leadId,
+      actorId: session.userId,
+      actorName: session.name,
+      reason: plan.exceptional
+        ? "Redistribuição excepcional confirmada pela Gestora."
+        : "Redistribuição manual confirmada pela Gestora.",
+    });
+    setPlan(null);
+    setNotice(
+      result.ok
+        ? `Lead redistribuído para ${result.executive.name}. Proprietário original e histórico preservados.`
+        : result.reason,
+    );
+    setTick((v) => v + 1);
+  }, [session, plan]);
+
+  if (!session) return null;
+
+  const canRedistribute =
+    scope === "central_unica" && canOperateCentralUnica(session.userId, session.activeRole);
+
+  return (
+    <ExecutiveShell session={session} title="Workspace do Executivo">
+      {activeInvestor ? (
+        <InvestorProfileView
+          investor={activeInvestor}
+          session={session}
+          onBack={closeProfile}
+        />
+      ) : (
+        <>
+          {notice ? (
+            <div
+              role="status"
+              className="mb-4 rounded-2xl border border-[color:var(--gold)]/40 bg-[color:var(--card)]/60 px-4 py-3 text-xs text-[color:var(--muted-foreground)]"
+            >
+              {notice}
+            </div>
+          ) : null}
+          {plan ? (
+            <RedistributionModal
+              plan={plan}
+              onCancel={() => setPlan(null)}
+              onConfirm={confirmRedistribute}
+            />
+          ) : null}
+          {tabs.length > 1 && (
+            <ScopeTabs items={tabs} current={scope} counts={scopeCounts} onChange={changeScope} />
+          )}
+          {scope === "redistribuicao" && <RedistributionPanel tick={tick} />}
+          {scope === "engajamento" ? (
+            <EngagementPanel onOpen={openProfile} />
+          ) : (
+            <>
+          <WorkspaceHeader
+            query={query}
+            onQuery={setQuery}
+            personalLink={personalLink}
+          />
+
+          {cards.length === 0 ? (
+            <EmptyState query={query} personalLink={personalLink} />
+          ) : (
+            <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {cards.map((c) => (
+                <InvestorCard
+                  key={c.id}
+                  investor={c}
+                  onOpen={openProfile}
+                  onNewMeeting={goToMeetings}
+                  onComment={openProfile}
+                  onDelete={removeLead}
+                  onRedistribute={canRedistribute ? askRedistribute : undefined}
+                />
+              ))}
+            </div>
+          )}
+            </>
+          )}
+        </>
+      )}
+    </ExecutiveShell>
+  );
+}
+
+function WorkspaceHeader({
+  query,
+  onQuery,
+  personalLink,
+}: {
+  query: string;
+  onQuery: (v: string) => void;
+  personalLink: string;
+}) {
+  return (
+    <div className="mb-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 px-4 py-3">
+        <Search className="h-4 w-4 shrink-0 text-[color:var(--muted-foreground)]" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          placeholder="Pesquisar por nome, e-mail, telefone ou cidade"
+          className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-[color:var(--muted-foreground)]/60"
+          aria-label="Pesquisar na carteira"
+        />
+      </div>
+      <CopyLinkButton link={personalLink} />
+    </div>
+  );
+}
+
+function ScopeTabs({
+  items,
+  current,
+  counts,
+  onChange,
+}: {
+  items: WorkspaceTab[];
+  current: WorkspaceTab;
+  /**
+   * Contadores oficiais por carteira. A aba Engajamento nunca recebe
+   * contador de Leads — ela não é um Workspace de Leads.
+   */
+  counts?: Partial<Record<WorkspaceTab, number>>;
+  onChange: (s: WorkspaceTab) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Escopo do Workspace"
+      className="mb-5 inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/50 p-1"
+    >
+      {items.map((s) => {
+        const active = s === current;
+        const count = s === "engajamento" ? undefined : counts?.[s];
+        return (
+          <button
+            key={s}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-label={
+              typeof count === "number"
+                ? `${TAB_LABEL[s]} — ${count} ${count === 1 ? "Lead" : "Leads"}`
+                : TAB_LABEL[s]
+            }
+            onClick={() => onChange(s)}
+            className={cn(
+              "inline-flex items-center rounded-full px-4 py-1.5 text-xs uppercase tracking-[0.16em] transition",
+              active
+                ? "bg-[color:var(--accent)] text-[color:var(--foreground)] border border-[color:var(--gold)]/50"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
+            )}
+          >
+            {TAB_LABEL[s]}
+            {typeof count === "number" ? (
+              <span
+                className={cn(
+                  "ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums normal-case tracking-normal",
+                  active
+                    ? "bg-[color:var(--gold)]/20 text-[color:var(--gold)]"
+                    : "bg-[color:var(--border)]/60 text-[color:var(--muted-foreground)]",
+                )}
+              >
+                {count}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CopyLinkButton({ link }: { link: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(link);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        } catch {
+          /* noop */
+        }
+      }}
+      title={link}
+      className="inline-flex items-center gap-2 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 px-4 py-3 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
+    >
+      {copied ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+      {copied ? "Link copiado" : "Meu link personalizado"}
+    </button>
+  );
+}
+
+function EmptyState({ query, personalLink }: { query: string; personalLink: string }) {
+  const isSearch = query.trim().length > 0;
+  return (
+    <div className="rounded-3xl border border-dashed border-[color:var(--border)] bg-[color:var(--card)]/30 p-12 text-center">
+      <p className="font-display text-xl">
+        {isSearch ? "Nenhum investidor encontrado." : "Sua carteira ainda está vazia."}
+      </p>
+      <p className="mx-auto mt-2 max-w-md text-sm text-[color:var(--muted-foreground)]">
+        {isSearch
+          ? "Ajuste os termos da pesquisa ou limpe o filtro para ver toda a carteira."
+          : "Compartilhe seu link personalizado para que novos investidores cheguem diretamente ao seu Workspace."}
+      </p>
+      {!isSearch ? (
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(personalLink);
+            } catch {
+              /* noop */
+            }
+          }}
+          className="mt-6 inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/50 bg-[color:var(--accent)] px-4 py-2 text-sm text-[color:var(--foreground)] hover:border-[color:var(--gold)] transition"
+        >
+          <Share2 className="h-4 w-4" /> Compartilhar meu link personalizado
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function buildPersonalLink(session: ExecutiveSession): string {
+  // Utiliza o identificador técnico permanente (`user.slug`) definido no
+  // cadastro do colaborador. Nunca deriva do nome exibido — renomear o
+  // usuário não pode quebrar o link personalizado.
+  const user = loadUsers().find((u) => u.id === session.userId);
+  const slug = user?.slug ?? session.userId;
+  const base =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://portal.velox.com.br";
+  return investorPortalUrl(slug, DEFAULT_BRAND_KEY, base);
+}

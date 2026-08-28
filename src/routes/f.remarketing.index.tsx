@@ -20,7 +20,7 @@ import { RemarketingChat } from "@/components/remarketing/remarketing-chat";
  * Não é modal, drawer, painel sobreposto nem subárea visual do
  * Workspace: possui rota/URL própria e renderiza em tela cheia.
  */
-export const Route = createFileRoute("/remarketing/")({
+export const Route = createFileRoute("/f/remarketing/")({
   head: () => ({
     meta: [
       { title: `Remarketing — ${WORKSPACE.workspaceName}` },
@@ -37,7 +37,7 @@ function RemarketingPage() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s) navigate({ to: "/executivo" });
+    if (!s) navigate({ to: "/f/executivo" });
     else setSession(s);
   }, [navigate]);
 
@@ -72,7 +72,7 @@ function RemarketingPage() {
               type="button"
               onClick={() => {
                 signOut();
-                navigate({ to: "/executivo" });
+                navigate({ to: "/f/executivo" });
               }}
               className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
             >

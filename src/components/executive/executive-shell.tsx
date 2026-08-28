@@ -128,25 +128,25 @@ export function ExecutiveShell({
    * item "Reuniões" foram removidos definitivamente.
    */
   const daily = [
-    { to: "/executivo/home", label: "Home", icon: LayoutGrid },
-    { to: "/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
-    ...(canCrm ? [{ to: "/crm", label: "CRM", icon: Contact, newTab: true }] : []),
+    { to: "/f/executivo/home", label: "Home", icon: LayoutGrid },
+    { to: "/f/executivo/dashboard", label: "Workspace", icon: LayoutDashboard },
+    ...(canCrm ? [{ to: "/f/crm", label: "CRM", icon: Contact, newTab: true }] : []),
     /**
-     * Remarketing — ambiente independente com URL própria (`/remarketing`).
+     * Remarketing — ambiente independente com URL própria (`/f/remarketing`).
      * Segue o mesmo comportamento do CRM: abre em NOVA ABA do navegador
      * (`newTab: true` → `<a target="_blank" rel="noreferrer">`), sem modal,
      * drawer ou sobreposição sobre o Workspace; a aba original permanece
      * intacta. Visível para o mesmo público com acesso ao CRM.
      */
     ...(canCrm
-      ? [{ to: "/remarketing", label: "Remarketing", icon: Megaphone, newTab: true }]
+      ? [{ to: "/f/remarketing", label: "Remarketing", icon: Megaphone, newTab: true }]
       : []),
-    { to: "/executivo/kpi", label: "KPI Manager", icon: Gauge },
-    { to: "/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
-    { to: "/executivo/brain", label: "Brain Analytics", icon: Brain },
-    { to: "/executivo/criativa", label: "IA Criativa", icon: Wand2 },
+    { to: "/f/executivo/kpi", label: "KPI Manager", icon: Gauge },
+    { to: "/f/executivo/campanhas", label: "Painel de Campanhas", icon: Trophy },
+    { to: "/f/executivo/brain", label: "Brain Analytics", icon: Brain },
+    { to: "/f/executivo/criativa", label: "IA Criativa", icon: Wand2 },
     ...(canPortalLeads
-      ? [{ to: "/portal-leads", label: "Portal dos Leads", icon: Sprout, newTab: true }]
+      ? [{ to: "/f/portal-leads", label: "Portal dos Leads", icon: Sprout, newTab: true }]
       : []),
   ];
 
@@ -155,18 +155,18 @@ export function ExecutiveShell({
    * Conteúdos passa a ser um item permanente do menu administrativo.
    */
   const centrais = [
-    { to: "/executivo/captacao", label: "Central de Captação", icon: Radar },
+    { to: "/f/executivo/captacao", label: "Central de Captação", icon: Radar },
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
-      ? [{ to: "/executivo/templates", label: "Central de Templates", icon: LayoutList }]
+      ? [{ to: "/f/executivo/templates", label: "Central de Templates", icon: LayoutList }]
       : []),
-    { to: "/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
-    { to: "/executivo/alertas", label: "Central de Alertas", icon: Bell },
+    { to: "/f/executivo/reunioes", label: "Central de Reuniões", icon: Calendar },
+    { to: "/f/executivo/alertas", label: "Central de Alertas", icon: Bell },
     ...(session.activeRole === "super_admin"
-      ? [{ to: "/executivo/central-backup", label: "Central de Backup", icon: Archive }]
+      ? [{ to: "/f/executivo/central-backup", label: "Central de Backup", icon: Archive }]
       : []),
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
       ? [
-          { to: "/executivo/revista", label: "Revista Velox", icon: BookOpen },
+          { to: "/f/executivo/revista", label: "Revista Velox", icon: BookOpen },
         ]
       : []),
   ];
@@ -174,29 +174,29 @@ export function ExecutiveShell({
   const relationship = [
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
       ? [
-          { to: "/executivo/biblioteca", label: "Biblioteca de Conteúdos", icon: LibraryBig },
-          { to: "/executivo/identidade", label: "Pendências de Identidade", icon: Fingerprint },
+          { to: "/f/executivo/biblioteca", label: "Biblioteca de Conteúdos", icon: LibraryBig },
+          { to: "/f/executivo/identidade", label: "Pendências de Identidade", icon: Fingerprint },
         ]
       : []),
     ...(session.activeRole === "super_admin"
-      ? [{ to: "/executivo/homologacao", label: "Homologação do Motor", icon: FlaskConical }]
+      ? [{ to: "/f/executivo/homologacao", label: "Homologação do Motor", icon: FlaskConical }]
       : []),
     ...(canCrm
-      ? [{ to: "/executivo/backups", label: "Backup de Conversas", icon: Archive }]
+      ? [{ to: "/f/executivo/backups", label: "Backup de Conversas", icon: Archive }]
       : []),
   ];
 
   const administrative = [
     ...(canManageUsers(session.activeRole)
-      ? [{ to: "/executivo/usuarios", label: "Usuários", icon: UserCog }]
+      ? [{ to: "/f/executivo/usuarios", label: "Usuários", icon: UserCog }]
       : []),
-    { to: "/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
+    { to: "/f/executivo/perfil", label: "Meu Perfil", icon: UserCircle2 },
     ...(session.activeRole === "super_admin"
-      ? [{ to: "/executivo/configuracoes", label: "Configurações", icon: Settings }]
+      ? [{ to: "/f/executivo/configuracoes", label: "Configurações", icon: Settings }]
       : []),
     ...(session.activeRole === "super_admin" && isHomologationEnvironment()
       ? [
-          { to: "/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical },
+          { to: "/f/executivo/laboratorio", label: "Laboratório Atlas", icon: FlaskConical },
         ]
       : []),
   ];
@@ -284,7 +284,7 @@ export function ExecutiveShell({
               type="button"
               onClick={() => {
                 signOut();
-                navigate({ to: "/executivo" });
+                navigate({ to: "/f/executivo" });
               }}
               className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
             >

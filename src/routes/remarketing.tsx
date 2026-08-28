@@ -1,14 +1,13 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 /**
- * `/remarketing` — layout do ambiente independente de Remarketing.
- *
- * Mesmo padrão do `/crm`: ambiente próprio, com URL dedicada, aberto em
- * NOVA ABA do navegador a partir do menu do Workspace. A aba original
- * permanece intacta e o usuário alterna entre os ambientes pelas abas.
- * Nenhuma rota existente é alterada. A sessão é a mesma da Central do
- * Executivo (compartilhada entre abas).
+ * Rota legada — a área operacional Financeira vive agora sob `/f`.
+ * Redirecionamento controlado, preservando `search` e sem criar
+ * histórico adicional.
  */
 export const Route = createFileRoute("/remarketing")({
-  component: () => <Outlet />,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/f/remarketing", replace: true, search: search as never });
+  },
+  component: () => null,
 });

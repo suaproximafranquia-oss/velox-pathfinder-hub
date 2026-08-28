@@ -2817,6 +2817,48 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_agenda_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_at: string
+          executive_id: string
+          id: string
+          note: string | null
+          priority: string
+          source: string
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_at: string
+          executive_id: string
+          id?: string
+          note?: string | null
+          priority?: string
+          source?: string
+          starts_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string
+          executive_id?: string
+          id?: string
+          note?: string | null
+          priority?: string
+          source?: string
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       workspace_module_permissions: {
         Row: {
           enabled: boolean
