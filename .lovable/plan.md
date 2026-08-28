@@ -1,149 +1,86 @@
-# Auditoria Técnica Pré-Parte B — Estado Real do Projeto
+# Planejamento Técnico — Análise do Estado Atual e Decisões Pendentes
 
-Nenhuma alteração foi feita. Este documento responde às 85 perguntas agrupadas por bloco, com base no código, banco e rotas atuais.
+Nenhuma alteração foi feita. Abaixo, o diagnóstico do que existe hoje e apenas as decisões que ainda estão ambíguas.
 
-## BLOCO 1 — Reestruturação /F
+## A. Problemas técnicos encontrados
 
-1-2. Implementada e completa. Existem 37 arquivos de rota sob `/f`: `f.tsx`, `f.$slug`, `f.crm` + `f.crm.index`, `f.remarketing` + `f.remarketing.index`, `f.portal-leads`, `f.executivo` (layout) + `f.executivo.index` e mais 30 telas `f.executivo.*` (administracao, alertas, backups, biblioteca, brain, campanhas, captacao, celebracao, central-backup, configuracoes, criativa, dashboard, greensales, greensales-sync, home, homologacao, identidade, institucional, investidores, kpi, laboratorio, perfil, recursos, relatorios, reunioes, revista, templates, teste-cadencia, usuarios).
+### A1. A "tempestade" de Status do Lead atualizado é 100% local, não é banco
+Rastreamento do rótulo exato mostrado na tela: `src/lib/investor-profile.ts:48` e `src/lib/executive-data.ts:215` mapeiam o evento `lead.status.changed` para o texto "Status do Lead atualizado". Esse evento não vem de tabela alguma — vem de `src/lib/events/bus.ts`, um barramento em `localStorage` (`velox:events:v1`, teto de 500 eventos, **sem qualquer deduplicação** em `emitEvent`).
 
-3. As rotas antigas são stubs reais: 34 arquivos contêm apenas `beforeLoad` com `throw redirect({ to: "/f/...", replace: true, search })` e `component: () => null`. Não há tela duplicada — a UI existe uma única vez, sob `/f`.
+Quem emite: `markLeadViewed` em `src/lib/lead-state.ts:107`. Ele é chamado incondicionalmente no clique do card e no `useEffect` de montagem do perfil do investidor. A função só verifica `closedAt`; **não compara o estado anterior**. Toda montagem/remontagem grava `viewed_at` no servidor, o servidor confirma, e o evento é emitido de novo — mesmo quando o lead já estava `em_andamento` há dias. Daí dois registros no mesmo segundo (23:41:40 duas vezes): duas montagens do mesmo componente na mesma interação.
 
-4. Sim, parcialmente. A navegação usa caminhos `/f/...` literais (não caminhos antigos), mas os literais estão espalhados: 153 ocorrências, das quais 24 concentradas em `src/components/executive/executive-shell.tsx`.
+Confirmação no banco: `crm_lead_events` tem 773 linhas `lead_sincronizado` e **zero** de mudança de status. O histórico persistido está limpo; o poluído é o feed do cliente.
 
-5. O helper existe (`src/lib/business-unit.ts`: `unitPath`, `currentUnit`, `isOperationalPath`, `validateExecutiveSlug`) mas `unitPath()` **não é chamado em lugar nenhum** — zero call sites fora do próprio arquivo. Na prática a navegação é string literal.
+### A2. "Contato registrado" duplicado por construção
+`src/lib/investor-profile.ts:64-71` monta a timeline a partir de `allLeads.map(...)` — ou seja, **um registro "Contato registrado" por linha de lead** com aquele id. Se o mesmo investidor tiver mais de uma entrada no cache local, a ficha exibe o mesmo contato repetido. A descrição usa `material · origin`, que é exatamente o texto observado ("Link personalizado · Velox Financeira").
 
-6. Conceitualmente sim (`BUSINESS_UNITS` com `financeira/solar/seguros`, flag `operational`), operacionalmente não: só `/f` tem rotas; `/s/$slug` e `/seg/$slug` existem apenas como entrada de link público.
+### A3. `investor.reactivated` é heurística de dispositivo, não estado de negócio
+`src/lib/workspace-alerts.ts:132` (`evaluateInvestorMovement`) compara a atividade do investidor com `readLastSeen()` — um mapa em `localStorage`. Quando dispara, emite `investor.reactivated` (linha 124) e nada mais: **não** inicia jornada de reengajamento, **não** grava estado no banco. Em outro computador, o mesmo lead pode ser "reativado" de novo, ou nunca ser. É essa mesma camada que, ao reavaliar, provoca nova rodada de leitura/visualização e, em cascata, mais `lead.status.changed`.
 
-7. Não há conflito de resolução: TanStack dá precedência ao segmento estático sobre `$slug`. O risco é de *cadastro*: um executivo com slug `crm` ficaria inacessível.
+### A4. Arquitetura não separa "mudança de estado" de "evento ocorrido"
+No servidor a separação existe (`journey.server.ts` com whitelist relacional × auditoria técnica). No cliente não: o bus trata cada *gravação de estado* como *evento ocorrido*. Conceitualmente, o histórico atual registra "estado atual" repetidamente, que é exatamente o que não se quer.
 
-8. Sim, `validateExecutiveSlug` rejeita (não corrige em silêncio) os `RESERVED_UNIT_SLUGS` = executivo, crm, remarketing, portal-leads. Falta cobrir slugs futuros (`s`, `seg`, `api`, `origem`, `manual`).
+### A5. Idempotência: forte no servidor, ausente no cliente
+- GreenSales: identidade determinística `gs_{external_id}`, `upsert(onConflict:'id')`, deduplicação por telefone normalizado, `runSyncMuted` + debounce de 1,5s. Evento repetido **não** cria segunda linha nem segundo lead.
+- `crm_messages` / `crm_timeline`: `upsert` com `ignoreDuplicates` por `id`.
+- Bus de eventos do cliente: `newId()` com timestamp+random a cada chamada — **nenhuma** chave de deduplicação. Este é o único ponto sem idempotência.
 
-9-10. Camada única: `src/components/auth/operational-guard.tsx` aplicado nos layouts `/f/*` com `ssr: false`. Não localizei rota interna sem o guard. Ressalva: o guard é client-side; a proteção real dos dados continua sendo RLS.
+## B. Divergências entre esperado e implementado
 
-## BLOCO 2 — Agenda Operacional
+| # | Esperado | Atual | Onde |
+|---|---|---|---|
+| 1 | Registrar só mudança efetiva de status | Registra toda visualização/remontagem | `src/lib/lead-state.ts` (`markLeadViewed`) |
+| 2 | Histórico = eventos ocorridos | Feed local mistura estado atual e evento | `src/lib/events/bus.ts`, `investor-profile.ts` |
+| 3 | Reativação = estado de negócio persistido | Heurística em localStorage, por dispositivo | `src/lib/workspace-alerts.ts` |
+| 4 | "Contato registrado" uma vez por entrada real | Um por linha do cache | `investor-profile.ts:64` |
+| 5 | Navegação por helper de unidade | `unitPath()` com **zero** call sites; 153 literais `/f/` (24 só em `executive-shell.tsx`) | `src/lib/business-unit.ts` |
+| 6 | Agenda enxergando o motor oficial | `agenda_cadence_tasks` lê só `crm_cadence_tasks` (motor antigo de ligações); mensagens em `relationship_queue` são invisíveis | `src/lib/agenda.functions.ts` |
+| 7 | Horário em America/Sao_Paulo | Dock usa `new Date()`/`toLocaleString` do navegador | `src/components/agenda/agenda-dock.tsx` |
 
-11-13. Global. `agenda-dock.tsx` é montado uma vez em `__root.tsx` e abre como painel sobreposto, sem mudar a rota. Aparece em todos os ambientes onde o root renderiza — Executivo, CRM, Remarketing e Portal dos Leads.
+### Itens verificados e **sem** regressão
+- **Rotas /f**: 37 arquivos sob `/f`; 34 rotas antigas são stubs puros (`beforeLoad` + `redirect` preservando `search`, `component: () => null`). Nenhuma tela ou lógica duplicada.
+- **/f/$slug × rotas internas**: sem conflito de resolução (segmento estático tem precedência). O risco é só de cadastro, já barrado por `validateExecutiveSlug` contra `RESERVED_UNIT_SLUGS`.
+- **Autenticação**: camada única (`OperationalGuard` nos layouts `/f/*`, `ssr: false`). Nenhuma tela refazendo `getSession()`.
+- **Identidade do lead**: chave primária é o ID original da GreenSales (`gs_{id}` + `external_source`/`external_id`), imutável. Investidor que retorna reutiliza o mesmo registro. Telefone normalizado é rede de segurança secundária, não identidade.
+- **Origem/ownership**: `origin` e `scope: 'green_sales'` são gravados na importação e não são reescritos por interação posterior; `responsible_executive_id` só muda por transferência auditada. Links personalizados, TikTok e Meta mantêm carteira própria.
+- **Agenda**: montada uma vez em `__root.tsx`, painel sobreposto sem trocar rota; `portal_meetings` é **somente leitura** (não copia eventos); conflito real garantido no banco por `btree_gist` + `EXCLUDE` entre eventos de prioridade máxima. A Agenda não inventa regra própria de cadência.
 
-14. Três fontes, em `src/lib/agenda.functions.ts`: `workspace_agenda_events` (compromissos próprios, leitura/escrita), `portal_meetings` (reuniões, **somente leitura**) e a função `agenda_cadence_tasks` (tarefas de cadência).
+## C. Perguntas indispensáveis
 
-15. Somente referenciadas. Não há cópia de `portal_meetings` para `workspace_agenda_events`.
+**C1. Reativação: estado persistido ou alerta visual?**
+Problema: hoje é localStorage por dispositivo (A3), então dois executivos veem realidades diferentes. Afeta Workspace, Jornada e o futuro fluxo R0–R3. Decisão dependente: se for estado de negócio, precisa de coluna/tabela, de quem escreve (sincronização? primeira atividade do investidor?) e de o que encerra a reativação.
 
-16. Vêm do banco via `agenda_cadence_tasks` (SECURITY DEFINER), que lê `crm_cadence_tasks`. A Agenda não inventa ações. **Porém** essa função lê apenas o motor antigo de ligações: as mensagens pendentes do motor novo (`relationship_queue`) são invisíveis na Agenda.
+**C2. O que caracteriza reativação — qualquer atividade ou só atividade do investidor?**
+Problema: `evaluateInvestorMovement` hoje considera qualquer movimento de `lastActivity`. Já está definido que abrir card não é atividade; falta definir se mensagem enviada pelo executivo conta. Afeta o gatilho do reengajamento.
 
-17. Coluna `priority` em `workspace_agenda_events` (maxima/media/minima), com `PRIORITY_META` no dock apenas para cor/rótulo.
+**C3. O histórico local já gravado deve ser preservado, filtrado na exibição, ou expurgado?**
+Problema: existem centenas de `lead.status.changed` legítimos-por-código mas ruidosos-por-negócio no `localStorage` de cada máquina. Decisão: filtrar na leitura (reversível, mantém o dado) × limpar a chave (irreversível, mais limpo). Afeta a ficha do investidor.
 
-18-19. Sim, no banco: extensão `btree_gist` + constraint `EXCLUDE` que impede sobreposição entre eventos de prioridade `maxima` do mesmo dono; o servidor devolve `reason: "conflito"` antes de gravar e o dock exibe o conflito. Reuniões de `portal_meetings` **não** entram na verificação de conflito — só eventos máxima × máxima.
+**C4. Ação do Dia: fonte única imediata ou convivência dos dois motores?**
+Problema: `crm_cadence_tasks` (ligações, exibido na Agenda) e `relationship_queue` (mensagens, invisível) coexistem sem chave comum. Unificar sem chave `lead+etapa+instância` duplica a mesma etapa na lista. Decisão: qual motor é o oficial e o que fazer com as tarefas legadas.
 
-20-21. `workspace_agenda_events`, 11 colunas (id, owner/executive, title, starts_at, ends_at, priority, source, ref_id, notes, created_at, updated_at), com a constraint EXCLUDE citada.
+**C5. Reuniões de `portal_meetings` devem bloquear conflito de prioridade máxima?**
+Problema: hoje a constraint só cobre evento × evento; uma reunião confirmada não impede um compromisso máxima no mesmo horário. Afeta a regra de conflito no banco.
 
-22. 4 políticas (leitura/criação/edição/exclusão) escopadas ao dono/administração.
+**C6. Notas do Executivo: tabela própria ou extensão do que existe?**
+Problema: hoje há `portal_leads.notes` (texto único) e `crm_cadence_tasks.note` (desfecho). Não existe duração de ligação nem tipo (ligação × mensagem). Decisão define migration e a UI de card/modal.
 
-**Divergência de fuso:** o dock monta janelas e horários com `new Date()` e `toLocaleString` do navegador, enquanto o servidor trabalha em `America/Sao_Paulo`. Máquina fora de -03:00 vê a agenda deslocada.
+## D. Já definido — não perguntar
+Identidade pelo ID GreenSales; origem preservada; carteiras TikTok/Meta separadas; abrir card não é atividade; homologação nunca chama a Meta; E0 automático/template e demais etapas assistidas; E20 com validade de 7 dias; OPORTUNIDADE encerra a cadência; fechamento 22:00 e janelas de envio; versionamento imutável da Biblioteca e snapshot no envio; blindagem contra exclusão de leads; `/f` como unidade Financeira e slugs reservados.
 
-## BLOCO 3 — Histórico da Jornada / Duplicidade
+## E. Correções já cobertas por regra definida (executar sem nova pergunta)
+1. Guarda de mudança real em `markLeadViewed` — só emitir quando o estado muda de fato.
+2. Deduplicação no bus por chave `tipo+lead+janela`.
+3. "Contato registrado" único por entrada real na ficha.
+4. Fuso do dock da Agenda fixado em America/Sao_Paulo.
+5. Remoção do desfecho padrão `?? "SIM"` em `completeCadenceTask`.
+6. Adoção efetiva de `unitPath()` no lugar dos literais `/f/`.
+7. `step_key` textual (E0–E7 / R0–R3) desacoplado de `step_day`.
 
-23-25. A "tempestade" de `Status do Lead atualizado` **não existe no banco**: `crm_lead_events` tem 773 registros `lead_sincronizado` e zero de status. A duplicação é do barramento de eventos em localStorage (`velox:events:v1`, `src/lib/events/bus.ts`, sem deduplicação, teto de 500). Causa: `markLeadViewed` (`src/lib/lead-state.ts`) é chamado incondicionalmente no clique do card e no `useEffect` de montagem do perfil, e emite `lead.status.changed` a cada confirmação, mesmo quando o lead já estava `em_andamento`. Cada remontagem = mais um evento, no mesmo segundo.
-
-26-29. Idempotência na GreenSales existe e é sólida: identidade por `external_source='greensales'` + `external_id`, id interno determinístico `gs_{externalId}`, `upsert(onConflict:'id')` e deduplicação adicional por telefone normalizado. Evento repetido não gera segunda linha.
-
-30-31. No banco, sincronização não cria evento de status. No cliente, sim: qualquer visualização gera o evento, sem comparar estado anterior — é exatamente o problema 23.
-
-32-34. `investor.reactivated` é heurística de cliente (`src/lib/workspace-alerts.ts`, `evaluateInvestorMovement`), baseada em `readLastSeen()` do localStorage. Não é estado persistido, não inicia jornada de reengajamento e é dependente de dispositivo: em outro computador o mesmo lead pode parecer "novo".
-
-35. Não há recriação de card na sincronização; o card é derivado do banco.
-
-36. Parcial. O banco distingue novo / em andamento / encerrado (`viewed_at`, `closed_at`, `set_lead_operational`). **Não existem** como estado persistido: reativado, voltou espontaneamente, em reengajamento — hoje são inferência local.
-
-37. Não, pela chave determinística `gs_{id}`.
-
-38-39. Sim, o ID original da GreenSales é imutável e é a chave de referência.
-
-40-41. Risco residual único: lead criado manualmente no Workspace com o mesmo telefone e depois importado — mitigado pela deduplicação por telefone normalizado, não impedido por constraint no banco.
-
-42-44. A separação existe desde o bloco anterior: `src/server/relationship/journey.server.ts` aplica whitelist de eventos relacionais (Jornada do Investidor) e mantém o restante como Auditoria Técnica. O que ainda vaza é o feed do cliente, não a Jornada do servidor.
-
-45. Recomendação: guarda de mudança real em `markLeadViewed` (só emitir quando o estado efetivamente muda) + deduplicação por chave `tipo+lead+minuto` no bus. Nada é apagado; o histórico legítimo permanece.
-
-## BLOCO 4 — GreenSales / Sincronização
-
-46-50. Fluxo: `src/server/greensales.server.ts` (login, `fetchTodayLeads`, `fetchLeadDetail`, reconciliação contínua) → `src/lib/greensales-sync.functions.ts` normaliza e faz upsert em `portal_leads` (escopo `green_sales`) → `src/server/crm/lead-sync.server.ts` faz a persistência idempotente e o roteamento → estado operacional derivado por `src/lib/lead-state.ts` → jornada montada por `journey.server.ts`. Criar × atualizar é decidido pelo mesmo `upsert` por `id` determinístico; "reativar" não é decidido no servidor (ver 32).
-
-51-53. Polling de ~10s com trava de concorrência e `runSyncMuted` (`src/lib/sync-bus.ts`) e debounce de 1,5s (`src/lib/portal-leads-sync.ts`). Idempotência por chave determinística. Não há lock transacional no banco, mas o upsert torna a corrida inofensiva.
-
-54-55. Parcialmente. `crm_lead_events` e `crm_sync_runs` permitem rastrear a rodada de sincronização, mas os eventos do cliente não têm origem gravada — para os 10 registros iguais do exemplo, hoje **não** é possível dizer qual montagem os criou.
-
-## BLOCO 5 — Notas do Executivo
-
-56. Não existe uma estrutura dedicada "Notas do Executivo". Há `notes` em `portal_leads` (campo único, gravável por `set_lead_operational`) e o desfecho da ligação em `crm_cadence_tasks.note`.
-
-57. Data/hora e resultado sim; **duração não existe**; observação apenas como texto livre em `note`.
-
-58. Mensagens completas existem, mas em outra camada: `relationship_message_sends` com snapshot congelado do texto renderizado.
-
-59-60. Não há diferenciação visual entre nota de ligação e nota de mensagem, nem resumo no card com modal de conteúdo completo.
-
-61. Sim, tudo é vinculado ao ID único do lead.
-
-## BLOCO 6 — Motor de Cadência
-
-62. Existem **dois**: o antigo de ligações (`src/lib/crm/cadence.ts` + `src/server/crm/cadence.server.ts`, tabela `crm_cadence_tasks`) e o novo de relacionamento (`src/lib/relationship/*`, `src/server/relationship/*`, tabelas `relationship_queue`, `relationship_cadences`, `relationship_message_sends`).
-
-63. Sim, `relationship/decide.ts` + `scheduler.server.ts` calculam a próxima ação; o motor antigo calcula por offsets de dias.
-
-64-65. Etapas: `relationship_cadences` / `relationship_step_content_bindings`. Execução: `relationship_queue` e `relationship_message_sends` (novo), `crm_cadence_tasks` (antigo).
-
-66. Parcialmente: há distinção de canal e de envio simulado × real, mas não um campo explícito `automatico | assistido`.
-
-67. A infraestrutura suporta, **mas a nomenclatura atual é numérica por dia**: as tarefas usam `step_day` (inteiro) e o rótulo exibido é `D{n}`. Falta um `step_key` textual (E0…E7, R0…R3).
-
-68-69. Sim — o acoplamento etapa↔dia existe em `src/lib/crm/cadence.ts` (`CADENCE_CONFIG.offsets`, D1–D7/D12) e em `crm_cadence_tasks.step_day`, além do rótulo `D{n}` na UI e na função `agenda_cadence_tasks`.
-
-70. Hoje não. Com `step_day` como chave, "E6 daqui a seis meses" não é representável, e a contagem de E7 a partir da geração de E6 não existe. Isso é pré-requisito da Parte B.
-
-## BLOCO 7 — Regra de Negócio Crítica
-
-71. Sim, existe caminho automático no motor novo (`dispatch.server.ts`, `auto-reply.server.ts` com resposta 24h restrita), guardado por ambiente.
-
-72. Sim, "Ligações do Dia" / Ação do Dia apresentam a ação para execução manual.
-
-73. Existe na prática, não como campo de dados — a distinção é por caminho de código, não por atributo consultável.
-
-74. E0 está preparado para automático/template, porém **em modo simulação**: `src/lib/creative/e0-simulation.ts` ativo e `crm_meta_templates` vazia. Sem templates Meta cadastrados, não há disparo real.
-
-75. Só a resposta automática de 24h; o restante exige ação explícita. As travas de ambiente (homologação nunca chama a Meta) estão ativas.
-
-76-77. Risco real de duplicidade em "Ações do Dia": a Agenda lê apenas `crm_cadence_tasks`, o motor novo grava em `relationship_queue`; quando as duas fontes forem unificadas sem chave comum, a mesma etapa pode aparecer duas vezes. Há idempotência por tarefa concluída no motor antigo (`status`), mas não uma chave única `lead+etapa+instância` compartilhada entre os motores.
-
-## BLOCO 8 — Conclusão
-
-### A) Correto e preservar
-Stubs de redirecionamento e as 37 rotas `/f`; `OperationalGuard` único com `ssr: false`; identidade determinística GreenSales (`gs_{id}` + external_id) e deduplicação por telefone; constraint EXCLUDE de conflito de agenda; separação Jornada × Auditoria Técnica no servidor; blindagem de exclusão de leads (`portal_lead_guard_log`); versionamento imutável da biblioteca e snapshot de mensagens; travas de ambiente de disparo.
-
-### B) Incorreto e precisa corrigir
-1. `markLeadViewed` sem guarda de mudança real → tempestade de eventos no feed local (`src/lib/lead-state.ts`).
-2. Fuso do dock da Agenda no relógio do navegador em vez de `America/Sao_Paulo` (`src/components/agenda/agenda-dock.tsx`).
-3. Desfecho padrão `?? "SIM"` em `completeCadenceTask` (`src/server/crm/cadence.server.ts`) — grava resultado não informado como positivo.
-4. `unitPath()` morto com 153 literais `/f/` (24 em `executive-shell.tsx`).
-5. Reativação apenas em localStorage (`workspace-alerts.ts`) — dependente de dispositivo.
-
-### C) Incompleto e precisa implementar
-`step_key` textual (E0–E7 / R0–R3) desacoplado de dias, com contagem relativa à geração da etapa anterior; Agenda enxergando `relationship_queue` (hoje cega para 24 mensagens pendentes); Notas do Executivo com tipo (ligação/mensagem), duração e modal de conteúdo; campo explícito automático × assistido; estados persistidos de reativado/reengajamento; templates Meta cadastrados antes de sair da simulação do E0.
-
-### D) Risco técnico
-Unificar as duas fontes de "Ações do Dia" sem chave única compartilhada (duplicidade de ação); desativar a simulação do E0 com `crm_meta_templates` vazia (disparo indevido ou falha); mexer no barramento local sem preservar o histórico já gravado (perda de histórico); ampliar a checagem de conflito para `portal_meetings` sem definir a regra (pode bloquear agendamentos legítimos).
-
-### E) Decisões necessárias antes da Parte B
-1. Qual motor de cadência é o oficial daqui em diante — e o destino das tarefas legadas em `crm_cadence_tasks`.
-2. Vocabulário definitivo: `E-n`/`R-n` substitui `D{n}` na UI, ou convivem?
-3. Reuniões de `portal_meetings` devem bloquear conflito de prioridade máxima?
-4. Reativação: estado persistido no banco (e quem o grava) ou permanece alerta visual?
-5. Desfecho de ligação sem resposta: obrigatório ou "não informado"?
-6. Notas do Executivo: tabela própria ou extensão da timeline existente?
-
-## Ordem segura recomendada para a Parte B
-1. Fundação: `step_key` textual + chave única de ação.
-2. Correções invisíveis: guarda de visualização, fuso da Agenda, remoção do padrão "SIM".
-3. Unificação da Agenda com o motor novo.
-4. Notas do Executivo.
-5. Etapas E6/E7 e reengajamento persistido.
-6. Saída da simulação do E0, somente após cadastro dos templates Meta.
+## Ordem recomendada da próxima etapa
+1. Correções invisíveis de integridade (E1–E5 acima) — nenhuma decisão pendente, risco baixo.
+2. Fundação: `step_key` textual + chave única de ação (depende de C4).
+3. Unificação da Agenda com o motor oficial (depende de C4 e C5).
+4. Reativação/reengajamento persistido (depende de C1 e C2).
+5. Notas do Executivo (depende de C6).
+6. Saída da simulação do E0, somente após o cadastro dos templates Meta.
