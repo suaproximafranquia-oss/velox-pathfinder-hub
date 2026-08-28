@@ -2142,11 +2142,16 @@ export type Database = {
         Row: {
           actor_id: string | null
           actor_name: string | null
+          button_destinations: Json | null
           cadence_id: string | null
           channel: string
+          contact_destination: string | null
+          contact_phone: string | null
           content_id: string | null
           content_url: string | null
           created_at: string
+          executive_id: string | null
+          executive_name: string | null
           id: string
           instance_seq: number
           investor_name_used: string | null
@@ -2158,6 +2163,7 @@ export type Database = {
           meta_template_name: string | null
           occurrence_id: string | null
           origin: string
+          portal_destination: string | null
           purpose: string
           rendered_body: string
           scope: string
@@ -2169,11 +2175,16 @@ export type Database = {
         Insert: {
           actor_id?: string | null
           actor_name?: string | null
+          button_destinations?: Json | null
           cadence_id?: string | null
           channel?: string
+          contact_destination?: string | null
+          contact_phone?: string | null
           content_id?: string | null
           content_url?: string | null
           created_at?: string
+          executive_id?: string | null
+          executive_name?: string | null
           id?: string
           instance_seq?: number
           investor_name_used?: string | null
@@ -2185,6 +2196,7 @@ export type Database = {
           meta_template_name?: string | null
           occurrence_id?: string | null
           origin?: string
+          portal_destination?: string | null
           purpose: string
           rendered_body: string
           scope?: string
@@ -2196,11 +2208,16 @@ export type Database = {
         Update: {
           actor_id?: string | null
           actor_name?: string | null
+          button_destinations?: Json | null
           cadence_id?: string | null
           channel?: string
+          contact_destination?: string | null
+          contact_phone?: string | null
           content_id?: string | null
           content_url?: string | null
           created_at?: string
+          executive_id?: string | null
+          executive_name?: string | null
           id?: string
           instance_seq?: number
           investor_name_used?: string | null
@@ -2212,6 +2229,7 @@ export type Database = {
           meta_template_name?: string | null
           occurrence_id?: string | null
           origin?: string
+          portal_destination?: string | null
           purpose?: string
           rendered_body?: string
           scope?: string
