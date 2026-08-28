@@ -26,6 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Archive, Download } from "lucide-react";
+import { unitPath } from "@/lib/business-unit";
 
 export type PlatformModule = {
   id: string;
@@ -60,7 +61,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     description:
       "Importação somente leitura dos leads criados hoje no GreenSales para o Portal Atlas.",
     icon: Download,
-    to: "/f/executivo/greensales-sync",
+    to: unitPath("/executivo/greensales-sync"),
     status: "ativo",
     requiresRole: ["super_admin"],
   },

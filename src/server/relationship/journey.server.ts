@@ -113,11 +113,16 @@ function timelineKind(event: string): JourneyEntryKind {
 }
 
 /**
- * Simulação registrada em `crm_messages`: a tabela não tem coluna própria,
- * então o rótulo gravado no envio é a única marca disponível.
+ * Simulação: agora é um DADO estruturado (`crm_messages.simulated`), não
+ * um prefixo dentro do texto. Os rótulos textuais continuam reconhecidos
+ * apenas para as linhas ANTIGAS já gravadas — nada do histórico se perde.
  */
-function isSimulatedMessage(row: { body?: string | null; author_name?: string | null }): boolean {
-  // Reconhece a marca atual e a marca histórica já gravada no banco.
+function isSimulatedMessage(row: {
+  body?: string | null;
+  author_name?: string | null;
+  simulated?: boolean | null;
+}): boolean {
+  if (row.simulated === true) return true;
   const markers = [SIMULATION_LABEL, LEGACY_E0_SIMULATION_LABEL];
   const haystack = `${String(row.body ?? "")} ${String(row.author_name ?? "")}`;
   return markers.some((marker) => haystack.includes(marker));

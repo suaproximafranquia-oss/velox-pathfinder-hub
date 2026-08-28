@@ -40,10 +40,21 @@ export function getUnit(key: BusinessUnitKey = DEFAULT_UNIT): BusinessUnit {
 }
 
 /**
- * Caminho operacional dentro da unidade.
+ * Caminho operacional dentro da unidade FINANCEIRA (única operacional).
  *   unitPath("/executivo/home") → "/f/executivo/home"
+ *
+ * O tipo devolvido preserva o literal (`/f/executivo/home`), para que o
+ * roteador continue validando cada destino em tempo de compilação: a
+ * centralização não pode custar a segurança de rota.
  */
-export function unitPath(path: string, unit: BusinessUnitKey = DEFAULT_UNIT): string {
+export function unitPath<P extends `/${string}`>(path: P): `/f${P}` {
+  const prefix = `/${getUnit("financeira").prefix}`;
+  const clean = path.startsWith(`${prefix}/`) || path === prefix ? path : `${prefix}${path}`;
+  return clean as `/f${P}`;
+}
+
+/** Versão dinâmica, para unidades ainda não operacionais. */
+export function unitPathFor(unit: BusinessUnitKey, path: string): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
   const prefix = `/${getUnit(unit).prefix}`;
   return clean.startsWith(`${prefix}/`) || clean === prefix ? clean : `${prefix}${clean}`;
