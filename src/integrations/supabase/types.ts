@@ -487,6 +487,7 @@ export type Database = {
           direction: string
           id: string
           investor_id: string
+          simulated: boolean
         }
         Insert: {
           at?: string
@@ -497,6 +498,7 @@ export type Database = {
           direction: string
           id: string
           investor_id: string
+          simulated?: boolean
         }
         Update: {
           at?: string
@@ -507,6 +509,7 @@ export type Database = {
           direction?: string
           id?: string
           investor_id?: string
+          simulated?: boolean
         }
         Relationships: []
       }
@@ -712,6 +715,7 @@ export type Database = {
           origin: string
           owner_id: string | null
           reason: string
+          simulated: boolean
         }
         Insert: {
           actor_id?: string | null
@@ -723,6 +727,7 @@ export type Database = {
           origin?: string
           owner_id?: string | null
           reason?: string
+          simulated?: boolean
         }
         Update: {
           actor_id?: string | null
@@ -734,6 +739,7 @@ export type Database = {
           origin?: string
           owner_id?: string | null
           reason?: string
+          simulated?: boolean
         }
         Relationships: []
       }
