@@ -133,8 +133,8 @@ export async function registerFirstContact(
 
   return {
     registered: true,
-    delivered: delivery.delivered,
-    simulated: Boolean(input.simulated),
-    error: delivery.error,
+    delivered: dispatch.delivered,
+    simulated: dispatch.simulated,
+    ...(dispatch.error ? { error: dispatch.error } : {}),
   };
 }
