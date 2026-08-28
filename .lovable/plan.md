@@ -1,363 +1,397 @@
-# Auditoria Técnica 2/5 — Fotografia do código real
+# Auditoria 2/5 — Fechamento das decisões para a próxima construção
 
-Somente leitura. Nenhum código, migration, rota ou componente foi alterado.
+Somente análise. Nenhum código, banco, rota ou tela foi alterado.
 
-## 1. Ação do Dia — arquitetura atual
+---
 
-- **Onde é montada:** `src/components/crm/daily-calls-overlay.tsx` (overlay "Ligações do Dia"), aberto pelo botão do `src/components/crm/portal-leads-board.tsx:614`.
-- **Motor que alimenta:** `listCadenceQueue({ channel: "call" })` em `src/lib/crm/cadence.functions.ts` → tabela **`crm_cadence_tasks`** (motor legado de ligações). Server: `src/server/crm/cadence.server.ts`.
-- **Tipos que entram:** apenas tarefas de canal `call`, separadas em `overdue` e hoje (regra §19: atrasada nunca é contada como ligação de hoje). Ações concluídas removem só a ocorrência do dia.
-- **Motor que produz ações e NÃO aparece ali:** sim, dois.
-  - `relationship_queue` (motor oficial de mensagens) — hoje com **26 itens pendentes/processados: E1 (11), E3 (9), E4 (6)** — invisível no overlay.
-  - `workspace_agenda_events` (Agenda) e `portal_meetings` — invisíveis no overlay.
-- Arquivos: `daily-calls-overlay.tsx`, `portal-leads-board.tsx`, `src/lib/crm/cadence.functions.ts`, `src/server/crm/cadence.server.ts`, `src/lib/crm/call-planning.ts`, `src/lib/agenda.functions.ts`.
+## 1. Estrutura de rotas — Grupo Velox (itens 1–9)
 
-## 2. Motor oficial
+**COMO ESTÁ HOJE.** O domínio raiz abre **`src/routes/index.tsx`** (`createFileRoute("/")`), que É o Portal do Investidor da Velox Financeira. `src/routes/f.tsx` é apenas `<Outlet />` neutro; os links personalizados `f.$slug.tsx`, `e.$slug.tsx`, `s.$slug.tsx`, `seg.$slug.tsx` fazem `redirect({ to: "/" })` preservando `search.e`.
 
-- **Fonte de verdade por tipo hoje:**
-  - Ligações → `crm_cadence_tasks` (5 linhas, todas `DONE`; nenhuma pendente).
-  - Mensagens → `relationship_queue` + `relationship_message_sends` (3 envios E1, 6 E3).
-  - Compromissos → `workspace_agenda_events` (1 linha) e `portal_meetings` (1 linha).
-- **É possível sem terceiro motor:** sim. Nenhuma estrutura nova de execução é necessária.
-- **Arquitetura mais segura:** um **agregador de LEITURA** no servidor (ex.: `src/server/crm/daily-actions.server.ts`) que consulta as três fontes, normaliza para um tipo único `DailyAction { key, kind, leadId, step, dueAt, priority, overdue, source }` e devolve ordenado. Nenhuma escrita, nenhuma cópia de linha entre tabelas. A conclusão de cada ação é despachada de volta para a tabela de origem, escolhida pelo campo `source`.
+**ONDE ESTÁ IMPLEMENTADO.** `src/routes/index.tsx`, `src/routes/f.tsx`, os quatro stubs `*.$slug.tsx`, `src/lib/business-unit.ts` (prefixos + validação de slugs reservados), `src/lib/portal-brands.ts` (`investorPortalPath`/`investorPortalUrl`, com fallback fixo `https://velox-pathfinder-hub.lovable.app`), `src/config/modules.ts` (módulo "Portal do Investidor" com `href: "/"`).
 
-## 3. Identidade única da ação
+**O QUE ESTÁ FALTANDO (item 2 — sim, é tecnicamente possível).** Mover o Portal Financeiro para `src/routes/f.index.tsx`; reescrever `/` como Home institucional; trocar os stubs de redirect por resolução local de slug; apontar `investorPortalPath` para `/f/...`.
 
-- **Hoje não existe** chave determinística cruzando os motores. `crm_cadence_tasks` tem `id` uuid próprio; `relationship_queue` identifica por `lead_id + step + instância`; a Agenda por `id` de evento. Não há nada que reconheça "a mesma ação" vinda de duas origens.
-- **Chave recomendada:** `action_key = ${source}:${leadId}:${step ?? kind}:${instanceSeq ?? occurrenceDate}` — determinística, calculável em leitura, sem coluna nova no primeiro momento.
-- **Idempotência de exibição:** o agregador materializa um `Map<action_key, DailyAction>`; a primeira origem por ordem de precedência (Agenda > fila oficial > legado) vence e as demais são descartadas com o motivo registrado.
-- **Onde aplicar:** na normalização de cada leitor do agregador, antes da ordenação; e no handler de conclusão, que recebe a `action_key` e a resolve para a tabela de origem.
+**Referências que hoje esperam o Portal em `/` (itens 3 e 4).** `src/routes/__root.tsx:45,83`; `src/routes/index.tsx:536`; `src/components/editorial/module-chrome.tsx:66`; `src/components/journey/journey-chrome.tsx:41`; `src/config/modules.ts:47-56`; `src/lib/portal-brands.ts:69-91` e seus consumidores (`src/server/relationship/dispatch.server.ts:30,66-72`, `src/lib/journey/campaigns.ts`, `src/lib/portal-session.ts`, `src/routes/f.executivo.dashboard.tsx:576`, `src/server/crm/automation.server.ts`); os quatro stubs `*.$slug.tsx`; e **~153 literais `"/f/..."`** espalhados, já que `unitPath()` tem **zero uso**.
 
-## 4. Etapas do motor — estado real
+**Item 5 — `/s` x `/sol`.** Tecnicamente mais seguro: **manter `s`**. Já existe `src/routes/s.$slug.tsx`, o prefixo já está reservado em `business-unit.ts` e é simétrico a `f`/`seg`. `/sol` obriga a criar rota, alterar validação e migrar links.
 
-Conteúdo em `relationship_message_library` (21 linhas, 1 versão ativa cada):
-`E0, E0_V1, E1, E3, E4, E12, V3, V4, R1, R2, R3, RE0, RE1, RE2, RE3, RF0, RF1, E20, E27, FINALIZACAO`.
+**Item 6.** Sim — a arquitetura é multi-unidade por prefixo; adicionar unidades não reconstrói `/f`.
 
-- **Com texto oficial:** E0, E0_V1, E1, E3, E4, E12, V3, V4, R1–R3, RE0–RE3, RF0, RF1.
-- **Slots vazios declarados:** `PENDING_TEXT_STEPS = ["E20","E27","FINALIZACAO"]` (`src/server/relationship/message-library.server.ts:47`) — existem na tabela, sem texto aprovado.
-- **E2, E5, E6, E7, R0: não existem** — nem em `LIBRARY_STEP_ORDER`, nem em `src/lib/relationship/messages.ts`, nem no banco. Confirmado.
-- **Bindings:** `relationship_step_content_bindings` está **VAZIA (0 linhas)**. Nenhuma etapa tem binding de conteúdo hoje.
-- **Com infraestrutura mas sem UI:** E20 (backend completo: emissão, token, TTL, resgate, acessos — zero consumidores `.tsx`); E1/E3/E4 (fila oficial ativa, mas o Portal dos Leads não renderiza a mensagem).
-- **Só precisa cadastro de conteúdo:** E20, E27, FINALIZACAO (o texto oficial vem do Word).
-- **Precisa criação estrutural:** E2, E5, E6, E7, R0.
+**Item 7.** Sim. As áreas autenticadas vivem em `f.executivo.*`, `f.crm.*`, `f.remarketing.*`, todas sob `OperationalGuard`. Uma Home institucional em `/` não concede acesso algum.
 
-## 5. E20 × E6
+**Item 8.** Hoje o fallback é o **inverso**: `/f/{slug}` cai em `/`. Não existe redirect de `/` para `/f`.
 
-- **Sim, é a estratégia de menor risco.** E20 é chave persistida em dados, não apenas constante.
-- Podem continuar internamente: rota `src/routes/portal.convite.$token.tsx`, tabelas `relationship_e20_occurrences` / `relationship_e20_accesses` (colunas `scope`, `cadence_id`, `instance_seq`), `issueE20`/`redeemE20` (`src/server/relationship/e20.server.ts`) e `renderFromLibrary("E20", ...)`.
-- **Sim**, o usuário pode ver "E6 — Apresentação Digital" com um mapa de rótulo (`STEP_LABEL` já existe em `message-library.server.ts`) sem tocar em nada histórico.
-- **Onde renomear quebraria:** a linha `step_key = 'E20'` em `relationship_message_library`; `PENDING_TEXT_STEPS`; `LIBRARY_STEP_ORDER`; a cor de badge `e20` em `src/components/crm/crm-lead-journey.tsx:54`; e qualquer `relationship_message_sends`/snapshot já gravado com `step = 'E20'` — renomear invalidaria o histórico de envios.
+**Item 9 — riscos de conflito.** (a) `f.$slug` colide conceitualmente com os filhos `/f/executivo`, `/f/crm`, `/f/remarketing` — por isso existe a lista de slugs reservados; qualquer executivo com slug `crm`, `executivo` ou `remarketing` quebraria o roteamento. (b) Ao criar `f.index.tsx`, `f.tsx` deixa de ser neutro e precisa continuar **sem guard**, senão o Portal público passa a exigir sessão. (c) As rotas legadas de topo (`crm.tsx`, `remarketing.tsx`, `portal-leads.tsx`, `executivo.*`) redirecionam para `/f/*` e precisam sobreviver à mudança.
 
-## 6. Botão "Gerar Apresentação Digital"
+**RISCO/IMPACTO.** Alto se feito sem `unitPath()`: links E0/E20 já entregues a investidores deixam de resolver.
 
-- **Onde inserir:** `src/components/crm/crm-lead-ficha.tsx` (ficha) e/ou o menu do `LeadCard` em `src/components/crm/portal-leads-board.tsx:80`.
-- **Identificação do lead:** sim, ambos já operam com o `leadId` (ID original da GreenSales) em mãos.
-- **Token de 7 dias:** pronto. `issueE20` gera token, `link_url`, `expires_at = now + SEVEN_DAYS_MS` (`e20.server.ts:23,129-131`).
-- **O que falta:** (a) botão que chame `emitirE20` (`src/lib/relationship/e20.functions.ts:8`); (b) leitura do estado atual via `listarOcorrenciasE20`; (c) exibição de prazo/status; (d) texto oficial de E20 na Biblioteca.
-- **Risco de dois links válidos:** hoje **não** há dois válidos — `issueE20` encerra a ocorrência anterior e abre nova. O risco real é o inverso: **duplo clique invalida o link já entregue ao investidor**. Mitigação: botão idempotente que reutiliza a ocorrência ativa e exige ação explícita para regerar.
+**RECOMENDAÇÃO.** Migrar literais para `unitPath()` primeiro, depois inverter as rotas em um único passo, com `portal-brands.ts` como ponto único de verdade dos links.
 
-## 7. Copiar apresentação
+**DECISÃO PENDENTE.** Nomenclatura Solar (`s` ou `/sol`).
 
-- **Normalização de nome:** sim, atende. `src/lib/relationship/names.ts` — `normalizeName:29-41`, `firstName:44-47`, `resolveTreatment:140-169`, com `NEUTRAL_TREATMENT = "caro investidor"` (`:12`) quando o nome não é plausível ou foi rejeitado.
-- **Gerador reutilizável:** `renderFromLibrary(step, vars)` em `src/server/relationship/message-library.server.ts`, já usado por `issueE20` (`e20.server.ts:167-171`).
-- **Snapshot:** `recordMessageSnapshot` — congela template, versão e texto renderizado no momento do envio. Deve ser gravado no **ato do envio manual confirmado**, não na geração do link.
-- **Gerar link deve registrar apenas a emissão da apresentação** (`relationship_e20_occurrences`) e, no máximo, um evento relacional do tipo `cadencia_*` na Jornada. Nunca um evento de atividade do investidor.
-- **O que evita contaminação:** manter a emissão fora da lista branca `src/lib/events/investor-activity.ts`. Atividade do investidor só nasce quando o link é **aberto** (`redeemE20` → `relationship_e20_accesses`).
+---
 
-## 8. Validade de 7 dias
+## 2. Apresentação Digital (itens 10–27)
 
-- **Exatamente 7 dias corridos** a partir da emissão: `SEVEN_DAYS_MS = 7*24*60*60*1000` (`e20.server.ts:23`), aplicado em `:130`.
-- **Bloqueio no servidor:** `redeemE20` (`:219-265`) recusa o resgate e grava `status = 'expirada'` (`:240-245`). A interface não participa.
-- **Registro de cada acesso:** sim — `relationship_e20_accesses` (`occurrence_id`, `lead_id`, `accessed_at`, `outcome`, `user_agent`), inserido em `:232-238`.
-- **Quando abriu e quantas vezes:** sim — `first_opened_at` e `open_count` em `relationship_e20_occurrences`.
-- Tabelas/funções: `relationship_e20_occurrences`, `relationship_e20_accesses`, `issueE20`, `redeemE20`, `listE20Occurrences`.
+**Item 10 — COMO ESTÁ HOJE.** A funcionalidade **não existe** com esse nome. O que existe, completo no backend, é o **E20 — Convite ao Portal**: `src/server/relationship/e20.server.ts` (`issueE20`, `redeemE20`, `listE20Occurrences`), fachada `src/lib/relationship/e20.functions.ts`, rota pública `src/routes/portal.convite.$token.tsx`, tabelas `relationship_e20_occurrences` e `relationship_e20_accesses`. **Nenhum consumidor `.tsx`.**
 
-## 9. Status online / último acesso
+**Item 11 — o que falta.** Botão na ficha/card (`src/components/crm/crm-lead-ficha.tsx`, `LeadCard` em `src/components/crm/portal-leads-board.tsx:80`); leitura do estado da ocorrência ativa; exibição de prazo/status; texto oficial na Biblioteca; tela administrativa; RLS restritiva.
 
-- **Heartbeat: NÃO EXISTE.** Nenhum ping periódico.
-- **Mecanismo de presença: não existe.** O que existe é agregação por evento: `portal_engagement` (via `src/server/portal-engagement.server.ts`), com `last_access_at`, sessões (`SESSION_GAP_MS = 4h`) e tempo ativo (`MAX_ACTIVE_GAP_MS = 5min`).
-- **"Última atividade" hoje** = `portal_engagement.last_access_at` e `portal_leads.last_activity_at`, ambos movidos por eventos discretos (abrir módulo, material, simulador, IA).
-- **Distinguir "abriu" de "está navegando agora": não é possível hoje** — sem eventos contínuos, uma aba parada é indistinguível de uma sessão ativa.
-- **Menor implementação confiável:** ping do Portal a cada ~60s enquanto `document.visibilityState === "visible"`, atualizando somente `last_access_at`; "online" calculado **na leitura** (`now - last_access_at < 15 min`), sem coluna de status e sem job. Para não contaminar o `lastActivity` operacional, o ping deve gravar em um campo próprio (`last_seen_at`) e **não** entrar na lista branca de `investor-activity.ts` — presença é sinal de tela, não fato relacional.
+**Item 12.** **Reutilizar E20 como base**, não criar entidade independente. Tudo o que a Apresentação Digital precisa já está modelado: token, TTL, acessos, `open_count`, `first_opened_at`, `instance_seq`. Manter `E20` como chave interna e exibir "E6 — Apresentação Digital" como rótulo (existe `STEP_LABEL` em `message-library.server.ts`). Renomear a chave invalidaria `relationship_message_library.step_key = 'E20'`, `PENDING_TEXT_STEPS`, `LIBRARY_STEP_ORDER`, a badge `e20` em `crm-lead-journey.tsx:54` e os snapshots já gravados.
 
-## 10. Manual — histórico de acesso
+**Item 13 — o conflito.** `src/server/relationship/dispatch.server.ts:29,65-66` resolve o portal por `card?.responsible_executive_slug ?? fallback?.slug`, com `fallback = getDefaultExecutive()`. Ou seja, lead sem responsável recebe o Portal de **outro** executivo — em contradição direta com `src/lib/crm/post-presentation.ts:8-9` ("nunca há fallback para o link de outro executivo").
 
-- **Persistido: sim.** `manual` está na lista `TRACKED` de `src/server/portal-engagement.server.ts`; os eventos vão para `portal_engagement` e `portal_journey_events`.
-- **Contém** `investorId` (lead_id), timestamp e chave do módulo. O capítulo específico chega como evento de jornada (`manual.chapter.completed`), não como coluna dedicada.
-- **Diferencia primeiro acesso:** sim — `firstModuleAccess` no `EngagementResult`, gravado uma única vez por módulo.
-- **Apenas em localStorage:** o progresso de leitura do investidor (hooks de progresso do Manual) e o barramento de eventos do executivo (`src/lib/events/bus.ts`), incluindo comentários (`src/lib/investor-comments.ts`) e alertas (`src/lib/workspace-alerts.ts`). Esses não existem no banco.
+**Item 14 — RECOMENDAÇÃO.** **Sim: a apresentação deve SEMPRE pertencer ao executivo responsável pelo lead.** Sem responsável, a geração deve ser **bloqueada** com mensagem clara, nunca substituída por executivo padrão.
 
-## 11. Manual — Capítulo 3
+**Itens 15–16 — redistribuição.** Hoje a ocorrência guarda `generated_by`/`generated_by_executive_id` e não é reavaliada em redistribuição — o link antigo continua apontando para o portal do executivo original. **Recomendação:** ao redistribuir, **encerrar a ocorrência ativa** (`status = 'encerrada'`) e deixar o novo responsável gerar a sua. O link não deve trocar de dono no meio do caminho: o investidor abriria uma página assinada por quem não o atende mais.
 
-- **Armazenamento:** **componente + arquivo de dados**, não banco. Metadados em `src/lib/journey-data.ts` (capítulo `velox`, "Quem é a Velox"); corpo em `src/components/journey/chapter-bodies.tsx`, função `VeloxBody:104-260`, timeline em `:106-132`.
-- **Fonte única:** sim, esses dois arquivos. Não há duplicata em banco.
-- **Alterar exige código.** Não existe CMS/editor para o Manual (o CMS `portal_institutional_blocks` cobre apenas os módulos institucionais da Home, não o Manual).
-- **Versionamento: não existe.**
-- **Versão lida pelo investidor: não é registrada.** Os eventos guardam módulo/capítulo e horário, nunca a versão do texto.
+**Itens 17–18 — validade.** Hoje: exatamente **7 dias corridos a partir da geração** (`SEVEN_DAYS_MS`, `e20.server.ts:23`, aplicado em `:130`), validado no servidor por `redeemE20` (`:219-265`), que marca `status = 'expirada'`. **Recomendação: manter a contagem a partir da geração.** Contar do primeiro acesso torna o prazo indeterminado e contradiz a mensagem oficial ("sete dias" a partir do envio).
 
-## 12. Manual — vídeo do capítulo 7
+**Itens 19–20 — quantos links.** Hoje `issueE20` **encerra a anterior e cria nova**: só um ativo, com histórico preservado em linhas anteriores. **Recomendação: manter exatamente isso** — um ativo por lead, histórico completo, regeração explícita e avisada. Dois links válidos criariam duas contagens de acesso para a mesma apresentação.
 
-- **Definição:** flag `hasVideo: true` no capítulo `operacao` (`src/lib/journey-data.ts:146`), renderizada por `src/components/journey/chapter-view.tsx:76-80`.
-- **Componente independente:** `src/components/journey/video-slot.tsx` — placeholder puro, texto fixo "Vídeo do especialista — em breve.", sem player, sem dados, sem storage.
-- **Impacto:** remover a flag afeta somente o capítulo 7. Os capítulos 1 (`recepcao:34`) e 14 (`proximos-passos:268`) mantêm o seu. Alterar o **componente** afetaria os três.
-- **Vínculo com perfil do executivo: nenhum.** `postPresentationVideoUrl` é campo separado, usado só em `src/lib/crm/post-presentation.ts`.
+**Item 21 — dados do lead necessários:** `id`, nome tratado (`resolveTreatment`/`firstName`), e o vínculo com o executivo responsável. Nada além disso deve trafegar na URL.
 
-## 13. Princípios Velox
-
-- **Cadastro:** banco — `portal_institutional_blocks`, lidos por `fetchInstitutionalModule({ module: "principios" })` (`src/components/portal/principios-overlay.tsx:13,62`). Sem bloco cadastrado, cai em `Princípio 0N` + `PLACEHOLDER_BODY` (`:27-28,42-44`).
-- **Imagem interna:** é conteúdo **exclusivo da página** — `assetUrl("portal-capa-principios")` (`:15,84`). O card da Home usa `experienciasImg.url` (`src/routes/index.tsx:221`). **São assets diferentes; não há duplicação.**
-- **Remover só a interna:** sim, seguro — basta remover o `<figure>` de `:82-91`. O card da Home não é tocado.
-- **Hover:** **inexistente** nos cards (`<article>` em `:111-143`, sem classe `hover:`). Não há componente reutilizável de card com hover nesse overlay.
-- **Link/handler a remover:** **nenhum** — os cards já não têm `onClick`, `<a>` nem `<button>`. O requisito "não clicáveis / sem modal / sem navegação" já é o estado atual.
+**Item 22 — dados do executivo necessários:** nome, cargo, foto, telefone/WhatsApp, slug do portal e, futuramente, vídeo.
 
-## 14. portalvelox.com.br — host institucional
-
-- **Identificação de host hoje:** praticamente inexistente. O único uso de hostname é `window.location.origin` como base de URL em `src/lib/portal-brands.ts:69-91` (com fallback hardcoded `https://velox-pathfinder-hub.lovable.app`) e em `dispatch.server.ts`.
-- **Lógica baseada em hostname: não existe.**
-- **Distinguir host institucional de operacional: não é possível hoje.**
-- **"/" é diretamente o Portal do Investidor:** sim — `src/routes/index.tsx`, e os stubs `f.$slug/e.$slug/s.$slug/seg.$slug` redirecionam para `/`.
-- **Mecanismo mais seguro:** **não** decidir por hostname em runtime. O caminho de menor risco é estrutural: mover o Portal Financeiro para `src/routes/f.index.tsx`, transformar `/` em Home institucional e apontar `investorPortalPath` para `/f/...`. Roteamento por hostname introduz divergência entre SSR e cliente e torna o preview (que roda em outro domínio) inconsistente com produção. Se o domínio precisar mesmo influenciar, que seja apenas um redirect de borda, nunca uma bifurcação de componente.
+**Item 23 — CONFIRMADO.** `executive_profiles` tem apenas `user_id`, `executive_id`, `email`, `name`, `whatsapp`, `created_at`, `updated_at`. **Slug, cargo (`title`), foto (`photoUrl`), vídeo (`postPresentationVideoUrl`), telefone, datas: só no seed** `SEED_USERS` de `src/lib/executive-auth.ts:170,193-283`.
 
-## 15. Separação do Grupo Velox
-
-- **Nomes das unidades:** `src/lib/business-unit.ts` (prefixos e slugs reservados) e `src/lib/portal-brands.ts` (marcas e caminhos de portal).
-- **"Agilize Brasil": NÃO EXISTE** em `src/` nem em `supabase/`. Nenhuma ocorrência.
-- **"seguradora":** a nomenclatura corrente é "Seguros" (prefixo `seg`); não há uso público de "seguradora" que precise ser tratado como obsoleto no código.
-- **Suporte às três unidades:** sim, a arquitetura já é multi-unidade por prefixo, sem duplicar aplicação. O que falta é conteúdo e a Home institucional.
+**Item 24 — migrar para o banco:** `slug` (único, validado contra os slugs reservados), `title`, `photo_url` e `phone`. O seed passa a ser apenas bootstrap.
 
-## 16. Rotas das unidades
+**Item 25.** **Sim**, deve existir listagem administrativa — os dados já existem (`generated_at`, `generated_by_name`, `expires_at`, `first_opened_at`, `open_count`, `status`) e `listE20Occurrences` está pronta.
 
-- **Já existem:** `f` (`src/routes/f.tsx`, `f.$slug.tsx` + toda a árvore `/f/*` operacional), `s` (`s.$slug.tsx`), `seg` (`seg.$slug.tsx`), além de `e.$slug.tsx` (executivo).
-- **Reservados:** sim — `src/lib/business-unit.ts` possui validação de slugs reservados (o mecanismo equivalente a `RESERVED_UNIT_SLUGS` já existe e bloqueia colisão entre slug de executivo e prefixo de unidade).
-- **Conflitos:** os stubs `s.$slug`/`seg.$slug` redirecionam para `/` (herança do Portal único) e as rotas legadas de topo (`crm.tsx`, `remarketing.tsx`, `portal-leads.tsx`, `executivo.*`) redirecionam para `/f/*`.
-- **Recomendação de nomenclatura:** **preservar `s` para Solar**, já implementado e simétrico com `f`/`seg`. Adotar `/sol` obriga a migrar rota, validação e links. Se `/sol` for decisão de marca, criar agora e manter `s` como alias permanente.
-
-## 17. Perfil do executivo
+**Item 26 — quem enxerga.** Visão global: **Tiago administrador** e **Larissa gestora** (dentro do escopo `central_unica` que ela já possui). **Demais executivos:** somente as próprias apresentações. **Tiago colaborador híbrido:** enquanto atuar como colaborador, escopo de executivo — hoje o código não respeita isso (ver item 33).
 
-- **Tabela `executive_profiles` existe**, com apenas: `user_id`, `executive_id`, `email`, `name`, `whatsapp`, `created_at`, `updated_at`.
-- **No banco:** nome, e-mail, whatsapp (telefone).
-- **Somente em código (seed `SEED_USERS`, `src/lib/executive-auth.ts:170,193-283`):** `slug`, `title` (cargo), `photoUrl`, `postPresentationVideoUrl`, `admissionDate`, `birthDate`, `phone`.
-- **Conflito:** sim, estrutural. O Workspace resolve identidade pelo banco (`current_executive_id()`, RLS), enquanto a personalização visual e o slug do link vêm do seed. Um executivo criado no banco sem entrada no seed **não tem slug nem foto**.
-- **Fonte única recomendada:** `executive_profiles` no banco, ampliada com `slug` (único), `title`, `photo_url` e `video_url` opcional; o seed vira apenas bootstrap inicial.
-
-## 18. Permissões do executivo
+**Item 27 — alteração de RLS necessária.** Hoje as duas tabelas E20 têm `SELECT` com `is_portal_member()` — **qualquer colaborador vê tudo**. A alteração mínima é substituir por `can_access_investor(lead_id)` (função já existente, que autoriza admin, manager e executivo responsável). Isso resolve o isolamento sem criar nova função.
 
-- **Representação atual:** dois vocabulários.
-  - Aplicação: `ExecutiveRole = super_admin | diretora | executivo` (`src/lib/executive-auth.ts:9`).
-  - Banco: enum `app_role = admin | manager | user` em `user_roles`, com `has_role()`, `current_executive_id()`, `is_portal_member()`, `can_access_investor()`.
-- **Mais de um vocabulário: sim** — e não são sincronizados por código; a ponte é o trigger `grant_admin_for_official_executive` (concede `admin` a `usr_thiago`).
-- **Consistência:** parcial. Administrador e gestora são consistentes; o **híbrido é a inconsistência**: `HYBRID_WORKSPACE_USER_IDS = ["usr_thiago"]` (`src/lib/portal-workspace.ts:19`) concede acesso por **ID de usuário**, ignorando o papel ativo — contrariando o comentário em `:130-133`.
-- **Frontend x servidor:** ambos, desigualmente. Dados sensíveis têm RLS real (`portal_leads`, E20, agenda, biblioteca) e `set_lead_operational` valida internamente. Mas **não há guard server-side por módulo**: `workspace_module_permissions` é lida pelo frontend para decidir menu.
-- **Risco de acesso por URL:** **sim, real** para a camada de navegação. Digitar `/f/executivo/templates` ou `/f/remarketing` passa pelo `OperationalGuard` (que só exige sessão operacional) e o `requiresRole` de `modules.ts` governa a navegação, não a rota. O dado por trás continua protegido por RLS, mas a tela abre.
+---
 
-## 19. Área exclusiva do administrador — apresentações
-
-- **Listagem existente:** os dados sim (`relationship_e20_occurrences`, com `generated_at`, `generated_by_name`, `expires_at`, `first_opened_at`, `open_count`, `status`) e a função `listE20Occurrences` (`e20.server.ts:77-84`). **Nenhuma tela.**
-- **Quem consulta hoje:** RLS `SELECT` com `is_portal_member()` — **qualquer colaborador do portal**, nas duas tabelas E20.
-- **Sim, o RLS atual permite acesso a qualquer membro do portal.**
-- **Criar a área com o existente: sim** — rota `/f/executivo/apresentacoes` + `requiresRole: ["super_admin"]`, sem tabela nova.
-- **Camada de autorização definitiva: o banco.** `requiresRole` esconde o menu; só uma política RLS restritiva (ou uma função `SECURITY DEFINER` que valide `has_role(auth.uid(),'admin')`) impede leitura por URL direta.
+## 3. Perfis e permissões (itens 28–35)
 
-## 20. Remarketing — tamanho da interface
-
-- **Compartilhamento:** o Remarketing tem shell e rotas próprios (`src/routes/f.remarketing.tsx` + `src/routes/f.remarketing.index.tsx`), montados como ambiente standalone (aberto em nova aba por `src/components/executive/executive-shell.tsx:142`). A **interface de conversa** foi unificada visualmente com o CRM — é aí que mora o risco.
-- **Alteração só no shell: sim**, desde que se altere o cabeçalho/paddings de `f.remarketing.tsx` / `f.remarketing.index.tsx`.
-- **Componente perigoso se alterado globalmente:** os componentes de conversa compartilhados com o CRM (`src/components/crm/crm-conversation.tsx` e o board em modo `standalone` de `portal-leads-board.tsx`, que já tem tratamento próprio de altura `h-[100dvh]`). Mexer neles muda o CRM.
-- **Arquivo correto para alteração localizada:** `src/routes/f.remarketing.index.tsx` (título e container), preservando os botões de alternância Campanhas/Conversas.
+**Item 28 — papéis existentes.** Aplicação: `super_admin | diretora | executivo` (`src/lib/executive-auth.ts:9`). Banco: enum `app_role = admin | manager | user` em `user_roles`, consumido por `has_role()`, `is_portal_member()`, `can_access_investor()`, `current_executive_id()`.
 
-## 21. Biblioteca — fonte oficial
+**Item 29 — divergência.** São dois vocabulários independentes, sem sincronização por código. A única ponte é o trigger `grant_admin_for_official_executive`, que concede `admin` quando `executive_id = 'usr_thiago'`. Consequência: o papel exibido na UI e o papel que governa a RLS podem divergir.
 
-- **Alimentação:** **banco** — `relationship_message_library`, 21 linhas, uma versão ativa por etapa. `src/lib/relationship/messages.ts` é um conjunto paralelo de textos em código.
-- **O Word nunca foi importado integralmente.** A evidência é direta: `PENDING_TEXT_STEPS = ["E20","E27","FINALIZACAO"]` são slots vazios declarados em código, e as etapas presentes espelham `LIBRARY_STEP_ORDER`, não um documento.
-- **Fonte de verdade atual:** `relationship_message_library` para o motor; `messages.ts` é sombra e deveria ser aposentada.
-- **Risco de apagar histórico:** **baixo por desenho** — a edição cria **nova versão** (versionamento imutável), nunca sobrescreve.
-- **Preservação de mensagens enviadas:** `recordMessageSnapshot` congela template, versão e texto renderizado em `relationship_message_sends`. Alterar a Biblioteca não reescreve nada já enviado.
+**Item 30 — normalização recomendada.** Não renomear nada. Criar um **mapa único explícito** (`super_admin → admin`, `diretora → manager`, `executivo → user`) em um módulo só, e um gatilho/rotina que garanta a linha correspondente em `user_roles` a cada criação/alteração de executivo. A RLS continua sendo a autoridade; a UI passa a ser derivada dela.
 
-## 22. Etapas multiconteúdo
+**Item 31 — permissões por módulo hoje.** `workspace_module_permissions` com `module_key ∈ {crm, portal_leads}` (`src/lib/workspace-permissions.ts:21`), RLS: `admin` escreve, membro do portal lê. Além disso, `requiresRole: ["super_admin"]` no módulo `greensales-sync` (`src/config/modules.ts:57-66`). **Remarketing não tem permissão individual** — é item de navegação condicional em `src/components/executive/executive-shell.tsx:135-142`.
 
-- **Precisa de vários ativos? Não hoje.** A tabela está **vazia (0 bindings)** — nem o caso simples está em uso.
-- **Mecanismo de rodízio/ordem/aleatoriedade: não existe.**
-- **Regra mais segura:** **um único conteúdo ativo por etapa**, com histórico versionado. Rodízio/aleatoriedade torna a mensagem imprevisível, quebra a reprodução de um caso e conflita com o snapshot.
-- **Recomendação:** manter um ativo por etapa. Se um dia houver variação, que seja explícita (A/B declarado com registro do braço no snapshot), nunca implícita.
+**Item 32 — como implementar as três novas.** Ampliar a union `WorkspaceModuleKey` para incluir `remarketing`, `apresentacoes` e `admin_global`, reutilizando integralmente `workspace_module_permissions` (a tabela é genérica por `module_key`). Nenhuma estrutura nova. A autorização definitiva vai na RLS da tabela de dados, não no menu.
 
-## 23. Templates Meta
+**Item 33 — diferenciação técnica.** Tiago administrador: `executive_id = 'usr_thiago'` + `admin` em `user_roles`. Larissa gestora: `manager`, escopo `central_unica` em `workspaceScopesFor` (`src/lib/portal-workspace.ts:115-141`). Demais executivos: `user`, escopos `green_sales` + `redistribuicao`. **Tiago colaborador híbrido: hoje NÃO é diferenciado corretamente** — `canAccessPortalWorkspace:30-35` e `canViewFullWorkspace:42-49` concedem por **ID de usuário** (`HYBRID_WORKSPACE_USER_IDS`, `:19`), ignorando o papel ativo, contra o próprio comentário em `:130-133`.
 
-- **`crm_meta_templates` está vazia (0 linhas).** Confirmado.
-- **E0 é o único disparo automático previsto** — confirmado pelo código: `E0_SIMULATION_ENABLED` governa a entrada em `src/server/crm/lead-intake.server.ts:160`; nenhuma outra etapa dispara sozinha.
-- **Mensagens livres x template:** E0 é primeiro contato (janela fechada → **exige template Meta**). E1, E3, E4, R*, RE*, RF*, E20 são executadas manualmente pelo executivo dentro de janela aberta → **mensagem livre**.
-- **Segundo motor capaz de disparar a mesma mensagem:** o Remarketing possui motor próprio (`src/server/remarketing/engine.server.ts`), mas opera em tabelas isoladas (`remarketing_*`) e não emite etapas E*. Não há sobreposição hoje.
-- **Trava:** `src/lib/crm/e0-simulation.ts` (`E0_SIMULATION_ENABLED`, `E0_SIMULATION_LABEL`), consumida por `lead-intake.server.ts`, `first-contact-queue.server.ts`, `portal-first-contact.server.ts`, `engine.server.ts:13,28` e `journey.server.ts:15`.
-- **Condição para produção:** template E0 aprovado e cadastrado em `crm_meta_templates`, credenciais Meta válidas no ambiente de produção e `E0_SIMULATION_ENABLED = false` — o comentário em `engine.server.ts:28` registra que desligar a trava devolve a exigência do template.
+**Item 34 — DECISÃO.** Recomendação: **não**. Ver tudo enquanto opera como executivo destrói o sentido do papel híbrido e polui os contadores de carteira. O correto é alternar papel explicitamente, e o acesso seguir o **papel ativo**, não o ID.
 
-## 24. E0 simulada × real
+**Item 35 — acesso por URL.** **Não existe guard server-side por módulo.** `OperationalGuard` exige apenas sessão operacional; `requiresRole` governa navegação, não rota. Digitar `/f/executivo/templates` ou `/f/remarketing` abre a tela. O dado por trás continua protegido por RLS — exceto nas tabelas com `is_portal_member()` amplo (E20 é o caso mais relevante).
 
-- **Diferenciação:** o campo `simulated: E0_SIMULATION_ENABLED` é gravado no registro do primeiro contato (`portal-first-contact.server.ts:72`, `first-contact-queue.server.ts:90`) e o `E0_SIMULATION_LABEL` acompanha o evento.
-- **Onde aparece:** no banco (registro do envio) e na Jornada, que importa o rótulo (`journey.server.ts:15`). O CRM não o destaca visualmente de forma inequívoca.
-- **Contaminação de métricas/atividade/Jornada:** o risco de contaminar **atividade do investidor é nulo** (E0 é ação de saída, não entra na lista branca). O risco em **métricas de envio** é real se algum contador somar envios sem filtrar `simulated`.
-- **Ponto de confusão possível:** a Jornada exibe a etapa com rótulo, mas se o rótulo não for visualmente distinto na ficha, o executivo pode acreditar que o investidor recebeu a mensagem. É o ponto a endurecer antes de escalar E0.
+---
 
-## 25. Mensagens E1–E4 no Portal dos Leads
+## 4. Ações do Dia (itens 36–49)
 
-- **Componente que renderiza por etapa:** no servidor sim (`renderFromLibrary`); na UI, apenas o CRM exibe conteúdo de conversa. **Não existe** um renderizador de "mensagem da etapa" no Portal dos Leads.
-- **Interpolação de nome:** sim, pronta (`src/lib/relationship/names.ts` + variáveis da Biblioteca).
-- **Vínculo etapa → conteúdo multimídia:** a estrutura existe (`relationship_step_content_bindings`, `relationship_contents`, `buttonKind: "portal" | "content"`), mas está **vazia** — nenhum vínculo cadastrado.
-- **Por que o Portal dos Leads não usa:** o overlay só conhece `crm_cadence_tasks` de canal `call`; a fila oficial de mensagens nunca foi ligada àquela tela.
-- **Menor caminho técnico:** o agregador do item 2 devolve, para cada ação de mensagem, `step` + texto já renderizado por `renderFromLibrary`; a UI exibe em modo leitura com um botão "Copiar" ligado a `copyToClipboard` (`src/lib/clipboard.ts`). Sem seletor de mensagem — a etapa decide.
+**Itens 36–37.** O Portal dos Leads é `src/components/crm/portal-leads-board.tsx` (Kanban). "Ligações do Dia" é o overlay `src/components/crm/daily-calls-overlay.tsx`, alimentado por `listCadenceQueue({ channel: "call" })` (`src/lib/crm/cadence.functions.ts` → `src/server/crm/cadence.server.ts`) sobre **`crm_cadence_tasks`** — hoje com 5 linhas, todas `DONE`, nenhuma pendente.
 
-## 26. "Ver ficha completa"
+**Item 38 — os dois motores.** `crm_cadence_tasks` (ligações, legado) e `relationship_queue` (mensagens, oficial — **26 itens: E1×11, E3×9, E4×6**), com `relationship_message_sends` guardando os envios (E1×3, E3×6). A Agenda é uma terceira fonte: `workspace_agenda_events`.
 
-- **Rota da ficha completa: NÃO EXISTE.** `/f/executivo/investidores` (`src/routes/f.executivo.investidores.tsx`) é uma lista sem `validateSearch` e sem parâmetro de lead; não há `f.executivo.investidores.$id.tsx`.
-- **URL determinística por `lead_id`: não existe.**
-- **Origem influencia a rota:** não hoje. A carteira/canal é filtro de listagem (`workspaceScopesFor`), não segmento de URL.
-- **Abrir sem alterar contexto de carteira:** sim, é viável — a ficha é resolvida por `leadId`; o escopo entraria só como parâmetro informativo (`search.origem`).
-- **Por que volta ao Portal dos Leads:** porque o handler não navega. `onOpenLead` em `portal-leads-board.tsx:620-623` apenas executa `setCallsOpen(false)` e `setSelectedId(leadId)` — fecha o overlay e seleciona o card no board. A ficha nunca é aberta.
+**Item 39 — RECOMENDAÇÃO.** Não eleger uma tabela como "fonte única", e sim criar um **agregador de leitura** (ex.: `src/server/crm/daily-actions.server.ts`) que consulta as três e normaliza. `relationship_queue` continua a fonte oficial de mensagens; `crm_cadence_tasks` continua a de ligações; `workspace_agenda_events`, a de compromissos. **Zero escrita, zero cópia, nenhum terceiro motor.**
 
-## 27. Ação do Dia + Agenda
+**Item 40 — integrar sem duplicar.** Cada leitor produz um `DailyAction` com `action_key`; o agregador materializa `Map<action_key, DailyAction>` com precedência Agenda > fila oficial > legado.
 
-- **Classificação de prioridade: sim** — `AgendaPriority = "maxima" | "media" | "minima"` (`src/lib/agenda-types.ts:8`).
-- **Campos de horário:** `startsAt`, `endsAt` (`:23-24`) e `priority` (`:27`), além de `kind = "compromisso" | "reuniao" | "acao"` (`:16`) — o discriminante de tipo já existe.
-- **Consumir `portal_meetings` diretamente:** possível, mas **não é a fonte recomendada**. A fonte com prioridade, constraint anti-sobreposição (`EXCLUDE` + `btree_gist`) e função de leitura pronta é `workspace_agenda_events`. `portal_meetings` é reunião agendada com o investidor e hoje **não** participa da constraint de conflito — usar as duas exige regra de precedência explícita.
-- **Risco de copiar reuniões para outra tabela: alto e desnecessário.** Cópia gera duas conclusões independentes para o mesmo compromisso e duplica o histórico.
-- **Forma mais segura:** ler `workspace_agenda_events` no agregador, sem escrita, com `action_key = agenda:${eventId}`.
+**Itens 41–42 — chave idempotente.** **Sim, deve considerar lead + etapa + instância.** Formato recomendado: `action_key = ${source}:${leadId}:${step ?? kind}:${instanceSeq ?? occurrenceDate}`. Calculável em leitura, sem coluna nova no primeiro momento. Aplicada na normalização de cada leitor e no handler de conclusão (que a resolve de volta para a tabela de origem).
 
-## 28. Ordenação
+**Item 43 — E1/E2/E3/E4 na tela.** Como ação de tipo `mensagem`, exibindo o rótulo da etapa e o **texto já renderizado**, em modo leitura, com botão Copiar. Sem seletor: a etapa decide a mensagem. **E2 não existe** hoje (ver item 61).
 
-- **Score/orderBy hoje:** existe apenas o básico — `agenda_cadence_tasks` ordena por `due_date, step_day`; o overlay separa `overdue` de hoje. Não há score composto.
-- **Regra segura:** ordenar por tupla determinística `(bloco, horário, criação)`:
-  1. `bloco 0` — agenda `priority = 'maxima'` com `startsAt` dentro de uma janela (ex.: −15min a `endsAt`);
-  2. `bloco 1` — ações atrasadas (`dueDate < hoje`);
-  3. `bloco 2` — ações de hoje;
-  4. `bloco 3` — futuras.
-  Dentro do bloco: horário crescente; sem horário, vencimento mais antigo; empate final pelo `action_key` (estabilidade).
-- **Impedir que mensagem futura ultrapasse reunião chegando:** o bloco é calculado **antes** do horário. Uma mensagem futura nunca sai do bloco 3, independentemente do horário. Requer relógio em America/São_Paulo — o mesmo tratamento já usado em `src/lib/crm/e0-window.ts`.
+**Item 44 — o que o sistema já identifica automaticamente.** Lead: sim. Executivo: sim (`responsible_executive_id`). Etapa: sim (`relationship_queue`). Mensagem: sim, via `renderFromLibrary(step, vars)`. **URL/material: NÃO** — `relationship_step_content_bindings` está **vazia (0 linhas)**.
 
-## 29. Estado da ação
+**Item 45 — o que falta.** Cadastrar os bindings etapa → conteúdo e ligar o Portal dos Leads ao agregador.
 
-- **Concluir tarefa hoje:** `completeCadenceTaskFn` altera apenas a tarefa em `crm_cadence_tasks`. **Não** toca `viewed_at`, `status` do lead nem `lastActivity`.
-- **Evento administrativo interpretado como atividade:** não no servidor. O resíduo é local: `markLeadViewed` (`src/lib/lead-state.ts:122-136`) emite `lead.status.changed` ao abrir um card nunca visto e a heurística `evaluateInvestorMovement` (`src/lib/workspace-alerts.ts:142-172`) opera sobre o `localStorage`.
-- **Garantia contra volta a NOVO:** a lista branca `src/lib/events/investor-activity.ts`, aplicada em `src/lib/executive-data.ts:6,121` ao compor `lastActivity`. Ações do executivo não estão nela.
-- **Quando a Ação do Dia deve emitir evento de jornada:** somente em fatos relacionais — mensagem efetivamente enviada, ligação realizada com desfecho, reunião concluída. Nunca ao abrir, ordenar ou visualizar a lista.
+**Itens 46–48 — prioridade e ordenação.** Sim, compromisso de prioridade máxima próximo deve ir ao topo. Regra determinística por blocos, calculados **antes** do horário: bloco 0 = agenda `priority = 'maxima'` com `startsAt` na janela (−15min até `endsAt`); bloco 1 = atrasadas; bloco 2 = do momento; bloco 3 = futuras (inclui reengajamento agendado). Dentro do bloco: horário crescente; sem horário, vencimento mais antigo; empate pelo `action_key`. Assim uma mensagem futura **nunca** ultrapassa uma reunião chegando. Relógio em America/São_Paulo, como já feito em `src/lib/crm/e0-window.ts`.
 
-## 30. Histórico da Jornada — estado atual
+**Item 49.** **Sim** — a ordenação é 100% leitura. O motor de Agenda não é alterado. `src/lib/agenda-types.ts` já expõe `priority` (`maxima|media|minima`), `startsAt`, `endsAt` e `kind` (`compromisso|reuniao|acao`).
 
-- **Emissores ainda capazes de gerar `lead.status.changed`:** exatamente quatro — `markLeadViewed` (`lead-state.ts:129`), `closeLead` (`:148`), `reopenLead` (`:165`) e `src/components/shared/executive-contact-dialog.tsx:82`. Todos com `dedupeKey` e guarda de mudança real.
-- **Outro caminho que chame essas funções:** não há chamadas fora do Workspace/CRM; nenhum cron ou sincronização as invoca.
-- **`investor.reactivated` na Jornada:** **não deveria aparecer** e, pela whitelist do servidor (`RELATIONAL_TIMELINE_EVENTS`, `journey.server.ts:88-95`), não aparece na Jornada oficial. Só surge se a tela consumir o barramento local.
-- **Regra que impede contaminação:** a lista branca em `executive-data.ts` + o colapso de eventos consecutivos em `src/lib/investor-profile.ts:86-103`.
-- **Risco residual:** **sim, dois.** (a) Entradas antigas no `localStorage`, anteriores às guardas, continuam sendo exibidas — só o colapso visual as suaviza. (b) Abrir vários cards nunca vistos em sequência gera vários `lead.status.changed` legítimos em segundos; o `dedupeKey` é por lead e não os agrupa.
+**RISCO.** ALTO se a Agenda for copiada para outra tabela: gera duas conclusões independentes do mesmo compromisso.
 
-## 31. Reativação
+---
 
-- **Influência além do alerta:** hoje **nenhuma** no servidor. Não altera coluna, não muda estágio, não entra na Jornada oficial.
-- **Pode recriar ciclo de NOVO:** **não**, desde que `investor.reactivated` permaneça fora da lista branca de `investor-activity.ts` — que é o estado atual.
-- **Persistido no banco: não.** É exclusivamente `localStorage` (`src/lib/workspace-alerts.ts`).
-- **Quando virar estado de negócio:** só se a reativação passar a disparar cadência (RE0–RE3) automaticamente. Aí precisaria de coluna e evento no servidor.
-- **Confirmado:** por ora deve **permanecer somente como alerta visual**.
+## 5. "Ver ficha completa" (itens 50–55)
 
-## 32. Notas do executivo
+**Item 50.** Botão em `src/components/crm/daily-calls-overlay.tsx:246`, que chama a prop `onOpenLead`.
 
-- **Reaproveitável:** sim. `portal_leads.notes` já é gravável com autorização correta via `set_lead_operational` (SECURITY DEFINER, lista fechada de colunas) e `updateWorkspaceOperational`.
-- **Onde estão hoje:** notas de ligação em `crm_cadence_tasks.note` (por ocorrência); observações do executivo em **localStorage** (`src/lib/investor-comments.ts`); `portal_leads.notes` está **vazio**.
-- **Snapshot suficiente para alimentar nota:** sim — `relationship_message_sends` guarda etapa, versão e texto renderizado; basta referenciar o `send_id`.
-- **Recomendação:** **criar `lead_notes`** (id, lead_id, author, kind: `ligacao|mensagem|livre`, body, ref_id, created_at) e **preservar `portal_leads.notes`** como resumo livre atual, sem migração destrutiva. Nota por ocorrência não cabe em campo texto único — concatenar em `notes` destrói autoria e cronologia. Sem `lead_notes`, as observações continuam presas ao navegador de um executivo.
+**Item 51 — por que falha.** `onOpenLead` em `src/components/crm/portal-leads-board.tsx:620-623` executa apenas `setCallsOpen(false)` e `setSelectedId(leadId)`: fecha o overlay e seleciona o card no board. **Não há navegação nenhuma** — e não existe rota de ficha para navegar (`/f/executivo/investidores` é lista, sem `validateSearch` e sem `$id`).
 
-## 33. Backup — não reabrir
+**Item 52 — RECOMENDAÇÃO.** Criar `src/routes/f.executivo.investidores.$id.tsx` que resolve o lead por `leadId` e monta a ficha existente (`crm-lead-ficha.tsx` / `investor-profile-view.tsx`); trocar o corpo de `onOpenLead` por `navigate({ to: ..., params: { id: leadId } })`.
 
-- **Nenhuma das mudanças previstas exige alteração no motor de backup.** Ação do Dia, Biblioteca, CRM e Apresentação Digital são leitura/UI sobre tabelas já cobertas.
-- **Risco de nova migration afetar a rotina: existe e é gerenciável.** `BACKUP_TABLES` em `src/server/backup.server.ts` é uma lista explícita: uma tabela nova (ex.: `lead_notes`) **não entra sozinha** no backup. Não quebra a rotina — apenas fica de fora.
-- **Veredito:** **NÃO ALTERAR o motor.** Única providência quando surgir tabela nova: acrescentá-la a `BACKUP_TABLES`.
+**Item 53.** A origem/carteira **não é segmento de rota** hoje — é filtro de listagem (`workspaceScopesFor`). Pode ser preservada como `search.origem`, informativa, sem alterar o contexto de carteira do executivo.
 
-## 34. Pendências de identidade
+**Item 54.** Recomendo **nova aba** neste caso específico: a Ação do Dia é uma fila de trabalho e perder o contexto dela a cada consulta é pior do que a troca de aba.
 
-- **UI + backend.** A tela `src/routes/f.executivo.identidade.tsx` e `src/lib/portal-identity.functions.ts` são leitura; os dados são gravados por `resolve_portal_identity` (SECURITY DEFINER) nas colunas `identity_conflict` e `identity_alternates` de `portal_leads`, com advisory locks por telefone/e-mail.
-- **Dados que precisam continuar:** `identity_key` (índice único de deduplicação), `identity_alternates` e `identity_conflict`. São o núcleo da identidade única.
-- **Seguro remover só a exposição: sim** — retirar a rota e o item do `executive-shell.tsx` não afeta deduplicação. **Ressalva:** conflitos de identidade cruzada continuarão sendo gravados sem observador humano; convém prever onde eles reaparecem (ex.: aviso na ficha do lead).
+**Item 55.** O lead é identificado pelo **`portal_leads.id`, que é o ID original da GreenSales**. Usá-lo como parâmetro de rota não cria identidade nova nem altera a existente.
 
-## 35. Vídeo pós-apresentação no perfil
+---
 
-- **Exibição:** campo `postPresentationVideoUrl` do `ExecutiveUser`, editável na área de perfil/usuários do Workspace.
-- **Persistência:** **seed/código** (`src/lib/executive-auth.ts`) — **não existe coluna no banco** (`executive_profiles` só tem name/email/executive_id/whatsapp).
-- **Dependência:** somente `src/lib/crm/post-presentation.ts` (ação manual pós-apresentação), que monta `{{link_video_pos_apresentacao}}` e **bloqueia a mensagem quando o vídeo do próprio executivo está ausente** (regra explícita: nunca fallback para outro executivo).
-- **Remover da interface quebra alguma etapa do motor:** **não** — nenhuma etapa E*/R* depende dele.
-- **Dependência real:** a mensagem de pós-apresentação passa a nascer sem o bloco de vídeo (ou permanece bloqueada, conforme a guarda atual). É preciso decidir se, sem o campo, o link entra manualmente na hora do envio.
+## 6. Biblioteca de Conteúdo (itens 56–67)
 
-## 36. Fonte única de verdade
+**Itens 56–57 — COMO ESTÁ HOJE.** `relationship_message_library`, **21 linhas**, uma versão ativa por etapa: `E0, E0_V1, E1, E3, E4, E12, V3, V4, R1, R2, R3, RE0, RE1, RE2, RE3, RF0, RF1, E20, E27, FINALIZACAO`. A aparência "desorganizada" tem causa objetiva: **os códigos não são uma sequência** — são identificadores herdados de comandos diferentes (E12 dos templates D1–D12, E20 do convite, E27 da finalização), exibidos na ordem de `LIBRARY_STEP_ORDER` (`src/server/relationship/message-library.server.ts`).
 
-| Item | Fonte atual | Concorrência |
+**Item 58.** **Sim.** O Word deve ser a fonte oficial. Evidência de que nunca foi importado: `PENDING_TEXT_STEPS = ["E20","E27","FINALIZACAO"]` (`:47`) são slots vazios declarados em código, e as etapas presentes espelham exatamente `LIBRARY_STEP_ORDER`.
+
+**Item 59 — o que a Biblioteca armazena.** `step_key`, `code`, `title`, `purpose`, `body`, `version`, `active`, `content_group`, `button_kind` (`portal|content`), `uses_investor_name`, `created_at`, `created_by_name`, `notes`.
+
+**Item 60 — estrutura definitiva recomendada.** Separar **chave técnica** de **rótulo funcional**: `step_key` permanece imutável (E20, E12…) e um campo/mapa de exibição fornece o nome funcional e a **ordem explícita** (`display_order`). Assim ninguém lê "E12" como décima segunda etapa.
+
+**Item 61 — como representar as etapas.** E0–E7 e R0–R3 como **rótulos funcionais**; E20 e as demais como **chaves internas**. Estado real: **E2, E5, E6, E7 e R0 NÃO EXISTEM** — nem no banco, nem em `LIBRARY_STEP_ORDER`, nem em `src/lib/relationship/messages.ts`.
+
+**Itens 62–63 — divergências identificáveis pelo código.**
+- E20, E27 e FINALIZACAO: existem como linha, **sem texto oficial**.
+- E2, E5, E6, E7, R0: **ausentes**.
+- `src/lib/relationship/messages.ts` mantém textos paralelos para E0, E0_V1, E1, E3, E4, E12, V3, V4, R1–R3, RE0–RE3, RF0, RF1 — **segunda fonte de verdade**.
+- `relationship_step_content_bindings`: **vazia**, nenhuma etapa tem material vinculado.
+- A comparação linha a linha com o Word **NÃO É POSSÍVEL DETERMINAR PELO CÓDIGO ATUAL** — depende do documento importado.
+
+**Itens 64–65.** **Sim** para ambos, e já é assim: editar cria **nova versão** (versionamento imutável) e `recordMessageSnapshot` congela template, versão e texto renderizado em `relationship_message_sends`. Alterar a Biblioteca não reescreve nada já enviado.
+
+**Item 66 — Central de Templates.** `crm_meta_templates` está **VAZIA (0 linhas)**. Portanto **não possui função real hoje**. A ressalva é de negócio: sem template aprovado, o E0 real (janela fechada) não pode ser ativado.
+
+**Item 67 — removíveis sem quebrar o CRM.** `src/routes/f.executivo.templates.tsx`, o item correspondente em `src/components/executive/executive-shell.tsx`, e `src/lib/crm/templates.ts` caso nenhum envio real dependa dele. `relationship_message_library` e `relationship_contents` **não** são afetadas.
+
+---
+
+## 7. E0 e comunicação automática (itens 68–78)
+
+**Itens 68–69.** E0 é o **único disparo automático previsto** e hoje está **em simulação**. A entrada é condicionada em `src/server/crm/lead-intake.server.ts:160` por `E0_SIMULATION_ENABLED || isTest`.
+
+**Item 70 — pontos de disparo.** `src/server/crm/lead-intake.server.ts`, `src/server/crm/first-contact-queue.server.ts`, `src/server/crm/portal-first-contact.server.ts`, `src/server/crm/first-contact.server.ts`, com o motor em `src/server/relationship/engine.server.ts`.
+
+**Item 71.** Sim: o campo `simulated: E0_SIMULATION_ENABLED` é gravado no registro (`portal-first-contact.server.ts:72`, `first-contact-queue.server.ts:90`) e o `E0_SIMULATION_LABEL` acompanha o evento na Jornada (`journey.server.ts:15`).
+
+**Item 72 — blindagem recomendada.** Manter a decisão **no ambiente, antes das credenciais** (regra já vigente no projeto): homologação nunca chama a Meta, mesmo com token válido; destinatário real em ambiente de teste bloqueia o envio. Acrescentar um selo visual inequívoco de "SIMULADA" na ficha e na Jornada, e excluir `simulated = true` de qualquer contador de envios.
+
+**Itens 73–74 — resposta do investidor.** A janela é rastreada por `last_inbound_at`, `last_outbound_at` e `conversation_window_opened_at`, campos operacionais de `portal_leads` (ver `src/lib/workspace-operational.functions.ts`, `src/lib/portal-leads-sync.ts`). O motor referencia a janela de 24h em `engine.server.ts:29`. **Reconhecimento por inbound real: sim, é o campo que existe para isso.** Não há evidência no código de contaminação por mensagem simulada.
+
+**Item 75.** Sim — nome do investidor via `resolveTreatment`/`firstName` e o **executivo responsável do lead**, nunca o padrão.
+
+**Itens 76–78 — número do executivo.** Deve vir do **perfil persistido**: `executive_profiles.whatsapp` é a única fonte no banco (existe também `whatsapp` no seed, mesclado em `executive-auth.ts:313`). **Sem número configurado, a ação deve ser bloqueada com aviso**, jamais substituída pelo número de outro executivo — mesma regra do link do portal.
+
+---
+
+## 8. Apresentação Digital + mensagem (itens 79–85)
+
+**Item 79–80.** A frase oficial **não existe hoje no código** (buscas por "sete dias" e "deixei disponível" não retornam ocorrência em `src/`). Deve ser cadastrada como **conteúdo oficial da Biblioteca**, na etapa `E20` — que já é um slot vazio à espera disso. Template específico criaria uma segunda fonte de verdade.
+
+**Item 81.** Automático, via `renderFromLibrary("E20", { rawInvestorName, executiveName, portalLink })`, já chamado em `e20.server.ts:167-171`.
+
+**Item 82.** **Confirmado: deve existir versão sem nome.** `src/lib/relationship/names.ts` já resolve — `NEUTRAL_TREATMENT = "caro investidor"` (`:12`) quando o nome é ausente, implausível ou rejeitado (`resolveTreatment:140-169`).
+
+**Item 83 — RECOMENDAÇÃO.** Copiar a **mensagem completa com a URL**. É o que o executivo cola no WhatsApp; copiar só a URL obriga a redigitar o texto e abre espaço para variação não oficial.
+
+**Item 84.** **Sim** — um único controle que muda de estado: "Gerar apresentação digital" → "Copiar apresentação digital" (com prazo restante ao lado) e uma ação secundária discreta para regerar.
+
+**Item 85.** Sim, e **deve** ser dinâmico no clique, usando dados atuais de lead e executivo. O texto congelado só entra no snapshot no momento do envio registrado.
+
+---
+
+## 9. CRM — preservação como visualização (itens 86–95)
+
+**Item 86.** Visualização: dados gerais, engajamento, jornada, timeline. Operação real: envio/registro de mensagem (`crm-conversation.tsx`), conclusão de tarefa de cadência, transferência de lead (`src/lib/relationship/lead-transfer.ts`), gravação de campos operacionais (`set_lead_operational`).
+
+**Item 87.** **Sim.** Remover `src/components/crm/crm-lead-journey.tsx` da tela do CRM não elimina a Jornada — ambas leem o mesmo agregador `src/server/relationship/journey.server.ts`.
+
+**Item 88.** Sim, a redução para Dados Gerais / Engajamento / Relacionamento / Portal do Investidor é coerente com o papel visual do CRM.
+
+**Item 89 — dependências da aba.** Apenas o componente e o mapa de cores por etapa (`crm-lead-journey.tsx:54`, que inclui a badge `e20`). Nenhuma escrita, nenhuma função de servidor exclusiva.
+
+**Itens 90–92 — presença.** O CRM **pode** exibir último acesso: existe `portal_engagement.last_access_at` (mantido por `src/server/portal-engagement.server.ts`) e `portal_leads.last_activity_at`. **"Online/offline" não existe** — não há heartbeat nem tabela de presença.
+
+**Item 93 — mecanismo necessário.** Ping do Portal a cada ~60s enquanto `document.visibilityState === "visible"`, gravando um campo próprio (`last_seen_at`), separado de `last_activity_at`.
+
+**Item 94.** **Sim: online = atividade nos últimos 15 minutos**, calculado **na leitura**, sem coluna de status e sem job de expiração.
+
+**Item 95.** Sim — campo único, derivado na leitura, consumido por CRM e Workspace. Dois mecanismos é exatamente o que produz divergência entre telas.
+
+**RISCO.** O ping precisa vir apenas do Portal do investidor e **não** entrar na lista branca `src/lib/events/investor-activity.ts`; caso contrário, presença vira "atividade" e o problema do "NOVO" recorrente volta por outra porta.
+
+---
+
+## 10. Princípios Velox (itens 96–102)
+
+**Item 96.** Não é rota: é overlay `src/components/portal/principios-overlay.tsx`, aberto pelo card `key: "cultura"` / `moduleKey: "principios"` da Home (`src/routes/index.tsx:214-225`, render em `:450-451`).
+
+**Item 97.** A imagem interna é `assetUrl("portal-capa-principios")` (`:15,84`), registrada em `src/lib/assets/registry.ts:256-265` → `src/assets/portal-principios.jpg`.
+
+**Item 98–99.** O card externo (`src/routes/index.tsx:221`) usa **outro asset**: `experienciasImg.url`. **São imagens diferentes** — remover o `<figure>` interno (`:82-91`) não afeta o card. Se a intenção for usar a capa de Princípios no card, basta trocar a referência em `index.tsx:221`.
+
+**Item 100.** **Sim.** Os `<article>` (`:111-143`) já não têm `onClick`, `<a>` nem `<button>` — não há nada a remover. Só falta o efeito de hover, hoje inexistente.
+
+**Item 101.** Os princípios vêm do **banco**: `portal_institutional_blocks`, via `fetchInstitutionalModule({ module: "principios" })` (`:13,62`). Sem bloco cadastrado, caem em `Princípio 0N` + `PLACEHOLDER_BODY` (`:27-28,42-44`). O cabeçalho fixo (`:76-81`) é JSX hardcoded.
+
+**Item 102 — estrutura mais segura.** **Já é a correta.** Basta cadastrar os textos oficiais em `portal_institutional_blocks` com `module = "principios"` e a página os assume sem alteração de código.
+
+---
+
+## 11. Manual do Investidor (itens 103–108)
+
+**Item 103.** **14 capítulos fixos** em `src/lib/journey-data.ts:21-272`: `recepcao` (`/manual`), `proposito`, `velox`, `modelo`, `produtos`, `personalizando-sua-jornada`, `operacao`, `investimento`, `treinamento`, `suporte`, `perfil`, `faq`, `autoavaliacao`, `proximos-passos`. Corpo em `src/components/journey/chapter-bodies.tsx`. **Sem CMS e sem versionamento**; a versão lida pelo investidor não é registrada.
+
+**Item 104 — onde inserir.** Capítulo 3 (`velox`), função `VeloxBody`, array `timeline` em `chapter-bodies.tsx:106-132`. Hoje: "Fundação da Velox" (`:109`) → "Consolidação da operação" (`:114`) → "Expansão da rede de franquias" (`:118-120`). Inserir "Operação própria" entre `:109` e `:114`, e "Estruturação do modelo de negócio" antes da expansão — dois objetos `{ year, title, d }` no mesmo array.
+
+**Item 105.** **Sim**, integralmente. Não há índice numérico acoplado à timeline; nenhum outro capítulo é afetado.
+
+**Item 106.** O vídeo do capítulo 7 é a flag `hasVideo: true` em `journey-data.ts:146`, renderizada em `chapter-view.tsx:76-80` pelo `src/components/journey/video-slot.tsx` (placeholder puro, texto "Vídeo do especialista — em breve.", sem player e sem dados). Remover a flag afeta apenas o capítulo 7.
+
+**Item 107.** **Sim, mais dois:** capítulo 1 `recepcao` (`:34`) e capítulo 14 `proximos-passos` (`:268`).
+
+**Item 108.** **Sim.** O Manual é totalmente independente do E20/Apresentação Digital.
+
+---
+
+## 12. Remarketing (itens 109–115)
+
+**Item 109–110.** Ambiente próprio: `src/routes/f.remarketing.tsx` + `src/routes/f.remarketing.index.tsx`, aberto em nova aba por `src/components/executive/executive-shell.tsx:142`. O cabeçalho é **puramente visual**: `<h1>Ambiente de Remarketing</h1>` (`f.remarketing.index.tsx:91`) e o subtítulo "CRM operacional independente — isolado do CRM de Relacionamento." (`:93`). Nenhuma função.
+
+**Item 111.** Um `h1` em `text-2xl md:text-3xl` mais o parágrafo e o espaçamento do bloco — na prática, a faixa superior que hoje comprime a área útil do CRM.
+
+**Item 112.** **Sim, pode ser removido** (ou reduzido a um rótulo discreto na barra), ampliando a área útil. Não há dependência.
+
+**Item 113.** Sim. O padrão de área cheia já existe no projeto: o board em modo `standalone` usa `h-[100dvh]` com paddings responsivos (`portal-leads-board.tsx`), sem quebrar responsividade.
+
+**Item 114.** **Sim, a alternância Campanhas/Conversas deve permanecer.**
+
+**Item 115 — dependência a observar.** A alteração deve ficar **restrita a `f.remarketing.index.tsx`**. Os componentes de conversa são compartilhados com o CRM (`src/components/crm/crm-conversation.tsx`); alterá-los muda o CRM de Relacionamento também.
+
+---
+
+## 13. Backup (itens 116–125)
+
+**Itens 116–117.** `src/server/backup.server.ts` (geração, retenção, restauração) + `src/server/backup-queue.server.ts` (fila assíncrona, `portal_backup_requests`), agendados por `pg_cron`; UI em `src/routes/f.executivo.central-backup.tsx`. Pontos em **`portal_backups`**, conteúdo deduplicado por hash em **`portal_backup_blobs`**; histórico de restaurações em `portal_restores`.
+
+**Itens 118–120 — retenção.** Hoje: `RETENTION = { fullHours: 48, dailyDays: 7 }` (`:143-152`) — **todos os pontos horários das últimas 48h** e, depois disso, o **último ponto de cada dia** por 7 dias (`pruneBackups`, `:329+`). A regra proposta (horários só do dia corrente + um ponto de meia-noite por dia, 7 diários) **exige alteração estrutural**: reduzir a janela horária de 48h para o dia corrente e selecionar o ponto **pelo horário 00:00**, não pelo "último do dia".
+
+**Item 119 — ponto crítico.** O agrupamento diário atual usa `Math.floor(at / day)` em **UTC** (`:362`). Como a operação é America/São_Paulo (−03:00), a meia-noite local cai no dia UTC seguinte: o rótulo do dia ficaria errado por construção. É preciso um campo explícito de **data de referência** (`reference_date = created_at − 1 dia` para o ponto das 00:00), calculado no fuso local.
+
+**Itens 121–122.** Hoje o corte é **por idade** (7 dias corridos), não por contagem — um dia sem execução produz 6 pontos. Para garantir exatamente 7, o corte precisa ser por **ranking** (`ORDER BY reference_date DESC LIMIT 7`), descartando o oitavo.
+
+**Item 123 — risco de exclusão errada.** Existe. `pruneBackups` não conhece restaurações em andamento e não há lock entre a fila e a restauração. Pontos `protected = true` (manuais e pré-restauração) já são preservados; o **ponto de origem de uma restauração em curso não é protegido**.
+
+**Itens 124–125 — o que "Restaurar" realmente faz.** É restauração **real** (`restoreBackupPayload`, `:298-325`: apaga e reinsere por tabela), porém **parcial por desenho**. `BACKUP_TABLES` (`:21-44`) captura 22 tabelas, mas `NEVER_RESTORE_TABLES` (`:59-74`) **exclui da restauração** todo o núcleo operacional: `portal_leads`, `crm_leads`, `crm_pipelines`, `crm_pipeline_stages`, `crm_cadence_tasks`, `crm_sync_runs`, `crm_lead_events`, `crm_messages`, `crm_timeline`, `crm_connections`, `portal_journey_events`, `portal_engagement`, `portal_meetings`, `portal_lead_guard_log`.
+Portanto, na prática o botão restaura apenas: `campaigns`, `meta_templates`, `news_posts`, `knowledge_documents`, `creative_templates`, `creative_official_model`, `executive_profiles`, `user_roles`, `whatsapp_validations`, `app_user_connections`, `magazine_editions`, `magazine_pages`, `portal_institutional_blocks`. **O "backup completo do portal" captura tudo, mas a restauração jamais toca leads, conversas, jornada, engajamento ou reuniões** — é a blindagem definitiva, e está correta.
+
+---
+
+## 14. Pendências de Identidade (itens 126–130)
+
+**Item 126–127.** Tela `src/routes/f.executivo.identidade.tsx` + `src/lib/portal-identity.functions.ts`, ambas **somente leitura**. O problema real que exibe: conflitos gravados por `resolve_portal_identity` (SECURITY DEFINER, com advisory locks por telefone e e-mail) nas colunas `identity_conflict` e `identity_alternates` de `portal_leads` — telefone divergente, e-mail divergente e **identidade cruzada** (telefone aponta um lead, e-mail aponta outro).
+
+**Item 128.** A **lógica** é necessária; a **tela** não. A deduplicação vive na função e no índice único `identity_key`.
+
+**Item 129 — impacto da remoção da tela.** Identidade: nenhum. Deduplicação: nenhum. Sincronização GreenSales: nenhum. Ownership: nenhum. Redistribuição: nenhum. **Único efeito colateral:** conflitos continuam sendo gravados sem observador humano.
+
+**Item 130 — componentes envolvidos.** `src/routes/f.executivo.identidade.tsx`, a entrada correspondente em `src/components/executive/executive-shell.tsx` e o consumo de `src/lib/portal-identity.functions.ts` (o módulo pode permanecer, sem consumidor). **Não remover** `resolve_portal_identity` nem as colunas.
+
+**RECOMENDAÇÃO.** Remover a tela e prever um aviso discreto de conflito na própria ficha do lead, para que a informação não se perca.
+
+---
+
+## 15. Reativação (itens 131–136)
+
+**Itens 132–133.** **Sim, ainda depende de localStorage.** Gerado exclusivamente em `src/lib/workspace-alerts.ts:132-137`, dentro de `pushAlert`, restrito a `category === "movimentacao"` (`:128-130`), acionado por `evaluateInvestorMovement()` (`:142-172`), que compara `lastActivity` com `lastSeen`.
+
+**Item 134.** **Apenas alerta visual.** Não persiste no banco, não altera coluna, não muda estágio e não aparece na Jornada oficial — a whitelist do servidor (`RELATIONAL_TIMELINE_EVENTS`, `journey.server.ts:88-95`) não o inclui.
+
+**Item 135 — RECOMENDAÇÃO.** **Permanecer somente como alerta** nesta etapa. Não há consumidor de negócio que justifique persistência agora.
+
+**Item 136 — se um dia precisar.** Só quando a reativação passar a disparar cadência (RE0–RE3) automaticamente. Estrutura mínima nesse cenário: coluna `reactivated_at` em `portal_leads` (ou evento em `relationship_events`) gravada pelo servidor a partir de atividade real do investidor — nunca por heurística de navegador.
+
+---
+
+## 16. Notas do Executivo (itens 137–141)
+
+**Item 138.** `portal_leads.notes` existe, é gravável com autorização correta (`set_lead_operational`, lista fechada de colunas) e está **100% vazio**. `crm_cadence_tasks.note` existe por ocorrência de tarefa. As observações que o executivo realmente escreve hoje vivem em **localStorage** (`src/lib/investor-comments.ts`).
+
+**Item 139.** **Não existe** nenhuma estrutura que diferencie ligação, mensagem, observação, duração ou resultado. `note` é texto livre.
+
+**Itens 140–141 — RECOMENDAÇÃO.** **Entidade própria (`lead_notes`)**, preservando `portal_leads.notes` como resumo livre atual, sem migração destrutiva. Campos: `id`, `lead_id`, `author_id`/`author_name`, `kind` (`ligacao|mensagem|observacao`), `body`, `ref_id` (tarefa ou `relationship_message_sends.id`), `duration_s`, `outcome`, `created_at`.
+Impacto das alternativas: (a) **estender `notes`** → sem migration, mas concatenação destrói autoria, cronologia e tipo — inviável para notas de ligação; (b) **usar `crm_cadence_tasks.note`** → só existe onde há tarefa, e a tabela está em `NEVER_RESTORE_TABLES`, então a nota não é restaurável; (c) **`lead_notes`** → uma migration, ganha histórico auditável, tira as observações do navegador e entra no backup (lembrando de acrescentá-la a `BACKUP_TABLES`).
+
+---
+
+## 17. Agenda (itens 142–146)
+
+**Item 142.** A Agenda é global: tabela `workspace_agenda_events`, dados por `src/lib/agenda.functions.ts`, UI pelo dock `src/components/agenda/agenda-dock.tsx` montado no `__root.tsx`. Há também a função `agenda_cadence_tasks` (SECURITY DEFINER), que lê **apenas o legado `crm_cadence_tasks`**.
+
+**Item 143.** **Sim** — `AgendaPriority` (`maxima|media|minima`), `startsAt`, `endsAt`, `kind` (`compromisso|reuniao|acao`) já existem em `src/lib/agenda-types.ts:8-27`. Estrutura suficiente para a Ação do Dia, sem alteração.
+
+**Item 144 — conflitos reais.** (a) `agenda_cadence_tasks` lê o legado e ignora `relationship_queue` — a Agenda hoje **não enxerga mensagens pendentes**. (b) `portal_meetings` (reunião com o investidor) e `workspace_agenda_events` (compromisso do executivo) são fontes distintas sem precedência definida — o mesmo encontro pode existir nas duas. (c) Sem `action_key`, a mesma etapa pode aparecer duas vezes.
+
+**Item 145.** **Sim, precisa ser ampliada.** A constraint `EXCLUDE` atual (com `btree_gist`) cobre apenas evento × evento de prioridade `maxima` dentro de `workspace_agenda_events`. **Reuniões em `portal_meetings` não são bloqueadas.**
+
+**Item 146 — regra recomendada.** Uma reunião confirmada deve materializar (ou ser espelhada por) um evento em `workspace_agenda_events` com `priority = 'maxima'`, para cair sob a mesma constraint — **um único calendário fisicamente restrito**. A alternativa (constraint cruzada entre duas tabelas) exige trigger e é mais frágil.
+
+---
+
+## 18. Consolidação final (itens 147–150)
+
+### A) JÁ ESTÁ CORRETO — não mexer
+
+| Item | Evidência |
+| --- | --- |
+| Backend E20 (token, TTL 7 dias, resgate, acessos) | `e20.server.ts`, `relationship_e20_occurrences/_accesses` |
+| Versionamento imutável + snapshot de envio | `message-library.server.ts`, `recordMessageSnapshot` |
+| Normalização de nome e fallback neutro | `src/lib/relationship/names.ts` |
+| Blindagem de restauração (núcleo operacional intocável) | `NEVER_RESTORE_TABLES` |
+| Identidade atômica do lead (ID GreenSales) | `resolve_portal_identity`, `identity_key` |
+| Lista branca de atividade real do investidor | `src/lib/events/investor-activity.ts` + `executive-data.ts:121` |
+| Jornada oficial com whitelist relacional | `journey.server.ts:88-98` |
+| Estrutura de prioridade/horário da Agenda | `src/lib/agenda-types.ts` |
+| Cards de Princípios não clicáveis, textos em banco | `principios-overlay.tsx`, `portal_institutional_blocks` |
+| Motor de backup (não reabrir) | `backup.server.ts`; só registrar tabelas novas em `BACKUP_TABLES` |
+
+### B) PRECISA SER IMPLEMENTADO — sem decisão pendente
+
+1. `action_key` (`source:leadId:step:instância`) e agregador de leitura da Ação do Dia.
+2. Agenda dentro da Ação do Dia, lendo `workspace_agenda_events`, sem cópia.
+3. Ordenação por blocos (agenda máxima → atrasadas → agora → futuras), fuso São Paulo.
+4. Rota `f.executivo.investidores.$id` + correção de `onOpenLead`.
+5. UI da Apresentação Digital: botão com estado, prazo visível, mensagem completa no Copiar.
+6. RLS das tabelas E20: trocar `is_portal_member()` por `can_access_investor(lead_id)`.
+7. Migração de `slug`, `title`, `photo_url`, `phone` para `executive_profiles`.
+8. Bloqueio do fallback para o Executivo Padrão em `dispatch.server.ts:66`.
+9. Cadastro dos bindings etapa → conteúdo (`relationship_step_content_bindings`, hoje vazia).
+10. Importação do Word na Biblioteca e aposentadoria de `src/lib/relationship/messages.ts`.
+11. `display_order` / rótulo funcional separado de `step_key`.
+12. Presença: ping de 60s em campo próprio + "online" derivado de 15 min.
+13. Manual: nova etapa histórica no capítulo 3; remoção do `hasVideo` do capítulo 7.
+14. Princípios: remover `<figure>` interno e aplicar hover.
+15. Remarketing: enxugar o cabeçalho em `f.remarketing.index.tsx`.
+16. Remoção da tela de Pendências de Identidade (mantendo a lógica).
+17. Espelhar reunião confirmada como evento `maxima` para cair na constraint única.
+
+### C) PRECISA DE DECISÃO ANTES DA CONSTRUÇÃO — com recomendação objetiva
+
+| # | Decisão | Recomendação |
 | --- | --- | --- |
-| a) Identidade do lead | `portal_leads.id` (ID GreenSales) + `resolve_portal_identity` | Única. OK |
-| b) Status operacional | `portal_leads` (`viewed_at`, `closed_at`, `commercial_state`) via `set_lead_operational` | **Concorre** com `resolveLeadState` no cliente, que deriva estado do `localStorage` |
-| c) Atividade real do investidor | `portal_engagement` + `portal_journey_events`; whitelist em `investor-activity.ts` | **Concorre** com o barramento local (`bus.ts`) |
-| d) Mensagens do motor | `relationship_message_library` (versionada) | **Concorre** com `src/lib/relationship/messages.ts`, `crm/templates.ts` e `post-presentation.ts` |
-| e) Conteúdo multimídia | `relationship_contents` + `relationship_step_content_bindings` | Única — porém **vazia** |
-| f) Perfil do executivo | Dividido: banco (`executive_profiles`) e seed (`executive-auth.ts`) | **Concorrência clara** |
-| g) Agenda | `workspace_agenda_events` | **Concorre** com `portal_meetings` (reuniões) e `crm_cadence_tasks` |
-| h) Apresentação digital | `relationship_e20_occurrences` | Única. OK |
-| i) Presença / último acesso | `portal_engagement.last_access_at` + `portal_leads.last_activity_at` | Dois campos, mesma semântica — risco de divergência |
-| j) Origem / carteira | `portal_leads` (canal, `scope`, executivo responsável) | **Concorre** com `operationalOwnerId`, que existe no código e **não existe como coluna** |
+| C1 | Prefixo da unidade Solar | **Manter `s`**; se `/sol` for exigência de marca, criar `/sol` e manter `s` como alias permanente |
+| C2 | Apresentação após redistribuição | **Encerrar a ocorrência ativa** na transferência; o novo responsável gera a sua |
+| C3 | Etapas E2, E5, E6, E7, R0 (inexistentes) | Criar **somente as que o Word definir**, como `step_key` novos, sem renumerar as existentes |
+| C4 | Texto oficial do E20 | Cadastrar a frase fornecida como conteúdo da etapa `E20` na Biblioteca |
+| C5 | Papel híbrido do Tiago | Acesso deve seguir o **papel ativo**, não o ID de usuário; corrigir `portal-workspace.ts:30-49` |
+| C6 | Retenção de backup | Adotar **7 pontos diários por ranking**, com `reference_date` em fuso local |
+| C7 | Remoção da Central de Templates | Remover; só reintroduzir se/quando o E0 real via Meta for ativado |
+| C8 | Notas do executivo | Criar **`lead_notes`**, preservando `portal_leads.notes` |
+| C9 | Vídeo pós-apresentação no perfil | Remover o campo obrigatório; o executivo cola o link no momento do envio |
 
-## 37. Risco de regressão
+### Ordem técnica recomendada (item 150)
 
-- **GreenSales — BAIXO.** Nada da próxima etapa toca a sincronização.
-- **Redistribuição — MÉDIO.** `operationalOwnerId` sem coluna correspondente; qualquer mudança de identificação de dono na ficha pode divergir do banco.
-- **Portal — MÉDIO.** O heartbeat de presença roda no Portal do investidor; escopo errado reintroduz o problema do "NOVO".
-- **TikTok / Meta (canais) — BAIXO.** Roteamento de canal não é tocado.
-- **Meta (templates/envio) — MÉDIO.** Remover a Central de Templates com `crm_meta_templates` vazia é inócuo hoje, mas fecha o caminho de ativação real do E0.
-- **Agenda — ALTO.** É onde a duplicação nasce: sem `action_key` e sem precedência entre `workspace_agenda_events` e `portal_meetings`, o mesmo compromisso aparece e é concluído duas vezes.
-- **CRM — MÉDIO.** Ficha por rota e mensagem por etapa mudam componentes centrais; layout de conversa é compartilhado com o Remarketing.
-- **Remarketing — MÉDIO.** Ajuste de layout que desça para os componentes compartilhados altera o CRM.
-- **Manual — BAIXO.** Texto e flag isolados, sem banco.
-- **Biblioteca — ALTO.** Importar o Word sobre 21 etapas existentes, com `relationship_step_content_bindings` vazia e `messages.ts` ainda ativa, pode fazer o motor renderizar de uma fonte e a tela de outra.
-- **Backup — BAIXO.** Não alterar; apenas registrar tabelas novas em `BACKUP_TABLES`.
+1. **`action_key` + agregador de leitura** — vocabulário único de ação; tudo depende disso.
+2. **Agenda no agregador** + espelhamento da reunião confirmada — resolve o único risco ALTO enquanto a superfície é pequena.
+3. **Rota da ficha do lead** e correção do "Ver ficha completa" — isolado, sem migration, ganho imediato.
+4. **Biblioteca: importar o Word**, separar rótulo de chave, cadastrar bindings, aposentar `messages.ts` — precisa vir **antes** de qualquer tela que exiba mensagem.
+5. **E1–E4 na Ação do Dia** com texto renderizado + Copiar.
+6. **Apresentação Digital na UI** (E20 interno, E6 no rótulo), RLS restritiva e painel administrativo.
+7. **Perfil do executivo migrado para o banco** — habilita personalização real da apresentação.
+8. **Presença do investidor** — isolado e reversível; depois porque toca a regra mais sensível do projeto.
+9. **Manual e Princípios** — risco zero de regressão.
+10. **Remarketing (layout)** — localizado em um arquivo.
+11. **Backup: nova retenção** com data de referência e fuso correto.
+12. **Separação `/` institucional × `/f`**, com `unitPath()` já adotado.
+13. **Remoções de legado** — por último, quando os substitutos estiverem em produção.
 
-## 38. Matriz de dependências
-
-| ITEM | JÁ PRONTO | PARCIAL | NÃO EXISTE | BLOQUEIO | PRÓXIMO PASSO |
-| --- | --- | --- | --- | --- | --- |
-| Ação do Dia | | Ligações (`crm_cadence_tasks`) | Agregador multi-fonte | `action_key` ausente | Definir chave e criar agregador de leitura |
-| Agenda na Ação do Dia | Prioridade/horário em `agenda-types` | | Integração | Precedência `workspace_agenda_events` x `portal_meetings` | Ler só a agenda oficial, sem cópia |
-| E1–E4 manual | Fila (26 itens) e render no servidor | | UI de mensagem no Portal dos Leads | — | Expor texto renderizado + Copiar |
-| E6 / Apresentação Digital | Backend E20 completo | | Botão, painel, texto oficial | Texto E20 pendente | Cadastrar texto e ligar `emitirE20` à ficha |
-| Perfil do executivo | `name/email/whatsapp` no banco | | `slug/cargo/foto/vídeo` no banco | Duas fontes | Migrar seed → `executive_profiles` |
-| Biblioteca de mensagens | 21 etapas versionadas | Bindings vazios; `messages.ts` paralela | E2/E5/E6/E7/R0 | Word não importado | Importar Word e aposentar `messages.ts` |
-| Presença do investidor | `last_access_at` por evento | | Heartbeat e "online" | — | Ping 60s + leitura de 15 min |
-| Ficha pelo Portal dos Leads | Componentes de ficha | | Rota por `leadId` | — | Criar rota e trocar `onOpenLead` |
-| Portal institucional | | | Home do Grupo | `/` é o Portal Financeiro | Mover Portal para `f.index` |
-| /f Financeira | Árvore `/f/*` operacional | Stubs redirecionam para `/` | | — | Resolver slug em `/f` |
-| /sol ou /s Solar | `s.$slug` existe | | Conteúdo | Nomenclatura indefinida | Fixar `s` ou criar alias `/sol` |
-| /seg Seguros | `seg.$slug` existe | | Conteúdo | — | Publicar quando houver conteúdo |
-| Princípios Velox | Conteúdo em banco; cards não clicáveis | | Hover e refino visual | — | Remover `<figure>` e estilizar cards |
-| Manual capítulo 3 | Texto e timeline isolados | | Nova etapa histórica | — | Inserir item na timeline e ajustar texto |
-| Vídeo capítulo 7 | | | | — | Remover `hasVideo` de `journey-data.ts:146` |
-| Pendências de Identidade | Lógica de identidade sólida | | | — | Remover só a UI |
-| Vídeo pós-apresentação | | Campo em seed | Coluna no banco | Guarda bloqueia mensagem sem vídeo | Decidir link manual no envio |
-| Backup | Completo e validado | | | — | **NÃO ALTERAR**; só registrar tabelas novas |
-
-## 39. Ordem técnica recomendada
-
-1. **`action_key` + agregador de leitura da Ação do Dia.** Tudo mais depende de existir um vocabulário único de ação. Feito depois, obriga a refazer a tela.
-2. **Agenda dentro do agregador**, lendo `workspace_agenda_events`, sem cópia. É o maior risco de regressão e deve ser resolvido enquanto a superfície é pequena.
-3. **Rota canônica da ficha do lead** e correção do "Ver ficha completa". Alteração isolada, ganho imediato, zero migration.
-4. **Importação do Word na Biblioteca** e aposentadoria de `messages.ts`. Precisa vir antes de qualquer UI que exiba mensagem, senão a tela nasce lendo a fonte errada.
-5. **E1–E4 na Ação do Dia** (texto renderizado + Copiar), reutilizando `renderFromLibrary`.
-6. **Apresentação Digital na UI** (E20 interno, E6 no rótulo) e painel administrativo com RLS restritiva.
-7. **Perfil do executivo migrado para o banco** — pré-requisito de personalização confiável da apresentação, mas só depois que a apresentação exista.
-8. **Presença do investidor.** Isolado e reversível; deixado para depois porque toca a regra mais sensível do projeto.
-9. **Manual (cap. 3, vídeo do cap. 7) e Princípios Velox.** Risco zero de regressão; podem entrar em qualquer janela.
-10. **Separação `/` institucional x `/f`**, com `unitPath()` adotado antes.
-11. **Remoções de legado** (Pendências de Identidade, Central de Templates, vídeo pós-apresentação) — por último, quando os substitutos estiverem em produção.
-
-Esta ordem prioriza a fundação compartilhada antes das telas, resolve o item de risco ALTO (Agenda) cedo, reutiliza integralmente `relationship_queue`, `renderFromLibrary` e E20 sem criar motores paralelos, e concentra migrations em dois pontos apenas (perfil do executivo e, se aprovado, `lead_notes`).
-
-## 40. Veredito
-
-**B) AINDA EXISTE BLOQUEIO TÉCNICO** — porém os bloqueios são poucos e específicos. Bloqueiam apenas os itens listados; o restante pode ser construído já.
-
-Bloqueios reais para uma implementação segura:
-
-1. **Texto oficial das mensagens (Word não importado).** E20, E27 e FINALIZACAO são slots vazios e `relationship_step_content_bindings` está com **zero** linhas. Sem isso, a Apresentação Digital e as ações E1–E4 exibiriam texto de uma fonte não oficial.
-2. **Etapas E2, E5, E6, E7 e R0 não existem** em código nem no banco. Qualquer UI que as pressuponha falha.
-3. **Precedência entre `workspace_agenda_events` e `portal_meetings`** não definida. Sem essa decisão, a Agenda na Ação do Dia duplica compromissos.
-4. **Nomenclatura da unidade Solar (`s` x `/sol`)** não fixada — bloqueia apenas a separação institucional, não os demais itens.
-
-Não bloqueiam (podem ser construídos agora): `action_key` e agregador, rota da ficha do lead, remoção do vídeo do capítulo 7, capítulo 3 do Manual, refino visual dos Princípios, remoção da UI de Pendências de Identidade, layout do Remarketing e presença do investidor.
+Esta ordem prioriza a fundação compartilhada antes das telas, ataca o risco ALTO (Agenda) cedo, reutiliza integralmente `relationship_queue`, `renderFromLibrary` e E20 sem criar motores paralelos, e concentra migrations em três pontos apenas: perfil do executivo, `lead_notes` e retenção de backup.
