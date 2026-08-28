@@ -25,8 +25,8 @@ import {
 } from "./message-library.server";
 import type { CadenceStep } from "@/lib/relationship/types";
 import type { DispatchRequest, DispatchResult, EngineDispatcher } from "@/lib/relationship/ports";
-import { E0_SIMULATION_ENABLED, E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
-import { getDefaultExecutive } from "@/lib/executive-auth";
+import { executionMode, SIMULATION_LABEL } from "./execution-mode.server";
+import { resolveLeadExecutive } from "./executive-identity.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { assertProductionRecipient, resolveRecipientPhone } from "./guard.server";
@@ -36,14 +36,18 @@ type Recipient = {
   phone: string;
   /** Lead de LOTE DE TESTE: nunca pode sair para o canal externo. */
   isTest: boolean;
+  /** Executivo RESPONSÁVEL pelo lead — nunca um executivo padrão. */
   executiveName: string;
+  executiveId: string;
   portalLink: string;
 };
 
 /** Dados reais do destinatário nas duas identidades possíveis. */
-async function loadRecipient(leadId: string): Promise<Recipient | null> {
+async function loadRecipient(
+  leadId: string,
+): Promise<{ recipient: Recipient } | { error: string }> {
   const phone = await resolveRecipientPhone(leadId);
-  if (!phone) return null;
+  if (!phone) return { error: "Destinatário sem telefone real — etapa não enviada." };
 
   const { data: card } = await supabaseAdmin
     .from("portal_leads")
@@ -62,16 +66,27 @@ async function loadRecipient(leadId: string): Promise<Recipient | null> {
     name = mirror?.name ?? null;
   }
 
-  const fallback = getDefaultExecutive();
-  const slug = card?.responsible_executive_slug ?? fallback?.slug ?? null;
+  /**
+   * IDENTIDADE REAL (COMANDO 2A §5): quem assina é o responsável pelo
+   * lead. Sem responsável com perfil cadastrado o envio é BLOQUEADO —
+   * não existe assinatura substituta.
+   */
+  const executive = await resolveLeadExecutive(leadId);
+  if (!executive.available) return { error: executive.reason };
+
+  const slug = executive.slug ?? card?.responsible_executive_slug ?? null;
   return {
-    name,
-    phone,
-    isTest: Boolean(card?.is_test),
-    executiveName: fallback?.name ?? "",
-    portalLink: slug ? investorPortalUrl(slug) : "",
+    recipient: {
+      name,
+      phone,
+      isTest: Boolean(card?.is_test),
+      executiveName: executive.name,
+      executiveId: executive.executiveId,
+      portalLink: slug ? investorPortalUrl(slug) : "",
+    },
   };
 }
+
 
 async function log(action: string, details: Record<string, unknown>): Promise<void> {
   await supabaseAdmin.from("relationship_engine_log").insert({
