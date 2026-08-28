@@ -2058,6 +2058,7 @@ export type Database = {
         Row: {
           active: boolean
           body: string
+          body_without_name: string | null
           button_kind: string | null
           code: string | null
           content_group: string | null
@@ -2084,6 +2085,7 @@ export type Database = {
         Insert: {
           active?: boolean
           body: string
+          body_without_name?: string | null
           button_kind?: string | null
           code?: string | null
           content_group?: string | null
@@ -2110,6 +2112,7 @@ export type Database = {
         Update: {
           active?: boolean
           body?: string
+          body_without_name?: string | null
           button_kind?: string | null
           code?: string | null
           content_group?: string | null
