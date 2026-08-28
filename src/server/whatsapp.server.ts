@@ -389,3 +389,95 @@ export async function assertValidationRecipient(input: {
   }
   return { ok: true };
 }
+
+/* ---------------------------------------------------------------------
+ * TEMPLATE OFICIAL COM DESTINOS DINÂMICOS (E0 DINÂMICA).
+ *
+ * A infraestrutura é a MESMA para todos os executivos: um único número
+ * e um único template aprovado. O que varia por lead são os parâmetros
+ * do corpo e os SUFIXOS dos botões de URL. Esta função é aditiva: os
+ * envios já existentes (validação de identidade, Remarketing) seguem
+ * usando seus próprios caminhos, sem alteração de comportamento.
+ * ------------------------------------------------------------------ */
+
+export type TemplateButtonParameter = {
+  /** Índice do botão no template aprovado (0, 1, ...). */
+  index: number;
+  /** Sufixo dinâmico da URL aprovada. */
+  suffix: string;
+};
+
+export async function sendTemplateWithDestinations(input: {
+  phone: string;
+  templateName: string;
+  language?: string | null;
+  bodyParameters?: string[];
+  buttons?: TemplateButtonParameter[];
+}): Promise<{ ok: true; provider: ChannelProviderId; delivered: boolean; error?: string }> {
+  const phone = onlyDigits(input.phone);
+  const mode = channelMode();
+  // AMBIENTE ANTES DE CREDENCIAL: homologação nunca alcança a Meta.
+  if (mode === "simulator") return { ok: true, provider: "interno", delivered: true };
+  if (mode === "unavailable") {
+    return { ok: true, provider: "meta", delivered: false, error: CHANNEL_UNAVAILABLE_MESSAGE };
+  }
+
+  const components: Record<string, unknown>[] = [];
+  const bodyParams = input.bodyParameters ?? [];
+  if (bodyParams.length > 0) {
+    components.push({
+      type: "body",
+      parameters: bodyParams.map((text) => ({ type: "text", text })),
+    });
+  }
+  // A ordem é preservada pelo ÍNDICE declarado, nunca pela posição no
+  // array: o parâmetro do botão 1 não pode acabar no botão 2.
+  for (const button of [...(input.buttons ?? [])].sort((a, b) => a.index - b.index)) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: String(button.index),
+      parameters: [{ type: "text", text: button.suffix }],
+    });
+  }
+
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v20.0/${process.env["WHATSAPP_PHONE_NUMBER_ID"]}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env["WHATSAPP_TOKEN"]}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "template",
+          template: {
+            name: input.templateName,
+            language: { code: input.language || "pt_BR" },
+            ...(components.length > 0 ? { components } : {}),
+          },
+        }),
+      },
+    );
+    if (!res.ok) {
+      const detail = await res.text();
+      return {
+        ok: true,
+        provider: "meta",
+        delivered: false,
+        error: `Meta respondeu ${res.status}: ${detail.slice(0, 180)}`,
+      };
+    }
+    return { ok: true, provider: "meta", delivered: true };
+  } catch (e) {
+    return {
+      ok: true,
+      provider: "meta",
+      delivered: false,
+      error: e instanceof Error ? e.message : "Falha no envio",
+    };
+  }
+}
