@@ -260,6 +260,14 @@ export function DailyActionsOverlay({
                         .join(" · ")}
                     </p>
                   )}
+                  {selected.secondary && selected.secondary.length > 0 && (
+                    <p className="mt-3 text-[11px] text-white/45">
+                      Também pendente para este investidor:{" "}
+                      {selected.secondary
+                        .map((s) => `${KIND_LABEL[s.kind]}${s.stepLabel ? ` ${s.stepLabel}` : ""}`)
+                        .join(" · ")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
