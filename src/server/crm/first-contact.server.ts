@@ -89,11 +89,13 @@ export async function registerFirstContact(
     id: messageId,
     investor_id: input.leadId,
     direction: "enviada",
-    body: input.simulated ? `[${SIMULATION_LABEL}]\n\n${message.body}` : message.body,
+    // Texto oficial sem prefixo: a simulação é o dado `simulated`.
+    body: message.body,
     author_id: input.ownerId ?? "sistema",
-    author_name: input.simulated ? `Primeiro contato (${SIMULATION_LABEL})` : "Primeiro contato",
+    author_name: "Primeiro contato",
     at,
-  });
+    simulated: Boolean(input.simulated),
+  } as any);
   if (insertError) {
     if (insertError.code === "23505") {
       return { registered: false, reason: "primeiro contato já registrado" };
