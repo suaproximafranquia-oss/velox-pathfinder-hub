@@ -67,7 +67,7 @@ export function ExecutiveContactDialog({ open, onClose, material }: Props) {
 
   const canSubmit = whatsapp.replace(/\D/g, "").length >= 10 && time1.trim().length > 1 && time2.trim().length > 1;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || submitting) return;
     setSubmitting(true);
