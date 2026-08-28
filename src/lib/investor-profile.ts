@@ -84,6 +84,26 @@ export function buildInvestorProfile(investorId: string): InvestorProfile {
     });
   }
 
+  /**
+   * HISTÓRICO = ACONTECIMENTOS, NÃO REGRAVAÇÕES DE ESTADO.
+   *
+   * Emissões antigas (anteriores à guarda de mudança real) deixaram no
+   * barramento local várias linhas "Status do Lead atualizado" para o
+   * mesmo estado. Elas não representam mudança: colapsamos repetições
+   * consecutivas do mesmo destino de estado, preservando a primeira
+   * ocorrência real. Nenhum evento de acontecimento distinto é removido.
+   */
+  const statusEvents = events
+    .filter((e) => e.type === "lead.status.changed")
+    .sort((a, b) => (a.at < b.at ? -1 : 1));
+  const redundantStatusIds = new Set<string>();
+  let previousTarget: string | null = null;
+  for (const event of statusEvents) {
+    const target = String((event.payload as { to?: string } | undefined)?.to ?? "");
+    if (target && target === previousTarget) redundantStatusIds.add(event.id);
+    else previousTarget = target || previousTarget;
+  }
+
   const timeline: TimelineEntry[] = [
     ...leadEntries,
     ...meetings.map<TimelineEntry>((m) => ({
@@ -93,8 +113,9 @@ export function buildInvestorProfile(investorId: string): InvestorProfile {
       title: `Reunião ${m.status.toLowerCase()}`,
       description: new Date(m.scheduledAt).toLocaleString("pt-BR"),
     })),
-    ...events.map(fmt),
+    ...events.filter((e) => !redundantStatusIds.has(e.id)).map(fmt),
   ].sort((a, b) => (a.at < b.at ? 1 : -1));
+
 
   return {
     id: investorId,
