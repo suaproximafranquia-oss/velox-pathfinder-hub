@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import { unitPath } from "@/lib/business-unit";
 
 /**
  * GUARD ÚNICO DOS AMBIENTES OPERACIONAIS (`/f/...`).
@@ -34,7 +35,7 @@ export function OperationalGuard({
     setSession(s);
     setChecked(true);
     if (!s && !isPublic) {
-      navigate({ to: "/f/executivo", replace: true });
+      navigate({ to: unitPath("/executivo"), replace: true });
     }
   }, [isPublic, navigate, pathname]);
 

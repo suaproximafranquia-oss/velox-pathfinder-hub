@@ -11,6 +11,7 @@ import {
   type RecognitionEvent,
 } from "@/lib/recognition/engine";
 import { RecognitionModal } from "./recognition-modal";
+import { unitPath } from "@/lib/business-unit";
 
 export function RecognitionHost({ userId }: { userId: string }) {
   const [event, setEvent] = useState<RecognitionEvent | null>(null);
@@ -27,7 +28,7 @@ export function RecognitionHost({ userId }: { userId: string }) {
   // Aniversário de empresa possui tela dedicada — encaminha antes do modal.
   if (event.type === "company_anniversary") {
     if (typeof window !== "undefined") {
-      navigate({ to: "/f/executivo/celebracao" });
+      navigate({ to: unitPath("/executivo/celebracao") });
     }
     return null;
   }
@@ -38,7 +39,7 @@ export function RecognitionHost({ userId }: { userId: string }) {
         const wasKpiPending = event.type === "kpi_pending";
         markViewed(event.id);
         setEvent(nextPendingEvent(userId));
-        if (wasKpiPending) navigate({ to: "/f/executivo/kpi" });
+        if (wasKpiPending) navigate({ to: unitPath("/executivo/kpi") });
       }}
     />
   );
