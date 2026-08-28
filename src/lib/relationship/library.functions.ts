@@ -20,6 +20,7 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
     (input: {
       stepKey: string;
       body: string;
+      bodyWithoutName?: string | null;
       title?: string | null;
       notes?: string | null;
     }) => {
@@ -36,12 +37,29 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
     return publishLibraryVersion({
       stepKey: data.stepKey,
       body: data.body,
+      bodyWithoutName: data.bodyWithoutName ?? null,
       title: data.title ?? null,
       notes: data.notes ?? null,
       actorId: context.userId,
       actorName: String(name),
     });
   });
+
+/**
+ * Importa/atualiza a Biblioteca a partir do Word oficial. Texto igual ao
+ * que já está ativo não gera versão nova; texto diferente cria a versão
+ * seguinte e preserva a anterior.
+ */
+export const importarBibliotecaOficial = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { importWordLibrary } = await import(
+      "@/server/relationship/message-library.server"
+    );
+    const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
+    return importWordLibrary({ actorId: context.userId, actorName: String(name) });
+  });
+
 
 export const jornadaDoLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
