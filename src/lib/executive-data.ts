@@ -101,17 +101,18 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
       });
     const isPortal = scope === "portal";
     /**
-     * COMANDO 3 §2/§5 — ações do EXECUTIVO (abrir/fechar card, marcar
-     * visualização) nunca são atividade do investidor. O evento
-     * "lead.status.changed" é emitido quando o card é aberto; se ele
-     * entrasse no cálculo de lastActivity, o lead voltaria a "novo" um
-     * milissegundo depois de ser marcado como visualizado (o bug do
-     * estado "Novo" que piscava). Apenas eventos reais do investidor
-     * alimentam atividade, último evento e métricas.
+     * COMANDO A §3/§5 — ATIVIDADE REAL DO INVESTIDOR.
+     *
+     * Antes: lista negra ("todos os eventos, menos lead.status.changed").
+     * Frágil — qualquer evento administrativo novo (comentário, edição,
+     * reunião, alerta) empurrava `lastActivity` para depois de
+     * `viewed_at` e o card voltava a "Novo".
+     *
+     * Agora: LISTA BRANCA. Só o que é comprovadamente produzido pelo
+     * investidor alimenta `lastActivity`. Ver `investor-activity.ts`.
      */
-    const events = listEvents({ investorId: lead.id }).filter(
-      (event) => event.type !== "lead.status.changed",
-    );
+    const allEvents = listEvents({ investorId: lead.id });
+    const events = filterInvestorActivity(allEvents);
     const manualEvents = events.filter((event) => event.type === "manual.chapter.completed");
     const manualDone = events.some((event) => event.type === "manual.completed");
     const simulatorDone = events.some((event) => event.type === "simulator.completed");
