@@ -7,7 +7,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
  */
 export const Route = createFileRoute("/executivo/")({
   beforeLoad: ({ search }) => {
-    throw redirect({ to: "/f/executivo/", replace: true, search: search as never });
+    throw redirect({ to: "/f/executivo", replace: true, search: search as never });
   },
   component: () => null,
 });

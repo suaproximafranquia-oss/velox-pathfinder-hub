@@ -49,7 +49,7 @@ export function AgendaDock() {
     setLoading(true);
     try {
       const { fromISO, toISO } = dayRange();
-      const data = await listAgenda({ data: { executiveId: session.id, fromISO, toISO } });
+      const data = await listAgenda({ data: { executiveId: session.userId, fromISO, toISO } });
       setItems(data);
     } catch {
       toast.error("Não foi possível carregar a Agenda.");
@@ -183,7 +183,7 @@ export function AgendaDock() {
             <footer className="border-t border-[color:var(--border)] px-5 py-4">
               {creating ? (
                 <AgendaForm
-                  executiveId={session.id}
+                  executiveId={session.userId}
                   onCancel={() => setCreating(false)}
                   onCreated={() => {
                     setCreating(false);
