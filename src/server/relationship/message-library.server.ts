@@ -123,8 +123,12 @@ export async function ensureLibrarySeed(): Promise<void> {
   const rows: Record<string, unknown>[] = [];
   for (const step of LIBRARY_STEP_ORDER) {
     if (known.has(step)) continue;
+    const official = WORD_MESSAGES.find((m) => m.stepKey === step) ?? null;
     const fixed = (HOMOLOGATION_MESSAGES as Record<string, any>)[step];
-    if (fixed) {
+    if (official) {
+      // Etapa oficial do Word: nasce já com o texto oficial (v1).
+      rows.push(wordRow(official, 1, null));
+    } else if (fixed) {
       rows.push({
         scope: "production",
         step_key: step,
@@ -153,10 +157,11 @@ export async function ensureLibrarySeed(): Promise<void> {
         button_kind: step === "E20" ? "portal" : null,
         created_by_name: "Motor de Relacionamento",
         notes:
-          "Slot aguardando texto do executivo. Nenhuma mensagem é inventada pelo sistema.",
+          "Slot aguardando texto oficial. Nenhuma mensagem é inventada pelo sistema.",
       });
     }
   }
+
   if (rows.length > 0) {
     await supabaseAdmin.from("relationship_message_library").insert(rows as any);
   }
