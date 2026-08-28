@@ -158,14 +158,23 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
       currentChapter: manualDone || remoteDone
         ? "Convite para conversar"
         : (latestManualPayload?.chapterTitle ?? lead.journeyChapter ?? lead.material),
+      /**
+       * FONTES LEGÍTIMAS DE ATIVIDADE (lista branca, não "máximo de tudo"):
+       *  - createdAt / lastActivityAt: entrada do investidor (o servidor só
+       *    grava `last_activity_at` na criação e em acesso real ao Portal);
+       *  - journeyLastEventAt: progresso real da jornada;
+       *  - lastInboundAt: resposta do investidor no WhatsApp;
+       *  - eventos do bus JÁ filtrados pela lista branca acima.
+       * Ação administrativa do executivo não entra em nenhuma delas.
+       */
       lastActivity: latestIso([
         lead.createdAt,
         lead.lastActivityAt ?? "",
         lead.journeyLastEventAt ?? "",
-        // Resposta do investidor no WhatsApp É atividade real.
         lead.lastInboundAt ?? "",
         ...events.map((event) => event.at),
       ]),
+
       aiInteractions: events.filter((event) => event.type === "ai.query.answered").length +
         (interestsCaptured ? 1 : 0),
       diagnostic: simulatorDone || interestsCaptured ? "em andamento" : "não iniciado",
