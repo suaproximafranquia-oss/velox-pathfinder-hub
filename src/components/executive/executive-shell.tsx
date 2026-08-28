@@ -1,5 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { isHomologationEnvironment } from "@/lib/environment";
+// Navegação interna SEMPRE pela camada da unidade de negócio (/f).
+import { unitPath } from "@/lib/business-unit";
 import {
   Sprout,
   LayoutGrid,
