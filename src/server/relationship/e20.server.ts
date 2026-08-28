@@ -83,6 +83,25 @@ export async function listE20Occurrences(leadId: string): Promise<E20Occurrence[
   return (data ?? []).map(toOccurrence);
 }
 
+/**
+ * OCORRÊNCIA VIGENTE. Emitir uma segunda E20 sem necessidade encerra a
+ * anterior e abre outra instância de cadência — barulho operacional puro.
+ * Enquanto existir um convite ativo e dentro da validade, ele é o convite:
+ * a interface reutiliza este link em vez de gerar um novo.
+ */
+export async function currentE20(leadId: string): Promise<E20Occurrence | null> {
+  const { data } = await supabaseAdmin
+    .from("relationship_e20_occurrences")
+    .select("*")
+    .eq("lead_id", leadId)
+    .is("closed_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? toOccurrence(data as Record<string, any>) : null;
+}
+
 export type IssueE20Result =
   | { issued: false; reason: string }
   | {
