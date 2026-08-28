@@ -109,6 +109,34 @@ function toMessage(row: Record<string, any>): LibraryMessage {
 }
 
 
+/** Linha da Biblioteca a partir de uma mensagem oficial do Word. */
+function wordRow(
+  message: WordMessage,
+  version: number,
+  supersedesId: string | null,
+): Record<string, unknown> {
+  return {
+    scope: "production",
+    step_key: message.stepKey,
+    code: `LIB-${message.stepKey}`,
+    title: message.title,
+    purpose: message.stepKey.toLowerCase(),
+    body: message.body,
+    body_without_name: message.bodyWithoutName,
+    version,
+    active: true,
+    content_group: message.contentGroup,
+    button_kind: message.button,
+    supersedes_id: supersedesId,
+    created_by_name: "Word oficial",
+    source_kind: "word",
+    source_reference: WORD_SOURCE_REFERENCE,
+    imported_at: new Date().toISOString(),
+    import_version: version,
+    notes: `Texto oficial transcrito do documento ${WORD_SOURCE_REFERENCE}.`,
+  };
+}
+
 /**
  * Semeadura única: garante que cada etapa possua ao menos a versão 1.
  * Idempotente — só insere o que ainda não existe.
