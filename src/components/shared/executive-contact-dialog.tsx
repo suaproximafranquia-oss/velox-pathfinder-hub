@@ -88,7 +88,10 @@ export function ExecutiveContactDialog({ open, onClose, material }: Props) {
           preferredTimes: [time1, time2],
           message: message.trim() || undefined,
         },
+        // Duplo clique / reenvio do formulário não vira dois acontecimentos.
+        dedupeKey: `lead.status.changed:${investorId}:qualificado`,
       });
+
 
       addComment({
         investorId,
