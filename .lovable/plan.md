@@ -1,86 +1,93 @@
-# Etapa B — Respostas técnicas e arquitetura proposta (sem implementação)
+# Etapa B — Fechamento arquitetural (respostas 1 a 20)
 
-## Respostas
-
-**1. Layout-pai `/f`.** Confirmado. Crio `src/routes/f.tsx` apenas como layout neutro (`component: () => <Outlet />`, `head` com `robots: noindex`), **sem guard**. `/f/$slug` continua filho direto desse layout e permanece público. O guard entra um nível abaixo, em layouts operacionais próprios: `f.executivo.tsx` (novo, hoje inexistente), `f.crm.tsx` e `f.remarketing.tsx` (já existem) e no arquivo folha `f.portal-leads.tsx`. Como `/f/$slug` nunca é filho desses layouts, é arquiteturalmente impossível o guard alcançá-lo. Criar `f.executivo.tsx` exige nada além do layout: as 30 rotas `f.executivo.*` já têm o ID correto e passam a ser filhas automaticamente.
-
-**2. Guard único.** Estratégia: um componente `OperationalGuard` usado pelos quatro layouts acima, mais `ssr: false` nesses layouts (a sessão vive no `localStorage`, então SSR não pode decidir). Fluxo: enquanto a sessão não é resolvida, o guard renderiza um placeholder neutro e **não monta `<Outlet />`** — é isso que elimina o flash, já que hoje o flash vem de a tela montar e só depois redirecionar. Sem sessão: redireciona para `/entrar`. Reutiliza `getSession()` de `src/lib/executive-auth.ts` e a expiração de `src/lib/crm/session.ts`; nenhuma segunda autenticação é criada, nenhum provider novo. Permissões por módulo continuam onde estão (`useModuleAccess` / `ModuleAccessDenied`): o guard resolve **sessão**, não **permissão**. As checagens `useEffect`+`getSession()` das telas folha são removidas apenas onde forem redundantes; as que também decidem papel (ex.: `f.executivo.usuarios.tsx` com `canManageUsers`) permanecem. `CrmShell` mantém o login inline — o guard passa a tratá-lo como caso já autenticado.
-
-**3. Remarketing.** Confirmado. `/f/remarketing` passa a ser tratado como operacional em `resolveShell()` e em `RootRoutes` (`src/routes/__root.tsx`), no mesmo ramo de CRM/Portal dos Leads: sem `EditorialShell`, sem `JourneyChrome`, sem `WhatsAppFloating`, sem `JourneyTracker`. Mantém apenas seu header próprio, `<Toaster />` e a `AgendaDock`.
-
-**4. business-unit.ts e type-safety.** Não vou espalhar `as never`. Estratégia em duas camadas: (a) as rotas continuam declaradas com literais (`createFileRoute("/f/...")`) — isso é exigência do router e não muda; (b) a navegação centraliza-se num mapa tipado `UNIT_ROUTES` em `src/lib/business-unit.ts` com literais constantes (`as const`), consumido pelo menu. O único arquivo que realmente precisa da centralização é `src/components/executive/executive-shell.tsx` (24 ocorrências, é o menu). Os `navigate({ to: "/f/executivo" })` das telas folha desaparecem naturalmente ao introduzir o guard (item 2), o que reduz sozinho a maior parte das ~35 strings. `unitPath()` permanece para uso não-tipado (links externos, `window.open`, comparações de pathname). Nenhuma varredura cosmética nos demais arquivos.
-
-**5. Slugs reservados.** Confirmado. `safeExecutiveSlug()` deixa de ser a proteção: a validação passa a **rejeitar**. Introduzo `validateExecutiveSlug()` retornando erro explícito quando o slug é reservado, aplicado na criação em `src/routes/f.executivo.usuarios.tsx` e na função de gravação em `src/lib/executive-auth.ts`, de modo que qualquer campo de slug editável futuro herde a regra pelo mesmo ponto. `getExecutiveBySlug()` continua bloqueando na leitura (defesa em profundidade). `safeExecutiveSlug()` é mantido apenas para sugestão de valor alternativo na UI, nunca como gravação silenciosa.
-
-**6. Agenda — identidade.** Confirmado. `listAgenda`/`createAgendaEvent`/`deleteAgendaEvent` (`src/lib/agenda.functions.ts`) deixam de aceitar `executiveId` do cliente: o valor passa a ser resolvido no servidor via `current_executive_id()` (RPC), dentro do handler autenticado. Executivo comum não muda de comportamento — ele já enviava o próprio id. Um parâmetro opcional `viewExecutiveId` só é aceito quando `has_role(auth.uid(),'admin')` retorna verdadeiro; caso contrário é ignorado (não gera erro, evitando regressão). `deleteAgendaEvent` passa a validar dono antes do delete, em vez de depender só do RLS.
-
-**7. Agenda — conflito.** Confirmado: a regra é sobreposição real (`novoInício < fimExistente && novoFim > inícioExistente`), e a **consulta** precisa mudar junto, pois hoje filtra por `starts_at` dentro do dia e perde eventos que começaram antes. A busca passará a ser `starts_at < novoFim AND ends_at > novoInício` (para reuniões, `scheduled_at + duration_min`), sem recorte por dia — o que também resolve travessia de meia-noite. Sobre corrida: sim, proteção também no banco, com `EXCLUDE USING gist (executive_id WITH =, tstzrange(starts_at, ends_at) WITH &&) WHERE (priority = 'maxima')` — requer `btree_gist`. A checagem da aplicação continua existindo para produzir a mensagem amigável; a constraint é a garantia. Reuniões (`portal_meetings`) ficam fora da constraint (tabela distinta) e continuam cobertas apenas pela checagem aplicacional — limitação assumida e declarada.
-
-**8. Agenda — fuso e ação do dia.** Confirmado: a Agenda deixa de fabricar `09:00-03:00`. O `AgendaItem` ganha um discriminador (`kind: "compromisso" | "acao_do_dia"`); tarefas de cadência viram `acao_do_dia`, com apenas `dueDate` (data), renderizadas numa faixa "Ações do dia" separada da linha do tempo por hora. Nenhum horário é inventado, nada entra no cálculo de conflito e o offset fixo desaparece do código. Datas/horas reais continuam em UTC no banco e são formatadas com `America/Sao_Paulo` via `Intl`, não com string `-03:00`.
-
-**9. Agenda — cadência.** Confirmado: a Agenda não cria, não altera, não conclui tarefa, não define E1/E2/E3, não inventa ação. Isolamento no código: em `agenda.functions.ts` a cadência é lida em um único bloco `SELECT`-only; nenhum import de `src/server/crm/cadence.server.ts` nem de `src/server/relationship/*`; a rotulagem (`D{n} · Ligação/Mensagem`) fica em componente de apresentação, não na função de servidor. Qualquer ação sobre a tarefa continua sendo feita no CRM.
-
-**10. Agenda — performance.** Corrijo agora, **sem tocar no motor**. Hoje `listAgenda` carrega toda a carteira (`portal_leads` do executivo) só para montar um `IN (...)`. Solução sem alterar a lógica do motor: uma **view** `crm_cadence_tasks_por_responsavel` (ou função `SECURITY DEFINER` de leitura) que faz o join `crm_cadence_tasks × portal_leads` no banco e expõe `executive_id`, `due_date`, `status`, `channel`, `step_day`, nome do lead. A Agenda passa a fazer uma consulta filtrada por responsável e período. Isso também resolve o problema de RLS detectado na auditoria: hoje `crm_cadence_tasks` só é legível por admin/manager, então **executivo comum não vê cadência nenhuma na Agenda** — a função `SECURITY DEFINER` restringe por `current_executive_id()` e devolve só o que é dele. Índice novo em `crm_cadence_tasks (status, due_date)`. Nenhuma coluna do motor é alterada.
-
-**11. Host institucional.** Detecção no servidor, uma única vez, no `beforeLoad` do `__root` (ou em `src/server.ts`), usando `getRequest()` de `@tanstack/react-start/server` — já usado no projeto (`src/server/environment.server.ts`, `auth-middleware.ts`). O host lido é colocado no contexto do router e usado apenas por `src/routes/index.tsx` para decidir **qual componente renderizar**: host institucional → página do Grupo; qualquer outro host → exatamente a Home atual, sem alteração de comportamento, de search params ou de Gateway. Nada mais na aplicação consulta host. Alternativa mais simples, se preferirem: variável de ambiente `VITE_INSTITUTIONAL_HOST` para permitir testes no preview.
-
-**12. Isolamento do host institucional.** Três camadas, nenhuma delas "esconder botão": (a) a página institucional não referencia rota interna alguma; (b) o layout `f.tsx` recusa o host institucional já no `beforeLoad` do servidor, devolvendo 404 — ou seja, digitar `portalvelox.com.br/f/crm` não chega a renderizar; (c) os dados continuam protegidos por RLS e `requireSupabaseAuth`, que é a barreira que vale mesmo se o host for burlado. Também adiciono `robots: noindex` no layout `/f`. Ressalva honesta: se hoje o operacional e o institucional forem servidos pelo **mesmo** host, a camada (b) não tem o que separar — então preciso da confirmação de qual host hospedará o operacional. Enquanto isso, implemento (a) e (c) e deixo (b) parametrizado.
-
-**13. Rota `/` atual.** Confirmado: **não** substituo a aplicação da rota `/`. `/`, Gateway, `/origem/tiktok`, `/origem/meta`, `/f/$slug`, `/e/$slug` e os overlays permanecem byte-a-byte no comportamento. A única mudança em `src/routes/index.tsx` é um desvio no topo do componente: host institucional → renderiza `<GrupoVeloxPage />`; caso contrário → o componente atual, intacto. O `head()` também passa a variar por host, para o SEO institucional não sobrepor o do Portal.
-
-**14. Página institucional mínima.** Monto do zero, com os tokens visuais existentes (`EditorialShell`/`styles.css`), sem importar componentes da página pública atual. Sem menu hambúrguer, sem "Sobre o Grupo", sem "Modelos de negócios". "Seja um Franqueado" no topo, se existir, apenas rola até a seção das três modalidades — não abre cadastro. Preservo a frase-conceito ("Impactando o futuro de pessoas e empresas com inovação, credibilidade e respeito") e os indicadores +2.000 unidades, +500k clientes, +R$20Bi faturamento.
-
-**15. Seções.** Confirmado: somente Hero, indicadores, "Nossos Serviços", as três modalidades e o CTA por modalidade. Nada de "Expanda sua marca" ou blocos de diferenciais. Reaproveito estilos e primitivas de UI, nunca a página inteira.
-
-**16. Captação Financeira.** Confirmado: a origem vem da **rota** do CTA e é resolvida no servidor (mesmo padrão já usado por `src/routes/origem.$channel.tsx`), com allowlist `financeira | solar | seguros`. Nada de campo oculto nem querystring confiável. Financeira continua no fluxo atual: `resolve_portal_identity` → `portal_leads` → Portal dos Leads. Nenhum segundo CRM.
-
-**17. Solar e Seguros isolados.** Confirmado: tabela nova `group_leads`, `unit` restrito a `solar|seguros` por CHECK, status `novo|atendido`. Isolamento garantido por construção: tabela sem FK e sem trigger apontando para qualquer estrutura financeira; nenhum arquivo de `src/server/crm/*`, `src/server/relationship/*`, `src/server/remarketing/*` ou `src/server/greensales.server.ts` é importado ou alterado; o leitor da fila é uma função de servidor nova que lê exclusivamente `group_leads`. Nenhum registro Solar/Seguros existe em `portal_leads`, portanto não há como aparecer no Portal dos Leads, na cadência, no engajamento ou nos backups atuais.
-
-**18. Fila no Workspace.** Confirmado: duas telas minimalistas ("Leads Solar" e "Leads Seguros"), cards com nome, telefone, e-mail, unidade/origem, data de entrada e status. Sem jornada, reunião, nota, IA, relatório, acompanhamento ou cadência. Abrir o card não dispara nada.
-
-**19. Status.** Confirmado: único movimento `novo → atendido`, sem exclusão, sem "não atendido", sem etapas intermediárias. Ao marcar, grava `handled_at` e `handled_by` (id do executivo autenticado, resolvido no servidor). Nada é apagado.
-
-**20. Banco (lista prévia).**
-- Tabela nova `public.group_leads`: `id uuid pk default gen_random_uuid()`, `unit text not null check (unit in ('solar','seguros'))`, `name text not null`, `phone text not null`, `email text not null`, `origin text not null`, `status text not null default 'novo' check (status in ('novo','atendido'))`, `handled_at timestamptz`, `handled_by text`, `created_at timestamptz not null default now()`, `updated_at timestamptz not null default now()`.
-- Índices: `(unit, status, created_at desc)`; índice de dedupe por telefone normalizado.
-- GRANTs: `SELECT, INSERT, UPDATE ON public.group_leads TO authenticated`; `GRANT ALL ... TO service_role`; **sem** `anon` (a captação pública entra por server function autenticada como serviço, não pelo cliente).
-- RLS: leitura/atualização para papéis internos (`has_role admin/manager` ou `current_executive_id() is not null`); sem política de DELETE (lead não é apagado).
-- Trigger: apenas `update_updated_at_column` (função já existente, não alterada).
-- Extensão `btree_gist` + constraint `EXCLUDE` em `workspace_agenda_events` (item 7).
-- View/função `SECURITY DEFINER` de leitura de cadência por responsável + índice `crm_cadence_tasks (status, due_date)` (item 10). **Somente leitura e índice — nenhuma coluna, trigger ou política existente é alterada.**
-- Confirmo explicitamente: **não** altero estrutura nem triggers de `portal_leads`, nem tabelas do CRM financeiro, nem tabelas de cadência (além do índice), nem GreenSales, nem `relationship_*`, nem a aquisição existente.
-
-**21. Testes.** Executarei exatamente a matriz A–F pedida, com navegador headless contra o servidor local: rotas públicas (`/`, `/origem/tiktok`, `/origem/meta`, `/f/$slug`, `/e/$slug`), host institucional simulado por header `Host`, áreas internas com e sem sessão, tentativa de acesso interno pelo host institucional, captação nas três origens (conferindo que Solar/Seguros não geram linha em `portal_leads`) e Agenda nos quatro ambientes (identidade, conflito, reuniões, cadência). Também conferirei `count(*)` de `portal_leads` antes e depois.
-
-**22.** Não inicio implementação. Abaixo o consolidado.
+Nada foi implementado nesta rodada. Onde o código/schema não permite confirmar, está marcado como **precisa verificar/definir**.
 
 ---
 
-## Arquivos que serão alterados
-`src/routes/__root.tsx` (shell do Remarketing, host no contexto), `src/routes/index.tsx` (desvio por host, sem tocar no fluxo atual), `src/routes/f.crm.tsx`, `src/routes/f.remarketing.tsx`, `src/routes/f.portal-leads.tsx` (guard), telas `f.executivo.*` (remoção do `useEffect` de sessão redundante), `src/components/executive/executive-shell.tsx` (navegação centralizada), `src/lib/business-unit.ts`, `src/lib/executive-auth.ts` + `src/routes/f.executivo.usuarios.tsx` (slug rejeitado), `src/lib/agenda.functions.ts` e `src/components/agenda/agenda-dock.tsx`.
+**1. Hosts.** Confirmo as quatro regras como intenção de projeto, com uma ressalva factual importante: **hoje não existe domínio operacional separado**. O projeto não tem domínio personalizado configurado; as áreas operacionais são servidas pelo mesmo host da aplicação (o endereço publicado atual e o preview). Portanto não vou inventar domínio nem afirmar que a separação já existe.
 
-## Arquivos novos
-`src/routes/f.tsx`, `src/routes/f.executivo.tsx`, componente `OperationalGuard`, página do Grupo Velox + suas seções, rota(s) de captação por unidade, `src/lib/group-leads.functions.ts`, telas de fila Solar/Seguros sob `/f/executivo`.
+Parametrização: uma variável de ambiente `VITE_INSTITUTIONAL_HOST` (vazia por padrão). Regra: se `host === VITE_INSTITUTIONAL_HOST` e a variável não estiver vazia, o host é institucional — `/` renderiza a página do Grupo Velox e o layout `/f` responde 404 no `beforeLoad` do servidor. Se a variável estiver vazia ou o host for outro, **tudo se comporta exatamente como hoje**. O host é lido no servidor com `getRequest()` de `@tanstack/react-start/server`, já usado no projeto (`src/server/environment.server.ts`, `src/integrations/supabase/auth-middleware.ts`).
 
-## Arquivos intocados
-`src/lib/portal-leads.functions.ts`, `src/components/crm/portal-leads-board.tsx`, `src/server/crm/*`, `src/server/relationship/*`, `src/server/remarketing/*`, `src/server/greensales.server.ts`, `src/routes/origem.$channel.tsx`, `src/routes/f.$slug.tsx`, `src/routes/e.$slug.tsx`, `src/routes/manual/*`, `src/integrations/supabase/*`.
+Pendência declarada: apontar `portalvelox.com.br` para o projeto e definir o domínio operacional definitivo. Enquanto isso, o código já fica pronto e desligado por configuração.
 
-## Migrations
-1. `group_leads` (tabela, CHECKs, índices, GRANTs, RLS, trigger de `updated_at`).
-2. `btree_gist` + constraint `EXCLUDE` de sobreposição em `workspace_agenda_events`.
-3. Função/view de leitura de cadência por responsável + índice `crm_cadence_tasks (status, due_date)`.
+**2. Preview.** Como `VITE_INSTITUTIONAL_HOST` fica vazia no preview, o preview continua servindo o Portal atual sem qualquer mudança de comportamento. Para testar o modo institucional sem domínio real, uso duas saídas: (a) enviar o header `Host: portalvelox.com.br` no teste headless, e (b) um parâmetro de inspeção `?__host=` aceito **somente** quando `import.meta.env.DEV` — nunca em produção. O default é sempre "comportamento atual".
 
-## Riscos identificados
-- `ssr: false` nos layouts operacionais muda o momento de montagem: telas que dependiam de SSR podem exibir um instante de placeholder (aceitável, e é o que elimina o flash).
-- Criar `f.executivo.tsx` reorganiza a árvore de rotas; exige revalidar as 30 telas.
-- A constraint `EXCLUDE` pode falhar na criação se já existirem eventos sobrepostos — verifico e reporto antes de aplicar.
-- Desvio por host em `/`: se o host institucional não estiver corretamente configurado, o Portal atual poderia ser servido no domínio errado; por isso o default é sempre o comportamento atual.
-- Remoção dos guards por tela: risco de deixar alguma tela sem proteção — mitigado removendo apenas onde o layout comprovadamente cobre.
+**3. `/f` estático vs `/f/$slug`.** O TanStack Router faz ranking de rotas: segmentos estáticos têm precedência sobre segmentos dinâmicos no mesmo nível. `/f/executivo/*`, `/f/crm`, `/f/remarketing` e `/f/portal-leads` existem como arquivos estáticos (`f.executivo.*.tsx`, `f.crm.tsx`, `f.remarketing.tsx`, `f.portal-leads.tsx`) e vencem `f.$slug.tsx` sempre. `/f/$slug` continua atendendo qualquer outro slug. O novo layout `src/routes/f.tsx` é pai comum e **não altera esse ranking** — ele apenas envolve os filhos com `<Outlet />`.
 
-## Ordem de execução
-1. `f.tsx` + `f.executivo.tsx` + `OperationalGuard` (guard único) e correção do shell do Remarketing.
-2. Slug reservado rejeitado + centralização da navegação do menu.
-3. Endurecimento da Agenda: identidade no servidor, sobreposição real + constraint, ação do dia sem horário fabricado, leitura de cadência por responsável.
-4. Página institucional do Grupo Velox por host, sem tocar em `/`.
-5. Captação por rota: Financeira no fluxo atual; `group_leads` + filas Solar/Seguros + botão "Atendido".
-6. Matriz de testes A–F e relatório final.
+**4. Slugs reservados.** Confirmo: comparação em minúsculas, aplicada **depois** da normalização (`slugify`), portanto `EXECUTIVO`, `Executivo` e `executivo` são o mesmo slug reservado. A validação passa a ser **bloqueante** (`validateExecutiveSlug`) e aplicada no ponto de persistência em `src/lib/executive-auth.ts` — o que cobre criação e edição por construção, já que ambas passam pela mesma gravação — mais a validação de UI em `src/routes/f.executivo.usuarios.tsx` para dar mensagem imediata. `getExecutiveBySlug()` mantém o bloqueio na leitura como defesa em profundidade. `safeExecutiveSlug()` deixa de corrigir silenciosamente na gravação; fica só como sugestão de alternativa.
+
+**5. Mapa de redirecionamentos (já existente no código, verificado agora).** Todos os stubs legados já estão criados e usam `redirect({ replace: true })`:
+
+| Legado | Destino |
+|---|---|
+| `/executivo` (`executivo.index.tsx`) | `/f/executivo` |
+| `/executivo/home` | `/f/executivo/home` |
+| `/executivo/<qualquer>` (30 telas, uma a uma) | `/f/executivo/<mesma tela>` |
+| `/crm` | `/f/crm` |
+| `/remarketing` | `/f/remarketing` |
+| `/portal-leads` | `/f/portal-leads` |
+
+Sobre `/executivo`: o destino é `/f/executivo`, **não** `/f/executivo/home`. Isso preserva o comportamento anterior — `/executivo` sempre foi a porta de entrada com o formulário de login (`f.executivo.index.tsx` contém `signInWithCloud`), e `/executivo/home` sempre foi o Workspace. Redirecionar `/executivo` para `/home` abriria uma tela diferente da que abria antes. Mantido 1:1.
+
+**6. Search e params.** Confirmo, e é o que os stubs já fazem: `beforeLoad: ({ search }) => redirect({ to: "/f/crm", search })`. Então `/crm?lead=123&tab=historico` chega em `/f/crm?lead=123&tab=historico` com os dois parâmetros. Não há rota legada com parâmetro de rota (`$param`) entre as redirecionadas — todas são caminhos estáticos —, mas nos stubs em que isso vier a existir o `params` é repassado do mesmo modo. Vou incluir esse par de casos na matriz de testes.
+
+**7. `/entrar` — correção necessária ao plano.** Verifiquei o código e a premissa da pergunta não corresponde ao projeto: **`/entrar` não é a tela de login operacional**. `src/routes/entrar.tsx` é uma rota legada do Gateway do Portal público — ela redireciona para `/` abrindo o overlay do Gateway do investidor. O login operacional é o formulário em `/f/executivo` (`signInWithCloud`) e o login inline do `CrmShell`.
+
+Portanto: **não** enviarei o usuário sem sessão para `/entrar` (isso o jogaria no Portal do investidor). O `OperationalGuard` redireciona para `/f/executivo`, que é o login real e já existente — exatamente o que as telas fazem hoje via `useEffect`. Nenhum sistema de autenticação novo, nenhuma segunda tela de login. Sobre retorno ao destino original: o login atual **não** tem esse mecanismo; vou gravar o destino pretendido em `?next=` e, se e somente se o retorno for trivial no fluxo existente, aplicá-lo após o login — sem reescrever o fluxo de autenticação. Se não couber sem alterar o login, o comportamento fica igual ao de hoje (cai no Workspace) e eu informo.
+
+**8. OperationalGuard.** Confirmo explicitamente: ele trata **somente** existência de sessão, resolução de identidade da sessão e bloqueio antes da montagem (não monta `<Outlet />` enquanto não resolve — é isso que elimina o flash). Não é RBAC. Permissões de módulo e de papel continuam onde estão: `useModuleAccess`, `ModuleAccessDenied`, `canManageUsers`, `availableRoles`. Nenhuma dessas verificações é movida, duplicada ou reinterpretada.
+
+**9. `ssr: false`.** Compatível e já em uso no projeto: `src/routes/portal.convite.$token.tsx` declara `ssr: false` e a árvore gerada trafega `ssr` nativamente (`src/routeTree.gen.ts`). Versão: `@tanstack/react-start ^1.168.26`. Onde será aplicado: `src/routes/f.executivo.tsx` (novo), `src/routes/f.crm.tsx`, `src/routes/f.remarketing.tsx`, `src/routes/f.portal-leads.tsx`. **Não** em `src/routes/f.tsx` — o layout raiz de `/f` precisa continuar com SSR porque `/f/$slug` é uma página pública de captação e depende de SSR para metadados. Nenhuma alteração estrutural de contorno será feita; se algo se mostrar incompatível durante a execução, eu paro e explico antes.
+
+**10. Reuniões — schema verificado.** Confirmado no schema real de `portal_meetings`: existem `scheduled_at timestamptz`, `duration_min integer` (com default), `executive_id`, `status`, `topic`, `investor_name`, `investor_id`. O término será `scheduled_at + duration_min minutos`, calculado na leitura. Reuniões com `status` de cancelamento serão excluídas do cálculo de conflito — **precisa verificar** os valores exatos usados na coluna `status` antes de fixar a lista; farei essa leitura no início da implementação em vez de assumir. A tabela `portal_meetings` não será alterada.
+
+**11. Timezone.** Confirmo os quatro pontos: (a) banco continua em UTC (`timestamptz`), nada muda; (b) apresentação com `Intl.DateTimeFormat` e `timeZone: "America/Sao_Paulo"`, nunca com string `-03:00` concatenada; (c) na criação, o horário local informado é convertido para instante absoluto antes de gravar; (d) a comparação de conflito ocorre sobre instantes absolutos (epoch/`timestamptz`), tanto na aplicação quanto na constraint do banco. O offset fixo `-03:00` hoje presente no código da Agenda é removido.
+
+**12. Semântica do EXCLUDE.** Usando `tstzrange(starts_at, ends_at)` com o padrão `'[)'` (início incluído, fim excluído):
+- evento que termina exatamente quando outro começa → **permitido**;
+- evento que começa exatamente quando outro termina → **permitido**;
+- travessia de meia-noite → tratada corretamente, porque a comparação é por instante e a consulta deixa de recortar por dia;
+- `ends_at <= starts_at` → rejeitado por `CHECK (ends_at > starts_at)`, adicionado junto (`tstzrange` vazio escaparia do EXCLUDE, então o CHECK é obrigatório).
+A constraint cobre `priority = 'maxima'` do mesmo `executive_id`.
+
+**13. Conflito com reuniões — ordem.** Confirmo: a checagem contra `portal_meetings` acontece **antes** do INSERT, dentro do mesmo handler de servidor. Se houver conflito, a função retorna erro e **nenhuma escrita ocorre** — não há INSERT parcial nem registro criado e depois removido. A mensagem identifica o compromisso: "Conflito com a reunião com {investor_name} das {HH:mm} às {HH:mm}". Para conflito com outro evento da agenda, a mensagem cita o título e o horário do evento existente.
+
+**14. Limitação de corrida.** Confirmo conscientemente: a constraint `EXCLUDE` protege apenas eventos de `workspace_agenda_events` entre si. Uma reunião criada em `portal_meetings` no mesmo instante por outro processo pode escapar da checagem aplicacional. Essa limitação é **aceita** e **não** haverá alteração estrutural em `portal_meetings` (nem coluna, nem trigger, nem constraint cruzada) para contorná-la. Janela real de exposição: milissegundos, num fluxo de baixa concorrência.
+
+**15. Cadência na Agenda.** Confirmo os cinco pontos: não são copiadas para `workspace_agenda_events`; não recebem horário artificial (aparecem numa faixa "Ações do dia", só com data); não são editáveis pela Agenda; não são concluíveis pela Agenda; permanecem responsabilidade exclusiva do CRM/motor. Na Agenda são representação **somente leitura**. Reforço no código: nenhum import de `src/server/crm/cadence.server.ts` ou `src/server/relationship/*` dentro de `src/lib/agenda.functions.ts`.
+
+**16. View vs SECURITY DEFINER — escolha justificada.** A opção mais segura aqui é **função `SECURITY DEFINER` sem parâmetro de executivo**. Motivos, considerando o RLS atual:
+- Uma view herda o RLS do consultante. Como o RLS de `crm_cadence_tasks` hoje é restrito a admin/manager, uma view **não resolveria** o problema (executivo comum continuaria sem ver a própria cadência); e uma view `security_invoker=false` seria equivalente à função, mas sem controle de argumentos.
+- A função resolve o dono **internamente** via `current_executive_id()`. Não existe parâmetro de executivo a manipular, logo é impossível consultar tarefas de outro executivo trocando argumento.
+- Admin: a função aplica `has_role(auth.uid(),'admin')` para o caso de visão ampliada, mantendo exatamente as permissões já existentes.
+- A função aceita apenas janela de datas e retorna colunas fechadas (lead, data, canal, dia da cadência, status) — não é `SELECT *`, então não vira porta lateral para a tabela.
+- `search_path = public`, `STABLE`, sem SQL dinâmico; `EXECUTE` para `authenticated` e `service_role`, revogado de `anon`/`PUBLIC`. Alinhada à Memória de Segurança do projeto.
+Nenhuma política existente de `crm_cadence_tasks` é afrouxada.
+
+**17. Isolamento de `group_leads`.** Confirmo o isolamento total. Solar/Seguros **não** entram em `portal_leads`, CRM financeiro, cadência, remarketing, GreenSales, `relationship_*` nem nos backups do Portal dos Leads (a rotina de backup enumera tabelas explicitamente e `group_leads` não será adicionada). Garantia estrutural: tabela sem FK e sem trigger apontando para estruturas financeiras; leitura e escrita exclusivamente por um arquivo novo (`src/lib/group-leads.functions.ts`). Confirmo também que **nenhuma função existente desses módulos será modificada** para suportar `group_leads`.
+
+**18. Identidade da unidade.** A unidade é determinada pela **rota**, não pelo cliente: rotas de captação distintas por unidade, e o handler de servidor deriva a unidade do próprio caminho, com allowlist `financeira | solar | seguros`. Querystring `?unit=` é ignorada. O CHECK do banco (`unit in ('solar','seguros')`) impede gravação de valor fora do conjunto, e o handler de Solar/Seguros grava **apenas** em `group_leads` — não tem sequer caminho de código para `portal_leads`, e vice-versa. Logo, não há requisição capaz de transformar Solar em Financeira ou o contrário.
+
+**19. Botão "Atendido".** Confirmo item a item: `novo → atendido`; `handled_at = now()`; `handled_by` preenchido no **servidor** a partir do executivo autenticado (`current_executive_id()`), nunca vindo do cliente; o lead não é excluído; não existe "Não atendido"; não existe exclusão (sem política de DELETE); não existe jornada, cadência nem acompanhamento automático. E sim: **o lead atendido continua visível na fila**, apenas com o status alterado; a fila ordena "novo" primeiro.
+
+**20. Página institucional.** Confirmo o escopo exato: Hero, a frase "Impactando o futuro de pessoas e empresas com inovação, credibilidade e respeito", os indicadores +2.000 unidades / +500k clientes / +R$20Bi faturamento, a seção "Nossos Serviços" com Velox Soluções Financeiras, Velox Solar e Velox Seguros, e o CTA "Saiba mais" de cada modalidade. Não terá menu hambúrguer, "Sobre o Grupo", "Modelos de negócios", "Expanda sua marca", diferenciais extras, acesso ao Workspace, acesso ao Portal dos Leads, login ou qualquer atalho interno. "Seja um Franqueado", se mantido no topo, apenas rola até as modalidades — não abre cadastro. Página construída do zero com os tokens visuais existentes, sem importar a página pública atual.
+
+---
+
+## Ajustes que estas respostas exigem no plano da Etapa B
+
+1. **`/entrar` sai do plano.** O destino do guard sem sessão é `/f/executivo` (login real existente), não `/entrar` — que é rota do Gateway do investidor. Correção relevante: o plano anterior teria enviado executivos para o Portal público.
+2. **Domínio operacional inexistente hoje.** A separação por host fica parametrizada e **desligada** por padrão; a ativação depende de configuração de domínio, declarada como pendência.
+3. **`f.tsx` não recebe `ssr: false`** (por causa de `/f/$slug` público); o `ssr: false` vai só nos quatro layouts operacionais.
+4. **CHECK `ends_at > starts_at`** vira obrigatório junto do `EXCLUDE`.
+5. **Escolha fechada**: função `SECURITY DEFINER` sem parâmetro de executivo, em vez de view.
+6. **A verificar no início da execução**: valores reais da coluna `status` de `portal_meetings` (para excluir canceladas do conflito) e se existem eventos já sobrepostos em `workspace_agenda_events` que impeçam criar a constraint.
+
+## Plano Final de Implementação (ordem)
+
+1. `src/routes/f.tsx` (layout neutro, sem guard) + `src/routes/f.executivo.tsx` (novo) + `OperationalGuard` nos quatro layouts operacionais com `ssr: false`; remoção dos `useEffect` de sessão redundantes; correção do shell do Remarketing em `src/routes/__root.tsx`.
+2. `validateExecutiveSlug` bloqueante (case-insensitive, pós-normalização) em `src/lib/executive-auth.ts` + UI em `f.executivo.usuarios.tsx`; centralização da navegação do menu em `src/lib/business-unit.ts`.
+3. Agenda: identidade resolvida no servidor, sobreposição real com semântica `[)`, migration `btree_gist` + `CHECK` + `EXCLUDE`, "Ações do dia" sem horário fabricado, função `SECURITY DEFINER` de cadência por responsável + índice `crm_cadence_tasks (status, due_date)`, timezone via `Intl`.
+4. Detecção de host institucional por `getRequest()` + `VITE_INSTITUTIONAL_HOST`; página do Grupo Velox em `/`; 404 de `/f` no host institucional; `robots: noindex` no `/f`.
+5. Captação por rota: Financeira permanece no fluxo atual; migration `group_leads` (CHECKs, índices, GRANTs sem `anon`, RLS interna, trigger de `updated_at`, sem DELETE); filas Solar e Seguros com botão "Atendido".
+6. Matriz de testes A–F em navegador headless, incluindo `count(*)` de `portal_leads` antes/depois e os casos de redirect com search params.
