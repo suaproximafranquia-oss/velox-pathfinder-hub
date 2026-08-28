@@ -1,4 +1,4 @@
-import { isReservedSlug } from "@/lib/business-unit";
+import { isReservedSlug, validateExecutiveSlug } from "@/lib/business-unit";
 
 /**
  * Central do Executivo — autenticação simples com dados fictícios.
