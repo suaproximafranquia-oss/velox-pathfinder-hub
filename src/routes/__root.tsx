@@ -147,6 +147,8 @@ function resolveShell(pathname: string): EditorialVariant | "executive" {
   if (pathname.startsWith("/f/crm")) return "executive";
   // O Portal dos Leads é ambiente operacional do executivo.
   if (pathname.startsWith("/f/portal-leads")) return "executive";
+  // O Remarketing é ambiente operacional próprio (mesma linguagem do CRM).
+  if (pathname.startsWith("/f/remarketing")) return "executive";
   if (pathname.startsWith("/universo")) return "universo";
   if (pathname === "/") return "portal";
   return "manual";
