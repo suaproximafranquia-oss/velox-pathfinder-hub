@@ -112,8 +112,7 @@ export function listAllInvestors(options: InvestorScopeOptions = {}): Investor[]
      * Agora: LISTA BRANCA. Só o que é comprovadamente produzido pelo
      * investidor alimenta `lastActivity`. Ver `investor-activity.ts`.
      */
-    const allEvents = listEvents({ investorId: lead.id });
-    const events = filterInvestorActivity(allEvents);
+    const events = filterInvestorActivity(listEvents({ investorId: lead.id }));
     const manualEvents = events.filter((event) => event.type === "manual.chapter.completed");
     const manualDone = events.some((event) => event.type === "manual.completed");
     const simulatorDone = events.some((event) => event.type === "simulator.completed");
