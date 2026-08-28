@@ -177,9 +177,40 @@ export function dedupeDailyActions(actions: DailyAction[]): DailyAction[] {
   return [...byKey.values()];
 }
 
-/** Pipeline completo de apresentação: deduplicar e ordenar. */
+/**
+ * UM LEAD = UMA AÇÃO OFICIAL VISÍVEL.
+ *
+ * Quando o mesmo lead tem reunião, mensagem e ligação pendentes, apenas a
+ * de maior precedência vira card; as demais ficam em `secondary`.
+ * Compromissos sem lead (`leadId === null`) nunca são colapsados.
+ */
+export function collapseByLead(actions: DailyAction[]): DailyAction[] {
+  const byLead = new Map<string, DailyAction>();
+  const loose: DailyAction[] = [];
+  for (const action of actions) {
+    if (!action.leadId) {
+      loose.push(action);
+      continue;
+    }
+    const current = byLead.get(action.leadId);
+    if (!current) {
+      byLead.set(action.leadId, action);
+      continue;
+    }
+    const winner =
+      SOURCE_PRECEDENCE[action.source] < SOURCE_PRECEDENCE[current.source] ? action : current;
+    const other = winner === action ? current : action;
+    byLead.set(action.leadId, {
+      ...winner,
+      secondary: [...(winner.secondary ?? []), ...(other.secondary ?? []), { ...other, secondary: undefined }],
+    });
+  }
+  return [...loose, ...byLead.values()];
+}
+
+/** Pipeline completo de apresentação: deduplicar, colapsar por lead e ordenar. */
 export function normalizeDailyActions(actions: DailyAction[]): DailyAction[] {
-  return sortDailyActions(dedupeDailyActions(actions));
+  return sortDailyActions(collapseByLead(dedupeDailyActions(actions)));
 }
 
 export type DailyActionsSummary = {
