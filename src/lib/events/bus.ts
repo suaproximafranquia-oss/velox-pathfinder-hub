@@ -69,6 +69,11 @@ export type PortalEvent<T = Record<string, unknown>> = {
   actorId?: string | null;
   investorId?: string | null;
   payload?: T;
+  /**
+   * Identidade do ACONTECIMENTO (não do registro). Quando informada, uma
+   * segunda emissão equivalente dentro da janela curta é descartada.
+   */
+  dedupeKey?: string;
 };
 
 type Listener = (event: PortalEvent) => void;
