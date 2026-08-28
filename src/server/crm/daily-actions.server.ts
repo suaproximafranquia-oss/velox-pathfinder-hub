@@ -192,7 +192,11 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       name: identity?.name ?? item.name,
       phone: identity?.phone ?? item.phone,
       scope: identity?.scope ?? null,
-      stepLabel: attemptLabel(item.step),
+      /**
+       * Tentativa só é exibida quando existe histórico REAL de tentativas
+       * registradas na origem. `step_day` é dia de cadência, não tentativa.
+       */
+      stepLabel: item.attempts.length > 0 ? attemptLabel(item.attempts.length + 1) : null,
       dueDate: item.dueDate,
       startsAt: null,
       endsAt: null,
