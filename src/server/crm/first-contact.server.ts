@@ -68,13 +68,6 @@ export async function registerFirstContact(
    */
   if (isE0NightWindow()) return { registered: false, reason: nightDeferralReason() };
   const messageId = `msg_e0_${input.leadId}`;
-  const { data: existing } = await supabaseAdmin
-    .from("crm_messages")
-    .select("id")
-    .eq("id", messageId)
-    .maybeSingle();
-  if (existing) return { registered: false, reason: "primeiro contato já registrado" };
-
   if (!settings.welcomeEnabled) return { registered: false, reason: "boas-vindas desativadas" };
 
   const message = buildWelcomeMessage(
@@ -87,7 +80,12 @@ export async function registerFirstContact(
   );
   const at = new Date().toISOString();
 
-  await supabaseAdmin.from("crm_messages").insert({
+  /**
+   * IDEMPOTÊNCIA ATÔMICA (COMANDO 2A §9): a trava é a chave primária
+   * determinística da mensagem, não uma leitura anterior. Duas execuções
+   * simultâneas não produzem duas E0 — a segunda recebe conflito e para.
+   */
+  const { error: insertError } = await supabaseAdmin.from("crm_messages").insert({
     id: messageId,
     investor_id: input.leadId,
     direction: "enviada",
@@ -96,6 +94,12 @@ export async function registerFirstContact(
     author_name: input.simulated ? `Primeiro contato (${SIMULATION_LABEL})` : "Primeiro contato",
     at,
   });
+  if (insertError) {
+    if (insertError.code === "23505") {
+      return { registered: false, reason: "primeiro contato já registrado" };
+    }
+    return { registered: false, reason: insertError.message };
+  }
 
   // Em modo de teste a entrega externa NÃO é tentada: nenhuma chamada à
   // Meta, nenhum WhatsApp real. Fora do teste, a entrega é tentada e o

@@ -9,7 +9,11 @@
  * REGRAS FECHADAS:
  *  • O vínculo aponta para um registro existente em
  *    `relationship_contents` — nunca para uma cópia do arquivo.
- *  • No máximo um vínculo ATIVO por etapa (índice único no banco).
+ *  • FONTE ÚNICA (COMANDO 2A §4): esta tabela substitui
+ *    `relationship_content_groups`, que fica congelada como legado e
+ *    não é mais lida nem escrita. Uma etapa pode ter N conteúdos
+ *    ativos (rotação preservada); quando houver exatamente UM, ele é
+ *    tratado como vínculo explícito e sai sem sorteio.
  *  • O motor consulta o vínculo pela ETAPA. Nome do arquivo, posição na
  *    lista ou ordem de criação NUNCA são usados para inferir o vídeo.
  *  • Sem vínculo, o comportamento anterior (sorteio dentro do grupo de
@@ -31,16 +35,97 @@ export type StepContentBinding = {
   updatedAt: string;
 };
 
-/** Vínculos ativos: etapa → id do conteúdo da Biblioteca. */
-export async function loadStepContentBindings(): Promise<Record<string, string>> {
+/** Todos os vínculos ativos: etapa → ids de conteúdo (ordenados). */
+export async function loadStepContentMap(): Promise<Record<string, string[]>> {
   const { data } = await supabaseAdmin
+    .from("relationship_step_content_bindings")
+    .select("step_key,content_id,position,created_at")
+    .eq("scope", SCOPE)
+    .eq("active", true)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+  const map: Record<string, string[]> = {};
+  for (const row of (data ?? []) as any[]) {
+    const key = String(row.step_key);
+    map[key] = [...(map[key] ?? []), String(row.content_id)];
+  }
+  return map;
+}
+
+/**
+ * Vínculo EXPLÍCITO para o motor: só existe quando a etapa tem
+ * exatamente um conteúdo ativo. Com mais de um, a escolha volta a ser
+ * a rotação oficial da Biblioteca — nunca uma inferência por ordem.
+ */
+export async function loadStepContentBindings(): Promise<Record<string, string>> {
+  const groups = await loadStepContentMap();
+  const map: Record<string, string> = {};
+  for (const [step, ids] of Object.entries(groups)) {
+    if (ids.length === 1) map[step] = ids[0]!;
+  }
+  return map;
+}
+
+/** Inverso: conteúdo → etapas em que ele está autorizado. */
+export async function loadContentStepMap(ids: string[]): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (ids.length === 0) return map;
+  const { data, error } = await supabaseAdmin
     .from("relationship_step_content_bindings")
     .select("step_key,content_id")
     .eq("scope", SCOPE)
-    .eq("active", true);
-  const map: Record<string, string> = {};
-  for (const row of (data ?? []) as any[]) map[String(row.step_key)] = String(row.content_id);
+    .eq("active", true)
+    .in("content_id", ids);
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as any[]) {
+    const key = String(row.content_id);
+    map.set(key, [...(map.get(key) ?? []), String(row.step_key)]);
+  }
   return map;
+}
+
+/**
+ * Define TODAS as etapas de um conteúdo (substitui o antigo vínculo por
+ * grupos). Desativa o que saiu e ativa o que entrou, preservando o
+ * histórico: nada é apagado.
+ */
+export async function setContentStepBindings(params: {
+  contentId: string;
+  stepKeys: string[];
+  actorName?: string;
+}): Promise<void> {
+  const desired = Array.from(new Set(params.stepKeys.filter((s) => s.trim().length > 0)));
+  const { data: current } = await supabaseAdmin
+    .from("relationship_step_content_bindings")
+    .select("id,step_key")
+    .eq("scope", SCOPE)
+    .eq("content_id", params.contentId)
+    .eq("active", true);
+  const rows = (current ?? []) as any[];
+  const active = new Set(rows.map((r) => String(r.step_key)));
+
+  const toDeactivate = rows.filter((r) => !desired.includes(String(r.step_key)));
+  if (toDeactivate.length > 0) {
+    await supabaseAdmin
+      .from("relationship_step_content_bindings")
+      .update({ active: false } as any)
+      .in("id", toDeactivate.map((r) => String(r.id)));
+  }
+
+  const toInsert = desired.filter((step) => !active.has(step));
+  if (toInsert.length > 0) {
+    const { error } = await supabaseAdmin.from("relationship_step_content_bindings").insert(
+      toInsert.map((step, index) => ({
+        scope: SCOPE,
+        step_key: step,
+        content_id: params.contentId,
+        active: true,
+        position: index,
+        created_by_name: params.actorName ?? "Biblioteca de Conteúdos",
+      })) as any,
+    );
+    if (error) throw new Error(error.message);
+  }
 }
 
 /** Lista para a interface, já com o nome real do conteúdo vinculado. */
