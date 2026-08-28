@@ -48,6 +48,7 @@ import {
 } from "@/lib/simulator-history";
 import { formatBRL } from "@/lib/simulator-products";
 import { cn } from "@/lib/utils";
+import { E20Panel } from "@/components/executive/workspace/e20-panel";
 
 type TabKey =
   | "geral"
