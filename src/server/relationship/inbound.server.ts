@@ -27,8 +27,14 @@ import { prepareStepMessage } from "./step-message.server";
 import { recordMessageSnapshot } from "./message-library.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 
-/** Etapa oficial usada como orientação automática dentro da janela. */
-const AUTO_REPLY_STEP = "R1";
+/**
+ * A resposta automática tem ETAPA PRÓPRIA na Biblioteca. Ela não toma
+ * mais emprestado o texto de uma etapa de cadência (R1): aquilo fazia a
+ * orientação da janela de 24h se confundir com o relacionamento
+ * planejado e contaminava o histórico. Sem texto oficial publicado, o
+ * motor não responde — e diz por quê.
+ */
+import { AUTO_REPLY_STEP } from "./message-library.server";
 
 export type InboundMessage = {
   /** `wamid` da Meta — chave de idempotência do registro. */

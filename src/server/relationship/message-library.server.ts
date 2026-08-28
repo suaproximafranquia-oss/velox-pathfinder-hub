@@ -94,6 +94,7 @@ const STEP_LABEL: Record<string, string> = {
   E20: "E6 — Apresentação Digital",
   E27: "E27 — Checkpoint da apresentação digital",
   FINALIZACAO: "FINALIZAÇÃO — Encerramento do ciclo (legado)",
+  [AUTO_REPLY_STEP]: "Resposta automática — orientação dentro da janela de 24h",
 };
 
 function toMessage(row: Record<string, any>): LibraryMessage {
