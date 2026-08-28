@@ -1,74 +1,125 @@
-# Validação técnica da Parte A — 25 respostas (nada foi alterado nesta rodada)
+# Auditoria Pós-Implementação — Parte A (/f + Agenda Operacional Global)
 
-## Ressalva essencial antes das respostas
+Diagnóstico do código realmente implantado. Nenhuma alteração foi feita.
 
-A "Parte A" efetivamente executada no projeto foi **apenas** a reestruturação de rotas para `/f` mais a criação da Agenda Operacional (tabela + funções + dock global). Tudo que veio depois — guard único, correções da Agenda, host institucional, página do Grupo Velox, `group_leads`, filas Solar/Seguros — foi **planejado e respondido**, mas **não implementado**. Verifiquei isso no código agora: não existem `src/routes/f.tsx`, `OperationalGuard`, nenhuma ocorrência de `group_leads`, nenhuma variável de host institucional.
+## 1. Estrutura /f
 
-Por isso, várias perguntas abaixo ("foi corrigido?") têm a mesma resposta honesta: **não, continua como estava** — são exatamente o escopo da Parte B.
+**1. Rotas existentes sob `/f`** (arquivos reais em `src/routes`):
+- Layouts: `f.tsx`, `f.executivo.tsx`, `f.crm.tsx`, `f.remarketing.tsx`
+- Workspace (33 telas): `f.executivo.index`, `home`, `dashboard`, `administracao`, `alertas`, `backups`, `biblioteca`, `brain`, `campanhas`, `captacao`, `celebracao`, `central-backup`, `configuracoes`, `criativa`, `greensales`, `greensales-sync`, `homologacao`, `identidade`, `institucional`, `investidores`, `kpi`, `laboratorio`, `perfil`, `recursos`, `relatorios`, `reunioes`, `revista`, `templates`, `teste-cadencia`, `usuarios`
+- Módulos: `f.crm.index`, `f.remarketing.index`, `f.portal-leads`
+- Link público: `f.$slug`
 
----
+**2 e 3. Telas antigas `/executivo/...`:** todas as 30 são stubs de 13 linhas com `beforeLoad` lançando `redirect({ to: "/f/executivo/...", replace: true, search })` e `component: () => null`. Nenhuma lógica funcional remanescente, nenhuma duplicação.
 
-**1. Rotas /f.** Confirmado e verificado. Existem 37 arquivos `f.*` em `src/routes`: `f.$slug.tsx`; `f.crm.tsx` (layout) + `f.crm.index.tsx`; `f.remarketing.tsx` (layout) + `f.remarketing.index.tsx`; `f.portal-leads.tsx`; e 31 telas `f.executivo.*` (`index`, `home`, `dashboard`, `administracao`, `alertas`, `backups`, `biblioteca`, `brain`, `campanhas`, `captacao`, `celebracao`, `central-backup`, `configuracoes`, `criativa`, `greensales`, `greensales-sync`, `homologacao`, `identidade`, `institucional`, `investidores`, `kpi`, `laboratorio`, `perfil`, `recursos`, `relatorios`, `reunioes`, `revista`, `templates`, `teste-cadencia`, `usuarios`). Conforme especificado. **Divergência estrutural**: não existe `f.tsx` nem `f.executivo.tsx` como layouts-pai — é o que impede hoje um guard único (Parte B).
+**4. `/crm`, `/remarketing`, `/portal-leads`:** idênticos — stubs de redirect apenas. A implementação funcional vive somente em `f.crm.index.tsx`, `f.remarketing.index.tsx` e `f.portal-leads.tsx`.
 
-**2. Redirecionamentos legados.** 34 stubs legados. Todos usam `replace: true` e repassam `search`. Verifiquei o padrão em `crm.tsx`, `executivo.index.tsx`, `executivo.home.tsx`, `executivo.celebracao.tsx`, `executivo.greensales.tsx`, `executivo.identidade.tsx` — idênticos. Nenhuma rota antiga renderiza tela antiga: todas fazem `throw redirect` no `beforeLoad` com `component: () => null`. `params` não aparece porque nenhuma rota legada redirecionada tem segmento dinâmico. `/executivo` → `/f/executivo` (login), `/executivo/home` → `/f/executivo/home` — preserva o comportamento anterior. Sem divergência.
+## 2. Business Unit
 
-**3. `/f/$slug` e slugs reservados.** O roteador resolve por ranking: segmentos estáticos (`f.executivo.*`, `f.crm`, `f.remarketing`, `f.portal-leads`) vencem `f.$slug` sempre — isso está correto hoje. **Divergência real**: o slug reservado **não é rejeitado**. `safeExecutiveSlug()` apenas **transforma silenciosamente** o valor, e `RESERVED_UNIT_SLUGS` é usado como filtro de leitura. Correção para a Parte B: `validateExecutiveSlug` bloqueante, case-insensitive, aplicada após a normalização, no ponto de persistência em `src/lib/executive-auth.ts` (cobre criação e edição) + mensagem na UI de usuários.
+**5. `unitPath()` não é usado por ninguém.** `rg` confirma que a única ocorrência do helper está no próprio `src/lib/business-unit.ts`. Há **166 ocorrências de strings `/f/...` escritas diretamente** no código (rotas, `src/config/modules.ts`, `executive-shell.tsx`, `portal-leads-board.tsx`, `recognition-host.tsx`, `google-status-indicator.tsx`, `operational-guard.tsx`, `executive-auth.ts`, `portal-brands.ts`, `__root.tsx` com 8). Do total de `business-unit.ts`, só `isReservedSlug`/`validateExecutiveSlug`/`isOperationalPath` estão em uso real.
+Divergência relevante: sim — a "camada central de navegação" existe como API mas não como prática.
 
-**4. Guard único.** **Não implementado.** Não existe `OperationalGuard`. Hoje cada tela faz `useEffect(() => { const s = getSession(); if (!s) navigate(...) })` — ou seja, **o componente monta antes do redirecionamento**. Resposta objetiva à sua pergunta: sim, um usuário sem sessão acessando a URL direta chega a renderizar um frame do Workspace (esqueleto, sem dados — os dados dependem de RLS e do bearer, portanto não vazam). É flash de layout, não vazamento de dados. Correção: guard nos layouts, sem montar `<Outlet />` antes de resolver a sessão.
+**6.** A estrutura de dados (`BUSINESS_UNITS`, `getUnit`, `currentUnit`, `unitPath`) já suporta `/s` e `/seg`, e `s.$slug.tsx`/`seg.$slug.tsx` existem. Porém, como nenhuma tela consome `unitPath()`, abrir Solar/Seguros hoje exigiria tocar em ~166 strings. A lógica de unidade não precisa ser reconstruída; a navegação precisa ser migrada.
 
-**5. Remarketing.** **Não corrigido.** Verificado em `src/routes/__root.tsx`: `resolveShell()` cobre `/f/executivo`, `/f/crm` e `/f/portal-leads`, mas **não** `/f/remarketing`; e o ramo operacional do componente testa `isExecutive || isCrm || isLeadsPortal`. Consequência: `/f/remarketing` cai no ramo editorial e recebe `EditorialShell` (variante `manual`), `JourneyChrome` e `JourneyTracker`. Risco: rastreamento de jornada do investidor disparando em área operacional. Correção: incluir remarketing em `resolveShell` e no ramo operacional.
+## 3. Conflito /f + link personalizado
 
-**6. Agenda — identidade.** **Ainda aceita `executiveId` do navegador**: `listAgenda`, `createAgendaEvent` e `AgendaRange`/`AgendaDraft` recebem `executiveId` do cliente. Mitigação atual: o RLS de `workspace_agenda_events` limita SELECT a `admin OR executive_id = current_executive_id()`, então um executivo comum que altere o ID **não recebe dados** e o INSERT é recusado pela política. Ou seja, não há vazamento hoje, mas a identidade está no lugar errado. `deleteAgendaEvent` depende exclusivamente do RLS (não valida dono no código). Correção: resolver a identidade no servidor via `current_executive_id()`.
+**7.** O TanStack Router dá precedência a segmentos estáticos sobre o dinâmico: `/f/executivo`, `/f/crm`, `/f/remarketing`, `/f/portal-leads` vencem sempre `/f/$slug`. `f.$slug.tsx` só é atingido por qualquer outro segmento e redireciona para `/` com `search { e, m, o, b }`.
 
-**7. Agenda — admin.** Hoje o admin **pode** ver agenda de terceiros, mas de forma implícita: a política de SELECT inclui `has_role(auth.uid(),'admin')` e a função aceita qualquer `executiveId`. Não há controle explícito na camada de aplicação nem UI para isso. Correção: aceitar um `viewExecutiveId` opcional **somente** quando `has_role(admin)`; caso contrário ignorar.
+**8 e 9.** `RESERVED_UNIT_SLUGS = ["executivo","crm","remarketing","portal-leads"]`. Validação em duas camadas:
+- UI: `f.executivo.usuarios.tsx` chama `validateExecutiveSlug` e bloqueia com aviso + sugestão.
+- Persistência: `saveUsers()` em `src/lib/executive-auth.ts` lança `InvalidExecutiveSlugError` antes de gravar.
+Ressalva importante: a persistência é `window.localStorage`, não o banco. A proteção é real no único ponto de gravação existente, mas é uma proteção **de cliente** — não há constraint/validação equivalente no servidor porque os executivos não são persistidos em tabela.
 
-**8. Agenda — cadência e RLS.** **Não resolvido.** O RLS de `crm_cadence_tasks` continua restrito a admin/manager. Caminho atual dos dados: `listAgenda` lê `portal_leads` do executivo, monta um `IN (...)` e consulta `crm_cadence_tasks` com o client autenticado como o usuário. Resultado prático: **executivo comum não vê nenhuma ação de cadência na Agenda** (a consulta volta vazia, sem erro visível). Admin/manager veem. Correção: função `SECURITY DEFINER` sem parâmetro de executivo, resolvendo o dono por `current_executive_id()` e devolvendo colunas fechadas.
+## 4. Proteção / autenticação
 
-**9. Horário das ações.** **Continuam artificiais às 09:00.** Linha atual: `new Date(\`${t.due_date}T09:00:00-03:00\`)`. É exatamente o que você não quer. Correção: `AgendaItem` com discriminador de tipo, tarefas de cadência apenas com data, renderizadas numa faixa "Ações do dia" fora da linha do tempo por hora e fora do cálculo de conflito.
+**10.** `OperationalGuard` (`src/components/auth/operational-guard.tsx`) é aplicado nos layouts `f.executivo`, `f.crm`, `f.remarketing` e na folha `f.portal-leads`, todos com `ssr: false`. Sem sessão nada é renderizado (`if (!checked || !session) return null`) e há `navigate({to:"/f/executivo", replace:true})`. `/f/executivo` (tela de acesso) é o único caminho público do ramo, via `publicPaths`.
 
-**10. Timezone.** Banco já em UTC (`timestamptz`) e a conversão de criação já é correta (`new Date(...).toISOString()`, instante absoluto). **Mas o offset fixo `-03:00` ainda existe** — na construção do horário das ações de cadência (item 9). A apresentação hoje usa formatação local do navegador, não `America/Sao_Paulo` explícito. Correção: remover o offset junto com o item 9 e formatar com `Intl` e `timeZone: "America/Sao_Paulo"`.
+**11.** A sessão é lida de `localStorage` (`getSession()`), portanto o guard é de UI, não de dados. O que realmente protege dados é RLS + `current_executive_id()` no backend. Não encontrei rota operacional sem guard. Risco residual: quem forjar a chave de sessão no `localStorage` renderiza a casca do Workspace, mas as consultas continuam limitadas pelo RLS.
 
-**11. Conflito de horário.** **Somente na aplicação.** A migration da agenda criou `CHECK (ends_at > starts_at)`, `CHECK` de prioridade e índice `(executive_id, starts_at)` — **não** existe `EXCLUDE`/GiST. Sobre a segunda parte: a lógica de sobreposição em si está correta (`start < e && end > s`), mas **a consulta que a alimenta está errada** — filtra `starts_at` entre início e fim do dia, então um evento que **começou antes** do dia/horário escolhido e termina dentro dele **não é encontrado** e o conflito passa. Correção: consultar por `starts_at < novoFim AND ends_at > novoInício`, sem recorte por dia, mais `EXCLUDE USING gist` com `tstzrange '[)'` para `priority='maxima'`.
+**12.** `/` permanece institucional/gateway. `__root.tsx` continua devolvendo à Home qualquer módulo público acessado direto, e explicitamente **não** intercepta `/f/executivo`, `/f/crm`, `/f/portal-leads`, `/f/remarketing`. Nenhum atalho público novo para ambiente interno.
 
-**12. Reuniões.** Sim, `portal_meetings` entra como `readOnly: true` e nunca é escrita pela Agenda. Status: hoje a regra é **apenas** `if (m.status === "Cancelada") continue;` — todos os demais valores ocupam espaço. Isso é frágil: **precisa verificar** os valores reais em uso na coluna `status` antes de fixar a lista de ignorados (farei essa leitura no início da Parte B, sem assumir).
+## 5. Agenda Operacional Global
 
-**13. Duplicação.** Confirmado: uma reunião aparece uma única vez. Ela é lida exclusivamente de `portal_meetings`, com id prefixado `meeting:`, e a Agenda nunca copia reunião para `workspace_agenda_events`. Não há caminho de código que crie evento próprio a partir de reunião. Sem divergência.
+**13.** `__root.tsx` renderiza `<AgendaDock />` quando `isOperationalPath(pathname)` é verdadeiro — ou seja, primeiro segmento = prefixo de unidade e segundo ∈ `{executivo, crm, remarketing, portal-leads}`. Confere exatamente com o esperado. Além disso o dock retorna `null` sem sessão de executivo.
 
-**14. Performance.** **Não corrigido.** A Agenda ainda carrega toda a carteira (`SELECT id,name FROM portal_leads WHERE responsible_executive_id = ...`) para montar o `IN (...)`. Com centenas/milhares de leads isso vira uma cláusula `IN` gigantesca a cada abertura da Agenda. Correção: a função `SECURITY DEFINER` do item 8 faz o join no banco, elimina o `IN` e dispensa carregar a carteira; mais índice `crm_cadence_tasks (status, due_date)`.
+**14.** Sim: painel lateral `fixed inset-0 z-[70]` com overlay, sem `navigate`, sem mudança de rota, sem perda de contexto.
 
-**15. Domínio institucional.** **Não implementado.** Não existe separação por domínio no código; `portalvelox.com.br` aparece apenas em comentários de `src/routes/origem.$channel.tsx`. Hoje o mesmo host serve tudo. Além disso, o projeto **não tem domínio personalizado configurado** — não vou inventar um. Correção: `VITE_INSTITUTIONAL_HOST` (vazia por padrão) + leitura de host no servidor; ativação depende de configurar o domínio.
+**15. Fontes (todas em `src/lib/agenda.functions.ts` → `listAgenda`):**
+- a) eventos próprios: tabela `workspace_agenda_events`, filtrada por `executive_id = current_executive_id()`;
+- b) reuniões: tabela `portal_meetings` (`scheduled_at`, `duration_min`), `readOnly: true`, ignorando status `Cancelada`;
+- c) ações de cadência: RPC `agenda_cadence_tasks(_from, _to)` (SECURITY DEFINER) sobre `crm_cadence_tasks` + `portal_leads`.
 
-**16. Host / roteamento.** Não existe detecção de host hoje. Na Parte B: leitura única no servidor com `getRequest()` (API já usada no projeto). Comportamento em preview, localhost e qualquer outro domínio: **idêntico ao atual** — a variável estará vazia, então o Portal continua sendo servido normalmente. O modo institucional só liga quando o host bate com a variável configurada.
+**16.** Não há duplicação: são tabelas distintas e a Agenda nunca copia reunião para `workspace_agenda_events`; reuniões recebem id prefixado (`meeting:<id>`) e `readOnly`. A Agenda não cria evento espelho.
 
-**17. Bloqueio do ambiente interno.** Hoje **não há bloqueio** — `portalvelox.com.br/f/crm` renderizaria o CRM (com login), porque não há distinção de host. Na Parte B o bloqueio será real: o layout `/f` recusa o host institucional no `beforeLoad` do servidor, devolvendo 404 antes de qualquer renderização — não é esconder botão. A proteção de dados (RLS + `requireSupabaseAuth`) permanece como camada final.
+## 6. Conflito de horário
 
-**18. Links personalizados.** Confirmo que **nada foi alterado** neles até agora e que a Parte B não os tocará: `f.$slug.tsx`, `s.$slug.tsx`, `e.$slug.tsx` seguem intactos. Observação factual: **não existe rota `/seg/$slug`** no projeto — existem `/f/$slug`, `/s/$slug` e `/e/$slug`. Se `/seg/` for esperada, é item novo a especificar, não regressão. Ownership, identidade e resolução continuam exatamente como antes.
+**17.** Dupla proteção, com escopos diferentes:
+- Banco: `EXCLUDE USING gist (executive_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE (priority='maxima')` — cobre **apenas evento próprio × evento próprio**.
+- Server function: verifica interseção contra `portal_meetings` antes do insert — cobre **evento × reunião**, mas **somente no código**, sem garantia de banco.
 
-**19. Captação por modalidade.** **Não implementado** (não existe página institucional nem rota de captação por unidade). Especificação fechada para a Parte B: unidade determinada pela **rota/handler no servidor**, com allowlist `financeira | solar | seguros`; `?unit=` do navegador é ignorado; Financeira segue no fluxo atual (`resolve_portal_identity` → `portal_leads`), Solar e Seguros gravam só em `group_leads` com `unit` correspondente, protegido por CHECK no banco.
+**18.** Sim, existe uma janela de corrida, restrita ao caso (b): duas requisições simultâneas — uma criando o compromisso e outra criando/reagendando a reunião em `portal_meetings` — podem gerar sobreposição evento×reunião, porque a checagem é lida-e-depois-escreve sem lock nem constraint. Já o caso (a) (máxima × máxima) é imune: a exclusão é imposta pelo banco e o código trata `23P01`.
 
-**20. Isolamento Solar/Seguros.** **Não implementado** — `group_leads` não existe ainda (confirmado: nenhuma ocorrência no código nem no schema). Compromisso para a Parte B: nada de Solar/Seguros em `portal_leads`, CRM financeiro, GreenSales, cadência, remarketing, `relationship_*` ou backups do Portal dos Leads (a rotina de backup enumera tabelas explicitamente e `group_leads` não entra). Arquivos que permanecerão intocados: `src/lib/portal-leads.functions.ts`, `src/server/crm/*`, `src/server/relationship/*`, `src/server/remarketing/*`, `src/server/greensales.server.ts`, `src/lib/greensales-sync.functions.ts`, `src/server/backup-queue.server.ts`, `src/lib/portal-identity.functions.ts`.
+## 7. Banco / RLS — `workspace_agenda_events`
 
-**21. Filas Solar e Seguros.** **Não implementadas.** Comportamento especificado e confirmado: único movimento `novo → atendido`; ao clicar, o lead **permanece visível** na fila apenas com o status alterado; `handled_at` e `handled_by` preenchidos no servidor; sem excluir, sem "não atendido", sem cadência, sem jornada, sem acompanhamento automático (a tabela nem terá política de DELETE).
+- Campos: `id uuid pk default gen_random_uuid()`, `executive_id text NOT NULL`, `title text NOT NULL`, `starts_at timestamptz NOT NULL`, `ends_at timestamptz NOT NULL`, `priority text NOT NULL default 'maxima'`, `source text NOT NULL default 'agenda'`, `note text`, `created_by uuid`, `created_at`, `updated_at`.
+- Índices: pkey; `(executive_id, starts_at)`; índice GiST do EXCLUDE.
+- Constraints: pkey; CHECK `priority ∈ (maxima,media,minima)`; CHECK `ends_at > starts_at`; EXCLUDE de sobreposição para `maxima`.
+- Trigger: `workspace_agenda_events_updated` (updated_at).
+- RLS: habilitada. 4 policies (SELECT/INSERT/UPDATE/DELETE), todas `has_role(auth.uid(),'admin') OR executive_id = current_executive_id()`.
+- Grants: `authenticated` e `service_role` com privilégios; `anon` também aparece com privilégios de tabela (irrelevante na prática porque as policies exigem identidade, mas é mais permissivo do que o necessário).
 
-**22. Agenda global.** Confirmado e implementado. `src/routes/__root.tsx` monta `<AgendaDock />` quando `isOperationalPath(pathname)` — que cobre `/f/executivo`, `/f/crm`, `/f/remarketing` e `/f/portal-leads`. Abre como painel lateral sobre a tela atual, por estado local, **sem navegar para outra rota**. Ressalva: em `/f/remarketing` o dock aparece, mas a tela ainda está sob o shell editorial errado (item 5).
+**20.** Não. Um executivo só enxerga/altera/apaga o que tem `executive_id = current_executive_id()`; admin (`has_role`) tem acesso amplo — que é o comportamento esperado. Observação: `executive_id` é `text` livre, sem FK para `executive_profiles`.
 
-**23. Preservação do sistema existente.** Não foram alterados: `src/lib/portal-leads.functions.ts`, `src/components/crm/portal-leads-board.tsx`, `src/server/crm/*`, `src/server/greensales.server.ts`, `src/lib/greensales-sync.functions.ts`, `src/server/relationship/*`, `src/lib/relationship/*`, `src/server/remarketing/*`, `src/routes/origem.$channel.tsx`, `src/routes/f.$slug.tsx`, `src/routes/s.$slug.tsx`, `src/routes/e.$slug.tsx`, `src/server/backup-queue.server.ts`, `src/lib/portal-identity.functions.ts`, `src/integrations/supabase/*`, `src/routes/manual/*`. A tabela `portal_leads` e suas triggers/políticas não foram tocadas. A única mudança que alcançou esses módulos foi **de caminho**: links internos passaram a apontar para `/f/...`.
+## 8. Ações de cadência
 
-**24. Migrations.** Da reestruturação, **uma única migration**: `20260828004415_*.sql` — criação de `public.workspace_agenda_events` (tabela nova, CHECK de prioridade, CHECK `ends_at > starts_at`, índice `(executive_id, starts_at)`, GRANTs para `authenticated`/`service_role`, RLS habilitado, políticas por `current_executive_id()` com exceção de admin, trigger de `updated_at`). **Nenhuma tabela existente foi alterada estruturalmente.** As migrations anteriores da lista pertencem a sprints anteriores (identidade, backup, biblioteca), não a esta implementação.
+**21.** A Agenda apenas exibe. Nenhum ponto de `agenda.functions.ts` ou do dock escreve em `crm_cadence_tasks`.
 
-**25. Auditoria crítica — divergências conhecidas.** Existem, e são as seguintes (não corrigidas nesta rodada):
+**22.** `agenda_cadence_tasks` resolve o executivo internamente (`current_executive_id()`, com `_executive_id` aceito só para admin) e faz um `SELECT` puro de tarefas com `status='pendente'`, `due_date` na faixa, do responsável. É `STABLE SECURITY DEFINER` — não pode gravar. Zero risco de a Agenda criar ou alterar cadência.
 
-| # | Divergência | Por quê | Impacto | Correção na Parte B |
-|---|---|---|---|---|
-| 1 | Slug reservado é transformado, não rejeitado | `safeExecutiveSlug` foi escrito como normalizador | Executivo pode ser cadastrado com slug alterado sem aviso | `validateExecutiveSlug` bloqueante na persistência |
-| 2 | Sem guard único; telas montam antes de redirecionar | Não existem layouts `f.tsx`/`f.executivo.tsx` | Flash de layout sem sessão (sem vazamento de dados) | `OperationalGuard` nos 4 layouts, `ssr:false` |
-| 3 | Remarketing sob shell editorial + JourneyTracker | `resolveShell` e o ramo operacional não citam remarketing | Visual inconsistente e rastreamento de jornada indevido | Incluir remarketing nos dois pontos |
-| 4 | Agenda aceita `executiveId` do cliente | Implementação inicial confiou no RLS | Identidade na camada errada; `delete` sem checagem no código | Resolver por `current_executive_id()` |
-| 5 | Executivo comum não vê cadência na Agenda | RLS de `crm_cadence_tasks` é admin/manager | Funcionalidade silenciosamente vazia para a maioria | Função `SECURITY DEFINER` por responsável |
-| 6 | Ação de cadência às 09:00 fabricadas, com `-03:00` fixo | Simplificação da primeira versão | Horário inventado na tela | Faixa "Ações do dia" só com data |
-| 7 | Conflito não detecta evento iniciado antes | Consulta recorta por `starts_at` no dia | Sobreposição real pode ser aceita | Consulta por interseção + `EXCLUDE` GiST |
-| 8 | Sem proteção de conflito no banco | Não houve constraint na migration | Corrida concorrente pode gravar sobreposição | `btree_gist` + `EXCLUDE` |
-| 9 | Agenda carrega toda a carteira | Necessidade do `IN (...)` | Consulta pesada com muitos leads | Join no banco pela função |
-| 10 | Status de reunião tratado por string literal única | Assumiu-se "Cancelada" | Pode ignorar/considerar status errado | Ler os valores reais antes de fixar a lista |
+**23.** Sim, há descompasso conceitual: a Agenda rotula os itens como `D{step_day} · Ligação/Mensagem`, derivado da coluna `step_day` de `crm_cadence_tasks`, enquanto a arquitetura nova fala em etapas E0/E1/E2/E3/E5/E6/E7. Dependência concreta para a Parte B: a função `agenda_cadence_tasks` (assinatura de retorno) e a montagem de título em `listAgenda` teriam que passar a ler a identificação da etapa do novo motor; hoje não existe coluna de etapa nessa consulta.
 
-Nada além destes itens diverge da especificação validada. Itens 15 a 21 não são divergências: são o escopo ainda não iniciado da Parte B.
+## 9. Timezone
+
+**24.** Comportamento atual:
+- Criação: o formulário monta `new Date("YYYY-MM-DDTHH:mm:00").toISOString()` — sem sufixo de fuso, o JS interpreta como horário **local do navegador**. No Brasil (UTC−3) 14:00 vira `17:00Z`, correto.
+- Exibição: `toLocaleString("pt-BR", ...)` sem `timeZone`, ou seja, também no fuso do navegador — volta a 14:00.
+- Banco: `timestamptz`, armazenamento absoluto, sem ambiguidade.
+- Faixa consultada: `dayRange()` usa o dia local do navegador → ISO. Consistente.
+- Agrupamento por dia: `dayOf()` no servidor força `America/Sao_Paulo`, o que é correto e independente do cliente.
+
+Risco identificado: o sistema é **relativo ao fuso do navegador**, não fixado em `America/Sao_Paulo`. Um executivo com o computador em outro fuso (ou viajando) verá e gravará horários deslocados, e haverá inconsistência entre o horário exibido (fuso do navegador) e o agrupamento por dia (São Paulo) — um compromisso pode aparecer sob o dia errado. Não há bug para usuários em horário de Brasília.
+
+## Conclusão
+
+**A) Implementado corretamente**
+- Migração completa das 33 telas para `/f/executivo/...`; 34 stubs legados apenas redirecionam com `replace` + `search`.
+- Precedência estática vs `/f/$slug`.
+- `OperationalGuard` único, `ssr: false`, sem "pisca"; `/` continua institucional.
+- Agenda como painel sobre a tela, nos 4 ambientes esperados, sem duplicar reuniões e sem criar regra de cadência.
+- `agenda_cadence_tasks` é leitura pura e segura por responsável.
+- RLS, policies, índices, CHECKs e trigger de `workspace_agenda_events` corretos e isolados por executivo.
+
+**B) Implementado, mas com divergência**
+- `unitPath()` existe e não é usado: 166 caminhos `/f/...` literais espalhados.
+- Bloqueio de slugs reservados é real no único ponto de gravação, mas esse ponto é `localStorage`, não o banco.
+- Rótulo `D{step_day}` da Agenda ainda pertence ao vocabulário antigo de cadência.
+- `anon` possui grants de tabela em `workspace_agenda_events` sem necessidade.
+
+**C) Possível problema técnico**
+- Corrida evento máximo × reunião: proteção só no código, sem constraint nem lock.
+- Timezone preso ao fuso do navegador na criação/exibição, enquanto o agrupamento por dia usa São Paulo — divergência possível de dia exibido fora do horário de Brasília.
+- Sessão operacional em `localStorage`: o guard é de UI; a proteção efetiva é o RLS.
+- `executive_id text` sem FK para `executive_profiles` permite valor órfão se alguma rotina gravar fora do fluxo atual.
+
+**D) Precisa ser decidido antes da próxima implementação**
+1. Migrar toda a navegação para `unitPath()` agora ou só quando Solar/Seguros forem ativados?
+2. Fixar a Agenda em `America/Sao_Paulo` (fuso do negócio) ou manter fuso do navegador?
+3. Conflito evento × reunião deve virar garantia de banco (tabela unificada de ocupação ou lock por executivo) ou permanece validação de aplicação?
+4. Vocabulário das ações na Agenda: manter `D{n}` até a Parte B ou já expor E0/E1/E2… (exige alterar `agenda_cadence_tasks`)?
+5. Executivos permanecem em `localStorage` ou passam a tabela no banco (o que tornaria o bloqueio de slug uma regra de servidor)?
+
+**E) Sem problema identificado**
+- Ausência de lógica funcional duplicada nas rotas legadas.
+- Ausência de atalho público para ambientes internos.
+- Ausência de escrita da Agenda sobre o motor de cadência.
+- Isolamento por executivo nas policies.
