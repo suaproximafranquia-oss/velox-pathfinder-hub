@@ -6,8 +6,9 @@
  * quadro. Continua somente leitura: a movimentação real é na origem.
  */
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { PortalLeadsBoard } from "@/components/crm/portal-leads-board";
+import { OperationalGuard } from "@/components/auth/operational-guard";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { ModuleAccessDenied } from "@/components/executive/module-access-guard";
 import { useModuleAccess } from "@/hooks/use-workspace-permissions";
