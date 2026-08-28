@@ -31,26 +31,30 @@ export const Route = createFileRoute("/f/portal-leads")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: PortalLeadsPage,
+  // Ambiente operacional: guard único e sem SSR (a sessão vive no navegador).
+  ssr: false,
+  component: () => (
+    <OperationalGuard>
+      <PortalLeadsPage />
+    </OperationalGuard>
+  ),
 });
 
 function PortalLeadsPage() {
-  const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // A ausência de sessão já é tratada pelo OperationalGuard.
     const s = getSession();
-    if (!s) {
-      navigate({ to: "/f/executivo" });
-      return;
-    }
+    if (!s) return;
     setSession(s);
     // Garante a sessão real do backend antes de qualquer consulta.
     void import("@/lib/auth-bearer")
       .then(({ getAccessToken }) => getAccessToken())
       .finally(() => setReady(true));
-  }, [navigate]);
+  }, []);
+
 
   const portalAllowed = useModuleAccess(
     session?.userId ?? "",
