@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Film, History, Loader2, MessageSquareText, Save } from "lucide-react";
+import { Download, Film, History, Loader2, MessageSquareText, Save } from "lucide-react";
 import {
   listarConteudosDaBiblioteca,
   listarMensagensBiblioteca,
+  importarBibliotecaOficial,
   listarVinculosDeEtapa,
   publicarVersaoMensagem,
   removerVinculoDeEtapa,
@@ -15,6 +16,7 @@ type LibraryMessage = {
   code: string | null;
   title: string;
   body: string;
+  bodyWithoutName: string | null;
   version: number;
   active: boolean;
   createdAt: string;
@@ -46,6 +48,9 @@ export function MessageLibraryPanel() {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [draftWithoutName, setDraftWithoutName] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importNote, setImportNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contents, setContents] = useState<LibraryContent[]>([]);
@@ -120,7 +125,9 @@ export function MessageLibraryPanel() {
   function openStep(key: string) {
     setStep(key);
     const list = steps.get(key) ?? [];
-    setDraft((list.find((m) => m.active) ?? list[0])?.body ?? "");
+    const current = list.find((m) => m.active) ?? list[0];
+    setDraft(current?.body ?? "");
+    setDraftWithoutName(current?.bodyWithoutName ?? "");
     setError(null);
   }
 
@@ -128,13 +135,43 @@ export function MessageLibraryPanel() {
     if (!step || !draft.trim() || saving) return;
     setSaving(true);
     try {
-      await publicarVersaoMensagem({ data: { stepKey: step, body: draft } });
+      await publicarVersaoMensagem({
+        data: {
+          stepKey: step,
+          body: draft,
+          bodyWithoutName: draftWithoutName.trim() ? draftWithoutName : null,
+        },
+      });
       await load();
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao publicar a nova versão.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function importOfficial() {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const entries = (await importarBibliotecaOficial()) as {
+        stepKey: string;
+        outcome: string;
+      }[];
+      const changed = entries.filter((e) => e.outcome !== "inalterada");
+      setImportNote(
+        changed.length === 0
+          ? "Biblioteca já idêntica ao Word oficial — nenhuma versão nova criada."
+          : `Atualizadas ${changed.length} etapa(s): ${changed.map((e) => e.stepKey).join(", ")}.`,
+      );
+      await load();
+      if (step) openStep(step);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao importar o Word oficial.");
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -149,7 +186,24 @@ export function MessageLibraryPanel() {
             enviado nunca é reescrito.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => void importOfficial()}
+          disabled={importing}
+          className={`${gold} ml-auto`}
+        >
+          {importing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
+          )}
+          Importar Word oficial
+        </button>
       </header>
+
+      {importNote ? (
+        <p className="mb-3 text-[11px] text-[color:var(--gold)]">{importNote}</p>
+      ) : null}
 
       {loading ? (
         <p className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
@@ -192,11 +246,29 @@ export function MessageLibraryPanel() {
                   className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
                   placeholder="Texto oficial desta etapa. Variáveis: {{nome_investidor}}, {{nome_executivo}}, {{link_portal}}."
                 />
+                <div>
+                  <p className="mb-1 text-[11px] text-[color:var(--muted-foreground)]">
+                    Versão SEM nome — usada quando o nome do investidor não foi validado.
+                    Deixe em branco para usar sempre o texto acima.
+                  </p>
+                  <textarea
+                    value={draftWithoutName}
+                    onChange={(e) => setDraftWithoutName(e.target.value)}
+                    rows={8}
+                    className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
+                    placeholder="Redação oficial sem tratamento nominal."
+                  />
+                </div>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => void publish()}
-                    disabled={saving || !draft.trim() || draft === active?.body}
+                    disabled={
+                      saving ||
+                      !draft.trim() ||
+                      (draft === active?.body &&
+                        draftWithoutName === (active?.bodyWithoutName ?? ""))
+                    }
                     className={gold}
                   >
                     {saving ? (

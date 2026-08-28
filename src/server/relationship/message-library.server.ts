@@ -25,6 +25,12 @@ import {
   type RenderInput,
   type RenderResult,
 } from "@/lib/relationship/messages";
+import { resolveTreatment } from "@/lib/relationship/names";
+import {
+  WORD_MESSAGES,
+  WORD_SOURCE_REFERENCE,
+  type WordMessage,
+} from "@/lib/relationship/word-library";
 
 export type LibraryMessage = {
   id: string;
@@ -33,6 +39,8 @@ export type LibraryMessage = {
   title: string;
   purpose: string;
   body: string;
+  /** Versão oficial SEM nome (Word). Null quando a etapa não tem variante. */
+  bodyWithoutName: string | null;
   version: number;
   active: boolean;
   contentGroup: string | null;
@@ -41,36 +49,41 @@ export type LibraryMessage = {
   createdAt: string;
   createdByName: string;
   notes: string | null;
+  /** Procedência do conteúdo: "word" quando veio do documento oficial. */
+  sourceKind: string | null;
+  sourceReference: string | null;
 };
 
-/** Etapas sem texto oficial: entram como slot vazio, nunca inventado. */
-export const PENDING_TEXT_STEPS = ["E20", "E27", "FINALIZACAO"] as const;
+/**
+ * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
+ * E20 nem E27 — a ausência é intencional e é preservada: elas continuam
+ * como slot vazio e inativo, e o motor bloqueia o envio com motivo
+ * legível em vez de inventar mensagem.
+ */
+export const PENDING_TEXT_STEPS = ["E20", "E27"] as const;
+
+/** Etapas oficiais do Word, na ordem em que o documento as apresenta. */
+export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) => m.stepKey);
+
+/**
+ * Etapas que existiam antes do Word e permanecem no banco por causa do
+ * HISTÓRICO (envios, filas e snapshots já gravados). Elas não fazem
+ * parte da nomenclatura oficial e não recebem conteúdo novo.
+ */
+export const LEGACY_STEPS: string[] = ["E0_V1", "E4", "E12", "V3", "V4", "FINALIZACAO"];
 
 export const LIBRARY_STEP_ORDER: string[] = [
-  "E0",
-  "E0_V1",
-  "E1",
-  "E3",
-  "E4",
-  "E12",
-  "V3",
-  "V4",
-  "R1",
-  "R2",
-  "R3",
-  "RE0",
-  "RE1",
-  "RE2",
-  "RE3",
-  "RF0",
-  "RF1",
+  ...WORD_STEP_ORDER,
+  ...LEGACY_STEPS,
   ...PENDING_TEXT_STEPS,
 ];
 
 const STEP_LABEL: Record<string, string> = {
-  E20: "E20 — Convite ao Portal do Investidor",
-  E27: "E27 — Checkpoint do convite (7 dias)",
-  FINALIZACAO: "FINALIZAÇÃO — Encerramento do ciclo",
+  // A chave técnica E20 permanece intocada no banco; o rótulo visual da
+  // Apresentação Digital segue a nomenclatura oficial da operação.
+  E20: "E6 — Apresentação Digital",
+  E27: "E27 — Checkpoint da apresentação digital",
+  FINALIZACAO: "FINALIZAÇÃO — Encerramento do ciclo (legado)",
 };
 
 function toMessage(row: Record<string, any>): LibraryMessage {
@@ -81,6 +94,7 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     title: row["title"],
     purpose: row["purpose"],
     body: row["body"] ?? "",
+    bodyWithoutName: row["body_without_name"] ?? null,
     version: row["version"] ?? 1,
     active: Boolean(row["active"]),
     contentGroup: row["content_group"] ?? null,
@@ -89,6 +103,37 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     createdAt: row["created_at"],
     createdByName: row["created_by_name"] ?? "sistema",
     notes: row["notes"] ?? null,
+    sourceKind: row["source_kind"] ?? null,
+    sourceReference: row["source_reference"] ?? null,
+  };
+}
+
+
+/** Linha da Biblioteca a partir de uma mensagem oficial do Word. */
+function wordRow(
+  message: WordMessage,
+  version: number,
+  supersedesId: string | null,
+): Record<string, unknown> {
+  return {
+    scope: "production",
+    step_key: message.stepKey,
+    code: `LIB-${message.stepKey}`,
+    title: message.title,
+    purpose: message.stepKey.toLowerCase(),
+    body: message.body,
+    body_without_name: message.bodyWithoutName,
+    version,
+    active: true,
+    content_group: message.contentGroup,
+    button_kind: message.button,
+    supersedes_id: supersedesId,
+    created_by_name: "Word oficial",
+    source_kind: "word",
+    source_reference: WORD_SOURCE_REFERENCE,
+    imported_at: new Date().toISOString(),
+    import_version: version,
+    notes: `Texto oficial transcrito do documento ${WORD_SOURCE_REFERENCE}.`,
   };
 }
 
@@ -106,8 +151,12 @@ export async function ensureLibrarySeed(): Promise<void> {
   const rows: Record<string, unknown>[] = [];
   for (const step of LIBRARY_STEP_ORDER) {
     if (known.has(step)) continue;
+    const official = WORD_MESSAGES.find((m) => m.stepKey === step) ?? null;
     const fixed = (HOMOLOGATION_MESSAGES as Record<string, any>)[step];
-    if (fixed) {
+    if (official) {
+      // Etapa oficial do Word: nasce já com o texto oficial (v1).
+      rows.push(wordRow(official, 1, null));
+    } else if (fixed) {
       rows.push({
         scope: "production",
         step_key: step,
@@ -136,10 +185,11 @@ export async function ensureLibrarySeed(): Promise<void> {
         button_kind: step === "E20" ? "portal" : null,
         created_by_name: "Motor de Relacionamento",
         notes:
-          "Slot aguardando texto do executivo. Nenhuma mensagem é inventada pelo sistema.",
+          "Slot aguardando texto oficial. Nenhuma mensagem é inventada pelo sistema.",
       });
     }
   }
+
   if (rows.length > 0) {
     await supabaseAdmin.from("relationship_message_library").insert(rows as any);
   }
@@ -188,12 +238,15 @@ export async function getActiveLibraryMessage(
 export async function publishLibraryVersion(params: {
   stepKey: string;
   body: string;
+  bodyWithoutName?: string | null;
   title?: string | null;
   contentGroup?: string | null;
   buttonKind?: "portal" | "content" | null;
   notes?: string | null;
   actorId?: string | null;
   actorName: string;
+  sourceKind?: string | null;
+  sourceReference?: string | null;
 }): Promise<LibraryMessage> {
   await ensureLibrarySeed();
   const { data: history } = await supabaseAdmin
@@ -222,6 +275,7 @@ export async function publishLibraryVersion(params: {
       title: params.title ?? (current as any)?.title ?? params.stepKey,
       purpose: (current as any)?.purpose ?? params.stepKey.toLowerCase(),
       body: params.body,
+      body_without_name: params.bodyWithoutName ?? null,
       version: nextVersion,
       active: params.body.trim().length > 0,
       content_group:
@@ -236,6 +290,11 @@ export async function publishLibraryVersion(params: {
       created_by: params.actorId ?? null,
       created_by_name: params.actorName,
       notes: params.notes ?? null,
+      source_kind: params.sourceKind ?? null,
+      source_reference: params.sourceReference ?? null,
+      ...(params.sourceKind
+        ? { imported_at: new Date().toISOString(), import_version: nextVersion }
+        : {}),
     } as any)
     .select("*")
     .single();
@@ -243,7 +302,84 @@ export async function publishLibraryVersion(params: {
   return toMessage(data);
 }
 
-/** Renderiza a etapa a partir da versão ATIVA da Biblioteca. */
+export type WordImportEntry = {
+  stepKey: string;
+  outcome: "criada" | "nova_versao" | "inalterada";
+  version: number | null;
+};
+
+/**
+ * IMPORTAÇÃO DO WORD OFICIAL.
+ *
+ * Regras não negociáveis:
+ *  • conteúdo idêntico ao que já está ativo NÃO gera nova versão;
+ *  • conteúdo diferente gera a versão seguinte, preservando a anterior;
+ *  • etapas ausentes do Word (E20, E27) nunca são preenchidas;
+ *  • snapshots de envios anteriores nunca são tocados.
+ */
+export async function importWordLibrary(actor: {
+  actorId?: string | null;
+  actorName: string;
+}): Promise<WordImportEntry[]> {
+  await ensureLibrarySeed();
+  const result: WordImportEntry[] = [];
+
+  for (const official of WORD_MESSAGES) {
+    const { data: history } = await supabaseAdmin
+      .from("relationship_message_library")
+      .select("*")
+      .eq("scope", "production")
+      .eq("step_key", official.stepKey)
+      .order("version", { ascending: false });
+    const rows = (history ?? []) as any[];
+    const current = rows.find((r) => r.active) ?? null;
+
+    if (
+      current &&
+      String(current.body ?? "") === official.body &&
+      String(current.body_without_name ?? "") === official.bodyWithoutName
+    ) {
+      result.push({
+        stepKey: official.stepKey,
+        outcome: "inalterada",
+        version: Number(current.version ?? 1),
+      });
+      continue;
+    }
+
+    const nextVersion = rows[0]?.version ? Number(rows[0].version) + 1 : 1;
+    if (current) {
+      await supabaseAdmin
+        .from("relationship_message_library")
+        .update({ active: false } as any)
+        .eq("id", current.id);
+    }
+    const { error } = await supabaseAdmin
+      .from("relationship_message_library")
+      .insert({
+        ...wordRow(official, nextVersion, current?.id ?? null),
+        created_by: actor.actorId ?? null,
+        created_by_name: actor.actorName,
+      } as any);
+    if (error) throw new Error(`${official.stepKey}: ${error.message}`);
+    result.push({
+      stepKey: official.stepKey,
+      outcome: rows.length ? "nova_versao" : "criada",
+      version: nextVersion,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Renderiza a etapa a partir da versão ATIVA da Biblioteca.
+ *
+ * O Word oficial traz DUAS redações por etapa: "com nome" e "sem nome".
+ * Elas não são a mesma frase com uma substituição — são textos próprios.
+ * Por isso a escolha acontece aqui, antes da renderização: nome validado
+ * usa a versão com nome; qualquer outro caso usa a versão sem nome.
+ */
 export async function renderFromLibrary(
   stepKey: string,
   input: RenderInput,
@@ -258,15 +394,27 @@ export async function renderFromLibrary(
       message,
     };
   }
+
+  const treatment = resolveTreatment({
+    confirmedName: input.confirmedInvestorName ?? null,
+    executiveProvidedName: input.executiveProvidedName ?? null,
+    rawName: input.rawInvestorName ?? null,
+    manuallyRejected: input.nameRejected ?? false,
+  });
+  const useWithoutName =
+    !treatment.personalized && Boolean(message.bodyWithoutName?.trim());
+  const text = useWithoutName ? message.bodyWithoutName!.trim() : message.body;
+
   const spec: MessageSpec = {
     step: stepKey,
-    text: message.body,
-    usesInvestorName: message.usesInvestorName,
+    text,
+    usesInvestorName: text.includes("{{nome_investidor}}"),
     button: message.buttonKind,
     contentGroup: message.contentGroup,
   };
   return { result: renderMessageSpec(spec, input), message };
 }
+
 
 /**
  * SNAPSHOT IMUTÁVEL DO ENVIO.
