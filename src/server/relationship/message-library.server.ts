@@ -39,6 +39,8 @@ export type LibraryMessage = {
   title: string;
   purpose: string;
   body: string;
+  /** Versão oficial SEM nome (Word). Null quando a etapa não tem variante. */
+  bodyWithoutName: string | null;
   version: number;
   active: boolean;
   contentGroup: string | null;
@@ -47,36 +49,41 @@ export type LibraryMessage = {
   createdAt: string;
   createdByName: string;
   notes: string | null;
+  /** Procedência do conteúdo: "word" quando veio do documento oficial. */
+  sourceKind: string | null;
+  sourceReference: string | null;
 };
 
-/** Etapas sem texto oficial: entram como slot vazio, nunca inventado. */
-export const PENDING_TEXT_STEPS = ["E20", "E27", "FINALIZACAO"] as const;
+/**
+ * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
+ * E20 nem E27 — a ausência é intencional e é preservada: elas continuam
+ * como slot vazio e inativo, e o motor bloqueia o envio com motivo
+ * legível em vez de inventar mensagem.
+ */
+export const PENDING_TEXT_STEPS = ["E20", "E27"] as const;
+
+/** Etapas oficiais do Word, na ordem em que o documento as apresenta. */
+export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) => m.stepKey);
+
+/**
+ * Etapas que existiam antes do Word e permanecem no banco por causa do
+ * HISTÓRICO (envios, filas e snapshots já gravados). Elas não fazem
+ * parte da nomenclatura oficial e não recebem conteúdo novo.
+ */
+export const LEGACY_STEPS: string[] = ["E0_V1", "E4", "E12", "V3", "V4", "FINALIZACAO"];
 
 export const LIBRARY_STEP_ORDER: string[] = [
-  "E0",
-  "E0_V1",
-  "E1",
-  "E3",
-  "E4",
-  "E12",
-  "V3",
-  "V4",
-  "R1",
-  "R2",
-  "R3",
-  "RE0",
-  "RE1",
-  "RE2",
-  "RE3",
-  "RF0",
-  "RF1",
+  ...WORD_STEP_ORDER,
+  ...LEGACY_STEPS,
   ...PENDING_TEXT_STEPS,
 ];
 
 const STEP_LABEL: Record<string, string> = {
-  E20: "E20 — Convite ao Portal do Investidor",
-  E27: "E27 — Checkpoint do convite (7 dias)",
-  FINALIZACAO: "FINALIZAÇÃO — Encerramento do ciclo",
+  // A chave técnica E20 permanece intocada no banco; o rótulo visual da
+  // Apresentação Digital segue a nomenclatura oficial da operação.
+  E20: "E6 — Apresentação Digital",
+  E27: "E27 — Checkpoint da apresentação digital",
+  FINALIZACAO: "FINALIZAÇÃO — Encerramento do ciclo (legado)",
 };
 
 function toMessage(row: Record<string, any>): LibraryMessage {
@@ -87,6 +94,7 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     title: row["title"],
     purpose: row["purpose"],
     body: row["body"] ?? "",
+    bodyWithoutName: row["body_without_name"] ?? null,
     version: row["version"] ?? 1,
     active: Boolean(row["active"]),
     contentGroup: row["content_group"] ?? null,
@@ -95,8 +103,11 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     createdAt: row["created_at"],
     createdByName: row["created_by_name"] ?? "sistema",
     notes: row["notes"] ?? null,
+    sourceKind: row["source_kind"] ?? null,
+    sourceReference: row["source_reference"] ?? null,
   };
 }
+
 
 /**
  * Semeadura única: garante que cada etapa possua ao menos a versão 1.
