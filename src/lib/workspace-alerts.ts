@@ -121,7 +121,20 @@ function pushAlert(alert: Omit<WorkspaceAlert, "id">, stableId?: string) {
   if (list.some((a) => a.id === id)) return;
   list.push({ ...alert, id });
   writeAlerts(list);
-  emitEvent({ type: "investor.reactivated", investorId: alert.investorId, payload: { alertId: id } });
+  /**
+   * COMANDO A §9 — `investor.reactivated` deixou de ser efeito colateral
+   * genérico de QUALQUER alerta. Lembrete de reunião, pendência e aviso
+   * administrativo não são retorno do investidor. Só a categoria
+   * "movimentacao" (retorno ao Portal) emite o evento, e com identidade
+   * determinística para não repetir o mesmo acontecimento.
+   */
+  if (alert.category !== "movimentacao" || !alert.investorId) return;
+  emitEvent({
+    type: "investor.reactivated",
+    investorId: alert.investorId,
+    payload: { alertId: id },
+    dedupeKey: `investor.reactivated:${id}`,
+  });
 }
 
 /**
