@@ -186,6 +186,13 @@ export async function completeCadenceTask(input: {
       lead_id: input.leadId,
       channel: input.channel,
       step_day: input.step,
+      /**
+       * IDENTIDADE TEXTUAL DA ETAPA. `step_day` continua existindo como
+       * posição no calendário, mas quem identifica a etapa é a CHAVE
+       * (`L1`, `L2`, … e futuramente `E6`, `R1`): uma etapa não é "o
+       * dia N", é um momento específico da jornada.
+       */
+      step_key: stepKey(input.channel, input.step),
       cycle_date: input.cycleDate,
       due_date: input.dueDate,
       status: "DONE",
