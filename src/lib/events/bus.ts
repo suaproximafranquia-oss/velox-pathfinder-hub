@@ -69,6 +69,11 @@ export type PortalEvent<T = Record<string, unknown>> = {
   actorId?: string | null;
   investorId?: string | null;
   payload?: T;
+  /**
+   * Identidade do ACONTECIMENTO (não do registro). Quando informada, uma
+   * segunda emissão equivalente dentro da janela curta é descartada.
+   */
+  dedupeKey?: string;
 };
 
 type Listener = (event: PortalEvent) => void;
@@ -100,6 +105,27 @@ function newId(): string {
   return `ev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * DEDUPLICAÇÃO OPERACIONAL.
+ *
+ * Duas montagens do mesmo componente no mesmo instante não podem virar
+ * dois acontecimentos de negócio iguais. A chave considera tipo + lead +
+ * contexto da ação (`dedupeKey`, informado por quem emite) dentro de uma
+ * janela curta. Sem `dedupeKey` nada é deduplicado: eventos legítimos e
+ * distintos continuam intactos.
+ */
+const DEDUPE_WINDOW_MS = 15_000;
+
+function isDuplicate(list: PortalEvent[], key: string, atMs: number): boolean {
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const candidate = list[i] as PortalEvent & { dedupeKey?: string };
+    const candidateMs = Date.parse(candidate.at);
+    if (Number.isFinite(candidateMs) && atMs - candidateMs > DEDUPE_WINDOW_MS) return false;
+    if (candidate.dedupeKey === key) return true;
+  }
+  return false;
+}
+
 export function emitEvent<T = Record<string, unknown>>(
   input: Omit<PortalEvent<T>, "id" | "at"> & { at?: string },
 ): PortalEvent<T> {
@@ -110,8 +136,15 @@ export function emitEvent<T = Record<string, unknown>>(
     actorId: input.actorId ?? null,
     investorId: input.investorId ?? null,
     payload: input.payload,
+    ...(input.dedupeKey ? { dedupeKey: input.dedupeKey } : {}),
   };
   const all = safeRead();
+  if (input.dedupeKey) {
+    const atMs = Date.parse(event.at);
+    if (isDuplicate(all, input.dedupeKey, Number.isFinite(atMs) ? atMs : Date.now())) {
+      return event; // acontecimento equivalente já registrado — não duplicar
+    }
+  }
   all.push(event as PortalEvent);
   safeWrite(all);
   for (const l of listeners) {

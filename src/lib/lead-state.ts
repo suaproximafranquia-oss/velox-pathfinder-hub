@@ -92,7 +92,14 @@ function persist(
 
 export type LeadStateSubject = { id: string; lastActivity?: string };
 
-/** Regra automática — nunca depende de escolha manual de cor. */
+/**
+ * Regra automática — nunca depende de escolha manual de cor.
+ *
+ * `lastActivity` recebido aqui JÁ deve representar atividade real do
+ * investidor (ver `@/lib/events/investor-activity`). Ação do executivo
+ * não produz novidade: um lead trabalhado pelo executivo permanece
+ * "em andamento".
+ */
 export function resolveLeadState(subject: LeadStateSubject): LeadState {
   const entry = entryFor(subject.id);
   if (entry?.closedAt) return "encerrado";
@@ -103,10 +110,19 @@ export function resolveLeadState(subject: LeadStateSubject): LeadState {
   return "em_andamento";
 }
 
-/** Chamado quando o executivo abre o card/perfil: verde → amarelo. */
+/**
+ * Chamado quando o executivo abre o card/perfil: verde → amarelo.
+ *
+ * GUARDA DE MUDANÇA REAL — o lead já visualizado e não encerrado JÁ está
+ * em andamento: reabrir o card, voltar para a tela, dar F5 ou remontar o
+ * componente não é acontecimento algum. Sem esta guarda cada montagem
+ * gravava `viewed_at` de novo e emitia "Status do Lead atualizado",
+ * poluindo o histórico da jornada.
+ */
 export function markLeadViewed(leadId: string, actorId?: string | null): void {
   const entry = entryFor(leadId);
   if (entry?.closedAt) return;
+  if (entry?.viewedAt) return; // nada mudou — nenhum evento, nenhuma escrita
   void persist(leadId, { viewedAt: new Date().toISOString() }).then((ok) => {
     if (!ok) return;
     emitEvent({
@@ -114,6 +130,7 @@ export function markLeadViewed(leadId: string, actorId?: string | null): void {
       investorId: leadId,
       actorId: actorId ?? null,
       payload: { to: "em_andamento" },
+      dedupeKey: `lead.status.changed:${leadId}:em_andamento`,
     });
   });
 }
