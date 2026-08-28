@@ -325,7 +325,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       setStages(stageList);
       setConnection(conn);
       try {
-        setCallsSummary(await fetchCallsSummary({ data: { channel: "call" } }));
+        setCallsSummary(await fetchCallsSummary());
       } catch {
         setCallsSummary(null);
       }
