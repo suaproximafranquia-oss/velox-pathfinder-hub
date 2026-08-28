@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UniversoRouteImport } from './routes/universo'
 import { Route as RemarketingRouteImport } from './routes/remarketing'
 import { Route as PortalLeadsRouteImport } from './routes/portal-leads'
+import { Route as FRouteImport } from './routes/f'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as IndexRouteImport } from './routes/index'
@@ -112,6 +113,11 @@ const PortalLeadsRoute = PortalLeadsRouteImport.update({
   path: '/portal-leads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FRoute = FRouteImport.update({
+  id: '/f',
+  path: '/f',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
@@ -168,24 +174,24 @@ const ManualChapterRoute = ManualChapterRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const FRemarketingRoute = FRemarketingRouteImport.update({
-  id: '/f/remarketing',
-  path: '/f/remarketing',
-  getParentRoute: () => rootRouteImport,
+  id: '/remarketing',
+  path: '/remarketing',
+  getParentRoute: () => FRoute,
 } as any)
 const FPortalLeadsRoute = FPortalLeadsRouteImport.update({
-  id: '/f/portal-leads',
-  path: '/f/portal-leads',
-  getParentRoute: () => rootRouteImport,
+  id: '/portal-leads',
+  path: '/portal-leads',
+  getParentRoute: () => FRoute,
 } as any)
 const FCrmRoute = FCrmRouteImport.update({
-  id: '/f/crm',
-  path: '/f/crm',
-  getParentRoute: () => rootRouteImport,
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => FRoute,
 } as any)
 const FSlugRoute = FSlugRouteImport.update({
-  id: '/f/$slug',
-  path: '/f/$slug',
-  getParentRoute: () => rootRouteImport,
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => FRoute,
 } as any)
 const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
   id: '/executivo/usuarios',
@@ -343,9 +349,9 @@ const FRemarketingIndexRoute = FRemarketingIndexRouteImport.update({
   getParentRoute: () => FRemarketingRoute,
 } as any)
 const FExecutivoIndexRoute = FExecutivoIndexRouteImport.update({
-  id: '/f/executivo/',
-  path: '/f/executivo/',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/',
+  path: '/executivo/',
+  getParentRoute: () => FRoute,
 } as any)
 const FCrmIndexRoute = FCrmIndexRouteImport.update({
   id: '/',
@@ -363,150 +369,150 @@ const OauthGoogleConnectorRoute = OauthGoogleConnectorRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const FExecutivoUsuariosRoute = FExecutivoUsuariosRouteImport.update({
-  id: '/f/executivo/usuarios',
-  path: '/f/executivo/usuarios',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/usuarios',
+  path: '/executivo/usuarios',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoTesteCadenciaRoute = FExecutivoTesteCadenciaRouteImport.update({
-  id: '/f/executivo/teste-cadencia',
-  path: '/f/executivo/teste-cadencia',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/teste-cadencia',
+  path: '/executivo/teste-cadencia',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoTemplatesRoute = FExecutivoTemplatesRouteImport.update({
-  id: '/f/executivo/templates',
-  path: '/f/executivo/templates',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/templates',
+  path: '/executivo/templates',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoRevistaRoute = FExecutivoRevistaRouteImport.update({
-  id: '/f/executivo/revista',
-  path: '/f/executivo/revista',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/revista',
+  path: '/executivo/revista',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoReunioesRoute = FExecutivoReunioesRouteImport.update({
-  id: '/f/executivo/reunioes',
-  path: '/f/executivo/reunioes',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/reunioes',
+  path: '/executivo/reunioes',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoRelatoriosRoute = FExecutivoRelatoriosRouteImport.update({
-  id: '/f/executivo/relatorios',
-  path: '/f/executivo/relatorios',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/relatorios',
+  path: '/executivo/relatorios',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoRecursosRoute = FExecutivoRecursosRouteImport.update({
-  id: '/f/executivo/recursos',
-  path: '/f/executivo/recursos',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/recursos',
+  path: '/executivo/recursos',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoPerfilRoute = FExecutivoPerfilRouteImport.update({
-  id: '/f/executivo/perfil',
-  path: '/f/executivo/perfil',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/perfil',
+  path: '/executivo/perfil',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoLaboratorioRoute = FExecutivoLaboratorioRouteImport.update({
-  id: '/f/executivo/laboratorio',
-  path: '/f/executivo/laboratorio',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/laboratorio',
+  path: '/executivo/laboratorio',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoKpiRoute = FExecutivoKpiRouteImport.update({
-  id: '/f/executivo/kpi',
-  path: '/f/executivo/kpi',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/kpi',
+  path: '/executivo/kpi',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoInvestidoresRoute = FExecutivoInvestidoresRouteImport.update({
-  id: '/f/executivo/investidores',
-  path: '/f/executivo/investidores',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/investidores',
+  path: '/executivo/investidores',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoInstitucionalRoute = FExecutivoInstitucionalRouteImport.update({
-  id: '/f/executivo/institucional',
-  path: '/f/executivo/institucional',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/institucional',
+  path: '/executivo/institucional',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoIdentidadeRoute = FExecutivoIdentidadeRouteImport.update({
-  id: '/f/executivo/identidade',
-  path: '/f/executivo/identidade',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/identidade',
+  path: '/executivo/identidade',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoHomologacaoRoute = FExecutivoHomologacaoRouteImport.update({
-  id: '/f/executivo/homologacao',
-  path: '/f/executivo/homologacao',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/homologacao',
+  path: '/executivo/homologacao',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoHomeRoute = FExecutivoHomeRouteImport.update({
-  id: '/f/executivo/home',
-  path: '/f/executivo/home',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/home',
+  path: '/executivo/home',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoGreensalesSyncRoute =
   FExecutivoGreensalesSyncRouteImport.update({
-    id: '/f/executivo/greensales-sync',
-    path: '/f/executivo/greensales-sync',
-    getParentRoute: () => rootRouteImport,
+    id: '/executivo/greensales-sync',
+    path: '/executivo/greensales-sync',
+    getParentRoute: () => FRoute,
   } as any)
 const FExecutivoGreensalesRoute = FExecutivoGreensalesRouteImport.update({
-  id: '/f/executivo/greensales',
-  path: '/f/executivo/greensales',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/greensales',
+  path: '/executivo/greensales',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoDashboardRoute = FExecutivoDashboardRouteImport.update({
-  id: '/f/executivo/dashboard',
-  path: '/f/executivo/dashboard',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/dashboard',
+  path: '/executivo/dashboard',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoCriativaRoute = FExecutivoCriativaRouteImport.update({
-  id: '/f/executivo/criativa',
-  path: '/f/executivo/criativa',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/criativa',
+  path: '/executivo/criativa',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoConfiguracoesRoute = FExecutivoConfiguracoesRouteImport.update({
-  id: '/f/executivo/configuracoes',
-  path: '/f/executivo/configuracoes',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/configuracoes',
+  path: '/executivo/configuracoes',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoCentralBackupRoute = FExecutivoCentralBackupRouteImport.update({
-  id: '/f/executivo/central-backup',
-  path: '/f/executivo/central-backup',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/central-backup',
+  path: '/executivo/central-backup',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoCelebracaoRoute = FExecutivoCelebracaoRouteImport.update({
-  id: '/f/executivo/celebracao',
-  path: '/f/executivo/celebracao',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/celebracao',
+  path: '/executivo/celebracao',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoCaptacaoRoute = FExecutivoCaptacaoRouteImport.update({
-  id: '/f/executivo/captacao',
-  path: '/f/executivo/captacao',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/captacao',
+  path: '/executivo/captacao',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoCampanhasRoute = FExecutivoCampanhasRouteImport.update({
-  id: '/f/executivo/campanhas',
-  path: '/f/executivo/campanhas',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/campanhas',
+  path: '/executivo/campanhas',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoBrainRoute = FExecutivoBrainRouteImport.update({
-  id: '/f/executivo/brain',
-  path: '/f/executivo/brain',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/brain',
+  path: '/executivo/brain',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoBibliotecaRoute = FExecutivoBibliotecaRouteImport.update({
-  id: '/f/executivo/biblioteca',
-  path: '/f/executivo/biblioteca',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/biblioteca',
+  path: '/executivo/biblioteca',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoBackupsRoute = FExecutivoBackupsRouteImport.update({
-  id: '/f/executivo/backups',
-  path: '/f/executivo/backups',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/backups',
+  path: '/executivo/backups',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoAlertasRoute = FExecutivoAlertasRouteImport.update({
-  id: '/f/executivo/alertas',
-  path: '/f/executivo/alertas',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/alertas',
+  path: '/executivo/alertas',
+  getParentRoute: () => FRoute,
 } as any)
 const FExecutivoAdministracaoRoute = FExecutivoAdministracaoRouteImport.update({
-  id: '/f/executivo/administracao',
-  path: '/f/executivo/administracao',
-  getParentRoute: () => rootRouteImport,
+  id: '/executivo/administracao',
+  path: '/executivo/administracao',
+  getParentRoute: () => FRoute,
 } as any)
 const ApiPublicWhatsappWebhookRoute =
   ApiPublicWhatsappWebhookRouteImport.update({
@@ -539,6 +545,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/crm': typeof CrmRoute
   '/entrar': typeof EntrarRoute
+  '/f': typeof FRouteWithChildren
   '/portal-leads': typeof PortalLeadsRoute
   '/remarketing': typeof RemarketingRoute
   '/universo': typeof UniversoRoute
@@ -628,6 +635,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/crm': typeof CrmRoute
   '/entrar': typeof EntrarRoute
+  '/f': typeof FRouteWithChildren
   '/portal-leads': typeof PortalLeadsRoute
   '/remarketing': typeof RemarketingRoute
   '/universo': typeof UniversoRoute
@@ -716,6 +724,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/crm': typeof CrmRoute
   '/entrar': typeof EntrarRoute
+  '/f': typeof FRouteWithChildren
   '/portal-leads': typeof PortalLeadsRoute
   '/remarketing': typeof RemarketingRoute
   '/universo': typeof UniversoRoute
@@ -807,6 +816,7 @@ export interface FileRouteTypes {
     | '/'
     | '/crm'
     | '/entrar'
+    | '/f'
     | '/portal-leads'
     | '/remarketing'
     | '/universo'
@@ -896,6 +906,7 @@ export interface FileRouteTypes {
     | '/'
     | '/crm'
     | '/entrar'
+    | '/f'
     | '/portal-leads'
     | '/remarketing'
     | '/universo'
@@ -983,6 +994,7 @@ export interface FileRouteTypes {
     | '/'
     | '/crm'
     | '/entrar'
+    | '/f'
     | '/portal-leads'
     | '/remarketing'
     | '/universo'
@@ -1073,6 +1085,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CrmRoute: typeof CrmRoute
   EntrarRoute: typeof EntrarRoute
+  FRoute: typeof FRouteWithChildren
   PortalLeadsRoute: typeof PortalLeadsRoute
   RemarketingRoute: typeof RemarketingRoute
   UniversoRoute: typeof UniversoRoute
@@ -1106,10 +1119,6 @@ export interface RootRouteChildren {
   ExecutivoTemplatesRoute: typeof ExecutivoTemplatesRoute
   ExecutivoTesteCadenciaRoute: typeof ExecutivoTesteCadenciaRoute
   ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
-  FSlugRoute: typeof FSlugRoute
-  FCrmRoute: typeof FCrmRouteWithChildren
-  FPortalLeadsRoute: typeof FPortalLeadsRoute
-  FRemarketingRoute: typeof FRemarketingRouteWithChildren
   ManualChapterRoute: typeof ManualChapterRoute
   ManualAnuncioRoute: typeof ManualAnuncioRoute
   ManualConcluidoRoute: typeof ManualConcluidoRoute
@@ -1118,38 +1127,8 @@ export interface RootRouteChildren {
   SegSlugRoute: typeof SegSlugRoute
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
   ManualIndexRoute: typeof ManualIndexRoute
-  FExecutivoAdministracaoRoute: typeof FExecutivoAdministracaoRoute
-  FExecutivoAlertasRoute: typeof FExecutivoAlertasRoute
-  FExecutivoBackupsRoute: typeof FExecutivoBackupsRoute
-  FExecutivoBibliotecaRoute: typeof FExecutivoBibliotecaRoute
-  FExecutivoBrainRoute: typeof FExecutivoBrainRoute
-  FExecutivoCampanhasRoute: typeof FExecutivoCampanhasRoute
-  FExecutivoCaptacaoRoute: typeof FExecutivoCaptacaoRoute
-  FExecutivoCelebracaoRoute: typeof FExecutivoCelebracaoRoute
-  FExecutivoCentralBackupRoute: typeof FExecutivoCentralBackupRoute
-  FExecutivoConfiguracoesRoute: typeof FExecutivoConfiguracoesRoute
-  FExecutivoCriativaRoute: typeof FExecutivoCriativaRoute
-  FExecutivoDashboardRoute: typeof FExecutivoDashboardRoute
-  FExecutivoGreensalesRoute: typeof FExecutivoGreensalesRoute
-  FExecutivoGreensalesSyncRoute: typeof FExecutivoGreensalesSyncRoute
-  FExecutivoHomeRoute: typeof FExecutivoHomeRoute
-  FExecutivoHomologacaoRoute: typeof FExecutivoHomologacaoRoute
-  FExecutivoIdentidadeRoute: typeof FExecutivoIdentidadeRoute
-  FExecutivoInstitucionalRoute: typeof FExecutivoInstitucionalRoute
-  FExecutivoInvestidoresRoute: typeof FExecutivoInvestidoresRoute
-  FExecutivoKpiRoute: typeof FExecutivoKpiRoute
-  FExecutivoLaboratorioRoute: typeof FExecutivoLaboratorioRoute
-  FExecutivoPerfilRoute: typeof FExecutivoPerfilRoute
-  FExecutivoRecursosRoute: typeof FExecutivoRecursosRoute
-  FExecutivoRelatoriosRoute: typeof FExecutivoRelatoriosRoute
-  FExecutivoReunioesRoute: typeof FExecutivoReunioesRoute
-  FExecutivoRevistaRoute: typeof FExecutivoRevistaRoute
-  FExecutivoTemplatesRoute: typeof FExecutivoTemplatesRoute
-  FExecutivoTesteCadenciaRoute: typeof FExecutivoTesteCadenciaRoute
-  FExecutivoUsuariosRoute: typeof FExecutivoUsuariosRoute
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
   PortalConviteTokenRoute: typeof PortalConviteTokenRoute
-  FExecutivoIndexRoute: typeof FExecutivoIndexRoute
   ApiPublicBackupProcessRoute: typeof ApiPublicBackupProcessRoute
   ApiPublicBackupRunRoute: typeof ApiPublicBackupRunRoute
   ApiPublicCrmSyncRoute: typeof ApiPublicCrmSyncRoute
@@ -1178,6 +1157,13 @@ declare module '@tanstack/react-router' {
       path: '/portal-leads'
       fullPath: '/portal-leads'
       preLoaderRoute: typeof PortalLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f': {
+      id: '/f'
+      path: '/f'
+      fullPath: '/f'
+      preLoaderRoute: typeof FRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/entrar': {
@@ -1259,31 +1245,31 @@ declare module '@tanstack/react-router' {
     }
     '/f/remarketing': {
       id: '/f/remarketing'
-      path: '/f/remarketing'
+      path: '/remarketing'
       fullPath: '/f/remarketing'
       preLoaderRoute: typeof FRemarketingRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/portal-leads': {
       id: '/f/portal-leads'
-      path: '/f/portal-leads'
+      path: '/portal-leads'
       fullPath: '/f/portal-leads'
       preLoaderRoute: typeof FPortalLeadsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/crm': {
       id: '/f/crm'
-      path: '/f/crm'
+      path: '/crm'
       fullPath: '/f/crm'
       preLoaderRoute: typeof FCrmRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/$slug': {
       id: '/f/$slug'
-      path: '/f/$slug'
+      path: '/$slug'
       fullPath: '/f/$slug'
       preLoaderRoute: typeof FSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/executivo/usuarios': {
       id: '/executivo/usuarios'
@@ -1504,10 +1490,10 @@ declare module '@tanstack/react-router' {
     }
     '/f/executivo/': {
       id: '/f/executivo/'
-      path: '/f/executivo'
+      path: '/executivo'
       fullPath: '/f/executivo/'
       preLoaderRoute: typeof FExecutivoIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/crm/': {
       id: '/f/crm/'
@@ -1532,206 +1518,206 @@ declare module '@tanstack/react-router' {
     }
     '/f/executivo/usuarios': {
       id: '/f/executivo/usuarios'
-      path: '/f/executivo/usuarios'
+      path: '/executivo/usuarios'
       fullPath: '/f/executivo/usuarios'
       preLoaderRoute: typeof FExecutivoUsuariosRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/teste-cadencia': {
       id: '/f/executivo/teste-cadencia'
-      path: '/f/executivo/teste-cadencia'
+      path: '/executivo/teste-cadencia'
       fullPath: '/f/executivo/teste-cadencia'
       preLoaderRoute: typeof FExecutivoTesteCadenciaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/templates': {
       id: '/f/executivo/templates'
-      path: '/f/executivo/templates'
+      path: '/executivo/templates'
       fullPath: '/f/executivo/templates'
       preLoaderRoute: typeof FExecutivoTemplatesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/revista': {
       id: '/f/executivo/revista'
-      path: '/f/executivo/revista'
+      path: '/executivo/revista'
       fullPath: '/f/executivo/revista'
       preLoaderRoute: typeof FExecutivoRevistaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/reunioes': {
       id: '/f/executivo/reunioes'
-      path: '/f/executivo/reunioes'
+      path: '/executivo/reunioes'
       fullPath: '/f/executivo/reunioes'
       preLoaderRoute: typeof FExecutivoReunioesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/relatorios': {
       id: '/f/executivo/relatorios'
-      path: '/f/executivo/relatorios'
+      path: '/executivo/relatorios'
       fullPath: '/f/executivo/relatorios'
       preLoaderRoute: typeof FExecutivoRelatoriosRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/recursos': {
       id: '/f/executivo/recursos'
-      path: '/f/executivo/recursos'
+      path: '/executivo/recursos'
       fullPath: '/f/executivo/recursos'
       preLoaderRoute: typeof FExecutivoRecursosRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/perfil': {
       id: '/f/executivo/perfil'
-      path: '/f/executivo/perfil'
+      path: '/executivo/perfil'
       fullPath: '/f/executivo/perfil'
       preLoaderRoute: typeof FExecutivoPerfilRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/laboratorio': {
       id: '/f/executivo/laboratorio'
-      path: '/f/executivo/laboratorio'
+      path: '/executivo/laboratorio'
       fullPath: '/f/executivo/laboratorio'
       preLoaderRoute: typeof FExecutivoLaboratorioRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/kpi': {
       id: '/f/executivo/kpi'
-      path: '/f/executivo/kpi'
+      path: '/executivo/kpi'
       fullPath: '/f/executivo/kpi'
       preLoaderRoute: typeof FExecutivoKpiRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/investidores': {
       id: '/f/executivo/investidores'
-      path: '/f/executivo/investidores'
+      path: '/executivo/investidores'
       fullPath: '/f/executivo/investidores'
       preLoaderRoute: typeof FExecutivoInvestidoresRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/institucional': {
       id: '/f/executivo/institucional'
-      path: '/f/executivo/institucional'
+      path: '/executivo/institucional'
       fullPath: '/f/executivo/institucional'
       preLoaderRoute: typeof FExecutivoInstitucionalRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/identidade': {
       id: '/f/executivo/identidade'
-      path: '/f/executivo/identidade'
+      path: '/executivo/identidade'
       fullPath: '/f/executivo/identidade'
       preLoaderRoute: typeof FExecutivoIdentidadeRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/homologacao': {
       id: '/f/executivo/homologacao'
-      path: '/f/executivo/homologacao'
+      path: '/executivo/homologacao'
       fullPath: '/f/executivo/homologacao'
       preLoaderRoute: typeof FExecutivoHomologacaoRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/home': {
       id: '/f/executivo/home'
-      path: '/f/executivo/home'
+      path: '/executivo/home'
       fullPath: '/f/executivo/home'
       preLoaderRoute: typeof FExecutivoHomeRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/greensales-sync': {
       id: '/f/executivo/greensales-sync'
-      path: '/f/executivo/greensales-sync'
+      path: '/executivo/greensales-sync'
       fullPath: '/f/executivo/greensales-sync'
       preLoaderRoute: typeof FExecutivoGreensalesSyncRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/greensales': {
       id: '/f/executivo/greensales'
-      path: '/f/executivo/greensales'
+      path: '/executivo/greensales'
       fullPath: '/f/executivo/greensales'
       preLoaderRoute: typeof FExecutivoGreensalesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/dashboard': {
       id: '/f/executivo/dashboard'
-      path: '/f/executivo/dashboard'
+      path: '/executivo/dashboard'
       fullPath: '/f/executivo/dashboard'
       preLoaderRoute: typeof FExecutivoDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/criativa': {
       id: '/f/executivo/criativa'
-      path: '/f/executivo/criativa'
+      path: '/executivo/criativa'
       fullPath: '/f/executivo/criativa'
       preLoaderRoute: typeof FExecutivoCriativaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/configuracoes': {
       id: '/f/executivo/configuracoes'
-      path: '/f/executivo/configuracoes'
+      path: '/executivo/configuracoes'
       fullPath: '/f/executivo/configuracoes'
       preLoaderRoute: typeof FExecutivoConfiguracoesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/central-backup': {
       id: '/f/executivo/central-backup'
-      path: '/f/executivo/central-backup'
+      path: '/executivo/central-backup'
       fullPath: '/f/executivo/central-backup'
       preLoaderRoute: typeof FExecutivoCentralBackupRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/celebracao': {
       id: '/f/executivo/celebracao'
-      path: '/f/executivo/celebracao'
+      path: '/executivo/celebracao'
       fullPath: '/f/executivo/celebracao'
       preLoaderRoute: typeof FExecutivoCelebracaoRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/captacao': {
       id: '/f/executivo/captacao'
-      path: '/f/executivo/captacao'
+      path: '/executivo/captacao'
       fullPath: '/f/executivo/captacao'
       preLoaderRoute: typeof FExecutivoCaptacaoRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/campanhas': {
       id: '/f/executivo/campanhas'
-      path: '/f/executivo/campanhas'
+      path: '/executivo/campanhas'
       fullPath: '/f/executivo/campanhas'
       preLoaderRoute: typeof FExecutivoCampanhasRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/brain': {
       id: '/f/executivo/brain'
-      path: '/f/executivo/brain'
+      path: '/executivo/brain'
       fullPath: '/f/executivo/brain'
       preLoaderRoute: typeof FExecutivoBrainRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/biblioteca': {
       id: '/f/executivo/biblioteca'
-      path: '/f/executivo/biblioteca'
+      path: '/executivo/biblioteca'
       fullPath: '/f/executivo/biblioteca'
       preLoaderRoute: typeof FExecutivoBibliotecaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/backups': {
       id: '/f/executivo/backups'
-      path: '/f/executivo/backups'
+      path: '/executivo/backups'
       fullPath: '/f/executivo/backups'
       preLoaderRoute: typeof FExecutivoBackupsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/alertas': {
       id: '/f/executivo/alertas'
-      path: '/f/executivo/alertas'
+      path: '/executivo/alertas'
       fullPath: '/f/executivo/alertas'
       preLoaderRoute: typeof FExecutivoAlertasRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/f/executivo/administracao': {
       id: '/f/executivo/administracao'
-      path: '/f/executivo/administracao'
+      path: '/executivo/administracao'
       fullPath: '/f/executivo/administracao'
       preLoaderRoute: typeof FExecutivoAdministracaoRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FRoute
     }
     '/api/public/whatsapp/webhook': {
       id: '/api/public/whatsapp/webhook'
@@ -1793,10 +1779,87 @@ const FRemarketingRouteWithChildren = FRemarketingRoute._addFileChildren(
   FRemarketingRouteChildren,
 )
 
+interface FRouteChildren {
+  FSlugRoute: typeof FSlugRoute
+  FCrmRoute: typeof FCrmRouteWithChildren
+  FPortalLeadsRoute: typeof FPortalLeadsRoute
+  FRemarketingRoute: typeof FRemarketingRouteWithChildren
+  FExecutivoAdministracaoRoute: typeof FExecutivoAdministracaoRoute
+  FExecutivoAlertasRoute: typeof FExecutivoAlertasRoute
+  FExecutivoBackupsRoute: typeof FExecutivoBackupsRoute
+  FExecutivoBibliotecaRoute: typeof FExecutivoBibliotecaRoute
+  FExecutivoBrainRoute: typeof FExecutivoBrainRoute
+  FExecutivoCampanhasRoute: typeof FExecutivoCampanhasRoute
+  FExecutivoCaptacaoRoute: typeof FExecutivoCaptacaoRoute
+  FExecutivoCelebracaoRoute: typeof FExecutivoCelebracaoRoute
+  FExecutivoCentralBackupRoute: typeof FExecutivoCentralBackupRoute
+  FExecutivoConfiguracoesRoute: typeof FExecutivoConfiguracoesRoute
+  FExecutivoCriativaRoute: typeof FExecutivoCriativaRoute
+  FExecutivoDashboardRoute: typeof FExecutivoDashboardRoute
+  FExecutivoGreensalesRoute: typeof FExecutivoGreensalesRoute
+  FExecutivoGreensalesSyncRoute: typeof FExecutivoGreensalesSyncRoute
+  FExecutivoHomeRoute: typeof FExecutivoHomeRoute
+  FExecutivoHomologacaoRoute: typeof FExecutivoHomologacaoRoute
+  FExecutivoIdentidadeRoute: typeof FExecutivoIdentidadeRoute
+  FExecutivoInstitucionalRoute: typeof FExecutivoInstitucionalRoute
+  FExecutivoInvestidoresRoute: typeof FExecutivoInvestidoresRoute
+  FExecutivoKpiRoute: typeof FExecutivoKpiRoute
+  FExecutivoLaboratorioRoute: typeof FExecutivoLaboratorioRoute
+  FExecutivoPerfilRoute: typeof FExecutivoPerfilRoute
+  FExecutivoRecursosRoute: typeof FExecutivoRecursosRoute
+  FExecutivoRelatoriosRoute: typeof FExecutivoRelatoriosRoute
+  FExecutivoReunioesRoute: typeof FExecutivoReunioesRoute
+  FExecutivoRevistaRoute: typeof FExecutivoRevistaRoute
+  FExecutivoTemplatesRoute: typeof FExecutivoTemplatesRoute
+  FExecutivoTesteCadenciaRoute: typeof FExecutivoTesteCadenciaRoute
+  FExecutivoUsuariosRoute: typeof FExecutivoUsuariosRoute
+  FExecutivoIndexRoute: typeof FExecutivoIndexRoute
+}
+
+const FRouteChildren: FRouteChildren = {
+  FSlugRoute: FSlugRoute,
+  FCrmRoute: FCrmRouteWithChildren,
+  FPortalLeadsRoute: FPortalLeadsRoute,
+  FRemarketingRoute: FRemarketingRouteWithChildren,
+  FExecutivoAdministracaoRoute: FExecutivoAdministracaoRoute,
+  FExecutivoAlertasRoute: FExecutivoAlertasRoute,
+  FExecutivoBackupsRoute: FExecutivoBackupsRoute,
+  FExecutivoBibliotecaRoute: FExecutivoBibliotecaRoute,
+  FExecutivoBrainRoute: FExecutivoBrainRoute,
+  FExecutivoCampanhasRoute: FExecutivoCampanhasRoute,
+  FExecutivoCaptacaoRoute: FExecutivoCaptacaoRoute,
+  FExecutivoCelebracaoRoute: FExecutivoCelebracaoRoute,
+  FExecutivoCentralBackupRoute: FExecutivoCentralBackupRoute,
+  FExecutivoConfiguracoesRoute: FExecutivoConfiguracoesRoute,
+  FExecutivoCriativaRoute: FExecutivoCriativaRoute,
+  FExecutivoDashboardRoute: FExecutivoDashboardRoute,
+  FExecutivoGreensalesRoute: FExecutivoGreensalesRoute,
+  FExecutivoGreensalesSyncRoute: FExecutivoGreensalesSyncRoute,
+  FExecutivoHomeRoute: FExecutivoHomeRoute,
+  FExecutivoHomologacaoRoute: FExecutivoHomologacaoRoute,
+  FExecutivoIdentidadeRoute: FExecutivoIdentidadeRoute,
+  FExecutivoInstitucionalRoute: FExecutivoInstitucionalRoute,
+  FExecutivoInvestidoresRoute: FExecutivoInvestidoresRoute,
+  FExecutivoKpiRoute: FExecutivoKpiRoute,
+  FExecutivoLaboratorioRoute: FExecutivoLaboratorioRoute,
+  FExecutivoPerfilRoute: FExecutivoPerfilRoute,
+  FExecutivoRecursosRoute: FExecutivoRecursosRoute,
+  FExecutivoRelatoriosRoute: FExecutivoRelatoriosRoute,
+  FExecutivoReunioesRoute: FExecutivoReunioesRoute,
+  FExecutivoRevistaRoute: FExecutivoRevistaRoute,
+  FExecutivoTemplatesRoute: FExecutivoTemplatesRoute,
+  FExecutivoTesteCadenciaRoute: FExecutivoTesteCadenciaRoute,
+  FExecutivoUsuariosRoute: FExecutivoUsuariosRoute,
+  FExecutivoIndexRoute: FExecutivoIndexRoute,
+}
+
+const FRouteWithChildren = FRoute._addFileChildren(FRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CrmRoute: CrmRoute,
   EntrarRoute: EntrarRoute,
+  FRoute: FRouteWithChildren,
   PortalLeadsRoute: PortalLeadsRoute,
   RemarketingRoute: RemarketingRoute,
   UniversoRoute: UniversoRoute,
@@ -1830,10 +1893,6 @@ const rootRouteChildren: RootRouteChildren = {
   ExecutivoTemplatesRoute: ExecutivoTemplatesRoute,
   ExecutivoTesteCadenciaRoute: ExecutivoTesteCadenciaRoute,
   ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
-  FSlugRoute: FSlugRoute,
-  FCrmRoute: FCrmRouteWithChildren,
-  FPortalLeadsRoute: FPortalLeadsRoute,
-  FRemarketingRoute: FRemarketingRouteWithChildren,
   ManualChapterRoute: ManualChapterRoute,
   ManualAnuncioRoute: ManualAnuncioRoute,
   ManualConcluidoRoute: ManualConcluidoRoute,
@@ -1842,38 +1901,8 @@ const rootRouteChildren: RootRouteChildren = {
   SegSlugRoute: SegSlugRoute,
   ExecutivoIndexRoute: ExecutivoIndexRoute,
   ManualIndexRoute: ManualIndexRoute,
-  FExecutivoAdministracaoRoute: FExecutivoAdministracaoRoute,
-  FExecutivoAlertasRoute: FExecutivoAlertasRoute,
-  FExecutivoBackupsRoute: FExecutivoBackupsRoute,
-  FExecutivoBibliotecaRoute: FExecutivoBibliotecaRoute,
-  FExecutivoBrainRoute: FExecutivoBrainRoute,
-  FExecutivoCampanhasRoute: FExecutivoCampanhasRoute,
-  FExecutivoCaptacaoRoute: FExecutivoCaptacaoRoute,
-  FExecutivoCelebracaoRoute: FExecutivoCelebracaoRoute,
-  FExecutivoCentralBackupRoute: FExecutivoCentralBackupRoute,
-  FExecutivoConfiguracoesRoute: FExecutivoConfiguracoesRoute,
-  FExecutivoCriativaRoute: FExecutivoCriativaRoute,
-  FExecutivoDashboardRoute: FExecutivoDashboardRoute,
-  FExecutivoGreensalesRoute: FExecutivoGreensalesRoute,
-  FExecutivoGreensalesSyncRoute: FExecutivoGreensalesSyncRoute,
-  FExecutivoHomeRoute: FExecutivoHomeRoute,
-  FExecutivoHomologacaoRoute: FExecutivoHomologacaoRoute,
-  FExecutivoIdentidadeRoute: FExecutivoIdentidadeRoute,
-  FExecutivoInstitucionalRoute: FExecutivoInstitucionalRoute,
-  FExecutivoInvestidoresRoute: FExecutivoInvestidoresRoute,
-  FExecutivoKpiRoute: FExecutivoKpiRoute,
-  FExecutivoLaboratorioRoute: FExecutivoLaboratorioRoute,
-  FExecutivoPerfilRoute: FExecutivoPerfilRoute,
-  FExecutivoRecursosRoute: FExecutivoRecursosRoute,
-  FExecutivoRelatoriosRoute: FExecutivoRelatoriosRoute,
-  FExecutivoReunioesRoute: FExecutivoReunioesRoute,
-  FExecutivoRevistaRoute: FExecutivoRevistaRoute,
-  FExecutivoTemplatesRoute: FExecutivoTemplatesRoute,
-  FExecutivoTesteCadenciaRoute: FExecutivoTesteCadenciaRoute,
-  FExecutivoUsuariosRoute: FExecutivoUsuariosRoute,
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
   PortalConviteTokenRoute: PortalConviteTokenRoute,
-  FExecutivoIndexRoute: FExecutivoIndexRoute,
   ApiPublicBackupProcessRoute: ApiPublicBackupProcessRoute,
   ApiPublicBackupRunRoute: ApiPublicBackupRunRoute,
   ApiPublicCrmSyncRoute: ApiPublicCrmSyncRoute,
