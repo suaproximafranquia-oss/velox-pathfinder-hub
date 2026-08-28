@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { X, ArrowRight, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WHATSAPP_NUMBER } from "@/lib/journey-data";
+import { whatsappLinkWithText } from "@/lib/whatsapp-number";
+import { contatoDoExecutivo } from "@/lib/relationship/e20.functions";
 import { registerLead, updateLead } from "@/lib/leads";
 import { getPortalSession } from "@/lib/portal-session";
 import { emitEvent } from "@/lib/events/bus";
@@ -111,11 +113,26 @@ export function ExecutiveContactDialog({ open, onClose, material }: Props) {
       `Pretensão de Investimento: ${investmentRange}\n` +
       `Horários preferenciais: ${time1} / ${time2}` +
       (message.trim() ? `\nMensagem: ${message.trim()}` : "");
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+    /**
+     * DESTINO REAL (COMANDO 2A §6): se o lead já tem executivo
+     * responsável com WhatsApp cadastrado, a conversa vai para ELE.
+     * Só quando não existe responsável a conversa segue para o canal
+     * institucional oficial. O link é montado por uma única função.
+     */
+    let destination = WHATSAPP_NUMBER;
+    if (investorId) {
+      try {
+        const contact = await contatoDoExecutivo({ data: { leadId: investorId } });
+        if (contact.available && contact.whatsapp) destination = contact.whatsapp;
+      } catch {
+        // Indisponibilidade do servidor não bloqueia o contato institucional.
+      }
+    }
+    const url = whatsappLinkWithText(destination, msg);
 
     setSubmitting(false);
     setDone(true);
-    if (typeof window !== "undefined") window.open(url, "_blank");
+    if (url && typeof window !== "undefined") window.open(url, "_blank");
   };
 
   const field =
