@@ -5,9 +5,8 @@ import {
   listAgenda,
   createAgendaEvent,
   deleteAgendaEvent,
-  type AgendaItem,
-  type AgendaPriority,
 } from "@/lib/agenda.functions";
+import type { AgendaItem, AgendaPriority } from "@/lib/agenda-types";
 import { toast } from "sonner";
 
 /**
@@ -49,7 +48,8 @@ export function AgendaDock() {
     setLoading(true);
     try {
       const { fromISO, toISO } = dayRange();
-      const data = await listAgenda({ data: { executiveId: session.userId, fromISO, toISO } });
+      // A identidade do executivo é resolvida NO SERVIDOR.
+      const data = await listAgenda({ data: { fromISO, toISO } });
       setItems(data);
     } catch {
       toast.error("Não foi possível carregar a Agenda.");
@@ -122,15 +122,28 @@ export function AgendaDock() {
                         <div>
                           <p className="text-sm font-medium">{item.title}</p>
                           <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
-                            {new Date(item.startsAt).toLocaleString("pt-BR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                            {item.endsAt
-                              ? ` — ${new Date(item.endsAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-                              : ""}
+                            {item.startsAt ? (
+                              <>
+                                {new Date(item.startsAt).toLocaleString("pt-BR", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                                {item.endsAt
+                                  ? ` — ${new Date(item.endsAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+                                  : ""}
+                              </>
+                            ) : (
+                              /* Ações do dia não têm horário: nenhum é inventado. */
+                              <>
+                                {new Date(`${item.dateISO}T12:00:00`).toLocaleDateString("pt-BR", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                })}{" "}
+                                · Ação do dia (sem horário)
+                              </>
+                            )}
                           </p>
                           {item.note ? (
                             <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
@@ -183,7 +196,6 @@ export function AgendaDock() {
             <footer className="border-t border-[color:var(--border)] px-5 py-4">
               {creating ? (
                 <AgendaForm
-                  executiveId={session.userId}
                   onCancel={() => setCreating(false)}
                   onCreated={() => {
                     setCreating(false);
@@ -208,11 +220,9 @@ export function AgendaDock() {
 }
 
 function AgendaForm({
-  executiveId,
   onCancel,
   onCreated,
 }: {
-  executiveId: string;
   onCancel: () => void;
   onCreated: () => void;
 }) {
@@ -232,7 +242,6 @@ function AgendaForm({
     try {
       const res = await createAgendaEvent({
         data: {
-          executiveId,
           title,
           startsAt: new Date(`${date}T${start}:00`).toISOString(),
           endsAt: new Date(`${date}T${end}:00`).toISOString(),

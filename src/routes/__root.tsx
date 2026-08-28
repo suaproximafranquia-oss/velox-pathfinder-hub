@@ -147,6 +147,8 @@ function resolveShell(pathname: string): EditorialVariant | "executive" {
   if (pathname.startsWith("/f/crm")) return "executive";
   // O Portal dos Leads é ambiente operacional do executivo.
   if (pathname.startsWith("/f/portal-leads")) return "executive";
+  // O Remarketing é ambiente operacional próprio (mesma linguagem do CRM).
+  if (pathname.startsWith("/f/remarketing")) return "executive";
   if (pathname.startsWith("/universo")) return "universo";
   if (pathname === "/") return "portal";
   return "manual";
@@ -187,6 +189,9 @@ function RootRoutes() {
   const isExecutive = pathname.startsWith("/f/executivo");
   const isCrm = pathname.startsWith("/f/crm");
   const isLeadsPortal = pathname.startsWith("/f/portal-leads");
+  // O Remarketing é ambiente OPERACIONAL: nunca herda o shell editorial
+  // nem o redirecionamento do Gateway do Portal.
+  const isRemarketing = pathname.startsWith("/f/remarketing");
   const isPortal = pathname === "/";
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";
@@ -203,7 +208,7 @@ function RootRoutes() {
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isExecutive || isCrm || isLeadsPortal || isPortal) return;
+    if (isExecutive || isCrm || isLeadsPortal || isRemarketing || isPortal) return;
     const insideOverlay = window.self !== window.top;
     const mod = moduleForPath(pathname);
     if (!mod) return;
@@ -217,7 +222,7 @@ function RootRoutes() {
       return;
     }
     navigate({ to: "/", search: { m: mod.key }, replace: true });
-  }, [isCrm, isExecutive, isLeadsPortal, isPortal, navigate, pathname]);
+  }, [isCrm, isExecutive, isLeadsPortal, isRemarketing, isPortal, navigate, pathname]);
 
   // Área Executiva permanece isolada do Design System editorial.
   if (isExecutive) {
@@ -234,7 +239,7 @@ function RootRoutes() {
 
   // O CRM de Relacionamento possui identidade própria: sem cabeçalho do
   // Manual, sem índice editorial e sem elementos institucionais.
-  if (isCrm || isLeadsPortal) {
+  if (isCrm || isLeadsPortal || isRemarketing) {
     return (
       <QueryClientProvider client={queryClient}>
         <Outlet />

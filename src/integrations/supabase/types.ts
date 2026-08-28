@@ -2891,6 +2891,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agenda_cadence_tasks: {
+        Args: { _executive_id?: string; _from: string; _to: string }
+        Returns: {
+          channel: string
+          due_date: string
+          id: string
+          lead_id: string
+          lead_name: string
+          note: string
+          status: string
+          step_day: number
+        }[]
+      }
       can_access_investor: { Args: { _investor_id: string }; Returns: boolean }
       can_access_relationship: {
         Args: { _lead_id: string; _scope: string }

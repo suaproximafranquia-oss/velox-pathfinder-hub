@@ -6,8 +6,9 @@
  * quadro. Continua somente leitura: a movimentação real é na origem.
  */
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { PortalLeadsBoard } from "@/components/crm/portal-leads-board";
+import { OperationalGuard } from "@/components/auth/operational-guard";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { ModuleAccessDenied } from "@/components/executive/module-access-guard";
 import { useModuleAccess } from "@/hooks/use-workspace-permissions";
@@ -31,26 +32,30 @@ export const Route = createFileRoute("/f/portal-leads")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: PortalLeadsPage,
+  // Ambiente operacional: guard único e sem SSR (a sessão vive no navegador).
+  ssr: false,
+  component: () => (
+    <OperationalGuard>
+      <PortalLeadsPage />
+    </OperationalGuard>
+  ),
 });
 
 function PortalLeadsPage() {
-  const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // A ausência de sessão já é tratada pelo OperationalGuard.
     const s = getSession();
-    if (!s) {
-      navigate({ to: "/f/executivo" });
-      return;
-    }
+    if (!s) return;
     setSession(s);
     // Garante a sessão real do backend antes de qualquer consulta.
     void import("@/lib/auth-bearer")
       .then(({ getAccessToken }) => getAccessToken())
       .finally(() => setReady(true));
-  }, [navigate]);
+  }, []);
+
 
   const portalAllowed = useModuleAccess(
     session?.userId ?? "",

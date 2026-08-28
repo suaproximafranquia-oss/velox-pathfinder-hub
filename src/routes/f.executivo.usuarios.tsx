@@ -1,4 +1,5 @@
-import { safeExecutiveSlug } from "@/lib/business-unit";
+import { validateExecutiveSlug } from "@/lib/business-unit";
+import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Pencil, Power, Plus, ShieldCheck, Trash2 } from "lucide-react";
@@ -53,9 +54,9 @@ function slugifyEmail(email: string): { username: string; slug: string } {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  // Slugs reservados pertencem à arquitetura da unidade (/f/executivo,
-  // /f/crm, …) e nunca podem virar link personalizado de um executivo.
-  const slug = safeExecutiveSlug(local.replace(/\./g, "-") || "usuario");
+  // O slug NÃO é corrigido em silêncio: a validação bloqueante acontece
+  // na gravação (`validateExecutiveSlug`).
+  const slug = (local.replace(/\./g, "-") || "usuario").toLowerCase();
   return { username: local || "usuario", slug };
 }
 
@@ -81,8 +82,16 @@ function UsuariosPage() {
   }, [navigate]);
 
   function persist(next: ExecutiveUser[]) {
+    try {
+      // A persistência é a última barreira: um link reservado nunca é gravado.
+      saveUsers(next);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Não foi possível gravar os usuários.",
+      );
+      return;
+    }
     setUsers(next);
-    saveUsers(next);
   }
 
   function toggleStatus(id: string) {
@@ -133,10 +142,21 @@ function UsuariosPage() {
       if (!canManageTargetUser(session.activeRole, existing.role)) return;
     }
     const { username, slug } = slugifyEmail(draft.email);
+    // §Slugs reservados — validação BLOQUEANTE: nada é gravado e o usuário
+    // recebe a razão e uma sugestão de alternativa.
+    const check = validateExecutiveSlug(draft.slug?.trim() ? draft.slug : slug);
+    if (!check.ok) {
+      toast.error(check.message, {
+        description: check.suggestion
+          ? `Sugestão de endereço disponível: ${check.suggestion}`
+          : undefined,
+      });
+      return;
+    }
     const complete: Draft = {
       ...draft,
       username,
-      slug,
+      slug: check.slug,
     };
     if (draft.id) {
       persist(users.map((u) => (u.id === draft.id ? { ...(complete as ExecutiveUser) } : u)));
