@@ -44,6 +44,7 @@ export type LeadEventType =
   | "workspace_card_falhou"
   | "e0_identificada"
   | "e0_simulada"
+  | "e0_enviada"
   | "e0_ignorada"
   | "e0_adiada"
   | "e0_reentrada"

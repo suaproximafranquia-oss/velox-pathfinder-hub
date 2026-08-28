@@ -9,7 +9,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
-import { E0_SIMULATION_ENABLED, E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
+import { isSimulatedExecution, SIMULATION_LABEL } from "@/server/relationship/execution-mode.server";
 import { recordEvent } from "@/server/crm/lead-service.server";
 import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
 
@@ -87,14 +87,14 @@ export async function processDeferredFirstContacts(): Promise<DeferredSummary> {
         entryAt: lead.last_entry_at,
         enteredEntryStageAt: lead.entered_entry_stage_at,
         reactivation: Boolean(lead.remarketing),
-        simulated: E0_SIMULATION_ENABLED,
+        simulated: isSimulatedExecution(),
       });
       if (result.registered) {
         summary.sent += 1;
         await recordEvent(
           lead.id,
           "e0_simulada",
-          `${E0_SIMULATION_LABEL} — E0 adiada pela madrugada executada na abertura da janela (07:00).`,
+          `${SIMULATION_LABEL} — E0 adiada pela madrugada executada na abertura da janela (07:00).`,
         );
       } else {
         await recordEvent(lead.id, "e0_ignorada", result.reason);

@@ -10,7 +10,7 @@ import { RELATIONSHIP_CONFIG } from "@/lib/relationship/config";
 import { createEngine, type Engine } from "@/lib/relationship/engine";
 import { realClock } from "@/lib/relationship/clock";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { E0_SIMULATION_ENABLED } from "@/lib/crm/e0-simulation";
+import { isSimulatedExecution } from "./execution-mode.server";
 import { createRepository } from "./repository.server";
 import { productionDispatcher } from "./dispatch.server";
 import { loadLeadStageContext } from "./lead-context.server";
@@ -25,10 +25,11 @@ export function productionEngine(): Engine {
      * ATIVAÇÃO CONTROLADA — TEMPLATE VIRTUAL ENQUANTO A SIMULAÇÃO ESTIVER
      * LIGADA. Nenhuma mensagem sai do sistema nesse modo, então exigir o
      * template oficial da Meta apenas impediria a observação da máquina.
-     * Desligar `E0_SIMULATION_ENABLED` devolve a exigência do template
-     * oficial para qualquer etapa fora da janela de 24 horas.
+     * A decisão vem do AMBIENTE (execution-mode), não de uma constante:
+     * em produção o template oficial volta a ser exigido para qualquer
+     * etapa fora da janela de 24 horas.
      */
-    virtualTemplates: E0_SIMULATION_ENABLED,
+    virtualTemplates: isSimulatedExecution(),
     // O relógio da cadência só começa depois da primeira ação humana:
     // enquanto o lead estiver em NOVOS, nada é programado.
     leadContext: loadLeadStageContext,

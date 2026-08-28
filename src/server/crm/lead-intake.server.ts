@@ -13,7 +13,7 @@
  * (`isTest` / `testBatchId`), que jamais é aplicada a um lead real.
  */
 import { cadenceEligibility } from "@/lib/crm/cutover";
-import { E0_SIMULATION_ENABLED, E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
+import { executionMode } from "@/server/relationship/execution-mode.server";
 import { isE0NightWindow } from "@/lib/crm/e0-window";
 import { normalizeGreenSalesLead } from "@/lib/greensales/normalize";
 import { resolveEntryFlow } from "@/lib/relationship/entry";
@@ -157,7 +157,13 @@ export async function intakeLead(
     return result;
   }
 
-  if (enteredNow && eligibility.eligible && (E0_SIMULATION_ENABLED || isTest)) {
+  if (enteredNow && eligibility.eligible) {
+    /**
+     * MODO DE EXECUÇÃO ÚNICO (COMANDO 2A §10): o caminho de entrada é
+     * sempre o mesmo; o que muda é se a entrega sai ou é simulada, e
+     * isso quem decide é o ambiente (homologação/lote de teste).
+     */
+    const mode = executionMode({ isTestLead: isTest });
     /**
      * origem → servidor → Workspace GreenSales → E0 simulada. O card
      * operacional é criado no NOSSO Workspace (carteira `portal_leads`,
@@ -226,15 +232,17 @@ export async function intakeLead(
         entered_entry_stage_at?: string | null;
       }).entered_entry_stage_at,
       reactivation: returning,
-      simulated: true,
+      simulated: mode.simulated,
     });
     if (e0.registered) {
       result.welcomeSent += 1;
-      result.e0 = "simulada";
+      result.e0 = mode.simulated ? "simulada" : "enviada";
       await recordEvent(
         outcome.lead.id,
-        "e0_simulada",
-        `${E0_SIMULATION_LABEL} — mensagem registrada no card ${card.cardId} sem entrega real.`,
+        mode.simulated ? "e0_simulada" : "e0_enviada",
+        mode.simulated
+          ? `${mode.reason} — mensagem registrada no card ${card.cardId} sem entrega real.`
+          : `E0 executada no card ${card.cardId} pelo canal oficial.`,
       );
     } else {
       result.e0 = "ignorada";

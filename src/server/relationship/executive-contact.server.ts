@@ -7,11 +7,13 @@
  * cai em número genérico e nunca leva o investidor a uma conversa vazia.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { normalizeWhatsappNumber } from "@/lib/whatsapp-number";
 
 export type ExecutiveContact = {
   available: boolean;
   executiveId: string | null;
   name: string | null;
+  roleTitle: string | null;
   whatsapp: string | null;
   waLink: string | null;
   reason?: string;
@@ -21,14 +23,11 @@ const UNAVAILABLE: ExecutiveContact = {
   available: false,
   executiveId: null,
   name: null,
+  roleTitle: null,
   whatsapp: null,
   waLink: null,
   reason: "Sem executivo responsável com WhatsApp cadastrado.",
 };
-
-function digits(value: string | null | undefined): string {
-  return (value ?? "").replace(/\D+/g, "");
-}
 
 export async function resolveExecutiveContact(leadId: string): Promise<ExecutiveContact> {
   const { data: lead } = await supabaseAdmin
@@ -41,18 +40,28 @@ export async function resolveExecutiveContact(leadId: string): Promise<Executive
 
   const { data: profile } = await supabaseAdmin
     .from("executive_profiles")
-    .select("executive_id,name,whatsapp")
+    .select("executive_id,name,whatsapp,role_title")
     .eq("executive_id", executiveId)
     .maybeSingle();
   const row = profile as Record<string, any> | null;
-  const phone = digits(row?.["whatsapp"]);
-  if (!row || phone.length < 10) return { ...UNAVAILABLE, executiveId, name: row?.["name"] ?? null };
+  // Normalização única do número (COMANDO 2A §6): sem link improvisado.
+  const number = normalizeWhatsappNumber(row?.["whatsapp"]);
+  if (!row || !number.valid) {
+    return {
+      ...UNAVAILABLE,
+      executiveId,
+      name: row?.["name"] ?? null,
+      roleTitle: row?.["role_title"] ?? null,
+      reason: number.valid ? UNAVAILABLE.reason : number.reason,
+    };
+  }
 
   return {
     available: true,
     executiveId,
     name: row["name"] ?? null,
-    whatsapp: phone,
-    waLink: `https://wa.me/${phone}`,
+    roleTitle: row["role_title"] ?? null,
+    whatsapp: number.digits,
+    waLink: number.waLink,
   };
 }

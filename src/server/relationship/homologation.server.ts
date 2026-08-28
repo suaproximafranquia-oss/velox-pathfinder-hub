@@ -36,20 +36,14 @@ const LIBRARY_SCOPE = "library";
 const LIBRARY_BUCKET = "biblioteca-conteudos";
 const SIGNED_URL_TTL = 60 * 60 * 24 * 7;
 
-/** Um arquivo físico, várias associações de grupo (COMANDO 3C §7). */
+/**
+ * Um arquivo físico, várias etapas (COMANDO 3C §7). A associação vive
+ * na FONTE ÚNICA `relationship_step_content_bindings` (Comando 2A §4);
+ * `relationship_content_groups` está congelada como legado.
+ */
 async function groupsByContent(ids: string[]): Promise<Map<string, string[]>> {
-  const map = new Map<string, string[]>();
-  if (ids.length === 0) return map;
-  const { data, error } = await supabaseAdmin
-    .from("relationship_content_groups")
-    .select("content_id,content_group")
-    .in("content_id", ids);
-  if (error) throw new Error(error.message);
-  for (const row of data ?? []) {
-    const key = String(row.content_id);
-    map.set(key, [...(map.get(key) ?? []), String(row.content_group)]);
-  }
-  return map;
+  const { loadContentStepMap } = await import("./step-media.server");
+  return loadContentStepMap(ids);
 }
 
 export async function listValueContents(): Promise<ValueContent[]> {
@@ -166,12 +160,9 @@ export async function saveValueContent(input: ContentInput): Promise<ValueConten
     contentId = String(data.id);
   }
 
-  // Associações: um conteúdo físico, N grupos.
-  await supabaseAdmin.from("relationship_content_groups").delete().eq("content_id", contentId);
-  const { error: linkError } = await supabaseAdmin
-    .from("relationship_content_groups")
-    .insert(groups.map((g) => ({ content_id: contentId, content_group: g })));
-  if (linkError) throw new Error(linkError.message);
+  // Associações: um conteúdo físico, N etapas — sempre na fonte única.
+  const { setContentStepBindings } = await import("./step-media.server");
+  await setContentStepBindings({ contentId: contentId!, stepKeys: groups });
 
   return listValueContents();
 }
