@@ -10,54 +10,54 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UniversoRouteImport } from './routes/universo'
-import { Route as RemarketingRouteImport } from './routes/remarketing'
-import { Route as PortalLeadsRouteImport } from './routes/portal-leads'
 import { Route as EntrarRouteImport } from './routes/entrar'
-import { Route as CrmRouteImport } from './routes/crm'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as RemarketingIndexRouteImport } from './routes/remarketing.index'
 import { Route as ManualIndexRouteImport } from './routes/manual/index'
-import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
-import { Route as CrmIndexRouteImport } from './routes/crm.index'
 import { Route as SegSlugRouteImport } from './routes/seg.$slug'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as OrigemChannelRouteImport } from './routes/origem.$channel'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
 import { Route as ManualAnuncioRouteImport } from './routes/manual/anuncio'
 import { Route as ManualChapterRouteImport } from './routes/manual/$chapter'
+import { Route as FRemarketingRouteImport } from './routes/f.remarketing'
+import { Route as FPortalLeadsRouteImport } from './routes/f.portal-leads'
+import { Route as FCrmRouteImport } from './routes/f.crm'
 import { Route as FSlugRouteImport } from './routes/f.$slug'
-import { Route as ExecutivoUsuariosRouteImport } from './routes/executivo.usuarios'
-import { Route as ExecutivoTesteCadenciaRouteImport } from './routes/executivo.teste-cadencia'
-import { Route as ExecutivoTemplatesRouteImport } from './routes/executivo.templates'
-import { Route as ExecutivoRevistaRouteImport } from './routes/executivo.revista'
-import { Route as ExecutivoReunioesRouteImport } from './routes/executivo.reunioes'
-import { Route as ExecutivoRelatoriosRouteImport } from './routes/executivo.relatorios'
-import { Route as ExecutivoRecursosRouteImport } from './routes/executivo.recursos'
-import { Route as ExecutivoPerfilRouteImport } from './routes/executivo.perfil'
-import { Route as ExecutivoLaboratorioRouteImport } from './routes/executivo.laboratorio'
-import { Route as ExecutivoKpiRouteImport } from './routes/executivo.kpi'
-import { Route as ExecutivoInvestidoresRouteImport } from './routes/executivo.investidores'
-import { Route as ExecutivoInstitucionalRouteImport } from './routes/executivo.institucional'
-import { Route as ExecutivoIdentidadeRouteImport } from './routes/executivo.identidade'
-import { Route as ExecutivoHomologacaoRouteImport } from './routes/executivo.homologacao'
-import { Route as ExecutivoHomeRouteImport } from './routes/executivo.home'
-import { Route as ExecutivoGreensalesSyncRouteImport } from './routes/executivo.greensales-sync'
-import { Route as ExecutivoGreensalesRouteImport } from './routes/executivo.greensales'
-import { Route as ExecutivoDashboardRouteImport } from './routes/executivo.dashboard'
-import { Route as ExecutivoCriativaRouteImport } from './routes/executivo.criativa'
-import { Route as ExecutivoConfiguracoesRouteImport } from './routes/executivo.configuracoes'
-import { Route as ExecutivoCentralBackupRouteImport } from './routes/executivo.central-backup'
-import { Route as ExecutivoCelebracaoRouteImport } from './routes/executivo.celebracao'
-import { Route as ExecutivoCaptacaoRouteImport } from './routes/executivo.captacao'
-import { Route as ExecutivoCampanhasRouteImport } from './routes/executivo.campanhas'
-import { Route as ExecutivoBrainRouteImport } from './routes/executivo.brain'
-import { Route as ExecutivoBibliotecaRouteImport } from './routes/executivo.biblioteca'
-import { Route as ExecutivoBackupsRouteImport } from './routes/executivo.backups'
-import { Route as ExecutivoAlertasRouteImport } from './routes/executivo.alertas'
-import { Route as ExecutivoAdministracaoRouteImport } from './routes/executivo.administracao'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
+import { Route as FRemarketingIndexRouteImport } from './routes/f.remarketing.index'
+import { Route as FExecutivoIndexRouteImport } from './routes/f.executivo.index'
+import { Route as FCrmIndexRouteImport } from './routes/f.crm.index'
 import { Route as PortalConviteTokenRouteImport } from './routes/portal.convite.$token'
 import { Route as OauthGoogleConnectorRouteImport } from './routes/oauth.google.$connector'
+import { Route as FExecutivoUsuariosRouteImport } from './routes/f.executivo.usuarios'
+import { Route as FExecutivoTesteCadenciaRouteImport } from './routes/f.executivo.teste-cadencia'
+import { Route as FExecutivoTemplatesRouteImport } from './routes/f.executivo.templates'
+import { Route as FExecutivoRevistaRouteImport } from './routes/f.executivo.revista'
+import { Route as FExecutivoReunioesRouteImport } from './routes/f.executivo.reunioes'
+import { Route as FExecutivoRelatoriosRouteImport } from './routes/f.executivo.relatorios'
+import { Route as FExecutivoRecursosRouteImport } from './routes/f.executivo.recursos'
+import { Route as FExecutivoPerfilRouteImport } from './routes/f.executivo.perfil'
+import { Route as FExecutivoLaboratorioRouteImport } from './routes/f.executivo.laboratorio'
+import { Route as FExecutivoKpiRouteImport } from './routes/f.executivo.kpi'
+import { Route as FExecutivoInvestidoresRouteImport } from './routes/f.executivo.investidores'
+import { Route as FExecutivoInstitucionalRouteImport } from './routes/f.executivo.institucional'
+import { Route as FExecutivoIdentidadeRouteImport } from './routes/f.executivo.identidade'
+import { Route as FExecutivoHomologacaoRouteImport } from './routes/f.executivo.homologacao'
+import { Route as FExecutivoHomeRouteImport } from './routes/f.executivo.home'
+import { Route as FExecutivoGreensalesSyncRouteImport } from './routes/f.executivo.greensales-sync'
+import { Route as FExecutivoGreensalesRouteImport } from './routes/f.executivo.greensales'
+import { Route as FExecutivoDashboardRouteImport } from './routes/f.executivo.dashboard'
+import { Route as FExecutivoCriativaRouteImport } from './routes/f.executivo.criativa'
+import { Route as FExecutivoConfiguracoesRouteImport } from './routes/f.executivo.configuracoes'
+import { Route as FExecutivoCentralBackupRouteImport } from './routes/f.executivo.central-backup'
+import { Route as FExecutivoCelebracaoRouteImport } from './routes/f.executivo.celebracao'
+import { Route as FExecutivoCaptacaoRouteImport } from './routes/f.executivo.captacao'
+import { Route as FExecutivoCampanhasRouteImport } from './routes/f.executivo.campanhas'
+import { Route as FExecutivoBrainRouteImport } from './routes/f.executivo.brain'
+import { Route as FExecutivoBibliotecaRouteImport } from './routes/f.executivo.biblioteca'
+import { Route as FExecutivoBackupsRouteImport } from './routes/f.executivo.backups'
+import { Route as FExecutivoAlertasRouteImport } from './routes/f.executivo.alertas'
+import { Route as FExecutivoAdministracaoRouteImport } from './routes/f.executivo.administracao'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicRemarketingRunRouteImport } from './routes/api/public/remarketing/run'
 import { Route as ApiPublicCrmSyncRouteImport } from './routes/api/public/crm/sync'
@@ -69,24 +69,9 @@ const UniversoRoute = UniversoRouteImport.update({
   path: '/universo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RemarketingRoute = RemarketingRouteImport.update({
-  id: '/remarketing',
-  path: '/remarketing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortalLeadsRoute = PortalLeadsRouteImport.update({
-  id: '/portal-leads',
-  path: '/portal-leads',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CrmRoute = CrmRouteImport.update({
-  id: '/crm',
-  path: '/crm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -94,25 +79,10 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RemarketingIndexRoute = RemarketingIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => RemarketingRoute,
-} as any)
 const ManualIndexRoute = ManualIndexRouteImport.update({
   id: '/manual/',
   path: '/manual/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoIndexRoute = ExecutivoIndexRouteImport.update({
-  id: '/executivo/',
-  path: '/executivo/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CrmIndexRoute = CrmIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CrmRoute,
 } as any)
 const SegSlugRoute = SegSlugRouteImport.update({
   id: '/seg/$slug',
@@ -144,160 +114,45 @@ const ManualChapterRoute = ManualChapterRouteImport.update({
   path: '/manual/$chapter',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FRemarketingRoute = FRemarketingRouteImport.update({
+  id: '/f/remarketing',
+  path: '/f/remarketing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FPortalLeadsRoute = FPortalLeadsRouteImport.update({
+  id: '/f/portal-leads',
+  path: '/f/portal-leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FCrmRoute = FCrmRouteImport.update({
+  id: '/f/crm',
+  path: '/f/crm',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FSlugRoute = FSlugRouteImport.update({
   id: '/f/$slug',
   path: '/f/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoUsuariosRoute = ExecutivoUsuariosRouteImport.update({
-  id: '/executivo/usuarios',
-  path: '/executivo/usuarios',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoTesteCadenciaRoute = ExecutivoTesteCadenciaRouteImport.update({
-  id: '/executivo/teste-cadencia',
-  path: '/executivo/teste-cadencia',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoTemplatesRoute = ExecutivoTemplatesRouteImport.update({
-  id: '/executivo/templates',
-  path: '/executivo/templates',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoRevistaRoute = ExecutivoRevistaRouteImport.update({
-  id: '/executivo/revista',
-  path: '/executivo/revista',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoReunioesRoute = ExecutivoReunioesRouteImport.update({
-  id: '/executivo/reunioes',
-  path: '/executivo/reunioes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoRelatoriosRoute = ExecutivoRelatoriosRouteImport.update({
-  id: '/executivo/relatorios',
-  path: '/executivo/relatorios',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoRecursosRoute = ExecutivoRecursosRouteImport.update({
-  id: '/executivo/recursos',
-  path: '/executivo/recursos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoPerfilRoute = ExecutivoPerfilRouteImport.update({
-  id: '/executivo/perfil',
-  path: '/executivo/perfil',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoLaboratorioRoute = ExecutivoLaboratorioRouteImport.update({
-  id: '/executivo/laboratorio',
-  path: '/executivo/laboratorio',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoKpiRoute = ExecutivoKpiRouteImport.update({
-  id: '/executivo/kpi',
-  path: '/executivo/kpi',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoInvestidoresRoute = ExecutivoInvestidoresRouteImport.update({
-  id: '/executivo/investidores',
-  path: '/executivo/investidores',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoInstitucionalRoute = ExecutivoInstitucionalRouteImport.update({
-  id: '/executivo/institucional',
-  path: '/executivo/institucional',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoIdentidadeRoute = ExecutivoIdentidadeRouteImport.update({
-  id: '/executivo/identidade',
-  path: '/executivo/identidade',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoHomologacaoRoute = ExecutivoHomologacaoRouteImport.update({
-  id: '/executivo/homologacao',
-  path: '/executivo/homologacao',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoHomeRoute = ExecutivoHomeRouteImport.update({
-  id: '/executivo/home',
-  path: '/executivo/home',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoGreensalesSyncRoute = ExecutivoGreensalesSyncRouteImport.update({
-  id: '/executivo/greensales-sync',
-  path: '/executivo/greensales-sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoGreensalesRoute = ExecutivoGreensalesRouteImport.update({
-  id: '/executivo/greensales',
-  path: '/executivo/greensales',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoDashboardRoute = ExecutivoDashboardRouteImport.update({
-  id: '/executivo/dashboard',
-  path: '/executivo/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoCriativaRoute = ExecutivoCriativaRouteImport.update({
-  id: '/executivo/criativa',
-  path: '/executivo/criativa',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoConfiguracoesRoute = ExecutivoConfiguracoesRouteImport.update({
-  id: '/executivo/configuracoes',
-  path: '/executivo/configuracoes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoCentralBackupRoute = ExecutivoCentralBackupRouteImport.update({
-  id: '/executivo/central-backup',
-  path: '/executivo/central-backup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoCelebracaoRoute = ExecutivoCelebracaoRouteImport.update({
-  id: '/executivo/celebracao',
-  path: '/executivo/celebracao',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoCaptacaoRoute = ExecutivoCaptacaoRouteImport.update({
-  id: '/executivo/captacao',
-  path: '/executivo/captacao',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoCampanhasRoute = ExecutivoCampanhasRouteImport.update({
-  id: '/executivo/campanhas',
-  path: '/executivo/campanhas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoBrainRoute = ExecutivoBrainRouteImport.update({
-  id: '/executivo/brain',
-  path: '/executivo/brain',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoBibliotecaRoute = ExecutivoBibliotecaRouteImport.update({
-  id: '/executivo/biblioteca',
-  path: '/executivo/biblioteca',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoBackupsRoute = ExecutivoBackupsRouteImport.update({
-  id: '/executivo/backups',
-  path: '/executivo/backups',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoAlertasRoute = ExecutivoAlertasRouteImport.update({
-  id: '/executivo/alertas',
-  path: '/executivo/alertas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExecutivoAdministracaoRoute = ExecutivoAdministracaoRouteImport.update({
-  id: '/executivo/administracao',
-  path: '/executivo/administracao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ESlugRoute = ESlugRouteImport.update({
   id: '/e/$slug',
   path: '/e/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const FRemarketingIndexRoute = FRemarketingIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => FRemarketingRoute,
+} as any)
+const FExecutivoIndexRoute = FExecutivoIndexRouteImport.update({
+  id: '/f/executivo/',
+  path: '/f/executivo/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FCrmIndexRoute = FCrmIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => FCrmRoute,
 } as any)
 const PortalConviteTokenRoute = PortalConviteTokenRouteImport.update({
   id: '/portal/convite/$token',
@@ -307,6 +162,152 @@ const PortalConviteTokenRoute = PortalConviteTokenRouteImport.update({
 const OauthGoogleConnectorRoute = OauthGoogleConnectorRouteImport.update({
   id: '/oauth/google/$connector',
   path: '/oauth/google/$connector',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoUsuariosRoute = FExecutivoUsuariosRouteImport.update({
+  id: '/f/executivo/usuarios',
+  path: '/f/executivo/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoTesteCadenciaRoute = FExecutivoTesteCadenciaRouteImport.update({
+  id: '/f/executivo/teste-cadencia',
+  path: '/f/executivo/teste-cadencia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoTemplatesRoute = FExecutivoTemplatesRouteImport.update({
+  id: '/f/executivo/templates',
+  path: '/f/executivo/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoRevistaRoute = FExecutivoRevistaRouteImport.update({
+  id: '/f/executivo/revista',
+  path: '/f/executivo/revista',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoReunioesRoute = FExecutivoReunioesRouteImport.update({
+  id: '/f/executivo/reunioes',
+  path: '/f/executivo/reunioes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoRelatoriosRoute = FExecutivoRelatoriosRouteImport.update({
+  id: '/f/executivo/relatorios',
+  path: '/f/executivo/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoRecursosRoute = FExecutivoRecursosRouteImport.update({
+  id: '/f/executivo/recursos',
+  path: '/f/executivo/recursos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoPerfilRoute = FExecutivoPerfilRouteImport.update({
+  id: '/f/executivo/perfil',
+  path: '/f/executivo/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoLaboratorioRoute = FExecutivoLaboratorioRouteImport.update({
+  id: '/f/executivo/laboratorio',
+  path: '/f/executivo/laboratorio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoKpiRoute = FExecutivoKpiRouteImport.update({
+  id: '/f/executivo/kpi',
+  path: '/f/executivo/kpi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoInvestidoresRoute = FExecutivoInvestidoresRouteImport.update({
+  id: '/f/executivo/investidores',
+  path: '/f/executivo/investidores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoInstitucionalRoute = FExecutivoInstitucionalRouteImport.update({
+  id: '/f/executivo/institucional',
+  path: '/f/executivo/institucional',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoIdentidadeRoute = FExecutivoIdentidadeRouteImport.update({
+  id: '/f/executivo/identidade',
+  path: '/f/executivo/identidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoHomologacaoRoute = FExecutivoHomologacaoRouteImport.update({
+  id: '/f/executivo/homologacao',
+  path: '/f/executivo/homologacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoHomeRoute = FExecutivoHomeRouteImport.update({
+  id: '/f/executivo/home',
+  path: '/f/executivo/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoGreensalesSyncRoute =
+  FExecutivoGreensalesSyncRouteImport.update({
+    id: '/f/executivo/greensales-sync',
+    path: '/f/executivo/greensales-sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const FExecutivoGreensalesRoute = FExecutivoGreensalesRouteImport.update({
+  id: '/f/executivo/greensales',
+  path: '/f/executivo/greensales',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoDashboardRoute = FExecutivoDashboardRouteImport.update({
+  id: '/f/executivo/dashboard',
+  path: '/f/executivo/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoCriativaRoute = FExecutivoCriativaRouteImport.update({
+  id: '/f/executivo/criativa',
+  path: '/f/executivo/criativa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoConfiguracoesRoute = FExecutivoConfiguracoesRouteImport.update({
+  id: '/f/executivo/configuracoes',
+  path: '/f/executivo/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoCentralBackupRoute = FExecutivoCentralBackupRouteImport.update({
+  id: '/f/executivo/central-backup',
+  path: '/f/executivo/central-backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoCelebracaoRoute = FExecutivoCelebracaoRouteImport.update({
+  id: '/f/executivo/celebracao',
+  path: '/f/executivo/celebracao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoCaptacaoRoute = FExecutivoCaptacaoRouteImport.update({
+  id: '/f/executivo/captacao',
+  path: '/f/executivo/captacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoCampanhasRoute = FExecutivoCampanhasRouteImport.update({
+  id: '/f/executivo/campanhas',
+  path: '/f/executivo/campanhas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoBrainRoute = FExecutivoBrainRouteImport.update({
+  id: '/f/executivo/brain',
+  path: '/f/executivo/brain',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoBibliotecaRoute = FExecutivoBibliotecaRouteImport.update({
+  id: '/f/executivo/biblioteca',
+  path: '/f/executivo/biblioteca',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoBackupsRoute = FExecutivoBackupsRouteImport.update({
+  id: '/f/executivo/backups',
+  path: '/f/executivo/backups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoAlertasRoute = FExecutivoAlertasRouteImport.update({
+  id: '/f/executivo/alertas',
+  path: '/f/executivo/alertas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FExecutivoAdministracaoRoute = FExecutivoAdministracaoRouteImport.update({
+  id: '/f/executivo/administracao',
+  path: '/f/executivo/administracao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicWhatsappWebhookRoute =
@@ -338,54 +339,54 @@ const ApiPublicBackupProcessRoute = ApiPublicBackupProcessRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
-  '/portal-leads': typeof PortalLeadsRoute
-  '/remarketing': typeof RemarketingRouteWithChildren
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
-  '/executivo/administracao': typeof ExecutivoAdministracaoRoute
-  '/executivo/alertas': typeof ExecutivoAlertasRoute
-  '/executivo/backups': typeof ExecutivoBackupsRoute
-  '/executivo/biblioteca': typeof ExecutivoBibliotecaRoute
-  '/executivo/brain': typeof ExecutivoBrainRoute
-  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
-  '/executivo/captacao': typeof ExecutivoCaptacaoRoute
-  '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
-  '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
-  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
-  '/executivo/criativa': typeof ExecutivoCriativaRoute
-  '/executivo/dashboard': typeof ExecutivoDashboardRoute
-  '/executivo/greensales': typeof ExecutivoGreensalesRoute
-  '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
-  '/executivo/home': typeof ExecutivoHomeRoute
-  '/executivo/homologacao': typeof ExecutivoHomologacaoRoute
-  '/executivo/identidade': typeof ExecutivoIdentidadeRoute
-  '/executivo/institucional': typeof ExecutivoInstitucionalRoute
-  '/executivo/investidores': typeof ExecutivoInvestidoresRoute
-  '/executivo/kpi': typeof ExecutivoKpiRoute
-  '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
-  '/executivo/perfil': typeof ExecutivoPerfilRoute
-  '/executivo/recursos': typeof ExecutivoRecursosRoute
-  '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
-  '/executivo/reunioes': typeof ExecutivoReunioesRoute
-  '/executivo/revista': typeof ExecutivoRevistaRoute
-  '/executivo/templates': typeof ExecutivoTemplatesRoute
-  '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
+  '/f/crm': typeof FCrmRouteWithChildren
+  '/f/portal-leads': typeof FPortalLeadsRoute
+  '/f/remarketing': typeof FRemarketingRouteWithChildren
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
   '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
-  '/crm/': typeof CrmIndexRoute
-  '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
-  '/remarketing/': typeof RemarketingIndexRoute
+  '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
+  '/f/executivo/alertas': typeof FExecutivoAlertasRoute
+  '/f/executivo/backups': typeof FExecutivoBackupsRoute
+  '/f/executivo/biblioteca': typeof FExecutivoBibliotecaRoute
+  '/f/executivo/brain': typeof FExecutivoBrainRoute
+  '/f/executivo/campanhas': typeof FExecutivoCampanhasRoute
+  '/f/executivo/captacao': typeof FExecutivoCaptacaoRoute
+  '/f/executivo/celebracao': typeof FExecutivoCelebracaoRoute
+  '/f/executivo/central-backup': typeof FExecutivoCentralBackupRoute
+  '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
+  '/f/executivo/criativa': typeof FExecutivoCriativaRoute
+  '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
+  '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
+  '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
+  '/f/executivo/home': typeof FExecutivoHomeRoute
+  '/f/executivo/homologacao': typeof FExecutivoHomologacaoRoute
+  '/f/executivo/identidade': typeof FExecutivoIdentidadeRoute
+  '/f/executivo/institucional': typeof FExecutivoInstitucionalRoute
+  '/f/executivo/investidores': typeof FExecutivoInvestidoresRoute
+  '/f/executivo/kpi': typeof FExecutivoKpiRoute
+  '/f/executivo/laboratorio': typeof FExecutivoLaboratorioRoute
+  '/f/executivo/perfil': typeof FExecutivoPerfilRoute
+  '/f/executivo/recursos': typeof FExecutivoRecursosRoute
+  '/f/executivo/relatorios': typeof FExecutivoRelatoriosRoute
+  '/f/executivo/reunioes': typeof FExecutivoReunioesRoute
+  '/f/executivo/revista': typeof FExecutivoRevistaRoute
+  '/f/executivo/templates': typeof FExecutivoTemplatesRoute
+  '/f/executivo/teste-cadencia': typeof FExecutivoTesteCadenciaRoute
+  '/f/executivo/usuarios': typeof FExecutivoUsuariosRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
+  '/f/crm/': typeof FCrmIndexRoute
+  '/f/executivo/': typeof FExecutivoIndexRoute
+  '/f/remarketing/': typeof FRemarketingIndexRoute
   '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
@@ -395,51 +396,51 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
-  '/portal-leads': typeof PortalLeadsRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
-  '/executivo/administracao': typeof ExecutivoAdministracaoRoute
-  '/executivo/alertas': typeof ExecutivoAlertasRoute
-  '/executivo/backups': typeof ExecutivoBackupsRoute
-  '/executivo/biblioteca': typeof ExecutivoBibliotecaRoute
-  '/executivo/brain': typeof ExecutivoBrainRoute
-  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
-  '/executivo/captacao': typeof ExecutivoCaptacaoRoute
-  '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
-  '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
-  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
-  '/executivo/criativa': typeof ExecutivoCriativaRoute
-  '/executivo/dashboard': typeof ExecutivoDashboardRoute
-  '/executivo/greensales': typeof ExecutivoGreensalesRoute
-  '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
-  '/executivo/home': typeof ExecutivoHomeRoute
-  '/executivo/homologacao': typeof ExecutivoHomologacaoRoute
-  '/executivo/identidade': typeof ExecutivoIdentidadeRoute
-  '/executivo/institucional': typeof ExecutivoInstitucionalRoute
-  '/executivo/investidores': typeof ExecutivoInvestidoresRoute
-  '/executivo/kpi': typeof ExecutivoKpiRoute
-  '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
-  '/executivo/perfil': typeof ExecutivoPerfilRoute
-  '/executivo/recursos': typeof ExecutivoRecursosRoute
-  '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
-  '/executivo/reunioes': typeof ExecutivoReunioesRoute
-  '/executivo/revista': typeof ExecutivoRevistaRoute
-  '/executivo/templates': typeof ExecutivoTemplatesRoute
-  '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
+  '/f/portal-leads': typeof FPortalLeadsRoute
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
   '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
-  '/crm': typeof CrmIndexRoute
-  '/executivo': typeof ExecutivoIndexRoute
   '/manual': typeof ManualIndexRoute
-  '/remarketing': typeof RemarketingIndexRoute
+  '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
+  '/f/executivo/alertas': typeof FExecutivoAlertasRoute
+  '/f/executivo/backups': typeof FExecutivoBackupsRoute
+  '/f/executivo/biblioteca': typeof FExecutivoBibliotecaRoute
+  '/f/executivo/brain': typeof FExecutivoBrainRoute
+  '/f/executivo/campanhas': typeof FExecutivoCampanhasRoute
+  '/f/executivo/captacao': typeof FExecutivoCaptacaoRoute
+  '/f/executivo/celebracao': typeof FExecutivoCelebracaoRoute
+  '/f/executivo/central-backup': typeof FExecutivoCentralBackupRoute
+  '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
+  '/f/executivo/criativa': typeof FExecutivoCriativaRoute
+  '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
+  '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
+  '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
+  '/f/executivo/home': typeof FExecutivoHomeRoute
+  '/f/executivo/homologacao': typeof FExecutivoHomologacaoRoute
+  '/f/executivo/identidade': typeof FExecutivoIdentidadeRoute
+  '/f/executivo/institucional': typeof FExecutivoInstitucionalRoute
+  '/f/executivo/investidores': typeof FExecutivoInvestidoresRoute
+  '/f/executivo/kpi': typeof FExecutivoKpiRoute
+  '/f/executivo/laboratorio': typeof FExecutivoLaboratorioRoute
+  '/f/executivo/perfil': typeof FExecutivoPerfilRoute
+  '/f/executivo/recursos': typeof FExecutivoRecursosRoute
+  '/f/executivo/relatorios': typeof FExecutivoRelatoriosRoute
+  '/f/executivo/reunioes': typeof FExecutivoReunioesRoute
+  '/f/executivo/revista': typeof FExecutivoRevistaRoute
+  '/f/executivo/templates': typeof FExecutivoTemplatesRoute
+  '/f/executivo/teste-cadencia': typeof FExecutivoTesteCadenciaRoute
+  '/f/executivo/usuarios': typeof FExecutivoUsuariosRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
+  '/f/crm': typeof FCrmIndexRoute
+  '/f/executivo': typeof FExecutivoIndexRoute
+  '/f/remarketing': typeof FRemarketingIndexRoute
   '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
@@ -449,54 +450,54 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/crm': typeof CrmRouteWithChildren
   '/entrar': typeof EntrarRoute
-  '/portal-leads': typeof PortalLeadsRoute
-  '/remarketing': typeof RemarketingRouteWithChildren
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
-  '/executivo/administracao': typeof ExecutivoAdministracaoRoute
-  '/executivo/alertas': typeof ExecutivoAlertasRoute
-  '/executivo/backups': typeof ExecutivoBackupsRoute
-  '/executivo/biblioteca': typeof ExecutivoBibliotecaRoute
-  '/executivo/brain': typeof ExecutivoBrainRoute
-  '/executivo/campanhas': typeof ExecutivoCampanhasRoute
-  '/executivo/captacao': typeof ExecutivoCaptacaoRoute
-  '/executivo/celebracao': typeof ExecutivoCelebracaoRoute
-  '/executivo/central-backup': typeof ExecutivoCentralBackupRoute
-  '/executivo/configuracoes': typeof ExecutivoConfiguracoesRoute
-  '/executivo/criativa': typeof ExecutivoCriativaRoute
-  '/executivo/dashboard': typeof ExecutivoDashboardRoute
-  '/executivo/greensales': typeof ExecutivoGreensalesRoute
-  '/executivo/greensales-sync': typeof ExecutivoGreensalesSyncRoute
-  '/executivo/home': typeof ExecutivoHomeRoute
-  '/executivo/homologacao': typeof ExecutivoHomologacaoRoute
-  '/executivo/identidade': typeof ExecutivoIdentidadeRoute
-  '/executivo/institucional': typeof ExecutivoInstitucionalRoute
-  '/executivo/investidores': typeof ExecutivoInvestidoresRoute
-  '/executivo/kpi': typeof ExecutivoKpiRoute
-  '/executivo/laboratorio': typeof ExecutivoLaboratorioRoute
-  '/executivo/perfil': typeof ExecutivoPerfilRoute
-  '/executivo/recursos': typeof ExecutivoRecursosRoute
-  '/executivo/relatorios': typeof ExecutivoRelatoriosRoute
-  '/executivo/reunioes': typeof ExecutivoReunioesRoute
-  '/executivo/revista': typeof ExecutivoRevistaRoute
-  '/executivo/templates': typeof ExecutivoTemplatesRoute
-  '/executivo/teste-cadencia': typeof ExecutivoTesteCadenciaRoute
-  '/executivo/usuarios': typeof ExecutivoUsuariosRoute
   '/f/$slug': typeof FSlugRoute
+  '/f/crm': typeof FCrmRouteWithChildren
+  '/f/portal-leads': typeof FPortalLeadsRoute
+  '/f/remarketing': typeof FRemarketingRouteWithChildren
   '/manual/$chapter': typeof ManualChapterRoute
   '/manual/anuncio': typeof ManualAnuncioRoute
   '/manual/concluido': typeof ManualConcluidoRoute
   '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
-  '/crm/': typeof CrmIndexRoute
-  '/executivo/': typeof ExecutivoIndexRoute
   '/manual/': typeof ManualIndexRoute
-  '/remarketing/': typeof RemarketingIndexRoute
+  '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
+  '/f/executivo/alertas': typeof FExecutivoAlertasRoute
+  '/f/executivo/backups': typeof FExecutivoBackupsRoute
+  '/f/executivo/biblioteca': typeof FExecutivoBibliotecaRoute
+  '/f/executivo/brain': typeof FExecutivoBrainRoute
+  '/f/executivo/campanhas': typeof FExecutivoCampanhasRoute
+  '/f/executivo/captacao': typeof FExecutivoCaptacaoRoute
+  '/f/executivo/celebracao': typeof FExecutivoCelebracaoRoute
+  '/f/executivo/central-backup': typeof FExecutivoCentralBackupRoute
+  '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
+  '/f/executivo/criativa': typeof FExecutivoCriativaRoute
+  '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
+  '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
+  '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
+  '/f/executivo/home': typeof FExecutivoHomeRoute
+  '/f/executivo/homologacao': typeof FExecutivoHomologacaoRoute
+  '/f/executivo/identidade': typeof FExecutivoIdentidadeRoute
+  '/f/executivo/institucional': typeof FExecutivoInstitucionalRoute
+  '/f/executivo/investidores': typeof FExecutivoInvestidoresRoute
+  '/f/executivo/kpi': typeof FExecutivoKpiRoute
+  '/f/executivo/laboratorio': typeof FExecutivoLaboratorioRoute
+  '/f/executivo/perfil': typeof FExecutivoPerfilRoute
+  '/f/executivo/recursos': typeof FExecutivoRecursosRoute
+  '/f/executivo/relatorios': typeof FExecutivoRelatoriosRoute
+  '/f/executivo/reunioes': typeof FExecutivoReunioesRoute
+  '/f/executivo/revista': typeof FExecutivoRevistaRoute
+  '/f/executivo/templates': typeof FExecutivoTemplatesRoute
+  '/f/executivo/teste-cadencia': typeof FExecutivoTesteCadenciaRoute
+  '/f/executivo/usuarios': typeof FExecutivoUsuariosRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
+  '/f/crm/': typeof FCrmIndexRoute
+  '/f/executivo/': typeof FExecutivoIndexRoute
+  '/f/remarketing/': typeof FRemarketingIndexRoute
   '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
@@ -507,54 +508,54 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/crm'
     | '/entrar'
-    | '/portal-leads'
-    | '/remarketing'
     | '/universo'
     | '/e/$slug'
-    | '/executivo/administracao'
-    | '/executivo/alertas'
-    | '/executivo/backups'
-    | '/executivo/biblioteca'
-    | '/executivo/brain'
-    | '/executivo/campanhas'
-    | '/executivo/captacao'
-    | '/executivo/celebracao'
-    | '/executivo/central-backup'
-    | '/executivo/configuracoes'
-    | '/executivo/criativa'
-    | '/executivo/dashboard'
-    | '/executivo/greensales'
-    | '/executivo/greensales-sync'
-    | '/executivo/home'
-    | '/executivo/homologacao'
-    | '/executivo/identidade'
-    | '/executivo/institucional'
-    | '/executivo/investidores'
-    | '/executivo/kpi'
-    | '/executivo/laboratorio'
-    | '/executivo/perfil'
-    | '/executivo/recursos'
-    | '/executivo/relatorios'
-    | '/executivo/reunioes'
-    | '/executivo/revista'
-    | '/executivo/templates'
-    | '/executivo/teste-cadencia'
-    | '/executivo/usuarios'
     | '/f/$slug'
+    | '/f/crm'
+    | '/f/portal-leads'
+    | '/f/remarketing'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
     | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
-    | '/crm/'
-    | '/executivo/'
     | '/manual/'
-    | '/remarketing/'
+    | '/f/executivo/administracao'
+    | '/f/executivo/alertas'
+    | '/f/executivo/backups'
+    | '/f/executivo/biblioteca'
+    | '/f/executivo/brain'
+    | '/f/executivo/campanhas'
+    | '/f/executivo/captacao'
+    | '/f/executivo/celebracao'
+    | '/f/executivo/central-backup'
+    | '/f/executivo/configuracoes'
+    | '/f/executivo/criativa'
+    | '/f/executivo/dashboard'
+    | '/f/executivo/greensales'
+    | '/f/executivo/greensales-sync'
+    | '/f/executivo/home'
+    | '/f/executivo/homologacao'
+    | '/f/executivo/identidade'
+    | '/f/executivo/institucional'
+    | '/f/executivo/investidores'
+    | '/f/executivo/kpi'
+    | '/f/executivo/laboratorio'
+    | '/f/executivo/perfil'
+    | '/f/executivo/recursos'
+    | '/f/executivo/relatorios'
+    | '/f/executivo/reunioes'
+    | '/f/executivo/revista'
+    | '/f/executivo/templates'
+    | '/f/executivo/teste-cadencia'
+    | '/f/executivo/usuarios'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
+    | '/f/crm/'
+    | '/f/executivo/'
+    | '/f/remarketing/'
     | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
@@ -564,51 +565,51 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/entrar'
-    | '/portal-leads'
     | '/universo'
     | '/e/$slug'
-    | '/executivo/administracao'
-    | '/executivo/alertas'
-    | '/executivo/backups'
-    | '/executivo/biblioteca'
-    | '/executivo/brain'
-    | '/executivo/campanhas'
-    | '/executivo/captacao'
-    | '/executivo/celebracao'
-    | '/executivo/central-backup'
-    | '/executivo/configuracoes'
-    | '/executivo/criativa'
-    | '/executivo/dashboard'
-    | '/executivo/greensales'
-    | '/executivo/greensales-sync'
-    | '/executivo/home'
-    | '/executivo/homologacao'
-    | '/executivo/identidade'
-    | '/executivo/institucional'
-    | '/executivo/investidores'
-    | '/executivo/kpi'
-    | '/executivo/laboratorio'
-    | '/executivo/perfil'
-    | '/executivo/recursos'
-    | '/executivo/relatorios'
-    | '/executivo/reunioes'
-    | '/executivo/revista'
-    | '/executivo/templates'
-    | '/executivo/teste-cadencia'
-    | '/executivo/usuarios'
     | '/f/$slug'
+    | '/f/portal-leads'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
     | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
-    | '/crm'
-    | '/executivo'
     | '/manual'
-    | '/remarketing'
+    | '/f/executivo/administracao'
+    | '/f/executivo/alertas'
+    | '/f/executivo/backups'
+    | '/f/executivo/biblioteca'
+    | '/f/executivo/brain'
+    | '/f/executivo/campanhas'
+    | '/f/executivo/captacao'
+    | '/f/executivo/celebracao'
+    | '/f/executivo/central-backup'
+    | '/f/executivo/configuracoes'
+    | '/f/executivo/criativa'
+    | '/f/executivo/dashboard'
+    | '/f/executivo/greensales'
+    | '/f/executivo/greensales-sync'
+    | '/f/executivo/home'
+    | '/f/executivo/homologacao'
+    | '/f/executivo/identidade'
+    | '/f/executivo/institucional'
+    | '/f/executivo/investidores'
+    | '/f/executivo/kpi'
+    | '/f/executivo/laboratorio'
+    | '/f/executivo/perfil'
+    | '/f/executivo/recursos'
+    | '/f/executivo/relatorios'
+    | '/f/executivo/reunioes'
+    | '/f/executivo/revista'
+    | '/f/executivo/templates'
+    | '/f/executivo/teste-cadencia'
+    | '/f/executivo/usuarios'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
+    | '/f/crm'
+    | '/f/executivo'
+    | '/f/remarketing'
     | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
@@ -617,54 +618,54 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/crm'
     | '/entrar'
-    | '/portal-leads'
-    | '/remarketing'
     | '/universo'
     | '/e/$slug'
-    | '/executivo/administracao'
-    | '/executivo/alertas'
-    | '/executivo/backups'
-    | '/executivo/biblioteca'
-    | '/executivo/brain'
-    | '/executivo/campanhas'
-    | '/executivo/captacao'
-    | '/executivo/celebracao'
-    | '/executivo/central-backup'
-    | '/executivo/configuracoes'
-    | '/executivo/criativa'
-    | '/executivo/dashboard'
-    | '/executivo/greensales'
-    | '/executivo/greensales-sync'
-    | '/executivo/home'
-    | '/executivo/homologacao'
-    | '/executivo/identidade'
-    | '/executivo/institucional'
-    | '/executivo/investidores'
-    | '/executivo/kpi'
-    | '/executivo/laboratorio'
-    | '/executivo/perfil'
-    | '/executivo/recursos'
-    | '/executivo/relatorios'
-    | '/executivo/reunioes'
-    | '/executivo/revista'
-    | '/executivo/templates'
-    | '/executivo/teste-cadencia'
-    | '/executivo/usuarios'
     | '/f/$slug'
+    | '/f/crm'
+    | '/f/portal-leads'
+    | '/f/remarketing'
     | '/manual/$chapter'
     | '/manual/anuncio'
     | '/manual/concluido'
     | '/origem/$channel'
     | '/s/$slug'
     | '/seg/$slug'
-    | '/crm/'
-    | '/executivo/'
     | '/manual/'
-    | '/remarketing/'
+    | '/f/executivo/administracao'
+    | '/f/executivo/alertas'
+    | '/f/executivo/backups'
+    | '/f/executivo/biblioteca'
+    | '/f/executivo/brain'
+    | '/f/executivo/campanhas'
+    | '/f/executivo/captacao'
+    | '/f/executivo/celebracao'
+    | '/f/executivo/central-backup'
+    | '/f/executivo/configuracoes'
+    | '/f/executivo/criativa'
+    | '/f/executivo/dashboard'
+    | '/f/executivo/greensales'
+    | '/f/executivo/greensales-sync'
+    | '/f/executivo/home'
+    | '/f/executivo/homologacao'
+    | '/f/executivo/identidade'
+    | '/f/executivo/institucional'
+    | '/f/executivo/investidores'
+    | '/f/executivo/kpi'
+    | '/f/executivo/laboratorio'
+    | '/f/executivo/perfil'
+    | '/f/executivo/recursos'
+    | '/f/executivo/relatorios'
+    | '/f/executivo/reunioes'
+    | '/f/executivo/revista'
+    | '/f/executivo/templates'
+    | '/f/executivo/teste-cadencia'
+    | '/f/executivo/usuarios'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
+    | '/f/crm/'
+    | '/f/executivo/'
+    | '/f/remarketing/'
     | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
@@ -674,52 +675,52 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CrmRoute: typeof CrmRouteWithChildren
   EntrarRoute: typeof EntrarRoute
-  PortalLeadsRoute: typeof PortalLeadsRoute
-  RemarketingRoute: typeof RemarketingRouteWithChildren
   UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
-  ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
-  ExecutivoAlertasRoute: typeof ExecutivoAlertasRoute
-  ExecutivoBackupsRoute: typeof ExecutivoBackupsRoute
-  ExecutivoBibliotecaRoute: typeof ExecutivoBibliotecaRoute
-  ExecutivoBrainRoute: typeof ExecutivoBrainRoute
-  ExecutivoCampanhasRoute: typeof ExecutivoCampanhasRoute
-  ExecutivoCaptacaoRoute: typeof ExecutivoCaptacaoRoute
-  ExecutivoCelebracaoRoute: typeof ExecutivoCelebracaoRoute
-  ExecutivoCentralBackupRoute: typeof ExecutivoCentralBackupRoute
-  ExecutivoConfiguracoesRoute: typeof ExecutivoConfiguracoesRoute
-  ExecutivoCriativaRoute: typeof ExecutivoCriativaRoute
-  ExecutivoDashboardRoute: typeof ExecutivoDashboardRoute
-  ExecutivoGreensalesRoute: typeof ExecutivoGreensalesRoute
-  ExecutivoGreensalesSyncRoute: typeof ExecutivoGreensalesSyncRoute
-  ExecutivoHomeRoute: typeof ExecutivoHomeRoute
-  ExecutivoHomologacaoRoute: typeof ExecutivoHomologacaoRoute
-  ExecutivoIdentidadeRoute: typeof ExecutivoIdentidadeRoute
-  ExecutivoInstitucionalRoute: typeof ExecutivoInstitucionalRoute
-  ExecutivoInvestidoresRoute: typeof ExecutivoInvestidoresRoute
-  ExecutivoKpiRoute: typeof ExecutivoKpiRoute
-  ExecutivoLaboratorioRoute: typeof ExecutivoLaboratorioRoute
-  ExecutivoPerfilRoute: typeof ExecutivoPerfilRoute
-  ExecutivoRecursosRoute: typeof ExecutivoRecursosRoute
-  ExecutivoRelatoriosRoute: typeof ExecutivoRelatoriosRoute
-  ExecutivoReunioesRoute: typeof ExecutivoReunioesRoute
-  ExecutivoRevistaRoute: typeof ExecutivoRevistaRoute
-  ExecutivoTemplatesRoute: typeof ExecutivoTemplatesRoute
-  ExecutivoTesteCadenciaRoute: typeof ExecutivoTesteCadenciaRoute
-  ExecutivoUsuariosRoute: typeof ExecutivoUsuariosRoute
   FSlugRoute: typeof FSlugRoute
+  FCrmRoute: typeof FCrmRouteWithChildren
+  FPortalLeadsRoute: typeof FPortalLeadsRoute
+  FRemarketingRoute: typeof FRemarketingRouteWithChildren
   ManualChapterRoute: typeof ManualChapterRoute
   ManualAnuncioRoute: typeof ManualAnuncioRoute
   ManualConcluidoRoute: typeof ManualConcluidoRoute
   OrigemChannelRoute: typeof OrigemChannelRoute
   SSlugRoute: typeof SSlugRoute
   SegSlugRoute: typeof SegSlugRoute
-  ExecutivoIndexRoute: typeof ExecutivoIndexRoute
   ManualIndexRoute: typeof ManualIndexRoute
+  FExecutivoAdministracaoRoute: typeof FExecutivoAdministracaoRoute
+  FExecutivoAlertasRoute: typeof FExecutivoAlertasRoute
+  FExecutivoBackupsRoute: typeof FExecutivoBackupsRoute
+  FExecutivoBibliotecaRoute: typeof FExecutivoBibliotecaRoute
+  FExecutivoBrainRoute: typeof FExecutivoBrainRoute
+  FExecutivoCampanhasRoute: typeof FExecutivoCampanhasRoute
+  FExecutivoCaptacaoRoute: typeof FExecutivoCaptacaoRoute
+  FExecutivoCelebracaoRoute: typeof FExecutivoCelebracaoRoute
+  FExecutivoCentralBackupRoute: typeof FExecutivoCentralBackupRoute
+  FExecutivoConfiguracoesRoute: typeof FExecutivoConfiguracoesRoute
+  FExecutivoCriativaRoute: typeof FExecutivoCriativaRoute
+  FExecutivoDashboardRoute: typeof FExecutivoDashboardRoute
+  FExecutivoGreensalesRoute: typeof FExecutivoGreensalesRoute
+  FExecutivoGreensalesSyncRoute: typeof FExecutivoGreensalesSyncRoute
+  FExecutivoHomeRoute: typeof FExecutivoHomeRoute
+  FExecutivoHomologacaoRoute: typeof FExecutivoHomologacaoRoute
+  FExecutivoIdentidadeRoute: typeof FExecutivoIdentidadeRoute
+  FExecutivoInstitucionalRoute: typeof FExecutivoInstitucionalRoute
+  FExecutivoInvestidoresRoute: typeof FExecutivoInvestidoresRoute
+  FExecutivoKpiRoute: typeof FExecutivoKpiRoute
+  FExecutivoLaboratorioRoute: typeof FExecutivoLaboratorioRoute
+  FExecutivoPerfilRoute: typeof FExecutivoPerfilRoute
+  FExecutivoRecursosRoute: typeof FExecutivoRecursosRoute
+  FExecutivoRelatoriosRoute: typeof FExecutivoRelatoriosRoute
+  FExecutivoReunioesRoute: typeof FExecutivoReunioesRoute
+  FExecutivoRevistaRoute: typeof FExecutivoRevistaRoute
+  FExecutivoTemplatesRoute: typeof FExecutivoTemplatesRoute
+  FExecutivoTesteCadenciaRoute: typeof FExecutivoTesteCadenciaRoute
+  FExecutivoUsuariosRoute: typeof FExecutivoUsuariosRoute
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
   PortalConviteTokenRoute: typeof PortalConviteTokenRoute
+  FExecutivoIndexRoute: typeof FExecutivoIndexRoute
   ApiPublicBackupProcessRoute: typeof ApiPublicBackupProcessRoute
   ApiPublicBackupRunRoute: typeof ApiPublicBackupRunRoute
   ApiPublicCrmSyncRoute: typeof ApiPublicCrmSyncRoute
@@ -736,32 +737,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UniversoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/remarketing': {
-      id: '/remarketing'
-      path: '/remarketing'
-      fullPath: '/remarketing'
-      preLoaderRoute: typeof RemarketingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/portal-leads': {
-      id: '/portal-leads'
-      path: '/portal-leads'
-      fullPath: '/portal-leads'
-      preLoaderRoute: typeof PortalLeadsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/entrar': {
       id: '/entrar'
       path: '/entrar'
       fullPath: '/entrar'
       preLoaderRoute: typeof EntrarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/crm': {
-      id: '/crm'
-      path: '/crm'
-      fullPath: '/crm'
-      preLoaderRoute: typeof CrmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -771,33 +751,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/remarketing/': {
-      id: '/remarketing/'
-      path: '/'
-      fullPath: '/remarketing/'
-      preLoaderRoute: typeof RemarketingIndexRouteImport
-      parentRoute: typeof RemarketingRoute
-    }
     '/manual/': {
       id: '/manual/'
       path: '/manual'
       fullPath: '/manual/'
       preLoaderRoute: typeof ManualIndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/executivo/': {
-      id: '/executivo/'
-      path: '/executivo'
-      fullPath: '/executivo/'
-      preLoaderRoute: typeof ExecutivoIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/crm/': {
-      id: '/crm/'
-      path: '/'
-      fullPath: '/crm/'
-      preLoaderRoute: typeof CrmIndexRouteImport
-      parentRoute: typeof CrmRoute
     }
     '/seg/$slug': {
       id: '/seg/$slug'
@@ -841,214 +800,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ManualChapterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/f/remarketing': {
+      id: '/f/remarketing'
+      path: '/f/remarketing'
+      fullPath: '/f/remarketing'
+      preLoaderRoute: typeof FRemarketingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/portal-leads': {
+      id: '/f/portal-leads'
+      path: '/f/portal-leads'
+      fullPath: '/f/portal-leads'
+      preLoaderRoute: typeof FPortalLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/crm': {
+      id: '/f/crm'
+      path: '/f/crm'
+      fullPath: '/f/crm'
+      preLoaderRoute: typeof FCrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/f/$slug': {
       id: '/f/$slug'
       path: '/f/$slug'
       fullPath: '/f/$slug'
       preLoaderRoute: typeof FSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/usuarios': {
-      id: '/executivo/usuarios'
-      path: '/executivo/usuarios'
-      fullPath: '/executivo/usuarios'
-      preLoaderRoute: typeof ExecutivoUsuariosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/teste-cadencia': {
-      id: '/executivo/teste-cadencia'
-      path: '/executivo/teste-cadencia'
-      fullPath: '/executivo/teste-cadencia'
-      preLoaderRoute: typeof ExecutivoTesteCadenciaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/templates': {
-      id: '/executivo/templates'
-      path: '/executivo/templates'
-      fullPath: '/executivo/templates'
-      preLoaderRoute: typeof ExecutivoTemplatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/revista': {
-      id: '/executivo/revista'
-      path: '/executivo/revista'
-      fullPath: '/executivo/revista'
-      preLoaderRoute: typeof ExecutivoRevistaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/reunioes': {
-      id: '/executivo/reunioes'
-      path: '/executivo/reunioes'
-      fullPath: '/executivo/reunioes'
-      preLoaderRoute: typeof ExecutivoReunioesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/relatorios': {
-      id: '/executivo/relatorios'
-      path: '/executivo/relatorios'
-      fullPath: '/executivo/relatorios'
-      preLoaderRoute: typeof ExecutivoRelatoriosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/recursos': {
-      id: '/executivo/recursos'
-      path: '/executivo/recursos'
-      fullPath: '/executivo/recursos'
-      preLoaderRoute: typeof ExecutivoRecursosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/perfil': {
-      id: '/executivo/perfil'
-      path: '/executivo/perfil'
-      fullPath: '/executivo/perfil'
-      preLoaderRoute: typeof ExecutivoPerfilRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/laboratorio': {
-      id: '/executivo/laboratorio'
-      path: '/executivo/laboratorio'
-      fullPath: '/executivo/laboratorio'
-      preLoaderRoute: typeof ExecutivoLaboratorioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/kpi': {
-      id: '/executivo/kpi'
-      path: '/executivo/kpi'
-      fullPath: '/executivo/kpi'
-      preLoaderRoute: typeof ExecutivoKpiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/investidores': {
-      id: '/executivo/investidores'
-      path: '/executivo/investidores'
-      fullPath: '/executivo/investidores'
-      preLoaderRoute: typeof ExecutivoInvestidoresRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/institucional': {
-      id: '/executivo/institucional'
-      path: '/executivo/institucional'
-      fullPath: '/executivo/institucional'
-      preLoaderRoute: typeof ExecutivoInstitucionalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/identidade': {
-      id: '/executivo/identidade'
-      path: '/executivo/identidade'
-      fullPath: '/executivo/identidade'
-      preLoaderRoute: typeof ExecutivoIdentidadeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/homologacao': {
-      id: '/executivo/homologacao'
-      path: '/executivo/homologacao'
-      fullPath: '/executivo/homologacao'
-      preLoaderRoute: typeof ExecutivoHomologacaoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/home': {
-      id: '/executivo/home'
-      path: '/executivo/home'
-      fullPath: '/executivo/home'
-      preLoaderRoute: typeof ExecutivoHomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/greensales-sync': {
-      id: '/executivo/greensales-sync'
-      path: '/executivo/greensales-sync'
-      fullPath: '/executivo/greensales-sync'
-      preLoaderRoute: typeof ExecutivoGreensalesSyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/greensales': {
-      id: '/executivo/greensales'
-      path: '/executivo/greensales'
-      fullPath: '/executivo/greensales'
-      preLoaderRoute: typeof ExecutivoGreensalesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/dashboard': {
-      id: '/executivo/dashboard'
-      path: '/executivo/dashboard'
-      fullPath: '/executivo/dashboard'
-      preLoaderRoute: typeof ExecutivoDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/criativa': {
-      id: '/executivo/criativa'
-      path: '/executivo/criativa'
-      fullPath: '/executivo/criativa'
-      preLoaderRoute: typeof ExecutivoCriativaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/configuracoes': {
-      id: '/executivo/configuracoes'
-      path: '/executivo/configuracoes'
-      fullPath: '/executivo/configuracoes'
-      preLoaderRoute: typeof ExecutivoConfiguracoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/central-backup': {
-      id: '/executivo/central-backup'
-      path: '/executivo/central-backup'
-      fullPath: '/executivo/central-backup'
-      preLoaderRoute: typeof ExecutivoCentralBackupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/celebracao': {
-      id: '/executivo/celebracao'
-      path: '/executivo/celebracao'
-      fullPath: '/executivo/celebracao'
-      preLoaderRoute: typeof ExecutivoCelebracaoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/captacao': {
-      id: '/executivo/captacao'
-      path: '/executivo/captacao'
-      fullPath: '/executivo/captacao'
-      preLoaderRoute: typeof ExecutivoCaptacaoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/campanhas': {
-      id: '/executivo/campanhas'
-      path: '/executivo/campanhas'
-      fullPath: '/executivo/campanhas'
-      preLoaderRoute: typeof ExecutivoCampanhasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/brain': {
-      id: '/executivo/brain'
-      path: '/executivo/brain'
-      fullPath: '/executivo/brain'
-      preLoaderRoute: typeof ExecutivoBrainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/biblioteca': {
-      id: '/executivo/biblioteca'
-      path: '/executivo/biblioteca'
-      fullPath: '/executivo/biblioteca'
-      preLoaderRoute: typeof ExecutivoBibliotecaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/backups': {
-      id: '/executivo/backups'
-      path: '/executivo/backups'
-      fullPath: '/executivo/backups'
-      preLoaderRoute: typeof ExecutivoBackupsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/alertas': {
-      id: '/executivo/alertas'
-      path: '/executivo/alertas'
-      fullPath: '/executivo/alertas'
-      preLoaderRoute: typeof ExecutivoAlertasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/executivo/administracao': {
-      id: '/executivo/administracao'
-      path: '/executivo/administracao'
-      fullPath: '/executivo/administracao'
-      preLoaderRoute: typeof ExecutivoAdministracaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/e/$slug': {
@@ -1057,6 +834,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/e/$slug'
       preLoaderRoute: typeof ESlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/f/remarketing/': {
+      id: '/f/remarketing/'
+      path: '/'
+      fullPath: '/f/remarketing/'
+      preLoaderRoute: typeof FRemarketingIndexRouteImport
+      parentRoute: typeof FRemarketingRoute
+    }
+    '/f/executivo/': {
+      id: '/f/executivo/'
+      path: '/f/executivo'
+      fullPath: '/f/executivo/'
+      preLoaderRoute: typeof FExecutivoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/crm/': {
+      id: '/f/crm/'
+      path: '/'
+      fullPath: '/f/crm/'
+      preLoaderRoute: typeof FCrmIndexRouteImport
+      parentRoute: typeof FCrmRoute
     }
     '/portal/convite/$token': {
       id: '/portal/convite/$token'
@@ -1070,6 +868,209 @@ declare module '@tanstack/react-router' {
       path: '/oauth/google/$connector'
       fullPath: '/oauth/google/$connector'
       preLoaderRoute: typeof OauthGoogleConnectorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/usuarios': {
+      id: '/f/executivo/usuarios'
+      path: '/f/executivo/usuarios'
+      fullPath: '/f/executivo/usuarios'
+      preLoaderRoute: typeof FExecutivoUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/teste-cadencia': {
+      id: '/f/executivo/teste-cadencia'
+      path: '/f/executivo/teste-cadencia'
+      fullPath: '/f/executivo/teste-cadencia'
+      preLoaderRoute: typeof FExecutivoTesteCadenciaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/templates': {
+      id: '/f/executivo/templates'
+      path: '/f/executivo/templates'
+      fullPath: '/f/executivo/templates'
+      preLoaderRoute: typeof FExecutivoTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/revista': {
+      id: '/f/executivo/revista'
+      path: '/f/executivo/revista'
+      fullPath: '/f/executivo/revista'
+      preLoaderRoute: typeof FExecutivoRevistaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/reunioes': {
+      id: '/f/executivo/reunioes'
+      path: '/f/executivo/reunioes'
+      fullPath: '/f/executivo/reunioes'
+      preLoaderRoute: typeof FExecutivoReunioesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/relatorios': {
+      id: '/f/executivo/relatorios'
+      path: '/f/executivo/relatorios'
+      fullPath: '/f/executivo/relatorios'
+      preLoaderRoute: typeof FExecutivoRelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/recursos': {
+      id: '/f/executivo/recursos'
+      path: '/f/executivo/recursos'
+      fullPath: '/f/executivo/recursos'
+      preLoaderRoute: typeof FExecutivoRecursosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/perfil': {
+      id: '/f/executivo/perfil'
+      path: '/f/executivo/perfil'
+      fullPath: '/f/executivo/perfil'
+      preLoaderRoute: typeof FExecutivoPerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/laboratorio': {
+      id: '/f/executivo/laboratorio'
+      path: '/f/executivo/laboratorio'
+      fullPath: '/f/executivo/laboratorio'
+      preLoaderRoute: typeof FExecutivoLaboratorioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/kpi': {
+      id: '/f/executivo/kpi'
+      path: '/f/executivo/kpi'
+      fullPath: '/f/executivo/kpi'
+      preLoaderRoute: typeof FExecutivoKpiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/investidores': {
+      id: '/f/executivo/investidores'
+      path: '/f/executivo/investidores'
+      fullPath: '/f/executivo/investidores'
+      preLoaderRoute: typeof FExecutivoInvestidoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/institucional': {
+      id: '/f/executivo/institucional'
+      path: '/f/executivo/institucional'
+      fullPath: '/f/executivo/institucional'
+      preLoaderRoute: typeof FExecutivoInstitucionalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/identidade': {
+      id: '/f/executivo/identidade'
+      path: '/f/executivo/identidade'
+      fullPath: '/f/executivo/identidade'
+      preLoaderRoute: typeof FExecutivoIdentidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/homologacao': {
+      id: '/f/executivo/homologacao'
+      path: '/f/executivo/homologacao'
+      fullPath: '/f/executivo/homologacao'
+      preLoaderRoute: typeof FExecutivoHomologacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/home': {
+      id: '/f/executivo/home'
+      path: '/f/executivo/home'
+      fullPath: '/f/executivo/home'
+      preLoaderRoute: typeof FExecutivoHomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/greensales-sync': {
+      id: '/f/executivo/greensales-sync'
+      path: '/f/executivo/greensales-sync'
+      fullPath: '/f/executivo/greensales-sync'
+      preLoaderRoute: typeof FExecutivoGreensalesSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/greensales': {
+      id: '/f/executivo/greensales'
+      path: '/f/executivo/greensales'
+      fullPath: '/f/executivo/greensales'
+      preLoaderRoute: typeof FExecutivoGreensalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/dashboard': {
+      id: '/f/executivo/dashboard'
+      path: '/f/executivo/dashboard'
+      fullPath: '/f/executivo/dashboard'
+      preLoaderRoute: typeof FExecutivoDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/criativa': {
+      id: '/f/executivo/criativa'
+      path: '/f/executivo/criativa'
+      fullPath: '/f/executivo/criativa'
+      preLoaderRoute: typeof FExecutivoCriativaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/configuracoes': {
+      id: '/f/executivo/configuracoes'
+      path: '/f/executivo/configuracoes'
+      fullPath: '/f/executivo/configuracoes'
+      preLoaderRoute: typeof FExecutivoConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/central-backup': {
+      id: '/f/executivo/central-backup'
+      path: '/f/executivo/central-backup'
+      fullPath: '/f/executivo/central-backup'
+      preLoaderRoute: typeof FExecutivoCentralBackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/celebracao': {
+      id: '/f/executivo/celebracao'
+      path: '/f/executivo/celebracao'
+      fullPath: '/f/executivo/celebracao'
+      preLoaderRoute: typeof FExecutivoCelebracaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/captacao': {
+      id: '/f/executivo/captacao'
+      path: '/f/executivo/captacao'
+      fullPath: '/f/executivo/captacao'
+      preLoaderRoute: typeof FExecutivoCaptacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/campanhas': {
+      id: '/f/executivo/campanhas'
+      path: '/f/executivo/campanhas'
+      fullPath: '/f/executivo/campanhas'
+      preLoaderRoute: typeof FExecutivoCampanhasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/brain': {
+      id: '/f/executivo/brain'
+      path: '/f/executivo/brain'
+      fullPath: '/f/executivo/brain'
+      preLoaderRoute: typeof FExecutivoBrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/biblioteca': {
+      id: '/f/executivo/biblioteca'
+      path: '/f/executivo/biblioteca'
+      fullPath: '/f/executivo/biblioteca'
+      preLoaderRoute: typeof FExecutivoBibliotecaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/backups': {
+      id: '/f/executivo/backups'
+      path: '/f/executivo/backups'
+      fullPath: '/f/executivo/backups'
+      preLoaderRoute: typeof FExecutivoBackupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/alertas': {
+      id: '/f/executivo/alertas'
+      path: '/f/executivo/alertas'
+      fullPath: '/f/executivo/alertas'
+      preLoaderRoute: typeof FExecutivoAlertasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/executivo/administracao': {
+      id: '/f/executivo/administracao'
+      path: '/f/executivo/administracao'
+      fullPath: '/f/executivo/administracao'
+      preLoaderRoute: typeof FExecutivoAdministracaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/whatsapp/webhook': {
@@ -1110,76 +1111,76 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface CrmRouteChildren {
-  CrmIndexRoute: typeof CrmIndexRoute
+interface FCrmRouteChildren {
+  FCrmIndexRoute: typeof FCrmIndexRoute
 }
 
-const CrmRouteChildren: CrmRouteChildren = {
-  CrmIndexRoute: CrmIndexRoute,
+const FCrmRouteChildren: FCrmRouteChildren = {
+  FCrmIndexRoute: FCrmIndexRoute,
 }
 
-const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
+const FCrmRouteWithChildren = FCrmRoute._addFileChildren(FCrmRouteChildren)
 
-interface RemarketingRouteChildren {
-  RemarketingIndexRoute: typeof RemarketingIndexRoute
+interface FRemarketingRouteChildren {
+  FRemarketingIndexRoute: typeof FRemarketingIndexRoute
 }
 
-const RemarketingRouteChildren: RemarketingRouteChildren = {
-  RemarketingIndexRoute: RemarketingIndexRoute,
+const FRemarketingRouteChildren: FRemarketingRouteChildren = {
+  FRemarketingIndexRoute: FRemarketingIndexRoute,
 }
 
-const RemarketingRouteWithChildren = RemarketingRoute._addFileChildren(
-  RemarketingRouteChildren,
+const FRemarketingRouteWithChildren = FRemarketingRoute._addFileChildren(
+  FRemarketingRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CrmRoute: CrmRouteWithChildren,
   EntrarRoute: EntrarRoute,
-  PortalLeadsRoute: PortalLeadsRoute,
-  RemarketingRoute: RemarketingRouteWithChildren,
   UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
-  ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
-  ExecutivoAlertasRoute: ExecutivoAlertasRoute,
-  ExecutivoBackupsRoute: ExecutivoBackupsRoute,
-  ExecutivoBibliotecaRoute: ExecutivoBibliotecaRoute,
-  ExecutivoBrainRoute: ExecutivoBrainRoute,
-  ExecutivoCampanhasRoute: ExecutivoCampanhasRoute,
-  ExecutivoCaptacaoRoute: ExecutivoCaptacaoRoute,
-  ExecutivoCelebracaoRoute: ExecutivoCelebracaoRoute,
-  ExecutivoCentralBackupRoute: ExecutivoCentralBackupRoute,
-  ExecutivoConfiguracoesRoute: ExecutivoConfiguracoesRoute,
-  ExecutivoCriativaRoute: ExecutivoCriativaRoute,
-  ExecutivoDashboardRoute: ExecutivoDashboardRoute,
-  ExecutivoGreensalesRoute: ExecutivoGreensalesRoute,
-  ExecutivoGreensalesSyncRoute: ExecutivoGreensalesSyncRoute,
-  ExecutivoHomeRoute: ExecutivoHomeRoute,
-  ExecutivoHomologacaoRoute: ExecutivoHomologacaoRoute,
-  ExecutivoIdentidadeRoute: ExecutivoIdentidadeRoute,
-  ExecutivoInstitucionalRoute: ExecutivoInstitucionalRoute,
-  ExecutivoInvestidoresRoute: ExecutivoInvestidoresRoute,
-  ExecutivoKpiRoute: ExecutivoKpiRoute,
-  ExecutivoLaboratorioRoute: ExecutivoLaboratorioRoute,
-  ExecutivoPerfilRoute: ExecutivoPerfilRoute,
-  ExecutivoRecursosRoute: ExecutivoRecursosRoute,
-  ExecutivoRelatoriosRoute: ExecutivoRelatoriosRoute,
-  ExecutivoReunioesRoute: ExecutivoReunioesRoute,
-  ExecutivoRevistaRoute: ExecutivoRevistaRoute,
-  ExecutivoTemplatesRoute: ExecutivoTemplatesRoute,
-  ExecutivoTesteCadenciaRoute: ExecutivoTesteCadenciaRoute,
-  ExecutivoUsuariosRoute: ExecutivoUsuariosRoute,
   FSlugRoute: FSlugRoute,
+  FCrmRoute: FCrmRouteWithChildren,
+  FPortalLeadsRoute: FPortalLeadsRoute,
+  FRemarketingRoute: FRemarketingRouteWithChildren,
   ManualChapterRoute: ManualChapterRoute,
   ManualAnuncioRoute: ManualAnuncioRoute,
   ManualConcluidoRoute: ManualConcluidoRoute,
   OrigemChannelRoute: OrigemChannelRoute,
   SSlugRoute: SSlugRoute,
   SegSlugRoute: SegSlugRoute,
-  ExecutivoIndexRoute: ExecutivoIndexRoute,
   ManualIndexRoute: ManualIndexRoute,
+  FExecutivoAdministracaoRoute: FExecutivoAdministracaoRoute,
+  FExecutivoAlertasRoute: FExecutivoAlertasRoute,
+  FExecutivoBackupsRoute: FExecutivoBackupsRoute,
+  FExecutivoBibliotecaRoute: FExecutivoBibliotecaRoute,
+  FExecutivoBrainRoute: FExecutivoBrainRoute,
+  FExecutivoCampanhasRoute: FExecutivoCampanhasRoute,
+  FExecutivoCaptacaoRoute: FExecutivoCaptacaoRoute,
+  FExecutivoCelebracaoRoute: FExecutivoCelebracaoRoute,
+  FExecutivoCentralBackupRoute: FExecutivoCentralBackupRoute,
+  FExecutivoConfiguracoesRoute: FExecutivoConfiguracoesRoute,
+  FExecutivoCriativaRoute: FExecutivoCriativaRoute,
+  FExecutivoDashboardRoute: FExecutivoDashboardRoute,
+  FExecutivoGreensalesRoute: FExecutivoGreensalesRoute,
+  FExecutivoGreensalesSyncRoute: FExecutivoGreensalesSyncRoute,
+  FExecutivoHomeRoute: FExecutivoHomeRoute,
+  FExecutivoHomologacaoRoute: FExecutivoHomologacaoRoute,
+  FExecutivoIdentidadeRoute: FExecutivoIdentidadeRoute,
+  FExecutivoInstitucionalRoute: FExecutivoInstitucionalRoute,
+  FExecutivoInvestidoresRoute: FExecutivoInvestidoresRoute,
+  FExecutivoKpiRoute: FExecutivoKpiRoute,
+  FExecutivoLaboratorioRoute: FExecutivoLaboratorioRoute,
+  FExecutivoPerfilRoute: FExecutivoPerfilRoute,
+  FExecutivoRecursosRoute: FExecutivoRecursosRoute,
+  FExecutivoRelatoriosRoute: FExecutivoRelatoriosRoute,
+  FExecutivoReunioesRoute: FExecutivoReunioesRoute,
+  FExecutivoRevistaRoute: FExecutivoRevistaRoute,
+  FExecutivoTemplatesRoute: FExecutivoTemplatesRoute,
+  FExecutivoTesteCadenciaRoute: FExecutivoTesteCadenciaRoute,
+  FExecutivoUsuariosRoute: FExecutivoUsuariosRoute,
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
   PortalConviteTokenRoute: PortalConviteTokenRoute,
+  FExecutivoIndexRoute: FExecutivoIndexRoute,
   ApiPublicBackupProcessRoute: ApiPublicBackupProcessRoute,
   ApiPublicBackupRunRoute: ApiPublicBackupRunRoute,
   ApiPublicCrmSyncRoute: ApiPublicCrmSyncRoute,
