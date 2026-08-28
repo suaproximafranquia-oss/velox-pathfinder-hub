@@ -25,6 +25,12 @@ import {
   type RenderInput,
   type RenderResult,
 } from "@/lib/relationship/messages";
+import { resolveTreatment } from "@/lib/relationship/names";
+import {
+  WORD_MESSAGES,
+  WORD_SOURCE_REFERENCE,
+  type WordMessage,
+} from "@/lib/relationship/word-library";
 
 export type LibraryMessage = {
   id: string;
