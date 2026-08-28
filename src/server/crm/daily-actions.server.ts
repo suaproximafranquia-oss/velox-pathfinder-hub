@@ -203,7 +203,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       overdue: item.overdue,
       priorityMax: false,
       bucket: resolveBucket({ dueDate: item.dueDate, startsAt: null, nowIso }),
-      title: `Ligação — ${attemptLabel(item.step)}`,
+      title: item.attempts.length > 0 ? `Ligação — ${attemptLabel(item.attempts.length + 1)}` : "Ligação",
       responsibleName: null,
       attempts: item.attempts,
       cadence: {
