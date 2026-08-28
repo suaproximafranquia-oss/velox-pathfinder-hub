@@ -227,3 +227,19 @@ export function nextCallAttempt(
   const preference = preferNonCollidingCallDate(dueDate, plannedMessageDates);
   return { step: done + FIRST_AUTOMATED_CALL_STEP, dueDate: preference.date };
 }
+
+/**
+ * IDENTIDADE TEXTUAL DA ETAPA (fundação).
+ *
+ * A etapa da jornada NÃO é "o dia N": o dia é apenas onde ela caiu no
+ * calendário. A chave é textual e estável — `L1..L4` para ligações,
+ * `M1..Mn` para mensagens desta fila — e convive com as chaves do Motor
+ * de Relacionamento (`E0`, `E1`, `E6`, `R0`…), que já são textuais.
+ *
+ * Nenhuma regra de agendamento depende desta função: ela apenas dá nome
+ * ao que antes era só um número.
+ */
+export function stepKey(channel: CadenceChannel, step: number): string {
+  const prefix = channel === "ligacao" ? "L" : "M";
+  return `${prefix}${step}`;
+}
