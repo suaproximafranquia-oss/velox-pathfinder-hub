@@ -194,6 +194,8 @@ export function InvestorProfileView({
         {/* Jornada consolidada: módulos + histórico cronológico em uma única aba. */}
         {tab === "jornada" && (
           <div className="space-y-6">
+            {/* Evento paralelo à cadência: convite formal ao Portal. */}
+            <E20Panel investorId={investor.id} />
             <TabJornada investor={investor} />
             <div>
               <p className="mb-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
