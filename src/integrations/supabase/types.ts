@@ -241,6 +241,7 @@ export type Database = {
           outcome: string | null
           status: string
           step_day: number
+          step_key: string | null
           updated_at: string
         }
         Insert: {
@@ -256,6 +257,7 @@ export type Database = {
           outcome?: string | null
           status?: string
           step_day: number
+          step_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -271,6 +273,7 @@ export type Database = {
           outcome?: string | null
           status?: string
           step_day?: number
+          step_key?: string | null
           updated_at?: string
         }
         Relationships: [
