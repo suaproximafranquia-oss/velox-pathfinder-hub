@@ -135,8 +135,13 @@ export function markLeadViewed(leadId: string, actorId?: string | null): void {
   });
 }
 
-/** Encerramento manual — disponível apenas no menu de três pontos. */
+/**
+ * Encerramento manual — disponível apenas no menu de três pontos.
+ * Guarda de mudança real + chave determinística: duplo clique ou
+ * reprocessamento não geram duas linhas no histórico.
+ */
 export function closeLead(leadId: string, actorId?: string | null): void {
+  if (entryFor(leadId)?.closedAt) return;
   void persist(leadId, { closedAt: new Date().toISOString() }).then((ok) => {
     if (!ok) return;
     emitEvent({
@@ -144,6 +149,7 @@ export function closeLead(leadId: string, actorId?: string | null): void {
       investorId: leadId,
       actorId: actorId ?? null,
       payload: { to: "encerrado" },
+      dedupeKey: `lead.status.changed:${leadId}:encerrado`,
     });
   });
 }
@@ -151,16 +157,20 @@ export function closeLead(leadId: string, actorId?: string | null): void {
 /** Reabertura manual — volta ao ciclo automático. */
 export function reopenLead(leadId: string, actorId?: string | null): void {
   const entry = entryFor(leadId);
+  if (!entry?.closedAt) return; // já aberto — nada mudou
+  const target = entry.viewedAt ? "em_andamento" : "novo";
   void persist(leadId, { closedAt: null }).then((ok) => {
     if (!ok) return;
     emitEvent({
       type: "lead.status.changed",
       investorId: leadId,
       actorId: actorId ?? null,
-      payload: { to: entry?.viewedAt ? "em_andamento" : "novo" },
+      payload: { to: target },
+      dedupeKey: `lead.status.changed:${leadId}:reabertura:${target}`,
     });
   });
 }
+
 
 export function isLeadClosed(leadId: string): boolean {
   return !!entryFor(leadId)?.closedAt;
