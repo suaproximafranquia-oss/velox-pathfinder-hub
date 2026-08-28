@@ -187,6 +187,9 @@ function RootRoutes() {
   const isExecutive = pathname.startsWith("/f/executivo");
   const isCrm = pathname.startsWith("/f/crm");
   const isLeadsPortal = pathname.startsWith("/f/portal-leads");
+  // O Remarketing é ambiente OPERACIONAL: nunca herda o shell editorial
+  // nem o redirecionamento do Gateway do Portal.
+  const isRemarketing = pathname.startsWith("/f/remarketing");
   const isPortal = pathname === "/";
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";
