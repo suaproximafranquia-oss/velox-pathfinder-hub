@@ -36,7 +36,6 @@ import {
   resolveCrmWindow,
   type CrmWindowStatus,
 } from "@/lib/crm/templates";
-import { useServerFn } from "@tanstack/react-start";
 import { listCrmRelationshipTemplates } from "@/lib/crm/meta-templates.functions";
 import type { CrmMetaTemplateOption } from "@/lib/crm/meta-templates";
 import { ensureCloudSession } from "@/lib/executive-auth";
