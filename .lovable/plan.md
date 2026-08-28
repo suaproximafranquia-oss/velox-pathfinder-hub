@@ -1,86 +1,74 @@
-# Planejamento Técnico — Análise do Estado Atual e Decisões Pendentes
+# Diagnóstico — leads já abertos voltando para "NOVO"
 
-Nenhuma alteração foi feita. Abaixo, o diagnóstico do que existe hoje e apenas as decisões que ainda estão ambíguas.
+Nenhuma alteração foi feita em código, banco, leads ou Portal. Abaixo, a cadeia causal real.
 
-## A. Problemas técnicos encontrados
+## A) O que significa "NOVO" no Workspace
 
-### A1. A "tempestade" de Status do Lead atualizado é 100% local, não é banco
-Rastreamento do rótulo exato mostrado na tela: `src/lib/investor-profile.ts:48` e `src/lib/executive-data.ts:215` mapeiam o evento `lead.status.changed` para o texto "Status do Lead atualizado". Esse evento não vem de tabela alguma — vem de `src/lib/events/bus.ts`, um barramento em `localStorage` (`velox:events:v1`, teto de 500 eventos, **sem qualquer deduplicação** em `emitEvent`).
+Existem **dois "Novo" diferentes** no sistema — essa é a distinção mais importante do diagnóstico.
 
-Quem emite: `markLeadViewed` em `src/lib/lead-state.ts:107`. Ele é chamado incondicionalmente no clique do card e no `useEffect` de montagem do perfil do investidor. A função só verifica `closedAt`; **não compara o estado anterior**. Toda montagem/remontagem grava `viewed_at` no servidor, o servidor confirma, e o evento é emitido de novo — mesmo quando o lead já estava `em_andamento` há dias. Daí dois registros no mesmo segundo (23:41:40 duas vezes): duas montagens do mesmo componente na mesma interação.
+1. **Indicador operacional do card (etiqueta verde "Novo")** — estado derivado em tempo de renderização, não existe coluna "status" no banco. Regra: `encerrado` se houver `closed_at`; `novo` se não houver `viewed_at` **ou se a última atividade for posterior ao `viewed_at`**; caso contrário `em_andamento`.
+2. **Coluna "Status" da tela Investidores (`/f/executivo/investidores`)** — outro campo, derivado do progresso de leitura: sem leitura registrada ⇒ `"novo"` (rótulo "Novo"). Esse rótulo **nunca muda por abrir o lead** — ele só muda com leitura do Manual, simulador ou conclusão. Se a reclamação inclui essa tela, ali não há regressão nenhuma: é o comportamento atual por definição.
 
-Confirmação no banco: `crm_lead_events` tem 773 linhas `lead_sincronizado` e **zero** de mudança de status. O histórico persistido está limpo; o poluído é o feed do cliente.
+## B) Arquivos e funções responsáveis
 
-### A2. "Contato registrado" duplicado por construção
-`src/lib/investor-profile.ts:64-71` monta a timeline a partir de `allLeads.map(...)` — ou seja, **um registro "Contato registrado" por linha de lead** com aquele id. Se o mesmo investidor tiver mais de uma entrada no cache local, a ficha exibe o mesmo contato repetido. A descrição usa `material · origin`, que é exatamente o texto observado ("Link personalizado · Velox Financeira").
+- `src/lib/lead-state.ts` → `resolveLeadState()` (etiqueta do card), `markLeadViewed()`, `persist()`.
+- `src/lib/executive-data.ts` → `listAllInvestors()`, que calcula `lastActivity` (linha ~154) e o `status` derivado de leitura (linha ~138, o fallback literal `: "novo"`).
+- `src/components/executive/workspace/investor-card.tsx` (linhas 104-108, 133-134, 156) — renderiza a etiqueta.
+- `src/routes/f.executivo.dashboard.tsx` (linhas 140-172, 223-227) — hidratação e ordenação por `stateScore`.
+- `src/lib/portal-leads-sync.ts` → `pullLeads()` / `toLocal()` — espelho servidor → cache local.
 
-### A3. `investor.reactivated` é heurística de dispositivo, não estado de negócio
-`src/lib/workspace-alerts.ts:132` (`evaluateInvestorMovement`) compara a atividade do investidor com `readLastSeen()` — um mapa em `localStorage`. Quando dispara, emite `investor.reactivated` (linha 124) e nada mais: **não** inicia jornada de reengajamento, **não** grava estado no banco. Em outro computador, o mesmo lead pode ser "reativado" de novo, ou nunca ser. É essa mesma camada que, ao reavaliar, provoca nova rodada de leitura/visualização e, em cascata, mais `lead.status.changed`.
+## C) Cadeia ao abrir um lead
 
-### A4. Arquitetura não separa "mudança de estado" de "evento ocorrido"
-No servidor a separação existe (`journey.server.ts` com whitelist relacional × auditoria técnica). No cliente não: o bus trata cada *gravação de estado* como *evento ocorrido*. Conceitualmente, o histórico atual registra "estado atual" repetidamente, que é exatamente o que não se quer.
+Clique no card → `markLeadViewed(id)` → `persist()` grava `viewed_at = now` via `updateWorkspaceOperational` → RPC `set_lead_operational` → confirma linhas afetadas → `patchCachedLead` mantém o cache → emite `lead.status.changed` → card vira "em andamento". **Esse trecho está correto e realmente persiste** (55 de 56 leads têm `viewed_at` gravado no banco).
 
-### A5. Idempotência: forte no servidor, ausente no cliente
-- GreenSales: identidade determinística `gs_{external_id}`, `upsert(onConflict:'id')`, deduplicação por telefone normalizado, `runSyncMuted` + debounce de 1,5s. Evento repetido **não** cria segunda linha nem segundo lead.
-- `crm_messages` / `crm_timeline`: `upsert` com `ignoreDuplicates` por `id`.
-- Bus de eventos do cliente: `newId()` com timestamp+random a cada chamada — **nenhuma** chave de deduplicação. Este é o único ponto sem idempotência.
+## D) Cadeia ao voltar/recarregar o Workspace
 
-## B. Divergências entre esperado e implementado
+F5 / troca de tela / foco na janela / evento realtime → `pullLeads()` → `listPortalLeads()` (`select *`, inclui `viewed_at`) → `toLocal()` mapeia `viewedAt` corretamente → `replaceLeads()` → `listAllInvestors()` recalcula `lastActivity` → cada card chama `resolveLeadState()`.
 
-| # | Esperado | Atual | Onde |
-|---|---|---|---|
-| 1 | Registrar só mudança efetiva de status | Registra toda visualização/remontagem | `src/lib/lead-state.ts` (`markLeadViewed`) |
-| 2 | Histórico = eventos ocorridos | Feed local mistura estado atual e evento | `src/lib/events/bus.ts`, `investor-profile.ts` |
-| 3 | Reativação = estado de negócio persistido | Heurística em localStorage, por dispositivo | `src/lib/workspace-alerts.ts` |
-| 4 | "Contato registrado" uma vez por entrada real | Um por linha do cache | `investor-profile.ts:64` |
-| 5 | Navegação por helper de unidade | `unitPath()` com **zero** call sites; 153 literais `/f/` (24 só em `executive-shell.tsx`) | `src/lib/business-unit.ts` |
-| 6 | Agenda enxergando o motor oficial | `agenda_cadence_tasks` lê só `crm_cadence_tasks` (motor antigo de ligações); mensagens em `relationship_queue` são invisíveis | `src/lib/agenda.functions.ts` |
-| 7 | Horário em America/Sao_Paulo | Dock usa `new Date()`/`toLocaleString` do navegador | `src/components/agenda/agenda-dock.tsx` |
+## E) Onde o estado correto é perdido
 
-### Itens verificados e **sem** regressão
-- **Rotas /f**: 37 arquivos sob `/f`; 34 rotas antigas são stubs puros (`beforeLoad` + `redirect` preservando `search`, `component: () => null`). Nenhuma tela ou lógica duplicada.
-- **/f/$slug × rotas internas**: sem conflito de resolução (segmento estático tem precedência). O risco é só de cadastro, já barrado por `validateExecutiveSlug` contra `RESERVED_UNIT_SLUGS`.
-- **Autenticação**: camada única (`OperationalGuard` nos layouts `/f/*`, `ssr: false`). Nenhuma tela refazendo `getSession()`.
-- **Identidade do lead**: chave primária é o ID original da GreenSales (`gs_{id}` + `external_source`/`external_id`), imutável. Investidor que retorna reutiliza o mesmo registro. Telefone normalizado é rede de segurança secundária, não identidade.
-- **Origem/ownership**: `origin` e `scope: 'green_sales'` são gravados na importação e não são reescritos por interação posterior; `responsible_executive_id` só muda por transferência auditada. Links personalizados, TikTok e Meta mantêm carteira própria.
-- **Agenda**: montada uma vez em `__root.tsx`, painel sobreposto sem trocar rota; `portal_meetings` é **somente leitura** (não copia eventos); conflito real garantido no banco por `btree_gist` + `EXCLUDE` entre eventos de prioridade máxima. A Agenda não inventa regra própria de cadência.
+Não é perdido no banco nem no transporte. Ele é **recalculado para "novo" na renderização**, dentro de `resolveLeadState`, pela regra:
 
-## C. Perguntas indispensáveis
+```text
+se lastActivity > viewedAt  ⇒  volta a "NOVO"
+```
 
-**C1. Reativação: estado persistido ou alerta visual?**
-Problema: hoje é localStorage por dispositivo (A3), então dois executivos veem realidades diferentes. Afeta Workspace, Jornada e o futuro fluxo R0–R3. Decisão dependente: se for estado de negócio, precisa de coluna/tabela, de quem escreve (sincronização? primeira atividade do investidor?) e de o que encerra a reativação.
+E `lastActivity` (executive-data.ts:154) é o **maior** valor entre `createdAt`, `lastActivityAt`, `journeyLastEventAt`, `lastInboundAt` **e a data de todos os eventos locais do barramento** (`velox:events:v1`), com um único tipo excluído: `lead.status.changed`.
 
-**C2. O que caracteriza reativação — qualquer atividade ou só atividade do investidor?**
-Problema: `evaluateInvestorMovement` hoje considera qualquer movimento de `lastActivity`. Já está definido que abrir card não é atividade; falta definir se mensagem enviada pelo executivo conta. Afeta o gatilho do reengajamento.
+Ou seja: qualquer evento local gravado **depois** da visualização reclassifica o lead como NOVO. Emissores confirmados no código, todos disparados por ação do EXECUTIVO (não do investidor):
 
-**C3. O histórico local já gravado deve ser preservado, filtrado na exibição, ou expurgado?**
-Problema: existem centenas de `lead.status.changed` legítimos-por-código mas ruidosos-por-negócio no `localStorage` de cada máquina. Decisão: filtrar na leitura (reversível, mantém o dado) × limpar a chave (irreversível, mais limpo). Afeta a ficha do investidor.
+- `src/lib/investor-comments.ts:60` → `profile.updated` ao adicionar comentário/anotação;
+- `src/lib/workspace-lead-edit.ts:135` → `profile.updated` ao editar a ficha;
+- `src/lib/meetings.ts:186/249/330/370/421` → `meeting.created/confirmed/rescheduled/...`;
+- `src/lib/workspace-alerts.ts:124` → `investor.reactivated` emitido dentro de `pushAlert()`, ou seja, **toda vez que um alerta novo é criado para aquele lead**;
+- `src/components/shared/executive-contact-dialog.tsx:81` → ainda emite `lead.status.changed` (esse é o único filtrado em executive-data, então hoje ele é inofensivo para a etiqueta).
 
-**C4. Ação do Dia: fonte única imediata ou convivência dos dois motores?**
-Problema: `crm_cadence_tasks` (ligações, exibido na Agenda) e `relationship_queue` (mensagens, invisível) coexistem sem chave comum. Unificar sem chave `lead+etapa+instância` duplica a mesma etapa na lista. Decisão: qual motor é o oficial e o que fazer com as tarefas legadas.
+O filtro paliativo criado no Bloco anterior cobriu **apenas** `lead.status.changed`. Todos os demais eventos administrativos continuam entrando no cálculo de atividade do investidor — exatamente o comportamento que a regra oficial proíbe ("abrir/operar o card não é atividade do investidor").
 
-**C5. Reuniões de `portal_meetings` devem bloquear conflito de prioridade máxima?**
-Problema: hoje a constraint só cobre evento × evento; uma reunião confirmada não impede um compromisso máxima no mesmo horário. Afeta a regra de conflito no banco.
+## F/G) Dados no banco x dados que chegam ao frontend
 
-**C6. Notas do Executivo: tabela própria ou extensão do que existe?**
-Problema: hoje há `portal_leads.notes` (texto único) e `crm_cadence_tasks.note` (desfecho). Não existe duração de ligação nem tipo (ligação × mensagem). Decisão define migration e a UI de card/modal.
+Consulta em `portal_leads` (56 leads):
 
-## D. Já definido — não perguntar
-Identidade pelo ID GreenSales; origem preservada; carteiras TikTok/Meta separadas; abrir card não é atividade; homologação nunca chama a Meta; E0 automático/template e demais etapas assistidas; E20 com validade de 7 dias; OPORTUNIDADE encerra a cadência; fechamento 22:00 e janelas de envio; versionamento imutável da Biblioteca e snapshot no envio; blindagem contra exclusão de leads; `/f` como unidade Financeira e slugs reservados.
+- 55 com `viewed_at` preenchido, 1 sem (`gs_58673`, nunca aberto — correto).
+- **Zero** leads com `last_activity_at`, `journey_last_event_at`, `last_inbound_at` ou `created_at` maiores que `viewed_at`.
+- Nenhuma rotina de servidor grava `viewed_at`; só `set_lead_operational`. Sincronização GreenSales grava `last_activity_at = created_at` do lead e nunca `now()`.
 
-## E. Correções já cobertas por regra definida (executar sem nova pergunta)
-1. Guarda de mudança real em `markLeadViewed` — só emitir quando o estado muda de fato.
-2. Deduplicação no bus por chave `tipo+lead+janela`.
-3. "Contato registrado" único por entrada real na ficha.
-4. Fuso do dock da Agenda fixado em America/Sao_Paulo.
-5. Remoção do desfecho padrão `?? "SIM"` em `completeCadenceTask`.
-6. Adoção efetiva de `unitPath()` no lugar dos literais `/f/`.
-7. `step_key` textual (E0–E7 / R0–R3) desacoplado de `step_day`.
+Amostras: `gs_58674` (atividade 27/08 22:52, visto 28/08 00:22), `ld_mt3w9q2zytov` (atividade 27/08 21:08, visto 28/08 02:41), `gs_58659` (atividade 27/08 17:01, visto 27/08 21:06). Todos deveriam renderizar "em andamento".
 
-## Ordem recomendada da próxima etapa
-1. Correções invisíveis de integridade (E1–E5 acima) — nenhuma decisão pendente, risco baixo.
-2. Fundação: `step_key` textual + chave única de ação (depende de C4).
-3. Unificação da Agenda com o motor oficial (depende de C4 e C5).
-4. Reativação/reengajamento persistido (depende de C1 e C2).
-5. Notas do Executivo (depende de C6).
-6. Saída da simulação do E0, somente após o cadastro dos templates Meta.
+Conclusão de camada: **BANCO correto → API correta → CACHE correto → o "NOVO" nasce na camada de RENDERIZAÇÃO/derivação (executive-data + lead-state)**.
+
+## H) Regra que faz reaparecer o "NOVO"
+
+`resolveLeadState()` comparando `viewedAt` contra um `lastActivity` contaminado por eventos locais de origem administrativa. Secundariamente, na tela Investidores, o `status` derivado de leitura (`readingPct === 0 ⇒ "novo"`).
+
+## I/J) Relação com Bloco 1 e Bloco 2
+
+- **Bloco 1**: relacionado indiretamente. O Bloco 1 removeu a persistência otimista e passou a confirmar a gravação no servidor — isso está funcionando (o `viewed_at` está gravado). Mas o Bloco 1 tratou só do evento `lead.status.changed`; não fechou a porta dos demais eventos administrativos.
+- **Bloco 2 (Identidade)**: **não relacionado**. Não há duplicidade nem troca de `id` envolvida — os mesmos registros mantêm `viewed_at`; o problema é reclassificação visual.
+
+## K) Recomendação (sem implementar)
+
+1. Definir uma lista branca explícita de eventos que constituem **atividade do investidor** (jornada, leitura, simulador, WhatsApp de entrada, resposta inbound) e usar só ela no cálculo de `lastActivity` — em vez da lista negra atual de um único tipo.
+2. Mover o critério "há novidade não vista" para o servidor (comparar `viewed_at` com colunas de atividade real já existentes), eliminando a dependência do barramento `localStorage`, que é por navegador e não sobrevive a outra máquina/sessão.
+3. Renomear o rótulo derivado de leitura na tela Investidores (ex.: "Sem leitura") para não colidir com o indicador operacional "Novo".
+4. Verificação sugerida antes de qualquer correção: com o Workspace aberto, inspecionar `velox:events:v1` e confirmar, para 2-3 leads afetados, o evento pós-`viewed_at` que está elevando a atividade — isso fecha a prova empírica do item E.
