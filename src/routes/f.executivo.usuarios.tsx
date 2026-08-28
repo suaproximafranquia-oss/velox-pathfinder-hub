@@ -82,8 +82,16 @@ function UsuariosPage() {
   }, [navigate]);
 
   function persist(next: ExecutiveUser[]) {
+    try {
+      // A persistência é a última barreira: um link reservado nunca é gravado.
+      saveUsers(next);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Não foi possível gravar os usuários.",
+      );
+      return;
+    }
     setUsers(next);
-    saveUsers(next);
   }
 
   function toggleStatus(id: string) {
