@@ -12,10 +12,10 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { DatabaseBackup, Lock, Phone, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
+import { CalendarClock, DatabaseBackup, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { DailyCallsOverlay } from "@/components/crm/daily-calls-overlay";
-import { getCadenceSummary } from "@/lib/crm/cadence.functions";
+import { DailyActionsOverlay } from "@/components/crm/daily-actions-overlay";
+import { getDailyActionsSummary } from "@/lib/crm/daily-actions.functions";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
 import {
@@ -296,7 +296,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const runBackfill = useServerFn(runCrmBackfillNow);
   const retryWelcome = useServerFn(retryCrmWelcome);
   const moveLead = useServerFn(moveCrmLeadStage);
-  const fetchCallsSummary = useServerFn(getCadenceSummary);
+  const fetchCallsSummary = useServerFn(getDailyActionsSummary);
 
   useEffect(() => {
     const s = getSession();
@@ -325,7 +325,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       setStages(stageList);
       setConnection(conn);
       try {
-        setCallsSummary(await fetchCallsSummary({ data: { channel: "call" } }));
+        setCallsSummary(await fetchCallsSummary());
       } catch {
         setCallsSummary(null);
       }
@@ -536,8 +536,8 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
               onClick={() => setCallsOpen(true)}
               className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20"
             >
-              <Phone className="h-4 w-4" />
-              Ligações do Dia
+              <CalendarClock className="h-4 w-4" />
+              Ações do Dia
               {callsSummary && callsSummary.overdue + callsSummary.today > 0 && (
                 <span className="rounded-full bg-[color:var(--gold)]/20 px-2 py-0.5 text-[10px]">
                   {callsSummary.overdue > 0
@@ -611,15 +611,18 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
         />
       )}
 
-      <DailyCallsOverlay
+      <DailyActionsOverlay
         open={callsOpen}
         onClose={() => {
           setCallsOpen(false);
           void load();
         }}
+        /**
+         * A ficha completa tem endereço próprio e abre em nova aba: o
+         * Executivo consulta o investidor sem perder a fila do dia.
+         */
         onOpenLead={(leadId) => {
-          setCallsOpen(false);
-          setSelectedId(leadId);
+          window.open(`/f/executivo/investidores/${leadId}`, "_blank", "noopener");
         }}
       />
     </>
