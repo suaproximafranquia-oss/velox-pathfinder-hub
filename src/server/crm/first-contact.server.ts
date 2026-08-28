@@ -1,19 +1,18 @@
 /**
- * PRIMEIRO CONTATO DO LEAD NOVO — registro interno obrigatório.
+ * PRIMEIRO CONTATO DO LEAD NOVO — PORTA DE ENTRADA ÚNICA.
  *
- * A entrega externa pelo WhatsApp/Meta pode estar temporariamente
- * indisponível. Isso NUNCA interrompe a lógica interna: a regra é
- * acionada, o texto oficial é resolvido com as variáveis do lead, a
- * mensagem é registrada no CRM e o evento aparece no histórico. Quando o
- * canal oficial existir, a MESMA lógica passa a entregar de fato.
+ * Este módulo continua sendo o ponto de entrada da E0 (elegibilidade,
+ * janela operacional e chave de ativação), mas o CONTEÚDO e o ENVIO
+ * passaram integralmente para o caminho oficial do motor
+ * (`@/server/relationship/e0.server`): Biblioteca oficial, executivo
+ * responsável real, destinos dinâmicos e snapshot congelado.
  *
- * A operação é idempotente: um lead recebe primeiro contato uma única vez.
+ * A entrega externa pode estar indisponível; isso nunca interrompe a
+ * lógica interna. A operação é idempotente: um lead recebe primeiro
+ * contato uma única vez.
  */
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { buildWelcomeMessage, loadSettings } from "@/server/crm/automation.server";
-import { sendWhatsappText } from "@/server/crm/messaging.server";
+import { loadSettings } from "@/server/crm/automation.server";
 import { cadenceEligibility } from "@/lib/crm/cutover";
-import { SIMULATION_LABEL } from "@/server/relationship/execution-mode.server";
 import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
 
 export type FirstContactInput = {
@@ -67,63 +66,24 @@ export async function registerFirstContact(
    * pendente para a próxima abertura da janela.
    */
   if (isE0NightWindow()) return { registered: false, reason: nightDeferralReason() };
-  const messageId = `msg_e0_${input.leadId}`;
   if (!settings.welcomeEnabled) return { registered: false, reason: "boas-vindas desativadas" };
 
-  const message = buildWelcomeMessage(
-    settings,
-    input.name,
-    { name: input.executiveName ?? null, slug: input.executiveSlug ?? null },
-    // Recadastro usa a comunicação de reabertura já definida — nenhum
-    // texto novo é criado para esta situação.
-    { reactivation: Boolean(input.reactivation) },
-  );
-  const at = new Date().toISOString();
-
   /**
-   * IDEMPOTÊNCIA ATÔMICA (COMANDO 2A §9): a trava é a chave primária
-   * determinística da mensagem, não uma leitura anterior. Duas execuções
-   * simultâneas não produzem duas E0 — a segunda recebe conflito e para.
+   * CAMINHO ÚNICO: conteúdo, executivo responsável, destinos dinâmicos,
+   * template oficial, idempotência e snapshot vivem no motor. Aqui não
+   * existe mais texto de mensagem nem chamada direta ao canal.
    */
-  const { error: insertError } = await supabaseAdmin.from("crm_messages").insert({
-    id: messageId,
-    investor_id: input.leadId,
-    direction: "enviada",
-    // Texto oficial sem prefixo: a simulação é o dado `simulated`.
-    body: message.body,
-    author_id: input.ownerId ?? "sistema",
-    author_name: "Primeiro contato",
-    at,
-    simulated: Boolean(input.simulated),
-  } as any);
-  if (insertError) {
-    if (insertError.code === "23505") {
-      return { registered: false, reason: "primeiro contato já registrado" };
-    }
-    return { registered: false, reason: insertError.message };
-  }
-
-  // Em modo de teste a entrega externa NÃO é tentada: nenhuma chamada à
-  // Meta, nenhum WhatsApp real. Fora do teste, a entrega é tentada e o
-  // resultado registrado — jamais impede o registro interno.
-  const delivery = input.simulated
-    ? { delivered: false as const, error: undefined as string | undefined }
-    : await sendWhatsappText({ phone: input.phone, body: message.body });
-
-  await supabaseAdmin.from("crm_timeline").insert({
-    id: `tl_e0_${input.leadId}`,
-    investor_id: input.leadId,
-    event: "primeiro_contato",
+  const { dispatchFirstContact } = await import("@/server/relationship/e0.server");
+  const dispatch = await dispatchFirstContact({
+    leadId: input.leadId,
+    name: input.name,
+    phone: input.phone,
     origin: input.origin,
-    reason: input.simulated
-      ? `${SIMULATION_LABEL} — E0 executada até o ponto de envio. Mensagem registrada sem entrega real (Meta não acionada).`
-      : delivery.delivered
-        ? "Primeiro contato enviado pelo canal oficial."
-        : `Primeiro contato processado e registrado. Entrega externa pendente: ${delivery.error ?? "canal indisponível"}.`,
-    owner_id: input.ownerId,
-    actor_id: "sistema",
-    at,
+    ownerId: input.ownerId,
+    simulated: Boolean(input.simulated),
   });
+  if (!dispatch.registered) return { registered: false, reason: dispatch.reason };
+  const at = new Date().toISOString();
 
   /**
    * ELO QUE FALTAVA: a E0 passa a existir também para o MOTOR DE
@@ -173,8 +133,8 @@ export async function registerFirstContact(
 
   return {
     registered: true,
-    delivered: delivery.delivered,
-    simulated: Boolean(input.simulated),
-    error: delivery.error,
+    delivered: dispatch.delivered,
+    simulated: dispatch.simulated,
+    ...(dispatch.error ? { error: dispatch.error } : {}),
   };
 }

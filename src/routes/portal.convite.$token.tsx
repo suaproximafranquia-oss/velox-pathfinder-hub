@@ -42,7 +42,11 @@ function ConvitePage() {
     let cancelled = false;
     void (async () => {
       try {
-        const result = await redeem({ data: { token } });
+        // O dispositivo do acesso é registrado como fato da auditoria
+        // da apresentação — nunca inferido depois.
+        const result = await redeem({
+          data: { token, userAgent: navigator.userAgent ?? null },
+        });
         if (cancelled) return;
         if (result.valid) {
           // Fluxo oficial: o convite entrega o visitante à Home com o

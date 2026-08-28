@@ -55,12 +55,22 @@ export type LibraryMessage = {
 };
 
 /**
- * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
- * E20 nem E27 — a ausência é intencional e é preservada: elas continuam
- * como slot vazio e inativo, e o motor bloqueia o envio com motivo
- * legível em vez de inventar mensagem.
+ * ETAPA PRÓPRIA DA RESPOSTA AUTOMÁTICA.
+ *
+ * A orientação automática dentro da janela de 24h deixou de tomar
+ * emprestado o texto de uma etapa de cadência (R1): ela tem entrada
+ * própria na Biblioteca. Enquanto não houver texto oficial publicado,
+ * o motor NÃO responde e informa o motivo — nenhum texto é inventado.
  */
-export const PENDING_TEXT_STEPS = ["E20", "E27"] as const;
+export const AUTO_REPLY_STEP = "RESPOSTA_AUTOMATICA";
+
+/**
+ * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
+ * E20, E27 nem a resposta automática — a ausência é intencional e é
+ * preservada: elas continuam como slot vazio e inativo, e o motor
+ * bloqueia o envio com motivo legível em vez de inventar mensagem.
+ */
+export const PENDING_TEXT_STEPS = ["E20", "E27", AUTO_REPLY_STEP] as const;
 
 /** Etapas oficiais do Word, na ordem em que o documento as apresenta. */
 export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) => m.stepKey);
@@ -84,6 +94,7 @@ const STEP_LABEL: Record<string, string> = {
   E20: "E6 — Apresentação Digital",
   E27: "E27 — Checkpoint da apresentação digital",
   FINALIZACAO: "FINALIZAÇÃO — Encerramento do ciclo (legado)",
+  [AUTO_REPLY_STEP]: "Resposta automática — orientação dentro da janela de 24h",
 };
 
 function toMessage(row: Record<string, any>): LibraryMessage {
@@ -447,6 +458,17 @@ export async function recordMessageSnapshot(params: {
   channel?: string;
   simulated?: boolean;
   sentAt?: string;
+  /**
+   * CONGELAMENTO DOS DESTINOS (E0 dinâmica). O responsável e os links
+   * usados no envio ficam gravados aqui: uma redistribuição futura do
+   * lead não pode reescrever o que já foi entregue.
+   */
+  executiveId?: string | null;
+  executiveName?: string | null;
+  portalDestination?: string | null;
+  contactDestination?: string | null;
+  contactPhone?: string | null;
+  buttonDestinations?: Record<string, unknown> | null;
 }): Promise<void> {
   const { error } = await supabaseAdmin.from("relationship_message_sends").insert({
     scope: "production",
@@ -472,6 +494,12 @@ export async function recordMessageSnapshot(params: {
     channel: params.channel ?? "whatsapp",
     simulated: params.simulated ?? false,
     sent_at: params.sentAt ?? new Date().toISOString(),
+    executive_id: params.executiveId ?? null,
+    executive_name: params.executiveName ?? null,
+    portal_destination: params.portalDestination ?? null,
+    contact_destination: params.contactDestination ?? null,
+    contact_phone: params.contactPhone ?? null,
+    button_destinations: (params.buttonDestinations ?? null) as any,
   } as any);
   // Duplicidade (mesmo message_id) não é erro: o snapshot já existe.
   if (error && error.code !== "23505") throw new Error(error.message);
