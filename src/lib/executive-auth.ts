@@ -326,8 +326,27 @@ export function loadUsers(): ExecutiveUser[] {
   }
 }
 
+/** Erro lançado quando a persistência recebe um link personalizado inválido. */
+export class InvalidExecutiveSlugError extends Error {
+  readonly suggestion: string;
+  constructor(message: string, suggestion: string) {
+    super(message);
+    this.name = "InvalidExecutiveSlugError";
+    this.suggestion = suggestion;
+  }
+}
+
 export function saveUsers(users: ExecutiveUser[]) {
   if (typeof window === "undefined") return;
+  // §Slugs — a validação é BLOQUEANTE no ponto de persistência: nenhum
+  // usuário pode ser gravado com um endereço reservado pela unidade.
+  for (const user of users) {
+    if (!user.slug) continue;
+    const check = validateExecutiveSlug(user.slug);
+    if (!check.ok) {
+      throw new InvalidExecutiveSlugError(check.message, check.suggestion);
+    }
+  }
   window.localStorage.setItem(
     USERS_KEY,
     JSON.stringify(users.filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id))),
