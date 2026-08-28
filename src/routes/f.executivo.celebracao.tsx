@@ -32,7 +32,7 @@ function CelebracaoPage() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s) return void navigate({ to: "/executivo" });
+    if (!s) return void navigate({ to: "/f/executivo" });
     setSession(s);
     const evt = nextPendingEvent(s.userId);
     if (evt && evt.type === "company_anniversary") setEvent(evt);
@@ -49,7 +49,7 @@ function CelebracaoPage() {
 
   function conclude() {
     if (event) markViewed(event.id);
-    navigate({ to: "/executivo/home" });
+    navigate({ to: "/f/executivo/home" });
   }
 
   // Cards exibidos apenas quando existem dados reais.

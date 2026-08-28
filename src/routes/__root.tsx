@@ -140,11 +140,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function resolveShell(pathname: string): EditorialVariant | "executive" {
-  if (pathname.startsWith("/executivo")) return "executive";
+  if (pathname.startsWith("/f/executivo")) return "executive";
   // O CRM é um ambiente operacional próprio — não herda o tema editorial.
-  if (pathname.startsWith("/crm")) return "executive";
+  if (pathname.startsWith("/f/crm")) return "executive";
   // O Portal dos Leads é ambiente operacional do executivo.
-  if (pathname.startsWith("/portal-leads")) return "executive";
+  if (pathname.startsWith("/f/portal-leads")) return "executive";
   if (pathname.startsWith("/universo")) return "universo";
   if (pathname === "/") return "portal";
   return "manual";
@@ -182,9 +182,9 @@ function RootRoutes() {
   const { queryClient } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isExecutive = pathname.startsWith("/executivo");
-  const isCrm = pathname.startsWith("/crm");
-  const isLeadsPortal = pathname.startsWith("/portal-leads");
+  const isExecutive = pathname.startsWith("/f/executivo");
+  const isCrm = pathname.startsWith("/f/crm");
+  const isLeadsPortal = pathname.startsWith("/f/portal-leads");
   const isPortal = pathname === "/";
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";

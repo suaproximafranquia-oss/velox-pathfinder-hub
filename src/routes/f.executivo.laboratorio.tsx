@@ -92,8 +92,8 @@ function LaboratorioPage() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s) return void navigate({ to: "/executivo" });
-    if (s.activeRole !== "super_admin") return void navigate({ to: "/executivo/home" });
+    if (!s) return void navigate({ to: "/f/executivo" });
+    if (s.activeRole !== "super_admin") return void navigate({ to: "/f/executivo/home" });
     setSession(s);
     setTargetUserId(s.userId);
   }, [navigate]);
@@ -137,7 +137,7 @@ function LaboratorioPage() {
 
   function handleLogoutNow() {
     signOut();
-    navigate({ to: "/executivo" });
+    navigate({ to: "/f/executivo" });
   }
 
   const targetName = users.find((u) => u.id === targetUserId)?.name ?? "usuário selecionado";

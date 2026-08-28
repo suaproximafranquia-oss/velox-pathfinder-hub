@@ -27,7 +27,7 @@ export function RecognitionHost({ userId }: { userId: string }) {
   // Aniversário de empresa possui tela dedicada — encaminha antes do modal.
   if (event.type === "company_anniversary") {
     if (typeof window !== "undefined") {
-      navigate({ to: "/executivo/celebracao" });
+      navigate({ to: "/f/executivo/celebracao" });
     }
     return null;
   }
@@ -38,7 +38,7 @@ export function RecognitionHost({ userId }: { userId: string }) {
         const wasKpiPending = event.type === "kpi_pending";
         markViewed(event.id);
         setEvent(nextPendingEvent(userId));
-        if (wasKpiPending) navigate({ to: "/executivo/kpi" });
+        if (wasKpiPending) navigate({ to: "/f/executivo/kpi" });
       }}
     />
   );

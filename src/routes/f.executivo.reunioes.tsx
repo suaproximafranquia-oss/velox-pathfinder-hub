@@ -186,7 +186,7 @@ function MeetingsPage() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s) navigate({ to: "/executivo" });
+    if (!s) navigate({ to: "/f/executivo" });
     else {
       setSession(s);
       setScope(defaultScope(s.activeRole, s.userId));

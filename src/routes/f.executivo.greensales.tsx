@@ -6,6 +6,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/f/executivo/greensales")({
   beforeLoad: () => {
-    throw redirect({ to: "/portal-leads" });
+    throw redirect({ to: "/f/portal-leads" });
   },
 });

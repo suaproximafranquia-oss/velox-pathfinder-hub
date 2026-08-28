@@ -51,7 +51,7 @@ function AdministracaoPage() {
   useEffect(() => {
     const s = getSession();
     if (!s) {
-      navigate({ to: "/executivo" });
+      navigate({ to: "/f/executivo" });
       return;
     }
     setSession(s);
@@ -106,21 +106,21 @@ function AdministracaoPage() {
 function AdminHub({ role }: { role: ExecutiveSession["activeRole"] }) {
   const items = [
     {
-      to: "/executivo/usuarios",
+      to: "/f/executivo/usuarios",
       icon: Users2,
       title: "Usuários & Perfis",
       desc: "Gestão de usuários, perfis e permissões.",
       show: can(role, "admin.users.manage"),
     },
     {
-      to: "/executivo/recursos",
+      to: "/f/executivo/recursos",
       icon: FolderOpen,
       title: "Centro de Recursos",
       desc: "Ativos institucionais reutilizáveis.",
       show: can(role, "resources.manage"),
     },
     {
-      to: "/executivo/configuracoes",
+      to: "/f/executivo/configuracoes",
       icon: Sliders,
       title: "Preferências do Workspace",
       desc: "Identidade visual e integrações.",

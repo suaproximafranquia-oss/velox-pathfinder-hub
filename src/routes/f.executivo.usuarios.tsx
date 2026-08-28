@@ -66,11 +66,11 @@ function UsuariosPage() {
   useEffect(() => {
     const s = getSession();
     if (!s) {
-      navigate({ to: "/executivo" });
+      navigate({ to: "/f/executivo" });
       return;
     }
     if (!canManageUsers(s.activeRole)) {
-      navigate({ to: "/executivo/dashboard" });
+      navigate({ to: "/f/executivo/dashboard" });
       return;
     }
     setSession(s);

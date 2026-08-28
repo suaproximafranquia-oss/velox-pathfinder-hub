@@ -60,7 +60,7 @@ function BrainPage() {
   useEffect(() => {
     const s = getSession();
     if (!s) {
-      navigate({ to: "/executivo" });
+      navigate({ to: "/f/executivo" });
       return;
     }
     setSession(s);

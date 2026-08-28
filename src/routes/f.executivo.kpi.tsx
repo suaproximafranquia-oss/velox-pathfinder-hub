@@ -91,7 +91,7 @@ function KpiManagerPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   useEffect(() => {
     const s = getSession();
-    if (!s) navigate({ to: "/executivo" });
+    if (!s) navigate({ to: "/f/executivo" });
     else setSession(s);
   }, [navigate]);
   if (!session) return null;

@@ -56,7 +56,7 @@ function PerfilPage() {
   const [user, setUser] = useState<ExecutiveUser | null>(null);
   useEffect(() => {
     const s = getSession();
-    if (!s) navigate({ to: "/executivo" });
+    if (!s) navigate({ to: "/f/executivo" });
     else {
       setSession(s);
       setUser(loadUsers().find((u) => u.id === s.userId) ?? null);

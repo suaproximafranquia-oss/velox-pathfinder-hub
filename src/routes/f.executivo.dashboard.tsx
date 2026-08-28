@@ -114,7 +114,7 @@ function WorkspacePage() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s) navigate({ to: "/executivo" });
+    if (!s) navigate({ to: "/f/executivo" });
     else setSession(s);
   }, [navigate]);
 
@@ -276,14 +276,14 @@ function WorkspacePage() {
   const openProfile = useCallback(
     (id: string) => {
       scrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
-      navigate({ to: "/executivo/dashboard", search: { perfil: id, escopo: scope } });
+      navigate({ to: "/f/executivo/dashboard", search: { perfil: id, escopo: scope } });
       if (typeof window !== "undefined")
         window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
     },
     [navigate, scope],
   );
   const closeProfile = () => {
-    navigate({ to: "/executivo/dashboard", search: { escopo: scope } });
+    navigate({ to: "/f/executivo/dashboard", search: { escopo: scope } });
     requestAnimationFrame(() => {
       if (typeof window !== "undefined")
         window.scrollTo({ top: scrollRef.current, behavior: "instant" as ScrollBehavior });
@@ -291,7 +291,7 @@ function WorkspacePage() {
   };
 
   const changeScope = (next: WorkspaceTab) => {
-    navigate({ to: "/executivo/dashboard", search: { escopo: next } });
+    navigate({ to: "/f/executivo/dashboard", search: { escopo: next } });
   };
 
   /**
@@ -318,7 +318,7 @@ function WorkspacePage() {
   );
 
   const goToMeetings = useCallback(() => {
-    navigate({ to: "/executivo/reunioes" });
+    navigate({ to: "/f/executivo/reunioes" });
   }, [navigate]);
 
   /**

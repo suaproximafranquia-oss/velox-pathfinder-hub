@@ -12,7 +12,7 @@ export const Route = createFileRoute("/f/executivo/relatorios")({
 function RelatoriosRedirect() {
   const navigate = useNavigate();
   useEffect(() => {
-    navigate({ to: "/executivo/brain", replace: true });
+    navigate({ to: "/f/executivo/brain", replace: true });
   }, [navigate]);
   return null;
 }

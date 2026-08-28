@@ -26,7 +26,7 @@ function HomePage() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s) navigate({ to: "/executivo" });
+    if (!s) navigate({ to: "/f/executivo" });
     else setSession(s);
   }, [navigate]);
 

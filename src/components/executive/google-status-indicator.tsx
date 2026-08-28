@@ -49,7 +49,7 @@ export function GoogleStatusIndicator({ session }: { session: ExecutiveSession }
       aria-label={label}
       disabled={!canManage}
       onClick={() => {
-        if (canManage) void navigate({ to: "/executivo/configuracoes" });
+        if (canManage) void navigate({ to: "/f/executivo/configuracoes" });
       }}
       className={
         "relative inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-2.5 py-1 transition " +

@@ -60,7 +60,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     description:
       "Importação somente leitura dos leads criados hoje no GreenSales para o Portal Atlas.",
     icon: Download,
-    to: "/executivo/greensales-sync",
+    to: "/f/executivo/greensales-sync",
     status: "ativo",
     requiresRole: ["super_admin"],
   },

@@ -23,7 +23,7 @@ function ExecutiveLoginPage() {
 
   useEffect(() => {
     const s = getSession();
-    if (s) navigate({ to: "/executivo/home" });
+    if (s) navigate({ to: "/f/executivo/home" });
   }, [navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -36,7 +36,7 @@ function ExecutiveLoginPage() {
         setError("Credenciais inválidas. Verifique usuário e senha e tente novamente.");
         return;
       }
-      navigate({ to: "/executivo/home" });
+      navigate({ to: "/f/executivo/home" });
     } finally {
       setBusy(false);
     }

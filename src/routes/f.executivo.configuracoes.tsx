@@ -59,8 +59,8 @@ function ConfiguracoesPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   useEffect(() => {
     const s = getSession();
-    if (!s) navigate({ to: "/executivo" });
-    else if (s.activeRole !== "super_admin") navigate({ to: "/executivo/home" });
+    if (!s) navigate({ to: "/f/executivo" });
+    else if (s.activeRole !== "super_admin") navigate({ to: "/f/executivo/home" });
     else setSession(s);
   }, [navigate]);
   if (!session) return null;

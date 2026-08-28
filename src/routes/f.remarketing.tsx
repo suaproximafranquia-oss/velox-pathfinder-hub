@@ -1,9 +1,9 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 /**
- * `/remarketing` — layout do ambiente independente de Remarketing.
+ * `/f/remarketing` — layout do ambiente independente de Remarketing.
  *
- * Mesmo padrão do `/crm`: ambiente próprio, com URL dedicada, aberto em
+ * Mesmo padrão do `/f/crm`: ambiente próprio, com URL dedicada, aberto em
  * NOVA ABA do navegador a partir do menu do Workspace. A aba original
  * permanece intacta e o usuário alterna entre os ambientes pelas abas.
  * Nenhuma rota existente é alterada. A sessão é a mesma da Central do

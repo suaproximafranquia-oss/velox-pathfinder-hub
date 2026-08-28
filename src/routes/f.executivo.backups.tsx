@@ -88,7 +88,7 @@ function BackupsPage() {
   useEffect(() => {
     const s = getSession();
     if (!s) {
-      navigate({ to: "/executivo" });
+      navigate({ to: "/f/executivo" });
       return;
     }
     setSession(s);
@@ -105,7 +105,7 @@ function BackupsPage() {
     "crm",
   );
   useEffect(() => {
-    if (session && !crmAllowed) navigate({ to: "/executivo/home" });
+    if (session && !crmAllowed) navigate({ to: "/f/executivo/home" });
   }, [session, crmAllowed, navigate]);
 
   // Arquivamento, restauração e auditoria refletem na hora.

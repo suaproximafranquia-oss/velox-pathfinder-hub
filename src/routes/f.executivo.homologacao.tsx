@@ -286,7 +286,7 @@ function HomologacaoPage() {
                 Biblioteca de Conteúdos
               </h2>
             </div>
-            <Link to="/executivo/biblioteca" className={ghost}>
+            <Link to="/f/executivo/biblioteca" className={ghost}>
               Gerenciar biblioteca
             </Link>
           </div>

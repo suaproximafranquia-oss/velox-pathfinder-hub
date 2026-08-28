@@ -96,7 +96,7 @@ function TemplatesPage() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s) return void navigate({ to: "/executivo" });
+    if (!s) return void navigate({ to: "/f/executivo" });
     setSession(s);
   }, [navigate]);
 

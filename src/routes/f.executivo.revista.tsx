@@ -200,7 +200,7 @@ function RevistaAdminPage() {
           </p>
           <p className="mt-3 text-[11px] text-[color:var(--muted-foreground)]">
             Nossa Estrutura e Princípios Velox são módulos próprios —{" "}
-            <Link to="/executivo/institucional" className="underline">
+            <Link to="/f/executivo/institucional" className="underline">
               administrar módulos institucionais
             </Link>
             .
