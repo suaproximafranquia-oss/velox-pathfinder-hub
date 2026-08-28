@@ -60,8 +60,14 @@ export type Investor = {
   lastEventLabel?: string;
 };
 
+/**
+ * Rótulos do status de LEITURA (tela Investidores) — conceito distinto
+ * da etiqueta operacional do card (NOVO / EM ANDAMENTO / ENCERRADO).
+ * "Sem leitura" evita a ambiguidade com "Novo": aqui significa apenas
+ * que o investidor ainda não iniciou o Manual, nunca "há novidade".
+ */
 export const STATUS_LABEL: Record<InvestorStatus, string> = {
-  novo: "Novo",
+  novo: "Sem leitura",
   em_leitura: "Em leitura",
   concluido: "Leitura concluída",
   conversando: "Em conversa",
