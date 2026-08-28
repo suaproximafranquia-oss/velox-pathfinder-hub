@@ -66,6 +66,11 @@ export type DailyAction = {
   responsibleName: string | null;
   cadence?: CadenceRef;
   attempts: CadenceAttemptView[];
+  /**
+   * Pendências de menor precedência do MESMO lead. Continuam disponíveis
+   * para consulta/conclusão, mas nunca geram um segundo card.
+   */
+  secondary?: DailyAction[];
 };
 
 /** Data operacional (YYYY-MM-DD) de um instante, em America/Sao_Paulo. */
