@@ -98,10 +98,12 @@ async function log(action: string, details: Record<string, unknown>): Promise<vo
 
 async function send(request: DispatchRequest): Promise<DispatchResult> {
   const step = request.step as CadenceStep;
-  const recipient = await loadRecipient(request.leadId);
-  if (!recipient) {
-    return { delivered: false, error: "Destinatário sem telefone real — etapa não enviada." };
+  const loaded = await loadRecipient(request.leadId);
+  if ("error" in loaded) {
+    await log("envio_bloqueado", { leadId: request.leadId, step, motivo: loaded.error });
+    return { delivered: false, error: loaded.error };
   }
+  const recipient = loaded.recipient;
 
   /**
    * BLOCO 2: o texto vem da VERSÃO ATIVA da Biblioteca (fonte oficial).
@@ -132,7 +134,7 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
    * desligada e o token real da Meta esteja presente. Esta é a última
    * barreira: nenhum lote de teste consegue produzir entrega externa.
    */
-  const simulated = E0_SIMULATION_ENABLED || recipient.isTest;
+  const simulated = executionMode({ isTestLead: recipient.isTest }).simulated;
   const body = rendered.button ? `${rendered.body}\n\n${rendered.button.url}` : rendered.body;
   const messageId = `msg_${step.toLowerCase()}_${request.leadId}`;
   const at = new Date().toISOString();
@@ -145,9 +147,9 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     id: messageId,
     investor_id: request.leadId,
     direction: "enviada",
-    body: simulated ? `[${E0_SIMULATION_LABEL}]\n\n${body}` : body,
+    body: simulated ? `[${SIMULATION_LABEL}]\n\n${body}` : body,
     author_id: "sistema",
-    author_name: simulated ? `Motor de Relacionamento (${E0_SIMULATION_LABEL})` : "Motor de Relacionamento",
+    author_name: simulated ? `Motor de Relacionamento (${SIMULATION_LABEL})` : "Motor de Relacionamento",
     at,
   });
   if (insertError) {
@@ -191,7 +193,7 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     event: `cadencia_${step.toLowerCase()}`,
     origin: "motor_relacionamento",
     reason: simulated
-      ? `${E0_SIMULATION_LABEL} — etapa ${step} executada pelo motor e registrada sem entrega real (Meta não acionada).`
+      ? `${SIMULATION_LABEL} — etapa ${step} executada pelo motor e registrada sem entrega real (Meta não acionada).`
       : delivery.delivered
         ? `Etapa ${step} enviada pelo canal oficial.`
         : `Etapa ${step} registrada. Entrega externa pendente: ${delivery.error ?? "canal indisponível"}.`,
