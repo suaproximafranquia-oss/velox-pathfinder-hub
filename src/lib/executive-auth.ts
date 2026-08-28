@@ -1,3 +1,5 @@
+import { isReservedSlug } from "@/lib/business-unit";
+
 /**
  * Central do Executivo — autenticação simples com dados fictícios.
  * Estrutura preparada para futura substituição por um provedor real
@@ -508,6 +510,8 @@ export function getDefaultExecutive(): ExecutiveUser | null {
 /** Localiza um executivo ativo pelo slug do link personalizado. */
 export function getExecutiveBySlug(slug: string): ExecutiveUser | null {
   const key = slug.trim().toLowerCase();
-  if (!key) return null;
+  // Slugs reservados pertencem à unidade de negócio (/f/executivo, /f/crm…)
+  // e jamais resolvem para um link personalizado.
+  if (!key || isReservedSlug(key)) return null;
   return loadUsers().find((u) => u.slug.toLowerCase() === key && u.status === "ativo") ?? null;
 }

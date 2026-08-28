@@ -1,3 +1,4 @@
+import { safeExecutiveSlug } from "@/lib/business-unit";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Pencil, Power, Plus, ShieldCheck, Trash2 } from "lucide-react";
@@ -52,7 +53,9 @@ function slugifyEmail(email: string): { username: string; slug: string } {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  const slug = local.replace(/\./g, "-") || "usuario";
+  // Slugs reservados pertencem à arquitetura da unidade (/f/executivo,
+  // /f/crm, …) e nunca podem virar link personalizado de um executivo.
+  const slug = safeExecutiveSlug(local.replace(/\./g, "-") || "usuario");
   return { username: local || "usuario", slug };
 }
 
