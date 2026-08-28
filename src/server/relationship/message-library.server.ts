@@ -55,12 +55,22 @@ export type LibraryMessage = {
 };
 
 /**
- * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
- * E20 nem E27 — a ausência é intencional e é preservada: elas continuam
- * como slot vazio e inativo, e o motor bloqueia o envio com motivo
- * legível em vez de inventar mensagem.
+ * ETAPA PRÓPRIA DA RESPOSTA AUTOMÁTICA.
+ *
+ * A orientação automática dentro da janela de 24h deixou de tomar
+ * emprestado o texto de uma etapa de cadência (R1): ela tem entrada
+ * própria na Biblioteca. Enquanto não houver texto oficial publicado,
+ * o motor NÃO responde e informa o motivo — nenhum texto é inventado.
  */
-export const PENDING_TEXT_STEPS = ["E20", "E27"] as const;
+export const AUTO_REPLY_STEP = "RESPOSTA_AUTOMATICA";
+
+/**
+ * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
+ * E20, E27 nem a resposta automática — a ausência é intencional e é
+ * preservada: elas continuam como slot vazio e inativo, e o motor
+ * bloqueia o envio com motivo legível em vez de inventar mensagem.
+ */
+export const PENDING_TEXT_STEPS = ["E20", "E27", AUTO_REPLY_STEP] as const;
 
 /** Etapas oficiais do Word, na ordem em que o documento as apresenta. */
 export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) => m.stepKey);
