@@ -447,6 +447,17 @@ export async function recordMessageSnapshot(params: {
   channel?: string;
   simulated?: boolean;
   sentAt?: string;
+  /**
+   * CONGELAMENTO DOS DESTINOS (E0 dinâmica). O responsável e os links
+   * usados no envio ficam gravados aqui: uma redistribuição futura do
+   * lead não pode reescrever o que já foi entregue.
+   */
+  executiveId?: string | null;
+  executiveName?: string | null;
+  portalDestination?: string | null;
+  contactDestination?: string | null;
+  contactPhone?: string | null;
+  buttonDestinations?: Record<string, unknown> | null;
 }): Promise<void> {
   const { error } = await supabaseAdmin.from("relationship_message_sends").insert({
     scope: "production",
@@ -472,6 +483,12 @@ export async function recordMessageSnapshot(params: {
     channel: params.channel ?? "whatsapp",
     simulated: params.simulated ?? false,
     sent_at: params.sentAt ?? new Date().toISOString(),
+    executive_id: params.executiveId ?? null,
+    executive_name: params.executiveName ?? null,
+    portal_destination: params.portalDestination ?? null,
+    contact_destination: params.contactDestination ?? null,
+    contact_phone: params.contactPhone ?? null,
+    button_destinations: (params.buttonDestinations ?? null) as any,
   } as any);
   // Duplicidade (mesmo message_id) não é erro: o snapshot já existe.
   if (error && error.code !== "23505") throw new Error(error.message);
