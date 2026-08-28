@@ -203,7 +203,7 @@ function RootRoutes() {
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isExecutive || isCrm || isLeadsPortal || isPortal) return;
+    if (isExecutive || isCrm || isLeadsPortal || isRemarketing || isPortal) return;
     const insideOverlay = window.self !== window.top;
     const mod = moduleForPath(pathname);
     if (!mod) return;
@@ -217,7 +217,7 @@ function RootRoutes() {
       return;
     }
     navigate({ to: "/", search: { m: mod.key }, replace: true });
-  }, [isCrm, isExecutive, isLeadsPortal, isPortal, navigate, pathname]);
+  }, [isCrm, isExecutive, isLeadsPortal, isRemarketing, isPortal, navigate, pathname]);
 
   // Área Executiva permanece isolada do Design System editorial.
   if (isExecutive) {
