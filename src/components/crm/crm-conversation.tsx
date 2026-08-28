@@ -25,7 +25,8 @@ import {
   type CrmVisualState,
 } from "@/lib/crm/relationship-state";
 
-import { whatsappPresence } from "@/lib/crm/presence";
+import { useServerFn } from "@tanstack/react-start";
+import { presencaDoInvestidor } from "@/lib/relationship/presence.functions";
 import { formatCrmMessageDay, formatCrmMessageTime, type CrmMessage } from "@/lib/crm/messages";
 import { copyToClipboard } from "@/lib/clipboard";
 import { buildThreadRows, type ThreadParticipant } from "@/lib/crm/thread-view";
@@ -309,7 +310,12 @@ export function CrmConversationHeader({
   /** COMANDO 2 §12 — devolve a conversa ao estado "não lida" (Azul). */
   onMarkUnread?: () => void;
 }) {
-  const presence = whatsappPresence(item.id);
+  /**
+   * PRESENÇA DERIVADA DO SERVIDOR: o cabeçalho não adivinha nem guarda
+   * estado no navegador. O que aparece vem da última mensagem REAL
+   * recebida do investidor (janela de 15 minutos).
+   */
+  const presence = useInvestorPresence(item.id);
   useSecondTick(Boolean(win?.open));
   const live = win && windowAnchor ? resolveCrmWindow(windowAnchor) : win;
   return (
@@ -1210,4 +1216,32 @@ export function CrmDuplicateNotice({ item }: { item: CrmConversation }) {
       </p>
     </div>
   );
+}
+
+
+/** Presença real do investidor, relida periodicamente do servidor. */
+function useInvestorPresence(investorId: string): { online: boolean; label: string } {
+  const read = useServerFn(presencaDoInvestidor);
+  const [presence, setPresence] = useState<{ online: boolean; label: string }>({
+    online: false,
+    label: "Sem mensagens recebidas",
+  });
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const result = await read({ data: { leadId: investorId } });
+        if (active) setPresence({ online: result.online, label: result.label });
+      } catch {
+        /* presença é informativa: falha não interrompe a conversa */
+      }
+    };
+    void load();
+    const timer = window.setInterval(load, 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [investorId, read]);
+  return presence;
 }
