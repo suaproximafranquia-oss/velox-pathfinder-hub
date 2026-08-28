@@ -61,14 +61,31 @@ export function buildInvestorProfile(investorId: string): InvestorProfile {
   const meetings = listMeetings({ investorId });
   const events = listEvents({ investorId });
 
-  const timeline: TimelineEntry[] = [
-    ...allLeads.map<TimelineEntry>((l) => ({
-      id: l.id,
+  /**
+   * "Contato registrado" é a ENTRADA REAL do lead — um acontecimento por
+   * entrada, não uma linha por espelho de cache. Duplicidade local
+   * (mesmo lead repetido na estrutura de leitura) não pode virar vários
+   * contatos históricos. A identidade oficial do lead é preservada:
+   * nada é criado, renomeado ou mesclado — apenas não repetimos a mesma
+   * entrada na linha do tempo.
+   */
+  const seenEntries = new Set<string>();
+  const leadEntries: TimelineEntry[] = [];
+  for (const l of allLeads) {
+    const key = `${l.id}|${l.createdAt}`;
+    if (seenEntries.has(key)) continue;
+    seenEntries.add(key);
+    leadEntries.push({
+      id: `lead_${key}`,
       at: l.createdAt,
       kind: "lead",
       title: "Contato registrado",
       description: `${l.material} · ${l.origin}`,
-    })),
+    });
+  }
+
+  const timeline: TimelineEntry[] = [
+    ...leadEntries,
     ...meetings.map<TimelineEntry>((m) => ({
       id: m.id,
       at: m.createdAt,
