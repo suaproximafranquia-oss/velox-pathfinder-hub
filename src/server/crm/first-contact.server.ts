@@ -1,19 +1,18 @@
 /**
- * PRIMEIRO CONTATO DO LEAD NOVO — registro interno obrigatório.
+ * PRIMEIRO CONTATO DO LEAD NOVO — PORTA DE ENTRADA ÚNICA.
  *
- * A entrega externa pelo WhatsApp/Meta pode estar temporariamente
- * indisponível. Isso NUNCA interrompe a lógica interna: a regra é
- * acionada, o texto oficial é resolvido com as variáveis do lead, a
- * mensagem é registrada no CRM e o evento aparece no histórico. Quando o
- * canal oficial existir, a MESMA lógica passa a entregar de fato.
+ * Este módulo continua sendo o ponto de entrada da E0 (elegibilidade,
+ * janela operacional e chave de ativação), mas o CONTEÚDO e o ENVIO
+ * passaram integralmente para o caminho oficial do motor
+ * (`@/server/relationship/e0.server`): Biblioteca oficial, executivo
+ * responsável real, destinos dinâmicos e snapshot congelado.
  *
- * A operação é idempotente: um lead recebe primeiro contato uma única vez.
+ * A entrega externa pode estar indisponível; isso nunca interrompe a
+ * lógica interna. A operação é idempotente: um lead recebe primeiro
+ * contato uma única vez.
  */
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { buildWelcomeMessage, loadSettings } from "@/server/crm/automation.server";
-import { sendWhatsappText } from "@/server/crm/messaging.server";
+import { loadSettings } from "@/server/crm/automation.server";
 import { cadenceEligibility } from "@/lib/crm/cutover";
-import { SIMULATION_LABEL } from "@/server/relationship/execution-mode.server";
 import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
 
 export type FirstContactInput = {
