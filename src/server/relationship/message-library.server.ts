@@ -238,12 +238,15 @@ export async function getActiveLibraryMessage(
 export async function publishLibraryVersion(params: {
   stepKey: string;
   body: string;
+  bodyWithoutName?: string | null;
   title?: string | null;
   contentGroup?: string | null;
   buttonKind?: "portal" | "content" | null;
   notes?: string | null;
   actorId?: string | null;
   actorName: string;
+  sourceKind?: string | null;
+  sourceReference?: string | null;
 }): Promise<LibraryMessage> {
   await ensureLibrarySeed();
   const { data: history } = await supabaseAdmin
@@ -272,6 +275,7 @@ export async function publishLibraryVersion(params: {
       title: params.title ?? (current as any)?.title ?? params.stepKey,
       purpose: (current as any)?.purpose ?? params.stepKey.toLowerCase(),
       body: params.body,
+      body_without_name: params.bodyWithoutName ?? null,
       version: nextVersion,
       active: params.body.trim().length > 0,
       content_group:
@@ -286,6 +290,11 @@ export async function publishLibraryVersion(params: {
       created_by: params.actorId ?? null,
       created_by_name: params.actorName,
       notes: params.notes ?? null,
+      source_kind: params.sourceKind ?? null,
+      source_reference: params.sourceReference ?? null,
+      ...(params.sourceKind
+        ? { imported_at: new Date().toISOString(), import_version: nextVersion }
+        : {}),
     } as any)
     .select("*")
     .single();
@@ -293,7 +302,84 @@ export async function publishLibraryVersion(params: {
   return toMessage(data);
 }
 
-/** Renderiza a etapa a partir da versão ATIVA da Biblioteca. */
+export type WordImportEntry = {
+  stepKey: string;
+  outcome: "criada" | "nova_versao" | "inalterada";
+  version: number | null;
+};
+
+/**
+ * IMPORTAÇÃO DO WORD OFICIAL.
+ *
+ * Regras não negociáveis:
+ *  • conteúdo idêntico ao que já está ativo NÃO gera nova versão;
+ *  • conteúdo diferente gera a versão seguinte, preservando a anterior;
+ *  • etapas ausentes do Word (E20, E27) nunca são preenchidas;
+ *  • snapshots de envios anteriores nunca são tocados.
+ */
+export async function importWordLibrary(actor: {
+  actorId?: string | null;
+  actorName: string;
+}): Promise<WordImportEntry[]> {
+  await ensureLibrarySeed();
+  const result: WordImportEntry[] = [];
+
+  for (const official of WORD_MESSAGES) {
+    const { data: history } = await supabaseAdmin
+      .from("relationship_message_library")
+      .select("*")
+      .eq("scope", "production")
+      .eq("step_key", official.stepKey)
+      .order("version", { ascending: false });
+    const rows = (history ?? []) as any[];
+    const current = rows.find((r) => r.active) ?? null;
+
+    if (
+      current &&
+      String(current.body ?? "") === official.body &&
+      String(current.body_without_name ?? "") === official.bodyWithoutName
+    ) {
+      result.push({
+        stepKey: official.stepKey,
+        outcome: "inalterada",
+        version: Number(current.version ?? 1),
+      });
+      continue;
+    }
+
+    const nextVersion = rows[0]?.version ? Number(rows[0].version) + 1 : 1;
+    if (current) {
+      await supabaseAdmin
+        .from("relationship_message_library")
+        .update({ active: false } as any)
+        .eq("id", current.id);
+    }
+    const { error } = await supabaseAdmin
+      .from("relationship_message_library")
+      .insert({
+        ...wordRow(official, nextVersion, current?.id ?? null),
+        created_by: actor.actorId ?? null,
+        created_by_name: actor.actorName,
+      } as any);
+    if (error) throw new Error(`${official.stepKey}: ${error.message}`);
+    result.push({
+      stepKey: official.stepKey,
+      outcome: rows.length ? "nova_versao" : "criada",
+      version: nextVersion,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Renderiza a etapa a partir da versão ATIVA da Biblioteca.
+ *
+ * O Word oficial traz DUAS redações por etapa: "com nome" e "sem nome".
+ * Elas não são a mesma frase com uma substituição — são textos próprios.
+ * Por isso a escolha acontece aqui, antes da renderização: nome validado
+ * usa a versão com nome; qualquer outro caso usa a versão sem nome.
+ */
 export async function renderFromLibrary(
   stepKey: string,
   input: RenderInput,
@@ -308,15 +394,27 @@ export async function renderFromLibrary(
       message,
     };
   }
+
+  const treatment = resolveTreatment({
+    confirmedName: input.confirmedInvestorName ?? null,
+    executiveProvidedName: input.executiveProvidedName ?? null,
+    rawName: input.rawInvestorName ?? null,
+    manuallyRejected: input.nameRejected ?? false,
+  });
+  const useWithoutName =
+    !treatment.personalized && Boolean(message.bodyWithoutName?.trim());
+  const text = useWithoutName ? message.bodyWithoutName!.trim() : message.body;
+
   const spec: MessageSpec = {
     step: stepKey,
-    text: message.body,
-    usesInvestorName: message.usesInvestorName,
+    text,
+    usesInvestorName: text.includes("{{nome_investidor}}"),
     button: message.buttonKind,
     contentGroup: message.contentGroup,
   };
   return { result: renderMessageSpec(spec, input), message };
 }
+
 
 /**
  * SNAPSHOT IMUTÁVEL DO ENVIO.
