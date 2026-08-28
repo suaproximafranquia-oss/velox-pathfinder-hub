@@ -3,6 +3,7 @@
  * Nenhum dado fictício é gerado (DEF 2.4.RESET).
  */
 import { listEvents } from "@/lib/events/bus";
+import { filterInvestorActivity } from "@/lib/events/investor-activity";
 import { loadLeads } from "@/lib/leads";
 import { getDefaultExecutive } from "@/lib/executive-auth";
 import { resolveLeadScope } from "@/lib/lead-routing";
