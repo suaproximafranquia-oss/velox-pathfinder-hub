@@ -147,11 +147,17 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     id: messageId,
     investor_id: request.leadId,
     direction: "enviada",
-    body: simulated ? `[${SIMULATION_LABEL}]\n\n${body}` : body,
+    /**
+     * O CORPO É O TEXTO OFICIAL, SEM PREFIXO. A simulação passa a ser
+     * um DADO (`simulated`), não uma marca dentro da mensagem — assim a
+     * timeline distingue o envio simulado sem depender de texto.
+     */
+    body,
     author_id: "sistema",
-    author_name: simulated ? `Motor de Relacionamento (${SIMULATION_LABEL})` : "Motor de Relacionamento",
+    author_name: "Motor de Relacionamento",
     at,
-  });
+    simulated,
+  } as any);
   if (insertError) {
     if (insertError.code === "23505") {
       await log("envio_duplicado_evitado", { leadId: request.leadId, step });
