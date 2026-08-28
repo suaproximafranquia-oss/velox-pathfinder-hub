@@ -75,12 +75,64 @@ export const RESERVED_UNIT_SLUGS: readonly string[] = [
   "portal-leads",
 ] as const;
 
-export function isReservedSlug(slug: string): boolean {
-  return RESERVED_UNIT_SLUGS.includes(slug.trim().toLowerCase());
+/** Normalização oficial do slug — sempre aplicada ANTES de qualquer comparação. */
+export function normalizeSlug(slug: string): string {
+  return slug
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-/** Garante um slug utilizável, afastando-o dos nomes reservados. */
-export function safeExecutiveSlug(slug: string): string {
-  const key = slug.trim().toLowerCase();
+export function isReservedSlug(slug: string): boolean {
+  return RESERVED_UNIT_SLUGS.includes(normalizeSlug(slug));
+}
+
+export type SlugValidation =
+  | { ok: true; slug: string }
+  | { ok: false; slug: string; message: string; suggestion: string };
+
+/**
+ * VALIDAÇÃO OFICIAL DO SLUG — rejeita, nunca transforma em silêncio.
+ *
+ * Normaliza, compara sem diferenciar maiúsculas/minúsculas e recusa os
+ * nomes que pertencem à arquitetura da unidade (`/f/executivo`, `/f/crm`,
+ * …). Deve ser usada na criação, na edição e no ponto de persistência.
+ */
+export function validateExecutiveSlug(raw: string): SlugValidation {
+  const slug = normalizeSlug(raw);
+  if (!slug) {
+    return {
+      ok: false,
+      slug,
+      message: "Informe um endereço válido para o link personalizado.",
+      suggestion: "",
+    };
+  }
+  if (isReservedSlug(slug)) {
+    return {
+      ok: false,
+      slug,
+      message: `O endereço "${slug}" é reservado pela plataforma (/f/${slug}) e não pode ser usado em um link personalizado.`,
+      suggestion: suggestExecutiveSlug(slug),
+    };
+  }
+  return { ok: true, slug };
+}
+
+/**
+ * SUGESTÃO de alternativa quando o slug informado é reservado.
+ *
+ * ATENÇÃO: este helper NÃO deve ser usado para corrigir um valor antes de
+ * gravar. A gravação passa obrigatoriamente por `validateExecutiveSlug`,
+ * que rejeita. Aqui só produzimos um valor para oferecer ao usuário.
+ */
+export function suggestExecutiveSlug(slug: string): string {
+  const key = normalizeSlug(slug);
   return isReservedSlug(key) ? `${key}-velox` : key;
 }
+
+/** @deprecated Use `validateExecutiveSlug` (rejeita) ou `suggestExecutiveSlug`. */
+export const safeExecutiveSlug = suggestExecutiveSlug;
