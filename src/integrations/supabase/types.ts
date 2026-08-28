@@ -743,6 +743,7 @@ export type Database = {
           email: string
           executive_id: string
           name: string | null
+          role_title: string | null
           updated_at: string
           user_id: string
           whatsapp: string | null
@@ -752,6 +753,7 @@ export type Database = {
           email: string
           executive_id: string
           name?: string | null
+          role_title?: string | null
           updated_at?: string
           user_id: string
           whatsapp?: string | null
@@ -761,6 +763,7 @@ export type Database = {
           email?: string
           executive_id?: string
           name?: string | null
+          role_title?: string | null
           updated_at?: string
           user_id?: string
           whatsapp?: string | null
@@ -2053,12 +2056,16 @@ export type Database = {
           created_by: string | null
           created_by_name: string
           id: string
+          import_version: number | null
+          imported_at: string | null
           meta_template_name: string | null
           notes: string | null
           purpose: string
           requires_template: boolean
           requires_video: boolean
           scope: string
+          source_kind: string | null
+          source_reference: string | null
           step_key: string | null
           supersedes_id: string | null
           title: string
@@ -2075,12 +2082,16 @@ export type Database = {
           created_by?: string | null
           created_by_name?: string
           id?: string
+          import_version?: number | null
+          imported_at?: string | null
           meta_template_name?: string | null
           notes?: string | null
           purpose: string
           requires_template?: boolean
           requires_video?: boolean
           scope?: string
+          source_kind?: string | null
+          source_reference?: string | null
           step_key?: string | null
           supersedes_id?: string | null
           title: string
@@ -2097,12 +2108,16 @@ export type Database = {
           created_by?: string | null
           created_by_name?: string
           id?: string
+          import_version?: number | null
+          imported_at?: string | null
           meta_template_name?: string | null
           notes?: string | null
           purpose?: string
           requires_template?: boolean
           requires_video?: boolean
           scope?: string
+          source_kind?: string | null
+          source_reference?: string | null
           step_key?: string | null
           supersedes_id?: string | null
           title?: string
@@ -2312,6 +2327,7 @@ export type Database = {
           created_by_name: string
           id: string
           notes: string | null
+          position: number
           scope: string
           step_key: string
           updated_at: string
@@ -2324,6 +2340,7 @@ export type Database = {
           created_by_name?: string
           id?: string
           notes?: string | null
+          position?: number
           scope?: string
           step_key: string
           updated_at?: string
@@ -2336,6 +2353,7 @@ export type Database = {
           created_by_name?: string
           id?: string
           notes?: string | null
+          position?: number
           scope?: string
           step_key?: string
           updated_at?: string
