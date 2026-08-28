@@ -234,7 +234,7 @@ function RootRoutes() {
 
   // O CRM de Relacionamento possui identidade própria: sem cabeçalho do
   // Manual, sem índice editorial e sem elementos institucionais.
-  if (isCrm || isLeadsPortal) {
+  if (isCrm || isLeadsPortal || isRemarketing) {
     return (
       <QueryClientProvider client={queryClient}>
         <Outlet />
