@@ -66,63 +66,24 @@ export async function registerFirstContact(
    * pendente para a próxima abertura da janela.
    */
   if (isE0NightWindow()) return { registered: false, reason: nightDeferralReason() };
-  const messageId = `msg_e0_${input.leadId}`;
   if (!settings.welcomeEnabled) return { registered: false, reason: "boas-vindas desativadas" };
 
-  const message = buildWelcomeMessage(
-    settings,
-    input.name,
-    { name: input.executiveName ?? null, slug: input.executiveSlug ?? null },
-    // Recadastro usa a comunicação de reabertura já definida — nenhum
-    // texto novo é criado para esta situação.
-    { reactivation: Boolean(input.reactivation) },
-  );
-  const at = new Date().toISOString();
-
   /**
-   * IDEMPOTÊNCIA ATÔMICA (COMANDO 2A §9): a trava é a chave primária
-   * determinística da mensagem, não uma leitura anterior. Duas execuções
-   * simultâneas não produzem duas E0 — a segunda recebe conflito e para.
+   * CAMINHO ÚNICO: conteúdo, executivo responsável, destinos dinâmicos,
+   * template oficial, idempotência e snapshot vivem no motor. Aqui não
+   * existe mais texto de mensagem nem chamada direta ao canal.
    */
-  const { error: insertError } = await supabaseAdmin.from("crm_messages").insert({
-    id: messageId,
-    investor_id: input.leadId,
-    direction: "enviada",
-    // Texto oficial sem prefixo: a simulação é o dado `simulated`.
-    body: message.body,
-    author_id: input.ownerId ?? "sistema",
-    author_name: "Primeiro contato",
-    at,
-    simulated: Boolean(input.simulated),
-  } as any);
-  if (insertError) {
-    if (insertError.code === "23505") {
-      return { registered: false, reason: "primeiro contato já registrado" };
-    }
-    return { registered: false, reason: insertError.message };
-  }
-
-  // Em modo de teste a entrega externa NÃO é tentada: nenhuma chamada à
-  // Meta, nenhum WhatsApp real. Fora do teste, a entrega é tentada e o
-  // resultado registrado — jamais impede o registro interno.
-  const delivery = input.simulated
-    ? { delivered: false as const, error: undefined as string | undefined }
-    : await sendWhatsappText({ phone: input.phone, body: message.body });
-
-  await supabaseAdmin.from("crm_timeline").insert({
-    id: `tl_e0_${input.leadId}`,
-    investor_id: input.leadId,
-    event: "primeiro_contato",
+  const { dispatchFirstContact } = await import("@/server/relationship/e0.server");
+  const dispatch = await dispatchFirstContact({
+    leadId: input.leadId,
+    name: input.name,
+    phone: input.phone,
     origin: input.origin,
-    reason: input.simulated
-      ? `${SIMULATION_LABEL} — E0 executada até o ponto de envio. Mensagem registrada sem entrega real (Meta não acionada).`
-      : delivery.delivered
-        ? "Primeiro contato enviado pelo canal oficial."
-        : `Primeiro contato processado e registrado. Entrega externa pendente: ${delivery.error ?? "canal indisponível"}.`,
-    owner_id: input.ownerId,
-    actor_id: "sistema",
-    at,
+    ownerId: input.ownerId,
+    simulated: Boolean(input.simulated),
   });
+  if (!dispatch.registered) return { registered: false, reason: dispatch.reason };
+  const at = new Date().toISOString();
 
   /**
    * ELO QUE FALTAVA: a E0 passa a existir também para o MOTOR DE
