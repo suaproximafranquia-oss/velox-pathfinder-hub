@@ -1,54 +1,55 @@
-# Plano final — Correção do estado NOVO no Workspace
+# Reestruturação /F + Agenda Operacional Global
 
-## Decisões confirmadas
+## Auditoria da estrutura atual (feita antes de qualquer alteração)
 
-1. **Gestora: SIM.** Pode marcar como visualizado e encerrar leads que já enxerga, restrito a `viewed_at`, `closed_at` e `notes`. Nenhum acesso de escrita a identidade, proprietário, escopo ou dados comerciais.
-2. **GreenSales: NÃO.** Alteração feita pela equipe no GreenSales é sincronização administrativa e nunca reclassifica o lead como NOVO.
-3. **WhatsApp: SIM.** Resposta do investidor é atividade real e entra no cálculo de `lastActivity`.
+**Rotas operacionais hoje (todas na raiz):**
+- `/executivo` + 30 telas (`home`, `dashboard`, `reunioes`, `kpi`, `campanhas`, `brain`, `criativa`, `captacao`, `templates`, `biblioteca`, `identidade`, `homologacao`, `backups`, `central-backup`, `usuarios`, `perfil`, `configuracoes`, `laboratorio`, `alertas`, `revista`, `investidores`, `relatorios`, `recursos`, `institucional`, `greensales`, `greensales-sync`, `celebracao`, `teste-cadencia`, `administracao`, `index`)
+- `/crm` (+ `crm.index`), `/remarketing` (+ index), `/portal-leads`
 
-## Regra final
+**Rotas públicas / aquisição (NÃO serão movidas):**
+- `/` (Home institucional + Gateway), `/manual/*`, `/universo`
+- `/origem/$channel` (tiktok, meta) — grava canal e devolve à Home
+- Links personalizados de marca: `/f/$slug`, `/s/$slug`, `/seg/$slug`, legado `/e/$slug`
+- `/portal/convite/$token`, `/entrar` (legado), `/oauth/google/$connector`, `/api/public/*`
 
-- `closed_at` preenchido -> ENCERRADO
-- `viewed_at` vazio -> NOVO
-- atividade real do investidor posterior ao `viewed_at` -> NOVO novamente
-- caso contrário -> EM ANDAMENTO
+**Conflito identificado:** o prefixo `/F` colide com o link personalizado `/f/$slug` (Velox Financeira). O roteador dá precedência a segmentos estáticos, então `/f/executivo/...`, `/f/crm`, `/f/remarketing`, `/f/portal-leads` funcionam — mas um executivo com slug `crm`/`executivo`/`remarketing`/`portal-leads` deixaria de resolver. Solução: lista de slugs reservados validada na criação/edição de executivo, sem alterar o formato do link personalizado.
 
-Atividade real do investidor: entrada/cadastro, retorno reconhecido pelo Portal, progresso na jornada (`journey_last_event_at`), simulador, IA, clique/acesso a recurso e **resposta no WhatsApp (`last_inbound_at`)**.
-Nunca é atividade: abrir ficha, abrir conversa, redistribuir, transferir proprietário, editar cadastro, sincronizar GreenSales, polling, refresh, evento técnico.
+**Guard atual:** cada tela chama `getSession()` e redireciona para `/executivo` quando não há sessão. Não existe layout único de proteção.
 
-## Correções
+## O que será feito
 
-**1. Ações administrativas param de escrever atividade**
-- `src/lib/portal-leads.functions.ts`: remover `last_activity_at` de `redistributePortalLead` (linha 311) e `assignPortalLeadOwner` (linha 335). O horário da operação continua em auditoria/evento administrativo.
-- Mesmo arquivo, ramos de dedupe (linha 152) e de escopo `redistribuicao` (linha 182): aplicar a mesma trava do ramo principal — atividade só avança quando o cliente informa `lastActivityAt`, nunca `now()` por padrão, e nunca retrocede.
+### 1. Camada de unidade de negócio
+- Novo módulo `src/lib/business-unit.ts`: define a unidade `financeira` com prefixo `/f`, e helpers `unitPath(path)` / `currentUnit(pathname)`. Toda navegação interna passa a usar esse helper — nada de string solta. Isso deixa `/seg` e `/s` possíveis no futuro sem refatoração.
 
-**2. Sincronização GreenSales deixa de reclassificar**
-- `src/server/crm/workspace-card.server.ts` (linha 70) e `src/lib/greensales-sync.functions.ts` (linha 135): usar o timestamp externo apenas na criação do card; em atualizações posteriores, não avançar `last_activity_at` a partir de `updated_at` externo.
+### 2. Migração das rotas (sem duplicar aplicação)
+- Cada tela operacional passa a viver em `src/routes/f.executivo.<tela>.tsx` (`/f/executivo/...`), `src/routes/f.crm.*`, `src/routes/f.remarketing.*`, `src/routes/f.portal-leads.tsx`. O conteúdo é o mesmo arquivo movido; só muda a string do `createFileRoute`.
+- As rotas antigas permanecem como **redirecionamento controlado** (`beforeLoad` → nova rota, preservando `search` e `params`). Nenhuma tela duplicada, nenhum link antigo quebrado.
+- Novo layout de unidade `src/routes/f.tsx` com `<Outlet />` (contexto da unidade).
+- Todos os `<Link to>`, `navigate({to})`, `window.open` e itens de menu internos apontam para as rotas `/f/...`.
 
-**3. Resposta do WhatsApp passa a contar**
-- `src/lib/executive-data.ts`: incluir `lead.lastInboundAt` no cálculo de `lastActivity` (junto de `createdAt`, `lastActivityAt`, `journeyLastEventAt`).
+### 3. Proteção das rotas internas
+- Guard único no layout `/f/executivo`, `/f/crm`, `/f/remarketing`, `/f/portal-leads`: sem sessão executiva → volta para a tela de acesso, sem renderizar o Workspace.
+- A raiz `/` continua institucional e não ganha nenhum atalho para áreas internas.
 
-**4. Fim da persistência otimista silenciosa**
-- `src/lib/workspace-operational.functions.ts`: usar `{ count: "exact" }` no update e retornar `{ ok, updated }` com a contagem real de linhas.
-- `src/lib/lead-state.ts`: `persist()` passa a aguardar a confirmação; só grava no cache local depois de `updated > 0`; em falha (erro ou 0 linhas) mantém o estado anterior, reverte o cache e emite um aviso (toast) em vez de fingir sucesso.
+### 4. Preservação de aquisição e ownership
+- `/origem/tiktok` e `/origem/meta` permanecem exatamente como estão.
+- `/f/$slug`, `/s/$slug`, `/seg/$slug`, `/e/$slug` permanecem como links personalizados; nenhuma alteração na resolução de identidade, escopo ou ownership.
+- Slugs reservados (`executivo`, `crm`, `remarketing`, `portal-leads`) bloqueados no cadastro.
 
-**5. Permissão operacional da Gestora**
-- Migration: função `SECURITY DEFINER` `public.set_lead_operational(_id, _viewed_at, _closed_at, _notes)` que grava **somente** esses três campos, autorizando `admin`, executivo responsável e `manager` que já enxerga o lead (mesma condição do SELECT atual). A política de UPDATE de `portal_leads` permanece exatamente como está — nada é afrouxado.
-- `updateWorkspaceOperational` passa a usar essa função quando o patch contiver apenas campos operacionais; os demais campos continuam pelo caminho atual com RLS.
+### 5. Agenda Operacional Global
+- Botão fixo lateral **AGENDA** presente no shell do Executivo, do CRM, do Remarketing e do Portal dos Leads — independente da aba aberta.
+- Abre um painel lateral sobre o ambiente atual (sem navegar/sair da tela).
+- Painel mostra o dia/próximos dias com três níveis: **Prioridade Máxima** (compromisso com horário), **Média** (atenção) e **Mínima** (cadência E1/E2/E3, acompanhamento).
+- Fontes: eventos próprios da Agenda + reuniões existentes (somente leitura, sem duplicar) + ações de cadência já calculadas pelo motor (nunca eventos inventados).
+- **Conflito de horário:** ao criar evento de prioridade máxima, o sistema verifica sobreposição com reuniões e com eventos máximos existentes e **bloqueia antes de gravar**, informando o conflito.
 
-## Testes de aceite
+### 6. Banco
+- Uma migração criando `workspace_agenda_events` (executivo, título, início, fim, prioridade, origem, observação) com RLS por executivo + admin e GRANTs. Nenhuma tabela existente é alterada.
 
-1. Executivo responsável abre um lead NOVO -> vira EM ANDAMENTO; sai, volta e recarrega -> continua EM ANDAMENTO; `viewed_at` preenchido no banco.
-2. Gestora abre um lead que enxerga -> vira EM ANDAMENTO e permanece após refresh; tentativa de alterar proprietário/identidade pela Gestora continua bloqueada.
-3. Perfil sem permissão nenhuma -> a marcação falha visivelmente (aviso), sem estado falso na interface.
-4. Redistribuir e transferir proprietário -> proprietário muda, auditoria registrada, lead permanece EM ANDAMENTO (não volta para NOVO).
-5. Sincronização GreenSales com `updated_at` novo em lead já trabalhado -> permanece EM ANDAMENTO.
-6. Investidor acessa o Portal/avança na jornada após a visualização -> volta para NOVO.
-7. Investidor responde no WhatsApp -> volta para NOVO.
-8. Encerrar pelo menu ⋮ -> ENCERRADO, estável após refresh; reabrir volta ao ciclo automático.
-9. Polling/realtime/troca de aba sem nenhum fato novo -> nenhuma mudança de classificação.
-10. Nenhum lead existente muda de estado apenas pela aplicação do plano (verificação por consulta antes/depois).
+## Detalhes técnicos
+- Prefixo em minúsculo (`/f/...`) por causa do casamento de rotas do TanStack e dos links personalizados já publicados; `/F/...` digitado pelo usuário resolve para a mesma rota.
+- Redirecionamentos legados usam `beforeLoad` + `redirect({ replace: true })`, preservando `search`.
+- Nenhum módulo é removido, renomeado ou reescrito — apenas realocado na hierarquia.
 
-## Intocado
-
-Portal dos Leads, Bloco 2 de identidade e `resolve_portal_identity`, cadência e motor de relacionamento, CRM, Remarketing, Backup, blindagem contra exclusão, políticas de RLS atuais de `portal_leads` e todos os dados existentes.
+## Testes de aceite executados ao final
+Navegação nas rotas novas, redirecionamento das antigas, `/origem/tiktok` e `/origem/meta`, links personalizados de cada marca, bloqueio de acesso interno sem sessão, abertura da Agenda em cada ambiente e detecção de conflito de horário — além do build.
