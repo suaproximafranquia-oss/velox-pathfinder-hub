@@ -117,6 +117,12 @@ function BibliotecaPage() {
   const [query, setQuery] = useState("");
   /** Vínculos declarados: etapa → ids de conteúdo. Fonte única do motor. */
   const [bindings, setBindings] = useState<Record<string, string[]>>({});
+  /**
+   * RÓTULO ADMINISTRÁVEL: quando a Gestão renomeia uma etapa na
+   * Biblioteca de Mensagens, esta tela mostra exatamente o mesmo nome.
+   * Não existe segunda taxonomia — só uma leitura do mesmo cadastro.
+   */
+  const [labelOverrides, setLabelOverrides] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setSession(getSession());
@@ -125,12 +131,20 @@ function BibliotecaPage() {
   const load = useCallback(async () => {
     try {
       await ensureCloudSession();
-      const [list, links] = await Promise.all([
+      const [list, links, messages] = await Promise.all([
         listRelationshipContents(),
         listarPoolsDeEtapa(),
+        listarMensagensBiblioteca().catch(() => [] as Array<Record<string, any>>),
       ]);
       setContents(list);
       setBindings(links);
+      const overrides: Record<string, string> = {};
+      for (const message of (messages ?? []) as Array<Record<string, any>>) {
+        const key = String(message["stepKey"] ?? "");
+        const label = String(message["displayLabel"] ?? "").trim();
+        if (key && label && message["active"]) overrides[key] = label;
+      }
+      setLabelOverrides(overrides);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível carregar a biblioteca.");
@@ -141,6 +155,12 @@ function BibliotecaPage() {
     void load();
   }, [load]);
 
+  /** Rótulo oficial de uma etapa: override da Gestão ou padrão do motor. */
+  const labelOf = useCallback(
+    (step: string) => stepDisplayLabel(step, labelOverrides[step] ?? null),
+    [labelOverrides],
+  );
+
   /** Etapas de cada conteúdo, derivadas dos vínculos (nunca inferidas). */
   const stepsByContent = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -149,6 +169,19 @@ function BibliotecaPage() {
     }
     return map;
   }, [bindings]);
+
+  /**
+   * VÍNCULO LEGADO: etapa gravada no banco que não existe mais na
+   * taxonomia do motor. É PRESERVADA e apenas sinalizada — nada é
+   * reclassificado nem apagado automaticamente.
+   */
+  const legacySteps = useMemo(
+    () =>
+      Object.entries(bindings)
+        .filter(([step, ids]) => ids.length > 0 && !KNOWN_STEP_KEYS.includes(step))
+        .map(([step]) => step),
+    [bindings],
+  );
 
   /**
    * Lacunas reais: etapa que o motor usa para anexar conteúdo e que não
