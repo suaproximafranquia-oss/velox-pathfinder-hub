@@ -158,9 +158,9 @@ export function ExecutiveShell({
    */
   const centrais = [
     { to: unitPath("/executivo/captacao"), label: "Central de Captação", icon: Radar },
-    ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
-      ? [{ to: unitPath("/executivo/templates"), label: "Central de Templates", icon: LayoutList }]
-      : []),
+    /* Central de Templates saiu do menu: os templates da Meta são
+       geridos pela Biblioteca oficial e pelo Motor. */
+
     { to: unitPath("/executivo/reunioes"), label: "Central de Reuniões", icon: Calendar },
     { to: unitPath("/executivo/alertas"), label: "Central de Alertas", icon: Bell },
     ...(session.activeRole === "super_admin"
