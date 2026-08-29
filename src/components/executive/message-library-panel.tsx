@@ -4,6 +4,7 @@ import {
   listarConteudosDaBiblioteca,
   listarMensagensBiblioteca,
   importarBibliotecaOficial,
+  diagnosticoDaBiblioteca,
   listarVinculosDeEtapa,
   publicarVersaoMensagem,
   removerVinculoDeEtapa,
@@ -27,6 +28,11 @@ type LibraryMessage = {
 };
 
 type LibraryContent = { id: string; name: string; kind: string; active: boolean };
+type Diagnostics = {
+  stepsWithoutContent: { stepKey: string; contentGroup: string }[];
+  stepsWithoutText: string[];
+  contentsWithoutStep: { id: string; name: string }[];
+};
 type StepBinding = {
   stepKey: string;
   contentId: string;
@@ -58,6 +64,7 @@ export function MessageLibraryPanel() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contents, setContents] = useState<LibraryContent[]>([]);
+  const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
   const [bindings, setBindings] = useState<StepBinding[]>([]);
   const [bindingBusy, setBindingBusy] = useState(false);
 
@@ -236,6 +243,39 @@ export function MessageLibraryPanel() {
 
       {importNote ? (
         <p className="mb-3 text-[11px] text-[color:var(--gold)]">{importNote}</p>
+      ) : null}
+
+      {/* DIAGNÓSTICO: o que impediria o motor de enviar, visível aqui. */}
+      {diagnostics &&
+      (diagnostics.stepsWithoutContent.length > 0 ||
+        diagnostics.stepsWithoutText.length > 0 ||
+        diagnostics.contentsWithoutStep.length > 0) ? (
+        <ul className="mb-4 space-y-1 rounded-xl border border-[color:var(--border)] bg-[color:var(--muted)]/20 p-3 text-[11px] text-[color:var(--muted-foreground)]">
+          {diagnostics.stepsWithoutText.length > 0 ? (
+            <li>
+              Sem texto oficial (não envia):{" "}
+              <strong>{diagnostics.stepsWithoutText.join(", ")}</strong>
+            </li>
+          ) : null}
+          {diagnostics.stepsWithoutContent.length > 0 ? (
+            <li>
+              Etapa que exige conteúdo e não tem vínculo:{" "}
+              <strong>
+                {diagnostics.stepsWithoutContent
+                  .map((s) => `${s.stepKey} (grupo ${s.contentGroup})`)
+                  .join(", ")}
+              </strong>
+            </li>
+          ) : null}
+          {diagnostics.contentsWithoutStep.length > 0 ? (
+            <li>
+              Conteúdo sem etapa vinculada:{" "}
+              <strong>
+                {diagnostics.contentsWithoutStep.map((c) => c.name).join(", ")}
+              </strong>
+            </li>
+          ) : null}
+        </ul>
       ) : null}
 
       {loading ? (
