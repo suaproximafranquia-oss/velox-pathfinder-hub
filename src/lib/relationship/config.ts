@@ -318,6 +318,22 @@ export function engineOwnsFirstContact(config = RELATIONSHIP_CONFIG): boolean {
   return config.enabled;
 }
 
+/**
+ * DIAS SEM ENVIO ADMINISTRADOS PELA GESTÃO.
+ *
+ * O calendário oficial (nacionais + SP) continua calculado e não é
+ * editável. Estas datas extras são SOMADAS a ele; o servidor sincroniza
+ * a cada tique do motor. A chamada é idempotente.
+ */
+export function setExtraNonBusinessDays(days: string[]): string[] {
+  const oficiais = defaultNonBusinessDays();
+  RELATIONSHIP_CONFIG.nonBusinessDays = Array.from(
+    new Set([...oficiais, ...days.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))]),
+  ).sort();
+  return RELATIONSHIP_CONFIG.nonBusinessDays;
+}
+
+
 /** Finalidades de template usadas pelo motor — sem textos, só vínculo. */
 export const ENGINE_TEMPLATE_PURPOSES = Array.from(
   new Set(Object.values(STEPS).map((s) => s.templatePurpose)),
