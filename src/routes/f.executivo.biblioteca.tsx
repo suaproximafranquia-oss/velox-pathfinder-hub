@@ -112,8 +112,10 @@ function BibliotecaPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [filterGroup, setFilterGroup] = useState<"todos" | ContentGroup>("todos");
+  const [filterStep, setFilterStep] = useState<"todos" | string>("todos");
   const [query, setQuery] = useState("");
+  /** Vínculos declarados: etapa → ids de conteúdo. Fonte única do motor. */
+  const [bindings, setBindings] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     setSession(getSession());
@@ -122,7 +124,12 @@ function BibliotecaPage() {
   const load = useCallback(async () => {
     try {
       await ensureCloudSession();
-      setContents(await listRelationshipContents());
+      const [list, links] = await Promise.all([
+        listRelationshipContents(),
+        listarVinculosDeEtapa(),
+      ]);
+      setContents(list);
+      setBindings(links);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível carregar a biblioteca.");
@@ -133,24 +140,46 @@ function BibliotecaPage() {
     void load();
   }, [load]);
 
-  const stats = useMemo(() => contentLibraryStats(contents), [contents]);
+  /** Etapas de cada conteúdo, derivadas dos vínculos (nunca inferidas). */
+  const stepsByContent = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const [step, ids] of Object.entries(bindings)) {
+      for (const id of ids) (map[id] ??= []).push(step);
+    }
+    return map;
+  }, [bindings]);
+
+  /**
+   * Lacunas reais: etapa que o motor usa para anexar conteúdo e que não
+   * tem nenhum material ativo vinculado.
+   */
+  const missingSteps = useMemo(
+    () =>
+      CONTENT_REQUIRED_STEPS.filter(
+        (step) =>
+          !(bindings[step] ?? []).some((id) => contents.some((c) => c.id === id && c.active)),
+      ),
+    [bindings, contents],
+  );
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return contents
-      .filter((c) => (filterGroup === "todos" ? true : contentGroupsOf(c).includes(filterGroup)))
+      .filter((c) =>
+        filterStep === "todos" ? true : (stepsByContent[c.id] ?? []).includes(filterStep),
+      )
       .filter((c) =>
         q ? `${c.name} ${c.description ?? ""}`.toLowerCase().includes(q) : true,
       )
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-  }, [contents, filterGroup, query]);
+  }, [contents, filterStep, query, stepsByContent]);
 
-  function toggleGroup(group: ContentGroup) {
+  function toggleStep(step: string) {
     setDraft((d) => ({
       ...d,
-      groups: d.groups.includes(group)
-        ? d.groups.filter((g) => g !== group)
-        : [...d.groups, group],
+      steps: d.steps.includes(step)
+        ? d.steps.filter((s) => s !== step)
+        : [...d.steps, step],
     }));
   }
 
@@ -160,10 +189,18 @@ function BibliotecaPage() {
     setNotice(null);
     try {
       await ensureCloudSession();
+      /**
+       * `groups` é campo LEGADO de arquivo (coluna obrigatória antiga).
+       * O motor não o lê mais: quem manda é o vínculo por etapa. Ao
+       * editar, o valor existente é preservado; ao criar, fica "E1".
+       */
+      const legacyGroups = draft.id
+        ? (contentGroupsOf(contents.find((c) => c.id === draft.id)!) as never)
+        : (["E1"] as never);
       const next = await saveRelationshipContent({
         data: {
           id: draft.id,
-          groups: draft.groups,
+          groups: legacyGroups,
           name: draft.name,
           description: draft.description || null,
           kind: draft.kind,
@@ -175,6 +212,14 @@ function BibliotecaPage() {
         },
       });
       setContents(next);
+      const saved = draft.id
+        ? draft.id
+        : (next.find((c) => c.name === draft.name.trim())?.id ?? null);
+      if (saved) {
+        setBindings(
+          await definirEtapasDoConteudo({ data: { contentId: saved, stepKeys: draft.steps } }),
+        );
+      }
       setDraft(emptyDraft);
       setNotice(draft.id ? "Conteúdo atualizado." : "Conteúdo cadastrado na biblioteca.");
     } catch (e) {
@@ -187,7 +232,7 @@ function BibliotecaPage() {
   function startEdit(content: ValueContent) {
     setDraft({
       id: content.id,
-      groups: contentGroupsOf(content) as ContentGroup[],
+      steps: stepsByContent[content.id] ?? [],
       name: content.name,
       description: content.description ?? "",
       kind: content.kind,
