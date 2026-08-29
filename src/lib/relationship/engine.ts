@@ -210,22 +210,28 @@ export function createEngine(options: EngineOptions): Engine {
 
     const library = await repository.loadContentLibrary();
     /**
-     * VÍNCULO EXPLÍCITO ETAPA ↔ CONTEÚDO. Quando o executivo declarou
-     * qual vídeo/material pertence a esta etapa, é ELE que sai — sem
-     * sorteio e sem qualquer inferência por nome ou posição. O vínculo
-     * só é honrado se o conteúdo continuar ativo na Biblioteca.
+     * VÍNCULO EXPLÍCITO ETAPA ↔ CONTEÚDO — REGRA FECHADA.
+     *
+     * "Sem vínculo" é realmente sem vínculo: o motor só anexa material
+     * que foi DECLARADO para a etapa. Não existe sorteio por grupo, nem
+     * inferência por nome, posição ou semelhança. Com mais de um
+     * conteúdo vinculado vale a rotação determinística da Biblioteca.
      */
-    const bindings = repository.loadStepContentBindings
-      ? await repository.loadStepContentBindings()
-      : {};
-    const boundId = bindings[action.step] ?? null;
-    const bound = boundId ? library.find((c) => c.id === boundId && c.active) : null;
-    const selection = bound
-      ? {
-          content: bound,
-          reason: `Conteúdo "${bound.name}" vinculado explicitamente à etapa ${action.step}.`,
-        }
-      : selectContent(library, action.contentGroup, record.contentHistory, random);
+    const pools = repository.loadStepContentPools
+      ? await repository.loadStepContentPools()
+      : repository.loadStepContentBindings
+        ? Object.fromEntries(
+            Object.entries(await repository.loadStepContentBindings()).map(([step, id]) => [
+              step,
+              [id],
+            ]),
+          )
+        : {};
+    const poolIds = pools[action.step] ?? [];
+    const candidates = poolIds
+      .map((id) => library.find((c) => c.id === id && c.active))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+    const selection = selectFromPool(candidates, action.step, record.contentHistory);
     if (action.contentGroup && !selection.content) {
       return log(record, {
         step: action.step,
