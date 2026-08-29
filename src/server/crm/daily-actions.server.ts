@@ -104,6 +104,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     ...meetings.map((m) => m.investor_id as string),
     ...queue.map((q) => q.lead_id as string),
     ...cadenceQueue.map((c) => `gs_${c.externalId}`),
+    ...closureDuties.map((d) => d.leadId),
   ]);
 
   const actions: DailyAction[] = [];
