@@ -78,7 +78,8 @@ const field =
 
 type Draft = {
   id: string | null;
-  groups: ContentGroup[];
+  /** Etapas do MOTOR em que este material pode ser usado (fonte única). */
+  steps: string[];
   name: string;
   description: string;
   kind: ContentKind;
