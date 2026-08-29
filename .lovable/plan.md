@@ -1,61 +1,94 @@
-# Etapa 3 — Fechamento do ciclo de relacionamento
+# Etapa 3 — Plano Definitivo de Implantação
 
-Diagnóstico já entregue (respostas 1–120). Este plano cobre apenas o que a Etapa 3 precisa implantar, na ordem segura.
+Ordem obrigatória. Nada aqui altera Portal dos Leads, GreenSales, identidade atômica,
+Remarketing estrutural, snapshots históricos ou a regra NOVO/EM ANDAMENTO/ENCERRADO.
 
-## Revisão dos vínculos duplicados (pedido caso a caso)
+## Passo 1 — Camada de rótulos oficiais (sem tocar em chaves técnicas)
 
-Os "duplicados" não são erro de vínculo: são **pools de conteúdo por etapa**, todos migrados de `relationship_content_groups` com `position = 0`.
+Criar um mapa único Word → chave técnica usado só para exibição:
 
-- **E1 (5 vídeos)**: Democratização do acesso ao crédito; Ecossistema de soluções Velox; O mercado financeiro está mudando; O mercado financeiro não é exclusividade dos grandes bancos; Desertos financeiros.
-- **E3 (6 vídeos)**: Blindagem patrimonial; Home Office ou Loja Física; e mais 4 do mesmo grupo.
-- **R2 (4) e V3 (2)**: mesma origem.
+```text
+E0 → E0        E1 → E1        E2 → E3        E3 → E4
+E5 → E12       E6 → E20 ("E6 — Apresentação Digital")
+E7 → (finalização, hoje sem executor)
+R1/R2/R3, RE0–RE3, RF0/RF1 → iguais
+```
 
-Problema real: como todos têm `position = 0`, **não existe ordem determinística de rotação** — a escolha depende da ordenação do banco. A Etapa 3 deve dar ordem explícita e registrar o consumo, sem apagar nenhum conteúdo.
+As chaves gravadas em fila, decisões, snapshots e histórico permanecem
+inalteradas. Nenhum rename em banco. A UI (Biblioteca, Ação do Dia, ficha)
+passa a mostrar o rótulo oficial do Word ao lado da chave técnica.
 
-## O que a Etapa 3 implanta
+## Passo 2 — Importação oficial do Word (idempotente)
 
-1. **Neutralização dos legados**
-   - Remover as chamadas remanescentes a `processWelcome` (`lead-intake.server.ts`, `leads.functions.ts`) e o `retryCrmWelcome` passa a reexecutar o motor oficial.
-   - Tirar `CRM_FIRST_CONTACT` da lista `CRM_TEMPLATES`.
-   - Eliminar `WHATSAPP_NUMBER` como fallback nos 5 componentes públicos: sem executivo com WhatsApp, o botão não aparece.
+Rodar a importação já existente para preencher a Biblioteca com o texto do Word,
+com e sem nome, versionando apenas quando o texto mudar. E20, E27 e resposta
+automática continuam sem texto oficial e permanecem bloqueadas para envio.
 
-2. **Conteúdo oficial pendente**
-   - Publicar na Biblioteca: `E20`, `E27` e `RESPOSTA_AUTOMATICA` (textos a fornecer). Sem texto ativo, o motor continua bloqueando com motivo legível.
+## Passo 3 — Higiene dos vínculos de conteúdo
 
-3. **Rotação determinística de conteúdo**
-   - Ordem explícita por etapa (`position` sequencial) e registro de uso, para que E1/E3/R2/V3 girem de forma previsível e auditável.
+Revisar caso a caso os vínculos duplicados (E1, E3, R2, V3) e definir posição
+determinística de rotação. Nenhum conteúdo é apagado — apenas desativado quando
+for legado comprovado.
 
-4. **Executores temporais (decisão: mensagem automática)**
-   - **E27** enviada automaticamente no `checkpoint_due_at` da ocorrência E20 vigente.
-   - **FINALIZAÇÃO** enviada automaticamente no `finalization_due_on` (dia útil seguinte).
-   - Ambas passam pelo motor oficial: Biblioteca + executivo responsável + ambiente + snapshot congelado; idempotência por chave determinística; OPORTUNIDADE e nova E20 cancelam o pendente.
+## Passo 4 — Executor de E27 e FINALIZAÇÃO
 
-5. **Integração na Ação do Dia**
-   - E20/E27 entram como leitura, respeitando "um lead = uma ação": mensagem dentro da precedência atual, pendências extras como `secondary`.
+Hoje a E20 grava `checkpoint_due_at` e `finalization_due_on`, mas nada executa
+essas datas. Implementar no motor oficial:
 
-6. **Dados externos**
-   - Cadastro do template Meta de `primeiro_contato` (tabela hoje vazia) e preenchimento de `executive_profiles.whatsapp` (0 de 7).
+- E27 no vencimento do checkpoint da ocorrência E20 vigente;
+- FINALIZAÇÃO no dia útil seguinte;
+- cancelamento automático por nova E20 ou por OPORTUNIDADE;
+- uma única instância por ocorrência (idempotência por lead + ocorrência + etapa);
+- passagem obrigatória pelo motor de mensagens: snapshot, executivo responsável
+  e modo de ambiente.
 
-## Detalhes técnicos
+Enquanto não houver texto oficial aprovado para E27/FINALIZAÇÃO, as tarefas
+nascem bloqueadas com motivo legível — nunca com texto inventado.
 
-- Tabelas reutilizadas: `relationship_e20_occurrences`, `relationship_e20_accesses`, `relationship_message_library`, `relationship_message_sends`, `relationship_queue`, `crm_meta_templates`, `portal_leads`, `executive_profiles`.
-- Nenhuma tabela nova. Migrations: seed/ativação das 3 etapas de texto e ordenação dos vínculos existentes.
-- Módulos reutilizados: `message-library.server`, `e20.server`, `instances.server`, `executive-identity.server`, `destinations.server`, `execution-mode.server`, `daily-actions`.
-- Intocáveis: Portal dos Leads/GreenSales, snapshots históricos, identidade atômica, `set_lead_operational`, arquivos gerados da integração.
-- Testes obrigatórios: precedência com E20/E27, idempotência do checkpoint e da finalização, cancelamento por OPORTUNIDADE/nova E20, expiração e reuso de convite, auto-reply com etapa própria ativa.
+## Passo 5 — Ação do Dia: E20, E27 e FINALIZAÇÃO
 
-## Ordem de implantação
+Incluir as três como fontes de leitura, respeitando a precedência atual
+(Agenda/Reunião > Mensagem > Ligação), um card por lead e demais pendências em
+secundário. A Ação do Dia continua somente leitura.
 
-1. Neutralizar legados.
-2. Ordenação/rotação dos vínculos.
-3. Publicar textos oficiais (E20, E27, RESPOSTA_AUTOMATICA).
-4. Executores automáticos de E27 e FINALIZAÇÃO.
-5. Integração na Ação do Dia.
-6. Unificação dos pontos de contato públicos.
-7. Testes e homologação (sem chamada real à Meta).
+## Passo 6 — Encerramento dos legados
 
-## Pendências que dependem de você
+- Remover a chamada de `processWelcome` na entrada de leads e o `retryCrmWelcome`;
+- retirar `CRM_FIRST_CONTACT`/`CRM_TEMPLATES` como fonte de texto de envio;
+- substituir o `WHATSAPP_NUMBER` fixo pelos destinos resolvidos no servidor nos
+  cinco pontos públicos que ainda o usam como fallback.
 
-- Textos oficiais de E20, E27 e resposta automática.
-- Template Meta aprovado (nome, idioma, índices dos botões).
-- WhatsApp dos executivos.
+## Passo 7 — Limpeza visual
+
+- Aba "Jornada do Investidor" some da ficha do CRM (o agregador de servidor
+  continua ativo);
+- "Pendências de Identidade" some do menu (rota e motor intactos);
+- Central de Templates sai do menu; o cadastro técnico do template Meta da E0
+  permanece;
+- limpeza dos textos apontados no Remarketing, sem alterar regra de campanha.
+
+## Passo 8 — Testes antes do reset
+
+Fluxo completo simulado E0 → E1 → E3 → E4 → E12, E20 com reemissão, E27,
+FINALIZAÇÃO, OPORTUNIDADE encerrando tudo, retry sem duplicar mensagem externa
+e conferência de que produção real não recebeu nada.
+
+## Passo 9 — Reset de homologação
+
+Somente depois dos passos 1 a 8 aprovados. Registrar contagens antes e depois
+das tabelas protegidas para provar que nada real foi tocado.
+
+## Passo 10 — Testes depois do reset
+
+Lead novo deve nascer em NOVO, com E0 como única etapa automática, sem fila de
+acompanhamento até a primeira ação humana.
+
+## Migrations necessárias
+
+Apenas uma, no Passo 4: tabela/colunas de controle das tarefas de E27 e
+FINALIZAÇÃO com chave única por ocorrência. Nenhuma outra migration é necessária.
+
+## O que não pode ser feito junto
+
+O reset nunca entra no mesmo comando que alterações de motor. O executor de
+E27/FINALIZAÇÃO nunca entra junto com a limpeza de legados.
