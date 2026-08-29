@@ -183,6 +183,7 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
         startedAt,
         finishedAt: new Date().toISOString(),
         cadenciasResgatadas: recovered,
+        fechamentosExecutados: closed,
         ...summary,
       } as any,
     } as any);
