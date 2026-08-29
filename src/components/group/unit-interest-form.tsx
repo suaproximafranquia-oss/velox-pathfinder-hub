@@ -72,8 +72,8 @@ export function UnitInterestForm({ unit, origin, campaign, fromGroup }: UnitInte
           unit,
           name: form.name,
           whatsapp: form.whatsapp,
-          email: form.email || null,
-          city: form.city || null,
+          email: form.email.trim(),
+          city: form.city.trim(),
           investmentRange: form.investmentRange,
           origin: origin ?? null,
           campaign: campaign ?? null,
@@ -104,40 +104,44 @@ export function UnitInterestForm({ unit, origin, campaign, fromGroup }: UnitInte
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
       <h2 className="text-lg font-semibold text-white">Quero conhecer a {unitName}</h2>
       <p className="mt-1 text-sm text-white/60">
-        Preencha os dados abaixo. O contato é feito por uma pessoa — não existe disparo automático.
+        Todos os campos são obrigatórios. O contato é feito por uma pessoa — não existe disparo automático.
       </p>
 
       <div className="mt-5 space-y-3">
         <input
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Seu nome completo"
+          placeholder="Seu nome completo *"
+          required
           className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40"
         />
         <input
           value={form.whatsapp}
           onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
           inputMode="tel"
-          placeholder="WhatsApp com DDD"
+          placeholder="WhatsApp com DDD *"
+          required
           className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40"
         />
         <input
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           inputMode="email"
-          placeholder="E-mail"
+          placeholder="E-mail *"
+          required
           className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40"
         />
         <input
           value={form.city}
           onChange={(e) => setForm({ ...form, city: e.target.value })}
-          placeholder="Cidade"
+          placeholder="Cidade *"
+          required
           className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40"
         />
 
         <div className="space-y-2 pt-2">
           <p className="text-xs uppercase tracking-[0.2em] text-white/40">
-            Quanto pretende investir
+            Quanto pretende investir *
           </p>
           {RANGE_OPTIONS.map((option) => (
             <label
