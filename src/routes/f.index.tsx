@@ -103,7 +103,14 @@ type HomeSearch = {
 };
 
 
-const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+/**
+ * A URL pode entregar valores já convertidos (ex.: `g=1` vira número).
+ * A leitura normaliza tudo para texto — nenhum parâmetro se perde.
+ */
+const str = (v: unknown) => {
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return typeof v === "string" && v.trim() ? v.trim() : undefined;
+};
 
 export const Route = createFileRoute("/f/")({
   validateSearch: (search: Record<string, unknown>): HomeSearch => ({
