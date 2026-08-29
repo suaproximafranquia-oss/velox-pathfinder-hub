@@ -1609,6 +1609,57 @@ export type Database = {
           },
         ]
       }
+      presentation_chapters: {
+        Row: {
+          chapter_key: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_current: boolean
+          sort_order: number
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          version: number
+          video_url: string | null
+        }
+        Insert: {
+          chapter_key?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_current?: boolean
+          sort_order?: number
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          version?: number
+          video_url?: string | null
+        }
+        Update: {
+          chapter_key?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_current?: boolean
+          sort_order?: number
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          version?: number
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       relationship_cadences: {
         Row: {
           active: boolean
@@ -1898,13 +1949,63 @@ export type Database = {
           },
         ]
       }
+      relationship_e20_events: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          at: string
+          created_at: string
+          event: string
+          id: string
+          lead_id: string
+          metadata: Json
+          occurrence_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          at?: string
+          created_at?: string
+          event: string
+          id?: string
+          lead_id: string
+          metadata?: Json
+          occurrence_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          at?: string
+          created_at?: string
+          event?: string
+          id?: string
+          lead_id?: string
+          metadata?: Json
+          occurrence_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_e20_events_occurrence_id_fkey"
+            columns: ["occurrence_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_e20_occurrences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       relationship_e20_occurrences: {
         Row: {
           cadence_id: string | null
           checkpoint_done_at: string | null
           checkpoint_due_at: string | null
+          close_note: string | null
           close_reason: string | null
           closed_at: string | null
+          closed_by: string | null
+          closed_by_name: string | null
           created_at: string
           expires_at: string
           finalization_done_at: string | null
@@ -1929,8 +2030,11 @@ export type Database = {
           cadence_id?: string | null
           checkpoint_done_at?: string | null
           checkpoint_due_at?: string | null
+          close_note?: string | null
           close_reason?: string | null
           closed_at?: string | null
+          closed_by?: string | null
+          closed_by_name?: string | null
           created_at?: string
           expires_at: string
           finalization_done_at?: string | null
@@ -1955,8 +2059,11 @@ export type Database = {
           cadence_id?: string | null
           checkpoint_done_at?: string | null
           checkpoint_due_at?: string | null
+          close_note?: string | null
           close_reason?: string | null
           closed_at?: string | null
+          closed_by?: string | null
+          closed_by_name?: string | null
           created_at?: string
           expires_at?: string
           finalization_done_at?: string | null
