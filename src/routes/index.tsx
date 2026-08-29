@@ -14,8 +14,6 @@
  * funcionando — são redirecionados para "/f" com os MESMOS parâmetros.
  */
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowRight,
   Award,
@@ -27,10 +25,7 @@ import {
   ShieldCheck,
   Sun,
   Users2,
-  X,
 } from "lucide-react";
-import { toast } from "sonner";
-import { registrarInteresseUnidade } from "@/lib/group/unit-leads.functions";
 
 type GroupSearch = {
   e?: string;
