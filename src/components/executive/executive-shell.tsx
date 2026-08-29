@@ -175,11 +175,20 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
       ? [
           { to: unitPath("/executivo/biblioteca"), label: "Biblioteca de Conteúdos", icon: LibraryBig },
+        ]
+      : []),
+    /**
+     * Apresentação Digital e carteiras das unidades do Grupo dependem de
+     * PERMISSÃO administrativa (user_roles) — nunca do cargo operacional.
+     */
+    ...(administrativeAccess
+      ? [
           {
             to: unitPath("/executivo/apresentacao-digital"),
             label: "Apresentação Digital",
             icon: LibraryBig,
           },
+          { to: unitPath("/executivo/unidades"), label: "Unidades do Grupo", icon: Building2 },
         ]
       : []),
     ...(session.activeRole === "super_admin"
