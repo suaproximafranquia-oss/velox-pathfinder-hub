@@ -279,10 +279,11 @@ describe("complementação da biblioteca (COMANDO 1B)", () => {
     expect(new Set(library.map((c) => c.url)).size).toBe(library.length);
   });
 
-  it("9) a seleção continua alternando entre os conteúdos ativos da etapa", () => {
+  it("9) a seleção é determinística e alterna conforme o histórico da etapa", () => {
+    // Mesmo estado ⇒ mesma escolha, independentemente do sorteio.
     const first = selectContent(library, "R2", [], () => 0).content;
     const last = selectContent(library, "R2", [], () => 0.99).content;
-    expect(first?.id).not.toBe(last?.id);
+    expect(first?.id).toBe(last?.id);
     // Já enviado não é repetido enquanto houver alternativa.
     const next = selectContent(library, "R2", ["r2-antigo", "objetivos", "historia"], () => 0)
       .content;
