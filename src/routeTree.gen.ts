@@ -68,6 +68,7 @@ import { Route as FCrmIndexRouteImport } from './routes/f.crm.index'
 import { Route as PortalConviteTokenRouteImport } from './routes/portal.convite.$token'
 import { Route as OauthGoogleConnectorRouteImport } from './routes/oauth.google.$connector'
 import { Route as FExecutivoUsuariosRouteImport } from './routes/f.executivo.usuarios'
+import { Route as FExecutivoUnidadesRouteImport } from './routes/f.executivo.unidades'
 import { Route as FExecutivoTesteCadenciaRouteImport } from './routes/f.executivo.teste-cadencia'
 import { Route as FExecutivoTemplatesRouteImport } from './routes/f.executivo.templates'
 import { Route as FExecutivoRevistaRouteImport } from './routes/f.executivo.revista'
@@ -399,6 +400,11 @@ const FExecutivoUsuariosRoute = FExecutivoUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => FExecutivoRoute,
 } as any)
+const FExecutivoUnidadesRoute = FExecutivoUnidadesRouteImport.update({
+  id: '/unidades',
+  path: '/unidades',
+  getParentRoute: () => FExecutivoRoute,
+} as any)
 const FExecutivoTesteCadenciaRoute = FExecutivoTesteCadenciaRouteImport.update({
   id: '/teste-cadencia',
   path: '/teste-cadencia',
@@ -662,6 +668,7 @@ export interface FileRoutesByFullPath {
   '/f/executivo/revista': typeof FExecutivoRevistaRoute
   '/f/executivo/templates': typeof FExecutivoTemplatesRoute
   '/f/executivo/teste-cadencia': typeof FExecutivoTesteCadenciaRoute
+  '/f/executivo/unidades': typeof FExecutivoUnidadesRoute
   '/f/executivo/usuarios': typeof FExecutivoUsuariosRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
@@ -754,6 +761,7 @@ export interface FileRoutesByTo {
   '/f/executivo/revista': typeof FExecutivoRevistaRoute
   '/f/executivo/templates': typeof FExecutivoTemplatesRoute
   '/f/executivo/teste-cadencia': typeof FExecutivoTesteCadenciaRoute
+  '/f/executivo/unidades': typeof FExecutivoUnidadesRoute
   '/f/executivo/usuarios': typeof FExecutivoUsuariosRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
@@ -851,6 +859,7 @@ export interface FileRoutesById {
   '/f/executivo/revista': typeof FExecutivoRevistaRoute
   '/f/executivo/templates': typeof FExecutivoTemplatesRoute
   '/f/executivo/teste-cadencia': typeof FExecutivoTesteCadenciaRoute
+  '/f/executivo/unidades': typeof FExecutivoUnidadesRoute
   '/f/executivo/usuarios': typeof FExecutivoUsuariosRoute
   '/oauth/google/$connector': typeof OauthGoogleConnectorRoute
   '/portal/convite/$token': typeof PortalConviteTokenRoute
@@ -949,6 +958,7 @@ export interface FileRouteTypes {
     | '/f/executivo/revista'
     | '/f/executivo/templates'
     | '/f/executivo/teste-cadencia'
+    | '/f/executivo/unidades'
     | '/f/executivo/usuarios'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
@@ -1041,6 +1051,7 @@ export interface FileRouteTypes {
     | '/f/executivo/revista'
     | '/f/executivo/templates'
     | '/f/executivo/teste-cadencia'
+    | '/f/executivo/unidades'
     | '/f/executivo/usuarios'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
@@ -1137,6 +1148,7 @@ export interface FileRouteTypes {
     | '/f/executivo/revista'
     | '/f/executivo/templates'
     | '/f/executivo/teste-cadencia'
+    | '/f/executivo/unidades'
     | '/f/executivo/usuarios'
     | '/oauth/google/$connector'
     | '/portal/convite/$token'
@@ -1623,6 +1635,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoUsuariosRouteImport
       parentRoute: typeof FExecutivoRoute
     }
+    '/f/executivo/unidades': {
+      id: '/f/executivo/unidades'
+      path: '/unidades'
+      fullPath: '/f/executivo/unidades'
+      preLoaderRoute: typeof FExecutivoUnidadesRouteImport
+      parentRoute: typeof FExecutivoRoute
+    }
     '/f/executivo/teste-cadencia': {
       id: '/f/executivo/teste-cadencia'
       path: '/teste-cadencia'
@@ -1925,6 +1944,7 @@ interface FExecutivoRouteChildren {
   FExecutivoRevistaRoute: typeof FExecutivoRevistaRoute
   FExecutivoTemplatesRoute: typeof FExecutivoTemplatesRoute
   FExecutivoTesteCadenciaRoute: typeof FExecutivoTesteCadenciaRoute
+  FExecutivoUnidadesRoute: typeof FExecutivoUnidadesRoute
   FExecutivoUsuariosRoute: typeof FExecutivoUsuariosRoute
   FExecutivoIndexRoute: typeof FExecutivoIndexRoute
 }
@@ -1959,6 +1979,7 @@ const FExecutivoRouteChildren: FExecutivoRouteChildren = {
   FExecutivoRevistaRoute: FExecutivoRevistaRoute,
   FExecutivoTemplatesRoute: FExecutivoTemplatesRoute,
   FExecutivoTesteCadenciaRoute: FExecutivoTesteCadenciaRoute,
+  FExecutivoUnidadesRoute: FExecutivoUnidadesRoute,
   FExecutivoUsuariosRoute: FExecutivoUsuariosRoute,
   FExecutivoIndexRoute: FExecutivoIndexRoute,
 }
