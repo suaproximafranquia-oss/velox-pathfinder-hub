@@ -23,6 +23,10 @@ export type PresentationChapter = {
   sortOrder: number;
   isActive: boolean;
   updatedAt: string;
+  /** Rascunho NUNCA entra em uma emissão — só o publicado é congelado. */
+  isDraft: boolean;
+  publishedAt: string | null;
+  publishedByName: string | null;
 };
 
 /** Item congelado no snapshot — formato estável para reprodução. */
@@ -53,18 +57,42 @@ function toChapter(row: Record<string, any>): PresentationChapter {
     sortOrder: Number(row["sort_order"] ?? 0),
     isActive: row["is_active"] !== false,
     updatedAt: row["updated_at"] ?? row["created_at"],
+    isDraft: row["is_draft"] === true,
+    publishedAt: row["published_at"] ?? null,
+    publishedByName: row["published_by_name"] ?? null,
   };
 }
 
-/** Capítulos vigentes (última versão de cada chapter_key). */
+/** Capítulos PUBLICADOS vigentes (última versão de cada chapter_key). */
 export async function listCurrentChapters(): Promise<PresentationChapter[]> {
   const { data, error } = await supabaseAdmin
     .from("presentation_chapters")
     .select("*")
     .eq("is_current", true)
+    .eq("is_draft", false)
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []).map(toChapter);
+}
+
+/**
+ * RASCUNHOS: última versão de um capítulo que ainda não foi publicada.
+ * Aparecem só na administração e na pré-visualização — nunca em uma E20.
+ */
+export async function listDraftChapters(): Promise<PresentationChapter[]> {
+  const { data } = await supabaseAdmin
+    .from("presentation_chapters")
+    .select("*")
+    .order("version", { ascending: false });
+  const latestByKey = new Map<string, Record<string, any>>();
+  for (const row of (data ?? []) as Record<string, any>[]) {
+    const key = String(row["chapter_key"]);
+    if (!latestByKey.has(key)) latestByKey.set(key, row);
+  }
+  return [...latestByKey.values()]
+    .filter((row) => row["is_draft"] === true)
+    .map(toChapter)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 /** Histórico completo de um capítulo — nenhuma versão é descartada. */
@@ -89,13 +117,15 @@ export async function saveChapter(params: {
   thumbnailUrl: string | null;
   sortOrder: number;
   isActive: boolean;
+  /** false = salvar rascunho; true = publicar nova versão. */
+  publish: boolean;
   actorId?: string | null;
   actorName?: string | null;
 }): Promise<PresentationChapter[]> {
   const title = params.title.trim();
   if (!title) throw new Error("Título obrigatório.");
 
-  const key = params.chapterKey?.trim() || `cap_${crypto.randomUUID().slice(0, 8)}`;
+  const key = params.chapterKey?.trim() || crypto.randomUUID();
 
   const { data: previous } = await supabaseAdmin
     .from("presentation_chapters")
@@ -106,8 +136,13 @@ export async function saveChapter(params: {
     .maybeSingle();
 
   const nextVersion = Number((previous as any)?.version ?? 0) + 1;
+  const at = new Date().toISOString();
 
-  if (previous) {
+  /**
+   * IMUTABILIDADE: nenhuma versão publicada é alterada. Publicar cria
+   * uma versão nova e apenas transfere a condição de "vigente".
+   */
+  if (previous && params.publish) {
     await supabaseAdmin
       .from("presentation_chapters")
       .update({ is_current: false } as any)
@@ -117,7 +152,8 @@ export async function saveChapter(params: {
   const { error } = await supabaseAdmin.from("presentation_chapters").insert({
     chapter_key: key,
     version: nextVersion,
-    is_current: true,
+    is_current: params.publish,
+    is_draft: !params.publish,
     is_active: params.isActive,
     title,
     description: params.description,
@@ -126,8 +162,48 @@ export async function saveChapter(params: {
     sort_order: params.sortOrder,
     created_by: params.actorId ?? null,
     created_by_name: params.actorName ?? null,
+    published_at: params.publish ? at : null,
+    published_by: params.publish ? (params.actorId ?? null) : null,
+    published_by_name: params.publish ? (params.actorName ?? null) : null,
   } as any);
   if (error) throw new Error(error.message);
+
+  return listCurrentChapters();
+}
+
+/** Publica o rascunho mais recente de um capítulo. */
+export async function publishDraft(params: {
+  chapterKey: string;
+  actorId?: string | null;
+  actorName?: string | null;
+}): Promise<PresentationChapter[]> {
+  const { data: draft } = await supabaseAdmin
+    .from("presentation_chapters")
+    .select("*")
+    .eq("chapter_key", params.chapterKey)
+    .eq("is_draft", true)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!draft) throw new Error("Não há rascunho para publicar neste capítulo.");
+
+  const at = new Date().toISOString();
+  await supabaseAdmin
+    .from("presentation_chapters")
+    .update({ is_current: false } as any)
+    .eq("chapter_key", params.chapterKey);
+
+  await supabaseAdmin
+    .from("presentation_chapters")
+    .update({
+      is_draft: false,
+      is_current: true,
+      published_at: at,
+      published_by: params.actorId ?? null,
+      published_by_name: params.actorName ?? null,
+      updated_at: at,
+    } as any)
+    .eq("id", (draft as any).id);
 
   return listCurrentChapters();
 }
@@ -141,7 +217,8 @@ export async function setChapterActive(
     .from("presentation_chapters")
     .update({ is_active: active, updated_at: new Date().toISOString() } as any)
     .eq("chapter_key", chapterKey)
-    .eq("is_current", true);
+    .eq("is_current", true)
+    .eq("is_draft", false);
   return listCurrentChapters();
 }
 
@@ -153,13 +230,17 @@ export async function reorderChapters(order: string[]): Promise<PresentationChap
       .from("presentation_chapters")
       .update({ sort_order: index, updated_at: new Date().toISOString() } as any)
       .eq("chapter_key", key)
-      .eq("is_current", true);
+      .eq("is_current", true)
+      .eq("is_draft", false);
     index += 1;
   }
   return listCurrentChapters();
 }
 
-/** Roteiro que será congelado: somente capítulos vigentes e ativos. */
+/**
+ * Roteiro que será congelado: somente capítulos PUBLICADOS e ativos.
+ * Rascunho não entra em emissão nenhuma.
+ */
 export async function currentScript(): Promise<PresentationScript> {
   const chapters = (await listCurrentChapters()).filter((c) => c.isActive);
   return {
