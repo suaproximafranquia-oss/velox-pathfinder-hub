@@ -76,21 +76,34 @@ export const AUTO_REPLY_STEP = "RESPOSTA_AUTOMATICA";
 
 /**
  * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
- * E20, E27 nem a resposta automática — a ausência é intencional e é
+ * E27 nem a resposta automática — a ausência é intencional e é
  * preservada: elas continuam como slot vazio e inativo, e o motor
  * bloqueia o envio com motivo legível em vez de inventar mensagem.
  */
-export const PENDING_TEXT_STEPS = ["E20", "E27", AUTO_REPLY_STEP] as const;
+export const PENDING_TEXT_STEPS = ["E27", AUTO_REPLY_STEP] as const;
 
-/** Etapas oficiais do Word, na ordem em que o documento as apresenta. */
-export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) => m.stepKey);
+/**
+ * Etapas oficiais do Word, já traduzidas para a CHAVE TÉCNICA do motor,
+ * na ordem em que o documento as apresenta. O nome editorial do Word
+ * (E2, E5, E6, E7) vive no rótulo; a chave é a do motor.
+ */
+export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) =>
+  engineStepForWord(m.stepKey),
+);
 
 /**
  * Etapas que existiam antes do Word e permanecem no banco por causa do
  * HISTÓRICO (envios, filas e snapshots já gravados). Elas não fazem
  * parte da nomenclatura oficial e não recebem conteúdo novo.
  */
-export const LEGACY_STEPS: string[] = ["E0_V1", "E4", "E12", "V3", "V4", "FINALIZACAO"];
+export const LEGACY_STEPS: string[] = ["E0_V1", "V3", "V4"];
+
+/**
+ * Chaves criadas pela primeira importação do Word que NÃO são
+ * executáveis pelo motor. Continuam no banco (histórico) e são
+ * desativadas — o conteúdo delas vive agora na chave técnica.
+ */
+export const WORD_ALIAS_STEPS: string[] = ["E2", "E5", "E6", "E7"];
 
 export const LIBRARY_STEP_ORDER: string[] = [
   ...WORD_STEP_ORDER,
