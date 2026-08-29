@@ -293,20 +293,26 @@ export const moveCrmLeadStage = createServerFn({ method: "POST" })
     /**
      * OPORTUNIDADE é terminal: o executivo assumiu a conversa. O ciclo
      * da Apresentação Digital (E20 + checkpoint + finalização) é
-     * encerrado no mesmo instante, sem apagar histórico.
+     * encerrado no mesmo instante, sem apagar histórico. A ocorrência
+     * pode ter sido gravada com o id externo puro ou com o prefixo
+     * `gs_` — as duas formas são tentadas, e nenhuma delas apaga nada.
      */
-    const { isTerminalStage } = await import("@/lib/relationship/closing");
     let closureNote = "";
-    if (isTerminalStage(data.stageKey) && lead.external_id) {
+    if (isTerminalStage(targetStage) && lead.external_id) {
       const { closeCycleForOpportunity } = await import(
         "@/server/relationship/opportunity.server"
       );
-      const closed = await closeCycleForOpportunity(String(lead.external_id));
+      const externalId = String(lead.external_id);
+      const closed = [
+        ...(await closeCycleForOpportunity(externalId)),
+        ...(await closeCycleForOpportunity(`gs_${externalId}`)),
+      ];
       if (closed.length > 0) {
         closureNote =
           " Ciclo da Apresentação Digital encerrado: checkpoint e finalização cancelados.";
       }
     }
+
 
     return {
       ok: true,
