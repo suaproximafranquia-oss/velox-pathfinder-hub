@@ -75,6 +75,45 @@ export type ContentSelection =
   | { content: null; reason: string };
 
 /**
+ * ROTAÇÃO DENTRO DO POOL VINCULADO À ETAPA (fonte única).
+ *
+ * Recebe SOMENTE conteúdos explicitamente vinculados à etapa. Se o pool
+ * estiver vazio, nada é escolhido — o motor jamais inventa material.
+ */
+export function selectFromPool(
+  candidates: ValueContent[],
+  stepKey: string,
+  alreadySent: string[],
+): ContentSelection {
+  const active = candidates.filter((c) => c.active);
+  if (active.length === 0) {
+    return {
+      content: null,
+      reason: `Etapa ${stepKey} não possui conteúdo vinculado na Biblioteca. Nada foi anexado — o vínculo precisa ser declarado manualmente.`,
+    };
+  }
+  const unseen = active.filter((c) => !alreadySent.includes(c.id));
+  const pool = unseen.length > 0 ? unseen : active;
+  const minUsage = Math.min(...pool.map((c) => c.usageCount));
+  const tier = pool
+    .filter((c) => c.usageCount === minUsage)
+    .sort((a, b) => {
+      const aUsed = a.lastUsedAt ?? "";
+      const bUsed = b.lastUsedAt ?? "";
+      if (aUsed !== bUsed) return aUsed < bUsed ? -1 : 1;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
+  const chosen = tier[0]!;
+  return {
+    content: chosen,
+    reason:
+      active.length === 1
+        ? `Conteúdo "${chosen.name}" vinculado explicitamente à etapa ${stepKey}.`
+        : `Conteúdo "${chosen.name}" escolhido por rotação entre os vínculos da etapa ${stepKey}.`,
+  };
+}
+
+/**
  * Seleção controladamente aleatória (COMANDO 3A §6, §7).
  *
  * Preferimos o que o investidor ainda não recebeu; entre os candidatos

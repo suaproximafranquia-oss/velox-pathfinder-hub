@@ -23,21 +23,26 @@ import {
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
-  CONTENT_GROUPS,
-  CONTENT_GROUP_LABELS,
   CONTENT_KIND_LABELS,
   contentGroupsOf,
-  contentLibraryStats,
-  type ContentGroup,
   type ContentKind,
   type ValueContent,
 } from "@/lib/relationship/content";
+import {
+  CONTENT_REQUIRED_STEPS,
+  KNOWN_STEP_KEYS,
+} from "@/lib/relationship/step-registry";
+import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import {
   deleteRelationshipContent,
   listRelationshipContents,
   saveRelationshipContent,
   toggleRelationshipContent,
 } from "@/lib/relationship-homologation.functions";
+import {
+  definirEtapasDoConteudo,
+  listarPoolsDeEtapa,
+} from "@/lib/relationship/library.functions";
 import { MessageLibraryPanel } from "@/components/executive/message-library-panel";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +78,8 @@ const field =
 
 type Draft = {
   id: string | null;
-  groups: ContentGroup[];
+  /** Etapas do MOTOR em que este material pode ser usado (fonte única). */
+  steps: string[];
   name: string;
   description: string;
   kind: ContentKind;
@@ -90,7 +96,7 @@ const LINK_KINDS: ContentKind[] = ["link", "video", "imagem", "texto"];
 
 const emptyDraft: Draft = {
   id: null,
-  groups: ["E1"],
+  steps: [],
   name: "",
   description: "",
   kind: "link",
@@ -106,8 +112,10 @@ function BibliotecaPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [filterGroup, setFilterGroup] = useState<"todos" | ContentGroup>("todos");
+  const [filterStep, setFilterStep] = useState<"todos" | string>("todos");
   const [query, setQuery] = useState("");
+  /** Vínculos declarados: etapa → ids de conteúdo. Fonte única do motor. */
+  const [bindings, setBindings] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     setSession(getSession());
@@ -116,7 +124,12 @@ function BibliotecaPage() {
   const load = useCallback(async () => {
     try {
       await ensureCloudSession();
-      setContents(await listRelationshipContents());
+      const [list, links] = await Promise.all([
+        listRelationshipContents(),
+        listarPoolsDeEtapa(),
+      ]);
+      setContents(list);
+      setBindings(links);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível carregar a biblioteca.");
@@ -127,24 +140,46 @@ function BibliotecaPage() {
     void load();
   }, [load]);
 
-  const stats = useMemo(() => contentLibraryStats(contents), [contents]);
+  /** Etapas de cada conteúdo, derivadas dos vínculos (nunca inferidas). */
+  const stepsByContent = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const [step, ids] of Object.entries(bindings)) {
+      for (const id of ids) (map[id] ??= []).push(step);
+    }
+    return map;
+  }, [bindings]);
+
+  /**
+   * Lacunas reais: etapa que o motor usa para anexar conteúdo e que não
+   * tem nenhum material ativo vinculado.
+   */
+  const missingSteps = useMemo(
+    () =>
+      CONTENT_REQUIRED_STEPS.filter(
+        (step) =>
+          !(bindings[step] ?? []).some((id) => contents.some((c) => c.id === id && c.active)),
+      ),
+    [bindings, contents],
+  );
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return contents
-      .filter((c) => (filterGroup === "todos" ? true : contentGroupsOf(c).includes(filterGroup)))
+      .filter((c) =>
+        filterStep === "todos" ? true : (stepsByContent[c.id] ?? []).includes(filterStep),
+      )
       .filter((c) =>
         q ? `${c.name} ${c.description ?? ""}`.toLowerCase().includes(q) : true,
       )
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-  }, [contents, filterGroup, query]);
+  }, [contents, filterStep, query, stepsByContent]);
 
-  function toggleGroup(group: ContentGroup) {
+  function toggleStep(step: string) {
     setDraft((d) => ({
       ...d,
-      groups: d.groups.includes(group)
-        ? d.groups.filter((g) => g !== group)
-        : [...d.groups, group],
+      steps: d.steps.includes(step)
+        ? d.steps.filter((s) => s !== step)
+        : [...d.steps, step],
     }));
   }
 
@@ -154,10 +189,18 @@ function BibliotecaPage() {
     setNotice(null);
     try {
       await ensureCloudSession();
+      /**
+       * `groups` é campo LEGADO de arquivo (coluna obrigatória antiga).
+       * O motor não o lê mais: quem manda é o vínculo por etapa. Ao
+       * editar, o valor existente é preservado; ao criar, fica "E1".
+       */
+      const legacyGroups = draft.id
+        ? (contentGroupsOf(contents.find((c) => c.id === draft.id)!) as never)
+        : (["E1"] as never);
       const next = await saveRelationshipContent({
         data: {
           id: draft.id,
-          groups: draft.groups,
+          groups: legacyGroups,
           name: draft.name,
           description: draft.description || null,
           kind: draft.kind,
@@ -169,6 +212,14 @@ function BibliotecaPage() {
         },
       });
       setContents(next);
+      const saved = draft.id
+        ? draft.id
+        : (next.find((c) => c.name === draft.name.trim())?.id ?? null);
+      if (saved) {
+        setBindings(
+          await definirEtapasDoConteudo({ data: { contentId: saved, stepKeys: draft.steps } }),
+        );
+      }
       setDraft(emptyDraft);
       setNotice(draft.id ? "Conteúdo atualizado." : "Conteúdo cadastrado na biblioteca.");
     } catch (e) {
@@ -181,7 +232,7 @@ function BibliotecaPage() {
   function startEdit(content: ValueContent) {
     setDraft({
       id: content.id,
-      groups: contentGroupsOf(content) as ContentGroup[],
+      steps: stepsByContent[content.id] ?? [],
       name: content.name,
       description: content.description ?? "",
       kind: content.kind,
@@ -253,19 +304,23 @@ function BibliotecaPage() {
               </div>
               <p className="mt-1 max-w-2xl text-sm text-[color:var(--muted-foreground)]">
                 Os materiais cadastrados aqui são os mesmos utilizados pelo Motor de
-                Relacionamento. Um conteúdo pode pertencer a vários grupos sem ser duplicado.
+                Relacionamento. Um mesmo conteúdo pode servir a várias etapas sem ser
+                duplicado — e uma etapa sem vínculo simplesmente não envia material.
               </p>
             </div>
             <div className="text-right text-[11px] text-[color:var(--muted-foreground)]">
-              <p>{stats.total} conteúdo(s) cadastrado(s)</p>
-              <p>{stats.active} ativo(s) · {stats.inactive} inativo(s)</p>
+              <p>{contents.length} conteúdo(s) cadastrado(s)</p>
+              <p>
+                {contents.filter((c) => c.active).length} ativo(s) ·{" "}
+                {contents.filter((c) => !c.active).length} inativo(s)
+              </p>
             </div>
           </div>
 
-          {stats.missingRequired.length > 0 ? (
+          {missingSteps.length > 0 ? (
             <p className="mt-3 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 p-3 text-[11px] text-[color:var(--gold)]">
-              Grupos obrigatórios sem conteúdo ativo: {stats.missingRequired.join(", ")}. As
-              etapas correspondentes não conseguem anexar material.
+              Etapas sem conteúdo vinculado: {missingSteps.join(", ")}. Elas continuam sendo
+              enviadas, porém sem material anexado.
             </p>
           ) : null}
         </header>
@@ -355,16 +410,20 @@ function BibliotecaPage() {
 
           <div className="mt-4">
             <p className="text-[11px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              Grupos em que este material pode ser utilizado
+              Etapas do motor em que este material pode ser utilizado
+            </p>
+            <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
+              Sem etapa selecionada, o material fica no acervo e nunca é enviado
+              automaticamente. Nenhuma classificação é feita pelo sistema.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {CONTENT_GROUPS.map((group) => {
-                const on = draft.groups.includes(group);
+              {KNOWN_STEP_KEYS.map((step) => {
+                const on = draft.steps.includes(step);
                 return (
                   <button
-                    key={group}
-                    onClick={() => toggleGroup(group)}
-                    title={CONTENT_GROUP_LABELS[group]}
+                    key={step}
+                    onClick={() => toggleStep(step)}
+                    title={stepDisplayLabel(step)}
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-[11px] transition",
                       on
@@ -372,7 +431,7 @@ function BibliotecaPage() {
                         : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
                     )}
                   >
-                    {group}
+                    {step}
                   </button>
                 );
               })}
@@ -393,13 +452,13 @@ function BibliotecaPage() {
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <select
               className={cn(field, "max-w-52")}
-              value={filterGroup}
-              onChange={(e) => setFilterGroup(e.target.value as "todos" | ContentGroup)}
+              value={filterStep}
+              onChange={(e) => setFilterStep(e.target.value)}
             >
-              <option value="todos">Todos os grupos</option>
-              {CONTENT_GROUPS.map((g) => (
-                <option key={g} value={g}>
-                  {g} — {CONTENT_GROUP_LABELS[g]}
+              <option value="todos">Todas as etapas</option>
+              {KNOWN_STEP_KEYS.map((s) => (
+                <option key={s} value={s}>
+                  {stepDisplayLabel(s)}
                 </option>
               ))}
             </select>
@@ -431,8 +490,11 @@ function BibliotecaPage() {
                       {c.active ? "" : " · inativo"}
                     </p>
                     <p className="mt-1 text-[color:var(--muted-foreground)]">
-                      {CONTENT_KIND_LABELS[c.kind]} · grupos {contentGroupsOf(c).join(", ")} ·
-                      usado {c.usageCount}x ·{" "}
+                      {CONTENT_KIND_LABELS[c.kind]} ·{" "}
+                      {(stepsByContent[c.id] ?? []).length > 0
+                        ? `etapas ${(stepsByContent[c.id] ?? []).join(", ")}`
+                        : "sem vínculo com etapa"}{" "}
+                      · usado {c.usageCount}x ·{" "}
                       {c.lastUsedAt
                         ? `último uso ${new Date(c.lastUsedAt).toLocaleDateString("pt-BR")}`
                         : "nunca utilizado"}

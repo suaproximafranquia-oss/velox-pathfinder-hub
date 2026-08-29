@@ -25,6 +25,15 @@ export const KNOWN_STEP_KEYS: readonly string[] = [
   ...NON_CADENCE_STEPS,
 ];
 
+/**
+ * Etapas que o MOTOR anexa material. Derivadas de `STEPS` — não existe
+ * segunda lista. Uma etapa daqui sem vínculo declarado não envia
+ * conteúdo (e isso aparece como lacuna na Biblioteca).
+ */
+export const CONTENT_REQUIRED_STEPS: readonly string[] = Object.values(STEPS)
+  .filter((s) => Boolean(s.contentGroup))
+  .map((s) => s.step);
+
 export function isKnownStep(step: string | null | undefined): boolean {
   if (!step) return false;
   return KNOWN_STEP_KEYS.includes(step.trim().toUpperCase());

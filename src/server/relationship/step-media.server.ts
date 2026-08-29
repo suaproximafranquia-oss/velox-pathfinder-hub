@@ -16,8 +16,10 @@
  *    tratado como vínculo explícito e sai sem sorteio.
  *  • O motor consulta o vínculo pela ETAPA. Nome do arquivo, posição na
  *    lista ou ordem de criação NUNCA são usados para inferir o vídeo.
- *  • Sem vínculo, o comportamento anterior (sorteio dentro do grupo de
- *    conteúdo autorizado) continua valendo — nada regride.
+ *  • SEM VÍNCULO É SEM VÍNCULO: quando a etapa não tem conteúdo
+ *    declarado, o motor NÃO escolhe nada. Não há sorteio por grupo, nem
+ *    inferência por nome, posição ou semelhança — a mensagem sai sem
+ *    material e o motivo é registrado para revisão humana.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
