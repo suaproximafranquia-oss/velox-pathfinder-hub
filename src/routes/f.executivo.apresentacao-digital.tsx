@@ -203,6 +203,10 @@ function ApresentacaoDigitalPage() {
                     <p className="text-sm text-[color:var(--foreground)]">{chapter.title}</p>
                     <p className="text-[11px] text-[color:var(--muted-foreground)]">
                       versão {chapter.version} · {chapter.videoUrl ? "vídeo definido" : "sem vídeo"}
+                      {chapter.publishedAt
+                        ? ` · publicada em ${new Date(chapter.publishedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`
+                        : ""}
+                      {chapter.publishedByName ? ` por ${chapter.publishedByName}` : ""}
                     </p>
                   </div>
                   <button
