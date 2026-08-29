@@ -1,45 +1,61 @@
-# E0 Dinâmica — Meta, Botões e Executivo Responsável
+# Etapa 3 — Fechamento do ciclo de relacionamento
 
-Plano derivado das duas rodadas de auditoria. Não altera identidade, GreenSales, Portal dos Leads, Remarketing, Ação do Dia nem a regra NOVO/EM ANDAMENTO/ENCERRADO. E20 permanece evento paralelo.
+Diagnóstico já entregue (respostas 1–120). Este plano cobre apenas o que a Etapa 3 precisa implantar, na ordem segura.
 
-## Decisões recomendadas (confirmar antes de começar)
-1. Botão da apresentação: link estável do Portal do executivo responsável. A E20 não é emitida junto com a E0, porque cada emissão abre uma nova instância de cadência e expira em 7 dias.
-2. Botão de contato: aponta para o responsável no momento do envio, congelado. Mensagem já entregue não muda de destino.
-3. Sem WhatsApp válido no responsável: a E0 fica pendente com motivo legível. Nunca número fixo.
-4. Resposta automática dentro da janela de 24h ganha entrada própria na Biblioteca, deixando de reaproveitar R1.
+## Revisão dos vínculos duplicados (pedido caso a caso)
 
-## 1. Dados de origem
-Preencher o WhatsApp dos 7 perfis de executivo (hoje todos vazios) e cadastrar o template E0 aprovado da Meta — nome técnico, idioma, categoria, variáveis e botões — na tabela de templates oficiais, hoje vazia.
+Os "duplicados" não são erro de vínculo: são **pools de conteúdo por etapa**, todos migrados de `relationship_content_groups` com `position = 0`.
 
-## 2. Construtor de componentes do template
-Montar os componentes do template, incluindo parâmetros de botão por índice, num único ponto da camada de envio. A mudança é aditiva: validação de identidade e Remarketing continuam funcionando sem alteração de comportamento.
+- **E1 (5 vídeos)**: Democratização do acesso ao crédito; Ecossistema de soluções Velox; O mercado financeiro está mudando; O mercado financeiro não é exclusividade dos grandes bancos; Desertos financeiros.
+- **E3 (6 vídeos)**: Blindagem patrimonial; Home Office ou Loja Física; e mais 4 do mesmo grupo.
+- **R2 (4) e V3 (2)**: mesma origem.
 
-## 3. Resolvedor de destinos por lead
-Uma resolução no servidor, a partir do executivo responsável, que devolve o destino da apresentação e o destino de contato já validados pelo normalizador único. Sem número válido, resultado controlado com motivo.
+Problema real: como todos têm `position = 0`, **não existe ordem determinística de rotação** — a escolha depende da ordenação do banco. A Etapa 3 deve dar ordem explícita e registrar o consumo, sem apagar nenhum conteúdo.
 
-## 4. E0 no caminho oficial
-Migrar a E0 para a mesma trilha do motor: texto da Biblioteca, assinatura do responsável real, envio como template oficial e registro de snapshot. Encerrar o caminho legado de boas-vindas e o texto fixo em código, mantendo a chave idempotente atual por lead.
+## O que a Etapa 3 implanta
 
-## 5. Congelamento do histórico
-Gravar no snapshot os destinos usados em cada botão, o nome do template Meta, o executivo responsável e o telefone utilizados no envio. Estrutura anulável, sem afetar registros existentes.
+1. **Neutralização dos legados**
+   - Remover as chamadas remanescentes a `processWelcome` (`lead-intake.server.ts`, `leads.functions.ts`) e o `retryCrmWelcome` passa a reexecutar o motor oficial.
+   - Tirar `CRM_FIRST_CONTACT` da lista `CRM_TEMPLATES`.
+   - Eliminar `WHATSAPP_NUMBER` como fallback nos 5 componentes públicos: sem executivo com WhatsApp, o botão não aparece.
 
-## 6. Resposta automática
-Conteúdo próprio informando que o canal serve ao primeiro contato e oferecendo o caminho para o executivo responsável, com destino resolvido dinamicamente. As travas atuais (uma por janela, duas no total, escalada para humano) permanecem.
+2. **Conteúdo oficial pendente**
+   - Publicar na Biblioteca: `E20`, `E27` e `RESPOSTA_AUTOMATICA` (textos a fornecer). Sem texto ativo, o motor continua bloqueando com motivo legível.
 
-## 7. Apresentação Digital (E20) na ficha
-Botão de emitir, reutilização da ocorrência vigente em vez de nova emissão, cópia do link e histórico com validade, primeira abertura e total de aberturas. Registrar também o user agent no resgate.
+3. **Rotação determinística de conteúdo**
+   - Ordem explícita por etapa (`position` sequencial) e registro de uso, para que E1/E3/R2/V3 girem de forma previsível e auditável.
 
-## 8. Higiene de contato
-Eliminar o número fixo como alternativa nas telas públicas e concentrar a geração de link no normalizador único.
+4. **Executores temporais (decisão: mensagem automática)**
+   - **E27** enviada automaticamente no `checkpoint_due_at` da ocorrência E20 vigente.
+   - **FINALIZAÇÃO** enviada automaticamente no `finalization_due_on` (dia útil seguinte).
+   - Ambas passam pelo motor oficial: Biblioteca + executivo responsável + ambiente + snapshot congelado; idempotência por chave determinística; OPORTUNIDADE e nova E20 cancelam o pendente.
+
+5. **Integração na Ação do Dia**
+   - E20/E27 entram como leitura, respeitando "um lead = uma ação": mensagem dentro da precedência atual, pendências extras como `secondary`.
+
+6. **Dados externos**
+   - Cadastro do template Meta de `primeiro_contato` (tabela hoje vazia) e preenchimento de `executive_profiles.whatsapp` (0 de 7).
 
 ## Detalhes técnicos
-- Envio: `src/server/whatsapp.server.ts`; fachada `src/server/crm/messaging.server.ts`.
-- E0 hoje: `src/server/crm/first-contact.server.ts` + `buildWelcomeMessage` (`automation.server.ts`) sobre `CRM_FIRST_CONTACT` de `src/lib/crm/templates.ts`.
-- Legado vivo a encerrar: `processWelcome` via `src/lib/crm/leads.functions.ts`.
-- Identidade: `resolveLeadExecutive` sobre `portal_leads.responsible_executive_id` → `executive_profiles`.
-- Snapshot: `relationship_message_sends` (já tem `meta_template_name`, `content_url`, `library_version`, `simulated`, `message_id` único).
-- Telefone: `src/lib/whatsapp-number.ts` como única fonte de link.
-- Riscos: troca simultânea do texto da E0; payload não aditivo afetando validação de identidade e Remarketing; 2 leads sem responsável; retry da Meta duplicando entrega externa.
 
-## Critérios de aceite
-Um único caminho de E0; nenhuma E0 sem snapshot; nenhum envio com número fixo; homologação e lead de teste sem chamada à Meta; destinos de botão auditáveis por mensagem; redistribuição não altera histórico.
+- Tabelas reutilizadas: `relationship_e20_occurrences`, `relationship_e20_accesses`, `relationship_message_library`, `relationship_message_sends`, `relationship_queue`, `crm_meta_templates`, `portal_leads`, `executive_profiles`.
+- Nenhuma tabela nova. Migrations: seed/ativação das 3 etapas de texto e ordenação dos vínculos existentes.
+- Módulos reutilizados: `message-library.server`, `e20.server`, `instances.server`, `executive-identity.server`, `destinations.server`, `execution-mode.server`, `daily-actions`.
+- Intocáveis: Portal dos Leads/GreenSales, snapshots históricos, identidade atômica, `set_lead_operational`, arquivos gerados da integração.
+- Testes obrigatórios: precedência com E20/E27, idempotência do checkpoint e da finalização, cancelamento por OPORTUNIDADE/nova E20, expiração e reuso de convite, auto-reply com etapa própria ativa.
+
+## Ordem de implantação
+
+1. Neutralizar legados.
+2. Ordenação/rotação dos vínculos.
+3. Publicar textos oficiais (E20, E27, RESPOSTA_AUTOMATICA).
+4. Executores automáticos de E27 e FINALIZAÇÃO.
+5. Integração na Ação do Dia.
+6. Unificação dos pontos de contato públicos.
+7. Testes e homologação (sem chamada real à Meta).
+
+## Pendências que dependem de você
+
+- Textos oficiais de E20, E27 e resposta automática.
+- Template Meta aprovado (nome, idioma, índices dos botões).
+- WhatsApp dos executivos.
