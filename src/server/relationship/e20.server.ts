@@ -168,6 +168,14 @@ export async function issueE20(params: {
   const expiresAt = new Date(now.getTime() + SEVEN_DAYS_MS).toISOString();
   const linkUrl = `${params.baseUrl.replace(/\/+$/, "")}/portal/convite/${token}`;
 
+  /**
+   * SNAPSHOT DO ROTEIRO (§6): o que vale para esta emissão é o roteiro
+   * vigente AGORA. Mudanças posteriores na administração não alteram
+   * apresentações já emitidas.
+   */
+  const { currentScript } = await import("./presentation.server");
+  const roteiro = await currentScript();
+
   const { data, error } = await supabaseAdmin
     .from("relationship_e20_occurrences")
     .insert({
@@ -188,6 +196,7 @@ export async function issueE20(params: {
         emitido_por: params.generatedByName,
         assinatura: signatureName,
         instancia: instance.instanceSeq,
+        roteiro,
       },
     } as any)
     .select("*")
