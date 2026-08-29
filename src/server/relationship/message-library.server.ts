@@ -224,6 +224,29 @@ export async function listLibraryMessages(): Promise<LibraryMessage[]> {
   return (data ?? []).map(toMessage);
 }
 
+/**
+ * RENOMEIA APENAS O RÓTULO VISÍVEL da etapa.
+ *
+ * Não cria versão, não altera texto, não toca em fila, snapshot ou
+ * histórico: grava o título da versão ativa. A chave técnica é imutável.
+ * Rótulo vazio devolve a etapa ao padrão do sistema.
+ */
+export async function renameLibraryStep(params: {
+  stepKey: string;
+  label: string;
+}): Promise<LibraryMessage[]> {
+  await ensureLibrarySeed();
+  const label = params.label.trim();
+  const { error } = await supabaseAdmin
+    .from("relationship_message_library")
+    .update({ title: label || DEFAULT_STEP_LABELS[params.stepKey] || params.stepKey } as any)
+    .eq("scope", "production")
+    .eq("step_key", params.stepKey)
+    .eq("active", true);
+  if (error) throw new Error(error.message);
+  return listLibraryMessages();
+}
+
 /** Versão ATIVA de uma etapa (a única elegível para novos envios). */
 export async function getActiveLibraryMessage(
   stepKey: string,
