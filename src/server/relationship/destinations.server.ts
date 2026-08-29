@@ -38,8 +38,13 @@ export async function resolveLeadDestinations(
     };
   }
 
-  // O slug do responsável é o que produz o LINK PERSONALIZADO. Sem slug
-  // não existe link personalizado — e não trocamos por um genérico.
+  /**
+   * O slug do responsável é o que produz o LINK PERSONALIZADO. A fonte de
+   * verdade é o CADASTRO DO EXECUTIVO (Gestão de Usuários) — o valor
+   * gravado no lead é apenas um atalho e costuma vir vazio do GreenSales.
+   * Ordem: valor do lead → cadastro oficial do executivo. Sem nenhum dos
+   * dois, não existe link personalizado e nada é inventado.
+   */
   let slug = executive.slug;
   if (!slug) {
     const { data } = await supabaseAdmin
@@ -49,6 +54,8 @@ export async function resolveLeadDestinations(
       .maybeSingle();
     slug = (data as Record<string, any> | null)?.["responsible_executive_slug"] ?? null;
   }
+  if (!slug) slug = executiveSlugById(executive.executiveId);
+
 
   const destinations = resolveDestinations({
     portalUrl: slug ? investorPortalUrl(slug) : null,
