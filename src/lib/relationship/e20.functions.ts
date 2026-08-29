@@ -92,3 +92,90 @@ export const resgatarConviteE20 = createServerFn({ method: "POST" })
     const { redeemE20 } = await import("@/server/relationship/e20.server");
     return redeemE20(data.token, data.userAgent ?? null);
   });
+
+/**
+ * ESTADOS INDEPENDENTES (§10): copiar NUNCA significa enviar. Cada clique
+ * registra apenas o fato ocorrido.
+ */
+export const registrarCopiaE20 = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { leadId: string; occurrenceId: string; kind: "mensagem" | "link" }) => {
+    if (!input?.leadId || !input?.occurrenceId) throw new Error("Ocorrência obrigatória.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { logE20Event } = await import("@/server/relationship/e20.server");
+    const actorName = String((context.claims as Record<string, any> | null)?.["email"] ?? "Executivo");
+    await logE20Event({
+      leadId: data.leadId,
+      occurrenceId: data.occurrenceId,
+      event: data.kind === "mensagem" ? "mensagem_copiada" : "link_copiado",
+      actorId: context.userId,
+      actorName,
+    });
+    return { ok: true as const };
+  });
+
+/** Encerramento manual — motivo obrigatório, autor e horário registrados. */
+export const encerrarE20 = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { occurrenceId: string; reason: string }) => {
+    if (!input?.occurrenceId) throw new Error("Ocorrência obrigatória.");
+    if (!input?.reason?.trim()) throw new Error("Motivo obrigatório para encerrar a apresentação.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { closeE20Manually } = await import("@/server/relationship/e20.server");
+    const actorName = String((context.claims as Record<string, any> | null)?.["email"] ?? "Executivo");
+    return closeE20Manually({
+      occurrenceId: data.occurrenceId,
+      reason: data.reason,
+      actorId: context.userId,
+      actorName,
+    });
+  });
+
+/** Aberturas e trilha de estados de um lead — leitura da ficha. */
+export const auditoriaE20 = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { leadId: string }) => input)
+  .handler(async ({ data }) => {
+    const { listE20Accesses, listE20Events } = await import(
+      "@/server/relationship/e20.server"
+    );
+    const [accesses, events] = await Promise.all([
+      listE20Accesses(data.leadId),
+      listE20Events(data.leadId),
+    ]);
+    return { accesses, events };
+  });
+
+/** Mensagem oficial já congelada da emissão vigente (Biblioteca). */
+export const mensagemDaE20 = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { leadId: string; occurrenceId: string }) => input)
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("relationship_message_sends")
+      .select("rendered_body,library_version")
+      .eq("lead_id", data.leadId)
+      .eq("occurrence_id", data.occurrenceId)
+      .eq("step", "E20")
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!row) {
+      return {
+        body: null,
+        version: null,
+        reason:
+          "O texto oficial da E20 ainda não está publicado na Biblioteca. Nenhum texto alternativo é gerado.",
+      };
+    }
+    return {
+      body: (row as any).rendered_body as string,
+      version: ((row as any).library_version as number | null) ?? null,
+      reason: null,
+    };
+  });
