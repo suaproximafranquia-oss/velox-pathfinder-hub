@@ -490,8 +490,11 @@ function BibliotecaPage() {
                       {c.active ? "" : " · inativo"}
                     </p>
                     <p className="mt-1 text-[color:var(--muted-foreground)]">
-                      {CONTENT_KIND_LABELS[c.kind]} · grupos {contentGroupsOf(c).join(", ")} ·
-                      usado {c.usageCount}x ·{" "}
+                      {CONTENT_KIND_LABELS[c.kind]} ·{" "}
+                      {(stepsByContent[c.id] ?? []).length > 0
+                        ? `etapas ${(stepsByContent[c.id] ?? []).join(", ")}`
+                        : "sem vínculo com etapa"}{" "}
+                      · usado {c.usageCount}x ·{" "}
                       {c.lastUsedAt
                         ? `último uso ${new Date(c.lastUsedAt).toLocaleDateString("pt-BR")}`
                         : "nunca utilizado"}
