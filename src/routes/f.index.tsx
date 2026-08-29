@@ -98,7 +98,10 @@ type HomeSearch = {
   b?: string;
   /** COMANDO 3 §8 — canal oficial de origem (`tiktok` | `meta`). */
   ch?: string;
+  /** FASE 1 §6 — visitante chegou pelo Portal Institucional do Grupo. */
+  g?: string;
 };
+
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
