@@ -410,16 +410,20 @@ function BibliotecaPage() {
 
           <div className="mt-4">
             <p className="text-[11px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              Grupos em que este material pode ser utilizado
+              Etapas do motor em que este material pode ser utilizado
+            </p>
+            <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
+              Sem etapa selecionada, o material fica no acervo e nunca é enviado
+              automaticamente. Nenhuma classificação é feita pelo sistema.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {CONTENT_GROUPS.map((group) => {
-                const on = draft.groups.includes(group);
+              {KNOWN_STEP_KEYS.map((step) => {
+                const on = draft.steps.includes(step);
                 return (
                   <button
-                    key={group}
-                    onClick={() => toggleGroup(group)}
-                    title={CONTENT_GROUP_LABELS[group]}
+                    key={step}
+                    onClick={() => toggleStep(step)}
+                    title={stepDisplayLabel(step)}
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-[11px] transition",
                       on
@@ -427,7 +431,7 @@ function BibliotecaPage() {
                         : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
                     )}
                   >
-                    {group}
+                    {step}
                   </button>
                 );
               })}
