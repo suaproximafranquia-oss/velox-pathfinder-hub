@@ -38,10 +38,15 @@ export type EngineRepository = {
   loadContentLibrary: () => Promise<ValueContent[]>;
   /**
    * Vínculo EXPLÍCITO etapa → conteúdo (vídeo) declarado pelo executivo.
-   * Opcional: sem vínculo, a escolha segue pelo grupo de conteúdo. O
-   * motor nunca infere o vídeo por nome ou posição na Biblioteca.
+   * FONTE ÚNICA: sem vínculo, o motor NÃO escolhe conteúdo algum — não
+   * há sorteio por grupo, nem inferência por nome ou posição.
    */
   loadStepContentBindings?: () => Promise<Record<string, string>>;
+  /**
+   * Pool completo da etapa (um ou mais conteúdos vinculados). Com mais
+   * de um vínculo vale a rotação determinística da Biblioteca.
+   */
+  loadStepContentPools?: () => Promise<Record<string, string[]>>;
 };
 
 export type DispatchRequest = {
