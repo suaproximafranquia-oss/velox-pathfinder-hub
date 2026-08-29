@@ -62,7 +62,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   const horizonStart = new Date(new Date(nowIso).getTime() - 45 * 24 * 3600 * 1000).toISOString();
   const horizonEnd = new Date(new Date(nowIso).getTime() + 2 * 24 * 3600 * 1000).toISOString();
 
-  const [meetingsRes, agendaRes, queueRes, cadenceQueue] = await Promise.all([
+  const [meetingsRes, agendaRes, queueRes, cadenceQueue, closureDuties] = await Promise.all([
     supabaseAdmin
       .from("portal_meetings")
       .select("id,investor_id,investor_name,executive_id,executive_name,scheduled_at,duration_min,status,topic")
