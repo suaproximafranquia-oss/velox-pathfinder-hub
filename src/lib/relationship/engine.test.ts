@@ -506,7 +506,8 @@ describe("COMANDO 2 — matriz de homologação", () => {
   });
 
   it("12 — tarefa vencida durante a noite é executada na abertura seguinte", async () => {
-    const t = engineFor("homologation", "2026-08-19T10:30:00Z");
+    // 13:30 UTC = 10:30 em Brasília, já dentro da janela 09:00–21:00.
+    const t = engineFor("homologation", "2026-08-19T13:30:00Z");
     await t.engine.handleEvent({
       id: "m12",
       scope: "homologation",
