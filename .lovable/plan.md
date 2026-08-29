@@ -1,100 +1,58 @@
-# Desenho Final — Portal Raiz, Apresentação Digital (E6/E20) e Ciclo E27
+# Rodada de correção total — Unidades, Apresentação Digital, E20/E27 e permissões
 
-Confirmação das 77 perguntas, consolidada como especificação. Nada implementado nesta etapa.
+Correção única, baseada nas respostas desta bateria. Nada do motor que já funciona é refeito.
 
-## 1. Portal e URLs (1–10)
+## 1. Carteira das unidades (Solar / Seguros)
 
-- `/` = Grupo Velox institucional, público, sem login, sem Gateway, sem captação. **Sim**
-- `/f` = Velox Financeira (Portal do Investidor atual, movido da raiz). **Sim**
-- `/s` = Velox Solar, `/seg` = Velox Seguros — hoje só existem como marcas em
-  `src/lib/portal-brands.ts`; passam a ter rota institucional própria. **Sim**
-- `/f/{slug}` continua funcionando exatamente como hoje (executivo, contexto `e`, `m`, `o`, `b`).
-  Muda apenas o destino do redirecionamento: `/` → `/f`, preservando todos os parâmetros.
-- Links antigos para `/` continuam funcionando: `/` com parâmetros de contexto
-  (`lead`, `e`, `m`, `o`, `b`) redireciona para `/f` mantendo os mesmos parâmetros.
-  A raiz limpa passa a ser institucional.
-- Raiz tem botão "Seja um Franqueado" que leva à escolha da empresa (Financeira, Solar, Seguros).
-- Origem "veio do Grupo" é registrada no `EntryContext` existente (`src/lib/portal-entry.ts`),
-  como origem institucional — sem mecanismo novo.
-- Solar e Seguros ficam **completamente fora** de `portal_leads`, CRM e cadência da Financeira.
-- **Agora:** Solar e Seguros ficam **institucionais, sem captação operacional**. Só conteúdo e
-  contato direto. A captação exige antes uma chave de unidade e isolamento por RLS — fica para
-  um comando futuro.
+- Registro completo do contato: autor (usuário e nome), data/hora, observação e motivo obrigatório ao encerrar.
+- Histórico de todas as mudanças de situação e de atribuição, com autor e data/hora, exibido na ficha do interessado.
+- Responsável por interessado: atribuir e trocar executivo, com registro de quem atribuiu.
+- Filtros (responsável, situação, origem, faixa, unidade) e busca (nome, WhatsApp, e-mail).
+- Contadores: total, novos, sem contato, em contato, encerrados.
+- Deduplicação por WhatsApp normalizado e e-mail normalizado dentro da mesma unidade: novo envio atualiza o registro existente e guarda a repetição no histórico, em vez de criar outro card. Mesmo contato pode existir em Solar e Seguros de forma independente.
+- Alteração restrita a permissão administrativa (admin e manager).
 
-## 2. Área administrativa da Apresentação (11–25)
+## 2. Páginas /s e /seg
 
-- Nome da área: **"Apresentação Digital"**.
-- Visível na lateral **somente para administrador** — permissão administrativa independente do
-  cargo, nascida no mesmo modelo (`src/config/modules.ts` + `workspace_module_permissions`).
-  Você enxerga por ser administrador; executivos comuns não enxergam.
-- Cadastro de vídeo: título, descrição, URL/arquivo, ordem, ativo/inativo, capa/thumbnail.
-- Vários capítulos permitidos (roteiro ordenado).
-- Pré-visualização do roteiro exatamente como o investidor verá, antes de publicar.
-- Alteração cria **nova versão**; nada é apagado fisicamente.
-- **E20 já emitida permanece congelada** pelo snapshot do roteiro: alterar ou desativar vídeo
-  não muda apresentação já enviada.
+- Somente identidade da unidade e formulário: remoção de qualquer texto de "conteúdo institucional em preparação" ou promessa de conteúdo futuro.
+- Após o envio, apenas a confirmação — nenhum portal, gateway ou material é entregue na hora.
+- Nenhum disparo automático nesta rodada: nada entra em portal_leads, CRM, cadência ou Gateway da Financeira. A origem "Veio do Grupo Velox" continua preservada.
 
-## 3. E20 — geração (26–41)
+## 3. Apresentação Digital
 
-- Botão **somente no Workspace, dentro do lead**. Não no CRM. Não na Ação do Dia.
-- Gerar cria o convite de 7 dias, monta a mensagem da Biblioteca, insere primeiro nome e link,
-  e **mostra a mensagem na tela**.
-- Dois botões: **Copiar mensagem** e **Copiar link**.
-- Copiar **não** significa enviar. O sistema nunca presume envio manual de WhatsApp.
-- Estados registrados separadamente: **gerada · copiada · enviada · aberta**.
-- Com E20 ativa, clique não gera outra: a tela mostra "Apresentação ativa".
-- Nova emissão exige comando explícito **com confirmação**, porque invalida a anterior.
+- Rascunho e publicação separados: editar cria rascunho; só o publicado entra em novas apresentações; rascunho nunca afeta emissões existentes.
+- Preview idêntico à tela do investidor, com preview individual de cada vídeo.
+- Metadados visíveis: número da versão, data da publicação e autor.
+- Confirmação antes de publicar e antes de desativar capítulo; reativação permitida; nenhuma exclusão física; versão publicada é imutável (alterar gera nova versão).
+- Lista com numeração, thumbnail e reordenação por arrastar e soltar; validação da URL do vídeo (hospedagem externa permitida).
+- Cada apresentação emitida passa a exibir qual versão do roteiro utilizou.
 
-## 4. E27 e cadência (42–47)
+## 4. Permissões e RLS
 
-- E20 gerada ⇒ E27 criada, mesmo sem envio.
-- E27 entra automaticamente no motor e aparece na Ação do Dia na hora certa.
-- Visualização da E20 **não** cancela E27.
-- Resposta do investidor segue o motor normal.
-- OPORTUNIDADE cancela E27 e Finalização.
+- Menu inteiro passa a respeitar autorização real (user_roles), sem depender do cargo operacional.
+- Apresentação Digital: exclusiva de administrador (executivo e manager sem acesso).
+- `presentation_chapters`: leitura e escrita restritas a permissão administrativa; sem exclusão.
+- `relationship_e20_events`: executivo lê apenas eventos dos leads sob sua responsabilidade; admin e manager leem tudo.
+- Formulário público das unidades ganha limite de envio por origem para evitar flood.
 
-## 5. Link público (48–56)
+## 5. E20 — interação e estados
 
-- Acesso sem login, token de exatamente 7 dias corridos, aberturas ilimitadas no período.
-- Cada abertura registrada (`relationship_e20_accesses`).
-- Expirado: sem conteúdo e **sem** gerar outro automaticamente.
-- O investidor jamais vê Workspace, biblioteca ou administração; não há botão de login.
+- Botão para abrir a apresentação vigente, botão separado para emitir nova (com confirmação explicando que a anterior é invalidada).
+- Exibição da validade, da data de expiração e da quantidade de acessos, além do que já existe (primeiro acesso, último acesso, "Investidor visualizou", histórico, motivo e autor do encerramento).
+- Novo botão "Marcar como enviada", com confirmação, autor e data/hora. Copiar continua sendo apenas copiar: nunca infere envio, e envio nunca infere visualização.
+- Eventos separados na jornada: gerada, mensagem copiada, link copiado, enviada, aberta, expirada, encerrada (com motivo, autor e data/hora).
 
-## 6. Indicadores (57–63)
+## 6. E27
 
-- Workspace mostra: nº de aberturas, primeiro acesso, **último acesso**, histórico completo de
-  E20 e o indicador "Investidor visualizou".
-- Gerada ≠ enviada ≠ visualizada. **Não existe** "apresentação concluída".
+- Abrir a apresentação cancela o checkpoint E27: o objetivo do checkpoint foi cumprido e o executivo assume a condução. O acesso continua registrado normalmente.
 
-## 7. Encerramento (64–71)
+## Detalhes técnicos
 
-- Executivo pode encerrar manualmente, com **motivo obrigatório**, autor e data/hora.
-- Encerramento vai para a Jornada.
-- Encerram também: nova E20, OPORTUNIDADE e fim do ciclo.
+- Novas colunas/tabelas: histórico de contato e atribuição dos interessados das unidades; campos de rascunho/publicação e autor em `presentation_chapters`; marcação de envio confirmado na ocorrência E20.
+- Migrações incluem GRANT e políticas por papel; as políticas `USING true` de `presentation_chapters` e `relationship_e20_events` são substituídas.
+- Deduplicação aplicada no servidor (`unit-leads.functions.ts`) com WhatsApp em dígitos e e-mail em minúsculas.
+- Cancelamento da E27 tratado em `redeemE20` + `closure.server.ts`, mantendo idempotência.
 
-## 8. Ação do Dia (72–76)
+## Não será tocado
 
-- Antes da E20, sinaliza que existe apresentação a gerar e leva direto ao lead.
-- **Sem** botão de geração.
-- Depois de gerada, a obrigação some; permanecem apenas E27 e Finalização.
-
-## 9. A pergunta 77
-
-**Sim, exatamente.** Gerar + copiar sem enviar = E20 "gerada", nunca "enviada".
-A E27 segue normalmente, porque ela nasce da emissão, não do envio. O sistema nunca
-inventa um envio que o executivo não confirmou.
-
-## Comandos de implementação (execução em três fases)
-
-1. **Raiz do Grupo + `/f`** — nova raiz institucional, Portal da Financeira em `/f`,
-   `/s` e `/seg` institucionais, redirecionamentos preservando contexto, origem "veio do Grupo".
-2. **Apresentação Digital** — permissão administrativa, cadastro versionado de vídeos,
-   snapshot do roteiro na emissão, área pública do convite exibindo o roteiro congelado.
-3. **Ciclo e indicadores** — copiar mensagem, estados gerada/copiada/enviada/aberta,
-   último acesso e trilha de aberturas, encerramento manual com motivo, eventos na Jornada.
-
-## Dependências de conteúdo
-
-- Texto oficial da E20 e da E27 na Biblioteca.
-- Vídeos e roteiro da Apresentação Digital.
-- Conteúdo institucional do Grupo, Solar e Seguros.
+Motor de emissão E20 (reuso, 7 dias, snapshot, acessos, expiração, encerramento com motivo), versionamento já existente da Apresentação, isolamento Solar/Seguros x Financeira, redirects `/` → `/f` e rotas legadas, `authorization.server.ts` e o motor de Remarketing.
