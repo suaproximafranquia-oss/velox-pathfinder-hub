@@ -65,20 +65,8 @@ export async function loadCadenceActivationDate(): Promise<string | null> {
 export type WelcomeOutcome = "enviada" | "pendente" | "falhou" | "ignorada";
 
 /**
- * CAMINHO LEGADO DESATIVADO — CAMINHO ÚNICO DA E0.
- *
  * O primeiro contato pertence integralmente ao motor de relacionamento
- * (`registerFirstContact` → `dispatchFirstContact`), que resolve o
- * executivo responsável real, o texto da Biblioteca oficial e os
- * destinos dinâmicos dos botões. Esta automação não constrói mais texto
- * nem chama o canal: dois motores de primeiro contato nunca coexistem.
- *
- * Nada foi apagado do passado: leads já processados mantêm histórico,
- * estados e mensagens. Apenas não existe mais um segundo emissor.
+ * (`registerFirstContact` → `dispatchFirstContact`). A função legada
+ * `processWelcome` foi REMOVIDA no Comando 3: não existe segundo
+ * emissor de primeiro contato. Históricos permanecem intactos.
  */
-export async function processWelcome(
-  _lead: CrmLeadRow,
-  _settings: AutomationSettings,
-): Promise<WelcomeOutcome> {
-  return "ignorada";
-}
