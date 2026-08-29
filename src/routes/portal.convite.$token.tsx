@@ -52,7 +52,7 @@ function ConvitePage() {
           // Fluxo oficial: o convite entrega o visitante à Home com o
           // contexto do lead — nenhum módulo é aberto por atalho.
           void navigate({
-            to: "/",
+            to: "/f",
             replace: true,
             search: { lead: result.leadId, m: "manual", o: "Convite do executivo" } as never,
           });

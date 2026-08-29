@@ -218,10 +218,10 @@ function RootRoutes() {
     if (insideOverlay && hasPortalSession() && unlocked) return;
     writeEntryContext({ pendingModule: mod.key });
     if (insideOverlay) {
-      window.top?.location.replace(`/?m=${mod.key}`);
+      window.top?.location.replace(`/f?m=${mod.key}`);
       return;
     }
-    navigate({ to: "/", search: { m: mod.key }, replace: true });
+    navigate({ to: "/f", search: { m: mod.key }, replace: true });
   }, [isCrm, isExecutive, isLeadsPortal, isRemarketing, isPortal, navigate, pathname]);
 
   // Área Executiva permanece isolada do Design System editorial.

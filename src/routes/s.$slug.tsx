@@ -10,7 +10,7 @@ export const Route = createFileRoute("/s/$slug")({
   beforeLoad: ({ params }) => {
     const brand = getBrandByPrefix("s")!;
     throw redirect({
-      to: "/",
+      to: "/s",
       replace: true,
       search: { e: params.slug, m: "manual", o: brand.origin, b: brand.key },
     });

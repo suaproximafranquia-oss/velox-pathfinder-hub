@@ -7,7 +7,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 export const Route = createFileRoute("/manual/anuncio")({
   beforeLoad: () => {
     throw redirect({
-      to: "/",
+      to: "/f",
       replace: true,
       search: { m: "manual", o: "anuncio", c: "anuncio" },
     });
