@@ -441,6 +441,24 @@ export async function redeemE20(token: string, userAgent?: string | null): Promi
   });
 
   /**
+   * ABERTURA CUMPRE O CHECKPOINT (E27): se o investidor assistiu à
+   * apresentação, o lembrete automático perde a razão de existir. O
+   * checkpoint é marcado como cumprido pela própria abertura — o
+   * executivo assume a conversa a partir daqui.
+   */
+  if (!row["checkpoint_done_at"]) {
+    await supabaseAdmin
+      .from("relationship_e20_occurrences")
+      .update({
+        checkpoint_done_at: at,
+        checkpoint_cancel_reason: "apresentacao_aberta_pelo_investidor",
+      } as any)
+      .eq("id", row["id"])
+      .is("checkpoint_done_at", null);
+  }
+
+
+  /**
    * PRESENÇA (§17): a abertura é atividade REAL no Portal e alimenta o
    * mesmo motor de engajamento já existente — sem lógica paralela.
    */
