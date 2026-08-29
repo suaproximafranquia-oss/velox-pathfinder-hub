@@ -26,7 +26,7 @@ export const OPERATIONAL_TIME_ZONE = "America/Sao_Paulo";
 /** Antecedência em que uma reunião passa a ocupar o topo da lista. */
 export const MEETING_FOCUS_WINDOW_MS = 15 * 60 * 1000;
 
-export type DailyActionSource = "meeting" | "agenda" | "queue" | "cadence";
+export type DailyActionSource = "meeting" | "agenda" | "closure" | "queue" | "cadence";
 export type DailyActionKind = "reuniao" | "compromisso" | "mensagem" | "ligacao";
 export type DailyActionBucket = "agora" | "atrasada" | "hoje" | "futura";
 
