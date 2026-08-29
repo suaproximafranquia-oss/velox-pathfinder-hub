@@ -45,7 +45,7 @@ function buildSlots(blocks: InstitutionalBlock[] | null): PrincipleSlot[] {
     const block = byPosition.get(position);
     return {
       position,
-      title: block?.title?.trim() || `Princípio ${String(position).padStart(2, "0")}`,
+      title: block?.title?.trim() || PRINCIPLE_TITLES[i]!,
       body: block?.body?.trim() || PLACEHOLDER_BODY,
       placeholder: !block,
     };
