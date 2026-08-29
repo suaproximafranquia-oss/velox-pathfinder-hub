@@ -87,7 +87,7 @@ function SolarPage() {
             unit="solar"
             origin={search.o ?? null}
             campaign={search.c ?? null}
-            fromGroup={search.g === "1"}
+            fromGroup={Boolean(search.g)}
           />
         </div>
       </div>

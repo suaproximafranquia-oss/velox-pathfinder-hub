@@ -87,7 +87,7 @@ function SegurosPage() {
             unit="seguros"
             origin={search.o ?? null}
             campaign={search.c ?? null}
-            fromGroup={search.g === "1"}
+            fromGroup={Boolean(search.g)}
           />
         </div>
       </div>

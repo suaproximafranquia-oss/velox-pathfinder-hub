@@ -89,7 +89,8 @@ export const Route = createFileRoute("/")({
  * A origem institucional viaja na URL (`g=1`) e é gravada no
  * EntryContext pela home da unidade — sem mecanismo paralelo.
  */
-const GROUP_SEARCH = { g: "1", o: "Portal Institucional do Grupo Velox" } as const;
+/** Valor textual (não numérico) para a URL permanecer legível. */
+const GROUP_SEARCH = { g: "grupo", o: "Portal Institucional do Grupo Velox" } as const;
 
 const SERVICES = [
   {
