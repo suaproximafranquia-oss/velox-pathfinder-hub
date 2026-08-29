@@ -251,6 +251,17 @@ function ProfileFields({
           </div>
         )}
       </div>
+      {/*
+        BLOQUEIO OPERACIONAL VISÍVEL: sem WhatsApp cadastrado o primeiro
+        contato (E0) do executivo NÃO é disparado — nem parcialmente.
+      */}
+      {!(user?.whatsapp ?? user?.phone) ? (
+        <p className="mx-5 mt-4 rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-4 py-3 text-[11px] text-[color:var(--gold)]">
+          WhatsApp não cadastrado. Enquanto este campo estiver vazio, o primeiro
+          contato (E0) dos seus leads fica bloqueado — nenhuma mensagem sai com
+          número institucional no lugar do seu.
+        </p>
+      ) : null}
       <div className="divide-y divide-[color:var(--border)]/60">
       {rows.map((r) => {
         const Icon = r.icon;
