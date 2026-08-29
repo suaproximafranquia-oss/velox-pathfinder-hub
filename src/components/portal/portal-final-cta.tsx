@@ -13,7 +13,6 @@
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { getResponsibleExecutive, getCommercialTitle } from "@/lib/responsible-executive";
-import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { ExecutiveContactDialog } from "@/components/shared/executive-contact-dialog";
 
 export function PortalFinalCta({
@@ -30,7 +29,7 @@ export function PortalFinalCta({
   if (personalized && executive) {
     const title = getCommercialTitle(executive);
     const firstName = executive.name.split(" ")[0];
-    const number = (executive.whatsapp || executive.phone || "").replace(/\D/g, "") || WHATSAPP_NUMBER;
+    const number = (executive.whatsapp || executive.phone || "").replace(/\D/g, "");
     const msg =
       whatsappMessage ??
       `Olá ${firstName}! Gostaria de voltar a falar sobre a Velox, a partir do ${context}.`;

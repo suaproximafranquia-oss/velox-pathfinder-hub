@@ -8,7 +8,6 @@ import { getExecutiveBySlug, type ExecutiveUser } from "@/lib/executive-auth";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { useEffect, useState } from "react";
-import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 
 export const Route = createFileRoute("/manual/$chapter")({
   head: ({ params }) => {
@@ -149,7 +148,9 @@ function FinalClosing() {
  * fixo em código.
  */
 function PersonalizedCta({ executive }: { executive: ExecutiveUser }) {
-  const raw = executive.whatsapp || executive.phone || WHATSAPP_NUMBER;
+  /* SEM NÚMERO FIXO: o destino é sempre o WhatsApp real do
+     executivo responsável. Sem cadastro, não há link. */
+  const raw = executive.whatsapp || executive.phone || "";
   const number = raw.replace(/\D/g, "");
   const firstName = executive.name.split(" ")[0];
   const url = `https://wa.me/${number}?text=${encodeURIComponent(

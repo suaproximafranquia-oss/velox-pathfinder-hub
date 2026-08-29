@@ -1,7 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
-import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import type { ExecutiveUser } from "@/lib/executive-auth";
 import { registerLead, updateLead } from "@/lib/leads";
@@ -28,7 +27,7 @@ export function ContactForm() {
 
   const exec = responsible.executive;
   const whatsappNumber =
-    (exec?.whatsapp || exec?.phone || "").replace(/\D/g, "") || WHATSAPP_NUMBER;
+    (exec?.whatsapp || exec?.phone || "").replace(/\D/g, "");
   const ctaLabel = responsible.personalized
     ? "Quero voltar a falar com meu especialista"
     : "Quero conversar com um especialista da Velox";

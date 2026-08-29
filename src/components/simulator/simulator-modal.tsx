@@ -13,7 +13,6 @@ import { trackJourney } from "@/lib/journey/engine";
 import { getCurrentInvestorId, getPortalSession } from "@/lib/portal-session";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { addSimulation } from "@/lib/simulator-history";
-import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { getInterestsProfile } from "@/lib/interests-profile";
 import { PortalFinalCta } from "@/components/portal/portal-final-cta";
 
