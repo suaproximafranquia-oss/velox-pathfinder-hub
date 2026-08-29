@@ -158,6 +158,25 @@ export async function dispatchFirstContact(input: {
   if (!input.simulated) {
     if (!template) {
       error = E0_TEMPLATE_MISSING_REASON;
+    } else if (contactButton && !destinations.contactUrl) {
+      /**
+       * PENDÊNCIA, NÃO PERDA DE ESTADO: o template aprovado exige o botão
+       * de contato do executivo e ainda não há WhatsApp cadastrado. A E0
+       * permanece registrada; apenas a entrega externa fica pendente.
+       * Nenhum número institucional substitui o responsável.
+       */
+      error =
+        "WhatsApp do executivo responsável ainda não está configurado — entrega externa pendente (botão de contato exigido pelo template oficial).";
+      await logE0Block({
+        leadId: input.leadId,
+        reason: error,
+        blockers: [error],
+        executiveId: destinations.executiveId,
+        contactMissing: true,
+        portalMissing: !destinations.portalUrl,
+        contactButtonInTemplate: true,
+        portalButtonInTemplate: Boolean(portalButton),
+      });
     } else {
       let blocked: string | null = null;
       for (const button of template.buttons) {
@@ -175,6 +194,7 @@ export async function dispatchFirstContact(input: {
         }
         buttons.push({ index: button.index, suffix: suffix.suffix });
       }
+
       if (blocked) {
         error = blocked;
       } else {
