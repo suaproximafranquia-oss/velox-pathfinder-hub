@@ -271,8 +271,43 @@ Se quiser receber esse material, me responda por aqui e eu disponibilizo o acess
 ];
 
 /** Etapas que o Word NÃO possui e que continuam sem conteúdo oficial. */
-export const WORD_ABSENT_STEPS = ["E20", "E27"] as const;
+export const WORD_ABSENT_STEPS = ["E27"] as const;
+
+/**
+ * WORD -> CHAVE TÉCNICA DO MOTOR.
+ *
+ * O Word é a fonte oficial do CONTEÚDO e do RÓTULO editorial; a CHAVE
+ * TÉCNICA pertence ao motor e nunca é renomeada. A nomenclatura
+ * editorial do documento (E2, E5, E6, E7) não coincide com as chaves
+ * executáveis (E3, E4, E12, E20, FINALIZACAO) — este mapa é a única
+ * tradução autorizada entre os dois mundos.
+ */
+export const WORD_STEP_TO_ENGINE_STEP: Record<string, string> = {
+  E2: "E3",
+  E3: "E4",
+  E5: "E12",
+  E6: "E20",
+  E7: "FINALIZACAO",
+};
+
+/**
+ * Etapas técnicas que RECEBEM texto do Word mas permanecem INATIVAS até
+ * a Gestão ativar o conteúdo oficial. E20 é evento paralelo e a
+ * FINALIZAÇÃO fecha o ciclo: o texto fica disponível na Biblioteca,
+ * versionado, mas o motor continua bloqueado até a ativação explícita.
+ */
+export const AWAITING_ACTIVATION_STEPS = ["E20", "FINALIZACAO"] as const;
+
+/** Chave técnica correspondente a uma etapa editorial do Word. */
+export function engineStepForWord(stepKey: string): string {
+  return WORD_STEP_TO_ENGINE_STEP[stepKey] ?? stepKey;
+}
 
 export function wordMessage(stepKey: string): WordMessage | null {
   return WORD_MESSAGES.find((m) => m.stepKey === stepKey) ?? null;
+}
+
+/** Mensagem oficial do Word que alimenta uma CHAVE TÉCNICA do motor. */
+export function wordMessageForEngineStep(engineStep: string): WordMessage | null {
+  return WORD_MESSAGES.find((m) => engineStepForWord(m.stepKey) === engineStep) ?? null;
 }

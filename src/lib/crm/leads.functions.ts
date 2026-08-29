@@ -278,9 +278,27 @@ export const moveCrmLeadStage = createServerFn({ method: "POST" })
         scope: "espelho_local",
       },
     );
+    /**
+     * OPORTUNIDADE é terminal: o executivo assumiu a conversa. O ciclo
+     * da Apresentação Digital (E20 + checkpoint + finalização) é
+     * encerrado no mesmo instante, sem apagar histórico.
+     */
+    const { isTerminalStage } = await import("@/lib/relationship/closing");
+    let closureNote = "";
+    if (isTerminalStage(data.stageKey) && lead.external_id) {
+      const { closeCycleForOpportunity } = await import(
+        "@/server/relationship/opportunity.server"
+      );
+      const closed = await closeCycleForOpportunity(String(lead.external_id));
+      if (closed.length > 0) {
+        closureNote =
+          " Ciclo da Apresentação Digital encerrado: checkpoint e finalização cancelados.";
+      }
+    }
+
     return {
       ok: true,
-      message: `Lead movido localmente para ${data.stageLabel}. Contingência do espelho — a origem não foi alterada.`,
+      message: `Lead movido localmente para ${data.stageLabel}. Contingência do espelho — a origem não foi alterada.${closureNote}`,
     };
   });
 

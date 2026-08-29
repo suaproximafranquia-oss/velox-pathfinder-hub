@@ -238,7 +238,10 @@ export function MessageLibraryPanel() {
           <ul className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
             {[...steps.keys()].map((key) => {
               const list = steps.get(key) ?? [];
-              const current = list.find((m) => m.active);
+              const current = list.find((m) => m.active) ?? list[0];
+              /* Sem versão ativa = o motor NÃO envia esta etapa. O
+                 rótulo continua editável; o texto é que falta. */
+              const awaiting = !list.some((m) => m.active && m.body.trim());
               return (
                 <li key={key}>
                   <button
@@ -254,8 +257,14 @@ export function MessageLibraryPanel() {
                       {current?.displayLabel ?? key}
                       <span className="ml-1 text-[10px] opacity-60">({key})</span>
                     </span>
-                    <span className="text-[10px]">
-                      {current ? `v${current.version}` : "sem texto"}
+                    <span className="shrink-0 text-[10px]">
+                      {awaiting ? (
+                        <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-amber-400">
+                          aguardando texto oficial
+                        </span>
+                      ) : (
+                        `v${current?.version}`
+                      )}
                     </span>
                   </button>
                 </li>

@@ -27,8 +27,11 @@ import {
 } from "@/lib/relationship/messages";
 import { resolveTreatment } from "@/lib/relationship/names";
 import {
+  AWAITING_ACTIVATION_STEPS,
   WORD_MESSAGES,
+  wordMessageForEngineStep,
   WORD_SOURCE_REFERENCE,
+  engineStepForWord,
   type WordMessage,
 } from "@/lib/relationship/word-library";
 import { DEFAULT_STEP_LABELS, stepDisplayLabel } from "@/lib/relationship/step-labels";
@@ -55,6 +58,11 @@ export type LibraryMessage = {
   /** Procedência do conteúdo: "word" quando veio do documento oficial. */
   sourceKind: string | null;
   sourceReference: string | null;
+  /**
+   * A etapa ainda não pode ser enviada pelo motor: ou não há texto
+   * oficial, ou o texto existe mas aguarda ativação pela Gestão.
+   */
+  awaitingOfficialText: boolean;
 };
 
 /**
@@ -69,21 +77,34 @@ export const AUTO_REPLY_STEP = "RESPOSTA_AUTOMATICA";
 
 /**
  * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
- * E20, E27 nem a resposta automática — a ausência é intencional e é
+ * E27 nem a resposta automática — a ausência é intencional e é
  * preservada: elas continuam como slot vazio e inativo, e o motor
  * bloqueia o envio com motivo legível em vez de inventar mensagem.
  */
-export const PENDING_TEXT_STEPS = ["E20", "E27", AUTO_REPLY_STEP] as const;
+export const PENDING_TEXT_STEPS = ["E27", AUTO_REPLY_STEP] as const;
 
-/** Etapas oficiais do Word, na ordem em que o documento as apresenta. */
-export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) => m.stepKey);
+/**
+ * Etapas oficiais do Word, já traduzidas para a CHAVE TÉCNICA do motor,
+ * na ordem em que o documento as apresenta. O nome editorial do Word
+ * (E2, E5, E6, E7) vive no rótulo; a chave é a do motor.
+ */
+export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) =>
+  engineStepForWord(m.stepKey),
+);
 
 /**
  * Etapas que existiam antes do Word e permanecem no banco por causa do
  * HISTÓRICO (envios, filas e snapshots já gravados). Elas não fazem
  * parte da nomenclatura oficial e não recebem conteúdo novo.
  */
-export const LEGACY_STEPS: string[] = ["E0_V1", "E4", "E12", "V3", "V4", "FINALIZACAO"];
+export const LEGACY_STEPS: string[] = ["E0_V1", "V3", "V4"];
+
+/**
+ * Chaves criadas pela primeira importação do Word que NÃO são
+ * executáveis pelo motor. Continuam no banco (histórico) e são
+ * desativadas — o conteúdo delas vive agora na chave técnica.
+ */
+export const WORD_ALIAS_STEPS: string[] = ["E2", "E5", "E6", "E7"];
 
 export const LIBRARY_STEP_ORDER: string[] = [
   ...WORD_STEP_ORDER,
@@ -121,9 +142,15 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     notes: row["notes"] ?? null,
     sourceKind: row["source_kind"] ?? null,
     sourceReference: row["source_reference"] ?? null,
+    awaitingOfficialText:
+      !row["active"] || String(row["body"] ?? "").trim().length === 0,
   };
 }
 
+/** A etapa nasce inativa (texto oficial existe, mas aguarda ativação)? */
+function awaitsActivation(engineStep: string): boolean {
+  return (AWAITING_ACTIVATION_STEPS as readonly string[]).includes(engineStep);
+}
 
 /** Linha da Biblioteca a partir de uma mensagem oficial do Word. */
 function wordRow(
@@ -131,16 +158,18 @@ function wordRow(
   version: number,
   supersedesId: string | null,
 ): Record<string, unknown> {
+  const engineStep = engineStepForWord(message.stepKey);
   return {
     scope: "production",
-    step_key: message.stepKey,
-    code: `LIB-${message.stepKey}`,
+    step_key: engineStep,
+    code: `LIB-${engineStep}`,
+    // O TÍTULO é o rótulo editorial do Word — apresentação, não chave.
     title: message.title,
-    purpose: message.stepKey.toLowerCase(),
+    purpose: engineStep.toLowerCase(),
     body: message.body,
     body_without_name: message.bodyWithoutName,
     version,
-    active: true,
+    active: !awaitsActivation(engineStep),
     content_group: message.contentGroup,
     button_kind: message.button,
     supersedes_id: supersedesId,
@@ -149,7 +178,12 @@ function wordRow(
     source_reference: WORD_SOURCE_REFERENCE,
     imported_at: new Date().toISOString(),
     import_version: version,
-    notes: `Texto oficial transcrito do documento ${WORD_SOURCE_REFERENCE}.`,
+    notes:
+      `Texto oficial transcrito do documento ${WORD_SOURCE_REFERENCE}` +
+      (message.stepKey === engineStep ? "." : ` (${message.stepKey} do Word).`) +
+      (awaitsActivation(engineStep)
+        ? " Aguardando ativação explícita pela Gestão — o motor não envia enquanto estiver inativa."
+        : ""),
   };
 }
 
@@ -167,7 +201,7 @@ export async function ensureLibrarySeed(): Promise<void> {
   const rows: Record<string, unknown>[] = [];
   for (const step of LIBRARY_STEP_ORDER) {
     if (known.has(step)) continue;
-    const official = WORD_MESSAGES.find((m) => m.stepKey === step) ?? null;
+    const official = wordMessageForEngineStep(step);
     const fixed = (HOMOLOGATION_MESSAGES as Record<string, any>)[step];
     if (official) {
       // Etapa oficial do Word: nasce já com o texto oficial (v1).
@@ -237,12 +271,28 @@ export async function renameLibraryStep(params: {
 }): Promise<LibraryMessage[]> {
   await ensureLibrarySeed();
   const label = params.label.trim();
-  const { error } = await supabaseAdmin
+  const title = label || DEFAULT_STEP_LABELS[params.stepKey] || params.stepKey;
+
+  /**
+   * Etapas AGUARDANDO TEXTO OFICIAL (E27, resposta automática, E20 e
+   * finalização antes da ativação) não têm versão ativa. O rótulo delas
+   * também precisa ser editável, então a gravação recai sobre a versão
+   * mais recente quando não existe versão ativa.
+   */
+  const { data: rows } = await supabaseAdmin
     .from("relationship_message_library")
-    .update({ title: label || DEFAULT_STEP_LABELS[params.stepKey] || params.stepKey } as any)
+    .select("id,active,version")
     .eq("scope", "production")
     .eq("step_key", params.stepKey)
-    .eq("active", true);
+    .order("version", { ascending: false });
+  const target =
+    (rows ?? []).find((r: any) => r.active) ?? (rows ?? [])[0] ?? null;
+  if (!target) return listLibraryMessages();
+
+  const { error } = await supabaseAdmin
+    .from("relationship_message_library")
+    .update({ title } as any)
+    .eq("id", (target as any).id);
   if (error) throw new Error(error.message);
   return listLibraryMessages();
 }
@@ -364,14 +414,15 @@ export async function importWordLibrary(actor: {
   const result: WordImportEntry[] = [];
 
   for (const official of WORD_MESSAGES) {
+    const engineStep = engineStepForWord(official.stepKey);
     const { data: history } = await supabaseAdmin
       .from("relationship_message_library")
       .select("*")
       .eq("scope", "production")
-      .eq("step_key", official.stepKey)
+      .eq("step_key", engineStep)
       .order("version", { ascending: false });
     const rows = (history ?? []) as any[];
-    const current = rows.find((r) => r.active) ?? null;
+    const current = rows.find((r) => r.active) ?? rows[0] ?? null;
 
     if (
       current &&
@@ -379,7 +430,7 @@ export async function importWordLibrary(actor: {
       String(current.body_without_name ?? "") === official.bodyWithoutName
     ) {
       result.push({
-        stepKey: official.stepKey,
+        stepKey: engineStep,
         outcome: "inalterada",
         version: Number(current.version ?? 1),
       });
@@ -400,9 +451,9 @@ export async function importWordLibrary(actor: {
         created_by: actor.actorId ?? null,
         created_by_name: actor.actorName,
       } as any);
-    if (error) throw new Error(`${official.stepKey}: ${error.message}`);
+    if (error) throw new Error(`${engineStep}: ${error.message}`);
     result.push({
-      stepKey: official.stepKey,
+      stepKey: engineStep,
       outcome: rows.length ? "nova_versao" : "criada",
       version: nextVersion,
     });
