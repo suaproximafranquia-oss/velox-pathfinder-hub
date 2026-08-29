@@ -83,17 +83,17 @@ export async function dispatchFirstContact(input: {
   const portalButton = template?.buttons.find((b) => b.role === "portal") ?? null;
 
   /**
-   * DESTINOS POR LEAD — REGRA FECHADA (Refino Final §2).
+   * DESTINOS POR LEAD — REGRA REVISADA.
    *
-   * O contato humano do executivo responsável é REQUISITO OPERACIONAL
-   * da E0. Sem WhatsApp válido em `executive_profiles.whatsapp` a E0
-   * INTEIRA é bloqueada: nada de mensagem, botão, link, número
-   * institucional ou envio parcial. A ausência do botão no template
-   * aprovado não autoriza o envio.
+   * O que bloqueia a E0 é apenas o que a mensagem oficial precisa para
+   * existir: o LINK PERSONALIZADO do Portal (o texto ativo da Biblioteca
+   * o contém). O WhatsApp do executivo é DESTINO DE BOTÃO, não requisito
+   * de existência: sem ele a E0 continua sendo criada e registrada, e o
+   * que fica pendente é apenas a ENTREGA EXTERNA, com motivo legível.
    */
   const destinations = await resolveLeadDestinations(input.leadId, {
     portalRequired: true,
-    contactRequired: true,
+    contactRequired: false,
   });
   if (!destinations.available) {
     const reason = destinations.reason ?? "Destinos não resolvidos.";
@@ -109,6 +109,7 @@ export async function dispatchFirstContact(input: {
     });
     return { registered: false, reason };
   }
+
 
 
   // TEXTO OFICIAL: sempre a versão ativa da Biblioteca.

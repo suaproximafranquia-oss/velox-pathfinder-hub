@@ -8,7 +8,9 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
 import { resolveDestinations, type ResolvedDestinations } from "@/lib/relationship/e0-destinations";
+import { executiveSlugById } from "@/lib/relationship/executive-slug";
 import { resolveLeadExecutive } from "./executive-identity.server";
+
 
 export type LeadDestinations = ResolvedDestinations & {
   available: boolean;
