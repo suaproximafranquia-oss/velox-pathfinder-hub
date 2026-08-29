@@ -177,7 +177,6 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
       ? [
           { to: unitPath("/executivo/biblioteca"), label: "Biblioteca de Conteúdos", icon: LibraryBig },
-          { to: unitPath("/executivo/identidade"), label: "Pendências de Identidade", icon: Fingerprint },
         ]
       : []),
     ...(session.activeRole === "super_admin"
