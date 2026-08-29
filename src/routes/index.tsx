@@ -3,19 +3,34 @@
  *
  * A raiz NÃO é operacional: não tem Gateway, simulador, captação,
  * cadência ou Portal do Investidor. Ela apresenta as três empresas do
- * Grupo e encaminha o visitante ao ambiente de cada uma:
+ * Grupo:
  *
- *   Velox Soluções Financeiras → /f
- *   Velox Solar                → /s
- *   Velox Seguros              → /seg
+ *   Velox Soluções Financeiras → leva ao ambiente /f (jornada oficial)
+ *   Velox Solar                → formulário de interesse (vira card)
+ *   Velox Seguros              → formulário de interesse (vira card)
  *
  * COMPATIBILIDADE: links antigos que apontavam para "/" com parâmetros
  * de contexto (`e`, `m`, `o`, `b`, `u`, `c`, `ch`, `lead`) continuam
  * funcionando — são redirecionados para "/f" com os MESMOS parâmetros.
- * Estar logado nunca redireciona a raiz para o Portal do Investidor.
  */
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { ArrowRight, Building2, ShieldCheck, Sun } from "lucide-react";
+import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  ArrowRight,
+  Award,
+  Building2,
+  Check,
+  GraduationCap,
+  Handshake,
+  LineChart,
+  ShieldCheck,
+  Sun,
+  Users2,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { registrarInteresseUnidade } from "@/lib/group/unit-leads.functions";
 
 type GroupSearch = {
   e?: string;
@@ -68,63 +83,99 @@ export const Route = createFileRoute("/")({
   component: GroupHome,
 });
 
-type Company = {
-  key: string;
-  name: string;
-  tagline: string;
-  to: "/f" | "/s" | "/seg";
-  icon: typeof Building2;
-  status: string | null;
-};
-
-const COMPANIES: Company[] = [
-  {
-    key: "financeira",
-    name: "Velox Soluções Financeiras",
-    tagline: "Crédito, consórcio e soluções financeiras para pessoas e empresas.",
-    to: "/f",
-    icon: Building2,
-    status: null,
-  },
-  {
-    key: "solar",
-    name: "Velox Solar",
-    tagline: "Energia solar e soluções de eficiência energética.",
-    to: "/s",
-    icon: Sun,
-    status: "Conteúdo institucional em preparação",
-  },
-  {
-    key: "seguros",
-    name: "Velox Seguros",
-    tagline: "Proteção patrimonial, vida e seguros corporativos.",
-    to: "/seg",
-    icon: ShieldCheck,
-    status: "Conteúdo institucional em preparação",
-  },
-];
-
 /**
  * A origem institucional viaja na URL (`g=1`) e é gravada no
  * EntryContext pela home da unidade — sem mecanismo paralelo.
  */
 const GROUP_SEARCH = { g: "1", o: "Portal Institucional do Grupo Velox" } as const;
 
+const STATS = [
+  { value: "+800", label: "unidades no país" },
+  { value: "+400 mil", label: "clientes atendidos" },
+  { value: "R$ 16 Bi", label: "em volume intermediado" },
+];
+
+const SERVICES = [
+  {
+    icon: Handshake,
+    title: "Oportunidade",
+    text: "Um modelo de negócio estruturado, com processo claro e acompanhamento próximo.",
+  },
+  {
+    icon: Users2,
+    title: "Consultores",
+    text: "Times formados dentro do padrão Velox de atendimento e conduta.",
+  },
+  {
+    icon: LineChart,
+    title: "Investimento",
+    text: "Faixas de entrada definidas com transparência, sem promessa de retorno rápido.",
+  },
+  {
+    icon: GraduationCap,
+    title: "Treinamento",
+    text: "Formação inicial e continuada para operar com segurança desde o primeiro mês.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Suporte",
+    text: "Estrutura central de apoio operacional, jurídico e de marketing.",
+  },
+  {
+    icon: Award,
+    title: "Reconhecimento",
+    text: "Marca consolidada e presença regional relevante nas três frentes do Grupo.",
+  },
+];
+
+type UnitKey = "financeira" | "solar" | "seguros";
+
+const UNITS: Array<{
+  key: UnitKey;
+  name: string;
+  icon: typeof Building2;
+  bullets: string[];
+  status: string | null;
+}> = [
+  {
+    key: "financeira",
+    name: "Velox Soluções Financeiras",
+    icon: Building2,
+    bullets: ["Crédito e consórcio", "Carteira de clientes ativa", "Jornada completa do investidor"],
+    status: null,
+  },
+  {
+    key: "solar",
+    name: "Velox Solar",
+    icon: Sun,
+    bullets: ["Energia solar", "Eficiência energética", "Projetos residenciais e empresariais"],
+    status: "Conteúdo institucional em preparação",
+  },
+  {
+    key: "seguros",
+    name: "Velox Seguros",
+    icon: ShieldCheck,
+    bullets: ["Proteção patrimonial", "Vida e previdência", "Seguros corporativos"],
+    status: "Conteúdo institucional em preparação",
+  },
+];
+
+const RANGE_OPTIONS = [
+  { value: "10_20", label: "De R$ 10 mil a R$ 20 mil" },
+  { value: "20_30", label: "De R$ 20 mil a R$ 30 mil" },
+  { value: "acima_30", label: "Acima de R$ 30 mil" },
+] as const;
+
 function GroupHome() {
+  const [formUnit, setFormUnit] = useState<"solar" | "seguros" | null>(null);
+
   return (
     <main className="min-h-screen bg-[#050b1a] text-white">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-8">
+      <header className="mx-auto flex max-w-6xl items-center px-6 py-8">
         <span className="text-sm uppercase tracking-[0.4em] text-[#c9a961]">Grupo Velox</span>
-        <Link
-          to="/f"
-          search={GROUP_SEARCH as never}
-          className="text-xs uppercase tracking-[0.2em] text-white/60 transition hover:text-white"
-        >
-          Portal do Investidor
-        </Link>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 pb-16 pt-8">
+      <section className="mx-auto max-w-6xl px-6 pb-16 pt-6">
         <h1 className="max-w-3xl text-4xl font-semibold leading-tight md:text-6xl">
           Um grupo, três frentes de{" "}
           <span className="text-[#c9a961]">soluções para pessoas e empresas</span>.
@@ -146,36 +197,80 @@ function GroupHome() {
             A escolha da empresa acontece antes de qualquer cadastro.
           </p>
         </div>
+
+        <dl className="mt-14 grid gap-6 border-t border-white/10 pt-8 sm:grid-cols-3">
+          {STATS.map((stat) => (
+            <div key={stat.label}>
+              <dt className="text-3xl font-semibold text-[#c9a961]">{stat.value}</dt>
+              <dd className="mt-1 text-sm text-white/60">{stat.label}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 pb-20">
+        <h2 className="text-xs uppercase tracking-[0.3em] text-white/40">O que sustenta a operação</h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {SERVICES.map((service) => {
+            const Icon = service.icon;
+            return (
+              <article
+                key={service.title}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              >
+                <Icon className="h-6 w-6 text-[#c9a961]" aria-hidden />
+                <h3 className="mt-4 text-base font-semibold">{service.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/60">{service.text}</p>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <section id="empresas" className="mx-auto max-w-6xl px-6 pb-24">
         <h2 className="text-xs uppercase tracking-[0.3em] text-white/40">Empresas do Grupo</h2>
         <div className="mt-6 grid gap-5 md:grid-cols-3">
-          {COMPANIES.map((company) => {
-            const Icon = company.icon;
+          {UNITS.map((unit) => {
+            const Icon = unit.icon;
             return (
               <article
-                key={company.key}
+                key={unit.key}
                 className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6"
               >
                 <Icon className="h-6 w-6 text-[#c9a961]" aria-hidden />
-                <h3 className="mt-4 text-lg font-semibold">{company.name}</h3>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-white/60">
-                  {company.tagline}
-                </p>
-                {company.status ? (
+                <h3 className="mt-4 text-lg font-semibold">{unit.name}</h3>
+                <ul className="mt-4 flex-1 space-y-2 text-sm text-white/60">
+                  {unit.bullets.map((bullet) => (
+                    <li key={bullet} className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#c9a961]" aria-hidden />
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+                {unit.status ? (
                   <p className="mt-4 rounded-lg border border-[#c9a961]/30 bg-[#c9a961]/5 px-3 py-2 text-[11px] text-[#c9a961]">
-                    {company.status}
+                    {unit.status}
                   </p>
                 ) : null}
-                <Link
-                  to={company.to}
-                  search={GROUP_SEARCH as never}
-                  className="mt-5 inline-flex items-center gap-2 text-sm text-[#c9a961] transition hover:gap-3"
-                >
-                  Acessar
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
+                {unit.key === "financeira" ? (
+                  <Link
+                    to="/f"
+                    search={GROUP_SEARCH as never}
+                    className="mt-5 inline-flex items-center gap-2 text-sm text-[#c9a961] transition hover:gap-3"
+                  >
+                    Saiba mais
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setFormUnit(unit.key as "solar" | "seguros")}
+                    className="mt-5 inline-flex items-center gap-2 self-start text-sm text-[#c9a961] transition hover:gap-3"
+                  >
+                    Saiba mais
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </button>
+                )}
               </article>
             );
           })}
@@ -183,8 +278,154 @@ function GroupHome() {
       </section>
 
       <footer className="border-t border-white/10 px-6 py-8 text-center text-xs text-white/40">
-        Grupo Velox · conteúdo institucional definitivo ainda não cadastrado.
+        Grupo Velox · Soluções Financeiras, Solar e Seguros.
       </footer>
+
+      {formUnit ? <UnitInterestForm unit={formUnit} onClose={() => setFormUnit(null)} /> : null}
     </main>
+  );
+}
+
+function UnitInterestForm({
+  unit,
+  onClose,
+}: {
+  unit: "solar" | "seguros";
+  onClose: () => void;
+}) {
+  const submit = useServerFn(registrarInteresseUnidade);
+  const [form, setForm] = useState({
+    name: "",
+    whatsapp: "",
+    email: "",
+    city: "",
+    investmentRange: "" as "" | (typeof RANGE_OPTIONS)[number]["value"],
+  });
+  const [sending, setSending] = useState(false);
+  const [done, setDone] = useState(false);
+
+  async function send() {
+    if (!form.investmentRange) {
+      toast.error("Selecione a faixa de investimento.");
+      return;
+    }
+    setSending(true);
+    try {
+      await submit({
+        data: {
+          unit,
+          name: form.name,
+          whatsapp: form.whatsapp,
+          email: form.email || null,
+          city: form.city || null,
+          investmentRange: form.investmentRange,
+          origin: "Portal Institucional do Grupo Velox",
+          campaign: null,
+        },
+      });
+      setDone(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar agora.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const unitName = unit === "solar" ? "Velox Solar" : "Velox Seguros";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
+      <div className="max-h-full w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#0a1428] p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-[#c9a961]">{unitName}</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">Quero conhecer a operação</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="text-white/50">
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+
+        {done ? (
+          <div className="mt-6 space-y-3">
+            <p className="text-sm text-white/70">
+              Recebemos seu interesse. Um responsável do Grupo Velox entrará em contato pelo
+              WhatsApp informado.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full bg-[#c9a961] px-5 py-2.5 text-sm font-medium text-[#0b1b33]"
+            >
+              Fechar
+            </button>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-3">
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Seu nome completo"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40"
+            />
+            <input
+              value={form.whatsapp}
+              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+              inputMode="tel"
+              placeholder="WhatsApp com DDD"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40"
+            />
+            <input
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              inputMode="email"
+              placeholder="E-mail"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40"
+            />
+            <input
+              value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
+              placeholder="Cidade"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40"
+            />
+            <div className="space-y-2 pt-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                Quanto pretende investir
+              </p>
+              {RANGE_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
+                    form.investmentRange === option.value
+                      ? "border-[#c9a961] bg-[#c9a961]/10 text-white"
+                      : "border-white/10 bg-white/5 text-white/70"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="range"
+                    className="accent-[#c9a961]"
+                    checked={form.investmentRange === option.value}
+                    onChange={() => setForm({ ...form, investmentRange: option.value })}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              disabled={sending}
+              onClick={() => void send()}
+              className="mt-2 w-full rounded-full bg-[#c9a961] px-5 py-3 text-sm font-medium text-[#0b1b33] disabled:opacity-50"
+            >
+              {sending ? "Enviando…" : "Enviar interesse"}
+            </button>
+            <p className="text-[11px] text-white/40">
+              Seus dados são usados apenas para contato sobre a {unitName}.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
