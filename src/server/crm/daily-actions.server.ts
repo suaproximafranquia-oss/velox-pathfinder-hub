@@ -155,6 +155,37 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     });
   }
 
+  /**
+   * FECHAMENTO DO CICLO — E27 e FINALIZAÇÃO da Apresentação Digital.
+   * A mesma leitura usada pelo executor: a Ação do Dia nunca inventa
+   * obrigação, só mostra a que já venceu na ocorrência da E20.
+   */
+  for (const duty of closureDuties) {
+    const identity = identities.get(duty.leadId);
+    actions.push({
+      actionKey: `closure:${duty.leadId}:${duty.step}:${duty.occurrenceId}`,
+      source: "closure",
+      kind: "mensagem",
+      leadId: duty.leadId,
+      name: identity?.name ?? "Investidor",
+      phone: identity?.phone ?? "",
+      scope: identity?.scope ?? null,
+      stepLabel: stepDisplayLabel(duty.step),
+      dueDate: duty.dueDate,
+      startsAt: null,
+      endsAt: null,
+      overdue: duty.dueDate < today,
+      priorityMax: false,
+      bucket: resolveBucket({ dueDate: duty.dueDate, startsAt: null, nowIso }),
+      title:
+        duty.kind === "checkpoint"
+          ? "Checkpoint da Apresentação Digital"
+          : "Finalização do ciclo",
+      responsibleName: null,
+      attempts: [],
+    });
+  }
+
   for (const item of queue) {
     const leadId = item.lead_id as string;
     const identity = identities.get(leadId);
