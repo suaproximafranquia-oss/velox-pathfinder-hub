@@ -8,11 +8,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { assertAdministrativeAccess } = await import("@/server/authorization.server");
-  await assertAdministrativeAccess(context as any);
-}
-
 export const permissaoApresentacao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -24,7 +19,8 @@ export const permissaoApresentacao = createServerFn({ method: "POST" })
 export const listarCapitulos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context as any);
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
     const { listCurrentChapters } = await import("@/server/relationship/presentation.server");
     return listCurrentChapters();
   });
@@ -46,7 +42,8 @@ export const salvarCapitulo = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
     const { saveChapter } = await import("@/server/relationship/presentation.server");
     const actorName = String((context.claims as Record<string, any> | null)?.["email"] ?? "Administrador");
     return saveChapter({
@@ -66,7 +63,8 @@ export const alternarCapitulo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { chapterKey: string; active: boolean }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
     const { setChapterActive } = await import("@/server/relationship/presentation.server");
     return setChapterActive(data.chapterKey, data.active);
   });
@@ -75,7 +73,8 @@ export const reordenarCapitulos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { order: string[] }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
     const { reorderChapters } = await import("@/server/relationship/presentation.server");
     return reorderChapters(data.order);
   });
@@ -84,7 +83,8 @@ export const versoesDoCapitulo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { chapterKey: string }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as any);
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
     const { listChapterVersions } = await import("@/server/relationship/presentation.server");
     return listChapterVersions(data.chapterKey);
   });
@@ -93,7 +93,8 @@ export const versoesDoCapitulo = createServerFn({ method: "POST" })
 export const roteiroVigente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context as any);
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
     const { currentScript } = await import("@/server/relationship/presentation.server");
     return currentScript();
   });
