@@ -32,7 +32,7 @@ import {
   CONTENT_REQUIRED_STEPS,
   KNOWN_STEP_KEYS,
 } from "@/lib/relationship/step-registry";
-import { stepDisplayLabel } from "@/lib/relationship/step-labels";
+import { stepDisplayLabel, stepShortCode } from "@/lib/relationship/step-labels";
 import {
   deleteRelationshipContent,
   listRelationshipContents,
@@ -41,6 +41,7 @@ import {
 } from "@/lib/relationship-homologation.functions";
 import {
   definirEtapasDoConteudo,
+  listarMensagensBiblioteca,
   listarPoolsDeEtapa,
 } from "@/lib/relationship/library.functions";
 import { MessageLibraryPanel } from "@/components/executive/message-library-panel";
