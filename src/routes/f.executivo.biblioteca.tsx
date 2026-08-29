@@ -534,13 +534,27 @@ function BibliotecaPage() {
                     <p className="mt-1 text-[color:var(--muted-foreground)]">
                       {CONTENT_KIND_LABELS[c.kind]} ·{" "}
                       {(stepsByContent[c.id] ?? []).length > 0
-                        ? `etapas ${(stepsByContent[c.id] ?? []).join(", ")}`
+                        ? `etapas ${(stepsByContent[c.id] ?? [])
+                            .map((s) =>
+                              KNOWN_STEP_KEYS.includes(s)
+                                ? stepShortCode(s)
+                                : `${s} (legado)`,
+                            )
+                            .join(", ")}`
                         : "sem vínculo com etapa"}{" "}
                       · usado {c.usageCount}x ·{" "}
                       {c.lastUsedAt
                         ? `último uso ${new Date(c.lastUsedAt).toLocaleDateString("pt-BR")}`
                         : "nunca utilizado"}
                     </p>
+                    {(stepsByContent[c.id] ?? []).length > 0 ? (
+                      <p className="mt-1 text-[10px] text-[color:var(--muted-foreground)]">
+                        Utilizado em:{" "}
+                        {(stepsByContent[c.id] ?? [])
+                          .map((s) => (KNOWN_STEP_KEYS.includes(s) ? labelOf(s) : `${s} (legado)`))
+                          .join(" · ")}
+                      </p>
+                    ) : null}
                     {c.url ? (
                       <p className="mt-1 truncate text-[10px] text-[color:var(--muted-foreground)]">
                         {c.url}
