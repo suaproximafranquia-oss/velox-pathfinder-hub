@@ -1,52 +1,96 @@
-# Refino final — Biblioteca única, fechamento por Oportunidade e textos oficiais
+# Refino final — Motor de Relacionamento (Etapas 1/2/3)
 
-Três ajustes fechados a partir da auditoria. Nada de texto inventado, nenhuma chave técnica renomeada, nenhum histórico alterado.
+Consolidação das decisões das Baterias 1 e 2 da auditoria. **Aguarda a Bateria 3 para o diagnóstico final e o comando definitivo** (item 200). Nada será implementado que não esteja explicitamente decidido aqui.
 
-## 1. Uma etapa, uma linha na Biblioteca
+## Decisões travadas pelo usuário (não reabrir)
 
-Hoje a importação do Word criou E2, E5, E6 e E7 como etapas próprias, enquanto o motor executa E3, E4, E12 e E20. São duas representações da mesma etapa.
+1. **Janelas de horário (oficial):**
+   - E0 (primeiro contato): **07:00–22:30** — janela própria, mantida.
+   - Demais automações do motor: **09:00–21:00**.
+   - Fechamento operacional: **22:00**. Sem unificação. Fuso único: America/Sao_Paulo.
+2. **Rotação de conteúdo:** escopo **por lead** (como está hoje). O lead nunca repete o mesmo conteúdo enquanto houver alternativa; esgotado o pool, nova volta a partir do primeiro.
+3. **E0 sem WhatsApp válido do executivo:** **bloquear a E0 inteira** — nada é enviado até o número existir. Registrar o bloqueio explicitamente (qual botão/destino faltou).
+4. **Feriados no dia útil (E27/Finalização):** **nacionais + estaduais de SP**, lista configurável na aplicação (`nonBusinessDays`), editável pelo administrador.
 
-Correção: o texto do Word passa a viver na etapa técnica correspondente e o nome do Word vira apenas o **rótulo visível**.
+## Refinos confirmados nas respostas da Bateria 2
 
-```text
-Word  ->  chave técnica      rótulo exibido
-E2    ->  E3                 "E2 — ..." (nome do Word)
-E5    ->  E4                 "E5 — ..."
-E6    ->  E12                "E6 — ..."
-E7    ->  FINALIZACAO        "E7 — ..."   (fica inativa, sem texto oficial)
-E20   ->  E20                "E6 — Apresentação Digital" (mantido)
-```
+### Biblioteca e verdade dos conteúdos
+- Biblioteca ativa = verdade absoluta de produção; Word vira semente histórica.
+- Após a consolidação manual, desativar o botão "Importar Word oficial"; edição manual nunca pode ser sobrescrita por importação (trava).
+- Preservar versão anterior; exibir versão ativa, autor e data da última alteração.
+- Rótulo e texto editáveis de forma independente; renomear não cria versão.
+- Etapa sem texto: selo "aguardando texto oficial" + envio impossível.
+- Aviso de conteúdo órfão (ativo sem vínculo) + indicador "usado pelo motor / não usado".
 
-As linhas duplicadas E2/E5/E6/E7 são desativadas (não apagadas), e o texto importado entra como nova versão da etapa técnica — versionamento imutável, a versão anterior permanece consultável. Snapshots já enviados não mudam.
+### Etapas e nomenclatura
+- Rótulo visual editável sobre chave técnica fixa (E3 aparece como "E2 — nome", etc.).
+- Chave técnica visível na administração para auditoria; executivo comum vê só o rótulo.
+- E20 = "E6 — Apresentação Digital"; FINALIZAÇÃO = "E7 — [nome a definir pelo usuário]".
+- Separação visual na Biblioteca: etapas de cadência × eventos paralelos; área própria de fechamento (E20/E27/FINALIZAÇÃO).
+- E2/E5/E6/E7 nunca reaparecem como chaves técnicas; impedir criação de chave duplicada.
 
-## 2. OPORTUNIDADE encerra o ciclo automático
+### Rotação e consumo
+- Pools confirmados: E1 (5), E3 (6), R2 (4), V3 (2).
+- `usage_count`/`last_used_at` passam a refletir uso real: só após envio efetivamente registrado; simulado/bloqueado/falha técnica não contam; retry conta uma vez.
+- Histórico por lead mostra exatamente qual conteúdo foi entregue; conteúdo desativado continua visível no histórico.
+- Reordenação manual: via prioridade explícita por conteúdo (não drag-and-drop).
 
-Quando o lead entra em OPORTUNIDADE:
+### E0 e Meta
+- Só API oficial em produção; template único; parâmetros de botão por lead; destinos congelados no snapshot.
+- Sem WhatsApp válido: E0 bloqueada (ver decisão 3). Número institucional jamais volta como fallback; `executive_profiles.whatsapp` é a única fonte.
+- Registrar explicitamente qual botão foi removido por falta de destino.
 
-- a ocorrência ativa da Apresentação Digital é encerrada (`close_reason = oportunidade`);
-- checkpoint (E27) e finalização pendentes são cancelados e somem da Ação do Dia;
-- fica um registro no histórico dizendo que o executivo assumiu a conversa;
-- nada automático é enviado depois disso.
+### Resposta automática
+- Texto oficial deve deixar claro que o número institucional é só para envio inicial e direcionar ao executivo responsável.
+- Link do WhatsApp resolvido dinamicamente com o responsável **atual** no momento da resposta (confirmar na Bateria 3 se deseja congelar).
+- Entrada própria na Biblioteca, editável e versionada; inativa bloqueia. Limites atuais mantidos (1/24h, máx. 2, reset 30 dias, depois silencia).
 
-O cancelamento roda tanto no momento da mudança de etapa quanto na varredura do motor, para pegar leads que já estavam em oportunidade.
+### E20 / E27 / Finalização
+- E20 manual, reutiliza ocorrência vigente, nova emissão fecha a anterior, validade 7 dias, `first_opened_at` + `open_count` + user agent; acessos individuais com data/hora visíveis. (IP: pendente — usuário não decidiu; não registrar por ora.)
+- Presença 15 min só do servidor, compondo atividade do Portal; sem estado paralelo no navegador.
+- E27 automática no `checkpoint_due_at`; FINALIZAÇÃO no dia útil seguinte (com feriados — decisão 4).
+- Fuso oficial do fechamento passa a ser explicitamente America/Sao_Paulo (hoje `nextBusinessDay` usa UTC por coincidência).
+- Sem texto oficial: duty permanece bloqueada e a Ação do Dia mostra "bloqueada — texto oficial ausente" (visível, não oculta — confirmar na Bateria 3).
+- OPORTUNIDADE: cancela E27/Finalização, fecha ocorrência E20, executivo assume, timeline registra encerramento, imediato na mudança + reconciliação no tick.
+- **`close_reason` padronizado; chave terminal aceita `"oportunidade"` e `"oportunidades"` na transição; os 36 registros históricos são preservados intocados.**
 
-## 3. Textos oficiais de E20, E27 e Finalização
+### Ação do Dia
+- Ponto único de orientação operacional; tipos claramente rotulados; botão "copiar mensagem" (copiar NÃO conclui — só confirmação explícita).
+- Tela somente leitura; execução segue no motor.
+- E20 manual não aparece como obrigação; E27/Finalização aparecem quando devidas; colapso por lead com precedência Agenda/Reunião > Mensagem > Ligação; mostrar motivo do rebaixamento; filtros por tipo.
 
-Essas três etapas continuam **sem texto** até você enviar os oficiais. O que será feito agora:
+### Jornada no CRM
+- Remoção apenas visual da aba "Jornada do Investidor" na ficha do CRM; agregador backend permanece; nenhum evento deixa de ser registrado; componente removido depois de comprovada a ausência de consumidor.
 
-- a Biblioteca passa a listar as três explicitamente como "aguardando texto oficial", com campo pronto para colar e ativar;
-- enquanto estiverem inativas, o motor não envia nada e registra o motivo no histórico (comportamento já existente, apenas fica visível na tela);
-- ao ativar o texto, o ciclo passa a fechar sozinho, sem nenhuma outra alteração.
+### Reset de homologação
+- Obrigatório antes da homologação final; escopo somente homologação/leads TEST-*; Portal dos Leads, GreenSales e snapshots reais intocáveis; relatório antes/depois com tabelas alteradas e preservadas; reset em comando separado, sem alteração de código junta.
 
-## Detalhes técnicos
+### Legados e limpeza
+- Remover: botão morto de retryCrmWelcome, stubs `processWelcome`/`retryCrmWelcome`, imports mortos, telefones repetidos de `SEED_USERS`, `src/lib/responsible-executive.ts` do caminho do motor (manter onde o login/WhatsApp flutuante ainda usam, ou migrar esses pontos).
+- Envio manual do CRM com `CRM_TEMPLATES`: pendente — usuário decide na Bateria 3 se migra tudo para a Biblioteca.
 
-- Migração de dados: reatribuição do conteúdo importado (`import_version = 1`) para as chaves técnicas, com `title` recebendo o rótulo do Word; linhas antigas ficam `active = false`.
-- `relationship_e20_occurrences`: novo `close_reason = 'oportunidade'`; `closure.server.ts` ignora ocorrências fechadas e `listClosureDuties` deixa de emitir obrigações para elas.
-- Gatilho de cancelamento no ponto único de mudança de etapa (`set_lead_operational` / caminho de estágio do CRM) + reconciliação no `runClosureTick`.
-- Painel da Biblioteca (`message-library-panel.tsx`): estado "sem texto oficial" para E20, E27 e FINALIZACAO, permitindo salvar rótulo mesmo sem versão ativa.
-- Sem mudanças no Portal dos Leads, na integração GreenSales, no backup ou nas rotas.
+### Segurança do motor
+- Etapa desconhecida em runtime: bloqueio explícito + log com a etapa recebida; nunca envia.
+- Erro por lead não para o motor; retry 3 tentativas; retry idempotente; webhook duplicado = um registro; identificador técnico rastreável em todo envio.
 
-## Fora deste escopo
+### Homologação
+- 100% simulado primeiro; habilitação real em etapa separada; Lovable proibida de habilitar produção real durante o refino; template Meta e números reais cadastrados pelo usuário; sistema funciona em homologação sem eles; snapshot da E0 permite conferir destinos escolhidos.
 
-- Cadastro do template Meta e preenchimento do WhatsApp dos executivos (dados operacionais, feitos por você nas telas existentes).
-- Envio manual do CRM com textos fixos e telefone institucional nos perfis-semente — refino separado.
+### Regras críticas (181–200)
+- Biblioteca vence qualquer arquivo/comentário antigo; comportamento testado vence documentação; regras de horário conflitantes param e exigem decisão; OPORTUNIDADE nunca ressuscita cadência; histórico congelado em redistribuição; snapshot nunca recalculado; conteúdo histórico nunca apagado fisicamente; versão nunca sobrescrita; retry nunca duplica; novo ciclo legítimo pode reenviar conteúdo antigo.
+- "Excluir" é temporário para organização manual; depois vira só "desativar".
+
+## Itens ainda pendentes (resolver na Bateria 3 ou no comando final)
+1. Congelar ou resolver dinamicamente o responsável na resposta automática (itens 65/66).
+2. Duty bloqueada por falta de texto: visível com aviso × oculta (itens 94/95).
+3. Envio manual do CRM migra para a Biblioteca ou permanece com templates fixos (itens 158–160).
+4. Nome oficial de FINALIZAÇÃO ("E7 — ...").
+5. Registro de IP nos acessos E20 (item 80).
+
+## Bloqueantes técnicos da Bateria 1 (entram no comando de refino)
+- WhatsApp vazio nos 7 executivos (cadastro pelo usuário; sistema deve exibir a pendência).
+- Divergência `"oportunidade"` × `"oportunidades"`.
+- E20/E27/FINALIZAÇÃO sem texto oficial (textos vêm do usuário).
+- `usage_count`/`last_used_at` sem gravação.
+- Feriados ausentes no dia útil.
+- Zero testes em e20/closure/opportunity/inbound/presence.
