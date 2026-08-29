@@ -38,6 +38,8 @@ export type LibraryMessage = {
   stepKey: string;
   code: string | null;
   title: string;
+  /** Rótulo visível da etapa. Apresentação — nunca a chave técnica. */
+  displayLabel: string;
   purpose: string;
   body: string;
   /** Versão oficial SEM nome (Word). Null quando a etapa não tem variante. */
