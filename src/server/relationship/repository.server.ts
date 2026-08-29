@@ -295,6 +295,13 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       const { loadStepContentBindings } = await import("./step-media.server");
       return loadStepContentBindings();
     },
+
+    async loadStepContentPools(): Promise<Record<string, string[]>> {
+      // Pool completo da etapa: um vínculo sai direto, vários rodam em
+      // rotação determinística. Sem vínculo, nada é anexado.
+      const { loadStepContentMap } = await import("./step-media.server");
+      return loadStepContentMap();
+    },
   };
 }
 
