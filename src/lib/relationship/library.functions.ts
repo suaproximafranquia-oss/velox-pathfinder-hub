@@ -217,3 +217,19 @@ export const listarPoolsDeEtapa = createServerFn({ method: "GET" })
     const { loadStepContentMap } = await import("@/server/relationship/step-media.server");
     return loadStepContentMap();
   });
+
+/**
+ * STATUS DA E0 — LEITURA PURA. Mostra ao executivo se o primeiro
+ * contato saiu, ficou pendente ou foi bloqueado, com o motivo real
+ * gravado no servidor. Nunca dispara nem reprocessa a E0.
+ */
+export const statusPrimeiroContato = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { leadId: string }) => {
+    if (!input?.leadId) throw new Error("Lead obrigatório.");
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const { readE0Status } = await import("@/server/relationship/e0-status.server");
+    return readE0Status(data.leadId);
+  });
