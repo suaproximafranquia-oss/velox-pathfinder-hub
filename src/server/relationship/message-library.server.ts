@@ -104,6 +104,10 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     stepKey: row["step_key"] ?? String(row["purpose"] ?? "").toUpperCase(),
     code: row["code"] ?? null,
     title: row["title"],
+    displayLabel: stepDisplayLabel(
+      row["step_key"] ?? String(row["purpose"] ?? "").toUpperCase(),
+      row["title"],
+    ),
     purpose: row["purpose"],
     body: row["body"] ?? "",
     bodyWithoutName: row["body_without_name"] ?? null,
