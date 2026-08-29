@@ -500,7 +500,7 @@ function BibliotecaPage() {
               <option value="todos">Todas as etapas</option>
               {KNOWN_STEP_KEYS.map((s) => (
                 <option key={s} value={s}>
-                  {stepDisplayLabel(s)}
+                  {labelOf(s)}
                 </option>
               ))}
             </select>
