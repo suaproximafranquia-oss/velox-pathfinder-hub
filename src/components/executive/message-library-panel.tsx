@@ -250,7 +250,10 @@ export function MessageLibraryPanel() {
                         : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
                     }`}
                   >
-                    <span>{key}</span>
+                    <span className="min-w-0 truncate">
+                      {current?.displayLabel ?? key}
+                      <span className="ml-1 text-[10px] opacity-60">({key})</span>
+                    </span>
                     <span className="text-[10px]">
                       {current ? `v${current.version}` : "sem texto"}
                     </span>
@@ -263,6 +266,33 @@ export function MessageLibraryPanel() {
           <div className="space-y-3">
             {step ? (
               <>
+                {/* RÓTULO VISÍVEL — apresentação apenas. A chave técnica
+                    ({step}) nunca muda: fila, snapshots e histórico
+                    continuam gravados nela. */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    className="min-w-56 flex-1 rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs outline-none focus:border-[color:var(--gold)]/50"
+                    placeholder={`Rótulo exibido para ${step}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void renameStep()}
+                    disabled={renaming || label === (active?.displayLabel ?? "")}
+                    className={gold}
+                  >
+                    {renaming ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Tag className="h-3.5 w-3.5" />
+                    )}
+                    Salvar rótulo
+                  </button>
+                  <span className="text-[11px] text-[color:var(--muted-foreground)]">
+                    Chave técnica {step} — imutável.
+                  </span>
+                </div>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
