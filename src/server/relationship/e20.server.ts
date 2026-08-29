@@ -14,6 +14,7 @@
  *  - OPORTUNIDADE é terminal: nada é emitido depois dela.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { addDays, nextBusinessDay, operationalDate } from "@/lib/relationship/calendar";
 import { openInstance } from "./instances.server";
 import {
   renderFromLibrary,
@@ -182,7 +183,7 @@ export async function issueE20(params: {
       generated_at: at,
       expires_at: expiresAt,
       checkpoint_due_at: expiresAt,
-      finalization_due_on: nextBusinessDay(new Date(expiresAt)),
+      finalization_due_on: nextBusinessDayAfter(new Date(expiresAt)),
       snapshot: {
         emitido_por: params.generatedByName,
         assinatura: signatureName,
