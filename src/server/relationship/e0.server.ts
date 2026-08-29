@@ -41,6 +41,35 @@ export function e0MessageId(leadId: string): string {
   return `msg_e0_${leadId}`;
 }
 
+/**
+ * AUDITORIA DO BLOQUEIO: toda E0 barrada por falta de destino (em
+ * especial o WhatsApp do executivo responsável) fica registrada com
+ * lead, executivo e motivo legível. O log nunca interrompe o fluxo.
+ */
+async function logE0Block(payload: {
+  leadId: string;
+  reason: string;
+  blockers: string[];
+  executiveId: string | null;
+  contactMissing: boolean;
+  portalMissing: boolean;
+  contactButtonInTemplate: boolean;
+  portalButtonInTemplate: boolean;
+}): Promise<void> {
+  try {
+    await supabaseAdmin.from("relationship_engine_log").insert({
+      scope: "production",
+      event: "e0_bloqueada",
+      lead_id: payload.leadId,
+      detail: payload.reason,
+      payload: payload as any,
+    } as any);
+  } catch {
+    // Auditoria é acessória: a decisão de bloqueio já foi tomada.
+  }
+}
+
+
 export async function dispatchFirstContact(input: {
   leadId: string;
   name: string | null;
