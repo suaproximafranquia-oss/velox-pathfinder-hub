@@ -298,10 +298,18 @@ function ApresentacaoDigitalPage() {
             <button
               type="button"
               disabled={working}
-              onClick={() => void submit()}
+              onClick={() => void submit(true)}
               className="rounded-lg bg-[color:var(--gold)] px-4 py-2 text-xs uppercase tracking-[0.14em] text-[color:var(--navy-deep,#0b1b33)] disabled:opacity-50"
             >
-              {draft.chapterKey ? "Publicar nova versão" : "Adicionar capítulo"}
+              {draft.chapterKey ? "Publicar nova versão" : "Publicar capítulo"}
+            </button>
+            <button
+              type="button"
+              disabled={working}
+              onClick={() => void submit(false)}
+              className="rounded-lg border border-[color:var(--border)] px-4 py-2 text-xs uppercase tracking-[0.14em] disabled:opacity-50"
+            >
+              Salvar rascunho
             </button>
             {draft.chapterKey ? (
               <button
@@ -313,10 +321,115 @@ function ApresentacaoDigitalPage() {
               </button>
             ) : null}
             <p className="text-[11px] text-[color:var(--muted-foreground)]">
-              Editar não apaga: a versão anterior continua registrada.
+              Editar não apaga: a versão anterior continua registrada. Rascunho nunca entra em uma
+              apresentação já emitida nem em uma nova emissão.
             </p>
           </div>
         </section>
+
+        {drafts.length > 0 ? (
+          <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <UploadCloud className="h-4 w-4" aria-hidden />
+              Rascunhos aguardando publicação ({drafts.length})
+            </h2>
+            <ul className="mt-4 space-y-2">
+              {drafts.map((chapter) => (
+                <li
+                  key={chapter.id}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2"
+                >
+                  <div className="min-w-[220px] flex-1">
+                    <p className="text-sm">{chapter.title}</p>
+                    <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                      rascunho v{chapter.version}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={working}
+                    onClick={async () => {
+                      setWorking(true);
+                      try {
+                        setChapters((await publish({
+                          data: { chapterKey: chapter.chapterKey },
+                        })) as Chapter[]);
+                        setDrafts((await listDrafts({})) as Chapter[]);
+                        toast.success("Rascunho publicado.");
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : "Falha ao publicar.");
+                      } finally {
+                        setWorking(false);
+                      }
+                    }}
+                    className="rounded border border-[color:var(--border)] px-2 py-1 text-[11px] uppercase tracking-[0.14em]"
+                  >
+                    Publicar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Eye className="h-4 w-4" aria-hidden />
+              Pré-visualização do roteiro
+            </h2>
+            <button
+              type="button"
+              onClick={() => setPreview((value) => !value)}
+              className="rounded border border-[color:var(--border)] px-3 py-1.5 text-[11px] uppercase tracking-[0.14em]"
+            >
+              {preview ? "Ocultar" : "Ver como o investidor"}
+            </button>
+          </div>
+          {preview ? (
+            <ol className="mt-4 space-y-4">
+              {chapters
+                .filter((chapter) => chapter.isActive)
+                .map((chapter, index) => (
+                  <li
+                    key={chapter.id}
+                    className="rounded-xl border border-[color:var(--border)] bg-[color:var(--background)] p-4"
+                  >
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-[color:var(--muted-foreground)]">
+                      Capítulo {index + 1} · v{chapter.version}
+                    </p>
+                    <h3 className="mt-1 text-sm font-semibold">{chapter.title}</h3>
+                    {chapter.description ? (
+                      <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
+                        {chapter.description}
+                      </p>
+                    ) : null}
+                    {chapter.videoUrl ? (
+                      <div className="mt-3 aspect-video overflow-hidden rounded-lg bg-black/40">
+                        <iframe
+                          src={chapter.videoUrl}
+                          title={chapter.title}
+                          loading="lazy"
+                          allowFullScreen
+                          className="h-full w-full"
+                        />
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">
+                        Vídeo ainda não definido.
+                      </p>
+                    )}
+                  </li>
+                ))}
+            </ol>
+          ) : (
+            <p className="mt-2 text-xs text-[color:var(--muted-foreground)]">
+              A pré-visualização mostra exatamente o roteiro publicado que uma nova apresentação
+              congelaria.
+            </p>
+          )}
+        </section>
+
       </div>
     </ExecutiveShell>
   );
