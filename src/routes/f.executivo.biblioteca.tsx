@@ -304,19 +304,23 @@ function BibliotecaPage() {
               </div>
               <p className="mt-1 max-w-2xl text-sm text-[color:var(--muted-foreground)]">
                 Os materiais cadastrados aqui são os mesmos utilizados pelo Motor de
-                Relacionamento. Um conteúdo pode pertencer a vários grupos sem ser duplicado.
+                Relacionamento. Um mesmo conteúdo pode servir a várias etapas sem ser
+                duplicado — e uma etapa sem vínculo simplesmente não envia material.
               </p>
             </div>
             <div className="text-right text-[11px] text-[color:var(--muted-foreground)]">
-              <p>{stats.total} conteúdo(s) cadastrado(s)</p>
-              <p>{stats.active} ativo(s) · {stats.inactive} inativo(s)</p>
+              <p>{contents.length} conteúdo(s) cadastrado(s)</p>
+              <p>
+                {contents.filter((c) => c.active).length} ativo(s) ·{" "}
+                {contents.filter((c) => !c.active).length} inativo(s)
+              </p>
             </div>
           </div>
 
-          {stats.missingRequired.length > 0 ? (
+          {missingSteps.length > 0 ? (
             <p className="mt-3 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 p-3 text-[11px] text-[color:var(--gold)]">
-              Grupos obrigatórios sem conteúdo ativo: {stats.missingRequired.join(", ")}. As
-              etapas correspondentes não conseguem anexar material.
+              Etapas sem conteúdo vinculado: {missingSteps.join(", ")}. Elas continuam sendo
+              enviadas, porém sem material anexado.
             </p>
           ) : null}
         </header>
