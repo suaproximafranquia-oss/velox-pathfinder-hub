@@ -32,7 +32,7 @@ import {
   CONTENT_REQUIRED_STEPS,
   KNOWN_STEP_KEYS,
 } from "@/lib/relationship/step-registry";
-import { stepDisplayLabel } from "@/lib/relationship/step-labels";
+import { stepDisplayLabel, stepShortCode } from "@/lib/relationship/step-labels";
 import {
   deleteRelationshipContent,
   listRelationshipContents,
@@ -41,6 +41,7 @@ import {
 } from "@/lib/relationship-homologation.functions";
 import {
   definirEtapasDoConteudo,
+  listarMensagensBiblioteca,
   listarPoolsDeEtapa,
 } from "@/lib/relationship/library.functions";
 import { MessageLibraryPanel } from "@/components/executive/message-library-panel";
@@ -116,6 +117,12 @@ function BibliotecaPage() {
   const [query, setQuery] = useState("");
   /** Vínculos declarados: etapa → ids de conteúdo. Fonte única do motor. */
   const [bindings, setBindings] = useState<Record<string, string[]>>({});
+  /**
+   * RÓTULO ADMINISTRÁVEL: quando a Gestão renomeia uma etapa na
+   * Biblioteca de Mensagens, esta tela mostra exatamente o mesmo nome.
+   * Não existe segunda taxonomia — só uma leitura do mesmo cadastro.
+   */
+  const [labelOverrides, setLabelOverrides] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setSession(getSession());
@@ -124,12 +131,20 @@ function BibliotecaPage() {
   const load = useCallback(async () => {
     try {
       await ensureCloudSession();
-      const [list, links] = await Promise.all([
+      const [list, links, messages] = await Promise.all([
         listRelationshipContents(),
         listarPoolsDeEtapa(),
+        listarMensagensBiblioteca().catch(() => [] as Array<Record<string, any>>),
       ]);
       setContents(list);
       setBindings(links);
+      const overrides: Record<string, string> = {};
+      for (const message of (messages ?? []) as Array<Record<string, any>>) {
+        const key = String(message["stepKey"] ?? "");
+        const label = String(message["displayLabel"] ?? "").trim();
+        if (key && label && message["active"]) overrides[key] = label;
+      }
+      setLabelOverrides(overrides);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível carregar a biblioteca.");
@@ -140,6 +155,12 @@ function BibliotecaPage() {
     void load();
   }, [load]);
 
+  /** Rótulo oficial de uma etapa: override da Gestão ou padrão do motor. */
+  const labelOf = useCallback(
+    (step: string) => stepDisplayLabel(step, labelOverrides[step] ?? null),
+    [labelOverrides],
+  );
+
   /** Etapas de cada conteúdo, derivadas dos vínculos (nunca inferidas). */
   const stepsByContent = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -148,6 +169,19 @@ function BibliotecaPage() {
     }
     return map;
   }, [bindings]);
+
+  /**
+   * VÍNCULO LEGADO: etapa gravada no banco que não existe mais na
+   * taxonomia do motor. É PRESERVADA e apenas sinalizada — nada é
+   * reclassificado nem apagado automaticamente.
+   */
+  const legacySteps = useMemo(
+    () =>
+      Object.entries(bindings)
+        .filter(([step, ids]) => ids.length > 0 && !KNOWN_STEP_KEYS.includes(step))
+        .map(([step]) => step),
+    [bindings],
+  );
 
   /**
    * Lacunas reais: etapa que o motor usa para anexar conteúdo e que não
@@ -319,8 +353,16 @@ function BibliotecaPage() {
 
           {missingSteps.length > 0 ? (
             <p className="mt-3 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 p-3 text-[11px] text-[color:var(--gold)]">
-              Etapas sem conteúdo vinculado: {missingSteps.join(", ")}. Elas continuam sendo
-              enviadas, porém sem material anexado.
+              Etapas sem conteúdo vinculado: {missingSteps.map(stepShortCode).join(", ")}. Elas
+              continuam sendo enviadas, porém sem material anexado.
+            </p>
+          ) : null}
+
+          {legacySteps.length > 0 ? (
+            <p className="mt-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 p-3 text-[11px] text-[color:var(--muted-foreground)]">
+              Vínculos legados preservados: {legacySteps.join(", ")}. Essas etapas não existem
+              mais na taxonomia do motor — o vínculo continua gravado para auditoria e nada é
+              reclassificado automaticamente.
             </p>
           ) : null}
         </header>
@@ -423,7 +465,7 @@ function BibliotecaPage() {
                   <button
                     key={step}
                     onClick={() => toggleStep(step)}
-                    title={stepDisplayLabel(step)}
+                    title={labelOf(step)}
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-[11px] transition",
                       on
@@ -431,7 +473,7 @@ function BibliotecaPage() {
                         : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
                     )}
                   >
-                    {step}
+                    {stepShortCode(step)}
                   </button>
                 );
               })}
@@ -458,7 +500,7 @@ function BibliotecaPage() {
               <option value="todos">Todas as etapas</option>
               {KNOWN_STEP_KEYS.map((s) => (
                 <option key={s} value={s}>
-                  {stepDisplayLabel(s)}
+                  {labelOf(s)}
                 </option>
               ))}
             </select>
@@ -492,13 +534,27 @@ function BibliotecaPage() {
                     <p className="mt-1 text-[color:var(--muted-foreground)]">
                       {CONTENT_KIND_LABELS[c.kind]} ·{" "}
                       {(stepsByContent[c.id] ?? []).length > 0
-                        ? `etapas ${(stepsByContent[c.id] ?? []).join(", ")}`
+                        ? `etapas ${(stepsByContent[c.id] ?? [])
+                            .map((s) =>
+                              KNOWN_STEP_KEYS.includes(s)
+                                ? stepShortCode(s)
+                                : `${s} (legado)`,
+                            )
+                            .join(", ")}`
                         : "sem vínculo com etapa"}{" "}
                       · usado {c.usageCount}x ·{" "}
                       {c.lastUsedAt
                         ? `último uso ${new Date(c.lastUsedAt).toLocaleDateString("pt-BR")}`
                         : "nunca utilizado"}
                     </p>
+                    {(stepsByContent[c.id] ?? []).length > 0 ? (
+                      <p className="mt-1 text-[10px] text-[color:var(--muted-foreground)]">
+                        Utilizado em:{" "}
+                        {(stepsByContent[c.id] ?? [])
+                          .map((s) => (KNOWN_STEP_KEYS.includes(s) ? labelOf(s) : `${s} (legado)`))
+                          .join(" · ")}
+                      </p>
+                    ) : null}
                     {c.url ? (
                       <p className="mt-1 truncate text-[10px] text-[color:var(--muted-foreground)]">
                         {c.url}

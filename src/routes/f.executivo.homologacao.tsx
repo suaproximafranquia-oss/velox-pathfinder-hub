@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   TriangleAlert,
 } from "lucide-react";
+import { stepShortCode } from "@/lib/relationship/step-labels";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   ensureCloudSession,
@@ -619,7 +620,7 @@ function HomologacaoPage() {
                           <td className="px-2 py-1.5 text-[color:var(--foreground)]">
                             {s.leadId}
                           </td>
-                          <td className="text-[color:var(--gold)]">{s.step ?? "—"}</td>
+                          <td className="text-[color:var(--gold)]">{s.step ? stepShortCode(s.step) : "—"}</td>
                           <td className="text-[color:var(--foreground)]">{s.contentName}</td>
                           <td className="text-[color:var(--muted-foreground)]">
                             {s.contentId ?? "—"}

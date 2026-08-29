@@ -46,8 +46,12 @@ export const registrarInteresseUnidade = createServerFn({ method: "POST" })
     if (!input?.name?.trim()) throw new Error("Informe seu nome.");
     const digits = phoneKey(input?.whatsapp ?? "");
     if (digits.length < 10) throw new Error("Informe um WhatsApp válido com DDD.");
+    /** Campos obrigatórios da carteira das unidades (Solar/Seguros). */
+    const email = (input?.email ?? "").trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Informe um e-mail válido.");
+    if ((input?.city ?? "").trim().length < 2) throw new Error("Informe sua cidade.");
     if (!RANGES.includes(input?.investmentRange)) throw new Error("Selecione a faixa de investimento.");
-    return { ...input, whatsapp: digits };
+    return { ...input, whatsapp: digits, email, city: (input?.city ?? "").trim() };
   })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

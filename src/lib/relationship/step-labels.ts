@@ -31,14 +31,28 @@ export const DEFAULT_STEP_LABELS: Record<string, string> = {
   RF0: "RF0 — Relacionamento esfriado: retomada",
   RF1: "RF1 — Relacionamento esfriado: encerramento",
   E20: "E6 — Apresentação Digital",
-  E27: "E27 — Checkpoint da Apresentação Digital",
+  E27: "E7 — Checkpoint da Apresentação Digital",
   FINALIZACAO: "Finalização do ciclo",
   RESPOSTA_AUTOMATICA: "Resposta automática — janela de 24h",
 };
+
+/**
+ * CÓDIGO FUNCIONAL CURTO (o que o usuário lê quando não cabe o rótulo
+ * inteiro). A chave técnica histórica continua existindo no banco: aqui
+ * apenas traduzimos `E20 → E6` e `E27 → E7` na apresentação.
+ */
+const STEP_DISPLAY_CODES: Record<string, string> = {
+  E20: "E6",
+  E27: "E7",
+};
+
+export function stepShortCode(stepKey: string): string {
+  return STEP_DISPLAY_CODES[stepKey] ?? stepKey;
+}
 
 /** Rótulo visível de uma etapa. `override` é o título salvo na Biblioteca. */
 export function stepDisplayLabel(stepKey: string, override?: string | null): string {
   const custom = (override ?? "").trim();
   if (custom) return custom;
-  return DEFAULT_STEP_LABELS[stepKey] ?? stepKey;
+  return DEFAULT_STEP_LABELS[stepKey] ?? stepShortCode(stepKey);
 }
