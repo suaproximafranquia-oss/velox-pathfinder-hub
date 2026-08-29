@@ -60,6 +60,9 @@ export type E20Occurrence = {
   finalizationDueOn: string;
   closedAt: string | null;
   closeReason: string | null;
+  sentConfirmedAt: string | null;
+  sentByName: string | null;
+  scriptVersion: number | null;
 };
 
 function toOccurrence(row: Record<string, any>): E20Occurrence {
@@ -78,6 +81,9 @@ function toOccurrence(row: Record<string, any>): E20Occurrence {
     finalizationDueOn: row["finalization_due_on"],
     closedAt: row["closed_at"] ?? null,
     closeReason: row["close_reason"] ?? null,
+    sentConfirmedAt: row["sent_confirmed_at"] ?? null,
+    sentByName: row["sent_by_name"] ?? null,
+    scriptVersion: row["script_version"] ?? null,
   };
 }
 
@@ -191,6 +197,9 @@ export async function issueE20(params: {
       generated_at: at,
       expires_at: expiresAt,
       checkpoint_due_at: expiresAt,
+      script_version: roteiro.items.length
+        ? Math.max(...roteiro.items.map((item) => item.version))
+        : 0,
       finalization_due_on: nextBusinessDayAfter(new Date(expiresAt)),
       snapshot: {
         emitido_por: params.generatedByName,
@@ -358,7 +367,6 @@ export async function markE20Sent(params: {
 
 /**
  * ENCERRAMENTO MANUAL (§12): exige motivo, autor e horário. Não existe
-
  * "apresentação concluída" — o que existe é uma emissão encerrada.
  */
 export async function closeE20Manually(params: {
