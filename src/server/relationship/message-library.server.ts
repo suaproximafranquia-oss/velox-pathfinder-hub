@@ -31,12 +31,15 @@ import {
   WORD_SOURCE_REFERENCE,
   type WordMessage,
 } from "@/lib/relationship/word-library";
+import { DEFAULT_STEP_LABELS, stepDisplayLabel } from "@/lib/relationship/step-labels";
 
 export type LibraryMessage = {
   id: string;
   stepKey: string;
   code: string | null;
   title: string;
+  /** Rótulo visível da etapa. Apresentação — nunca a chave técnica. */
+  displayLabel: string;
   purpose: string;
   body: string;
   /** Versão oficial SEM nome (Word). Null quando a etapa não tem variante. */
@@ -88,14 +91,12 @@ export const LIBRARY_STEP_ORDER: string[] = [
   ...PENDING_TEXT_STEPS,
 ];
 
-const STEP_LABEL: Record<string, string> = {
-  // A chave técnica E20 permanece intocada no banco; o rótulo visual da
-  // Apresentação Digital segue a nomenclatura oficial da operação.
-  E20: "E6 — Apresentação Digital",
-  E27: "E27 — Checkpoint da apresentação digital",
-  FINALIZACAO: "FINALIZAÇÃO — Encerramento do ciclo (legado)",
-  [AUTO_REPLY_STEP]: "Resposta automática — orientação dentro da janela de 24h",
-};
+/**
+ * Rótulos padrão. A chave técnica (E20, E27…) permanece intocada no
+ * banco, na fila e nos snapshots — isto é apresentação. A Gestão pode
+ * sobrescrever o rótulo pela Biblioteca sem gerar versão nova de texto.
+ */
+const STEP_LABEL = DEFAULT_STEP_LABELS;
 
 function toMessage(row: Record<string, any>): LibraryMessage {
   return {
@@ -103,6 +104,10 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     stepKey: row["step_key"] ?? String(row["purpose"] ?? "").toUpperCase(),
     code: row["code"] ?? null,
     title: row["title"],
+    displayLabel: stepDisplayLabel(
+      row["step_key"] ?? String(row["purpose"] ?? "").toUpperCase(),
+      row["title"],
+    ),
     purpose: row["purpose"],
     body: row["body"] ?? "",
     bodyWithoutName: row["body_without_name"] ?? null,
@@ -217,6 +222,29 @@ export async function listLibraryMessages(): Promise<LibraryMessage[]> {
     .order("version", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map(toMessage);
+}
+
+/**
+ * RENOMEIA APENAS O RÓTULO VISÍVEL da etapa.
+ *
+ * Não cria versão, não altera texto, não toca em fila, snapshot ou
+ * histórico: grava o título da versão ativa. A chave técnica é imutável.
+ * Rótulo vazio devolve a etapa ao padrão do sistema.
+ */
+export async function renameLibraryStep(params: {
+  stepKey: string;
+  label: string;
+}): Promise<LibraryMessage[]> {
+  await ensureLibrarySeed();
+  const label = params.label.trim();
+  const { error } = await supabaseAdmin
+    .from("relationship_message_library")
+    .update({ title: label || DEFAULT_STEP_LABELS[params.stepKey] || params.stepKey } as any)
+    .eq("scope", "production")
+    .eq("step_key", params.stepKey)
+    .eq("active", true);
+  if (error) throw new Error(error.message);
+  return listLibraryMessages();
 }
 
 /** Versão ATIVA de uma etapa (a única elegível para novos envios). */

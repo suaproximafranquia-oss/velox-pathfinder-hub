@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { X, ArrowRight, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { WHATSAPP_NUMBER } from "@/lib/journey-data";
 import { whatsappLinkWithText } from "@/lib/whatsapp-number";
 import { contatoDoExecutivo } from "@/lib/relationship/e20.functions";
 import { registerLead, updateLead } from "@/lib/leads";
@@ -119,7 +118,7 @@ export function ExecutiveContactDialog({ open, onClose, material }: Props) {
      * Só quando não existe responsável a conversa segue para o canal
      * institucional oficial. O link é montado por uma única função.
      */
-    let destination = WHATSAPP_NUMBER;
+    let destination = "";
     if (investorId) {
       try {
         const contact = await contatoDoExecutivo({ data: { leadId: investorId } });

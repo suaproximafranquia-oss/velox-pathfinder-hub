@@ -97,9 +97,20 @@ export function selectContent(
   // Entre os menos utilizados do grupo, sorteia — distribui a biblioteca
   // sem transformar a escolha em algo imprevisível.
   const minUsage = Math.min(...pool.map((c) => c.usageCount));
-  const tier = pool.filter((c) => c.usageCount === minUsage);
-  const index = Math.min(tier.length - 1, Math.max(0, Math.floor(random() * tier.length)));
-  const chosen = tier[index]!;
+  /**
+   * ROTAÇÃO DETERMINÍSTICA (Etapa 3): entre os menos utilizados vence o
+   * que está parado há mais tempo e, no empate, o id. Duas execuções
+   * com o mesmo estado escolhem sempre o mesmo material — auditável.
+   */
+  const tier = [...pool]
+    .filter((c) => c.usageCount === minUsage)
+    .sort((a, b) => {
+      const aUsed = a.lastUsedAt ?? "";
+      const bUsed = b.lastUsedAt ?? "";
+      if (aUsed !== bUsed) return aUsed < bUsed ? -1 : 1;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
+  const chosen = tier[0]!;
   return {
     content: chosen,
     reason:

@@ -26,7 +26,7 @@ export const OPERATIONAL_TIME_ZONE = "America/Sao_Paulo";
 /** Antecedência em que uma reunião passa a ocupar o topo da lista. */
 export const MEETING_FOCUS_WINDOW_MS = 15 * 60 * 1000;
 
-export type DailyActionSource = "meeting" | "agenda" | "queue" | "cadence";
+export type DailyActionSource = "meeting" | "agenda" | "closure" | "queue" | "cadence";
 export type DailyActionKind = "reuniao" | "compromisso" | "mensagem" | "ligacao";
 export type DailyActionBucket = "agora" | "atrasada" | "hoje" | "futura";
 
@@ -161,8 +161,14 @@ export function sortDailyActions(actions: DailyAction[]): DailyAction[] {
 const SOURCE_PRECEDENCE: Record<DailyActionSource, number> = {
   meeting: 0,
   agenda: 1,
-  queue: 2,
-  cadence: 3,
+  /**
+   * Fechamento do ciclo (E27 / FINALIZAÇÃO da Apresentação Digital).
+   * Vence a cadência corrente: é o compromisso já assumido com o
+   * investidor a partir de um convite emitido.
+   */
+  closure: 2,
+  queue: 3,
+  cadence: 4,
 };
 
 /** Colapsa ações repetidas pela chave determinística. */

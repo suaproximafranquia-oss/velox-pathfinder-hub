@@ -46,6 +46,23 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
   });
 
 /**
+ * RÓTULO VISÍVEL DA ETAPA. Só apresentação: a chave técnica (E20, E27…)
+ * permanece intocada no banco, na fila e no histórico.
+ */
+export const renomearRotuloEtapa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { stepKey: string; label: string }) => {
+    if (!input?.stepKey) throw new Error("Etapa obrigatória.");
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const { renameLibraryStep } = await import(
+      "@/server/relationship/message-library.server"
+    );
+    return renameLibraryStep({ stepKey: data.stepKey, label: data.label ?? "" });
+  });
+
+/**
  * Importa/atualiza a Biblioteca a partir do Word oficial. Texto igual ao
  * que já está ativo não gera versão nova; texto diferente cria a versão
  * seguinte e preserva a anterior.

@@ -25,7 +25,6 @@ import {
   CrmStartRelationshipDialog,
 } from "@/components/crm/crm-conversation";
 import { CrmLeadFicha } from "@/components/crm/crm-lead-ficha";
-import { CrmLeadJourney } from "@/components/crm/crm-lead-journey";
 import { CrmEngagementSummary } from "@/components/crm/crm-engagement";
 import {
   User,
@@ -922,10 +921,6 @@ function CrmWorkspace({ session }: { session: ExecutiveSession }) {
               actor={{ userId: actor.userId, name: session.name, role: actor.role }}
               onSaved={() => setTick((v) => v + 1)}
             />
-
-            {/* Jornada consolidada: Portal, Workspace, Cadência e
-                Remarketing em uma só leitura cronológica. */}
-            <CrmLeadJourney investorId={selected.id} />
 
             {/* Engajamento real do investidor no Portal. */}
             <CrmRecordSection title="Engajamento" tone="azul" icon={Users}>

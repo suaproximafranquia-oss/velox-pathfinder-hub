@@ -16,6 +16,8 @@ import {
   resolveBucket,
   type DailyAction,
 } from "@/lib/crm/daily-actions";
+import { stepDisplayLabel } from "@/lib/relationship/step-labels";
+import { listClosureDuties } from "@/server/relationship/closure.server";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -60,7 +62,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   const horizonStart = new Date(new Date(nowIso).getTime() - 45 * 24 * 3600 * 1000).toISOString();
   const horizonEnd = new Date(new Date(nowIso).getTime() + 2 * 24 * 3600 * 1000).toISOString();
 
-  const [meetingsRes, agendaRes, queueRes, cadenceQueue] = await Promise.all([
+  const [meetingsRes, agendaRes, queueRes, cadenceQueue, closureDuties] = await Promise.all([
     supabaseAdmin
       .from("portal_meetings")
       .select("id,investor_id,investor_name,executive_id,executive_name,scheduled_at,duration_min,status,topic")
@@ -80,6 +82,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       .lt("due_at", horizonEnd)
       .limit(1000),
     buildCadenceQueue("call").catch(() => []),
+    listClosureDuties(nowIso).catch(() => []),
   ]);
 
   const meetings = (meetingsRes.data ?? []).filter((m) => {
@@ -101,6 +104,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     ...meetings.map((m) => m.investor_id as string),
     ...queue.map((q) => q.lead_id as string),
     ...cadenceQueue.map((c) => `gs_${c.externalId}`),
+    ...closureDuties.map((d) => d.leadId),
   ]);
 
   const actions: DailyAction[] = [];
@@ -150,6 +154,37 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       priorityMax,
       bucket: resolveBucket({ dueDate: operationalDate(startsAt), startsAt, nowIso }),
       title: event.title ?? "Compromisso",
+      responsibleName: null,
+      attempts: [],
+    });
+  }
+
+  /**
+   * FECHAMENTO DO CICLO — E27 e FINALIZAÇÃO da Apresentação Digital.
+   * A mesma leitura usada pelo executor: a Ação do Dia nunca inventa
+   * obrigação, só mostra a que já venceu na ocorrência da E20.
+   */
+  for (const duty of closureDuties) {
+    const identity = identities.get(duty.leadId);
+    actions.push({
+      actionKey: `closure:${duty.leadId}:${duty.step}:${duty.occurrenceId}`,
+      source: "closure",
+      kind: "mensagem",
+      leadId: duty.leadId,
+      name: identity?.name ?? "Investidor",
+      phone: identity?.phone ?? "",
+      scope: identity?.scope ?? null,
+      stepLabel: stepDisplayLabel(duty.step),
+      dueDate: duty.dueDate,
+      startsAt: null,
+      endsAt: null,
+      overdue: duty.dueDate < today,
+      priorityMax: false,
+      bucket: resolveBucket({ dueDate: duty.dueDate, startsAt: null, nowIso }),
+      title:
+        duty.kind === "checkpoint"
+          ? "Checkpoint da Apresentação Digital"
+          : "Finalização do ciclo",
       responsibleName: null,
       attempts: [],
     });

@@ -24,10 +24,8 @@ import {
   FolderOpen,
   Archive,
   Radar,
-  LayoutList,
   LibraryBig,
   BookOpen,
-  Fingerprint,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -158,9 +156,9 @@ export function ExecutiveShell({
    */
   const centrais = [
     { to: unitPath("/executivo/captacao"), label: "Central de Captação", icon: Radar },
-    ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
-      ? [{ to: unitPath("/executivo/templates"), label: "Central de Templates", icon: LayoutList }]
-      : []),
+    /* Central de Templates saiu do menu: os templates da Meta são
+       geridos pela Biblioteca oficial e pelo Motor. */
+
     { to: unitPath("/executivo/reunioes"), label: "Central de Reuniões", icon: Calendar },
     { to: unitPath("/executivo/alertas"), label: "Central de Alertas", icon: Bell },
     ...(session.activeRole === "super_admin"
@@ -177,7 +175,6 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
       ? [
           { to: unitPath("/executivo/biblioteca"), label: "Biblioteca de Conteúdos", icon: LibraryBig },
-          { to: unitPath("/executivo/identidade"), label: "Pendências de Identidade", icon: Fingerprint },
         ]
       : []),
     ...(session.activeRole === "super_admin"

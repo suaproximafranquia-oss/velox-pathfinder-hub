@@ -153,6 +153,24 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
   }
 
   /**
+   * FECHAMENTO DO CICLO (E27 e FINALIZAÇÃO). As duas datas já eram
+   * gravadas pela E20; agora o mesmo tick que roda a cadência também
+   * executa o fechamento vencido. Falha aqui não invalida a cadência.
+   */
+  let closed = 0;
+  try {
+    const { runClosureTick } = await import("./closure.server");
+    const outcomes = await runClosureTick(startedAt);
+    closed = outcomes.filter((o) => o.executed).length;
+  } catch (error) {
+    if (summary.errors.length < 20) {
+      summary.errors.push(
+        `Fechamento: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+      );
+    }
+  }
+
+  /**
    * OBSERVABILIDADE DO CICLO: cada execução do executor deixa rastro
    * próprio. Sem isso é impossível responder "o motor rodou e não fez
    * nada" x "o motor não rodou". Falha de log nunca invalida o ciclo.
@@ -165,6 +183,7 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
         startedAt,
         finishedAt: new Date().toISOString(),
         cadenciasResgatadas: recovered,
+        fechamentosExecutados: closed,
         ...summary,
       } as any,
     } as any);

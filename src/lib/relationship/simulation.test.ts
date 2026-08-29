@@ -52,7 +52,7 @@ describe("simulador de homologação", () => {
   });
 
   /** COMANDO 3C §3 — cada rodada sorteia conteúdos de forma independente. */
-  it("reproduz a rodada com a mesma semente e diverge com sementes diferentes", async () => {
+  it("reproduz a rodada: a escolha de conteúdo é determinística em qualquer semente", async () => {
     const leads = buildSimulatedLeads(20);
     const base = {
       leads,
@@ -70,6 +70,8 @@ describe("simulador de homologação", () => {
     expect(a.seed).toBe(111);
     expect(contents(a)).toEqual(contents(b));
     expect(contents(a).length).toBeGreaterThan(0);
-    expect(contents(a)).not.toEqual(contents(c));
+    // A rotação passou a ser determinística (Etapa 3): a semente não
+    // altera qual conteúdo é escolhido — só o estado da Biblioteca altera.
+    expect(contents(a)).toEqual(contents(c));
   });
 });

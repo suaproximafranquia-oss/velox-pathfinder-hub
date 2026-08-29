@@ -281,4 +281,5 @@ export function getChapterByPath(path: string): Chapter | undefined {
   return CHAPTERS.find((c) => c.path === path);
 }
 
-export const WHATSAPP_NUMBER = "5517997727337";
+/* NÚMERO INSTITUCIONAL REMOVIDO (Etapa 3): todo contato usa o WhatsApp
+   real do executivo responsável, resolvido no servidor. */
