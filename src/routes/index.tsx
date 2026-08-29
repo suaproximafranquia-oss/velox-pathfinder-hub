@@ -1,0 +1,190 @@
+/**
+ * PORTAL INSTITUCIONAL DO GRUPO VELOX — raiz pública.
+ *
+ * A raiz NÃO é operacional: não tem Gateway, simulador, captação,
+ * cadência ou Portal do Investidor. Ela apresenta as três empresas do
+ * Grupo e encaminha o visitante ao ambiente de cada uma:
+ *
+ *   Velox Soluções Financeiras → /f
+ *   Velox Solar                → /s
+ *   Velox Seguros              → /seg
+ *
+ * COMPATIBILIDADE: links antigos que apontavam para "/" com parâmetros
+ * de contexto (`e`, `m`, `o`, `b`, `u`, `c`, `ch`, `lead`) continuam
+ * funcionando — são redirecionados para "/f" com os MESMOS parâmetros.
+ * Estar logado nunca redireciona a raiz para o Portal do Investidor.
+ */
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { ArrowRight, Building2, ShieldCheck, Sun } from "lucide-react";
+
+type GroupSearch = {
+  e?: string;
+  m?: string;
+  o?: string;
+  u?: string;
+  c?: string;
+  b?: string;
+  ch?: string;
+  lead?: string;
+};
+
+const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
+export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): GroupSearch => ({
+    e: str(search.e),
+    m: str(search.m),
+    o: str(search.o),
+    u: str(search.u),
+    c: str(search.c),
+    b: str(search.b),
+    ch: str(search.ch),
+    lead: str(search.lead),
+  }),
+  beforeLoad: ({ search }) => {
+    const hasContext = Object.values(search as Record<string, unknown>).some(Boolean);
+    if (hasContext) {
+      throw redirect({ to: "/f", replace: true, search: search as never });
+    }
+  },
+  head: () => ({
+    meta: [
+      { title: "Grupo Velox — Soluções Financeiras, Solar e Seguros" },
+      {
+        name: "description",
+        content:
+          "Portal institucional do Grupo Velox: conheça a Velox Soluções Financeiras, a Velox Solar e a Velox Seguros e acesse o ambiente de cada empresa.",
+      },
+      { property: "og:title", content: "Grupo Velox — institucional" },
+      {
+        property: "og:description",
+        content:
+          "As três empresas do Grupo Velox em um único lugar: Soluções Financeiras, Solar e Seguros.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: GroupHome,
+});
+
+type Company = {
+  key: string;
+  name: string;
+  tagline: string;
+  to: "/f" | "/s" | "/seg";
+  icon: typeof Building2;
+  status: string | null;
+};
+
+const COMPANIES: Company[] = [
+  {
+    key: "financeira",
+    name: "Velox Soluções Financeiras",
+    tagline: "Crédito, consórcio e soluções financeiras para pessoas e empresas.",
+    to: "/f",
+    icon: Building2,
+    status: null,
+  },
+  {
+    key: "solar",
+    name: "Velox Solar",
+    tagline: "Energia solar e soluções de eficiência energética.",
+    to: "/s",
+    icon: Sun,
+    status: "Conteúdo institucional em preparação",
+  },
+  {
+    key: "seguros",
+    name: "Velox Seguros",
+    tagline: "Proteção patrimonial, vida e seguros corporativos.",
+    to: "/seg",
+    icon: ShieldCheck,
+    status: "Conteúdo institucional em preparação",
+  },
+];
+
+/**
+ * A origem institucional viaja na URL (`g=1`) e é gravada no
+ * EntryContext pela home da unidade — sem mecanismo paralelo.
+ */
+const GROUP_SEARCH = { g: "1", o: "Portal Institucional do Grupo Velox" } as const;
+
+function GroupHome() {
+  return (
+    <main className="min-h-screen bg-[#050b1a] text-white">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-8">
+        <span className="text-sm uppercase tracking-[0.4em] text-[#c9a961]">Grupo Velox</span>
+        <Link
+          to="/f"
+          search={GROUP_SEARCH as never}
+          className="text-xs uppercase tracking-[0.2em] text-white/60 transition hover:text-white"
+        >
+          Portal do Investidor
+        </Link>
+      </header>
+
+      <section className="mx-auto max-w-6xl px-6 pb-16 pt-8">
+        <h1 className="max-w-3xl text-4xl font-semibold leading-tight md:text-6xl">
+          Um grupo, três frentes de{" "}
+          <span className="text-[#c9a961]">soluções para pessoas e empresas</span>.
+        </h1>
+        <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/70">
+          O Grupo Velox reúne operações independentes de soluções financeiras, energia solar e
+          seguros. Escolha a empresa para conhecer o ambiente e as soluções de cada uma.
+        </p>
+
+        <div className="mt-10 flex flex-wrap gap-3">
+          <a
+            href="#empresas"
+            className="inline-flex items-center gap-2 rounded-full bg-[#c9a961] px-6 py-3 text-sm font-medium text-[#0b1b33] transition hover:opacity-90"
+          >
+            Seja um Franqueado
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </a>
+          <p className="self-center text-xs text-white/50">
+            A escolha da empresa acontece antes de qualquer cadastro.
+          </p>
+        </div>
+      </section>
+
+      <section id="empresas" className="mx-auto max-w-6xl px-6 pb-24">
+        <h2 className="text-xs uppercase tracking-[0.3em] text-white/40">Empresas do Grupo</h2>
+        <div className="mt-6 grid gap-5 md:grid-cols-3">
+          {COMPANIES.map((company) => {
+            const Icon = company.icon;
+            return (
+              <article
+                key={company.key}
+                className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              >
+                <Icon className="h-6 w-6 text-[#c9a961]" aria-hidden />
+                <h3 className="mt-4 text-lg font-semibold">{company.name}</h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-white/60">
+                  {company.tagline}
+                </p>
+                {company.status ? (
+                  <p className="mt-4 rounded-lg border border-[#c9a961]/30 bg-[#c9a961]/5 px-3 py-2 text-[11px] text-[#c9a961]">
+                    {company.status}
+                  </p>
+                ) : null}
+                <Link
+                  to={company.to}
+                  search={GROUP_SEARCH as never}
+                  className="mt-5 inline-flex items-center gap-2 text-sm text-[#c9a961] transition hover:gap-3"
+                >
+                  Acessar
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <footer className="border-t border-white/10 px-6 py-8 text-center text-xs text-white/40">
+        Grupo Velox · conteúdo institucional definitivo ainda não cadastrado.
+      </footer>
+    </main>
+  );
+}
