@@ -83,17 +83,17 @@ export async function dispatchFirstContact(input: {
   const portalButton = template?.buttons.find((b) => b.role === "portal") ?? null;
 
   /**
-   * DESTINOS POR LEAD — REGRA FECHADA (Refino Final §2).
+   * DESTINOS POR LEAD — REGRA REVISADA.
    *
-   * O contato humano do executivo responsável é REQUISITO OPERACIONAL
-   * da E0. Sem WhatsApp válido em `executive_profiles.whatsapp` a E0
-   * INTEIRA é bloqueada: nada de mensagem, botão, link, número
-   * institucional ou envio parcial. A ausência do botão no template
-   * aprovado não autoriza o envio.
+   * O que bloqueia a E0 é apenas o que a mensagem oficial precisa para
+   * existir: o LINK PERSONALIZADO do Portal (o texto ativo da Biblioteca
+   * o contém). O WhatsApp do executivo é DESTINO DE BOTÃO, não requisito
+   * de existência: sem ele a E0 continua sendo criada e registrada, e o
+   * que fica pendente é apenas a ENTREGA EXTERNA, com motivo legível.
    */
   const destinations = await resolveLeadDestinations(input.leadId, {
     portalRequired: true,
-    contactRequired: true,
+    contactRequired: false,
   });
   if (!destinations.available) {
     const reason = destinations.reason ?? "Destinos não resolvidos.";
@@ -109,6 +109,7 @@ export async function dispatchFirstContact(input: {
     });
     return { registered: false, reason };
   }
+
 
 
   // TEXTO OFICIAL: sempre a versão ativa da Biblioteca.
@@ -157,6 +158,25 @@ export async function dispatchFirstContact(input: {
   if (!input.simulated) {
     if (!template) {
       error = E0_TEMPLATE_MISSING_REASON;
+    } else if (contactButton && !destinations.contactUrl) {
+      /**
+       * PENDÊNCIA, NÃO PERDA DE ESTADO: o template aprovado exige o botão
+       * de contato do executivo e ainda não há WhatsApp cadastrado. A E0
+       * permanece registrada; apenas a entrega externa fica pendente.
+       * Nenhum número institucional substitui o responsável.
+       */
+      error =
+        "WhatsApp do executivo responsável ainda não está configurado — entrega externa pendente (botão de contato exigido pelo template oficial).";
+      await logE0Block({
+        leadId: input.leadId,
+        reason: error,
+        blockers: [error],
+        executiveId: destinations.executiveId,
+        contactMissing: true,
+        portalMissing: !destinations.portalUrl,
+        contactButtonInTemplate: true,
+        portalButtonInTemplate: Boolean(portalButton),
+      });
     } else {
       let blocked: string | null = null;
       for (const button of template.buttons) {
@@ -174,6 +194,7 @@ export async function dispatchFirstContact(input: {
         }
         buttons.push({ index: button.index, suffix: suffix.suffix });
       }
+
       if (blocked) {
         error = blocked;
       } else {
