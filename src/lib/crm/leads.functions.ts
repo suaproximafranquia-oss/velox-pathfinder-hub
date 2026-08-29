@@ -253,18 +253,30 @@ export const moveCrmLeadStage = createServerFn({ method: "POST" })
     if (!lead) return { ok: false, message: "Lead não encontrado no espelho." };
 
     const from = (lead.stage_key as string | null) ?? "sem_etapa";
-    if (from === data.stageKey) return { ok: true, message: "O lead já está nesta etapa." };
+    /**
+     * GRAVAÇÃO CANÔNICA: a etapa terminal existe no histórico nas duas
+     * grafias. O que o sistema grava a partir de agora é sempre a forma
+     * canônica — os registros antigos permanecem exatamente como estão.
+     */
+    const { canonicalStageKey, isTerminalStage } = await import(
+      "@/lib/relationship/closing"
+    );
+    const targetStage = canonicalStageKey(data.stageKey) ?? data.stageKey;
+    if (from === targetStage || from === data.stageKey) {
+      return { ok: true, message: "O lead já está nesta etapa." };
+    }
 
     const { error } = await supabaseAdmin
       .from("crm_leads")
       .update({
-        stage_key: data.stageKey,
+        stage_key: targetStage,
         stage_entered_at: new Date().toISOString(),
         // entered_entry_stage_at NÃO é tocado: mover manualmente para
         // NOVOS não pode tornar o lead elegível a E0/cadência.
       })
       .eq("id", data.id);
     if (error) return { ok: false, message: error.message };
+
 
     await recordEvent(
       lead.id as string,
