@@ -102,7 +102,7 @@ type HomeSearch = {
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/f/")({
   validateSearch: (search: Record<string, unknown>): HomeSearch => ({
     e: str(search.e),
     m: str(search.m),
@@ -377,7 +377,7 @@ function PortalHome() {
       // Campanhas patrocinadas não são personalizadas: o lead pertence ao
       // Executivo Padrão do workspace.
       if (ctx.campaign === "anuncio" && !search.e) clearResponsibleExecutive();
-      navigate({ to: "/", search: {}, replace: true });
+      navigate({ to: "/f", search: {}, replace: true });
       return;
     }
 
