@@ -14,6 +14,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { LEGACY_E0_SIMULATION_LABEL } from "@/lib/crm/e0-simulation";
 import { SIMULATION_LABEL } from "@/lib/relationship/execution-mode";
+import { stepShortCode } from "@/lib/relationship/step-labels";
 
 export type JourneyEntryKind =
   | "entrada"
@@ -191,10 +192,10 @@ export async function loadLeadJourney(
       id: `snap_${row.id}`,
       at: row.sent_at,
       kind: "mensagem_enviada",
-      title: `${row.step} enviada`,
+      title: `${stepShortCode(row.step)} enviada`,
       subtitle:
         row.library_version != null
-          ? `Biblioteca ${row.step} — versão ${row.library_version}${row.simulated ? " · simulada" : ""}`
+          ? `Biblioteca ${stepShortCode(row.step)} — versão ${row.library_version}${row.simulated ? " · simulada" : ""}`
           : row.simulated
             ? "Simulada"
             : null,
@@ -260,7 +261,7 @@ export async function loadLeadJourney(
       id: `e20_${row.id}`,
       at: row.generated_at,
       kind: "e20",
-      title: "E20 — convite gerado",
+      title: "E6 — Apresentação Digital: convite gerado",
       subtitle: `Link individual válido até ${row.expires_at?.slice(0, 10) ?? "—"}`,
       body: row.link_url,
       origin: "motor",
@@ -273,7 +274,7 @@ export async function loadLeadJourney(
         id: `e20c_${row.id}`,
         at: row.closed_at,
         kind: "e20",
-        title: "E20 — ocorrência encerrada",
+        title: "E6 — Apresentação Digital: ocorrência encerrada",
         subtitle: row.close_reason ?? null,
         origin: "motor",
         layer: "relacional",
