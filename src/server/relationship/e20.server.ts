@@ -322,7 +322,43 @@ export async function listE20Accesses(leadId: string) {
 }
 
 /**
+ * ENVIO CONFIRMADO (§10): copiar nunca é enviar. O envio só existe
+ * quando uma pessoa declara explicitamente que enviou.
+ */
+export async function markE20Sent(params: {
+  occurrenceId: string;
+  actorId?: string | null;
+  actorName: string;
+}): Promise<{ marked: boolean; reason?: string }> {
+  const at = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("relationship_e20_occurrences")
+    .update({
+      sent_confirmed_at: at,
+      sent_by: params.actorId ?? null,
+      sent_by_name: params.actorName,
+      updated_at: at,
+    } as any)
+    .eq("id", params.occurrenceId)
+    .is("sent_confirmed_at", null)
+    .select("lead_id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return { marked: false, reason: "Esta apresentação já estava marcada como enviada." };
+
+  await logE20Event({
+    leadId: String((data as any).lead_id),
+    occurrenceId: params.occurrenceId,
+    event: "mensagem_enviada",
+    actorId: params.actorId ?? null,
+    actorName: params.actorName,
+  });
+  return { marked: true };
+}
+
+/**
  * ENCERRAMENTO MANUAL (§12): exige motivo, autor e horário. Não existe
+
  * "apresentação concluída" — o que existe é uma emissão encerrada.
  */
 export async function closeE20Manually(params: {
