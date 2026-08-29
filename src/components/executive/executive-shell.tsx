@@ -26,6 +26,7 @@ import {
   Radar,
   LibraryBig,
   BookOpen,
+  Building2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -43,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
 import { GoogleStatusIndicator } from "@/components/executive/google-status-indicator";
 import { useModuleAccess } from "@/hooks/use-workspace-permissions";
+import { useAdministrativeAccess } from "@/hooks/use-administrative-access";
 
 export function ExecutiveShell({
   session,
@@ -59,6 +61,7 @@ export function ExecutiveShell({
 }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const administrativeAccess = useAdministrativeAccess() === true;
 
   useEffect(() => {
     void (async () => {
@@ -175,11 +178,20 @@ export function ExecutiveShell({
     ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
       ? [
           { to: unitPath("/executivo/biblioteca"), label: "Biblioteca de Conteúdos", icon: LibraryBig },
+        ]
+      : []),
+    /**
+     * Apresentação Digital e carteiras das unidades do Grupo dependem de
+     * PERMISSÃO administrativa (user_roles) — nunca do cargo operacional.
+     */
+    ...(administrativeAccess
+      ? [
           {
             to: unitPath("/executivo/apresentacao-digital"),
             label: "Apresentação Digital",
             icon: LibraryBig,
           },
+          { to: unitPath("/executivo/unidades"), label: "Unidades do Grupo", icon: Building2 },
         ]
       : []),
     ...(session.activeRole === "super_admin"

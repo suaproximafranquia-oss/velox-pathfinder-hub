@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ShieldCheck, X } from "lucide-react";
 import { getExecutiveBySlug } from "@/lib/executive-auth";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
-import { readEntryContext } from "@/lib/portal-entry";
+import { GROUP_ORIGIN_LABEL, readEntryContext } from "@/lib/portal-entry";
 import { startPortalSession } from "@/lib/portal-session";
 import { getVisitorIdentity } from "@/lib/leads";
 import {
@@ -130,8 +130,14 @@ export function GatewayOverlay({
     if (executive) setResponsibleExecutiveSlug(executive.slug);
     setError("");
     setChecking(true);
-    const origin =
+    const baseOrigin =
       entry.origin ?? (executive ? `Link personalizado · ${executive.name}` : "Portal Velox");
+    /**
+     * A origem institucional é COMPLEMENTAR: não substitui executivo,
+     * campanha ou canal — apenas acrescenta a informação de que o
+     * visitante chegou pelo Portal do Grupo Velox.
+     */
+    const origin = entry.fromGroup ? `${baseOrigin} · ${GROUP_ORIGIN_LABEL}` : baseOrigin;
     const result = await resolveIdentityOnServer({
       name: identity.name,
       email: identity.email,
