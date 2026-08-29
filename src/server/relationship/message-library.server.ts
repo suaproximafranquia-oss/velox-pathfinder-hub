@@ -88,14 +88,12 @@ export const LIBRARY_STEP_ORDER: string[] = [
   ...PENDING_TEXT_STEPS,
 ];
 
-const STEP_LABEL: Record<string, string> = {
-  // A chave técnica E20 permanece intocada no banco; o rótulo visual da
-  // Apresentação Digital segue a nomenclatura oficial da operação.
-  E20: "E6 — Apresentação Digital",
-  E27: "E27 — Checkpoint da apresentação digital",
-  FINALIZACAO: "FINALIZAÇÃO — Encerramento do ciclo (legado)",
-  [AUTO_REPLY_STEP]: "Resposta automática — orientação dentro da janela de 24h",
-};
+/**
+ * Rótulos padrão. A chave técnica (E20, E27…) permanece intocada no
+ * banco, na fila e nos snapshots — isto é apresentação. A Gestão pode
+ * sobrescrever o rótulo pela Biblioteca sem gerar versão nova de texto.
+ */
+const STEP_LABEL = DEFAULT_STEP_LABELS;
 
 function toMessage(row: Record<string, any>): LibraryMessage {
   return {
