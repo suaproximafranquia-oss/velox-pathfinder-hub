@@ -68,8 +68,16 @@ export async function listClosureDuties(nowIso?: string): Promise<ClosureDuty[]>
     .is("closed_at", null)
     .limit(500);
 
+  /**
+   * OPORTUNIDADE é terminal: mesmo antes da varredura encerrar a
+   * ocorrência, nenhuma obrigação de fechamento pode aparecer para o
+   * lead — nem no executor, nem na Ação do Dia.
+   */
+  const terminal = await terminalStageLeadIds();
+
   const duties: ClosureDuty[] = [];
   for (const row of (data ?? []) as any[]) {
+    if (terminal.has(String(row.lead_id))) continue;
     const checkpointDue = row.checkpoint_due_at ? String(row.checkpoint_due_at) : null;
     if (checkpointDue && !row.checkpoint_done_at && new Date(checkpointDue).getTime() <= new Date(at).getTime()) {
       duties.push({
