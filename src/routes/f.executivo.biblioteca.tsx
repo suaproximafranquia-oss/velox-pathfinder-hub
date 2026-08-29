@@ -465,7 +465,7 @@ function BibliotecaPage() {
                   <button
                     key={step}
                     onClick={() => toggleStep(step)}
-                    title={stepDisplayLabel(step)}
+                    title={labelOf(step)}
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-[11px] transition",
                       on
@@ -473,7 +473,7 @@ function BibliotecaPage() {
                         : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
                     )}
                   >
-                    {step}
+                    {stepShortCode(step)}
                   </button>
                 );
               })}
