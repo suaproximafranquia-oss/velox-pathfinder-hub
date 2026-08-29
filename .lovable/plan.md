@@ -1,58 +1,36 @@
-# Rodada de correção total — Unidades, Apresentação Digital, E20/E27 e permissões
+# Refino e consolidação — auditoria aplicada
 
-Correção única, baseada nas respostas desta bateria. Nada do motor que já funciona é refeito.
+Auditoria feita sobre o código atual. Abaixo apenas o que está **confirmado** por leitura de arquivo e o que será corrigido. Nada de reconstrução, nada de reclassificação automática de vídeos.
 
-## 1. Carteira das unidades (Solar / Seguros)
+## O que a auditoria confirmou
 
-- Registro completo do contato: autor (usuário e nome), data/hora, observação e motivo obrigatório ao encerrar.
-- Histórico de todas as mudanças de situação e de atribuição, com autor e data/hora, exibido na ficha do interessado.
-- Responsável por interessado: atribuir e trocar executivo, com registro de quem atribuiu.
-- Filtros (responsável, situação, origem, faixa, unidade) e busca (nome, WhatsApp, e-mail).
-- Contadores: total, novos, sem contato, em contato, encerrados.
-- Deduplicação por WhatsApp normalizado e e-mail normalizado dentro da mesma unidade: novo envio atualiza o registro existente e guarda a repetição no histórico, em vez de criar outro card. Mesmo contato pode existir em Solar e Seguros de forma independente.
-- Alteração restrita a permissão administrativa (admin e manager).
+**Inconsistência central (Biblioteca x Motor).** Existem hoje duas taxonomias vivas:
+- O motor amarra conteúdo por **etapa** (`relationship_step_content_bindings`, chaves de `src/lib/relationship/step-registry.ts`: etapas de `STEPS` + E20, E27, FINALIZACAO, RESPOSTA_AUTOMATICA), com rótulos editáveis (`step-labels.ts`).
+- A tela da Biblioteca (`src/routes/f.executivo.biblioteca.tsx`) ainda edita **grupos antigos** (`CONTENT_GROUPS` em `src/lib/relationship/content.ts`: E1, E2, E3, E4, E12, R1, R2, R3, RE1, RE2, V3, V4, FINALIZACAO).
+- Consequência: grupos que o motor não usa (E2, E4, R3, V3, V4, E12) aparecem como se fossem destino válido, e etapas reais do motor (E0, E0_V1, E30, RE0, RE3, RF0, RF1, E20, E27, RESPOSTA_AUTOMATICA) não aparecem. Rótulos alterados manualmente nas mensagens não refletem na Biblioteca.
 
-## 2. Páginas /s e /seg
+**"Sem vínculo" hoje não é sem vínculo.** `src/server/relationship/step-media.server.ts` documenta e aplica o fallback: sem vínculo explícito, o motor volta ao sorteio dentro do grupo (`selectContent` em `content.ts`). Isso contraria a regra desta rodada.
 
-- Somente identidade da unidade e formulário: remoção de qualquer texto de "conteúdo institucional em preparação" ou promessa de conteúdo futuro.
-- Após o envio, apenas a confirmação — nenhum portal, gateway ou material é entregue na hora.
-- Nenhum disparo automático nesta rodada: nada entra em portal_leads, CRM, cadência ou Gateway da Financeira. A origem "Veio do Grupo Velox" continua preservada.
+**Já correto — não será tocado:** raiz `/` institucional sem formulário e sem números fabricados (nenhuma ocorrência de "+800", "400 mil" ou "16 Bi" no código); `/f`, `/s`, `/seg` existentes e isolados; guard único `OperationalGuard`; E20/E27 com snapshot, versão, expiração e cancelamento na abertura; deduplicação e histórico das unidades; publicação/versionamento da Apresentação Digital; motor de Remarketing; redirects legados.
 
-## 3. Apresentação Digital
+**Não confirmado (vira investigação, não correção às cegas):**
+- Dupla autenticação: a sessão fica em `localStorage` (`atlas:session:v3`), compartilhada entre abas, e o CRM só pede login quando não há sessão ou após ~4h de inatividade. A causa relatada não é reproduzível pela leitura do código — precisa ser observada em execução antes de qualquer mudança.
+- E0 sem disparo: o caminho já registra bloqueio, tentativa, sucesso e erro (`e0.server.ts` + `relationship_engine_log`). Vou ler os registros reais antes de mexer em qualquer linha do fluxo.
 
-- Rascunho e publicação separados: editar cria rascunho; só o publicado entra em novas apresentações; rascunho nunca afeta emissões existentes.
-- Preview idêntico à tela do investidor, com preview individual de cada vídeo.
-- Metadados visíveis: número da versão, data da publicação e autor.
-- Confirmação antes de publicar e antes de desativar capítulo; reativação permitida; nenhuma exclusão física; versão publicada é imutável (alterar gera nova versão).
-- Lista com numeração, thumbnail e reordenação por arrastar e soltar; validação da URL do vídeo (hospedagem externa permitida).
-- Cada apresentação emitida passa a exibir qual versão do roteiro utilizou.
+## O que será feito
 
-## 4. Permissões e RLS
+1. **Fonte única de taxonomia.** A Biblioteca passa a usar as **etapas do motor** (`step-registry`) com os rótulos de `step-labels`, em vez de `CONTENT_GROUPS`. Os grupos antigos deixam de ser oferecidos na interface, mas nada é apagado no banco: os vínculos existentes continuam gravados e visíveis como "vínculo legado" até revisão manual.
+2. **Sem vínculo é sem vínculo.** Remoção do fallback por sorteio de grupo quando a etapa não tem vínculo explícito: o motor envia a mensagem sem conteúdo e registra o motivo. Etapas com mais de um conteúdo vinculado mantêm a rotação determinística atual.
+3. **Nenhuma migração de dados destrutiva.** Sem `UPDATE` em massa, sem reclassificação por nome ou por IA. Se for necessária migração, será apenas para marcar vínculos antigos como pendentes de revisão.
+4. **Resposta automática (24h)** permanece exatamente como está cadastrada — sem vídeo, sem conteúdo da Biblioteca, sem abrir etapa.
+5. **Investigação da E0** com leitura de `relationship_engine_log`, versão ativa da mensagem, ambiente/modo de execução e retorno do provedor. Correção só depois do diagnóstico, e apenas no ponto exato da falha.
+6. **Investigação da dupla autenticação**, com reprodução no navegador. Nenhuma proteção será removida.
+7. **Ajustes visuais confirmados:** Princípios Velox reduzido a três quadros (Missão, Valores, Visão) com o conteúdo administrável já existente; Capítulos 1 e 7 da Apresentação Digital sem vídeo (somente conteúdo estático), alterando o roteiro, não o motor de emissão; narrativa "Origem Velox" fica **estruturada como ponto editável antes do Primeiro Passo**, sem texto inventado.
 
-- Menu inteiro passa a respeitar autorização real (user_roles), sem depender do cargo operacional.
-- Apresentação Digital: exclusiva de administrador (executivo e manager sem acesso).
-- `presentation_chapters`: leitura e escrita restritas a permissão administrativa; sem exclusão.
-- `relationship_e20_events`: executivo lê apenas eventos dos leads sob sua responsabilidade; admin e manager leem tudo.
-- Formulário público das unidades ganha limite de envio por origem para evitar flood.
+## Fora do escopo desta rodada
 
-## 5. E20 — interação e estados
+Motor E20/E27, Remarketing, `authorization.server.ts`, isolamento Solar/Seguros, carteira das unidades, redirects legados, classificação individual de vídeos.
 
-- Botão para abrir a apresentação vigente, botão separado para emitir nova (com confirmação explicando que a anterior é invalidada).
-- Exibição da validade, da data de expiração e da quantidade de acessos, além do que já existe (primeiro acesso, último acesso, "Investidor visualizou", histórico, motivo e autor do encerramento).
-- Novo botão "Marcar como enviada", com confirmação, autor e data/hora. Copiar continua sendo apenas copiar: nunca infere envio, e envio nunca infere visualização.
-- Eventos separados na jornada: gerada, mensagem copiada, link copiado, enviada, aberta, expirada, encerrada (com motivo, autor e data/hora).
+## Entrega
 
-## 6. E27
-
-- Abrir a apresentação cancela o checkpoint E27: o objetivo do checkpoint foi cumprido e o executivo assume a condução. O acesso continua registrado normalmente.
-
-## Detalhes técnicos
-
-- Novas colunas/tabelas: histórico de contato e atribuição dos interessados das unidades; campos de rascunho/publicação e autor em `presentation_chapters`; marcação de envio confirmado na ocorrência E20.
-- Migrações incluem GRANT e políticas por papel; as políticas `USING true` de `presentation_chapters` e `relationship_e20_events` são substituídas.
-- Deduplicação aplicada no servidor (`unit-leads.functions.ts`) com WhatsApp em dígitos e e-mail em minúsculas.
-- Cancelamento da E27 tratado em `redeemE20` + `closure.server.ts`, mantendo idempotência.
-
-## Não será tocado
-
-Motor de emissão E20 (reuso, 7 dias, snapshot, acessos, expiração, encerramento com motivo), versionamento já existente da Apresentação, isolamento Solar/Seguros x Financeira, redirects `/` → `/f` e rotas legadas, `authorization.server.ts` e o motor de Remarketing.
+Ao final: build, typecheck, testes, validação de rotas, dos grupos/etapas, de conteúdo sem vínculo, da E0 e das permissões — com relatório objetivo (inconsistências, correções, não alterado, riscos, testes, arquivos, migrações, decisões manuais pendentes).
