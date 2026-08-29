@@ -800,60 +800,155 @@ export type Database = {
         }
         Relationships: []
       }
+      group_unit_lead_events: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          at: string
+          created_at: string
+          from_status: string | null
+          id: string
+          kind: string
+          lead_id: string
+          metadata: Json
+          note: string | null
+          reason: string | null
+          to_status: string | null
+          unit: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          at?: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          kind: string
+          lead_id: string
+          metadata?: Json
+          note?: string | null
+          reason?: string | null
+          to_status?: string | null
+          unit: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          at?: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          kind?: string
+          lead_id?: string
+          metadata?: Json
+          note?: string | null
+          reason?: string | null
+          to_status?: string | null
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_unit_lead_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "group_unit_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_unit_leads: {
         Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_by_name: string | null
           campaign: string | null
           city: string | null
+          close_reason: string | null
+          contact_note: string | null
           created_at: string
           email: string | null
+          email_key: string | null
           first_contact_at: string | null
+          first_contact_by: string | null
+          first_contact_by_name: string | null
           first_contact_status: string
           from_group: boolean
           id: string
           investment_range: string
+          last_submitted_at: string | null
           name: string
           notes: string | null
           origin: string | null
+          responsible_executive_id: string | null
+          responsible_executive_name: string | null
           status: string
+          submissions: number
           unit: string
           updated_at: string
           whatsapp: string
+          whatsapp_key: string | null
         }
         Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_by_name?: string | null
           campaign?: string | null
           city?: string | null
+          close_reason?: string | null
+          contact_note?: string | null
           created_at?: string
           email?: string | null
+          email_key?: string | null
           first_contact_at?: string | null
+          first_contact_by?: string | null
+          first_contact_by_name?: string | null
           first_contact_status?: string
           from_group?: boolean
           id?: string
           investment_range: string
+          last_submitted_at?: string | null
           name: string
           notes?: string | null
           origin?: string | null
+          responsible_executive_id?: string | null
+          responsible_executive_name?: string | null
           status?: string
+          submissions?: number
           unit: string
           updated_at?: string
           whatsapp: string
+          whatsapp_key?: string | null
         }
         Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_by_name?: string | null
           campaign?: string | null
           city?: string | null
+          close_reason?: string | null
+          contact_note?: string | null
           created_at?: string
           email?: string | null
+          email_key?: string | null
           first_contact_at?: string | null
+          first_contact_by?: string | null
+          first_contact_by_name?: string | null
           first_contact_status?: string
           from_group?: boolean
           id?: string
           investment_range?: string
+          last_submitted_at?: string | null
           name?: string
           notes?: string | null
           origin?: string | null
+          responsible_executive_id?: string | null
+          responsible_executive_name?: string | null
           status?: string
+          submissions?: number
           unit?: string
           updated_at?: string
           whatsapp?: string
+          whatsapp_key?: string | null
         }
         Relationships: []
       }
@@ -1676,6 +1771,10 @@ export type Database = {
           id: string
           is_active: boolean
           is_current: boolean
+          is_draft: boolean
+          published_at: string | null
+          published_by: string | null
+          published_by_name: string | null
           sort_order: number
           thumbnail_url: string | null
           title: string
@@ -1692,6 +1791,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_current?: boolean
+          is_draft?: boolean
+          published_at?: string | null
+          published_by?: string | null
+          published_by_name?: string | null
           sort_order?: number
           thumbnail_url?: string | null
           title: string
@@ -1708,6 +1811,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_current?: boolean
+          is_draft?: boolean
+          published_at?: string | null
+          published_by?: string | null
+          published_by_name?: string | null
           sort_order?: number
           thumbnail_url?: string | null
           title?: string
@@ -2056,6 +2163,7 @@ export type Database = {
       relationship_e20_occurrences: {
         Row: {
           cadence_id: string | null
+          checkpoint_cancel_reason: string | null
           checkpoint_done_at: string | null
           checkpoint_due_at: string | null
           close_note: string | null
@@ -2078,6 +2186,10 @@ export type Database = {
           link_url: string
           open_count: number
           scope: string
+          script_version: number | null
+          sent_by: string | null
+          sent_by_name: string | null
+          sent_confirmed_at: string | null
           snapshot: Json
           status: string
           token: string
@@ -2085,6 +2197,7 @@ export type Database = {
         }
         Insert: {
           cadence_id?: string | null
+          checkpoint_cancel_reason?: string | null
           checkpoint_done_at?: string | null
           checkpoint_due_at?: string | null
           close_note?: string | null
@@ -2107,6 +2220,10 @@ export type Database = {
           link_url: string
           open_count?: number
           scope?: string
+          script_version?: number | null
+          sent_by?: string | null
+          sent_by_name?: string | null
+          sent_confirmed_at?: string | null
           snapshot?: Json
           status?: string
           token: string
@@ -2114,6 +2231,7 @@ export type Database = {
         }
         Update: {
           cadence_id?: string | null
+          checkpoint_cancel_reason?: string | null
           checkpoint_done_at?: string | null
           checkpoint_due_at?: string | null
           close_note?: string | null
@@ -2136,6 +2254,10 @@ export type Database = {
           link_url?: string
           open_count?: number
           scope?: string
+          script_version?: number | null
+          sent_by?: string | null
+          sent_by_name?: string | null
+          sent_confirmed_at?: string | null
           snapshot?: Json
           status?: string
           token?: string
