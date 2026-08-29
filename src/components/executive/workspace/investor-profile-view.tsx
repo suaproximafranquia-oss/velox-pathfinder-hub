@@ -49,6 +49,7 @@ import {
 import { formatBRL } from "@/lib/simulator-products";
 import { cn } from "@/lib/utils";
 import { E20Panel } from "@/components/executive/workspace/e20-panel";
+import { E0Panel } from "@/components/executive/workspace/e0-panel";
 
 type TabKey =
   | "geral"
@@ -195,6 +196,8 @@ export function InvestorProfileView({
         {/* Jornada consolidada: módulos + histórico cronológico em uma única aba. */}
         {tab === "jornada" && (
           <div className="space-y-6">
+            {/* Status auditável do primeiro contato (leitura pura). */}
+            <E0Panel investorId={investor.id} />
             {/* Evento paralelo à cadência: convite formal ao Portal. */}
             <E20Panel investorId={investor.id} />
             <TabJornada investor={investor} />
