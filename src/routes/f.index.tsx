@@ -361,7 +361,7 @@ function PortalHome() {
    */
   useEffect(() => {
     const hasParams = Boolean(
-      search.e || search.m || search.o || search.u || search.c || search.b || search.ch,
+      search.e || search.m || search.o || search.u || search.c || search.b || search.ch || search.g,
     );
     if (hasParams) {
       const ctx = writeEntryContext({
@@ -375,9 +375,15 @@ function PortalHome() {
           search.ch === "tiktok" || search.ch === "meta"
             ? search.ch
             : readEntryContext().channel,
+        /**
+         * FASE 1 §6 — a origem institucional do Grupo ACRESCENTA-SE ao
+         * contexto: executivo, marca, campanha e canal permanecem.
+         */
+        fromGroup: search.g === "1" ? true : readEntryContext().fromGroup,
         pendingModule: (getPortalModule(search.m)?.key ??
           (search.e ? "manual" : null)) as PortalModuleKey | null,
       });
+
       if (ctx.executiveSlug) setResponsibleExecutiveSlug(ctx.executiveSlug);
       // Campanhas patrocinadas não são personalizadas: o lead pertence ao
       // Executivo Padrão do workspace.
