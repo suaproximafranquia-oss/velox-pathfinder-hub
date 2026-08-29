@@ -29,10 +29,10 @@ export const Route = createFileRoute("/origem/$channel")({
     const label = CHANNEL_LABEL[channel];
     if (!label) {
       // Canal desconhecido: Home institucional, sem contexto de canal.
-      throw redirect({ to: "/", replace: true, search: {} });
+      throw redirect({ to: "/f", replace: true, search: {} });
     }
     throw redirect({
-      to: "/",
+      to: "/f",
       replace: true,
       search: { m: "manual", o: label, ch: channel },
     });

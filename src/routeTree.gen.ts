@@ -16,7 +16,10 @@ import { Route as FRouteImport } from './routes/f'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SegIndexRouteImport } from './routes/seg.index'
+import { Route as SIndexRouteImport } from './routes/s.index'
 import { Route as ManualIndexRouteImport } from './routes/manual/index'
+import { Route as FIndexRouteImport } from './routes/f.index'
 import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as SegSlugRouteImport } from './routes/seg.$slug'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
@@ -135,10 +138,25 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SegIndexRoute = SegIndexRouteImport.update({
+  id: '/seg/',
+  path: '/seg/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SIndexRoute = SIndexRouteImport.update({
+  id: '/s/',
+  path: '/s/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ManualIndexRoute = ManualIndexRouteImport.update({
   id: '/manual/',
   path: '/manual/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const FIndexRoute = FIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => FRoute,
 } as any)
 const ExecutivoIndexRoute = ExecutivoIndexRouteImport.update({
   id: '/executivo/',
@@ -604,7 +622,10 @@ export interface FileRoutesByFullPath {
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/executivo/': typeof ExecutivoIndexRoute
+  '/f/': typeof FIndexRoute
   '/manual/': typeof ManualIndexRoute
+  '/s/': typeof SIndexRoute
+  '/seg/': typeof SegIndexRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
   '/f/executivo/backups': typeof FExecutivoBackupsRoute
@@ -650,7 +671,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/crm': typeof CrmRoute
   '/entrar': typeof EntrarRoute
-  '/f': typeof FRouteWithChildren
   '/portal-leads': typeof PortalLeadsRoute
   '/remarketing': typeof RemarketingRoute
   '/universo': typeof UniversoRoute
@@ -693,7 +713,10 @@ export interface FileRoutesByTo {
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/executivo': typeof ExecutivoIndexRoute
+  '/f': typeof FIndexRoute
   '/manual': typeof ManualIndexRoute
+  '/s': typeof SIndexRoute
+  '/seg': typeof SegIndexRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
   '/f/executivo/backups': typeof FExecutivoBackupsRoute
@@ -786,7 +809,10 @@ export interface FileRoutesById {
   '/s/$slug': typeof SSlugRoute
   '/seg/$slug': typeof SegSlugRoute
   '/executivo/': typeof ExecutivoIndexRoute
+  '/f/': typeof FIndexRoute
   '/manual/': typeof ManualIndexRoute
+  '/s/': typeof SIndexRoute
+  '/seg/': typeof SegIndexRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
   '/f/executivo/backups': typeof FExecutivoBackupsRoute
@@ -880,7 +906,10 @@ export interface FileRouteTypes {
     | '/s/$slug'
     | '/seg/$slug'
     | '/executivo/'
+    | '/f/'
     | '/manual/'
+    | '/s/'
+    | '/seg/'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
     | '/f/executivo/backups'
@@ -926,7 +955,6 @@ export interface FileRouteTypes {
     | '/'
     | '/crm'
     | '/entrar'
-    | '/f'
     | '/portal-leads'
     | '/remarketing'
     | '/universo'
@@ -969,7 +997,10 @@ export interface FileRouteTypes {
     | '/s/$slug'
     | '/seg/$slug'
     | '/executivo'
+    | '/f'
     | '/manual'
+    | '/s'
+    | '/seg'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
     | '/f/executivo/backups'
@@ -1061,7 +1092,10 @@ export interface FileRouteTypes {
     | '/s/$slug'
     | '/seg/$slug'
     | '/executivo/'
+    | '/f/'
     | '/manual/'
+    | '/s/'
+    | '/seg/'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
     | '/f/executivo/backups'
@@ -1150,6 +1184,8 @@ export interface RootRouteChildren {
   SegSlugRoute: typeof SegSlugRoute
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
   ManualIndexRoute: typeof ManualIndexRoute
+  SIndexRoute: typeof SIndexRoute
+  SegIndexRoute: typeof SegIndexRoute
   OauthGoogleConnectorRoute: typeof OauthGoogleConnectorRoute
   PortalConviteTokenRoute: typeof PortalConviteTokenRoute
   ApiPublicBackupProcessRoute: typeof ApiPublicBackupProcessRoute
@@ -1210,12 +1246,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/seg/': {
+      id: '/seg/'
+      path: '/seg'
+      fullPath: '/seg/'
+      preLoaderRoute: typeof SegIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/': {
+      id: '/s/'
+      path: '/s'
+      fullPath: '/s/'
+      preLoaderRoute: typeof SIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/manual/': {
       id: '/manual/'
       path: '/manual'
       fullPath: '/manual/'
       preLoaderRoute: typeof ManualIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/f/': {
+      id: '/f/'
+      path: '/'
+      fullPath: '/f/'
+      preLoaderRoute: typeof FIndexRouteImport
+      parentRoute: typeof FRoute
     }
     '/executivo/': {
       id: '/executivo/'
@@ -1906,6 +1963,7 @@ interface FRouteChildren {
   FExecutivoRoute: typeof FExecutivoRouteWithChildren
   FPortalLeadsRoute: typeof FPortalLeadsRoute
   FRemarketingRoute: typeof FRemarketingRouteWithChildren
+  FIndexRoute: typeof FIndexRoute
 }
 
 const FRouteChildren: FRouteChildren = {
@@ -1914,6 +1972,7 @@ const FRouteChildren: FRouteChildren = {
   FExecutivoRoute: FExecutivoRouteWithChildren,
   FPortalLeadsRoute: FPortalLeadsRoute,
   FRemarketingRoute: FRemarketingRouteWithChildren,
+  FIndexRoute: FIndexRoute,
 }
 
 const FRouteWithChildren = FRoute._addFileChildren(FRouteChildren)
@@ -1964,6 +2023,8 @@ const rootRouteChildren: RootRouteChildren = {
   SegSlugRoute: SegSlugRoute,
   ExecutivoIndexRoute: ExecutivoIndexRoute,
   ManualIndexRoute: ManualIndexRoute,
+  SIndexRoute: SIndexRoute,
+  SegIndexRoute: SegIndexRoute,
   OauthGoogleConnectorRoute: OauthGoogleConnectorRoute,
   PortalConviteTokenRoute: PortalConviteTokenRoute,
   ApiPublicBackupProcessRoute: ApiPublicBackupProcessRoute,

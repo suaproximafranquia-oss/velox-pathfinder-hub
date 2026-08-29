@@ -14,7 +14,7 @@ export const Route = createFileRoute("/entrar")({
     const s = search as Record<string, unknown>;
     const next = typeof s.next === "string" ? s.next : "/manual";
     throw redirect({
-      to: "/",
+      to: "/f",
       replace: true,
       search: {
         m: moduleForPath(next)?.key ?? "manual",

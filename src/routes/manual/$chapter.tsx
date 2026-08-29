@@ -38,7 +38,7 @@ export const Route = createFileRoute("/manual/$chapter")({
       const exec = getExecutiveBySlug(params.chapter);
       if (exec) {
         throw redirect({
-          to: "/",
+          to: "/f",
           replace: true,
           search: { e: exec.slug, m: "manual", o: "Link personalizado" },
         });

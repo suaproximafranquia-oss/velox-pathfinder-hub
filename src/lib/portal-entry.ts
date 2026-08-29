@@ -23,10 +23,18 @@ export type EntryContext = {
    * `/origem/meta`). Valores válidos: "tiktok" | "meta".
    */
   channel: string | null;
+  /**
+   * FASE 1 §6 — o visitante chegou pelo Portal Institucional do Grupo
+   * Velox e escolheu uma das empresas. Não substitui executivo, marca,
+   * campanha ou canal: acrescenta-se a eles.
+   */
+  fromGroup: boolean;
   /** Módulo solicitado antes do Gateway — reaberto após a sessão. */
   pendingModule: PortalModuleKey | null;
   at: string;
 };
+
+export const GROUP_ORIGIN_LABEL = "Veio do Grupo Velox";
 
 const EMPTY: EntryContext = {
   executiveSlug: null,
@@ -35,9 +43,11 @@ const EMPTY: EntryContext = {
   origin: null,
   campaign: null,
   channel: null,
+  fromGroup: false,
   pendingModule: null,
   at: new Date(0).toISOString(),
 };
+
 
 export function readEntryContext(): EntryContext {
   if (typeof window === "undefined") return EMPTY;

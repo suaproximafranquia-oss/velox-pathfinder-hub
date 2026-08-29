@@ -1,5 +1,4 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { getBrandByPrefix } from "@/lib/portal-brands";
 
 /**
  * Link público do Portal do Investidor — MARCA + EXECUTIVO.
@@ -7,13 +6,10 @@ import { getBrandByPrefix } from "@/lib/portal-brands";
  * (marca e executivo responsável) e devolve o visitante à Home.
  */
 export const Route = createFileRoute("/seg/$slug")({
-  beforeLoad: ({ params }) => {
-    const brand = getBrandByPrefix("seg")!;
-    throw redirect({
-      to: "/",
-      replace: true,
-      search: { e: params.slug, m: "manual", o: brand.origin, b: brand.key },
-    });
+  beforeLoad: () => {
+    // Solar e Seguros são institucionais nesta versão: o link de
+    // executivo apenas leva à página da unidade, sem captação.
+    throw redirect({ to: "/seg", replace: true });
   },
   component: () => null,
 });
