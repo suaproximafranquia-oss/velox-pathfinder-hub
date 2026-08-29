@@ -161,8 +161,14 @@ export function sortDailyActions(actions: DailyAction[]): DailyAction[] {
 const SOURCE_PRECEDENCE: Record<DailyActionSource, number> = {
   meeting: 0,
   agenda: 1,
-  queue: 2,
-  cadence: 3,
+  /**
+   * Fechamento do ciclo (E27 / FINALIZAÇÃO da Apresentação Digital).
+   * Vence a cadência corrente: é o compromisso já assumido com o
+   * investidor a partir de um convite emitido.
+   */
+  closure: 2,
+  queue: 3,
+  cadence: 4,
 };
 
 /** Colapsa ações repetidas pela chave determinística. */
