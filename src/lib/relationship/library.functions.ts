@@ -162,3 +162,17 @@ export const removerVinculoDeEtapa = createServerFn({ method: "POST" })
     );
     return clearStepContentBinding(data.stepKey);
   });
+
+/**
+ * DIAGNÓSTICO DE VÍNCULOS DA BIBLIOTECA (somente leitura).
+ * Mostra etapa ativa sem conteúdo vinculado, etapa sem texto oficial e
+ * conteúdo cadastrado que não serve a nenhuma etapa.
+ */
+export const diagnosticoDaBiblioteca = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { diagnoseLibrary } = await import(
+      "@/server/relationship/library-diagnostics.server"
+    );
+    return diagnoseLibrary();
+  });

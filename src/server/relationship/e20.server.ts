@@ -14,6 +14,7 @@
  *  - OPORTUNIDADE é terminal: nada é emitido depois dela.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { addDays, nextBusinessDay, operationalDate } from "@/lib/relationship/calendar";
 import { openInstance } from "./instances.server";
 import {
   renderFromLibrary,
@@ -29,14 +30,20 @@ function newToken(): string {
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** Próximo dia útil (Seg–Sex) a partir de uma data. */
-function nextBusinessDay(from: Date): string {
-  const date = new Date(from.getTime());
-  do {
-    date.setUTCDate(date.getUTCDate() + 1);
-  } while (date.getUTCDay() === 0 || date.getUTCDay() === 6);
-  return date.toISOString().slice(0, 10);
+/**
+ * Próximo dia ÚTIL a partir de um instante — calendário oficial único.
+ *
+ * Correção do Refino Final: a versão anterior lia `getUTCDay()` sobre o
+ * instante bruto, o que jogava sexta 21:00 BRT para sábado UTC e
+ * ignorava feriados. Agora a data operacional sai do fuso de Brasília
+ * e o salto usa `nextBusinessDay` do calendário (fins de semana +
+ * feriados nacionais e estaduais de SP).
+ */
+function nextBusinessDayAfter(from: Date): string {
+  const today = operationalDate(from.toISOString());
+  return nextBusinessDay(addDays(today, 1));
 }
+
 
 export type E20Occurrence = {
   id: string;
@@ -176,7 +183,7 @@ export async function issueE20(params: {
       generated_at: at,
       expires_at: expiresAt,
       checkpoint_due_at: expiresAt,
-      finalization_due_on: nextBusinessDay(new Date(expiresAt)),
+      finalization_due_on: nextBusinessDayAfter(new Date(expiresAt)),
       snapshot: {
         emitido_por: params.generatedByName,
         assinatura: signatureName,

@@ -14,15 +14,15 @@ const local = (day: string, hour: number) => {
 };
 
 
-describe("janela ÚNICA de envio de mensagens (E1+, §16) — 07:00 às 22:00", () => {
-  it("segunda a sexta envia das 07:00 às 22:00", () => {
-    expect(isEligibleMoment(local("2026-08-17", 7))).toBe(true);
-    expect(isEligibleMoment(local("2026-08-17", 21))).toBe(true);
-    expect(isEligibleMoment(local("2026-08-17", 6))).toBe(false);
-    // §16 — 21:50 ainda envia; a partir das 22:00 já está fora.
-    expect(isEligibleMoment(local("2026-08-17", 21 + 50 / 60))).toBe(true);
+describe("janela ÚNICA de envio do motor (E1+) — 09:00 às 21:00", () => {
+  it("segunda a sexta envia das 09:00 às 21:00", () => {
+    expect(isEligibleMoment(local("2026-08-17", 9))).toBe(true);
+    expect(isEligibleMoment(local("2026-08-17", 20.5))).toBe(true);
+    // Antes das 09:00 e a partir das 21:00 o motor não envia.
+    expect(isEligibleMoment(local("2026-08-17", 7))).toBe(false);
+    expect(isEligibleMoment(local("2026-08-17", 8.5))).toBe(false);
+    expect(isEligibleMoment(local("2026-08-17", 21))).toBe(false);
     expect(isEligibleMoment(local("2026-08-17", 22))).toBe(false);
-    expect(isEligibleMoment(local("2026-08-17", 22.5))).toBe(false);
   });
 
 
@@ -34,7 +34,7 @@ describe("janela ÚNICA de envio de mensagens (E1+, §16) — 07:00 às 22:00", 
 
   it("§9/§10 — fora da janela a etapa é deslocada para frente, nunca perdida", () => {
     const next = nextEligibleMoment(local("2026-08-23", 10));
-    expect(next).toBe(local("2026-08-24", 7));
+    expect(next).toBe(local("2026-08-24", 9));
   });
 
 });

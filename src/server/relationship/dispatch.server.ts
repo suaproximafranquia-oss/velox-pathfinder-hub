@@ -25,6 +25,8 @@ import {
 } from "./message-library.server";
 import type { CadenceStep } from "@/lib/relationship/types";
 import type { DispatchRequest, DispatchResult, EngineDispatcher } from "@/lib/relationship/ports";
+import { isKnownStep, unknownStepReason } from "@/lib/relationship/step-registry";
+import { registerContentUsage } from "./content-usage.server";
 import { executionMode, SIMULATION_LABEL } from "./execution-mode.server";
 import { resolveLeadExecutive } from "./executive-identity.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
@@ -98,6 +100,17 @@ async function log(action: string, details: Record<string, unknown>): Promise<vo
 
 async function send(request: DispatchRequest): Promise<DispatchResult> {
   const step = request.step as CadenceStep;
+
+  /**
+   * ETAPA DESCONHECIDA NÃO EXECUTA. Antes de tocar em lead, texto ou
+   * canal, a chave é conferida no registro oficial de etapas.
+   */
+  if (!isKnownStep(step)) {
+    const motivo = unknownStepReason(String(step));
+    await log("etapa_desconhecida", { leadId: request.leadId, step, motivo });
+    return { delivered: false, error: motivo };
+  }
+
   const loaded = await loadRecipient(request.leadId);
   if ("error" in loaded) {
     await log("envio_bloqueado", { leadId: request.leadId, step, motivo: loaded.error });
@@ -188,6 +201,12 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     simulated,
     sentAt: at,
   });
+
+  /**
+   * ROTAÇÃO REAL: o conteúdo que acabou de sair passa a contar como
+   * utilizado, então o próximo envio do grupo escolhe outro material.
+   */
+  await registerContentUsage(request.contentId ?? null, at);
 
   const delivery = simulated
     ? { delivered: false as const, provider: "simulador", error: undefined as string | undefined }

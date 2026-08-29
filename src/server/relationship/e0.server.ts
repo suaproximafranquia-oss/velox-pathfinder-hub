@@ -41,6 +41,34 @@ export function e0MessageId(leadId: string): string {
   return `msg_e0_${leadId}`;
 }
 
+/**
+ * AUDITORIA DO BLOQUEIO: toda E0 barrada por falta de destino (em
+ * especial o WhatsApp do executivo responsável) fica registrada com
+ * lead, executivo e motivo legível. O log nunca interrompe o fluxo.
+ */
+async function logE0Block(payload: {
+  leadId: string;
+  reason: string;
+  blockers: string[];
+  executiveId: string | null;
+  contactMissing: boolean;
+  portalMissing: boolean;
+  contactButtonInTemplate: boolean;
+  portalButtonInTemplate: boolean;
+}): Promise<void> {
+  try {
+    await supabaseAdmin.from("relationship_engine_log").insert({
+      scope: "production",
+      action: "e0_bloqueada",
+      details: payload as any,
+    } as any);
+
+  } catch {
+    // Auditoria é acessória: a decisão de bloqueio já foi tomada.
+  }
+}
+
+
 export async function dispatchFirstContact(input: {
   leadId: string;
   name: string | null;
@@ -55,17 +83,33 @@ export async function dispatchFirstContact(input: {
   const portalButton = template?.buttons.find((b) => b.role === "portal") ?? null;
 
   /**
-   * DESTINOS POR LEAD. O botão de contato só é exigido quando o template
-   * aprovado realmente possui esse botão — não bloqueamos um envio por
-   * um componente que não existe.
+   * DESTINOS POR LEAD — REGRA FECHADA (Refino Final §2).
+   *
+   * O contato humano do executivo responsável é REQUISITO OPERACIONAL
+   * da E0. Sem WhatsApp válido em `executive_profiles.whatsapp` a E0
+   * INTEIRA é bloqueada: nada de mensagem, botão, link, número
+   * institucional ou envio parcial. A ausência do botão no template
+   * aprovado não autoriza o envio.
    */
   const destinations = await resolveLeadDestinations(input.leadId, {
     portalRequired: true,
-    contactRequired: Boolean(contactButton),
+    contactRequired: true,
   });
   if (!destinations.available) {
-    return { registered: false, reason: destinations.reason ?? "Destinos não resolvidos." };
+    const reason = destinations.reason ?? "Destinos não resolvidos.";
+    await logE0Block({
+      leadId: input.leadId,
+      reason,
+      blockers: destinations.blockers,
+      executiveId: destinations.executiveId,
+      contactMissing: !destinations.contactUrl,
+      portalMissing: !destinations.portalUrl,
+      contactButtonInTemplate: Boolean(contactButton),
+      portalButtonInTemplate: Boolean(portalButton),
+    });
+    return { registered: false, reason };
   }
+
 
   // TEXTO OFICIAL: sempre a versão ativa da Biblioteca.
   const { result: rendered, message: libraryMessage } = await renderFromLibrary(E0_STEP, {

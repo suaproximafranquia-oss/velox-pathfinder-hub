@@ -4,6 +4,7 @@
  * Nenhuma constante de cadência pode ser declarada fora deste arquivo.
  * Se uma regra precisar mudar, muda aqui — não em componentes.
  */
+import { defaultNonBusinessDays } from "./holidays";
 import { E30_BUSINESS_DAYS_AFTER_START, E30_ENABLED } from "./reactivation";
 import type { CadenceFlow, CadenceStep } from "./types";
 
@@ -278,24 +279,34 @@ export const RELATIONSHIP_CONFIG: RelationshipConfig = {
   enabled: true,
   windowHours: 24,
   /**
-   * JANELA DAS ETAPAS E1+ (§16): Seg–Sex 07:00 → 22:00. Fora dela a
+   * JANELA DAS ETAPAS E1+ (decisão fechada no Refino Final): o motor
+   * só envia entre 09:00 e 21:00, horário de Brasília. Fora dela a
    * etapa não é perdida nem cancelada — apenas reagendada para a
    * próxima abertura.
    */
-  businessHours: { start: 7, end: 22 },
-  /** §16 — no sábado o envio (E1+) vai apenas até 12:00. */
-  saturdayHours: { start: 7, end: 12 },
+  businessHours: { start: 9, end: 21 },
   /**
-   * E0/A0 (§16): Seg–Sex 07:00 → 22:30 e Sáb 07:00 → 12:00. Domingo
-   * SEM envio. A consciência de dia da semana é aplicada em
-   * `src/lib/crm/e0-window.ts` — este campo registra a faixa horária
-   * dos dias em que a E0 opera.
+   * Sábado continua encerrando ao meio-dia (§16); a abertura acompanha
+   * a janela do motor, que não abre antes das 09:00.
+   */
+  saturdayHours: { start: 9, end: 12 },
+  /**
+   * E0/A0 mantém JANELA PRÓPRIA: Seg–Sex 07:00 → 22:30 e Sáb 07:00 →
+   * 12:00. Domingo SEM envio. A consciência de dia da semana é
+   * aplicada em `src/lib/crm/e0-window.ts` — este campo registra a
+   * faixa horária dos dias em que a E0 opera.
    */
   e0Hours: { start: 7, end: 22.5 },
+  /** Fechamento operacional do dia: 22:00. */
   dailyClosingHour: 22,
 
   timeZone: "America/Sao_Paulo",
-  nonBusinessDays: [],
+  /**
+   * FERIADOS: nacionais + estaduais de São Paulo. Dia de feriado não
+   * envia e não conta como dia útil em nenhum prazo.
+   */
+  nonBusinessDays: defaultNonBusinessDays(),
+
   readsToSwitchFlow: 2,
   reengagementBusinessDays: 2,
   maxAttempts: 3,

@@ -18,9 +18,30 @@ export const AUTOMATION_ELIGIBLE_STAGES = ["zero_contato", "frio"] as const;
  * Etapas terminais/neutras: nunca geram cadência automática de
  * primeira entrada. OPORTUNIDADE é terminal — o lead permanece nela
  * até decisão MANUAL do Executivo (§26).
+ *
+ * COMPATIBILIDADE HISTÓRICA: a origem gravou a etapa terminal nas duas
+ * grafias ("oportunidade" e "oportunidades"). As duas são a MESMA
+ * etapa na LEITURA; as gravações novas usam a forma canônica. Nenhum
+ * registro histórico é reescrito por causa disto.
  */
-export const NON_AUTOMATED_STAGES = ["novos", "agendamento", "video", "oportunidade"] as const;
-export const TERMINAL_STAGES = ["oportunidade"] as const;
+export const CANONICAL_TERMINAL_STAGE = "oportunidade";
+export const TERMINAL_STAGES = ["oportunidade", "oportunidades"] as const;
+export const NON_AUTOMATED_STAGES = [
+  "novos",
+  "agendamento",
+  "video",
+  ...TERMINAL_STAGES,
+] as const;
+
+/** Forma canônica de uma etapa para NOVAS gravações do sistema. */
+export function canonicalStageKey(stageKey: string | null | undefined): string | null {
+  if (!stageKey) return null;
+  const key = stageKey.trim();
+  return (TERMINAL_STAGES as readonly string[]).includes(key)
+    ? CANONICAL_TERMINAL_STAGE
+    : key;
+}
+
 
 export type StageTransition = { stageKey: string; at: string };
 
