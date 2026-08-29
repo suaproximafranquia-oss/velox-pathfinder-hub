@@ -29,6 +29,7 @@ import { resolveTreatment } from "@/lib/relationship/names";
 import {
   AWAITING_ACTIVATION_STEPS,
   WORD_MESSAGES,
+  wordMessageForEngineStep,
   WORD_SOURCE_REFERENCE,
   engineStepForWord,
   type WordMessage,
@@ -200,7 +201,7 @@ export async function ensureLibrarySeed(): Promise<void> {
   const rows: Record<string, unknown>[] = [];
   for (const step of LIBRARY_STEP_ORDER) {
     if (known.has(step)) continue;
-    const official = WORD_MESSAGES.find((m) => m.stepKey === step) ?? null;
+    const official = wordMessageForEngineStep(step);
     const fixed = (HOMOLOGATION_MESSAGES as Record<string, any>)[step];
     if (official) {
       // Etapa oficial do Word: nasce já com o texto oficial (v1).
@@ -397,14 +398,15 @@ export async function importWordLibrary(actor: {
   const result: WordImportEntry[] = [];
 
   for (const official of WORD_MESSAGES) {
+    const engineStep = engineStepForWord(official.stepKey);
     const { data: history } = await supabaseAdmin
       .from("relationship_message_library")
       .select("*")
       .eq("scope", "production")
-      .eq("step_key", official.stepKey)
+      .eq("step_key", engineStep)
       .order("version", { ascending: false });
     const rows = (history ?? []) as any[];
-    const current = rows.find((r) => r.active) ?? null;
+    const current = rows.find((r) => r.active) ?? rows[0] ?? null;
 
     if (
       current &&
@@ -412,7 +414,7 @@ export async function importWordLibrary(actor: {
       String(current.body_without_name ?? "") === official.bodyWithoutName
     ) {
       result.push({
-        stepKey: official.stepKey,
+        stepKey: engineStep,
         outcome: "inalterada",
         version: Number(current.version ?? 1),
       });
@@ -433,9 +435,9 @@ export async function importWordLibrary(actor: {
         created_by: actor.actorId ?? null,
         created_by_name: actor.actorName,
       } as any);
-    if (error) throw new Error(`${official.stepKey}: ${error.message}`);
+    if (error) throw new Error(`${engineStep}: ${error.message}`);
     result.push({
-      stepKey: official.stepKey,
+      stepKey: engineStep,
       outcome: rows.length ? "nova_versao" : "criada",
       version: nextVersion,
     });
