@@ -1,94 +1,52 @@
-# Etapa 3 — Plano Definitivo de Implantação
+# Refino final — Biblioteca única, fechamento por Oportunidade e textos oficiais
 
-Ordem obrigatória. Nada aqui altera Portal dos Leads, GreenSales, identidade atômica,
-Remarketing estrutural, snapshots históricos ou a regra NOVO/EM ANDAMENTO/ENCERRADO.
+Três ajustes fechados a partir da auditoria. Nada de texto inventado, nenhuma chave técnica renomeada, nenhum histórico alterado.
 
-## Passo 1 — Camada de rótulos oficiais (sem tocar em chaves técnicas)
+## 1. Uma etapa, uma linha na Biblioteca
 
-Criar um mapa único Word → chave técnica usado só para exibição:
+Hoje a importação do Word criou E2, E5, E6 e E7 como etapas próprias, enquanto o motor executa E3, E4, E12 e E20. São duas representações da mesma etapa.
+
+Correção: o texto do Word passa a viver na etapa técnica correspondente e o nome do Word vira apenas o **rótulo visível**.
 
 ```text
-E0 → E0        E1 → E1        E2 → E3        E3 → E4
-E5 → E12       E6 → E20 ("E6 — Apresentação Digital")
-E7 → (finalização, hoje sem executor)
-R1/R2/R3, RE0–RE3, RF0/RF1 → iguais
+Word  ->  chave técnica      rótulo exibido
+E2    ->  E3                 "E2 — ..." (nome do Word)
+E5    ->  E4                 "E5 — ..."
+E6    ->  E12                "E6 — ..."
+E7    ->  FINALIZACAO        "E7 — ..."   (fica inativa, sem texto oficial)
+E20   ->  E20                "E6 — Apresentação Digital" (mantido)
 ```
 
-As chaves gravadas em fila, decisões, snapshots e histórico permanecem
-inalteradas. Nenhum rename em banco. A UI (Biblioteca, Ação do Dia, ficha)
-passa a mostrar o rótulo oficial do Word ao lado da chave técnica.
+As linhas duplicadas E2/E5/E6/E7 são desativadas (não apagadas), e o texto importado entra como nova versão da etapa técnica — versionamento imutável, a versão anterior permanece consultável. Snapshots já enviados não mudam.
 
-## Passo 2 — Importação oficial do Word (idempotente)
+## 2. OPORTUNIDADE encerra o ciclo automático
 
-Rodar a importação já existente para preencher a Biblioteca com o texto do Word,
-com e sem nome, versionando apenas quando o texto mudar. E20, E27 e resposta
-automática continuam sem texto oficial e permanecem bloqueadas para envio.
+Quando o lead entra em OPORTUNIDADE:
 
-## Passo 3 — Higiene dos vínculos de conteúdo
+- a ocorrência ativa da Apresentação Digital é encerrada (`close_reason = oportunidade`);
+- checkpoint (E27) e finalização pendentes são cancelados e somem da Ação do Dia;
+- fica um registro no histórico dizendo que o executivo assumiu a conversa;
+- nada automático é enviado depois disso.
 
-Revisar caso a caso os vínculos duplicados (E1, E3, R2, V3) e definir posição
-determinística de rotação. Nenhum conteúdo é apagado — apenas desativado quando
-for legado comprovado.
+O cancelamento roda tanto no momento da mudança de etapa quanto na varredura do motor, para pegar leads que já estavam em oportunidade.
 
-## Passo 4 — Executor de E27 e FINALIZAÇÃO
+## 3. Textos oficiais de E20, E27 e Finalização
 
-Hoje a E20 grava `checkpoint_due_at` e `finalization_due_on`, mas nada executa
-essas datas. Implementar no motor oficial:
+Essas três etapas continuam **sem texto** até você enviar os oficiais. O que será feito agora:
 
-- E27 no vencimento do checkpoint da ocorrência E20 vigente;
-- FINALIZAÇÃO no dia útil seguinte;
-- cancelamento automático por nova E20 ou por OPORTUNIDADE;
-- uma única instância por ocorrência (idempotência por lead + ocorrência + etapa);
-- passagem obrigatória pelo motor de mensagens: snapshot, executivo responsável
-  e modo de ambiente.
+- a Biblioteca passa a listar as três explicitamente como "aguardando texto oficial", com campo pronto para colar e ativar;
+- enquanto estiverem inativas, o motor não envia nada e registra o motivo no histórico (comportamento já existente, apenas fica visível na tela);
+- ao ativar o texto, o ciclo passa a fechar sozinho, sem nenhuma outra alteração.
 
-Enquanto não houver texto oficial aprovado para E27/FINALIZAÇÃO, as tarefas
-nascem bloqueadas com motivo legível — nunca com texto inventado.
+## Detalhes técnicos
 
-## Passo 5 — Ação do Dia: E20, E27 e FINALIZAÇÃO
+- Migração de dados: reatribuição do conteúdo importado (`import_version = 1`) para as chaves técnicas, com `title` recebendo o rótulo do Word; linhas antigas ficam `active = false`.
+- `relationship_e20_occurrences`: novo `close_reason = 'oportunidade'`; `closure.server.ts` ignora ocorrências fechadas e `listClosureDuties` deixa de emitir obrigações para elas.
+- Gatilho de cancelamento no ponto único de mudança de etapa (`set_lead_operational` / caminho de estágio do CRM) + reconciliação no `runClosureTick`.
+- Painel da Biblioteca (`message-library-panel.tsx`): estado "sem texto oficial" para E20, E27 e FINALIZACAO, permitindo salvar rótulo mesmo sem versão ativa.
+- Sem mudanças no Portal dos Leads, na integração GreenSales, no backup ou nas rotas.
 
-Incluir as três como fontes de leitura, respeitando a precedência atual
-(Agenda/Reunião > Mensagem > Ligação), um card por lead e demais pendências em
-secundário. A Ação do Dia continua somente leitura.
+## Fora deste escopo
 
-## Passo 6 — Encerramento dos legados
-
-- Remover a chamada de `processWelcome` na entrada de leads e o `retryCrmWelcome`;
-- retirar `CRM_FIRST_CONTACT`/`CRM_TEMPLATES` como fonte de texto de envio;
-- substituir o `WHATSAPP_NUMBER` fixo pelos destinos resolvidos no servidor nos
-  cinco pontos públicos que ainda o usam como fallback.
-
-## Passo 7 — Limpeza visual
-
-- Aba "Jornada do Investidor" some da ficha do CRM (o agregador de servidor
-  continua ativo);
-- "Pendências de Identidade" some do menu (rota e motor intactos);
-- Central de Templates sai do menu; o cadastro técnico do template Meta da E0
-  permanece;
-- limpeza dos textos apontados no Remarketing, sem alterar regra de campanha.
-
-## Passo 8 — Testes antes do reset
-
-Fluxo completo simulado E0 → E1 → E3 → E4 → E12, E20 com reemissão, E27,
-FINALIZAÇÃO, OPORTUNIDADE encerrando tudo, retry sem duplicar mensagem externa
-e conferência de que produção real não recebeu nada.
-
-## Passo 9 — Reset de homologação
-
-Somente depois dos passos 1 a 8 aprovados. Registrar contagens antes e depois
-das tabelas protegidas para provar que nada real foi tocado.
-
-## Passo 10 — Testes depois do reset
-
-Lead novo deve nascer em NOVO, com E0 como única etapa automática, sem fila de
-acompanhamento até a primeira ação humana.
-
-## Migrations necessárias
-
-Apenas uma, no Passo 4: tabela/colunas de controle das tarefas de E27 e
-FINALIZAÇÃO com chave única por ocorrência. Nenhuma outra migration é necessária.
-
-## O que não pode ser feito junto
-
-O reset nunca entra no mesmo comando que alterações de motor. O executor de
-E27/FINALIZAÇÃO nunca entra junto com a limpeza de legados.
+- Cadastro do template Meta e preenchimento do WhatsApp dos executivos (dados operacionais, feitos por você nas telas existentes).
+- Envio manual do CRM com textos fixos e telefone institucional nos perfis-semente — refino separado.
