@@ -150,7 +150,10 @@ function resolveShell(pathname: string): EditorialVariant | "executive" {
   // O Remarketing é ambiente operacional próprio (mesma linguagem do CRM).
   if (pathname.startsWith("/f/remarketing")) return "executive";
   if (pathname.startsWith("/universo")) return "universo";
-  if (pathname === "/") return "portal";
+  // A raiz "/" é o Portal Institucional do Grupo Velox: shell próprio.
+  if (pathname === "/") return "group";
+  if (pathname === "/s" || pathname === "/seg") return "group";
+  if (pathname === "/f" || pathname === "/f/") return "portal";
   return "manual";
 }
 
@@ -192,7 +195,10 @@ function RootRoutes() {
   // O Remarketing é ambiente OPERACIONAL: nunca herda o shell editorial
   // nem o redirecionamento do Gateway do Portal.
   const isRemarketing = pathname.startsWith("/f/remarketing");
-  const isPortal = pathname === "/";
+  const isPortal = pathname === "/f" || pathname === "/f/";
+  // Raiz institucional do Grupo e páginas Solar/Seguros: sem shell editorial
+  // do Portal e sem qualquer redirecionamento de Gateway.
+  const isGroup = pathname === "/" || pathname === "/s" || pathname === "/seg";
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";
   // Agenda Operacional Global: disponível em todo ambiente interno da
@@ -208,7 +214,7 @@ function RootRoutes() {
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isExecutive || isCrm || isLeadsPortal || isRemarketing || isPortal) return;
+    if (isExecutive || isCrm || isLeadsPortal || isRemarketing || isPortal || isGroup) return;
     const insideOverlay = window.self !== window.top;
     const mod = moduleForPath(pathname);
     if (!mod) return;
@@ -222,7 +228,7 @@ function RootRoutes() {
       return;
     }
     navigate({ to: "/f", search: { m: mod.key }, replace: true });
-  }, [isCrm, isExecutive, isLeadsPortal, isRemarketing, isPortal, navigate, pathname]);
+  }, [isCrm, isExecutive, isGroup, isLeadsPortal, isRemarketing, isPortal, navigate, pathname]);
 
   // Área Executiva permanece isolada do Design System editorial.
   if (isExecutive) {
