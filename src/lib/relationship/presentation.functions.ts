@@ -36,6 +36,7 @@ export const salvarCapitulo = createServerFn({ method: "POST" })
       thumbnailUrl: string | null;
       sortOrder: number;
       isActive: boolean;
+      publish?: boolean;
     }) => {
       if (!input?.title?.trim()) throw new Error("Título obrigatório.");
       return input;
@@ -54,9 +55,33 @@ export const salvarCapitulo = createServerFn({ method: "POST" })
       thumbnailUrl: data.thumbnailUrl,
       sortOrder: data.sortOrder,
       isActive: data.isActive,
+      publish: data.publish !== false,
       actorId: context.userId,
       actorName,
     });
+  });
+
+export const listarRascunhos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
+    const { listDraftChapters } = await import("@/server/relationship/presentation.server");
+    return listDraftChapters();
+  });
+
+export const publicarCapitulo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { chapterKey: string }) => {
+    if (!input?.chapterKey) throw new Error("Capítulo obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
+    const { publishDraft } = await import("@/server/relationship/presentation.server");
+    const actorName = String((context.claims as Record<string, any> | null)?.["email"] ?? "Administrador");
+    return publishDraft({ chapterKey: data.chapterKey, actorId: context.userId, actorName });
   });
 
 export const alternarCapitulo = createServerFn({ method: "POST" })

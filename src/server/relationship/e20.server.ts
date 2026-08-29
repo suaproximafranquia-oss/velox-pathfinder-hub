@@ -60,6 +60,9 @@ export type E20Occurrence = {
   finalizationDueOn: string;
   closedAt: string | null;
   closeReason: string | null;
+  sentConfirmedAt: string | null;
+  sentByName: string | null;
+  scriptVersion: number | null;
 };
 
 function toOccurrence(row: Record<string, any>): E20Occurrence {
@@ -78,6 +81,9 @@ function toOccurrence(row: Record<string, any>): E20Occurrence {
     finalizationDueOn: row["finalization_due_on"],
     closedAt: row["closed_at"] ?? null,
     closeReason: row["close_reason"] ?? null,
+    sentConfirmedAt: row["sent_confirmed_at"] ?? null,
+    sentByName: row["sent_by_name"] ?? null,
+    scriptVersion: row["script_version"] ?? null,
   };
 }
 
@@ -191,6 +197,9 @@ export async function issueE20(params: {
       generated_at: at,
       expires_at: expiresAt,
       checkpoint_due_at: expiresAt,
+      script_version: roteiro.items.length
+        ? Math.max(...roteiro.items.map((item) => item.version))
+        : 0,
       finalization_due_on: nextBusinessDayAfter(new Date(expiresAt)),
       snapshot: {
         emitido_por: params.generatedByName,
@@ -322,6 +331,41 @@ export async function listE20Accesses(leadId: string) {
 }
 
 /**
+ * ENVIO CONFIRMADO (§10): copiar nunca é enviar. O envio só existe
+ * quando uma pessoa declara explicitamente que enviou.
+ */
+export async function markE20Sent(params: {
+  occurrenceId: string;
+  actorId?: string | null;
+  actorName: string;
+}): Promise<{ marked: boolean; reason?: string }> {
+  const at = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("relationship_e20_occurrences")
+    .update({
+      sent_confirmed_at: at,
+      sent_by: params.actorId ?? null,
+      sent_by_name: params.actorName,
+      updated_at: at,
+    } as any)
+    .eq("id", params.occurrenceId)
+    .is("sent_confirmed_at", null)
+    .select("lead_id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return { marked: false, reason: "Esta apresentação já estava marcada como enviada." };
+
+  await logE20Event({
+    leadId: String((data as any).lead_id),
+    occurrenceId: params.occurrenceId,
+    event: "mensagem_enviada",
+    actorId: params.actorId ?? null,
+    actorName: params.actorName,
+  });
+  return { marked: true };
+}
+
+/**
  * ENCERRAMENTO MANUAL (§12): exige motivo, autor e horário. Não existe
  * "apresentação concluída" — o que existe é uma emissão encerrada.
  */
@@ -439,6 +483,24 @@ export async function redeemE20(token: string, userAgent?: string | null): Promi
     event: "aberta",
     actorName: "Investidor",
   });
+
+  /**
+   * ABERTURA CUMPRE O CHECKPOINT (E27): se o investidor assistiu à
+   * apresentação, o lembrete automático perde a razão de existir. O
+   * checkpoint é marcado como cumprido pela própria abertura — o
+   * executivo assume a conversa a partir daqui.
+   */
+  if (!row["checkpoint_done_at"]) {
+    await supabaseAdmin
+      .from("relationship_e20_occurrences")
+      .update({
+        checkpoint_done_at: at,
+        checkpoint_cancel_reason: "apresentacao_aberta_pelo_investidor",
+      } as any)
+      .eq("id", row["id"])
+      .is("checkpoint_done_at", null);
+  }
+
 
   /**
    * PRESENÇA (§17): a abertura é atividade REAL no Portal e alimenta o

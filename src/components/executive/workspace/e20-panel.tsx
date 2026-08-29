@@ -15,7 +15,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Link2, RefreshCw, Copy, Check, Eye, XCircle } from "lucide-react";
+import { Link2, RefreshCw, Copy, Check, Eye, XCircle, Send } from "lucide-react";
 import {
   estadoE20,
   emitirE20,
@@ -23,6 +23,7 @@ import {
   encerrarE20,
   auditoriaE20,
   mensagemDaE20,
+  marcarEnvioE20,
 } from "@/lib/relationship/e20.functions";
 import { toast } from "sonner";
 
@@ -35,6 +36,9 @@ type Occurrence = {
   expiresAt: string;
   firstOpenedAt: string | null;
   openCount: number;
+  sentConfirmedAt: string | null;
+  sentByName: string | null;
+  scriptVersion: number | null;
 };
 
 type AccessRow = { id: string; accessed_at: string; outcome: string };
@@ -82,15 +86,17 @@ export function E20Panel({ investorId }: { investorId: string }) {
   const close = useServerFn(encerrarE20);
   const readAudit = useServerFn(auditoriaE20);
   const readMessage = useServerFn(mensagemDaE20);
+  const markSent = useServerFn(marcarEnvioE20);
 
   const [current, setCurrent] = useState<Occurrence | null>(null);
   const [history, setHistory] = useState<Occurrence[]>([]);
   const [accesses, setAccesses] = useState<AccessRow[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
-  const [message, setMessage] = useState<{ body: string | null; reason: string | null }>({
-    body: null,
-    reason: null,
-  });
+  const [message, setMessage] = useState<{
+    body: string | null;
+    reason: string | null;
+    version: number | null;
+  }>({ body: null, reason: null, version: null });
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [copied, setCopied] = useState<"mensagem" | "link" | null>(null);
@@ -112,9 +118,9 @@ export function E20Panel({ investorId }: { investorId: string }) {
         const msg = await readMessage({
           data: { leadId: investorId, occurrenceId: active.id },
         });
-        setMessage({ body: msg.body, reason: msg.reason });
+        setMessage({ body: msg.body, reason: msg.reason, version: msg.version ?? null });
       } else {
-        setMessage({ body: null, reason: null });
+        setMessage({ body: null, reason: null, version: null });
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível ler a apresentação.");
@@ -161,6 +167,20 @@ export function E20Panel({ investorId }: { investorId: string }) {
       await refresh();
     } catch {
       toast.error("Não foi possível copiar.");
+    }
+  }
+
+  async function handleMarkSent(occurrenceId: string) {
+    setWorking(true);
+    try {
+      const result = await markSent({ data: { occurrenceId } });
+      if (!result.marked) toast.info(result.reason ?? "Envio já registrado.");
+      else toast.success("Envio registrado.");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao registrar o envio.");
+    } finally {
+      setWorking(false);
     }
   }
 
@@ -303,8 +323,30 @@ export function E20Panel({ investorId }: { investorId: string }) {
             </p>
           )}
 
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {current.sentConfirmedAt ? (
+              <span className="inline-flex items-center gap-1.5 rounded border border-[color:var(--border)] px-2 py-1 text-[11px] text-[color:var(--muted-foreground)]">
+                <Check className="h-3 w-3" aria-hidden />
+                Enviada em {dateLabel(current.sentConfirmedAt)}
+                {current.sentByName ? ` · ${current.sentByName}` : ""}
+              </span>
+            ) : (
+              <button
+                type="button"
+                disabled={working}
+                onClick={() => void handleMarkSent(current.id)}
+                className="inline-flex items-center gap-1.5 rounded border border-[color:var(--border)] px-2 py-1 text-[11px] text-[color:var(--foreground)] transition hover:border-[color:var(--gold)] disabled:opacity-50"
+              >
+                <Send className="h-3 w-3" aria-hidden />
+                Marcar como enviada
+              </button>
+            )}
+          </div>
+
           <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">
             Emitida em {dateLabel(current.generatedAt)} · expira em {dateLabel(current.expiresAt)}
+            {current.scriptVersion !== null ? ` · roteiro v${current.scriptVersion}` : ""}
+            {message.version !== null ? ` · mensagem v${message.version}` : ""}
           </p>
 
           <div className="mt-3 grid gap-1 text-xs text-[color:var(--muted-foreground)]">
