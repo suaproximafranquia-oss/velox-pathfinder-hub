@@ -23,21 +23,26 @@ import {
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
-  CONTENT_GROUPS,
-  CONTENT_GROUP_LABELS,
   CONTENT_KIND_LABELS,
   contentGroupsOf,
-  contentLibraryStats,
-  type ContentGroup,
   type ContentKind,
   type ValueContent,
 } from "@/lib/relationship/content";
+import {
+  CONTENT_REQUIRED_STEPS,
+  KNOWN_STEP_KEYS,
+} from "@/lib/relationship/step-registry";
+import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import {
   deleteRelationshipContent,
   listRelationshipContents,
   saveRelationshipContent,
   toggleRelationshipContent,
 } from "@/lib/relationship-homologation.functions";
+import {
+  definirEtapasDoConteudo,
+  listarVinculosDeEtapa,
+} from "@/lib/relationship/library.functions";
 import { MessageLibraryPanel } from "@/components/executive/message-library-panel";
 import { cn } from "@/lib/utils";
 
