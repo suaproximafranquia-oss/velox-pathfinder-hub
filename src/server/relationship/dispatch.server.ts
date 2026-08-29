@@ -202,15 +202,18 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     sentAt: at,
   });
 
-  /**
-   * ROTAÇÃO REAL: o conteúdo que acabou de sair passa a contar como
-   * utilizado, então o próximo envio do grupo escolhe outro material.
-   */
-  await registerContentUsage(request.contentId ?? null, at);
-
   const delivery = simulated
     ? { delivered: false as const, provider: "simulador", error: undefined as string | undefined }
     : await sendWhatsappText({ phone: recipient.phone, body });
+
+  /**
+   * ROTAÇÃO REAL: o conteúdo só passa a contar como utilizado depois da
+   * ENTREGA EFETIVA. Simulação e falha de canal não movem o contador.
+   */
+  if (!simulated && delivery.delivered) {
+    await registerContentUsage(request.contentId ?? null, at);
+  }
+
 
   await supabaseAdmin.from("crm_timeline").insert({
     id: `tl_${step.toLowerCase()}_${request.leadId}`,
