@@ -371,7 +371,7 @@ export type E20Redemption =
       leadId: string;
       occurrenceId: string;
       /** Roteiro CONGELADO na emissão — nunca o roteiro atual. */
-      script: { frozenAt: string; items: unknown[] } | null;
+      script: import("./presentation.server").PresentationScript | null;
       expiresAt: string;
     };
 
@@ -458,7 +458,7 @@ export async function redeemE20(token: string, userAgent?: string | null): Promi
     valid: true,
     leadId: String(row["lead_id"]),
     occurrenceId: String(row["id"]),
-    script: script ? { frozenAt: script.frozenAt, items: script.items } : null,
+    script,
     expiresAt: String(row["expires_at"]),
   };
 }

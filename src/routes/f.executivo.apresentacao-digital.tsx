@@ -14,6 +14,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowDown, ArrowUp, Film, Plus, Save } from "lucide-react";
 import { toast } from "sonner";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   listarCapitulos,
   permissaoApresentacao,
@@ -74,6 +75,7 @@ function ApresentacaoDigitalPage() {
   const toggle = useServerFn(alternarCapitulo);
   const reorder = useServerFn(reordenarCapitulos);
 
+  const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [draft, setDraft] = useState({ ...EMPTY_DRAFT });
@@ -92,6 +94,7 @@ function ApresentacaoDigitalPage() {
   }, [readPermission, list]);
 
   useEffect(() => {
+    setSession(getSession());
     void load();
   }, [load]);
 
@@ -135,9 +138,9 @@ function ApresentacaoDigitalPage() {
     setChapters(result);
   }
 
-  if (allowed === null) {
+  if (!session || allowed === null) {
     return (
-      <ExecutiveShell title="Apresentação Digital">
+      <ExecutiveShell session={session!} title="Apresentação Digital">
         <p className="text-sm text-[color:var(--muted-foreground)]">Verificando permissão…</p>
       </ExecutiveShell>
     );
@@ -145,7 +148,7 @@ function ApresentacaoDigitalPage() {
 
   if (!allowed) {
     return (
-      <ExecutiveShell title="Apresentação Digital">
+      <ExecutiveShell session={session!} title="Apresentação Digital">
         <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
           <h2 className="text-sm font-semibold">Área restrita</h2>
           <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
@@ -158,7 +161,7 @@ function ApresentacaoDigitalPage() {
   }
 
   return (
-    <ExecutiveShell title="Apresentação Digital">
+    <ExecutiveShell session={session!} title="Apresentação Digital">
       <div className="space-y-6">
         <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
