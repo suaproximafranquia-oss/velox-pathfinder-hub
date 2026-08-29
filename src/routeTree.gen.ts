@@ -94,6 +94,7 @@ import { Route as FExecutivoCampanhasRouteImport } from './routes/f.executivo.ca
 import { Route as FExecutivoBrainRouteImport } from './routes/f.executivo.brain'
 import { Route as FExecutivoBibliotecaRouteImport } from './routes/f.executivo.biblioteca'
 import { Route as FExecutivoBackupsRouteImport } from './routes/f.executivo.backups'
+import { Route as FExecutivoApresentacaoDigitalRouteImport } from './routes/f.executivo.apresentacao-digital'
 import { Route as FExecutivoAlertasRouteImport } from './routes/f.executivo.alertas'
 import { Route as FExecutivoAdministracaoRouteImport } from './routes/f.executivo.administracao'
 import { Route as FExecutivoInvestidoresIdRouteImport } from './routes/f.executivo.investidores.$id'
@@ -529,6 +530,12 @@ const FExecutivoBackupsRoute = FExecutivoBackupsRouteImport.update({
   path: '/backups',
   getParentRoute: () => FExecutivoRoute,
 } as any)
+const FExecutivoApresentacaoDigitalRoute =
+  FExecutivoApresentacaoDigitalRouteImport.update({
+    id: '/apresentacao-digital',
+    path: '/apresentacao-digital',
+    getParentRoute: () => FExecutivoRoute,
+  } as any)
 const FExecutivoAlertasRoute = FExecutivoAlertasRouteImport.update({
   id: '/alertas',
   path: '/alertas',
@@ -628,6 +635,7 @@ export interface FileRoutesByFullPath {
   '/seg/': typeof SegIndexRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
+  '/f/executivo/apresentacao-digital': typeof FExecutivoApresentacaoDigitalRoute
   '/f/executivo/backups': typeof FExecutivoBackupsRoute
   '/f/executivo/biblioteca': typeof FExecutivoBibliotecaRoute
   '/f/executivo/brain': typeof FExecutivoBrainRoute
@@ -719,6 +727,7 @@ export interface FileRoutesByTo {
   '/seg': typeof SegIndexRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
+  '/f/executivo/apresentacao-digital': typeof FExecutivoApresentacaoDigitalRoute
   '/f/executivo/backups': typeof FExecutivoBackupsRoute
   '/f/executivo/biblioteca': typeof FExecutivoBibliotecaRoute
   '/f/executivo/brain': typeof FExecutivoBrainRoute
@@ -815,6 +824,7 @@ export interface FileRoutesById {
   '/seg/': typeof SegIndexRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
+  '/f/executivo/apresentacao-digital': typeof FExecutivoApresentacaoDigitalRoute
   '/f/executivo/backups': typeof FExecutivoBackupsRoute
   '/f/executivo/biblioteca': typeof FExecutivoBibliotecaRoute
   '/f/executivo/brain': typeof FExecutivoBrainRoute
@@ -912,6 +922,7 @@ export interface FileRouteTypes {
     | '/seg/'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
+    | '/f/executivo/apresentacao-digital'
     | '/f/executivo/backups'
     | '/f/executivo/biblioteca'
     | '/f/executivo/brain'
@@ -1003,6 +1014,7 @@ export interface FileRouteTypes {
     | '/seg'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
+    | '/f/executivo/apresentacao-digital'
     | '/f/executivo/backups'
     | '/f/executivo/biblioteca'
     | '/f/executivo/brain'
@@ -1098,6 +1110,7 @@ export interface FileRouteTypes {
     | '/seg/'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
+    | '/f/executivo/apresentacao-digital'
     | '/f/executivo/backups'
     | '/f/executivo/biblioteca'
     | '/f/executivo/brain'
@@ -1792,6 +1805,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoBackupsRouteImport
       parentRoute: typeof FExecutivoRoute
     }
+    '/f/executivo/apresentacao-digital': {
+      id: '/f/executivo/apresentacao-digital'
+      path: '/apresentacao-digital'
+      fullPath: '/f/executivo/apresentacao-digital'
+      preLoaderRoute: typeof FExecutivoApresentacaoDigitalRouteImport
+      parentRoute: typeof FExecutivoRoute
+    }
     '/f/executivo/alertas': {
       id: '/f/executivo/alertas'
       path: '/alertas'
@@ -1878,6 +1898,7 @@ const FExecutivoInvestidoresRouteWithChildren =
 interface FExecutivoRouteChildren {
   FExecutivoAdministracaoRoute: typeof FExecutivoAdministracaoRoute
   FExecutivoAlertasRoute: typeof FExecutivoAlertasRoute
+  FExecutivoApresentacaoDigitalRoute: typeof FExecutivoApresentacaoDigitalRoute
   FExecutivoBackupsRoute: typeof FExecutivoBackupsRoute
   FExecutivoBibliotecaRoute: typeof FExecutivoBibliotecaRoute
   FExecutivoBrainRoute: typeof FExecutivoBrainRoute
@@ -1911,6 +1932,7 @@ interface FExecutivoRouteChildren {
 const FExecutivoRouteChildren: FExecutivoRouteChildren = {
   FExecutivoAdministracaoRoute: FExecutivoAdministracaoRoute,
   FExecutivoAlertasRoute: FExecutivoAlertasRoute,
+  FExecutivoApresentacaoDigitalRoute: FExecutivoApresentacaoDigitalRoute,
   FExecutivoBackupsRoute: FExecutivoBackupsRoute,
   FExecutivoBibliotecaRoute: FExecutivoBibliotecaRoute,
   FExecutivoBrainRoute: FExecutivoBrainRoute,

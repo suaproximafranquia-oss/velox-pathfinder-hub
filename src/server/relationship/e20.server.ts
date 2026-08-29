@@ -168,6 +168,14 @@ export async function issueE20(params: {
   const expiresAt = new Date(now.getTime() + SEVEN_DAYS_MS).toISOString();
   const linkUrl = `${params.baseUrl.replace(/\/+$/, "")}/portal/convite/${token}`;
 
+  /**
+   * SNAPSHOT DO ROTEIRO (§6): o que vale para esta emissão é o roteiro
+   * vigente AGORA. Mudanças posteriores na administração não alteram
+   * apresentações já emitidas.
+   */
+  const { currentScript } = await import("./presentation.server");
+  const roteiro = await currentScript();
+
   const { data, error } = await supabaseAdmin
     .from("relationship_e20_occurrences")
     .insert({
@@ -188,6 +196,7 @@ export async function issueE20(params: {
         emitido_por: params.generatedByName,
         assinatura: signatureName,
         instancia: instance.instanceSeq,
+        roteiro,
       },
     } as any)
     .select("*")
@@ -195,6 +204,15 @@ export async function issueE20(params: {
   if (error) throw new Error(error.message);
 
   const occurrence = toOccurrence(data as Record<string, any>);
+
+  await logE20Event({
+    leadId: params.leadId,
+    occurrenceId: occurrence.id,
+    event: "gerada",
+    actorId: params.generatedBy ?? null,
+    actorName: params.generatedByName,
+    metadata: { assinatura: signatureName, capitulos: roteiro.items.length },
+  });
 
   /**
    * A mensagem da E20 vem da BIBLIOTECA (versão ativa) — nunca de texto
@@ -250,9 +268,112 @@ export async function issueE20(params: {
   };
 }
 
+/**
+ * TRILHA DA APRESENTAÇÃO (§10 e §16). Cada estado é um FATO próprio:
+ * gerada ≠ copiada ≠ enviada ≠ aberta. Nada é inferido.
+ */
+export async function logE20Event(params: {
+  leadId: string;
+  occurrenceId?: string | null;
+  event:
+    | "gerada"
+    | "mensagem_copiada"
+    | "link_copiado"
+    | "mensagem_enviada"
+    | "aberta"
+    | "expirada"
+    | "encerrada";
+  reason?: string | null;
+  actorId?: string | null;
+  actorName?: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  await supabaseAdmin.from("relationship_e20_events").insert({
+    lead_id: params.leadId,
+    occurrence_id: params.occurrenceId ?? null,
+    event: params.event,
+    reason: params.reason ?? null,
+    actor_id: params.actorId ?? null,
+    actor_name: params.actorName ?? null,
+    metadata: (params.metadata ?? {}) as any,
+    at: new Date().toISOString(),
+  } as any);
+}
+
+export async function listE20Events(leadId: string) {
+  const { data } = await supabaseAdmin
+    .from("relationship_e20_events")
+    .select("*")
+    .eq("lead_id", leadId)
+    .order("at", { ascending: false })
+    .limit(200);
+  return data ?? [];
+}
+
+/** Aberturas registradas — o histórico nunca é substituído pelo último acesso. */
+export async function listE20Accesses(leadId: string) {
+  const { data } = await supabaseAdmin
+    .from("relationship_e20_accesses")
+    .select("*")
+    .eq("lead_id", leadId)
+    .order("accessed_at", { ascending: false })
+    .limit(200);
+  return data ?? [];
+}
+
+/**
+ * ENCERRAMENTO MANUAL (§12): exige motivo, autor e horário. Não existe
+ * "apresentação concluída" — o que existe é uma emissão encerrada.
+ */
+export async function closeE20Manually(params: {
+  occurrenceId: string;
+  reason: string;
+  actorId?: string | null;
+  actorName: string;
+}): Promise<{ closed: boolean; reason?: string }> {
+  const motivo = params.reason.trim();
+  if (!motivo) return { closed: false, reason: "Motivo obrigatório." };
+
+  const at = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("relationship_e20_occurrences")
+    .update({
+      status: "encerrada",
+      closed_at: at,
+      close_reason: "encerrada_manualmente",
+      close_note: motivo,
+      closed_by: params.actorId ?? null,
+      closed_by_name: params.actorName,
+      updated_at: at,
+    } as any)
+    .eq("id", params.occurrenceId)
+    .is("closed_at", null)
+    .select("lead_id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return { closed: false, reason: "Esta apresentação já estava encerrada." };
+
+  await logE20Event({
+    leadId: String((data as any).lead_id),
+    occurrenceId: params.occurrenceId,
+    event: "encerrada",
+    reason: motivo,
+    actorId: params.actorId ?? null,
+    actorName: params.actorName,
+  });
+  return { closed: true };
+}
+
 export type E20Redemption =
   | { valid: false; reason: string }
-  | { valid: true; leadId: string; occurrenceId: string };
+  | {
+      valid: true;
+      leadId: string;
+      occurrenceId: string;
+      /** Roteiro CONGELADO na emissão — nunca o roteiro atual. */
+      script: import("./presentation.server").PresentationScript | null;
+      expiresAt: string;
+    };
 
 /**
  * Resgate do link. A validade é a da EMISSÃO — um link antigo não
@@ -269,7 +390,7 @@ export async function redeemE20(token: string, userAgent?: string | null): Promi
   const row = data as Record<string, any>;
   const at = new Date().toISOString();
   const expired = new Date(row["expires_at"]).getTime() < Date.now();
-  const closed = Boolean(row["closed_at"]) && row["close_reason"] === "encerrada_por_nova";
+  const closed = Boolean(row["closed_at"]);
 
   await supabaseAdmin.from("relationship_e20_accesses").insert({
     occurrence_id: row["id"],
@@ -284,12 +405,21 @@ export async function redeemE20(token: string, userAgent?: string | null): Promi
       .from("relationship_e20_occurrences")
       .update({ status: "expirada" } as any)
       .eq("id", row["id"]);
+    await logE20Event({
+      leadId: String(row["lead_id"]),
+      occurrenceId: String(row["id"]),
+      event: "expirada",
+      actorName: "Investidor",
+    });
     return { valid: false, reason: "Este convite expirou. Peça um novo ao seu executivo." };
   }
   if (closed) {
     return {
       valid: false,
-      reason: "Este convite foi substituído por um mais recente. Use o último link recebido.",
+      reason:
+        row["close_reason"] === "encerrada_manualmente"
+          ? "Este convite foi encerrado pelo seu executivo. Solicite um novo acesso."
+          : "Este convite foi substituído por um mais recente. Use o último link recebido.",
     };
   }
 
@@ -303,5 +433,32 @@ export async function redeemE20(token: string, userAgent?: string | null): Promi
     } as any)
     .eq("id", row["id"]);
 
-  return { valid: true, leadId: row["lead_id"], occurrenceId: row["id"] };
+  await logE20Event({
+    leadId: String(row["lead_id"]),
+    occurrenceId: String(row["id"]),
+    event: "aberta",
+    actorName: "Investidor",
+  });
+
+  /**
+   * PRESENÇA (§17): a abertura é atividade REAL no Portal e alimenta o
+   * mesmo motor de engajamento já existente — sem lógica paralela.
+   */
+  try {
+    const { applyEngagementEvent } = await import("@/server/portal-engagement.server");
+    await applyEngagementEvent({ investorId: String(row["lead_id"]), module: "portal" });
+  } catch {
+    /* engajamento nunca impede o investidor de assistir */
+  }
+
+  const { scriptFromSnapshot } = await import("./presentation.server");
+  const script = scriptFromSnapshot(row["snapshot"]);
+
+  return {
+    valid: true,
+    leadId: String(row["lead_id"]),
+    occurrenceId: String(row["id"]),
+    script,
+    expiresAt: String(row["expires_at"]),
+  };
 }
