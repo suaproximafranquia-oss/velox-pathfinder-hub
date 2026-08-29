@@ -141,7 +141,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-function resolveShell(pathname: string): EditorialVariant | "executive" {
+function resolveShell(pathname: string): EditorialVariant | "executive" | "group" {
   if (pathname.startsWith("/f/executivo")) return "executive";
   // O CRM é um ambiente operacional próprio — não herda o tema editorial.
   if (pathname.startsWith("/f/crm")) return "executive";
@@ -260,6 +260,16 @@ function RootRoutes() {
   // Experiências, Biblioteca, FAQ, …) recebem a variante correta
   // adicionando uma entrada abaixo — nenhum estilo é duplicado.
   const variant: EditorialVariant = isPortal ? "portal" : isUniverso ? "universo" : "manual";
+
+  // Raiz institucional do Grupo (e Solar/Seguros): página autônoma, sem
+  // shell editorial do Portal do Investidor.
+  if (isGroup) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+      </QueryClientProvider>
+    );
+  }
 
   const content =
     isPortal || isUniverso || isGateway ? (
