@@ -4,6 +4,7 @@
  * Nenhuma constante de cadência pode ser declarada fora deste arquivo.
  * Se uma regra precisar mudar, muda aqui — não em componentes.
  */
+import { defaultNonBusinessDays } from "./holidays";
 import { E30_BUSINESS_DAYS_AFTER_START, E30_ENABLED } from "./reactivation";
 import type { CadenceFlow, CadenceStep } from "./types";
 
