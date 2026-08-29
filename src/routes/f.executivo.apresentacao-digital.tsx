@@ -11,7 +11,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowDown, ArrowUp, Film, Plus, Save } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, Film, Plus, Save, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
@@ -21,6 +21,8 @@ import {
   salvarCapitulo,
   alternarCapitulo,
   reordenarCapitulos,
+  listarRascunhos,
+  publicarCapitulo,
 } from "@/lib/relationship/presentation.functions";
 
 export const Route = createFileRoute("/f/executivo/apresentacao-digital")({
@@ -57,6 +59,9 @@ type Chapter = {
   sortOrder: number;
   isActive: boolean;
   updatedAt: string;
+  isDraft: boolean;
+  publishedAt: string | null;
+  publishedByName: string | null;
 };
 
 const EMPTY_DRAFT = {
@@ -74,11 +79,15 @@ function ApresentacaoDigitalPage() {
   const save = useServerFn(salvarCapitulo);
   const toggle = useServerFn(alternarCapitulo);
   const reorder = useServerFn(reordenarCapitulos);
+  const listDrafts = useServerFn(listarRascunhos);
+  const publish = useServerFn(publicarCapitulo);
 
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [draft, setDraft] = useState({ ...EMPTY_DRAFT });
+  const [drafts, setDrafts] = useState<Chapter[]>([]);
+  const [preview, setPreview] = useState(false);
   const [working, setWorking] = useState(false);
 
   const load = useCallback(async () => {
@@ -86,19 +95,21 @@ function ApresentacaoDigitalPage() {
       const permission = await readPermission({});
       setAllowed(permission.allowed);
       if (!permission.allowed) return;
-      setChapters((await list({})) as Chapter[]);
+      const [current, pending] = await Promise.all([list({}), listDrafts({})]);
+      setChapters(current as Chapter[]);
+      setDrafts(pending as Chapter[]);
     } catch (error) {
       setAllowed(false);
       toast.error(error instanceof Error ? error.message : "Falha ao carregar o roteiro.");
     }
-  }, [readPermission, list]);
+  }, [readPermission, list, listDrafts]);
 
   useEffect(() => {
     setSession(getSession());
     void load();
   }, [load]);
 
-  async function submit() {
+  async function submit(publishNow: boolean) {
     if (!draft.title.trim()) {
       toast.error("Informe o título do capítulo.");
       return;
@@ -114,11 +125,13 @@ function ApresentacaoDigitalPage() {
           thumbnailUrl: draft.thumbnailUrl.trim() || null,
           sortOrder: chapters.length,
           isActive: draft.isActive,
+          publish: publishNow,
         },
       })) as Chapter[];
       setChapters(result);
       setDraft({ ...EMPTY_DRAFT });
-      toast.success("Nova versão publicada.");
+      setDrafts((await listDrafts({})) as Chapter[]);
+      toast.success(publishNow ? "Nova versão publicada." : "Rascunho salvo — não entra em nenhuma emissão.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao salvar.");
     } finally {
