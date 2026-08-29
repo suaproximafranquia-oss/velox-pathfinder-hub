@@ -82,6 +82,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       .lt("due_at", horizonEnd)
       .limit(1000),
     buildCadenceQueue("call").catch(() => []),
+    listClosureDuties(nowIso).catch(() => []),
   ]);
 
   const meetings = (meetingsRes.data ?? []).filter((m) => {
