@@ -31,6 +31,7 @@ import {
   WORD_SOURCE_REFERENCE,
   type WordMessage,
 } from "@/lib/relationship/word-library";
+import { DEFAULT_STEP_LABELS, stepDisplayLabel } from "@/lib/relationship/step-labels";
 
 export type LibraryMessage = {
   id: string;
