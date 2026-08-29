@@ -14,7 +14,13 @@ import { fetchInstitutionalModule } from "@/lib/magazine.functions";
 import type { InstitutionalBlock } from "@/server/magazine.server";
 import { assetUrl } from "@/lib/assets/registry";
 
-const PRINCIPLE_COUNT = 6;
+/**
+ * PRINCÍPIOS VELOX — três quadros oficiais: Missão, Visão e Valores.
+ * Não existem quadros vazios "em definição": o que não tem texto
+ * oficial simplesmente não aparece.
+ */
+const PRINCIPLE_TITLES = ["Missão", "Visão", "Valores"] as const;
+const PRINCIPLE_COUNT = PRINCIPLE_TITLES.length;
 
 type PrincipleSlot = {
   position: number;
