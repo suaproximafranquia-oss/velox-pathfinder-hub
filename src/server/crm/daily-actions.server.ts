@@ -16,6 +16,8 @@ import {
   resolveBucket,
   type DailyAction,
 } from "@/lib/crm/daily-actions";
+import { stepDisplayLabel } from "@/lib/relationship/step-labels";
+import { listClosureDuties } from "@/server/relationship/closure.server";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
