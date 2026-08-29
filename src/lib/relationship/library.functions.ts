@@ -176,3 +176,36 @@ export const diagnosticoDaBiblioteca = createServerFn({ method: "GET" })
     );
     return diagnoseLibrary();
   });
+
+/**
+ * ETAPAS DE UM CONTEÚDO (fonte única do vínculo).
+ *
+ * A Biblioteca de Conteúdos declara aqui em QUAIS ETAPAS do motor o
+ * material pode ser usado. A taxonomia é a do motor (`step-registry`) —
+ * não existe segunda lista de grupos.
+ */
+export const definirEtapasDoConteudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { contentId: string; stepKeys: string[] }) => {
+    if (!input?.contentId) throw new Error("Conteúdo obrigatório.");
+    if (!Array.isArray(input?.stepKeys)) throw new Error("Etapas inválidas.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { setContentStepBindings, listStepContentBindings } = await import(
+      "@/server/relationship/step-media.server"
+    );
+    const { isKnownStep, unknownStepReason } = await import(
+      "@/lib/relationship/step-registry"
+    );
+    for (const step of data.stepKeys) {
+      if (!isKnownStep(step)) throw new Error(unknownStepReason(step));
+    }
+    const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
+    await setContentStepBindings({
+      contentId: data.contentId,
+      stepKeys: data.stepKeys,
+      actorName: String(name),
+    });
+    return listStepContentBindings();
+  });
