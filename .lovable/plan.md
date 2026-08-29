@@ -1,43 +1,53 @@
-# Refino Final — Etapas 1, 2 e 3 (pré-homologação)
+# Comando 2/3 — Desbloqueio da E0, calendário administrável, rigor de contadores e higiene de legado
 
-Consolidação da Bateria 3/3. Nada aqui foi implementado ainda.
+Base: fotografia da Bateria 1/3. Nada de texto oficial é inventado; nenhum dado histórico é reescrito.
 
-## Bloqueantes reais (impedem homologação)
+## 1. Desbloquear a E0 (prioridade máxima)
 
-1. **Chave de OPORTUNIDADE divergente.** O banco grava `stage_key = "oportunidades"` (36 leads), o código considera terminal apenas `"oportunidade"` (`src/lib/relationship/closing.ts` → `TERMINAL_STAGES`). Consequência: `terminalStageLeadIds()` retorna vazio, `reconcileOpportunityClosures` não encerra nada e E27/Finalização poderiam nascer para leads já em OPORTUNIDADE. Correção só em código: aceitar as duas grafias na leitura e padronizar a gravação nova.
-2. **Todos os 7 executivos com WhatsApp vazio** em `executive_profiles.whatsapp`. Sem isso, E0, E20, E27, Finalização e resposta automática ficam bloqueadas por `resolveLeadExecutive`. Exige dado do usuário.
-3. **Textos oficiais ausentes:** `E20`, `E27`, `FINALIZACAO` e `RESPOSTA_AUTOMATICA` existem na Biblioteca mas com `active = false` (sem texto). Exige conteúdo do usuário.
-4. **Etapas ativas sem vínculo de conteúdo:** `E12`, `V4`, `R3`, `RE0`, `RE3`, `RF0`, `RF1` têm mensagem ativa e zero linha em `relationship_step_content_bindings`.
-5. **E0 sem WhatsApp ainda não bloqueia integralmente** (decisão travada na Bateria 2). `resolveDestinations` só bloqueia quando `contactRequired = true`; se o template não exigir botão, o envio segue.
+Hoje os sete perfis têm WhatsApp vazio no cadastro, então toda E0 em produção está bloqueada — e o telefone institucional herdado dos usuários semente esconde essa pendência na tela.
 
-## Ajustes importantes (não bloqueantes)
+- Remover o telefone institucional único dos usuários semente. O perfil passa a mostrar "A cadastrar" quando não há número próprio, sem cair em número genérico.
+- O aviso na tela "Meu Perfil" passa a considerar apenas o WhatsApp real do cadastro.
+- Nova visão para a gestão: lista de executivos sem WhatsApp, com quantos leads de cada um estão com a E0 travada, alimentada pelos registros de bloqueio já auditados.
+- Campo de WhatsApp editável pelo próprio executivo e pela gestão, com validação de número (mesma normalização já usada pelo motor).
+- Nenhuma mudança na regra: sem número válido, a E0 continua 100% bloqueada, com motivo registrado.
 
-- `nextBusinessDay` de `src/server/relationship/e20.server.ts` usa `getUTCDay()`/`toISOString()` — deve usar o calendário oficial (`src/lib/relationship/calendar.ts`, America/São Paulo).
-- `RELATIONSHIP_CONFIG.nonBusinessDays` está vazio: feriados nacionais + estaduais SP precisam ser cadastrados e editáveis.
-- `usage_count` da Biblioteca nunca é incrementado no envio; contagem deve registrar apenas envio efetivo (fora: simulação, bloqueio, falha, retry repetido).
-- `importWordLibrary` continua exposto por `src/lib/relationship/library.functions.ts` e pode sobrescrever edições manuais mesmo sem botão na tela — precisa de trava explícita.
-- Rótulo visual de `FINALIZACAO` ainda não definido pelo usuário.
-- Obrigação bloqueada por texto ausente aparece na Ação do Dia sem estado próprio "bloqueada".
+## 2. Limite da janela E0 às 22:30
 
-## Legados removíveis com segurança
+- 22:30 em ponto passa a enviar; o fechamento vale a partir de 22:31. Sábado e domingo inalterados.
+- Testes de borda: 06:59, 07:00, 22:29, 22:30, 22:31, virada de meia-noite e domingo.
 
-`processWelcome` (`src/server/crm/automation.server.ts`), `retryCrmWelcome` + botão em `portal-leads-board.tsx`, `src/lib/responsible-executive.ts`, `getDefaultExecutive` em `whatsapp-floating.tsx`/`executive-data.ts`, e o telefone repetido `5517997727337` nos 7 `SEED_USERS` de `src/lib/executive-auth.ts`.
+## 3. Calendário administrável
 
-## Migrations
+- Nova tabela de dias sem envio, com data única, motivo e autor, e leitura pelo motor junto do calendário oficial de feriados nacionais + SP.
+- Tela de administração para incluir/remover datas, com efeito imediato no próximo cálculo (sem migração, sem deploy).
+- Datas duplicadas são impedidas pelo próprio banco; a lista oficial calculada (nacionais + SP, incluindo Carnaval e Corpus Christi) continua existindo e não é editável.
+- Testes: feriado prolongado, virada de ano e cálculo próximo da meia-noite.
 
-Necessária: nenhuma estrutural. Padronização de `stage_key` (`oportunidades` → leitura dupla) pode ser feita só em código; se optarmos por normalizar dados, é UPDATE controlado com registro de auditoria.
-Proibidas: qualquer alteração em `portal_leads`, `crm_leads` (histórico), `relationship_message_sends` (snapshots), `relationship_e20_occurrences` já fechadas, tabelas do Portal dos Leads e GreenSales.
+## 4. Rigor de contadores e idempotência
 
-## Testes obrigatórios antes do reset
+- O contador de uso do conteúdo passa a ser incrementado somente após entrega efetiva: simulação não conta, bloqueio não conta, falha de canal não conta, retry conta uma única vez.
+- O incremento passa a ser atômico no banco (função dedicada), eliminando corrida entre dois envios simultâneos.
+- Checkpoint e finalização ganham travas de unicidade no banco, além dos identificadores determinísticos já existentes.
 
-E27/Finalização (idempotência por ocorrência, retry, dois ticks), OPORTUNIDADE entre E20→E27 e E27→Finalização, webhook duplicado, ausência de WhatsApp, feriados e virada de meia-noite em America/São Paulo, resposta automática (1/24h, máx 2, reset 30 dias).
+## 5. Higiene de legado e interface
 
-## Decisões pendentes do usuário
+- Remover o botão "reenviar boas-vindas" do quadro do Portal dos Leads e a mensagem de sucesso enganosa.
+- Remover a função de boas-vindas legada, já sem chamadores, e a função de retry que só devolve recusa.
+- A importação da biblioteca a partir do Word deixa de ser acionável em operação normal: fica restrita a uma rotina de manutenção explícita, mantendo a proteção às edições manuais.
+- Quando um botão do template não puder ser montado por falta de destino, registrar no histórico qual botão foi omitido.
 
-1. Textos oficiais E20, E27, Finalização e Resposta Automática.
-2. Rótulo visual da etapa Finalização.
-3. Conteúdos das 7 etapas sem vínculo.
-4. Obrigação bloqueada: visível com selo ou oculta.
-5. CRM manual permanece com `CRM_TEMPLATES` ou migra para a Biblioteca.
-6. Responsável na resposta automática/E27: congelado na ocorrência ou recalculado.
-7. Simulação consome (ou não) o histórico de rotação de conteúdo.
+## Fora deste comando
+
+- Textos oficiais de E20, E27, Finalização e Resposta Automática (aguardando envio).
+- Conteúdo das sete etapas ativas sem vínculo (E12, V4, R3, RE0, RE3, RF0, RF1) — o diagnóstico continua exibindo a pendência.
+- Os 36 registros históricos em "oportunidades" permanecem intocados.
+
+## Detalhes técnicos
+
+- `src/lib/executive-auth.ts`: remoção do `phone` institucional dos sete registros semente; exibição passa a usar apenas `executive_profiles.whatsapp`.
+- `src/lib/crm/e0-window.ts`: fechamento passa a `> 22:30`; novos testes de borda com `Intl` em `America/Sao_Paulo`.
+- Nova tabela `relationship_non_business_days` (data única, motivo, autor) com RLS de gestão e leitura server-side; `RELATIONSHIP_CONFIG.nonBusinessDays` passa a somar calendário calculado + tabela.
+- `src/server/relationship/content-usage.server.ts`: incremento via função SQL atômica, chamado após confirmação de entrega em `dispatch.server.ts`, nunca em simulação.
+- Índices únicos parciais em `relationship_e20_occurrences` para checkpoint e finalização.
+- Remoção de `processWelcome`, `retryCrmWelcome` e do respectivo botão em `portal-leads-board.tsx`; `importWordLibrary` deixa de ser exposta em `library.functions.ts` para uso comum.
