@@ -179,3 +179,23 @@ export const mensagemDaE20 = createServerFn({ method: "POST" })
       reason: null,
     };
   });
+
+/**
+ * ENVIO CONFIRMADO: declaração humana e explícita. O sistema jamais
+ * presume envio a partir de um clique em "copiar".
+ */
+export const marcarEnvioE20 = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { occurrenceId: string }) => {
+    if (!input?.occurrenceId) throw new Error("Ocorrência obrigatória.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { markE20Sent } = await import("@/server/relationship/e20.server");
+    const actorName = String((context.claims as Record<string, any> | null)?.["email"] ?? "Executivo");
+    return markE20Sent({
+      occurrenceId: data.occurrenceId,
+      actorId: context.userId,
+      actorName,
+    });
+  });
