@@ -452,13 +452,13 @@ function BibliotecaPage() {
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <select
               className={cn(field, "max-w-52")}
-              value={filterGroup}
-              onChange={(e) => setFilterGroup(e.target.value as "todos" | ContentGroup)}
+              value={filterStep}
+              onChange={(e) => setFilterStep(e.target.value)}
             >
-              <option value="todos">Todos os grupos</option>
-              {CONTENT_GROUPS.map((g) => (
-                <option key={g} value={g}>
-                  {g} — {CONTENT_GROUP_LABELS[g]}
+              <option value="todos">Todas as etapas</option>
+              {KNOWN_STEP_KEYS.map((s) => (
+                <option key={s} value={s}>
+                  {stepDisplayLabel(s)}
                 </option>
               ))}
             </select>
