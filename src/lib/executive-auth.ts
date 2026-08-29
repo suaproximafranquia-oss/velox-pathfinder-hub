@@ -140,7 +140,12 @@ export type ExecutiveUser = {
   email: string;
   /** Telefone corporativo (opcional). */
   phone?: string;
-  /** WhatsApp corporativo (opcional). Quando ausente, cai em `phone`. */
+  /**
+   * WhatsApp do executivo. NÃO há fallback institucional: sem número
+   * próprio cadastrado, o destino simplesmente não existe e a E0 fica
+   * bloqueada com motivo auditado.
+   */
+
   whatsapp?: string;
   /** Cargo institucional exibido em perfil e Manual personalizado. */
   title?: string;
