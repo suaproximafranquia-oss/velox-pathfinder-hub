@@ -393,8 +393,10 @@ export async function publishLibraryVersion(params: {
 
 export type WordImportEntry = {
   stepKey: string;
-  outcome: "criada" | "nova_versao" | "inalterada";
+  outcome: "criada" | "nova_versao" | "inalterada" | "protegida";
   version: number | null;
+  /** Motivo legível quando a etapa foi preservada sem reimportação. */
+  reason?: string;
 };
 
 /**
@@ -404,7 +406,12 @@ export type WordImportEntry = {
  *  • conteúdo idêntico ao que já está ativo NÃO gera nova versão;
  *  • conteúdo diferente gera a versão seguinte, preservando a anterior;
  *  • etapas ausentes do Word (E20, E27) nunca são preenchidas;
- *  • snapshots de envios anteriores nunca são tocados.
+ *  • snapshots de envios anteriores nunca são tocados;
+ *  • TEXTO EDITADO MANUALMENTE É INTOCÁVEL: se a versão ativa da etapa
+ *    não veio do Word (`source_kind !== "word"`), a reimportação NÃO
+ *    sobrescreve nem desativa nada — a etapa é devolvida como
+ *    "protegida", com o motivo. Reimportar deixou de ser capaz de
+ *    apagar ajuste feito pela operação.
  */
 export async function importWordLibrary(actor: {
   actorId?: string | null;
@@ -423,6 +430,16 @@ export async function importWordLibrary(actor: {
       .order("version", { ascending: false });
     const rows = (history ?? []) as any[];
     const current = rows.find((r) => r.active) ?? rows[0] ?? null;
+
+    if (current && String(current.source_kind ?? "word") !== "word") {
+      result.push({
+        stepKey: engineStep,
+        outcome: "protegida",
+        version: Number(current.version ?? 1),
+        reason: `Versão ativa editada manualmente por ${current.created_by_name ?? "operação"} — preservada. A reimportação do Word não sobrescreve texto manual.`,
+      });
+      continue;
+    }
 
     if (
       current &&
