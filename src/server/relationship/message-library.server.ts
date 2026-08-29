@@ -27,8 +27,10 @@ import {
 } from "@/lib/relationship/messages";
 import { resolveTreatment } from "@/lib/relationship/names";
 import {
+  AWAITING_ACTIVATION_STEPS,
   WORD_MESSAGES,
   WORD_SOURCE_REFERENCE,
+  engineStepForWord,
   type WordMessage,
 } from "@/lib/relationship/word-library";
 import { DEFAULT_STEP_LABELS, stepDisplayLabel } from "@/lib/relationship/step-labels";
