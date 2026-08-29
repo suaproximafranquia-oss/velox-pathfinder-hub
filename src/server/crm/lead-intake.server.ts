@@ -18,7 +18,7 @@ import { isE0NightWindow } from "@/lib/crm/e0-window";
 import { normalizeGreenSalesLead } from "@/lib/greensales/normalize";
 import { resolveEntryFlow } from "@/lib/relationship/entry";
 import { deferFirstContact } from "@/server/crm/first-contact-queue.server";
-import { loadSettings, processWelcome } from "@/server/crm/automation.server";
+import { loadSettings } from "@/server/crm/automation.server";
 import {
   getLeadEntryState,
   isNewCommercialEntry,
