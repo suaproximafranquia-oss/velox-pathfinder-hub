@@ -96,7 +96,7 @@ const LINK_KINDS: ContentKind[] = ["link", "video", "imagem", "texto"];
 
 const emptyDraft: Draft = {
   id: null,
-  groups: ["E1"],
+  steps: [],
   name: "",
   description: "",
   kind: "link",
