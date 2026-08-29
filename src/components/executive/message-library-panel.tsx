@@ -183,12 +183,21 @@ export function MessageLibraryPanel() {
         stepKey: string;
         outcome: string;
       }[];
-      const changed = entries.filter((e) => e.outcome !== "inalterada");
-      setImportNote(
-        changed.length === 0
-          ? "Biblioteca já idêntica ao Word oficial — nenhuma versão nova criada."
-          : `Atualizadas ${changed.length} etapa(s): ${changed.map((e) => e.stepKey).join(", ")}.`,
+      const protectedSteps = entries.filter((e) => e.outcome === "protegida");
+      const changed = entries.filter(
+        (e) => e.outcome !== "inalterada" && e.outcome !== "protegida",
       );
+      const protectedNote =
+        protectedSteps.length === 0
+          ? ""
+          : ` Preservadas por edição manual: ${protectedSteps.map((e) => e.stepKey).join(", ")}.`;
+      setImportNote(
+        (changed.length === 0
+          ? "Biblioteca já idêntica ao Word oficial — nenhuma versão nova criada."
+          : `Atualizadas ${changed.length} etapa(s): ${changed.map((e) => e.stepKey).join(", ")}.`) +
+          protectedNote,
+      );
+
       await load();
       if (step) openStep(step);
       setError(null);
