@@ -52,7 +52,7 @@ describe("simulador de homologação", () => {
   });
 
   /** COMANDO 3C §3 — cada rodada sorteia conteúdos de forma independente. */
-  it("reproduz a rodada com a mesma semente e diverge com sementes diferentes", async () => {
+  it("reproduz a rodada: a escolha de conteúdo é determinística em qualquer semente", async () => {
     const leads = buildSimulatedLeads(20);
     const base = {
       leads,
