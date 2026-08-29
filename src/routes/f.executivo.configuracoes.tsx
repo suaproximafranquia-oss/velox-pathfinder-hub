@@ -9,6 +9,7 @@ import {
 } from "@/lib/homologation-guard";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { GreenSalesConnectionSection } from "@/components/crm/greensales-connection-section";
+import { NonBusinessDaysCard } from "@/components/executive/non-business-days-card";
 import {
   canManageUsers,
   getSession,
@@ -107,6 +108,7 @@ function ConfiguracoesPage() {
           <ProtecaoHomologacaoSection />
           <IntegracoesSection session={session} />
           <GreenSalesConnectionSection />
+          <NonBusinessDaysCard />
           {sections.map((s) => {
             const Icon = s.icon;
             return (

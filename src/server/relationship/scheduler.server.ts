@@ -121,6 +121,16 @@ async function bootstrapMissingCadences(leadIds: string[]): Promise<number> {
 }
 
 export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
+  /**
+   * CALENDÁRIO: as datas extras administradas pela gestão entram no
+   * cálculo antes de qualquer decisão deste tique.
+   */
+  try {
+    const { syncNonBusinessCalendar } = await import("./calendar-admin.server");
+    await syncNonBusinessCalendar();
+  } catch {
+    /* vale o calendário oficial calculado */
+  }
   const summary: RelationshipTickSummary = {
     evaluated: 0,
     scheduled: 0,
