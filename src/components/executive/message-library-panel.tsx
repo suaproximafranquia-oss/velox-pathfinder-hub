@@ -7,6 +7,7 @@ import {
   listarVinculosDeEtapa,
   publicarVersaoMensagem,
   removerVinculoDeEtapa,
+  renomearRotuloEtapa,
   vincularConteudoAEtapa,
 } from "@/lib/relationship/library.functions";
 
@@ -15,6 +16,7 @@ type LibraryMessage = {
   stepKey: string;
   code: string | null;
   title: string;
+  displayLabel: string;
   body: string;
   bodyWithoutName: string | null;
   version: number;
