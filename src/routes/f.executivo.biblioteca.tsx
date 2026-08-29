@@ -353,8 +353,16 @@ function BibliotecaPage() {
 
           {missingSteps.length > 0 ? (
             <p className="mt-3 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 p-3 text-[11px] text-[color:var(--gold)]">
-              Etapas sem conteúdo vinculado: {missingSteps.join(", ")}. Elas continuam sendo
-              enviadas, porém sem material anexado.
+              Etapas sem conteúdo vinculado: {missingSteps.map(stepShortCode).join(", ")}. Elas
+              continuam sendo enviadas, porém sem material anexado.
+            </p>
+          ) : null}
+
+          {legacySteps.length > 0 ? (
+            <p className="mt-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 p-3 text-[11px] text-[color:var(--muted-foreground)]">
+              Vínculos legados preservados: {legacySteps.join(", ")}. Essas etapas não existem
+              mais na taxonomia do motor — o vínculo continua gravado para auditoria e nada é
+              reclassificado automaticamente.
             </p>
           ) : null}
         </header>
