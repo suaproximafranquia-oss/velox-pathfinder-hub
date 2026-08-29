@@ -2240,6 +2240,33 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_non_business_days: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          day: string
+          id: string
+          reason: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          day: string
+          id?: string
+          reason?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          day?: string
+          id?: string
+          reason?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       relationship_queue: {
         Row: {
           attempts: number
@@ -2964,6 +2991,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_content_usage: {
+        Args: { _at?: string; _content_id: string }
+        Returns: undefined
       }
       is_portal_member: { Args: never; Returns: boolean }
       portal_email_key: { Args: { _email: string }; Returns: string }
