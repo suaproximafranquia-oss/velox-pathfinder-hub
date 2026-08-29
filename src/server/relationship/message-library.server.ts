@@ -18,6 +18,7 @@
  *    legível em vez de inventar mensagem.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isKnownStep, unknownStepReason } from "@/lib/relationship/step-registry";
 import {
   HOMOLOGATION_MESSAGES,
   renderMessageSpec,
@@ -491,6 +492,14 @@ export async function renderFromLibrary(
   stepKey: string,
   input: RenderInput,
 ): Promise<{ result: RenderResult; message: LibraryMessage | null }> {
+  /**
+   * ETAPA DESCONHECIDA NÃO RENDERIZA. Nenhum texto é montado para uma
+   * chave que o motor não reconhece — o erro aparece explícito.
+   */
+  if (!isKnownStep(stepKey)) {
+    return { result: { ok: false, reason: unknownStepReason(stepKey) }, message: null };
+  }
+
   const message = await getActiveLibraryMessage(stepKey);
   if (!message || !message.body.trim()) {
     return {
