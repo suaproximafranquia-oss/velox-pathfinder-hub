@@ -70,6 +70,8 @@ describe("simulador de homologação", () => {
     expect(a.seed).toBe(111);
     expect(contents(a)).toEqual(contents(b));
     expect(contents(a).length).toBeGreaterThan(0);
-    expect(contents(a)).not.toEqual(contents(c));
+    // A rotação passou a ser determinística (Etapa 3): a semente não
+    // altera qual conteúdo é escolhido — só o estado da Biblioteca altera.
+    expect(contents(a)).toEqual(contents(c));
   });
 });
