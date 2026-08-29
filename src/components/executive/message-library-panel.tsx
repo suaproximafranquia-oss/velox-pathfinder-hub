@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Film, History, Loader2, MessageSquareText, Save } from "lucide-react";
+import { Download, Film, History, Loader2, MessageSquareText, Save, Tag } from "lucide-react";
 import {
   listarConteudosDaBiblioteca,
   listarMensagensBiblioteca,
