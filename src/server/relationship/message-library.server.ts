@@ -141,9 +141,15 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     notes: row["notes"] ?? null,
     sourceKind: row["source_kind"] ?? null,
     sourceReference: row["source_reference"] ?? null,
+    awaitingOfficialText:
+      !row["active"] || String(row["body"] ?? "").trim().length === 0,
   };
 }
 
+/** A etapa nasce inativa (texto oficial existe, mas aguarda ativação)? */
+function awaitsActivation(engineStep: string): boolean {
+  return (AWAITING_ACTIVATION_STEPS as readonly string[]).includes(engineStep);
+}
 
 /** Linha da Biblioteca a partir de uma mensagem oficial do Word. */
 function wordRow(
@@ -151,16 +157,18 @@ function wordRow(
   version: number,
   supersedesId: string | null,
 ): Record<string, unknown> {
+  const engineStep = engineStepForWord(message.stepKey);
   return {
     scope: "production",
-    step_key: message.stepKey,
-    code: `LIB-${message.stepKey}`,
+    step_key: engineStep,
+    code: `LIB-${engineStep}`,
+    // O TÍTULO é o rótulo editorial do Word — apresentação, não chave.
     title: message.title,
-    purpose: message.stepKey.toLowerCase(),
+    purpose: engineStep.toLowerCase(),
     body: message.body,
     body_without_name: message.bodyWithoutName,
     version,
-    active: true,
+    active: !awaitsActivation(engineStep),
     content_group: message.contentGroup,
     button_kind: message.button,
     supersedes_id: supersedesId,
@@ -169,7 +177,12 @@ function wordRow(
     source_reference: WORD_SOURCE_REFERENCE,
     imported_at: new Date().toISOString(),
     import_version: version,
-    notes: `Texto oficial transcrito do documento ${WORD_SOURCE_REFERENCE}.`,
+    notes:
+      `Texto oficial transcrito do documento ${WORD_SOURCE_REFERENCE}` +
+      (message.stepKey === engineStep ? "." : ` (${message.stepKey} do Word).`) +
+      (awaitsActivation(engineStep)
+        ? " Aguardando ativação explícita pela Gestão — o motor não envia enquanto estiver inativa."
+        : ""),
   };
 }
 
