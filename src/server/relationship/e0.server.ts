@@ -59,11 +59,10 @@ async function logE0Block(payload: {
   try {
     await supabaseAdmin.from("relationship_engine_log").insert({
       scope: "production",
-      event: "e0_bloqueada",
-      lead_id: payload.leadId,
-      detail: payload.reason,
-      payload: payload as any,
+      action: "e0_bloqueada",
+      details: payload as any,
     } as any);
+
   } catch {
     // Auditoria é acessória: a decisão de bloqueio já foi tomada.
   }
