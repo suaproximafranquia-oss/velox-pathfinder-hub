@@ -57,9 +57,9 @@ describe("COMANDO 4F — origem de entrada", () => {
   });
 
   it("sábado envia somente até 12:00 e domingo nunca", () => {
-    // A abertura passou a ser a da janela única (07:00); o limite do
+    // A abertura acompanha a janela do motor (09:00); o limite do
     // sábado permanece 12:00 e o domingo continua sem envio.
-    expect(RELATIONSHIP_CONFIG.saturdayHours).toEqual({ start: 7, end: 12 });
+    expect(RELATIONSHIP_CONFIG.saturdayHours).toEqual({ start: 9, end: 12 });
   });
 
 });
