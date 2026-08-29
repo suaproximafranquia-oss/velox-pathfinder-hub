@@ -26,6 +26,10 @@ import { resolveLeadExecutive } from "./executive-identity.server";
 import { resolveRecipientPhone } from "./guard.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { operationalDate } from "@/lib/crm/daily-actions";
+import {
+  reconcileOpportunityClosures,
+  terminalStageLeadIds,
+} from "./opportunity.server";
 
 export const CHECKPOINT_STEP = "E27";
 export const FINALIZATION_STEP = "FINALIZACAO";
@@ -221,6 +225,12 @@ export async function executeClosureDuty(duty: ClosureDuty): Promise<ClosureOutc
 
 /** Passada completa: executa todas as obrigações vencidas. */
 export async function runClosureTick(nowIso?: string): Promise<ClosureOutcome[]> {
+  /**
+   * Antes de qualquer envio: leads que entraram em OPORTUNIDADE têm o
+   * ciclo da Apresentação Digital encerrado. Cobre também os leads que
+   * já estavam em OPORTUNIDADE antes desta correção.
+   */
+  await reconcileOpportunityClosures(nowIso);
   const duties = await listClosureDuties(nowIso);
   const outcomes: ClosureOutcome[] = [];
   for (const duty of duties) {
