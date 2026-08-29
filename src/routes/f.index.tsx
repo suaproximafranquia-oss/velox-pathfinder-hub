@@ -114,6 +114,8 @@ export const Route = createFileRoute("/f/")({
     c: str(search.c),
     b: str(search.b),
     ch: str(search.ch),
+    g: str(search.g),
+
   }),
   head: () => ({
     meta: [
