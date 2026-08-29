@@ -51,6 +51,8 @@ export function MessageLibraryPanel() {
   const [step, setStep] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [draftWithoutName, setDraftWithoutName] = useState("");
+  const [label, setLabel] = useState("");
+  const [renaming, setRenaming] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
