@@ -800,6 +800,54 @@ export type Database = {
         }
         Relationships: []
       }
+      group_unit_leads: {
+        Row: {
+          campaign: string | null
+          city: string | null
+          created_at: string
+          email: string | null
+          id: string
+          investment_range: string
+          name: string
+          notes: string | null
+          origin: string | null
+          status: string
+          unit: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          campaign?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          investment_range: string
+          name: string
+          notes?: string | null
+          origin?: string | null
+          status?: string
+          unit: string
+          updated_at?: string
+          whatsapp: string
+        }
+        Update: {
+          campaign?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          investment_range?: string
+          name?: string
+          notes?: string | null
+          origin?: string | null
+          status?: string
+          unit?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       knowledge_documents: {
         Row: {
           chunks: Json
