@@ -25,6 +25,8 @@ import {
 } from "./message-library.server";
 import type { CadenceStep } from "@/lib/relationship/types";
 import type { DispatchRequest, DispatchResult, EngineDispatcher } from "@/lib/relationship/ports";
+import { isKnownStep, unknownStepReason } from "@/lib/relationship/step-registry";
+import { registerContentUsage } from "./content-usage.server";
 import { executionMode, SIMULATION_LABEL } from "./execution-mode.server";
 import { resolveLeadExecutive } from "./executive-identity.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
