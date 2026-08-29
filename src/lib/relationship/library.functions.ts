@@ -192,7 +192,7 @@ export const definirEtapasDoConteudo = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
-    const { setContentStepBindings, listStepContentBindings } = await import(
+    const { setContentStepBindings, loadStepContentMap } = await import(
       "@/server/relationship/step-media.server"
     );
     const { isKnownStep, unknownStepReason } = await import(
@@ -207,5 +207,13 @@ export const definirEtapasDoConteudo = createServerFn({ method: "POST" })
       stepKeys: data.stepKeys,
       actorName: String(name),
     });
-    return listStepContentBindings();
+    return loadStepContentMap();
+  });
+
+/** Pools por etapa (etapa → ids de conteúdo), na ordem da rotação. */
+export const listarPoolsDeEtapa = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { loadStepContentMap } = await import("@/server/relationship/step-media.server");
+    return loadStepContentMap();
   });

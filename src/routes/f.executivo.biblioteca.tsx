@@ -41,7 +41,7 @@ import {
 } from "@/lib/relationship-homologation.functions";
 import {
   definirEtapasDoConteudo,
-  listarVinculosDeEtapa,
+  listarPoolsDeEtapa,
 } from "@/lib/relationship/library.functions";
 import { MessageLibraryPanel } from "@/components/executive/message-library-panel";
 import { cn } from "@/lib/utils";
@@ -126,7 +126,7 @@ function BibliotecaPage() {
       await ensureCloudSession();
       const [list, links] = await Promise.all([
         listRelationshipContents(),
-        listarVinculosDeEtapa(),
+        listarPoolsDeEtapa(),
       ]);
       setContents(list);
       setBindings(links);
