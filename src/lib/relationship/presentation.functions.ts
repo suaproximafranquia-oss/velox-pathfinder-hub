@@ -9,21 +9,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (data !== true) throw new Error("Área restrita à permissão administrativa.");
+  const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+  await assertAdministrativeAccess(context as any);
 }
 
 export const permissaoApresentacao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    return { allowed: data === true };
+    const { readAdministrativeAccess } = await import("@/server/authorization.server");
+    const access = await readAdministrativeAccess(context as any);
+    return { allowed: access.admin };
   });
 
 export const listarCapitulos = createServerFn({ method: "POST" })
