@@ -6,7 +6,7 @@
  * estados dentro daqui. Produção e homologação usam este mesmo código —
  * muda apenas o repositório, o despachante e o relógio.
  */
-import { selectContent } from "./content";
+import { selectFromPool } from "./content";
 import { decideNextAction } from "./decide";
 import { RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { applyEvent, blocksAutomation, initialRecord } from "./machine";
