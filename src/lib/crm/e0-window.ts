@@ -110,7 +110,10 @@ export function isE0Blocked(date: Date = new Date()): boolean {
   if (parts.weekday === 6) {
     return minutes < OPEN_HOUR * 60 || minutes >= SATURDAY_CLOSE_HOUR * 60;
   }
-  return minutes < OPEN_HOUR * 60 || minutes >= CLOSE_HOUR * 60 + CLOSE_MINUTE;
+  // 22:30 EM PONTO AINDA ENVIA (decisão fechada): o fechamento vale a
+  // partir de 22:31.
+  return minutes < OPEN_HOUR * 60 || minutes > CLOSE_HOUR * 60 + CLOSE_MINUTE;
+
 }
 
 /** Nome histórico mantido para os consumidores existentes. */
