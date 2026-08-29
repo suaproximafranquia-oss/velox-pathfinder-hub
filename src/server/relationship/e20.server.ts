@@ -205,6 +205,15 @@ export async function issueE20(params: {
 
   const occurrence = toOccurrence(data as Record<string, any>);
 
+  await logE20Event({
+    leadId: params.leadId,
+    occurrenceId: occurrence.id,
+    event: "gerada",
+    actorId: params.generatedBy ?? null,
+    actorName: params.generatedByName,
+    metadata: { assinatura: signatureName, capitulos: roteiro.items.length },
+  });
+
   /**
    * A mensagem da E20 vem da BIBLIOTECA (versão ativa) — nunca de texto
    * fixo no código — e o que sair é congelado como snapshot vinculado a
