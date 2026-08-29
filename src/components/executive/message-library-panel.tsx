@@ -132,7 +132,27 @@ export function MessageLibraryPanel() {
     const current = list.find((m) => m.active) ?? list[0];
     setDraft(current?.body ?? "");
     setDraftWithoutName(current?.bodyWithoutName ?? "");
+    setLabel(current?.displayLabel ?? key);
     setError(null);
+  }
+
+  /**
+   * Renomear é APENAS rótulo: não publica versão nem toca no histórico.
+   */
+  async function renameStep() {
+    if (!step || renaming) return;
+    setRenaming(true);
+    try {
+      const next = (await renomearRotuloEtapa({
+        data: { stepKey: step, label },
+      })) as LibraryMessage[];
+      setMessages(next);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao renomear a etapa.");
+    } finally {
+      setRenaming(false);
+    }
   }
 
   async function publish() {
