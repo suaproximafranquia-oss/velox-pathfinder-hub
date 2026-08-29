@@ -140,7 +140,12 @@ export type ExecutiveUser = {
   email: string;
   /** Telefone corporativo (opcional). */
   phone?: string;
-  /** WhatsApp corporativo (opcional). Quando ausente, cai em `phone`. */
+  /**
+   * WhatsApp do executivo. NÃO há fallback institucional: sem número
+   * próprio cadastrado, o destino simplesmente não existe e a E0 fica
+   * bloqueada com motivo auditado.
+   */
+
   whatsapp?: string;
   /** Cargo institucional exibido em perfil e Manual personalizado. */
   title?: string;
@@ -185,7 +190,6 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Thiago Rodrigues",
     email: "thiago.rodrigues@veloxsolucoes.com.br",
-    phone: "5517997727337",
     title: "Gerente de Expansão",
     admissionDate: "2020-01-15",
     username: "thiago.rodrigues",
@@ -199,7 +203,6 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Larissa",
     email: "larissa@veloxsolucoes.com.br",
-    phone: "5517997727337",
     title: "Diretora Comercial",
     admissionDate: "2021-03-10",
     gestorId: "usr_thiago",
@@ -214,7 +217,6 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Marton",
     email: "marton@veloxsolucoes.com.br",
-    phone: "5517997727337",
     title: "Executivo de Negócios",
     admissionDate: "2023-05-02",
     gestorId: "usr_larissa",
@@ -229,7 +231,6 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Paulo",
     email: "paulo@veloxsolucoes.com.br",
-    phone: "5517997727337",
     title: "Executivo de Negócios",
     admissionDate: "2023-08-14",
     gestorId: "usr_larissa",
@@ -244,7 +245,6 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Milton",
     email: "milton@veloxsolucoes.com.br",
-    phone: "5517997727337",
     title: "Executivo de Negócios",
     admissionDate: "2024-02-01",
     gestorId: "usr_larissa",
@@ -259,7 +259,6 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Carlos",
     email: "carlos@veloxsolucoes.com.br",
-    phone: "5517997727337",
     title: "Executivo de Negócios",
     admissionDate: "2024-06-20",
     gestorId: "usr_larissa",
@@ -274,7 +273,6 @@ export const SEED_USERS: ExecutiveUser[] = [
     workspaceId: WORKSPACE_VELOX,
     name: "Talita",
     email: "talita@veloxsolucoes.com.br",
-    phone: "5517997727337",
     title: "Executiva de Negócios",
     admissionDate: "2025-01-08",
     gestorId: "usr_larissa",

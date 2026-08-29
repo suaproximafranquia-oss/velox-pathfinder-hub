@@ -41,11 +41,24 @@ export async function loadStepContentMap(): Promise<Record<string, string[]>> {
     .from("relationship_step_content_bindings")
     .select("step_key,content_id,position,created_at")
     .eq("scope", SCOPE)
-    .eq("active", true)
-    .order("position", { ascending: true })
-    .order("created_at", { ascending: true });
+    .eq("active", true);
+  /**
+   * ORDEM DETERMINÍSTICA DO POOL: posição explícita, depois data de
+   * criação e, por último, o id do conteúdo. O terceiro critério existe
+   * porque posição e data podem empatar em vínculos antigos — sem ele a
+   * rotação dependeria da ordem casual devolvida pelo banco.
+   */
+  const rows = ((data ?? []) as any[]).slice().sort((a, b) => {
+    const pa = Number(a.position ?? 0);
+    const pb = Number(b.position ?? 0);
+    if (pa !== pb) return pa - pb;
+    const ca = String(a.created_at ?? "");
+    const cb = String(b.created_at ?? "");
+    if (ca !== cb) return ca < cb ? -1 : 1;
+    return String(a.content_id).localeCompare(String(b.content_id));
+  });
   const map: Record<string, string[]> = {};
-  for (const row of (data ?? []) as any[]) {
+  for (const row of rows) {
     const key = String(row.step_key);
     map[key] = [...(map[key] ?? []), String(row.content_id)];
   }
@@ -114,13 +127,20 @@ export async function setContentStepBindings(params: {
 
   const toInsert = desired.filter((step) => !active.has(step));
   if (toInsert.length > 0) {
+    /**
+     * A posição pertence ao POOL DA ETAPA, não à lista de etapas deste
+     * conteúdo. Era esse o erro que deixava todo mundo em position 0 e
+     * tornava a rotação imprevisível: cada novo vínculo entra no fim da
+     * fila da sua própria etapa.
+     */
+    const existing = await loadStepContentMap();
     const { error } = await supabaseAdmin.from("relationship_step_content_bindings").insert(
-      toInsert.map((step, index) => ({
+      toInsert.map((step) => ({
         scope: SCOPE,
         step_key: step,
         content_id: params.contentId,
         active: true,
-        position: index,
+        position: (existing[step]?.length ?? 0),
         created_by_name: params.actorName ?? "Biblioteca de Conteúdos",
       })) as any,
     );

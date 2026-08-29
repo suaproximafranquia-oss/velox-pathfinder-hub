@@ -320,22 +320,8 @@ export const moveCrmLeadStage = createServerFn({ method: "POST" })
     };
   });
 
-/**
- * LEGADO ENCERRADO (Etapa 3). O reenvio das boas-vindas antigas não
- * existe mais: o primeiro contato tem caminho único pelo Motor de
- * Relacionamento (E0), com texto da Biblioteca e executivo responsável.
- * A função permanece apenas para não quebrar chamadas existentes e
- * responde com o motivo, sem enviar nada.
+/*
+ * `retryCrmWelcome` REMOVIDA (Comando 3): o primeiro contato tem
+ * caminho único pelo Motor de Relacionamento (E0). Não existe reenvio
+ * de boas-vindas por caminho legado.
  */
-export const retryCrmWelcome = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ context }) => {
-    await assertManager(context as never);
-    return {
-      ok: false as const,
-      outcome: "ignorada" as const,
-      reason:
-        "O primeiro contato é executado exclusivamente pela E0 do Motor de Relacionamento.",
-    };
-  });

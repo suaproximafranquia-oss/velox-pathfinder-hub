@@ -2,14 +2,17 @@
  * CONTADOR DE USO DA BIBLIOTECA — SERVER ONLY.
  *
  * A rotação POR LEAD (decisão fechada) escolhe entre os conteúdos MENOS
- * utilizados. Isso só funciona se o uso for realmente registrado: até
- * aqui `usage_count` ficava em zero e a rotação decidia sempre pelo
- * mesmo critério de desempate, concentrando os envios.
+ * utilizados. Isso só funciona se o uso for realmente registrado.
  *
- * A escrita acontece UMA única vez por envio efetivo — depois que a
- * mensagem foi gravada com id determinístico, o que já garante que um
- * retry não conta duas vezes. Simulação também conta: o objetivo é
- * distribuir a biblioteca, e a homologação usa o mesmo motor.
+ * REGRA DEFINITIVA (Comando 2/3): conta APENAS entrega efetiva.
+ *   • simulação/homologação NÃO conta;
+ *   • bloqueio NÃO conta;
+ *   • falha de canal NÃO conta;
+ *   • retry do mesmo envio conta uma única vez (id determinístico da
+ *     mensagem já impede a segunda gravação e, com ela, o incremento).
+ *
+ * O incremento é ATÔMICO no banco (`increment_content_usage`), então dois
+ * envios simultâneos não se sobrescrevem.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -19,16 +22,10 @@ export async function registerContentUsage(
 ): Promise<void> {
   if (!contentId) return;
   try {
-    const { data } = await supabaseAdmin
-      .from("relationship_contents")
-      .select("usage_count")
-      .eq("id", contentId)
-      .maybeSingle();
-    const current = Number((data as Record<string, any> | null)?.["usage_count"] ?? 0);
-    await supabaseAdmin
-      .from("relationship_contents")
-      .update({ usage_count: current + 1, last_used_at: at } as any)
-      .eq("id", contentId);
+    await supabaseAdmin.rpc("increment_content_usage" as never, {
+      _content_id: contentId,
+      _at: at,
+    } as never);
   } catch {
     // O contador é acessório: nunca derruba um envio já registrado.
   }
