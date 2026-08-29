@@ -806,6 +806,9 @@ export type Database = {
           city: string | null
           created_at: string
           email: string | null
+          first_contact_at: string | null
+          first_contact_status: string
+          from_group: boolean
           id: string
           investment_range: string
           name: string
@@ -821,6 +824,9 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string | null
+          first_contact_at?: string | null
+          first_contact_status?: string
+          from_group?: boolean
           id?: string
           investment_range: string
           name: string
@@ -836,6 +842,9 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string | null
+          first_contact_at?: string | null
+          first_contact_status?: string
+          from_group?: boolean
           id?: string
           investment_range?: string
           name?: string
