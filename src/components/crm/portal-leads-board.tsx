@@ -23,7 +23,6 @@ import {
   listCrmLeads,
   listCrmSyncRuns,
   moveCrmLeadStage,
-  retryCrmWelcome,
   runCrmBackfillNow,
   runCrmSyncNow,
   type CrmLeadEventView,
@@ -119,14 +118,12 @@ function LeadDialog({
   events,
   stages,
   onClose,
-  onRetry,
   onMove,
 }: {
   lead: CrmLeadView;
   events: CrmLeadEventView[];
   stages: CrmStageView[];
   onClose: () => void;
-  onRetry: (id: string) => Promise<void>;
   onMove: (lead: CrmLeadView, stage: CrmStageView) => Promise<void>;
 }) {
   const [moveTarget, setMoveTarget] = useState("");
@@ -294,7 +291,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const fetchConnection = useServerFn(getGreenSalesConnection);
   const runSync = useServerFn(runCrmSyncNow);
   const runBackfill = useServerFn(runCrmBackfillNow);
-  const retryWelcome = useServerFn(retryCrmWelcome);
   const moveLead = useServerFn(moveCrmLeadStage);
   const fetchCallsSummary = useServerFn(getDailyActionsSummary);
 
@@ -421,13 +417,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     if (selectedId) {
       void fetchLead({ data: { id: selectedId } }).then((r) => setEvents(r.events));
     }
-  }
-
-  async function handleRetry(id: string) {
-    setNotice(null);
-    const res = await retryWelcome({ data: { id } });
-    setNotice(res.ok ? "Mensagem de boas-vindas enviada." : `Envio não concluído (${res.outcome}).`);
-    await load();
   }
 
   /** Carga histórica: reconstrói o estado da origem, sem disparar mensagens. */
@@ -606,7 +595,6 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           events={events}
           stages={stages}
           onClose={() => setSelectedId(null)}
-          onRetry={handleRetry}
           onMove={handleMove}
         />
       )}
