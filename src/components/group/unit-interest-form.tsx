@@ -40,7 +40,27 @@ export function UnitInterestForm({ unit, origin, campaign, fromGroup }: UnitInte
 
   const unitName = unit === "solar" ? "Velox Solar" : "Velox Seguros";
 
+  /**
+   * Todos os campos são obrigatórios: a carteira da unidade só recebe
+   * cadastro completo. A mesma regra é reaplicada no servidor.
+   */
   async function send() {
+    if (!form.name.trim()) {
+      toast.error("Informe seu nome completo.");
+      return;
+    }
+    if (form.whatsapp.replace(/\D/g, "").length < 10) {
+      toast.error("Informe um WhatsApp válido com DDD.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      toast.error("Informe um e-mail válido.");
+      return;
+    }
+    if (form.city.trim().length < 2) {
+      toast.error("Informe sua cidade.");
+      return;
+    }
     if (!form.investmentRange) {
       toast.error("Selecione a faixa de investimento.");
       return;
