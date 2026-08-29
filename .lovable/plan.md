@@ -1,163 +1,100 @@
-# Diagnóstico Técnico — Lacunas do Portal Raiz e da Apresentação Digital
+# Desenho Final — Portal Raiz, Apresentação Digital (E6/E20) e Ciclo E27
 
-Auditoria somente leitura. Nada foi alterado: nenhum código, banco, migration, dado ou tela.
+Confirmação das 77 perguntas, consolidada como especificação. Nada implementado nesta etapa.
 
-## A. Já existe e está funcionando
+## 1. Portal e URLs (1–10)
 
-**Motor da E20 (backend)** — `src/server/relationship/e20.server.ts`
-- `issueE20` abre instância de cadência (`openInstance`), encerra a ocorrência anterior com
-  `encerrada_por_nova`, gera token de 24 bytes, grava `expires_at` (+7 dias),
-  `checkpoint_due_at` e `finalization_due_on` (próximo dia útil pelo calendário oficial).
-- Assinatura pelo **executivo responsável** (`resolveLeadExecutive`), não por quem clicou.
-- Mensagem vinda da **Biblioteca** (`renderFromLibrary("E20")`) com nome do investidor e link,
-  congelada em `recordMessageSnapshot`.
-- `currentE20` devolve a ocorrência vigente; `emitirE20` sem `force` **reutiliza** o convite.
-- OPORTUNIDADE é bloqueada dentro de `openInstance`.
+- `/` = Grupo Velox institucional, público, sem login, sem Gateway, sem captação. **Sim**
+- `/f` = Velox Financeira (Portal do Investidor atual, movido da raiz). **Sim**
+- `/s` = Velox Solar, `/seg` = Velox Seguros — hoje só existem como marcas em
+  `src/lib/portal-brands.ts`; passam a ter rota institucional própria. **Sim**
+- `/f/{slug}` continua funcionando exatamente como hoje (executivo, contexto `e`, `m`, `o`, `b`).
+  Muda apenas o destino do redirecionamento: `/` → `/f`, preservando todos os parâmetros.
+- Links antigos para `/` continuam funcionando: `/` com parâmetros de contexto
+  (`lead`, `e`, `m`, `o`, `b`) redireciona para `/f` mantendo os mesmos parâmetros.
+  A raiz limpa passa a ser institucional.
+- Raiz tem botão "Seja um Franqueado" que leva à escolha da empresa (Financeira, Solar, Seguros).
+- Origem "veio do Grupo" é registrada no `EntryContext` existente (`src/lib/portal-entry.ts`),
+  como origem institucional — sem mecanismo novo.
+- Solar e Seguros ficam **completamente fora** de `portal_leads`, CRM e cadência da Financeira.
+- **Agora:** Solar e Seguros ficam **institucionais, sem captação operacional**. Só conteúdo e
+  contato direto. A captação exige antes uma chave de unidade e isolamento por RLS — fica para
+  um comando futuro.
 
-**Resgate público do convite** — `src/routes/portal.convite.$token.tsx` + `redeemE20`
-- Rota pública sem login, `ssr: false`. Registra cada abertura em
-  `relationship_e20_accesses` (com `user_agent` e `outcome`), incrementa `open_count`,
-  grava `first_opened_at`, marca `expirada`/`substituido` e mostra texto explicativo.
+## 2. Área administrativa da Apresentação (11–25)
 
-**Painel na ficha do lead** — `src/components/executive/workspace/e20-panel.tsx`
-dentro de `investor-profile-view.tsx`, usado em `/f/executivo/investidores/$id`.
-Mostra convite vigente, validade restante, contagem de aberturas, primeira abertura e
-histórico. Botões "Gerar apresentação digital", "Gerar novo convite" e "Copiar" (link).
+- Nome da área: **"Apresentação Digital"**.
+- Visível na lateral **somente para administrador** — permissão administrativa independente do
+  cargo, nascida no mesmo modelo (`src/config/modules.ts` + `workspace_module_permissions`).
+  Você enxerga por ser administrador; executivos comuns não enxergam.
+- Cadastro de vídeo: título, descrição, URL/arquivo, ordem, ativo/inativo, capa/thumbnail.
+- Vários capítulos permitidos (roteiro ordenado).
+- Pré-visualização do roteiro exatamente como o investidor verá, antes de publicar.
+- Alteração cria **nova versão**; nada é apagado fisicamente.
+- **E20 já emitida permanece congelada** pelo snapshot do roteiro: alterar ou desativar vídeo
+  não muda apresentação já enviada.
 
-**E27/Finalização** — `src/server/relationship/closure.server.ts` + `scheduler.server.ts`,
-derivados de `checkpoint_due_at`/`finalization_due_on` da ocorrência: sem E20, não nascem.
-`opportunity.server.ts` cancela os pendentes ao entrar em OPORTUNIDADE.
+## 3. E20 — geração (26–41)
 
-## B. Existe mas está incompleto
+- Botão **somente no Workspace, dentro do lead**. Não no CRM. Não na Ação do Dia.
+- Gerar cria o convite de 7 dias, monta a mensagem da Biblioteca, insere primeiro nome e link,
+  e **mostra a mensagem na tela**.
+- Dois botões: **Copiar mensagem** e **Copiar link**.
+- Copiar **não** significa enviar. O sistema nunca presume envio manual de WhatsApp.
+- Estados registrados separadamente: **gerada · copiada · enviada · aberta**.
+- Com E20 ativa, clique não gera outra: a tela mostra "Apresentação ativa".
+- Nova emissão exige comando explícito **com confirmação**, porque invalida a anterior.
 
-1. **Botão de gerar não respeita elegibilidade na interface** — `e20-panel.tsx`.
-   Hoje o botão sempre aparece; a recusa só acontece no servidor, via `toast` de erro.
-   Deveria: ocultar/bloquear com explicação quando o lead estiver em OPORTUNIDADE ou com o
-   ciclo encerrado. Dependência: estado do lead já disponível em `investor-profile-view`.
-   Risco: baixo (mudança de apresentação; a trava real do servidor permanece).
+## 4. E27 e cadência (42–47)
 
-2. **"Copiar mensagem" não existe** — `e20-panel.tsx` copia apenas o link.
-   `issueE20` já retorna `message.body` renderizado, mas o painel descarta esse valor e
-   não o persiste na tela. Faltam: exibir a mensagem, botão "Copiar mensagem", e o registro
-   do evento "mensagem copiada" (que hoje não existe em lugar nenhum).
-   Risco: nenhum sobre histórico; é acréscimo.
+- E20 gerada ⇒ E27 criada, mesmo sem envio.
+- E27 entra automaticamente no motor e aparece na Ação do Dia na hora certa.
+- Visualização da E20 **não** cancela E27.
+- Resposta do investidor segue o motor normal.
+- OPORTUNIDADE cancela E27 e Finalização.
 
-3. **Reutilização não é comunicada corretamente** — o painel mostra "Gerar novo convite"
-   quando há vigente, mas não o rótulo definido "Apresentação ativa — abrir/visualizar",
-   e a nova emissão não pede confirmação explícita apesar de encerrar a anterior.
+## 5. Link público (48–56)
 
-4. **Indicadores incompletos** — o painel mostra `openCount` e `firstOpenedAt`; **último
-   acesso não é exposto**. O dado existe em `relationship_e20_accesses.accessed_at`, mas
-   `E20Occurrence` não carrega `lastOpenedAt` e `estadoE20` não lê a tabela de acessos.
+- Acesso sem login, token de exatamente 7 dias corridos, aberturas ilimitadas no período.
+- Cada abertura registrada (`relationship_e20_accesses`).
+- Expirado: sem conteúdo e **sem** gerar outro automaticamente.
+- O investidor jamais vê Workspace, biblioteca ou administração; não há botão de login.
 
-5. **Biblioteca sem texto oficial da E20** — `message-library.server.ts` mantém E20/E27 em
-   `awaitingOfficialText`. Enquanto isso, `issueE20` devolve `messageBlockedReason` e a
-   ocorrência nasce sem mensagem. Não é bug: é dependência de conteúdo seu.
+## 6. Indicadores (57–63)
 
-## C. Existe no backend mas não existe na interface
+- Workspace mostra: nº de aberturas, primeiro acesso, **último acesso**, histórico completo de
+  E20 e o indicador "Investidor visualizou".
+- Gerada ≠ enviada ≠ visualizada. **Não existe** "apresentação concluída".
 
-1. **Registro de acessos detalhado** — `relationship_e20_accesses` grava cada abertura com
-   horário, user agent e desfecho; **nenhuma tela lê essa tabela**. Faltam: último acesso,
-   linha do tempo de aberturas e o indicador "Investidor visualizou" no Workspace.
+## 7. Encerramento (64–71)
 
-2. **Motivo e autor do encerramento** — `close_reason`, `closed_at` e o snapshot
-   (`emitido_por`, `assinatura`, `instancia`) existem na ocorrência; o histórico da tela
-   mostra apenas data, status e nº de aberturas.
+- Executivo pode encerrar manualmente, com **motivo obrigatório**, autor e data/hora.
+- Encerramento vai para a Jornada.
+- Encerram também: nova E20, OPORTUNIDADE e fim do ciclo.
 
-3. **Mensagem renderizada da emissão** — `recordMessageSnapshot` grava o texto congelado em
-   `relationship_message_sends`, mas a ficha não exibe o que foi efetivamente gerado.
+## 8. Ação do Dia (72–76)
 
-## D. Não existe
+- Antes da E20, sinaliza que existe apresentação a gerar e leva direto ao lead.
+- **Sem** botão de geração.
+- Depois de gerada, a obrigação some; permanecem apenas E27 e Finalização.
 
-1. **Área administrativa da Apresentação Digital.** Não há tabela, server module, rota nem
-   componente. Busca por vídeos retorna apenas `src/components/journey/video-slot.tsx`
-   (Jornada pública) e `MediaSlot` (site institucional) — nada ligado à E20.
-   Faltam por inteiro: cadastro de vídeos (título, descrição, ordem, ativo/inativo),
-   versionamento com preservação das versões anteriores, visão do roteiro ativo, e o gate
-   por **permissão administrativa** (hoje `src/config/modules.ts` só conhece
-   `requiresRole: super_admin | diretora | executivo` — permissão administrativa
-   independente do cargo ainda não é um conceito modelado).
+## 9. A pergunta 77
 
-2. **Área pública de exibição da apresentação.** O convite hoje **não abre apresentação
-   alguma**: `portal.convite.$token.tsx` valida o token e redireciona para `/` com
-   `?lead=…`, ou seja, entrega o investidor ao Portal do Investidor genérico.
-   Falta a rota/tela dedicada que reproduz o roteiro de vídeos daquela emissão.
+**Sim, exatamente.** Gerar + copiar sem enviar = E20 "gerada", nunca "enviada".
+A E27 segue normalmente, porque ela nasce da emissão, não do envio. O sistema nunca
+inventa um envio que o executivo não confirmou.
 
-3. **Snapshot do roteiro da apresentação.** A coluna `snapshot` da ocorrência guarda apenas
-   emissor, assinatura e instância. Não há estrutura para congelar vídeos, ordem, títulos e
-   descrições. O padrão a reaproveitar é o dos destinos da E0 e o de
-   `recordMessageSnapshot` — não criar um mecanismo paralelo.
+## Comandos de implementação (execução em três fases)
 
-4. **Encerramento manual da E20.** Não existe função nem botão. Encerramento só acontece por
-   nova emissão, OPORTUNIDADE ou fim de ciclo. Faltam: motivo obrigatório, autor, data/hora
-   e evento na Jornada.
+1. **Raiz do Grupo + `/f`** — nova raiz institucional, Portal da Financeira em `/f`,
+   `/s` e `/seg` institucionais, redirecionamentos preservando contexto, origem "veio do Grupo".
+2. **Apresentação Digital** — permissão administrativa, cadastro versionado de vídeos,
+   snapshot do roteiro na emissão, área pública do convite exibindo o roteiro congelado.
+3. **Ciclo e indicadores** — copiar mensagem, estados gerada/copiada/enviada/aberta,
+   último acesso e trilha de aberturas, encerramento manual com motivo, eventos na Jornada.
 
-5. **Eventos distintos na Jornada** — "mensagem copiada", "mensagem enviada",
-   "apresentação aberta", "apresentação expirada", "E20 encerrada (motivo/autor)".
-   Hoje a Jornada recebe apenas o snapshot da emissão.
-
-6. **Portal institucional do Grupo Velox.** Não existe rota, componente nem conteúdo.
-
-7. **Rota `/f` como portal público da Financeira.** `src/routes/f.tsx` é apenas um layout
-   neutro com `<Outlet />`; **não existe `f.index.tsx`**, portanto `/f` hoje não renderiza
-   página alguma.
-
-8. **`/s` e `/seg`.** Declarados em `src/lib/business-unit.ts` e `src/lib/portal-brands.ts`
-   como marcas preparadas, mas **sem nenhuma rota**. Um acesso a `/s/alguem` hoje é 404.
-
-## E. Existe em local incorreto
-
-1. **Portal do Investidor da Financeira ocupa a raiz** — `src/routes/index.tsx`
-   (Hero, Gateway, Simulador, Revista, Estrutura, Princípios, sessão do lead).
-   Deveria viver em `/f`; a raiz deveria ser institucional, pública, sem Gateway e sem
-   captação.
-
-2. **Redirecionamentos apontam para a raiz** — três pontos, todos a alterar juntos:
-   - `src/routes/f.$slug.tsx`: link personalizado redireciona para `/` com
-     `{ e, m, o, b }`.
-   - `src/routes/e.$slug.tsx`: link legado, mesmo padrão.
-   - `src/routes/portal.convite.$token.tsx`: convite E20 redireciona para `/` com `lead`.
-   **Risco real de quebrar os links personalizados existentes**: `/f/{slug}` e `/f` são o
-   mesmo primeiro segmento. Hoje `f.$slug` convive com os segmentos estáticos porque o
-   roteador dá precedência a eles; ao criar `f.index.tsx` o conflito não aumenta, mas
-   qualquer troca de destino precisa preservar exatamente os mesmos parâmetros de contexto
-   (`e`, `m`, `o`, `b`, `lead`) lidos por `src/lib/portal-entry.ts`.
-
-3. **Origem "veio do Grupo" não existe** — `EntryContext` já carrega `brand`, `unit`,
-   `origin`, `campaign`, `channel`; falta apenas a origem institucional do Grupo, que deve
-   ser acrescentada a esse mesmo contexto, nunca a um mecanismo novo.
-
-## F. Risco de duplicidade / paralelismo
-
-1. **Criar uma segunda home institucional** em vez de mover a atual: manteria duas fontes de
-   verdade para o Portal do Investidor. A raiz deve ser nova; `/f` deve reaproveitar
-   `src/routes/index.tsx` e seus overlays já existentes.
-
-2. **Botão de gerar E20 fora do Workspace** — a Ação do Dia
-   (`daily-actions-overlay.tsx`, `daily-actions.server.ts`) hoje **não** tem botão de
-   geração, e não deve ganhar um. Só atalho para a ficha.
-
-3. **Snapshot paralelo do roteiro** — reaproveitar `snapshot` da ocorrência e o padrão de
-   congelamento existente, não criar uma segunda tabela de histórico de apresentação.
-
-4. **Permissão administrativa paralela** — deve nascer no mesmo modelo de permissões
-   (`src/config/modules.ts` + `workspace_module_permissions` + `user_roles`), não como flag
-   isolada da tela de vídeos.
-
-5. **Separação de dados Solar/Seguros** — `portal_leads`, `crm_leads` e o motor não têm
-   coluna de unidade. Qualquer captação de `/s` ou `/seg` cairia hoje na carteira da
-   Financeira. Antes de abrir essas rotas com formulário, é obrigatório definir a chave de
-   unidade e o isolamento por RLS/consulta.
-
-## Dependências de conteúdo (bloqueiam a operação, não o código)
+## Dependências de conteúdo
 
 - Texto oficial da E20 e da E27 na Biblioteca.
 - Vídeos e roteiro da Apresentação Digital.
 - Conteúdo institucional do Grupo, Solar e Seguros.
-
-## Próximo passo
-
-Nenhuma implementação nesta etapa. O comando futuro deve ser dividido em:
-**(1)** raiz do Grupo + Portal da Financeira em `/f` + redirecionamentos e origem;
-**(2)** área administrativa de vídeos + snapshot do roteiro + área pública da apresentação;
-**(3)** encerramento manual, eventos distintos na Jornada e indicadores no Workspace.
