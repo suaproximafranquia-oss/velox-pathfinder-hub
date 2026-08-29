@@ -271,12 +271,28 @@ export async function renameLibraryStep(params: {
 }): Promise<LibraryMessage[]> {
   await ensureLibrarySeed();
   const label = params.label.trim();
-  const { error } = await supabaseAdmin
+  const title = label || DEFAULT_STEP_LABELS[params.stepKey] || params.stepKey;
+
+  /**
+   * Etapas AGUARDANDO TEXTO OFICIAL (E27, resposta automática, E20 e
+   * finalização antes da ativação) não têm versão ativa. O rótulo delas
+   * também precisa ser editável, então a gravação recai sobre a versão
+   * mais recente quando não existe versão ativa.
+   */
+  const { data: rows } = await supabaseAdmin
     .from("relationship_message_library")
-    .update({ title: label || DEFAULT_STEP_LABELS[params.stepKey] || params.stepKey } as any)
+    .select("id,active,version")
     .eq("scope", "production")
     .eq("step_key", params.stepKey)
-    .eq("active", true);
+    .order("version", { ascending: false });
+  const target =
+    (rows ?? []).find((r: any) => r.active) ?? (rows ?? [])[0] ?? null;
+  if (!target) return listLibraryMessages();
+
+  const { error } = await supabaseAdmin
+    .from("relationship_message_library")
+    .update({ title } as any)
+    .eq("id", (target as any).id);
   if (error) throw new Error(error.message);
   return listLibraryMessages();
 }
