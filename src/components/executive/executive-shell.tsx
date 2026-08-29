@@ -24,10 +24,8 @@ import {
   FolderOpen,
   Archive,
   Radar,
-  LayoutList,
   LibraryBig,
   BookOpen,
-  Fingerprint,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
