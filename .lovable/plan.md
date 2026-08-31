@@ -1,52 +1,144 @@
-# Regra de negócio da E0 — comparação entre a regra antiga e a atual
+# Auditoria Profunda — Bateria 1: Navegação, Interface e Arquitetura Visual
 
-Investigação feita no código, no histórico de commits e nos registros do banco. Nada foi alterado.
+Somente leitura. Nenhum arquivo do projeto foi alterado. Tudo abaixo foi verificado no código atual.
 
-## O que o histórico mostra
+## A) Mapa dos ambientes
 
-| Momento | Estado do código |
-|---|---|
-| até 28/08 23:51 | E0 montada por `buildWelcomeMessage` e enviada como **texto livre** (`sendWhatsappText`). Slug e WhatsApp do executivo eram **opcionais** (havia fallback de executivo padrão e de link institucional). |
-| 28/08 23:51 (`f518d394`) | Nascem `e0-destinations.ts` e `destinations.server.ts` — conceito de destinos por lead. |
-| 28/08 23:52 (`316201ae`) | Nasce `e0.server.ts`: E0 passa a ser **template oficial da Meta com botões dinâmicos**. Já entra com `portalRequired: true` e `contactRequired: Boolean(contactButton)` (contato só bloqueava se o botão existisse no template). |
-| 29/08 01:40 (`20e7863e`) | **Alteração que fechou o bloqueio**: `contactRequired: true` fixo, com o comentário "Refino Final §2 — requisito operacional da E0". Nesse mesmo commit entra o log `e0_bloqueada`. |
+| Ambiente | Rota | Finalidade | Marca | Proteção |
+|---|---|---|---|---|
+| Institucional do Grupo | `/` (`index.tsx`) | Landing das 3 empresas | Grupo | Pública; redireciona para `/f` só quando há search de contexto (e, m, o, u, c, b, ch, lead) |
+| Financeira / Portal do Investidor | `/f` (`f.tsx` + `f.index.tsx`) | Home do Portal do Investidor | Financeira | Pública, com SSR |
+| Solar | `/s` | Landing + formulário de interesse | Solar | Pública |
+| Seguros | `/seg` | Landing + formulário de interesse | Seguros | Pública |
+| Workspace / Portal do Executivo | `/f/executivo/*` | Central do Executivo | Financeira | OperationalGuard + ssr:false; `/f/executivo` é a tela de acesso pública |
+| CRM | `/f/crm` | Relacionamento estilo WhatsApp | Financeira | OperationalGuard + ssr:false (sem rota pública) |
+| Portal dos Leads | `/f/portal-leads` | Kanban somente leitura | Financeira | Guard + useModuleAccess |
+| Remarketing | `/f/remarketing` | Ambiente independente (nova aba) | Financeira | Guard + ssr:false |
+| Link personalizado | `/f/$slug`, `/s/$slug`, `/seg/$slug`, `/e/$slug` (legado) | Portal por executivo | conforme prefixo (`/e` → Financeira) | Pública |
+| Jornada / Manual | `/manual/*` | Jornada editorial | Financeira | Pública |
+| Universo | `/universo` | Material institucional | Financeira | Pública |
+| Canal de origem | `/origem/$channel` | Entrada por campanha (TikTok/Meta) | Financeira | Pública |
+| Convite E20 (Apresentação Digital do investidor) | `/portal/convite/$token` | Apresentação digital com token 7 dias | Financeira | Token |
+| Entrar (legado) | `/entrar` | Redireciona para `/f` | Financeira | Pública |
 
-Os leads de hoje (Rodrigo 09:44, Maia 11:50, Lucas 13:56) são todos posteriores ao commit das 01:40 — nenhum passou pela regra antiga.
+## B) Mapa das rotas e redirects legados
 
-## Fatos adicionais verificados no banco
+Todos os redirects abaixo são `beforeLoad` + `throw redirect(replace:true)` preservando `search` — nenhum quebrado:
 
-- `relationship_message_sends` **não tem nenhuma linha de E0**: nenhuma E0 chegou a passar pelo caminho novo.
-- `crm_meta_templates` está **vazia** (nenhum template com `purpose = 'primeiro_contato'`). Sem esse cadastro, mesmo destravando os destinos, a entrega real é impossível — o código devolve "Template oficial da Meta para a E0 não cadastrado".
-- A "última E0 real" de 28/08 20:58 (gs_58707) **não foi entregue**: a timeline registra "Entrega externa pendente: Canal oficial do WhatsApp não configurado para este ambiente". O mesmo vale para gs_58705. Antes disso, tudo estava marcado como "TESTE — E0 SIMULADA".
-- A versão ativa da E0 na Biblioteca tem `button_kind = 'portal'`. Em `renderMessageSpec`, `button === "portal"` sem link ainda bloqueia com "Variável {{link_portal}} sem valor" — ou seja, **remover só o `portalRequired` não destrava**: a Biblioteca continua exigindo o link.
+- `/crm` → `/f/crm`; `/remarketing` → `/f/remarketing`; `/portal-leads` → `/f/portal-leads`
+- 28 arquivos `executivo.*.tsx` → espelho 1:1 para `/f/executivo/*` (redirect puro, sem conteúdo duplicado)
+- `/entrar` → `/f`; `/e/$slug` → `/f?e=slug&m=manual`
+- `/f/executivo/greensales` → `/f/portal-leads`; `/f/executivo/relatorios` → `/f/executivo/brain`
 
-## Respostas objetivas
+Rotas sem legado equivalente (novas, esperado): `apresentacao-digital`, `investidores/$id`, `unidades`.
 
-**REGRA ANTIGA** (até 28/08 23:51): E0 = texto livre montado no CRM, enviado por `sendWhatsappText`. Sem executivo responsável válido usava-se executivo padrão; sem slug usava-se `materialUrl` ou link institucional. Nada bloqueava: a mensagem sempre era registrada em `crm_messages` + `crm_timeline`, e a falha de canal virava apenas "entrega pendente".
+### Rotas existentes sem item de menu
+`institucional`, `investidores` e `investidores/$id`, `identidade`, `templates` (saída do menu documentada em comentário no shell), `teste-cadencia`, `celebracao`, `greensales-sync` (só aparece como card na Home, via `config/modules.ts`), `administracao`, `recursos`.
 
-**REGRA ATUAL**: E0 = template aprovado da Meta com dois botões de URL cujos sufixos são resolvidos por lead. Exige, antes de qualquer coisa: executivo responsável com perfil, `executive_profiles.whatsapp` válido e `responsible_executive_slug` no lead. Faltando qualquer um, a E0 inteira é abortada — nem registro interno acontece.
+Nenhum item de menu aponta para rota inexistente: os 24 itens do `executive-shell.tsx` têm rota 1:1 confirmada.
 
-**ALTERAÇÃO QUE INTRODUZIU O BLOQUEIO**: o par `316201ae` (portal obrigatório, contato condicional) + `20e7863e` (contato obrigatório sempre). O bloqueio total de hoje vem do segundo.
+## C) Mapa dos menus (`src/components/executive/executive-shell.tsx`)
 
-**FINALIDADE DO WHATSAPP DO EXECUTIVO**: destino do botão "falar com o consultor" do template. Não é usado para enviar a mensagem (o remetente é o número oficial único da Velox) nem para a janela de 24h — a resposta automática usa outro caminho (`inbound.server.ts`). É destino de botão, não requisito de envio.
+- Dia a dia: Home, Workspace, CRM (nova aba), Remarketing (nova aba), KPI Manager, Painel de Campanhas, Brain Analytics, IA Criativa, Portal dos Leads (nova aba).
+- Centrais: Captação, Reuniões, Alertas, Central de Backup (super_admin), Revista Velox.
+- Relacionamento: Biblioteca de Conteúdos, Apresentação Digital, Unidades do Grupo, Homologação do Motor (super_admin), Backup de Conversas.
+- Administrativo: Usuários, Meu Perfil, Configurações, Laboratório Atlas (só em homologação).
 
-**FINALIDADE DO SLUG DO PORTAL**: gera o link personalizado do Portal do Investidor, usado tanto no botão "portal" do template quanto no corpo da mensagem da Biblioteca (`button_kind: portal`). Serve para rastrear qual executivo originou o acesso.
+Observações objetivas:
+- "Central de Backup" (banco inteiro, super_admin) e "Backup de Conversas" (CRM, somente leitura) são módulos distintos — não há duplicidade de código, apenas nomenclatura ambígua.
+- `SiteNav` e `editorial/module-chrome` são chrome público (âncoras), não menus de sistema.
+- `crm-shell.tsx` não tem menu lateral próprio.
 
-**ELES DEVEM BLOQUEAR A E0?**
-- WhatsApp do executivo: **NÃO** como bloqueador de envio. Deve bloquear apenas o botão de contato — e, se o template aprovado exigir esse botão, aí sim o envio real fica pendente (com motivo legível), mas a E0 continua registrada e a cadência continua nascendo.
-- Slug do Portal: **SIM, condicionalmente**. O texto oficial ativo da E0 contém o link do Portal; enviar sem ele produziria uma mensagem incompleta. Porém o certo é o slug **existir sempre** (derivado do executivo responsável), não ser um bloqueio que trava a operação.
+## D) Links de Home/Voltar incorretos (não corrigidos)
 
-## CORREÇÃO MÍNIMA RECOMENDADA
+| Arquivo:linha | Situação | Risco |
+|---|---|---|
+| `src/routes/__root.tsx:45` (NotFound "Go home") | `to="/"` fixo; 404 dentro do Workspace ejeta para a raiz institucional | Alto |
+| `src/routes/__root.tsx:83` (Error "Go home") | `href="/"` fixo; mesmo efeito em erro de runtime | Alto |
+| `src/config/modules.ts:54` | Card "Portal do Investidor" com `href:"/"` external → abre a raiz do Grupo em vez de `/f` | Alto (marca cruzada) |
+| `src/routes/f.executivo.index.tsx:50` | Botão "Voltar ao Portal Velox" abre `/` | Médio |
+| `src/routes/f.index.tsx:554` | Logo "Portal Velox" na Home Financeira aponta para `/` | Médio |
+| `module-chrome.tsx:66`, `journey-chrome.tsx:41`, `manual/concluido.tsx:38` | logo/voltar público → `/` | Baixo |
+| `s.index.tsx:61`, `seg.index.tsx:61` | "Grupo Velox" → `/` | Correto por design |
 
-Três frentes, na ordem:
+`__root.tsx` já importa `isOperationalPath` (linha 32) mas não o usa nos handlers de erro/404.
 
-1. **Garantir o slug sempre** — derivar o slug do executivo responsável no momento da resolução de destinos (a partir do próprio `executive_profiles`), em vez de depender de `portal_leads.responsible_executive_slug`, que o GreenSales nunca preenche. Com isso, o link personalizado deixa de faltar e o bloqueio do Portal desaparece por dado correto, não por afrouxamento de regra.
-2. **Rebaixar o WhatsApp do executivo de bloqueador para condição de botão** — voltar `contactRequired` a depender do botão realmente existir no template aprovado (estado do commit `316201ae`) e, quando faltar, registrar a E0 com entrega pendente e motivo legível, em vez de abortar.
-3. **Cadastrar o WhatsApp na Gestão de Usuários** — persistir em `executive_profiles.whatsapp`, respeitando a regra já firmada de fonte única. Sem isso o botão de contato nunca existirá, mesmo destravado.
+## E) Componentes com navegação/estado incorretos
 
-Observação obrigatória antes de qualquer expectativa de envio real: **não há template da Meta cadastrado com finalidade `primeiro_contato`**. Enquanto essa linha não existir e estiver aprovada, toda E0 seguirá registrada internamente com "entrega externa pendente" — exatamente como já acontecia em 28/08.
+- `f.executivo.apresentacao-digital.tsx:156,164,177`, `f.executivo.alertas.tsx`, `f.executivo.unidades.tsx`: passam `session!` para `ExecutiveShell` enquanto `session` é `null` no primeiro render (vem de `getSession()` em `useEffect`). `ExecutiveShell` lê `session.userId` (linha 81) e `session.name` (linha 399) sem optional chaining → crash real "Something went wrong".
+- `f.executivo.celebracao.tsx`: única página de conteúdo sem `ExecutiveShell` e sem retorno visível durante a tela.
+- `investor-profile-view.tsx:581`: chama o módulo de "Cultura Velox" — nomenclatura antiga, o resto do sistema usa "Princípios Velox".
 
-## Decisões que preciso de você
+## F) Unidades do Grupo — origem e dependências
 
-1. Ao destravar, o motor reavaliará os leads parados desde 28/08 e pode disparar E0 em lote. Reprocessar todos, só os de hoje, ou nenhum (marcar como perdidos)?
-2. Confirma a frente 1 (slug derivado do perfil do executivo) ou prefere manter o slug gravado no lead na atribuição?
+- Menu criado em `executive-shell.tsx:194`, condicionado a acesso administrativo.
+- Rota `src/routes/f.executivo.unidades.tsx`; server fns em `src/lib/group/unit-leads.functions.ts`; tabela `group_unit_leads`.
+- Finalidade real: carteira de interessados de Solar e Seguros, captados por `src/components/group/unit-interest-form.tsx` nas landings `/s` e `/seg`. Isolado do CRM, cadência e `portal_leads`.
+- Não tem relação com a narrativa institucional de "milhares de unidades" da Home — é gestão de leads das duas marcas não operacionais.
+- Remoção: tecnicamente isolada, mas eliminaria a única gestão dos leads captados em `/s` e `/seg` — não é código morto.
+
+## G) Homologação do Motor — origem e dependências
+
+- Rota `/f/executivo/homologacao` (super_admin); UI `src/components/executive/homologation-crm.tsx` reutiliza `CrmThread` real; servidor `src/server/relationship/homologation.server.ts`.
+- O arquivo tem duas responsabilidades: (1) simulador de rodadas com leads `TEST-XXXX`, escopo `homologation`, despacho em memória, sem tocar produção; (2) `listValueContents` da Biblioteca (`relationship_contents`, escopo `library`) — este é compartilhado com produção.
+- O motor real não depende do simulador, mas depende da parte de biblioteca. A tela de Biblioteca própria (`f.executivo.biblioteca.tsx`) existe e é separada. Remoção do simulador seria segura; remoção do arquivo inteiro não.
+
+## H) Princípios Velox — estado real
+
+- `principios-overlay.tsx:22-23`: `PRINCIPLE_TITLES = ["Missão","Visão","Valores"]`, `PRINCIPLE_COUNT = 3`. Renderiza sempre exatamente 3 cards.
+- Divergência de documentação no mesmo arquivo: comentário de topo ainda cita "exatamente 6 princípios" e o `aria-label` (linha 113) diz "Os seis Princípios Velox", enquanto o comentário das linhas 17-21 já diz três quadros.
+- Dados vêm do banco via `fetchInstitutionalModule({ module: "principios" })`; títulos e placeholder são hardcoded no componente. Sem card vazio: posição faltante mostra placeholder "Em definição".
+- `f.executivo.institucional.tsx:244-251`: campo "Ordem" é input numérico livre, sem limite 1–3 — posições 4/5/6 podem ser gravadas e nunca aparecem (lixo silencioso).
+- Nenhuma outra tela lê posições > 3.
+
+## I) Apresentação Digital — estado real
+
+Tela administrativa (`/f/executivo/apresentacao-digital`): sem `errorComponent`, sem botões "tentar novamente"/"voltar para Home"; falhas só geram `toast.error`. Crash de primeiro render pelo `session!` descrito em (E). Ausência de capítulos é tratada com mensagem explícita e nada é inventado.
+
+Tela do investidor (`/portal/convite/$token`): em erro (inválido/expirado/encerrado) renderiza apenas texto, sem nenhum CTA — tela morta. Com roteiro vazio, redireciona silenciosamente para `/f`. O botão "Continuar no Portal do Investidor" (→ `/f`) só existe no caminho de sucesso. `presentation_chapters` está vazia em produção, então hoje o caminho real é o redirect silencioso.
+
+## J) Redirects legados
+
+Ver seção B. Todos funcionais e preservando `search`. Nenhum aponta para ambiente errado.
+
+## K) Inconsistências visuais objetivas
+
+1. `celebracao` sem shell e sem retorno.
+2. "Cultura Velox" vs "Princípios Velox".
+3. `aria-label` "Os seis Princípios Velox" com 3 cards.
+4. Rótulo "Portal Velox" levando à raiz do Grupo (dois pontos).
+5. "Central de Templates" viva por URL mas fora do menu.
+6. `config/modules.ts:72-89`: ~16 ícones importados só para satisfazer o lint via `void [...]` — resíduo de refatoração.
+7. Nomes "Central de Backup" x "Backup de Conversas" facilmente confundíveis.
+
+## L) Arquivos envolvidos
+
+`src/routes/__root.tsx`, `index.tsx`, `f.tsx`, `f.index.tsx`, `f.executivo.tsx`, `f.executivo.index.tsx`, `f.executivo.apresentacao-digital.tsx`, `f.executivo.alertas.tsx`, `f.executivo.unidades.tsx`, `f.executivo.celebracao.tsx`, `f.executivo.institucional.tsx`, `portal.convite.$token.tsx`, `s.index.tsx`, `seg.index.tsx`, os 28 `executivo.*.tsx` legados; `src/components/executive/executive-shell.tsx`, `src/components/portal/principios-overlay.tsx`, `src/components/executive/homologation-crm.tsx`, `src/components/executive/workspace/investor-profile-view.tsx`, `src/components/group/unit-interest-form.tsx`, `src/components/editorial/module-chrome.tsx`, `src/components/journey/journey-chrome.tsx`; `src/config/modules.ts`, `src/lib/business-unit.ts`, `src/lib/portal-brands.ts`, `src/lib/group/unit-leads.functions.ts`, `src/server/relationship/{homologation,presentation,e20}.server.ts`.
+
+## M) Riscos
+
+- Crash da Apresentação Digital, Alertas e Unidades no primeiro render (padrão `session!`) — afeta 3 telas, não é caso isolado.
+- 404/erro dentro do Workspace expulsa o executivo autenticado para a landing pública do Grupo.
+- Card "Portal do Investidor" leva à raiz do Grupo: cruzamento de marca visível ao usuário.
+- Convite E20 com erro deixa o investidor em tela sem saída.
+- Posições 4–6 graváveis em Princípios geram dados invisíveis.
+
+## N) O que é seguro corrigir na próxima rodada
+
+1. `__root.tsx`: Not Found e Error passarem a usar `isOperationalPath` para voltar a `/f/executivo/home` dentro do Workspace.
+2. `config/modules.ts:54`: `href:"/"` → `unitPath("/")`; e remoção do bloco `void [...]` com os ícones mortos.
+3. `f.executivo.index.tsx:50` e `f.index.tsx:554`: apontar "Portal Velox" para `/f`.
+4. Guard de sessão nas 3 telas com `session!` (render nulo até `getSession()` resolver), ou tornar `ExecutiveShell` tolerante a sessão ausente.
+5. CTA na tela de erro do convite E20 e mensagem explícita quando não há capítulos.
+6. `aria-label` e comentário de topo do `principios-overlay.tsx`; limite 1–3 no campo Ordem do admin institucional.
+7. Renomear "Cultura Velox" para "Princípios Velox" na ficha do investidor.
+8. Navegação de retorno em `celebracao`.
+
+## O) O que NÃO deve ser alterado
+
+- Os 28 redirects legados `/executivo/*`, `/crm`, `/remarketing`, `/portal-leads`, `/entrar`, `/e/$slug`.
+- Módulo Unidades do Grupo e tabela `group_unit_leads` (captação viva de `/s` e `/seg`).
+- `homologation.server.ts` na parte de Biblioteca (usada em produção) e o isolamento dos leads `TEST-XXXX`.
+- Portal dos Leads, integração GreenSales e quaisquer dados reais.
+- `presentation_chapters`: nenhum capítulo fictício deve ser criado.
+- Links "Grupo Velox" em `/s` e `/seg` (corretos por design).
