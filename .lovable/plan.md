@@ -1,144 +1,82 @@
-# Auditoria Profunda — Bateria 1: Navegação, Interface e Arquitetura Visual
+# Fotografia técnica — GreenSales → Lead → Motor → E0 → Biblioteca → Envio
 
-Somente leitura. Nenhum arquivo do projeto foi alterado. Tudo abaixo foi verificado no código atual.
+Auditoria somente leitura. Nenhum código, dado, vínculo ou configuração foi alterado.
 
-## A) Mapa dos ambientes
+## 1. Fonte real das mensagens
 
-| Ambiente | Rota | Finalidade | Marca | Proteção |
+A fonte de verdade é a tabela `relationship_message_library` (escopo `production`), lida por `getActiveLibraryMessage` / `renderFromLibrary` (`src/server/relationship/message-library.server.ts`). Uma única versão ativa por `step_key`; editar publica versão nova e desativa a anterior. `HOMOLOGATION_MESSAGES` (`src/lib/relationship/messages.ts`) só é semente da v1 e `CONTENT_GROUPS` não é mais lido pelo motor.
+
+Estado real no banco (25 etapas ativas, 56 versões):
+
+| Chave | v ativa | Título gravado | Botão | Situação do texto |
 |---|---|---|---|---|
-| Institucional do Grupo | `/` (`index.tsx`) | Landing das 3 empresas | Grupo | Pública; redireciona para `/f` só quando há search de contexto (e, m, o, u, c, b, ch, lead) |
-| Financeira / Portal do Investidor | `/f` (`f.tsx` + `f.index.tsx`) | Home do Portal do Investidor | Financeira | Pública, com SSR |
-| Solar | `/s` | Landing + formulário de interesse | Solar | Pública |
-| Seguros | `/seg` | Landing + formulário de interesse | Seguros | Pública |
-| Workspace / Portal do Executivo | `/f/executivo/*` | Central do Executivo | Financeira | OperationalGuard + ssr:false; `/f/executivo` é a tela de acesso pública |
-| CRM | `/f/crm` | Relacionamento estilo WhatsApp | Financeira | OperationalGuard + ssr:false (sem rota pública) |
-| Portal dos Leads | `/f/portal-leads` | Kanban somente leitura | Financeira | Guard + useModuleAccess |
-| Remarketing | `/f/remarketing` | Ambiente independente (nova aba) | Financeira | Guard + ssr:false |
-| Link personalizado | `/f/$slug`, `/s/$slug`, `/seg/$slug`, `/e/$slug` (legado) | Portal por executivo | conforme prefixo (`/e` → Financeira) | Pública |
-| Jornada / Manual | `/manual/*` | Jornada editorial | Financeira | Pública |
-| Universo | `/universo` | Material institucional | Financeira | Pública |
-| Canal de origem | `/origem/$channel` | Entrada por campanha (TikTok/Meta) | Financeira | Pública |
-| Convite E20 (Apresentação Digital do investidor) | `/portal/convite/$token` | Apresentação digital com token 7 dias | Financeira | Token |
-| Entrar (legado) | `/entrar` | Redireciona para `/f` | Financeira | Pública |
+| E0 | 4 | "E0 — Primeiro contato" | portal | texto real, com nome do executivo fixo |
+| E0_V1 | 3 | "E1 — Primeiro acompanhamento" | portal | texto real, rótulo trocado |
+| E1 | 3 | "E2 — Segundo acompanhamento" | content | texto real, rótulo trocado |
+| E3, E4, E12, E20, E27, R1, R2, R3, FINALIZACAO | 2–3 | rótulos deslocados (R1/R2/RF0/RE2…) | vários | texto real |
+| E2, E5, E6, E7 (aliases do Word) | 2 | rótulos do Word | — | **ativos**, embora o código os declare legado inativo |
+| RE1, RE2, RE3, RF0, RF1, V3, V4, RESPOSTA_AUTOMATICA | 2 | "Liberado para novas mensagem" | vários | **corpo = "Liberado para novas mensagem" (28 caracteres)** |
 
-## B) Mapa das rotas e redirects legados
+Ordem e rótulos de apresentação vêm de `WORD_STEP_ORDER` + `DEFAULT_STEP_LABELS` (`step-labels.ts`); a ordem de execução vem de `FLOW_SEQUENCE`/`STEPS` (`src/lib/relationship/config.ts`), que é a única fonte de intervalos e finalidade.
 
-Todos os redirects abaixo são `beforeLoad` + `throw redirect(replace:true)` preservando `search` — nenhum quebrado:
+## 2. Como o motor escolhe a mensagem e o momento
 
-- `/crm` → `/f/crm`; `/remarketing` → `/f/remarketing`; `/portal-leads` → `/f/portal-leads`
-- 28 arquivos `executivo.*.tsx` → espelho 1:1 para `/f/executivo/*` (redirect puro, sem conteúdo duplicado)
-- `/entrar` → `/f`; `/e/$slug` → `/f?e=slug&m=manual`
-- `/f/executivo/greensales` → `/f/portal-leads`; `/f/executivo/relatorios` → `/f/executivo/brain`
+`createEngine` (`src/lib/relationship/engine.ts`) aplica o evento em `machine.ts`, e `decideNextAction` (`decide.ts`) devolve a próxima etapa: primeira não executada de `FLOW_SEQUENCE[flow]`, respeitando ordem, `executedSteps`, estado bloqueante, etapa terminal (OPORTUNIDADE), `awaitingFirstHumanAction` (em NOVOS só E0/E0_V1) e o vencimento em dias úteis (`businessDaysAfterReference` a partir da saída de NOVOS ou da última interação). O executor é `scheduler.server.ts` (lote de 200, disparado pelo cron junto da sincronização); a entrega é `dispatch.server.ts`.
 
-Rotas sem legado equivalente (novas, esperado): `apresentacao-digital`, `investidores/$id`, `unidades`.
+## 3–4. Versão COM NOME / SEM NOME e regra do primeiro nome
 
-### Rotas existentes sem item de menu
-`institucional`, `investidores` e `investidores/$id`, `identidade`, `templates` (saída do menu documentada em comentário no shell), `teste-cadencia`, `celebracao`, `greensales-sync` (só aparece como card na Home, via `config/modules.ts`), `administracao`, `recursos`.
+Decisão em `renderFromLibrary`: `resolveTreatment` (`names.ts`) → se `personalized` usa `body`, senão usa `body_without_name` quando existir. Prioridade: nome confirmado pelo executivo → nome informado pelo executivo → nome bruto reconhecido pela base (`name-base.ts`) → fallback "caro investidor". `normalizeName` remove dígitos/símbolos e capitaliza; `firstName` pega a primeira palavra; nome composto só sai completo quando as duas palavras estão na base. Origem do nome bruto: `portal_leads.name` (fallback `crm_leads.name`) em `dispatch.server.ts` / `step-message.server.ts`; na E0, o `name` que veio da entrada.
 
-Nenhum item de menu aponta para rota inexistente: os 24 itens do `executive-shell.tsx` têm rota 1:1 confirmada.
+**Porém**: nenhum texto ativo da Biblioteca contém `{{nome_investidor}}` — todos usam o literal `[nome]`/`[Nome]`. Como `renderMessageSpec` só substitui `{{...}}`, o tratamento é calculado e gravado no snapshot, mas o investidor recebe "Olá, [nome]".
 
-## C) Mapa dos menus (`src/components/executive/executive-shell.tsx`)
+## 5. Central de Nomes
 
-- Dia a dia: Home, Workspace, CRM (nova aba), Remarketing (nova aba), KPI Manager, Painel de Campanhas, Brain Analytics, IA Criativa, Portal dos Leads (nova aba).
-- Centrais: Captação, Reuniões, Alertas, Central de Backup (super_admin), Revista Velox.
-- Relacionamento: Biblioteca de Conteúdos, Apresentação Digital, Unidades do Grupo, Homologação do Motor (super_admin), Backup de Conversas.
-- Administrativo: Usuários, Meu Perfil, Configurações, Laboratório Atlas (só em homologação).
+Não existe. A lógica hoje vive em `src/lib/relationship/names.ts` (+ base em `name-base.ts`), consumida por `renderFromLibrary` e `renderMessageSpec`. É esse o ponto de entrada de uma futura Central. Não implementado nesta rodada.
 
-Observações objetivas:
-- "Central de Backup" (banco inteiro, super_admin) e "Backup de Conversas" (CRM, somente leitura) são módulos distintos — não há duplicidade de código, apenas nomenclatura ambígua.
-- `SiteNav` e `editorial/module-chrome` são chrome público (âncoras), não menus de sistema.
-- `crm-shell.tsx` não tem menu lateral próprio.
+## 6. Acentos
 
-## D) Links de Home/Voltar incorretos (não corrigidos)
+`foldName` remove diacríticos **apenas para comparação** com a base. O texto enviado usa `normalizeName`/`displayName`, que preservam a acentuação original do cadastro.
 
-| Arquivo:linha | Situação | Risco |
-|---|---|---|
-| `src/routes/__root.tsx:45` (NotFound "Go home") | `to="/"` fixo; 404 dentro do Workspace ejeta para a raiz institucional | Alto |
-| `src/routes/__root.tsx:83` (Error "Go home") | `href="/"` fixo; mesmo efeito em erro de runtime | Alto |
-| `src/config/modules.ts:54` | Card "Portal do Investidor" com `href:"/"` external → abre a raiz do Grupo em vez de `/f` | Alto (marca cruzada) |
-| `src/routes/f.executivo.index.tsx:50` | Botão "Voltar ao Portal Velox" abre `/` | Médio |
-| `src/routes/f.index.tsx:554` | Logo "Portal Velox" na Home Financeira aponta para `/` | Médio |
-| `module-chrome.tsx:66`, `journey-chrome.tsx:41`, `manual/concluido.tsx:38` | logo/voltar público → `/` | Baixo |
-| `s.index.tsx:61`, `seg.index.tsx:61` | "Grupo Velox" → `/` | Correto por design |
+## 7–9. E0, link e WhatsApp do executivo
 
-`__root.tsx` já importa `isOperationalPath` (linha 32) mas não o usa nos handlers de erro/404.
+`registerFirstContact` (elegibilidade, cutover, janela noturna, chave `welcomeEnabled`) → `dispatchFirstContact` (`e0.server.ts`). Destinos por `resolveLeadDestinations` com `portalRequired: true`, `contactRequired: false`: o link do Portal é `investorPortalUrl(slug do executivo responsável)`; sem slug a E0 é bloqueada e logada em `relationship_engine_log` (`e0_bloqueada`). O WhatsApp do executivo (`executive_profiles`, via `resolveLeadExecutive`) é destino do **botão de contato** do template — sem ele a E0 é criada e registrada e só a entrega externa fica pendente. Texto: v4 ativa da Biblioteca; template Meta: `crm_meta_templates` com `purpose = primeiro_contato` e status aprovado — **a tabela está vazia hoje**, então toda E0 real cai em "Template oficial da Meta para a E0 não cadastrado — entrega externa pendente".
 
-## E) Componentes com navegação/estado incorretos
+## 10–11. Estados de mensagem e horário
 
-- `f.executivo.apresentacao-digital.tsx:156,164,177`, `f.executivo.alertas.tsx`, `f.executivo.unidades.tsx`: passam `session!` para `ExecutiveShell` enquanto `session` é `null` no primeiro render (vem de `getSession()` em `useEffect`). `ExecutiveShell` lê `session.userId` (linha 81) e `session.name` (linha 399) sem optional chaining → crash real "Something went wrong".
-- `f.executivo.celebracao.tsx`: única página de conteúdo sem `ExecutiveShell` e sem retorno visível durante a tela.
-- `investor-profile-view.tsx:581`: chama o módulo de "Cultura Velox" — nomenclatura antiga, o resto do sistema usa "Princípios Velox".
+- criada = render OK; registrada = `INSERT crm_messages` com id determinístico `msg_e0_<lead>` / `msg_<etapa>_<lead>`; tentativa = chamada da Graph API; aceito pelo provedor = HTTP 2xx (`delivered: true`); entrega efetiva ao aparelho = **não existe** (nenhum consumo de webhook de status `delivered/read`); falha = `delivered: false` + motivo em `crm_timeline` e `relationship_engine_log`.
+- `crm_messages.at`, `crm_timeline.at` e o `sent_at` do snapshot recebem o mesmo `new Date()` capturado **antes** da chamada à Meta: representam decisão/registro, não aceite nem entrega.
 
-## F) Unidades do Grupo — origem e dependências
+## 12–13. Cadência e reprocessamento
 
-- Menu criado em `executive-shell.tsx:194`, condicionado a acesso administrativo.
-- Rota `src/routes/f.executivo.unidades.tsx`; server fns em `src/lib/group/unit-leads.functions.ts`; tabela `group_unit_leads`.
-- Finalidade real: carteira de interessados de Solar e Seguros, captados por `src/components/group/unit-interest-form.tsx` nas landings `/s` e `/seg`. Isolado do CRM, cadência e `portal_leads`.
-- Não tem relação com a narrativa institucional de "milhares de unidades" da Home — é gestão de leads das duas marcas não operacionais.
-- Remoção: tecnicamente isolada, mas eliminaria a única gestão dos leads captados em `/s` e `/seg` — não é código morto.
+Nasce em `FIRST_CONTACT_SENT` (E0) ou `LEAD_CREATED` com `reentry`. Avança por tempo (dias úteis) e por evento; `MESSAGE_RECEIVED`, `SCHEDULE_CREATED`, interrupção manual e encerramento cancelam a fila. Duplicidade é barrada em três camadas: `executedSteps`, PK determinística da mensagem (erro 23505 → "envio duplicado evitado") e a fila `relationship_queue`. O reprocessamento é `bootstrapMissingCadences`, que lê os 200 `msg_e0_%` mais recentes e reemite o evento com id fixo `e0_<lead>` — cria estado, não mensagem. Risco de lote existe apenas se a Biblioteca tiver texto errado ativo (ver item 22).
 
-## G) Homologação do Motor — origem e dependências
+## 14. Logs
 
-- Rota `/f/executivo/homologacao` (super_admin); UI `src/components/executive/homologation-crm.tsx` reutiliza `CrmThread` real; servidor `src/server/relationship/homologation.server.ts`.
-- O arquivo tem duas responsabilidades: (1) simulador de rodadas com leads `TEST-XXXX`, escopo `homologation`, despacho em memória, sem tocar produção; (2) `listValueContents` da Biblioteca (`relationship_contents`, escopo `library`) — este é compartilhado com produção.
-- O motor real não depende do simulador, mas depende da parte de biblioteca. A tela de Biblioteca própria (`f.executivo.biblioteca.tsx`) existe e é separada. Remoção do simulador seria segura; remoção do arquivo inteiro não.
+`relationship_engine_log` grava `etapa_enviada`, `etapa_simulada`, `envio_bloqueado`, `envio_duplicado_evitado`, `etapa_desconhecida`, `e0_bloqueada` (lead, etapa, motivo, template, conteúdo, entregue, erro, bloqueadores, executivo). Snapshot imutável em `relationship_message_sends`; leitura humana em `crm_timeline`.
 
-## H) Princípios Velox — estado real
+## 15. GreenSales
 
-- `principios-overlay.tsx:22-23`: `PRINCIPLE_TITLES = ["Missão","Visão","Valores"]`, `PRINCIPLE_COUNT = 3`. Renderiza sempre exatamente 3 cards.
-- Divergência de documentação no mesmo arquivo: comentário de topo ainda cita "exatamente 6 princípios" e o `aria-label` (linha 113) diz "Os seis Princípios Velox", enquanto o comentário das linhas 17-21 já diz três quadros.
-- Dados vêm do banco via `fetchInstitutionalModule({ module: "principios" })`; títulos e placeholder são hardcoded no componente. Sem card vazio: posição faltante mostra placeholder "Em definição".
-- `f.executivo.institucional.tsx:244-251`: campo "Ordem" é input numérico livre, sem limite 1–3 — posições 4/5/6 podem ser gravadas e nunca aparecem (lixo silencioso).
-- Nenhuma outra tela lê posições > 3.
+`fetchPage` com `status: allExceptInactive`, `withs: [Tags, Forms]`, `total_pagina: 100`, sem parada precoce. Espelho `crm_leads`; card operacional `portal_leads` (`gs_<external_id>`). Mudança de coluna é detectada por comparação de `stage_key`; quando a listagem não traz etiquetas, há verificação por detalhe limitada a **80 leads por execução** — acima disso a mudança daquele ciclo não é vista (fica para o próximo). Lead ausente do espelho entra como histórico (sem E0).
 
-## I) Apresentação Digital — estado real
+## 16–21. Biblioteca × motor
 
-Tela administrativa (`/f/executivo/apresentacao-digital`): sem `errorComponent`, sem botões "tentar novamente"/"voltar para Home"; falhas só geram `toast.error`. Crash de primeiro render pelo `session!` descrito em (E). Ausência de capítulos é tratada com mensagem explícita e nada é inventado.
+Vínculo real: `relationship_step_content_bindings` (ativo, com `position`). `relationship_content_groups` está congelado e não é lido. `loadStepContentBindings` só devolve vínculo explícito quando a etapa tem exatamente 1 conteúdo; com N, rotação determinística por posição/data/id. Sem vínculo não há sorteio nem inferência — hoje existem 4 vínculos ativos (E1, E3, E4, R2) para 17 conteúdos. Adicionar, trocar, limpar e desativar funcionam por desativação (nada é apagado). Etapas presentes na Biblioteca que o motor não executa: `E2`, `E5`, `E6`, `E7` (aliases do Word, deveriam estar inativos) e `E0_V1`/`V3`/`V4` (legado). Etapas do motor sem texto utilizável: `RE1`, `RE2`, `RE3`, `RF0`, `RF1`, `V3`, `V4`, `RESPOSTA_AUTOMATICA`, e `E30` (sem texto, desativada por `E30_ENABLED`).
 
-Tela do investidor (`/portal/convite/$token`): em erro (inválido/expirado/encerrado) renderiza apenas texto, sem nenhum CTA — tela morta. Com roteiro vazio, redireciona silenciosamente para `/f`. O botão "Continuar no Portal do Investidor" (→ `/f`) só existe no caminho de sucesso. `presentation_chapters` está vazia em produção, então hoje o caminho real é o redirect silencioso.
+## 22–23. Inconsistências
 
-## J) Redirects legados
+| # | Grav. | Arquivo → função | Causa | Comportamento hoje | Correção necessária |
+|---|---|---|---|---|---|
+| 1 | CRÍTICA | `relationship_message_library` (dados) × `messages.ts → renderMessageSpec` | textos ativos usam `[nome]` em vez de `{{nome_investidor}}` | investidor recebe "Olá, [nome]"; toda a regra de nome vira decorativa | republicar versões com as variáveis oficiais |
+| 2 | CRÍTICA | Biblioteca (dados), etapas RE1–RF1, V3, V4, RESPOSTA_AUTOMATICA | versão ativa com corpo "Liberado para novas mensagem" | se o fluxo chegar nessas etapas, sai essa frase para o investidor | despublicar/republicar texto oficial |
+| 3 | CRÍTICA | Biblioteca (dados), E0 v4 | nome do executivo escrito no texto, sem `{{nome_executivo}}` | toda E0 assina "Thiago Rodrigues", qualquer que seja o responsável | reintroduzir a variável |
+| 4 | IMPORTANTE | Biblioteca (dados), etapas com `content` | corpo sem `{{conteudo_*}}` | conteúdo vinculado nunca é anexado e nada bloqueia | restaurar o marcador nos textos de conteúdo |
+| 5 | IMPORTANTE | `crm_meta_templates` vazio → `e0-template.server.ts` | nenhum template aprovado cadastrado | E0 registrada, entrega externa sempre pendente | cadastrar o template aprovado |
+| 6 | IMPORTANTE | Biblioteca (dados) — títulos | rótulos deslocados uma etapa (E1 exibido como "E2") | operação lê etapa errada na tela | corrigir só os títulos (não gera versão) |
+| 7 | IMPORTANTE | Biblioteca — `E2/E5/E6/E7` ativos | importação do Word criou aliases executáveis | duplicam textos das chaves reais | desativar mantendo histórico |
+| 8 | IMPORTANTE | `e0.server.ts`, `dispatch.server.ts` | `at` gravado antes da chamada à Meta e sem webhook de status | CRM mostra "enviado" para o que foi só registrado | separar registrado / aceito / entregue |
+| 9 | BAIXA | Biblioteca — `E0_V1.body_without_name` | versão "sem nome" contém `[nome]` | variante sem nome também sai errada | corrigir junto do item 1 |
+| 10 | BAIXA | `lead-sync.server.ts` — `DETAIL_CHECK_LIMIT = 80` | teto por execução | mudança de coluna pode atrasar um ciclo | tornar o teto observável |
 
-Ver seção B. Todos funcionais e preservando `search`. Nenhum aponta para ambiente errado.
+## 24. Correto — não alterar
 
-## K) Inconsistências visuais objetivas
-
-1. `celebracao` sem shell e sem retorno.
-2. "Cultura Velox" vs "Princípios Velox".
-3. `aria-label` "Os seis Princípios Velox" com 3 cards.
-4. Rótulo "Portal Velox" levando à raiz do Grupo (dois pontos).
-5. "Central de Templates" viva por URL mas fora do menu.
-6. `config/modules.ts:72-89`: ~16 ícones importados só para satisfazer o lint via `void [...]` — resíduo de refatoração.
-7. Nomes "Central de Backup" x "Backup de Conversas" facilmente confundíveis.
-
-## L) Arquivos envolvidos
-
-`src/routes/__root.tsx`, `index.tsx`, `f.tsx`, `f.index.tsx`, `f.executivo.tsx`, `f.executivo.index.tsx`, `f.executivo.apresentacao-digital.tsx`, `f.executivo.alertas.tsx`, `f.executivo.unidades.tsx`, `f.executivo.celebracao.tsx`, `f.executivo.institucional.tsx`, `portal.convite.$token.tsx`, `s.index.tsx`, `seg.index.tsx`, os 28 `executivo.*.tsx` legados; `src/components/executive/executive-shell.tsx`, `src/components/portal/principios-overlay.tsx`, `src/components/executive/homologation-crm.tsx`, `src/components/executive/workspace/investor-profile-view.tsx`, `src/components/group/unit-interest-form.tsx`, `src/components/editorial/module-chrome.tsx`, `src/components/journey/journey-chrome.tsx`; `src/config/modules.ts`, `src/lib/business-unit.ts`, `src/lib/portal-brands.ts`, `src/lib/group/unit-leads.functions.ts`, `src/server/relationship/{homologation,presentation,e20}.server.ts`.
-
-## M) Riscos
-
-- Crash da Apresentação Digital, Alertas e Unidades no primeiro render (padrão `session!`) — afeta 3 telas, não é caso isolado.
-- 404/erro dentro do Workspace expulsa o executivo autenticado para a landing pública do Grupo.
-- Card "Portal do Investidor" leva à raiz do Grupo: cruzamento de marca visível ao usuário.
-- Convite E20 com erro deixa o investidor em tela sem saída.
-- Posições 4–6 graváveis em Princípios geram dados invisíveis.
-
-## N) O que é seguro corrigir na próxima rodada
-
-1. `__root.tsx`: Not Found e Error passarem a usar `isOperationalPath` para voltar a `/f/executivo/home` dentro do Workspace.
-2. `config/modules.ts:54`: `href:"/"` → `unitPath("/")`; e remoção do bloco `void [...]` com os ícones mortos.
-3. `f.executivo.index.tsx:50` e `f.index.tsx:554`: apontar "Portal Velox" para `/f`.
-4. Guard de sessão nas 3 telas com `session!` (render nulo até `getSession()` resolver), ou tornar `ExecutiveShell` tolerante a sessão ausente.
-5. CTA na tela de erro do convite E20 e mensagem explícita quando não há capítulos.
-6. `aria-label` e comentário de topo do `principios-overlay.tsx`; limite 1–3 no campo Ordem do admin institucional.
-7. Renomear "Cultura Velox" para "Princípios Velox" na ficha do investidor.
-8. Navegação de retorno em `celebracao`.
-
-## O) O que NÃO deve ser alterado
-
-- Os 28 redirects legados `/executivo/*`, `/crm`, `/remarketing`, `/portal-leads`, `/entrar`, `/e/$slug`.
-- Módulo Unidades do Grupo e tabela `group_unit_leads` (captação viva de `/s` e `/seg`).
-- `homologation.server.ts` na parte de Biblioteca (usada em produção) e o isolamento dos leads `TEST-XXXX`.
-- Portal dos Leads, integração GreenSales e quaisquer dados reais.
-- `presentation_chapters`: nenhum capítulo fictício deve ser criado.
-- Links "Grupo Velox" em `/s` e `/seg` (corretos por design).
+Versionamento imutável e proteção de texto editado manualmente na reimportação do Word; snapshot congelado em `relationship_message_sends`; idempotência por PK determinística e por `executedSteps`; "sem vínculo é sem vínculo" em `step-media.server.ts`; `step-registry` recusando etapa desconhecida; guardas de destinatário (`guard.server.ts`) e ambiente antes de credencial (`execution-mode`); slug do Portal resolvido pelo executivo responsável; WhatsApp do executivo como pendência de entrega, nunca bloqueio; paginação completa e reconciliação do GreenSales.
