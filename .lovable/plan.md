@@ -1,245 +1,226 @@
-# Fotografia técnica — Infraestrutura, integrações e operação
+# Bateria final — confluência técnica pré-construção
 
-Auditoria somente leitura: nenhum código, banco, dado, cron, migração ou integração foi alterado.
-Método: leitura de código + migrações + consultas de leitura ao banco. `cron.job` não é legível pelo usuário de leitura (`permission denied for schema cron`); a existência dos jobs foi confirmada por migração e pelo comportamento observado nos dados. Onde nem um nem outro confirma, está escrito **NÃO CONFIRMADO NO CÓDIGO**.
+Somente auditoria. Nada foi alterado: código, banco, dados, vínculos, seeds, templates e regras permanecem intactos. Conclusões já encerradas em baterias anteriores aparecem aqui apenas como contexto de dependência.
 
-## 1. Banco e persistência
+Medições feitas agora (leitura): 25 mensagens ativas na Biblioteca · 24 vínculos etapa↔conteúdo · **72 E0 registradas, a última hoje 31/08 10:51 (São Paulo)** · `presentation_chapters` = **0** · `crm_meta_templates` = **0** · 7 perfis de executivo, **0 com WhatsApp** · 6 usuários marcados **inativo** no banco · `group_unit_leads` = 0.
 
-| Tabela | Finalidade | Grava | Lê | Verdade ou espelho |
-|---|---|---|---|---|
-| `portal_leads` | card operacional do Lead | sync, Portal, motor | Workspace, CRM, motor, agenda | verdade operacional |
-| `crm_leads` | espelho bruto da origem | `lead-sync.server` | reconciliação, CRM | espelho do GreenSales |
-| `crm_messages` / `crm_timeline` | mensagens e linha do tempo | dispatch, E0, inbound | CRM, jornada | verdade |
-| `relationship_message_library` / `_sends` / `_engine_log` / `_step_content_bindings` | texto oficial, snapshot, auditoria, vínculos | Biblioteca, motor | motor, telas | verdade |
-| `executive_profiles` / `executive_user_status` / `user_roles` | identidade, status, papel | Gestão de Usuários (parcial) | motor, guards, RLS | verdade contaminada pelo seed |
-| `workspace_module_permissions` | permissão por módulo | Admin | UI e guards | verdade |
-| `portal_backups` / `_blobs` / `_requests` / `portal_restores` | pontos de restauração e fila | rotina de backup | Central de Backup | verdade |
-| `group_unit_leads` / `_events` | leads de Solar e Seguros | formulários das unidades | painel das unidades | verdade isolada |
-| `remarketing_*` | campanhas, contatos, conversas, mensagens | motor de remarketing | módulo Remarketing | verdade isolada |
-| `crm_meta_templates` / `meta_templates` | templates oficiais | Admin | E0, campanhas | verdade duplicada em duas tabelas |
+---
 
-UI ≠ persistido (confirmado): **status Ativo/Inativo** dos usuários (tela mostra o seed, banco tem 6 inativos, servidor usa slug do código) e **permissões de módulo** enquanto o espelho local não é atualizado. Dados operacionais que só existem no navegador estão no item 2.
+## 1. Estado real dos usuários
 
-## 2. localStorage — varredura por chave
+Fonte definitiva **hoje**, por campo:
 
-| Arquivo | Chave | Finalidade | Seguro no navegador? | Deveria estar no servidor? |
-|---|---|---|---|---|
-| `executive-auth.ts` | `atlas:session:v3` | sessão do workspace | aceitável (token real é do backend) | não |
-| `executive-auth.ts` | `atlas:users:v3` | cadastro/edição de usuários | **não** — perfil, slug e senha editados | **sim** |
-| `executive-auth.ts` | `atlas:activeRole:v1` | papel ativo | não (papel decide o que aparece) | sim |
-| `workspace-permissions.ts` / `-store.ts` | `atlas:workspace-permissions:v1` | permissões por módulo | espelho; risco se virar fonte | permanece no servidor |
-| `responsible-executive.ts` | `atlas:manual:responsibleExecutiveSlug` | executivo responsável do visitante | parcial | sim, após identificação |
-| `platform-settings.ts` | `atlas:platform-settings:v1` | configurações da plataforma | **não** | **sim** |
-| `resources.ts` | `atlas:resources:v1` | materiais/vídeos | **não** | **sim** |
-| `knowledge-base.ts` | documentos da IA | base de conhecimento | não | sim |
-| `kpi-manager.ts` | KPIs mensais + contexto | metas e resultados | não | sim |
-| `workspace-alerts.ts` | `atlas:workspace-alerts:v1`, `:read`, `investor-last-seen` | alertas e lidos | não | sim |
-| `crm/timeline.ts`, `crm/distribution.ts`, `crm/lead-intake.ts`, `crm/conversation-read.ts` | `crm.*` | linha do tempo local, distribuição, leads privados, lidos | **não** — dado operacional de CRM | **sim** |
-| `crm/backup-access.ts` | `crm.backup.access/grants` | concessão de acesso a backup | **não** — decisão de acesso no cliente | **sim** |
-| `portal/redistribution.ts` | cursor e histórico de redistribuição | rodízio de leads | **não** | **sim** |
-| `acquisition/sources.ts` | config e histórico de captação | canais | não | sim |
-| `meetings.ts`, `google-calendar.ts`, `meeting-providers.ts`, `notifications.ts` | agenda e preferências | reuniões locais | parcial | parcialmente (agenda já tem tabela) |
-| `recognition/engine.ts` | eventos, homologação, agendados | reconhecimento | sim | não |
-| `portal-session.ts`, `portal-identity.ts`, `portal-entry.ts`, `portal-journey.ts` | sessão/identidade do investidor | jornada | sim (com espelho no servidor) | não |
-| `audit-log.ts` | `atlas.audit.log.v1` | auditoria local | **não** — auditoria no cliente é apagável | **sim** |
-| `events/bus.ts`, `sync-bus.ts` | eventos entre abas | coordenação | sim | não |
-| `simulator-history.ts`, `creative/*`, `brain-data.ts`, `custom-fields.ts` | históricos e rascunhos | apoio | sim | opcional |
+| Campo | Verdade real | Contaminação |
+|---|---|---|
+| existência do usuário | `SEED_USERS` (código) | não há tabela de cadastro |
+| status ON/OFF | `executive_user_status` (6 inativos) | a tela sobrepõe com o seed |
+| perfil/nome | `executive_profiles` | mesclado com seed na UI |
+| slug | `executive_profiles`, com queda para `executiveSlugById` (código) | valor de código vence quando o cadastro está vazio |
+| WhatsApp | `executive_profiles` (0 de 7 preenchidos) | edição fica em `atlas:users:v3` |
+| permissões | `workspace_module_permissions` | espelho em `atlas:workspace-permissions:v1` |
 
-Nenhum desses sobrevive a troca de dispositivo; a maioria também não sobrevive a limpeza de navegador. Nada foi migrado.
+Persistência do OFF: o registro sobrevive a F5, logout, novo login e outro dispositivo — **mas a interface não o mostra**, porque `loadUsers()` aplica o seed por cima. Login: `executive-auth.functions.ts` consulta `executive_user_status`, então o **login é recusado no servidor**. Sessão já aberta: `OperationalGuard` verifica apenas *existe sessão no navegador*, nunca o status; o Workspace revalida a cada 20 s, mas as demais telas de `/f/*` não. Resultado concreto: **usuário desligado durante a sessão continua navegando em `/f/*` até fechar/reabrir**, e as funções de servidor que não exigem papel continuam respondendo. O bloqueio, portanto, é real no login e apenas visual/parcial na sessão viva.
 
-## 3. Backup
+Resíduos de localStorage que contradizem o servidor: `atlas:users:v3` (perfil, slug, senha, status), `atlas:workspace-permissions:v1`, `atlas:activeRole:v1`, `atlas:manual:responsibleExecutiveSlug`.
 
-Nasce em `enqueueBackupRequest` (`backup-queue.server.ts`), chamado por `POST /api/public/backup/run` — grava só a hora cheia (chave única, idempotente). É processado por `processNextBackupRequest` via `POST /api/public/backup/process`, com lease de 10 min, teto de 5 tentativas e conclusão apenas após o ponto estar gravado e validado. Conteúdo: 22 tabelas de `BACKUP_TABLES`, metadados em `portal_backups`, payload desduplicado por hash em `portal_backup_blobs` (hoje 63 pontos, 363 MB).
+WhatsApp do perfil: usado pelo motor **apenas como destino do botão de contato** (`resolveLeadExecutive` → `destinations.server`), nunca como remetente. Slug do perfil: usado de verdade na geração do link personalizado, com a ressalva da queda para o valor de código. Campos que a UI diz salvar e não persistem: WhatsApp, senha, status e (na prática) slug.
 
-Fora do backup — lacuna real: todo o motor (`relationship_*`: Biblioteca, snapshots, vínculos, fila, log), `crm_meta_templates`, `group_unit_leads`, todas as `remarketing_*`, `workspace_module_permissions`, `executive_user_status`, `workspace_agenda_events`, pipelines.
+## 2. Ambientes e navegação
 
-Crons versionados: `crm-lead-sync` (*/5), `portal-backup-automatico` (0 * * * *), `remarketing-engine` (* * * * *). O agendamento do **processador** não existe em nenhuma migração, mas o processamento comprovadamente ocorre: 96 solicitações entre 27/08 14:00 e 31/08 13:00 UTC, **todas `concluido`**, ponto gravado ~10 s após a hora cheia. Ou seja, o job existe fora do versionamento — **NÃO CONFIRMADO NO CÓDIGO**, confirmado nos dados. Não há hoje backup "preso na fila". Falhas são registradas em `portal_backup_requests.last_error`/`attempts`; a rota usa `console.error`, que não persiste.
+`/` Grupo · `/f` Financeira · `/s` Solar · `/seg` Seguros · `/f/executivo` Workspace · `/f/crm` · `/f/portal-leads` · `/f/executivo/investidores` e `/f/executivo/investidores/$id` · `/remarketing` · Portal do Investidor por link personalizado · Apresentação Digital por convite E20/E6.
 
-## 4. Retenção
+HOME errada (já mapeado, ainda vigente): `__root.tsx:45`, `f.index.tsx:554`, `module-chrome.tsx:66`, `journey-chrome.tsx:41` levam a `/`. Fora esses quatro, cada ambiente volta à própria home.
 
-`pruneBackups` atua só sobre `origin='automatico'` e não `protected`: ≤48 h mantém tudo; entre 48 h e 7 dias mantém um por bucket `floor(timestamp / 86.400.000)`; acima de 7 dias remove; blobs órfãos são limpos depois.
+Descoberta por navegação: `/f`, `/s` e `/seg` estão linkados a partir da Home do Grupo — são descobríveis por navegação normal, por desenho. O que exige sessão é apenas `/f/*` além da tela de acesso. Não há ambiente oculto alcançável: as rotas internas passam pelo guard; a exceção é o conjunto de **~28 rotas espelho `executivo.*`** (sem o prefixo `/f`), que existem, respondem e não estão sob `f.executivo.tsx`.
 
-Medição real (horário de São Paulo):
+**Tela "Investidores/GS…"**: `/f/executivo/investidores` é rota **legítima e interna** — é a lista da carteira, e `/f/executivo/investidores/$id` é a ficha canônica do lead. Não é resíduo. O "Ver ficha completa" da Ação do Dia leva para `investidores/$id`, ou seja, já abre o lead direto; o que se percebe como "ambiente intermediário" é a *lista* aparecer no caminho. A ficha canônica é dependência de Ação do Dia, Workspace, CRM e agenda: **não pode ser removida**; só o ponto de entrada pode ser encurtado.
+
+## 3. Grupo Velox / captação
+
+Solar e Seguros: formulário `unit-interest-form` → `unit-leads.functions.ts` → `group_unit_leads`/`group_unit_lead_events` → painel `/f/executivo/unidades` (carteira do administrador). Financeira: formulário → identidade em `portal_leads` (`resolve_portal_identity`) → Portal → Workspace/CRM. Os três estão **realmente isolados**: tabelas distintas, sem gravação cruzada, sem motor comum. Não há caminho de Solar/Seguros para o CRM Financeiro nem o inverso. Origem, marca e responsável são gravados pelo formulário. Hoje `group_unit_leads` está vazia — nenhum lead de unidade foi captado ainda, então o fluxo está íntegro mas **não exercitado em produção**.
+
+## 4. E0 — última conferência
+
+Gatilhos reais, todos no servidor:
 
 ```text
-29/08: 15 pontos    30/08: 24 pontos    31/08: 11 pontos     ← dentro das 48 h
-24 a 28/08: 1 ponto por dia, sempre às 20:00 / 17:00 / 19:00 / 20:00 / 20:00
+lead-intake.server        → deferFirstContact()  (enfileira, não envia)
+lead-sync.server          → processDeferredFirstContacts()   ← cron 5 min
+sync-scheduler.server     → processDeferredFirstContacts()   ← cron 5 min
+first-contact.server      → registerFirstContact() → dispatchFirstContact()
 ```
 
-O bucket é **UTC**: o último ponto do dia UTC é 23:00 UTC = **20:00 em São Paulo**. Duas divergências em relação ao projetado: (a) o "dia" não é America/Sao_Paulo, então o fechamento perde as três últimas horas de operação; (b) o corte por dia só começa depois de 48 h — na virada da meia-noite local não acontece nada e convivem dois dias inteiros de pontos horários. Backups manuais e protegidos ficam fora da varredura (é por isso que 09/08, 17/08 e 21/08 seguem vivos), então não há risco de perder ponto válido criado à mão.
+Não há gatilho fora desse caminho. Login não dispara E0. F5, abrir Workspace, polling e reconciliação **não** disparam: nenhum deles chama a fila. Nada de E0 acontece no cliente.
 
-## 5. Crons, jobs e automações
+Por que leads "sem E0" passaram a receber depois que o usuário entrou: a fila é processada pelo cron; o que muda com a entrada do usuário é a **sincronização** trazer/atualizar o lead e a resolução de destinos passar a ter sucesso (slug resolvido). O envio continua sendo do cron — nenhum job depende de sessão.
 
-| Nome / origem | Frequência | Executa | Altera | Dispara mensagem? | Risco |
-|---|---|---|---|---|---|
-| `crm-lead-sync` | 5 min | `runScheduledLeadSync` → sync + fila E0 + tick do motor + reconciliação | leads, mensagens, fila | **sim** | trava por `crm_sync_runs` RUNNING < 15 min |
-| `portal-backup-automatico` | 1 h | enfileira a hora | fila de backup | não | nenhum |
-| processador de backup (fora das migrações) | ~1 min | captura e grava ponto | backups e blobs | não | não reproduzível em ambiente novo |
-| `remarketing-engine` | 1 min | motor de remarketing | tabelas de remarketing | **sim** | sem trava equivalente à do CRM |
-| webhook da Meta | por evento | grava resposta, aciona resposta automática | mensagens, cadência | **sim** | sem assinatura |
-| gatilhos do banco | por operação | blindagem de exclusão, `updated_at`, papel admin | leads, papéis | não | corretos |
-| `setInterval` de tela (20 s em 4 telas; 30–60 s em 5) | contínuo | leitura e `sync()` | nada diretamente | não | carga; reexecuta a cada F5 e login |
+Trava de duplicidade: chave primária determinística `msg_e0_<leadId>` em `crm_messages`; a segunda tentativa colide em `23505` e retorna "primeiro contato já registrado". É **atômica e persistida no servidor** — esse registro é o campo definitivo de "E0 já processada". Lead antigo só volta a ser elegível se essa linha não existir; como ela nunca é apagada, **não há reprocessamento em lote**. O risco de lote existiria apenas se a fila fosse repovoada em massa por importação.
 
-Nenhum job apaga dados de negócio — só a retenção de backup apaga, e apenas pontos automáticos. Sinal de saúde encontrado: `crm_sync_runs` tem 2.072 OK, 1 ERRO e **106 linhas em RUNNING** — execuções que morreram sem fechar; hoje só poluem o histórico (a trava usa idade < 15 min), mas escondem falhas reais.
+Confirmado agora: **a E0 está viva** — 72 registradas, a última hoje às 10:51.
 
-## 6. Meta / WhatsApp (CRM → motor → servidor → Meta → webhook → CRM)
+## 5. Nome / Central de Nomes
 
-Chamada em `src/server/whatsapp.server.ts`: `POST graph.facebook.com/v20.0/<phoneNumberId>/messages` (e `/media`), credenciais `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN` lidas dentro do handler. Templates consultados em `crm_meta_templates` por `purpose` + status aprovado — **a tabela está vazia**, então a E0 é registrada e a entrega externa fica pendente com motivo legível; nada é inventado. WhatsApp do executivo ausente: não bloqueia a E0; vira pendência de entrega quando o template exige o botão de contato.
+Não existe Central de Nomes. A decisão COM NOME / SEM NOME acontece em `src/lib/relationship/names.ts` (`looksLikeName` → tratamento) consumida por `renderFromLibrary`. Campo de origem: `portal_leads.name`, com queda para `crm_leads.name`. Usa-se o **primeiro nome**; nome composto ("Maria Clara") só passa inteiro quando as **duas** palavras estão na base.
 
-Armazenado da resposta da Meta: apenas `delivered: boolean` e a string de erro. **O `wamid` é descartado.** Webhook existe, mas trata só `messages`; o array `statuses` (sent/delivered/read/failed) não é consumido em lugar nenhum, e não há reconciliação posterior. Sem timeout, sem retry, sem backoff nas três chamadas.
+Há sim heurística e lista: `src/lib/relationship/name-base.ts` é uma **lista hardcoded** de nomes brasileiros (~60 linhas); `INVALID_TOKENS` descarta "lead", "teste", "cliente" etc.; `isPlausibleName` exige 3+ caracteres. Não há biblioteca externa. O fallback existe e é o tratamento neutro **"caro investidor"** (`NEUTRAL_TREATMENT`), nunca um nome inventado.
 
-Distinção de estados hoje: **tentativa/registro** e **falha** existem; "aceite da Meta" só vive em memória durante a chamada; **entrega e leitura não existem tecnicamente**. Eventos desconhecidos pelo sistema: entregue, lido, falha assíncrona da Meta, bloqueio pelo destinatário, expiração de janela informada pela Meta.
+Casos frágeis reais: "Senhor André" → a primeira palavra é "Senhor", que não está na base → cai em SEM NOME; "André Silva" → funciona; nomes fora da lista (regionais, estrangeiros) → SEM NOME indevido; "Ana Paula" só passa composto se ambas estiverem na base.
 
-## 7. Custos e IA
+Normalização: `normalizeName` padroniza maiúsculas/minúsculas e limpa ruído; `foldName` **remove acento apenas para comparação**; `displayName` **preserva a acentuação original**. Ou seja, a regra que você descreveu — comparar sem acento, enviar a grafia do lead — **já é o comportamento atual**, e precisa ser confirmada como regra oficial. Também precisa de confirmação: usar só o primeiro nome (hoje há a exceção do composto) e, na futura Central, ausência de autorização = SEM NOME **sem fallback** (hoje o fallback é o tratamento neutro, que é diferente de "sem nome").
 
-| Função | Serviço | Quando | Automática? | Custo |
-|---|---|---|---|---|
-| `askKnowledge`, `askKpiInsights` (`ai.functions.ts`) | gemini-2.5-flash | clique no assistente | não | sim, sob clique |
-| `generateBrainReport` (`brain-ai.functions.ts`) | gemini-3.5-flash | clique | não | sim, sob clique |
-| `generateCampaignDraft` (`campaign-ai.functions.ts`) | gpt-5.6-sol | clique | não | sim, sob clique |
-| `lead-import.functions.ts` | visão | envio de arquivo | não | sim, sob clique |
-| `meta-templates.functions.ts` (protegida) | visão | envio de arquivo | não | sim, sob clique |
-| `creative.server.ts`, `creative-photo.server.ts` | imagem | clique | não | sim, sob clique |
-| heurística de interesses, perfil, simulador | local | render | sim | **sem custo externo** |
-| Meta (motor e remarketing) | Meta | cron | **sim** | **custo automático** |
-| GreenSales | API própria | cron | sim | sem custo por chamada |
-| armazenamento de backups | banco | 1 h | sim | custo automático crescente |
+Pontos que consumiriam a Central: `names.ts` (`looksLikeName`, `resolveTreatment`), `message-library.server.ts` (`renderFromLibrary`), `e0.server.ts`, `step-message.server.ts`, `dispatch.server.ts`, `daily-actions.server.ts` (texto copiado) e a ficha do investidor.
 
-Não há chamada de IA ao abrir tela, ao abrir ficha, em cron ou em background — verificado nos `useEffect` e nos jobs. Nenhum retry de IA. Ressalva importante: `ai.functions.ts`, `brain-ai.functions.ts`, `campaign-ai.functions.ts` e `lead-import.functions.ts` **não têm `requireSupabaseAuth`** — no site publicado são endpoints públicos, o que transforma custo "sob clique" em custo potencialmente automático provocado por terceiros.
+## 6. Mensagens do motor — mapa real
 
-## 8. GreenSales
+Fonte de verdade em duas camadas, sem lista legada: **quais etapas existem** vem de `step-registry.ts` (`KNOWN_STEP_KEYS = Object.keys(STEPS) + NON_CADENCE_STEPS`), **o texto** vem de `relationship_message_library` (25 ativas, versão ativa por código). Rótulo funcional em `step-labels.ts` (E20→"E6 Apresentação Digital", E27→"E7 Checkpoint"). Vínculo etapa↔conteúdo em `relationship_step_content_bindings` (24 registros).
 
-Entrada por `runLeadSync` (cron de 5 min, intervalo efetivo em `crm_automation_settings`): login por token, `lead/list` com `total_pagina = 100` paginado até o fim, espelho em `crm_leads`, card em `portal_leads` (`gs_<external_id>`). Identificação por `external_id` e telefone normalizado. Alterações são detectadas por **comparação de estado** (`stage_key`, status, etiquetas do payload), nunca por evento; quando a listagem não traz etiqueta, há consulta de detalhe limitada a **80 leads por execução**. Não existe webhook: é 100% polling. Reconciliação uma vez por dia, dentro do mesmo cron, marcando como não localizado quem sumiu da origem — nada é apagado.
+Etapas não pertencentes à cadência: `E20`, `E27`, `FINALIZACAO`, `RESPOSTA_AUTOMATICA`. As demais vêm de `STEPS`, com ordem, canal e janela definidas ali. `E0` é automática pela fila; as demais são decididas por `decideNextAction` e materializadas por `relationship_queue`.
 
-Alterações que podem passar despercebidas: mudança que não altera nenhum campo trazido pela listagem e cujo lead não entra nos 80 detalhes daquele ciclo. Duplicação: improvável, pela chave estável. Perda de lead: impossível por exclusão (gatilhos de blindagem), possível apenas como sumiço da visão filtrada. F5 continua sendo necessário em telas cujo estado depende de leitura local (Workspace, CRM) quando o poll não cobre aquele dado.
+Divergências ainda abertas: rótulos de E0/E1/R1 deslocados na base (E0_V1 rotulado como E1); RE1–RE3 com texto de espaço reservado; E0 v4 com nome próprio escrito no corpo. Nenhuma mensagem real está fora da Biblioteca; há mensagens na Biblioteca sem etapa correspondente no motor (marcadas "(legado)" na tela). Chaves duplicadas não existem; aliases visuais sim.
 
-## 9. Portal dos Leads — lead que muda de coluna
+Textos vivos fora da Biblioteca: `CRM_TEMPLATES`/`CRM_FIRST_CONTACT` (`src/lib/crm/templates.ts`) continuam existindo e **podem chegar ao cliente pelo envio manual** do CRM (Primeiro Contato manual e as três aberturas) — o motor automático não os usa mais. `word-library.ts` é referência de mapeamento, não sai para o cliente. Fora de `renderFromLibrary` não há fallback textual no motor: etapa sem conteúdo ativo **não envia** e registra motivo. **SEM VÍNCULO continua sem vínculo** — não há sorteio nem substituição. O motor só lê a versão ativa; versão antiga só reaparece em snapshot histórico, nunca em envio novo.
 
-O sistema procura o lead em `portal_leads` pelo `external_id`, e a coluna exibida vem do `stage_key` capturado no último ciclo. Consideradas: todas as colunas da listagem, não só NOVOS — mas apenas com os campos que a listagem devolve. A reconciliação roda 1x/dia. Saindo de NOVOS, o card muda de coluna no ciclo em que a mudança for percebida; o motor continua enxergando o lead (a cadência não depende da coluna, e sim do estado). Cenário em que fica invisível para o **usuário**: o ciclo não percebeu a mudança, ou o responsável está vazio/inativo e o filtro de carteira o esconde. Cenário em que fica invisível para o **motor**: nenhum encontrado — o motor lê por lead, não por coluna. Causa estrutural: fotografia paginada, sem evento de mudança e **sem carimbo visível de "verificado em"**, o que torna indistinguível "não mudou" de "não foi verificado".
+## 7. Link personalizado
 
-## 10. Isolamento dos ambientes
+Resolução única em `destinations.server.ts` → `resolveLeadDestinations`:
 
-| Ambiente | Home | Rota | Dados | Sessão | Permissões | Isolamento |
-|---|---|---|---|---|---|---|
-| Grupo | sim | `/` | — | pública | — | real |
-| Financeira | sim | `/f` | leads, CRM | operacional única | por módulo | real na rota |
-| Solar | sim | `/s` | `group_unit_leads` | pública | — | real |
-| Seguros | sim | `/seg` | `group_unit_leads` | pública | — | real |
-| Workspace do Executivo | sim | `/f/executivo` | várias | operacional única | por módulo | guard + visual |
-| Portal dos Leads | sim | `/f/portal-leads` | `portal_leads` | operacional única | por módulo | carteira via `can_access_investor` |
-| CRM | sim | `/f/crm` | `crm_*` | operacional única | por módulo | guard + visual |
-| Remarketing | sim | `/remarketing` | `remarketing_*` | operacional única | por módulo | dados reais isolados |
+```text
+portal_leads.responsible_executive_id
+  → executive_profiles (slug oficial)
+  → portal_leads.responsible_executive_slug (atalho)
+  → executiveSlugById()  ← valor hardcoded, último recurso
+  → investorPortalUrl(slug) = link personalizado final
+```
 
-Uma única sessão para todos os ambientes internos e **nenhuma tabela com `workspace_id`/`tenant_id`**: o isolamento é por nome de tabela e por rota. Templates Meta são globais entre CRM, campanhas e Remarketing. RLS de remarketing usa `is_portal_member()` — qualquer membro lê tudo.
+Quem determina é o **executivo responsável pelo lead**, não a origem nem o workspace. Thiago, Larissa e os demais têm links distintos porque o slug é por executivo. O proprietário é identificado com segurança pelo `responsible_executive_id`. Em redistribuição, mensagens **novas** passam a usar o link do novo responsável; o link antigo continua funcionando (é uma URL pública do Portal) e as mensagens já enviadas mantêm o snapshot congelado. Deduplicação de identidade existe: `resolve_portal_identity` por telefone e e-mail, com registro de conflito. O texto literal "link personalizado" não chega ao cliente: sem link resolvido a E0 é **bloqueada**, não enviada com marcador. Campos envolvidos: `responsible_executive_id`, `responsible_executive_slug`, `executive_profiles.executive_id/slug`, o mapa de slugs em código e `investorPortalUrl`.
 
-## 11. Rotas e redirects que atravessam ambientes
+## 8. WhatsApp / Meta
 
-- `src/routes/__root.tsx:45` — tela de erro/404 leva a `/` (Home do Grupo) mesmo quando o usuário estava em `/f`.
-- `src/routes/f.index.tsx:554` — o logotipo da **Financeira** aponta para `/`, ejetando para o institucional do Grupo.
-- `src/components/editorial/module-chrome.tsx:66` e `src/components/journey/journey-chrome.tsx:41` — "voltar" dos módulos e da jornada vai para `/`.
-- `src/routes/s.index.tsx:61` e `seg.index.tsx:61` — corretos: são as próprias homes de unidade voltando ao Grupo.
-- `src/routes/manual/concluido.tsx:38` — fim do manual volta ao Grupo; aceitável, mas não é a home do ambiente de origem.
+O envio automático da E0 sai **sempre pelo número institucional da Meta** (`WHATSAPP_PHONE_NUMBER_ID`), único e compartilhado. O WhatsApp individual do executivo é **exclusivamente destino do botão de contato**. Ele **não impede a criação da E0** — `resolveLeadDestinations` é chamado com `contactRequired: false`. Existe, porém, um ponto que faz a **entrega externa** depender dele: em `e0.server.ts`, quando o template aprovado traz botão de contato e não há número, a entrega fica pendente. É o comportamento decidido, não um erro — mas hoje **0 de 7 executivos têm WhatsApp**, então esse caminho pendurará toda entrega assim que o template existir.
 
-Regra "HOME = home do ambiente atual" ainda não é respeitada nos quatro primeiros casos.
+A resposta automática usa o mesmo número institucional. Template necessário para E0: registro em `crm_meta_templates` com `purpose` de primeiro contato, aprovado, com os botões de portal e contato — **a tabela está vazia**, então toda E0 é registrada e a entrega externa fica pendente com motivo legível. O sistema distingue apenas tentativa/registro e falha; **não há timestamp de aceite, entrega ou leitura**, o `wamid` é descartado e o array `statuses` do webhook não é consumido. A interface considera "enviado" o momento do **registro** da mensagem.
 
-## 12. Módulos que talvez não devessem existir
+## 9. Horário e cadência
 
-| Item | Rotas | Classificação |
+| Momento | Existe? | Onde |
 |---|---|---|
-| Homologação do Motor | `f.executivo.homologacao.tsx` + espelho `executivo.homologacao.tsx` | **NÃO REMOVER** — `homologation.server.ts` contém lógica de Biblioteca usada em produção |
-| Laboratório | `f.executivo.laboratorio.tsx` + espelho | REQUER CUIDADO — hospeda o adaptador interno de recebimento |
-| Teste de cadência | `f.executivo.teste-cadencia.tsx` + espelho | REQUER CUIDADO — usa lotes `is_test` e polling de 30 s |
-| Unidades do Grupo | `f.executivo.unidades.tsx` | **NÃO REMOVER** — é a carteira real de Solar/Seguros |
-| ~28 rotas espelho `executivo.*` (pré-`/f`) | várias | PODE REMOVER COM BAIXO RISCO, depois de conferir links antigos |
+| decisão | sim | `relationship_queue.scheduled_for` |
+| tentativa | sim | `crm_messages.at` / `relationship_message_sends.sent_at` |
+| aceite do provedor | **não** | só em memória durante a chamada |
+| entrega | **não** | — |
+| leitura | **não** | — |
+| falha | sim | campo de erro do envio + `relationship_engine_log` |
+
+A cadência é integralmente do servidor: cron de 5 min, `decideNextAction`, `relationship_queue`. Nenhuma etapa depende de usuário online ou de F5 — o que depende de F5 é apenas a *visualização* de telas que leem cache local. Duplicidade após reinício de job é impedida por chave determinística por lead+etapa+instância; a idempotência é por chave única no banco, não por transação longa. O estado sobrevive a troca de dispositivo e sessão.
+
+## 10. GreenSales
+
+Entrada por `runLeadSync` (cron 5 min): login, `lead/list` paginado, espelho em `crm_leads`, card em `portal_leads` com id `gs_<external_id>`. Identidade única por `external_id` + telefone normalizado. Monitorados: `stage_key`, status e etiquetas trazidos pela listagem; detalhe consultado para no máximo 80 leads por ciclo. **A reconciliação continua limitada à coluna "novos"** — `reconcile.server.ts` filtra `stage_key = 'novos'` antes de marcar como não localizado. Consequência: lead que muda de coluna e some da origem em outra coluna **não é reconciliado**; ele não desaparece do banco (nada é apagado), mas fica com coluna desatualizada. Só polling, sem webhook. Duplicação é improvável pela chave estável; desaparecimento por exclusão é impossível (blindagem por gatilho). O que explica "lead aparecer depois e disparar E0" é a combinação normal: o ciclo do cron traz o lead, a fila enfileira, o ciclo seguinte processa. Ownership em `portal_leads.responsible_executive_id` é a fonte oficial; `crm/distribution.ts` permanece no código e grava em localStorage, **sem participar da decisão do motor**.
+
+## 11. Ação do Dia / ficha
+
+`daily-actions.ts` só lê e ordena quatro fontes já existentes (`portal_meetings`, `workspace_agenda_events`, `relationship_queue`, `crm_cadence_tasks`), com chave determinística e precedência AGENDA > REUNIÃO > MENSAGEM > LIGAÇÃO. Ligação vem de `crm_cadence_tasks`; mensagem vem de `relationship_queue`, e o texto exibido é o mesmo da Biblioteca consumida pelo motor, com o mesmo tratamento COM/SEM NOME — o botão copiar entrega exatamente a versão que o motor produziria. A Ação do Dia **não sugere E0** (E0 é da fila, não da visão) e **não dispara nada automaticamente**. "Ver ficha completa" abre `/f/executivo/investidores/$id` preservando a carteira/escopo.
+
+## 12. Biblioteca
+
+Ela reflete o **registro vivo do código**, não uma lista paralela: a tela percorre `KNOWN_STEP_KEYS`, derivado de `STEPS` + `NON_CADENCE_STEPS`. Uma etapa nova criada em `STEPS` aparece sozinha; uma etapa nova criada **só no banco** não aparece. Não há lista hardcoded na tela que impeça isso. `CONTENT_GROUPS` ainda é lido — em `homologation.server.ts` e `relationship-homologation.functions.ts` (validação da homologação), **não** como fonte de conteúdo do motor. Aliases visuais (E2/E5/E6/E7 sobre chaves técnicas) seguem ativos e são deliberados.
+
+Operações disponíveis hoje: adicionar vínculo, remover vínculo, deixar sem vínculo, desativar. Conteúdo sem vínculo é inutilizável pelo motor — confirmado. Exclusão física é protegida por dependência de histórico. Vínculos legados existem, aparecem marcados "(legado)" e **podem ser preservados sem migração**. A visão inversa "este conteúdo está vinculado a…" existe e cobre as etapas reais. Trocar rótulo não quebra chave técnica (rótulo e chave são camadas separadas). O versionamento preserva o conteúdo efetivamente usado via snapshot em `relationship_message_sends`.
 
 ## 13. Remarketing
 
-Rota própria em aba separada, motor próprio, cron próprio de 1 min, quatro tabelas próprias. O webhook decide por número **antes** de gravar (`isRemarketingPhone`), então mensagem de remarketing não entra no CRM e o motor de relacionamento não lê tabelas de remarketing — uma campanha não muda cadência de lead. Compartilhados: sessão operacional, `OperationalGuard`, número de origem da Meta, o webhook e as tabelas de template. Dependência escondida: todo o isolamento operacional depende de `isRemarketingPhone` acertar o número; um contato presente nos dois mundos é decidido por essa única função. Interface: shell operacional próprio, sem alteração visual proposta aqui.
+Independente: tabelas próprias, cron próprio, motor próprio; o webhook decide por número antes de gravar. Campanha de remarketing **não dispara E0** e **não altera cadência** do CRM. Templates são compartilhados em **infraestrutura** (mesma tabela, mesmo número Meta), não em função. O contato temporário guarda telefone normalizado — suficiente para localizar o lead original; quando localizado, o evento é registrado nas tabelas de remarketing e aparece na Jornada como origem "remarketing", sem misturar históricos. Não há caminho de remarketing que altere ownership nem que crie lead em `portal_leads`. Risco residual único: tudo depende de `isRemarketingPhone` classificar certo.
 
-## 14. Segurança operacional (risco real)
+## 14. Backup
 
-- Senhas dos 7 executivos em texto puro em `src/lib/executive-auth.ts`, dentro do bundle do cliente (existência e local; sem exibir valores).
-- Chave publicável do projeto literal nas três migrações de cron e usada como **única** autorização das 4 rotas públicas — a mesma chave já está no bundle: `/api/public/crm/sync`, `/backup/run`, `/backup/process` e `/remarketing/run` são acionáveis por qualquer visitante.
-- Webhook da Meta sem verificação de assinatura `X-Hub-Signature-256`.
-- 4 funções de IA sem `requireSupabaseAuth`.
-- Concessão de acesso a backup e log de auditoria armazenados no navegador (`crm.backup.grants`, `atlas.audit.log.v1`) — decisão de acesso e evidência editáveis pelo usuário.
-- Permissão de módulo aplicada essencialmente na interface.
-- Não encontrados no cliente: token da Meta, service role, credencial do GreenSales, senha do banco — corretamente server-side.
+Geração (hora cheia) está versionada; **o processador não está em nenhuma migração**, embora comprovadamente rode (96/96 concluídas). Processamento automático: sim. Retenção: **UTC, não America/Sao_Paulo** — o "último do dia" acaba sendo o das 20:00 locais, e o corte só começa após 48 h, então no dia corrente há snapshots horários e na virada da meia-noite local nada acontece. Sobrevivem **7 dias** de snapshots diários; acima disso o ponto automático é removido junto com o blob órfão. Não há risco de apagar o último backup antes do prazo: manuais e protegidos ficam fora da varredura. O backup **inclui** perfis, mensagens e leads, mas **não inclui** Biblioteca, snapshots, vínculos, permissões, unidades do grupo e remarketing. Tudo que hoje vive só em localStorage (item 18) está fora do backup por construção.
 
-## 15. Dados temporários e resíduos
+## 15. Apresentação Digital / conteúdos
 
-`SEED_USERS` ainda sobrepõe o banco; rotas espelho `executivo.*` duplicando `/f/executivo/*`; duas tabelas de template (uma vazia); `relationship_content_groups` congelada mas presente; aliases de etapa `E2/E5/E6/E7` ativos na Biblioteca; chave `atlas:recognition:homolog:v1` de homologação no navegador; lotes `is_test`/`test_batch_id` e `test_batches`; `whatsapp_validations` alimentada por adaptador interno. Nada removido.
+`presentation_chapters` está **vazia (0 registros)** — a Apresentação abre sem conteúdo. O uso de `session!` no primeiro render segue no código e continua podendo quebrar a tela administrativa antes da sessão existir. Edição de capítulos existe (rascunho/publicado), mas sem nenhum capítulo cadastrado não há o que publicar. Não há dependência técnica entre Apresentação Digital e Manual — são conteúdos separados. O vídeo pós-apresentação continua em localStorage.
 
-## 16. Integrações cruzadas — o que quebra o quê
+## 16. Manual / material / imagens
 
-```text
-Usuários (seed) ─→ slug e WhatsApp ─→ E0 e botão do template ─→ Meta
-Biblioteca ──────→ motor ──────────→ mensagens ─→ CRM ─→ jornada
-GreenSales ──────→ portal_leads ───→ motor, Workspace, agenda, Portal dos Leads
-Templates Meta ──→ E0, campanhas e Remarketing (tabela global compartilhada)
-Webhook Meta ────→ Remarketing OU CRM (decisão única por número)
-Backup ──────────→ 22 tabelas; NÃO cobre Biblioteca, permissões, unidades e remarketing
-Permissões ──────→ toda a navegação interna dos ambientes
-```
-Alterar o cadastro de usuários mexe em E0, RLS e permissões. Alterar a tabela de templates mexe em CRM e Remarketing ao mesmo tempo. Alterar o roteamento do webhook mistura dois ambientes. Alterar a Biblioteca não tem rede de proteção, porque não está no backup.
+Estrutura de vídeo (`VideoSlot`) continua presente nos capítulos do Manual, inclusive 1, 7 e 14. Se o requisito atual é remover o vídeo do Manual, **isso ainda não foi feito e precisa da sua confirmação explícita**. Manual e Material seguem conceitos separados no código. Upload/substituição de imagens em cards e áreas institucionais **não existe** hoje: as imagens vêm do registro de assets (`src/lib/assets/registry.ts`) com `assetUrl(key)` e `VITE_ASSET_BASE_URL` — arquitetura já compatível com hospedagem externa (KingHost), mas sem tela de upload e sem persistência de arquivo no servidor. Princípios Velox renderiza 3 cards (Missão, Visão, Valores); restam `aria-label` e documentação citando 6.
 
-## 17. Problemas novos, classificados
+## 17. Módulos residuais
 
-🔴 CRÍTICO
-1. `src/server/backup.server.ts` → `BACKUP_TABLES` → Biblioteca, snapshots, vínculos, permissões, unidades e remarketing fora do backup → perda irrecuperável desses domínios → ampliar a lista.
-2. `src/routes/api/public/*` → `authorized()` → autorização pela chave publicável já exposta no bundle → sync, backup e remarketing acionáveis por terceiros → segredo dedicado por rota.
-3. `src/routes/api/public/whatsapp/webhook.ts` → POST → sem assinatura → payload forjado altera cadência → validar `X-Hub-Signature-256`.
-4. `src/lib/ai.functions.ts`, `brain-ai.functions.ts`, `campaign-ai.functions.ts`, `crm/lead-import.functions.ts` → sem middleware → IA paga exposta → aplicar `requireSupabaseAuth`.
-5. `src/server/whatsapp.server.ts` → provedor `meta` → `wamid` descartado e `statuses` ignorado → entrega e leitura inexistentes, sem reconciliação → persistir id e consumir `statuses`.
-6. `src/lib/crm/backup-access.ts` e `audit-log.ts` → concessão de acesso e auditoria em localStorage → controle e evidência manipuláveis no cliente → mover para o servidor.
+Unidades do Grupo: dependência real (é a carteira Solar/Seguros) — **manter**. Homologação do Motor: `homologation.server.ts` contém lógica de Biblioteca usada em produção — **não remover a lógica**, só a tela é discutível. Telas de teste existentes: `laboratorio`, `teste-cadencia` (e espelhos sem `/f`). Seeds que alimentam produção: `SEED_USERS` (crítico) e o mapa de slugs em código. Dados fictícios visíveis: nenhum lead fictício em produção; lotes `is_test`/`test_batches` seguem existindo. Endpoints de teste acessíveis: as 4 rotas `/api/public/*` autorizadas pela chave publicável já exposta. Código legado ainda executado sem aparecer na interface: `crm/distribution.ts` e as ~28 rotas espelho `executivo.*`.
 
-🟠 IMPORTANTE
-7. Job do processador de backup fora das migrações → ambiente recriado nasce sem backup → versionar o agendamento.
-8. `pruneBackups` → bucket diário em UTC e corte apenas após 48 h → "último do dia" é o das 20:00 locais → adotar America/Sao_Paulo.
-9. `crm_sync_runs` com 106 linhas em `RUNNING` → execuções que morreram sem fechar → falhas silenciosas → fechar no `finally` e marcar abandono.
-10. `greensales.server.ts` → `fetchPage`/`fetchLead` sem timeout e sem retry → erro transitório perde o ciclo inteiro.
-11. `remarketing-engine` a cada minuto sem trava de concorrência equivalente à do CRM.
-12. `recordReply` sem idempotência nem comparação de timestamp → webhook repetido ou fora de ordem sobrescreve status.
-13. Duas tabelas de template, uma delas vazia → fonte dupla para CRM, campanhas e Remarketing.
-14. Ausência de `workspace_id`/`tenant_id` → isolamento por nome de tabela; qualquer módulo novo herda o problema.
-15. Dados operacionais de CRM só no navegador (`crm.timeline`, `crm.distribution`, `crm.private-leads`, redistribuição, plataforma, recursos).
-16. Redirects que ejetam para a Home do Grupo (`__root.tsx`, `f.index.tsx`, `module-chrome.tsx`, `journey-chrome.tsx`).
+## 18. Persistência e sincronização
 
-🟡 BAIXO
-17. ~28 rotas espelho `executivo.*` duplicando `/f/executivo/*`.
-18. Polling de 20 s em quatro telas simultâneas.
-19. Tabelas de log e auditoria sem expurgo (crescimento indefinido).
-20. `console.error` nas rotas públicas não deixa rastro persistente.
-21. URL e chave literais nas migrações de cron.
-22. Resíduos de homologação e teste convivendo com produção (item 15).
+Dependentes de localStorage hoje: cadastro/edição de usuários, papel ativo, permissões (espelho), configurações da plataforma, recursos/materiais, base de conhecimento, KPIs, alertas do Workspace, timeline local do CRM, distribuição, leads privados, lidos, concessão de acesso a backup, log de auditoria, cursor de redistribuição, captação, agenda local e preferências, vídeo pós-apresentação, históricos do simulador e rascunhos criativos.
 
-## 18. O que está correto — não alterar
+Deveriam estar no servidor: usuários, papel, configurações da plataforma, recursos, conhecimento, KPIs, alertas, timeline/distribuição/leads privados do CRM, concessão de backup, auditoria, redistribuição, captação e vídeo pós-apresentação.
 
-Fila de backup com hora única, lease, teto de tentativas e conclusão validada (96/96 concluídas, zero pendentes); desduplicação por hash; `NEVER_RESTORE_TABLES`; proteção de backups manuais e marcados na retenção; blindagem por gatilho contra exclusão e truncamento de Leads; trava de concorrência da sincronização; paginação completa do GreenSales sem parada precoce; reconciliação diária que preserva em vez de apagar; roteamento do webhook que separa Remarketing do CRM antes de gravar; ambiente decidido antes da credencial no envio; credenciais da Meta, GreenSales e service role apenas no servidor e lidas dentro dos handlers; idempotência do motor por chave determinística; `relationship_engine_log` + `relationship_message_sends`; unidades Solar e Seguros em tabela própria; ausência de IA automática em telas, fichas e crons.
+Dois usuários **podem** ver versões diferentes da mesma informação — é a consequência direta do acima (o caso mais grave é status e permissões). Cache que mostra dado velho após mudança administrativa: `atlas:users:v3` e o espelho de permissões. O servidor é fonte de verdade real para **ownership** e **conteúdo do motor**; é fonte de verdade *nominal* mas sobreposta na tela para **permissões** e **status**.
 
-## 19. Ordem recomendada
+## 19. Segurança
 
-```text
-Críticas
-1. Segredo próprio por rota pública        (destrava 7 e 11 sem reabrir superfície)
-2. Assinatura do webhook da Meta           (mesma rota do item 5; antes dele)
-3. Autenticação nas 4 funções de IA        (independente; corta custo aberto)
-4. Ampliar tabelas do backup               (independente; antes de mexer na Biblioteca)
-5. wamid + statuses da Meta                (depende de 2; habilita 12)
-6. Acesso a backup e auditoria no servidor (depende de 1)
+Senhas em texto puro no bundle (`executive-auth.ts`) — sim, ainda. Secrets do provedor (Meta, GreenSales, service role) **não** estão no cliente. Endpoints administrativos sem validação server-side: as 4 rotas `/api/public/*` autorizadas por chave pública. Dado sensível desnecessário no navegador: senhas, concessão de acesso a backup, log de auditoria. Operação crítica que depende só da interface: bloqueio de usuário em sessão viva e permissão de módulo. Acesso a dados de outro workspace: não há `tenant_id`; o isolamento é por tabela e por carteira (`can_access_investor`), e membros do portal leem tudo em remarketing. Permissão burlável via localStorage: sim, no que é apenas visual. Alteração administrativa por usuário não autorizado: possível nas superfícies cuja checagem é só de UI.
 
-Importantes
-7. Versionar o cron do processador         (depende de 1)
-8. Fechar execuções RUNNING                (precede 10)
-9. Retenção em America/Sao_Paulo           (depois de 4 e 7)
-10. Timeout e retry no GreenSales          (depois de 8)
-11. Trava do remarketing                   (depende de 1)
-12. Idempotência de recordReply            (depois de 5)
-13. Tabela canônica de templates           (antes de qualquer ajuste de conteúdo)
-14. Cadastro de usuários no servidor       (precede 15 e o tenant)
-15. tenant_id                              (depois de 14; antes de módulo novo)
-16. Redirects por ambiente                 (independente)
+## 20. Confluência final
 
-Limpeza e melhorias
-17. Rotas espelho, resíduos de teste, expurgo de logs, polling, literais nas migrações
-```
+### 🔴 CRÍTICO
+
+| # | arquivo → função | estado atual | problema | desejado | dependências | risco |
+|---|---|---|---|---|---|---|
+| 1 | `executive-auth.ts` → `loadUsers`/`SEED_USERS` | seed sobrepõe o banco | status, slug, WhatsApp e senha falsos na tela | cadastro no servidor; seed só para primeira carga | precede 2, 3 e 8 | alto: toca login de todos |
+| 2 | `operational-guard.tsx` → `OperationalGuard` | checa só existência de sessão | OFF continua navegando em `/f/*` | revalidar status no servidor | depende de 1 | médio: pode deslogar em massa se mal calibrado |
+| 3 | Gestão de Usuários → salvar WhatsApp | grava no navegador | 0 de 7 no servidor; botão de contato sem destino | persistir em `executive_profiles` | depende de 1 | baixo |
+| 4 | `crm_meta_templates` | vazia | entrega externa da E0 sempre pendente | template oficial aprovado cadastrado | independente | nenhum (é cadastro) |
+| 5 | `presentation_chapters` | 0 capítulos | Apresentação Digital sem conteúdo | capítulos cadastrados/publicados | independente | nenhum |
+| 6 | `whatsapp.server.ts` + webhook | `wamid` descartado, `statuses` ignorado, sem assinatura | entrega/leitura inexistentes; payload forjado aceito | persistir id, consumir status, validar assinatura | precede 9 | médio |
+| 7 | `/api/public/*` → `authorized()` | chave publicável exposta | sync, backup e remarketing acionáveis por terceiros | segredo dedicado | destrava 12 | médio |
+| 8 | `backup.server.ts` → `BACKUP_TABLES` | Biblioteca, vínculos, permissões, unidades e remarketing fora | perda irrecuperável | ampliar lista | fazer antes de mexer na Biblioteca | baixo |
+
+### 🟠 IMPORTANTE
+
+9. `crm_messages.at` como único carimbo → decisão/tentativa/entrega indistinguíveis (depende de 6).
+10. `reconcile.server.ts` limitado a `stage_key='novos'` → mudança de coluna fora de "novos" não é reconciliada.
+11. Cron do processador de backup fora das migrações + retenção em UTC → ambiente recriado nasce sem backup; "último do dia" é 20:00 local.
+12. `remarketing-engine` a cada minuto sem trava de concorrência (depende de 7).
+13. Dados operacionais de CRM só no navegador (timeline, distribuição, leads privados, redistribuição, auditoria, concessão de backup).
+14. Redirects que ejetam para a Home do Grupo (4 arquivos).
+15. `name-base.ts` como lista fechada → nomes fora da lista viram SEM NOME indevido; é exatamente a lacuna que a Central de Nomes resolve.
+16. `CRM_TEMPLATES`/`CRM_FIRST_CONTACT` ainda enviáveis manualmente fora da Biblioteca.
+
+### 🟡 REFINAMENTO
+
+17. Rótulos deslocados na Biblioteca (E0_V1 como E1), RE1–RE3 com texto reservado, E0 v4 com nome próprio no corpo.
+18. `session!` no primeiro render das telas administrativas da Apresentação.
+19. ~28 rotas espelho `executivo.*`; `laboratorio`/`teste-cadencia` expostos.
+20. `aria-label` e documentação de Princípios Velox ainda citando 6 itens.
+21. Vídeo do Manual (capítulos 1, 7, 14) — **requer sua decisão**.
+22. Upload de imagens institucionais — **não existe**; requer sua decisão.
+23. Expurgo de logs, polling de 20 s, literais nas migrações de cron.
+
+### 🟢 CORRETO — NÃO ALTERAR
+
+Idempotência da E0 por chave determinística (comprovada: 72 registros, zero duplicidade); bloqueio por ausência de link personalizado em vez de marcador literal; WhatsApp do executivo como destino de botão e não como remetente; "sem vínculo = sem conteúdo" sem sorteio; snapshot congelado da mensagem; `KNOWN_STEP_KEYS` derivado do registro vivo; isolamento real de Solar/Seguros e de Remarketing; roteamento do webhook por número antes da gravação; blindagem por gatilho contra exclusão de Leads; trava de concorrência da sincronização; credenciais do provedor apenas no servidor; ambiente decidido antes da credencial no envio; Ação do Dia como visão de leitura, sem disparo; ficha canônica `/f/executivo/investidores/$id`.
+
+### Decisões que dependem de você
+
+1. Central de Nomes: confirmar "comparar sem acento, enviar a grafia do lead", "somente primeiro nome" (o composto atual é exceção — mantém ou remove?) e "não autorizado = SEM NOME **sem** fallback" — hoje o fallback é o tratamento neutro "caro investidor", que precisa ser mantido ou abolido.
+2. Manual: remover a estrutura de vídeo dos capítulos, inclusive 1, 7 e 14?
+3. Upload de imagens institucionais: criar agora, com armazenamento próprio compatível com hospedagem externa?
+4. Tela "Investidores": manter a lista como entrada ou levar a Ação do Dia direto à ficha?
+5. Envio manual do CRM: aposentar `CRM_TEMPLATES` e passar tudo pela Biblioteca?
+
+### Conflitos entre código e conceito
+
+- Conceito: usuário OFF perde acesso. Código: perde só no próximo login.
+- Conceito: Gestão de Usuários é fonte única do WhatsApp e do slug. Código: valor de código ainda vence quando o cadastro está vazio.
+- Conceito: reconciliação cobre mudanças de coluna. Código: só "novos".
+- Conceito: a Biblioteca é a única origem de texto ao cliente. Código: envio manual do CRM tem texto próprio.
+- Conceito: retenção diária brasileira. Código: bucket UTC.
+
+---
+
+## DOIS COMANDOS FINAIS
+
+**COMANDO FINAL 1 — Identidade, acesso e verdade do servidor**
+Cadastro de usuários no banco (fim do `SEED_USERS` como verdade), status ON/OFF valendo na sessão viva, WhatsApp e slug persistidos e usados sem queda para código, permissões com verdade única no servidor, migração dos dados operacionais que hoje vivem só no navegador, segredo dedicado nas rotas públicas, assinatura do webhook e ampliação das tabelas do backup. Bloco autocontido: nada aqui depende do motor.
+
+**COMANDO FINAL 2 — Central de Nomes, mensagens e entrega**
+Central de Nomes como autoridade única do COM NOME/SEM NOME (substituindo a lista fechada), consumo dela em todos os pontos mapeados, fim do texto manual fora da Biblioteca, correção de rótulos e conteúdos reservados, cadastro do template oficial da Meta, persistência do `wamid` com consumo de status (tentativa → aceite → entrega → leitura → falha), reconciliação do GreenSales além da coluna "novos" e retenção de backup em horário brasileiro. Depende do Comando 1 apenas em WhatsApp/slug do executivo.
