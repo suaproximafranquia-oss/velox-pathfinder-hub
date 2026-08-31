@@ -1,113 +1,115 @@
-# Auditoria histórica + Arquitetura da Ação do Dia, Agendamentos e Cadência
+# Diagnóstico — arquitetura ATUAL de cadência, agendamento e Ação do Dia
 
-## PARTE 1 — Resposta à pergunta de auditoria
+Somente leitura. Nada foi alterado. Abaixo, apenas o que existe hoje no código e no banco.
 
-**Conclusão: não há evidência de nenhuma mensagem real entregue pela API oficial da Meta em nenhum momento — nem antes, nem depois da trava.** A conclusão não se apoia na trava recém-criada; apoia-se nos registros abaixo.
+## 1. Entrada do lead e decisão do primeiro contato
 
-**Provas verificadas**
+O lead entra por `runLeadSync` (`src/server/crm/lead-sync.server.ts`), acionado pelo agendador `runScheduledLeadSync`. Quem decide que o lead precisa do primeiro contato é `registerFirstContact` (`src/server/crm/first-contact.server.ts`), chamado durante a sincronização. Se o momento cai fora da janela operacional, `deferFirstContact` registra o adiamento e a fila `processDeferredFirstContacts` retoma na abertura da janela.
 
-1. As credenciais da Meta nunca existiram neste projeto. O cofre de segredos contém 8 segredos e **não há `WHATSAPP_TOKEN` nem `WHATSAPP_PHONE_NUMBER_ID`**. Sem elas o provedor oficial não consegue autenticar na Graph API — qualquer tentativa retorna erro antes de sair.
-2. O registro do motor (1.979 ciclos desde 22/08) tem apenas três tipos de evento: `ciclo_motor`, `e0_bloqueada` (524x) e `etapa_simulada` (19x). **Não existe um único `etapa_enviada`.**
-3. Cada mensagem gravada tem, na linha do tempo, o motivo da não-entrega:
-   - 13 registros (29/08 a 31/08): "Entrega externa pendente: Template oficial da Meta para a E0 não cadastrado";
-   - 2 registros (28/08): "Entrega externa pendente: Canal oficial do WhatsApp não configurado para este ambiente";
-   - 72 registros anteriores: marcados explicitamente como simulados ("Meta não acionada").
-4. Não há nenhum identificador de mensagem devolvido pela Meta em nenhuma tabela; `whatsapp_validations` está vazia (0 linhas).
-5. Único caso que merecia checagem: 22/08 13:06 UTC, lead `ld_mt4b3v1ybsb4`, mensagem manual do CRM que gerou o texto "Template aprovado enviado — janela reaberta". Esse texto é otimista: é escrito pela interface **antes** de confirmar entrega, e naquela data as credenciais também não existiam. Não é evidência de entrega.
+Não existe hoje E1–E8 como agenda. O único contato automatizado de entrada é o que o código chama de E0.
 
-**O disparo simultâneo das 10:51 (13:51 UTC) — causa identificada**
+## 2. Onde a decisão fica registrada
 
-Não foi desbloqueio, nem retry, nem envio real. Foi **fila represada por um job travado**:
+- `crm_lead_events` — eventos `e0_adiada`, `e0_simulada`, `boas_vindas_enviada`. É por esses eventos que o sistema sabe se o primeiro contato já ocorreu.
+- `crm_sync_runs` — execução da sincronização, com status `RUNNING/DONE` e contadores (`welcome_sent_count`).
+- `crm_messages` e `relationship_message_sends` — registro da mensagem e snapshot congelado do que foi montado.
+- `relationship_queue` — fila do motor de relacionamento (item por lead + etapa).
+- `crm_cadence_tasks` — tarefas de ligação (legado), com `step_day`, `cycle_date`, `status`, `outcome`.
 
-| Hora (UTC) | Evento |
+Não existe tabela de "ação individual" com prazo e estado próprios. `action_items` não existe.
+
+## 3. Como a cadência é representada hoje
+
+- As etapas são **constantes de código**, em `STEPS` (`src/lib/relationship/config.ts`), identificadas por chave (E0, E20 etc.). Não são linhas de banco.
+- A próxima etapa é **recalculada em memória** a cada ciclo por `decide.ts` / `machine.ts`, a partir do estado do lead e dos eventos já registrados. O sistema não guarda "próxima etapa"; ele deduz.
+- Planejada x pendente x executada: existe apenas parcialmente, dentro de `relationship_queue`, pelos status `PENDING`, `PROCESSING`, `EXECUTED`, `FAILED`. Uma etapa que o motor decidiu mas ainda não materializou não deixa rastro de "planejada".
+
+## 4. Caminho técnico de uma mensagem
+
+`runRelationshipTick` → `createEngine().tick(leadId)` → `decide` escolhe a ação → verificações (destinatário, janela, template, vínculo de conteúdo) → `upsertQueueItem` em `relationship_queue` → `claimQueueItem` (reserva atômica) → `dispatcher.send` → `src/server/whatsapp.server.ts` → **Global WhatsApp Safety Lock** → (bloqueado até 2029) → Graph API.
+Caminho paralelo da E0: `e0.server.ts` → `sendTemplateWithDestinations` → mesma trava.
+
+## 5. Agendamento
+
+- `pg_cron` chama as rotas públicas a cada minuto: `crm/sync`, `remarketing/run`, `backup/process`.
+- `runScheduledLeadSync` respeita `crm_automation_settings.sync_interval_minutes` e ignora execuções concorrentes enquanto houver run `RUNNING` com menos de 15 minutos (`STALE_RUN_MINUTES`).
+- O processamento é **em lote**: varre leads elegíveis e processa todos no mesmo ciclo. Não há execução individual agendada por ação.
+- Fila existe apenas como `relationship_queue` (mensagens) e `crm_cadence_tasks` (ligações).
+- Retry: contador `attempts` no item da fila, com limite `maxAttempts`; esgotado, o item vira `FAILED` e para.
+- Concorrência: reserva atômica por item (`claimQueueItem`) + trava antiabandono de 15 min no run de sincronização. Foi exatamente essa combinação que gerou o lote represado das 10:51.
+
+## 6. Etapa que não pode ser executada
+
+Fica em `relationship_engine_log` como `blocked`, com motivo textual (sem executivo, janela fechada, sem template oficial, sem vínculo de conteúdo). O item permanece `PENDING` na fila e será reavaliado no próximo tick — não existe backoff, prazo de bloqueio nem responsável designado pela pendência.
+
+## 7. Rastreabilidade "deveria às X, executada às Y, resultado Z, lead L"
+
+**Não existe** de forma completa. `relationship_queue` tem `due_at`, `executed_at` e `result`, mas só para mensagens do motor e apenas enquanto o item vive; ligações ficam em outra tabela com semântica de dia (não de horário) e reuniões em `portal_meetings`. Não há uma visão única, imutável e por ação.
+
+## 8. Como os conceitos estão separados hoje
+
+| Conceito | Onde vive |
 |---|---|
-| 13:24 e 13:30 | sincronizações OK, 0 boas-vindas |
-| 13:30 / 13:35 | 2 leads marcados `e0_bloqueada` — "Lead sem executivo responsável definido" |
-| 13:35:00 | execução do cron **trava em RUNNING** e nunca finaliza |
-| 13:36–13:50 | nenhuma execução: a proteção antiabandono de 15 min impede execução concorrente — a fila acumula |
-| 13:45:47 | leads recebem vínculo de executivo (deixam de estar bloqueados) |
-| 13:51:01 | a trava de 15 min expira, o cron roda e processa **`welcome_sent_count: 12`** de uma vez |
-| 13:51:07–13:51:16 | as 12 mensagens E0 são gravadas em sequência (~0,7s cada), todas com entrega externa pendente |
+| Etapa de cadência | Constante em código (`STEPS`) |
+| Mensagem | `relationship_queue` + `crm_messages` + `relationship_message_sends` |
+| Ligação/tarefa | `crm_cadence_tasks` (legado, por dia) |
+| Reunião | `portal_meetings` |
+| Compromisso livre | `workspace_agenda_events` |
+| Ação manual x automática | Não é um campo; é inferido pela fonte |
 
-Ou seja: **fluxo** = primeiro contato (E0) dentro do job `portal-crm-sync-automatico` (cron a cada minuto); **etapa** = E0; **leads** = `gs_58744, 58749, 58756, 58771, 58779, 58787, 58792, 58799, 58808, 58815, 58823, 58827`; **provider** = nenhum (registro local, sem entrega). Leads mais recentes continuaram esperando porque ainda estavam em `e0_bloqueada` por falta de executivo responsável (o último caso é `gs_58846`, 15:20 UTC).
+`buildDailyActions` (`src/server/crm/daily-actions.server.ts`) apenas **lê** essas quatro fontes, normaliza e ordena. Não cria, não persiste, não guarda resultado.
 
-Isso confirma três defeitos estruturais que a nova arquitetura precisa eliminar: fila sem visibilidade, execução em lote sem espaçamento e ausência de registro por ação individual.
+## 9. Pontos capazes de gerar saída de WhatsApp
+
+`src/server/whatsapp.server.ts` (ponto único de rede), alcançado por: `e0.server.ts`, `src/server/crm/messaging.server.ts`, `src/server/remarketing/engine.server.ts` e `conversations.server.ts`. Todos passam pela trava global.
+
+## 10. Caminhos concorrentes
+
+Sim, há mais de um: a E0 pode sair por `registerFirstContact`/fila de adiadas **ou** pelo tick do motor; remarketing tem executor próprio; e o disparo manual pelo CRM é um terceiro caminho. A convergência só acontece na camada de rede, não na camada de decisão.
+
+## 11. Fluxo atual
+
+```text
+LEAD ENTRA (GreenSales/Portal)
+ → runLeadSync (cron 1 min)
+ → crm_leads + crm_lead_events
+ → registerFirstContact (ou deferFirstContact → fila de adiadas)
+ → runRelationshipTick → decide (em memória)
+ → relationship_queue (PENDING → claim → EXECUTED/FAILED)
+ → whatsapp.server → SAFETY LOCK (bloqueado)
+ → relationship_engine_log + crm_messages
+```
 
 ---
 
-## PARTE 2 — Arquitetura recomendada (nada implementado nesta etapa)
+# Recomendação de separação (Decisão → Planejamento → Execução)
 
-### 1. Como encaixar sem conflitar com o motor atual
+## Reaproveitar
+- `decide.ts` / `machine.ts` como **motor de decisão puro** — ele já é determinístico e não toca rede.
+- `relationship_engine_log` como trilha de decisão.
+- `buildDailyActions` como camada de apresentação, passando a ler uma fonte única em vez de quatro.
+- A Safety Lock e o dispatcher, intactos.
 
-Separar em três camadas com responsabilidades exclusivas:
+## Mudar de responsabilidade
+- `relationship_queue` deixa de ser "fila que dispara" e passa a ser plano de ações (ou é substituída pela nova tabela, com migração de histórico).
+- `engine.ts` deixa de chamar `dispatcher.send` no mesmo ciclo em que decide: decidir e executar viram passos distintos.
+- `crm_cadence_tasks` vira somente histórico; ligações passam a ser ações como as demais.
 
-```text
-DECISÃO (motor)        →  PLANEJAMENTO (agenda de ações)  →  EXECUÇÃO (Ação do Dia)
-o que a etapa exige       uma linha por ação, com prazo      o executivo responde o resultado
-```
+## Estruturas futuras necessárias
+- `action_items`: id, lead_id, etapa, tipo (mensagem/ligação/reunião/tarefa), modo (manual/automático), responsável, `due_at`, estado, `idempotency_key` determinística (lead+etapa+ciclo), motivo de bloqueio, tentativas.
+- `action_events`: histórico imutável (criada, adiada, bloqueada, executada, pulada com justificativa, resultado).
 
-- O motor de relacionamento continua decidindo etapas (E0..E8, R). Ele **deixa de executar** e passa a apenas **materializar uma ação** na agenda.
-- Uma tabela única de ações (`action_items`) é o coração: toda ligação, mensagem, reunião e compromisso vira uma linha com estado próprio. A Ação do Dia lê essa tabela e nada mais.
-- O envio de mensagem passa a ser um executor da ação, atrás da trava global — que permanece intacta e no mesmo ponto atual.
+## Maiores riscos
+1. Dois motores ativos: o tick atual continuar disparando enquanto o novo planejador materializa ações — duplicidade real de envio.
+2. Backfill retroativo criando avalanche de ações antigas.
+3. Perda de vínculo lead↔ação se a chave de identidade não for obrigatória e validada na escrita da nota/resultado.
 
-### 2. Fonte de verdade por informação
+## Ordem lógica de implantação
+1. Criar `action_items` / `action_events` em modo **sombra** (o motor grava, ninguém executa).
+2. Comparar por alguns dias a sombra com o comportamento atual.
+3. Ligar a Ação do Dia sobre a nova fonte, ainda em leitura.
+4. Transferir a execução manual (ligação, reunião, resultado) para as ações.
+5. Só então desligar o disparo dentro do tick, deixando o motor apenas decidir.
+6. Congelar os caminhos legados de execução.
 
-| Informação | Fonte única |
-|---|---|
-| ID do investidor | card do lead no banco (`portal_leads` / espelho CRM) — nunca o nome |
-| Ação (ligação/mensagem/reunião) | nova tabela `action_items` |
-| Agendamento | tabela de reuniões existente, referenciada pela ação (a ação não duplica o horário) |
-| Resultado (atendeu/compareceu/evolução) | `action_items` (campos objetivos) + evento imutável em `action_events` |
-| Observação | nota vinculada ao ID, com referência à ação de origem |
-| Notes do Executivo | mesma tabela de notas, filtrada por ID do investidor |
-| Relatório administrativo | leitura agregada de `action_items` + `action_events` (nunca recontagem por texto) |
-
-### 3. Nunca salvar nota no lead errado
-
-- Toda ação carrega `lead_id` obrigatório e com chave estrangeira; a interface trafega o objeto da ação, nunca o nome.
-- Nome do investidor só é usado para exibição; nenhuma busca por nome em gravação.
-- Nota criada pela Ação do Dia recebe `lead_id` + `action_id`; sem os dois a gravação é recusada no servidor.
-- Segurança: o servidor confere que o executivo tem acesso àquele lead antes de gravar; a gestora enxerga tudo por regra de papel.
-
-### 4. Ações rastreáveis, idempotentes e sem acúmulo silencioso
-
-- **Uma linha por ação**, com chave determinística (lead + etapa + ciclo) — a mesma etapa não pode gerar duas ações.
-- **Estados explícitos**: pendente → em execução → concluída / pulada / reagendada / expirada. Nada some por passar da hora: "atrasada" vira apenas ordenação, e a ação continua no topo até ser respondida.
-- **Trava por ação, não por job**: hoje um job travado congela a fila inteira. Cada ação passa a ter sua própria reserva com prazo curto; um travamento afeta uma ação, não as 12.
-- **Espaçamento**: o executor processa com limite por minuto, evitando rajada de lote.
-- **Visibilidade obrigatória**: painel com pendentes, bloqueadas e motivo (por exemplo "lead sem executivo responsável", que hoje só aparece no log interno).
-- **Tentativas registradas** na própria ação, com motivo da falha — falha nunca marca como concluída.
-
-### 5. Componentes envolvidos
-
-- Motor/agendador atual: passa a criar ações em vez de executar.
-- Fila de primeiro contato dentro do sync: deixa de enviar; apenas enfileira a ação E0.
-- Tela Ação do Dia: ampliada, com perguntas objetivas, observação com prévia limitada e reticências, reagendar e pular com justificativa obrigatória.
-- Nova área administrativa (Administrador + Larissa): resumo diário, pulos com justificativa, filtro por executivo e busca por ID.
-- Notes do Executivo: passa a receber os registros gerados pelas respostas.
-
-### 6. Estruturas de dados sugeridas
-
-Reaproveitar: leads/cards, reuniões, linha do tempo, biblioteca de mensagens, registro do motor.
-Criar: `action_items` (ação, tipo, etapa, lead, executivo, prazo, estado, resultado, justificativa, referência à reunião), `action_events` (histórico imutável de cada resposta) e notas vinculadas por ID.
-Ajustar: a tabela de tarefas de cadência atual passa a ser origem de dados, não executor paralelo — dois motores ativos ao mesmo tempo não são permitidos.
-
-### 7. Riscos e conflitos com o legado
-
-- Coexistência temporária de dois caminhos de execução (tarefas de cadência atuais x novas ações). Mitigação: migração única, com desligamento do caminho antigo no mesmo passo.
-- Leads sem executivo responsável continuam bloqueando E0; a nova arquitetura torna isso visível, mas a regra de origem do responsável não muda.
-- Reagendamento precisa de regra clara para não gerar ação duplicada da mesma etapa.
-- Relatório precisa distinguir "resultado negativo" (vermelho) de "pulo" (categoria própria) — são dimensões diferentes.
-
-### 8. Decisões necessárias antes de implementar
-
-1. Ação pendente não respondida no dia: rola para o dia seguinte ou expira e vira pendência auditada?
-2. Reagendar reunião: cria nova reunião e encerra a ação atual, ou mantém a mesma reunião com novo horário?
-3. Mensagem de cadência: pode ser pulada com justificativa, ou é sempre obrigatória (o texto atual sugere obrigatória)?
-4. Limite de caracteres da prévia da observação (sugestão: 140).
-5. Escopo da gestora: leitura total com auditoria, ou também poder de intervir em ações de outros executivos?
-6. Ligações: registrar duração/horário real ou apenas o resultado objetivo?
-
-### 9. Segurança
-
-A Global WhatsApp Safety Lock permanece intacta e continua sendo a última barreira antes da Graph API. A nova arquitetura executa mensagens em modo registrado/simulado; nenhum ponto novo fala com a Meta e nenhum controle de liberação é criado na interface.
+Nada disso será implementado sem sua aprovação.
