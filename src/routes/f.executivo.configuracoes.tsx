@@ -10,6 +10,7 @@ import {
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { GreenSalesConnectionSection } from "@/components/crm/greensales-connection-section";
 import { NonBusinessDaysCard } from "@/components/executive/non-business-days-card";
+import { WhatsappSafetyLockCard } from "@/components/executive/whatsapp-safety-lock-card";
 import {
   canManageUsers,
   getSession,
@@ -107,6 +108,7 @@ function ConfiguracoesPage() {
           <VideoconferenciaSection session={session} />
           <ProtecaoHomologacaoSection />
           <IntegracoesSection session={session} />
+          <WhatsappSafetyLockCard />
           <GreenSalesConnectionSection />
           <NonBusinessDaysCard />
           {sections.map((s) => {
