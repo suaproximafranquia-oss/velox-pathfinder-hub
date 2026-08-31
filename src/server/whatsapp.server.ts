@@ -7,6 +7,7 @@
  * oficial de validações.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { blockRealWhatsappSend } from "@/server/whatsapp-safety-lock.server";
 import { isProductionRequest } from "@/server/environment.server";
 import {
   CHANNEL_UNAVAILABLE_MESSAGE,
