@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/public/crm/sync")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!isAutomationRequestAuthorized(request, "crm/sync")) {
+        if (!(await isAutomationRequestAuthorized(request, "crm/sync"))) {
           return automationUnauthorizedResponse();
         }
         const { runScheduledLeadSync } = await import("@/server/crm/sync-scheduler.server");

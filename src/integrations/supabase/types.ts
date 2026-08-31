@@ -44,6 +44,27 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_credentials: {
+        Row: {
+          created_at: string
+          name: string
+          rotated_at: string
+          secret: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          rotated_at?: string
+          secret: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          rotated_at?: string
+          secret?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           audience: string
@@ -3289,6 +3310,7 @@ export type Database = {
           step_day: number
         }[]
       }
+      automation_request_headers: { Args: { _name?: string }; Returns: Json }
       can_access_investor: { Args: { _investor_id: string }; Returns: boolean }
       can_access_relationship: {
         Args: { _lead_id: string; _scope: string }
