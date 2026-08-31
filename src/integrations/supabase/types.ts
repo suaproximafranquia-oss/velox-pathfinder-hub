@@ -748,31 +748,55 @@ export type Database = {
       }
       executive_profiles: {
         Row: {
+          admission_date: string | null
+          birth_date: string | null
           created_at: string
           email: string
           executive_id: string
+          gestor_id: string | null
           name: string | null
+          phone: string | null
+          photo_url: string | null
+          post_presentation_video_url: string | null
           role_title: string | null
+          slug: string | null
+          title: string | null
           updated_at: string
           user_id: string
           whatsapp: string | null
         }
         Insert: {
+          admission_date?: string | null
+          birth_date?: string | null
           created_at?: string
           email: string
           executive_id: string
+          gestor_id?: string | null
           name?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          post_presentation_video_url?: string | null
           role_title?: string | null
+          slug?: string | null
+          title?: string | null
           updated_at?: string
           user_id: string
           whatsapp?: string | null
         }
         Update: {
+          admission_date?: string | null
+          birth_date?: string | null
           created_at?: string
           email?: string
           executive_id?: string
+          gestor_id?: string | null
           name?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          post_presentation_video_url?: string | null
           role_title?: string | null
+          slug?: string | null
+          title?: string | null
           updated_at?: string
           user_id?: string
           whatsapp?: string | null

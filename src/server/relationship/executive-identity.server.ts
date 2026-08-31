@@ -45,7 +45,7 @@ export async function resolveLeadExecutive(leadId: string): Promise<LeadExecutiv
 
   const { data: profile } = await supabaseAdmin
     .from("executive_profiles")
-    .select("executive_id,name,whatsapp,role_title")
+    .select("executive_id,name,whatsapp,role_title,title,slug")
     .eq("executive_id", executiveId)
     .maybeSingle();
   const p = profile as Record<string, any> | null;
@@ -62,9 +62,12 @@ export async function resolveLeadExecutive(leadId: string): Promise<LeadExecutiv
   return {
     available: true,
     executiveId,
-    slug: row?.["responsible_executive_slug"] ?? null,
+    // COMANDO FINAL 1 §4 — o slug gravado no lead continua valendo; na
+    // ausência dele, o link personalizado vem da ficha oficial do
+    // executivo no servidor (nunca de valor fixo no código).
+    slug: row?.["responsible_executive_slug"] ?? p["slug"] ?? null,
     name,
-    roleTitle: p["role_title"] ?? null,
+    roleTitle: p["title"] ?? p["role_title"] ?? null,
     whatsapp: number.valid ? number.digits : null,
     waLink: number.valid ? number.waLink : null,
     whatsappReason: number.valid ? null : number.reason,

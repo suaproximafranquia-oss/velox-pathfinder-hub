@@ -1,4 +1,6 @@
 import { isReservedSlug, validateExecutiveSlug } from "@/lib/business-unit";
+import { getExecutiveDirectoryCache } from "@/lib/executive-directory";
+
 
 /**
  * Central do Executivo — autenticação simples com dados fictícios.
@@ -284,45 +286,87 @@ export const SEED_USERS: ExecutiveUser[] = [
   },
 ];
 
+/**
+ * COMANDO FINAL 1 — O SERVIDOR É A VERDADE.
+ *
+ * A montagem passa a ter três camadas, nesta ordem exata:
+ *
+ *   1. SEED (bootstrap)  — estrutura mínima: credencial de acesso,
+ *      perfil e workspace. Só vale enquanto o banco não tiver o dado.
+ *   2. NAVEGADOR (cache) — o que ficou gravado localmente antes desta
+ *      arquitetura. Continua sendo lido para não perder edição antiga.
+ *   3. SERVIDOR (verdade) — `executive_profiles` + `executive_user_status`.
+ *      Sempre que existir valor aqui, ele SOBRESCREVE as duas camadas
+ *      anteriores, inclusive a situação ativo/inativo.
+ *
+ * Nada é inventado: campo ausente no servidor não vira `null` na tela,
+ * apenas mantém o último valor conhecido das camadas anteriores.
+ */
 export function loadUsers(): ExecutiveUser[] {
   if (typeof window === "undefined") return SEED_USERS;
+  let base: ExecutiveUser[] = SEED_USERS;
   try {
     const raw = window.localStorage.getItem(USERS_KEY);
-    if (!raw) return SEED_USERS;
-    const arr = JSON.parse(raw) as ExecutiveUser[];
-    if (!Array.isArray(arr) || arr.length === 0) return SEED_USERS;
-    // Garante que os usuários oficiais existam e mantenham credenciais
-    // sincronizadas com o seed atual (previne conflitos com versões
-    // anteriores da estrutura persistida no localStorage).
-    const byId = new Map(
-      arr.filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id)).map((u) => [u.id, u] as const),
-    );
-    for (const seed of SEED_USERS) {
-      const stored = byId.get(seed.id);
-      // Credenciais/estrutura vêm do seed; os dados pessoais editados pelo
-      // colaborador (foto, WhatsApp, datas, nome) são preservados.
-      byId.set(
-        seed.id,
-        stored
-          ? {
-              ...seed,
-              name: stored.name || seed.name,
-              phone: stored.phone ?? seed.phone,
-              whatsapp: stored.whatsapp ?? seed.whatsapp,
-              photoUrl: stored.photoUrl ?? seed.photoUrl,
-              postPresentationVideoUrl:
-                stored.postPresentationVideoUrl ?? seed.postPresentationVideoUrl,
-              admissionDate: stored.admissionDate ?? seed.admissionDate,
-              birthDate: stored.birthDate ?? seed.birthDate,
-            }
-          : seed,
+    const arr = raw ? (JSON.parse(raw) as ExecutiveUser[]) : [];
+    if (Array.isArray(arr) && arr.length > 0) {
+      const byId = new Map(
+        arr.filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id)).map((u) => [u.id, u] as const),
       );
+      for (const seed of SEED_USERS) {
+        const stored = byId.get(seed.id);
+        byId.set(
+          seed.id,
+          stored
+            ? {
+                ...seed,
+                name: stored.name || seed.name,
+                phone: stored.phone ?? seed.phone,
+                whatsapp: stored.whatsapp ?? seed.whatsapp,
+                photoUrl: stored.photoUrl ?? seed.photoUrl,
+                postPresentationVideoUrl:
+                  stored.postPresentationVideoUrl ?? seed.postPresentationVideoUrl,
+                admissionDate: stored.admissionDate ?? seed.admissionDate,
+                birthDate: stored.birthDate ?? seed.birthDate,
+              }
+            : seed,
+        );
+      }
+      base = Array.from(byId.values());
     }
-    return Array.from(byId.values());
   } catch {
-    return SEED_USERS;
+    base = SEED_USERS;
   }
+  return applyServerDirectory(base);
 }
+
+/** Camada 3: o diretório oficial vence código e navegador. */
+function applyServerDirectory(users: ExecutiveUser[]): ExecutiveUser[] {
+  const entries = getExecutiveDirectoryCache();
+  if (entries.length === 0) return users;
+  const byId = new Map(entries.map((e) => [e.executiveId, e] as const));
+  return users.map((user) => {
+    const official = byId.get(user.id);
+    if (!official) return user;
+    return {
+      ...user,
+      name: official.name ?? user.name,
+      email: official.email ?? user.email,
+      slug: official.slug ?? user.slug,
+      whatsapp: official.whatsapp ?? user.whatsapp,
+      title: official.title ?? user.title,
+      phone: official.phone ?? user.phone,
+      admissionDate: official.admissionDate ?? user.admissionDate,
+      birthDate: official.birthDate ?? user.birthDate,
+      photoUrl: official.photoUrl ?? user.photoUrl,
+      postPresentationVideoUrl:
+        official.postPresentationVideoUrl ?? user.postPresentationVideoUrl,
+      gestorId: official.gestorId ?? user.gestorId,
+      // SITUAÇÃO: só o servidor decide. Seed e navegador não reativam.
+      status: official.status,
+    };
+  });
+}
+
 
 /** Erro lançado quando a persistência recebe um link personalizado inválido. */
 export class InvalidExecutiveSlugError extends Error {
@@ -349,7 +393,37 @@ export function saveUsers(users: ExecutiveUser[]) {
     USERS_KEY,
     JSON.stringify(users.filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id))),
   );
+  // O navegador é apenas espelho: a mesma edição sobe para o servidor,
+  // que é quem o motor consulta (WhatsApp do executivo, slug da E0…).
+  void mirrorUsersToServer(users);
 }
+
+async function mirrorUsersToServer(users: ExecutiveUser[]): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const { persistExecutiveProfile } = await import("@/lib/executive-directory");
+    for (const user of users) {
+      if (LEAD_ORIGIN_ONLY_USER_IDS.has(user.id)) continue;
+      await persistExecutiveProfile({
+        executiveId: user.id,
+        name: user.name ?? "",
+        email: user.email ?? "",
+        slug: user.slug ?? "",
+        whatsapp: user.whatsapp ?? "",
+        title: user.title ?? "",
+        phone: user.phone ?? "",
+        admissionDate: user.admissionDate ?? "",
+        birthDate: user.birthDate ?? "",
+        photoUrl: user.photoUrl ?? "",
+        postPresentationVideoUrl: user.postPresentationVideoUrl ?? "",
+        gestorId: user.gestorId ?? "",
+      });
+    }
+  } catch {
+    /* sem permissão ou offline: o servidor continua com o valor anterior */
+  }
+}
+
 
 export type ExecutiveSession = {
   userId: string;
