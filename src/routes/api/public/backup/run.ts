@@ -10,15 +10,13 @@
  * chame esta URL continua alimentando a fila corretamente.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  automationUnauthorizedResponse,
+  isAutomationRequestAuthorized,
+} from "@/server/automation-auth.server";
 
 function authorized(request: Request): boolean {
-  const expected =
-    process.env["SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"] ?? "";
-  const provided =
-    request.headers.get("apikey") ??
-    request.headers.get("authorization")?.replace(/^Bearer /i, "") ??
-    "";
-  return Boolean(expected) && provided === expected;
+  return isAutomationRequestAuthorized(request, "backup/run");
 }
 
 export const Route = createFileRoute("/api/public/backup/run")({

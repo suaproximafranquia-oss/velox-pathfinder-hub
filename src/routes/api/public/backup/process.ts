@@ -10,15 +10,13 @@
  * solicitação permanece na fila e é retomada no ciclo seguinte.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  automationUnauthorizedResponse,
+  isAutomationRequestAuthorized,
+} from "@/server/automation-auth.server";
 
 function authorized(request: Request): boolean {
-  const expected =
-    process.env["SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"] ?? "";
-  const provided =
-    request.headers.get("apikey") ??
-    request.headers.get("authorization")?.replace(/^Bearer /i, "") ??
-    "";
-  return Boolean(expected) && provided === expected;
+  return isAutomationRequestAuthorized(request, "backup/process");
 }
 
 export const Route = createFileRoute("/api/public/backup/process")({

@@ -6,18 +6,17 @@
  * chama a cada minuto; o intervalo real é decidido no servidor.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  automationUnauthorizedResponse,
+  isAutomationRequestAuthorized,
+} from "@/server/automation-auth.server";
 
 export const Route = createFileRoute("/api/public/crm/sync")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = request.headers.get("apikey") ?? "";
-        const accepted = [
-          process.env["SUPABASE_ANON_KEY"],
-          process.env["SUPABASE_PUBLISHABLE_KEY"],
-        ].filter((v): v is string => Boolean(v));
-        if (!accepted.length || !accepted.includes(key)) {
-          return new Response("Não autorizado", { status: 401 });
+        if (!isAutomationRequestAuthorized(request, "crm/sync")) {
+          return automationUnauthorizedResponse();
         }
         const { runScheduledLeadSync } = await import("@/server/crm/sync-scheduler.server");
         try {
