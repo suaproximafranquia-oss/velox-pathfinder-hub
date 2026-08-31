@@ -1,177 +1,245 @@
-# Fotografia técnica da infraestrutura — Backup, Cron, Meta, GreenSales, IA, Ambientes
+# Fotografia técnica — Infraestrutura, integrações e operação
 
-Auditoria somente leitura: nenhum código, dado, banco, cron ou integração foi alterado.
-Método: código + migrações + consulta de leitura ao banco. `cron.job` não é legível pelo usuário de leitura (`permission denied for schema cron`), então a existência de cada job foi confirmada pelas migrações e pelo comportamento observado nos dados. Onde nem um nem outro confirma, está escrito **NÃO CONFIRMADO NO CÓDIGO**.
+Auditoria somente leitura: nenhum código, banco, dado, cron, migração ou integração foi alterado.
+Método: leitura de código + migrações + consultas de leitura ao banco. `cron.job` não é legível pelo usuário de leitura (`permission denied for schema cron`); a existência dos jobs foi confirmada por migração e pelo comportamento observado nos dados. Onde nem um nem outro confirma, está escrito **NÃO CONFIRMADO NO CÓDIGO**.
 
-## 1. Backup
+## 1. Banco e persistência
 
-Incluídos: 22 tabelas listadas em `BACKUP_TABLES` (`src/server/backup.server.ts`) — leads do Portal, CRM, mensagens, linha do tempo, eventos, jornada, engajamento, reuniões, auditoria de proteção, campanhas, templates, notícias, conhecimento, criativos, perfis de executivo, papéis, validações de WhatsApp, conexões, revista e blocos institucionais. Fora do backup: todo o motor de relacionamento (`relationship_*` — Biblioteca, snapshots, vínculos, fila, log do motor), `crm_meta_templates`, `group_unit_leads`, todas as tabelas `remarketing_*`, `workspace_module_permissions`, `executive_user_status`, `workspace_agenda_events`, `crm_pipelines`/`crm_pipeline_stages`, `portal_backup_*`. Isso é uma lacuna real: a Biblioteca oficial e as permissões não têm ponto de restauração.
+| Tabela | Finalidade | Grava | Lê | Verdade ou espelho |
+|---|---|---|---|---|
+| `portal_leads` | card operacional do Lead | sync, Portal, motor | Workspace, CRM, motor, agenda | verdade operacional |
+| `crm_leads` | espelho bruto da origem | `lead-sync.server` | reconciliação, CRM | espelho do GreenSales |
+| `crm_messages` / `crm_timeline` | mensagens e linha do tempo | dispatch, E0, inbound | CRM, jornada | verdade |
+| `relationship_message_library` / `_sends` / `_engine_log` / `_step_content_bindings` | texto oficial, snapshot, auditoria, vínculos | Biblioteca, motor | motor, telas | verdade |
+| `executive_profiles` / `executive_user_status` / `user_roles` | identidade, status, papel | Gestão de Usuários (parcial) | motor, guards, RLS | verdade contaminada pelo seed |
+| `workspace_module_permissions` | permissão por módulo | Admin | UI e guards | verdade |
+| `portal_backups` / `_blobs` / `_requests` / `portal_restores` | pontos de restauração e fila | rotina de backup | Central de Backup | verdade |
+| `group_unit_leads` / `_events` | leads de Solar e Seguros | formulários das unidades | painel das unidades | verdade isolada |
+| `remarketing_*` | campanhas, contatos, conversas, mensagens | motor de remarketing | módulo Remarketing | verdade isolada |
+| `crm_meta_templates` / `meta_templates` | templates oficiais | Admin | E0, campanhas | verdade duplicada em duas tabelas |
 
-Armazenamento: metadados em `portal_backups`, conteúdo desduplicado por hash em `portal_backup_blobs` (63 pontos, 363 MB hoje). Inicia: `enqueueBackupRequest` (`backup-queue.server.ts`) via `/api/public/backup/run`. Processa: `processNextBackupRequest` via `/api/public/backup/process`, com lease de 10 minutos, máximo de 5 tentativas e conclusão só depois de o ponto estar gravado e validado.
+UI ≠ persistido (confirmado): **status Ativo/Inativo** dos usuários (tela mostra o seed, banco tem 6 inativos, servidor usa slug do código) e **permissões de módulo** enquanto o espelho local não é atualizado. Dados operacionais que só existem no navegador estão no item 2.
 
-Crons confirmados em migração: `crm-lead-sync` (*/5), `portal-backup-automatico` (0 * * * *), `remarketing-engine` (* * * * *). O agendamento do **processador** de backup não aparece em nenhuma migração, mas os dados provam que ele executa: 96 solicitações, **todas `concluido`**, de 27/08 14:00 a 31/08 13:00 UTC, com o ponto gravado ~10 s depois da hora cheia. Ou seja, o job existe fora do versionamento — **NÃO CONFIRMADO NO CÓDIGO**, confirmado no comportamento. O risco prático não é "ficar só enfileirado" (não há nenhuma pendente ou falha), é o job não estar reproduzível: uma recriação do ambiente a partir das migrações nasce sem ele. Falhas são registradas em `portal_backup_requests.last_error` e `attempts`; a rota só faz `console.error`, que não persiste.
+## 2. localStorage — varredura por chave
 
-## 2. Retenção
+| Arquivo | Chave | Finalidade | Seguro no navegador? | Deveria estar no servidor? |
+|---|---|---|---|---|
+| `executive-auth.ts` | `atlas:session:v3` | sessão do workspace | aceitável (token real é do backend) | não |
+| `executive-auth.ts` | `atlas:users:v3` | cadastro/edição de usuários | **não** — perfil, slug e senha editados | **sim** |
+| `executive-auth.ts` | `atlas:activeRole:v1` | papel ativo | não (papel decide o que aparece) | sim |
+| `workspace-permissions.ts` / `-store.ts` | `atlas:workspace-permissions:v1` | permissões por módulo | espelho; risco se virar fonte | permanece no servidor |
+| `responsible-executive.ts` | `atlas:manual:responsibleExecutiveSlug` | executivo responsável do visitante | parcial | sim, após identificação |
+| `platform-settings.ts` | `atlas:platform-settings:v1` | configurações da plataforma | **não** | **sim** |
+| `resources.ts` | `atlas:resources:v1` | materiais/vídeos | **não** | **sim** |
+| `knowledge-base.ts` | documentos da IA | base de conhecimento | não | sim |
+| `kpi-manager.ts` | KPIs mensais + contexto | metas e resultados | não | sim |
+| `workspace-alerts.ts` | `atlas:workspace-alerts:v1`, `:read`, `investor-last-seen` | alertas e lidos | não | sim |
+| `crm/timeline.ts`, `crm/distribution.ts`, `crm/lead-intake.ts`, `crm/conversation-read.ts` | `crm.*` | linha do tempo local, distribuição, leads privados, lidos | **não** — dado operacional de CRM | **sim** |
+| `crm/backup-access.ts` | `crm.backup.access/grants` | concessão de acesso a backup | **não** — decisão de acesso no cliente | **sim** |
+| `portal/redistribution.ts` | cursor e histórico de redistribuição | rodízio de leads | **não** | **sim** |
+| `acquisition/sources.ts` | config e histórico de captação | canais | não | sim |
+| `meetings.ts`, `google-calendar.ts`, `meeting-providers.ts`, `notifications.ts` | agenda e preferências | reuniões locais | parcial | parcialmente (agenda já tem tabela) |
+| `recognition/engine.ts` | eventos, homologação, agendados | reconhecimento | sim | não |
+| `portal-session.ts`, `portal-identity.ts`, `portal-entry.ts`, `portal-journey.ts` | sessão/identidade do investidor | jornada | sim (com espelho no servidor) | não |
+| `audit-log.ts` | `atlas.audit.log.v1` | auditoria local | **não** — auditoria no cliente é apagável | **sim** |
+| `events/bus.ts`, `sync-bus.ts` | eventos entre abas | coordenação | sim | não |
+| `simulator-history.ts`, `creative/*`, `brain-data.ts`, `custom-fields.ts` | históricos e rascunhos | apoio | sim | opcional |
 
-`pruneBackups` age apenas sobre `origin='automatico'` e não `protected`: ≤48 h mantém todos os pontos horários; entre 48 h e 7 dias mantém um por bucket `floor(timestamp / 86.400.000)`; acima de 7 dias remove; blobs órfãos são limpos.
+Nenhum desses sobrevive a troca de dispositivo; a maioria também não sobrevive a limpeza de navegador. Nada foi migrado.
 
-Comportamento real medido no banco (horário de São Paulo):
+## 3. Backup
+
+Nasce em `enqueueBackupRequest` (`backup-queue.server.ts`), chamado por `POST /api/public/backup/run` — grava só a hora cheia (chave única, idempotente). É processado por `processNextBackupRequest` via `POST /api/public/backup/process`, com lease de 10 min, teto de 5 tentativas e conclusão apenas após o ponto estar gravado e validado. Conteúdo: 22 tabelas de `BACKUP_TABLES`, metadados em `portal_backups`, payload desduplicado por hash em `portal_backup_blobs` (hoje 63 pontos, 363 MB).
+
+Fora do backup — lacuna real: todo o motor (`relationship_*`: Biblioteca, snapshots, vínculos, fila, log), `crm_meta_templates`, `group_unit_leads`, todas as `remarketing_*`, `workspace_module_permissions`, `executive_user_status`, `workspace_agenda_events`, pipelines.
+
+Crons versionados: `crm-lead-sync` (*/5), `portal-backup-automatico` (0 * * * *), `remarketing-engine` (* * * * *). O agendamento do **processador** não existe em nenhuma migração, mas o processamento comprovadamente ocorre: 96 solicitações entre 27/08 14:00 e 31/08 13:00 UTC, **todas `concluido`**, ponto gravado ~10 s após a hora cheia. Ou seja, o job existe fora do versionamento — **NÃO CONFIRMADO NO CÓDIGO**, confirmado nos dados. Não há hoje backup "preso na fila". Falhas são registradas em `portal_backup_requests.last_error`/`attempts`; a rota usa `console.error`, que não persiste.
+
+## 4. Retenção
+
+`pruneBackups` atua só sobre `origin='automatico'` e não `protected`: ≤48 h mantém tudo; entre 48 h e 7 dias mantém um por bucket `floor(timestamp / 86.400.000)`; acima de 7 dias remove; blobs órfãos são limpos depois.
+
+Medição real (horário de São Paulo):
 
 ```text
-29/08: 15 pontos   30/08: 24 pontos   31/08: 11 pontos      (dentro das 48 h)
-24/08 → 28/08: 1 ponto por dia, sempre 20:00, 17:00, 19:00, 20:00, 20:00
+29/08: 15 pontos    30/08: 24 pontos    31/08: 11 pontos     ← dentro das 48 h
+24 a 28/08: 1 ponto por dia, sempre às 20:00 / 17:00 / 19:00 / 20:00 / 20:00
 ```
 
-O bucket é UTC. O último ponto do dia UTC é o das 23:00 UTC = **20:00 em São Paulo**. Confirmado nos dados: os sobreviventes diários são 17:00–20:00 locais, nunca 23:00 locais. Divergência em relação ao projetado: (a) o dia é UTC, não America/Sao_Paulo, então o "fechamento do dia" perde as últimas três horas de operação; (b) a limpeza para pontos horários só começa depois de 48 h — na virada da meia-noite local não acontece nada, convivem dois dias inteiros de pontos de hora em hora. Não há risco de apagar backup manual ou protegido: ambos ficam fora da varredura (os 2–4 pontos de 09/08, 17/08 e 21/08 continuam vivos por isso).
+O bucket é **UTC**: o último ponto do dia UTC é 23:00 UTC = **20:00 em São Paulo**. Duas divergências em relação ao projetado: (a) o "dia" não é America/Sao_Paulo, então o fechamento perde as três últimas horas de operação; (b) o corte por dia só começa depois de 48 h — na virada da meia-noite local não acontece nada e convivem dois dias inteiros de pontos horários. Backups manuais e protegidos ficam fora da varredura (é por isso que 09/08, 17/08 e 21/08 seguem vivos), então não há risco de perder ponto válido criado à mão.
 
-## 3. Meta / WhatsApp
+## 5. Crons, jobs e automações
 
-Templates ficam em duas tabelas concorrentes, `crm_meta_templates` (usada pela E0) e `meta_templates` (usada por campanhas) — hoje **`crm_meta_templates` está vazia**. Identificação por `purpose` + status aprovado; nada é inventado quando não há template. Envio: `src/server/whatsapp.server.ts` → `POST graph.facebook.com/v20.0/<phoneNumberId>/messages`, credenciais em `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, lidas dentro do handler. Enviados: número do investidor, nome do template, idioma, parâmetros e, quando o template exige, o número do executivo como destino do **botão de contato** — o WhatsApp do executivo nunca é remetente nem variável de corpo.
+| Nome / origem | Frequência | Executa | Altera | Dispara mensagem? | Risco |
+|---|---|---|---|---|---|
+| `crm-lead-sync` | 5 min | `runScheduledLeadSync` → sync + fila E0 + tick do motor + reconciliação | leads, mensagens, fila | **sim** | trava por `crm_sync_runs` RUNNING < 15 min |
+| `portal-backup-automatico` | 1 h | enfileira a hora | fila de backup | não | nenhum |
+| processador de backup (fora das migrações) | ~1 min | captura e grava ponto | backups e blobs | não | não reproduzível em ambiente novo |
+| `remarketing-engine` | 1 min | motor de remarketing | tabelas de remarketing | **sim** | sem trava equivalente à do CRM |
+| webhook da Meta | por evento | grava resposta, aciona resposta automática | mensagens, cadência | **sim** | sem assinatura |
+| gatilhos do banco | por operação | blindagem de exclusão, `updated_at`, papel admin | leads, papéis | não | corretos |
+| `setInterval` de tela (20 s em 4 telas; 30–60 s em 5) | contínuo | leitura e `sync()` | nada diretamente | não | carga; reexecuta a cada F5 e login |
 
-Sem timeout, sem retry, sem backoff em nenhuma das três chamadas (texto, template, mídia). O retorno é reduzido a `delivered: boolean` + string de erro: **o `wamid` devolvido pela Meta é descartado**. Webhook existe (item 6), mas trata apenas `messages`; o array `statuses` (sent/delivered/read/failed) **não é consumido em lugar nenhum**.
+Nenhum job apaga dados de negócio — só a retenção de backup apaga, e apenas pontos automáticos. Sinal de saúde encontrado: `crm_sync_runs` tem 2.072 OK, 1 ERRO e **106 linhas em RUNNING** — execuções que morreram sem fechar; hoje só poluem o histórico (a trava usa idade < 15 min), mas escondem falhas reais.
 
-Resposta direta: hoje o sistema distingue apenas **solicitação/registro** e **falha**. "Aceite da Meta" existe só em memória durante a chamada (2xx vira `delivered=true` e não é persistido como estado próprio); **entrega e leitura não existem tecnicamente** e não há como reconciliar depois, por falta do id da mensagem. Envio automático indevido: o único caminho automático é o tick do motor dentro do cron de 5 min; ele é protegido por chave primária determinística, `executedSteps`, janela operacional e guarda de destinatário — não encontrei caminho que dispare sem essas travas.
+## 6. Meta / WhatsApp (CRM → motor → servidor → Meta → webhook → CRM)
 
-## 4. GreenSales
+Chamada em `src/server/whatsapp.server.ts`: `POST graph.facebook.com/v20.0/<phoneNumberId>/messages` (e `/media`), credenciais `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN` lidas dentro do handler. Templates consultados em `crm_meta_templates` por `purpose` + status aprovado — **a tabela está vazia**, então a E0 é registrada e a entrega externa fica pendente com motivo legível; nada é inventado. WhatsApp do executivo ausente: não bloqueia a E0; vira pendência de entrega quando o template exige o botão de contato.
 
-Entrada: `runLeadSync` (cron de 5 min, intervalo efetivo em `crm_automation_settings.sync_interval_minutes`) faz login por token, pagina `lead/list` com `total_pagina = 100` até o fim, espelha em `crm_leads` e materializa o card em `portal_leads` (`gs_<external_id>`). Alterações são detectadas por **comparação de estado**, não por evento: `stage_key`, status e etiquetas do payload; quando a listagem não traz etiqueta, há consulta de detalhe limitada a 80 leads por execução. Mudança de coluna atualiza o card e alimenta o motor; lead que some da origem não é apagado — a reconciliação diária (`runDailyReconciliation`, uma vez por dia dentro do mesmo cron) o marca como não localizado, e os gatilhos de blindagem impedem exclusão.
+Armazenado da resposta da Meta: apenas `delivered: boolean` e a string de erro. **O `wamid` é descartado.** Webhook existe, mas trata só `messages`; o array `statuses` (sent/delivered/read/failed) não é consumido em lugar nenhum, e não há reconciliação posterior. Sem timeout, sem retry, sem backoff nas três chamadas.
 
-Não existe webhook nem push do GreenSales: **tudo é polling**. Atraso estrutural: até 5 min no caso comum, mais um ciclo quando a alteração está fora da janela de 80 detalhes, e mais um ciclo inteiro quando a API falha — não há retry nem timeout nos `fetch`, então uma falha transitória derruba a varredura completa. Duplicação de lead é improvável (chave por `external_id` e telefone normalizado). O cenário em que uma alteração **nunca** chega existe: se a mudança não altera nenhum campo trazido pela listagem e o lead nunca entra nos 80 detalhes de um ciclo, nada a revela. Sinal de saúde: `crm_sync_runs` tem 2.072 execuções OK, 1 ERRO e **106 em RUNNING** — execuções que morreram sem fechar; como a trava de concorrência olha `RUNNING < 15 min`, elas hoje só poluem o histórico, mas mascaram falhas reais.
+Distinção de estados hoje: **tentativa/registro** e **falha** existem; "aceite da Meta" só vive em memória durante a chamada; **entrega e leitura não existem tecnicamente**. Eventos desconhecidos pelo sistema: entregue, lido, falha assíncrona da Meta, bloqueio pelo destinatário, expiração de janela informada pela Meta.
 
-## 5. Persistência
+## 7. Custos e IA
 
-| Dado | Onde está | Deveria estar no servidor? | Risco |
-|---|---|---|---|
-| Base de conhecimento da IA (`knowledge-base.ts`) | localStorage | sim | some ao trocar de navegador; a IA responde diferente por dispositivo |
-| KPIs mensais e contexto (`kpi-manager.ts`) | localStorage | sim | perda total de histórico gerencial |
-| Campos personalizados, alertas e lidos do Workspace | localStorage | sim | cada executivo vê um estado diferente |
-| Espelho de permissões (`workspace-permissions-store.ts`) | localStorage + poll | não (espelho) | mostra permissão vencida até o próximo poll |
-| Sessão operacional `atlas:session:v3` | localStorage | é do cliente | sem expiração local; validação depende de checagem periódica |
-| Histórico do simulador e do criativo | localStorage | opcional | baixo |
-| Executivo responsável do visitante | localStorage do investidor | sim, após identificação | atribuição perdida se trocar de aparelho antes de se cadastrar |
-| Cadastro dos 7 executivos (`SEED_USERS`) | constante no código | sim | senha em texto puro no bundle e seed sobrepondo o banco |
-| URL do projeto e chave publicável | literais nas migrações de cron | — | reconfiguração manual em qualquer troca de ambiente |
-
-## 6. Webhooks e eventos externos
-
-Único webhook: **Meta → `/api/public/whatsapp/webhook`**. GET valida `hub.verify_token`; **POST não valida `X-Hub-Signature-256`** — qualquer requisição com o formato da Meta é aceita. Processamento por roteamento: número de remarketing → `recordInbound`; resposta de validação → `recordReply`; demais → `handleInboundMessage` do motor. Persistência em `remarketing_messages`, `whatsapp_validations`, `crm_messages`/`crm_timeline`. Idempotência: existe no motor (id da mensagem) e no remarketing; **não existe** para `recordReply` — a segunda chegada sobrescreve. Retry: a rota sempre responde `ok`, então a Meta não reenvia — e falhas internas ficam invisíveis. Chegada fora de ordem: uma resposta antiga pode sobrescrever o status atual da validação, porque não há comparação de timestamp. Nenhum log do payload cru.
-
-Sem webhook e dependentes de polling/cron: GreenSales (integral), status de entrega/leitura da Meta, Google Workspace, e o próprio disparo dos jobs (pg_net não devolve resultado ao aplicativo).
-
-## 7. IA, gateway e custos
-
-| Arquivo | Função | Gatilho | Modelo | Automática? |
+| Função | Serviço | Quando | Automática? | Custo |
 |---|---|---|---|---|
-| `src/lib/ai.functions.ts` | `askKnowledge`, `askKpiInsights` | clique no assistente | google/gemini-2.5-flash | não |
-| `src/lib/brain-ai.functions.ts` | `generateBrainReport` | clique em "gerar relatório" | google/gemini-3.5-flash | não |
-| `src/lib/campaign-ai.functions.ts` | `generateCampaignDraft` | clique na campanha | openai/gpt-5.6-sol | não |
-| `src/lib/crm/lead-import.functions.ts` | importação por imagem | envio de arquivo | visão | não |
-| `src/lib/crm/meta-templates.functions.ts` | OCR de template | envio de arquivo | visão | não |
-| `src/server/creative.server.ts`, `creative-photo.server.ts` | geração de imagem | clique | imagem | não |
+| `askKnowledge`, `askKpiInsights` (`ai.functions.ts`) | gemini-2.5-flash | clique no assistente | não | sim, sob clique |
+| `generateBrainReport` (`brain-ai.functions.ts`) | gemini-3.5-flash | clique | não | sim, sob clique |
+| `generateCampaignDraft` (`campaign-ai.functions.ts`) | gpt-5.6-sol | clique | não | sim, sob clique |
+| `lead-import.functions.ts` | visão | envio de arquivo | não | sim, sob clique |
+| `meta-templates.functions.ts` (protegida) | visão | envio de arquivo | não | sim, sob clique |
+| `creative.server.ts`, `creative-photo.server.ts` | imagem | clique | não | sim, sob clique |
+| heurística de interesses, perfil, simulador | local | render | sim | **sem custo externo** |
+| Meta (motor e remarketing) | Meta | cron | **sim** | **custo automático** |
+| GreenSales | API própria | cron | sim | sem custo por chamada |
+| armazenamento de backups | banco | 1 h | sim | custo automático crescente |
 
-Não há chamada de IA ao abrir tela, ao abrir ficha, em cron, em loop ou em background — verificado nos `useEffect` e nos jobs. Nenhum retry automático. A IA corporativa de interesses continua heurística local, sem custo externo.
+Não há chamada de IA ao abrir tela, ao abrir ficha, em cron ou em background — verificado nos `useEffect` e nos jobs. Nenhum retry de IA. Ressalva importante: `ai.functions.ts`, `brain-ai.functions.ts`, `campaign-ai.functions.ts` e `lead-import.functions.ts` **não têm `requireSupabaseAuth`** — no site publicado são endpoints públicos, o que transforma custo "sob clique" em custo potencialmente automático provocado por terceiros.
 
-Risco real de custo: `ai.functions.ts`, `brain-ai.functions.ts`, `campaign-ai.functions.ts` e `crm/lead-import.functions.ts` **não têm `requireSupabaseAuth`** — no site publicado são endpoints RPC públicos, e qualquer terceiro pode consumir créditos. Só `meta-templates.functions.ts` está protegido.
+## 8. GreenSales
 
-## 8. Remarketing
+Entrada por `runLeadSync` (cron de 5 min, intervalo efetivo em `crm_automation_settings`): login por token, `lead/list` com `total_pagina = 100` paginado até o fim, espelho em `crm_leads`, card em `portal_leads` (`gs_<external_id>`). Identificação por `external_id` e telefone normalizado. Alterações são detectadas por **comparação de estado** (`stage_key`, status, etiquetas do payload), nunca por evento; quando a listagem não traz etiqueta, há consulta de detalhe limitada a **80 leads por execução**. Não existe webhook: é 100% polling. Reconciliação uma vez por dia, dentro do mesmo cron, marcando como não localizado quem sumiu da origem — nada é apagado.
 
-Rota própria (`/remarketing`, aba separada), motor próprio (`remarketing/engine.server.ts`), cron próprio de 1 minuto e quatro tabelas próprias. O webhook decide por número **antes** de qualquer gravação, então mensagem de remarketing não entra no CRM e vice-versa; o motor de relacionamento não lê tabelas de remarketing. Compartilhados: a sessão operacional, o `OperationalGuard`, o número de origem da Meta, o webhook e as tabelas de template. RLS das tabelas `remarketing_*` usa `is_portal_member()` — qualquer membro do Portal lê tudo, não há recorte por executivo. Dependência escondida: como o número da Meta é único, um contato que exista nos dois mundos é resolvido pelo `isRemarketingPhone`, e é essa função que sustenta o isolamento inteiro.
+Alterações que podem passar despercebidas: mudança que não altera nenhum campo trazido pela listagem e cujo lead não entra nos 80 detalhes daquele ciclo. Duplicação: improvável, pela chave estável. Perda de lead: impossível por exclusão (gatilhos de blindagem), possível apenas como sumiço da visão filtrada. F5 continua sendo necessário em telas cujo estado depende de leitura local (Workspace, CRM) quando o poll não cobre aquele dado.
 
-## 9. Portal dos Leads
+## 9. Portal dos Leads — lead que muda de coluna
 
-Entrada por três caminhos: sincronização GreenSales, formulários do Portal (identidade atômica) e criação manual. Persistência em `portal_leads`, com gatilhos que impedem exclusão e truncamento. Responsável e slug vêm de `executive_profiles`; status operacional muda por `set_lead_operational` e por atividade real do investidor. Sincronização e relação com GreenSales conforme item 4; o CRM lê o mesmo card; o motor lê o card e escreve mensagens e eventos.
-
-Cenários em que o lead fica invisível: coluna de origem não capturada no ciclo (fica na coluna anterior), lead marcado como não localizado pela reconciliação, e filtros de carteira quando o responsável está vazio ou aponta para executivo inativo. Processamento em duplicidade: barrado por `external_id`, chave determinística de mensagem e `executedSteps`. Causa estrutural do "sumiu"/"não refletiu": o Portal é uma fotografia de consulta paginada com teto de detalhamento por ciclo, sem evento de mudança e **sem carimbo visível de "verificado em"** — olhando o card, não dá para distinguir "não mudou" de "não foi verificado".
+O sistema procura o lead em `portal_leads` pelo `external_id`, e a coluna exibida vem do `stage_key` capturado no último ciclo. Consideradas: todas as colunas da listagem, não só NOVOS — mas apenas com os campos que a listagem devolve. A reconciliação roda 1x/dia. Saindo de NOVOS, o card muda de coluna no ciclo em que a mudança for percebida; o motor continua enxergando o lead (a cadência não depende da coluna, e sim do estado). Cenário em que fica invisível para o **usuário**: o ciclo não percebeu a mudança, ou o responsável está vazio/inativo e o filtro de carteira o esconde. Cenário em que fica invisível para o **motor**: nenhum encontrado — o motor lê por lead, não por coluna. Causa estrutural: fotografia paginada, sem evento de mudança e **sem carimbo visível de "verificado em"**, o que torna indistinguível "não mudou" de "não foi verificado".
 
 ## 10. Isolamento dos ambientes
 
-| Ambiente | Home | Rota | Dados próprios | Sessão | Permissão | Isolamento |
+| Ambiente | Home | Rota | Dados | Sessão | Permissões | Isolamento |
 |---|---|---|---|---|---|---|
-| Grupo (institucional) | sim | `/` | — | pública | — | real |
-| Velox Financeira | sim | `/f` | `portal_leads`, CRM | operacional única | por módulo | real nas rotas, compartilhado na sessão |
-| Velox Solar | sim | `/s` | `group_unit_leads` | pública | — | real |
-| Agilize/Seguros | sim | `/seg` | `group_unit_leads` | pública | — | real |
-| Workspace do Executivo | sim | `/f/executivo` | várias | operacional única | por módulo | visual + guard |
-| Portal dos Leads | sim | `/f/portal-leads` | `portal_leads` | operacional única | por módulo | carteira por `can_access_investor` |
-| CRM | sim | `/f/crm` | `crm_*` | operacional única | por módulo | visual + guard |
-| Remarketing | sim | `/remarketing` | `remarketing_*` | operacional única | por módulo | dados reais, sessão compartilhada |
+| Grupo | sim | `/` | — | pública | — | real |
+| Financeira | sim | `/f` | leads, CRM | operacional única | por módulo | real na rota |
+| Solar | sim | `/s` | `group_unit_leads` | pública | — | real |
+| Seguros | sim | `/seg` | `group_unit_leads` | pública | — | real |
+| Workspace do Executivo | sim | `/f/executivo` | várias | operacional única | por módulo | guard + visual |
+| Portal dos Leads | sim | `/f/portal-leads` | `portal_leads` | operacional única | por módulo | carteira via `can_access_investor` |
+| CRM | sim | `/f/crm` | `crm_*` | operacional única | por módulo | guard + visual |
+| Remarketing | sim | `/remarketing` | `remarketing_*` | operacional única | por módulo | dados reais isolados |
 
-Existe **uma** sessão para todos os ambientes internos e **nenhuma tabela tem `workspace_id`/`tenant_id`**. O isolamento é por nome de tabela e por rota, não por chave — funciona hoje porque cada módulo tem tabela própria, mas não sobrevive a um ambiente novo que precise compartilhar tabela. Templates Meta são globais entre CRM, campanhas e remarketing. Permissão de módulo é por usuário e atravessa ambientes por construção; a checagem é majoritariamente de interface.
+Uma única sessão para todos os ambientes internos e **nenhuma tabela com `workspace_id`/`tenant_id`**: o isolamento é por nome de tabela e por rota. Templates Meta são globais entre CRM, campanhas e Remarketing. RLS de remarketing usa `is_portal_member()` — qualquer membro lê tudo.
 
-## 11. Automações
+## 11. Rotas e redirects que atravessam ambientes
 
-| Evento | Ação | Frequência | Dados afetados | Risco |
-|---|---|---|---|---|
-| cron `crm-lead-sync` | sync + fila E0 adiada + tick do motor + reconciliação | 5 min | leads, mensagens, fila | **envia mensagem sem clique** |
-| cron `portal-backup-automatico` | enfileira a hora | 1 h | `portal_backup_requests` | nenhum |
-| processador de backup (job fora das migrações) | captura e grava ponto | ~1 min | `portal_backups`, blobs | não reproduzível |
-| cron `remarketing-engine` | motor de remarketing | 1 min | tabelas de remarketing | envia mensagem sem clique; sem trava equivalente à do CRM |
-| webhook da Meta | grava resposta e aciona resposta automática | por evento | mensagens, cadência | sem assinatura |
-| gatilhos do banco | blindagem de exclusão, `updated_at`, papel do executivo | por operação | leads, papéis | corretos |
-| `setInterval` de tela (20 s em 4 telas; 30–60 s em 5) | leitura e `sync()` | contínuo | nenhum diretamente | carga; reexecuta a cada F5 e a cada login |
+- `src/routes/__root.tsx:45` — tela de erro/404 leva a `/` (Home do Grupo) mesmo quando o usuário estava em `/f`.
+- `src/routes/f.index.tsx:554` — o logotipo da **Financeira** aponta para `/`, ejetando para o institucional do Grupo.
+- `src/components/editorial/module-chrome.tsx:66` e `src/components/journey/journey-chrome.tsx:41` — "voltar" dos módulos e da jornada vai para `/`.
+- `src/routes/s.index.tsx:61` e `seg.index.tsx:61` — corretos: são as próprias homes de unidade voltando ao Grupo.
+- `src/routes/manual/concluido.tsx:38` — fim do manual volta ao Grupo; aceitável, mas não é a home do ambiente de origem.
 
-## 12. Custos
+Regra "HOME = home do ambiente atual" ainda não é respeitada nos quatro primeiros casos.
 
-- **Automático**: Meta (mensagens do motor e do remarketing, disparadas pelo cron), armazenamento dos backups (363 MB e crescendo, sem incremental), execução dos crons (1.440 chamadas/dia só do remarketing), tabelas de log sem expurgo.
-- **Sob clique**: todas as chamadas de IA, geração de imagem, importação por visão, OCR de template, disparo manual de campanha.
-- **Sem custo**: heurísticas locais, simulador, perfil inteligente, polling interno.
-- **Inesperado**: as 4 funções de IA sem autenticação — custo automático para o projeto, disparado por terceiros.
+## 12. Módulos que talvez não devessem existir
 
-## 13. Segurança operacional
+| Item | Rotas | Classificação |
+|---|---|---|
+| Homologação do Motor | `f.executivo.homologacao.tsx` + espelho `executivo.homologacao.tsx` | **NÃO REMOVER** — `homologation.server.ts` contém lógica de Biblioteca usada em produção |
+| Laboratório | `f.executivo.laboratorio.tsx` + espelho | REQUER CUIDADO — hospeda o adaptador interno de recebimento |
+| Teste de cadência | `f.executivo.teste-cadencia.tsx` + espelho | REQUER CUIDADO — usa lotes `is_test` e polling de 30 s |
+| Unidades do Grupo | `f.executivo.unidades.tsx` | **NÃO REMOVER** — é a carteira real de Solar/Seguros |
+| ~28 rotas espelho `executivo.*` (pré-`/f`) | várias | PODE REMOVER COM BAIXO RISCO, depois de conferir links antigos |
 
-- Senhas dos 7 executivos em texto puro em `src/lib/executive-auth.ts` (dentro do bundle do cliente). Existência e local apenas.
-- Chave publicável do projeto escrita literalmente nas três migrações de cron e usada como **única** autorização das 4 rotas públicas; a mesma chave já está no bundle. Na prática, `/api/public/crm/sync`, `/backup/run`, `/backup/process` e `/remarketing/run` são acionáveis por qualquer visitante.
-- Webhook da Meta sem verificação de assinatura.
+## 13. Remarketing
+
+Rota própria em aba separada, motor próprio, cron próprio de 1 min, quatro tabelas próprias. O webhook decide por número **antes** de gravar (`isRemarketingPhone`), então mensagem de remarketing não entra no CRM e o motor de relacionamento não lê tabelas de remarketing — uma campanha não muda cadência de lead. Compartilhados: sessão operacional, `OperationalGuard`, número de origem da Meta, o webhook e as tabelas de template. Dependência escondida: todo o isolamento operacional depende de `isRemarketingPhone` acertar o número; um contato presente nos dois mundos é decidido por essa única função. Interface: shell operacional próprio, sem alteração visual proposta aqui.
+
+## 14. Segurança operacional (risco real)
+
+- Senhas dos 7 executivos em texto puro em `src/lib/executive-auth.ts`, dentro do bundle do cliente (existência e local; sem exibir valores).
+- Chave publicável do projeto literal nas três migrações de cron e usada como **única** autorização das 4 rotas públicas — a mesma chave já está no bundle: `/api/public/crm/sync`, `/backup/run`, `/backup/process` e `/remarketing/run` são acionáveis por qualquer visitante.
+- Webhook da Meta sem verificação de assinatura `X-Hub-Signature-256`.
 - 4 funções de IA sem `requireSupabaseAuth`.
-- Permissão de módulo aplicada essencialmente na interface; poucas funções reconferem no servidor.
+- Concessão de acesso a backup e log de auditoria armazenados no navegador (`crm.backup.grants`, `atlas.audit.log.v1`) — decisão de acesso e evidência editáveis pelo usuário.
+- Permissão de módulo aplicada essencialmente na interface.
 - Não encontrados no cliente: token da Meta, service role, credencial do GreenSales, senha do banco — corretamente server-side.
 
-## 14. Inconsistências
+## 15. Dados temporários e resíduos
 
-🔴 CRÍTICA
-1. `src/routes/api/public/*` → `authorized()` → autorização por chave publicável já exposta no bundle → sincronização, backup e motor de remarketing acionáveis por terceiros → segredo dedicado por rota.
-2. `src/routes/api/public/whatsapp/webhook.ts` → POST → sem `X-Hub-Signature-256` → payload forjado vira mensagem recebida e altera cadência → validar assinatura.
-3. `src/lib/ai.functions.ts`, `brain-ai.functions.ts`, `campaign-ai.functions.ts`, `crm/lead-import.functions.ts` → sem middleware de autenticação → IA paga exposta → aplicar `requireSupabaseAuth`.
-4. `src/server/whatsapp.server.ts` → provedor `meta` → `wamid` descartado e `statuses` ignorado → entrega e leitura inexistentes, reconciliação impossível → persistir o id e consumir `statuses`.
-5. `src/server/backup.server.ts` → `BACKUP_TABLES` → Biblioteca, snapshots, vínculos, permissões, unidades e remarketing fora do backup → perda irrecuperável desses domínios → ampliar a lista.
+`SEED_USERS` ainda sobrepõe o banco; rotas espelho `executivo.*` duplicando `/f/executivo/*`; duas tabelas de template (uma vazia); `relationship_content_groups` congelada mas presente; aliases de etapa `E2/E5/E6/E7` ativos na Biblioteca; chave `atlas:recognition:homolog:v1` de homologação no navegador; lotes `is_test`/`test_batch_id` e `test_batches`; `whatsapp_validations` alimentada por adaptador interno. Nada removido.
 
-🟠 IMPORTANTE
-6. Job do processador de backup existe no ambiente mas não em migração → ambiente recriado nasce sem backup → versionar o agendamento.
-7. `pruneBackups` → bucket diário em UTC e corte só após 48 h → "último do dia" é o das 20:00 locais → adotar America/Sao_Paulo.
-8. `crm_sync_runs` com 106 linhas em `RUNNING` → execuções que morreram sem fechar → falhas silenciosas e histórico enganoso → fechar execução no `finally` e sinalizar abandono.
-9. `src/server/greensales.server.ts` → `fetchPage`/`fetchLead` → sem timeout e sem retry → um erro transitório perde o ciclo inteiro → timeout curto + retry limitado.
-10. `remarketing-engine` a cada minuto sem trava equivalente à do CRM → execuções sobrepostas possíveis.
-11. `recordReply` sem idempotência nem ordenação por timestamp → webhook repetido ou fora de ordem sobrescreve o status.
-12. Duas tabelas de template (`crm_meta_templates` vazia e `meta_templates`) → fonte dupla.
-13. Ausência de `workspace_id`/`tenant_id` em todas as tabelas → isolamento por nome de tabela.
-14. `SEED_USERS` com senha em texto puro sobrepondo o banco (já confirmado na Bateria 2; repetido aqui porque bloqueia os itens 3 e 13).
-
-🟡 BAIXA
-15. Dados operacionais só no navegador (conhecimento, KPIs, campos, alertas).
-16. Polling de 20 s em quatro telas simultâneas.
-17. Tabelas de log e auditoria sem expurgo.
-18. `console.error` nas rotas públicas não deixa rastro persistente.
-19. URL e chave literais nas migrações de cron.
-
-## 15. O que está correto — não alterar
-
-Fila de backup com hora única, lease, teto de tentativas e conclusão validada (96/96 concluídas, zero pendentes); desduplicação de conteúdo por hash; `NEVER_RESTORE_TABLES` e a blindagem por gatilho dos Leads; proteção de backups manuais e marcados na retenção; trava de concorrência da sincronização por `crm_sync_runs`; paginação completa do GreenSales sem parada precoce; reconciliação diária que preserva em vez de apagar; roteamento do webhook que separa Remarketing do CRM antes de gravar; ambiente decidido antes da credencial no envio; credenciais da Meta, GreenSales e service role exclusivamente no servidor e lidas dentro dos handlers; idempotência do motor por chave determinística; `relationship_engine_log` + `relationship_message_sends`; unidades Solar e Seguros isoladas em tabela própria.
-
-## 16. Dependências e ordem recomendada
+## 16. Integrações cruzadas — o que quebra o quê
 
 ```text
-1 → segredo próprio das rotas públicas        (destrava 6 e 10 sem reabrir a superfície)
-2 → assinatura do webhook da Meta             (mesma rota que o item 4; fazer antes dele)
-3 → autenticação nas 4 funções de IA          (independente, corta custo aberto)
-4 → wamid + statuses da Meta                  (depende de 2; habilita entrega/leitura e 11)
-5 → ampliar tabelas do backup                 (independente; antes de qualquer mexida na Biblioteca)
-6 → versionar o cron do processador           (depende de 1)
-7 → retenção em America/Sao_Paulo             (depois de 5 e 6)
-8 → fechar execuções RUNNING                  (independente; precede 9)
-9 → timeout e retry no GreenSales             (depois de 8, para medir efeito)
-10 → trava do remarketing                     (depende de 1)
-11 → idempotência de recordReply              (depois de 4)
-12 → tabela canônica de templates             (antes de qualquer correção de conteúdo da Biblioteca)
-14 → cadastro de usuários no servidor         (precede 13)
-13 → tenant_id                                (depois de 14; antes de qualquer módulo novo)
+Usuários (seed) ─→ slug e WhatsApp ─→ E0 e botão do template ─→ Meta
+Biblioteca ──────→ motor ──────────→ mensagens ─→ CRM ─→ jornada
+GreenSales ──────→ portal_leads ───→ motor, Workspace, agenda, Portal dos Leads
+Templates Meta ──→ E0, campanhas e Remarketing (tabela global compartilhada)
+Webhook Meta ────→ Remarketing OU CRM (decisão única por número)
+Backup ──────────→ 22 tabelas; NÃO cobre Biblioteca, permissões, unidades e remarketing
+Permissões ──────→ toda a navegação interna dos ambientes
+```
+Alterar o cadastro de usuários mexe em E0, RLS e permissões. Alterar a tabela de templates mexe em CRM e Remarketing ao mesmo tempo. Alterar o roteamento do webhook mistura dois ambientes. Alterar a Biblioteca não tem rede de proteção, porque não está no backup.
+
+## 17. Problemas novos, classificados
+
+🔴 CRÍTICO
+1. `src/server/backup.server.ts` → `BACKUP_TABLES` → Biblioteca, snapshots, vínculos, permissões, unidades e remarketing fora do backup → perda irrecuperável desses domínios → ampliar a lista.
+2. `src/routes/api/public/*` → `authorized()` → autorização pela chave publicável já exposta no bundle → sync, backup e remarketing acionáveis por terceiros → segredo dedicado por rota.
+3. `src/routes/api/public/whatsapp/webhook.ts` → POST → sem assinatura → payload forjado altera cadência → validar `X-Hub-Signature-256`.
+4. `src/lib/ai.functions.ts`, `brain-ai.functions.ts`, `campaign-ai.functions.ts`, `crm/lead-import.functions.ts` → sem middleware → IA paga exposta → aplicar `requireSupabaseAuth`.
+5. `src/server/whatsapp.server.ts` → provedor `meta` → `wamid` descartado e `statuses` ignorado → entrega e leitura inexistentes, sem reconciliação → persistir id e consumir `statuses`.
+6. `src/lib/crm/backup-access.ts` e `audit-log.ts` → concessão de acesso e auditoria em localStorage → controle e evidência manipuláveis no cliente → mover para o servidor.
+
+🟠 IMPORTANTE
+7. Job do processador de backup fora das migrações → ambiente recriado nasce sem backup → versionar o agendamento.
+8. `pruneBackups` → bucket diário em UTC e corte apenas após 48 h → "último do dia" é o das 20:00 locais → adotar America/Sao_Paulo.
+9. `crm_sync_runs` com 106 linhas em `RUNNING` → execuções que morreram sem fechar → falhas silenciosas → fechar no `finally` e marcar abandono.
+10. `greensales.server.ts` → `fetchPage`/`fetchLead` sem timeout e sem retry → erro transitório perde o ciclo inteiro.
+11. `remarketing-engine` a cada minuto sem trava de concorrência equivalente à do CRM.
+12. `recordReply` sem idempotência nem comparação de timestamp → webhook repetido ou fora de ordem sobrescreve status.
+13. Duas tabelas de template, uma delas vazia → fonte dupla para CRM, campanhas e Remarketing.
+14. Ausência de `workspace_id`/`tenant_id` → isolamento por nome de tabela; qualquer módulo novo herda o problema.
+15. Dados operacionais de CRM só no navegador (`crm.timeline`, `crm.distribution`, `crm.private-leads`, redistribuição, plataforma, recursos).
+16. Redirects que ejetam para a Home do Grupo (`__root.tsx`, `f.index.tsx`, `module-chrome.tsx`, `journey-chrome.tsx`).
+
+🟡 BAIXO
+17. ~28 rotas espelho `executivo.*` duplicando `/f/executivo/*`.
+18. Polling de 20 s em quatro telas simultâneas.
+19. Tabelas de log e auditoria sem expurgo (crescimento indefinido).
+20. `console.error` nas rotas públicas não deixa rastro persistente.
+21. URL e chave literais nas migrações de cron.
+22. Resíduos de homologação e teste convivendo com produção (item 15).
+
+## 18. O que está correto — não alterar
+
+Fila de backup com hora única, lease, teto de tentativas e conclusão validada (96/96 concluídas, zero pendentes); desduplicação por hash; `NEVER_RESTORE_TABLES`; proteção de backups manuais e marcados na retenção; blindagem por gatilho contra exclusão e truncamento de Leads; trava de concorrência da sincronização; paginação completa do GreenSales sem parada precoce; reconciliação diária que preserva em vez de apagar; roteamento do webhook que separa Remarketing do CRM antes de gravar; ambiente decidido antes da credencial no envio; credenciais da Meta, GreenSales e service role apenas no servidor e lidas dentro dos handlers; idempotência do motor por chave determinística; `relationship_engine_log` + `relationship_message_sends`; unidades Solar e Seguros em tabela própria; ausência de IA automática em telas, fichas e crons.
+
+## 19. Ordem recomendada
+
+```text
+Críticas
+1. Segredo próprio por rota pública        (destrava 7 e 11 sem reabrir superfície)
+2. Assinatura do webhook da Meta           (mesma rota do item 5; antes dele)
+3. Autenticação nas 4 funções de IA        (independente; corta custo aberto)
+4. Ampliar tabelas do backup               (independente; antes de mexer na Biblioteca)
+5. wamid + statuses da Meta                (depende de 2; habilita 12)
+6. Acesso a backup e auditoria no servidor (depende de 1)
+
+Importantes
+7. Versionar o cron do processador         (depende de 1)
+8. Fechar execuções RUNNING                (precede 10)
+9. Retenção em America/Sao_Paulo           (depois de 4 e 7)
+10. Timeout e retry no GreenSales          (depois de 8)
+11. Trava do remarketing                   (depende de 1)
+12. Idempotência de recordReply            (depois de 5)
+13. Tabela canônica de templates           (antes de qualquer ajuste de conteúdo)
+14. Cadastro de usuários no servidor       (precede 15 e o tenant)
+15. tenant_id                              (depois de 14; antes de módulo novo)
+16. Redirects por ambiente                 (independente)
+
+Limpeza e melhorias
+17. Rotas espelho, resíduos de teste, expurgo de logs, polling, literais nas migrações
 ```
