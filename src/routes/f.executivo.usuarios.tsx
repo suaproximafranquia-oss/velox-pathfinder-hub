@@ -1,4 +1,10 @@
 import { validateExecutiveSlug } from "@/lib/business-unit";
+import {
+  refreshExecutiveDirectory,
+  startExecutiveDirectorySync,
+  subscribeExecutiveDirectory,
+} from "@/lib/executive-directory";
+
 import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -80,6 +86,19 @@ function UsuariosPage() {
     setSession(s);
     setUsers(loadUsers());
   }, [navigate]);
+
+  /**
+   * COMANDO FINAL 1 §1/§2 — a tela reflete o SERVIDOR, não o código.
+   * Assim que o diretório oficial chega (e a cada atualização dele), a
+   * lista é remontada: situação ativo/inativo, WhatsApp, slug e cargo
+   * exibidos passam a ser os gravados no banco.
+   */
+  useEffect(() => {
+    startExecutiveDirectorySync();
+    void refreshExecutiveDirectory();
+    return subscribeExecutiveDirectory(() => setUsers(loadUsers()));
+  }, []);
+
 
   function persist(next: ExecutiveUser[]) {
     try {

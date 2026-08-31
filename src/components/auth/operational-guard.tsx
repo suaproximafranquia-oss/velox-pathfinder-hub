@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import { getSession, signOut, type ExecutiveSession } from "@/lib/executive-auth";
 import { unitPath } from "@/lib/business-unit";
+import { startExecutiveDirectorySync } from "@/lib/executive-directory";
+
 
 /**
  * GUARD ÚNICO DOS AMBIENTES OPERACIONAIS (`/f/...`).
@@ -39,7 +41,42 @@ export function OperationalGuard({
     }
   }, [isPublic, navigate, pathname]);
 
+  /**
+   * §2 — SITUAÇÃO ATIVO/INATIVO VALE NA SESSÃO VIVA.
+   *
+   * Não basta recusar o próximo login: enquanto a aba está aberta, o
+   * servidor é consultado periodicamente. Se o Administrador desligou o
+   * acesso, a sessão é encerrada imediatamente. Falha de rede NUNCA
+   * desloga — só uma resposta explícita de "inativo" encerra.
+   */
+  useEffect(() => {
+    if (isPublic || !session) return;
+    let cancelled = false;
+    startExecutiveDirectorySync();
+
+    const check = async () => {
+      try {
+        const { situacaoOperacional } = await import("@/lib/executive-directory.functions");
+        const result = await situacaoOperacional({ data: { executiveId: session.userId } });
+        if (cancelled || result.active || !result.known) return;
+        signOut();
+        setSession(null);
+        navigate({ to: unitPath("/executivo"), replace: true });
+      } catch {
+        /* servidor indisponível: mantém o acesso atual */
+      }
+    };
+
+    void check();
+    const timer = setInterval(() => void check(), 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [isPublic, navigate, session]);
+
   if (isPublic) return <>{children}</>;
   if (!checked || !session) return null;
   return <>{children}</>;
 }
+

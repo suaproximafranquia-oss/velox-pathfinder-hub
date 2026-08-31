@@ -24,12 +24,36 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook")({
       },
       POST: async ({ request }) => {
         const { parseWebhookReply, recordReply } = await import("@/server/whatsapp.server");
+        /**
+         * COMANDO FINAL 1 §10 — ASSINATURA DA META.
+         *
+         * O corpo é lido como texto primeiro para poder ser conferido
+         * byte a byte contra o `X-Hub-Signature-256`. Sem o segredo do
+         * app configurado, a verificação fica preparada e inativa (o
+         * comportamento atual é preservado); com o segredo presente,
+         * qualquer payload forjado é recusado antes de tocar no CRM.
+         */
+        const rawBody = await request.text();
+        const appSecret = (process.env["WHATSAPP_APP_SECRET"] ?? "").trim();
+        if (appSecret.length > 0) {
+          const signature = request.headers.get("x-hub-signature-256") ?? "";
+          const { createHmac, timingSafeEqual } = await import("crypto");
+          const expected =
+            "sha256=" + createHmac("sha256", appSecret).update(rawBody).digest("hex");
+          const a = Buffer.from(signature);
+          const b = Buffer.from(expected);
+          if (a.length !== b.length || !timingSafeEqual(a, b)) {
+            console.warn("[whatsapp-webhook] assinatura inválida — payload descartado");
+            return new Response("Invalid signature", { status: 401 });
+          }
+        }
         let payload: unknown = null;
         try {
-          payload = await request.json();
+          payload = JSON.parse(rawBody);
         } catch {
           return new Response("Invalid payload", { status: 400 });
         }
+
         // ISOLAMENTO: se o número pertence ao ambiente de Remarketing, a
         // resposta fica lá e NUNCA entra no CRM de Relacionamento.
         const { parseInboundText, isRemarketingPhone, recordInbound } = await import(
