@@ -15,7 +15,7 @@ import {
   isAutomationRequestAuthorized,
 } from "@/server/automation-auth.server";
 
-function authorized(request: Request): boolean {
+async function authorized(request: Request): Promise<boolean> {
   return isAutomationRequestAuthorized(request, "backup/run");
 }
 
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/public/backup/run")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!authorized(request)) {
+        if (!(await authorized(request))) {
           return new Response(JSON.stringify({ error: "unauthorized" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },

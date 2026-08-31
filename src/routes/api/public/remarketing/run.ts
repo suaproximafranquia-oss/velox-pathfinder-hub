@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/public/remarketing/run")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!isAutomationRequestAuthorized(request, "remarketing/run")) {
+        if (!(await isAutomationRequestAuthorized(request, "remarketing/run"))) {
           return automationUnauthorizedResponse();
         }
         const { runRemarketingEngine } = await import("@/server/remarketing/engine.server");
