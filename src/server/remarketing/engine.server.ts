@@ -7,6 +7,7 @@
  * Relacionamento é tocada aqui.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { blockRealWhatsappSend } from "@/server/whatsapp-safety-lock.server";
 import { channelMode, onlyDigits } from "@/server/whatsapp.server";
 import { recordCampaignDispatch } from "@/server/remarketing/conversations.server";
 import type {
@@ -252,6 +253,14 @@ async function sendTemplate(input: {
   if (mode === "simulator") return { delivered: true };
   if (mode === "unavailable")
     return { delivered: false, error: "Canal oficial não configurado." };
+  // TRAVA GLOBAL — remarketing não ultrapassa a trava de envio real.
+  const blocked = await blockRealWhatsappSend({
+    flow: "remarketing",
+    step: input.templateName,
+    origin: "remarketing/engine.server:sendTemplate",
+    phone: input.phone,
+  });
+  if (blocked) return { delivered: false, error: blocked };
   try {
     const res = await fetch(
       `https://graph.facebook.com/v20.0/${process.env["WHATSAPP_PHONE_NUMBER_ID"]}/messages`,

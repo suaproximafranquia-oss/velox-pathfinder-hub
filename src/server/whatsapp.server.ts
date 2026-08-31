@@ -7,6 +7,7 @@
  * oficial de validações.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { blockRealWhatsappSend } from "@/server/whatsapp-safety-lock.server";
 import { isProductionRequest } from "@/server/environment.server";
 import {
   CHANNEL_UNAVAILABLE_MESSAGE,
@@ -60,6 +61,14 @@ type ChannelProvider = {
 const metaProvider: ChannelProvider = {
   id: "meta",
   async send(input) {
+    // TRAVA GLOBAL — última barreira antes da Graph API.
+    const blocked = await blockRealWhatsappSend({
+      flow: "template_oficial",
+      origin: "whatsapp.server:metaProvider.send",
+      investorId: input.journeyId,
+      phone: input.phone,
+    });
+    if (blocked) return { delivered: false, error: blocked };
     const token = process.env["WHATSAPP_TOKEN"]!;
     const phoneNumberId = process.env["WHATSAPP_PHONE_NUMBER_ID"]!;
     try {
@@ -163,6 +172,12 @@ export async function sendTextMessage(input: {
     // mensagem não saiu.
     return { ok: true, provider: "meta", delivered: false, error: CHANNEL_UNAVAILABLE_MESSAGE };
   }
+  const blocked = await blockRealWhatsappSend({
+    flow: "mensagem_texto",
+    origin: "whatsapp.server:sendTextMessage",
+    phone,
+  });
+  if (blocked) return { ok: true, provider: "meta", delivered: false, error: blocked };
   try {
     const res = await fetch(
       `https://graph.facebook.com/v20.0/${process.env["WHATSAPP_PHONE_NUMBER_ID"]}/messages`,
@@ -231,6 +246,12 @@ export async function sendMediaMessage(input: {
   if (mode === "unavailable" || !token || !phoneId) {
     return { ok: true, delivered: false, error: CHANNEL_UNAVAILABLE_MESSAGE };
   }
+  const blockedMedia = await blockRealWhatsappSend({
+    flow: "anexo_midia",
+    origin: "whatsapp.server:sendMediaMessage",
+    phone,
+  });
+  if (blockedMedia) return { ok: true, delivered: false, error: blockedMedia };
   try {
     const bytes = Uint8Array.from(atob(input.base64), (c) => c.charCodeAt(0));
     const form = new FormData();
@@ -421,6 +442,14 @@ export async function sendTemplateWithDestinations(input: {
   if (mode === "unavailable") {
     return { ok: true, provider: "meta", delivered: false, error: CHANNEL_UNAVAILABLE_MESSAGE };
   }
+  const blockedTemplate = await blockRealWhatsappSend({
+    flow: "template_destinos",
+    step: input.templateName,
+    origin: "whatsapp.server:sendTemplateWithDestinations",
+    phone,
+  });
+  if (blockedTemplate)
+    return { ok: true, provider: "meta", delivered: false, error: blockedTemplate };
 
   const components: Record<string, unknown>[] = [];
   const bodyParams = input.bodyParameters ?? [];
