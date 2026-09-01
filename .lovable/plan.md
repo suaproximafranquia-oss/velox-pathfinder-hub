@@ -324,20 +324,26 @@ Cada pergunta da §5 do pedido vira uma coluna, não uma interpretação:
 
 ---
 
-## 13. Migração — ordem de implantação
+## 13. Ordem de implantação e portões de validação
 
-| Fase | O que entra | Comportamento atual |
+As fases que vocês propuseram estão corretas na essência. Duas correções: **falta uma Fase 0** (as decisões pendentes bloqueiam a modelagem — construir antes delas obriga a refazer), e **Resultado não é fase separada de Ação do Dia** — uma ação sem resultado é uma lista bonita, e uma tela que só depois ganha resultado força reescrever a mesma interface duas vezes.
+
+| Fase | O que entra | Portão obrigatório para avançar |
 |---|---|---|
-| **0. Contrato** | decisões da §15-E; nenhuma linha de código | inalterado |
-| **1. Criação** | tabela de ações, eventos, versões de mensagem — vazias, sem consumidor | inalterado |
-| **2. Sombra** | planejador consome `decide.ts` e grava ações; nada apresentado, nada executado; comparativo diário | inalterado |
-| **3. Ação do Dia lê a nova fonte** | leitura passa para a tabela; resultados estruturados; pular; reuniões com desfecho | despacho automático segue só para E0 |
-| **4. Corte** | whitelist obrigatória no canal; `engine.ts` restrito a E0; remarketing/closure/inbound/messaging resolvidos | **corte efetivo** |
-| **5. Congelamento** | fontes antigas viram somente leitura, marcadas como históricas; nada apagado | leitura permanente |
+| **0. Contrato** | decisões da §15-16; nenhuma linha de código | todas as decisões bloqueantes respondidas por escrito |
+| **1. Fundação** | tabela de ações + eventos + versões de mensagem, vazias, sem consumidor | chave única testada contra inserção duplicada; RLS por executivo e gestão validada |
+| **2. Sombra** | planejador consome `decide.ts` e grava ações; nada apresentado, nada executado | **uma semana completa, com sábado, sem divergência** entre decisões do motor e ações criadas; zero duplicatas |
+| **3. Ação do Dia + Resultado** (juntas) | leitura passa para a tabela; resultados estruturados; pular com justificativa; reuniões com desfecho | executivos operando um ciclo inteiro sem recorrer à tela antiga; nenhuma ação órfã |
+| **4. E0 manual** | interruptor de modo, `priorityMax`, prioridade abaixo de compromissos | E0 nunca executada duas vezes ao alternar o modo; nenhuma E0 perdida |
+| **5. Central de Operação Diária** | painel de gestão, somente leitura | números batendo com a contagem individual, item a item |
+| **6. Corte dos legados** | whitelist obrigatória no canal; `engine.ts` restrito a E0; remarketing/closure/inbound/messaging resolvidos | **teste negativo:** cada caminho legado recusado pela whitelist, antes da Safety Lock |
+| **7. Congelamento** | fontes antigas viram somente leitura, marcadas como históricas; nada apagado | histórico consultável e íntegro |
 
-**Rollback (pergunta 6):** em qualquer fase, desligar o caminho novo. Nada antigo foi removido até a fase 5, e mesmo lá só vira leitura.
-**Sem duplicidade na transição (pergunta 7):** entre as fases 2 e 4 o planejador **grava** mas não executa; quem executa continua sendo um só. Nunca há dois executores ativos ao mesmo tempo.
-**Ações anteriores ao corte (pergunta 8):** permanecem no formato antigo, como histórico consultável. Não são convertidas, não geram ação nova.
+**Dependências rígidas:** 1←0 · 2←1 · 3←2 validada · 4←3 (o modo manual precisa da Ação do Dia persistente) · 5←3 (sem resultado estruturado não há indicador) · 6←3 e 5 (corte sem operação validada é risco puro) · 7←6.
+**Podem correr em paralelo:** versões de mensagem (§9), área de contingência do quadro (§8) e histórico de ownership — nenhuma depende do planejador.
+**Rollback:** em qualquer fase, desligar o caminho novo. Nada antigo é removido até a fase 7, e mesmo lá só vira leitura.
+**Sem duplicidade na transição:** entre as fases 2 e 6 o planejador **grava** mas não executa; quem executa continua sendo um só. Nunca há dois executores ativos ao mesmo tempo.
+**Ações anteriores ao corte:** permanecem no formato antigo, como histórico consultável. Não são convertidas, não geram ação nova.
 
 ---
 
