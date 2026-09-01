@@ -165,6 +165,16 @@ Fora da cadência (`NON_CADENCE_STEPS`): `E20`, `E27`, `FINALIZACAO`, `RESPOSTA_
 
 **Isolamento de falha (pergunta 5):** o estado vive **no item**, não no job. Uma ação bloqueada não impede a criação nem a leitura das outras.
 
+### Bloqueio visível — [FUTURO]
+
+Hoje uma condição não atendida (lead sem executivo responsável, sem WhatsApp válido, fora de janela) faz a ação **não aparecer**. O motivo existe apenas no `relationship_engine_log`, que é técnico e ninguém da operação lê.
+
+**[RECOMENDAÇÃO]** `BLOQUEADA` é um estado visível, não uma ausência: a ação aparece na Ação do Dia com o motivo em linguagem operacional ("Bloqueada — lead sem executivo responsável"), a data em que bloqueou e, quando cabe, o caminho para resolver. **Regra geral: nada desaparece por não atender a uma condição.** Some da lista de "fazer agora"; nunca da operação. Motivo é lista fechada (para contar na Central) mais observação opcional.
+
+### Interface da Ação do Dia — [RECOMENDAÇÃO]
+
+O cartão mostra o mínimo para agir: tipo (já dado pela seção), hora, nome do investidor e duas ações — `ABRIR CONVERSA` e `VER FICHA`. Sem rótulos redundantes ("reunião com investidor" dentro da seção REUNIÕES). O contexto — histórico, notas, etapa, tentativas — mora na **ficha**, aberta sob demanda. O registro de resultado é um passo separado, com perguntas objetivas por tipo de ação (uma pergunta por vez, não um formulário). Assim a tela cresce em capacidade sem crescer em ruído.
+
 ---
 
 ## 5. Pular uma ação
