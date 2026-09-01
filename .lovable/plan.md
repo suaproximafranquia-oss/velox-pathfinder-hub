@@ -73,6 +73,37 @@ decide.ts (intocado)
 
 ---
 
+## 2-bis. E0 automática × E0 manual
+
+**[ATUAL]** A E0 é tratada como exceção explícita (`FIRST_CONTACT_STEPS`, em `decide.ts`), mas **só existe no modo automático**. Não há chave de configuração, por executivo ou por origem, que a torne manual.
+**[ATUAL]** `daily-actions.ts` já possui o campo `priorityMax`, que coloca uma ação acima de todas as outras na ordenação. **O gancho de prioridade que a E0 manual precisa já existe** — falta apenas quem o alimente.
+
+**[RECOMENDAÇÃO] — um motor, dois modos, sem duplicidade:**
+
+A diferença entre automático e manual **não pertence ao motor**. `decide.ts` continua dizendo apenas "chegou a hora da E0". Quem lê o modo é o **planejador**:
+
+```text
+decide.ts → "E0 agora"
+   → PLANEJADOR cria SEMPRE a ação de E0 (chave única lead_id + E0 + ciclo)
+        ├─ modo AUTOMÁTICO: a mesma ação é despachada pelo executor
+        │                    (motivo E0_AUTOMATICA) e nasce já EXECUTADA
+        └─ modo MANUAL: a ação fica PLANEJADA com priorityMax,
+                        no topo da Ação do Dia, abaixo apenas de compromissos
+```
+
+Pontos que garantem a segurança:
+
+1. **A ação é criada nos dois modos.** O modo decide **quem executa**, nunca **se existe registro**. Isso elimina o caso "estava em manual, ninguém viu, o lead ficou sem E0".
+2. **Execução dupla é impossível por construção:** a chave única `lead_id + etapa + ciclo` já existe na ação, e só uma transição `PLANEJADA → EXECUTADA` é aceita. Trocar o modo no meio do caminho não cria segunda ação — encontra a mesma.
+3. **Trocar o modo nunca reprocessa o passado.** O modo vale para ações criadas a partir da mudança; ações já existentes seguem seu curso.
+4. **A ordenação de prioridade** fica: compromissos/agenda já marcados → **E0 manual (`priorityMax`)** → demais ações de cadência. A precedência atual (AGENDA > REUNIÃO > MENSAGEM > LIGAÇÃO) é preservada; a E0 manual entra como exceção declarada, do mesmo jeito que `FIRST_CONTACT_STEPS` já é exceção hoje.
+5. **A trava não muda com o modo.** Automático usa o motivo `E0_AUTOMATICA`; manual usa `ACAO_EXECUTADA_POR_HUMANO` com `action_id`. Ambos passam pelo guard, pelo ambiente e pela Safety Lock, nessa ordem.
+
+**[DECISÃO PENDENTE]** Qual é o escopo do interruptor: global, por executivo, por origem (TikTok/Meta/Portal) ou por lote de teste. Isso muda onde a configuração é lida e precisa ser definido antes de construir.
+**[DECISÃO PENDENTE]** E0 manual não executada até o fim do dia: escala para a gestão, permanece atrasada, ou cai para automático? Recomendo permanecer atrasada e visível — cair para automático transformaria omissão humana em envio, exatamente o que a regra quer evitar.
+
+---
+
 ## 3. Jornada futura E0 → E8
 
 ### O que existe hoje — [EXISTE], nomenclatura real do código
