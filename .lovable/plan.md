@@ -451,4 +451,34 @@ MOTOR (decide.ts, único)
 
 ---
 
-**Nada foi implementado nesta rodada.** Este documento é a base arquitetural; cada fase da §13 deve ser autorizada por um comando próprio.
+## 16. BLUEPRINT POR MÓDULOS — [FUTURO, conceitual]
+
+Cada módulo abaixo é pensado para virar **um comando de implantação independente**, sem perder as decisões desta análise.
+
+| # | Módulo | Responsabilidade única | Depende de | Não pode fazer |
+|---|---|---|---|---|
+| M1 | **Motor de Decisão** (`decide.ts`, existente) | dizer qual etapa e quando | — | executar, gravar ação, saber de modo |
+| M2 | **Registro de Ações** | guardar a obrigação e sua trilha (chave `lead_id+etapa+ciclo+tipo`) | M0 (decisões) | decidir etapa |
+| M3 | **Planejador** | única escrita de ação, consumindo M1 | M1, M2 | enviar mensagem |
+| M4 | **Executor E0** | despachar apenas E0, com motivo `E0_AUTOMATICA` | M3 | tocar qualquer etapa manual |
+| M5 | **Ação do Dia** | apresentar ação e coletar resultado | M2, M3 | decidir cadência, escolher etapa |
+| M6 | **Vocabulário de Resultado** | listas fechadas por tipo de ação | M2 | aceitar texto livre como dado |
+| M7 | **Modo da E0** | interruptor automático/manual + prioridade | M5 | criar segunda ação |
+| M8 | **Mensagens Versionadas** | versões completas e imutáveis (texto + link) | — (independente) | alterar histórico |
+| M9 | **Reuniões com Desfecho** | estados do compromisso ligados por referência | M2 | duplicar data/hora |
+| M10 | **Whitelist de Execução** | exigir motivo de autorização antes do canal | inventário resolvido | substituir a Safety Lock |
+| M11 | **Central de Operação** | leitura e auditoria para admin e gestão | M2, M6 | executar operação (v1) |
+| M12 | **Ownership e Contingência** | trajetória de responsável/coluna, nada invisível | — (independente) | apagar estado anterior |
+
+**Ordem:** M0 (decisões) → M2 → M3 (sombra) → M5+M6 → M7 → M11 → M10 (corte) → congelamento. M8, M9 e M12 correm em paralelo a qualquer momento após M0.
+
+**Invariantes do blueprint, válidas em todos os módulos:**
+1. Só M1 decide etapa. Só M3 cria ação. Só M4 e a mão humana executam.
+2. Toda escrita deriva o lead do `action_id`, no servidor.
+3. Todo número da Central vem de campo estruturado, nunca de texto.
+4. Nada desaparece: atraso é leitura, bloqueio é estado visível, pulo é registro.
+5. Nenhum caminho novo até a Meta. A Safety Lock permanece a última barreira, intacta.
+
+---
+
+**Nada foi implementado nesta rodada.** Este documento é a base arquitetural; cada módulo da §16 e cada fase da §13 devem ser autorizados por um comando próprio.
