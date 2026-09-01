@@ -279,16 +279,33 @@ Fora da cadência (`NON_CADENCE_STEPS`): `E20`, `E27`, `FINALIZACAO`, `RESPOSTA_
 
 ---
 
-## 11. Relatório administrativo
+## 11. CENTRAL DE OPERAÇÃO DIÁRIA — [FUTURO]
 
-**[RECOMENDAÇÃO]:** o relatório lê **exclusivamente** a tabela de ações e seus eventos (pergunta 1). Nenhum número derivado de texto.
+**[NÃO EXISTE]** hoje. **[EXISTE]** a base de acesso: `has_role` (admin/manager) e a autorização de leitura por papel e propriedade já implementadas — a Central herda esse controle, restrita a Administrador e à gestão (Larissa), sem criar regra de acesso nova.
 
-**Indicadores (pergunta 2):** previstas, executadas, atrasadas (leitura de data), puladas com motivo, bloqueadas, reuniões por desfecho, tempo entre previsto e realizado, cobertura por executivo, funil por etapa.
+**[RECOMENDAÇÃO]:** a Central lê **exclusivamente** a tabela de ações e seus eventos. Nenhum número derivado de texto, nenhuma reconstrução a partir de várias tabelas.
 
-**Bater com o individual (pergunta 3):** o relatório é agregação da mesma linha que a Ação do Dia mostra — não há cálculo próprio nem cópia. Divergir seria impossível por construção.
-**Pulada × executada sem sucesso (pergunta 4):** campos distintos (`estado` × `resultado`); nunca no mesmo total.
-**Filtros (pergunta 5):** executivo, etapa, período, investidor, tipo, estado — todos colunas indexadas.
-**Auditoria (pergunta 6):** eventos nunca são apagados nem editados; correção é evento novo.
+Cada pergunta da §5 do pedido vira uma coluna, não uma interpretação:
+
+| Pergunta | Campo que responde |
+|---|---|
+| qual executivo recebeu | `responsavel_no_planejamento` |
+| qual lead / qual etapa | `lead_id` / `etapa` + `ciclo` |
+| quando deveria / quando foi feita | `prevista_para` / `executada_em` |
+| foi executada / pulada | `estado` |
+| quem pulou / por quê | `pulada_por` / `motivo` + `justificativa` |
+| foi reagendada | `estado = REAGENDADA` + ponteiro |
+| ligações feitas / sem contato | `tipo = ligacao` agrupado por `resultado` |
+| reuniões realizadas / perdidas | resultado da ação de reunião |
+| ações atrasadas | `prevista_para < agora` e `estado = PLANEJADA` |
+| quem está sem responder | ações planejadas antigas por responsável |
+
+**Bater com o individual:** a Central é agregação da **mesma linha** que a Ação do Dia mostra — não há cálculo próprio nem cópia. Divergir é impossível por construção.
+**Pulada × executada sem sucesso:** campos distintos (`estado` × `resultado`); nunca somados.
+**Filtros:** executivo, etapa, período, investidor, tipo, estado — colunas indexadas.
+**Auditoria:** eventos nunca apagados nem editados; correção é evento novo.
+
+**[DECISÃO PENDENTE]** A Central é somente leitura, ou a gestão pode reatribuir e reabrir ações a partir dela? Isso muda o modelo de permissão de escrita.
 
 ---
 
