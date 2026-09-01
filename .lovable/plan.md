@@ -1,253 +1,371 @@
-# Diagnóstico consolidado final — Fluxo do lead, Ação do Dia, Cadência, Mensagens e Auditoria
+# DIAGNÓSTICO INTEGRADO — BASE ARQUITETURAL ANTES DA IMPLANTAÇÃO
 
-Rodada de análise. **Nada foi alterado**: sem código, banco, tabelas, cron, filas, interface ou regra. A Global WhatsApp Safety Lock permanece exatamente como está.
+Rodada de análise. **Nada foi alterado**: sem código, banco, tabelas, cron, cadência, Ação do Dia, Workspace, GreenSales, mensagens. A Global WhatsApp Safety Lock permanece exatamente como está.
 
-**[ATUAL]** existe e foi verificado no código · **[PARCIAL]** existe só em parte · **[FUTURO]** conceito planejado, não implementado · **[RECOMENDAÇÃO]** sugestão técnica, não requisito.
-
----
-
-## 1. Fluxo real do lead no CRM
-
-### Como a coluna é determinada — [ATUAL], verificado
-
-- A origem **não informa** "mudou de coluna". Ela devolve o lead com suas **etiquetas**; `resolveBoardColumn` deduz a coluna comparando as etiquetas com as colunas declaradas no funil.
-- Vence a coluna de **posição mais avançada**. `remarketing` é indicador, não posição. **Nenhuma coluna reconhecida ⇒ `null`, e o chamador preserva a última posição conhecida.**
-- O quadro (`portal-leads-board.tsx`) agrupa **apenas por `stage_key` atual**. E há uma linha decisiva: `if (!lead.stageKey) continue;` — **lead sem etapa não entra em nenhuma coluna**. Ele é apenas contado como `outsideFunnel`.
-
-### Histórico — [PARCIAL]
-
-- **Movimentação entre colunas:** existe **evento**, não histórico consultável. `lead-service.server.ts` compara `previous.stage_key` com o novo e, quando muda, grava `stage_entered_at = agora` e um evento com `de:` e `para:`. Também existe `entered_entry_stage_at` (entrada em NOVOS). Ou seja: **é possível reconstruir o caminho lendo os eventos**, mas não existe uma tabela de trajetória nem uma tela que a mostre.
-- **Troca de executivo:** existe `transferLeadOwnership` e transferências auditadas, mas o vínculo atual mora em `responsible_executive_id` no próprio lead — de novo, estado atual + eventos, não trajetória.
-
-### Os cinco casos que hoje se confundem — [PARCIAL] / limitação real
-
-| Situação | Representação hoje |
-|---|---|
-| mudou de etapa | `stage_key` novo + `stage_entered_at` + evento `de`/`para` — **bem representado** |
-| foi transferido | `responsible_executive_id` novo + evento — **representado, sem trajetória** |
-| saiu do funil | `stage_key = null` ⇒ **some do quadro**, só aparece no contador `outsideFunnel` |
-| ficou sem etapa | **idêntico ao anterior** — indistinguível |
-| não foi localizado na varredura | `nao_localizado` (`UNLOCATED_STAGE_KEY`), coluna **local do Portal**, aplicada por `reconcile.server.ts` |
-
-**Confirmando o teste de vocês:** mover NOVOS → FRIOS **é** registrado corretamente (etapa nova, carimbo de entrada e evento com origem e destino), desde que FRIOS esteja declarada como coluna do funil.
-
-### Sim, existe hoje o "lead que desaparece" — [ATUAL]
-
-Um lead com `stage_key = null` continua no banco, continua com executivo, continua com cadência — e **não aparece em nenhuma coluna**. Não há motivo registrado, não há aviso, não há destino. É exatamente o comportamento que vocês perceberam. A coluna `nao_localizado` cobre só um dos casos (sumiu da varredura), não o caso de lead sem coluna reconhecida.
-
-### [LACUNA] O que falta para nenhum lead sumir
-
-1. **Distinguir `null` de `null`:** "a origem tirou todas as etiquetas" e "esta resposta não trouxe etiquetas" produzem o mesmo valor. Um é fato, o outro é falha de leitura.
-2. **Toda saída precisa de destino:** nenhum lead deveria poder ficar sem coluna — se não há coluna reconhecida, ele pertence a uma coluna de contingência explícita, com motivo.
-3. **Motivo e autor da mudança:** o evento diz `de`/`para`, não diz *quem* nem *por quê* (origem, executivo, reconciliação).
-4. **Trajetória consultável:** hoje é reconstrução por eventos; deveria ser leitura direta.
-5. **Uma identidade canônica:** `crm_leads` guarda a etapa, `portal_leads` é o card operacional; a ponte (`gs_<external_id>`) é resolvida caso a caso.
+**[EXISTE]** verificado no código · **[PARCIAL]** existe só em parte · **[NÃO EXISTE]** conceito futuro, sem implementação · **[RECOMENDAÇÃO]** proposta técnica, não requisito · **[DECISÃO]** pendente de vocês.
 
 ---
 
-## 2. Ação do Dia no modelo futuro
+## 1. Regra principal da cadência — E0 automática, E1+ manual
 
-### Menor conjunto de mudanças — [RECOMENDAÇÃO]
+### O que existe hoje
 
-A boa notícia: o ponto de separação **já existe no código**. `decide.ts` é uma função pura que devolve `{ kind: "none" | "schedule_step" | "send_step", ... }` com motivo legível. Basta um consumidor entre a decisão e a execução:
+- **[EXISTE]** `decide.ts` é uma função **pura** de decisão: recebe estado e devolve `{ kind: "none" | "schedule_step" | "send_step", step, dueAt, reason }`. O ponto de separação entre decidir e executar **já nasceu no código** — só não tem consumidor intermediário.
+- **[EXISTE]** `FIRST_CONTACT_STEPS` já trata E0/E0_V1 como exceção explícita e centralizada (inclusive quanto à janela de horário).
+- **[EXISTE]** Safety Lock como última barreira antes da Graph API, com auditoria em `relationship_engine_log`.
+- **[EXISTE]** `execution-mode` + `channel.ts`: o **ambiente decide antes das credenciais** — homologação nunca chama a Meta, mesmo com token real.
+- **[EXISTE]** `guard.server.ts` bloqueando destinatário real em contexto de teste.
+- **[EXISTE]** camada de autorização — **mas só de LEITURA**: `authorization.ts` / `authorization.server.ts` respondem "quem pode ver o quê" (admin, gestão, dono do lead, isolamento de rodada). **Não existe** equivalente para "quem pode executar".
+
+### O que não existe hoje
+
+- **[NÃO EXISTE]** qualquer trava que diga "esta etapa só pode ser enviada por decisão humana". Hoje, se o motor decide `send_step`, o despacho acontece — a etapa não é consultada.
+- **[NÃO EXISTE]** noção de *motivo de autorização* atrelada a um envio.
+
+### Caminhos que hoje alcançam o WhatsApp — [EXISTE], inventário
+
+Quatro módulos chamam o envio direto (`sendTextMessage` / `sendTemplateMessage`): `whatsapp.server.ts` (o canal), `whatsapp.functions.ts`, `remarketing/conversations.server.ts` e `crm/messaging.server.ts`. Acima deles operam `dispatch.server.ts`, `e0.server.ts`, `closure.server.ts`, `auto-reply.server.ts`, `inbound.server.ts` e o `remarketing-engine` (cron de 1 min, executor próprio).
+
+**Resposta direta à pergunta 5:** sim — hoje, mesmo separando decisão de execução, `remarketing-engine`, `closure`, `auto-reply` e `messaging.server` continuariam alcançando o canal por conta própria. `messaging.server.ts` é o mais crítico: declara-se "única saída do CRM" mas chama o envio **só com telefone e texto**, sem etapa, sem lead, sem contexto — é o caminho mais fácil de burlar a regra **sem intenção**.
+
+### [RECOMENDAÇÃO] Arquitetura de segurança — ordem das travas
+
+```text
+MOTIVO DE AUTORIZAÇÃO válido?  →  ETAPA permitida para esse motivo?
+   →  GUARD de destinatário  →  AMBIENTE  →  SAFETY LOCK  →  Graph API
+```
+
+Motivos fechados, sem "outros":
+
+| Motivo | Etapas aceitas | Exige |
+|---|---|---|
+| `E0_AUTOMATICA` | apenas `E0`, `E0_V1` | nada além do lead |
+| `RESPOSTA_HUMANA` | resposta dentro da janela de 24 h | conversa aberta |
+| `ACAO_EXECUTADA_POR_HUMANO` | qualquer etapa manual | `action_id` + usuário autenticado |
+
+Por que isso resiste a caminho antigo: **o motivo é parâmetro obrigatório do canal**, não uma flag a lembrar. Um cron legado não consegue inventar um motivo válido; ele falha, é recusado e fica auditado. Não é disciplina de código — é impossibilidade estrutural.
+
+**Um único motor:** `decide.ts` permanece a única fonte que escolhe etapa e prazo. O planejador **consome** essa saída; nunca decide. A Ação do Dia **lê** o planejamento; nunca decide. Não há segundo motor porque não há segunda função que escolha etapa.
+
+**Demais caminhos (pergunta 4):** `remarketing` e `campanhas` → decidir se são fluxo próprio autorizado ou se aposentam (ver §15-E); `auto-reply`/`inbound` → cabem em `RESPOSTA_HUMANA` (reagem a mensagem recebida, não a cadência); `closure` → passa a ser ação planejada como qualquer outra; `messaging.server` → passa a exigir contexto (lead + etapa + motivo) ou deixa de existir como atalho.
+
+---
+
+## 2. E0 × Ação do Dia
+
+### Fluxo alvo
 
 ```text
 decide.ts (intocado)
    ├─ "none"          → nada
    ├─ "schedule_step" → PLANEJADOR grava ação PLANEJADA (prevista_para = dueAt)
-   └─ "send_step"     → E0? despacha.  E1+? PLANEJADOR grava ação pronta
-                              └─ AÇÃO DO DIA → executivo → RESULTADO → volta ao decide.ts
+   └─ "send_step"     → E0?  despacha automaticamente
+                        E1+? PLANEJADOR grava ação pronta
+                              └→ AÇÃO DO DIA → executivo executa
+                                    → RESULTADO (append-only) → decide.ts decide de novo
 ```
 
-Sim, dá para evoluir sem segundo motor — desde que **nada além de `decide.ts` decida etapa**.
+**O que permanece exatamente como está (pergunta 3):** `decide.ts` inteiro; `machine.ts`; `FIRST_CONTACT_STEPS`; `step-registry` / `isKnownStep`; `guard.server.ts`; `execution-mode` e `channel.ts`; toda a lógica de `daily-actions.ts` (chave determinística, precedência AGENDA > REUNIÃO > MENSAGEM > LIGAÇÃO, colapso, buckets, fuso); Safety Lock.
 
-**Continua sendo do motor:** qual é a próxima etapa, quando ela vence, se o lead está elegível, se a janela de 24 h exige template, ordem do fluxo.
-**Passa a ser da Ação do Dia:** apresentar, coletar resultado, registrar quem fez e quando. Nunca escolher etapa.
+**O que muda (pergunta 2):** `engine.server.ts` deixa de despachar E1+ e passa a chamar o planejador; `executedSteps` deixa de ser escrito na decisão e passa a ser escrito **apenas no resultado** — hoje essa gravação antecipada é justamente o que faz uma ação "identificada" parecer "executada" (pergunta 4).
 
-### Como impedir execução automática de E1+ — [RECOMENDAÇÃO]
-
-Três travas, em camadas, na ordem:
-
-```text
-motivo de autorização válido? → etapa permitida para esse motivo? → guard de destinatário → SAFETY LOCK → canal
-```
-
-Motivos: `E0_AUTOMATICA` (aceita apenas `E0`/`E0_V1`), `RESPOSTA_HUMANA` (janela de 24 h), `ACAO_EXECUTADA_POR_HUMANO` (exige `action_id` + usuário). Sem motivo válido: recusa + auditoria no `relationship_engine_log`, que a Safety Lock já usa.
-
-Isso resiste a caminho antigo porque **o motivo é parâmetro obrigatório**, não flag a ser lembrada. Um cron legado não consegue inventar um.
-
-**[LACUNA]** `messaging.server.ts` se declara "única saída do CRM" mas chama `sendTextMessage` só com telefone e texto — sem etapa, sem lead, sem contexto. É hoje o caminho mais fácil de burlar a regra sem intenção.
-
-### Estados — [FUTURO]
-
-| Estado | Significado | Conta como executada? |
-|---|---|---|
-| `PLANEJADA` | prevista, sem resposta | não |
-| *(atrasada)* | **não é estado** — é leitura de `prevista_para < agora` | não |
-| `EXECUTADA` | o executivo fez e informou o resultado | sim |
-| `REAGENDADA` | nova ação criada, ponteiro para a anterior | não |
-| `PULADA` | não foi feita, com justificativa | **não** |
-| `BLOQUEADA` | impedimento técnico/regra | não |
-| `EXPIRADA` | só se vocês decidirem que existe | não |
-
-Ação atrasada **nunca some**: `resolveBucket` já trata assim hoje (atrasada nunca vira "hoje"). Ela permanece `PLANEJADA` até receber resposta, pulo ou reagendamento.
-
-### Pular com justificativa — [FUTURO], [RECOMENDAÇÃO]
-
-Duas dimensões independentes, e é isso que impede a confusão: **`estado`** (o que aconteceu com a ação) e **`resultado`** (o que aconteceu no mundo). "Não atendeu" é `EXECUTADA` + resultado negativo (tentou). "Estava em outra reunião" é `PULADA` (não tentou).
-
-O registro do pulo: `justificativa` validada no servidor (não vazia, tamanho mínimo), `pulada_por`, `pulada_em`, `destino` (reagendada para X / encerrada no ciclo) — tudo em evento **append-only**, nunca sobrescrito. Só `EXECUTADA` alimenta `executedSteps`.
-
-**[LACUNA] decisão estrutural:** `isStepInOrder` exige que todas as etapas anteriores estejam em `executedSteps`. Uma etapa pulada **trava a sequência**. Ou o pulo marca a etapa como consumida (destrava, mas mente sobre execução), ou a verificação de ordem passa a aceitar lacuna explícita. Precisa ser decidido antes de qualquer código.
+**Ação atrasada (pergunta 5):** **[EXISTE]** `resolveBucket` já garante que atrasada nunca vira "hoje". **[RECOMENDAÇÃO]** atrasado **não é estado** — é leitura de `prevista_para < agora`. A ação permanece `PLANEJADA`, visível, até receber resultado, pulo ou reagendamento. Nunca some, nunca é executada sozinha (E1+ não tem executor automático depois do corte).
 
 ---
 
-## 3. Cadência — etapas atuais x futuras
+## 3. Jornada futura E0 → E8
 
-### [ATUAL] — declaradas no código
+### O que existe hoje — [EXISTE], nomenclatura real do código
 
-**Cadência (`STEPS` + `FLOW_SEQUENCE`):**
+`FLOW_SEQUENCE` declara cinco fluxos:
+
 - `sem_resposta`: E0 → E1 → E3 → E4 → E12 → E30
 - `visualizacao`: E0 → E1 → V3 → V4
 - `reengajamento`: R1 → R2 → R3
 - `reentrada`: RE0 → RE1 → RE2 → RE3
 - `relacionamento_frio`: RF0 → RF1
-- Variante de primeiro contato: `E0_V1`
+- variante de primeiro contato: `E0_V1`
 
-**Fora da cadência (`NON_CADENCE_STEPS`):** `E20`, `E27`, `FINALIZACAO`, `RESPOSTA_AUTOMATICA`.
+Fora da cadência (`NON_CADENCE_STEPS`): `E20`, `E27`, `FINALIZACAO`, `RESPOSTA_AUTOMATICA`. `KNOWN_STEP_KEYS` é a união dos dois e `isKnownStep` **recusa** qualquer chave fora disso, com motivo legível. **Já existe fonte única de etapas.**
 
-`KNOWN_STEP_KEYS` é a união dos dois, e `isKnownStep` **recusa** qualquer chave fora disso com motivo legível. Já existe fonte única.
+### O que não existe
 
-### [PARCIAL]
-- **E4** existe como chave no fluxo `sem_resposta`, mas **não é** a E4 conceitual da jornada futura. Mesmo nome, significado diferente — é a maior fonte de confusão possível.
-- **E20/E27/FINALIZACAO** existem e operam fora da máquina de cadência.
-- Vínculo etapa↔conteúdo existe via `contentGroup`, mas resolvido na execução.
+**[NÃO EXISTE]** E2, E5, E6, E7, E8 e a renumeração E0…E8. São conceito.
 
-### [FUTURO] — apenas conceito
-**E2, E5, E6, E7, E8** e a renumeração completa E0…E8. Nada disso existe.
+**Armadilha crítica:** `E4` **existe hoje** no fluxo `sem_resposta` e **não é** a E4 conceitual da jornada futura. Mesmo nome, significado diferente. O mesmo vale para E3.
 
-### [RECOMENDAÇÃO] — evoluir sem quebrar
+### [RECOMENDAÇÃO] Como construir sem quebrar histórico
 
-1. **Preservar todas as chaves atuais.** Elas estão gravadas em `executedSteps`, nos eventos e nas mensagens enviadas. Renomear reescreve o passado.
-2. **Novas etapas nascem com chaves novas e distintas** — prefixo de geração, mesmo quando o rótulo humano coincidir. Isso resolve o caso E4 x E4.
-3. **Mapa de equivalência** apenas para relatório, nunca migração de dados.
-4. **Cada cadência guarda a versão do vocabulário** com que nasceu: leads em andamento terminam no vocabulário antigo; novos nascem no novo; sem conversão no meio.
-5. **Campo `status`: `ativa` | `planejada`** em `STEPS`. Etapa `planejada` aparece na configuração e é **recusada pelo planejador e pelo despachante**.
-
-**Como evitar que conceito vire funcionalidade:** a regra é mecânica, não editorial — uma etapa só opera se estiver em `KNOWN_STEP_KEYS` **e** com `status: ativa`. Enquanto E2/E5–E8 estiverem `planejada` (ou nem declaradas), nenhum código consegue executá-las, independentemente de quantas vezes forem citadas em planejamento. Neste documento e nos próximos, a marcação [ATUAL]/[PARCIAL]/[FUTURO] deve acompanhar toda menção a etapa.
+1. **Preservar todas as chaves atuais.** Elas estão gravadas em `executedSteps`, nos eventos e nas mensagens já enviadas. Renomear reescreve o passado (pergunta 5).
+2. **Novas etapas nascem com chaves novas e distintas** — prefixo de geração (ex.: `G2_E4`), mesmo quando o rótulo humano coincidir. Resolve a colisão E4 × E4.
+3. **Mapa de equivalência sim (pergunta 2), mas só para relatório** — nunca para migrar dados. Ele traduz na leitura; não toca em registro.
+4. **Cada cadência guarda a versão de vocabulário com que nasceu.** Lead em andamento termina no vocabulário antigo; lead novo nasce no novo; sem conversão no meio.
+5. **Campo `status: "ativa" | "planejada"` em `STEPS` (pergunta 3 e 4).** Etapa `planejada` aparece na configuração e é **recusada pelo planejador e pelo despachante**. A separação vira mecânica, não editorial: uma etapa só opera se estiver em `KNOWN_STEP_KEYS` **e** `ativa`. Enquanto E2/E5–E8 forem `planejada` (ou nem existirem), nenhum código consegue executá-las, por mais vezes que sejam citadas em planejamento.
 
 ---
 
-## 4. Mensagens do motor — versões completas
+## 4. Ação do Dia como central operacional
 
-**[ATUAL]** `STEPS` declara `templatePurpose` e `contentGroup` por etapa; `decide.ts` devolve os dois; a montagem (texto + link) acontece na execução via `relationship_contents` + bindings. `CONTENT_REQUIRED_STEPS` é derivado de `STEPS`.
+### Hoje
 
-**Avaliação:** a estrutura atual *suportaria* várias versões, mas ao custo de mais uma camada de resolução em tempo de execução — exatamente o que vocês querem eliminar. **Sim, é mais seguro congelar texto + link juntos numa versão.**
+**[EXISTE]** `daily-actions.ts` é **leitura pura e bem construída**: agrega ligações, mensagens, reuniões e agenda, aplica precedência, colapsa duplicatas e distribui em buckets por fuso. **[NÃO EXISTE]** persistência da ação: nada do que é apresentado é gravado como obrigação.
 
-**[RECOMENDAÇÃO] — evolução aditiva, sem ruptura:**
-- Cada versão é um **registro próprio e imutável**: etapa, número, rótulo (com nome / sem nome), texto completo, link completo, ativa/inativa.
-- **Alteração nunca é retroativa:** editar cria versão nova; a antiga continua existindo apenas para leitura. Como a ação guarda o `id` da versão, uma mudança futura não toca no que já foi planejado nem no que já foi enviado.
-- **Qual versão foi escolhida** fica gravada na própria ação (`versao_mensagem`), no momento em que ela é criada — não se recalcula nada depois.
-- **Ação do Dia** exibe o texto pronto, com copiar / abrir conversa. O executivo vê exatamente o que será enviado.
-- **Ordem de resolução durante a transição:** se a etapa tem versões, usa versão; se não tem, mantém o caminho atual. As duas arquiteturas coexistem e a migração é etapa a etapa.
-- **Rotação:** determinística por lead é reprodutível em retry, homologação e auditoria; aleatória não é; sequencial exige contador persistido e pode avançar indevidamente em retry.
+### [RECOMENDAÇÃO] Estrutura central de ações, não evolução da `relationship_queue` (pergunta 1)
 
-**[LACUNA]** Se versões da mesma etapa tiverem finalidades diferentes, a checagem de template oficial de `decide.ts` (janela de 24 h) precisa saber qual versão será usada — hoje ela decide **antes** de a versão existir. Definir se `templatePurpose` fica na etapa ou na versão.
+`relationship_queue` é fila de **execução do motor** (mensagens). Ação é obrigação **de trabalho humano** e engloba ligação, reunião, retorno, acompanhamento. Misturar os dois transforma a fila em duas coisas ao mesmo tempo e reintroduz o acoplamento que estamos desfazendo. A fila continua existindo para o que ela faz bem: E0 e respostas.
+
+**Mesma lógica para todo tipo de ação (pergunta 2):** um único registro com `tipo` (ligação | mensagem | reunião | acompanhamento | retorno | reagendamento), `lead_id` obrigatório, `etapa`, `ciclo`, `responsavel`, `prevista_para`, `estado`. O que muda por tipo é apenas o **conjunto de resultados válidos**, não a estrutura.
+
+**Duplicidade (pergunta 3):** chave única `lead_id + etapa + ciclo + tipo`. Duas tentativas de criar a mesma ação viram uma só, por construção do banco — não por verificação em código.
+
+**Estados (pergunta 4):**
+
+| Estado | Significado | Conta como executada? |
+|---|---|---|
+| `PLANEJADA` | prevista, sem resposta (disponível hoje ou futura) | não |
+| *(atrasada)* | **não é estado** — leitura de `prevista_para < agora` | não |
+| `EXECUTADA` | feita, com resultado informado (positivo **ou** negativo) | **sim** |
+| `PULADA` | não foi feita, com justificativa | **não** |
+| `REAGENDADA` | substituída por nova ação, com ponteiro | não |
+| `BLOQUEADA` | impedimento técnico ou de regra | não |
+| `EXPIRADA` | **[DECISÃO]** só se vocês decidirem que existe | não |
+
+**Chave para não confundir:** duas dimensões independentes — **estado** (o que aconteceu com a ação) e **resultado** (o que aconteceu no mundo). "Não atendeu" é `EXECUTADA` + resultado negativo. "Não deu tempo" é `PULADA`.
+
+**Isolamento de falha (pergunta 5):** o estado vive **no item**, não no job. Uma ação bloqueada não impede a criação nem a leitura das outras.
 
 ---
 
-## 5. Identidade, resultado e auditoria
+## 5. Pular uma ação
 
-**[ATUAL] já recuperável:** etapa atual e `stage_entered_at`; evento de mudança `de`/`para`; ligações concluídas com `outcome` SIM/NÃO em `crm_cadence_tasks` + evento `CADENCE_TASK_DONE`; mensagens em `relationship_message_sends`; decisões e bloqueios em `relationship_engine_log` (incluindo cada tentativa barrada pela Safety Lock, com fluxo, etapa, origem e telefone mascarado); `journey.server.ts` como agregador cronológico.
+**[NÃO EXISTE]** hoje. **[RECOMENDAÇÃO]:**
 
-**[PARCIAL] espalhado:** cada canal tem vocabulário próprio (ligação SIM/NÃO, mensagem `..._SENT`, reunião sem desfecho) — os números **não são somáveis**. Responsável está no lead, não na obrigação.
+1. **Sem confusão com resultado negativo (pergunta 1):** pular é estado; resultado negativo é resultado de uma ação executada. Como são campos diferentes, a contagem nunca mistura (pergunta 5 e 6).
+2. **Registro obrigatório:** ação, lead_id, executivo, data/hora, etapa, motivo (lista fechada), justificativa (texto validado no servidor: não vazia, tamanho mínimo — texto livre serve para **ler**, nunca para contar), consequência.
+3. **Append-only:** evento novo, nunca sobrescrita. A trilha sobrevive a qualquer mudança posterior.
+4. **Quem pode pular (pergunta 3):** **[DECISÃO]**. Recomendação: responsável e gestão, com o autor sempre gravado — a diferença aparece no relatório.
+5. **Relatório (pergunta 6):** coluna própria "puladas", separada de executadas e de atrasadas, com motivo agrupado e justificativa acessível ao abrir.
 
-**[FUTURO] faltando:** previsto x realizado por ação; responsável da ação; justificativa; estados pulada/reagendada/bloqueada; versão de mensagem usada; contagem de tentativas por ciclo; histórico de alterações da ação.
-
-**[RECOMENDAÇÃO]** Uma trilha por ação, não por lead: a ação carrega `action_id` + `lead_id` e sobrevive a qualquer mudança posterior de coluna, executivo ou estágio — porque ela registra **o que estava previsto naquele momento**, e o passado não se reescreve. Com isso, "por que esse lead não avançou?" deixa de ser interpretação e vira leitura: qual ação estava prevista, quem era responsável, o que aconteceu, quando, com qual justificativa e com qual mensagem.
-
-**[LACUNA] identidade:** o vínculo AÇÃO → LEAD_ID → RESULTADO → NOTA → HISTÓRICO é hoje verdadeiro na prática e **informal no contrato** — depende de cada chamador passar o ID certo, e convivem duas identidades (`portal_leads.id` / `gs_<external_id>` e `crm_leads.id`; `guard.server.ts` traduz entre elas). Falta: eleger a canônica, guardar a outra como referência, **derivar o `lead_id` do `action_id` no servidor** em vez de aceitá-lo do cliente, e amarrar com chave estrangeira + RLS.
+**[DECISÃO ESTRUTURAL — bloqueia implementação]** `isStepInOrder` exige que **todas** as etapas anteriores estejam em `executedSteps`. Uma etapa pulada **trava a sequência**. Ou (a) o pulo marca a etapa como consumida — destrava, mas registra como cumprida algo que não foi feito; ou (b) a verificação de ordem passa a aceitar lacuna explicitamente justificada — mais fiel, exige alterar a guarda de ordem. Recomendo (b). Isso responde a pergunta 2 e precisa ser decidido **antes** de qualquer código.
 
 ---
 
 ## 6. Agendamentos e reuniões
 
-**[ATUAL]** `portal_meetings` (25 colunas) guarda o compromisso; `SCHEDULE_CREATED` pausa a cadência. **Não existe** comparecimento, não comparecimento, cancelamento com motivo, evolução nem reagendamento com vínculo.
+**[EXISTE]** `portal_meetings` (25 colunas) com o compromisso; `SCHEDULE_CREATED` pausa a cadência; `MEETING_FOCUS_WINDOW_MS` (15 min) para janela de foco.
+**[NÃO EXISTE]** compareceu, não compareceu, cancelamento com motivo, evolução, reagendamento com vínculo.
 
-**[RECOMENDAÇÃO] Fonte de verdade dividida por natureza, sem cópia:**
-- **`portal_meetings`** é a verdade do *compromisso*: quando, com quem, onde. A ação **referencia** e lê de lá — nunca copia horário.
-- **A ação** é a verdade do *trabalho*: entrou na fila, foi respondida, qual o resultado.
-- Uma reunião = no máximo **uma** ação aberta (chave única) — duplicidade impossível por construção.
-- Estados do compromisso (`agendada`, `realizada`, `não compareceu`, `cancelada`, `reagendada`) pertencem à reunião; `compareceu` / `evolucao` / `reagendar` são resultado da ação.
-- **Reagendar em uma transação:** reunião original encerrada com resultado, nova reunião criada, nova ação com ponteiro para a anterior. A ação antiga fica `REAGENDADA` para sempre.
-- A janela de antecedência já existe (`MEETING_FOCUS_WINDOW_MS`, 15 min) — bastaria parametrizar.
+**[RECOMENDAÇÃO] — fonte de verdade dividida por natureza, sem cópia (pergunta 1):**
 
-**[LACUNA]** Hoje a reunião pausa a cadência; no modelo novo quem **retoma** é o resultado. Sem resultado registrado, o lead fica parado indefinidamente — precisa de visibilidade explícita de "reuniões sem desfecho".
-
----
-
-## 7. Lote, fila e cron
-
-**[ATUAL] onde há processamento em lote:** `portal-crm-sync-automatico` (1 min) faz varredura + E0 + tick do motor no mesmo ciclo; a fila de E0 adiada opera com `.limit(200)` e janela de 3 dias; `buildCadenceQueue` lê até 5000 leads e **recalcula a fila inteira a cada leitura**; `remarketing-engine` roda a cada minuto com executor próprio.
-
-**Como uma falha represa tudo:** como o estado vive no *ciclo* e não no *item*, um job travado não deixa pendência marcada — quando volta, encontra tudo "vencido ao mesmo tempo" e processa em rajada. E o que estiver fora da janela de 3 dias / limite 200 **é descartado em silêncio**.
-
-**[RECOMENDAÇÃO] Três princípios:**
-1. **Estado é do item, não do job.** Cada ação tem vencimento próprio; job travado atrasa a *criação*, nunca apaga a obrigação. Ao voltar, encontra as ações já existentes (chave única) em vez de recriar.
-2. **Atraso é leitura, não evento.** `prevista_para < agora` ⇒ atrasada. Nunca some, nunca vira "hoje".
-3. **Recuperação sem rajada.** O que se recupera é *apresentação*, não *envio* — E1+ é humano, então não existe lote automático possível. Para E0: teto por ciclo, ordenação por vencimento e **descarte visível** (nunca silencioso).
-4. **Sem reprocessamento retroativo:** só etapas com vencimento **a partir do marco de ativação** viram ação.
+- **`portal_meetings`** é a verdade do **compromisso**: quando, com quem, onde. A ação **referencia** e lê de lá — nunca copia data/hora.
+- **A ação** é a verdade do **trabalho**: entrou na fila, foi respondida, qual o desfecho.
+- Uma reunião = no máximo **uma** ação aberta (chave única). Duplicidade impossível por construção.
+- Estados do compromisso (`agendada`, `realizada`, `não compareceu`, `cancelada`, `reagendada`) pertencem à reunião; `compareceu` / `evoluiu` / `reagendar` são resultado da ação (pergunta 3).
+- **Reagendamento (pergunta 2): nova reunião, em uma transação.** A original é encerrada com resultado `reagendada`, a nova nasce com ponteiro para a anterior, e a ação antiga fica `REAGENDADA` para sempre. Reaproveitar a mesma reunião apagaria o histórico do que foi combinado antes.
+- **Retomada (pergunta 4):** hoje a reunião pausa a cadência; no modelo novo quem retoma é **o resultado**. Sem resultado, o lead fica parado — por isso a pergunta 5 é obrigatória: precisa existir visibilidade explícita de "reuniões e ações sem desfecho", com prazo, para a gestão. Fechar sozinho por tempo seria inventar um fato que não aconteceu.
 
 ---
 
-## 8. Transição em fases
+## 7. Identidade, notas e Workspace
+
+**[EXISTE]** `can_access_investor`, `has_role`, RLS por executivo, autorização de leitura, `journey.server.ts` como agregador cronológico.
+
+**[LACUNA REAL]** Convivem **duas identidades**: `portal_leads.id` (card operacional, `gs_<external_id>`) e `crm_leads.id` (espelho da origem). `guard.server.ts` traduz entre elas caso a caso. O vínculo AÇÃO → LEAD → RESULTADO → NOTA é verdadeiro na prática e **informal no contrato**: depende de cada chamador passar o ID certo.
+
+**[RECOMENDAÇÃO]:**
+1. **Eleger a canônica** (recomendo `portal_leads.id`, pois é onde a operação acontece) e guardar a outra como referência no mesmo registro — nunca como alternativa.
+2. **A interface nunca envia lead_id (perguntas 1 e 2).** Ela envia `action_id`. O servidor **deriva** o lead a partir da ação. Nota salva no lead errado deixa de ser possível: não há campo para errar.
+3. **Nota de outro executivo (pergunta 3):** o servidor compara o responsável da ação com o usuário autenticado antes de gravar; recusa é auditada. A camada de leitura já existe — falta a de escrita.
+4. **Redistribuição (pergunta 4 e §8-9):** a ação guarda `responsavel_no_momento_do_planejamento`. O histórico **fica com a ação**, não com a pessoa: o passado registra quem era responsável naquele dia; o presente aponta para o novo responsável.
+5. **Workspace (pergunta 5):** deve ler os mesmos eventos estruturados, sem cálculo próprio — uma fonte, várias telas.
+6. Amarrar com chave estrangeira e RLS, não com convenção.
+
+---
+
+## 8. CRM / GreenSales — o lead que desaparece
+
+### Diagnóstico verificado
+
+- **Fonte de verdade (pergunta 1):** a origem **não informa** "mudou de coluna". Ela devolve o lead com suas **etiquetas**, e `resolveBoardColumn` (`src/lib/crm/board.ts`) **deduz** a coluna comparando etiquetas com as colunas declaradas no funil. Vence a posição mais avançada; `remarketing` é indicador, não posição. Nenhuma coluna reconhecida ⇒ `null`, e o chamador **preserva a última posição conhecida**.
+- **Mudança de coluna (pergunta 3):** `lead-service.server.ts` compara `previous.stage_key` com o novo; mudou, grava `stage_entered_at = agora` e um evento com `de:` e `para:`. Existe também `entered_entry_stage_at`. **Confirmando o teste de vocês: NOVOS → FRIOS é registrado corretamente.**
+- **Mudança de executivo (pergunta 2 e 4):** existe `transferLeadOwnership` e transferências auditadas; o vínculo atual mora em `responsible_executive_id`. É estado atual + evento — **não há trajetória consultável**.
+- **A causa do desaparecimento (pergunta 5):** `portal-leads-board.tsx` agrupa **apenas por `stage_key` atual** e contém a linha decisiva `if (!lead.stageKey) continue;`. **Lead sem etapa não entra em nenhuma coluna** — é só um número no contador `outsideFunnel`. Ele continua no banco, com executivo e com cadência, e invisível. A coluna `nao_localizado` (`UNLOCATED_STAGE_KEY`, aplicada por `reconcile.server.ts`) cobre apenas o caso "sumiu da varredura", não o caso "sem coluna reconhecida".
+
+**Cinco situações, três representações:**
+
+| Situação | Hoje |
+|---|---|
+| mudou de etapa | etapa + carimbo + evento — **bem representado** |
+| foi transferido | responsável novo + evento — **sem trajetória** |
+| saiu do funil | `stage_key = null` ⇒ **invisível** |
+| ficou sem etapa | **idêntico ao anterior** — indistinguível |
+| não localizado na varredura | `nao_localizado` (coluna local do Portal) |
+
+### [RECOMENDAÇÃO]
+
+1. **`null` ambíguo precisa deixar de existir (pergunta 5).** "A origem tirou todas as etiquetas" e "esta resposta veio incompleta" produzem hoje o mesmo valor: um é fato, o outro é falha de leitura. São estados diferentes e precisam de nomes diferentes.
+2. **Toda saída tem destino (pergunta 6).** Nenhum lead pode ficar sem coluna: sem coluna reconhecida, ele vai para uma **área de contingência explícita**, com motivo, data e origem da perda — visível, com ação de reenquadramento, nunca um contador mudo.
+3. **Motivo e autor em toda mudança (pergunta 7).** O evento diz `de`/`para`, mas não diz *quem* (origem, executivo, reconciliação) nem *por quê*. Sim: manter histórico completo de proprietário e status, consultável — não reconstruído por eventos.
+4. **Ações acompanham o lead (pergunta 9).** A obrigação é do investidor, não da pessoa; o responsável é reatribuído e o registro anterior é preservado. Ação encerrada nunca muda de dono.
+5. **Sem duplicidade na redistribuição (pergunta 10):** a chave única é `lead_id + etapa + ciclo` — **não inclui o executivo**. Trocar de responsável, por definição, não pode gerar segunda ação.
+6. **Conversa com a Ação do Dia (pergunta 8):** lead em contingência **não gera ação nova**, mas suas ações já planejadas continuam visíveis e sinalizadas — some da coluna, não da operação.
+
+---
+
+## 9. Mensagens do motor — versões completas
+
+**[EXISTE]** `STEPS` declara `templatePurpose` e `contentGroup` por etapa; `decide.ts` devolve os dois; texto e link são montados **na execução** via `relationship_contents` + bindings; `CONTENT_REQUIRED_STEPS` deriva de `STEPS`.
+
+**Respostas 1 e 2: sim.** A estrutura atual até *suportaria* várias versões, mas ao custo de mais uma camada de resolução em tempo de execução — exatamente o que vocês querem eliminar. Congelar **texto + link juntos** numa versão é mais simples e mais seguro: menos resolução, menos dependência externa, e o que foi enviado é literalmente o que estava gravado.
+
+**[RECOMENDAÇÃO] — evolução aditiva:**
+
+- Cada versão é um **registro próprio e imutável**: etapa, número, rótulo, `com_nome` / `sem_nome` (campo booleano, não convenção de texto — pergunta 8), texto completo, link completo, ativa/inativa.
+- **Alteração nunca é retroativa (perguntas 3 e 6):** editar **cria** versão nova; a antiga permanece somente-leitura. Como a ação guarda o `id` da versão, mudança futura não toca no que já foi planejado nem no que já foi enviado.
+- **A versão escolhida é gravada na ação** no momento em que ela é criada. Nada se recalcula depois.
+- **Rotação (perguntas 4 e 5): determinística por lead.** É reprodutível em retry, homologação e auditoria. Aleatória não é reprodutível; sequencial global exige contador persistido e pode avançar indevidamente em retry.
+- **Interface (pergunta 7):** lista por etapa, botão "+ nova versão", texto e link no mesmo formulário, prévia exatamente como o investidor receberá, e ativar/desativar em vez de apagar.
+- **Transição (pergunta 9):** se a etapa tem versões, usa versão; se não tem, mantém o caminho atual. As duas arquiteturas coexistem e a migração é etapa a etapa.
+
+**[LACUNA]** Se versões da mesma etapa tiverem finalidades diferentes, a checagem de template oficial de `decide.ts` (janela de 24 h) precisa saber qual versão será usada — hoje ela decide **antes** de a versão existir. Definir se `templatePurpose` mora na etapa ou na versão.
+
+---
+
+## 10. Resultados e auditoria
+
+**[EXISTE] já recuperável:** etapa atual e `stage_entered_at`; evento `de`/`para`; ligações com `outcome` SIM/NÃO em `crm_cadence_tasks` + `CADENCE_TASK_DONE`; mensagens em `relationship_message_sends`; decisões e bloqueios em `relationship_engine_log` (incluindo cada tentativa barrada pela Safety Lock); `journey.server.ts`.
+
+**[PARCIAL]** Cada canal tem vocabulário próprio (ligação SIM/NÃO, mensagem `..._SENT`, reunião sem desfecho) — os números **não são somáveis**.
+
+**[NÃO EXISTE]** previsto × realizado por ação; responsável da obrigação; justificativa; pulada/reagendada/bloqueada; versão de mensagem usada; tentativas por ciclo.
+
+**[RECOMENDAÇÃO]:**
+1. **Estrutura (pergunta 1):** uma tabela de **ações** (estado atual) + uma de **eventos append-only** (tudo que aconteceu). O estado é derivável dos eventos; a tabela de ações existe por desempenho, não como verdade paralela.
+2. **Imutável (pergunta 2):** todo evento, o `previsto_para` original, a versão de mensagem usada, o responsável no momento do planejamento.
+3. **Obrigatórios (pergunta 3):** `action_id`, `lead_id`, tipo, etapa, ciclo, responsável, previsto para, estado; e no resultado: quem, quando, resultado, e justificativa quando pulada.
+4. **Opções fechadas (pergunta 4):** todo resultado é lista fechada, por tipo. Texto livre existe **ao lado**, para ler — nunca para contar.
+5. **Três coisas diferentes (pergunta 5):** não conseguiu contato = `EXECUTADA` + `sem_contato`; resultado negativo = `EXECUTADA` + `sem_interesse`; pulou = `PULADA` + justificativa.
+
+---
+
+## 11. Relatório administrativo
+
+**[RECOMENDAÇÃO]:** o relatório lê **exclusivamente** a tabela de ações e seus eventos (pergunta 1). Nenhum número derivado de texto.
+
+**Indicadores (pergunta 2):** previstas, executadas, atrasadas (leitura de data), puladas com motivo, bloqueadas, reuniões por desfecho, tempo entre previsto e realizado, cobertura por executivo, funil por etapa.
+
+**Bater com o individual (pergunta 3):** o relatório é agregação da mesma linha que a Ação do Dia mostra — não há cálculo próprio nem cópia. Divergir seria impossível por construção.
+**Pulada × executada sem sucesso (pergunta 4):** campos distintos (`estado` × `resultado`); nunca no mesmo total.
+**Filtros (pergunta 5):** executivo, etapa, período, investidor, tipo, estado — todos colunas indexadas.
+**Auditoria (pergunta 6):** eventos nunca são apagados nem editados; correção é evento novo.
+
+---
+
+## 12. Cron, filas e duplicidade
+
+**Diagnóstico verificado:** `portal-crm-sync-automatico` (1 min) faz varredura + E0 + tick do motor no mesmo ciclo; a fila de E0 adiada opera com `.limit(200)` e janela de 3 dias; `buildCadenceQueue` lê até 5000 leads e **recalcula a fila inteira a cada leitura**; `remarketing-engine` roda a cada minuto com executor próprio.
+
+**Por que o job travado represou e depois disparou em lote:** o estado vive **no ciclo**, não no item. Um job parado não deixa pendência marcada; quando volta, encontra tudo vencido ao mesmo tempo e processa em rajada. E o que estiver fora do limite de 200 / da janela de 3 dias é **descartado em silêncio**.
+
+**[RECOMENDAÇÃO]:**
+1. **Estado é do item (pergunta 1).** Cada ação tem vencimento próprio; job travado atrasa a *criação*, nunca apaga a obrigação.
+2. **Chave idempotente (perguntas 2 e 3):** `lead_id + etapa + ciclo + tipo`, única no banco. Ao voltar, o job encontra a ação já existente em vez de recriar.
+3. **Retry (pergunta 4):** retry recria a **mesma** chave ⇒ vira no-op. Retry nunca multiplica.
+4. **Bloqueadas (pergunta 5):** estado explícito, com motivo e data — e uma visão da gestão para "planejadas há muito tempo sem desfecho".
+5. **Sem avalanche (perguntas 6 e 7):** **marco de ativação** — só etapas com vencimento a partir dele viram ação; nada retroativo. Para E0: teto por ciclo, ordenação por vencimento e **descarte visível**, nunca silencioso. Para E1+ não existe rajada possível: sem executor automático, o que se recupera é *apresentação*, não *envio*.
+
+---
+
+## 13. Migração — ordem de implantação
 
 | Fase | O que entra | Comportamento atual |
 |---|---|---|
-| **0. Contrato** | decidir identidade canônica, semântica de `null` de coluna, se pular consome etapa, destino do remarketing | inalterado — nenhuma linha de código |
+| **0. Contrato** | decisões da §15-E; nenhuma linha de código | inalterado |
 | **1. Criação** | tabela de ações, eventos, versões de mensagem — vazias, sem consumidor | inalterado |
-| **2. Sombra** | planejador consome `decide.ts` e grava ações; nada apresentado, nada executado | inalterado |
-| **3. Ação do Dia usa a nova fonte** | leitura passa para a tabela; resultados estruturados; ligações legadas viram leitura | despacho automático segue só para E0 |
-| **4. Caminho antigo para de executar** | whitelist obrigatória; `engine.ts` só E0; remarketing/closure/inbound/messaging resolvidos | corte efetivo |
-| **5. Congelamento do legado** | fontes antigas viram somente leitura, marcadas como históricas; nada é apagado | leitura permanente |
+| **2. Sombra** | planejador consome `decide.ts` e grava ações; nada apresentado, nada executado; comparativo diário | inalterado |
+| **3. Ação do Dia lê a nova fonte** | leitura passa para a tabela; resultados estruturados; pular; reuniões com desfecho | despacho automático segue só para E0 |
+| **4. Corte** | whitelist obrigatória no canal; `engine.ts` restrito a E0; remarketing/closure/inbound/messaging resolvidos | **corte efetivo** |
+| **5. Congelamento** | fontes antigas viram somente leitura, marcadas como históricas; nada apagado | leitura permanente |
 
-**Como evitar cada risco:** avalanche → marco de ativação + teto por ciclo · duplicidade → chave única `lead_id + etapa + ciclo` + caminho único de escrita · perda de histórico → nada migrado, nada renomeado, eventos append-only · envio automático indevido → whitelist por motivo, antes da Safety Lock · leads no meio da cadência → continuam no vocabulário e no fluxo em que nasceram, e só recebem ação para etapas vencidas **depois** do marco.
+**Rollback (pergunta 6):** em qualquer fase, desligar o caminho novo. Nada antigo foi removido até a fase 5, e mesmo lá só vira leitura.
+**Sem duplicidade na transição (pergunta 7):** entre as fases 2 e 4 o planejador **grava** mas não executa; quem executa continua sendo um só. Nunca há dois executores ativos ao mesmo tempo.
+**Ações anteriores ao corte (pergunta 8):** permanecem no formato antigo, como histórico consultável. Não são convertidas, não geram ação nova.
 
 ---
 
-## 9. Documento consolidado
+## 14. Safety Lock
 
-**A) Como está hoje:** motor com decisão isolada (`decide.ts`) mas execução acoplada; E0 já tratada como exceção em `FIRST_CONTACT_STEPS`; Ação do Dia como leitura pura, bem estruturada; coluna deduzida de etiquetas com preservação em caso de dúvida; transições registradas como evento; ligações com desfecho binário; reuniões sem desfecho; conteúdo montado na execução; oito caminhos até o canal; Safety Lock como última barreira, com auditoria.
+1. **Sim, preservada integralmente (pergunta 1).** A whitelist é uma trava **adicional e anterior**; a Safety Lock continua sendo a última barreira antes da Graph API, e nenhuma etapa futura cria novo caminho até a Meta.
+2. **Caminhos paralelos (pergunta 2):** os seis inventariados na §1 — precisam ser protegidos pela whitelist ou aposentados, nominalmente, na fase 4.
+3. **Testar sem tocar na Meta (pergunta 3):** `execution-mode` + `channel.ts` já garantem que homologação nunca chama a Meta mesmo com token real; `guard.server.ts` recusa destinatário real em teste; leads `TEST-`.
+4. **Ordem das travas (pergunta 4):** motivo → etapa → guard → ambiente → Safety Lock → canal.
+5. **Impossível contornar (pergunta 5):** porque o motivo de autorização é **parâmetro obrigatório do canal**. Código sem motivo válido não envia — não é convenção, é assinatura.
 
-**B) Limitado hoje:** lead sem etapa desaparece do quadro sem motivo registrado; `null` ambíguo entre "sem coluna" e "resposta incompleta"; `executedSteps` escrito na decisão; vocabulário de resultado diferente por canal; sem responsável/justificativa/estado por obrigação; estado no ciclo e não no item (rajada e descarte silencioso); duas identidades de lead sem contrato; `messaging.server` sem contexto; E4 conceitual colide com E4 existente.
+---
 
-**C) Reaproveitável:** `decide.ts` inteiro; `FIRST_CONTACT_STEPS`; `step-registry`/`isKnownStep`; `guard.server.ts`; `execution-mode` e `channel.ts` (ambiente antes de credencial); toda a lógica de `daily-actions.ts` (chave determinística, precedência, colapso, buckets, fuso); `MEETING_FOCUS_WINDOW_MS`; `portal_meetings`; `resolveBoardColumn`; `stage_entered_at` + evento `de`/`para`; `relationship_engine_log`; `journey.server.ts`; Safety Lock.
+## 15. ENTREGA CONSOLIDADA
 
-**D) A criar:** planejador; tabela de ações; eventos append-only; whitelist de autorização; vocabulário fechado por tipo; estados `PULADA`/`REAGENDADA`/`BLOQUEADA`; versões completas de mensagem; relatório do dia; painel de resposta ampliado; coluna de contingência com motivo.
+**A) O que realmente existe hoje:** `decide.ts` puro e isolado; E0 já como exceção declarada (`FIRST_CONTACT_STEPS`); vocabulário fechado de etapas (`KNOWN_STEP_KEYS` + `isKnownStep`); Ação do Dia como leitura sólida com precedência, colapso e buckets; coluna deduzida de etiquetas com preservação em caso de dúvida; transições de etapa com carimbo e evento; ligações com desfecho binário; `portal_meetings`; autorização de **leitura** por papel e propriedade; `guard.server.ts`; ambiente antes de credencial; Safety Lock com auditoria; `journey.server.ts`.
 
-**E) A não criar:** segundo motor de decisão; Ação do Dia decidindo cadência; renomeação de etapas históricas; regra que leia texto livre; busca de lead por nome em escrita; qualquer novo caminho até o canal; automação de etapa além de E0; enfraquecimento ou contorno da Safety Lock.
+**B) O que existe parcialmente:** histórico de movimentação (evento sim, trajetória não); transferência de executivo (estado sim, trilha não); conteúdo por etapa (vínculo sim, versão completa não); vocabulário de resultado (por canal, não somável); `nao_localizado` (cobre um caso, não todos).
 
-**F) Comunicação:**
+**C) O que é apenas conceito futuro:** E2, E5, E6, E7, E8 e a renumeração E0→E8; tabela de ações; planejador; pular com justificativa; estados de reunião; versões completas de mensagem; whitelist de autorização de execução; relatório administrativo estruturado; área de contingência.
+
+**D) Decisões de negócio já DEFINIDAS:** E0 é a única etapa automática; E1+ é ação humana apresentada na Ação do Dia; identificar não é executar; a Ação do Dia não decide cadência; ID do investidor é a identidade canônica; pular é permitido, com auditoria, e nunca conta como executado; mensagens serão versões completas (texto + link); histórico não é apagado nem renomeado; Safety Lock é absoluta; nenhuma mensagem real durante a construção.
+
+**E) Decisões ainda pendentes:**
+1. Identidade canônica: `portal_leads.id` ou `crm_leads.id`.
+2. Pular **consome** a etapa ou a guarda de ordem passa a aceitar lacuna (**bloqueia a fase 1**).
+3. Semântica de "nenhuma coluna reconhecida" — o que é fato e o que é falha de leitura.
+4. Existe estado `EXPIRADA`?
+5. `templatePurpose` mora na etapa ou na versão.
+6. Destino de remarketing, campanhas e `inbound`: fluxo autorizado ou aposentadoria.
+7. Quantas tentativas de ligação por ciclo.
+8. Quem pode pular: apenas responsável, ou também gestão.
+9. Confirmação de envio pelo executivo é sempre obrigatória?
+10. Mapa de equivalência entre etapas atuais e E0…E8.
+11. "Sem interesse" encerra ou suspende a cadência.
+12. Prazo máximo de uma ação sem desfecho antes de escalar para a gestão.
+
+**F) Arquitetura recomendada:**
 ```text
-MOTOR (decide.ts) → PLANEJADOR (única escrita) → E0: despacho automático
-                                                → E1+: AÇÃO DO DIA → RESULTADO (append-only)
-                                                              ├→ MOTOR decide de novo
-                                                              ├→ ficha / notas (por ID)
-                                                              └→ relatório (por categorias)
+MOTOR (decide.ts, único)
+   → PLANEJADOR (única escrita de ação; chave lead_id+etapa+ciclo+tipo)
+        → E0: despacho automático (motivo E0_AUTOMATICA)
+        → E1+: AÇÃO DO DIA → EXECUTIVO → RESULTADO (append-only)
+                                   ├→ MOTOR decide de novo
+                                   ├→ ficha/notas (derivadas do action_id)
+                                   └→ RELATÓRIO (agregação, sem cálculo próprio)
 ```
 
-**G) Decisões de negócio pendentes:** identidade canônica do lead na ação · semântica de "nenhuma coluna reconhecida" · pular consome etapa ou a sequência aceita lacuna · existe `EXPIRADA`? · `templatePurpose` na etapa ou na versão · destino do remarketing, campanhas e `inbound` · quantas tentativas de ligação por ciclo · quem pode pular · ações anteriores ao marco entram na fila? · confirmação de envio sempre obrigatória? · mapa das etapas atuais para E0…E8 · regra de rotação · "sem interesse" encerra ou suspende?
+**G) Ordem exata:** Fase 0 → 1 → 2 → 3 → 4 → 5, conforme §13. Sem pular fase: cada uma valida a anterior.
 
-**H) Ordem:** Fase 0 → 1 → 2 → 3 → 4 → 5, conforme a seção 8. Rollback em qualquer fase: desligar o caminho novo; nada antigo foi removido.
+**H) Desenvolvíveis independentemente:** versões completas de mensagem (isolado); área de contingência do quadro (só CRM); histórico de proprietário/status; relatório administrativo (depois da tabela existir); estados de reunião.
 
-**I) Riscos principais:** `remarketing-engine` como executor paralelo real (1 min); `closure` e `inbound` alcançando o canal fora do tick; `messaging.server` sem contexto; conciliação entre a chave de `crm_cadence_tasks` e a chave da ação nova; resgate por `msg_e0_%` ressuscitando leads antigos na migração; reunião que pausa a cadência e nunca recebe desfecho; vocabulário nascer com algum campo em texto livre (inviabiliza o relatório); confirmação humana divergir do mundo real.
+**I) Dependências obrigatórias:** planejador depende da tabela de ações; Ação do Dia nova depende do planejador em sombra validado; whitelist depende do inventário resolvido; pular depende da decisão E-2; relatório depende dos eventos estruturados; corte do motor antigo depende de tudo acima.
 
-**J) Garantias e testes antes de qualquer envio real:**
-1. **Teste negativo obrigatório:** acionar cada caminho do inventário e confirmar recusa **pela whitelist, antes** da Safety Lock. Se a recusa vier da trava, o teste falhou.
-2. E0 continua funcionando após o corte.
-3. Uma semana completa em sombra (com sábado) sem divergência entre decisões e ações.
-4. Homologação apenas com leads `TEST-`; `guard.server.ts` recusando lead real.
+**J) Maiores riscos:** `remarketing-engine` como executor paralelo real (1 min); `closure`, `auto-reply` e `inbound` alcançando o canal fora do tick; `messaging.server` enviando sem contexto; conciliação entre a chave de `crm_cadence_tasks` e a chave da ação nova; leads em contingência ficando sem tratamento; reunião que pausa a cadência e nunca recebe desfecho; algum campo de resultado nascer como texto livre (inviabiliza o relatório inteiro); confirmação humana divergir do mundo real.
+
+**K) Testes obrigatórios antes de qualquer envio real:**
+1. **Teste negativo:** acionar cada um dos caminhos inventariados e confirmar recusa **pela whitelist, antes** da Safety Lock. Se a recusa vier da trava, o teste falhou.
+2. E0 continua funcionando integralmente após o corte.
+3. Uma semana completa em sombra, incluindo sábado, sem divergência entre decisões e ações.
+4. Homologação apenas com leads `TEST-`; `guard.server.ts` recusando destinatário real.
 5. Responder duas vezes não duplica; ação atrasada permanece visível; etapa não reaparece no mesmo ciclo.
 6. Nota com `action_id` de outro executivo recusada pelo servidor.
-7. Relatório batendo com a contagem direta; pulada nunca contada como executada.
-8. Safety Lock intacta e auditando; nenhuma mensagem real durante toda a construção.
+7. Relatório batendo com a contagem individual; pulada nunca somada a executada.
+8. Redistribuição de lead não gera segunda ação.
+9. Safety Lock intacta e auditando; **zero** mensagens reais durante toda a construção.
+
+**L) Conflitos ainda não percebidos:**
+1. **`E4` já existe** no fluxo `sem_resposta` com outro significado — colisão direta com a E4 conceitual da jornada futura. Idem `E3`.
+2. **`isStepInOrder` incompatível com pular:** exige todas as anteriores executadas; uma etapa pulada trava a cadência silenciosamente.
+3. **`executedSteps` é escrito na decisão, não no resultado** — no modelo novo isso marcaria como executado algo que só foi identificado.
+4. **A autorização existente é só de leitura** — pode passar a falsa impressão de que já há controle de execução. Não há.
+5. **`messaging.server.ts` se declara "única saída do CRM"** mas não recebe lead nem etapa: qualquer código futuro que o use passa por cima da regra sem perceber.
+6. **`buildCadenceQueue` recalcula a fila inteira a cada leitura** — comportamento incompatível com ação persistente; precisa virar leitura da tabela, não recomputação.
+7. **A reunião pausa a cadência hoje sem exigir desfecho** — no modelo novo isso cria leads parados indefinidamente.
+
+---
+
+**Nada foi implementado nesta rodada.** Este documento é a base arquitetural; cada fase da §13 deve ser autorizada por um comando próprio.
