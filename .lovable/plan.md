@@ -359,44 +359,63 @@ As fases que vocês propuseram estão corretas na essência. Duas correções: *
 
 ## 15. ENTREGA CONSOLIDADA
 
-**A) O que realmente existe hoje:** `decide.ts` puro e isolado; E0 já como exceção declarada (`FIRST_CONTACT_STEPS`); vocabulário fechado de etapas (`KNOWN_STEP_KEYS` + `isKnownStep`); Ação do Dia como leitura sólida com precedência, colapso e buckets; coluna deduzida de etiquetas com preservação em caso de dúvida; transições de etapa com carimbo e evento; ligações com desfecho binário; `portal_meetings`; autorização de **leitura** por papel e propriedade; `guard.server.ts`; ambiente antes de credencial; Safety Lock com auditoria; `journey.server.ts`.
+**1) Existe hoje e pode ser reaproveitado:** `decide.ts` puro e isolado; `FIRST_CONTACT_STEPS` (E0 já é exceção declarada); vocabulário fechado de etapas (`KNOWN_STEP_KEYS` + `isKnownStep`); toda a lógica de `daily-actions.ts`, inclusive o campo `priorityMax` que a E0 manual vai usar; `resolveBoardColumn`; `stage_entered_at` + evento `de`/`para`; `portal_meetings`; `has_role` e a autorização de leitura por papel; `guard.server.ts`; `execution-mode` + `channel.ts`; `relationship_engine_log`; `journey.server.ts`; Safety Lock.
 
-**B) O que existe parcialmente:** histórico de movimentação (evento sim, trajetória não); transferência de executivo (estado sim, trilha não); conteúdo por etapa (vínculo sim, versão completa não); vocabulário de resultado (por canal, não somável); `nao_localizado` (cobre um caso, não todos).
+**2) Existe hoje mas muda de responsabilidade:** `engine.server.ts` deixa de despachar E1+ e passa a chamar o planejador; `executedSteps` sai da decisão e passa a ser escrito no resultado; `daily-actions.ts` deixa de recomputar e passa a ler a tabela; `crm_cadence_tasks` vira leitura histórica; `messaging.server.ts` passa a exigir contexto ou deixa de existir; `buildCadenceQueue` deixa de recalcular a fila inteira; `relationship_queue` continua servindo E0 e respostas, não ações humanas.
 
-**C) O que é apenas conceito futuro:** E2, E5, E6, E7, E8 e a renumeração E0→E8; tabela de ações; planejador; pular com justificativa; estados de reunião; versões completas de mensagem; whitelist de autorização de execução; relatório administrativo estruturado; área de contingência.
+**3) Ainda não existe e precisa ser criado:** planejador; tabela de ações + eventos append-only; whitelist de autorização de execução; estados `PULADA`/`REAGENDADA`/`BLOQUEADA`; vocabulário fechado de resultado por tipo; interruptor de modo da E0; versões completas de mensagem; Central de Operação Diária; área de contingência do quadro; histórico consultável de ownership e status; desfechos de reunião.
 
-**D) Decisões de negócio já DEFINIDAS:** E0 é a única etapa automática; E1+ é ação humana apresentada na Ação do Dia; identificar não é executar; a Ação do Dia não decide cadência; ID do investidor é a identidade canônica; pular é permitido, com auditoria, e nunca conta como executado; mensagens serão versões completas (texto + link); histórico não é apagado nem renomeado; Safety Lock é absoluta; nenhuma mensagem real durante a construção.
+**4) Dependências:** planejador ← tabela de ações · Ação do Dia nova ← planejador em sombra validado · E0 manual ← Ação do Dia persistente · Central ← resultados estruturados · whitelist ← inventário de caminhos resolvido · pular ← decisão sobre `isStepInOrder` · corte dos legados ← tudo acima. **Independentes:** versões de mensagem, contingência do quadro, histórico de ownership.
 
-**E) Decisões ainda pendentes:**
-1. Identidade canônica: `portal_leads.id` ou `crm_leads.id`.
-2. Pular **consome** a etapa ou a guarda de ordem passa a aceitar lacuna (**bloqueia a fase 1**).
-3. Semântica de "nenhuma coluna reconhecida" — o que é fato e o que é falha de leitura.
-4. Existe estado `EXPIRADA`?
-5. `templatePurpose` mora na etapa ou na versão.
-6. Destino de remarketing, campanhas e `inbound`: fluxo autorizado ou aposentadoria.
-7. Quantas tentativas de ligação por ciclo.
-8. Quem pode pular: apenas responsável, ou também gestão.
-9. Confirmação de envio pelo executivo é sempre obrigatória?
-10. Mapa de equivalência entre etapas atuais e E0…E8.
-11. "Sem interesse" encerra ou suspende a cadência.
-12. Prazo máximo de uma ação sem desfecho antes de escalar para a gestão.
+**5) Riscos de implantação:** `remarketing-engine` como executor paralelo real (1 min); `closure`, `auto-reply` e `inbound` alcançando o canal fora do tick; `messaging.server` enviando sem contexto; conciliação entre a chave de `crm_cadence_tasks` e a chave nova; avalanche na virada; leads em contingência sem tratamento; reunião que pausa a cadência e nunca recebe desfecho; qualquer campo de resultado nascer como texto livre (inviabiliza a Central inteira).
 
-**F) Arquitetura recomendada:**
+**6) Como evitar dois motores:** só `decide.ts` escolhe etapa e prazo. O planejador consome; a Ação do Dia apresenta; o executivo executa. Nenhum outro componente pode criar ação — **uma única função de escrita**, com chave única. Segundo motor deixa de ser evitado por disciplina e passa a ser impossível por caminho.
+
+**7) Como proteger E0 automática/manual:** ação criada **sempre**, nos dois modos; o modo define quem executa; chave única impede execução dupla; troca de modo não reprocessa passado; `priorityMax` coloca a E0 manual acima de tudo, exceto compromissos já marcados; os dois modos passam por guard → ambiente → Safety Lock. Detalhes na §2-bis.
+
+**8) Como transformar a Ação do Dia em fonte operacional:** persistir o que hoje é calculado. A lógica de precedência, colapso e buckets **não muda** — muda a origem: em vez de recomputar a cada leitura, lê ações gravadas com estado próprio. Cada linha vira um registro com responsável, previsão, resultado e trilha.
+
+**9) Central de Operação Diária:** §11 — leitura exclusiva da tabela de ações e eventos, restrita a Administrador e gestão pelo `has_role` já existente, cada indicador ligado a uma coluna, nunca a uma interpretação.
+
+**10) Mensagens versionadas:** §9 — cada versão é entidade própria e imutável (texto + link congelados, `com_nome` como campo), edição cria versão nova, a ação grava o `id` da versão usada, rotação determinística por lead, coexistência com a Biblioteca durante a migração.
+
+**11) Como preservar histórico:** nada renomeado, nada migrado, nada apagado. Chaves atuais preservadas; etapas novas nascem com chaves novas; mapa de equivalência apenas para leitura; cada cadência termina no vocabulário em que nasceu; eventos append-only.
+
+**12) Transferência de ownership:** a ação acompanha o **lead**, não a pessoa. `responsavel_no_planejamento` fica congelado no registro; o responsável atual é reatribuído; a chave única não inclui o executivo, então redistribuir jamais duplica; histórico de ownership vira tabela consultável (de quem, para quem, quando, por quê, com qual ação pendente); lead transferido nunca sai da visão operacional — muda de dono, não de existência.
+
+**13) Auditoria:** duas dimensões separadas (`estado` × `resultado`), opções fechadas, justificativa validada no servidor, eventos imutáveis, correção como evento novo, tudo derivado do `action_id`.
+
+**14) Ordem recomendada:** Fases 0 → 7 da §13, cada uma com portão de validação explícito.
+
+**15) O que NÃO deve ser alterado na primeira implantação:** `decide.ts` e `machine.ts`; a lógica de precedência e buckets de `daily-actions.ts`; a Safety Lock e sua auditoria; `guard.server.ts`; `execution-mode`/`channel.ts`; as chaves de etapa históricas; o comportamento atual da E0; os dados reais do Portal dos Leads e da integração GreenSales; qualquer conteúdo já enviado.
+
+**16) Decisões pendentes antes de construir:**
+1. Identidade canônica: `portal_leads.id` ou `crm_leads.id` — **bloqueia a Fase 1** (é a chave estrangeira da tabela).
+2. Pular **consome** a etapa ou `isStepInOrder` passa a aceitar lacuna — **bloqueia a Fase 1** (muda o modelo de estado).
+3. Escopo do interruptor de modo da E0: global, por executivo ou por origem — **bloqueia a Fase 4**.
+4. E0 manual não executada no dia: escala, permanece atrasada ou cai para automático.
+5. Semântica de "nenhuma coluna reconhecida": o que é fato e o que é falha de leitura.
+6. Existe estado `EXPIRADA`?
+7. `templatePurpose` mora na etapa ou na versão — **bloqueia as versões de mensagem**.
+8. Destino de remarketing, campanhas e `inbound`: fluxo autorizado ou aposentadoria — **bloqueia a Fase 6**.
+9. Quantas tentativas de ligação por ciclo.
+10. Quem pode pular: apenas o responsável ou também a gestão.
+11. Confirmação de envio pelo executivo é sempre obrigatória?
+12. Mapa de equivalência entre etapas atuais e E0…E8.
+13. "Sem interesse" encerra ou suspende a cadência.
+14. Prazo máximo de uma ação sem desfecho antes de escalar.
+15. A Central é somente leitura ou permite reatribuir e reabrir ações.
+
+**Arquitetura alvo:**
 ```text
 MOTOR (decide.ts, único)
    → PLANEJADOR (única escrita de ação; chave lead_id+etapa+ciclo+tipo)
-        → E0: despacho automático (motivo E0_AUTOMATICA)
-        → E1+: AÇÃO DO DIA → EXECUTIVO → RESULTADO (append-only)
+        → E0 automática: despacho (motivo E0_AUTOMATICA)
+        → E0 manual + E1+: AÇÃO DO DIA → EXECUTIVO → RESULTADO (append-only)
                                    ├→ MOTOR decide de novo
                                    ├→ ficha/notas (derivadas do action_id)
-                                   └→ RELATÓRIO (agregação, sem cálculo próprio)
+                                   └→ CENTRAL DE OPERAÇÃO DIÁRIA (agregação pura)
 ```
-
-**G) Ordem exata:** Fase 0 → 1 → 2 → 3 → 4 → 5, conforme §13. Sem pular fase: cada uma valida a anterior.
-
-**H) Desenvolvíveis independentemente:** versões completas de mensagem (isolado); área de contingência do quadro (só CRM); histórico de proprietário/status; relatório administrativo (depois da tabela existir); estados de reunião.
-
-**I) Dependências obrigatórias:** planejador depende da tabela de ações; Ação do Dia nova depende do planejador em sombra validado; whitelist depende do inventário resolvido; pular depende da decisão E-2; relatório depende dos eventos estruturados; corte do motor antigo depende de tudo acima.
 
 **J) Maiores riscos:** `remarketing-engine` como executor paralelo real (1 min); `closure`, `auto-reply` e `inbound` alcançando o canal fora do tick; `messaging.server` enviando sem contexto; conciliação entre a chave de `crm_cadence_tasks` e a chave da ação nova; leads em contingência ficando sem tratamento; reunião que pausa a cadência e nunca recebe desfecho; algum campo de resultado nascer como texto livre (inviabiliza o relatório inteiro); confirmação humana divergir do mundo real.
 
