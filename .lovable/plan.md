@@ -1,220 +1,253 @@
-# INVESTIGAÇÃO 2 — RESPONSABILIDADE DO LEAD / EXECUTIVO / CONTEXTO DO PORTAL
+# INVESTIGAÇÃO 3 — ARQUITETURA MULTIAMBIENTE (FINANCEIRA / SOLAR / SEGUROS)
 
-Rodada somente de leitura. Nada foi alterado: sem código, sem banco, sem migration, sem cron, sem UI, sem mensagem, sem tocar a Global WhatsApp Safety Lock.
+Rodada somente de leitura. Nada foi alterado: sem código, sem banco, sem migration, sem rotas, sem cron, sem Meta, sem GreenSales, sem mensagem, sem tocar a Global WhatsApp Safety Lock.
 
-**Resposta curta:** a informação existe e é inequívoca — a conta GreenSales sincronizada pertence a um usuário (`crm_connections.user_id`), e hoje existe **uma única** conexão ativa, a do Thiago. O servidor lê essa linha em toda sincronização, mas usa apenas a senha: descarta o `user_id`. O responsável do lead acaba sendo gravado **depois**, e **pelo navegador** de quem abre o CRM, não pelo servidor que criou o card. Entre esses dois momentos a E0 acontece — e falha.
+**Veredicto em uma frase:** o sistema tem o *vocabulário* de multiambiente (`WORKSPACES`, `workspace_id`, `scope`), mas nenhuma tabela operacional carrega ambiente — e as duas palavras já disponíveis (`workspace` e `scope`) **já estão ocupadas com outros significados**. Preparar a plataforma é **ALTO**, mas existe um caminho barato e honesto de preparação que pode ser feito agora sem tocar na Financeira.
 
 ---
 
-## 1. IDENTIDADE DO PORTAL / EXECUTIVO
+## 1. EXISTE ALGUM CONCEITO DE AMBIENTE?
 
-Cadeia real de identidade:
+Varredura completa por `workspace / tenant / organization / company / business / unit / brand / scope` + sufixos `_id`:
 
-```text
-auth.users.id (sessão Supabase)
-  → executive_profiles.user_id  →  executive_profiles.executive_id  ("usr_thiago")
-  → portal_leads.responsible_executive_id  (guarda o executive_id, não o uuid)
-```
-
-- `current_executive_id()` (função no banco, security definer) converte `auth.uid()` em `executive_id`. É a base das políticas `can_access_investor` / `can_access_relationship` e da agenda.
-- `executive_profiles` é o cadastro oficial: `executive_id`, `user_id`, `name`, `whatsapp`, `slug`. Hoje tem 7 linhas (usr_thiago, usr_larissa, usr_milton, usr_paulo, usr_carlos, usr_talita, usr_marton).
-- `resolveLeadExecutive` (`src/server/relationship/executive-identity.server.ts`) é a função que resolve "quem assina": lê `portal_leads.responsible_executive_id` e busca o perfil. Sem responsável, devolve `available: false`.
-
-**Existe workspace/unidade/franquia?** NÃO como tabela. Não há `workspace_id`, `unit_id` nem `tenant_id` em `portal_leads`. O que existe é:
-- `scope` (`green_sales` | `redistribuicao` | `portal` | `tiktok` | `meta`) — carteira, não unidade;
-- `workspace_module_permissions` — permissão de módulo por usuário, não posse de lead;
-- `crm_connections` — **a conexão GreenSales pertence a um usuário** (`user_id`, `provider`, credenciais cifradas). É o único vínculo real "ambiente ↔ executivo".
-
-**Durante a sincronização, qual identidade está disponível?** `crm_connections.user_id` — sempre, inclusive no cron. E, na sincronização manual, também o `context.userId` da sessão.
-
-## 2. SINCRONIZAÇÃO MANUAL — o `userId` é descartado
-
-```text
-runCrmSyncNow (leads.functions.ts:203)   context.userId  ✔ existe
-  → runLeadSync("manual", context.userId)  (lead-sync.server.ts:54, param actorUserId)
-      → resolveCredentials(actorUserId)    ← ÚNICO uso do userId em todo o fluxo
-      → intakeLead(raw, { pipeline, settings })   ✘ userId NÃO é passado
-          → ensureWorkspaceCard({...})            ✘ nenhum dado de usuário
-                 responsible_executive_id: null   (workspace-card.server.ts:65)
-```
-
-- O `userId` chega até `runLeadSync`. **Não** chega a `intakeLead` — a assinatura do intake recebe apenas `(raw, { pipeline, settings, test? })`. **Não** chega a `ensureWorkspaceCard`.
-- `resolveCredentials(userId)` (`connections.server.ts:98`) carrega a linha de `crm_connections` daquele usuário, **abre as credenciais e devolve só `{ email, password }`** — o `user_id` da conexão é jogado fora ali dentro.
-- Motivo técnico do card nascer sem responsável: nenhum. É uma decisão explícita no código (`responsible_executive_id: null`, com o comentário de que o card nasce sem dono).
-
-**A informação já existe e simplesmente não é utilizada. CONFIRMADO NO CÓDIGO.**
-
-## 3. SINCRONIZAÇÃO AUTOMÁTICA — como o cron sabe de quem é o ambiente
-
-```text
-pg_cron 'portal-crm-sync-automatico' (* * * * *)
-  → POST /api/public/crm/sync   (sem usuário; autentica por segredo de automação)
-  → runScheduledLeadSync  →  runLeadSync("cron")   actorUserId = undefined
-      → resolveCredentials(undefined)
-           ↳ sem userId, cai no fallback: a conexão ATIVA mais recente
-             de qualquer usuário  (order by updated_at desc, limit 1)
-```
-
-Das hipóteses levantadas, a resposta é **(D) + (E)**, com um detalhe importante:
-
-- **(A) ambiente global único:** parcialmente verdadeiro **de fato**, não por desenho. Hoje `crm_connections` tem **exatamente uma linha ativa**: `user_id = 6005ef93-…-2c6d8c22a4a9`, `account_label = Thiago Rodrigues`, `account_email = thiago.rodrigues@veloxsolucoes.com.br`, status `ATIVA`. Esse uuid é o `user_id` de `executive_profiles.executive_id = 'usr_thiago'`. **CONFIRMADO NOS DADOS.**
-- **(B) configuração fixa:** existe apenas como último recurso — variáveis de ambiente `GREENSALES_EMAIL`/`GREENSALES_PASSWORD`, usadas se não houver nenhuma conexão ativa.
-- **(C) workspace:** NÃO ENCONTRADO.
-- **(D) conta GreenSales vinculada a um executivo:** SIM — é exatamente o modelo de `crm_connections`.
-- **(E) configuração de integração que determina o dono:** a conexão determina de quem é a *conta*; o código nunca a usa para determinar o dono do *lead*.
-- `crm_automation_settings` guarda intervalo, boas-vindas e data de ativação — **nenhum campo de executivo**.
-
-Ou seja: **o cron sabe qual conta está sincronizando (e, por tabela, de quem ela é), mas o código não propaga isso adiante.**
-
-## 4. GREENSALES — o que a origem devolve
-
-`fetchLeadsSince` / `fetchLeadDetail` (`greensales.server.ts`) devolvem o payload cru, e o intake usa: `id`, `name`, `email`, `phone`, `city`, `withs` (etiquetas → estágio), `created_at`, `updated_at`, `last_register_at`. O payload inteiro é guardado em `portal_leads.external_payload`.
-
-- Nenhum campo `owner`, `user`, `assigned_to`, `vendedor` ou `responsável` é lido em qualquer ponto do código. **CONFIRMADO NO CÓDIGO.**
-- `pipeline`/`stage`: existem como **etiquetas** (`withs`) e são usadas só para resolver a coluna do quadro — não indicam pessoa.
-- Se algum desses campos vier no payload cru, ele está preservado em `external_payload`, mas ninguém o consulta. Se a decisão futura depender disso, é uma inspeção adicional de payload — hoje **NÃO ENCONTRADA** qualquer leitura.
-- **Informação suficiente para amarrar o lead à conta sincronizada: SIM** — não vem do lead, vem do lado de cá: é a conexão usada para buscá-lo.
-
-## 5. PORTAL INDIVIDUAL — "este lead é do Thiago"?
-
-**SIM, existe.** E vem de dois lugares independentes:
-
-1. **A conexão usada para importar** — `crm_connections.user_id` → `executive_profiles.executive_id` = `usr_thiago`. Disponível em toda sincronização, manual ou cron.
-2. **O usuário autenticado**, no caso manual — `context.userId` em `runCrmSyncNow`.
-
-**Por que não chega a `responsible_executive_id`:** o ponto exato da perda é `resolveCredentials` (`connections.server.ts:98-133`). Ela recebe/encontra a linha da conexão, extrai as credenciais e devolve apenas `{ email, password }`. Daí em diante nenhuma camada sabe mais de quem é a conta. Em seguida `intakeLead` não recebe ator, e `ensureWorkspaceCard` grava `responsible_executive_id: null` de forma literal.
-
-**E por que hoje todos os cards acabam com `usr_thiago`?** Descoberta importante: quem grava o dono é o **navegador**, não o servidor.
-
-- `listConversations` (`src/lib/crm/relationships.ts:138`) roda no navegador quando alguém abre o CRM. Para **cada** investidor ela chama `ensureOwnership(i)`.
-- `ensureOwnership` (`src/lib/crm/ownership.ts:87`) usa `investor.assignedToUserId`, que em `executive-data.ts:184` é `lead.responsibleExecutiveId ?? fallbackExecutiveId`, e `fallbackExecutiveId = getDefaultExecutive()?.id ?? "usr_thiago"` (`executive-data.ts:99`) — o executivo padrão do workspace, hoje o Thiago.
-- `writeAll` então chama `updateWorkspaceOperational` gravando `responsible_executive_id`, `ownership_origin` e `ownership_claimed_at = lastActivity` — por isso, no banco, `ownership_claimed_at` é **igual** ao `created_at` do lead, embora o registro tenha sido gravado horas depois.
-- Prova nos dados: `crm_timeline` de `gs_58897` traz `relacionamento_oficial` com `owner_id = usr_thiago` em **02/09 14:25**, enquanto o card foi criado às **00:41** e a E0 foi bloqueada logo em seguida.
-
-Ou seja: **a posse não é atribuída na entrada, é atribuída retroativamente quando um humano abre o CRM — e por um padrão de workspace, não pela conexão.** **CONFIRMADO NO CÓDIGO + CONFIRMADO NOS DADOS.**
-
-## 6. DONO DO PORTAL x RESPONSÁVEL DO LEAD
-
-| Entidade | Existe no modelo? | Onde |
+| Termo | Existe? | O que é de verdade |
 |---|---|---|
-| Executivo dono do Portal/ambiente | Sim, implícito | `crm_connections.user_id` (dono da conta GreenSales) |
-| Executivo responsável pelo lead | Sim, explícito | `portal_leads.responsible_executive_id` |
-| Usuário que executou a sincronização | Sim, só no manual | `context.userId` → `runLeadSync(actorUserId)`; perdido em seguida |
-| Usuário que criou o card | **Não registrado** | `ensureWorkspaceCard` não grava autor |
-| Unidade/franquia | **Não existe** | — |
-| Workspace | Só como constante de configuração (`WORKSPACE.defaultExecutiveId`), não como tabela | `src/config/workspace.ts` |
+| `WORKSPACES` / `WORKSPACE` | **Sim, em código** | `src/config/workspace.ts` — registro de branding (`id`, `workspaceName`, `logo`, `defaultExecutiveId`) com **uma** entrada: `velox`. `ACTIVE_WORKSPACE_ID = "velox"` é constante de módulo. O comentário já diz "preparado para evolução multi-tenant". |
+| `workspace_id` (banco) | **Sim, 1 tabela** | Só `knowledge_documents`. Nenhuma outra tabela tem. |
+| `scope` (banco) | **Sim, 15 tabelas** | **Mas com dois significados diferentes, nenhum deles é vertical de negócio** (ver abaixo). |
+| `unit` | Sim, 2 tabelas | `group_unit_leads` / `group_unit_lead_events` — unidade do *grupo/franqueado*, não vertical. |
+| `tenant_id`, `organization_id`, `company_id`, `brand_id` | **NÃO EXISTEM** | Nenhuma ocorrência. |
 
-O sistema **diferencia conceitualmente** dono da conta e responsável do lead, mas **não liga um ao outro em lugar nenhum**. No cenário atual — uma conexão, um dono — as três primeiras linhas apontam para a mesma pessoa (Thiago). Isso é uma coincidência de configuração, não uma garantia do modelo.
-
-## 7. CASO REAL — leads do Thiago
-
-Todos os cinco casos têm exatamente a mesma trajetória. Dados do banco:
-
-| Card | Criado (GreenSales) | Dono hoje | `ownership_claimed_at` | `ownership_origin` |
-|---|---|---|---|---|
-| gs_58874 | 01/09 14:51 | usr_thiago | 01/09 14:51 | green_sales |
-| gs_58877 | 01/09 16:00 | usr_thiago | 01/09 16:00 | green_sales |
-| gs_58887 | 01/09 18:11 | usr_thiago | 01/09 18:11 | green_sales |
-| gs_58893 | 01/09 22:02 | usr_thiago | 01/09 22:02 | green_sales |
-| gs_58897 | 02/09 00:41 | usr_thiago | 02/09 00:41 | green_sales |
-
-Reconstrução de `gs_58897`:
+**O trecho mais importante desta investigação — `scope` já está ocupado, duas vezes:**
 
 ```text
-GreenSales lead 58897 (athus)         payload sem qualquer campo de responsável
-  → runLeadSync (cron), credenciais da conexão de Thiago (user 6005ef93…)
-  → intakeLead: enteredNow = true, dentro da janela
-  → recordEvent e0_identificada                       02/09 00:41
-  → ensureWorkspaceCard → gs_58897, responsible_executive_id = NULL
-  → registerFirstContact → dispatchFirstContact
-       → resolveLeadDestinations → resolveLeadExecutive("gs_58897")
-       → { available:false, reason:"Lead sem executivo responsável definido — envio bloqueado." }
-  → recordEvent e0_ignorada                           02/09 00:41   ← única tentativa
-  ...
-  → alguém abre o CRM: listConversations → ensureOwnership → usr_thiago
-  → crm_timeline 'relacionamento_oficial'             02/09 14:25   ← ~14h depois
-  → nenhum processo reexamina a E0. Lead segue sem E0.
+portal_leads.scope            = green_sales | portal | redistribuicao | tiktok | meta
+                                (73 / 12 / 1 registros)   → CARTEIRA / ORIGEM do lead
+relationship_*.scope          = production | homologation
+                                (75 / 64 / 25 registros)  → AMBIENTE DE TESTE do motor
 ```
 
-Note o detalhe que fecha o diagnóstico: `ownership_claimed_at` grava 00:41 (a hora do lead), mas o evento de timeline prova que a gravação real ocorreu às 14:25. O campo de posse **parece** contemporâneo à criação e não é.
+Ou seja: se alguém tentar "reaproveitar `scope` para Financeira/Solar/Seguros", quebra ao mesmo tempo o Workspace por carteira e o isolamento produção↔homologação — que é uma regra fundadora do projeto. **`scope` NÃO pode ser reciclado.**
 
-## 8. TROCA DE RESPONSÁVEL
+**Conclusão do bloco 1: NÃO existe entidade de ambiente de negócio. Existe apenas uma constante de branding de um único workspace. CONFIRMADO NO CÓDIGO E NOS DADOS.**
 
-Caminhos que escrevem `responsible_executive_id` hoje:
+## 2. MAPA GLOBAL x POR AMBIENTE
 
-| Caminho | Onde | Quem decide | Histórico |
-|---|---|---|---|
-| `assignPortalLeadOwner` | `portal-leads.functions.ts:336` | Gestora/Admin, escolha manual na UI | não grava evento no servidor |
-| `redistributePortalLead` | `portal-leads.functions.ts:311` | Gestora/Admin; também muda `scope` para `redistribuicao` | não grava evento no servidor |
-| `updateWorkspaceOperational` | `workspace-operational.functions.ts:49` | chamado pelo navegador via `ownership.ts` | grava `crm_timeline` do lado do cliente |
-| `transferLeadOwnership` | `src/lib/crm/lead-transfer.ts` | cliente; grava timeline, auditoria e alerta operacional | sim, no cliente |
-| `syncPortalLead` | `portal-leads.functions.ts:207/247` | preserva o dono atual (`current?.responsible_executive_id ??`) | — |
+| Entidade | Hoje é | Amarrada à Financeira? |
+|---|---|---|
+| `portal_leads` | POR EXECUTIVO (`responsible_executive_id`) + POR CARTEIRA (`scope`) | Sim, implicitamente — todo lead existente é Financeira, sem marcação |
+| `crm_leads` | POR LEAD, sem contexto | Sim, implicitamente |
+| `crm_messages`, `crm_lead_events`, `crm_timeline` | POR LEAD | Herdam do lead |
+| `crm_connections` (GreenSales) | **POR USUÁRIO** (`user_id`, `provider`) | Uma conexão ativa (Thiago) = a Financeira, por acidente |
+| `crm_automation_settings` | **GLOBAL, linha única** | Sim — sem coluna de dono. Intervalo, boas-vindas e data de ativação valem para tudo |
+| `executive_profiles` | POR USUÁRIO | Sem campo de ambiente |
+| `user_roles` / `workspace_module_permissions` | POR USUÁRIO (papel e módulo) | Sem dimensão de ambiente |
+| Motor (`relationship_cadences/queue/decisions/events/sends/engine_log`) | POR LEAD + POR AMBIENTE DE TESTE (`production`/`homologation`) | Sim |
+| `relationship_message_library` (Biblioteca) | GLOBAL por finalidade + `scope` de teste | Sim — 64 conteúdos, todos `production` |
+| `meta_templates` / `crm_meta_templates` | **GLOBAL** (`name`, `language`, `category`, `purpose`) | Sim — nenhuma coluna de número, WABA ou ambiente |
+| `campaigns` | **GLOBAL** (`created_by` apenas) | Sim |
+| `remarketing_campaigns` / `_contacts` / `_conversations` / `_messages` | **GLOBAL** (`created_by` apenas) | Sim |
+| `creative_templates` / `creative_official_model` | **GLOBAL** (chave `model`) | Sim |
+| KPI, Agenda (`workspace_agenda_events`), Ações do Dia | POR EXECUTIVO / derivados de lead | Sim |
+| Backups (`portal_backups`) | **GLOBAL** — snapshot das 15 tabelas inteiras | Sim |
+| Logs / auditoria | GLOBAL | Sim |
 
-Respostas objetivas:
-- **O card é atualizado?** Sim, é a mesma linha `portal_leads` — não existe card separado.
-- **`responsible_executive_id` muda?** Sim, imediatamente.
-- **GreenSales é consultada de novo?** NÃO. A origem não tem opinião sobre responsável e nunca sobrescreve o dono — `syncPortalLead` preserva explicitamente.
-- **Existe histórico?** Parcial: `crm_timeline` e a auditoria são gravados pelos caminhos do cliente (`transferLeadOwnership`, `ownership.ts`); os dois server functions administrativos (`assign`, `redistribute`) mudam o dono **sem** registrar evento no servidor. **CONFIRMADO NO CÓDIGO.**
-- **Função de reconciliação de posse?** NÃO ENCONTRADA. `runDailyReconciliation` trata presença do lead na origem (`lead_nao_localizado`), não responsável.
-- Regra declarada no código: o primeiro vínculo é preservado; sincronizações nunca reatribuem.
+**Nenhuma tabela operacional tem coluna de ambiente de negócio. NÃO ENCONTRADO.**
 
-## 9. MÚLTIPLOS EXECUTIVOS
+## 3. GREENSALES POR AMBIENTE
 
-Suporta, sim — mas a atribuição é **manual e posterior**.
+- O modelo permite **várias conexões** — a chave prática é `user_id` + `provider`. Nada impede três linhas.
+- **Mas a conexão pertence a um USUÁRIO, não a um ambiente.** Não há como dizer "esta conexão é da Solar". CONFIRMADO NO CÓDIGO (`crm_connections`: `id, user_id, provider, account_label, account_email, credentials_ciphertext, status, ...`).
+- `account_label` é texto livre (hoje "Thiago Rodrigues") — poderia carregar o nome, mas seria convenção frágil por nome, exatamente o que a Regra Master proíbe.
+- **O risco já documentado se agrava:** no cron, `resolveCredentials(undefined)` pega `order by updated_at desc limit 1`. Com três conexões ativas, o cron sincronizaria **uma só, a mais recentemente atualizada**, de forma não determinística — e importaria leads da Solar como se fossem da Financeira. Este é hoje o risco número 1 do modelo multiambiente.
 
-- 7 executivos ativos em `executive_profiles`; visibilidade por `current_executive_id()` + `has_role`.
-- **Workspace por executivo:** não existe.
-- **GreenSales por executivo:** o modelo permite (uma linha de `crm_connections` por usuário), mas hoje **há apenas uma** conexão ativa, a do Thiago. Se um segundo executivo conectasse a própria conta, o cron passaria a usar "a conexão ativa mais recente" — sincronizando **uma só** conta por ciclo, de forma não determinística. Isso é um risco estrutural presente hoje, **CONFIRMADO NO CÓDIGO** (`resolveCredentials`, `order by updated_at desc limit 1`).
-- **Distribuição automática:** NÃO ENCONTRADA.
-- **Atribuição manual:** sim (transferência/redistribuição pela Gestora), mais o preenchimento retroativo pelo executivo padrão descrito no item 5.
+**Menor mudança necessária para o cron saber qual ambiente sincroniza:** uma coluna de ambiente em `crm_connections` e um laço que percorra as conexões ativas uma a uma, carregando o ambiente junto das credenciais até o momento da criação do card. Ou seja: o mesmo ponto de perda já identificado na Investigação 2 (`resolveCredentials` devolve só e-mail e senha) teria de passar a devolver também "de quem/de qual ambiente é esta conta". É a mesma correção, com um campo a mais. **Correção única resolve os dois problemas.**
 
-## 10. RESPOSTA FINAL
+## 4. META / WHATSAPP
 
-**A. O Portal sabe quem é o executivo logado?** **SIM.** `auth.uid()` → `executive_profiles` → `current_executive_id()`. *CONFIRMADA NO CÓDIGO.*
+| Item | Onde está hoje | Classificação |
+|---|---|---|
+| Access Token | `process.env["WHATSAPP_TOKEN"]` | **GLOBAL (variável de ambiente)** |
+| Phone Number ID | `process.env["WHATSAPP_PHONE_NUMBER_ID"]` | **GLOBAL (variável de ambiente)** |
+| App Secret (webhook) | `process.env["WHATSAPP_APP_SECRET"]` | **GLOBAL** |
+| WABA ID | não referenciado no código | **NÃO ENCONTRADO** |
+| Business Account | não referenciado | **NÃO ENCONTRADO** |
+| Templates | `meta_templates` / `crm_meta_templates` | **GLOBAL (banco, sem vínculo a número)** |
+| Provider / URL Graph | literal `graph.facebook.com/v20.0` em `whatsapp.server.ts` | **GLOBAL, hardcoded** |
+| Webhook | rota pública única | **GLOBAL** |
+| Status do número | derivado do par token+phoneId | **GLOBAL** |
 
-**B. A sincronização automática sabe qual é o contexto do Portal/unidade?** **SIM, parcialmente.** Não existe "unidade", mas existe a conta de origem: a conexão GreenSales usada tem dono (`crm_connections.user_id`). *CONFIRMADA NO CÓDIGO + NOS DADOS.*
+O token e o phone id aparecem **lidos diretamente de `process.env` em 6 pontos distintos** de `src/server/whatsapp.server.ts` (linhas 72, 73, 133, 183, 244, 475), mais `remarketing/engine.server.ts`. Não existe uma função única "resolva as credenciais Meta deste envio".
 
-**C. No momento de `ensureWorkspaceCard`, existe informação suficiente para determinar o executivo?** **SIM.** No manual, dois caminhos (sessão + conexão); no cron, um (conexão). *CONFIRMADA NO CÓDIGO.*
+**Financeira e Solar podem ter configurações Meta distintas hoje?** **NÃO.** Há exatamente um par de credenciais por implantação e ele é lido do ambiente do servidor, não de uma tabela. Não há como escolher.
 
-**D. Por que `responsible_executive_id` fica NULL?** Porque o dado é descartado em dois pontos: `resolveCredentials` devolve só e-mail e senha, esquecendo o `user_id` da conexão; e `intakeLead` não recebe ator, chegando a `ensureWorkspaceCard`, que grava `null` literal. Não é falha de informação — é informação não propagada. *CONFIRMADA NO CÓDIGO.*
+**Podem compartilhar sem duplicar credenciais?** Hoje é o único cenário que funciona — porque tudo compartilha à força (Cenário C). Para suportar A e B seria preciso: uma tabela de configurações Meta, um resolvedor único que receba o ambiente, e a substituição dos 7+ acessos diretos a `process.env` por esse resolvedor. **A boa notícia:** centralizar a leitura em um resolvedor único é uma refatoração interna segura, que não muda comportamento enquanto houver só um conjunto de credenciais.
 
-**E. Qual informação está faltando?** Nenhuma para o cenário de conta única. Para múltiplas contas faltaria uma regra explícita de qual conexão o cron sincroniza (hoje é "a mais recente"). *CONFIRMADA NO CÓDIGO.*
+## 5. TEMPLATES META
 
-**F. Dá para corrigir usando uma relação Portal → executivo já existente, sem depender da GreenSales?** **SIM.** A relação `crm_connections.user_id → executive_profiles.executive_id` já existe, é server-side e vale nos dois modos. *CONFIRMADA NO CÓDIGO + NOS DADOS.*
+Hoje: **armazenados na aplicação, globalmente.** `crm_meta_templates` tem `meta_name`, `meta_id`, `language`, `category`, `purpose`, `status` — e **nenhuma** referência a número, WABA, usuário ou ambiente.
 
-**G. Risco de assumir "quem está logado = dono do lead"?**
-- **Correto** quando o executivo sincroniza a própria conta GreenSales — o lead entrou pela conta dele.
-- **Incorreto** quando: (i) a Gestora ou o Admin clicam em Sincronizar (o logado é a gestão, não o dono comercial); (ii) o cron roda, onde não há ninguém logado — "logado" simplesmente não existe; (iii) a conexão usada não pertence a quem clicou (o fallback de `resolveCredentials` permite usar a conexão de outro usuário).
-- Por isso a fonte correta é **a conexão que trouxe o lead**, não a sessão. A sessão é o dado frágil; a conexão é o dado estável.
+Consequências:
+- `E0_FINANCEIRA` / `E0_SOLAR` / `E0_SEGUROS` conviveriam na mesma lista, distinguíveis só pelo nome — proibido pela regra "nada por nome".
+- O campo `purpose` é o que hoje amarra template ↔ etapa. Um segundo eixo (ambiente) exigiria que a chave passasse a ser `ambiente + purpose`, e que `relationship_template_bindings` e `relationship_step_content_bindings` respeitassem esse par.
+- **Compartilhamento** seria natural se o ambiente fosse anulável: template com ambiente vazio = compartilhado; com ambiente preenchido = exclusivo. Esse padrão funciona igualmente para biblioteca e criativos.
+- Atenção real: um template Meta aprovado pertence a uma WABA. Se a Solar tiver WABA própria, o mesmo template **não** é reaproveitável na prática, ainda que o banco permita. Compartilhar template só é válido quando o número também é compartilhado.
 
-**H. No cron, qual seria a fonte de verdade correta?** O dono da conexão efetivamente usada na chamada — `crm_connections.user_id` → `executive_profiles.executive_id` — resolvido no servidor, no mesmo momento em que as credenciais são abertas. Nunca o `WORKSPACE.defaultExecutiveId` do navegador, que hoje faz esse papel por acidente.
+## 6. MOTOR DE RELACIONAMENTO — PONTO CRÍTICO
 
-**I. Ponto exato onde a responsabilidade deveria ser resolvida e não é:**
-1. `resolveCredentials` (`src/server/crm/connections.server.ts:98`) — abre a conexão e descarta seu dono. **É aqui que a identidade se perde.**
-2. `runLeadSync` (`src/server/crm/lead-sync.server.ts:54`) — tem `actorUserId`, usa só para credenciais, não repassa nada ao intake.
-3. `intakeLead` (`src/server/crm/lead-intake.server.ts:62`) — assinatura sem ator.
-4. `ensureWorkspaceCard` (`src/server/crm/workspace-card.server.ts:65`) — grava `responsible_executive_id: null`. **É aqui que a ausência vira fato.**
+A cadeia que o senhor descreveu (`lead → ambiente → E0 → mensagem do ambiente → Meta do ambiente`) **não existe em nenhum elo**.
 
-O responsável só aparece muito depois, em `ensureOwnership` (`src/lib/crm/ownership.ts:87`), **no navegador**, usando o executivo padrão. Entre (4) e esse momento existe a janela em que a única tentativa de E0 acontece e falha.
+Onde a informação se perderia, em ordem:
 
-**J. Classificação consolidada**
+```text
+1. crm_connections            → não sabe o ambiente               (perda de origem)
+2. resolveCredentials         → devolve só e-mail e senha         (perda confirmada, Investigação 2)
+3. intakeLead / ensureWorkspaceCard → card nasce sem ambiente     (não há coluna)
+4. decisão do motor           → scope = 'production' apenas       (eixo teste, não negócio)
+5. resolução de conteúdo      → biblioteca global por finalidade  (não há por quê escolher)
+6. resolução de template      → purpose global                    (não há por quê escolher)
+7. whatsapp.server            → process.env fixo                  (não há o que escolher)
+```
 
-| Conclusão | Classificação |
+O motor **trabalha globalmente**. Ele só distingue `production` x `homologation` — e essa é uma separação de *ambiente de teste*, que precisa continuar existindo **em paralelo** ao eixo de negócio. Ou seja, o modelo futuro tem **duas dimensões**: `ambiente de negócio (financeira/solar/seguros)` × `ambiente de execução (produção/homologação)`. Tratá-las como uma só é o erro mais caro possível aqui.
+
+## 7. CRM / WORKSPACE
+
+- **Filtro natural para ambiente:** NÃO existe. O que existe é filtro por **carteira** (`belongsToScope` em `f.executivo.dashboard.tsx`) e por **executivo** (`assignedToUserId`), nenhum dos dois é ambiente.
+- **Dados misturados:** sim — um único conjunto de `portal_leads` alimenta tudo.
+- **Chave de ambiente necessária:** sim, em `portal_leads` acima de tudo; o resto herda por join.
+- **Queries sem filtro de contexto:** abundantes. `portal_leads` é consultada diretamente em pelo menos 10 módulos servidor (`workspace-card`, `first-contact-queue`, `daily-actions`, `step-message`, `workspace-reset`, `portal-identity.functions`, `portal-engagement.functions`, `test-lab`, `whatsapp.server`, `workspace-operational.functions`). Cada uma teria de ganhar o filtro — e nenhuma erraria de forma visível se esquecida, o que torna o filtro por aplicação perigoso.
+
+## 8. CAMPANHAS / REMARKETING
+
+- `campaigns`: `name, objective, template_id, audience, status, created_by…` — **sem origem/ambiente**.
+- `remarketing_campaigns`: idem, **sem ambiente**; contatos e conversas penduram na campanha.
+- Criativos: **sem ambiente**.
+- Público/lista: `audience` é texto/critério livre, **sem ambiente**.
+- Cron do remarketing: **não sabe contexto nenhum** — processa a fila inteira.
+- **Uma campanha da Solar poderia atingir leads da Financeira? SIM, estruturalmente.** Nada no banco impediria.
+
+**O isolamento atual de remarketing é apenas permissional/visual (admin-only), não estrutural.** CONFIRMADO NO CÓDIGO. Como hoje só existe a Financeira, isso é inofensivo; no dia em que existirem três ambientes, é o caminho mais provável para um incidente real com cliente.
+
+## 9. BIBLIOTECA DE MENSAGENS
+
+**GLOBAL.** `relationship_message_library` organiza por finalidade (E1/E3/R1/R2/V3/V4) e por `scope` de teste. 64 conteúdos, todos `production`. Um segundo eixo de ambiente, anulável (vazio = compartilhado), atenderia exatamente o que foi pedido — e precisaria ser respeitado por `relationship_step_content_bindings` e pelo resolvedor de conteúdo do motor, não só pela tela.
+
+## 10. CRIATIVOS
+
+**GLOBAIS.** `creative_templates` tem chave `model` + `config`; `creative_official_model` guarda o modelo oficial. Nenhum vínculo com usuário ou ambiente. Isolar aqui é dos itens mais baratos: poucos registros, superfície pequena, sem histórico crítico.
+
+## 11. USUÁRIOS E PERMISSÕES
+
+O modelo atual:
+- `user_roles` — papel (`admin`/`manager`/`user`), **sem ambiente**;
+- `workspace_module_permissions` — `user_id` + `module_key` + `enabled`, **sem ambiente**;
+- `executive_profiles` — cadastro, **sem ambiente**;
+- políticas RLS baseadas em `current_executive_id()`, `has_role()`, `can_access_investor()`, `can_access_relationship()` — nenhuma consulta ambiente.
+
+**"Thiago: Financeira + Solar" é irrepresentável hoje.** Faltaria uma associação usuário↔ambientes (relação N-para-N) e a inclusão desse eixo nas funções de acesso do banco. Notar que `can_access_investor` e `has_role` são `security definer` e sustentam as políticas de dezenas de tabelas: mexer nelas é cirurgia central, não ajuste local.
+
+## 12. DADOS E ISOLAMENTO SERVER-SIDE
+
+| Garantia desejada | Existe hoje? |
 |---|---|
-| Portal identifica o executivo logado via `executive_profiles`/`current_executive_id()` | CONFIRMADA NO CÓDIGO |
-| Existe exatamente uma conexão GreenSales ativa, do Thiago | CONFIRMADA NOS DADOS |
-| A conexão tem dono e está disponível em toda sincronização | CONFIRMADA NO CÓDIGO |
-| `resolveCredentials` descarta o `user_id` da conexão | CONFIRMADA NO CÓDIGO |
-| `intakeLead`/`ensureWorkspaceCard` não recebem ator; card nasce NULL | CONFIRMADA NO CÓDIGO |
-| GreenSales não fornece campo de responsável lido pelo sistema | CONFIRMADA NO CÓDIGO |
-| A posse é gravada retroativamente pelo navegador, com executivo padrão | CONFIRMADA NO CÓDIGO + NOS DADOS |
-| Os 5 leads foram bloqueados na E0 e só depois ganharam dono | CONFIRMADA NOS DADOS |
-| Não existe workspace/unidade/franquia como entidade | NÃO ENCONTRADA |
-| Não existe distribuição automática nem reconciliação de posse | NÃO ENCONTRADA |
-| `assign`/`redistribute` no servidor não gravam histórico próprio | CONFIRMADA NO CÓDIGO |
-| Com duas conexões ativas, o cron escolheria a mais recente | CONFIRMADA NO CÓDIGO (efeito não observado — só há uma conexão) |
-| Campos de responsável podem existir em `external_payload` sem serem lidos | POSSÍVEL, MAS NÃO COMPROVADA |
+| Lead da Solar não aparece na Financeira | **NÃO** — não há coluna nem política |
+| Mensagem da Financeira não sai pela Meta da Solar | **NÃO** — credencial única de ambiente do servidor |
+| Campanha da Solar não atinge lead da Financeira | **NÃO** — nenhuma barreira |
+| Criativo de Seguros não aparece na Financeira | **NÃO** — tabela global |
+| Executivo sem Solar não enxerga Solar | **NÃO** — RLS não conhece ambiente |
+
+O que **existe** de isolamento server-side hoje, e funciona: por **executivo** (`can_access_investor` / `current_executive_id`), por **papel** (`has_role`) e por **ambiente de execução** (`production` x `homologation`, com trava de envio). São três eixos sólidos — e nenhum deles é o eixo de negócio pedido.
+
+Recomendação de princípio, para quando for construir: o isolamento precisa nascer em **RLS**, não em filtro de aplicação. Com 60+ tabelas e dezenas de consultas diretas, confiar em `where ambiente = ...` espalhado pelo código garante que um caminho esquecido vaze — e vazamento aqui significa lead de um negócio aparecendo em outro.
+
+## 13. ROTAS E PONTOS HARDCODED
+
+**Estrutura atual:** 42 arquivos `f.*` (páginas reais, com o corpo inteiro — `f.executivo.dashboard.tsx` tem 578 linhas) e 30 arquivos `executivo.*` que são **stubs de redirecionamento** de 13 linhas para `/f/...`. Isso é importante: o prefixo `/f` já foi introduzido uma vez, e a forma escolhida foi **mover o conteúdo**, não parametrizar.
+
+Se `/sol` e `/seg` forem criados do mesmo jeito, o resultado são **126 arquivos de página** com a mesma lógica triplicada — exatamente o que o senhor disse que não quer.
+
+Principais pontos hardcoded encontrados:
+
+| Ponto | Onde |
+|---|---|
+| `ACTIVE_WORKSPACE_ID = "velox"` (constante de módulo) | `src/config/workspace.ts` |
+| `WORKSPACES` com uma única entrada, incluindo nome "Velox Soluções Financeiras" | `src/config/workspace.ts` |
+| `WORKSPACE.defaultExecutiveId` → `getDefaultExecutive()` → primeiro admin ativo | `src/lib/executive-auth.ts:592` |
+| Fallback literal `"usr_thiago"` | `src/lib/executive-data.ts:99` |
+| Prefixo `/f/...` escrito literalmente em navegações (`navigate({ to: "/f/executivo" })`) | espalhado pelas 42 rotas |
+| `graph.facebook.com/v20.0` + `process.env` Meta | `src/server/whatsapp.server.ts` (6 pontos) |
+| `DEFAULT_BRAND_KEY` / `portal-brands` | `src/lib/portal-brands.ts` |
+
+## 14. CONFIGURAÇÕES VISUAIS
+
+Este é **o ponto mais preparado de todos** — e a boa notícia da investigação. `src/config/workspace.ts` já foi escrito com essa intenção: o comentário no topo diz literalmente que nenhum componente deve referenciar uma empresa diretamente e que "futuras implantações substituem apenas este arquivo". Já há `workspaceName`, `tagline`, `platformName`, `poweredBy`, `workspaceLogoUrl`.
+
+Falta: cores/tema (hoje tokens fixos no CSS), favicon, menus por ambiente, e — principalmente — trocar a constante `ACTIVE_WORKSPACE_ID` por uma resolução em tempo de execução a partir da rota. **Identidade visual por ambiente é configuração, não duplicação. ESFORÇO BAIXO.**
+
+## 15. BACKUPS / LOGS / HISTÓRICO
+
+`portal_backups` guarda snapshot completo das 15 tabelas críticas em `payload`, com `payload_hash`, `protected` e retenção. É **global por construção** — um backup contém os três negócios misturados.
+
+Implicações para multiambiente:
+- Restaurar a Solar restauraria também Financeira e Seguros — **inaceitável**. A restauração seletiva (`portal_restores`) teria de passar a filtrar por ambiente.
+- Histórico anterior à separação é 100% Financeira: precisaria de uma marcação retroativa única, feita uma vez.
+- Logs e auditoria não têm ambiente; ficariam legíveis, mas não segregáveis.
+
+## 16. CUSTO ARQUITETURAL
+
+| | Item | Esforço |
+|---|---|---|
+| A | Criar `/sol` e `/seg` apenas visualmente | **MÉDIO** — baixo se as rotas virarem `$ambiente` parametrizado; alto se forem cópias das 42 telas |
+| B | Isolamento real de dados | **ALTO** — coluna nova em ~20 tabelas + RLS + revisão de todas as consultas |
+| C | Isolar GreenSales | **BAIXO/MÉDIO** — 1 coluna + laço no cron; corrige de quebra o bug de posse já identificado |
+| D | Isolar Meta/WhatsApp | **MÉDIO** — sair de `process.env` para tabela + resolvedor único; refatoração contida em 2 arquivos |
+| E | Isolar mensagens/templates | **MÉDIO** — coluna anulável + resolvedor por par (ambiente, finalidade) |
+| F | Isolar campanhas/remarketing | **MÉDIO** — colunas + filtro no cron; hoje não há isolamento algum |
+| G | Isolar permissões | **ALTO** — mexe em `has_role`/`can_access_*`, o coração do acesso |
+| H | **Transformar a plataforma em multiambiente** | **ALTO** |
+
+## 17. PRINCIPAL PERGUNTA — MENOR MUDANÇA ARQUITETURAL
+
+**Resposta direta: é reengenharia grande, não pequena evolução.** O motivo não é o número de telas — é que o eixo "ambiente" não existe em nenhuma tabela, nenhuma política de acesso e nenhum resolvedor, e teria de atravessar a cadeia inteira, de `crm_connections` até `whatsapp.server.ts`.
+
+**Porém, "grande" não significa "agora ou nunca".** A menor arquitetura possível, se e quando for feita, é esta — e nesta ordem:
+
+```text
+1. Tabela de ambientes            (financeira / solar / seguros; slug = /f, /sol, /seg)
+2. Vínculo usuário ↔ ambientes    (N-para-N, alimenta o acesso)
+3. Coluna ambiente em crm_connections   → o cron passa a saber o que sincroniza
+4. Coluna ambiente em portal_leads      → tudo o mais herda por join
+5. Ambiente no acesso (RLS)             → isolamento real, não visual
+6. Resolvedor único de Meta por ambiente → fim dos process.env espalhados
+7. Ambiente ANULÁVEL em biblioteca / templates / criativos  → vazio = compartilhado
+8. Ambiente em campanhas/remarketing + filtro no cron
+9. Rota /$ambiente com identidade vinda da tabela → zero duplicação de tela
+10. Marcação retroativa: todo histórico existente = financeira
+```
+
+Os passos 1–4 são a espinha. Do 5 em diante é consequência.
+
+**A única coisa que vale fazer agora, sem risco:** os passos 3 e 4 **já são necessários independentemente da Solar e de Seguros**, porque a Investigação 2 provou que `crm_connections` perde o dono e o card nasce sem responsável. Corrigir aquela cadeia com um campo a mais desde o início evita refazer o mesmo trabalho duas vezes.
+
+## RESUMO FINAL
+
+**1. O que já existe:** branding parametrizável (`WORKSPACES`), isolamento por executivo, isolamento por papel, isolamento produção↔homologação, carteiras por origem, conexões GreenSales por usuário, rotas já prefixadas com `/f`.
+
+**2. O que é global:** Meta/WhatsApp (variáveis de ambiente), templates, biblioteca, campanhas, remarketing, criativos, `crm_automation_settings`, backups, logs, permissões.
+
+**3. O que já pode ser isolado com pouco esforço:** identidade visual, criativos, GreenSales (1 coluna), configuração Meta (refatoração contida).
+
+**4. O que precisaria ser isolado e é caro:** `portal_leads` e toda a cadeia do CRM, o motor de relacionamento, as políticas de acesso, campanhas/remarketing, backups.
+
+**5. Principais riscos:** (i) o cron escolhendo "a conexão mais recente" e importando leads do negócio errado; (ii) campanha de um negócio atingindo leads de outro — hoje não há barreira alguma; (iii) reciclar `scope`, quebrando carteira e homologação de uma vez; (iv) isolamento por filtro de aplicação em vez de RLS, com um caminho esquecido vazando; (v) triplicar 42 telas por cópia.
+
+**6. Esforço:** **ALTO** para o conjunto. BAIXO/MÉDIO para GreenSales, Meta, visual e criativos isoladamente.
+
+**7. Menor arquitetura recomendada:** os 10 passos do bloco 17, cuja espinha são os quatro primeiros.
+
+**8. Vale a pena preparar agora?** **Preparar sim; construir não.** Recomendo: (a) não criar `/sol` nem `/seg` agora, nem sequer visualmente — telas vazias criam expectativa e dívida; (b) quando a correção de posse da Investigação 2 for feita, fazê-la já carregando o contexto da conexão de ponta a ponta, porque é o mesmo caminho; (c) tratar "ambiente de negócio" e "produção/homologação" como dois eixos separados desde o primeiro dia; (d) manter a Financeira intocada até existir uma decisão comercial firme sobre Solar e Seguros — o custo de esperar é baixo, o custo de um isolamento incompleto em produção é alto.
 
 ---
 
-**Nada foi implementado, corrigido ou proposto como alteração de código.** Este documento é apenas o diagnóstico para a decisão de arquitetura.
+**Nada foi implementado, criado ou alterado.** Este documento é apenas o diagnóstico para a decisão de arquitetura.
