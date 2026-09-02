@@ -1,484 +1,267 @@
-# DIAGNÓSTICO INTEGRADO — BASE ARQUITETURAL ANTES DA IMPLANTAÇÃO
+# AUDITORIA DA E0 — POR QUE O COMPORTAMENTO PARECE ALEATÓRIO
 
-Rodada de análise. **Nada foi alterado**: sem código, banco, tabelas, cron, cadência, Ação do Dia, Workspace, GreenSales, mensagens. A Global WhatsApp Safety Lock permanece exatamente como está.
+Investigação somente de leitura. Nada foi alterado: sem código, sem migration, sem cron, sem envio, sem tocar a Global WhatsApp Safety Lock.
 
-**[EXISTE]** verificado no código · **[PARCIAL]** existe só em parte · **[NÃO EXISTE]** conceito futuro, sem implementação · **[RECOMENDAÇÃO]** proposta técnica, não requisito · **[DECISÃO]** pendente de vocês.
+**Resposta curta, comprovada nos dados:** a E0 não é aleatória. Ela tem **uma única tentativa** no momento da entrada do lead. Quando essa tentativa falha por falta de executivo responsável (o card nasce sem responsável), **nunca mais é repetida** — a não ser que o lead tenha nascido de madrugada, porque só o caminho do adiamento noturno tem repetição. Leads da madrugada acabam recebendo E0; leads do horário comercial ficam sem, indefinidamente.
 
 ---
 
-## 1. Regra principal da cadência — E0 automática, E1+ manual
+## 1. NASCIMENTO DA E0
 
-### O que existe hoje
+Ordem real:
 
-- **[EXISTE]** `decide.ts` é uma função **pura** de decisão: recebe estado e devolve `{ kind: "none" | "schedule_step" | "send_step", step, dueAt, reason }`. O ponto de separação entre decidir e executar **já nasceu no código** — só não tem consumidor intermediário.
-- **[EXISTE]** `FIRST_CONTACT_STEPS` já trata E0/E0_V1 como exceção explícita e centralizada (inclusive quanto à janela de horário).
-- **[EXISTE]** Safety Lock como última barreira antes da Graph API, com auditoria em `relationship_engine_log`.
-- **[EXISTE]** `execution-mode` + `channel.ts`: o **ambiente decide antes das credenciais** — homologação nunca chama a Meta, mesmo com token real.
-- **[EXISTE]** `guard.server.ts` bloqueando destinatário real em contexto de teste.
-- **[EXISTE]** camada de autorização — **mas só de LEITURA**: `authorization.ts` / `authorization.server.ts` respondem "quem pode ver o quê" (admin, gestão, dono do lead, isolamento de rodada). **Não existe** equivalente para "quem pode executar".
+1. `runLeadSync` (`src/server/crm/lead-sync.server.ts`) varre a origem e classifica cada lead em A/B/C/D (`classifyScannedLead`, `src/lib/crm/sync-classification.ts`).
+2. Casos A e C vão para `intakeLead` (`src/server/crm/lead-intake.server.ts`). É **aqui, e somente aqui**, que o sistema decide "este lead precisa de E0", através da variável `enteredNow` (linha ~140): lead criado agora na coluna de entrada, ou lead que acabou de entrar em NOVOS.
+3. Se `enteredNow && eligibility.eligible` (`cadenceEligibility`, `src/lib/crm/cutover.ts`): grava `e0_identificada`, cria o card (`ensureWorkspaceCard`) e chama `registerFirstContact` (`src/server/crm/first-contact.server.ts`) → `dispatchFirstContact` (`src/server/relationship/e0.server.ts`).
 
-### O que não existe hoje
+Respostas objetivas:
 
-- **[NÃO EXISTE]** qualquer trava que diga "esta etapa só pode ser enviada por decisão humana". Hoje, se o motor decide `send_step`, o despacho acontece — a etapa não é consultada.
-- **[NÃO EXISTE]** noção de *motivo de autorização* atrelada a um envio.
+- **Existe uma linha individual "E0 deste lead"?** NÃO. Não há tabela de ações/fila de E0. O que existe é: eventos em `crm_lead_events` (`e0_identificada`, `e0_adiada`, `e0_ignorada`, `e0_simulada`, `e0_enviada`) e, quando a E0 realmente ocorre, a mensagem `crm_messages.id = msg_e0_<cardId>`.
+- **A pendência é inferida?** SIM, e apenas em um caso: a fila do adiamento noturno infere pela **presença do evento `e0_adiada` e ausência de `e0_simulada`/`boas_vindas_enviada`** (`processDeferredFirstContacts`). Fora disso não existe pendência registrada em lugar nenhum.
+- **Campo identificador:** `crm_leads.external_id` no espelho; `portal_leads.id = gs_<external_id>` no card operacional (a E0 usa sempre o card).
+- **Chave anti-duplicidade:** a chave primária determinística `msg_e0_<cardId>` em `crm_messages` — o INSERT conflita (23505) na segunda tentativa e devolve "primeiro contato já registrado" (`e0.server.ts`, linhas ~132-147).
+- **Existe `due_at`/`scheduled_at`/`next_run_at` da E0?** NÃO. Não existe horário de vencimento individual. A E0 é síncrona à sincronização.
 
-### Caminhos que hoje alcançam o WhatsApp — [EXISTE], inventário
+---
 
-Quatro módulos chamam o envio direto (`sendTextMessage` / `sendTemplateMessage`): `whatsapp.server.ts` (o canal), `whatsapp.functions.ts`, `remarketing/conversations.server.ts` e `crm/messaging.server.ts`. Acima deles operam `dispatch.server.ts`, `e0.server.ts`, `closure.server.ts`, `auto-reply.server.ts`, `inbound.server.ts` e o `remarketing-engine` (cron de 1 min, executor próprio).
-
-**Resposta direta à pergunta 5:** sim — hoje, mesmo separando decisão de execução, `remarketing-engine`, `closure`, `auto-reply` e `messaging.server` continuariam alcançando o canal por conta própria. `messaging.server.ts` é o mais crítico: declara-se "única saída do CRM" mas chama o envio **só com telefone e texto**, sem etapa, sem lead, sem contexto — é o caminho mais fácil de burlar a regra **sem intenção**.
-
-### [RECOMENDAÇÃO] Arquitetura de segurança — ordem das travas
+## 2. CAMINHO COMPLETO DA E0 (o que existe hoje)
 
 ```text
-MOTIVO DE AUTORIZAÇÃO válido?  →  ETAPA permitida para esse motivo?
-   →  GUARD de destinatário  →  AMBIENTE  →  SAFETY LOCK  →  Graph API
+pg_cron 'portal-crm-sync-automatico' (a cada minuto)
+  → POST /api/public/crm/sync            (src/routes/api/public/crm/sync.ts)
+  → isAutomationRequestAuthorized        (automation-auth.server.ts)
+  → runScheduledLeadSync                 (sync-scheduler.server.ts)
+      ├─ trava: última crm_sync_runs RUNNING < 15 min → NÃO RODA
+      ├─ trava: intervalo configurado não vencido      → NÃO RODA
+      ├─ runLeadSync("cron")             (lead-sync.server.ts)
+      │    ├─ greenSalesLogin / fetchLeadsSince (janela = último finished_at OK − 15 min)
+      │    ├─ classifyScannedLead → A | B | C | D
+      │    ├─ (B) upsertLead({historical:true}) → SEM E0, definitivo
+      │    └─ (A/C) intakeLead
+      │           ├─ upsertLead → espelho crm_leads
+      │           ├─ dedup por telefone → encerra
+      │           ├─ cadenceEligibility (corte 01/09) → e0_ignorada
+      │           ├─ isE0NightWindow() → deferFirstContact → evento e0_adiada, FIM
+      │           └─ enteredNow && elegível:
+      │                 recordEvent e0_identificada
+      │                 ensureWorkspaceCard (card nasce com responsible_executive_id = NULL)
+      │                 registerFirstContact
+      │                    → cadenceEligibility de novo + isE0NightWindow de novo
+      │                    → dispatchFirstContact
+      │                         resolveLeadDestinations (exige link do Portal → exige executivo)
+      │                         renderFromLibrary (texto oficial)
+      │                         INSERT crm_messages id=msg_e0_<card>  ← idempotência
+      │                         entrega (simulada ou Meta) → recordMessageSnapshot → crm_timeline
+      │                    → engine.handleEvent FIRST_CONTACT_SENT
+      │                 recordEvent e0_enviada | e0_simulada | e0_ignorada
+      │    └─ processDeferredFirstContacts (fim do runLeadSync)
+      ├─ processDeferredFirstContacts    (de novo, no finally do agendador)
+      ├─ runRelationshipTick             (scheduler.server.ts)
+      └─ runDailyReconciliation
 ```
 
-Motivos fechados, sem "outros":
+Observação factual: `processDeferredFirstContacts` é chamada **duas vezes por ciclo** (uma no fim de `runLeadSync`, outra no `finally` de `runScheduledLeadSync`). Isso está visível nos dados: o lead 58827 registra dois `e0_ignorada` por ciclo, com ~3 segundos de diferença.
 
-| Motivo | Etapas aceitas | Exige |
+---
+
+## 3. CRONS E JOBS
+
+Agendamentos ativos no banco (`cron.job`):
+
+| Job | Frequência | Chama |
 |---|---|---|
-| `E0_AUTOMATICA` | apenas `E0`, `E0_V1` | nada além do lead |
-| `RESPOSTA_HUMANA` | resposta dentro da janela de 24 h | conversa aberta |
-| `ACAO_EXECUTADA_POR_HUMANO` | qualquer etapa manual | `action_id` + usuário autenticado |
+| `portal-crm-sync-automatico` | `* * * * *` | `/api/public/crm/sync` → `runScheduledLeadSync` |
+| `remarketing-engine` | `* * * * *` | `/api/public/remarketing/run` |
+| `portal-backup-automatico` | `0 * * * *` | insere pedido de backup |
+| `portal-backup-processador` | `* * * * *` | `/api/public/backup/process` |
 
-Por que isso resiste a caminho antigo: **o motivo é parâmetro obrigatório do canal**, não uma flag a lembrar. Um cron legado não consegue inventar um motivo válido; ele falha, é recusado e fica auditado. Não é disciplina de código — é impossibilidade estrutural.
+Só o primeiro toca a E0. Detalhamento dele:
 
-**Um único motor:** `decide.ts` permanece a única fonte que escolhe etapa e prazo. O planejador **consome** essa saída; nunca decide. A Ação do Dia **lê** o planejamento; nunca decide. Não há segundo motor porque não há segunda função que escolha etapa.
+- **Lote/limite:** a varredura não tem limite de leads; existe `DETAIL_CHECK_LIMIT = 80` para reconsulta de detalhe. A fila de adiadas tem `.limit(200)` (GreenSales) + `.limit(200)` (Portal).
+- **Ordem de processamento:** a ordem de chegada da paginação da origem. **Não há `order by`** em nenhum ponto do caminho da E0.
+- **Anti-concorrência:** apenas a leitura da última linha de `crm_sync_runs`; se `status = RUNNING` e idade < `STALE_RUN_MINUTES` (15), o ciclo é abortado.
+- **Execução anterior travada em RUNNING:** bloqueia todos os ciclos pelos 15 minutos seguintes. **Isto está acontecendo em produção:** nos últimos 3 dias há 88 execuções `RUNNING` sem `finished_at` contra 521 `OK` — aproximadamente uma trava a cada 40 minutos, cada uma congelando a sincronização por 15 minutos.
+- **Falha:** `runLeadSync` marca `ERRO` e a janela seguinte volta ao último `finished_at` com status OK — a janela temporal não se perde. Mas se o processo morrer no meio (o caso dos RUNNING), a linha fica RUNNING para sempre e o `finally` que chama a fila de adiadas pode não executar.
+- **Retry:** não há retry por lead. Só existe repetição implícita para quem tem `e0_adiada`.
+- **Timeout:** nenhum controlado pela aplicação.
+- **Duas execuções simultâneas:** possível em teoria (a trava é leia-depois-escreva, sem lock transacional), mas improvável, porque a janela de 15 min é generosa.
+- **Um job bloqueia outro?** Sim, dentro do mesmo ciclo: `runRelationshipTick` só roda depois de `runLeadSync`. Uma queda em `runLeadSync` que não chegue ao `finally` cancela a fila de adiadas e o tick daquele minuto.
 
-**Demais caminhos (pergunta 4):** `remarketing` e `campanhas` → decidir se são fluxo próprio autorizado ou se aposentam (ver §15-E); `auto-reply`/`inbound` → cabem em `RESPOSTA_HUMANA` (reagem a mensagem recebida, não a cadência); `closure` → passa a ser ação planejada como qualquer outra; `messaging.server` → passa a exigir contexto (lead + etapa + motivo) ou deixa de existir como atalho.
-
----
-
-## 2. E0 × Ação do Dia
-
-### Fluxo alvo
-
-```text
-decide.ts (intocado)
-   ├─ "none"          → nada
-   ├─ "schedule_step" → PLANEJADOR grava ação PLANEJADA (prevista_para = dueAt)
-   └─ "send_step"     → E0?  despacha automaticamente
-                        E1+? PLANEJADOR grava ação pronta
-                              └→ AÇÃO DO DIA → executivo executa
-                                    → RESULTADO (append-only) → decide.ts decide de novo
-```
-
-**O que permanece exatamente como está (pergunta 3):** `decide.ts` inteiro; `machine.ts`; `FIRST_CONTACT_STEPS`; `step-registry` / `isKnownStep`; `guard.server.ts`; `execution-mode` e `channel.ts`; toda a lógica de `daily-actions.ts` (chave determinística, precedência AGENDA > REUNIÃO > MENSAGEM > LIGAÇÃO, colapso, buckets, fuso); Safety Lock.
-
-**O que muda (pergunta 2):** `engine.server.ts` deixa de despachar E1+ e passa a chamar o planejador; `executedSteps` deixa de ser escrito na decisão e passa a ser escrito **apenas no resultado** — hoje essa gravação antecipada é justamente o que faz uma ação "identificada" parecer "executada" (pergunta 4).
-
-**Ação atrasada (pergunta 5):** **[EXISTE]** `resolveBucket` já garante que atrasada nunca vira "hoje". **[RECOMENDAÇÃO]** atrasado **não é estado** — é leitura de `prevista_para < agora`. A ação permanece `PLANEJADA`, visível, até receber resultado, pulo ou reagendamento. Nunca some, nunca é executada sozinha (E1+ não tem executor automático depois do corte).
+**Cenário em que "o cron funciona mas leads ficam para trás": CONFIRMADO.** O cron continua registrando execuções OK, e ainda assim um lead cuja única tentativa de E0 falhou nunca é reavaliado — porque nada no ciclo reexamina leads sem E0.
 
 ---
 
-## 2-bis. E0 automática × E0 manual
+## 4. E0 ADIADA
 
-**[ATUAL]** A E0 é tratada como exceção explícita (`FIRST_CONTACT_STEPS`, em `decide.ts`), mas **só existe no modo automático**. Não há chave de configuração, por executivo ou por origem, que a torne manual.
-**[ATUAL]** `daily-actions.ts` já possui o campo `priorityMax`, que coloca uma ação acima de todas as outras na ordenação. **O gancho de prioridade que a E0 manual precisa já existe** — falta apenas quem o alimente.
+`deferFirstContact` (`first-contact-queue.server.ts`, linha 19) grava apenas um evento `e0_adiada` em `crm_lead_events` quando `isE0NightWindow()` é verdadeiro na entrada (fora de Seg–Sex 07:00–22:30, Sáb 07:00–12:00, Dom sem envio).
 
-**[RECOMENDAÇÃO] — um motor, dois modos, sem duplicidade:**
+`processDeferredFirstContacts`:
 
-A diferença entre automático e manual **não pertence ao motor**. `decide.ts` continua dizendo apenas "chegou a hora da E0". Quem lê o modo é o **planejador**:
+- **Quem lê:** `runLeadSync` (fim) e `runScheduledLeadSync` (finally).
+- **Período pesquisado:** `created_at >= agora − 3 dias`.
+- **LIMIT:** 200 eventos (GreenSales) e 200 eventos (Portal).
+- **Ordenação:** **nenhuma**. Não há `order by`; o Postgres devolve na ordem que quiser, e o `limit 200` recorta esse conjunto arbitrário.
+- **É FIFO?** NÃO.
+- **Prioridade por idade do lead?** NÃO. **Por `due_at`?** NÃO — não existe `due_at`.
+- **Lead antigo pode ficar atrás de novos?** SIM, e pode inclusive cair fora do `limit 200`; e ao passar de 3 dias sai da janela e é abandonado silenciosamente.
+- **Erro em um item interrompe os seguintes?** NÃO — cada item está em `try/catch` individual.
+- **Sequencial ou paralelo?** Sequencial (`for ... await`).
+- **Lock por lead?** NÃO. **Lock por lote?** NÃO. A única proteção real contra duplicidade é a chave `msg_e0_<card>`.
 
-```text
-decide.ts → "E0 agora"
-   → PLANEJADOR cria SEMPRE a ação de E0 (chave única lead_id + E0 + ciclo)
-        ├─ modo AUTOMÁTICO: a mesma ação é despachada pelo executor
-        │                    (motivo E0_AUTOMATICA) e nasce já EXECUTADA
-        └─ modo MANUAL: a ação fica PLANEJADA com priorityMax,
-                        no topo da Ação do Dia, abaixo apenas de compromissos
-```
-
-Pontos que garantem a segurança:
-
-1. **A ação é criada nos dois modos.** O modo decide **quem executa**, nunca **se existe registro**. Isso elimina o caso "estava em manual, ninguém viu, o lead ficou sem E0".
-2. **Execução dupla é impossível por construção:** a chave única `lead_id + etapa + ciclo` já existe na ação, e só uma transição `PLANEJADA → EXECUTADA` é aceita. Trocar o modo no meio do caminho não cria segunda ação — encontra a mesma.
-3. **Trocar o modo nunca reprocessa o passado.** O modo vale para ações criadas a partir da mudança; ações já existentes seguem seu curso.
-4. **A ordenação de prioridade** fica: compromissos/agenda já marcados → **E0 manual (`priorityMax`)** → demais ações de cadência. A precedência atual (AGENDA > REUNIÃO > MENSAGEM > LIGAÇÃO) é preservada; a E0 manual entra como exceção declarada, do mesmo jeito que `FIRST_CONTACT_STEPS` já é exceção hoje.
-5. **A trava não muda com o modo.** Automático usa o motivo `E0_AUTOMATICA`; manual usa `ACAO_EXECUTADA_POR_HUMANO` com `action_id`. Ambos passam pelo guard, pelo ambiente e pela Safety Lock, nessa ordem.
-
-**[DECISÃO PENDENTE]** Qual é o escopo do interruptor: global, por executivo, por origem (TikTok/Meta/Portal) ou por lote de teste. Isso muda onde a configuração é lida e precisa ser definido antes de construir.
-**[DECISÃO PENDENTE]** E0 manual não executada até o fim do dia: escala para a gestão, permanece atrasada, ou cai para automático? Recomendo permanecer atrasada e visível — cair para automático transformaria omissão humana em envio, exatamente o que a regra quer evitar.
+Ponto importante e comprovado: **esta é a única repetição de E0 que existe no sistema.** Ela reexecuta `registerFirstContact` a cada ciclo enquanto o lead não tiver `e0_simulada`/`boas_vindas_enviada`, o que dá ao lead da madrugada dezenas de chances ao longo do dia.
 
 ---
 
-## 3. Jornada futura E0 → E8
+## 5. RELATIONSHIP TICK
 
-### O que existe hoje — [EXISTE], nomenclatura real do código
+`runRelationshipTick` (`src/server/relationship/scheduler.server.ts`):
 
-`FLOW_SEQUENCE` declara cinco fluxos:
+- **Participa da E0?** Só depois dela. Ele **não cria nem envia E0**.
+- **Como identifica E0 faltando:** `bootstrapMissingCadences` busca `crm_messages` com `id like 'msg_e0_%'` e, para quem já tem essa mensagem mas não tem cadência aberta, emite `FIRST_CONTACT_SENT` no motor. É recuperação de **cadência**, não de mensagem.
+- **Depende de `msg_e0_%`?** SIM, integralmente. Lead que nunca teve E0 enviada é invisível para ele.
+- **Pode competir com outro processo criando a mesma E0?** Não cria E0; o evento usa a mesma chave `e0_<lead>`, portanto é idempotente.
+- **Lote:** `BATCH = 200` em cada uma das três consultas de elegibilidade.
+- **Ordenação:** só a busca de primeiros contatos usa `order by at desc` — ou seja, **prioriza os mais recentes**; as outras duas não têm ordenação.
+- **Pode favorecer leads novos / deixar antigos para trás?** SIM, pelo `order by at desc` + `limit 200` e pelo `slice(0, BATCH)` final.
+- **Pode recuperar E0 muito tempo depois?** Recupera a **cadência**, sim; a **mensagem E0**, não.
 
-- `sem_resposta`: E0 → E1 → E3 → E4 → E12 → E30
-- `visualizacao`: E0 → E1 → V3 → V4
-- `reengajamento`: R1 → R2 → R3
-- `reentrada`: RE0 → RE1 → RE2 → RE3
-- `relacionamento_frio`: RF0 → RF1
-- variante de primeiro contato: `E0_V1`
-
-Fora da cadência (`NON_CADENCE_STEPS`): `E20`, `E27`, `FINALIZACAO`, `RESPOSTA_AUTOMATICA`. `KNOWN_STEP_KEYS` é a união dos dois e `isKnownStep` **recusa** qualquer chave fora disso, com motivo legível. **Já existe fonte única de etapas.**
-
-### O que não existe
-
-**[NÃO EXISTE]** E2, E5, E6, E7, E8 e a renumeração E0…E8. São conceito.
-
-**Armadilha crítica:** `E4` **existe hoje** no fluxo `sem_resposta` e **não é** a E4 conceitual da jornada futura. Mesmo nome, significado diferente. O mesmo vale para E3.
-
-### [RECOMENDAÇÃO] Como construir sem quebrar histórico
-
-1. **Preservar todas as chaves atuais.** Elas estão gravadas em `executedSteps`, nos eventos e nas mensagens já enviadas. Renomear reescreve o passado (pergunta 5).
-2. **Novas etapas nascem com chaves novas e distintas** — prefixo de geração (ex.: `G2_E4`), mesmo quando o rótulo humano coincidir. Resolve a colisão E4 × E4.
-3. **Mapa de equivalência sim (pergunta 2), mas só para relatório** — nunca para migrar dados. Ele traduz na leitura; não toca em registro.
-4. **Cada cadência guarda a versão de vocabulário com que nasceu.** Lead em andamento termina no vocabulário antigo; lead novo nasce no novo; sem conversão no meio.
-5. **Campo `status: "ativa" | "planejada"` em `STEPS` (pergunta 3 e 4).** Etapa `planejada` aparece na configuração e é **recusada pelo planejador e pelo despachante**. A separação vira mecânica, não editorial: uma etapa só opera se estiver em `KNOWN_STEP_KEYS` **e** `ativa`. Enquanto E2/E5–E8 forem `planejada` (ou nem existirem), nenhum código consegue executá-las, por mais vezes que sejam citadas em planejamento.
+**Existem hoje dois caminhos para chegar à E0?** Sim, mas ambos terminam na mesma função: (1) `intakeLead` → `registerFirstContact` — tentativa única; (2) `processDeferredFirstContacts` → `registerFirstContact` — tentativa repetida. O caminho do Portal (`kickoffPortalFirstContact`) é um terceiro ponto de entrada, com o mesmo destino. O tick **não** é um caminho de E0.
 
 ---
 
-## 4. Ação do Dia como central operacional
+## 6. POR QUE UM LEAD DE 2 DIAS PODE FICAR SEM E0
 
-### Hoje
-
-**[EXISTE]** `daily-actions.ts` é **leitura pura e bem construída**: agrega ligações, mensagens, reuniões e agenda, aplica precedência, colapsa duplicatas e distribui em buckets por fuso. **[NÃO EXISTE]** persistência da ação: nada do que é apresentado é gravado como obrigação.
-
-### [RECOMENDAÇÃO] Estrutura central de ações, não evolução da `relationship_queue` (pergunta 1)
-
-`relationship_queue` é fila de **execução do motor** (mensagens). Ação é obrigação **de trabalho humano** e engloba ligação, reunião, retorno, acompanhamento. Misturar os dois transforma a fila em duas coisas ao mesmo tempo e reintroduz o acoplamento que estamos desfazendo. A fila continua existindo para o que ela faz bem: E0 e respostas.
-
-**Mesma lógica para todo tipo de ação (pergunta 2):** um único registro com `tipo` (ligação | mensagem | reunião | acompanhamento | retorno | reagendamento), `lead_id` obrigatório, `etapa`, `ciclo`, `responsavel`, `prevista_para`, `estado`. O que muda por tipo é apenas o **conjunto de resultados válidos**, não a estrutura.
-
-**Duplicidade (pergunta 3):** chave única `lead_id + etapa + ciclo + tipo`. Duas tentativas de criar a mesma ação viram uma só, por construção do banco — não por verificação em código.
-
-**Estados (pergunta 4):**
-
-| Estado | Significado | Conta como executada? |
+| Hipótese | Veredito | Evidência |
 |---|---|---|
-| `PLANEJADA` | prevista, sem resposta (disponível hoje ou futura) | não |
-| *(atrasada)* | **não é estado** — leitura de `prevista_para < agora` | não |
-| `EXECUTADA` | feita, com resultado informado (positivo **ou** negativo) | **sim** |
-| `PULADA` | não foi feita, com justificativa | **não** |
-| `REAGENDADA` | substituída por nova ação, com ponteiro | não |
-| `BLOQUEADA` | impedimento técnico ou de regra | não |
-| `EXPIRADA` | **[DECISÃO]** só se vocês decidirem que existe | não |
-
-**Chave para não confundir:** duas dimensões independentes — **estado** (o que aconteceu com a ação) e **resultado** (o que aconteceu no mundo). "Não atendeu" é `EXECUTADA` + resultado negativo. "Não deu tempo" é `PULADA`.
-
-**Isolamento de falha (pergunta 5):** o estado vive **no item**, não no job. Uma ação bloqueada não impede a criação nem a leitura das outras.
-
-### Bloqueio visível — [FUTURO]
-
-Hoje uma condição não atendida (lead sem executivo responsável, sem WhatsApp válido, fora de janela) faz a ação **não aparecer**. O motivo existe apenas no `relationship_engine_log`, que é técnico e ninguém da operação lê.
-
-**[RECOMENDAÇÃO]** `BLOQUEADA` é um estado visível, não uma ausência: a ação aparece na Ação do Dia com o motivo em linguagem operacional ("Bloqueada — lead sem executivo responsável"), a data em que bloqueou e, quando cabe, o caminho para resolver. **Regra geral: nada desaparece por não atender a uma condição.** Some da lista de "fazer agora"; nunca da operação. Motivo é lista fechada (para contar na Central) mais observação opcional.
-
-### Interface da Ação do Dia — [RECOMENDAÇÃO]
-
-O cartão mostra o mínimo para agir: tipo (já dado pela seção), hora, nome do investidor e duas ações — `ABRIR CONVERSA` e `VER FICHA`. Sem rótulos redundantes ("reunião com investidor" dentro da seção REUNIÕES). O contexto — histórico, notas, etapa, tentativas — mora na **ficha**, aberta sob demanda. O registro de resultado é um passo separado, com perguntas objetivas por tipo de ação (uma pergunta por vez, não um formulário). Assim a tela cresce em capacidade sem crescer em ruído.
+| **Lead sem executivo responsável** | **CONFIRMADA — causa principal** | `ensureWorkspaceCard` cria o card com `responsible_executive_id: null`; `resolveLeadExecutive` devolve "Lead sem executivo responsável definido — envio bloqueado."; `dispatchFirstContact` aborta antes de qualquer mensagem. Nos eventos: 58897, 58893, 58887, 58877, 58874 — todos com `e0_identificada` seguido de `e0_ignorada` por esse motivo exato, e nenhuma nova tentativa desde então |
+| **Tentativa única fora do adiamento noturno** | **CONFIRMADA — causa estrutural** | `enteredNow` em `intakeLead` só é verdadeiro na transição para NOVOS. Depois disso nenhum processo reexamina o lead. Sem evento `e0_adiada`, o lead não entra na única fila que repete |
+| **Janela operacional** | CONFIRMADA (atrasa, não perde) | `isE0NightWindow` em `intakeLead`, `registerFirstContact` e `processDeferredFirstContacts` |
+| **Estágio/etiqueta não resolvido para NOVOS** | CONFIRMADA | Lead 58912 (Filipi) entrou como `zero_contato`, `entered_entry_stage_at` nulo: nenhum evento de E0 foi sequer criado |
+| **Classificação B (histórico)** | CONFIRMADA (por desenho) | `classifyScannedLead` devolve B quando o lead não está no espelho e a entrada não é comprovadamente recente → `historical: true`, sem E0, para sempre. Data ausente/inválida também cai em B |
+| **Corte operacional 01/09** | CONFIRMADA (por desenho) | `cadenceEligibility` → `e0_ignorada` |
+| **Cron travado em RUNNING** | **CONFIRMADA** | 88 execuções RUNNING sem término em 3 dias; cada uma bloqueia 15 minutos (`STALE_RUN_MINUTES`) |
+| **Ordem de processamento sem FIFO** | CONFIRMADA | Nenhum `order by` no caminho da E0; `order by at desc` no tick |
+| **LIMIT / lote cheio** | CONFIRMADA como risco | `limit 200` sem ordenação na fila de adiadas; `DETAIL_CHECK_LIMIT = 80` |
+| **Janela de 3 dias da fila de adiadas** | CONFIRMADA | `since = agora − 3 dias`: passado esse prazo, a pendência some sem registro |
+| **Deduplicação por telefone** | CONFIRMADA | `outcome.deduplicated` encerra o intake antes da E0 |
+| **Falta de template oficial da Meta** | CONFIRMADA (não bloqueia o registro) | `E0_TEMPLATE_MISSING_REASON`: a E0 é registrada, só a entrega externa fica pendente |
+| **Erro em um item interrompendo os demais** | NÃO ENCONTRADA | `try/catch` por lead em todos os laços |
+| **Duplicidade de E0** | NÃO ENCONTRADA | chave `msg_e0_<card>` com conflito 23505 |
+| **Timeout/retry por lead** | NÃO ENCONTRADA | não existe |
+| **Duas execuções realmente simultâneas** | POSSÍVEL, MAS NÃO COMPROVADA | trava sem lock transacional; nenhum caso observado nos dados |
+| **Perda da janela temporal por falha do cron** | POSSÍVEL, MAS NÃO COMPROVADA | `since` volta ao último `finished_at` OK, o que protege; um lead cuja entrada não é recente e que ainda não está no espelho vira B |
 
 ---
 
-## 5. Pular uma ação
+## 7. FIFO POR IDADE
 
-**[NÃO EXISTE]** hoje. **[RECOMENDAÇÃO]:**
+**NÃO.** O sistema não garante que o lead elegível mais antigo seja processado antes do mais novo.
 
-1. **Sem confusão com resultado negativo (pergunta 1):** pular é estado; resultado negativo é resultado de uma ação executada. Como são campos diferentes, a contagem nunca mistura (pergunta 5 e 6).
-2. **Registro obrigatório:** ação, lead_id, executivo, data/hora, etapa, motivo (lista fechada), justificativa (texto validado no servidor: não vazia, tamanho mínimo — texto livre serve para **ler**, nunca para contar), consequência.
-3. **Append-only:** evento novo, nunca sobrescrita. A trilha sobrevive a qualquer mudança posterior.
-4. **Quem pode pular (pergunta 3):** **[DECISÃO]**. Recomendação: responsável e gestão, com o autor sempre gravado — a diferença aparece no relatório.
-5. **Relatório (pergunta 6):** coluna própria "puladas", separada de executadas e de atrasadas, com motivo agrupado e justificativa acessível ao abrir.
+Motivos técnicos:
 
-**[DECISÃO ESTRUTURAL — bloqueia implementação]** `isStepInOrder` exige que **todas** as etapas anteriores estejam em `executedSteps`. Uma etapa pulada **trava a sequência**. Ou (a) o pulo marca a etapa como consumida — destrava, mas registra como cumprida algo que não foi feito; ou (b) a verificação de ordem passa a aceitar lacuna explicitamente justificada — mais fiel, exige alterar a guarda de ordem. Recomendo (b). Isso responde a pergunta 2 e precisa ser decidido **antes** de qualquer código.
-
----
-
-## 6. Agendamentos e reuniões
-
-**[EXISTE]** `portal_meetings` (25 colunas) com o compromisso; `SCHEDULE_CREATED` pausa a cadência; `MEETING_FOCUS_WINDOW_MS` (15 min) para janela de foco.
-**[NÃO EXISTE]** compareceu, não compareceu, cancelamento com motivo, evolução, reagendamento com vínculo.
-
-**[RECOMENDAÇÃO] — fonte de verdade dividida por natureza, sem cópia (pergunta 1):**
-
-- **`portal_meetings`** é a verdade do **compromisso**: quando, com quem, onde. A ação **referencia** e lê de lá — nunca copia data/hora.
-- **A ação** é a verdade do **trabalho**: entrou na fila, foi respondida, qual o desfecho.
-- Uma reunião = no máximo **uma** ação aberta (chave única). Duplicidade impossível por construção.
-- Estados do compromisso (`agendada`, `realizada`, `não compareceu`, `cancelada`, `reagendada`) pertencem à reunião; `compareceu` / `evoluiu` / `reagendar` são resultado da ação (pergunta 3).
-- **Reagendamento (pergunta 2): nova reunião, em uma transação.** A original é encerrada com resultado `reagendada`, a nova nasce com ponteiro para a anterior, e a ação antiga fica `REAGENDADA` para sempre. Reaproveitar a mesma reunião apagaria o histórico do que foi combinado antes.
-- **Retomada (pergunta 4):** hoje a reunião pausa a cadência; no modelo novo quem retoma é **o resultado**. Sem resultado, o lead fica parado — por isso a pergunta 5 é obrigatória: precisa existir visibilidade explícita de "reuniões e ações sem desfecho", com prazo, para a gestão. Fechar sozinho por tempo seria inventar um fato que não aconteceu.
+1. `intakeLead` processa na ordem em que a origem devolve as páginas — não há reordenação por data de entrada.
+2. `processDeferredFirstContacts` consulta `crm_lead_events` **sem `order by`** e com `limit 200`. Sem ordenação, o recorte é arbitrário: um lead antigo pode simplesmente não estar nos 200 devolvidos.
+3. `runRelationshipTick` usa explicitamente `order by at desc` na busca de primeiros contatos e `slice(0, 200)` no final — favorecendo os mais novos.
+4. Não existe `due_at`, prioridade ou fila persistente por lead que pudesse impor ordem.
 
 ---
 
-## 7. Identidade, notas e Workspace
+## 8. SINCRONIZAÇÃO MANUAL
 
-**[EXISTE]** `can_access_investor`, `has_role`, RLS por executivo, autorização de leitura, `journey.server.ts` como agregador cronológico.
+A interface chama `runCrmSyncNow` (`src/lib/crm/leads.functions.ts`, linha ~203), que executa `runLeadSync("manual", userId)`.
 
-**[LACUNA REAL]** Convivem **duas identidades**: `portal_leads.id` (card operacional, `gs_<external_id>`) e `crm_leads.id` (espelho da origem). `guard.server.ts` traduz entre elas caso a caso. O vínculo AÇÃO → LEAD → RESULTADO → NOTA é verdadeiro na prática e **informal no contrato**: depende de cada chamador passar o ID certo.
+- **Chama `runLeadSync`?** SIM.
+- **Chama `registerFirstContact`?** SIM, indiretamente — via `intakeLead` para leads em transição para NOVOS, e via `processDeferredFirstContacts` no fim de `runLeadSync`.
+- **Chama algum scheduler?** NÃO — não passa por `runScheduledLeadSync`, portanto **ignora a trava de RUNNING e a trava de intervalo**.
+- **Chama `processDeferredFirstContacts`?** SIM (fim de `runLeadSync`).
+- **Chama `runRelationshipTick`?** NÃO — o tick só é chamado pelo agendador.
 
-**[RECOMENDAÇÃO]:**
-1. **Eleger a canônica** (recomendo `portal_leads.id`, pois é onde a operação acontece) e guardar a outra como referência no mesmo registro — nunca como alternativa.
-2. **A interface nunca envia lead_id (perguntas 1 e 2).** Ela envia `action_id`. O servidor **deriva** o lead a partir da ação. Nota salva no lead errado deixa de ser possível: não há campo para errar.
-3. **Nota de outro executivo (pergunta 3):** o servidor compara o responsável da ação com o usuário autenticado antes de gravar; recusa é auditada. A camada de leitura já existe — falta a de escrita.
-4. **Redistribuição (pergunta 4 e §8-9):** a ação guarda `responsavel_no_momento_do_planejamento`. O histórico **fica com a ação**, não com a pessoa: o passado registra quem era responsável naquele dia; o presente aponta para o novo responsável.
-5. **Workspace (pergunta 5):** deve ler os mesmos eventos estruturados, sem cálculo próprio — uma fonte, várias telas.
-6. Amarrar com chave estrangeira e RLS, não com convenção.
+Conclusão: **clicar em Sincronizar pode disparar E0**, inclusive de leads adiados que estavam parados. Apenas abrir o CRM não dispara — a leitura do quadro não chama essas funções.
 
 ---
 
-## 8. CRM / GreenSales — o lead que desaparece
+## 9. REGISTRO DE EVIDÊNCIA
 
-### Diagnóstico verificado
-
-- **Fonte de verdade (pergunta 1):** a origem **não informa** "mudou de coluna". Ela devolve o lead com suas **etiquetas**, e `resolveBoardColumn` (`src/lib/crm/board.ts`) **deduz** a coluna comparando etiquetas com as colunas declaradas no funil. Vence a posição mais avançada; `remarketing` é indicador, não posição. Nenhuma coluna reconhecida ⇒ `null`, e o chamador **preserva a última posição conhecida**.
-- **Mudança de coluna (pergunta 3):** `lead-service.server.ts` compara `previous.stage_key` com o novo; mudou, grava `stage_entered_at = agora` e um evento com `de:` e `para:`. Existe também `entered_entry_stage_at`. **Confirmando o teste de vocês: NOVOS → FRIOS é registrado corretamente.**
-- **Mudança de executivo (pergunta 2 e 4):** existe `transferLeadOwnership` e transferências auditadas; o vínculo atual mora em `responsible_executive_id`. É estado atual + evento — **não há trajetória consultável**.
-- **A causa do desaparecimento (pergunta 5):** `portal-leads-board.tsx` agrupa **apenas por `stage_key` atual** e contém a linha decisiva `if (!lead.stageKey) continue;`. **Lead sem etapa não entra em nenhuma coluna** — é só um número no contador `outsideFunnel`. Ele continua no banco, com executivo e com cadência, e invisível. A coluna `nao_localizado` (`UNLOCATED_STAGE_KEY`, aplicada por `reconcile.server.ts`) cobre apenas o caso "sumiu da varredura", não o caso "sem coluna reconhecida".
-
-**Cinco situações, três representações:**
-
-| Situação | Hoje |
+| Pergunta | Como se prova hoje |
 |---|---|
-| mudou de etapa | etapa + carimbo + evento — **bem representado** |
-| foi transferido | responsável novo + evento — **sem trajetória** |
-| saiu do funil | `stage_key = null` ⇒ **invisível** |
-| ficou sem etapa | **idêntico ao anterior** — indistinguível |
-| não localizado na varredura | `nao_localizado` (coluna local do Portal) |
+| "o sistema decidiu que a E0 deveria acontecer" | evento `e0_identificada` em `crm_lead_events` (só no caminho do intake) ou `e0_adiada` |
+| "o sistema tentou executar" | **não é distinguido**. Não há registro de "tentativa": existe só o desfecho. A tentativa é inferida pelo evento de resultado |
+| "a E0 foi bloqueada" | evento `e0_ignorada` com o motivo; e, para bloqueio por destino, `relationship_engine_log` com `action = 'e0_bloqueada'` |
+| "a E0 foi simulada" | evento `e0_simulada`, `crm_messages.simulated = true`, `relationship_message_sends` com snapshot, `crm_timeline` com o rótulo de simulação |
+| "a E0 foi realmente enviada" | `crm_messages.id = msg_e0_<card>` com `simulated = false` + snapshot em `relationship_message_sends` + `crm_timeline` |
 
-### [RECOMENDAÇÃO]
-
-1. **`null` ambíguo precisa deixar de existir (pergunta 5).** "A origem tirou todas as etiquetas" e "esta resposta veio incompleta" produzem hoje o mesmo valor: um é fato, o outro é falha de leitura. São estados diferentes e precisam de nomes diferentes.
-2. **Toda saída tem destino (pergunta 6).** Nenhum lead pode ficar sem coluna: sem coluna reconhecida, ele vai para uma **área de contingência explícita**, com motivo, data e origem da perda — visível, com ação de reenquadramento, nunca um contador mudo.
-3. **Motivo e autor em toda mudança (pergunta 7).** O evento diz `de`/`para`, mas não diz *quem* (origem, executivo, reconciliação) nem *por quê*. Sim: manter histórico completo de proprietário e status, consultável — não reconstruído por eventos.
-4. **Ações acompanham o lead (pergunta 9).** A obrigação é do investidor, não da pessoa; o responsável é reatribuído e o registro anterior é preservado. Ação encerrada nunca muda de dono.
-5. **Sem duplicidade na redistribuição (pergunta 10):** a chave única é `lead_id + etapa + ciclo` — **não inclui o executivo**. Trocar de responsável, por definição, não pode gerar segunda ação.
-6. **Conversa com a Ação do Dia (pergunta 8):** lead em contingência **não gera ação nova**, mas suas ações já planejadas continuam visíveis e sinalizadas — some da coluna, não da operação.
+Lacunas reais: (a) o lead que nunca chegou a `enteredNow` **não gera nenhum registro** — a ausência de E0 é invisível (caso 58912); (b) não existe registro de "E0 pendente"; (c) a fila de adiadas repete `e0_ignorada` a cada ciclo, o que polui o histórico sem indicar que existe uma pendência aberta.
 
 ---
 
-## 9. Mensagens do motor — versões completas
+## 10. CONCORRÊNCIA E DUPLICIDADE
 
-**[EXISTE]** `STEPS` declara `templatePurpose` e `contentGroup` por etapa; `decide.ts` devolve os dois; texto e link são montados **na execução** via `relationship_contents` + bindings; `CONTENT_REQUIRED_STEPS` deriva de `STEPS`.
+- **Locks:** nenhum por lead ou por lote no caminho da E0. Só a trava de 15 min baseada na última linha de `crm_sync_runs`.
+- **Idempotency key:** `msg_e0_<cardId>` (`e0MessageId`) e o id de evento do motor `e0_<lead>`.
+- **Unique constraint:** a PK de `crm_messages` — o código trata explicitamente o código 23505.
+- **SELECT antes de INSERT:** sim em `ensureWorkspaceCard` (verifica o card antes de inserir) — janela de corrida teórica, sem consequência de E0.
+- **INSERT ... ON CONFLICT:** usado em `resolve_portal_identity` (identidade do Portal), não na E0.
+- **Processamento paralelo:** nenhum; tudo sequencial.
+- **Jobs concorrentes:** `remarketing-engine` roda no mesmo minuto, mas não emite E0.
+- **Retries:** só a repetição implícita da fila de adiadas.
 
-**Respostas 1 e 2: sim.** A estrutura atual até *suportaria* várias versões, mas ao custo de mais uma camada de resolução em tempo de execução — exatamente o que vocês querem eliminar. Congelar **texto + link juntos** numa versão é mais simples e mais seguro: menos resolução, menos dependência externa, e o que foi enviado é literalmente o que estava gravado.
-
-**[RECOMENDAÇÃO] — evolução aditiva:**
-
-- Cada versão é um **registro próprio e imutável**: etapa, número, rótulo, `com_nome` / `sem_nome` (campo booleano, não convenção de texto — pergunta 8), texto completo, link completo, ativa/inativa.
-- **Alteração nunca é retroativa (perguntas 3 e 6):** editar **cria** versão nova; a antiga permanece somente-leitura. Como a ação guarda o `id` da versão, mudança futura não toca no que já foi planejado nem no que já foi enviado.
-- **A versão escolhida é gravada na ação** no momento em que ela é criada. Nada se recalcula depois.
-- **Rotação (perguntas 4 e 5): determinística por lead.** É reprodutível em retry, homologação e auditoria. Aleatória não é reprodutível; sequencial global exige contador persistido e pode avançar indevidamente em retry.
-- **Interface (pergunta 7):** lista por etapa, botão "+ nova versão", texto e link no mesmo formulário, prévia exatamente como o investidor receberá, e ativar/desativar em vez de apagar.
-- **Transição (pergunta 9):** se a etapa tem versões, usa versão; se não tem, mantém o caminho atual. As duas arquiteturas coexistem e a migração é etapa a etapa.
-
-**[LACUNA]** Se versões da mesma etapa tiverem finalidades diferentes, a checagem de template oficial de `decide.ts` (janela de 24 h) precisa saber qual versão será usada — hoje ela decide **antes** de a versão existir. Definir se `templatePurpose` mora na etapa ou na versão.
+Dois processos podem olhar o mesmo lead (por exemplo, sincronização manual e o cron), mas **não podem produzir duas E0** — o segundo esbarra na chave `msg_e0_`. Podem, sim, produzir **dois registros de bloqueio** para o mesmo lead, como já ocorre.
 
 ---
 
-## 10. Resultados e auditoria
+## 11. CASOS REAIS
 
-**[EXISTE] já recuperável:** etapa atual e `stage_entered_at`; evento `de`/`para`; ligações com `outcome` SIM/NÃO em `crm_cadence_tasks` + `CADENCE_TASK_DONE`; mensagens em `relationship_message_sends`; decisões e bloqueios em `relationship_engine_log` (incluindo cada tentativa barrada pela Safety Lock); `journey.server.ts`.
+**gs_58827 (Pianezzer) — recebeu E0**
+- 31/08 03:45 entrada na origem; 03:59 espelhado (`lead_criado`).
+- 00:59 de Brasília = fora da janela → `e0_adiada`.
+- A partir das 10:04, a fila de adiadas tentou a cada ciclo: `e0_ignorada — Lead sem executivo responsável definido` — dezenas de vezes, sempre em pares (as duas chamadas por ciclo).
+- 31/08 13:51 → `e0_simulada`: assim que o card ganhou executivo responsável, a mesma fila conseguiu executar.
+- 17:37 → `lead_nao_localizado` (reconciliação).
 
-**[PARCIAL]** Cada canal tem vocabulário próprio (ligação SIM/NÃO, mensagem `..._SENT`, reunião sem desfecho) — os números **não são somáveis**.
+**gs_58897 (athus) — NÃO recebeu E0**
+- 02/09 00:41 UTC (21:41 de Brasília, **dentro** da janela) → intake normal.
+- `e0_identificada` → `workspace_card_criado` → `e0_ignorada — Lead sem executivo responsável definido`.
+- Nenhum evento depois disso. Como não houve `e0_adiada`, o lead **nunca entrou na fila que repete**. Hoje o card já tem `usr_thiago` como responsável, e ainda assim nada reexamina a E0.
 
-**[NÃO EXISTE]** previsto × realizado por ação; responsável da obrigação; justificativa; pulada/reagendada/bloqueada; versão de mensagem usada; tentativas por ciclo.
+Mesmo padrão em 58893, 58887, 58877 e 58874.
 
-**[RECOMENDAÇÃO]:**
-1. **Estrutura (pergunta 1):** uma tabela de **ações** (estado atual) + uma de **eventos append-only** (tudo que aconteceu). O estado é derivável dos eventos; a tabela de ações existe por desempenho, não como verdade paralela.
-2. **Imutável (pergunta 2):** todo evento, o `previsto_para` original, a versão de mensagem usada, o responsável no momento do planejamento.
-3. **Obrigatórios (pergunta 3):** `action_id`, `lead_id`, tipo, etapa, ciclo, responsável, previsto para, estado; e no resultado: quem, quando, resultado, e justificativa quando pulada.
-4. **Opções fechadas (pergunta 4):** todo resultado é lista fechada, por tipo. Texto livre existe **ao lado**, para ler — nunca para contar.
-5. **Três coisas diferentes (pergunta 5):** não conseguiu contato = `EXECUTADA` + `sem_contato`; resultado negativo = `EXECUTADA` + `sem_interesse`; pulou = `PULADA` + justificativa.
+**gs_58912 (Filipi)** — caso diferente: entrou já em `zero_contato`, com `entered_entry_stage_at` nulo. Só existe o evento `lead_criado`; a E0 nunca foi sequer considerada.
 
----
-
-## 11. CENTRAL DE OPERAÇÃO DIÁRIA — [FUTURO]
-
-**[NÃO EXISTE]** hoje. **[EXISTE]** a base de acesso: `has_role` (admin/manager) e a autorização de leitura por papel e propriedade já implementadas — a Central herda esse controle, restrita a Administrador e à gestão (Larissa), sem criar regra de acesso nova.
-
-**[RECOMENDAÇÃO]:** a Central lê **exclusivamente** a tabela de ações e seus eventos. Nenhum número derivado de texto, nenhuma reconstrução a partir de várias tabelas.
-
-Cada pergunta da §5 do pedido vira uma coluna, não uma interpretação:
-
-| Pergunta | Campo que responde |
-|---|---|
-| qual executivo recebeu | `responsavel_no_planejamento` |
-| qual lead / qual etapa | `lead_id` / `etapa` + `ciclo` |
-| quando deveria / quando foi feita | `prevista_para` / `executada_em` |
-| foi executada / pulada | `estado` |
-| quem pulou / por quê | `pulada_por` / `motivo` + `justificativa` |
-| foi reagendada | `estado = REAGENDADA` + ponteiro |
-| ligações feitas / sem contato | `tipo = ligacao` agrupado por `resultado` |
-| reuniões realizadas / perdidas | resultado da ação de reunião |
-| ações atrasadas | `prevista_para < agora` e `estado = PLANEJADA` |
-| quem está sem responder | ações planejadas antigas por responsável |
-
-**Bater com o individual:** a Central é agregação da **mesma linha** que a Ação do Dia mostra — não há cálculo próprio nem cópia. Divergir é impossível por construção.
-**Pulada × executada sem sucesso:** campos distintos (`estado` × `resultado`); nunca somados.
-**Filtros:** executivo, etapa, período, investidor, tipo, estado — colunas indexadas.
-**Auditoria:** eventos nunca apagados nem editados; correção é evento novo.
-
-**[DECISÃO PENDENTE]** A Central é somente leitura, ou a gestão pode reatribuir e reabrir ações a partir dela? Isso muda o modelo de permissão de escrita.
+Nada faltou para reconstruir os casos.
 
 ---
 
-## 12. Cron, filas e duplicidade
+## 12. CONCLUSÃO EXECUTIVA
 
-**Diagnóstico verificado:** `portal-crm-sync-automatico` (1 min) faz varredura + E0 + tick do motor no mesmo ciclo; a fila de E0 adiada opera com `.limit(200)` e janela de 3 dias; `buildCadenceQueue` lê até 5000 leads e **recalcula a fila inteira a cada leitura**; `remarketing-engine` roda a cada minuto com executor próprio.
+**A) Existe fila individual e persistente de E0 por lead?**
+NÃO. Só eventos e a mensagem `msg_e0_<card>`. (`lead-intake.server.ts`, `first-contact-queue.server.ts`)
 
-**Por que o job travado represou e depois disparou em lote:** o estado vive **no ciclo**, não no item. Um job parado não deixa pendência marcada; quando volta, encontra tudo vencido ao mesmo tempo e processa em rajada. E o que estiver fora do limite de 200 / da janela de 3 dias é **descartado em silêncio**.
+**B) Existe horário individual de vencimento da E0?**
+NÃO. Não há `due_at`/`scheduled_at` em nenhum ponto do caminho.
 
-**[RECOMENDAÇÃO]:**
-1. **Estado é do item (pergunta 1).** Cada ação tem vencimento próprio; job travado atrasa a *criação*, nunca apaga a obrigação.
-2. **Chave idempotente (perguntas 2 e 3):** `lead_id + etapa + ciclo + tipo`, única no banco. Ao voltar, o job encontra a ação já existente em vez de recriar.
-3. **Retry (pergunta 4):** retry recria a **mesma** chave ⇒ vira no-op. Retry nunca multiplica.
-4. **Bloqueadas (pergunta 5):** estado explícito, com motivo e data — e uma visão da gestão para "planejadas há muito tempo sem desfecho".
-5. **Sem avalanche (perguntas 6 e 7):** **marco de ativação** — só etapas com vencimento a partir dele viram ação; nada retroativo. Para E0: teto por ciclo, ordenação por vencimento e **descarte visível**, nunca silencioso. Para E1+ não existe rajada possível: sem executor automático, o que se recupera é *apresentação*, não *envio*.
+**C) O processamento é FIFO?**
+NÃO. Nenhuma consulta do caminho da E0 ordena por data; o tick ordena `desc`. (`first-contact-queue.server.ts` linha ~37, `scheduler.server.ts` linha ~66)
 
----
+**D) Existem múltiplos caminhos capazes de processar E0?**
+SIM: `intakeLead`, `processDeferredFirstContacts` e `kickoffPortalFirstContact` — todos convergindo em `registerFirstContact`. `runRelationshipTick` recupera cadência, não E0.
 
-## 13. Ordem de implantação e portões de validação
+**E) Um cron travado pode causar acúmulo?**
+SIM, e está ocorrendo: 88 execuções RUNNING em 3 dias, cada uma bloqueando 15 minutos. (`sync-scheduler.server.ts`, `STALE_RUN_MINUTES`)
 
-As fases que vocês propuseram estão corretas na essência. Duas correções: **falta uma Fase 0** (as decisões pendentes bloqueiam a modelagem — construir antes delas obriga a refazer), e **Resultado não é fase separada de Ação do Dia** — uma ação sem resultado é uma lista bonita, e uma tela que só depois ganha resultado força reescrever a mesma interface duas vezes.
+**F) Um lead novo pode passar na frente de um antigo?**
+SIM. Ausência de ordenação com `limit 200` na fila de adiadas e `order by at desc` no tick.
 
-| Fase | O que entra | Portão obrigatório para avançar |
-|---|---|---|
-| **0. Contrato** | decisões da §15-16; nenhuma linha de código | todas as decisões bloqueantes respondidas por escrito |
-| **1. Fundação** | tabela de ações + eventos + versões de mensagem, vazias, sem consumidor | chave única testada contra inserção duplicada; RLS por executivo e gestão validada |
-| **2. Sombra** | planejador consome `decide.ts` e grava ações; nada apresentado, nada executado | **uma semana completa, com sábado, sem divergência** entre decisões do motor e ações criadas; zero duplicatas |
-| **3. Ação do Dia + Resultado** (juntas) | leitura passa para a tabela; resultados estruturados; pular com justificativa; reuniões com desfecho | executivos operando um ciclo inteiro sem recorrer à tela antiga; nenhuma ação órfã |
-| **4. E0 manual** | interruptor de modo, `priorityMax`, prioridade abaixo de compromissos | E0 nunca executada duas vezes ao alternar o modo; nenhuma E0 perdida |
-| **5. Central de Operação Diária** | painel de gestão, somente leitura | números batendo com a contagem individual, item a item |
-| **6. Corte dos legados** | whitelist obrigatória no canal; `engine.ts` restrito a E0; remarketing/closure/inbound/messaging resolvidos | **teste negativo:** cada caminho legado recusado pela whitelist, antes da Safety Lock |
-| **7. Congelamento** | fontes antigas viram somente leitura, marcadas como históricas; nada apagado | histórico consultável e íntegro |
+**G) Abrir o CRM ou clicar em sincronizar pode disparar E0?**
+Abrir, NÃO. Clicar em Sincronizar, SIM — `runCrmSyncNow` → `runLeadSync` → intake e fila de adiadas, sem passar pelas travas do agendador.
 
-**Dependências rígidas:** 1←0 · 2←1 · 3←2 validada · 4←3 (o modo manual precisa da Ação do Dia persistente) · 5←3 (sem resultado estruturado não há indicador) · 6←3 e 5 (corte sem operação validada é risco puro) · 7←6.
-**Podem correr em paralelo:** versões de mensagem (§9), área de contingência do quadro (§8) e histórico de ownership — nenhuma depende do planejador.
-**Rollback:** em qualquer fase, desligar o caminho novo. Nada antigo é removido até a fase 7, e mesmo lá só vira leitura.
-**Sem duplicidade na transição:** entre as fases 2 e 6 o planejador **grava** mas não executa; quem executa continua sendo um só. Nunca há dois executores ativos ao mesmo tempo.
-**Ações anteriores ao corte:** permanecem no formato antigo, como histórico consultável. Não são convertidas, não geram ação nova.
+**H) Existe um ponto no código que explica diretamente o comportamento observado?**
+SIM, e são dois, combinados:
+
+1. `ensureWorkspaceCard` cria o card com `responsible_executive_id: null`, e `resolveLeadDestinations`/`resolveLeadExecutive` bloqueiam a E0 exatamente nesse instante.
+2. `intakeLead` só tenta a E0 quando `enteredNow` é verdadeiro — uma única vez na vida do lead. Sem o evento `e0_adiada`, não existe nenhuma repetição.
+
+O resultado prático é o padrão observado: **lead que nasce de madrugada é adiado, entra na única fila com repetição e acaba recebendo E0 quando o responsável é definido; lead que nasce em horário comercial tem uma única chance, falha por falta de responsável e fica sem E0 para sempre.** A aparência de aleatoriedade é, na verdade, o horário de nascimento do lead.
 
 ---
 
-## 14. Safety Lock
-
-1. **Sim, preservada integralmente (pergunta 1).** A whitelist é uma trava **adicional e anterior**; a Safety Lock continua sendo a última barreira antes da Graph API, e nenhuma etapa futura cria novo caminho até a Meta.
-2. **Caminhos paralelos (pergunta 2):** os seis inventariados na §1 — precisam ser protegidos pela whitelist ou aposentados, nominalmente, na fase 4.
-3. **Testar sem tocar na Meta (pergunta 3):** `execution-mode` + `channel.ts` já garantem que homologação nunca chama a Meta mesmo com token real; `guard.server.ts` recusa destinatário real em teste; leads `TEST-`.
-4. **Ordem das travas (pergunta 4):** motivo → etapa → guard → ambiente → Safety Lock → canal.
-5. **Impossível contornar (pergunta 5):** porque o motivo de autorização é **parâmetro obrigatório do canal**. Código sem motivo válido não envia — não é convenção, é assinatura.
-
----
-
-## 15. ENTREGA CONSOLIDADA
-
-**1) Existe hoje e pode ser reaproveitado:** `decide.ts` puro e isolado; `FIRST_CONTACT_STEPS` (E0 já é exceção declarada); vocabulário fechado de etapas (`KNOWN_STEP_KEYS` + `isKnownStep`); toda a lógica de `daily-actions.ts`, inclusive o campo `priorityMax` que a E0 manual vai usar; `resolveBoardColumn`; `stage_entered_at` + evento `de`/`para`; `portal_meetings`; `has_role` e a autorização de leitura por papel; `guard.server.ts`; `execution-mode` + `channel.ts`; `relationship_engine_log`; `journey.server.ts`; Safety Lock.
-
-**2) Existe hoje mas muda de responsabilidade:** `engine.server.ts` deixa de despachar E1+ e passa a chamar o planejador; `executedSteps` sai da decisão e passa a ser escrito no resultado; `daily-actions.ts` deixa de recomputar e passa a ler a tabela; `crm_cadence_tasks` vira leitura histórica; `messaging.server.ts` passa a exigir contexto ou deixa de existir; `buildCadenceQueue` deixa de recalcular a fila inteira; `relationship_queue` continua servindo E0 e respostas, não ações humanas.
-
-**3) Ainda não existe e precisa ser criado:** planejador; tabela de ações + eventos append-only; whitelist de autorização de execução; estados `PULADA`/`REAGENDADA`/`BLOQUEADA`; vocabulário fechado de resultado por tipo; interruptor de modo da E0; versões completas de mensagem; Central de Operação Diária; área de contingência do quadro; histórico consultável de ownership e status; desfechos de reunião.
-
-**4) Dependências:** planejador ← tabela de ações · Ação do Dia nova ← planejador em sombra validado · E0 manual ← Ação do Dia persistente · Central ← resultados estruturados · whitelist ← inventário de caminhos resolvido · pular ← decisão sobre `isStepInOrder` · corte dos legados ← tudo acima. **Independentes:** versões de mensagem, contingência do quadro, histórico de ownership.
-
-**5) Riscos de implantação:** `remarketing-engine` como executor paralelo real (1 min); `closure`, `auto-reply` e `inbound` alcançando o canal fora do tick; `messaging.server` enviando sem contexto; conciliação entre a chave de `crm_cadence_tasks` e a chave nova; avalanche na virada; leads em contingência sem tratamento; reunião que pausa a cadência e nunca recebe desfecho; qualquer campo de resultado nascer como texto livre (inviabiliza a Central inteira).
-
-**6) Como evitar dois motores:** só `decide.ts` escolhe etapa e prazo. O planejador consome; a Ação do Dia apresenta; o executivo executa. Nenhum outro componente pode criar ação — **uma única função de escrita**, com chave única. Segundo motor deixa de ser evitado por disciplina e passa a ser impossível por caminho.
-
-**7) Como proteger E0 automática/manual:** ação criada **sempre**, nos dois modos; o modo define quem executa; chave única impede execução dupla; troca de modo não reprocessa passado; `priorityMax` coloca a E0 manual acima de tudo, exceto compromissos já marcados; os dois modos passam por guard → ambiente → Safety Lock. Detalhes na §2-bis.
-
-**8) Como transformar a Ação do Dia em fonte operacional:** persistir o que hoje é calculado. A lógica de precedência, colapso e buckets **não muda** — muda a origem: em vez de recomputar a cada leitura, lê ações gravadas com estado próprio. Cada linha vira um registro com responsável, previsão, resultado e trilha.
-
-**9) Central de Operação Diária:** §11 — leitura exclusiva da tabela de ações e eventos, restrita a Administrador e gestão pelo `has_role` já existente, cada indicador ligado a uma coluna, nunca a uma interpretação.
-
-**10) Mensagens versionadas:** §9 — cada versão é entidade própria e imutável (texto + link congelados, `com_nome` como campo), edição cria versão nova, a ação grava o `id` da versão usada, rotação determinística por lead, coexistência com a Biblioteca durante a migração.
-
-**11) Como preservar histórico:** nada renomeado, nada migrado, nada apagado. Chaves atuais preservadas; etapas novas nascem com chaves novas; mapa de equivalência apenas para leitura; cada cadência termina no vocabulário em que nasceu; eventos append-only.
-
-**12) Transferência de ownership:** a ação acompanha o **lead**, não a pessoa. `responsavel_no_planejamento` fica congelado no registro; o responsável atual é reatribuído; a chave única não inclui o executivo, então redistribuir jamais duplica; histórico de ownership vira tabela consultável (de quem, para quem, quando, por quê, com qual ação pendente); lead transferido nunca sai da visão operacional — muda de dono, não de existência.
-
-**13) Auditoria:** duas dimensões separadas (`estado` × `resultado`), opções fechadas, justificativa validada no servidor, eventos imutáveis, correção como evento novo, tudo derivado do `action_id`.
-
-**14) Ordem recomendada:** Fases 0 → 7 da §13, cada uma com portão de validação explícito.
-
-**15) O que NÃO deve ser alterado na primeira implantação:** `decide.ts` e `machine.ts`; a lógica de precedência e buckets de `daily-actions.ts`; a Safety Lock e sua auditoria; `guard.server.ts`; `execution-mode`/`channel.ts`; as chaves de etapa históricas; o comportamento atual da E0; os dados reais do Portal dos Leads e da integração GreenSales; qualquer conteúdo já enviado.
-
-**16) Decisões pendentes antes de construir:**
-1. Identidade canônica: `portal_leads.id` ou `crm_leads.id` — **bloqueia a Fase 1** (é a chave estrangeira da tabela).
-2. Pular **consome** a etapa ou `isStepInOrder` passa a aceitar lacuna — **bloqueia a Fase 1** (muda o modelo de estado).
-3. Escopo do interruptor de modo da E0: global, por executivo ou por origem — **bloqueia a Fase 4**.
-4. E0 manual não executada no dia: escala, permanece atrasada ou cai para automático.
-5. Semântica de "nenhuma coluna reconhecida": o que é fato e o que é falha de leitura.
-6. Existe estado `EXPIRADA`?
-7. `templatePurpose` mora na etapa ou na versão — **bloqueia as versões de mensagem**.
-8. Destino de remarketing, campanhas e `inbound`: fluxo autorizado ou aposentadoria — **bloqueia a Fase 6**.
-9. Quantas tentativas de ligação por ciclo.
-10. Quem pode pular: apenas o responsável ou também a gestão.
-11. Confirmação de envio pelo executivo é sempre obrigatória?
-12. Mapa de equivalência entre etapas atuais e E0…E8.
-13. "Sem interesse" encerra ou suspende a cadência.
-14. Prazo máximo de uma ação sem desfecho antes de escalar.
-15. A Central é somente leitura ou permite reatribuir e reabrir ações.
-
-**Arquitetura alvo:**
-```text
-MOTOR (decide.ts, único)
-   → PLANEJADOR (única escrita de ação; chave lead_id+etapa+ciclo+tipo)
-        → E0 automática: despacho (motivo E0_AUTOMATICA)
-        → E0 manual + E1+: AÇÃO DO DIA → EXECUTIVO → RESULTADO (append-only)
-                                   ├→ MOTOR decide de novo
-                                   ├→ ficha/notas (derivadas do action_id)
-                                   └→ CENTRAL DE OPERAÇÃO DIÁRIA (agregação pura)
-```
-
-**J) Maiores riscos:** `remarketing-engine` como executor paralelo real (1 min); `closure`, `auto-reply` e `inbound` alcançando o canal fora do tick; `messaging.server` enviando sem contexto; conciliação entre a chave de `crm_cadence_tasks` e a chave da ação nova; leads em contingência ficando sem tratamento; reunião que pausa a cadência e nunca recebe desfecho; algum campo de resultado nascer como texto livre (inviabiliza o relatório inteiro); confirmação humana divergir do mundo real.
-
-**K) Testes obrigatórios antes de qualquer envio real:**
-1. **Teste negativo:** acionar cada um dos caminhos inventariados e confirmar recusa **pela whitelist, antes** da Safety Lock. Se a recusa vier da trava, o teste falhou.
-2. E0 continua funcionando integralmente após o corte.
-3. Uma semana completa em sombra, incluindo sábado, sem divergência entre decisões e ações.
-4. Homologação apenas com leads `TEST-`; `guard.server.ts` recusando destinatário real.
-5. Responder duas vezes não duplica; ação atrasada permanece visível; etapa não reaparece no mesmo ciclo.
-6. Nota com `action_id` de outro executivo recusada pelo servidor.
-7. Relatório batendo com a contagem individual; pulada nunca somada a executada.
-8. Redistribuição de lead não gera segunda ação.
-9. Safety Lock intacta e auditando; **zero** mensagens reais durante toda a construção.
-
-**L) Conflitos ainda não percebidos:**
-1. **`E4` já existe** no fluxo `sem_resposta` com outro significado — colisão direta com a E4 conceitual da jornada futura. Idem `E3`.
-2. **`isStepInOrder` incompatível com pular:** exige todas as anteriores executadas; uma etapa pulada trava a cadência silenciosamente.
-3. **`executedSteps` é escrito na decisão, não no resultado** — no modelo novo isso marcaria como executado algo que só foi identificado.
-4. **A autorização existente é só de leitura** — pode passar a falsa impressão de que já há controle de execução. Não há.
-5. **`messaging.server.ts` se declara "única saída do CRM"** mas não recebe lead nem etapa: qualquer código futuro que o use passa por cima da regra sem perceber.
-6. **`buildCadenceQueue` recalcula a fila inteira a cada leitura** — comportamento incompatível com ação persistente; precisa virar leitura da tabela, não recomputação.
-7. **A reunião pausa a cadência hoje sem exigir desfecho** — no modelo novo isso cria leads parados indefinidamente.
-
----
-
-## 16. BLUEPRINT POR MÓDULOS — [FUTURO, conceitual]
-
-Cada módulo abaixo é pensado para virar **um comando de implantação independente**, sem perder as decisões desta análise.
-
-| # | Módulo | Responsabilidade única | Depende de | Não pode fazer |
-|---|---|---|---|---|
-| M1 | **Motor de Decisão** (`decide.ts`, existente) | dizer qual etapa e quando | — | executar, gravar ação, saber de modo |
-| M2 | **Registro de Ações** | guardar a obrigação e sua trilha (chave `lead_id+etapa+ciclo+tipo`) | M0 (decisões) | decidir etapa |
-| M3 | **Planejador** | única escrita de ação, consumindo M1 | M1, M2 | enviar mensagem |
-| M4 | **Executor E0** | despachar apenas E0, com motivo `E0_AUTOMATICA` | M3 | tocar qualquer etapa manual |
-| M5 | **Ação do Dia** | apresentar ação e coletar resultado | M2, M3 | decidir cadência, escolher etapa |
-| M6 | **Vocabulário de Resultado** | listas fechadas por tipo de ação | M2 | aceitar texto livre como dado |
-| M7 | **Modo da E0** | interruptor automático/manual + prioridade | M5 | criar segunda ação |
-| M8 | **Mensagens Versionadas** | versões completas e imutáveis (texto + link) | — (independente) | alterar histórico |
-| M9 | **Reuniões com Desfecho** | estados do compromisso ligados por referência | M2 | duplicar data/hora |
-| M10 | **Whitelist de Execução** | exigir motivo de autorização antes do canal | inventário resolvido | substituir a Safety Lock |
-| M11 | **Central de Operação** | leitura e auditoria para admin e gestão | M2, M6 | executar operação (v1) |
-| M12 | **Ownership e Contingência** | trajetória de responsável/coluna, nada invisível | — (independente) | apagar estado anterior |
-
-**Ordem:** M0 (decisões) → M2 → M3 (sombra) → M5+M6 → M7 → M11 → M10 (corte) → congelamento. M8, M9 e M12 correm em paralelo a qualquer momento após M0.
-
-**Invariantes do blueprint, válidas em todos os módulos:**
-1. Só M1 decide etapa. Só M3 cria ação. Só M4 e a mão humana executam.
-2. Toda escrita deriva o lead do `action_id`, no servidor.
-3. Todo número da Central vem de campo estruturado, nunca de texto.
-4. Nada desaparece: atraso é leitura, bloqueio é estado visível, pulo é registro.
-5. Nenhum caminho novo até a Meta. A Safety Lock permanece a última barreira, intacta.
-
----
-
-**Nada foi implementado nesta rodada.** Este documento é a base arquitetural; cada módulo da §16 e cada fase da §13 devem ser autorizados por um comando próprio.
+**Nada foi implementado, corrigido ou alterado nesta rodada.** Este documento descreve apenas o mecanismo atual.
