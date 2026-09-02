@@ -1,267 +1,220 @@
-# AUDITORIA DA E0 — POR QUE O COMPORTAMENTO PARECE ALEATÓRIO
+# INVESTIGAÇÃO 2 — RESPONSABILIDADE DO LEAD / EXECUTIVO / CONTEXTO DO PORTAL
 
-Investigação somente de leitura. Nada foi alterado: sem código, sem migration, sem cron, sem envio, sem tocar a Global WhatsApp Safety Lock.
+Rodada somente de leitura. Nada foi alterado: sem código, sem banco, sem migration, sem cron, sem UI, sem mensagem, sem tocar a Global WhatsApp Safety Lock.
 
-**Resposta curta, comprovada nos dados:** a E0 não é aleatória. Ela tem **uma única tentativa** no momento da entrada do lead. Quando essa tentativa falha por falta de executivo responsável (o card nasce sem responsável), **nunca mais é repetida** — a não ser que o lead tenha nascido de madrugada, porque só o caminho do adiamento noturno tem repetição. Leads da madrugada acabam recebendo E0; leads do horário comercial ficam sem, indefinidamente.
-
----
-
-## 1. NASCIMENTO DA E0
-
-Ordem real:
-
-1. `runLeadSync` (`src/server/crm/lead-sync.server.ts`) varre a origem e classifica cada lead em A/B/C/D (`classifyScannedLead`, `src/lib/crm/sync-classification.ts`).
-2. Casos A e C vão para `intakeLead` (`src/server/crm/lead-intake.server.ts`). É **aqui, e somente aqui**, que o sistema decide "este lead precisa de E0", através da variável `enteredNow` (linha ~140): lead criado agora na coluna de entrada, ou lead que acabou de entrar em NOVOS.
-3. Se `enteredNow && eligibility.eligible` (`cadenceEligibility`, `src/lib/crm/cutover.ts`): grava `e0_identificada`, cria o card (`ensureWorkspaceCard`) e chama `registerFirstContact` (`src/server/crm/first-contact.server.ts`) → `dispatchFirstContact` (`src/server/relationship/e0.server.ts`).
-
-Respostas objetivas:
-
-- **Existe uma linha individual "E0 deste lead"?** NÃO. Não há tabela de ações/fila de E0. O que existe é: eventos em `crm_lead_events` (`e0_identificada`, `e0_adiada`, `e0_ignorada`, `e0_simulada`, `e0_enviada`) e, quando a E0 realmente ocorre, a mensagem `crm_messages.id = msg_e0_<cardId>`.
-- **A pendência é inferida?** SIM, e apenas em um caso: a fila do adiamento noturno infere pela **presença do evento `e0_adiada` e ausência de `e0_simulada`/`boas_vindas_enviada`** (`processDeferredFirstContacts`). Fora disso não existe pendência registrada em lugar nenhum.
-- **Campo identificador:** `crm_leads.external_id` no espelho; `portal_leads.id = gs_<external_id>` no card operacional (a E0 usa sempre o card).
-- **Chave anti-duplicidade:** a chave primária determinística `msg_e0_<cardId>` em `crm_messages` — o INSERT conflita (23505) na segunda tentativa e devolve "primeiro contato já registrado" (`e0.server.ts`, linhas ~132-147).
-- **Existe `due_at`/`scheduled_at`/`next_run_at` da E0?** NÃO. Não existe horário de vencimento individual. A E0 é síncrona à sincronização.
+**Resposta curta:** a informação existe e é inequívoca — a conta GreenSales sincronizada pertence a um usuário (`crm_connections.user_id`), e hoje existe **uma única** conexão ativa, a do Thiago. O servidor lê essa linha em toda sincronização, mas usa apenas a senha: descarta o `user_id`. O responsável do lead acaba sendo gravado **depois**, e **pelo navegador** de quem abre o CRM, não pelo servidor que criou o card. Entre esses dois momentos a E0 acontece — e falha.
 
 ---
 
-## 2. CAMINHO COMPLETO DA E0 (o que existe hoje)
+## 1. IDENTIDADE DO PORTAL / EXECUTIVO
+
+Cadeia real de identidade:
 
 ```text
-pg_cron 'portal-crm-sync-automatico' (a cada minuto)
-  → POST /api/public/crm/sync            (src/routes/api/public/crm/sync.ts)
-  → isAutomationRequestAuthorized        (automation-auth.server.ts)
-  → runScheduledLeadSync                 (sync-scheduler.server.ts)
-      ├─ trava: última crm_sync_runs RUNNING < 15 min → NÃO RODA
-      ├─ trava: intervalo configurado não vencido      → NÃO RODA
-      ├─ runLeadSync("cron")             (lead-sync.server.ts)
-      │    ├─ greenSalesLogin / fetchLeadsSince (janela = último finished_at OK − 15 min)
-      │    ├─ classifyScannedLead → A | B | C | D
-      │    ├─ (B) upsertLead({historical:true}) → SEM E0, definitivo
-      │    └─ (A/C) intakeLead
-      │           ├─ upsertLead → espelho crm_leads
-      │           ├─ dedup por telefone → encerra
-      │           ├─ cadenceEligibility (corte 01/09) → e0_ignorada
-      │           ├─ isE0NightWindow() → deferFirstContact → evento e0_adiada, FIM
-      │           └─ enteredNow && elegível:
-      │                 recordEvent e0_identificada
-      │                 ensureWorkspaceCard (card nasce com responsible_executive_id = NULL)
-      │                 registerFirstContact
-      │                    → cadenceEligibility de novo + isE0NightWindow de novo
-      │                    → dispatchFirstContact
-      │                         resolveLeadDestinations (exige link do Portal → exige executivo)
-      │                         renderFromLibrary (texto oficial)
-      │                         INSERT crm_messages id=msg_e0_<card>  ← idempotência
-      │                         entrega (simulada ou Meta) → recordMessageSnapshot → crm_timeline
-      │                    → engine.handleEvent FIRST_CONTACT_SENT
-      │                 recordEvent e0_enviada | e0_simulada | e0_ignorada
-      │    └─ processDeferredFirstContacts (fim do runLeadSync)
-      ├─ processDeferredFirstContacts    (de novo, no finally do agendador)
-      ├─ runRelationshipTick             (scheduler.server.ts)
-      └─ runDailyReconciliation
+auth.users.id (sessão Supabase)
+  → executive_profiles.user_id  →  executive_profiles.executive_id  ("usr_thiago")
+  → portal_leads.responsible_executive_id  (guarda o executive_id, não o uuid)
 ```
 
-Observação factual: `processDeferredFirstContacts` é chamada **duas vezes por ciclo** (uma no fim de `runLeadSync`, outra no `finally` de `runScheduledLeadSync`). Isso está visível nos dados: o lead 58827 registra dois `e0_ignorada` por ciclo, com ~3 segundos de diferença.
+- `current_executive_id()` (função no banco, security definer) converte `auth.uid()` em `executive_id`. É a base das políticas `can_access_investor` / `can_access_relationship` e da agenda.
+- `executive_profiles` é o cadastro oficial: `executive_id`, `user_id`, `name`, `whatsapp`, `slug`. Hoje tem 7 linhas (usr_thiago, usr_larissa, usr_milton, usr_paulo, usr_carlos, usr_talita, usr_marton).
+- `resolveLeadExecutive` (`src/server/relationship/executive-identity.server.ts`) é a função que resolve "quem assina": lê `portal_leads.responsible_executive_id` e busca o perfil. Sem responsável, devolve `available: false`.
 
----
+**Existe workspace/unidade/franquia?** NÃO como tabela. Não há `workspace_id`, `unit_id` nem `tenant_id` em `portal_leads`. O que existe é:
+- `scope` (`green_sales` | `redistribuicao` | `portal` | `tiktok` | `meta`) — carteira, não unidade;
+- `workspace_module_permissions` — permissão de módulo por usuário, não posse de lead;
+- `crm_connections` — **a conexão GreenSales pertence a um usuário** (`user_id`, `provider`, credenciais cifradas). É o único vínculo real "ambiente ↔ executivo".
 
-## 3. CRONS E JOBS
+**Durante a sincronização, qual identidade está disponível?** `crm_connections.user_id` — sempre, inclusive no cron. E, na sincronização manual, também o `context.userId` da sessão.
 
-Agendamentos ativos no banco (`cron.job`):
+## 2. SINCRONIZAÇÃO MANUAL — o `userId` é descartado
 
-| Job | Frequência | Chama |
+```text
+runCrmSyncNow (leads.functions.ts:203)   context.userId  ✔ existe
+  → runLeadSync("manual", context.userId)  (lead-sync.server.ts:54, param actorUserId)
+      → resolveCredentials(actorUserId)    ← ÚNICO uso do userId em todo o fluxo
+      → intakeLead(raw, { pipeline, settings })   ✘ userId NÃO é passado
+          → ensureWorkspaceCard({...})            ✘ nenhum dado de usuário
+                 responsible_executive_id: null   (workspace-card.server.ts:65)
+```
+
+- O `userId` chega até `runLeadSync`. **Não** chega a `intakeLead` — a assinatura do intake recebe apenas `(raw, { pipeline, settings, test? })`. **Não** chega a `ensureWorkspaceCard`.
+- `resolveCredentials(userId)` (`connections.server.ts:98`) carrega a linha de `crm_connections` daquele usuário, **abre as credenciais e devolve só `{ email, password }`** — o `user_id` da conexão é jogado fora ali dentro.
+- Motivo técnico do card nascer sem responsável: nenhum. É uma decisão explícita no código (`responsible_executive_id: null`, com o comentário de que o card nasce sem dono).
+
+**A informação já existe e simplesmente não é utilizada. CONFIRMADO NO CÓDIGO.**
+
+## 3. SINCRONIZAÇÃO AUTOMÁTICA — como o cron sabe de quem é o ambiente
+
+```text
+pg_cron 'portal-crm-sync-automatico' (* * * * *)
+  → POST /api/public/crm/sync   (sem usuário; autentica por segredo de automação)
+  → runScheduledLeadSync  →  runLeadSync("cron")   actorUserId = undefined
+      → resolveCredentials(undefined)
+           ↳ sem userId, cai no fallback: a conexão ATIVA mais recente
+             de qualquer usuário  (order by updated_at desc, limit 1)
+```
+
+Das hipóteses levantadas, a resposta é **(D) + (E)**, com um detalhe importante:
+
+- **(A) ambiente global único:** parcialmente verdadeiro **de fato**, não por desenho. Hoje `crm_connections` tem **exatamente uma linha ativa**: `user_id = 6005ef93-…-2c6d8c22a4a9`, `account_label = Thiago Rodrigues`, `account_email = thiago.rodrigues@veloxsolucoes.com.br`, status `ATIVA`. Esse uuid é o `user_id` de `executive_profiles.executive_id = 'usr_thiago'`. **CONFIRMADO NOS DADOS.**
+- **(B) configuração fixa:** existe apenas como último recurso — variáveis de ambiente `GREENSALES_EMAIL`/`GREENSALES_PASSWORD`, usadas se não houver nenhuma conexão ativa.
+- **(C) workspace:** NÃO ENCONTRADO.
+- **(D) conta GreenSales vinculada a um executivo:** SIM — é exatamente o modelo de `crm_connections`.
+- **(E) configuração de integração que determina o dono:** a conexão determina de quem é a *conta*; o código nunca a usa para determinar o dono do *lead*.
+- `crm_automation_settings` guarda intervalo, boas-vindas e data de ativação — **nenhum campo de executivo**.
+
+Ou seja: **o cron sabe qual conta está sincronizando (e, por tabela, de quem ela é), mas o código não propaga isso adiante.**
+
+## 4. GREENSALES — o que a origem devolve
+
+`fetchLeadsSince` / `fetchLeadDetail` (`greensales.server.ts`) devolvem o payload cru, e o intake usa: `id`, `name`, `email`, `phone`, `city`, `withs` (etiquetas → estágio), `created_at`, `updated_at`, `last_register_at`. O payload inteiro é guardado em `portal_leads.external_payload`.
+
+- Nenhum campo `owner`, `user`, `assigned_to`, `vendedor` ou `responsável` é lido em qualquer ponto do código. **CONFIRMADO NO CÓDIGO.**
+- `pipeline`/`stage`: existem como **etiquetas** (`withs`) e são usadas só para resolver a coluna do quadro — não indicam pessoa.
+- Se algum desses campos vier no payload cru, ele está preservado em `external_payload`, mas ninguém o consulta. Se a decisão futura depender disso, é uma inspeção adicional de payload — hoje **NÃO ENCONTRADA** qualquer leitura.
+- **Informação suficiente para amarrar o lead à conta sincronizada: SIM** — não vem do lead, vem do lado de cá: é a conexão usada para buscá-lo.
+
+## 5. PORTAL INDIVIDUAL — "este lead é do Thiago"?
+
+**SIM, existe.** E vem de dois lugares independentes:
+
+1. **A conexão usada para importar** — `crm_connections.user_id` → `executive_profiles.executive_id` = `usr_thiago`. Disponível em toda sincronização, manual ou cron.
+2. **O usuário autenticado**, no caso manual — `context.userId` em `runCrmSyncNow`.
+
+**Por que não chega a `responsible_executive_id`:** o ponto exato da perda é `resolveCredentials` (`connections.server.ts:98-133`). Ela recebe/encontra a linha da conexão, extrai as credenciais e devolve apenas `{ email, password }`. Daí em diante nenhuma camada sabe mais de quem é a conta. Em seguida `intakeLead` não recebe ator, e `ensureWorkspaceCard` grava `responsible_executive_id: null` de forma literal.
+
+**E por que hoje todos os cards acabam com `usr_thiago`?** Descoberta importante: quem grava o dono é o **navegador**, não o servidor.
+
+- `listConversations` (`src/lib/crm/relationships.ts:138`) roda no navegador quando alguém abre o CRM. Para **cada** investidor ela chama `ensureOwnership(i)`.
+- `ensureOwnership` (`src/lib/crm/ownership.ts:87`) usa `investor.assignedToUserId`, que em `executive-data.ts:184` é `lead.responsibleExecutiveId ?? fallbackExecutiveId`, e `fallbackExecutiveId = getDefaultExecutive()?.id ?? "usr_thiago"` (`executive-data.ts:99`) — o executivo padrão do workspace, hoje o Thiago.
+- `writeAll` então chama `updateWorkspaceOperational` gravando `responsible_executive_id`, `ownership_origin` e `ownership_claimed_at = lastActivity` — por isso, no banco, `ownership_claimed_at` é **igual** ao `created_at` do lead, embora o registro tenha sido gravado horas depois.
+- Prova nos dados: `crm_timeline` de `gs_58897` traz `relacionamento_oficial` com `owner_id = usr_thiago` em **02/09 14:25**, enquanto o card foi criado às **00:41** e a E0 foi bloqueada logo em seguida.
+
+Ou seja: **a posse não é atribuída na entrada, é atribuída retroativamente quando um humano abre o CRM — e por um padrão de workspace, não pela conexão.** **CONFIRMADO NO CÓDIGO + CONFIRMADO NOS DADOS.**
+
+## 6. DONO DO PORTAL x RESPONSÁVEL DO LEAD
+
+| Entidade | Existe no modelo? | Onde |
 |---|---|---|
-| `portal-crm-sync-automatico` | `* * * * *` | `/api/public/crm/sync` → `runScheduledLeadSync` |
-| `remarketing-engine` | `* * * * *` | `/api/public/remarketing/run` |
-| `portal-backup-automatico` | `0 * * * *` | insere pedido de backup |
-| `portal-backup-processador` | `* * * * *` | `/api/public/backup/process` |
+| Executivo dono do Portal/ambiente | Sim, implícito | `crm_connections.user_id` (dono da conta GreenSales) |
+| Executivo responsável pelo lead | Sim, explícito | `portal_leads.responsible_executive_id` |
+| Usuário que executou a sincronização | Sim, só no manual | `context.userId` → `runLeadSync(actorUserId)`; perdido em seguida |
+| Usuário que criou o card | **Não registrado** | `ensureWorkspaceCard` não grava autor |
+| Unidade/franquia | **Não existe** | — |
+| Workspace | Só como constante de configuração (`WORKSPACE.defaultExecutiveId`), não como tabela | `src/config/workspace.ts` |
 
-Só o primeiro toca a E0. Detalhamento dele:
+O sistema **diferencia conceitualmente** dono da conta e responsável do lead, mas **não liga um ao outro em lugar nenhum**. No cenário atual — uma conexão, um dono — as três primeiras linhas apontam para a mesma pessoa (Thiago). Isso é uma coincidência de configuração, não uma garantia do modelo.
 
-- **Lote/limite:** a varredura não tem limite de leads; existe `DETAIL_CHECK_LIMIT = 80` para reconsulta de detalhe. A fila de adiadas tem `.limit(200)` (GreenSales) + `.limit(200)` (Portal).
-- **Ordem de processamento:** a ordem de chegada da paginação da origem. **Não há `order by`** em nenhum ponto do caminho da E0.
-- **Anti-concorrência:** apenas a leitura da última linha de `crm_sync_runs`; se `status = RUNNING` e idade < `STALE_RUN_MINUTES` (15), o ciclo é abortado.
-- **Execução anterior travada em RUNNING:** bloqueia todos os ciclos pelos 15 minutos seguintes. **Isto está acontecendo em produção:** nos últimos 3 dias há 88 execuções `RUNNING` sem `finished_at` contra 521 `OK` — aproximadamente uma trava a cada 40 minutos, cada uma congelando a sincronização por 15 minutos.
-- **Falha:** `runLeadSync` marca `ERRO` e a janela seguinte volta ao último `finished_at` com status OK — a janela temporal não se perde. Mas se o processo morrer no meio (o caso dos RUNNING), a linha fica RUNNING para sempre e o `finally` que chama a fila de adiadas pode não executar.
-- **Retry:** não há retry por lead. Só existe repetição implícita para quem tem `e0_adiada`.
-- **Timeout:** nenhum controlado pela aplicação.
-- **Duas execuções simultâneas:** possível em teoria (a trava é leia-depois-escreva, sem lock transacional), mas improvável, porque a janela de 15 min é generosa.
-- **Um job bloqueia outro?** Sim, dentro do mesmo ciclo: `runRelationshipTick` só roda depois de `runLeadSync`. Uma queda em `runLeadSync` que não chegue ao `finally` cancela a fila de adiadas e o tick daquele minuto.
+## 7. CASO REAL — leads do Thiago
 
-**Cenário em que "o cron funciona mas leads ficam para trás": CONFIRMADO.** O cron continua registrando execuções OK, e ainda assim um lead cuja única tentativa de E0 falhou nunca é reavaliado — porque nada no ciclo reexamina leads sem E0.
+Todos os cinco casos têm exatamente a mesma trajetória. Dados do banco:
 
----
+| Card | Criado (GreenSales) | Dono hoje | `ownership_claimed_at` | `ownership_origin` |
+|---|---|---|---|---|
+| gs_58874 | 01/09 14:51 | usr_thiago | 01/09 14:51 | green_sales |
+| gs_58877 | 01/09 16:00 | usr_thiago | 01/09 16:00 | green_sales |
+| gs_58887 | 01/09 18:11 | usr_thiago | 01/09 18:11 | green_sales |
+| gs_58893 | 01/09 22:02 | usr_thiago | 01/09 22:02 | green_sales |
+| gs_58897 | 02/09 00:41 | usr_thiago | 02/09 00:41 | green_sales |
 
-## 4. E0 ADIADA
+Reconstrução de `gs_58897`:
 
-`deferFirstContact` (`first-contact-queue.server.ts`, linha 19) grava apenas um evento `e0_adiada` em `crm_lead_events` quando `isE0NightWindow()` é verdadeiro na entrada (fora de Seg–Sex 07:00–22:30, Sáb 07:00–12:00, Dom sem envio).
+```text
+GreenSales lead 58897 (athus)         payload sem qualquer campo de responsável
+  → runLeadSync (cron), credenciais da conexão de Thiago (user 6005ef93…)
+  → intakeLead: enteredNow = true, dentro da janela
+  → recordEvent e0_identificada                       02/09 00:41
+  → ensureWorkspaceCard → gs_58897, responsible_executive_id = NULL
+  → registerFirstContact → dispatchFirstContact
+       → resolveLeadDestinations → resolveLeadExecutive("gs_58897")
+       → { available:false, reason:"Lead sem executivo responsável definido — envio bloqueado." }
+  → recordEvent e0_ignorada                           02/09 00:41   ← única tentativa
+  ...
+  → alguém abre o CRM: listConversations → ensureOwnership → usr_thiago
+  → crm_timeline 'relacionamento_oficial'             02/09 14:25   ← ~14h depois
+  → nenhum processo reexamina a E0. Lead segue sem E0.
+```
 
-`processDeferredFirstContacts`:
+Note o detalhe que fecha o diagnóstico: `ownership_claimed_at` grava 00:41 (a hora do lead), mas o evento de timeline prova que a gravação real ocorreu às 14:25. O campo de posse **parece** contemporâneo à criação e não é.
 
-- **Quem lê:** `runLeadSync` (fim) e `runScheduledLeadSync` (finally).
-- **Período pesquisado:** `created_at >= agora − 3 dias`.
-- **LIMIT:** 200 eventos (GreenSales) e 200 eventos (Portal).
-- **Ordenação:** **nenhuma**. Não há `order by`; o Postgres devolve na ordem que quiser, e o `limit 200` recorta esse conjunto arbitrário.
-- **É FIFO?** NÃO.
-- **Prioridade por idade do lead?** NÃO. **Por `due_at`?** NÃO — não existe `due_at`.
-- **Lead antigo pode ficar atrás de novos?** SIM, e pode inclusive cair fora do `limit 200`; e ao passar de 3 dias sai da janela e é abandonado silenciosamente.
-- **Erro em um item interrompe os seguintes?** NÃO — cada item está em `try/catch` individual.
-- **Sequencial ou paralelo?** Sequencial (`for ... await`).
-- **Lock por lead?** NÃO. **Lock por lote?** NÃO. A única proteção real contra duplicidade é a chave `msg_e0_<card>`.
+## 8. TROCA DE RESPONSÁVEL
 
-Ponto importante e comprovado: **esta é a única repetição de E0 que existe no sistema.** Ela reexecuta `registerFirstContact` a cada ciclo enquanto o lead não tiver `e0_simulada`/`boas_vindas_enviada`, o que dá ao lead da madrugada dezenas de chances ao longo do dia.
+Caminhos que escrevem `responsible_executive_id` hoje:
 
----
+| Caminho | Onde | Quem decide | Histórico |
+|---|---|---|---|
+| `assignPortalLeadOwner` | `portal-leads.functions.ts:336` | Gestora/Admin, escolha manual na UI | não grava evento no servidor |
+| `redistributePortalLead` | `portal-leads.functions.ts:311` | Gestora/Admin; também muda `scope` para `redistribuicao` | não grava evento no servidor |
+| `updateWorkspaceOperational` | `workspace-operational.functions.ts:49` | chamado pelo navegador via `ownership.ts` | grava `crm_timeline` do lado do cliente |
+| `transferLeadOwnership` | `src/lib/crm/lead-transfer.ts` | cliente; grava timeline, auditoria e alerta operacional | sim, no cliente |
+| `syncPortalLead` | `portal-leads.functions.ts:207/247` | preserva o dono atual (`current?.responsible_executive_id ??`) | — |
 
-## 5. RELATIONSHIP TICK
+Respostas objetivas:
+- **O card é atualizado?** Sim, é a mesma linha `portal_leads` — não existe card separado.
+- **`responsible_executive_id` muda?** Sim, imediatamente.
+- **GreenSales é consultada de novo?** NÃO. A origem não tem opinião sobre responsável e nunca sobrescreve o dono — `syncPortalLead` preserva explicitamente.
+- **Existe histórico?** Parcial: `crm_timeline` e a auditoria são gravados pelos caminhos do cliente (`transferLeadOwnership`, `ownership.ts`); os dois server functions administrativos (`assign`, `redistribute`) mudam o dono **sem** registrar evento no servidor. **CONFIRMADO NO CÓDIGO.**
+- **Função de reconciliação de posse?** NÃO ENCONTRADA. `runDailyReconciliation` trata presença do lead na origem (`lead_nao_localizado`), não responsável.
+- Regra declarada no código: o primeiro vínculo é preservado; sincronizações nunca reatribuem.
 
-`runRelationshipTick` (`src/server/relationship/scheduler.server.ts`):
+## 9. MÚLTIPLOS EXECUTIVOS
 
-- **Participa da E0?** Só depois dela. Ele **não cria nem envia E0**.
-- **Como identifica E0 faltando:** `bootstrapMissingCadences` busca `crm_messages` com `id like 'msg_e0_%'` e, para quem já tem essa mensagem mas não tem cadência aberta, emite `FIRST_CONTACT_SENT` no motor. É recuperação de **cadência**, não de mensagem.
-- **Depende de `msg_e0_%`?** SIM, integralmente. Lead que nunca teve E0 enviada é invisível para ele.
-- **Pode competir com outro processo criando a mesma E0?** Não cria E0; o evento usa a mesma chave `e0_<lead>`, portanto é idempotente.
-- **Lote:** `BATCH = 200` em cada uma das três consultas de elegibilidade.
-- **Ordenação:** só a busca de primeiros contatos usa `order by at desc` — ou seja, **prioriza os mais recentes**; as outras duas não têm ordenação.
-- **Pode favorecer leads novos / deixar antigos para trás?** SIM, pelo `order by at desc` + `limit 200` e pelo `slice(0, BATCH)` final.
-- **Pode recuperar E0 muito tempo depois?** Recupera a **cadência**, sim; a **mensagem E0**, não.
+Suporta, sim — mas a atribuição é **manual e posterior**.
 
-**Existem hoje dois caminhos para chegar à E0?** Sim, mas ambos terminam na mesma função: (1) `intakeLead` → `registerFirstContact` — tentativa única; (2) `processDeferredFirstContacts` → `registerFirstContact` — tentativa repetida. O caminho do Portal (`kickoffPortalFirstContact`) é um terceiro ponto de entrada, com o mesmo destino. O tick **não** é um caminho de E0.
+- 7 executivos ativos em `executive_profiles`; visibilidade por `current_executive_id()` + `has_role`.
+- **Workspace por executivo:** não existe.
+- **GreenSales por executivo:** o modelo permite (uma linha de `crm_connections` por usuário), mas hoje **há apenas uma** conexão ativa, a do Thiago. Se um segundo executivo conectasse a própria conta, o cron passaria a usar "a conexão ativa mais recente" — sincronizando **uma só** conta por ciclo, de forma não determinística. Isso é um risco estrutural presente hoje, **CONFIRMADO NO CÓDIGO** (`resolveCredentials`, `order by updated_at desc limit 1`).
+- **Distribuição automática:** NÃO ENCONTRADA.
+- **Atribuição manual:** sim (transferência/redistribuição pela Gestora), mais o preenchimento retroativo pelo executivo padrão descrito no item 5.
 
----
+## 10. RESPOSTA FINAL
 
-## 6. POR QUE UM LEAD DE 2 DIAS PODE FICAR SEM E0
+**A. O Portal sabe quem é o executivo logado?** **SIM.** `auth.uid()` → `executive_profiles` → `current_executive_id()`. *CONFIRMADA NO CÓDIGO.*
 
-| Hipótese | Veredito | Evidência |
-|---|---|---|
-| **Lead sem executivo responsável** | **CONFIRMADA — causa principal** | `ensureWorkspaceCard` cria o card com `responsible_executive_id: null`; `resolveLeadExecutive` devolve "Lead sem executivo responsável definido — envio bloqueado."; `dispatchFirstContact` aborta antes de qualquer mensagem. Nos eventos: 58897, 58893, 58887, 58877, 58874 — todos com `e0_identificada` seguido de `e0_ignorada` por esse motivo exato, e nenhuma nova tentativa desde então |
-| **Tentativa única fora do adiamento noturno** | **CONFIRMADA — causa estrutural** | `enteredNow` em `intakeLead` só é verdadeiro na transição para NOVOS. Depois disso nenhum processo reexamina o lead. Sem evento `e0_adiada`, o lead não entra na única fila que repete |
-| **Janela operacional** | CONFIRMADA (atrasa, não perde) | `isE0NightWindow` em `intakeLead`, `registerFirstContact` e `processDeferredFirstContacts` |
-| **Estágio/etiqueta não resolvido para NOVOS** | CONFIRMADA | Lead 58912 (Filipi) entrou como `zero_contato`, `entered_entry_stage_at` nulo: nenhum evento de E0 foi sequer criado |
-| **Classificação B (histórico)** | CONFIRMADA (por desenho) | `classifyScannedLead` devolve B quando o lead não está no espelho e a entrada não é comprovadamente recente → `historical: true`, sem E0, para sempre. Data ausente/inválida também cai em B |
-| **Corte operacional 01/09** | CONFIRMADA (por desenho) | `cadenceEligibility` → `e0_ignorada` |
-| **Cron travado em RUNNING** | **CONFIRMADA** | 88 execuções RUNNING sem término em 3 dias; cada uma bloqueia 15 minutos (`STALE_RUN_MINUTES`) |
-| **Ordem de processamento sem FIFO** | CONFIRMADA | Nenhum `order by` no caminho da E0; `order by at desc` no tick |
-| **LIMIT / lote cheio** | CONFIRMADA como risco | `limit 200` sem ordenação na fila de adiadas; `DETAIL_CHECK_LIMIT = 80` |
-| **Janela de 3 dias da fila de adiadas** | CONFIRMADA | `since = agora − 3 dias`: passado esse prazo, a pendência some sem registro |
-| **Deduplicação por telefone** | CONFIRMADA | `outcome.deduplicated` encerra o intake antes da E0 |
-| **Falta de template oficial da Meta** | CONFIRMADA (não bloqueia o registro) | `E0_TEMPLATE_MISSING_REASON`: a E0 é registrada, só a entrega externa fica pendente |
-| **Erro em um item interrompendo os demais** | NÃO ENCONTRADA | `try/catch` por lead em todos os laços |
-| **Duplicidade de E0** | NÃO ENCONTRADA | chave `msg_e0_<card>` com conflito 23505 |
-| **Timeout/retry por lead** | NÃO ENCONTRADA | não existe |
-| **Duas execuções realmente simultâneas** | POSSÍVEL, MAS NÃO COMPROVADA | trava sem lock transacional; nenhum caso observado nos dados |
-| **Perda da janela temporal por falha do cron** | POSSÍVEL, MAS NÃO COMPROVADA | `since` volta ao último `finished_at` OK, o que protege; um lead cuja entrada não é recente e que ainda não está no espelho vira B |
+**B. A sincronização automática sabe qual é o contexto do Portal/unidade?** **SIM, parcialmente.** Não existe "unidade", mas existe a conta de origem: a conexão GreenSales usada tem dono (`crm_connections.user_id`). *CONFIRMADA NO CÓDIGO + NOS DADOS.*
 
----
+**C. No momento de `ensureWorkspaceCard`, existe informação suficiente para determinar o executivo?** **SIM.** No manual, dois caminhos (sessão + conexão); no cron, um (conexão). *CONFIRMADA NO CÓDIGO.*
 
-## 7. FIFO POR IDADE
+**D. Por que `responsible_executive_id` fica NULL?** Porque o dado é descartado em dois pontos: `resolveCredentials` devolve só e-mail e senha, esquecendo o `user_id` da conexão; e `intakeLead` não recebe ator, chegando a `ensureWorkspaceCard`, que grava `null` literal. Não é falha de informação — é informação não propagada. *CONFIRMADA NO CÓDIGO.*
 
-**NÃO.** O sistema não garante que o lead elegível mais antigo seja processado antes do mais novo.
+**E. Qual informação está faltando?** Nenhuma para o cenário de conta única. Para múltiplas contas faltaria uma regra explícita de qual conexão o cron sincroniza (hoje é "a mais recente"). *CONFIRMADA NO CÓDIGO.*
 
-Motivos técnicos:
+**F. Dá para corrigir usando uma relação Portal → executivo já existente, sem depender da GreenSales?** **SIM.** A relação `crm_connections.user_id → executive_profiles.executive_id` já existe, é server-side e vale nos dois modos. *CONFIRMADA NO CÓDIGO + NOS DADOS.*
 
-1. `intakeLead` processa na ordem em que a origem devolve as páginas — não há reordenação por data de entrada.
-2. `processDeferredFirstContacts` consulta `crm_lead_events` **sem `order by`** e com `limit 200`. Sem ordenação, o recorte é arbitrário: um lead antigo pode simplesmente não estar nos 200 devolvidos.
-3. `runRelationshipTick` usa explicitamente `order by at desc` na busca de primeiros contatos e `slice(0, 200)` no final — favorecendo os mais novos.
-4. Não existe `due_at`, prioridade ou fila persistente por lead que pudesse impor ordem.
+**G. Risco de assumir "quem está logado = dono do lead"?**
+- **Correto** quando o executivo sincroniza a própria conta GreenSales — o lead entrou pela conta dele.
+- **Incorreto** quando: (i) a Gestora ou o Admin clicam em Sincronizar (o logado é a gestão, não o dono comercial); (ii) o cron roda, onde não há ninguém logado — "logado" simplesmente não existe; (iii) a conexão usada não pertence a quem clicou (o fallback de `resolveCredentials` permite usar a conexão de outro usuário).
+- Por isso a fonte correta é **a conexão que trouxe o lead**, não a sessão. A sessão é o dado frágil; a conexão é o dado estável.
 
----
+**H. No cron, qual seria a fonte de verdade correta?** O dono da conexão efetivamente usada na chamada — `crm_connections.user_id` → `executive_profiles.executive_id` — resolvido no servidor, no mesmo momento em que as credenciais são abertas. Nunca o `WORKSPACE.defaultExecutiveId` do navegador, que hoje faz esse papel por acidente.
 
-## 8. SINCRONIZAÇÃO MANUAL
+**I. Ponto exato onde a responsabilidade deveria ser resolvida e não é:**
+1. `resolveCredentials` (`src/server/crm/connections.server.ts:98`) — abre a conexão e descarta seu dono. **É aqui que a identidade se perde.**
+2. `runLeadSync` (`src/server/crm/lead-sync.server.ts:54`) — tem `actorUserId`, usa só para credenciais, não repassa nada ao intake.
+3. `intakeLead` (`src/server/crm/lead-intake.server.ts:62`) — assinatura sem ator.
+4. `ensureWorkspaceCard` (`src/server/crm/workspace-card.server.ts:65`) — grava `responsible_executive_id: null`. **É aqui que a ausência vira fato.**
 
-A interface chama `runCrmSyncNow` (`src/lib/crm/leads.functions.ts`, linha ~203), que executa `runLeadSync("manual", userId)`.
+O responsável só aparece muito depois, em `ensureOwnership` (`src/lib/crm/ownership.ts:87`), **no navegador**, usando o executivo padrão. Entre (4) e esse momento existe a janela em que a única tentativa de E0 acontece e falha.
 
-- **Chama `runLeadSync`?** SIM.
-- **Chama `registerFirstContact`?** SIM, indiretamente — via `intakeLead` para leads em transição para NOVOS, e via `processDeferredFirstContacts` no fim de `runLeadSync`.
-- **Chama algum scheduler?** NÃO — não passa por `runScheduledLeadSync`, portanto **ignora a trava de RUNNING e a trava de intervalo**.
-- **Chama `processDeferredFirstContacts`?** SIM (fim de `runLeadSync`).
-- **Chama `runRelationshipTick`?** NÃO — o tick só é chamado pelo agendador.
+**J. Classificação consolidada**
 
-Conclusão: **clicar em Sincronizar pode disparar E0**, inclusive de leads adiados que estavam parados. Apenas abrir o CRM não dispara — a leitura do quadro não chama essas funções.
-
----
-
-## 9. REGISTRO DE EVIDÊNCIA
-
-| Pergunta | Como se prova hoje |
+| Conclusão | Classificação |
 |---|---|
-| "o sistema decidiu que a E0 deveria acontecer" | evento `e0_identificada` em `crm_lead_events` (só no caminho do intake) ou `e0_adiada` |
-| "o sistema tentou executar" | **não é distinguido**. Não há registro de "tentativa": existe só o desfecho. A tentativa é inferida pelo evento de resultado |
-| "a E0 foi bloqueada" | evento `e0_ignorada` com o motivo; e, para bloqueio por destino, `relationship_engine_log` com `action = 'e0_bloqueada'` |
-| "a E0 foi simulada" | evento `e0_simulada`, `crm_messages.simulated = true`, `relationship_message_sends` com snapshot, `crm_timeline` com o rótulo de simulação |
-| "a E0 foi realmente enviada" | `crm_messages.id = msg_e0_<card>` com `simulated = false` + snapshot em `relationship_message_sends` + `crm_timeline` |
-
-Lacunas reais: (a) o lead que nunca chegou a `enteredNow` **não gera nenhum registro** — a ausência de E0 é invisível (caso 58912); (b) não existe registro de "E0 pendente"; (c) a fila de adiadas repete `e0_ignorada` a cada ciclo, o que polui o histórico sem indicar que existe uma pendência aberta.
-
----
-
-## 10. CONCORRÊNCIA E DUPLICIDADE
-
-- **Locks:** nenhum por lead ou por lote no caminho da E0. Só a trava de 15 min baseada na última linha de `crm_sync_runs`.
-- **Idempotency key:** `msg_e0_<cardId>` (`e0MessageId`) e o id de evento do motor `e0_<lead>`.
-- **Unique constraint:** a PK de `crm_messages` — o código trata explicitamente o código 23505.
-- **SELECT antes de INSERT:** sim em `ensureWorkspaceCard` (verifica o card antes de inserir) — janela de corrida teórica, sem consequência de E0.
-- **INSERT ... ON CONFLICT:** usado em `resolve_portal_identity` (identidade do Portal), não na E0.
-- **Processamento paralelo:** nenhum; tudo sequencial.
-- **Jobs concorrentes:** `remarketing-engine` roda no mesmo minuto, mas não emite E0.
-- **Retries:** só a repetição implícita da fila de adiadas.
-
-Dois processos podem olhar o mesmo lead (por exemplo, sincronização manual e o cron), mas **não podem produzir duas E0** — o segundo esbarra na chave `msg_e0_`. Podem, sim, produzir **dois registros de bloqueio** para o mesmo lead, como já ocorre.
+| Portal identifica o executivo logado via `executive_profiles`/`current_executive_id()` | CONFIRMADA NO CÓDIGO |
+| Existe exatamente uma conexão GreenSales ativa, do Thiago | CONFIRMADA NOS DADOS |
+| A conexão tem dono e está disponível em toda sincronização | CONFIRMADA NO CÓDIGO |
+| `resolveCredentials` descarta o `user_id` da conexão | CONFIRMADA NO CÓDIGO |
+| `intakeLead`/`ensureWorkspaceCard` não recebem ator; card nasce NULL | CONFIRMADA NO CÓDIGO |
+| GreenSales não fornece campo de responsável lido pelo sistema | CONFIRMADA NO CÓDIGO |
+| A posse é gravada retroativamente pelo navegador, com executivo padrão | CONFIRMADA NO CÓDIGO + NOS DADOS |
+| Os 5 leads foram bloqueados na E0 e só depois ganharam dono | CONFIRMADA NOS DADOS |
+| Não existe workspace/unidade/franquia como entidade | NÃO ENCONTRADA |
+| Não existe distribuição automática nem reconciliação de posse | NÃO ENCONTRADA |
+| `assign`/`redistribute` no servidor não gravam histórico próprio | CONFIRMADA NO CÓDIGO |
+| Com duas conexões ativas, o cron escolheria a mais recente | CONFIRMADA NO CÓDIGO (efeito não observado — só há uma conexão) |
+| Campos de responsável podem existir em `external_payload` sem serem lidos | POSSÍVEL, MAS NÃO COMPROVADA |
 
 ---
 
-## 11. CASOS REAIS
-
-**gs_58827 (Pianezzer) — recebeu E0**
-- 31/08 03:45 entrada na origem; 03:59 espelhado (`lead_criado`).
-- 00:59 de Brasília = fora da janela → `e0_adiada`.
-- A partir das 10:04, a fila de adiadas tentou a cada ciclo: `e0_ignorada — Lead sem executivo responsável definido` — dezenas de vezes, sempre em pares (as duas chamadas por ciclo).
-- 31/08 13:51 → `e0_simulada`: assim que o card ganhou executivo responsável, a mesma fila conseguiu executar.
-- 17:37 → `lead_nao_localizado` (reconciliação).
-
-**gs_58897 (athus) — NÃO recebeu E0**
-- 02/09 00:41 UTC (21:41 de Brasília, **dentro** da janela) → intake normal.
-- `e0_identificada` → `workspace_card_criado` → `e0_ignorada — Lead sem executivo responsável definido`.
-- Nenhum evento depois disso. Como não houve `e0_adiada`, o lead **nunca entrou na fila que repete**. Hoje o card já tem `usr_thiago` como responsável, e ainda assim nada reexamina a E0.
-
-Mesmo padrão em 58893, 58887, 58877 e 58874.
-
-**gs_58912 (Filipi)** — caso diferente: entrou já em `zero_contato`, com `entered_entry_stage_at` nulo. Só existe o evento `lead_criado`; a E0 nunca foi sequer considerada.
-
-Nada faltou para reconstruir os casos.
-
----
-
-## 12. CONCLUSÃO EXECUTIVA
-
-**A) Existe fila individual e persistente de E0 por lead?**
-NÃO. Só eventos e a mensagem `msg_e0_<card>`. (`lead-intake.server.ts`, `first-contact-queue.server.ts`)
-
-**B) Existe horário individual de vencimento da E0?**
-NÃO. Não há `due_at`/`scheduled_at` em nenhum ponto do caminho.
-
-**C) O processamento é FIFO?**
-NÃO. Nenhuma consulta do caminho da E0 ordena por data; o tick ordena `desc`. (`first-contact-queue.server.ts` linha ~37, `scheduler.server.ts` linha ~66)
-
-**D) Existem múltiplos caminhos capazes de processar E0?**
-SIM: `intakeLead`, `processDeferredFirstContacts` e `kickoffPortalFirstContact` — todos convergindo em `registerFirstContact`. `runRelationshipTick` recupera cadência, não E0.
-
-**E) Um cron travado pode causar acúmulo?**
-SIM, e está ocorrendo: 88 execuções RUNNING em 3 dias, cada uma bloqueando 15 minutos. (`sync-scheduler.server.ts`, `STALE_RUN_MINUTES`)
-
-**F) Um lead novo pode passar na frente de um antigo?**
-SIM. Ausência de ordenação com `limit 200` na fila de adiadas e `order by at desc` no tick.
-
-**G) Abrir o CRM ou clicar em sincronizar pode disparar E0?**
-Abrir, NÃO. Clicar em Sincronizar, SIM — `runCrmSyncNow` → `runLeadSync` → intake e fila de adiadas, sem passar pelas travas do agendador.
-
-**H) Existe um ponto no código que explica diretamente o comportamento observado?**
-SIM, e são dois, combinados:
-
-1. `ensureWorkspaceCard` cria o card com `responsible_executive_id: null`, e `resolveLeadDestinations`/`resolveLeadExecutive` bloqueiam a E0 exatamente nesse instante.
-2. `intakeLead` só tenta a E0 quando `enteredNow` é verdadeiro — uma única vez na vida do lead. Sem o evento `e0_adiada`, não existe nenhuma repetição.
-
-O resultado prático é o padrão observado: **lead que nasce de madrugada é adiado, entra na única fila com repetição e acaba recebendo E0 quando o responsável é definido; lead que nasce em horário comercial tem uma única chance, falha por falta de responsável e fica sem E0 para sempre.** A aparência de aleatoriedade é, na verdade, o horário de nascimento do lead.
-
----
-
-**Nada foi implementado, corrigido ou alterado nesta rodada.** Este documento descreve apenas o mecanismo atual.
+**Nada foi implementado, corrigido ou proposto como alteração de código.** Este documento é apenas o diagnóstico para a decisão de arquitetura.
