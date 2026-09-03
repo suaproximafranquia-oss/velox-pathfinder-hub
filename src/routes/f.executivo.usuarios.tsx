@@ -249,9 +249,6 @@ function UsuariosPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <WorkspaceBadges user={u} />
-                </td>
-                <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
                     {canManageTargetUser(actorRole, u.role) ? (
                       <>
