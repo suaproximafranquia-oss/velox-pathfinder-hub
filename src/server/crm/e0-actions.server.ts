@@ -28,6 +28,9 @@ export type E0ActionRow = {
   lead_name: string | null;
   lead_whatsapp: string | null;
   responsible_executive_id: string | null;
+  entry_at: string | null;
+  entered_entry_stage_at: string | null;
+  reactivation: boolean;
   state: E0ActionState;
   created_at: string;
   executed_at: string | null;
@@ -36,7 +39,7 @@ export type E0ActionRow = {
 };
 
 const COLUMNS =
-  "id,card_id,crm_lead_id,origin,lead_name,lead_whatsapp,responsible_executive_id,state,created_at,executed_at,executed_by,result";
+  "id,card_id,crm_lead_id,origin,lead_name,lead_whatsapp,responsible_executive_id,entry_at,entered_entry_stage_at,reactivation,state,created_at,executed_at,executed_by,result";
 
 /** Cria (ou reaproveita) a ação pendente de E0 de um card. */
 export async function createPendingE0Action(input: {
@@ -46,6 +49,9 @@ export async function createPendingE0Action(input: {
   name: string;
   whatsapp: string;
   responsibleExecutiveId?: string | null;
+  entryAt?: string | null;
+  enteredEntryStageAt?: string | null;
+  reactivation?: boolean;
 }): Promise<{ ok: boolean; created: boolean; reason?: string }> {
   const { data: existing } = await supabaseAdmin
     .from("workspace_e0_actions")
@@ -61,6 +67,9 @@ export async function createPendingE0Action(input: {
     lead_name: input.name,
     lead_whatsapp: input.whatsapp,
     responsible_executive_id: input.responsibleExecutiveId ?? null,
+    entry_at: input.entryAt ?? null,
+    entered_entry_stage_at: input.enteredEntryStageAt ?? null,
+    reactivation: Boolean(input.reactivation),
     state: "PENDENTE",
   } as never);
   if (error) return { ok: false, created: false, reason: error.message };
@@ -119,7 +128,9 @@ export async function executeE0Action(input: {
     origin: action.origin === "portal" ? "Portal do Investidor" : "GreenSales",
     entryOrigin: action.origin === "portal" ? "PORTAL" : "GREENSALES",
     ownerId: null,
-    reactivation: false,
+    entryAt: action.entry_at,
+    enteredEntryStageAt: action.entered_entry_stage_at,
+    reactivation: Boolean(action.reactivation),
     simulated: mode.simulated,
   });
 
