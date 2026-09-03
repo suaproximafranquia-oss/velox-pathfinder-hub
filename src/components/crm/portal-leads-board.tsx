@@ -600,7 +600,9 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       )}
 
       <DailyActionsOverlay
+        adapter={dailyActionsAdapter}
         open={callsOpen}
+
         onClose={() => {
           setCallsOpen(false);
           void load();
