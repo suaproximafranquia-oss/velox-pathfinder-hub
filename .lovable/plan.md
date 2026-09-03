@@ -1,71 +1,75 @@
-# Auditoria somente leitura — Backup da E0 (`workspace_e0_actions`)
+# Auditoria — Gestão de Usuários: status, exclusão e permissões
 
-Nenhum arquivo, banco, cron ou configuração foi alterado.
+Somente diagnóstico. Nada foi alterado: nenhum arquivo, nenhuma migration, nenhum dado.
 
-## Diagnóstico
+## 1. Status ativo/inativo
 
-`workspace_e0_actions` está **fora** do backup. Confirmado: a tabela não aparece na lista `BACKUP_TABLES`, que é a única fonte que define o que é capturado.
+- Armazenamento oficial: tabela `executive_user_status` (`executive_id`, `status`, `updated_at`, `updated_by_name`).
+- Escrita: `setExecutiveStatus` em `src/lib/executive-status.functions.ts`, chamada por `toggleStatus` em `src/routes/f.executivo.usuarios.tsx`.
+- Autorização real: política RLS `admins write executive status` (`has_role(auth.uid(),'admin')`). Leitura liberada a membros do portal. Hoje só `usr_thiago` tem papel `admin`.
+- Sessão viva: `OperationalGuard` (`src/components/auth/operational-guard.tsx`) consulta `situacaoOperacional` na entrada e a cada 60 s; resposta explícita "inativo" faz `signOut()`. Falha de rede não desloga (correto).
+- Novo login: `ensureExecutiveAuthUser` (`src/lib/executive-auth.functions.ts`) recusa quem está `inativo`.
 
-## Arquivo/função responsável
+Funciona. Ressalva: a interface grava primeiro no navegador (`persist`) e só depois no servidor; se o servidor recusar, a lista local já mostra o novo estado até a próxima sincronização (o `catch` só exibe um `alert`).
 
-- `src/server/backup.server.ts`
-  - `BACKUP_TABLES` (linhas 21–64): lista fixa de `{ table, pk }` — 39 tabelas, hoje sem a E0.
-  - `captureDatabaseState()`: itera exatamente `BACKUP_TABLES`, lendo `select *` paginado de 500 em 500.
-  - `createBackup()`: serializa em JSON, deduplica por hash em `portal_backup_blobs`, grava o ponto em `portal_backups`.
-  - `restoreBackupPayload()`: itera `BACKUP_TABLES` na mesma ordem, pula tudo que está em `NEVER_RESTORE_TABLES`, e para as demais faz `delete` total + `insert` em lotes de 200.
-  - `pruneBackups()`: retenção 48h por hora + último ponto do dia por 7 dias; opera só sobre linhas de `portal_backups`, nunca sobre tabelas de dados.
-- Agendamento/execução: `src/server/backup-queue.server.ts` (chama `createBackup`, `validateBackupPersisted`, `pruneBackups`) e `src/lib/backup.functions.ts` (manual e backup de segurança pré-restauração).
+## 2. Exclusão de usuário
 
-## Por que a E0 ficou de fora
+- Ação: `remove()` em `src/routes/f.executivo.usuarios.tsx` → `persist(users.filter(...))` → `saveUsers` (`src/lib/executive-auth.ts`), que escreve apenas no `localStorage` `atlas:users:v3`.
+- Não existe nenhuma função de servidor de exclusão. `executive_profiles`, `executive_user_status`, `workspace_module_permissions`, conta de autenticação e histórico permanecem intactos.
+- Consequência prática (bug): os sete usuários vêm de `SEED_USERS` no código. `loadUsers()` sempre reinjeta o seed. Excluir some da tela até o próximo recarregamento, e o usuário volta — inclusive continuando apto a logar. Exclusão é hoje puramente visual e local ao navegador do Administrador.
+- Lado positivo: nenhum risco de perda de histórico, justamente porque nada é apagado.
 
-Não há exclusão deliberada nem bloqueio técnico. `BACKUP_TABLES` é uma lista mantida manualmente e foi ampliada em comandos anteriores (Biblioteca, permissões, apresentação, remarketing). `workspace_e0_actions` foi criada depois dessa última ampliação e ninguém a acrescentou à lista — é omissão por lista estática desatualizada.
+## 3. Permissões do Workspace (CRM / Portal dos Leads / E0)
 
-## Estado real da tabela hoje
+- Fonte: `workspace_module_permissions` (`user_id` = `executive_id`, `module_key`, `enabled`).
+- Escrita: `setWorkspacePermission` (`src/lib/workspace-permissions.functions.ts`), com a matriz do E0 validada no servidor (automático exige CRM e Portal ON; desligar qualquer um derruba o automático).
+- Leitura: `listWorkspacePermissions`, cache reativo em `src/lib/workspace-permissions-store.ts` (poll de 15 s, foco e visibilidade) e hook `useWorkspacePermissions`.
+- RLS: escrita só para `admin`; leitura para membros do portal. A UI reflete o retorno do servidor após cada gravação.
+- Estado atual no banco: `usr_carlos/crm=false`, `usr_larissa/crm=false`, `usr_larissa/portal_leads=false`, `usr_larissa/e0_automatico=false`, `usr_thiago/e0_automatico=false`. Ausência de linha significa padrão (`defaultModuleAccess`), não OFF.
 
-- Colunas: `id`, `card_id`, `crm_lead_id`, `origin`, `state`, `result`, `note`, `lead_name`, `lead_whatsapp`, `responsible_executive_id`, `reactivation`, `entry_at`, `entered_entry_stage_at`, `executed_at`, `executed_by`, `executed_by_user_id`, `created_at`.
-- Constraints: PK `id`; UNIQUE `card_id`; CHECK `state IN ('PENDENTE','EXECUTADA','CANCELADA')`. **Nenhuma foreign key.**
-- RLS habilitada; `service_role` tem todos os privilégios (o backup usa `supabaseAdmin`, que ignora RLS).
-- Volume atual: 3 linhas (3 pendentes, 1 com `crm_lead_id`). Impacto de tamanho no payload é desprezível.
+Este bloco está correto e é o padrão a ser seguido pelos demais.
 
-## Colunas necessárias para restauração completa
+## 4. Matriz de acesso aos módulos
 
-Todas as 17 colunas. O backup usa `select *` e reinsere a linha inteira, então nada precisa ser mapeado: `id` e `card_id` mantêm identidade e idempotência; `state`/`result`/`executed_*` mantêm o que já foi executado; `origin`/`responsible_executive_id`/`reactivation`/`crm_lead_id` mantêm a decisão de E0; `entry_at`/`entered_entry_stage_at`/`created_at` mantêm a linha do tempo.
+- `ModuleAccessGuard` (`src/components/executive/module-access-guard.tsx`) é reativo, porém decide no cliente com o cache. É proteção de interface.
+- A proteção real por módulo existe no servidor caso a caso: E0 usa `resolveExecutivePermissions`; áreas administrativas usam `readAdministrativeAccess`/`assertAdministrativeAccess`; o resto depende da RLS de cada tabela.
+- Perfil (`role`) e status não são reavaliados dentro das server functions de dados: o token do Supabase permanece válido enquanto não expira, mesmo com o executivo marcado como inativo. A revogação hoje é feita pela camada de sessão do navegador, não pelo backend.
 
-## Dependências e ordem de restauração
+## 5. Sessão
 
-- `portal_leads`: relação lógica (`card_id` aponta para o card), **sem FK**. `portal_leads` está em `NEVER_RESTORE_TABLES` — nunca é sobrescrita —, então não existe janela em que os cards sumam e a E0 fique órfã.
-- `workspace_module_permissions`: sem relação de dados; só é consultada em tempo de execução para decidir Manual/Automático.
-- `relationship_message_sends`: sem relação; nem sequer está no backup hoje.
-- `crm_timeline`: sem FK e também em `NEVER_RESTORE_TABLES`.
+- Inativação: o usuário é expulso em até 60 s pela verificação do guard, e o próximo login é recusado. Ponto de atenção: chamadas diretas a server functions com um token ainda válido não são bloqueadas por status.
+- Permissões: alteração vale imediatamente (poll de 15 s) sem novo login.
 
-Conclusão: **nenhuma ordem específica é exigida**. A posição na lista é indiferente; o natural é colocá-la junto do bloco de Workspace, após `workspace_module_permissions`.
+## 6. Arquivos e tabelas
 
-## Correção mínima recomendada
+| Assunto | Arquivos | Tabelas |
+| --- | --- | --- |
+| Status | `f.executivo.usuarios.tsx`, `executive-status.functions.ts`, `executive-directory.functions.ts`, `operational-guard.tsx`, `executive-auth.functions.ts` | `executive_user_status` |
+| Exclusão | `f.executivo.usuarios.tsx`, `executive-auth.ts` | nenhuma (só `localStorage`) |
+| Permissões | `workspace-permissions.functions.ts`, `workspace-permissions-store.ts`, `use-workspace-permissions.ts`, `workspace-permissions-dialog.tsx`, `workspace-permissions.ts` | `workspace_module_permissions` |
+| Cadastro/identidade | `executive-directory.functions.ts`, `executive-auth.ts` (SEED), `executive-auth.server.ts` | `executive_profiles`, `user_roles` |
 
-Acrescentar uma linha em `BACKUP_TABLES` (`src/server/backup.server.ts`):
+## 7. Conclusão
 
-```ts
-{ table: "workspace_e0_actions", pk: "id" },
-```
+Funcionando:
+- Status com autoridade no banco, RLS de Administrador, revogação de sessão viva e recusa de login.
+- Permissões CRM / Portal / E0 totalmente server-side, com matriz do E0 validada no servidor e propagação em tempo real.
 
-Decisão pendente do usuário: se essa tabela deve ou não entrar também em `NEVER_RESTORE_TABLES`. Recomendação: **entrar em `NEVER_RESTORE_TABLES`**, para ficar coerente com `portal_leads`/`crm_timeline` — restaurar um estado antigo reabriria E0 já executadas e poderia gerar re-execução manual duplicada. Assim a tabela passa a ser capturada e auditável, mas nunca sobrescrita.
+Incorreto / bug:
+1. Exclusão de usuário é falsa: só remove do `localStorage` e o seed recria o usuário no próximo carregamento. Bug de maior gravidade deste bloco.
+2. Criação/edição de usuário nasce local; senha e credencial de login continuam presas ao `SEED_USERS` — um usuário criado pela tela não consegue entrar.
+3. `persist()` aplica a mudança de status na tela antes da confirmação do servidor; erro só gera `alert`.
+4. `executive_profiles` tem SELECT restrito ao próprio registro; para não-administradores o diretório volta parcial e a tela cai no seed.
+5. Status não é revalidado dentro das server functions de dados (janela do token).
 
-## Migration
+Riscos de uma correção:
+- Excluir de verdade tocaria em identidade referenciada por leads, timeline, cadência e auditoria — o correto é desativar, nunca apagar.
+- Mexer no seed sem migrar credenciais pode impedir o login de todos.
+- Ampliar o SELECT de `executive_profiles` expõe dados de contato a mais perfis: deve ser feito com colunas limitadas.
 
-**Não é necessária.** É apenas inclusão em lista de código. Grants e RLS já permitem leitura/escrita por `service_role`.
+## Menor construção segura recomendada (não executada)
 
-## Risco
+1. Trocar o botão "Excluir" por "Desativar/Arquivar", reaproveitando o caminho já correto de `setExecutiveStatus`, e remover o `filter` local. Uma alteração, um arquivo (`f.executivo.usuarios.tsx`), sem migration e sem risco de perda de histórico.
+2. Em seguida (opcional, mesma tela): só atualizar a lista depois que o servidor confirmar o status, substituindo o `alert` por `toast`.
 
-Baixo em todos os eixos:
-- Captura: `select *` paginado, 3 linhas hoje; sem impacto de tempo ou tamanho.
-- Hash/dedup: o payload passa a mudar quando a E0 muda — comportamento correto, apenas gera menos reaproveitamento de blob.
-- Retenção: `pruneBackups()` só olha `portal_backups`; continua idêntica.
-- Restauração: se a tabela **não** for marcada como never-restore, o fluxo faz `delete` total + `insert`; como a linha volta com o mesmo `id` e `card_id`, o UNIQUE não é violado — mas há o risco de negócio descrito acima (E0 executada voltando a pendente). Marcando como never-restore, esse risco desaparece.
-
-## Impacto na restauração
-
-Com a recomendação (capturar + never-restore): a restauração passa a listar `workspace_e0_actions` em `skipped`, sem tocar nos dados; o backup de segurança pré-restauração passa a conter a E0.
-
-## Motor de E0
-
-A inclusão **não exige nenhuma alteração de regra do motor de E0**. `resolveExecutiveE0Mode`, `createPendingE0Action`, `executeE0Action`, `registerFirstContact`, idempotência por `card_id` e a Safety Lock permanecem intactos.
+Os itens 2, 4 e 5 da lista de bugs são construções maiores (cadastro no servidor, política de leitura, verificação de status no backend) e devem ser tratados em etapa própria.
