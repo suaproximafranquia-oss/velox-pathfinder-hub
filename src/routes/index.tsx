@@ -13,19 +13,9 @@
  * de contexto (`e`, `m`, `o`, `b`, `u`, `c`, `ch`, `lead`) continuam
  * funcionando — são redirecionados para "/f" com os MESMOS parâmetros.
  */
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  Award,
-  Building2,
-  Check,
-  GraduationCap,
-  Handshake,
-  LineChart,
-  ShieldCheck,
-  Sun,
-  Users2,
-} from "lucide-react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { GroupLandingPage } from "@/components/group/landing/group-landing-page";
+
 
 type GroupSearch = {
   e?: string;
