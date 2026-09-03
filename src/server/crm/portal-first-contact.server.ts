@@ -46,6 +46,10 @@ export async function kickoffPortalFirstContact(input: {
   ownerId: string | null;
   /** Entrada real do lead no Portal (created_at). */
   entryAt: string | null;
+  /** Espelho no CRM, quando o card já possui vínculo (paridade GreenSales). */
+  crmLeadId?: string | null;
+  /** Marca de reentrada — mesma semântica do fluxo GreenSales. */
+  reactivation?: boolean;
 }): Promise<PortalFirstContactOutcome> {
   // Redistribuição nunca inicia primeiro contato (regra do motor).
   if (input.scope === "redistribuicao") return "skipped";
@@ -60,7 +64,14 @@ export async function kickoffPortalFirstContact(input: {
     const { createPendingE0Action } = await import("@/server/crm/e0-actions.server");
     await createPendingE0Action({
       cardId: input.leadId,
-      origin: "portal",
+      /**
+       * COMANDO 3 §8 — a Ação do Dia recebe a ORIGEM REAL do lead
+       * (tiktok/meta/portal), nunca "portal" fixo. Nenhuma fila nova:
+       * é a mesma estrutura operacional de primeiro contato.
+       */
+      origin: input.scope || "portal",
+      crmLeadId: input.crmLeadId ?? null,
+      reactivation: Boolean(input.reactivation),
       name: input.name,
       whatsapp: input.phone,
       responsibleExecutiveId: input.ownerId,
@@ -69,6 +80,7 @@ export async function kickoffPortalFirstContact(input: {
     });
     return "manual";
   }
+
 
   if (isE0NightWindow()) {
     await supabaseAdmin.from("portal_journey_events").insert({
