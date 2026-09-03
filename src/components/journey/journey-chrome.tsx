@@ -4,6 +4,7 @@ import { List, X } from "lucide-react";
 import { CHAPTERS, getChapterByPath, TOTAL_CHAPTERS } from "@/lib/journey-data";
 import { useJourneyProgress } from "@/hooks/use-journey-progress";
 import { cn } from "@/lib/utils";
+import { homePathOrRoot } from "@/lib/navigation-environment";
 
 export function JourneyChrome({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -38,7 +39,7 @@ export function JourneyChrome({ children }: { children: React.ReactNode }) {
       <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 gap-4">
           <Link
-            to="/"
+            to={homePathOrRoot(pathname)}
             className="group flex items-center gap-3 shrink-0"
             aria-label="Início do Manual do Investidor"
           >

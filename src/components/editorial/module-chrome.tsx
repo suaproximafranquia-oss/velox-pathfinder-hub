@@ -1,7 +1,8 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { List, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { homePathOrRoot } from "@/lib/navigation-environment";
 
 export type ModuleChromeSection = { id: string; label: string };
 
@@ -27,6 +28,7 @@ export function ModuleChrome({
   label?: string;
   children: ReactNode;
 }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [indexOpen, setIndexOpen] = useState(false);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function ModuleChrome({
       <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 gap-4">
           <Link
-            to="/"
+            to={homePathOrRoot(pathname)}
             className="group flex items-center gap-3 shrink-0"
             aria-label={`Início — ${moduleName}`}
           >
