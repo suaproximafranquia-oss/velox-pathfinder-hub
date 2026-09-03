@@ -136,7 +136,17 @@ export function workspaceScopesFor(
     return ["green_sales", "redistribuicao", "portal", "tiktok", "meta"];
   }
   if (role === "diretora") return ["central_unica"];
+  /**
+   * COMANDO 3 §9 — o perfil híbrido é a MESMA pessoa do Administrador e
+   * administra as carteiras Portal, TikTok e Meta. A exceção é
+   * exclusivamente de CARTEIRA OPERACIONAL: não concede nenhuma
+   * permissão administrativa adicional ao perfil Colaborador.
+   */
+  if (isHybridWorkspaceUser(userId)) {
+    return ["green_sales", "redistribuicao", "portal", "tiktok", "meta"];
+  }
   return ["green_sales", "redistribuicao"];
+
 
 }
 
