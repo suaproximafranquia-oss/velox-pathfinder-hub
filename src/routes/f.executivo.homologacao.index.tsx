@@ -42,6 +42,8 @@ import {
   resetHomologationWorkspace,
 } from "@/lib/relationship-homologation.functions";
 import { cn } from "@/lib/utils";
+import { HomologationTabs } from "@/components/executive/homologation-tabs";
+import { CurrentStepSnapshotCard } from "@/components/executive/current-step-snapshot-card";
 
 export const Route = createFileRoute("/f/executivo/homologacao/")({
   head: () => ({
