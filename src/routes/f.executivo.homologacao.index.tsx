@@ -48,13 +48,13 @@ import { CurrentStepSnapshotCard } from "@/components/executive/current-step-sna
 export const Route = createFileRoute("/f/executivo/homologacao/")({
   head: () => ({
     meta: [
-      { title: "Homologação do Motor de Relacionamento — Atlas Platform" },
+      { title: "Central de Homologação — Atlas Platform" },
       {
         name: "description",
         content:
           "Biblioteca de conteúdos de valor e simulador bilateral com leads fictícios para validar o motor antes da produção.",
       },
-      { property: "og:title", content: "Homologação do Motor — Atlas Platform" },
+      { property: "og:title", content: "Central de Homologação — Atlas Platform" },
       {
         property: "og:description",
         content: "Rodadas de simulação auditáveis do motor de relacionamento, sem disparos reais.",
