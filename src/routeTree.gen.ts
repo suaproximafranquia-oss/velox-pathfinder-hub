@@ -101,6 +101,7 @@ import { Route as FExecutivoAdministracaoRouteImport } from './routes/f.executiv
 import { Route as FExecutivoAcaoDoDiaDemoRouteImport } from './routes/f.executivo.acao-do-dia-demo'
 import { Route as FExecutivoHomologacaoIndexRouteImport } from './routes/f.executivo.homologacao.index'
 import { Route as FExecutivoInvestidoresIdRouteImport } from './routes/f.executivo.investidores.$id'
+import { Route as FExecutivoHomologacaoAcaoDoDiaRouteImport } from './routes/f.executivo.homologacao.acao-do-dia'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicRemarketingRunRouteImport } from './routes/api/public/remarketing/run'
 import { Route as ApiPublicCrmSyncRouteImport } from './routes/api/public/crm/sync'
@@ -571,6 +572,12 @@ const FExecutivoInvestidoresIdRoute =
     path: '/$id',
     getParentRoute: () => FExecutivoInvestidoresRoute,
   } as any)
+const FExecutivoHomologacaoAcaoDoDiaRoute =
+  FExecutivoHomologacaoAcaoDoDiaRouteImport.update({
+    id: '/acao-do-dia',
+    path: '/acao-do-dia',
+    getParentRoute: () => FExecutivoHomologacaoRoute,
+  } as any)
 const ApiPublicWhatsappWebhookRoute =
   ApiPublicWhatsappWebhookRouteImport.update({
     id: '/api/public/whatsapp/webhook',
@@ -694,6 +701,7 @@ export interface FileRoutesByFullPath {
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/f/executivo/homologacao/acao-do-dia': typeof FExecutivoHomologacaoAcaoDoDiaRoute
   '/f/executivo/investidores/$id': typeof FExecutivoInvestidoresIdRoute
   '/f/executivo/homologacao/': typeof FExecutivoHomologacaoIndexRoute
 }
@@ -788,6 +796,7 @@ export interface FileRoutesByTo {
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/f/executivo/homologacao/acao-do-dia': typeof FExecutivoHomologacaoAcaoDoDiaRoute
   '/f/executivo/investidores/$id': typeof FExecutivoInvestidoresIdRoute
   '/f/executivo/homologacao': typeof FExecutivoHomologacaoIndexRoute
 }
@@ -888,6 +897,7 @@ export interface FileRoutesById {
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/f/executivo/homologacao/acao-do-dia': typeof FExecutivoHomologacaoAcaoDoDiaRoute
   '/f/executivo/investidores/$id': typeof FExecutivoInvestidoresIdRoute
   '/f/executivo/homologacao/': typeof FExecutivoHomologacaoIndexRoute
 }
@@ -989,6 +999,7 @@ export interface FileRouteTypes {
     | '/api/public/crm/sync'
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
+    | '/f/executivo/homologacao/acao-do-dia'
     | '/f/executivo/investidores/$id'
     | '/f/executivo/homologacao/'
   fileRoutesByTo: FileRoutesByTo
@@ -1083,6 +1094,7 @@ export interface FileRouteTypes {
     | '/api/public/crm/sync'
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
+    | '/f/executivo/homologacao/acao-do-dia'
     | '/f/executivo/investidores/$id'
     | '/f/executivo/homologacao'
   id:
@@ -1182,6 +1194,7 @@ export interface FileRouteTypes {
     | '/api/public/crm/sync'
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
+    | '/f/executivo/homologacao/acao-do-dia'
     | '/f/executivo/investidores/$id'
     | '/f/executivo/homologacao/'
   fileRoutesById: FileRoutesById
@@ -1889,6 +1902,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoInvestidoresIdRouteImport
       parentRoute: typeof FExecutivoInvestidoresRoute
     }
+    '/f/executivo/homologacao/acao-do-dia': {
+      id: '/f/executivo/homologacao/acao-do-dia'
+      path: '/acao-do-dia'
+      fullPath: '/f/executivo/homologacao/acao-do-dia'
+      preLoaderRoute: typeof FExecutivoHomologacaoAcaoDoDiaRouteImport
+      parentRoute: typeof FExecutivoHomologacaoRoute
+    }
     '/api/public/whatsapp/webhook': {
       id: '/api/public/whatsapp/webhook'
       path: '/api/public/whatsapp/webhook'
@@ -1938,10 +1958,12 @@ const FCrmRouteChildren: FCrmRouteChildren = {
 const FCrmRouteWithChildren = FCrmRoute._addFileChildren(FCrmRouteChildren)
 
 interface FExecutivoHomologacaoRouteChildren {
+  FExecutivoHomologacaoAcaoDoDiaRoute: typeof FExecutivoHomologacaoAcaoDoDiaRoute
   FExecutivoHomologacaoIndexRoute: typeof FExecutivoHomologacaoIndexRoute
 }
 
 const FExecutivoHomologacaoRouteChildren: FExecutivoHomologacaoRouteChildren = {
+  FExecutivoHomologacaoAcaoDoDiaRoute: FExecutivoHomologacaoAcaoDoDiaRoute,
   FExecutivoHomologacaoIndexRoute: FExecutivoHomologacaoIndexRoute,
 }
 
