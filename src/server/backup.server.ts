@@ -51,6 +51,7 @@ export const BACKUP_TABLES = [
   { table: "relationship_template_bindings", pk: "id" },
   { table: "relationship_non_business_days", pk: "id" },
   { table: "workspace_module_permissions", pk: "user_id" },
+  { table: "workspace_e0_actions", pk: "id" },
   { table: "workspace_agenda_events", pk: "id" },
   { table: "executive_user_status", pk: "executive_id" },
   { table: "presentation_chapters", pk: "id" },
@@ -92,6 +93,7 @@ export const NEVER_RESTORE_TABLES: readonly string[] = [
   "portal_engagement",
   "portal_meetings",
   "portal_lead_guard_log",
+  "workspace_e0_actions",
 ];
 
 export type BackupKind = "completo" | "conversas";
