@@ -218,6 +218,7 @@ export type Database = {
       crm_automation_settings: {
         Row: {
           cadence_activation_date: string | null
+          first_contact_mode: string
           id: boolean
           material_url: string | null
           sync_interval_minutes: number
@@ -228,6 +229,7 @@ export type Database = {
         }
         Insert: {
           cadence_activation_date?: string | null
+          first_contact_mode?: string
           id?: boolean
           material_url?: string | null
           sync_interval_minutes?: number
@@ -238,6 +240,7 @@ export type Database = {
         }
         Update: {
           cadence_activation_date?: string | null
+          first_contact_mode?: string
           id?: boolean
           material_url?: string | null
           sync_interval_minutes?: number
@@ -3262,6 +3265,57 @@ export type Database = {
           starts_at?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      workspace_e0_actions: {
+        Row: {
+          card_id: string
+          created_at: string
+          crm_lead_id: string | null
+          executed_at: string | null
+          executed_by: string | null
+          executed_by_user_id: string | null
+          id: string
+          lead_name: string | null
+          lead_whatsapp: string | null
+          note: string | null
+          origin: string
+          responsible_executive_id: string | null
+          result: string | null
+          state: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          crm_lead_id?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          executed_by_user_id?: string | null
+          id?: string
+          lead_name?: string | null
+          lead_whatsapp?: string | null
+          note?: string | null
+          origin?: string
+          responsible_executive_id?: string | null
+          result?: string | null
+          state?: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          crm_lead_id?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          executed_by_user_id?: string | null
+          id?: string
+          lead_name?: string | null
+          lead_whatsapp?: string | null
+          note?: string | null
+          origin?: string
+          responsible_executive_id?: string | null
+          result?: string | null
+          state?: string
         }
         Relationships: []
       }
