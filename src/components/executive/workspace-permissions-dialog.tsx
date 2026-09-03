@@ -110,58 +110,62 @@ export function WorkspacePermissionsDialog({
           <Info label="Status" value={user.status === "ativo" ? "Ativo" : "Inativo"} />
         </dl>
 
-        <div className="space-y-3">
-          {(["crm", "portal_leads", "e0_automatico"] as WorkspaceModuleKey[]).map((key) => {
-            const isE0 = key === "e0_automatico";
-            const on = isE0 ? e0Automatic : value(key);
-            const blocked = isE0 && !automaticAllowed;
-            return (
-              <div
-                key={key}
-                className="flex items-center justify-between rounded-xl border border-[color:var(--border)] px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm">{WORKSPACE_MODULE_LABEL[key]}</p>
-                  {key === "crm" ? (
-                    <p className="text-[11px] text-[color:var(--muted-foreground)]">
-                      O Backup de Conversas depende deste módulo.
-                    </p>
-                  ) : null}
-                  {isE0 ? (
-                    <p className="text-[11px] text-[color:var(--muted-foreground)]">
-                      {blocked
-                        ? "Automático indisponível: exige CRM e Portal dos Leads ligados."
-                        : "Automático executa na entrada do lead; manual vira ação prioritária na Ação do Dia."}
-                    </p>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={on}
-                  aria-label={`${WORKSPACE_MODULE_LABEL[key]} — ${
-                    isE0 ? (on ? "Automático" : "Manual") : on ? "ON" : "OFF"
-                  }`}
-                  disabled={saving === key || blocked}
-                  onClick={() => void toggle(key)}
-                  className={
-                    "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.18em] transition disabled:cursor-not-allowed disabled:opacity-50 " +
-                    (on
-                      ? "cursor-pointer border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                      : "cursor-pointer border-red-500/40 bg-red-500/10 text-red-400")
-                  }
+        <div className="space-y-5">
+          <section className="space-y-3">
+            <h4 className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              Módulos
+            </h4>
+            {(["crm", "portal_leads"] as WorkspaceModuleKey[]).map((key) => {
+              const on = value(key);
+              return (
+                <div
+                  key={key}
+                  className="flex items-center justify-between rounded-xl border border-[color:var(--border)] px-4 py-3"
                 >
-                  <span
-                    aria-hidden
-                    className={
-                      "h-2 w-2 rounded-full " + (on ? "bg-emerald-400" : "bg-red-400")
-                    }
+                  <div>
+                    <p className="text-sm">{WORKSPACE_MODULE_LABEL[key]}</p>
+                    {key === "crm" ? (
+                      <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                        O Backup de Conversas depende deste módulo.
+                      </p>
+                    ) : null}
+                  </div>
+                  <PermissionSwitch
+                    label={WORKSPACE_MODULE_LABEL[key]}
+                    on={on}
+                    onText="On"
+                    offText="Off"
+                    disabled={saving === key}
+                    onClick={() => void toggle(key)}
                   />
-                  {isE0 ? (on ? "Automático" : "Manual") : on ? "On" : "Off"}
-                </button>
+                </div>
+              );
+            })}
+          </section>
+
+          <section className="space-y-3">
+            <h4 className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+              Primeiro contato — E0
+            </h4>
+            <div className="flex items-center justify-between rounded-xl border border-[color:var(--border)] px-4 py-3">
+              <div>
+                <p className="text-sm">{WORKSPACE_MODULE_LABEL["e0_automatico"]}</p>
+                <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                  {automaticAllowed
+                    ? "Automático executa na entrada do lead; manual vira ação prioritária na Ação do Dia."
+                    : "Automático disponível somente com CRM e Portal de Leads ativos."}
+                </p>
               </div>
-            );
-          })}
+              <PermissionSwitch
+                label={WORKSPACE_MODULE_LABEL["e0_automatico"]}
+                on={e0Automatic}
+                onText="Automático"
+                offText="Manual"
+                disabled={saving === "e0_automatico" || !automaticAllowed}
+                onClick={() => void toggle("e0_automatico")}
+              />
+            </div>
+          </section>
         </div>
 
         {error ? (
