@@ -26,7 +26,6 @@ import {
   Radar,
   LibraryBig,
   BookOpen,
-  Building2,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -191,7 +190,8 @@ export function ExecutiveShell({
             label: "Apresentação Digital",
             icon: LibraryBig,
           },
-          { to: unitPath("/executivo/unidades"), label: "Unidades do Grupo", icon: Building2 },
+          // "Unidades do Grupo" removida apenas da NAVEGAÇÃO (decisão de menu).
+          // A rota /f/executivo/unidades, seus dados e formulários permanecem.
         ]
       : []),
     ...(session.activeRole === "super_admin"

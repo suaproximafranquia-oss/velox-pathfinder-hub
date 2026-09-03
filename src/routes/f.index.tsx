@@ -551,7 +551,7 @@ function PortalHeader() {
   return (
     <header className="relative z-30">
       <div className="mx-auto flex max-w-7xl items-center px-6 py-6 md:px-10">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/f" className="flex items-center gap-3">
           <span
             className="inline-flex h-9 w-9 items-center justify-center border portal-serif text-lg"
             style={{ borderColor: "var(--brand-orange)", color: "var(--brand-orange)" }}
@@ -861,7 +861,12 @@ function PortalFooter() {
     <footer className="border-t" style={{ borderColor: "var(--paper-edge)" }}>
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-xs text-[color:var(--muted-foreground)] md:flex-row md:items-center md:justify-between md:px-10">
         <span>© {new Date().getFullYear()} Velox Soluções Financeiras — Portal institucional.</span>
-        <span className="portal-eyebrow">Powered by Atlas Platform</span>
+        <span className="flex items-center gap-4">
+          <Link to="/" className="underline-offset-4 hover:underline">
+            Grupo Velox
+          </Link>
+          <span className="portal-eyebrow">Powered by Atlas Platform</span>
+        </span>
       </div>
     </footer>
   );

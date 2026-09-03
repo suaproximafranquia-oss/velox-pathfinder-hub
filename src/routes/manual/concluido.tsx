@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
+import { homePathOrRoot } from "@/lib/navigation-environment";
 import { CheckCircle2 } from "lucide-react";
 import { PortalFinalCta } from "@/components/portal/portal-final-cta";
 
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/manual/concluido")({
 });
 
 function Concluded() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <article className="animate-chapter-enter mx-auto max-w-2xl px-6 text-center">
       <div className="mx-auto mb-8 flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10">
@@ -35,7 +37,7 @@ function Concluded() {
       </div>
 
       <Link
-        to="/"
+        to={homePathOrRoot(pathname)}
         className="mt-8 inline-flex items-center justify-center rounded-full border border-[color:var(--border)] px-7 py-3.5 text-sm text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition-colors"
       >
         Voltar ao início
