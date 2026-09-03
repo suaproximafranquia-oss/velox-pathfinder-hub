@@ -25,8 +25,6 @@ import {
   type ExecutiveRole,
 } from "@/lib/executive-auth";
 import { setExecutiveStatus } from "@/lib/executive-status.functions";
-import { useWorkspacePermissions } from "@/hooks/use-workspace-permissions";
-import { resolveE0Mode, resolveModuleAccess } from "@/lib/workspace-permissions";
 import { ACTIVE_WORKSPACE_ID } from "@/config/workspace";
 
 
