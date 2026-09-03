@@ -18,7 +18,7 @@ for (const ch of ["tiktok", "meta"] as const) {
   } as never);
   console.log(ch, "rpc:", JSON.stringify(data), error?.message ?? "");
   const payload = (data ?? {}) as any;
-  if (payload.created) {
+  if (payload.created ?? !payload.recognized) {
     const out = await kickoffPortalFirstContact({
       leadId: payload.leadId,
       name: `TEST ${ch.toUpperCase()} Canal`,
