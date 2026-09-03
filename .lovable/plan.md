@@ -1,7 +1,79 @@
+# Auditoria de dados — o que os "462" realmente significam
+
+Somente consulta. Nada foi alterado.
+
+**Resposta direta (item 12): opção C.** São 462 **eventos** (tentativas), gerados por apenas **25 leads distintos**. Não são 462 leads.
+
+## Números verificados (últimos 7 dias)
+
+| Medida | "Sem executivo responsável" | "Link do Portal indisponível" |
+| --- | --- | --- |
+| Eventos | 462 | 69 |
+| Leads distintos | 25 | 1 (`gs_58725`, Rodrigo Felipe) |
+| Leads com 1 só ocorrência | 12 | 0 |
+| Leads com 2+ ocorrências | 13 | 1 |
+| Maior nº de eventos num único lead | 41 | 69 |
+
+Por dia (horário de São Paulo):
+
+| Dia | Eventos sem responsável | Leads | Eventos sem link | Leads |
+| --- | --- | --- | --- | --- |
+| 29/08 | 12 | 3 | 69 | 1 |
+| 31/08 | 444 | 16 | 0 | 0 |
+| 01/09 | 5 | 5 | 0 | 0 |
+| 02/09 | 1 | 1 | 0 | 0 |
+
+Ou seja: 444 dos 462 eventos são de **um único dia (31/08)** e de apenas 16 leads, todos repetindo a cada tique do cron entre 07:04 e 10:35.
+
+## Itens 5, 6 e 7 — por executivo / conexão
+
+Existe **uma única conexão GreenSales cadastrada**, do usuário `6005ef93…` (Thiago). Portanto todos os eventos vêm dessa mesma conexão — não há concorrência entre executivos.
+
+| Responsável atual do card | Eventos sem responsável | Leads | Eventos sem link | Leads |
+| --- | --- | --- | --- | --- |
+| `usr_thiago` | 461 | 24 | 69 | 1 |
+| Sem responsável até agora | 1 | 1 | 0 | 0 |
+
+Importante: essa é a posse **de hoje**, atribuída depois pela abertura do CRM. No instante de cada evento o card estava sem dono — é exatamente isso que o evento registra.
+
+## Item 9 — distribuição por lead (amostra dos maiores)
+
+| Card | Nome | Eventos | Primeiro | Último | Motivo | E0 hoje |
+| --- | --- | --- | --- | --- | --- | --- |
+| gs_58725 | Rodrigo Felipe | 79 (69 sem link + 10 sem resp.) | 29/08 07:05 | 29/08 11:24 | link do Portal | sim |
+| gs_58744 | Eraldo Macedo | 41 | 31/08 07:04 | 31/08 10:35 | sem responsável | sim |
+| gs_58749 | Nelson Ferreira | 38 | 31/08 07:04 | 31/08 10:30 | sem responsável | sim |
+| gs_58756 / 58787 / 58799 / 58808 / 58815 / 58823 / 58827 / 58771 / 58779 / 58792 | — | 36 cada | 31/08 07:04 | 31/08 10:30 | sem responsável | sim |
+| gs_58874, gs_58893, gs_58735, gs_58936 e outros | — | 1 cada | 29/08 a 02/09 | — | sem responsável | não |
+
+Estado atual: dos 25 leads, **13 já têm E0 registrada** (`msg_e0_…`) e **12 continuam sem E0 nenhuma**. Todos estão com `stage_key = nao_localizado` no espelho.
+
+## Item 10 — os 69 eventos de "link do Portal"
+
+São **um único lead** (`gs_58725`), 69 tentativas em 29/08 entre 07:05 e 11:24. O card tem responsável (`usr_thiago`), mas o executivo está **sem slug** (`responsible_executive_slug` nulo), então o link personalizado não pôde ser montado. A E0 desse lead acabou saindo depois.
+
+## Item 11 — por que um mesmo lead repete o evento
+
+O evento é gravado a cada **tentativa** de E0, e a tentativa se repete porque:
+
+1. O lead continua aparecendo na janela de leitura da sincronização, que roda **a cada minuto**;
+2. `intakeLead` reavalia a E0 sempre que detecta o lead na coluna de entrada;
+3. O bloqueio **não marca nada** no lead — não existe "já tentei e falhei", então o próximo ciclo tenta de novo;
+4. Quando alguém abre o CRM e o card ganha dono, a tentativa seguinte passa e o evento para.
+
+Por isso o padrão observado é: dezenas de eventos seguidos no mesmo lead durante algumas horas, terminando no momento em que a posse aparece.
+
+## Correção da leitura anterior
+
+O diagnóstico anterior falava em "462 ocorrências" e isso podia ser lido como volume de leads perdidos. O impacto real é: **25 leads afetados em 7 dias, dos quais 12 seguem sem E0**. O diagnóstico técnico abaixo permanece válido — a causa raiz (card nasce sem responsável e a E0 é decidida na mesma hora) é a mesma, e ganha um sintoma adicional: **ausência de marcação de tentativa, gerando ruído de repetição minuto a minuto**.
+
+---
+
 # Diagnóstico técnico — Entrada de leads + E0 (pré-implantação da Financeira /f)
 
 Somente leitura. Nenhum código, banco, cron, mensagem ou Safety Lock foi alterado.
 Cada afirmação abaixo foi verificada no código atual e, quando marcada, nos dados reais.
+
 
 ## A) Diagrama do fluxo ATUAL
 
