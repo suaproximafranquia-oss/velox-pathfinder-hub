@@ -176,8 +176,6 @@ export function createDemoDailyActionsAdapter(): DailyActionsAdapter {
       ok: true,
       message: `Execução simulada: nenhuma conversa real foi aberta com ${item.name}.`,
     }),
-    openLead: () => {
-      /* Demonstração não abre ficha real. */
-    },
   };
 }
+
