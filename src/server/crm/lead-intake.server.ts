@@ -238,11 +238,13 @@ export async function intakeLead(
     }
 
     /**
-     * MODO MANUAL: a E0 continua sendo DECIDIDA aqui (mesmo motor), mas
-     * não é executada pelo sistema — vira ação pendente de prioridade
-     * máxima na Ação do Dia, com executor, horário e resultado.
+     * MODO DO E0 — do EXECUTIVO RESPONSÁVEL PELO LEAD, nunca global.
+     * Automático só existe com CRM ON + Portal dos Leads ON e escolha
+     * explícita do Administrador; qualquer outra combinação é manual.
      */
-    if (settings.firstContactMode === "manual") {
+    const e0Mode = await resolveExecutiveE0Mode(responsible?.executiveId ?? null);
+
+    if (e0Mode.mode === "manual") {
       const pending = await createPendingE0Action({
         cardId: card.cardId,
         crmLeadId: outcome.lead.id,
@@ -257,15 +259,16 @@ export async function intakeLead(
         reactivation: returning,
       });
       result.e0 = "manual";
-      result.e0Reason = "Primeiro contato em modo manual — pendente na Ação do Dia.";
+      result.e0Reason = `Primeiro contato manual — pendente na Ação do Dia. ${e0Mode.reason}`;
       if (pending.created) {
         await recordEvent(
           outcome.lead.id,
           "e0_manual_pendente",
-          `Primeiro contato aguardando execução manual no card ${card.cardId}.`,
+          `Primeiro contato aguardando execução manual no card ${card.cardId}. ${e0Mode.reason}`,
         );
       }
       return result;
+
     }
 
     const { registerFirstContact } = await import("@/server/crm/first-contact.server");
