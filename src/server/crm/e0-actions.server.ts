@@ -121,12 +121,20 @@ export async function executeE0Action(input: {
 
   const mode = executionMode({ isTestLead: Boolean(card?.is_test) });
   const { registerFirstContact } = await import("@/server/crm/first-contact.server");
+  const originMap: Record<string, { origin: string; entryOrigin: "GREENSALES" | "PORTAL" | "TRAFEGO_PAGO" }> = {
+    greensales: { origin: "GreenSales", entryOrigin: "GREENSALES" },
+    portal: { origin: "Portal do Investidor", entryOrigin: "PORTAL" },
+    tiktok: { origin: "TikTok", entryOrigin: "TRAFEGO_PAGO" },
+    meta: { origin: "Meta", entryOrigin: "TRAFEGO_PAGO" },
+  };
+  const mapped = originMap[action.origin ?? ""] ?? { origin: "GreenSales", entryOrigin: "GREENSALES" };
+
   const e0 = await registerFirstContact({
     leadId: action.card_id,
     name: card?.name ?? action.lead_name ?? "",
     phone: card?.whatsapp ?? action.lead_whatsapp ?? "",
-    origin: action.origin === "portal" ? "Portal do Investidor" : "GreenSales",
-    entryOrigin: action.origin === "portal" ? "PORTAL" : "GREENSALES",
+    origin: mapped.origin,
+    entryOrigin: mapped.entryOrigin,
     ownerId: null,
     entryAt: action.entry_at,
     enteredEntryStageAt: action.entered_entry_stage_at,
