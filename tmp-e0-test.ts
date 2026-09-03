@@ -1,20 +1,32 @@
-import { resolvePortalIdentity } from "@/lib/portal-identity.functions";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { kickoffPortalFirstContact } from "@/server/crm/portal-first-contact.server";
 const stamp = Date.now().toString().slice(-6);
 for (const ch of ["tiktok", "meta"] as const) {
-  const r = await (resolvePortalIdentity as any)({
-    data: {
+  const { data, error } = await supabaseAdmin.rpc("resolve_portal_identity", {
+    _name: `TEST ${ch.toUpperCase()} Canal`,
+    _email: `test.${ch}.${stamp}@velox.test`,
+    _phone: `1198${stamp}0`,
+    _origin: ch === "tiktok" ? "TikTok" : "Meta",
+    _material: "Portal do Investidor",
+    _scope: ch,
+    _executive_id: "usr_thiago",
+    _executive_slug: null,
+    _personalized: false,
+    _campaign: null,
+    _device: "test",
+    _city: "",
+  } as never);
+  console.log(ch, "rpc:", JSON.stringify(data), error?.message ?? "");
+  const payload = (data ?? {}) as any;
+  if (payload.created) {
+    const out = await kickoffPortalFirstContact({
+      leadId: payload.leadId,
       name: `TEST ${ch.toUpperCase()} Canal`,
-      email: `test.${ch}.${stamp}@velox.test`,
       phone: `1198${stamp}0`,
-      origin: ch === "tiktok" ? "TikTok" : "Meta",
-      material: "Portal do Investidor",
       scope: ch,
-      executiveId: "usr_thiago",
-      executiveSlug: null,
-      personalized: false,
-      campaign: null,
-      device: "test",
-    },
-  });
-  console.log(ch, JSON.stringify(r));
+      ownerId: "usr_thiago",
+      entryAt: new Date().toISOString(),
+    });
+    console.log(ch, "e0:", out);
+  }
 }
