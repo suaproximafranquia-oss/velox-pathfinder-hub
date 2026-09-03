@@ -25,6 +25,8 @@ import {
   type ExecutiveRole,
 } from "@/lib/executive-auth";
 import { setExecutiveStatus } from "@/lib/executive-status.functions";
+import { useWorkspacePermissions } from "@/hooks/use-workspace-permissions";
+import { resolveE0Mode, resolveModuleAccess } from "@/lib/workspace-permissions";
 import { ACTIVE_WORKSPACE_ID } from "@/config/workspace";
 
 
@@ -220,6 +222,7 @@ function UsuariosPage() {
               <th className="text-left px-4 py-3 font-normal">E-mail Corporativo</th>
               <th className="text-left px-4 py-3 font-normal">Perfil</th>
               <th className="text-left px-4 py-3 font-normal">Status</th>
+              <th className="text-left px-4 py-3 font-normal">Workspace</th>
               <th className="text-right px-4 py-3 font-normal">Ações</th>
             </tr>
           </thead>
@@ -234,12 +237,22 @@ function UsuariosPage() {
                     className={
                       "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs " +
                       (u.status === "ativo"
-                        ? "border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 text-[color:var(--gold)]"
-                        : "border-[color:var(--border)] text-[color:var(--muted-foreground)]")
+                        ? "gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                        : "gap-1.5 border-red-500/40 bg-red-500/10 text-red-400")
                     }
                   >
+                    <span
+                      aria-hidden
+                      className={
+                        "h-2 w-2 rounded-full " +
+                        (u.status === "ativo" ? "bg-emerald-400" : "bg-red-400")
+                      }
+                    />
                     {u.status === "ativo" ? "Ativo" : "Inativo"}
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  <WorkspaceBadges user={u} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
@@ -384,5 +397,44 @@ function UsuariosPage() {
         </div>
       )}
     </ExecutiveShell>
+  );
+}
+
+/**
+ * Leitura imediata do Administrador: verde = fluxo liberado, vermelho =
+ * desligado ou dependente de ação manual. A cor é apenas visual — o
+ * estado real vem do servidor e a matriz é validada lá.
+ */
+function WorkspaceBadges({ user }: { user: ExecutiveUser }) {
+  const map = useWorkspacePermissions();
+  const crm = resolveModuleAccess(map, user.id, user.role, "crm");
+  const portal = resolveModuleAccess(map, user.id, user.role, "portal_leads");
+  const e0 = resolveE0Mode(map, user.id, user.role);
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      <StateBadge label="CRM" on={crm} text={crm ? "ON" : "OFF"} />
+      <StateBadge label="Portal" on={portal} text={portal ? "ON" : "OFF"} />
+      <StateBadge
+        label="E0"
+        on={e0 === "automatico"}
+        text={e0 === "automatico" ? "Automático" : "Manual"}
+      />
+    </div>
+  );
+}
+
+function StateBadge({ label, on, text }: { label: string; on: boolean; text: string }) {
+  return (
+    <span
+      className={
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] " +
+        (on
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+          : "border-red-500/40 bg-red-500/10 text-red-400")
+      }
+    >
+      <span aria-hidden className={"h-1.5 w-1.5 rounded-full " + (on ? "bg-emerald-400" : "bg-red-400")} />
+      {label} {text}
+    </span>
   );
 }
