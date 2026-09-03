@@ -1,36 +1,56 @@
-# Organização visual: E0 dentro de Permissões do Workspace
+# Navegação por ambiente — Home contextual, menu do Workspace
 
-## Diagnóstico (estado real do código)
+Correção apenas de navegação. Nada de E0, banco, migration, cadência, Safety Lock ou novas rotas.
 
-1. **Ícone de escudo** — em `src/routes/f.executivo.usuarios.tsx` (coluna Ações), o botão "Permissões do Workspace" chama `setPermissionsFor(u)` e abre o modal `WorkspacePermissionsDialog` (`src/components/executive/workspace-permissions-dialog.tsx`). Não é rota nova, é modal sobre a própria tela.
-2. **Sim, essa área já é a verdadeira "Permissões do Workspace" individual.** O modal recebe o usuário selecionado e todas as gravações usam `user.id`.
-3. **Os controles CRM e Portal de Leads já estão lá dentro** — e o E0 também já está (terceiro item do modal, como mostra o print enviado). Ou seja, a área correta já existe e já está completa.
-4. **Vínculo de identidade correto**: o modal lê via `useWorkspacePermissions()` e grava por `setWorkspaceModuleAccess(user.id, key, next)` → `workspace_module_permissions (user_id, module_key, enabled)`, com validação da matriz no servidor (`workspace-permissions.functions.ts` + `first-contact-mode.server.ts`).
-5. **Nada precisa ser criado.** Não há tela nova a construir.
-6. **O problema é só duplicação na lista principal**: a coluna "Workspace" da tabela renderiza `WorkspaceBadges` (mesmo arquivo, final), que imprime CRM ON/OFF, Portal ON/OFF e E0 Manual/Automático em cada linha. Foi isso que poluiu a tabela — não há qualquer dependência funcional que obrigue essa exibição.
-7. **Sim**, a tabela pode ficar apenas com Nome, E-mail, Perfil, Status (verde/vermelho, já implementado assim) e Ações.
-8. **Confirmado**: o E0 aparece na tabela porque foi criado o componente de badges direto na lista, não por necessidade do motor.
-9. **Confirmado**: nenhuma dependência funcional do E0 exige presença na tabela principal. O motor decide pelo executivo responsável, lendo o servidor.
+## Princípio
 
-## Correção proposta (visual apenas)
+O ambiente atual determina o destino do Home:
 
-### Tabela de Gestão de Usuários
-- Remover a coluna "Workspace" e o componente `WorkspaceBadges`/`StateBadge`, junto com os imports `useWorkspacePermissions`, `resolveE0Mode`, `resolveModuleAccess` que passam a ficar sem uso.
-- Manter Nome, E-mail Corporativo, Perfil, Status (verde/vermelho) e Ações (editar, escudo, ativar/desativar, excluir), exatamente como hoje.
+```text
+Workspace              -> /f/executivo/home
+Portal do Investidor   -> /f          (solução na estrutura atual)
+Institucional (Grupo)  -> /
+```
 
-### Modal Permissões do Workspace
-- Manter os três controles juntos, com hierarquia visual clara:
-  - bloco "Módulos": CRM (ON/OFF) e Portal de Leads (ON/OFF);
-  - bloco "Primeiro contato — E0": MANUAL / AUTOMÁTICO, visualmente separado dos módulos, indicando que depende deles.
-- Cores: verde = ON / Automático; vermelho = OFF / Manual (já é o comportamento atual).
-- Quando CRM ou Portal estiver OFF: controle Automático desabilitado com a mensagem "Automático disponível somente com CRM e Portal de Leads ativos."
-- Cabeçalho do modal continua mostrando Nome, E-mail, Perfil e Status do usuário — status permanece conceito separado das permissões.
+O Portal do Investidor continua sendo, conceitualmente, um ambiente independente. Usar `/f` agora é apenas a resolução dentro da arquitetura existente; nenhuma rota nova é criada nesta etapa.
 
-## O que NÃO muda
-- Regra de negócio do E0, matriz servidor-side, gravação por executivo, ausência de reativação automática, consulta ao responsável pelo lead, Ação do Dia, Safety Lock.
-- Nenhuma migration, nenhuma alteração de banco, nenhuma configuração global reintroduzida.
-- Distinção entre "Portal de Leads" (módulo) e "Portal do Investidor" (origem).
+Regra: nenhum componente aponta `"/"` como Home sem verificar o contexto.
+
+## O que muda
+
+1. **Helper de ambiente** — adicionar em `src/lib/business-unit.ts` uma função `homePathFor(pathname)` que retorna:
+   - `/f/executivo/home` para caminhos operacionais do executivo;
+   - `/f` para a jornada do investidor (Manual, módulos editoriais, convite);
+   - `/` apenas para o institucional (raiz, Solar, Seguros).
+   Sem alterar as funções existentes (`unitPath`, `currentUnit`, `isOperationalPath`).
+
+2. **Logo/Home do Portal do Investidor passam a apontar para `/f`**
+   - `src/routes/f.index.tsx` — logo "Portal Velox" do header.
+   - `src/components/editorial/module-chrome.tsx` — logo "Início".
+   - `src/components/journey/journey-chrome.tsx` — logo "Início do Manual".
+   - `src/routes/manual/concluido.tsx` — botão de retorno.
+
+3. **Card "Portal do Investidor" na Home do Workspace** — `src/config/modules.ts`: destino passa de `/` para `/f` (continua abrindo em nova aba).
+
+4. **Tela de acesso do Workspace** — `src/routes/f.executivo.index.tsx`: o botão "Voltar ao Portal Velox" passa a apontar para `/f`.
+
+5. **Sem link institucional dentro do Portal do Investidor** — nenhum link para `/` permanece no ambiente do investidor (nem no rodapé). As páginas institucionais Solar e Seguros mantêm o retorno para `/`, pois pertencem ao ambiente institucional.
+
+6. **Remover "Unidades do Grupo" do menu `/f`** — `src/components/executive/executive-shell.tsx`, grupo `relationship`. A rota `/f/executivo/unidades`, o formulário público de interesse, os dados e o backup permanecem intactos; apenas o item de menu operacional da Financeira sai.
+
+7. **Fallback de erro/404** — `src/routes/__root.tsx`: o botão "Go home" passa a usar o helper contextual em vez de `/` fixo.
+
+## O que não muda
+
+- Apresentação Digital (`/f/executivo/apresentacao-digital` e `/portal/convite/$token`) — funcional, sem alteração.
+- Home do Workspace `/f/executivo/home` — já correta.
+- E0, permissões, CRM, cadência, GreenSales, Safety Lock, banco, migrations.
+- Nenhuma rota criada, renomeada ou removida.
 
 ## Arquivos afetados
-- `src/routes/f.executivo.usuarios.tsx` — remover coluna e badges.
-- `src/components/executive/workspace-permissions-dialog.tsx` — agrupamento visual e texto auxiliar.
+
+`src/lib/business-unit.ts`, `src/config/modules.ts`, `src/routes/f.index.tsx`, `src/routes/f.executivo.index.tsx`, `src/routes/manual/concluido.tsx`, `src/routes/__root.tsx`, `src/components/editorial/module-chrome.tsx`, `src/components/journey/journey-chrome.tsx`, `src/components/executive/executive-shell.tsx`.
+
+## Validação
+
+Typecheck e build; conferir que Home no Workspace vai para `/f/executivo/home`, que logo e retornos do investidor vão para `/f`, que "Unidades do Grupo" não aparece mais no menu `/f` e que a rota continua acessível por URL direta.
