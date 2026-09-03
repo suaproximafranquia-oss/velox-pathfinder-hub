@@ -93,6 +93,7 @@ export const NEVER_RESTORE_TABLES: readonly string[] = [
   "portal_engagement",
   "portal_meetings",
   "portal_lead_guard_log",
+  "workspace_e0_actions",
 ];
 
 export type BackupKind = "completo" | "conversas";
