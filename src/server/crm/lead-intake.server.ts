@@ -27,6 +27,7 @@ import {
 } from "@/server/crm/lead-service.server";
 import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
 import { createPendingE0Action } from "@/server/crm/e0-actions.server";
+import { resolveExecutiveE0Mode } from "@/server/crm/first-contact-mode.server";
 import {
   backfillCardResponsible,
   resolveResponsibleByUserId,
