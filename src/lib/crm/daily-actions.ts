@@ -26,8 +26,19 @@ export const OPERATIONAL_TIME_ZONE = "America/Sao_Paulo";
 /** Antecedência em que uma reunião passa a ocupar o topo da lista. */
 export const MEETING_FOCUS_WINDOW_MS = 15 * 60 * 1000;
 
-export type DailyActionSource = "meeting" | "agenda" | "closure" | "queue" | "cadence";
-export type DailyActionKind = "reuniao" | "compromisso" | "mensagem" | "ligacao";
+export type DailyActionSource =
+  | "first_contact"
+  | "meeting"
+  | "agenda"
+  | "closure"
+  | "queue"
+  | "cadence";
+export type DailyActionKind =
+  | "primeiro_contato"
+  | "reuniao"
+  | "compromisso"
+  | "mensagem"
+  | "ligacao";
 export type DailyActionBucket = "agora" | "atrasada" | "hoje" | "futura";
 
 export type CadenceAttemptView = { step: number; date: string; outcome: "SIM" | "NAO" };
@@ -65,6 +76,8 @@ export type DailyAction = {
   title: string;
   responsibleName: string | null;
   cadence?: CadenceRef;
+  /** Ação de Primeiro Contato (E0) pendente de execução manual. */
+  firstContactActionId?: string;
   attempts: CadenceAttemptView[];
   /**
    * Pendências de menor precedência do MESMO lead. Continuam disponíveis
@@ -159,16 +172,21 @@ export function sortDailyActions(actions: DailyAction[]): DailyAction[] {
  * operacional. A de maior precedência permanece; a outra é descartada.
  */
 const SOURCE_PRECEDENCE: Record<DailyActionSource, number> = {
-  meeting: 0,
-  agenda: 1,
+  /**
+   * PRIMEIRO CONTATO (E0) de lead novo: prioridade máxima da operação
+   * comercial — é a única etapa cujo atraso custa a entrada do lead.
+   */
+  first_contact: 0,
+  meeting: 1,
+  agenda: 2,
   /**
    * Fechamento do ciclo (E27 / FINALIZAÇÃO da Apresentação Digital).
    * Vence a cadência corrente: é o compromisso já assumido com o
    * investidor a partir de um convite emitido.
    */
-  closure: 2,
-  queue: 3,
-  cadence: 4,
+  closure: 3,
+  queue: 4,
+  cadence: 5,
 };
 
 /** Colapsa ações repetidas pela chave determinística. */
@@ -240,6 +258,7 @@ export function summarizeDailyActions(actions: DailyAction[]): DailyActionsSumma
 
 /** Rótulos de interface — o CRM nunca inventa nomes de etapa. */
 export const KIND_LABEL: Record<DailyActionKind, string> = {
+  primeiro_contato: "Primeiro contato (E0)",
   reuniao: "Reunião",
   compromisso: "Compromisso",
   mensagem: "Mensagem",

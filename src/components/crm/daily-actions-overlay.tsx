@@ -36,6 +36,7 @@ function formatDay(iso: string): string {
 }
 
 const KIND_ICON: Record<DailyActionKind, typeof Phone> = {
+  primeiro_contato: MessageCircle,
   reuniao: CalendarClock,
   compromisso: CalendarDays,
   mensagem: MessageSquare,
