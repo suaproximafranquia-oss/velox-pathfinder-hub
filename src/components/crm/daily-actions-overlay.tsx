@@ -17,6 +17,8 @@ import {
   MessageSquare,
   Phone,
   RefreshCw,
+  SkipForward,
+  StickyNote,
   X,
 } from "lucide-react";
 import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
