@@ -220,7 +220,6 @@ function UsuariosPage() {
               <th className="text-left px-4 py-3 font-normal">E-mail Corporativo</th>
               <th className="text-left px-4 py-3 font-normal">Perfil</th>
               <th className="text-left px-4 py-3 font-normal">Status</th>
-              <th className="text-left px-4 py-3 font-normal">Workspace</th>
               <th className="text-right px-4 py-3 font-normal">Ações</th>
             </tr>
           </thead>
