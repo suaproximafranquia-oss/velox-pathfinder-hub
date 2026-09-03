@@ -166,6 +166,7 @@ export function GatewayOverlay({
       executiveSlug: executive?.slug ?? null,
       personalized: Boolean(executive),
       campaign: entry.campaign ?? null,
+      channel: entry.channel === "tiktok" || entry.channel === "meta" ? entry.channel : null,
     });
     setChecking(false);
     if (!result.ok) {
