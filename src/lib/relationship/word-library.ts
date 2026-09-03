@@ -1,6 +1,13 @@
 /**
- * BIBLIOTECA OFICIAL — TEXTOS DO WORD "Biblioteca de Mensagens — Jornada
- * do Investidor" (V2).
+ * DOCUMENTAÇÃO HISTÓRICA — textos do Word "Biblioteca de Mensagens —
+ * Jornada do Investidor" (V2).
+ *
+ * IMPORTANTE: este documento NÃO é mais a fonte operacional para saber
+ * quais etapas existem hoje. A fotografia atual das etapas vive em
+ * `src/lib/relationship/current-steps.ts`. Este arquivo permanece
+ * preservado, íntegro e disponível para consulta e histórico.
+ */
+
  *
  * Este arquivo é a TRANSCRIÇÃO FIEL do documento oficial. Nada aqui foi
  * reescrito, melhorado ou completado por interpretação. As únicas
