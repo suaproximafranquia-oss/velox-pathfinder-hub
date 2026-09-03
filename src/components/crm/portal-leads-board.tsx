@@ -293,6 +293,9 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const runBackfill = useServerFn(runCrmBackfillNow);
   const moveLead = useServerFn(moveCrmLeadStage);
   const fetchCallsSummary = useServerFn(getDailyActionsSummary);
+  /** Modo real: o painel usa exatamente as funções oficiais de sempre. */
+  const dailyActionsAdapter = useRealDailyActionsAdapter();
+
 
   useEffect(() => {
     const s = getSession();
