@@ -10,6 +10,7 @@ import { ArrowRight, ShieldCheck, X } from "lucide-react";
 import { getExecutiveBySlug } from "@/lib/executive-auth";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { GROUP_ORIGIN_LABEL, readEntryContext } from "@/lib/portal-entry";
+import { getPortalAdministratorId } from "@/lib/portal-workspace";
 import { startPortalSession } from "@/lib/portal-session";
 import { getVisitorIdentity } from "@/lib/leads";
 import {
