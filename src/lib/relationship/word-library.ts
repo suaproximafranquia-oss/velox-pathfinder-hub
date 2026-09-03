@@ -6,8 +6,6 @@
  * quais etapas existem hoje. A fotografia atual das etapas vive em
  * `src/lib/relationship/current-steps.ts`. Este arquivo permanece
  * preservado, íntegro e disponível para consulta e histórico.
- */
-
  *
  * Este arquivo é a TRANSCRIÇÃO FIEL do documento oficial. Nada aqui foi
  * reescrito, melhorado ou completado por interpretação. As únicas
