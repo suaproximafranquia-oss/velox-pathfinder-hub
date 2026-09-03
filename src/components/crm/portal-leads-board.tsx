@@ -15,6 +15,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { CalendarClock, DatabaseBackup, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { DailyActionsOverlay } from "@/components/crm/daily-actions-overlay";
+import { useRealDailyActionsAdapter } from "@/components/crm/daily-actions-real-adapter";
+
 import { getDailyActionsSummary } from "@/lib/crm/daily-actions.functions";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
@@ -293,6 +295,9 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const runBackfill = useServerFn(runCrmBackfillNow);
   const moveLead = useServerFn(moveCrmLeadStage);
   const fetchCallsSummary = useServerFn(getDailyActionsSummary);
+  /** Modo real: o painel usa exatamente as funções oficiais de sempre. */
+  const dailyActionsAdapter = useRealDailyActionsAdapter();
+
 
   useEffect(() => {
     const s = getSession();
@@ -600,7 +605,9 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       )}
 
       <DailyActionsOverlay
+        adapter={dailyActionsAdapter}
         open={callsOpen}
+
         onClose={() => {
           setCallsOpen(false);
           void load();

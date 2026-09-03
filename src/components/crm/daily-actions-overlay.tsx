@@ -8,7 +8,6 @@
  * atraso em tarefa de hoje.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarClock,
   CalendarDays,
@@ -20,9 +19,7 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import { completeCadenceTaskFn, registerWhatsappCallAttemptFn } from "@/lib/crm/cadence.functions";
-import { listDailyActions } from "@/lib/crm/daily-actions.functions";
-import { executeFirstContactAction } from "@/lib/crm/first-contact-mode.functions";
+import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
 import {
   KIND_LABEL,
   operationalTime,
@@ -30,6 +27,7 @@ import {
   type DailyActionBucket,
   type DailyActionKind,
 } from "@/lib/crm/daily-actions";
+
 
 function formatDay(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -54,16 +52,19 @@ export function DailyActionsOverlay({
   open,
   onClose,
   onOpenLead,
+  adapter,
 }: {
   open: boolean;
   onClose: () => void;
   /** Abre a ficha completa do investidor em endereço próprio. */
   onOpenLead: (leadId: string) => void;
+  /**
+   * FONTE DOS DADOS. O painel não conhece servidor nem banco: tudo o
+   * que ele faz passa por este adaptador. O modo real o liga às funções
+   * oficiais; o modo demonstração o liga a dados em memória.
+   */
+  adapter: DailyActionsAdapter;
 }) {
-  const fetchActions = useServerFn(listDailyActions);
-  const completeTask = useServerFn(completeCadenceTaskFn);
-  const registerWhatsapp = useServerFn(registerWhatsappCallAttemptFn);
-  const executeFirstContact = useServerFn(executeFirstContactAction);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const [actions, setActions] = useState<DailyAction[]>([]);
@@ -74,7 +75,7 @@ export function DailyActionsOverlay({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await fetchActions();
+      const rows = await adapter.load();
       setActions(rows);
       setSelectedKey((current) =>
         current && rows.some((r) => r.actionKey === current)
@@ -84,7 +85,7 @@ export function DailyActionsOverlay({
     } finally {
       setLoading(false);
     }
-  }, [fetchActions]);
+  }, [adapter]);
 
   useEffect(() => {
     if (!open) return;
@@ -126,22 +127,36 @@ export function DailyActionsOverlay({
     });
   }
 
+  /**
+   * Fila contínua (demonstração): a ação sai da posição atual e volta
+   * para o FINAL, e a seleção avança para a próxima. Nenhum registro é
+   * criado — a mesma lista circula indefinidamente.
+   */
+  function requeueAction(key: string) {
+    setActions((prev) => {
+      const index = prev.findIndex((r) => r.actionKey === key);
+      if (index < 0) return prev;
+      const item = prev[index];
+      const rest = prev.filter((r) => r.actionKey !== key);
+      setSelectedKey(rest[Math.min(index, rest.length - 1)]?.actionKey ?? item.actionKey);
+      return [...rest, item];
+    });
+  }
+
+  function applyResult(key: string, result: { requeue?: boolean; message?: string }) {
+    if (result.requeue) requeueAction(key);
+    else dropAction(key);
+    if (result.message) setFeedback(result.message);
+  }
+
   /** Ligação: registra o desfecho da tentativa; não encerra a cadência. */
   async function handleCallOutcome(item: DailyAction, outcome: "SIM" | "NAO") {
     if (!item.cadence) return;
     setBusy(true);
     try {
-      await completeTask({
-        data: {
-          leadId: item.cadence.crmLeadId,
-          step: item.cadence.step,
-          dueDate: item.cadence.dueDate,
-          cycleDate: item.cadence.cycleDate,
-          channel: "call",
-          outcome,
-        },
-      });
-      dropAction(item.actionKey);
+      const result = await adapter.completeCall(item, outcome);
+      if (result.ok) applyResult(item.actionKey, result);
+      else setFeedback(result.message ?? "Não foi possível registrar a ligação.");
     } finally {
       setBusy(false);
     }
@@ -157,14 +172,14 @@ export function DailyActionsOverlay({
     setBusy(true);
     setFeedback(null);
     try {
-      const result = await executeFirstContact({
-        data: { actionId: item.firstContactActionId },
-      });
+      const result = await adapter.executeFirstContact(item);
       if (result.ok) {
-        dropAction(item.actionKey);
-        setFeedback("Primeiro contato registrado.");
+        applyResult(item.actionKey, {
+          requeue: result.requeue,
+          message: result.message ?? "Primeiro contato registrado.",
+        });
       } else {
-        setFeedback(result.reason ?? "Não foi possível executar o primeiro contato.");
+        setFeedback(result.message ?? "Não foi possível executar o primeiro contato.");
       }
     } finally {
       setBusy(false);
@@ -172,22 +187,10 @@ export function DailyActionsOverlay({
   }
 
   async function handleWhatsapp(item: DailyAction) {
-    const digits = item.phone.replace(/\D/g, "");
-    if (!digits) return;
-    window.open(`https://wa.me/${digits}`, "_blank", "noopener");
-    if (!item.cadence) return;
-    try {
-      await registerWhatsapp({
-        data: {
-          leadId: item.cadence.crmLeadId,
-          step: item.cadence.step,
-          cycleDate: item.cadence.cycleDate,
-        },
-      });
-    } catch {
-      /* o registro de histórico nunca bloqueia a operação */
-    }
+    const result = await adapter.openWhatsapp(item);
+    if (result.message) setFeedback(result.message);
   }
+
 
   if (!open) return null;
 
@@ -211,7 +214,14 @@ export function DailyActionsOverlay({
               <CalendarClock className="h-4 w-4" />
             </span>
             <div>
-              <h2 className="font-display text-base leading-tight text-white">Ações do Dia</h2>
+              <h2 className="flex items-center gap-2 font-display text-base leading-tight text-white">
+                Ações do Dia
+                {adapter.demoLabel && (
+                  <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+                    {adapter.demoLabel}
+                  </span>
+                )}
+              </h2>
               <p className="text-[11px] text-white/45">
                 {overdueCount > 0
                   ? `${overdueCount} atrasada(s) · ${todayCount} para hoje`
@@ -219,6 +229,7 @@ export function DailyActionsOverlay({
                 {" · reuniões e compromissos têm prioridade"}
               </p>
             </div>
+
           </div>
           <div className="flex items-center gap-2">
             <button

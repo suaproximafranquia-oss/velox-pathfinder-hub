@@ -98,6 +98,7 @@ import { Route as FExecutivoBackupsRouteImport } from './routes/f.executivo.back
 import { Route as FExecutivoApresentacaoDigitalRouteImport } from './routes/f.executivo.apresentacao-digital'
 import { Route as FExecutivoAlertasRouteImport } from './routes/f.executivo.alertas'
 import { Route as FExecutivoAdministracaoRouteImport } from './routes/f.executivo.administracao'
+import { Route as FExecutivoAcaoDoDiaDemoRouteImport } from './routes/f.executivo.acao-do-dia-demo'
 import { Route as FExecutivoInvestidoresIdRouteImport } from './routes/f.executivo.investidores.$id'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicRemarketingRunRouteImport } from './routes/api/public/remarketing/run'
@@ -552,6 +553,11 @@ const FExecutivoAdministracaoRoute = FExecutivoAdministracaoRouteImport.update({
   path: '/administracao',
   getParentRoute: () => FExecutivoRoute,
 } as any)
+const FExecutivoAcaoDoDiaDemoRoute = FExecutivoAcaoDoDiaDemoRouteImport.update({
+  id: '/acao-do-dia-demo',
+  path: '/acao-do-dia-demo',
+  getParentRoute: () => FExecutivoRoute,
+} as any)
 const FExecutivoInvestidoresIdRoute =
   FExecutivoInvestidoresIdRouteImport.update({
     id: '/$id',
@@ -639,6 +645,7 @@ export interface FileRoutesByFullPath {
   '/manual/': typeof ManualIndexRoute
   '/s/': typeof SIndexRoute
   '/seg/': typeof SegIndexRoute
+  '/f/executivo/acao-do-dia-demo': typeof FExecutivoAcaoDoDiaDemoRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
   '/f/executivo/apresentacao-digital': typeof FExecutivoApresentacaoDigitalRoute
@@ -732,6 +739,7 @@ export interface FileRoutesByTo {
   '/manual': typeof ManualIndexRoute
   '/s': typeof SIndexRoute
   '/seg': typeof SegIndexRoute
+  '/f/executivo/acao-do-dia-demo': typeof FExecutivoAcaoDoDiaDemoRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
   '/f/executivo/apresentacao-digital': typeof FExecutivoApresentacaoDigitalRoute
@@ -830,6 +838,7 @@ export interface FileRoutesById {
   '/manual/': typeof ManualIndexRoute
   '/s/': typeof SIndexRoute
   '/seg/': typeof SegIndexRoute
+  '/f/executivo/acao-do-dia-demo': typeof FExecutivoAcaoDoDiaDemoRoute
   '/f/executivo/administracao': typeof FExecutivoAdministracaoRoute
   '/f/executivo/alertas': typeof FExecutivoAlertasRoute
   '/f/executivo/apresentacao-digital': typeof FExecutivoApresentacaoDigitalRoute
@@ -929,6 +938,7 @@ export interface FileRouteTypes {
     | '/manual/'
     | '/s/'
     | '/seg/'
+    | '/f/executivo/acao-do-dia-demo'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
     | '/f/executivo/apresentacao-digital'
@@ -1022,6 +1032,7 @@ export interface FileRouteTypes {
     | '/manual'
     | '/s'
     | '/seg'
+    | '/f/executivo/acao-do-dia-demo'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
     | '/f/executivo/apresentacao-digital'
@@ -1119,6 +1130,7 @@ export interface FileRouteTypes {
     | '/manual/'
     | '/s/'
     | '/seg/'
+    | '/f/executivo/acao-do-dia-demo'
     | '/f/executivo/administracao'
     | '/f/executivo/alertas'
     | '/f/executivo/apresentacao-digital'
@@ -1845,6 +1857,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoAdministracaoRouteImport
       parentRoute: typeof FExecutivoRoute
     }
+    '/f/executivo/acao-do-dia-demo': {
+      id: '/f/executivo/acao-do-dia-demo'
+      path: '/acao-do-dia-demo'
+      fullPath: '/f/executivo/acao-do-dia-demo'
+      preLoaderRoute: typeof FExecutivoAcaoDoDiaDemoRouteImport
+      parentRoute: typeof FExecutivoRoute
+    }
     '/f/executivo/investidores/$id': {
       id: '/f/executivo/investidores/$id'
       path: '/$id'
@@ -1915,6 +1934,7 @@ const FExecutivoInvestidoresRouteWithChildren =
   )
 
 interface FExecutivoRouteChildren {
+  FExecutivoAcaoDoDiaDemoRoute: typeof FExecutivoAcaoDoDiaDemoRoute
   FExecutivoAdministracaoRoute: typeof FExecutivoAdministracaoRoute
   FExecutivoAlertasRoute: typeof FExecutivoAlertasRoute
   FExecutivoApresentacaoDigitalRoute: typeof FExecutivoApresentacaoDigitalRoute
@@ -1950,6 +1970,7 @@ interface FExecutivoRouteChildren {
 }
 
 const FExecutivoRouteChildren: FExecutivoRouteChildren = {
+  FExecutivoAcaoDoDiaDemoRoute: FExecutivoAcaoDoDiaDemoRoute,
   FExecutivoAdministracaoRoute: FExecutivoAdministracaoRoute,
   FExecutivoAlertasRoute: FExecutivoAlertasRoute,
   FExecutivoApresentacaoDigitalRoute: FExecutivoApresentacaoDigitalRoute,
