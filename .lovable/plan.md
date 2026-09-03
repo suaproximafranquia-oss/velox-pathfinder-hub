@@ -1,110 +1,100 @@
-# Auditoria — Ação do Dia + viabilidade do Modo Demonstração
+# Auditoria — Mapa real das etapas do motor × Ação do Dia
 
-Somente diagnóstico. Nada foi alterado: sem migration, sem componente novo, sem toque no motor de E0, na cadência ou na Global WhatsApp Safety Lock.
+Somente leitura. Nada foi alterado.
 
-## 1. Onde a Ação do Dia vive hoje
+## A) Inventário das etapas
 
-| Camada | Arquivo | Papel |
-|---|---|---|
-| Interface | `src/components/crm/daily-actions-overlay.tsx` | Painel sobreposto: lista lateral + painel de execução |
-| Ponto de entrada | `src/components/crm/portal-leads-board.tsx` | Botão com contador; abre o overlay e recarrega o quadro ao fechar |
-| Rota | `src/routes/f.portal-leads.tsx` | Guard operacional + permissão de módulo `portal_leads` |
-| Contrato/regras puras | `src/lib/crm/daily-actions.ts` | Tipos, buckets, precedência, dedupe, ordenação, resumo |
-| RPC | `src/lib/crm/daily-actions.functions.ts` | `listDailyActions`, `getDailyActionsSummary` (autenticadas, restritas à gestão) |
-| Agregador | `src/server/crm/daily-actions.server.ts` | Lê as fontes oficiais e monta a lista |
+Fonte única executável: `STEPS` + `FLOW_SEQUENCE` em `src/lib/relationship/config.ts`, tipo `CadenceStep` em `types.ts`, registro de aceitação em `step-registry.ts`, rótulos em `step-labels.ts`.
 
-Não existe segunda tela de Ação do Dia. A fila é **recalculada a cada leitura** — não há tabela própria de "fila do dia".
+| Código | Rótulo | Onde definido | No motor? | Texto oficial? | Executa envio? | Chega à Ação do Dia? |
+|---|---|---|---|---|---|---|
+| E0 | Primeiro contato | STEPS, sequência sem_resposta | sim | sim (v4 ativa) | sim | sim — `kind: primeiro_contato`, executável |
+| E0_V1 | Primeiro contato (Portal) | STEPS (legado na Biblioteca) | sim | sim (v3 ativa) | sim | via mesma ação de E0 |
+| E1 | Primeiro acompanhamento | STEPS | sim | sim | sim | sim — `kind: mensagem` (informativa) |
+| E3 | Segundo acompanhamento | STEPS (recebe texto do "E2" do Word) | sim | sim | sim | sim — `mensagem` |
+| E4 | Acompanhamento firme | STEPS (texto do "E3" do Word) | sim | sim | sim | sim — `mensagem` |
+| E12 | Encerramento sem resposta | STEPS (texto do "E5" do Word) | sim | sim | sim | sim — `mensagem` |
+| E30 | Recontato tardio | STEPS + `reactivation.ts` | sim, porém `E30_ENABLED = false` | não existe linha na Biblioteca | não | não |
+| V3 / V4 | Fluxo de visualização | STEPS, fluxo `visualizacao` | sim (legado) | sim (ativas) | sim | sim se entrarem na fila |
+| R1 / R2 / R3 | Reengajamento | STEPS, fluxo `reengajamento` | sim | sim | sim | sim se entrarem na fila |
+| RE0–RE3 | Reentrada | STEPS, fluxo `reentrada` | sim | sim | sim | sim se entrarem na fila |
+| RF0 / RF1 | Relacionamento esfriado | STEPS, fluxo `relacionamento_frio` | sim | sim | sim | sim se entrarem na fila |
+| E20 (exibido "E6") | Apresentação Digital | `step-registry` NON_CADENCE + `e20.server.ts` | sim, fora da cadência | sim | sim, por emissão de convite | não como item próprio |
+| E27 (exibido "E7") | Checkpoint da Apresentação | NON_CADENCE + `closure.server.ts` | sim | v3 ativa com texto | sim | sim — `kind: mensagem`, fonte `closure` |
+| FINALIZACAO | Finalização do ciclo | NON_CADENCE + `closure.server.ts` | sim | sim | sim | sim — `mensagem`, fonte `closure` |
+| RESPOSTA_AUTOMATICA | Resposta em janela 24h | NON_CADENCE + `auto-reply.server.ts` | sim | v2 ativa | sim | não |
+| E2, E5, E6, E7 | rótulos editoriais do Word | `word-library.ts` + `WORD_ALIAS_STEPS` | **não são etapas do motor** | linhas ativas na Biblioteca (resíduo) | não | não |
+| E8 | — | não encontrado em código nem no banco | **não comprovado** | não | não | não |
+| E5–E8 como cadência | — | não existe fluxo com essas chaves | não comprovado | — | — | — |
 
-## 2. Como a fila é montada
+Observação relevante: `WORD_STEP_TO_ENGINE_STEP` traduz E2→E3, E3→E4, E5→E12, E6→E20, E7→FINALIZACAO. As linhas E2/E5/E6/E7 na Biblioteca deveriam estar desativadas (`WORD_ALIAS_STEPS`), mas hoje estão `active = true` — é o que faz a tela mostrar siglas que o motor não executa.
 
-`buildDailyActions({ executiveId })` faz seis leituras em paralelo:
+## B) Fluxos reais (não é linear)
 
-| Fonte | Tabela/função | Vira |
-|---|---|---|
-| Primeiro contato manual | `workspace_e0_actions` (state `PENDENTE`) via `listPendingE0Actions` | `primeiro_contato` (E0) |
-| Reuniões | `portal_meetings` | `reuniao` |
-| Agenda | `workspace_agenda_events` | `compromisso` |
-| Fechamento do ciclo | `listClosureDuties` (ocorrências da E20 → E27/FINALIZAÇÃO) | `mensagem` |
-| Motor de relacionamento | `relationship_queue` (status `PENDING`) | `mensagem` |
-| Ligações (legado) | `buildCadenceQueue("call")` sobre `crm_leads` + `crm_cadence_tasks` | `ligacao` |
+```text
+sem_resposta:        E0 → E1 → E3 → E4 → E12 → (E30 desligada)
+visualizacao:        E0 → E1 → V3 → V4
+reengajamento:       R1 → R2 → R3
+reentrada:           RE0 → RE1 → RE2 → RE3
+relacionamento_frio: RF0 → RF1
+paralelo (fora da cadência): E20 → E27 → FINALIZACAO
+```
 
-Identidade (nome, telefone, carteira) vem sempre de `portal_leads`.
+Condições: dias úteis por etapa (`businessDaysAfterReference`), janela 09–21h (E0 tem janela própria), etapa terminal encerra o fluxo, OPORTUNIDADE no fechamento das 22h bloqueia cadência, resposta do investidor na reentrada passa a condução ao Executivo.
 
-Janela: de −45 dias a +2 dias. Limites: 500 reuniões, 500 eventos de agenda, 1000 itens de fila, 500 ações E0, 5000 leads na cadência. **Não há paginação** — a lista chega inteira ao navegador.
+## C) Motor
 
-Normalização (`normalizeDailyActions`): dedupe por `actionKey` → colapso por lead (um lead = um card visível; o resto vai para `secondary`) → ordenação.
+`decide.ts` (decisão) + `machine.ts` (estado) + `engine.ts` (orquestração) + `calendar.ts`/`closing.ts` (tempo) + `scheduler.server.ts` (tick de produção) → grava em `relationship_queue` / `relationship_cadences`. É uma máquina de estados real e centralizada, não regras espalhadas.
 
-Precedência entre fontes: `first_contact` (0) > `meeting` (1) > `agenda` (2) > `closure` (3) > `queue` (4) > `cadence` (5).
+## D) Mensagens
 
-Ordem final (`actionRank`): prioridade máxima em foco/atrasada → prioridade máxima futura → atrasadas → hoje/agora → futuras; empate resolvido por horário e depois por `actionKey`. O "próximo item" é simplesmente o primeiro da lista ordenada — não existe cursor server-side.
+Tabela `relationship_message_library` (versionada, `active`), texto oficial em `word-library.ts`, renderização em `messages.ts`, envio em `step-message.server.ts` / `dispatch.server.ts`, com Safety Lock global. E30 não tem linha; E20/E27/FINALIZACAO têm texto e hoje estão ativas.
 
-Buckets: `agora`, `atrasada`, `hoje`, `futura`, calculados em `resolveBucket` com fuso `America/Sao_Paulo` e janela de foco de 15 min. O "agora" vem do servidor, nunca do relógio do navegador.
+## E/F) Matriz Ação do Dia
 
-## 3. Tipos de ação existentes
+Fonte: `daily-actions.server.ts`.
 
-Existem **cinco `kind`** (não um por etapa):
+| Etapa | Motor | Chega à Ação do Dia | Kind | Executável ali | Fonte |
+|---|---|---|---|---|---|
+| E0 | sim | sim | primeiro_contato | **sim** | `workspace_e0_actions` |
+| E1/E3/E4/E12 | sim | sim | mensagem | não (informativa) | `relationship_queue` |
+| V3/V4/R1–R3/RE0–RE3/RF0–RF1 | sim | sim quando enfileiradas | mensagem | não | `relationship_queue` |
+| E27 / FINALIZACAO | sim | sim | mensagem | não | `relationship_e20_occurrences` |
+| Ligações L1–L4 | motor legado | sim | ligacao | **sim** (SIM/NÃO + WhatsApp) | `crm_cadence_tasks` |
+| Reuniões | — | sim | reuniao | não | `portal_meetings` |
+| Compromissos | — | sim | compromisso | não | `workspace_agenda_events` |
+| E20, RESPOSTA_AUTOMATICA, E30 | sim/desligada | não | — | — | — |
 
-| Kind | Origem | Ao executar | Grava |
-|---|---|---|---|
-| `primeiro_contato` (E0) | `workspace_e0_actions` | `executeFirstContactAction` → `executeE0Action` → `registerFirstContact` | `workspace_e0_actions` (state/executed_at/executed_by/result) + `crm_lead_events` quando há `crm_lead_id` |
-| `ligacao` | fila de cadência | Botões Sim/Não → `completeCadenceTaskFn` | `crm_cadence_tasks` |
-| `reuniao` | `portal_meetings` | Nenhuma conclusão no painel | — |
-| `compromisso` | `workspace_agenda_events` | Nenhuma conclusão no painel | — |
-| `mensagem` | `relationship_queue` e fechamento (E27/FINALIZAÇÃO) | Nenhuma conclusão no painel | — |
+Só existem dois executores no painel: E0 e ligação. Todo o resto é apresentação.
 
-E1/E2/E3 **não são tipos**: são etapas que aparecem como `mensagem` com `stepLabel` (rótulo vindo de `src/lib/relationship/step-labels.ts`). Só E0 e ligação são executáveis dentro do painel; as demais são encerradas nas suas origens.
+## G) Comparação com o fixture atual (`daily-actions.demo.ts`)
 
-Ação lateral comum: botão WhatsApp (`wa.me`, abre nova aba; em ligação registra tentativa via `registerWhatsappCallAttemptFn`) e "Ver ficha completa" (`/f/executivo/investidores/:id` em nova aba).
+Correto: E0, E1, E3, E4, R1, V3, checkpoint E7/E27, Finalização, ligações com tentativas, reuniões e compromissos; os cinco `kind` e os quatro buckets.
 
-## 4. Janela / modal
+Incorreto/inventado:
+- **E2** (2 itens): não é etapa executável do motor — é rótulo do Word que corresponde a E3.
+- Rótulo "E7 — Checkpoint" está certo na apresentação, mas o fixture não expõe a chave técnica E27 como o real faz (`stepDisplayLabel`).
+- `scope: "demonstracao"` não existe entre as carteiras reais.
 
-Um único componente, overlay em tela cheia, com duas colunas:
-- esquerda: etapa, nome, telefone clicável, título, histórico de tentativas, pendências secundárias, botões e nota explicativa;
-- direita: "Ordem do dia" agrupada em Agora / Atrasadas / Para hoje.
+Faltando: E12, E30 (como caso "não envia"), fluxo de reentrada RE0–RE3, relacionamento esfriado RF0/RF1, R2/R3, V4, E0_V1 (Portal) e itens sem responsável/atrasados de mais de um fluxo simultâneo no mesmo lead (o colapso `secondary`).
 
-Botões: Executar E0 · Sim/Não (ligação) · WhatsApp · Ver ficha · Atualizar · Fechar (X, clique no fundo ou Esc).
+## H) Proposta da demonstração fiel (não implementada)
 
-**Não existe botão "próximo"**. Depois de executar, `dropAction()` remove o item da lista local e seleciona automaticamente o vizinho — o avanço é implícito. Fechar o overlay dispara `load()` no quadro.
+1. Derivar os rótulos do fixture de `DEFAULT_STEP_LABELS`/`stepDisplayLabel`, em vez de strings escritas à mão — nenhuma sigla inventada.
+2. Remover E2 (e qualquer alias do Word) do fixture.
+3. Representar por fluxo, não por sigla solta: sem_resposta (E0→E1→E3→E4→E12), visualização (V3/V4), reengajamento (R1–R3), reentrada (RE0–RE3), esfriado (RF0/RF1), fechamento (E27/FINALIZACAO).
+4. Manter apenas dois executáveis (E0 e ligação), igual ao real; o restante permanece card informativo.
+5. Incluir um caso de lead com pendência dupla para demonstrar o colapso `secondary`.
+6. E30 não entra como ação; no máximo como nota de "etapa existente que não envia".
+7. Usar `scope` de carteira real (ex.: `greensales`, `portal`) para o visual da ficha ser fiel.
 
-Estado local: `actions`, `selectedKey`, `loading`, `busy`, `feedback`. Nenhum estado global, nenhum contexto — toda a interface depende apenas de `actions` + três `useServerFn`.
+## I) Arquivos que uma futura construção tocaria
 
-## 5. Permissões
+- `src/lib/crm/daily-actions.demo.ts` (fixture — principal)
+- eventualmente `src/routes/f.executivo.acao-do-dia-demo.tsx` (texto de contexto)
 
-Cadeia atual: `OperationalGuard` (sessão + status ativo, checado a cada 60s) → `useModuleAccess(..., "portal_leads")` → dentro do board, `isCrmAdministrator || isCrmSupervisor` → no servidor, `assertManager` exige papel `admin` ou `manager`. O executivo só vê o que é dele: `current_executive_id()` filtra reuniões, agenda e ações E0.
+Nenhum arquivo de motor, E0, cadência, mensagens ou Homologação seria alterado.
 
-## 6. Viabilidade do Modo Demonstração
+## Achado adicional (fora do escopo, apenas registrado)
 
-Tecnicamente favorável, e por um motivo estrutural: o overlay **não conhece nenhuma tabela**. Ele consome `DailyAction[]` e chama três funções obtidas por `useServerFn`. Toda a dependência real está nessas três chamadas.
-
-Bloqueio único a resolver: hoje o componente chama `useServerFn(...)` no topo, incondicionalmente. Enquanto essas chamadas estiverem fixas dentro dele, não há como garantir isolamento por inspeção.
-
-### Proposta técnica mínima
-
-1. Tornar o overlay agnóstico de origem: receber por props um objeto de "adaptador" com `load()`, `executeFirstContact()`, `completeCall()`. O modo real passa o adaptador atual (nenhuma mudança de comportamento); o modo demonstração passa um adaptador em memória. Zero mudança visual.
-2. Criar um fixture puro (`src/lib/crm/daily-actions.demo.ts`) com 30–40 itens determinísticos cobrindo os cinco tipos e os três buckets, usando os mesmos tipos de `daily-actions.ts` e passando pelo mesmo `normalizeDailyActions`.
-3. Fila infinita sem registros: manter o array em memória; ao "executar", mover o item para o fim da lista e recalcular a seleção. O mesmo item reaparece após os demais. Nada persiste — recarregar a página reinicia o fixture.
-4. Rota própria de demonstração, com o mesmo guard e a mesma permissão do modo real (sem nova regra de acesso), renderizando o mesmo overlay com o adaptador fictício e um selo visível "Demonstração".
-
-### Isolamento
-
-Regra: o adaptador de demonstração **não importa nenhum `*.functions.ts`**. Sem import, não existe caminho para o backend — nem acidental, nem por retry. Nenhuma server function, nenhuma tabela, nenhum evento, nenhum envio. A Safety Lock permanece irrelevante para esse caminho porque ele nunca chega ao executor.
-
-### Riscos e mitigação
-
-| Risco | Mitigação |
-|---|---|
-| Vazamento para dados reais | Adaptador demo sem import de server functions |
-| Chamada acidental ao backend | Injeção por props: a única fonte de chamada é o adaptador recebido |
-| Duplicação de código | Um único componente; muda só a fonte de dados |
-| Divergência visual | Mesmo componente, mesmos tipos, mesmo pipeline de normalização |
-| Impacto em E0/cadência | Nenhum arquivo de motor é tocado |
-| Desempenho | 30–40 itens em memória; sem rede |
-
-### Arquivos afetados na construção futura
-
-- `src/components/crm/daily-actions-overlay.tsx` — receber o adaptador por props (refator de fonte de dados, sem mudança visual)
-- `src/components/crm/portal-leads-board.tsx` — passar o adaptador real
-- `src/lib/crm/daily-actions.demo.ts` — novo (fixture + adaptador em memória)
-- uma rota nova de demonstração
-
-Sem migration, sem alteração de tabela, sem toque em E0, cadência, timeline ou Safety Lock. É viável como **uma única construção controlada**.
+As linhas E2, E5, E6 e E7 da Biblioteca estão `active = true` embora o código as classifique como aliases não executáveis. Isso não afeta o motor (ele só aceita chaves de `step-registry`), mas polui a lista exibida na Homologação. Correção futura, se desejada, seria de dados — não de motor.
