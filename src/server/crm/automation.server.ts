@@ -32,11 +32,11 @@ export type AutomationSettings = {
    */
   cadenceActivationDate: string | null;
   /**
-   * Modo do PRIMEIRO CONTATO (E0):
-   *   • "automatico" — o motor executa a E0 na entrada (comportamento atual);
-   *   • "manual"     — a E0 vira ação de prioridade máxima na Ação do Dia.
-   * Em ambos os modos a entrega passa pelo mesmo executor oficial e pela
-   * Global WhatsApp Safety Lock.
+   * LEGADO / AUDITORIA — antigo modo GLOBAL do primeiro contato.
+   * NÃO é mais fonte de decisão: o modo do E0 passou a ser individual
+   * por executivo (`workspace_module_permissions.e0_automatico`),
+   * resolvido em `first-contact-mode.server.ts`. O valor permanece
+   * gravado apenas como registro histórico.
    */
   firstContactMode: "automatico" | "manual";
 };
