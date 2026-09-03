@@ -29,6 +29,5 @@ export type DailyActionsAdapter = {
   executeFirstContact: (item: DailyAction) => Promise<AdapterResult>;
   completeCall: (item: DailyAction, outcome: "SIM" | "NAO") => Promise<AdapterResult>;
   openWhatsapp: (item: DailyAction) => Promise<AdapterResult>;
-  /** Abre a ficha completa do investidor. */
-  openLead: (item: DailyAction) => void;
 };
+
