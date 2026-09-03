@@ -214,7 +214,14 @@ export function DailyActionsOverlay({
               <CalendarClock className="h-4 w-4" />
             </span>
             <div>
-              <h2 className="font-display text-base leading-tight text-white">Ações do Dia</h2>
+              <h2 className="flex items-center gap-2 font-display text-base leading-tight text-white">
+                Ações do Dia
+                {adapter.demoLabel && (
+                  <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+                    {adapter.demoLabel}
+                  </span>
+                )}
+              </h2>
               <p className="text-[11px] text-white/45">
                 {overdueCount > 0
                   ? `${overdueCount} atrasada(s) · ${todayCount} para hoje`
@@ -222,6 +229,7 @@ export function DailyActionsOverlay({
                 {" · reuniões e compromissos têm prioridade"}
               </p>
             </div>
+
           </div>
           <div className="flex items-center gap-2">
             <button
