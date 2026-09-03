@@ -316,11 +316,11 @@ function UsuariosPage() {
                           <Power className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => remove(u.id)}
-                          title="Excluir"
+                          onClick={() => deactivate(u.id)}
+                          title="Desativar"
                           className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-red-400 hover:bg-[color:var(--accent)]/60"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <UserX className="h-4 w-4" />
                         </button>
                       </>
                     ) : (
