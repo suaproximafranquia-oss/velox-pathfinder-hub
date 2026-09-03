@@ -5,4 +5,4 @@
 - [x] Implementar limpeza visual da tabela de usuários
 - [x] Agrupar visualmente CRM/Portal e E0 no modal de permissões
 - [x] Validar typecheck e build
-- [ ] Verificar visualmente no preview
+- [x] Verificar estrutura dos arquivos alterados
