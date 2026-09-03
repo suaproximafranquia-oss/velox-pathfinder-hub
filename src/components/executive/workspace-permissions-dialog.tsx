@@ -9,6 +9,7 @@ import { ShieldCheck, X } from "lucide-react";
 import { ROLE_LABEL, type ExecutiveUser } from "@/lib/executive-auth";
 import {
   WORKSPACE_MODULE_LABEL,
+  canEnableE0Automatic,
   resolveModuleAccess,
   setWorkspaceModuleAccess,
   type WorkspaceModuleKey,
@@ -29,27 +30,48 @@ export function WorkspacePermissionsDialog({
   const value = (key: WorkspaceModuleKey) =>
     resolveModuleAccess(map, user.id, user.role, key);
 
+  /** Matriz: automático exige CRM ON e Portal dos Leads ON. */
+  const automaticAllowed = canEnableE0Automatic(map, user.id, user.role);
+  const e0Automatic = automaticAllowed && value("e0_automatico");
+
   /**
    * ATUALIZAÇÃO ESTRUTURAL §1 — a decisão é gravada no SERVIDOR. Só
    * consideramos a permissão alterada quando o banco confirma; as demais
    * sessões percebem a mudança automaticamente.
    */
   async function toggle(key: WorkspaceModuleKey) {
-    const next = !value(key);
+    const next = key === "e0_automatico" ? !e0Automatic : !value(key);
+    if (key === "e0_automatico" && next && !automaticAllowed) return;
     const label = WORKSPACE_MODULE_LABEL[key];
-    const extra = key === "crm" ? " O Backup de Conversas acompanha esta decisão." : "";
+    const extra =
+      key === "crm"
+        ? " O Backup de Conversas acompanha esta decisão." +
+          (e0Automatic && !next
+            ? " O primeiro contato automático deste executivo passará a MANUAL."
+            : "")
+        : key === "portal_leads" && e0Automatic && !next
+          ? " O primeiro contato automático deste executivo passará a MANUAL."
+          : "";
     const ok = window.confirm(
-      next
-        ? `Liberar o módulo ${label} para ${user.name}?${extra}`
-        : `Remover o acesso ao módulo ${label} de ${user.name}?${extra}`,
+      key === "e0_automatico"
+        ? next
+          ? `Colocar o primeiro contato (E0) de ${user.name} em AUTOMÁTICO?`
+          : `Colocar o primeiro contato (E0) de ${user.name} em MANUAL?`
+        : next
+          ? `Liberar o módulo ${label} para ${user.name}?${extra}`
+          : `Remover o acesso ao módulo ${label} de ${user.name}?${extra}`,
     );
     if (!ok) return;
     setSaving(key);
     setError(null);
     try {
       await setWorkspaceModuleAccess(user.id, key, next);
-    } catch {
-      setError("Não foi possível gravar a permissão no servidor. Nada foi alterado.");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Não foi possível gravar a permissão no servidor. Nada foi alterado.",
+      );
     } finally {
       setSaving(null);
     }
@@ -88,37 +110,57 @@ export function WorkspacePermissionsDialog({
         </dl>
 
         <div className="space-y-3">
-          {(["crm", "portal_leads"] as WorkspaceModuleKey[]).map((key) => (
-            <div
-              key={key}
-              className="flex items-center justify-between rounded-xl border border-[color:var(--border)] px-4 py-3"
-            >
-              <div>
-                <p className="text-sm">{WORKSPACE_MODULE_LABEL[key]}</p>
-                {key === "crm" ? (
-                  <p className="text-[11px] text-[color:var(--muted-foreground)]">
-                    O Backup de Conversas depende deste módulo.
-                  </p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={value(key)}
-                aria-label={`${WORKSPACE_MODULE_LABEL[key]} — ${value(key) ? "ON" : "OFF"}`}
-                disabled={saving === key}
-                onClick={() => void toggle(key)}
-                className={
-                  "cursor-pointer rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.18em] transition " +
-                  (value(key)
-                    ? "border-[color:var(--gold)] bg-[color:var(--gold)]/10 text-[color:var(--gold)]"
-                    : "border-[color:var(--border)] text-[color:var(--muted-foreground)]")
-                }
+          {(["crm", "portal_leads", "e0_automatico"] as WorkspaceModuleKey[]).map((key) => {
+            const isE0 = key === "e0_automatico";
+            const on = isE0 ? e0Automatic : value(key);
+            const blocked = isE0 && !automaticAllowed;
+            return (
+              <div
+                key={key}
+                className="flex items-center justify-between rounded-xl border border-[color:var(--border)] px-4 py-3"
               >
-                {value(key) ? "On" : "Off"}
-              </button>
-            </div>
-          ))}
+                <div>
+                  <p className="text-sm">{WORKSPACE_MODULE_LABEL[key]}</p>
+                  {key === "crm" ? (
+                    <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                      O Backup de Conversas depende deste módulo.
+                    </p>
+                  ) : null}
+                  {isE0 ? (
+                    <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                      {blocked
+                        ? "Automático indisponível: exige CRM e Portal dos Leads ligados."
+                        : "Automático executa na entrada do lead; manual vira ação prioritária na Ação do Dia."}
+                    </p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={`${WORKSPACE_MODULE_LABEL[key]} — ${
+                    isE0 ? (on ? "Automático" : "Manual") : on ? "ON" : "OFF"
+                  }`}
+                  disabled={saving === key || blocked}
+                  onClick={() => void toggle(key)}
+                  className={
+                    "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.18em] transition disabled:cursor-not-allowed disabled:opacity-50 " +
+                    (on
+                      ? "cursor-pointer border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                      : "cursor-pointer border-red-500/40 bg-red-500/10 text-red-400")
+                  }
+                >
+                  <span
+                    aria-hidden
+                    className={
+                      "h-2 w-2 rounded-full " + (on ? "bg-emerald-400" : "bg-red-400")
+                    }
+                  />
+                  {isE0 ? (on ? "Automático" : "Manual") : on ? "On" : "Off"}
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {error ? (
