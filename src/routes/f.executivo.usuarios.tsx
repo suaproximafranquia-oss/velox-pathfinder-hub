@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Pencil, Power, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { Pencil, Power, Plus, ShieldCheck, UserX } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { WorkspacePermissionsDialog } from "@/components/executive/workspace-permissions-dialog";
 import {
