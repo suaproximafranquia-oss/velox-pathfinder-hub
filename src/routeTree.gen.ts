@@ -81,6 +81,7 @@ import { Route as FExecutivoKpiRouteImport } from './routes/f.executivo.kpi'
 import { Route as FExecutivoInvestidoresRouteImport } from './routes/f.executivo.investidores'
 import { Route as FExecutivoInstitucionalRouteImport } from './routes/f.executivo.institucional'
 import { Route as FExecutivoIdentidadeRouteImport } from './routes/f.executivo.identidade'
+import { Route as FExecutivoHomologacaoRouteImport } from './routes/f.executivo.homologacao'
 import { Route as FExecutivoHomeRouteImport } from './routes/f.executivo.home'
 import { Route as FExecutivoGreensalesSyncRouteImport } from './routes/f.executivo.greensales-sync'
 import { Route as FExecutivoGreensalesRouteImport } from './routes/f.executivo.greensales'
@@ -466,6 +467,11 @@ const FExecutivoIdentidadeRoute = FExecutivoIdentidadeRouteImport.update({
   path: '/identidade',
   getParentRoute: () => FExecutivoRoute,
 } as any)
+const FExecutivoHomologacaoRoute = FExecutivoHomologacaoRouteImport.update({
+  id: '/homologacao',
+  path: '/homologacao',
+  getParentRoute: () => FExecutivoRoute,
+} as any)
 const FExecutivoHomeRoute = FExecutivoHomeRouteImport.update({
   id: '/home',
   path: '/home',
@@ -555,9 +561,9 @@ const FExecutivoAcaoDoDiaDemoRoute = FExecutivoAcaoDoDiaDemoRouteImport.update({
 } as any)
 const FExecutivoHomologacaoIndexRoute =
   FExecutivoHomologacaoIndexRouteImport.update({
-    id: '/homologacao/',
-    path: '/homologacao/',
-    getParentRoute: () => FExecutivoRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => FExecutivoHomologacaoRoute,
   } as any)
 const FExecutivoInvestidoresIdRoute =
   FExecutivoInvestidoresIdRouteImport.update({
@@ -663,6 +669,7 @@ export interface FileRoutesByFullPath {
   '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
   '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
   '/f/executivo/home': typeof FExecutivoHomeRoute
+  '/f/executivo/homologacao': typeof FExecutivoHomologacaoRouteWithChildren
   '/f/executivo/identidade': typeof FExecutivoIdentidadeRoute
   '/f/executivo/institucional': typeof FExecutivoInstitucionalRoute
   '/f/executivo/investidores': typeof FExecutivoInvestidoresRouteWithChildren
@@ -856,6 +863,7 @@ export interface FileRoutesById {
   '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
   '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
   '/f/executivo/home': typeof FExecutivoHomeRoute
+  '/f/executivo/homologacao': typeof FExecutivoHomologacaoRouteWithChildren
   '/f/executivo/identidade': typeof FExecutivoIdentidadeRoute
   '/f/executivo/institucional': typeof FExecutivoInstitucionalRoute
   '/f/executivo/investidores': typeof FExecutivoInvestidoresRouteWithChildren
@@ -956,6 +964,7 @@ export interface FileRouteTypes {
     | '/f/executivo/greensales'
     | '/f/executivo/greensales-sync'
     | '/f/executivo/home'
+    | '/f/executivo/homologacao'
     | '/f/executivo/identidade'
     | '/f/executivo/institucional'
     | '/f/executivo/investidores'
@@ -1148,6 +1157,7 @@ export interface FileRouteTypes {
     | '/f/executivo/greensales'
     | '/f/executivo/greensales-sync'
     | '/f/executivo/home'
+    | '/f/executivo/homologacao'
     | '/f/executivo/identidade'
     | '/f/executivo/institucional'
     | '/f/executivo/investidores'
@@ -1739,6 +1749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoIdentidadeRouteImport
       parentRoute: typeof FExecutivoRoute
     }
+    '/f/executivo/homologacao': {
+      id: '/f/executivo/homologacao'
+      path: '/homologacao'
+      fullPath: '/f/executivo/homologacao'
+      preLoaderRoute: typeof FExecutivoHomologacaoRouteImport
+      parentRoute: typeof FExecutivoRoute
+    }
     '/f/executivo/home': {
       id: '/f/executivo/home'
       path: '/home'
@@ -1860,10 +1877,10 @@ declare module '@tanstack/react-router' {
     }
     '/f/executivo/homologacao/': {
       id: '/f/executivo/homologacao/'
-      path: '/homologacao'
+      path: '/'
       fullPath: '/f/executivo/homologacao/'
       preLoaderRoute: typeof FExecutivoHomologacaoIndexRouteImport
-      parentRoute: typeof FExecutivoRoute
+      parentRoute: typeof FExecutivoHomologacaoRoute
     }
     '/f/executivo/investidores/$id': {
       id: '/f/executivo/investidores/$id'
@@ -1920,6 +1937,19 @@ const FCrmRouteChildren: FCrmRouteChildren = {
 
 const FCrmRouteWithChildren = FCrmRoute._addFileChildren(FCrmRouteChildren)
 
+interface FExecutivoHomologacaoRouteChildren {
+  FExecutivoHomologacaoIndexRoute: typeof FExecutivoHomologacaoIndexRoute
+}
+
+const FExecutivoHomologacaoRouteChildren: FExecutivoHomologacaoRouteChildren = {
+  FExecutivoHomologacaoIndexRoute: FExecutivoHomologacaoIndexRoute,
+}
+
+const FExecutivoHomologacaoRouteWithChildren =
+  FExecutivoHomologacaoRoute._addFileChildren(
+    FExecutivoHomologacaoRouteChildren,
+  )
+
 interface FExecutivoInvestidoresRouteChildren {
   FExecutivoInvestidoresIdRoute: typeof FExecutivoInvestidoresIdRoute
 }
@@ -1952,6 +1982,7 @@ interface FExecutivoRouteChildren {
   FExecutivoGreensalesRoute: typeof FExecutivoGreensalesRoute
   FExecutivoGreensalesSyncRoute: typeof FExecutivoGreensalesSyncRoute
   FExecutivoHomeRoute: typeof FExecutivoHomeRoute
+  FExecutivoHomologacaoRoute: typeof FExecutivoHomologacaoRouteWithChildren
   FExecutivoIdentidadeRoute: typeof FExecutivoIdentidadeRoute
   FExecutivoInstitucionalRoute: typeof FExecutivoInstitucionalRoute
   FExecutivoInvestidoresRoute: typeof FExecutivoInvestidoresRouteWithChildren
@@ -1967,7 +1998,6 @@ interface FExecutivoRouteChildren {
   FExecutivoUnidadesRoute: typeof FExecutivoUnidadesRoute
   FExecutivoUsuariosRoute: typeof FExecutivoUsuariosRoute
   FExecutivoIndexRoute: typeof FExecutivoIndexRoute
-  FExecutivoHomologacaoIndexRoute: typeof FExecutivoHomologacaoIndexRoute
 }
 
 const FExecutivoRouteChildren: FExecutivoRouteChildren = {
@@ -1988,6 +2018,7 @@ const FExecutivoRouteChildren: FExecutivoRouteChildren = {
   FExecutivoGreensalesRoute: FExecutivoGreensalesRoute,
   FExecutivoGreensalesSyncRoute: FExecutivoGreensalesSyncRoute,
   FExecutivoHomeRoute: FExecutivoHomeRoute,
+  FExecutivoHomologacaoRoute: FExecutivoHomologacaoRouteWithChildren,
   FExecutivoIdentidadeRoute: FExecutivoIdentidadeRoute,
   FExecutivoInstitucionalRoute: FExecutivoInstitucionalRoute,
   FExecutivoInvestidoresRoute: FExecutivoInvestidoresRouteWithChildren,
@@ -2003,7 +2034,6 @@ const FExecutivoRouteChildren: FExecutivoRouteChildren = {
   FExecutivoUnidadesRoute: FExecutivoUnidadesRoute,
   FExecutivoUsuariosRoute: FExecutivoUsuariosRoute,
   FExecutivoIndexRoute: FExecutivoIndexRoute,
-  FExecutivoHomologacaoIndexRoute: FExecutivoHomologacaoIndexRoute,
 }
 
 const FExecutivoRouteWithChildren = FExecutivoRoute._addFileChildren(
