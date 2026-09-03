@@ -26,6 +26,10 @@ export function GroupLandingPage() {
     );
     const io = new IntersectionObserver(
       (entries) => {
+        if (window.scrollY < 200) {
+          setActiveId(GROUP_SECTIONS[0].id);
+          return;
+        }
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
@@ -33,6 +37,7 @@ export function GroupLandingPage() {
       },
       { rootMargin: "-45% 0px -45% 0px", threshold: [0, 0.25, 0.5] },
     );
+
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
