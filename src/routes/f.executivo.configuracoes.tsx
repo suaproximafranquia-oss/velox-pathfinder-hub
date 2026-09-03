@@ -105,7 +105,6 @@ function ConfiguracoesPage() {
           demais seções permanecem informativas nesta versão.
         </p>
         <div className="grid gap-4">
-          <PrimeiroContatoSection />
           <CadenciaAtivacaoSection />
           <VideoconferenciaSection session={session} />
           <ProtecaoHomologacaoSection />
@@ -139,89 +138,6 @@ function ConfiguracoesPage() {
         </div>
       </div>
     </ExecutiveShell>
-  );
-}
-
-/**
- * PRIMEIRO CONTATO (E0) — automático ou manual.
- *
- * A decisão continua sendo do mesmo motor de entrada. No modo manual, a
- * E0 vira ação de prioridade máxima na Ação do Dia, executada pelo
- * executivo e registrada com autor, horário e resultado. Em nenhum dos
- * modos a trava global de envio real de WhatsApp é afetada.
- */
-function PrimeiroContatoSection() {
-  const [mode, setMode] = useState<"automatico" | "manual">("automatico");
-  const [status, setStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const { getFirstContactMode } = await import("@/lib/crm/first-contact-mode.functions");
-        const result = await getFirstContactMode({ data: undefined });
-        setMode(result.mode);
-      } catch {
-        setStatus("Não foi possível carregar a configuração.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  async function persist(next: "automatico" | "manual") {
-    setStatus(null);
-    const { setFirstContactMode } = await import("@/lib/crm/first-contact-mode.functions");
-    const result = await setFirstContactMode({ data: { mode: next } });
-    if (!result.ok) {
-      setStatus(result.reason);
-      return;
-    }
-    setMode(next);
-    setStatus(
-      next === "manual"
-        ? "Modo manual: novos leads geram uma ação de Primeiro Contato na Ação do Dia."
-        : "Modo automático: o motor executa o primeiro contato na entrada do lead.",
-    );
-  }
-
-  return (
-    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
-          <CalendarClock className="h-4 w-4" strokeWidth={1.6} />
-        </span>
-        <h2 className="font-display text-base">Primeiro contato — E0</h2>
-      </div>
-      <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed mb-4">
-        A identificação do lead novo é sempre do motor. O que esta configuração define é
-        quem EXECUTA o primeiro contato: o sistema, na entrada do lead, ou o executivo,
-        pela Ação do Dia. Nenhum dos modos libera envio real de WhatsApp.
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
-        {(["automatico", "manual"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            disabled={loading}
-            onClick={() => void persist(option)}
-            className={`rounded-lg border px-4 py-2 text-sm transition disabled:opacity-40 ${
-              mode === option
-                ? "border-[color:var(--gold)]/60 text-[color:var(--gold)]"
-                : "border-[color:var(--border)] text-[color:var(--muted-foreground)]"
-            }`}
-          >
-            {option === "automatico" ? "Automático" : "Manual"}
-          </button>
-        ))}
-      </div>
-      <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">
-        {status ??
-          (mode === "manual"
-            ? "Modo atual: manual — a E0 aparece na Ação do Dia com prioridade máxima."
-            : "Modo atual: automático — a E0 é executada pelo motor na entrada do lead.")}
-      </p>
-    </section>
   );
 }
 

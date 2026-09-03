@@ -35,6 +35,7 @@ const SCOPE_ORIGIN_LABEL: Record<string, string> = {
 export type PortalFirstContactOutcome =
   | "deferred" // madrugada — retomada automática às 07:00
   | "registered" // E0 registrada (simulada ou entregue)
+  | "manual" // modo manual do responsável — pendente na Ação do Dia
   | "skipped"; // não elegível / já registrada / desativada
 
 export async function kickoffPortalFirstContact(input: {
@@ -49,6 +50,26 @@ export async function kickoffPortalFirstContact(input: {
   // Redistribuição nunca inicia primeiro contato (regra do motor).
   if (input.scope === "redistribuicao") return "skipped";
 
+  /**
+   * MODO DO E0 — do executivo RESPONSÁVEL pelo lead. Manual (ou sem
+   * responsável resolvido) nunca executa: vira ação da Ação do Dia.
+   */
+  const { resolveExecutiveE0Mode } = await import("@/server/crm/first-contact-mode.server");
+  const decision = await resolveExecutiveE0Mode(input.ownerId);
+  if (decision.mode === "manual") {
+    const { createPendingE0Action } = await import("@/server/crm/e0-actions.server");
+    await createPendingE0Action({
+      cardId: input.leadId,
+      origin: "portal",
+      name: input.name,
+      whatsapp: input.phone,
+      responsibleExecutiveId: input.ownerId,
+      entryAt: input.entryAt,
+      enteredEntryStageAt: input.entryAt,
+    });
+    return "manual";
+  }
+
   if (isE0NightWindow()) {
     await supabaseAdmin.from("portal_journey_events").insert({
       investor_id: input.leadId,
@@ -58,6 +79,7 @@ export async function kickoffPortalFirstContact(input: {
     } as never);
     return "deferred";
   }
+
 
   const { registerFirstContact } = await import("@/server/crm/first-contact.server");
   const result = await registerFirstContact({
