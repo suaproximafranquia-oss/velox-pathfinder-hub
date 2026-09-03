@@ -1,8 +1,9 @@
 /**
  * COMANDO 3B §1 — painel "Permissões do Workspace".
  *
- * Referente EXCLUSIVAMENTE ao usuário selecionado. Controla apenas dois
- * módulos: CRM (com o Backup de Conversas dependente) e Portal dos Leads.
+ * Referente EXCLUSIVAMENTE ao usuário selecionado. Agrupa módulos
+ * (CRM / Portal dos Leads) e a regra de automação do primeiro contato
+ * E0, que depende dos dois módulos ativos.
  */
 import { useState } from "react";
 import { ShieldCheck, X } from "lucide-react";
