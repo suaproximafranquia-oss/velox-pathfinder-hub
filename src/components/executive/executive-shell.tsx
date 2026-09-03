@@ -191,7 +191,8 @@ export function ExecutiveShell({
             label: "Apresentação Digital",
             icon: LibraryBig,
           },
-          { to: unitPath("/executivo/unidades"), label: "Unidades do Grupo", icon: Building2 },
+          // "Unidades do Grupo" removida apenas da NAVEGAÇÃO (decisão de menu).
+          // A rota /f/executivo/unidades, seus dados e formulários permanecem.
         ]
       : []),
     ...(session.activeRole === "super_admin"
