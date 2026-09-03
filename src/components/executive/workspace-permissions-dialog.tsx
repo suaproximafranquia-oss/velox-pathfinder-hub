@@ -200,3 +200,42 @@ function Info({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function PermissionSwitch({
+  label,
+  on,
+  onText,
+  offText,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  on: boolean;
+  onText: string;
+  offText: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={`${label} — ${on ? onText : offText}`}
+      disabled={disabled}
+      onClick={onClick}
+      className={
+        "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.18em] transition disabled:cursor-not-allowed disabled:opacity-50 " +
+        (on
+          ? "cursor-pointer border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+          : "cursor-pointer border-red-500/40 bg-red-500/10 text-red-400")
+      }
+    >
+      <span
+        aria-hidden
+        className={"h-2 w-2 rounded-full " + (on ? "bg-emerald-400" : "bg-red-400")}
+      />
+      {on ? onText : offText}
+    </button>
+  );
+}
