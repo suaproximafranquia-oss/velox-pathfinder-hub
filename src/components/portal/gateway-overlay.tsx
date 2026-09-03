@@ -10,6 +10,7 @@ import { ArrowRight, ShieldCheck, X } from "lucide-react";
 import { getExecutiveBySlug } from "@/lib/executive-auth";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { GROUP_ORIGIN_LABEL, readEntryContext } from "@/lib/portal-entry";
+import { getPortalAdministratorId } from "@/lib/portal-workspace";
 import { startPortalSession } from "@/lib/portal-session";
 import { getVisitorIdentity } from "@/lib/leads";
 import {
@@ -34,14 +35,32 @@ async function resolveIdentityOnServer(payload: {
   executiveSlug: string | null;
   personalized: boolean;
   campaign: string | null;
+  /** COMANDO 3 §8 — canal oficial de entrada (/origem/tiktok|meta). */
+  channel: "tiktok" | "meta" | null;
 }): Promise<IdentityResult> {
+  /**
+   * O link personalizado de Executivo continua VENCENDO o canal: quando
+   * existe dono explícito, o escopo permanece Green Sales e o
+   * responsável nunca é substituído pelo Administrador do Portal.
+   */
+  const personalized = Boolean(payload.personalized && payload.executiveId);
+  const scope = personalized ? "green_sales" : (payload.channel ?? "portal");
+  /**
+   * Carteiras de canal (TikTok/Meta) e Portal orgânico pertencem ao
+   * Administrador do Portal — sem rodízio entre os demais Executivos.
+   * O responsável é gravado JÁ na criação do card, para que o motor de
+   * E0 decida Manual/Automático pelo modo individual do responsável.
+   */
+  const executiveId = personalized ? payload.executiveId : getPortalAdministratorId();
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const result = (await resolvePortalIdentity({
         data: {
           ...payload,
+          executiveId,
+          personalized,
           material: "Portal do Investidor",
-          scope: payload.personalized && payload.executiveId ? "green_sales" : "portal",
+          scope,
           device: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 120) : null,
         },
       })) as IdentityResult;
@@ -147,6 +166,7 @@ export function GatewayOverlay({
       executiveSlug: executive?.slug ?? null,
       personalized: Boolean(executive),
       campaign: entry.campaign ?? null,
+      channel: entry.channel === "tiktok" || entry.channel === "meta" ? entry.channel : null,
     });
     setChecking(false);
     if (!result.ok) {

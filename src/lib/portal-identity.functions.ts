@@ -112,11 +112,26 @@ export const resolvePortalIdentity = createServerFn({ method: "POST" })
       return { ok: false, reason: "server_error" };
     }
 
-    const payload = (result ?? {}) as {
+    /**
+     * COMPATIBILIDADE DE CONTRATO — a função oficial em produção devolve
+     * `investorId`/`recognized`; versões anteriores devolviam
+     * `leadId`/`created`. Lemos as duas formas para que o cadastro NUNCA
+     * seja descartado como "identity_unresolved". Nenhuma regra de
+     * identidade, deduplicação ou E0 muda por isso.
+     */
+    const raw = (result ?? {}) as {
       ok?: boolean;
       leadId?: string;
+      investorId?: string;
       created?: boolean;
+      recognized?: boolean;
       reason?: string;
+    };
+    const payload = {
+      ok: raw.ok,
+      leadId: raw.leadId ?? raw.investorId,
+      created: raw.created ?? (raw.recognized === undefined ? undefined : !raw.recognized),
+      reason: raw.reason,
     };
     if (!payload.ok || !payload.leadId) {
       return {
