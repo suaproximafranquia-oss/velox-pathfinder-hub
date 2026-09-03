@@ -8,7 +8,6 @@
  * atraso em tarefa de hoje.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarClock,
   CalendarDays,
@@ -20,9 +19,7 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import { completeCadenceTaskFn, registerWhatsappCallAttemptFn } from "@/lib/crm/cadence.functions";
-import { listDailyActions } from "@/lib/crm/daily-actions.functions";
-import { executeFirstContactAction } from "@/lib/crm/first-contact-mode.functions";
+import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
 import {
   KIND_LABEL,
   operationalTime,
@@ -30,6 +27,7 @@ import {
   type DailyActionBucket,
   type DailyActionKind,
 } from "@/lib/crm/daily-actions";
+
 
 function formatDay(iso: string): string {
   const [y, m, d] = iso.split("-");
