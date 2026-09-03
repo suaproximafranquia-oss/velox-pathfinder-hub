@@ -683,8 +683,73 @@ export function DailyActionsOverlay({
             </div>
           </aside>
         </div>
+
+        {/*
+          MENSAGEM OFICIAL DA ETAPA — leitura da Biblioteca ativa. Esta
+          janela NUNCA envia: o Executivo copia o texto e conduz a
+          conversa por fora. O botão apenas registra o histórico.
+        */}
+        {messageOpen && selected && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-4">
+            <div className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[color:var(--navy-deep)]">
+              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">
+                    Mensagem oficial
+                    {message?.step ? ` · ${message.step}` : ""}
+                    {selected.messageRef?.flow ? ` · ${selected.messageRef.flow}` : ""}
+                    {message?.libraryVersion ? ` · v${message.libraryVersion}` : ""}
+                  </p>
+                  <p className="font-display text-lg text-white">{selected.name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMessageOpen(false)}
+                  aria-label="Fechar mensagem"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 text-white/70"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                {message?.body ? (
+                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-white/85">
+                    {message.body}
+                  </pre>
+                ) : (
+                  <p className="text-sm text-rose-200">
+                    {message?.blockedReason ??
+                      "Sem versão ativa na Biblioteca para esta etapa. Nenhum texto é improvisado aqui."}
+                  </p>
+                )}
+                <p className="mt-3 text-[11px] text-white/35">
+                  Tratamento usado: {message?.investorNameUsed ?? "versão sem nome"} · Assinatura:{" "}
+                  {message?.executiveName ?? "—"}
+                  {message?.contentName ? ` · Conteúdo: ${message.contentName}` : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-4 py-3">
+                <input
+                  value={messageNote}
+                  onChange={(e) => setMessageNote(e.target.value)}
+                  placeholder="Observação (opcional)"
+                  className="min-w-[180px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleRegisterMessage(selected)}
+                  disabled={busy || !message?.body}
+                  className="rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                >
+                  Registrar como tratada
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
+
   );
 }
 
