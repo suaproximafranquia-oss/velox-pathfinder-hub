@@ -4,8 +4,8 @@ const stamp = Date.now().toString().slice(-6);
 for (const ch of ["tiktok", "meta"] as const) {
   const { data, error } = await supabaseAdmin.rpc("resolve_portal_identity", {
     _name: `TEST ${ch.toUpperCase()} Canal`,
-    _email: `test.${ch}.${stamp}@velox.test`,
-    _phone: `1198${stamp}0`,
+    _email: `test.${ch}.${stamp}${ch}@velox.test`,
+    _phone: `1198${stamp}${ch === "tiktok" ? 1 : 2}`,
     _origin: ch === "tiktok" ? "TikTok" : "Meta",
     _material: "Portal do Investidor",
     _scope: ch,
@@ -22,7 +22,7 @@ for (const ch of ["tiktok", "meta"] as const) {
     const out = await kickoffPortalFirstContact({
       leadId: payload.leadId,
       name: `TEST ${ch.toUpperCase()} Canal`,
-      phone: `1198${stamp}0`,
+      phone: `1198${stamp}${ch === "tiktok" ? 1 : 2}`,
       scope: ch,
       ownerId: "usr_thiago",
       entryAt: new Date().toISOString(),
