@@ -63,7 +63,7 @@ function fromRows(
   const map: WorkspacePermissionMap = {};
   for (const row of rows) {
     const key = row.moduleKey as WorkspaceModuleKey;
-    if (key !== "crm" && key !== "portal_leads") continue;
+    if (key !== "crm" && key !== "portal_leads" && key !== "e0_automatico") continue;
     map[row.userId] = { ...(map[row.userId] ?? {}), [key]: row.enabled };
   }
   return map;
