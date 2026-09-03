@@ -50,9 +50,15 @@ describe("Ações do Dia — regras puras", () => {
     ).toBe("hoje");
   });
 
-  it("6) reunião 10 minutos no futuro entra em foco", () => {
+  it("6) reunião 10 minutos no futuro ainda não entra em foco (janela de 5 min)", () => {
     expect(
       resolveBucket({ dueDate: "2026-02-10", startsAt: "2026-02-10T14:10:00.000Z", nowIso: now }),
+    ).toBe("hoje");
+  });
+
+  it("6b) reunião 4 minutos no futuro entra em foco", () => {
+    expect(
+      resolveBucket({ dueDate: "2026-02-10", startsAt: "2026-02-10T14:04:00.000Z", nowIso: now }),
     ).toBe("agora");
   });
 

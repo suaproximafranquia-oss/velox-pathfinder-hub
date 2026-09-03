@@ -42,9 +42,9 @@ describe("sequência de ligações", () => {
     expect(nextCallAttempt("2026-08-17", history)).toEqual({ step: 4, dueDate: "2026-08-25" });
   });
 
-  it("L2 NÃO + L3 NÃO encerram o ciclo sem gerar L4", () => {
+  it("sem atendimento, a sequência segue até esgotar a configuração (L4 prevista)", () => {
     const history = [attempt(2, "2026-08-19", "NAO"), attempt(3, "2026-08-20", "NAO")];
-    expect(nextCallAttempt("2026-08-17", history)).toBeNull();
+    expect(nextCallAttempt("2026-08-17", history)).toEqual({ step: 4, dueDate: "2026-08-25" });
   });
 
   it("quarta tentativa automática ≈7 dias corridos após a anterior, em dia útil", () => {
