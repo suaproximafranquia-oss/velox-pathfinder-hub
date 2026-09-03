@@ -70,6 +70,8 @@ export const completeCadenceTaskFn = createServerFn({ method: "POST" })
         cycleDate: z.string(),
         channel: z.enum(["call", "message"]).default("call"),
         outcome: z.enum(["SIM", "NAO"]).default("SIM"),
+        /** Só faz sentido com outcome NAO: o telefone chamou? */
+        rang: z.boolean().nullish(),
       })
       .parse(data),
   )

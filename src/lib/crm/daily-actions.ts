@@ -23,8 +23,12 @@
 
 export const OPERATIONAL_TIME_ZONE = "America/Sao_Paulo";
 
-/** Antecedência em que uma reunião passa a ocupar o topo da lista. */
-export const MEETING_FOCUS_WINDOW_MS = 15 * 60 * 1000;
+/**
+ * Antecedência em que uma reunião passa a ocupar o topo da lista.
+ * Regra operacional: a reunião entra em foco ~5 minutos antes do
+ * horário e PERMANECE na lista (como atrasada) até ser resolvida.
+ */
+export const MEETING_FOCUS_WINDOW_MS = 5 * 60 * 1000;
 
 export type DailyActionSource =
   | "first_contact"
@@ -78,6 +82,13 @@ export type DailyAction = {
   cadence?: CadenceRef;
   /** Ação de Primeiro Contato (E0) pendente de execução manual. */
   firstContactActionId?: string;
+  /** Reunião de origem (`portal_meetings.id`), quando for uma reunião. */
+  meetingId?: string;
+  /**
+   * Mensagem oficial da jornada: identifica a etapa para que a tela
+   * possa LER o texto na Biblioteca. Nenhuma cópia é feita aqui.
+   */
+  messageRef?: { step: string; flow: string | null; origin: "queue" | "closure" };
   attempts: CadenceAttemptView[];
   /**
    * Pendências de menor precedência do MESMO lead. Continuam disponíveis

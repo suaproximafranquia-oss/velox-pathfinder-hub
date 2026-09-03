@@ -19,6 +19,7 @@ import {
 import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import { listClosureDuties } from "@/server/relationship/closure.server";
 import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
+import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -165,6 +166,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       title: meeting.topic || "Reunião com o investidor",
       responsibleName: meeting.executive_name ?? null,
       attempts: [],
+      meetingId: meeting.id as string,
     });
   }
 
@@ -221,6 +223,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
           : "Finalização do ciclo",
       responsibleName: null,
       attempts: [],
+      messageRef: { step: duty.step, flow: null, origin: "closure" },
     });
   }
 
@@ -247,6 +250,11 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       title: `Mensagem ${item.step}`,
       responsibleName: null,
       attempts: [],
+      messageRef: {
+        step: String(item.step ?? ""),
+        flow: (item.flow as string) ?? null,
+        origin: "queue",
+      },
     });
   }
 
@@ -284,5 +292,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     });
   }
 
-  return normalizeDailyActions(actions);
+  /**
+   * PULADAS HOJE — a ação sai da lista do dia, mas continua registrada
+   * no histórico e volta amanhã se a fonte oficial seguir pendente.
+   */
+  const skipped = await listSkippedActionKeys(nowIso).catch(() => new Set<string>());
+  const visible = skipped.size ? actions.filter((a) => !skipped.has(a.actionKey)) : actions;
+
+  return normalizeDailyActions(visible);
 }
