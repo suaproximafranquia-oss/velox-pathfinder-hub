@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { completeCadenceTaskFn, registerWhatsappCallAttemptFn } from "@/lib/crm/cadence.functions";
 import { listDailyActions } from "@/lib/crm/daily-actions.functions";
+import { executeFirstContactAction } from "@/lib/crm/first-contact-mode.functions";
 import {
   KIND_LABEL,
   operationalTime,
@@ -36,6 +37,7 @@ function formatDay(iso: string): string {
 }
 
 const KIND_ICON: Record<DailyActionKind, typeof Phone> = {
+  primeiro_contato: MessageCircle,
   reuniao: CalendarClock,
   compromisso: CalendarDays,
   mensagem: MessageSquare,
@@ -61,6 +63,8 @@ export function DailyActionsOverlay({
   const fetchActions = useServerFn(listDailyActions);
   const completeTask = useServerFn(completeCadenceTaskFn);
   const registerWhatsapp = useServerFn(registerWhatsappCallAttemptFn);
+  const executeFirstContact = useServerFn(executeFirstContactAction);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const [actions, setActions] = useState<DailyAction[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -138,6 +142,30 @@ export function DailyActionsOverlay({
         },
       });
       dropAction(item.actionKey);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * PRIMEIRO CONTATO (E0) em modo manual: a execução usa o MESMO
+   * caminho oficial do modo automático; aqui só registramos que o
+   * executivo executou. Nenhum envio real é liberado por esta tela.
+   */
+  async function handleFirstContact(item: DailyAction) {
+    if (!item.firstContactActionId) return;
+    setBusy(true);
+    setFeedback(null);
+    try {
+      const result = await executeFirstContact({
+        data: { actionId: item.firstContactActionId },
+      });
+      if (result.ok) {
+        dropAction(item.actionKey);
+        setFeedback("Primeiro contato registrado.");
+      } else {
+        setFeedback(result.reason ?? "Não foi possível executar o primeiro contato.");
+      }
     } finally {
       setBusy(false);
     }
@@ -271,6 +299,16 @@ export function DailyActionsOverlay({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                  {selected.kind === "primeiro_contato" && (
+                    <button
+                      type="button"
+                      onClick={() => void handleFirstContact(selected)}
+                      disabled={busy}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                    >
+                      <Check className="h-4 w-4" /> Executar primeiro contato (E0)
+                    </button>
+                  )}
                   {selected.cadence && (
                     <>
                       <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
@@ -314,8 +352,11 @@ export function DailyActionsOverlay({
                     </button>
                   )}
                 </div>
+                {feedback && <p className="text-[11px] text-[color:var(--gold)]">{feedback}</p>}
                 <p className="text-[11px] text-white/35">
-                  {selected.cadence
+                  {selected.kind === "primeiro_contato"
+                    ? "O primeiro contato é executado pelo mesmo caminho oficial do modo automático, com registro de autor, horário e resultado. A trava global de envio real permanece ativa."
+                    : selected.cadence
                     ? "O desfecho registra apenas a tentativa de hoje. Atendeu encerra a sequência de ligações do ciclo; não atendeu mantém o lead na cadência para a próxima data prevista."
                     : "Esta ação pertence à sua origem (Agenda, reunião ou fila de mensagens) e é encerrada por lá — aqui ela apenas aparece no lugar certo da sua ordem do dia."}
                 </p>

@@ -26,6 +26,11 @@ import {
   upsertLead,
 } from "@/server/crm/lead-service.server";
 import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
+import { createPendingE0Action } from "@/server/crm/e0-actions.server";
+import {
+  backfillCardResponsible,
+  resolveResponsibleByUserId,
+} from "@/server/crm/responsible.server";
 import { resolveBoardStage, type PipelineMap } from "@/server/crm/pipeline-service.server";
 
 export type IntakeSettings = Awaited<ReturnType<typeof loadSettings>>;
@@ -40,6 +45,11 @@ export type IntakeContext = {
    * histórico e único caminho dos leads reais da sincronização).
    */
   entryOrigin?: import("@/lib/relationship/origin").EntryOrigin;
+  /**
+   * Usuário dono da conexão GreenSales que trouxe o lead. É a partir
+   * dele que o executivo responsável é resolvido no servidor.
+   */
+  connectionUserId?: string | null;
 };
 
 export type IntakeOutcome = {
@@ -55,7 +65,7 @@ export type IntakeOutcome = {
   failed: boolean;
   error?: string;
   /** O que aconteceu com o primeiro contato nesta entrada. */
-  e0: "simulada" | "enviada" | "adiada" | "ignorada" | "nao_aplicavel";
+  e0: "simulada" | "enviada" | "adiada" | "ignorada" | "manual" | "nao_aplicavel";
   e0Reason?: string;
 };
 
@@ -174,8 +184,15 @@ export async function intakeLead(
       "e0_identificada",
       `Lead novo identificado na coluna de entrada. ${eligibility.reason}`,
     );
+    /**
+     * Responsável resolvido NO SERVIDOR, a partir da conexão de origem.
+     * Sem identidade resolvível o card nasce sem responsável.
+     */
+    const responsible = await resolveResponsibleByUserId(context.connectionUserId);
     const card = await ensureWorkspaceCard({
       externalId,
+      responsibleExecutiveId: responsible?.executiveId ?? null,
+      responsibleExecutiveSlug: responsible?.slug ?? null,
       name: normalized.name,
       email: normalized.email,
       whatsapp: normalized.whatsapp,
@@ -195,6 +212,7 @@ export async function intakeLead(
       await recordEvent(outcome.lead.id, "workspace_card_falhou", card.error);
       return result;
     }
+    if (!card.created) await backfillCardResponsible(card.cardId, responsible);
     await recordEvent(
       outcome.lead.id,
       "workspace_card_criado",
@@ -217,6 +235,37 @@ export async function intakeLead(
         `Retorno para NOVOS de lead já conhecido${remarketing ? " (etiqueta REMARKETING preservada)" : ""} — ${entry.reason}`,
         { flow: entry.flow, remarketing, entryCount: known.entryCount },
       );
+    }
+
+    /**
+     * MODO MANUAL: a E0 continua sendo DECIDIDA aqui (mesmo motor), mas
+     * não é executada pelo sistema — vira ação pendente de prioridade
+     * máxima na Ação do Dia, com executor, horário e resultado.
+     */
+    if (settings.firstContactMode === "manual") {
+      const pending = await createPendingE0Action({
+        cardId: card.cardId,
+        crmLeadId: outcome.lead.id,
+        origin: context.entryOrigin === "PORTAL" ? "portal" : "greensales",
+        name: normalized.name,
+        whatsapp: normalized.whatsapp,
+        responsibleExecutiveId: responsible?.executiveId ?? null,
+        entryAt: lastEntryAt,
+        enteredEntryStageAt: (outcome.lead as unknown as {
+          entered_entry_stage_at?: string | null;
+        }).entered_entry_stage_at,
+        reactivation: returning,
+      });
+      result.e0 = "manual";
+      result.e0Reason = "Primeiro contato em modo manual — pendente na Ação do Dia.";
+      if (pending.created) {
+        await recordEvent(
+          outcome.lead.id,
+          "e0_manual_pendente",
+          `Primeiro contato aguardando execução manual no card ${card.cardId}.`,
+        );
+      }
+      return result;
     }
 
     const { registerFirstContact } = await import("@/server/crm/first-contact.server");

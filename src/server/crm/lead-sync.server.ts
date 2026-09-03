@@ -51,9 +51,70 @@ export type SyncSummary = {
 const OVERLAP_MINUTES = 15;
 const DEFAULT_LOOKBACK_MINUTES = 60;
 
+/**
+ * Execuções interrompidas por erro inesperado não podem ficar eternamente
+ * em RUNNING: elas bloqueariam o agendador. Toda execução mais antiga que
+ * a janela operacional é encerrada como ERRO antes de uma nova começar.
+ * Nenhuma regra comercial muda com isso.
+ */
+const STALE_RUN_MINUTES = 15;
+
+async function closeStaleSyncRuns(): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_RUN_MINUTES * 60_000).toISOString();
+  await supabaseAdmin
+    .from("crm_sync_runs")
+    .update({
+      status: "ERRO",
+      finished_at: new Date().toISOString(),
+      last_error: "Execução interrompida sem encerramento — fechada automaticamente.",
+    } as never)
+    .eq("status", "RUNNING")
+    .lt("started_at", cutoff);
+}
+
 export async function runLeadSync(
   trigger: "cron" | "manual",
   actorUserId?: string | null,
+): Promise<SyncSummary> {
+  await closeStaleSyncRuns();
+  const ref: { runId: string | null } = { runId: null };
+  try {
+    return await runLeadSyncInner(trigger, actorUserId, ref);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha inesperada na sincronização.";
+    if (ref.runId) {
+      await supabaseAdmin
+        .from("crm_sync_runs")
+        .update({
+          status: "ERRO",
+          finished_at: new Date().toISOString(),
+          last_error: message,
+        } as never)
+        .eq("id", ref.runId);
+    }
+    return {
+      ok: false,
+      runId: ref.runId,
+      trigger,
+      windowStart: new Date().toISOString(),
+      found: 0,
+      created: 0,
+      recovered: 0,
+      updated: 0,
+      duplicatesAvoided: 0,
+      failed: 0,
+      welcomeSent: 0,
+      welcomeFailed: 0,
+      message,
+      errors: [message],
+    };
+  }
+}
+
+async function runLeadSyncInner(
+  trigger: "cron" | "manual",
+  actorUserId: string | null | undefined,
+  ref: { runId: string | null },
 ): Promise<SyncSummary> {
   const startedAt = new Date();
   /**
@@ -96,6 +157,7 @@ export async function runLeadSync(
     .select("id")
     .single();
   const runId = run?.id ?? null;
+  ref.runId = runId;
 
   const summary: SyncSummary = {
     ok: false,
@@ -143,8 +205,11 @@ export async function runLeadSync(
     "@/server/greensales.server"
   );
 
-  const { resolveCredentials } = await import("@/server/crm/connections.server");
-  const credentials = await resolveCredentials(actorUserId);
+  const { resolveConnectionContext } = await import("@/server/crm/connections.server");
+  const connection = await resolveConnectionContext(actorUserId);
+  const credentials = connection?.credentials ?? null;
+  /** Identidade do dono da conexão preservada até a criação do card. */
+  const connectionUserId = actorUserId ?? connection?.ownerUserId ?? null;
 
   let token: string;
   try {
@@ -360,7 +425,7 @@ export async function runLeadSync(
        * comportamento, para que o ambiente de teste percorra exatamente
        * este caminho.
        */
-      const outcome = await intakeLead(raw, { pipeline, settings });
+      const outcome = await intakeLead(raw, { pipeline, settings, connectionUserId });
       if (outcome.deduplicated) summary.duplicatesAvoided += 1;
       else if (outcome.created) summary.created += 1;
       else if (outcome.changed) summary.updated += 1;

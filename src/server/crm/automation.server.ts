@@ -31,6 +31,14 @@ export type AutomationSettings = {
    * começar. Vazia = nenhuma cadência é iniciada para lead algum.
    */
   cadenceActivationDate: string | null;
+  /**
+   * Modo do PRIMEIRO CONTATO (E0):
+   *   • "automatico" — o motor executa a E0 na entrada (comportamento atual);
+   *   • "manual"     — a E0 vira ação de prioridade máxima na Ação do Dia.
+   * Em ambos os modos a entrega passa pelo mesmo executor oficial e pela
+   * Global WhatsApp Safety Lock.
+   */
+  firstContactMode: "automatico" | "manual";
 };
 
 /** Link padrão do material — sobrescrito pela configuração quando definida. */
@@ -41,7 +49,7 @@ export async function loadSettings(): Promise<AutomationSettings> {
   const { data } = await supabaseAdmin
     .from("crm_automation_settings")
     .select(
-      "sync_interval_minutes,welcome_enabled,welcome_template_id,welcome_body,material_url,cadence_activation_date",
+      "sync_interval_minutes,welcome_enabled,welcome_template_id,welcome_body,material_url,cadence_activation_date,first_contact_mode",
     )
     .eq("id", true)
     .maybeSingle();
@@ -53,6 +61,10 @@ export async function loadSettings(): Promise<AutomationSettings> {
     materialUrl: data?.material_url ?? null,
     cadenceActivationDate:
       (data as { cadence_activation_date?: string | null } | null)?.cadence_activation_date ?? null,
+    firstContactMode:
+      (data as { first_contact_mode?: string | null } | null)?.first_contact_mode === "manual"
+        ? "manual"
+        : "automatico",
   };
 }
 

@@ -95,9 +95,26 @@ export async function removeConnection(userId: string): Promise<void> {
  * 1) conexão do próprio usuário; 2) qualquer conexão ativa (execuções
  * automáticas do agendador); 3) credenciais corporativas do servidor.
  */
+export type GreenSalesConnectionContext = {
+  credentials: GreenSalesCredentials;
+  /** Dono da conexão utilizada — identidade preservada até o card. */
+  ownerUserId: string | null;
+};
+
 export async function resolveCredentials(
   userId?: string | null,
 ): Promise<GreenSalesCredentials | null> {
+  return (await resolveConnectionContext(userId))?.credentials ?? null;
+}
+
+/**
+ * Mesma resolução de credenciais, PRESERVANDO o usuário dono da conexão.
+ * É esse usuário que permite atribuir o executivo responsável do card no
+ * servidor, sem inventar responsável quando não houver identidade.
+ */
+export async function resolveConnectionContext(
+  userId?: string | null,
+): Promise<GreenSalesConnectionContext | null> {
   const open = (cipher: string | null): GreenSalesCredentials | null => {
     if (!cipher) return null;
     try {
@@ -112,22 +129,22 @@ export async function resolveCredentials(
     const own = await loadConnection(userId);
     if (own?.status === "ATIVA") {
       const creds = open(own.credentials_ciphertext);
-      if (creds) return creds;
+      if (creds) return { credentials: creds, ownerUserId: userId };
     }
   }
 
   const { data: any_ } = await supabaseAdmin
     .from("crm_connections")
-    .select("credentials_ciphertext")
+    .select("user_id,credentials_ciphertext")
     .eq("provider", GREENSALES_PROVIDER)
     .eq("status", "ATIVA")
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   const shared = open(any_?.credentials_ciphertext ?? null);
-  if (shared) return shared;
+  if (shared) return { credentials: shared, ownerUserId: any_?.user_id ?? null };
 
   const email = process.env["GREENSALES_EMAIL"];
   const password = process.env["GREENSALES_PASSWORD"];
-  return email && password ? { email, password } : null;
+  return email && password ? { credentials: { email, password }, ownerUserId: null } : null;
 }

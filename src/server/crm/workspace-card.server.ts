@@ -25,6 +25,13 @@ export type WorkspaceCardInput = {
   externalCreatedAt?: string | null;
   externalUpdatedAt?: string | null;
   rawPayload: unknown;
+  /**
+   * Executivo responsável resolvido NO SERVIDOR a partir da conexão que
+   * trouxe o lead. Ausente = card nasce sem responsável (nunca é
+   * inventado um responsável fictício).
+   */
+  responsibleExecutiveId?: string | null;
+  responsibleExecutiveSlug?: string | null;
   /** Marcação técnica de teste — jamais aplicada a lead real. */
   isTest?: boolean;
   testBatchId?: string | null;
@@ -62,8 +69,8 @@ export async function ensureWorkspaceCard(
     // Lead vindo da origem pertence SEMPRE ao Workspace GreenSales.
     scope: "green_sales",
     personalized: false,
-    responsible_executive_id: null,
-    responsible_executive_slug: null,
+    responsible_executive_id: input.responsibleExecutiveId ?? null,
+    responsible_executive_slug: input.responsibleExecutiveSlug ?? null,
     campaign: input.campaign ?? null,
     device: null,
     created_at: input.externalCreatedAt ?? now,

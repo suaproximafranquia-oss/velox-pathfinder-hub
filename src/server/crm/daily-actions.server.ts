@@ -18,6 +18,7 @@ import {
 } from "@/lib/crm/daily-actions";
 import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import { listClosureDuties } from "@/server/relationship/closure.server";
+import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -62,7 +63,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   const horizonStart = new Date(new Date(nowIso).getTime() - 45 * 24 * 3600 * 1000).toISOString();
   const horizonEnd = new Date(new Date(nowIso).getTime() + 2 * 24 * 3600 * 1000).toISOString();
 
-  const [meetingsRes, agendaRes, queueRes, cadenceQueue, closureDuties] = await Promise.all([
+  const [meetingsRes, agendaRes, queueRes, cadenceQueue, closureDuties, firstContacts] =
+    await Promise.all([
     supabaseAdmin
       .from("portal_meetings")
       .select("id,investor_id,investor_name,executive_id,executive_name,scheduled_at,duration_min,status,topic")
@@ -82,8 +84,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       .lt("due_at", horizonEnd)
       .limit(1000),
     buildCadenceQueue("call").catch(() => []),
-    listClosureDuties(nowIso).catch(() => []),
-  ]);
+      listClosureDuties(nowIso).catch(() => []),
+      listPendingE0Actions(input.executiveId).catch(() => []),
+    ]);
 
   const meetings = (meetingsRes.data ?? []).filter((m) => {
     if (CLOSED_MEETING_STATUS.has(String(m.status ?? "").toLowerCase())) return false;
@@ -105,9 +108,40 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     ...queue.map((q) => q.lead_id as string),
     ...cadenceQueue.map((c) => `gs_${c.externalId}`),
     ...closureDuties.map((d) => d.leadId),
+    ...firstContacts.map((a) => a.card_id),
   ]);
 
   const actions: DailyAction[] = [];
+
+  /**
+   * PRIMEIRO CONTATO (E0) EM MODO MANUAL — prioridade máxima.
+   * A ação já foi decidida pelo motor de entrada; aqui ela apenas
+   * aparece para ser executada pelo executivo.
+   */
+  for (const pending of firstContacts) {
+    const identity = identities.get(pending.card_id);
+    const dueDate = operationalDate(pending.created_at);
+    actions.push({
+      actionKey: `first_contact:${pending.card_id}:e0`,
+      source: "first_contact",
+      kind: "primeiro_contato",
+      leadId: pending.card_id,
+      name: identity?.name ?? pending.lead_name ?? "Investidor",
+      phone: identity?.phone ?? pending.lead_whatsapp ?? "",
+      scope: identity?.scope ?? null,
+      stepLabel: "E0",
+      dueDate,
+      startsAt: null,
+      endsAt: null,
+      overdue: dueDate < today,
+      priorityMax: true,
+      bucket: dueDate < today ? "atrasada" : "hoje",
+      title: "Primeiro contato com lead novo",
+      responsibleName: pending.responsible_executive_id ?? null,
+      attempts: [],
+      firstContactActionId: pending.id,
+    });
+  }
 
   for (const meeting of meetings) {
     const startsAt = new Date(meeting.scheduled_at).toISOString();
