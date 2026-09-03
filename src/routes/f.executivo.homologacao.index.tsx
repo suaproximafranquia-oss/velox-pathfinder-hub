@@ -253,8 +253,10 @@ function HomologacaoPage() {
   if (!session) return null;
 
   return (
-    <ExecutiveShell session={session} title="Homologação do Motor">
+    <ExecutiveShell session={session} title="Central de Homologação">
       <div className="space-y-6">
+        <HomologationTabs />
+        <CurrentStepSnapshotCard />
         <header className={card}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
