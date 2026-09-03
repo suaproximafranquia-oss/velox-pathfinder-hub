@@ -43,7 +43,7 @@ import {
 } from "@/lib/relationship-homologation.functions";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/f/executivo/homologacao")({
+export const Route = createFileRoute("/f/executivo/homologacao/")({
   head: () => ({
     meta: [
       { title: "Homologação do Motor de Relacionamento — Atlas Platform" },

@@ -81,7 +81,6 @@ import { Route as FExecutivoKpiRouteImport } from './routes/f.executivo.kpi'
 import { Route as FExecutivoInvestidoresRouteImport } from './routes/f.executivo.investidores'
 import { Route as FExecutivoInstitucionalRouteImport } from './routes/f.executivo.institucional'
 import { Route as FExecutivoIdentidadeRouteImport } from './routes/f.executivo.identidade'
-import { Route as FExecutivoHomologacaoRouteImport } from './routes/f.executivo.homologacao'
 import { Route as FExecutivoHomeRouteImport } from './routes/f.executivo.home'
 import { Route as FExecutivoGreensalesSyncRouteImport } from './routes/f.executivo.greensales-sync'
 import { Route as FExecutivoGreensalesRouteImport } from './routes/f.executivo.greensales'
@@ -99,6 +98,7 @@ import { Route as FExecutivoApresentacaoDigitalRouteImport } from './routes/f.ex
 import { Route as FExecutivoAlertasRouteImport } from './routes/f.executivo.alertas'
 import { Route as FExecutivoAdministracaoRouteImport } from './routes/f.executivo.administracao'
 import { Route as FExecutivoAcaoDoDiaDemoRouteImport } from './routes/f.executivo.acao-do-dia-demo'
+import { Route as FExecutivoHomologacaoIndexRouteImport } from './routes/f.executivo.homologacao.index'
 import { Route as FExecutivoInvestidoresIdRouteImport } from './routes/f.executivo.investidores.$id'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicRemarketingRunRouteImport } from './routes/api/public/remarketing/run'
@@ -466,11 +466,6 @@ const FExecutivoIdentidadeRoute = FExecutivoIdentidadeRouteImport.update({
   path: '/identidade',
   getParentRoute: () => FExecutivoRoute,
 } as any)
-const FExecutivoHomologacaoRoute = FExecutivoHomologacaoRouteImport.update({
-  id: '/homologacao',
-  path: '/homologacao',
-  getParentRoute: () => FExecutivoRoute,
-} as any)
 const FExecutivoHomeRoute = FExecutivoHomeRouteImport.update({
   id: '/home',
   path: '/home',
@@ -558,6 +553,12 @@ const FExecutivoAcaoDoDiaDemoRoute = FExecutivoAcaoDoDiaDemoRouteImport.update({
   path: '/acao-do-dia-demo',
   getParentRoute: () => FExecutivoRoute,
 } as any)
+const FExecutivoHomologacaoIndexRoute =
+  FExecutivoHomologacaoIndexRouteImport.update({
+    id: '/homologacao/',
+    path: '/homologacao/',
+    getParentRoute: () => FExecutivoRoute,
+  } as any)
 const FExecutivoInvestidoresIdRoute =
   FExecutivoInvestidoresIdRouteImport.update({
     id: '/$id',
@@ -662,7 +663,6 @@ export interface FileRoutesByFullPath {
   '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
   '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
   '/f/executivo/home': typeof FExecutivoHomeRoute
-  '/f/executivo/homologacao': typeof FExecutivoHomologacaoRoute
   '/f/executivo/identidade': typeof FExecutivoIdentidadeRoute
   '/f/executivo/institucional': typeof FExecutivoInstitucionalRoute
   '/f/executivo/investidores': typeof FExecutivoInvestidoresRouteWithChildren
@@ -688,6 +688,7 @@ export interface FileRoutesByFullPath {
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/f/executivo/investidores/$id': typeof FExecutivoInvestidoresIdRoute
+  '/f/executivo/homologacao/': typeof FExecutivoHomologacaoIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -756,7 +757,6 @@ export interface FileRoutesByTo {
   '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
   '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
   '/f/executivo/home': typeof FExecutivoHomeRoute
-  '/f/executivo/homologacao': typeof FExecutivoHomologacaoRoute
   '/f/executivo/identidade': typeof FExecutivoIdentidadeRoute
   '/f/executivo/institucional': typeof FExecutivoInstitucionalRoute
   '/f/executivo/investidores': typeof FExecutivoInvestidoresRouteWithChildren
@@ -782,6 +782,7 @@ export interface FileRoutesByTo {
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/f/executivo/investidores/$id': typeof FExecutivoInvestidoresIdRoute
+  '/f/executivo/homologacao': typeof FExecutivoHomologacaoIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -855,7 +856,6 @@ export interface FileRoutesById {
   '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
   '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
   '/f/executivo/home': typeof FExecutivoHomeRoute
-  '/f/executivo/homologacao': typeof FExecutivoHomologacaoRoute
   '/f/executivo/identidade': typeof FExecutivoIdentidadeRoute
   '/f/executivo/institucional': typeof FExecutivoInstitucionalRoute
   '/f/executivo/investidores': typeof FExecutivoInvestidoresRouteWithChildren
@@ -881,6 +881,7 @@ export interface FileRoutesById {
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/f/executivo/investidores/$id': typeof FExecutivoInvestidoresIdRoute
+  '/f/executivo/homologacao/': typeof FExecutivoHomologacaoIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -955,7 +956,6 @@ export interface FileRouteTypes {
     | '/f/executivo/greensales'
     | '/f/executivo/greensales-sync'
     | '/f/executivo/home'
-    | '/f/executivo/homologacao'
     | '/f/executivo/identidade'
     | '/f/executivo/institucional'
     | '/f/executivo/investidores'
@@ -981,6 +981,7 @@ export interface FileRouteTypes {
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
     | '/f/executivo/investidores/$id'
+    | '/f/executivo/homologacao/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1049,7 +1050,6 @@ export interface FileRouteTypes {
     | '/f/executivo/greensales'
     | '/f/executivo/greensales-sync'
     | '/f/executivo/home'
-    | '/f/executivo/homologacao'
     | '/f/executivo/identidade'
     | '/f/executivo/institucional'
     | '/f/executivo/investidores'
@@ -1075,6 +1075,7 @@ export interface FileRouteTypes {
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
     | '/f/executivo/investidores/$id'
+    | '/f/executivo/homologacao'
   id:
     | '__root__'
     | '/'
@@ -1147,7 +1148,6 @@ export interface FileRouteTypes {
     | '/f/executivo/greensales'
     | '/f/executivo/greensales-sync'
     | '/f/executivo/home'
-    | '/f/executivo/homologacao'
     | '/f/executivo/identidade'
     | '/f/executivo/institucional'
     | '/f/executivo/investidores'
@@ -1173,6 +1173,7 @@ export interface FileRouteTypes {
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
     | '/f/executivo/investidores/$id'
+    | '/f/executivo/homologacao/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1738,13 +1739,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoIdentidadeRouteImport
       parentRoute: typeof FExecutivoRoute
     }
-    '/f/executivo/homologacao': {
-      id: '/f/executivo/homologacao'
-      path: '/homologacao'
-      fullPath: '/f/executivo/homologacao'
-      preLoaderRoute: typeof FExecutivoHomologacaoRouteImport
-      parentRoute: typeof FExecutivoRoute
-    }
     '/f/executivo/home': {
       id: '/f/executivo/home'
       path: '/home'
@@ -1864,6 +1858,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoAcaoDoDiaDemoRouteImport
       parentRoute: typeof FExecutivoRoute
     }
+    '/f/executivo/homologacao/': {
+      id: '/f/executivo/homologacao/'
+      path: '/homologacao'
+      fullPath: '/f/executivo/homologacao/'
+      preLoaderRoute: typeof FExecutivoHomologacaoIndexRouteImport
+      parentRoute: typeof FExecutivoRoute
+    }
     '/f/executivo/investidores/$id': {
       id: '/f/executivo/investidores/$id'
       path: '/$id'
@@ -1951,7 +1952,6 @@ interface FExecutivoRouteChildren {
   FExecutivoGreensalesRoute: typeof FExecutivoGreensalesRoute
   FExecutivoGreensalesSyncRoute: typeof FExecutivoGreensalesSyncRoute
   FExecutivoHomeRoute: typeof FExecutivoHomeRoute
-  FExecutivoHomologacaoRoute: typeof FExecutivoHomologacaoRoute
   FExecutivoIdentidadeRoute: typeof FExecutivoIdentidadeRoute
   FExecutivoInstitucionalRoute: typeof FExecutivoInstitucionalRoute
   FExecutivoInvestidoresRoute: typeof FExecutivoInvestidoresRouteWithChildren
@@ -1967,6 +1967,7 @@ interface FExecutivoRouteChildren {
   FExecutivoUnidadesRoute: typeof FExecutivoUnidadesRoute
   FExecutivoUsuariosRoute: typeof FExecutivoUsuariosRoute
   FExecutivoIndexRoute: typeof FExecutivoIndexRoute
+  FExecutivoHomologacaoIndexRoute: typeof FExecutivoHomologacaoIndexRoute
 }
 
 const FExecutivoRouteChildren: FExecutivoRouteChildren = {
@@ -1987,7 +1988,6 @@ const FExecutivoRouteChildren: FExecutivoRouteChildren = {
   FExecutivoGreensalesRoute: FExecutivoGreensalesRoute,
   FExecutivoGreensalesSyncRoute: FExecutivoGreensalesSyncRoute,
   FExecutivoHomeRoute: FExecutivoHomeRoute,
-  FExecutivoHomologacaoRoute: FExecutivoHomologacaoRoute,
   FExecutivoIdentidadeRoute: FExecutivoIdentidadeRoute,
   FExecutivoInstitucionalRoute: FExecutivoInstitucionalRoute,
   FExecutivoInvestidoresRoute: FExecutivoInvestidoresRouteWithChildren,
@@ -2003,6 +2003,7 @@ const FExecutivoRouteChildren: FExecutivoRouteChildren = {
   FExecutivoUnidadesRoute: FExecutivoUnidadesRoute,
   FExecutivoUsuariosRoute: FExecutivoUsuariosRoute,
   FExecutivoIndexRoute: FExecutivoIndexRoute,
+  FExecutivoHomologacaoIndexRoute: FExecutivoHomologacaoIndexRoute,
 }
 
 const FExecutivoRouteWithChildren = FExecutivoRoute._addFileChildren(
