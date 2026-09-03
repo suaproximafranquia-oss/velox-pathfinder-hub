@@ -195,7 +195,7 @@ export function ExecutiveShell({
         ]
       : []),
     ...(session.activeRole === "super_admin"
-      ? [{ to: unitPath("/executivo/homologacao"), label: "Homologação do Motor", icon: FlaskConical }]
+      ? [{ to: unitPath("/executivo/homologacao"), label: "Central de Homologação", icon: FlaskConical }]
       : []),
     ...(canCrm
       ? [{ to: unitPath("/executivo/backups"), label: "Backup de Conversas", icon: Archive }]
