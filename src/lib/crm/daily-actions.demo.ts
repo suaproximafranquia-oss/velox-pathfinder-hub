@@ -165,17 +165,56 @@ export function createDemoDailyActionsAdapter(): DailyActionsAdapter {
       requeue: true,
       message: `Execução simulada: primeiro contato (E0) de ${item.name}. Nada foi enviado ou gravado.`,
     }),
-    completeCall: async (item, outcome): Promise<AdapterResult> => ({
+    completeCall: async (item, outcome, rang): Promise<AdapterResult> => ({
       ok: true,
       requeue: true,
       message: `Execução simulada: ligação de ${item.name} registrada como ${
-        outcome === "SIM" ? "atendida" : "não atendida"
+        outcome === "SIM"
+          ? "atendida"
+          : `não atendida${rang === undefined || rang === null ? "" : rang ? " (chamou)" : " (não chamou)"}`
       }. Nada foi gravado.`,
     }),
     openWhatsapp: async (item): Promise<AdapterResult> => ({
       ok: true,
       message: `Execução simulada: nenhuma conversa real foi aberta com ${item.name}.`,
     }),
+    skip: async (item, reason): Promise<AdapterResult> => ({
+      ok: true,
+      requeue: true,
+      message: `Simulação: ação de ${item.name} pulada com a justificativa "${reason}". Nada foi gravado.`,
+    }),
+    addNote: async (item): Promise<AdapterResult> => ({
+      ok: true,
+      message: `Simulação: observação de ${item.name} não foi gravada.`,
+    }),
+    loadMessage: async (item) => ({
+      step: item.stepLabel ?? "—",
+      body: `Mensagem fictícia de demonstração para ${item.name}. Nenhum texto oficial da Biblioteca é usado aqui e nada é enviado.`,
+      blockedReason: null,
+      libraryVersion: null,
+      investorNameUsed: item.name,
+      executiveName: "Executivo de demonstração",
+      contentName: null,
+      contentUrl: null,
+    }),
+    registerMessage: async (item): Promise<AdapterResult> => ({
+      ok: true,
+      requeue: true,
+      message: `Simulação: mensagem de ${item.name} marcada como tratada. Nada foi enviado ou gravado.`,
+    }),
+    resolveMeeting: async (item, attended): Promise<AdapterResult> => ({
+      ok: true,
+      requeue: true,
+      message: `Simulação: reunião de ${item.name} marcada como ${
+        attended ? "realizada" : "não comparecimento"
+      }. Nada foi gravado.`,
+    }),
+    rescheduleMeeting: async (item): Promise<AdapterResult> => ({
+      ok: true,
+      requeue: true,
+      message: `Simulação: reunião de ${item.name} reagendada apenas na tela. Nada foi gravado.`,
+    }),
   };
 }
+
 

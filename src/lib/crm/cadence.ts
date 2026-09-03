@@ -193,7 +193,9 @@ export function nextCadenceStep(
  * Regras de encerramento:
  *   • qualquer tentativa com resultado SIM encerra a fila do ciclo — o
  *     contato aconteceu e a condução passa a ser do Executivo;
- *   • L2 = NÃO e L3 = NÃO encerram o ciclo sem gerar L4.
+ *   • sem contato, as tentativas seguem até esgotar a quantidade
+ *     CONFIGURADA na cadência — nenhum encerramento artificial antes
+ *     disso.
  */
 export function nextCallAttempt(
   baseDate: string,
@@ -210,11 +212,6 @@ export function nextCallAttempt(
   const history = [...attempts].sort((a, b) => a.step - b.step);
   const done = history.length;
   if (done >= config.offsets.length) return null;
-
-  // §15 — L2 sem contato e L3 sem contato encerram o ciclo sem gerar L4.
-  const l2 = history.find((a) => a.step === 2);
-  const l3 = history.find((a) => a.step === 3);
-  if (l2?.outcome === "NAO" && l3?.outcome === "NAO") return null;
 
   const offset = config.offsets[done] ?? 0;
   const anchor = done === 0 ? baseDate : (history[done - 1]?.date ?? baseDate);

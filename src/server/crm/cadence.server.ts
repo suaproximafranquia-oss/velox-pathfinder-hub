@@ -180,8 +180,14 @@ export async function completeCadenceTask(input: {
   userId: string;
   /** Desfecho informado pelo Executivo: atendeu (SIM) ou não (NAO). */
   outcome?: CallOutcome;
+  /**
+   * Quando não atendeu: o telefone CHAMOU? Informação operacional de
+   * histórico — não altera cadência, etapa nem status do lead.
+   */
+  rang?: boolean | null;
 }): Promise<void> {
   const outcome: CallOutcome = input.outcome ?? "SIM";
+  const rang = outcome === "NAO" ? (input.rang ?? null) : null;
   const { error } = await supabaseAdmin.from("crm_cadence_tasks").upsert(
     {
       lead_id: input.leadId,
@@ -209,12 +215,15 @@ export async function completeCadenceTask(input: {
     lead_id: input.leadId,
     type: "CADENCE_TASK_DONE",
     message: `${input.channel === "call" ? "Ligação" : "Mensagem"} ${input.step}ª tentativa — ${
-      outcome === "SIM" ? "investidor atendeu" : "investidor não atendeu"
+      outcome === "SIM"
+        ? "investidor atendeu"
+        : `investidor não atendeu${rang === null ? "" : rang ? " (chamou)" : " (não chamou)"}`
     }.`,
     data: {
       channel: input.channel,
       step: input.step,
       outcome,
+      rang,
       dueDate: input.dueDate,
       cycleDate: input.cycleDate,
     },

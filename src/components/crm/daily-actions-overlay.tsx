@@ -19,7 +19,7 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
+import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
 import {
   KIND_LABEL,
   operationalTime,
@@ -71,6 +71,17 @@ export function DailyActionsOverlay({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** Ligação sem atendimento aguardando a resposta "chamou?". */
+  const [callAwaitingRing, setCallAwaitingRing] = useState<string | null>(null);
+  const [skipOpen, setSkipOpen] = useState(false);
+  const [skipReason, setSkipReason] = useState("");
+  const [note, setNote] = useState("");
+  const [meetingNote, setMeetingNote] = useState("");
+  const [rescheduleAt, setRescheduleAt] = useState("");
+  const [message, setMessage] = useState<StepMessageView | null>(null);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageNote, setMessageNote] = useState("");
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +111,20 @@ export function DailyActionsOverlay({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  /** Trocar de ação limpa os rascunhos da ação anterior. */
+  useEffect(() => {
+    setCallAwaitingRing(null);
+    setSkipOpen(false);
+    setSkipReason("");
+    setNote("");
+    setMeetingNote("");
+    setRescheduleAt("");
+    setMessage(null);
+    setMessageOpen(false);
+    setMessageNote("");
+  }, [selectedKey]);
+
 
   const selected = useMemo(
     () => actions.find((item) => item.actionKey === selectedKey) ?? null,
@@ -149,14 +174,21 @@ export function DailyActionsOverlay({
     if (result.message) setFeedback(result.message);
   }
 
-  /** Ligação: registra o desfecho da tentativa; não encerra a cadência. */
-  async function handleCallOutcome(item: DailyAction, outcome: "SIM" | "NAO") {
+  /**
+   * LIGAÇÃO. "Atendeu?" é sempre a primeira pergunta. Quando NÃO, a
+   * tela pergunta se o telefone CHAMOU antes de registrar — as duas
+   * respostas viram histórico na mesma tentativa. Nenhuma quantidade
+   * de tentativas é decidida aqui: quem define é a cadência.
+   */
+  async function completeCall(item: DailyAction, outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!item.cadence) return;
     setBusy(true);
     try {
-      const result = await adapter.completeCall(item, outcome);
-      if (result.ok) applyResult(item.actionKey, result);
-      else setFeedback(result.message ?? "Não foi possível registrar a ligação.");
+      const result = await adapter.completeCall(item, outcome, rang);
+      if (result.ok) {
+        setCallAwaitingRing(null);
+        applyResult(item.actionKey, result);
+      } else setFeedback(result.message ?? "Não foi possível registrar a ligação.");
     } finally {
       setBusy(false);
     }
@@ -190,6 +222,107 @@ export function DailyActionsOverlay({
     const result = await adapter.openWhatsapp(item);
     if (result.message) setFeedback(result.message);
   }
+
+  /** PULAR — a justificativa é obrigatória e vira histórico oficial. */
+  async function handleSkip(item: DailyAction) {
+    if (skipReason.trim().length < 3) {
+      setFeedback("Escreva a justificativa antes de pular esta ação.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await adapter.skip(item, skipReason.trim());
+      if (result.ok) {
+        setSkipReason("");
+        setSkipOpen(false);
+        applyResult(item.actionKey, result);
+      } else setFeedback(result.message ?? "Não foi possível pular a ação.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** OBSERVAÇÃO — registro operacional; a ação continua pendente. */
+  async function handleNote(item: DailyAction) {
+    if (note.trim().length < 3) {
+      setFeedback("Escreva a observação antes de salvar.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await adapter.addNote(item, note.trim());
+      setNote("");
+      setFeedback(result.message ?? "Observação registrada.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** REUNIÃO — desfecho registrado na própria reunião. */
+  async function handleMeetingOutcome(item: DailyAction, attended: boolean) {
+    setBusy(true);
+    try {
+      const result = await adapter.resolveMeeting(item, attended, meetingNote.trim());
+      if (result.ok) {
+        setMeetingNote("");
+        applyResult(item.actionKey, result);
+      } else setFeedback(result.message ?? "Não foi possível registrar o desfecho.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleReschedule(item: DailyAction) {
+    if (!rescheduleAt) {
+      setFeedback("Informe a nova data e hora da reunião.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await adapter.rescheduleMeeting(
+        item,
+        new Date(rescheduleAt).toISOString(),
+        meetingNote.trim(),
+      );
+      if (result.ok) {
+        setRescheduleAt("");
+        setMeetingNote("");
+        applyResult(item.actionKey, result);
+      } else setFeedback(result.message ?? "Não foi possível reagendar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** MENSAGEM — leitura do texto oficial. Esta tela nunca envia nada. */
+  async function handleOpenMessage(item: DailyAction) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const view = await adapter.loadMessage(item);
+      setMessage(view);
+      setMessageOpen(true);
+      if (!view) setFeedback("Esta ação não tem mensagem oficial vinculada.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRegisterMessage(item: DailyAction) {
+    setBusy(true);
+    try {
+      const result = await adapter.registerMessage(item, messageNote.trim());
+      if (result.ok) {
+        setMessageNote("");
+        setMessageOpen(false);
+        applyResult(item.actionKey, result);
+      } else setFeedback(result.message ?? "Não foi possível registrar a mensagem.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
 
 
   if (!open) return null;
@@ -320,28 +453,88 @@ export function DailyActionsOverlay({
                       <Check className="h-4 w-4" /> Executar primeiro contato (E0)
                     </button>
                   )}
-                  {selected.cadence && (
+                  {selected.cadence && callAwaitingRing !== selected.actionKey && (
                     <>
                       <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
                         O investidor atendeu?
                       </span>
                       <button
                         type="button"
-                        onClick={() => void handleCallOutcome(selected, "SIM")}
+                        onClick={() => void completeCall(selected, "SIM")}
                         disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
                       >
                         <Check className="h-4 w-4" /> Sim
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleCallOutcome(selected, "NAO")}
+                        onClick={() => setCallAwaitingRing(selected.actionKey)}
                         disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-white/75 transition hover:bg-white/[0.08] disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
                       >
                         <X className="h-4 w-4" /> Não
                       </button>
                     </>
+                  )}
+                  {selected.cadence && callAwaitingRing === selected.actionKey && (
+                    <>
+                      <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
+                        Chamou?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void completeCall(selected, "NAO", true)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] disabled:opacity-50"
+                      >
+                        Sim, chamou
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void completeCall(selected, "NAO", false)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
+                      >
+                        Não chamou
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCallAwaitingRing(null)}
+                        className="text-[11px] text-white/40 underline underline-offset-4"
+                      >
+                        voltar
+                      </button>
+                    </>
+                  )}
+                  {selected.kind === "reuniao" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleMeetingOutcome(selected, true)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                      >
+                        <Check className="h-4 w-4" /> Compareceu
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleMeetingOutcome(selected, false)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
+                      >
+                        <X className="h-4 w-4" /> Não compareceu
+                      </button>
+                    </>
+                  )}
+                  {selected.kind === "mensagem" && (
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenMessage(selected)}
+                      disabled={busy}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                    >
+                      <MessageSquare className="h-4 w-4" /> Ver mensagem completa
+                    </button>
                   )}
                   {selected.phone && (
                     <button
@@ -362,15 +555,97 @@ export function DailyActionsOverlay({
                       <ExternalLink className="h-4 w-4" /> Ver ficha completa
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setSkipOpen((v) => !v)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition hover:bg-white/[0.08]"
+                  >
+                    <SkipForward className="h-4 w-4" /> Pular
+                  </button>
                 </div>
+
+                {/* REUNIÃO — reagendamento na própria reunião oficial. */}
+                {selected.kind === "reuniao" && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                    <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
+                      Reagendar
+                    </span>
+                    <input
+                      type="datetime-local"
+                      value={rescheduleAt}
+                      onChange={(e) => setRescheduleAt(e.target.value)}
+                      className="rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleReschedule(selected)}
+                      disabled={busy}
+                      className="rounded-lg border border-white/20 bg-white/[0.05] px-3 py-1.5 text-sm text-white/80 transition hover:bg-white/[0.1] disabled:opacity-50"
+                    >
+                      Confirmar nova data
+                    </button>
+                    <input
+                      value={meetingNote}
+                      onChange={(e) => setMeetingNote(e.target.value)}
+                      placeholder="Observação da reunião (opcional)"
+                      className="min-w-[220px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
+                    />
+                  </div>
+                )}
+
+                {/* PULAR — justificativa obrigatória, sempre com histórico. */}
+                {skipOpen && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-rose-400/25 bg-rose-400/[0.06] p-3">
+                    <input
+                      value={skipReason}
+                      onChange={(e) => setSkipReason(e.target.value)}
+                      placeholder="Justificativa obrigatória para pular"
+                      className="min-w-[240px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleSkip(selected)}
+                      disabled={busy}
+                      className="rounded-lg border border-rose-400/40 bg-rose-400/10 px-3 py-1.5 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
+                    >
+                      Pular com justificativa
+                    </button>
+                  </div>
+                )}
+
+                {/* OBSERVAÇÃO — a ação continua pendente. */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Observação operacional"
+                    className="min-w-[240px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleNote(selected)}
+                    disabled={busy}
+                    className="rounded-lg border border-white/20 bg-white/[0.05] px-3 py-1.5 text-sm text-white/75 transition hover:bg-white/[0.1] disabled:opacity-50"
+                  >
+                    <StickyNote className="mr-1 inline h-3.5 w-3.5" /> Salvar observação
+                  </button>
+                </div>
+
                 {feedback && <p className="text-[11px] text-[color:var(--gold)]">{feedback}</p>}
                 <p className="text-[11px] text-white/35">
                   {selected.kind === "primeiro_contato"
                     ? "O primeiro contato é executado pelo mesmo caminho oficial do modo automático, com registro de autor, horário e resultado. A trava global de envio real permanece ativa."
                     : selected.cadence
-                    ? "O desfecho registra apenas a tentativa de hoje. Atendeu encerra a sequência de ligações do ciclo; não atendeu mantém o lead na cadência para a próxima data prevista."
+                    ? "O desfecho registra apenas a tentativa de hoje. Atendeu encerra a sequência de ligações do ciclo; não atendeu mantém o lead na cadência para a próxima data prevista pela configuração."
+                    : selected.kind === "reuniao"
+                    ? "A reunião permanece nesta lista até ser resolvida: comparecimento, não comparecimento, reagendamento ou pulo com justificativa — sempre na reunião oficial."
                     : "Esta ação pertence à sua origem (Agenda, reunião ou fila de mensagens) e é encerrada por lá — aqui ela apenas aparece no lugar certo da sua ordem do dia."}
                 </p>
+                <p className="text-[11px] text-white/25">
+                  Pular registra autor, horário, investidor, etapa e justificativa. A ação sai
+                  apenas do dia de hoje e volta enquanto a origem continuar pendente.
+                </p>
+
               </>
             )}
           </section>
