@@ -15,6 +15,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { CalendarClock, DatabaseBackup, Lock, RefreshCw, Search, ShieldCheck, Users, X } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { DailyActionsOverlay } from "@/components/crm/daily-actions-overlay";
+import { useRealDailyActionsAdapter } from "@/components/crm/daily-actions-real-adapter";
+
 import { getDailyActionsSummary } from "@/lib/crm/daily-actions.functions";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
