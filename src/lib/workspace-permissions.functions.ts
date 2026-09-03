@@ -19,7 +19,7 @@ export type WorkspacePermissionRow = {
   updatedByName: string;
 };
 
-const moduleKey = z.enum(["crm", "portal_leads"]);
+const moduleKey = z.enum(["crm", "portal_leads", "e0_automatico"]);
 
 /** Leitura aberta a qualquer membro autenticado: a interface precisa reagir. */
 export const listWorkspacePermissions = createServerFn({ method: "POST" })
