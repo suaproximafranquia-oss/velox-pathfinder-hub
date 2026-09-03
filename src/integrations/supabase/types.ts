@@ -3273,6 +3273,8 @@ export type Database = {
           card_id: string
           created_at: string
           crm_lead_id: string | null
+          entered_entry_stage_at: string | null
+          entry_at: string | null
           executed_at: string | null
           executed_by: string | null
           executed_by_user_id: string | null
@@ -3281,6 +3283,7 @@ export type Database = {
           lead_whatsapp: string | null
           note: string | null
           origin: string
+          reactivation: boolean
           responsible_executive_id: string | null
           result: string | null
           state: string
@@ -3289,6 +3292,8 @@ export type Database = {
           card_id: string
           created_at?: string
           crm_lead_id?: string | null
+          entered_entry_stage_at?: string | null
+          entry_at?: string | null
           executed_at?: string | null
           executed_by?: string | null
           executed_by_user_id?: string | null
@@ -3297,6 +3302,7 @@ export type Database = {
           lead_whatsapp?: string | null
           note?: string | null
           origin?: string
+          reactivation?: boolean
           responsible_executive_id?: string | null
           result?: string | null
           state?: string
@@ -3305,6 +3311,8 @@ export type Database = {
           card_id?: string
           created_at?: string
           crm_lead_id?: string | null
+          entered_entry_stage_at?: string | null
+          entry_at?: string | null
           executed_at?: string | null
           executed_by?: string | null
           executed_by_user_id?: string | null
@@ -3313,6 +3321,7 @@ export type Database = {
           lead_whatsapp?: string | null
           note?: string | null
           origin?: string
+          reactivation?: boolean
           responsible_executive_id?: string | null
           result?: string | null
           state?: string
