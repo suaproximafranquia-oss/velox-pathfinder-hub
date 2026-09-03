@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Pencil, Power, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { Pencil, Power, Plus, ShieldCheck, UserX } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { WorkspacePermissionsDialog } from "@/components/executive/workspace-permissions-dialog";
 import {
@@ -113,7 +113,7 @@ function UsuariosPage() {
     setUsers(next);
   }
 
-  function toggleStatus(id: string) {
+  async function toggleStatus(id: string) {
     const target = users.find((u) => u.id === id);
     if (!target || !session) return;
     if (!canManageTargetUser(session.activeRole, target.role)) return;
@@ -127,27 +127,69 @@ function UsuariosPage() {
     ) {
       return;
     }
-    persist(
-      users.map((u) =>
-        u.id === id ? { ...u, status: next } : u,
-      ),
-    );
+
     // §13/§14 — a situação vale no SERVIDOR: a sessão do usuário
     // desativado é encerrada e um novo login é recusado. Nenhum
     // histórico, conversa ou lead é apagado (§16).
-    void setExecutiveStatus({
-      data: { executiveId: id, status: next, actorName: session.name },
-    }).catch(() => {
-      alert("Não foi possível registrar a alteração no servidor. Tente novamente.");
-    });
+    try {
+      await setExecutiveStatus({
+        data: { executiveId: id, status: next, actorName: session.name },
+      });
+      persist(
+        users.map((u) =>
+          u.id === id ? { ...u, status: next } : u,
+        ),
+      );
+      toast.success(
+        next === "ativo"
+          ? `Usuário ${target.name} ativado.`
+          : `Usuário ${target.name} desativado.`,
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível registrar a alteração no servidor. Tente novamente.",
+      );
+    }
   }
 
-  function remove(id: string) {
+  /**
+   * CONSTRUÇÃO — SUBSTITUIR EXCLUSÃO FALSA POR DESATIVAÇÃO.
+   *
+   * Não apagamos usuários: eles são registros históricos e podem estar
+   * relacionados a leads, timeline, cadência e auditoria.
+   * A ação "Excluir" vira "Desativar" e reaproveita o caminho validado
+   * de `setExecutiveStatus`, persistindo `inativo` em
+   * `executive_user_status`.
+   */
+  async function deactivate(id: string) {
     const target = users.find((u) => u.id === id);
     if (!target || !session) return;
     if (!canManageTargetUser(session.activeRole, target.role)) return;
-    if (!confirm("Excluir este usuário?")) return;
-    persist(users.filter((u) => u.id !== id));
+    if (target.status !== "ativo") {
+      toast.info(`${target.name} já está inativo.`);
+      return;
+    }
+    if (!confirm(`Desativar o usuário ${target.name}?`)) return;
+
+    try {
+      await setExecutiveStatus({
+        data: { executiveId: id, status: "inativo", actorName: session.name },
+      });
+      persist(
+        users.map((u) =>
+          u.id === id ? { ...u, status: "inativo" } : u,
+        ),
+      );
+      toast.success(`Usuário ${target.name} desativado.`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível desativar o usuário. Tente novamente.",
+      );
+    }
   }
 
   function saveDraft() {
@@ -272,13 +314,6 @@ function UsuariosPage() {
                           className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--accent)]/60"
                         >
                           <Power className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => remove(u.id)}
-                          title="Excluir"
-                          className="rounded-lg p-2 text-[color:var(--muted-foreground)] hover:text-red-400 hover:bg-[color:var(--accent)]/60"
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </button>
                       </>
                     ) : (
