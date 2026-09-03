@@ -56,20 +56,47 @@ export const setWorkspacePermission = createServerFn({ method: "POST" })
   )
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }): Promise<WorkspacePermissionRow[]> => {
+    /**
+     * MATRIZ OBRIGATÓRIA DO E0 (servidor, não interface):
+     *   • Automático exige CRM ON **e** Portal dos Leads ON;
+     *   • desligar CRM ou Portal derruba o Automático do mesmo executivo.
+     * A reativação posterior é sempre uma nova decisão do Administrador.
+     */
+    const { resolveExecutivePermissions } = await import(
+      "@/server/crm/first-contact-mode.server"
+    );
+    const current = await resolveExecutivePermissions(data.userId);
+
+    if (data.moduleKey === "e0_automatico" && data.enabled && !(current.crm && current.portalLeads)) {
+      throw new Error(
+        "Primeiro contato automático exige CRM e Portal dos Leads habilitados para este executivo.",
+      );
+    }
+
+    const stamp = {
+      updated_by: context.userId,
+      updated_by_name: data.actorName ?? "",
+      updated_at: new Date().toISOString(),
+    };
+
+    const writes: { user_id: string; module_key: string; enabled: boolean }[] = [
+      { user_id: data.userId, module_key: data.moduleKey, enabled: data.enabled },
+    ];
+
+    const dropsAutomatic =
+      !data.enabled && (data.moduleKey === "crm" || data.moduleKey === "portal_leads");
+    if (dropsAutomatic && current.e0Automatico) {
+      writes.push({ user_id: data.userId, module_key: "e0_automatico", enabled: false });
+    }
+
     const { error } = await context.supabase
       .from("workspace_module_permissions")
       .upsert(
-        {
-          user_id: data.userId,
-          module_key: data.moduleKey,
-          enabled: data.enabled,
-          updated_by: context.userId,
-          updated_by_name: data.actorName ?? "",
-          updated_at: new Date().toISOString(),
-        },
+        writes.map((row) => ({ ...row, ...stamp })),
         { onConflict: "user_id,module_key" },
       );
     if (error) throw new Error(error.message);
+
 
     const { data: rows, error: readError } = await context.supabase
       .from("workspace_module_permissions")
