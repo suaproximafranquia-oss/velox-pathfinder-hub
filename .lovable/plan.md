@@ -117,8 +117,81 @@ f) **Preservação do histórico**: nada é apagado nem reescrito [R]. Cada tabe
 
 g) **Continuam existindo**: `portal_leads`, `crm_leads`, `relationship_queue`, `relationship_cadences`, `crm_timeline`, `relationship_engine_log`, `workspace_e0_actions`, `portal_meetings`. **Passam a apontar** para `investor_id`: queue, cadences, timeline, engine_log, e0_actions, cadence_tasks. **Nada é substituído nesta fase.**
 
+---
+
+## 1-bis. Isolamento multiambiente (/f, /s, /seg)
+
+### Estado atual [C]
+- Não existe hoje nenhuma dimensão de ambiente comercial no dado. `portal_leads.scope` guarda **canal de origem**, não ambiente: `green_sales` (72), `portal` (12), `tiktok` (3), `meta` (2), `redistribuicao` (1).
+- `relationship_queue`, `relationship_cadences` e `relationship_engine_log` têm `scope`, mas o único valor existente é `production` — é a separação produção/homologação, **não** Financeira/Solar/Seguros.
+- `responsible_executive_id` vive em `portal_leads` (pessoa/registro de entrada), ou seja, hoje o responsável é global à pessoa — exatamente o modelo que você quer eliminar.
+
+### 1. O que pode existir em `investors` [R]
+Apenas identidade da pessoa, imutável entre ambientes: `id`, `nome` (nome civil de referência), `identity_key` (telefone normalizado 11 dígitos), `telefones[]`, `emails[]`, `created_at`, `updated_at`, e opcionalmente `merged_into_id` para deduplicação auditável. Nada mais.
+
+### 2. O que NÃO pode existir em `investors` [R]
+Todos estes pertencem à oportunidade (portanto ao ambiente): origem, responsável, estágio, cadência, status/estado comercial, card, ações, tarefas, observações, histórico, produto/interesse, unidade/franquia, datas operacionais, jornada do Portal, janela de conversa, liberação de conteúdo, flags de teste. Regra prática: **se muda quando o negócio age, não é identidade.**
+
+### 3. "AMBIENTE" precisa ser explícito?
+**Sim, mas como atributo obrigatório e não-nulo da OPORTUNIDADE, não como tabela intermediária** [R]. Uma tabela `environments` acrescentaria um salto sem ganhar isolamento; o que garante isolamento é `opportunity.environment ∈ {financeira, solar, seguros}` sendo NOT NULL, imutável após criação, e propagado obrigatoriamente para card, cadência, ações, execuções e histórico. Modelo:
+
+```text
+INVESTOR (identidade, sem ambiente)
+   └─ OPORTUNIDADE (environment obrigatório, origem, responsável, estágio)
+        └─ CARD (herda environment)
+             └─ INSTÂNCIA DE CADÊNCIA (herda environment + versão congelada)
+                  └─ AÇÕES PLANEJADAS → EXECUÇÕES → HISTÓRICO (todos carregam environment)
+```
+Só o topo é compartilhado. Tudo abaixo da oportunidade é local ao ambiente.
+
+### 4. Cenário da mesma pessoa nos três ambientes
+```text
+INVESTOR i_123  (Maria, 11 9xxxx-xxxx)   ← única coisa compartilhada
+  ├─ OPORTUNIDADE /f   environment=financeira origem=GreenSales resp=Exec A cadência Financeira histórico F
+  ├─ OPORTUNIDADE /s   environment=solar      origem=TikTok     resp=Exec B cadência Solar      histórico S
+  └─ OPORTUNIDADE /seg environment=seguros    origem=Meta       resp=Exec C cadência Seguros    histórico Sg
+```
+- Reconhecido como a mesma pessoa: apenas identidade (nome, telefone, e-mail) e o fato de existirem outras oportunidades — e mesmo isso só para quem tiver permissão cross-ambiente.
+- Permanece independente: origem, responsável, estágio, cadência, ações, execuções, observações, reuniões, métricas.
+- **Jamais atravessa**: histórico/timeline, conteúdo de mensagens, notas do executivo, resultado de ligação, estado comercial, agenda e qualquer dado que permita a um executivo de /s saber o que foi conversado em /f.
+
+### 5. Um `investor_id` visível em /f pode retornar dados de /s? **NÃO** [R]
+Defesa em profundidade, em todas as camadas:
+- **Banco**: `environment` NOT NULL em oportunidade, card, cadência, ação, execução e histórico; índice composto `(environment, investor_id)`; nenhuma FK direta de histórico para `investors` sem o ambiente junto.
+- **Queries**: `environment` é parâmetro obrigatório de toda função de leitura operacional — nunca opcional com default, porque default vira vazamento silencioso.
+- **Server functions**: o ambiente vem do contexto autenticado do executivo (permissão de módulo), nunca de parâmetro enviado pelo cliente.
+- **RLS**: política por ambiente cruzando o vínculo executivo↔ambiente; a leitura da tabela `investors` (identidade) é separada e mínima — nome e telefone, sem nada operacional.
+- **Ação do Dia**: agrega apenas ações do ambiente da sessão; o colapso por lead passa a ser colapso por `(environment, opportunity_id)`.
+- **Histórico**: `crm_timeline`/`relationship_engine_log` filtram por ambiente antes de qualquer junção por pessoa.
+- **Cadência**: instância pertence à oportunidade; não existe cadência "do investidor".
+
+### 6. Origem
+Origem é atributo da **oportunidade**, não da pessoa [R]. `investor_identifiers (investor_id, source, external_id)` serve só para *reconhecer* a pessoa; o contexto comercial (`GreenSales` em /f, `TikTok` em /s, `Meta` em /seg) fica gravado em cada oportunidade separadamente. Um mesmo `external_id` nunca implica compartilhar dados entre ambientes.
+
+### 7. Responsável — modelo confirmado [R]
+Responsável é atributo da oportunidade (ou do card), nunca da pessoa. Hoje ele está em `portal_leads` [C], o que produz exatamente o "lead é do Thiago" global que precisa acabar. Transferência de responsável é evento local ao ambiente e não afeta as demais oportunidades da mesma pessoa.
+
+### 8. Modelo canônico final (conceitual)
+```text
+investors                identidade pura, sem ambiente                 [R]
+investor_identifiers     (investor_id, source, external_id)            [R]
+opportunities            investor_id + environment(NOT NULL) + origem
+                         + responsável + estágio                       [R]
+cards                    opportunity_id (+environment herdado)         [R]
+cadence_instances        opportunity_id + cadence_version_id congelada [R]
+planned_actions          instance_id + depends_on + required_outcome   [R]
+executions               planned_action_id + resultado + executor      [R]
+history                  append-only, environment obrigatório          [R]
+```
+Limite duro: **acima da oportunidade, compartilhado; da oportunidade para baixo, estritamente isolado por ambiente.**
+
+### Decisões pendentes deste bloco [D]
+- Se existe perfil com permissão de ver que a mesma pessoa tem oportunidade em outro ambiente (visão "existe", sem conteúdo) ou se o isolamento é total inclusive quanto à existência.
+- Se `crm_leads` atual vira `opportunities` do ambiente `financeira` por backfill, ou se `opportunities` nasce como entidade nova com `crm_leads` mantido em convivência.
+- Se `scope` existente (`production`) e `environment` convivem como dimensões separadas — recomendação: sim, são ortogonais (ambiente comercial x produção/homologação).
 
 ---
+
 
 ## 2. Dependência entre ações
 
