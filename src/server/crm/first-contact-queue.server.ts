@@ -44,7 +44,7 @@ export async function processDeferredFirstContacts(): Promise<DeferredSummary> {
     .from("crm_lead_events")
     .select("lead_id,type")
     .in("lead_id", leadIds)
-    .in("type", ["e0_simulada", "boas_vindas_enviada"]);
+    .in("type", ["e0_simulada", "e0_enviada", "boas_vindas_enviada"]);
   const done = new Set((doneEvents ?? []).map((row) => row.lead_id));
   const pending = leadIds.filter((id) => !done.has(id));
   if (pending.length === 0) return summary;
