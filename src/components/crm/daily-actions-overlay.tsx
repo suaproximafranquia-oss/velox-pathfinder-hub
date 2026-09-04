@@ -83,6 +83,8 @@ export function DailyActionsOverlay({
   const [message, setMessage] = useState<StepMessageView | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageNote, setMessageNote] = useState("");
+  /** Confirmação explícita: copiou → enviou? Só SIM conclui o item. */
+  const [copied, setCopied] = useState(false);
 
 
   const load = useCallback(async () => {
@@ -303,10 +305,22 @@ export function DailyActionsOverlay({
     try {
       const view = await adapter.loadMessage(item);
       setMessage(view);
+      setCopied(false);
       setMessageOpen(true);
       if (!view) setFeedback("Esta ação não tem mensagem oficial vinculada.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function copyMessage() {
+    const body = message?.body?.trim();
+    if (!body) return;
+    try {
+      await navigator.clipboard.writeText(body);
+      setCopied(true);
+    } catch {
+      setFeedback("Não foi possível copiar automaticamente — selecione o texto acima.");
     }
   }
 
@@ -316,6 +330,7 @@ export function DailyActionsOverlay({
       const result = await adapter.registerMessage(item, messageNote.trim());
       if (result.ok) {
         setMessageNote("");
+        setCopied(false);
         setMessageOpen(false);
         applyResult(item.actionKey, result);
       } else setFeedback(result.message ?? "Não foi possível registrar a mensagem.");
@@ -725,24 +740,52 @@ export function DailyActionsOverlay({
                 <p className="mt-3 text-[11px] text-white/35">
                   Tratamento usado: {message?.investorNameUsed ?? "versão sem nome"} · Assinatura:{" "}
                   {message?.executiveName ?? "—"}
-                  {message?.contentName ? ` · Conteúdo: ${message.contentName}` : ""}
+                  {message?.contentName ? ` · Link: ${message.contentName}` : ""}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-4 py-3">
+              <div className="space-y-2 border-t border-white/10 px-4 py-3">
                 <input
                   value={messageNote}
                   onChange={(e) => setMessageNote(e.target.value)}
                   placeholder="Observação (opcional)"
-                  className="min-w-[180px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
+                  className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
                 />
-                <button
-                  type="button"
-                  onClick={() => void handleRegisterMessage(selected)}
-                  disabled={busy || !message?.body}
-                  className="rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
-                >
-                  Registrar como tratada
-                </button>
+                {!copied ? (
+                  <button
+                    type="button"
+                    onClick={() => void copyMessage()}
+                    disabled={!message?.body}
+                    className="w-full rounded-lg border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-3 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                  >
+                    Copiar mensagem
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    {/* Nada é enviado pelo sistema: o Executivo cola no
+                        WhatsApp e confirma aqui o que realmente fez. */}
+                    <p className="text-sm text-white/70">
+                      Mensagem copiada. Você enviou esta mensagem ao investidor?
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleRegisterMessage(selected)}
+                        disabled={busy || !message?.body}
+                        className="flex-1 rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                      >
+                        SIM — enviei
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCopied(false)}
+                        disabled={busy}
+                        className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10 disabled:opacity-50"
+                      >
+                        NÃO — ainda não
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -389,6 +389,13 @@ export type RenderInput = {
   executiveProvidedName?: string | null;
   /** Executivo respondeu NÃO à sugestão de nome (§22). */
   nameRejected?: boolean;
+  /**
+   * Link usado APENAS quando a especificação não traz o seu próprio
+   * (textos fixos de homologação/simulação). Em produção o link vem
+   * sempre da versão ativa da Biblioteca.
+   */
+  fallbackContentUrl?: string | null;
+  fallbackContentLabel?: string | null;
 };
 
 export type RenderResult =
@@ -472,8 +479,8 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
       ? { label: "Acessar Portal do Investidor", url: portal }
       : null;
 
-  const contentUrl = (message.contentUrl ?? "").trim();
-  const contentLabel = (message.contentLabel ?? "").trim();
+  const contentUrl = (message.contentUrl ?? input.fallbackContentUrl ?? "").trim();
+  const contentLabel = (message.contentLabel ?? input.fallbackContentLabel ?? "").trim();
 
   if (CONTENT_PLACEHOLDER.test(body)) {
     if (!contentUrl) {

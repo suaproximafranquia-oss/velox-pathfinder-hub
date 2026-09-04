@@ -247,7 +247,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       overdue: dueDate < today,
       priorityMax: false,
       bucket: resolveBucket({ dueDate, startsAt: null, nowIso }),
-      title: `Mensagem ${item.step}`,
+      // A ação humana é COPIAR o texto oficial e colar no WhatsApp.
+      title: `Etapa ${item.step} — Copiar mensagem`,
       responsibleName: null,
       attempts: [],
       messageRef: {

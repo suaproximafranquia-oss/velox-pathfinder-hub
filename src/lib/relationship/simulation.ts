@@ -427,6 +427,9 @@ async function runLead(
         portalLink: ctx.portalLink,
         confirmedInvestorName: nameConfirmed ? normalizeName(lead.rawName).split(" ")[0] : null,
         rawInvestorName: lead.rawName,
+        // Homologação: link fictício estável. Nunca sai para a Meta.
+        fallbackContentUrl: "https://exemplo.invalido/homologacao/conteudo",
+        fallbackContentLabel: "Conteúdo de homologação",
       });
       if (!rendered.ok) return { delivered: false, error: rendered.reason };
       if (content) {
