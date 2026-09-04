@@ -5,7 +5,6 @@ import { evaluateDailyClosing, stageAtClosing, isTerminalStage } from "./closing
 import { FLOW_SEQUENCE, STEPS } from "./config";
 import { HOMOLOGATION_MESSAGES } from "./messages";
 import { resolveCooledFlow } from "./entry";
-import { CONTENT_GROUPS, REQUIRED_CONTENT_GROUPS } from "./content";
 
 // Fusos: America/Sao_Paulo = UTC-3.
 const local = (day: string, hour: number) => {
@@ -97,9 +96,11 @@ describe("§18–§20 — fluxo RF (relacionamento que esfriou)", () => {
 });
 
 describe("§21–§23 — conteúdo padrão de finalização", () => {
-  it("existe um único grupo de finalização, exigido pela biblioteca", () => {
-    expect(CONTENT_GROUPS).toContain("FINALIZACAO");
-    expect(REQUIRED_CONTENT_GROUPS).toContain("FINALIZACAO");
+  it("as etapas de finalização compartilham o mesmo grupo declarado", () => {
+    // O grupo continua existindo como classificação da etapa; o link,
+    // porém, pertence à própria mensagem da Biblioteca.
+    const groups = new Set(["E12", "RE3", "RF1"].map((s) => STEPS[s as "E12"].contentGroup));
+    expect([...groups]).toEqual(["FINALIZACAO"]);
   });
 
   it("E12, RE3 e RF1 usam o mesmo grupo e entregam o conteúdo em botão", () => {

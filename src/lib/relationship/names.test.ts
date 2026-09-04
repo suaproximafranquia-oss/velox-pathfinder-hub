@@ -59,8 +59,6 @@ describe("personalização segura de nome", () => {
       executiveName: "Thiago",
       portalLink: "https://x.test/p",
       confirmedInvestorName: "Patrícia",
-      contentName: "Material Velox",
-      contentUrl: "https://x.test/c",
     });
     expect(r.ok).toBe(true);
     if (r.ok) {

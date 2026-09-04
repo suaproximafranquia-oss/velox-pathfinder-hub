@@ -4,28 +4,6 @@
  */
 import { describe, expect, it } from "vitest";
 import { buildSimulatedLeads, runSimulation, SCENARIOS } from "./simulation";
-import type { ValueContent } from "./content";
-
-function library(): ValueContent[] {
-  const groups = ["E1", "E3", "R1", "R2", "V3", "V4", "RE1", "RE2", "FINALIZACAO"];
-  const items: ValueContent[] = [];
-  for (const group of groups) {
-    for (let i = 1; i <= 5; i += 1) {
-      items.push({
-        id: `${group}-${i}`,
-        group,
-        name: `HOMOLOGAÇÃO — CONTEÚDO DE TESTE ${group}.${i}`,
-        kind: "pdf",
-        url: `https://example.invalid/homologacao/${group}-${i}.pdf`,
-        active: true,
-        createdAt: "2026-08-01T12:00:00.000Z",
-        updatedAt: "2026-08-01T12:00:00.000Z",
-        usageCount: 0,
-      });
-    }
-  }
-  return items;
-}
 
 describe("simulador de homologação", () => {
   it("executa a jornada completa dos cenários sem divergência", async () => {
@@ -33,7 +11,6 @@ describe("simulador de homologação", () => {
     const out = await runSimulation({
       runId: "TEST-SPEC",
       leads,
-      library: library(),
       executiveName: "Thiago Rodrigues",
       portalLink: "https://exemplo.invalido/f/thiago-rodrigues",
     });
@@ -56,7 +33,6 @@ describe("simulador de homologação", () => {
     const leads = buildSimulatedLeads(20);
     const base = {
       leads,
-      library: library(),
       executiveName: "Thiago Rodrigues",
       portalLink: "https://exemplo.invalido/f/thiago-rodrigues",
     };
