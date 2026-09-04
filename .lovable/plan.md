@@ -1,103 +1,161 @@
-# Auditoria — Reset controlado de homologação da Financeira /f
+# Teste controlado — 1 lead fictício na Financeira /f (auditoria, sem implementação)
 
-Somente auditoria. Nada foi alterado: nenhum DELETE, UPDATE, migration ou código.
+## A) Caminho recomendado para criar o lead de teste
 
-## Fotografia real do banco (hoje)
+Já existe uma ferramenta oficial de homologação que entra pelo fluxo real:
+**Ambiente de Teste em Tempo Real da Cadência** — rota `/f/executivo/teste-cadencia`
+(somente Administrador do CRM).
 
-| Tabela | Linhas | Natureza |
-| --- | --- | --- |
-| `portal_leads` | 97 (79 `green_sales`, 3 marcados `is_test`) | espelho GreenSales/Portal — intocável |
-| `crm_leads` | 622, **todos** `external_source=greensales`, `is_test=0` | espelho da origem — intocável |
-| `investors` / `investor_identifiers` | 90 / 90 | identidade Fase 1 — preservar |
-| `relationship_cadences` | 79 (**todas** `scope=production`) | estado operacional |
-| `relationship_queue` | 27 (`production`; **máx. 1 PENDING por lead**) | fila de mensagens |
-| `relationship_decisions` | 108.956 | log de decisão do motor |
-| `relationship_engine_log` / `crm_timeline` / `crm_lead_events` | 3.091 / 968 / 2.265 | histórico |
-| `crm_messages` | 93 (77 são `msg_e0_*`) | conversas + trava de E0 |
-| `crm_cadence_tasks` | 11 | execuções de ligação |
-| `workspace_e0_actions` | 4 (3 PENDENTES) | E0 manual |
-| `portal_meetings` / `workspace_agenda_events` | 1 / 1 | agenda |
-| `relationship_message_library` | 67 | Biblioteca oficial — configuração |
+Procedimento existente: selecionar **1 cenário** (recomendado `sem_acao_humana`),
+`perScenario = 1`, criar o lote. Isso gera um lote `TEST-AAAAMMDD-A` e chama
+`createTestBatch` → `intakeLead(...)` — exatamente a mesma função que a
+sincronização GreenSales usa para cada lead real. Não há trilha paralela, não há
+INSERT artificial, não há segundo motor.
 
-Descoberta central: **não existe hoje nenhuma linha com `scope='homologation'`** (cadences, queue, decisions, engine_log = 0). O reset já existente (`workspace-reset.server.ts`) apaga exatamente `scope='homologation'` + leads com marcação de teste — ou seja, **rodá-lo hoje não limparia praticamente nada** (só 3 leads de teste e ruído de `duplicidade_detectada`).
+Não é necessário tocar no Portal de Leads real, na GreenSales, nem rodar sync.
 
-## 1. O que é realmente "sujeira" no Workspace/CRM
+## B) Por que é o caminho mais seguro
 
-Não são leads fictícios. A contaminação da Ação do Dia é **operacional e derivada**, não cadastral:
+- Entra pelo `intakeLead` real: espelho `crm_leads` → card `portal_leads` →
+  responsável → E0 → motor → Ação do Dia.
+- Marcação **técnica** (`is_test = true` + `test_batch_id`), nunca heurística por
+  nome/telefone; nenhum lead real pode receber essa marcação.
+- Telefone sintético `5500…` (não roteável) e e-mail `@teste.velox.local`.
+- O despachante força modo simulado para todo lead marcado, mesmo com credencial
+  real presente — além da Safety Lock.
+- Limpeza por lote (`purgeTestBatch`) age exclusivamente sobre os registros
+  daquele lote.
 
-- **A fila de ligações** é a maior fonte de ruído: 419 `crm_leads` em `zero_contato`/`frio`, dos quais **215 têm data-base ≥ 18/08/2026** (`cadence_activation_date`). Ela é **recalculada em tempo real** por `buildCadenceQueue`, não persistida — logo, aparecem centenas de "ligações do dia" derivadas da carga histórica do GreenSales.
-- Estado do motor de leads históricos: 79 `relationship_cadences` + 27 itens de fila + 77 marcas `msg_e0_*` que já "consumiram" a E0 desses leads.
-- Ruído de auditoria de testes antigos (`crm_timeline.event='duplicidade_detectada'`) e 108.956 `relationship_decisions`.
-- 3 `portal_leads` com `is_test=true` (`ld_test*`) e seus derivados.
-
-Conclusão honesta: **um reset de dados não resolve sozinho** — a maior parte do ruído nasce de recálculo sobre o espelho GreenSales, que não pode ser apagado.
-
-## 2. Tabelas afetadas por um reset operacional
-
-Operacionais (candidatas): `relationship_cadences`, `relationship_queue`, `relationship_decisions`, `relationship_events`, `relationship_engine_log`, `relationship_message_sends`, `relationship_e20_*`, `crm_cadence_tasks`, `crm_lead_events`, `crm_timeline`, `crm_messages`, `workspace_e0_actions`, `portal_meetings`, `workspace_agenda_events`, `portal_journey_events`, `portal_engagement`.
-
-## 3. Preservação obrigatória
-
-`portal_leads`, `crm_leads`, `crm_pipelines`, `crm_pipeline_stages`, `crm_connections`, `crm_sync_runs` (GreenSales); `investors`, `investor_identifiers`, `canonical_investor_id`; `executive_profiles`, `user_roles`, `workspace_module_permissions`, `executive_user_status`; `crm_automation_settings` (inclusive `cadence_activation_date`), `relationship_non_business_days`; `relationship_message_library`, `relationship_contents`, `relationship_step_content_bindings`, `meta_templates`, `crm_meta_templates`, `knowledge_documents`, `magazine_*`, `presentation_chapters`; Safety Lock (é **código**, `whatsapp-safety-lock.server.ts`, não dado — nada a fazer); `portal_backups`, `portal_lead_guard_log`.
-
-## 4. Dependências que quebram
-
-- **`crm_messages` `msg_e0_*` é a trava de idempotência da E0.** Apagar reabre a E0 para 77 leads reais — pode gerar enxurrada de E0 se o modo automático estiver ligado. Apagar sem apagar `relationship_cadences` deixa estado órfão; apagar as cadências sem apagar as mensagens faz o `bootstrapMissingCadences` **recriar** cadências a partir das mensagens no próximo tick.
-- Apagar `relationship_cadences` sem `relationship_queue` deixa itens PENDING sem dono → viram ações do dia sem contexto.
-- `crm_cadence_tasks` é o único histórico de tentativas de ligação: apagá-lo faz a fila recomeçar de L2 para todo lead elegível — **aumenta** o ruído.
-- FKs para `portal_leads`/`crm_leads` são de filhos para pais; limpar filhos não fere os pais.
-- `investors.canonical_investor_id` aponta para identidade, não para operação: não é afetado.
-
-## 5. Reset controlado recomendado (desenho, não executado)
-
-Duas alavancas, nesta ordem:
-
-1. **Silenciar o legado sem apagar** (preferido, reversível): mover `cadence_activation_date` para a data do marco de ativação da homologação. Efeito imediato: `buildCadenceQueue` deixa de gerar as ligações históricas (o corte já é aplicado por lead em `baseDate < activationDate`), e nada é destruído. Resolve ~215 obrigações falsas com **uma linha de configuração**.
-2. **Limpeza operacional cirúrgica**, executada por rotina server com `dryRun` obrigatório e relatório aprovado antes:
-   - `relationship_queue` PENDING/PROCESSING, `relationship_cadences` abertas, `relationship_decisions`, `relationship_events`, `relationship_engine_log`, `relationship_message_sends`;
-   - `crm_messages` **apenas** as `msg_e0_*` dos leads dentro do escopo (senão a E0 não reabre) + conversas de teste;
-   - `crm_cadence_tasks`, `workspace_e0_actions`, `portal_meetings`, `workspace_agenda_events`, ruído `duplicidade_detectada`;
-   - preservar 1 lead-controle real por ID estável (hoje o guard já protege `ld_msy1onox18t1`).
-   Tudo com snapshot/backup prévio e contagens antes/depois.
-
-O ideal é **1 sem 2** para a primeira rodada; 2 só se a homologação exigir zerar histórico visível.
-
-## 6. Ciclo do novo lead de teste — como o código se comporta hoje
+## C) Identificadores e tabelas envolvidos
 
 ```text
-GreenSales → sync → crm_leads + portal_leads (card)
-   → identidade (Fase 1: investors/investor_identifiers por telefone normalizado)
-   → responsável (hoje em portal_leads.responsible_executive_id)
-   → modo E0 do RESPONSÁVEL (workspace_module_permissions.e0_automatico; padrão MANUAL)
-        manual     → workspace_e0_actions(state=PENDENTE) → Ação do Dia, prioridade máxima
-        automático → registerFirstContact direto
-   → execução da E0 → crm_messages msg_e0_<card> + evento FIRST_CONTACT_SENT
-   → relationship_cadences: CADENCE_NOT_STARTED → CADENCE_ACTIVE (só agora conta)
-   → tick agenda a PRÓXIMA etapa em relationship_queue (1 item)
-   → Ação do Dia mostra a etapa quando due_date ≤ hoje
+external_id   TEST-20260904-A-01        (crm_leads.external_id, external_source=greensales)
+card_id       gs_TEST-20260904-A-01     (portal_leads.id = "gs_" + external_id)
+crm_leads.id  uuid                      (espelho da origem)
 ```
 
-Confirmado na leitura de código/dados:
-- `resolveExecutiveE0Mode` decide pelo responsável, com padrão seguro **manual**; sem responsável, manual.
-- `executeE0Action` usa o **mesmo** `registerFirstContact` do automático (mesma Safety Lock, mesma trava `card_id` UNIQUE).
-- `initialRecord` nasce em `CADENCE_NOT_STARTED`; só `FIRST_CONTACT_SENT` leva a `CADENCE_ACTIVE` — **a cadência não conta antes da E0**.
-- Mensagem oficial vem de `relationship_message_library` (67 linhas ativas) — a auditoria de resolução por etapa individual continua pendente de validação autenticada.
+| Camada | Tabela | Chave |
+| --- | --- | --- |
+| Espelho de origem | `crm_leads` | `external_id`, `is_test`, `test_batch_id` |
+| Card/oportunidade | `portal_leads` | `id = gs_<external_id>` |
+| Responsável | `portal_leads.responsible_executive_id` | resolvido no servidor |
+| E0 manual | `workspace_e0_actions` | `card_id` UNIQUE |
+| Mensagem E0 | `crm_messages` | `id = msg_e0_<cardId>`, `investor_id = cardId` |
+| Cadência | `relationship_cadences` | `lead_id = cardId`, `scope = production` |
+| Próxima etapa | `relationship_queue` | `lead_id = cardId`, `status = PENDING` |
+| Histórico | `crm_lead_events`, `crm_timeline`, `relationship_decisions`, `relationship_engine_log` | |
+| Lote | `test_batches` | `id = TEST-…` |
 
-### Regra "o tempo não avança a cadência" — estado atual
+Identidade Fase 1 (`investors` / `investor_identifiers` / `canonical_investor_id`):
+o `intakeLead` **não** grava nessas tabelas hoje — elas foram criadas de forma
+aditiva e são preenchidas só por backfill. Portanto, no teste, o item "identidade"
+será verificado como **ausente por desenho** (o vínculo canônico é trabalho da
+próxima fase), e não como falha.
 
-- **Mensagens: OK.** `relationship_queue` tem **no máximo 1 PENDING por lead** (verificado). `applyEvent` só marca etapa executada com `MESSAGE_SENT`/`CONTENT_SENT`, e o agendamento parte da execução. Atraso mantém a mesma etapa pendente, não empilha E2/E3/E4.
-- **Ligações: ATENÇÃO.** A fila é recalculada e a próxima tentativa parte da última **execução registrada** (`crm_cadence_tasks`), então também não empilha; mas como nada é persistido, a data recalculada muda quando muda `stage_entered_at`, e a carga GreenSales criou dívida em massa. É este o vetor de "dívida artificial" hoje.
+## D) Como garantir E0 MANUAL sem alterar configuração de ninguém
 
-## A–E
+Nenhuma alteração é necessária. O modo é resolvido por lead em
+`resolveExecutiveE0Mode(responsável)`:
 
-- **A) Resetar:** estado do motor (`relationship_cadences`, `queue`, `decisions`, `events`, `engine_log`, `message_sends`), `msg_e0_*` do escopo, `crm_cadence_tasks`, `workspace_e0_actions`, reuniões/agenda de teste, ruído `duplicidade_detectada`.
-- **B) Preservar:** tudo do item 3 — Portal dos Leads, GreenSales, identidade Fase 1, usuários/permissões, configuração de cadência, Biblioteca, Safety Lock, backups e auditoria do guard.
-- **C) Riscos:** reabertura em massa da E0 se `msg_e0_*` cair com modo automático ativo; recriação de cadências pelo `bootstrapMissingCadences`; perda do histórico de tentativas fazendo a fila reiniciar em L2; perda de rastro de auditoria (`engine_log`/`timeline`); reset sem alterar `cadence_activation_date` **não** limpa a Ação do Dia.
-- **D) Sequência segura:** backup → congelar sync e cron do motor → mover `cadence_activation_date` para o marco → medir a Ação do Dia → só se necessário, dry-run da limpeza com contagens e lista de IDs → aprovação explícita → execução transacional → conferência de contagens e do lead-controle → reativar sync/cron.
-- **E) Teste mínimo pós-reset:** 1 lead novo pelo fluxo normal; conferir card + identidade + responsável; com responsável em **manual**, confirmar E0 PENDENTE na Ação do Dia; executar e conferir `workspace_e0_actions=EXECUTADA`, `msg_e0_*`, cadência em `CADENCE_ACTIVE` e **exatamente 1** item em `relationship_queue`; avançar 2 dias sem executar e confirmar que continua a **mesma** etapa pendente (não surgem E2/E3); executar a etapa e confirmar que a seguinte nasce a partir da execução.
+- `createTestBatch` chama `intakeLead` **sem** `connectionUserId`;
+- logo `resolveResponsibleByUserId(null)` retorna `null`;
+- sem responsável resolvido o modo é **manual, sempre** ("nunca há execução
+  automática às cegas").
 
-## Decisões que preciso de você
+Consequência: o card nasce **sem responsável**, e a E0 pendente aparece na Ação do
+Dia de qualquer executivo (a lista só filtra quando há responsável definido). Se
+quiserem responsável nomeado no teste, isso exige atribuição pela tela do card
+depois da entrada — decisão a tomar antes de começar; não altera o modo manual.
 
-1. Ir só pela alavanca 1 (mudar o marco, sem apagar) ou também executar a limpeza?
-2. Se limpar: apagar `msg_e0_*` (reabre E0 dos leads reais) ou preservá-las?
-3. Manter `relationship_decisions`/`engine_log` como histórico ou zerar?
+## E) Como validar a E0
+
+1. `workspace_e0_actions` → 1 linha, `card_id = gs_…`, `state = PENDENTE`.
+2. `crm_lead_events` → `e0_identificada`, `workspace_card_criado`, `e0_manual_pendente`.
+3. Abrir a **Ação do Dia** em `/f` — a E0 pendente tem prioridade máxima.
+4. Executar pela própria Ação do Dia (`executeE0Action` → `registerFirstContact`):
+   - `workspace_e0_actions.state = EXECUTADA`, `result = EXECUTADA_SIMULADA`,
+     `executed_by`/`executed_at` preenchidos;
+   - `crm_messages` com `id = msg_e0_<cardId>` (texto vindo da Biblioteca oficial,
+     assinatura do executivo);
+   - `relationship_cadences` sai de não iniciada para ativa em E0.
+
+## F) Como validar a primeira etapa da cadência
+
+Regra vigente: enquanto o lead estiver na coluna **NOVOS**, o motor recusa criar
+qualquer etapa após a E0 ("Lead ainda em NOVOS — aguardando a primeira ação
+humana"). A E1 só é calculada a partir da **saída de NOVOS** (`leftEntryStageAt`),
+não do cadastro nem da E0.
+
+Portanto: executar a E0 → depois registrar a primeira ação humana (mover o card de
+NOVOS; no laboratório existe a ação "Sair de NOVOS") → então nasce **uma** linha
+`PENDING` em `relationship_queue`.
+
+## G) Como testar o atraso sem gerar dívida artificial
+
+`nextStep()` devolve apenas a primeira etapa não executada do fluxo, e o motor
+recusa etapa fora de ordem. Logo, uma E1 pendente e vencida **continua E1**; o
+tempo sozinho não cria E2/E3/E4.
+
+Para observar isso sem esperar dias, sem tocar na regra e sem segunda fila:
+deixar a E1 pendente e reexecutar o **tick do motor real** várias vezes,
+verificando que `relationship_queue` continua com exatamente 1 linha `PENDING` em
+E1 e que `relationship_decisions` registra sempre a mesma decisão.
+
+Ponto de atenção operacional: hoje `runRelationshipTick()` só é chamado dentro de
+`runScheduledLeadSync` (endpoint público de sync), ou seja, **acionar o tick hoje
+significa acionar a sincronização GreenSales**. Como vocês pediram para não rodar
+sync, a alternativa é aceitar o tick natural do cron ou, em passo futuro e
+separado, um gatilho de tick isolado — nada disso será feito nesta etapa.
+
+O relógio virtual (fator 12) pertence ao escopo `homologation` do simulador e
+**não** deve ser usado aqui: este teste roda em `scope = production` com relógio
+real, por escolha explícita.
+
+## H) Executar a primeira etapa e validar a próxima
+
+Executar a E1 pela Ação do Dia (registro de execução) e conferir:
+- a linha E1 sai de `PENDING`;
+- `relationship_cadences.executed_steps` passa a conter E1;
+- nasce **exatamente uma** nova linha `PENDING` (E3 no fluxo `sem_resposta`);
+- `relationship_decisions` explica cada transição.
+
+## I) Riscos
+
+| Risco | Situação |
+| --- | --- |
+| Duas E0 | Protegido: `workspace_e0_actions.card_id` UNIQUE + trava `msg_e0_<cardId>`. |
+| Duas próximas etapas | Protegido: `nextStep` retorna uma etapa e ordem é validada. |
+| Reabrir E0 histórica | Baixo: o corte de 2026-09-03 torna leads antigos inelegíveis; a E0 é por card e já executada. |
+| Ações para outros leads | O tick avalia todos os leads elegíveis — não é isolado ao lote. Por isso rodar o tick é decisão consciente. |
+| Misturar com dados reais | Baixo: marcação técnica e limpeza por lote; o card aparece no board com "[TESTE]" no nome. |
+| Outro ambiente | Nenhum: `/s` e `/seg` não compartilham este fluxo. |
+| Envio real de WhatsApp | Impossível: modo simulado forçado para lead de teste **e** Safety Lock. |
+
+## J) Procedimento exato do próximo passo
+
+1. Entrar como Administrador em `/f/executivo/teste-cadencia`.
+2. Cenário `sem_acao_humana`, 1 lead, nota "primeiro teste controlado pós-corte".
+3. Criar o lote e anotar `batchId`, `external_id`, `cardId`.
+4. Conferir (somente leitura): `crm_leads`, `portal_leads`, `workspace_e0_actions`.
+5. Abrir a Ação do Dia em `/f` e confirmar a E0 pendente.
+6. Executar a E0 e conferir `crm_messages`, `workspace_e0_actions`, `relationship_cadences`.
+7. Registrar a primeira ação humana (sair de NOVOS) e conferir a única E1 `PENDING`.
+8. Deixar a E1 pendente e observar que continua E1 a cada tick.
+9. Executar a E1 e conferir o nascimento de exatamente uma próxima etapa.
+10. Ao final, limpar apenas o lote (`purgeTestBatch`).
+
+## Confirmações pedidas
+
+- **Safety Lock**: intacta; bloqueio incondicional até 2029 **e** exigência de
+  `WHATSAPP_REAL_SEND_ENABLED=true` depois disso. Lead de teste nunca chega lá.
+- **Corte 2026-09-03**: o lead nasce hoje, logo é elegível — tratado como NOVA
+  OPERAÇÃO, nunca como legado.
+- **TikTok/Meta**: fora deste teste; o caminho exercitado é GreenSales → Workspace.
+
+## Decisões que precisamos de vocês antes de executar
+
+1. O card pode nascer **sem responsável** (comportamento atual do laboratório) ou
+   querem atribuir um executivo manualmente após a entrada?
+2. Aceitam que o avanço do tempo seja observado pelo tick natural do cron
+   (que também executa a sincronização), ou preferem apenas observar sem tick
+   nesta primeira rodada?
