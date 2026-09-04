@@ -42,7 +42,7 @@ export const Route = createFileRoute("/f/executivo/unidades")({
   component: UnitLeadsPage,
 });
 
-type UnitKey = "solar" | "seguros";
+type UnitKey = "financeira" | "solar" | "seguros";
 
 type UnitLead = {
   id: string;
@@ -99,6 +99,7 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 const TABS: Array<{ key: UnitKey; label: string; icon: typeof Sun }> = [
+  { key: "financeira", label: "Velox Soluções Financeiras", icon: Building2 },
   { key: "solar", label: "Velox Solar", icon: Sun },
   { key: "seguros", label: "Velox Seguros", icon: ShieldCheck },
 ];
@@ -114,7 +115,7 @@ function UnitLeadsPage() {
   const readHistory = useServerFn(historicoInteressadoUnidade);
 
   const [session, setSession] = useState<ExecutiveSession | null>(null);
-  const [unit, setUnit] = useState<UnitKey>("solar");
+  const [unit, setUnit] = useState<UnitKey>("financeira");
   const [rows, setRows] = useState<UnitLead[]>([]);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");

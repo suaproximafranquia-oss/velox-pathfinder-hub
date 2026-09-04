@@ -1,11 +1,11 @@
 /**
  * Seção "Nossas Empresas" — três cards institucionais.
  *
- * Os botões apontam para as PÁGINAS INSTITUCIONAIS futuras
+ * Os botões apontam para as PÁGINAS INSTITUCIONAIS
  * (/financeira, /solar, /seguradora) e nunca para os Portais do
- * Investidor (/f, /s, /seg). Enquanto essas rotas não existirem, o botão
- * fica visualmente preparado e desabilitado.
+ * Investidor (/f, /s, /seg).
  */
+import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
 import { COMPANIES } from "./group-content";
 import { GroupReveal } from "./group-reveal";
@@ -51,14 +51,14 @@ export function GroupCompanies() {
                       </li>
                     ))}
                   </ul>
-                  <span
-                    aria-disabled
-                    title="Página institucional em preparação"
-                    className="mt-6 inline-flex w-fit cursor-not-allowed items-center gap-2 rounded-full border border-[#e8873a]/40 px-5 py-2.5 text-xs font-medium uppercase tracking-[0.14em] text-[#e8873a]/70"
+                  <Link
+                    to={company.href}
+                    aria-label={`Saiba mais sobre ${company.name}`}
+                    className="mt-6 inline-flex w-fit items-center gap-2 rounded-full border border-[#e8873a]/40 px-5 py-2.5 text-xs font-medium uppercase tracking-[0.14em] text-[#e8873a] transition hover:bg-[#e8873a] hover:text-[#0b1226]"
                   >
                     Saiba mais
                     <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                  </span>
+                  </Link>
                 </div>
               </article>
             </GroupReveal>
