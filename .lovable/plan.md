@@ -192,6 +192,43 @@ Limite duro: **acima da oportunidade, compartilhado; da oportunidade para baixo,
 
 ---
 
+## 1-ter. Marco de Ativação — regra de transição LEGADO × NOVA ARQUITETURA
+
+Requisito arquitetural obrigatório, registrado como fundamento [R]:
+
+**PASSADO = HISTÓRICO · MARCO = CORTE · FUTURO = NOVA ARQUITETURA.**
+
+O marco **não é "agora"** e não é automático: é um valor `activated_at` (data/hora oficial) definido por ambiente, gravado em configuração e somente efetivado quando a nova arquitetura estiver implementada, homologada e liberada para produção.
+
+### Regras invioláveis para o legado
+Não recalcular cadências antigas; não criar ações planejadas retroativas; não transformar oportunidades antigas em novas; não reabrir ações; não recolocar débitos históricos na Ação do Dia; não alterar responsáveis históricos; não reconstruir dependências que não existiam; não inventar identidade sem evidência; não apagar nada. Legado permanece íntegro para consulta e auditoria e **nunca bloqueia a entrada em produção** da nova arquitetura.
+
+### 1. Onde o legado contaminaria a nova operação hoje [C]
+- `src/lib/crm/cadence.ts` — recalcula ligações a partir de **todo** o histórico de `crm_leads` + tarefas DONE; não tem noção de "fim de era" para um lead. Hoje é segurado apenas por `crm_automation_settings.cadence_activation_date` (2026-08-18), que é corte de *início*, não de *fim*.
+- `src/server/crm/cadence.server.ts` — a fila de ligações da Ação do Dia é derivada desse recálculo; sem trava, débitos antigos voltam como obrigação nova.
+- `relationship_queue` — itens `PENDING` anteriores ao marco (ex.: E1/E3/E4 pendentes de 03–04/09 [C]) continuariam sendo lidos pelo agregador.
+- `workspace_e0_actions` `PENDENTE` antigos (621 registros, 3 pendentes atuais [C]) idem.
+- `src/server/crm/daily-actions.server.ts` — o agregador não tem dimensão "era"; ele lê o que as fontes devolverem.
+- Ação "primeiro contato" / E0 de leads antigos sem executar: sem regra de expiração, permanecem como dívida eterna.
+
+### 2. Como o motor distingue legado de nova operação [R]
+Toda entidade operacional ganha uma `era` derivada de `activated_at`, nunca informada pelo cliente:
+- `created_at < activated_at` ⇒ **LEGADO**: somente leitura/auditoria; nenhuma ação nova é planejada; nenhuma cadência é recalculada; nenhum item entra na fila de execução.
+- `created_at >= activated_at` ⇒ **NOVA OPERAÇÃO**: segue o fluxo canônico completo.
+A `era` fica materializada na oportunidade e propagada para card, instância de cadência, ações e histórico — e não precisa ser recalculada a cada consulta.
+
+### 3. Como um lead novo entra somente no novo fluxo [R]
+Caminho único de entrada: toda criação pós-marco passa por `resolveIdentity → criação da oportunidade com environment → card → instância de cadência versionada`. Os pontos de entrada atuais (sync GreenSales, Portal, TikTok, Meta) são convergidos para esse caminho único; qualquer rota que hoje cria card sem oportunidade (ex.: Meta/TikTok com `crm_lead_id` nulo [C]) deixa de existir ou fica bloqueada antes do marco.
+
+### 4. Como o legado não volta para a Ação do Dia [R]
+O agregador passa a ter uma cláusula dura de era, aplicada em **cada** fonte (fila de relacionamento, E0, ligações, reuniões, agenda): só entra item de oportunidade da era nova, ou item pré-marco com estado explicitamente migrado por decisão humana auditada (fila de reconciliação — decisão humana, nunca automática). Reuniões futuras agendadas antes do marco são exceção legítima: são compromissos de calendário, não cadência, e permanecem visíveis.
+
+### 5. Marco único global ou por ambiente? [R/D]
+**Por ambiente** [R]: `activated_at` independente para Financeira, Solar e Seguros. Razões: os ambientes têm homologações independentes; Solar e Seguros ainda não têm operação comparável à da Financeira [C: dados operacionais existem só na Financeira]; um atraso em um ambiente não pode segurar os outros. Decisão pendente [D]: data oficial de cada ambiente e se o marco da homologação antecede o de produção dentro do mesmo ambiente (recomendado: sim, com homologação marcando sua própria era).
+
+---
+
+
 
 ## 2. Dependência entre ações
 
