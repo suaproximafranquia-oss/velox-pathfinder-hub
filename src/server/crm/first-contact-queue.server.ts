@@ -52,7 +52,7 @@ export async function processDeferredFirstContacts(): Promise<DeferredSummary> {
   const { data: leads } = await supabaseAdmin
     .from("crm_leads")
     .select(
-      "id,external_id,name,phone,email,last_entry_at,external_created_at,entered_entry_stage_at,remarketing,raw_payload",
+      "id,external_id,name,phone,email,last_entry_at,external_created_at,entered_entry_stage_at,remarketing,raw_payload,is_test,test_batch_id",
     )
     .in("id", pending);
 
@@ -61,23 +61,82 @@ export async function processDeferredFirstContacts(): Promise<DeferredSummary> {
     summary.processed += 1;
     try {
       const raw = (lead.raw_payload ?? {}) as Record<string, unknown>;
-      const card = await ensureWorkspaceCard({
-        externalId: lead.external_id,
-        name: lead.name,
-        email: lead.email,
-        whatsapp: lead.phone,
-        city: (raw["city"] as string) ?? null,
-        material: null,
-        campaign: null,
-        externalCreatedAt: lead.external_created_at,
-        externalUpdatedAt: (raw["updated_at"] as string) ?? null,
-        rawPayload: raw,
-      });
+      const isTestLead = Boolean((lead as { is_test?: boolean }).is_test);
+      const testBatchId = (lead as { test_batch_id?: string | null }).test_batch_id ?? null;
+      const cardId = `gs_${lead.external_id}`;
+      /**
+       * CONTEXTO PRESERVADO: quando o card já nasceu na entrada (caminho
+       * atual), o responsável e a marcação de teste vivem NELE. A retomada
+       * REUTILIZA esse card — nunca cria um segundo, nunca substitui o
+       * responsável por null.
+       */
+      const { data: existingCard } = await supabaseAdmin
+        .from("portal_leads")
+        .select("id,responsible_executive_id,responsible_executive_slug,is_test,test_batch_id")
+        .eq("id", cardId)
+        .maybeSingle();
+      const responsibleId =
+        (existingCard as { responsible_executive_id?: string | null } | null)
+          ?.responsible_executive_id ?? null;
+      const responsibleSlug =
+        (existingCard as { responsible_executive_slug?: string | null } | null)
+          ?.responsible_executive_slug ?? null;
+
+      const card = existingCard
+        ? ({ ok: true as const, cardId, created: false })
+        : await ensureWorkspaceCard({
+            externalId: lead.external_id,
+            name: lead.name,
+            email: lead.email,
+            whatsapp: lead.phone,
+            city: (raw["city"] as string) ?? null,
+            material: null,
+            campaign: null,
+            externalCreatedAt: lead.external_created_at,
+            externalUpdatedAt: (raw["updated_at"] as string) ?? null,
+            rawPayload: raw,
+            responsibleExecutiveId: responsibleId,
+            responsibleExecutiveSlug: responsibleSlug,
+            isTest: isTestLead,
+            testBatchId,
+          });
       if (!card.ok) {
         summary.errors.push(`Lead ${lead.external_id}: ${card.error}`);
         await recordEvent(lead.id, "workspace_card_falhou", card.error);
         continue;
       }
+
+      /**
+       * MODO OFICIAL DO RESPONSÁVEL — a retomada não pode ignorar a
+       * distinção Automático x Manual. Sem responsável o mecanismo
+       * oficial já devolve MANUAL (fallback seguro).
+       */
+      const { resolveExecutiveE0Mode } = await import("@/server/crm/first-contact-mode.server");
+      const e0Mode = await resolveExecutiveE0Mode(responsibleId);
+      if (e0Mode.mode === "manual") {
+        const { createPendingE0Action } = await import("@/server/crm/e0-actions.server");
+        const pendingAction = await createPendingE0Action({
+          cardId: card.cardId,
+          crmLeadId: lead.id,
+          origin: "greensales",
+          name: lead.name,
+          whatsapp: lead.phone,
+          responsibleExecutiveId: responsibleId,
+          entryAt: lead.last_entry_at,
+          enteredEntryStageAt: lead.entered_entry_stage_at,
+          reactivation: Boolean(lead.remarketing),
+        });
+        if (pendingAction.created) {
+          await recordEvent(
+            lead.id,
+            "e0_manual_pendente",
+            `E0 adiada retomada na abertura da janela como ação manual no card ${card.cardId}. ${e0Mode.reason}`,
+          );
+        }
+        continue;
+      }
+
+      const simulated = isSimulatedExecution({ isTestLead });
       const result = await registerFirstContact({
         leadId: card.cardId,
         name: lead.name,
@@ -87,18 +146,21 @@ export async function processDeferredFirstContacts(): Promise<DeferredSummary> {
         entryAt: lead.last_entry_at,
         enteredEntryStageAt: lead.entered_entry_stage_at,
         reactivation: Boolean(lead.remarketing),
-        simulated: isSimulatedExecution(),
+        simulated,
       });
       if (result.registered) {
         summary.sent += 1;
         await recordEvent(
           lead.id,
-          "e0_simulada",
-          `${SIMULATION_LABEL} — E0 adiada pela madrugada executada na abertura da janela (07:00).`,
+          simulated ? "e0_simulada" : "e0_enviada",
+          simulated
+            ? `${SIMULATION_LABEL} — E0 adiada pela madrugada executada na abertura da janela (07:00).`
+            : `E0 adiada pela madrugada executada na abertura da janela (07:00) no card ${card.cardId}.`,
         );
       } else {
         await recordEvent(lead.id, "e0_ignorada", result.reason);
       }
+
     } catch (error) {
       summary.errors.push(
         `Lead ${lead.external_id}: ${error instanceof Error ? error.message : "falha desconhecida"}`,
