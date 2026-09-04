@@ -1,10 +1,12 @@
 /**
- * FORMULÁRIO ÚNICO DE INTERESSE DAS UNIDADES DO GRUPO (Solar/Seguros).
+ * FORMULÁRIO ÚNICO DE INTERESSE DAS MARCAS DO GRUPO
+ * (Financeira, Solar e Seguros).
  *
- * Existe um único caminho de captação para essas unidades: este
- * formulário, usado nas páginas `/s` e `/seg`. Ele NÃO cria lead da
- * Financeira, não abre Gateway, não inicia cadência e não toca no
- * Portal dos Leads — apenas registra o interessado da unidade.
+ * Existe um único caminho de captação institucional: este formulário,
+ * usado nas páginas `/financeira`, `/solar`, `/seguradora`, `/s`, `/seg`
+ * e na landing do Grupo. Ele NÃO cria lead operacional da Financeira,
+ * não abre Gateway, não inicia cadência e não toca no Portal dos Leads —
+ * apenas registra o interessado na carteira institucional.
  */
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,12 +20,18 @@ const RANGE_OPTIONS = [
 ] as const;
 
 export type UnitInterestFormProps = {
-  unit: "solar" | "seguros";
+  unit: "financeira" | "solar" | "seguros";
   /** Origem declarada no link (tráfego pago, material impresso, etc.). */
   origin?: string | null;
   campaign?: string | null;
   /** O visitante chegou pelo Portal Institucional do Grupo Velox. */
   fromGroup?: boolean;
+};
+
+const UNIT_NAME: Record<UnitInterestFormProps["unit"], string> = {
+  financeira: "Velox Soluções Financeiras",
+  solar: "Velox Solar",
+  seguros: "Velox Seguros",
 };
 
 export function UnitInterestForm({ unit, origin, campaign, fromGroup }: UnitInterestFormProps) {
@@ -38,7 +46,7 @@ export function UnitInterestForm({ unit, origin, campaign, fromGroup }: UnitInte
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
 
-  const unitName = unit === "solar" ? "Velox Solar" : "Velox Seguros";
+  const unitName = UNIT_NAME[unit];
 
   /**
    * Todos os campos são obrigatórios: a carteira da unidade só recebe
