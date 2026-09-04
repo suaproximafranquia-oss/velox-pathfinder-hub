@@ -113,6 +113,13 @@ function TestLabPage() {
   }, [session, refreshBatches]);
 
   useEffect(() => {
+    if (!session) return;
+    void listDirectory().then((entries) =>
+      setDirectory((entries as ExecutiveDirectoryEntry[]).filter((e) => e.status === "ativo")),
+    );
+  }, [session, listDirectory]);
+
+  useEffect(() => {
     if (!selected) return;
     void refreshLeads();
     const timer = setInterval(() => void refreshLeads(), 30000);
