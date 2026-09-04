@@ -149,9 +149,11 @@ async function concludeQueueStep(params: {
     return { concluded: false, reason: null };
   }
   const { productionEngine } = await import("@/server/relationship/engine.server");
+  const { isKnownStep } = await import("@/lib/relationship/step-registry");
+  if (!isKnownStep(params.step)) return { concluded: false, reason: null };
   const decision = await productionEngine().confirmManualExecution({
     leadId: params.leadId,
-    step: params.step,
+    step: params.step as never,
     queueItemId: params.queueItemId,
   });
   return { concluded: decision.outcome === "sent", reason: decision.reason ?? null };
