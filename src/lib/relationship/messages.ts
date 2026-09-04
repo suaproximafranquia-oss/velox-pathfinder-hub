@@ -389,9 +389,6 @@ export type RenderInput = {
   executiveProvidedName?: string | null;
   /** Executivo respondeu NÃO à sugestão de nome (§22). */
   nameRejected?: boolean;
-  /** Título real do conteúdo escolhido na Biblioteca (§6). */
-  contentName?: string | null;
-  contentUrl?: string | null;
 };
 
 export type RenderResult =
@@ -407,9 +404,11 @@ export type RenderResult =
   | { ok: false; reason: string };
 
 /**
- * Especificação mínima para renderizar QUALQUER mensagem do motor —
- * venha ela do texto fixo do projeto ou da versão ativa da Biblioteca.
- * A Biblioteca é a fonte oficial; este renderizador é a única régua.
+ * Especificação mínima para renderizar QUALQUER mensagem do motor.
+ *
+ * A MENSAGEM É AUTOSSUFICIENTE: o link do conteúdo pertence à própria
+ * versão ativa da Biblioteca (`content_url` / `content_label`). Não
+ * existe mais conteúdo separado, vínculo por etapa nem rotação.
  */
 export type MessageSpec = {
   step: string;
@@ -417,7 +416,12 @@ export type MessageSpec = {
   usesInvestorName: boolean;
   button: "portal" | "content" | null;
   contentGroup: string | null;
+  /** Link configurado na própria versão da mensagem. */
+  contentUrl?: string | null;
+  /** Rótulo visível do link configurado na própria mensagem. */
+  contentLabel?: string | null;
 };
+
 
 /**
  * Renderiza a mensagem de homologação. Nenhum texto sai com variável
@@ -468,22 +472,29 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
       ? { label: "Acessar Portal do Investidor", url: portal }
       : null;
 
+  const contentUrl = (message.contentUrl ?? "").trim();
+  const contentLabel = (message.contentLabel ?? "").trim();
+
   if (CONTENT_PLACEHOLDER.test(body)) {
-    if (!input.contentName) {
+    if (!contentUrl) {
       return {
         ok: false,
-        reason: `Etapa ${step} exige conteúdo do grupo ${message.contentGroup} e nenhum conteúdo ativo foi selecionado.`,
+        reason: `Etapa ${step} exige link de conteúdo e a versão ativa da Biblioteca está sem link configurado.`,
       };
     }
     // A URL do conteúdo sai do texto e passa a viver no botão.
     body = body.replace(CONTENT_PLACEHOLDER, "\n\n").trim();
-    if (input.contentUrl) {
-      button = {
-        label: `▶ Assistir conteúdo — ${input.contentName}`,
-        url: input.contentUrl,
-      };
-    }
+    button = {
+      label: contentLabel ? `▶ ${contentLabel}` : "▶ Acessar conteúdo",
+      url: contentUrl,
+    };
+  } else if (contentUrl && message.button === "content") {
+    button = {
+      label: contentLabel ? `▶ ${contentLabel}` : "▶ Acessar conteúdo",
+      url: contentUrl,
+    };
   }
+
 
   if (/\{\{\s*[\w.]+\s*\}\}/.test(body)) {
     return { ok: false, reason: "Mensagem contém variável não resolvida — envio bloqueado." };

@@ -9,7 +9,6 @@
  */
 import { useMemo, useState } from "react";
 import { Eye } from "lucide-react";
-import type { ContentKind } from "@/lib/relationship/content";
 import { CrmThread } from "@/components/crm/crm-conversation";
 import type { CrmMessage } from "@/lib/crm/messages";
 import { crmCssVars, resolveCrmBranding } from "@/lib/crm/theme";
@@ -26,7 +25,7 @@ export type HomologationMessageView = {
   at: string;
   contentId: string | null;
   contentName: string | null;
-  contentKind: ContentKind | null;
+  contentKind: string | null;
   contentUrl: string | null;
   contentGroup: string | null;
   /** Botão do template (URL nunca aparece no corpo da mensagem). */
@@ -83,7 +82,7 @@ function toCrmMessages(conversation: HomologationConversation): CrmMessage[] {
         : m.direction === "system"
           ? "SYSTEM"
           : "EXECUTIVE");
-    const kind = (m.contentKind ?? null) as ContentKind | null;
+    const kind = (m.contentKind ?? null) as string | null;
     return {
       id: `${conversation.leadId}-${i}`,
       investorId: conversation.leadId,

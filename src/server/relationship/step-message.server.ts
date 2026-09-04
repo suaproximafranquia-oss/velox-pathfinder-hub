@@ -7,8 +7,8 @@
  *
  *   • texto: versão ATIVA da Biblioteca (`relationship_message_library`);
  *   • assinatura: EXECUTIVO RESPONSÁVEL pelo lead (nunca um padrão);
- *   • mídia: vínculo oficial etapa ↔ conteúdo
- *     (`relationship_step_content_bindings` → `relationship_contents`);
+ *   • link/conteúdo: campo PRÓPRIO da versão ativa da mensagem
+ *     (`content_url` / `content_label`) — não existe conteúdo separado;
  *   • nome do investidor: aplicado somente quando o cadastro tem nome
  *     utilizável — sem nome compatível, sai a versão sem personalização.
  *
@@ -18,7 +18,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { renderFromLibrary } from "./message-library.server";
 import { resolveLeadExecutive } from "./executive-identity.server";
-import { loadStepContentBindings } from "./step-media.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
 
 export type PreparedStepMessage = {
@@ -35,22 +34,6 @@ export type PreparedStepMessage = {
   contentUrl: string | null;
 };
 
-async function resolveStepContent(
-  step: string,
-): Promise<{ name: string | null; url: string | null }> {
-  const bindings = await loadStepContentBindings();
-  const contentId = bindings[step];
-  if (!contentId) return { name: null, url: null };
-  const { data } = await supabaseAdmin
-    .from("relationship_contents")
-    .select("name,url,active")
-    .eq("id", contentId)
-    .maybeSingle();
-  const row = data as Record<string, any> | null;
-  if (!row || !row["active"]) return { name: null, url: null };
-  return { name: row["name"] ?? null, url: row["url"] ?? null };
-}
-
 export async function prepareStepMessage(params: {
   leadId: string;
   step: string;
@@ -58,7 +41,6 @@ export async function prepareStepMessage(params: {
   leadName?: string | null;
 }): Promise<PreparedStepMessage> {
   const executive = await resolveLeadExecutive(params.leadId);
-  const content = await resolveStepContent(params.step);
 
   let name = params.leadName ?? null;
   if (name === null) {
@@ -78,8 +60,8 @@ export async function prepareStepMessage(params: {
       libraryVersion: null,
       investorNameUsed: null,
       executiveName: null,
-      contentName: content.name,
-      contentUrl: content.url,
+      contentName: null,
+      contentUrl: null,
     };
   }
 
@@ -88,8 +70,6 @@ export async function prepareStepMessage(params: {
     executiveName: executive.name,
     portalLink,
     rawInvestorName: name,
-    contentName: content.name,
-    contentUrl: content.url,
   });
 
   if (!result.ok) {
@@ -100,8 +80,8 @@ export async function prepareStepMessage(params: {
       libraryVersion: message?.version ?? null,
       investorNameUsed: null,
       executiveName: executive.name,
-      contentName: content.name,
-      contentUrl: content.url,
+      contentName: message?.contentLabel ?? null,
+      contentUrl: message?.contentUrl ?? null,
     };
   }
 
@@ -113,7 +93,7 @@ export async function prepareStepMessage(params: {
     libraryVersion: message?.version ?? null,
     investorNameUsed: result.treatment ?? null,
     executiveName: executive.name,
-    contentName: content.name,
-    contentUrl: content.url,
+    contentName: message?.contentLabel ?? null,
+    contentUrl: message?.contentUrl ?? null,
   };
 }

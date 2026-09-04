@@ -6,7 +6,6 @@
  * mesma lógica roda em produção e na homologação sem compartilhar dados
  * nem estados críticos (COMANDO 1B §12).
  */
-import type { ValueContent } from "./content";
 import type { TemplateResolver } from "./templates";
 import type {
   CadenceRecord,
@@ -35,18 +34,6 @@ export type EngineRepository = {
   cancelPendingItems: (leadId: string, reason: string) => Promise<number>;
   recordDecision: (decision: EngineDecision) => Promise<void>;
   loadTemplates: () => Promise<TemplateResolver>;
-  loadContentLibrary: () => Promise<ValueContent[]>;
-  /**
-   * Vínculo EXPLÍCITO etapa → conteúdo (vídeo) declarado pelo executivo.
-   * FONTE ÚNICA: sem vínculo, o motor NÃO escolhe conteúdo algum — não
-   * há sorteio por grupo, nem inferência por nome ou posição.
-   */
-  loadStepContentBindings?: () => Promise<Record<string, string>>;
-  /**
-   * Pool completo da etapa (um ou mais conteúdos vinculados). Com mais
-   * de um vínculo vale a rotação determinística da Biblioteca.
-   */
-  loadStepContentPools?: () => Promise<Record<string, string[]>>;
 };
 
 export type DispatchRequest = {
@@ -56,9 +43,8 @@ export type DispatchRequest = {
   /** Quando true, o envio precisa usar template oficial de janela. */
   useTemplate: boolean;
   templateId: string | null;
-  contentId: string | null;
-  /** Título real do conteúdo escolhido (nunca "conteúdo 1"). */
-  contentName?: string | null;
+  /** Compatibilidade histórica: o link agora vem da própria mensagem. */
+  contentId?: string | null;
   contentUrl?: string | null;
 };
 

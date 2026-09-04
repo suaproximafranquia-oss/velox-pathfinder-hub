@@ -23,6 +23,8 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
       bodyWithoutName?: string | null;
       title?: string | null;
       notes?: string | null;
+      contentUrl?: string | null;
+      contentLabel?: string | null;
     }) => {
       if (!input?.stepKey) throw new Error("Etapa obrigatória.");
       if (!input?.body?.trim()) throw new Error("O texto da mensagem não pode ficar vazio.");
@@ -40,6 +42,8 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
       bodyWithoutName: data.bodyWithoutName ?? null,
       title: data.title ?? null,
       notes: data.notes ?? null,
+      contentUrl: data.contentUrl ?? null,
+      contentLabel: data.contentLabel ?? null,
       actorId: context.userId,
       actorName: String(name),
     });
@@ -109,64 +113,9 @@ export const registrarNotaDoLead = createServerFn({ method: "POST" })
   });
 
 /**
- * VÍNCULO EXPLÍCITO ETAPA ↔ CONTEÚDO (VÍDEO). A Biblioteca de
- * Conteúdos permanece a mesma: aqui apenas se declara qual material
- * dela pertence a cada etapa. Nada é duplicado.
- */
-export const listarConteudosDaBiblioteca = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const { listValueContents } = await import("@/server/relationship/homologation.server");
-    return listValueContents();
-  });
-
-export const listarVinculosDeEtapa = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const { listStepContentBindings } = await import(
-      "@/server/relationship/step-media.server"
-    );
-    return listStepContentBindings();
-  });
-
-export const vincularConteudoAEtapa = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { stepKey: string; contentId: string; notes?: string | null }) => {
-    if (!input?.stepKey) throw new Error("Etapa obrigatória.");
-    if (!input?.contentId) throw new Error("Selecione o conteúdo da Biblioteca.");
-    return input;
-  })
-  .handler(async ({ data, context }) => {
-    const { setStepContentBinding } = await import(
-      "@/server/relationship/step-media.server"
-    );
-    const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
-    return setStepContentBinding({
-      stepKey: data.stepKey,
-      contentId: data.contentId,
-      notes: data.notes ?? null,
-      actorId: context.userId,
-      actorName: String(name),
-    });
-  });
-
-export const removerVinculoDeEtapa = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { stepKey: string }) => {
-    if (!input?.stepKey) throw new Error("Etapa obrigatória.");
-    return input;
-  })
-  .handler(async ({ data }) => {
-    const { clearStepContentBinding } = await import(
-      "@/server/relationship/step-media.server"
-    );
-    return clearStepContentBinding(data.stepKey);
-  });
-
-/**
- * DIAGNÓSTICO DE VÍNCULOS DA BIBLIOTECA (somente leitura).
- * Mostra etapa ativa sem conteúdo vinculado, etapa sem texto oficial e
- * conteúdo cadastrado que não serve a nenhuma etapa.
+ * DIAGNÓSTICO DA BIBLIOTECA (somente leitura).
+ * Mostra etapa ativa sem texto oficial e etapa cuja mensagem exige link
+ * de conteúdo e está sem link configurado na versão ativa.
  */
 export const diagnosticoDaBiblioteca = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -175,47 +124,6 @@ export const diagnosticoDaBiblioteca = createServerFn({ method: "GET" })
       "@/server/relationship/library-diagnostics.server"
     );
     return diagnoseLibrary();
-  });
-
-/**
- * ETAPAS DE UM CONTEÚDO (fonte única do vínculo).
- *
- * A Biblioteca de Conteúdos declara aqui em QUAIS ETAPAS do motor o
- * material pode ser usado. A taxonomia é a do motor (`step-registry`) —
- * não existe segunda lista de grupos.
- */
-export const definirEtapasDoConteudo = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { contentId: string; stepKeys: string[] }) => {
-    if (!input?.contentId) throw new Error("Conteúdo obrigatório.");
-    if (!Array.isArray(input?.stepKeys)) throw new Error("Etapas inválidas.");
-    return input;
-  })
-  .handler(async ({ data, context }) => {
-    const { setContentStepBindings, loadStepContentMap } = await import(
-      "@/server/relationship/step-media.server"
-    );
-    const { isKnownStep, unknownStepReason } = await import(
-      "@/lib/relationship/step-registry"
-    );
-    for (const step of data.stepKeys) {
-      if (!isKnownStep(step)) throw new Error(unknownStepReason(step));
-    }
-    const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
-    await setContentStepBindings({
-      contentId: data.contentId,
-      stepKeys: data.stepKeys,
-      actorName: String(name),
-    });
-    return loadStepContentMap();
-  });
-
-/** Pools por etapa (etapa → ids de conteúdo), na ordem da rotação. */
-export const listarPoolsDeEtapa = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const { loadStepContentMap } = await import("@/server/relationship/step-media.server");
-    return loadStepContentMap();
   });
 
 /**

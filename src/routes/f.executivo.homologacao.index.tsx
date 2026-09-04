@@ -25,17 +25,11 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import {
-  contentLibraryGaps,
-  contentLibraryStats,
-  type ValueContent,
-} from "@/lib/relationship/content";
-import {
   HomologationCrm,
   type HomologationConversation,
 } from "@/components/executive/homologation-crm";
 import { SCENARIOS } from "@/lib/relationship/simulation";
 import {
-  listRelationshipContents,
   listRelationshipRuns,
   readRelationshipRun,
   runRelationshipHomologation,
@@ -52,7 +46,7 @@ export const Route = createFileRoute("/f/executivo/homologacao/")({
       {
         name: "description",
         content:
-          "Biblioteca de conteúdos de valor e simulador bilateral com leads fictícios para validar o motor antes da produção.",
+          "Simulador bilateral com leads fictícios para validar o motor antes da produção.",
       },
       { property: "og:title", content: "Central de Homologação — Atlas Platform" },
       {
@@ -122,7 +116,6 @@ function formatDuration(ms: number | null | undefined): string {
 
 function HomologacaoPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
-  const [contents, setContents] = useState<ValueContent[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
@@ -145,11 +138,7 @@ function HomologacaoPage() {
   const load = useCallback(async () => {
     try {
       await ensureCloudSession();
-      const [list, history] = await Promise.all([
-        listRelationshipContents(),
-        listRelationshipRuns(),
-      ]);
-      setContents(list);
+      const history = await listRelationshipRuns();
       setRuns(history);
       setError(null);
     } catch (e) {
@@ -161,8 +150,6 @@ function HomologacaoPage() {
     void load();
   }, [load]);
 
-  const gaps = contentLibraryGaps(contents);
-  const stats = contentLibraryStats(contents);
 
   async function handleRun() {
     setRunning(true);
@@ -283,51 +270,7 @@ function HomologacaoPage() {
           </div>
         ) : null}
 
-        <section className={card}>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Library className="h-4 w-4 text-[color:var(--gold)]" />
-              <h2 className="text-sm text-[color:var(--foreground)]">
-                Biblioteca de Conteúdos
-              </h2>
-            </div>
-            <Link to="/f/executivo/biblioteca" className={ghost}>
-              Gerenciar biblioteca
-            </Link>
-          </div>
-
-          <p className="mb-3 text-xs text-[color:var(--muted-foreground)]">
-            A biblioteca é permanente e única: a homologação usa exatamente o mesmo acervo da
-            operação real. Cadastros e alterações acontecem na tela Biblioteca de Conteúdos.
-          </p>
-
-          {gaps.length > 0 ? (
-            <ul className="mb-4 space-y-1 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--gold)]/5 p-3 text-[11px] text-[color:var(--gold)]">
-              {gaps.map((g) => (
-                <li key={g}>{g}</li>
-              ))}
-            </ul>
-          ) : null}
-
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {stats.byGroup.map((g) => (
-              <div
-                key={g.group}
-                className="rounded-xl border border-[color:var(--border)] px-3 py-2 text-xs"
-              >
-                <p className="text-[color:var(--foreground)]">
-                  {g.group}
-                  {g.required ? " · obrigatório" : ""}
-                </p>
-                <p className="mt-1 text-[color:var(--muted-foreground)]">
-                  {g.active} ativo(s) de {g.total} cadastrado(s)
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className={card}>
+                <section className={card}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-sm text-[color:var(--foreground)]">

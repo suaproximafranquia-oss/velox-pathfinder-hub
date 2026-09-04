@@ -11,7 +11,6 @@
  */
 import { RELATIONSHIP_CONFIG, type RelationshipConfig } from "./config";
 import { isEligibleMoment, nextEligibleMoment, operationalDate } from "./calendar";
-import { selectContent, type ValueContent } from "./content";
 import { createEngine } from "./engine";
 import { initialRecord } from "./machine";
 import { renderHomologationMessage } from "./messages";
@@ -27,6 +26,19 @@ import type {
 } from "./types";
 
 export const HOMOLOGATION_PREFIX = "TEST-";
+
+/**
+ * A homologação NÃO tem mais biblioteca de conteúdo separada: o link
+ * pertence à própria mensagem. O tipo permanece apenas para manter a
+ * forma dos relatórios já gravados.
+ */
+export type SimContent = {
+  id: string;
+  name: string;
+  url: string | null;
+  active: boolean;
+  usageCount: number;
+};
 
 /* ------------------------------------------------------------------ */
 /* Aleatoriedade determinística — a mesma semente reproduz a rodada.    */
@@ -235,7 +247,6 @@ export function expectedStepsFor(lead: SimulatedLead): CadenceStep[] {
 /* ------------------------------------------------------------------ */
 export function createMemoryRepository(input: {
   runId: string;
-  library: ValueContent[];
 }): EngineRepository & { decisions: EngineDecision[]; events: EngineEvent[] } {
   const records = new Map<string, CadenceRecord>();
   const queue = new Map<string, QueueItem>();
@@ -309,9 +320,6 @@ export function createMemoryRepository(input: {
       // CAMADA B. Nenhum ID oficial fictício é criado.
       return { bindings: [] };
     },
-    async loadContentLibrary() {
-      return input.library;
-    },
   };
 }
 
@@ -359,7 +367,6 @@ export type LeadResult = {
 export type SimulationOptions = {
   runId: string;
   leads: SimulatedLead[];
-  library: ValueContent[];
   executiveName: string;
   portalLink: string;
   config?: RelationshipConfig;
@@ -385,7 +392,6 @@ async function runLead(
   lead: SimulatedLead,
   ctx: {
     runId: string;
-    library: ValueContent[];
     executiveName: string;
     portalLink: string;
     config: RelationshipConfig;
@@ -393,7 +399,7 @@ async function runLead(
   },
 ): Promise<LeadResult> {
   const scenario = SCENARIOS[lead.scenario];
-  const repository = createMemoryRepository({ runId: ctx.runId, library: ctx.library });
+  const repository = createMemoryRepository({ runId: ctx.runId });
   const messages: SimMessage[] = [];
   const journey: LeadJourneyEntry[] = [];
   const errors: string[] = [];
@@ -415,16 +421,12 @@ async function runLead(
       return { ok: true };
     },
     async send(request) {
-      const content = request.contentId
-        ? ctx.library.find((c) => c.id === request.contentId) ?? null
-        : null;
+      const content = null as SimContent | null;
       const rendered = renderHomologationMessage(request.step as CadenceStep, {
         executiveName: ctx.executiveName,
         portalLink: ctx.portalLink,
         confirmedInvestorName: nameConfirmed ? normalizeName(lead.rawName).split(" ")[0] : null,
         rawInvestorName: lead.rawName,
-        contentName: content?.name ?? null,
-        contentUrl: content?.url ?? null,
       });
       if (!rendered.ok) return { delivered: false, error: rendered.reason };
       if (content) {
@@ -781,9 +783,6 @@ export async function runSimulation(options: SimulationOptions): Promise<Simulat
   };
   const seed = options.seed ?? Math.floor(Math.random() * 0xffffffff);
   const random = seededRandom(seed);
-  // A biblioteca é copiada: a contagem de uso da simulação nunca altera
-  // os registros permanentes.
-  const library = options.library.map((c) => ({ ...c }));
 
   const leadResults: LeadResult[] = [];
   const decisions: EngineDecision[] = [];
@@ -793,7 +792,6 @@ export async function runSimulation(options: SimulationOptions): Promise<Simulat
   for (const lead of options.leads) {
     const result = await runLead(lead, {
       runId: options.runId,
-      library,
       executiveName: options.executiveName,
       portalLink: options.portalLink,
       config,
@@ -806,7 +804,6 @@ export async function runSimulation(options: SimulationOptions): Promise<Simulat
   }
 
   const contentUsage: Record<string, number> = {};
-  for (const item of library) contentUsage[item.name] = item.usageCount;
 
   return {
     runId: options.runId,

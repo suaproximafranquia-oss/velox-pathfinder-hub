@@ -9,223 +9,12 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
-  CONTENT_GROUPS,
-  contentLibraryGaps,
-  type ValueContent,
-} from "@/lib/relationship/content";
-import {
   SCENARIOS,
   buildSimulatedLeads,
   runSimulation,
   type ScenarioKey,
   type SimulationOutput,
 } from "@/lib/relationship/simulation";
-
-/**
- * A Biblioteca de Conteúdos é PERMANENTE (COMANDO 3B §5 e §9): vive em
- * escopo próprio, é usada pela homologação e continuará servindo a
- * operação real. Rodadas de teste nunca a apagam.
- */
-const LIBRARY_SCOPE = "library";
-
-/* ------------------------------------------------------------------ */
-/* Biblioteca de conteúdos de valor (permanente)                       */
-/* ------------------------------------------------------------------ */
-
-/** Bucket privado dos materiais enviados por upload (COMANDO 3C §9). */
-const LIBRARY_BUCKET = "biblioteca-conteudos";
-const SIGNED_URL_TTL = 60 * 60 * 24 * 7;
-
-/**
- * Um arquivo físico, várias etapas (COMANDO 3C §7). A associação vive
- * na FONTE ÚNICA `relationship_step_content_bindings` (Comando 2A §4);
- * `relationship_content_groups` está congelada como legado.
- */
-async function groupsByContent(ids: string[]): Promise<Map<string, string[]>> {
-  const { loadContentStepMap } = await import("./step-media.server");
-  return loadContentStepMap(ids);
-}
-
-export async function listValueContents(): Promise<ValueContent[]> {
-  const { data, error } = await supabaseAdmin
-    .from("relationship_contents")
-    .select(
-      "id,content_group,name,description,kind,url,body,mime_type,active,usage_count,last_used_at,created_at,updated_at",
-    )
-    .eq("scope", LIBRARY_SCOPE)
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  const rows = data ?? [];
-  const groups = await groupsByContent(rows.map((r) => String(r.id)));
-
-  // Materiais enviados por upload ficam em bucket privado: a interface e o
-  // CRM de homologação recebem uma URL assinada temporária.
-  const uploads = rows
-    .map((r) => String(r.url))
-    .filter((u) => u.startsWith("storage://"))
-    .map((u) => u.replace("storage://", ""));
-  const signed = new Map<string, string>();
-  if (uploads.length > 0) {
-    const { data: urls } = await supabaseAdmin.storage
-      .from(LIBRARY_BUCKET)
-      .createSignedUrls(uploads, SIGNED_URL_TTL);
-    for (const item of urls ?? []) {
-      if (item.path && item.signedUrl) signed.set(item.path, item.signedUrl);
-    }
-  }
-
-  return rows.map((row) => {
-    const raw = String(row.url ?? "");
-    const storagePath = raw.startsWith("storage://") ? raw.replace("storage://", "") : null;
-    const list = groups.get(String(row.id)) ?? [String(row.content_group)];
-    return {
-      id: String(row.id),
-      group: list[0] ?? String(row.content_group),
-      groups: list,
-      name: String(row.name),
-      description: (row.description as string | null) ?? null,
-      kind: row.kind as ValueContent["kind"],
-      mimeType: (row.mime_type as string | null) ?? null,
-      lastUsedAt: (row.last_used_at as string | null) ?? null,
-      body: ((row as { body?: string | null }).body as string | null) ?? null,
-      storagePath,
-      url: storagePath ? signed.get(storagePath) ?? "" : raw,
-      active: Boolean(row.active),
-      createdAt: String(row.created_at),
-      updatedAt: String(row.updated_at),
-      usageCount: Number(row.usage_count ?? 0),
-    };
-  });
-}
-
-export type ContentInput = {
-  id?: string | null;
-  groups: string[];
-  name: string;
-  description?: string | null;
-  kind: ValueContent["kind"];
-  url?: string | null;
-  body?: string | null;
-  storagePath?: string | null;
-  mimeType?: string | null;
-  active: boolean;
-};
-
-export async function saveValueContent(input: ContentInput): Promise<ValueContent[]> {
-  const groups = Array.from(new Set(input.groups));
-  if (groups.length === 0) throw new Error("Selecione ao menos um grupo para o conteúdo.");
-  for (const g of groups) {
-    if (!CONTENT_GROUPS.includes(g as never)) throw new Error(`Grupo de conteúdo desconhecido: ${g}.`);
-  }
-  const name = input.name.trim();
-  const body = input.body?.trim() || null;
-  const url = input.storagePath
-    ? `storage://${input.storagePath}`
-    : (input.url ?? "").trim();
-  if (!name) throw new Error("O nome do conteúdo é obrigatório.");
-  if (input.kind === "texto") {
-    if (!body) throw new Error("Informe o texto do conteúdo.");
-  } else if (!url) {
-    throw new Error("Envie um arquivo ou informe o link do conteúdo.");
-  }
-
-  const payload = {
-    scope: LIBRARY_SCOPE,
-    content_group: groups[0]!,
-    name,
-    description: input.description?.trim() || null,
-    kind: input.kind,
-    mime_type: input.mimeType ?? null,
-    url,
-    body,
-    active: input.active,
-    updated_at: new Date().toISOString(),
-  };
-
-  let contentId = input.id ?? null;
-  if (contentId) {
-    const { error } = await supabaseAdmin
-      .from("relationship_contents")
-      .update(payload)
-      .eq("id", contentId)
-      .eq("scope", LIBRARY_SCOPE);
-    if (error) throw new Error(error.message);
-  } else {
-    const { data, error } = await supabaseAdmin
-      .from("relationship_contents")
-      .insert(payload)
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    contentId = String(data.id);
-  }
-
-  // Associações: um conteúdo físico, N etapas — sempre na fonte única.
-  const { setContentStepBindings } = await import("./step-media.server");
-  await setContentStepBindings({ contentId: contentId!, stepKeys: groups });
-
-  return listValueContents();
-}
-
-/** Ativar/desativar sem perder histórico (COMANDO 3C §17). */
-export async function setValueContentActive(id: string, active: boolean): Promise<ValueContent[]> {
-  const { error } = await supabaseAdmin
-    .from("relationship_contents")
-    .update({ active, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("scope", LIBRARY_SCOPE);
-  if (error) throw new Error(error.message);
-  return listValueContents();
-}
-
-/**
- * Exclusão física só quando não compromete auditoria (COMANDO 3C §18):
- * conteúdo já utilizado em rodada permanece, apenas é desativado.
- */
-export async function deleteValueContent(id: string): Promise<ValueContent[]> {
-  const { data: row, error: readError } = await supabaseAdmin
-    .from("relationship_contents")
-    .select("id,usage_count,url")
-    .eq("id", id)
-    .eq("scope", LIBRARY_SCOPE)
-    .maybeSingle();
-  if (readError) throw new Error(readError.message);
-  if (!row) throw new Error("Conteúdo não encontrado na biblioteca.");
-  if (Number(row.usage_count ?? 0) > 0) {
-    throw new Error(
-      "Este conteúdo já foi utilizado em uma rodada e não pode ser apagado. Desative-o para preservar o histórico.",
-    );
-  }
-  const raw = String(row.url ?? "");
-  if (raw.startsWith("storage://")) {
-    await supabaseAdmin.storage.from(LIBRARY_BUCKET).remove([raw.replace("storage://", "")]);
-  }
-  const { error } = await supabaseAdmin
-    .from("relationship_contents")
-    .delete()
-    .eq("id", id)
-    .eq("scope", LIBRARY_SCOPE);
-  if (error) throw new Error(error.message);
-  return listValueContents();
-}
-
-/** Upload de material para o bucket privado da biblioteca. */
-export async function uploadLibraryFile(input: {
-  fileName: string;
-  mimeType: string;
-  base64: string;
-}): Promise<{ storagePath: string }> {
-  const clean = input.base64.includes(",") ? input.base64.split(",")[1]! : input.base64;
-  const bytes = Buffer.from(clean, "base64");
-  if (bytes.byteLength === 0) throw new Error("Arquivo vazio.");
-  const safe = input.fileName.replace(/[^\w.\-]+/g, "_").slice(-80);
-  const path = `library/${crypto.randomUUID()}-${safe}`;
-  const { error } = await supabaseAdmin.storage
-    .from(LIBRARY_BUCKET)
-    .upload(path, bytes, { contentType: input.mimeType || "application/octet-stream", upsert: false });
-  if (error) throw new Error(error.message);
-  return { storagePath: path };
-}
 
 /* ------------------------------------------------------------------ */
 /* Rodadas de homologação                                              */
@@ -319,20 +108,12 @@ export async function executeHomologationRun(input: {
   userId: string | null;
   userName: string;
 }): Promise<RunSummary> {
-  const library = await listValueContents();
-  const gaps = contentLibraryGaps(library);
-  if (gaps.length > 0) {
-    throw new Error(
-      `A biblioteca de conteúdos ainda está incompleta:\n- ${gaps.join("\n- ")}`,
-    );
-  }
   const runId = await nextRunId();
   const startedAt = new Date();
   const leads = buildSimulatedLeads(input.totalLeads);
   const output = await runSimulation({
     runId,
     leads,
-    library,
     executiveName: input.executiveName,
     portalLink: input.portalLink,
   });
@@ -344,7 +125,6 @@ export async function executeHomologationRun(input: {
    * anexo, tipo do anexo, visualização, resposta, horário virtual e
    * decisão do motor (inclusive os NÃO ENVIOS e seus motivos, §20).
    */
-  const byId = new Map(library.map((c) => [c.id, c]));
   const conversations = output.leadResults.map((r) => ({
     leadId: r.lead.leadId,
     displayName: r.lead.displayName,
@@ -364,7 +144,6 @@ export async function executeHomologationRun(input: {
     executedSteps: r.executedSteps,
     contentsUsed: r.contentsUsed,
     messages: r.messages.map((m) => {
-      const content = m.contentId ? byId.get(m.contentId) ?? null : null;
       return {
         direction: m.direction,
         // COMANDO 3D §7 — autoria explícita: define o lado da conversa.
@@ -385,9 +164,9 @@ export async function executeHomologationRun(input: {
         at: m.at,
         contentId: m.contentId,
         contentName: m.contentName,
-        contentKind: content?.kind ?? null,
-        contentUrl: content?.url ?? null,
-        contentGroup: content?.group ?? null,
+        contentKind: null,
+        contentUrl: m.button?.url ?? null,
+        contentGroup: null,
         // Representação visual do botão do template (sem Meta).
         button: m.button ?? null,
       };
@@ -450,21 +229,6 @@ export async function executeHomologationRun(input: {
      * É esta tabela que permite verificar a alternância real de E1, E3,
      * R1 e R2 entre rodadas.
      */
-    selections: output.messages
-      .filter((m) => m.contentId)
-      .map((m) => {
-        const content = byId.get(m.contentId!) ?? null;
-        return {
-          leadId: m.leadId,
-          step: m.step,
-          contentId: m.contentId,
-          contentName: m.contentName ?? content?.name ?? "—",
-          contentUrl: content?.url ?? null,
-          contentGroup: content?.group ?? null,
-          /** Data simulada do cenário (relógio virtual). */
-          simulatedAt: m.at,
-        };
-      }),
     executiveName: input.executiveName,
     portalLink: input.portalLink,
     scenarios,

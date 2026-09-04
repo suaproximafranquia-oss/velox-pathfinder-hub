@@ -2125,86 +2125,6 @@ export type Database = {
           },
         ]
       }
-      relationship_content_groups: {
-        Row: {
-          content_group: string
-          content_id: string
-          created_at: string
-          id: string
-        }
-        Insert: {
-          content_group: string
-          content_id: string
-          created_at?: string
-          id?: string
-        }
-        Update: {
-          content_group?: string
-          content_id?: string
-          created_at?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "relationship_content_groups_content_id_fkey"
-            columns: ["content_id"]
-            isOneToOne: false
-            referencedRelation: "relationship_contents"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      relationship_contents: {
-        Row: {
-          active: boolean
-          body: string | null
-          content_group: string
-          created_at: string
-          description: string | null
-          id: string
-          kind: string
-          last_used_at: string | null
-          mime_type: string | null
-          name: string
-          scope: string
-          updated_at: string
-          url: string
-          usage_count: number
-        }
-        Insert: {
-          active?: boolean
-          body?: string | null
-          content_group: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          kind: string
-          last_used_at?: string | null
-          mime_type?: string | null
-          name: string
-          scope?: string
-          updated_at?: string
-          url?: string
-          usage_count?: number
-        }
-        Update: {
-          active?: boolean
-          body?: string | null
-          content_group?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          kind?: string
-          last_used_at?: string | null
-          mime_type?: string | null
-          name?: string
-          scope?: string
-          updated_at?: string
-          url?: string
-          usage_count?: number
-        }
-        Relationships: []
-      }
       relationship_decisions: {
         Row: {
           content_id: string | null
@@ -2546,6 +2466,8 @@ export type Database = {
           button_kind: string | null
           code: string | null
           content_group: string | null
+          content_label: string | null
+          content_url: string | null
           created_at: string
           created_by: string | null
           created_by_name: string
@@ -2573,6 +2495,8 @@ export type Database = {
           button_kind?: string | null
           code?: string | null
           content_group?: string | null
+          content_label?: string | null
+          content_url?: string | null
           created_at?: string
           created_by?: string | null
           created_by_name?: string
@@ -2600,6 +2524,8 @@ export type Database = {
           button_kind?: string | null
           code?: string | null
           content_group?: string | null
+          content_label?: string | null
+          content_url?: string | null
           created_at?: string
           created_by?: string | null
           created_by_name?: string
@@ -2869,56 +2795,6 @@ export type Database = {
           total_leads?: number
         }
         Relationships: []
-      }
-      relationship_step_content_bindings: {
-        Row: {
-          active: boolean
-          content_id: string
-          created_at: string
-          created_by: string | null
-          created_by_name: string
-          id: string
-          notes: string | null
-          position: number
-          scope: string
-          step_key: string
-          updated_at: string
-        }
-        Insert: {
-          active?: boolean
-          content_id: string
-          created_at?: string
-          created_by?: string | null
-          created_by_name?: string
-          id?: string
-          notes?: string | null
-          position?: number
-          scope?: string
-          step_key: string
-          updated_at?: string
-        }
-        Update: {
-          active?: boolean
-          content_id?: string
-          created_at?: string
-          created_by?: string | null
-          created_by_name?: string
-          id?: string
-          notes?: string | null
-          position?: number
-          scope?: string
-          step_key?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "relationship_step_content_bindings_content_id_fkey"
-            columns: ["content_id"]
-            isOneToOne: false
-            referencedRelation: "relationship_contents"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       relationship_template_bindings: {
         Row: {
@@ -3558,10 +3434,6 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
-      }
-      increment_content_usage: {
-        Args: { _at?: string; _content_id: string }
-        Returns: undefined
       }
       is_portal_member: { Args: never; Returns: boolean }
       portal_email_key: { Args: { _email: string }; Returns: string }

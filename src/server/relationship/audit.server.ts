@@ -6,7 +6,6 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { RELATIONSHIP_CONFIG, ENGINE_TEMPLATE_PURPOSES, OPENING_TEMPLATE_PURPOSES } from "@/lib/relationship/config";
-import { contentLibraryGaps } from "@/lib/relationship/content";
 import type { EngineScope } from "@/lib/relationship/types";
 
 export type EngineStatus = {
@@ -22,7 +21,7 @@ export type EngineStatus = {
 };
 
 export async function readEngineStatus(scope: EngineScope): Promise<EngineStatus> {
-  const [{ count: cadences }, queue, bindings, contents] = await Promise.all([
+  const [{ count: cadences }, queue, bindings] = await Promise.all([
     supabaseAdmin
       .from("relationship_cadences")
       .select("id", { count: "exact", head: true })
@@ -31,10 +30,6 @@ export async function readEngineStatus(scope: EngineScope): Promise<EngineStatus
     supabaseAdmin
       .from("relationship_template_bindings")
       .select("purpose,template_id,approved")
-      .eq("scope", scope),
-    supabaseAdmin
-      .from("relationship_contents")
-      .select("id,content_group,name,kind,url,active,usage_count,created_at,updated_at")
       .eq("scope", scope),
   ]);
 
@@ -54,19 +49,7 @@ export async function readEngineStatus(scope: EngineScope): Promise<EngineStatus
     blocked: rows.filter((r) => r.status === "BLOCKED" || r.status === "CANCELLED").length,
     failed: rows.filter((r) => r.status === "FAILED").length,
     missingTemplatePurposes: required.filter((p) => !ready.has(p)),
-    contentGaps: contentLibraryGaps(
-      ((contents.data ?? []) as any[]).map((row) => ({
-        id: row.id,
-        group: row.content_group,
-        name: row.name,
-        kind: row.kind,
-        url: row.url,
-        active: Boolean(row.active),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        usageCount: row.usage_count ?? 0,
-      })),
-    ),
+    contentGaps: [],
   };
 }
 

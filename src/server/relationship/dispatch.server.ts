@@ -26,7 +26,6 @@ import {
 import type { CadenceStep } from "@/lib/relationship/types";
 import type { DispatchRequest, DispatchResult, EngineDispatcher } from "@/lib/relationship/ports";
 import { isKnownStep, unknownStepReason } from "@/lib/relationship/step-registry";
-import { registerContentUsage } from "./content-usage.server";
 import { executionMode, SIMULATION_LABEL } from "./execution-mode.server";
 import { resolveLeadExecutive } from "./executive-identity.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
@@ -128,8 +127,6 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     executiveName: recipient.executiveName,
     portalLink: recipient.portalLink,
     rawInvestorName: recipient.name,
-    contentName: request.contentName ?? null,
-    contentUrl: request.contentUrl ?? null,
   };
   const { result: rendered, message: libraryMessage } = await renderFromLibrary(
     step,
@@ -197,7 +194,7 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     origin: "motor",
     messageId,
     contentId: request.contentId ?? null,
-    contentUrl: request.contentUrl ?? null,
+    contentUrl: rendered.button?.url ?? request.contentUrl ?? null,
     simulated,
     sentAt: at,
   });
@@ -205,15 +202,6 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
   const delivery = simulated
     ? { delivered: false as const, provider: "simulador", error: undefined as string | undefined }
     : await sendWhatsappText({ phone: recipient.phone, body });
-
-  /**
-   * ROTAÇÃO REAL: o conteúdo só passa a contar como utilizado depois da
-   * ENTREGA EFETIVA. Simulação e falha de canal não movem o contador.
-   */
-  if (!simulated && delivery.delivered) {
-    await registerContentUsage(request.contentId ?? null, at);
-  }
-
 
   await supabaseAdmin.from("crm_timeline").insert({
     id: `tl_${step.toLowerCase()}_${request.leadId}`,
