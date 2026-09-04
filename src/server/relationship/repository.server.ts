@@ -7,7 +7,6 @@
  * lead real (COMANDO 1B §12).
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import type { ValueContent } from "@/lib/relationship/content";
 import type { EngineRepository } from "@/lib/relationship/ports";
 import type { TemplateResolver } from "@/lib/relationship/templates";
 import { initialRecord } from "@/lib/relationship/machine";
@@ -283,25 +282,6 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       };
     },
 
-    async loadContentLibrary(): Promise<ValueContent[]> {
-      // A Biblioteca de Conteúdos é PERMANENTE e única (COMANDO 3C §16):
-      // homologação e operação real leem exatamente o mesmo acervo.
-      const { listValueContents } = await import("./homologation.server");
-      return listValueContents();
-    },
-
-    async loadStepContentBindings(): Promise<Record<string, string>> {
-      // Vínculo declarado etapa → conteúdo. Nunca inferido.
-      const { loadStepContentBindings } = await import("./step-media.server");
-      return loadStepContentBindings();
-    },
-
-    async loadStepContentPools(): Promise<Record<string, string[]>> {
-      // Pool completo da etapa: um vínculo sai direto, vários rodam em
-      // rotação determinística. Sem vínculo, nada é anexado.
-      const { loadStepContentMap } = await import("./step-media.server");
-      return loadStepContentMap();
-    },
   };
 }
 

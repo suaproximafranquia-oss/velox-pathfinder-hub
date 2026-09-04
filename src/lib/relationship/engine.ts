@@ -6,7 +6,6 @@
  * estados dentro daqui. Produção e homologação usam este mesmo código —
  * muda apenas o repositório, o despachante e o relógio.
  */
-import { selectFromPool } from "./content";
 import { decideNextAction } from "./decide";
 import { RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { applyEvent, blocksAutomation, initialRecord } from "./machine";
@@ -208,38 +207,11 @@ export function createEngine(options: EngineOptions): Engine {
       });
     }
 
-    const library = await repository.loadContentLibrary();
     /**
-     * VÍNCULO EXPLÍCITO ETAPA ↔ CONTEÚDO — REGRA FECHADA.
-     *
-     * "Sem vínculo" é realmente sem vínculo: o motor só anexa material
-     * que foi DECLARADO para a etapa. Não existe sorteio por grupo, nem
-     * inferência por nome, posição ou semelhança. Com mais de um
-     * conteúdo vinculado vale a rotação determinística da Biblioteca.
+     * CONTEÚDO PERTENCE À MENSAGEM. Não existe mais seleção, pool nem
+     * rotação de conteúdo separado: o link (quando houver) vive na
+     * versão ativa da Biblioteca e é resolvido na renderização.
      */
-    const pools = repository.loadStepContentPools
-      ? await repository.loadStepContentPools()
-      : repository.loadStepContentBindings
-        ? Object.fromEntries(
-            Object.entries(await repository.loadStepContentBindings()).map(([step, id]) => [
-              step,
-              [id],
-            ]),
-          )
-        : {};
-    const poolIds = pools[action.step] ?? [];
-    const candidates = poolIds
-      .map((id) => library.find((c) => c.id === id && c.active))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-    const selection = selectFromPool(candidates, action.step, record.contentHistory);
-    if (action.contentGroup && !selection.content) {
-      return log(record, {
-        step: action.step,
-        outcome: "blocked",
-        reason: selection.reason,
-      });
-    }
-
     const queue = await repository.loadQueue(record.leadId);
     const pending = queue.find(
       (q) => q.step === action.step && (q.status === "PENDING" || q.status === "PROCESSING"),
@@ -300,9 +272,7 @@ export function createEngine(options: EngineOptions): Engine {
       step: action.step,
       useTemplate: action.requiresTemplate,
       templateId: binding?.templateId ?? null,
-      contentId: selection.content?.id ?? null,
-      contentName: selection.content?.name ?? null,
-      contentUrl: selection.content?.url ?? null,
+      contentId: null,
     });
 
     if (!result.delivered) {
@@ -339,7 +309,7 @@ export function createEngine(options: EngineOptions): Engine {
       at: clock.nowIso(),
       step: action.step,
       templateId: binding?.templateId ?? null,
-      contentId: selection.content?.id ?? null,
+      contentId: null,
     };
     const fresh = await repository.registerEvent(sentEvent);
     let updated = fresh ? applyEvent(record, sentEvent, config).record : record;
@@ -370,12 +340,12 @@ export function createEngine(options: EngineOptions): Engine {
     return log(updated, {
       step: action.step,
       outcome: "sent",
-      reason: `${action.reason} Conteúdo: ${selection.reason}${
+      reason: `${action.reason}${
         nextStep ? ` Próxima etapa programada: ${nextStep}.` : ""
       }`,
       templateId: binding?.templateId ?? null,
       templateVersion: binding?.version ?? null,
-      contentId: selection.content?.id ?? null,
+      contentId: null,
       stateBefore,
       stateAfter: updated.state,
     });

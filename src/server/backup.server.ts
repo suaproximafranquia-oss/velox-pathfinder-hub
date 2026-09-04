@@ -41,13 +41,11 @@ export const BACKUP_TABLES = [
   { table: "magazine_editions", pk: "id" },
   { table: "magazine_pages", pk: "id" },
   { table: "portal_institutional_blocks", pk: "id" },
-  // COMANDO FINAL 1 §11 — cobertura ampliada: a Biblioteca, os vínculos
-  // etapa↔conteúdo, as permissões, a Apresentação Digital, as carteiras
+  // COMANDO FINAL 1 §11 — cobertura ampliada: a Biblioteca (mensagem e
+  // link na mesma versão), as permissões, a Apresentação Digital, as carteiras
   // das unidades do Grupo e o Remarketing também precisam existir no
   // ponto de restauração. Sem isso, a perda seria irrecuperável.
   { table: "relationship_message_library", pk: "id" },
-  { table: "relationship_step_content_bindings", pk: "id" },
-  { table: "relationship_contents", pk: "id" },
   { table: "relationship_template_bindings", pk: "id" },
   { table: "relationship_non_business_days", pk: "id" },
   { table: "workspace_module_permissions", pk: "user_id" },

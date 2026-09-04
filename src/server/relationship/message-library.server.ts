@@ -51,7 +51,12 @@ export type LibraryMessage = {
   version: number;
   active: boolean;
   contentGroup: string | null;
+  /** Link do conteúdo — pertence a ESTA versão da mensagem. */
+  contentUrl: string | null;
+  /** Rótulo visível do link desta versão. */
+  contentLabel: string | null;
   buttonKind: "portal" | "content" | null;
+
   usesInvestorName: boolean;
   createdAt: string;
   createdByName: string;
@@ -136,6 +141,8 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     version: row["version"] ?? 1,
     active: Boolean(row["active"]),
     contentGroup: row["content_group"] ?? null,
+    contentUrl: row["content_url"] ?? null,
+    contentLabel: row["content_label"] ?? null,
     buttonKind: (row["button_kind"] ?? null) as LibraryMessage["buttonKind"],
     usesInvestorName: String(row["body"] ?? "").includes("{{nome_investidor}}"),
     createdAt: row["created_at"],
@@ -331,6 +338,8 @@ export async function publishLibraryVersion(params: {
   bodyWithoutName?: string | null;
   title?: string | null;
   contentGroup?: string | null;
+  contentUrl?: string | null;
+  contentLabel?: string | null;
   buttonKind?: "portal" | "content" | null;
   notes?: string | null;
   actorId?: string | null;
@@ -372,6 +381,14 @@ export async function publishLibraryVersion(params: {
         params.contentGroup !== undefined
           ? params.contentGroup
           : ((current as any)?.content_group ?? null),
+      content_url:
+        params.contentUrl !== undefined
+          ? (params.contentUrl?.trim() || null)
+          : ((current as any)?.content_url ?? null),
+      content_label:
+        params.contentLabel !== undefined
+          ? (params.contentLabel?.trim() || null)
+          : ((current as any)?.content_label ?? null),
       button_kind:
         params.buttonKind !== undefined
           ? params.buttonKind
@@ -527,6 +544,8 @@ export async function renderFromLibrary(
     usesInvestorName: text.includes("{{nome_investidor}}"),
     button: message.buttonKind,
     contentGroup: message.contentGroup,
+    contentUrl: message.contentUrl,
+    contentLabel: message.contentLabel,
   };
   return { result: renderMessageSpec(spec, input), message };
 }

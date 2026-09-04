@@ -23,8 +23,6 @@ export const PROTECTED_TABLES = [
   "crm_connections",
   "crm_meta_templates",
   "meta_templates",
-  "relationship_contents",
-  "relationship_content_groups",
   "relationship_sim_runs",
   "user_roles",
   "executive_profiles",

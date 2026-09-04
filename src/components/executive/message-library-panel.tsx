@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, Film, History, Loader2, MessageSquareText, Save, Tag } from "lucide-react";
 import {
-  listarConteudosDaBiblioteca,
   listarMensagensBiblioteca,
   importarBibliotecaOficial,
   diagnosticoDaBiblioteca,
-  listarVinculosDeEtapa,
   publicarVersaoMensagem,
-  removerVinculoDeEtapa,
   renomearRotuloEtapa,
-  vincularConteudoAEtapa,
 } from "@/lib/relationship/library.functions";
 
 type LibraryMessage = {
@@ -25,19 +21,14 @@ type LibraryMessage = {
   createdAt: string;
   createdByName: string;
   notes: string | null;
+  contentUrl: string | null;
+  contentLabel: string | null;
 };
 
-type LibraryContent = { id: string; name: string; kind: string; active: boolean };
 type Diagnostics = {
   stepsWithoutContent: { stepKey: string; contentGroup: string }[];
   stepsWithoutText: string[];
   contentsWithoutStep: { id: string; name: string }[];
-};
-type StepBinding = {
-  stepKey: string;
-  contentId: string;
-  contentName: string | null;
-  contentKind: string | null;
 };
 
 const card = "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5";
@@ -63,10 +54,9 @@ export function MessageLibraryPanel() {
   const [importNote, setImportNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [contents, setContents] = useState<LibraryContent[]>([]);
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
-  const [bindings, setBindings] = useState<StepBinding[]>([]);
-  const [bindingBusy, setBindingBusy] = useState(false);
+  const [contentUrl, setContentUrl] = useState("");
+  const [contentLabel, setContentLabel] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,41 +81,6 @@ export function MessageLibraryPanel() {
     void load();
   }, [load]);
 
-  // Vínculo etapa ↔ conteúdo: a Biblioteca de Conteúdos é a mesma de
-  // sempre; aqui apenas declaramos qual material pertence a cada etapa.
-  useEffect(() => {
-    void (async () => {
-      try {
-        const [lib, links] = await Promise.all([
-          listarConteudosDaBiblioteca() as Promise<LibraryContent[]>,
-          listarVinculosDeEtapa() as Promise<StepBinding[]>,
-        ]);
-        setContents(lib.filter((c) => c.active));
-        setBindings(links);
-      } catch {
-        /* a Biblioteca de Mensagens continua utilizável sem os vínculos */
-      }
-    })();
-  }, []);
-
-  const boundContent = step ? (bindings.find((b) => b.stepKey === step) ?? null) : null;
-
-  async function bindContent(contentId: string) {
-    if (!step || bindingBusy) return;
-    setBindingBusy(true);
-    try {
-      const next = contentId
-        ? ((await vincularConteudoAEtapa({ data: { stepKey: step, contentId } })) as StepBinding[])
-        : ((await removerVinculoDeEtapa({ data: { stepKey: step } })) as StepBinding[]);
-      setBindings(next);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao vincular o conteúdo.");
-    } finally {
-      setBindingBusy(false);
-    }
-  }
-
   const steps = useMemo(() => {
     const map = new Map<string, LibraryMessage[]>();
     for (const message of messages) {
@@ -146,6 +101,8 @@ export function MessageLibraryPanel() {
     setDraft(current?.body ?? "");
     setDraftWithoutName(current?.bodyWithoutName ?? "");
     setLabel(current?.displayLabel ?? key);
+    setContentUrl(current?.contentUrl ?? "");
+    setContentLabel(current?.contentLabel ?? "");
     setError(null);
   }
 
@@ -177,6 +134,8 @@ export function MessageLibraryPanel() {
           stepKey: step,
           body: draft,
           bodyWithoutName: draftWithoutName.trim() ? draftWithoutName : null,
+          contentUrl: contentUrl.trim() ? contentUrl.trim() : null,
+          contentLabel: contentLabel.trim() ? contentLabel.trim() : null,
         },
       });
       await load();
@@ -254,8 +213,7 @@ export function MessageLibraryPanel() {
       {/* DIAGNÓSTICO: o que impediria o motor de enviar, visível aqui. */}
       {diagnostics &&
       (diagnostics.stepsWithoutContent.length > 0 ||
-        diagnostics.stepsWithoutText.length > 0 ||
-        diagnostics.contentsWithoutStep.length > 0) ? (
+        diagnostics.stepsWithoutText.length > 0) ? (
         <ul className="mb-4 space-y-1 rounded-xl border border-[color:var(--border)] bg-[color:var(--muted)]/20 p-3 text-[11px] text-[color:var(--muted-foreground)]">
           {diagnostics.stepsWithoutText.length > 0 ? (
             <li>
@@ -265,19 +223,11 @@ export function MessageLibraryPanel() {
           ) : null}
           {diagnostics.stepsWithoutContent.length > 0 ? (
             <li>
-              Etapa que exige conteúdo e não tem vínculo:{" "}
+              Etapa que exige link e está sem link configurado:{" "}
               <strong>
                 {diagnostics.stepsWithoutContent
                   .map((s) => `${s.stepKey} (grupo ${s.contentGroup})`)
                   .join(", ")}
-              </strong>
-            </li>
-          ) : null}
-          {diagnostics.contentsWithoutStep.length > 0 ? (
-            <li>
-              Conteúdo sem etapa vinculada:{" "}
-              <strong>
-                {diagnostics.contentsWithoutStep.map((c) => c.name).join(", ")}
               </strong>
             </li>
           ) : null}
@@ -385,7 +335,9 @@ export function MessageLibraryPanel() {
                       saving ||
                       !draft.trim() ||
                       (draft === active?.body &&
-                        draftWithoutName === (active?.bodyWithoutName ?? ""))
+                        draftWithoutName === (active?.bodyWithoutName ?? "") &&
+                        contentUrl === (active?.contentUrl ?? "") &&
+                        contentLabel === (active?.contentLabel ?? ""))
                     }
                     className={gold}
                   >
@@ -403,24 +355,26 @@ export function MessageLibraryPanel() {
 
                 <div className="rounded-xl border border-[color:var(--border)] p-3">
                   <p className="mb-2 flex items-center gap-1.5 text-[11px] text-[color:var(--muted-foreground)]">
-                    <Film className="h-3.5 w-3.5" /> Vídeo/conteúdo vinculado a esta etapa
+                    <Film className="h-3.5 w-3.5" /> Link desta mensagem
                   </p>
-                  <select
-                    value={boundContent?.contentId ?? ""}
-                    disabled={bindingBusy}
-                    onChange={(e) => void bindContent(e.target.value)}
+                  {/* A mensagem é autossuficiente: o link pertence a ela e
+                      viaja junto na versão publicada. Não existe mais
+                      cadastro de conteúdo separado. */}
+                  <input
+                    value={contentUrl}
+                    onChange={(e) => setContentUrl(e.target.value)}
                     className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs outline-none focus:border-[color:var(--gold)]/50"
-                  >
-                    <option value="">Sem vínculo — o motor escolhe pelo grupo de conteúdo</option>
-                    {contents.map((content) => (
-                      <option key={content.id} value={content.id}>
-                        {content.name} ({content.kind})
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="https://… (vídeo, material ou página)"
+                  />
+                  <input
+                    value={contentLabel}
+                    onChange={(e) => setContentLabel(e.target.value)}
+                    className="mt-2 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs outline-none focus:border-[color:var(--gold)]/50"
+                    placeholder="Rótulo do botão (ex.: Assistir ao vídeo)"
+                  />
                   <p className="mt-2 text-[11px] text-[color:var(--muted-foreground)]">
-                    O motor busca exatamente o material vinculado. Nada é inferido por nome
-                    ou posição e nenhum arquivo é duplicado.
+                    Publicar salva o link junto do texto. Versões antigas mantêm o link
+                    que tinham quando foram enviadas.
                   </p>
                 </div>
 
