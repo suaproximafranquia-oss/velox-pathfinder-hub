@@ -1,161 +1,88 @@
-# Teste controlado — 1 lead fictício na Financeira /f (auditoria, sem implementação)
+# Auditoria somente leitura — lote TEST-20260904-A (Financeira /f)
 
-## A) Caminho recomendado para criar o lead de teste
+Nenhuma alteração foi feita: apenas consultas de leitura ao banco e leitura de código.
 
-Já existe uma ferramenta oficial de homologação que entra pelo fluxo real:
-**Ambiente de Teste em Tempo Real da Cadência** — rota `/f/executivo/teste-cadencia`
-(somente Administrador do CRM).
+## A) Estado do lead
 
-Procedimento existente: selecionar **1 cenário** (recomendado `sem_acao_humana`),
-`perScenario = 1`, criar o lote. Isso gera um lote `TEST-AAAAMMDD-A` e chama
-`createTestBatch` → `intakeLead(...)` — exatamente a mesma função que a
-sincronização GreenSales usa para cada lead real. Não há trilha paralela, não há
-INSERT artificial, não há segundo motor.
+- `crm_leads.id` = `f99b30ef-1b55-4667-8649-e2e80a9d0734`
+- `external_id` = `TEST-20260904-A-01`
+- `name` = `[TESTE] Ana Teste 01`, `phone` = `+5500900000000`
+- `is_test = true`, `test_batch_id = TEST-20260904-A`
+- `stage_key = novos`, `entered_entry_stage_at = 2026-09-04 01:57:27Z`
+- `canonical_investor_id = null`, `environment = null`
+- Lote: `test_batches.TEST-20260904-A`, cenário `sem_acao_humana`, 1 lead, status ATIVO, criado por thiago.rodrigues.
 
-Não é necessário tocar no Portal de Leads real, na GreenSales, nem rodar sync.
+**`portal_leads`: não existe registro.** Nenhum card operacional foi criado para este lead
+(consulta por `test_batch_id` e por nome retornou vazio).
 
-## B) Por que é o caminho mais seguro
+## B) E0: executada ou não
 
-- Entra pelo `intakeLead` real: espelho `crm_leads` → card `portal_leads` →
-  responsável → E0 → motor → Ação do Dia.
-- Marcação **técnica** (`is_test = true` + `test_batch_id`), nunca heurística por
-  nome/telefone; nenhum lead real pode receber essa marcação.
-- Telefone sintético `5500…` (não roteável) e e-mail `@teste.velox.local`.
-- O despachante força modo simulado para todo lead marcado, mesmo com credencial
-  real presente — além da Safety Lock.
-- Limpeza por lote (`purgeTestBatch`) age exclusivamente sobre os registros
-  daquele lote.
+**Não executada.** Não há `workspace_e0_actions` para este lead, não há `msg_e0_*`
+correspondente em `crm_messages` (as últimas mensagens são `msg_e0_gs_58994`,
+`msg_e0_gs_58992`, `msg_e0_gs_58983`, todas de leads reais GreenSales).
 
-## C) Identificadores e tabelas envolvidos
+## C) Motivo exato
+
+Evento registrado em `crm_lead_events`:
 
 ```text
-external_id   TEST-20260904-A-01        (crm_leads.external_id, external_source=greensales)
-card_id       gs_TEST-20260904-A-01     (portal_leads.id = "gs_" + external_id)
-crm_leads.id  uuid                      (espelho da origem)
+lead_criado  01:57:28Z  Lead recebido da origem externa (stage: novos)
+e0_adiada    01:57:29Z  E0 adiada — fora da janela operacional (§16: Seg–Sex 07:00–22:30,
+                        Sáb 07:00–12:00, Dom sem envio). Retomada automática em 04/09 às 07:00.
 ```
 
-| Camada | Tabela | Chave |
-| --- | --- | --- |
-| Espelho de origem | `crm_leads` | `external_id`, `is_test`, `test_batch_id` |
-| Card/oportunidade | `portal_leads` | `id = gs_<external_id>` |
-| Responsável | `portal_leads.responsible_executive_id` | resolvido no servidor |
-| E0 manual | `workspace_e0_actions` | `card_id` UNIQUE |
-| Mensagem E0 | `crm_messages` | `id = msg_e0_<cardId>`, `investor_id = cardId` |
-| Cadência | `relationship_cadences` | `lead_id = cardId`, `scope = production` |
-| Próxima etapa | `relationship_queue` | `lead_id = cardId`, `status = PENDING` |
-| Histórico | `crm_lead_events`, `crm_timeline`, `relationship_decisions`, `relationship_engine_log` | |
-| Lote | `test_batches` | `id = TEST-…` |
+O lote foi criado às `01:57 UTC` = **22:57 de Brasília**, ou seja 27 minutos após o
+fechamento da janela (22:30). Em `intakeLead`, a checagem `isE0NightWindow()` ocorre
+**antes** da criação do card e antes de resolver o modo E0 — por isso o fluxo retornou
+`e0 = "adiada"` imediatamente e nada mais foi criado.
 
-Identidade Fase 1 (`investors` / `investor_identifiers` / `canonical_investor_id`):
-o `intakeLead` **não** grava nessas tabelas hoje — elas foram criadas de forma
-aditiva e são preenchidas só por backfill. Portanto, no teste, o item "identidade"
-será verificado como **ausente por desenho** (o vínculo canônico é trabalho da
-próxima fase), e não como falha.
+Respondendo às três hipóteses:
 
-## D) Como garantir E0 MANUAL sem alterar configuração de ninguém
+- Deveria ter acontecido imediatamente pelo `intakeLead`? Não — a trava de janela §16 é anterior.
+- Está aguardando tick/cron? Sim — a retomada é feita por `processDeferredFirstContacts()`,
+  chamada pelo agendador de sincronização (`sync-scheduler.server.ts`) e por `lead-sync.server.ts`,
+  a partir das 07:00.
+- O cenário `sem_acao_humana` impede a execução automática? Não. O cenário só descreve
+  a ausência de resposta humana posterior; não bloqueia a E0.
 
-Nenhuma alteração é necessária. O modo é resolvido por lead em
-`resolveExecutiveE0Mode(responsável)`:
+## D) Biblioteca / mensagem
 
-- `createTestBatch` chama `intakeLead` **sem** `connectionUserId`;
-- logo `resolveResponsibleByUserId(null)` retorna `null`;
-- sem responsável resolvido o modo é **manual, sempre** ("nunca há execução
-  automática às cegas").
+Nenhuma mensagem foi gerada, portanto a Biblioteca oficial não foi acionada. O caminho
+oficial (`registerFirstContact` → `e0.server` → template/Biblioteca) não chegou a ser chamado.
 
-Consequência: o card nasce **sem responsável**, e a E0 pendente aparece na Ação do
-Dia de qualquer executivo (a lista só filtra quando há responsável definido). Se
-quiserem responsável nomeado no teste, isso exige atribuição pela tela do card
-depois da entrada — decisão a tomar antes de começar; não altera o modo manual.
+## E) Cadência
 
-## E) Como validar a E0
+`relationship_cadences`: nenhum registro para este lead (as duas cadências recentes são
+`gs_58994` e `gs_58992`, leads reais). `relationship_queue`: nenhum item para este lead.
+Coerente — a cadência só nasce após a E0 (`FIRST_CONTACT_SENT`).
 
-1. `workspace_e0_actions` → 1 linha, `card_id = gs_…`, `state = PENDENTE`.
-2. `crm_lead_events` → `e0_identificada`, `workspace_card_criado`, `e0_manual_pendente`.
-3. Abrir a **Ação do Dia** em `/f` — a E0 pendente tem prioridade máxima.
-4. Executar pela própria Ação do Dia (`executeE0Action` → `registerFirstContact`):
-   - `workspace_e0_actions.state = EXECUTADA`, `result = EXECUTADA_SIMULADA`,
-     `executed_by`/`executed_at` preenchidos;
-   - `crm_messages` com `id = msg_e0_<cardId>` (texto vindo da Biblioteca oficial,
-     assinatura do executivo);
-   - `relationship_cadences` sai de não iniciada para ativa em E0.
+## F) Próxima ação
 
-## F) Como validar a primeira etapa da cadência
+Retomada automática da E0 pela fila de adiamento na abertura da janela (04/09, 07:00 BRT),
+condicionada à execução do agendador de sincronização.
 
-Regra vigente: enquanto o lead estiver na coluna **NOVOS**, o motor recusa criar
-qualquer etapa após a E0 ("Lead ainda em NOVOS — aguardando a primeira ação
-humana"). A E1 só é calculada a partir da **saída de NOVOS** (`leftEntryStageAt`),
-não do cadastro nem da E0.
+## G) Divergência entre tela e estado real
 
-Portanto: executar a E0 → depois registrar a primeira ação humana (mover o card de
-NOVOS; no laboratório existe a ação "Sair de NOVOS") → então nasce **uma** linha
-`PENDING` em `relationship_queue`.
+`Mensagens = 0` corresponde ao estado real — não é atraso de consulta.
+`Próxima ação: —` também é real (não existe fila).
+O único ponto de leitura otimista é `Responsável: Thiago Rodrigues`: a tela mostra o
+responsável **escolhido no lote**, mas ele não está persistido em nenhum card
+(`portal_leads` inexistente); em `crm_leads` não há coluna de responsável. Ou seja, o
+responsável hoje existe apenas como parâmetro de entrada, não como estado.
 
-## G) Como testar o atraso sem gerar dívida artificial
+## H) Conclusão e risco observado (sem correção)
 
-`nextStep()` devolve apenas a primeira etapa não executada do fluxo, e o motor
-recusa etapa fora de ordem. Logo, uma E1 pendente e vencida **continua E1**; o
-tempo sozinho não cria E2/E3/E4.
+O teste parou corretamente na trava de janela operacional — comportamento esperado e não
+um defeito. Contudo, o caminho de retomada tem duas lacunas relevantes para este teste:
 
-Para observar isso sem esperar dias, sem tocar na regra e sem segunda fila:
-deixar a E1 pendente e reexecutar o **tick do motor real** várias vezes,
-verificando que `relationship_queue` continua com exatamente 1 linha `PENDING` em
-E1 e que `relationship_decisions` registra sempre a mesma decisão.
+1. `processDeferredFirstContacts()` chama `ensureWorkspaceCard` **sem**
+   `responsibleExecutiveId`/`responsibleExecutiveSlug` — o card nascerá sem responsável e o
+   modo E0 tende a resolver como **manual**, anulando o objetivo de testar o E0 automático
+   do Thiago.
+2. A mesma chamada não repassa `isTest`/`testBatchId` — o card retomado nasceria **sem
+   marcação de teste**, misturando-se à carteira operacional.
 
-Ponto de atenção operacional: hoje `runRelationshipTick()` só é chamado dentro de
-`runScheduledLeadSync` (endpoint público de sync), ou seja, **acionar o tick hoje
-significa acionar a sincronização GreenSales**. Como vocês pediram para não rodar
-sync, a alternativa é aceitar o tick natural do cron ou, em passo futuro e
-separado, um gatilho de tick isolado — nada disso será feito nesta etapa.
-
-O relógio virtual (fator 12) pertence ao escopo `homologation` do simulador e
-**não** deve ser usado aqui: este teste roda em `scope = production` com relógio
-real, por escolha explícita.
-
-## H) Executar a primeira etapa e validar a próxima
-
-Executar a E1 pela Ação do Dia (registro de execução) e conferir:
-- a linha E1 sai de `PENDING`;
-- `relationship_cadences.executed_steps` passa a conter E1;
-- nasce **exatamente uma** nova linha `PENDING` (E3 no fluxo `sem_resposta`);
-- `relationship_decisions` explica cada transição.
-
-## I) Riscos
-
-| Risco | Situação |
-| --- | --- |
-| Duas E0 | Protegido: `workspace_e0_actions.card_id` UNIQUE + trava `msg_e0_<cardId>`. |
-| Duas próximas etapas | Protegido: `nextStep` retorna uma etapa e ordem é validada. |
-| Reabrir E0 histórica | Baixo: o corte de 2026-09-03 torna leads antigos inelegíveis; a E0 é por card e já executada. |
-| Ações para outros leads | O tick avalia todos os leads elegíveis — não é isolado ao lote. Por isso rodar o tick é decisão consciente. |
-| Misturar com dados reais | Baixo: marcação técnica e limpeza por lote; o card aparece no board com "[TESTE]" no nome. |
-| Outro ambiente | Nenhum: `/s` e `/seg` não compartilham este fluxo. |
-| Envio real de WhatsApp | Impossível: modo simulado forçado para lead de teste **e** Safety Lock. |
-
-## J) Procedimento exato do próximo passo
-
-1. Entrar como Administrador em `/f/executivo/teste-cadencia`.
-2. Cenário `sem_acao_humana`, 1 lead, nota "primeiro teste controlado pós-corte".
-3. Criar o lote e anotar `batchId`, `external_id`, `cardId`.
-4. Conferir (somente leitura): `crm_leads`, `portal_leads`, `workspace_e0_actions`.
-5. Abrir a Ação do Dia em `/f` e confirmar a E0 pendente.
-6. Executar a E0 e conferir `crm_messages`, `workspace_e0_actions`, `relationship_cadences`.
-7. Registrar a primeira ação humana (sair de NOVOS) e conferir a única E1 `PENDING`.
-8. Deixar a E1 pendente e observar que continua E1 a cada tick.
-9. Executar a E1 e conferir o nascimento de exatamente uma próxima etapa.
-10. Ao final, limpar apenas o lote (`purgeTestBatch`).
-
-## Confirmações pedidas
-
-- **Safety Lock**: intacta; bloqueio incondicional até 2029 **e** exigência de
-  `WHATSAPP_REAL_SEND_ENABLED=true` depois disso. Lead de teste nunca chega lá.
-- **Corte 2026-09-03**: o lead nasce hoje, logo é elegível — tratado como NOVA
-  OPERAÇÃO, nunca como legado.
-- **TikTok/Meta**: fora deste teste; o caminho exercitado é GreenSales → Workspace.
-
-## Decisões que precisamos de vocês antes de executar
-
-1. O card pode nascer **sem responsável** (comportamento atual do laboratório) ou
-   querem atribuir um executivo manualmente após a entrada?
-2. Aceitam que o avanço do tempo seja observado pelo tick natural do cron
-   (que também executa a sincronização), ou preferem apenas observar sem tick
-   nesta primeira rodada?
+Recomendação (a decidir pelo usuário, nada implementado): não deixar a retomada automática
+das 07:00 acontecer para este lote antes de decidir entre (a) ajustar a retomada para
+preservar responsável e marcação de teste, ou (b) descartar o lote e refazer o teste dentro
+da janela operacional.
