@@ -77,7 +77,10 @@ function TestLabPage() {
   const [perScenario, setPerScenario] = useState(1);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [directory, setDirectory] = useState<ExecutiveDirectoryEntry[]>([]);
+  const [responsible, setResponsible] = useState<string>("");
 
+  const listDirectory = useServerFn(listarDiretorioExecutivos);
   const listBatches = useServerFn(listTestBatchesFn);
   const readLeads = useServerFn(readBatchLeadsFn);
   const createBatch = useServerFn(createTestBatchFn);
