@@ -79,6 +79,11 @@ const TIMELINE_TITLES: Record<string, string> = {
   nota_executivo: "Nota do executivo",
   mudanca_coluna: "Mudança de coluna",
   oportunidade: "OPORTUNIDADE",
+  acao_do_dia_pulada: "Ação do Dia — pulada com justificativa",
+  acao_do_dia_observacao: "Ação do Dia — observação do executivo",
+  acao_do_dia_mensagem_registrada: "Ação do Dia — mensagem enviada",
+  acao_do_dia_reuniao_resolvida: "Ação do Dia — desfecho da reunião",
+  acao_do_dia_reuniao_reagendada: "Ação do Dia — reunião reagendada",
 };
 
 /**
@@ -99,6 +104,9 @@ const RELATIONAL_TIMELINE_EVENTS = new Set([
 
 function timelineLayer(event: string): JourneyLayer {
   if (event.startsWith("cadencia_")) return "relacional";
+  // A Ação do Dia é operação humana sobre a cadência — jornada, não
+  // auditoria técnica.
+  if (event.startsWith("acao_do_dia_")) return "relacional";
   return RELATIONAL_TIMELINE_EVENTS.has(event) ? "relacional" : "tecnico";
 }
 
@@ -108,6 +116,8 @@ function timelineKind(event: string): JourneyEntryKind {
   if (event === "oportunidade") return "oportunidade";
   if (event.startsWith("sincroniza")) return "sincronizacao";
   if (event.startsWith("cadencia_")) return "cadencia";
+  if (event === "acao_do_dia_observacao") return "nota";
+  if (event.startsWith("acao_do_dia_")) return "cadencia";
   if (event === "atividade_portal") return "portal";
   if (event === "lead_criado") return "entrada";
   return "evento";
