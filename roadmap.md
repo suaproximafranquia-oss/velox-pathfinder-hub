@@ -11,4 +11,5 @@
 ## E0 fora da janela (04/09)
 - [x] Card criado antes da trava de janela no intakeLead (responsável + is_test preservados)
 - [x] processDeferredFirstContacts reutiliza card, preserva responsável/teste e respeita Automático x Manual
+- [x] Corrigir telefone sintético do Laboratório para ser único por `batchId + índice`
 - [ ] Segundo lead de teste dentro da janela (a criar manualmente)
