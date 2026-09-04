@@ -12,7 +12,13 @@ import { applyEvent, blocksAutomation, initialRecord } from "./machine";
 import { hasTemplateForPurpose, findBinding } from "./templates";
 import { realClock, type EngineClock } from "./clock";
 import type { EngineDispatcher, EngineRepository } from "./ports";
-import type { CadenceRecord, EngineDecision, EngineEvent, QueueItem } from "./types";
+import type {
+  CadenceRecord,
+  CadenceStep,
+  EngineDecision,
+  EngineEvent,
+  QueueItem,
+} from "./types";
 
 export type Engine = {
   scope: EngineRepository["scope"];
@@ -30,7 +36,7 @@ export type Engine = {
    */
   confirmManualExecution: (input: {
     leadId: string;
-    step: string;
+    step: CadenceStep;
     queueItemId?: string | null;
   }) => Promise<EngineDecision>;
 };
