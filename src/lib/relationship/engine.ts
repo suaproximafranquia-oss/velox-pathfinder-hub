@@ -20,6 +20,19 @@ export type Engine = {
   handleEvent: (event: EngineEvent) => Promise<EngineDecision>;
   /** Reavalia um lead (passagem de tempo / execução da fila). */
   tick: (leadId: string) => Promise<EngineDecision>;
+  /**
+   * CONFIRMAÇÃO MANUAL DE UMA ETAPA JÁ PROGRAMADA.
+   *
+   * O Executivo copiou e enviou a mensagem pelo WhatsApp dele. Aqui a
+   * MESMA tarefa da fila é concluída — não existe fila, relógio nem
+   * sequência paralela — e o avanço continua sendo do motor
+   * (`scheduleFollowUp`). Nenhuma mensagem sai daqui.
+   */
+  confirmManualExecution: (input: {
+    leadId: string;
+    step: string;
+    queueItemId?: string | null;
+  }) => Promise<EngineDecision>;
 };
 
 export type EngineOptions = {
@@ -448,6 +461,85 @@ export function createEngine(options: EngineOptions): Engine {
       }
 
       return evaluate(transition.record);
+    },
+
+    async confirmManualExecution({ leadId, step, queueItemId }) {
+      const record = await loadOrCreate(leadId, clock.nowIso());
+      const queue = await repository.loadQueue(leadId);
+      const item =
+        (queueItemId ? queue.find((q) => q.id === queueItemId) : undefined) ??
+        queue.find(
+          (q) => q.step === step && (q.status === "PENDING" || q.status === "PROCESSING"),
+        );
+
+      if (!item) {
+        return log(record, {
+          step,
+          outcome: "noop",
+          reason: `Nenhuma tarefa de ${step} encontrada na fila para confirmar.`,
+        });
+      }
+      if (item.status === "EXECUTED") {
+        return log(record, {
+          step,
+          outcome: "noop",
+          reason: `Etapa ${step} já estava concluída — confirmação não duplicada.`,
+        });
+      }
+
+      // Trava atômica: só um processo conclui a tarefa.
+      if (item.status === "PENDING" && !(await repository.claimQueueItem(item.id))) {
+        return log(record, {
+          step,
+          outcome: "noop",
+          reason: `Etapa ${step} já está sendo concluída por outro processo.`,
+        });
+      }
+
+      await repository.updateQueueItem(item.id, {
+        status: "EXECUTED",
+        executedAt: clock.nowIso(),
+        result: "enviado_manual",
+      });
+
+      const stateBefore = record.state;
+      const sentEvent: EngineEvent = {
+        id: `${repository.scope}:${leadId}:${step}:sent`,
+        scope: repository.scope,
+        leadId,
+        type: step === "E0" ? "FIRST_CONTACT_SENT" : "MESSAGE_SENT",
+        at: clock.nowIso(),
+        step,
+      };
+      const fresh = await repository.registerEvent(sentEvent);
+      let updated = fresh ? applyEvent(record, sentEvent, config).record : record;
+
+      if (STEPS[step]?.terminal) {
+        const closeEvent: EngineEvent = {
+          id: `${repository.scope}:${leadId}:${step}:completed`,
+          scope: repository.scope,
+          leadId,
+          type: "CADENCE_COMPLETED",
+          at: clock.nowIso(),
+          data: { reason: `Fluxo concluído na etapa ${step}.` },
+        };
+        if (await repository.registerEvent(closeEvent)) {
+          updated = applyEvent(updated, closeEvent, config).record;
+          await repository.cancelPendingItems(leadId, "Cadência encerrada.");
+        }
+      }
+
+      await repository.saveRecord(updated);
+      const nextStep = await scheduleFollowUp(updated);
+      return log(updated, {
+        step,
+        outcome: "sent",
+        reason:
+          `Etapa ${step} confirmada manualmente pelo Executivo na Ação do Dia.` +
+          (nextStep ? ` Próxima etapa programada: ${nextStep}.` : ""),
+        stateBefore,
+        stateAfter: updated.state,
+      });
     },
 
     async tick(leadId) {
