@@ -44,6 +44,8 @@ export const createTestBatchFn = createServerFn({ method: "POST" })
         scenarios: z.array(z.string().min(1)).min(1),
         perScenario: z.number().int().min(1).max(10),
         notes: z.string().max(500).nullable().optional(),
+        /** Executivo responsável dos leads do lote (opcional). */
+        responsibleExecutiveId: z.string().min(1).nullable().optional(),
       })
       .parse(data),
   )
