@@ -305,6 +305,7 @@ export function DailyActionsOverlay({
     try {
       const view = await adapter.loadMessage(item);
       setMessage(view);
+      setCopied(false);
       setMessageOpen(true);
       if (!view) setFeedback("Esta ação não tem mensagem oficial vinculada.");
     } finally {
