@@ -80,6 +80,31 @@ export async function createTestBatch(input: CreateBatchInput): Promise<CreateBa
   }
 
   const settings = await loadSettings();
+  /**
+   * Responsável do lote → usuário real do executivo. Nada é inventado:
+   * sem perfil correspondente o lote é recusado, em vez de nascer com
+   * dono errado.
+   */
+  let connectionUserId: string | null = null;
+  if (input.responsibleExecutiveId) {
+    const { data: profile } = await supabaseAdmin
+      .from("executive_profiles")
+      .select("user_id")
+      .eq("executive_id", input.responsibleExecutiveId)
+      .maybeSingle();
+    const userId = (profile as { user_id?: string | null } | null)?.user_id ?? null;
+    if (!userId) {
+      return {
+        ok: false,
+        batchId,
+        leads: [],
+        errors: [
+          `Executivo ${input.responsibleExecutiveId} não possui usuário vinculado — lote não criado.`,
+        ],
+      };
+    }
+    connectionUserId = userId;
+  }
   const nowIso = new Date().toISOString();
   const leads: BatchLead[] = [];
   const errors: string[] = [];
