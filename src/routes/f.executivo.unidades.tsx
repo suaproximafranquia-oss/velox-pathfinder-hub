@@ -1,5 +1,5 @@
 /**
- * CARTEIRA DAS UNIDADES DO GRUPO — Velox Solar e Velox Seguros.
+ * CARTEIRA INSTITUCIONAL DO GRUPO — Financeira, Solar e Seguros.
  *
  * Carteira SEPARADA da Financeira: nada aqui entra em `portal_leads`,
  * CRM, Ação do Dia ou cadência. O primeiro contato é humano, a situação
@@ -24,16 +24,16 @@ export const Route = createFileRoute("/f/executivo/unidades")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Unidades do Grupo — interessados Solar e Seguros | Velox" },
+      { title: "Unidades do Grupo — interessados das três marcas | Velox" },
       {
         name: "description",
         content:
-          "Carteira dos interessados nas unidades Velox Solar e Velox Seguros, separada da operação da Financeira.",
+          "Carteira dos interessados captados pelas páginas institucionais das três marcas do Grupo Velox.",
       },
       { property: "og:title", content: "Unidades do Grupo — Velox" },
       {
         property: "og:description",
-        content: "Interessados de Velox Solar e Velox Seguros em carteira própria.",
+        content: "Interessados das três marcas do Grupo Velox em carteira própria.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
