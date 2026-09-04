@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Film, History, Loader2, MessageSquareText, Save, Tag } from "lucide-react";
+import { Film, History, Loader2, MessageSquareText, Save, Tag } from "lucide-react";
 import {
   listarMensagensBiblioteca,
-  importarBibliotecaOficial,
   diagnosticoDaBiblioteca,
   publicarVersaoMensagem,
   renomearRotuloEtapa,
@@ -50,8 +49,6 @@ export function MessageLibraryPanel() {
   const [draftWithoutName, setDraftWithoutName] = useState("");
   const [label, setLabel] = useState("");
   const [renaming, setRenaming] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importNote, setImportNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
@@ -147,39 +144,6 @@ export function MessageLibraryPanel() {
     }
   }
 
-  async function importOfficial() {
-    if (importing) return;
-    setImporting(true);
-    try {
-      const entries = (await importarBibliotecaOficial()) as {
-        stepKey: string;
-        outcome: string;
-      }[];
-      const protectedSteps = entries.filter((e) => e.outcome === "protegida");
-      const changed = entries.filter(
-        (e) => e.outcome !== "inalterada" && e.outcome !== "protegida",
-      );
-      const protectedNote =
-        protectedSteps.length === 0
-          ? ""
-          : ` Preservadas por edição manual: ${protectedSteps.map((e) => e.stepKey).join(", ")}.`;
-      setImportNote(
-        (changed.length === 0
-          ? "Biblioteca já idêntica ao Word oficial — nenhuma versão nova criada."
-          : `Atualizadas ${changed.length} etapa(s): ${changed.map((e) => e.stepKey).join(", ")}.`) +
-          protectedNote,
-      );
-
-      await load();
-      if (step) openStep(step);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao importar o Word oficial.");
-    } finally {
-      setImporting(false);
-    }
-  }
-
   return (
     <section className={card}>
       <header className="mb-4 flex items-center gap-2">
@@ -191,24 +155,7 @@ export function MessageLibraryPanel() {
             enviado nunca é reescrito.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void importOfficial()}
-          disabled={importing}
-          className={`${gold} ml-auto`}
-        >
-          {importing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
-          )}
-          Importar Word oficial
-        </button>
       </header>
-
-      {importNote ? (
-        <p className="mb-3 text-[11px] text-[color:var(--gold)]">{importNote}</p>
-      ) : null}
 
       {/* DIAGNÓSTICO: o que impediria o motor de enviar, visível aqui. */}
       {diagnostics &&

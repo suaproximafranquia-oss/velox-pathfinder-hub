@@ -110,8 +110,12 @@ export const registerDailyActionMessageFn = createServerFn({ method: "POST" })
     const { registerDailyActionMessage } = await import(
       "@/server/crm/daily-actions-log.server"
     );
-    await registerDailyActionMessage({ ...data, userId: context.userId, executiveId });
-    return { ok: true as const };
+    const outcome = await registerDailyActionMessage({
+      ...data,
+      userId: context.userId,
+      executiveId,
+    });
+    return { ok: true as const, ...outcome };
   });
 
 /** Desfecho da reunião, resolvido na fonte oficial `portal_meetings`. */

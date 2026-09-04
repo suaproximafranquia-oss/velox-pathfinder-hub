@@ -101,12 +101,62 @@ export async function noteDailyAction(input: DailyActionLogInput): Promise<void>
  * MENSAGEM EXECUTADA PELA INTERFACE. Registro de histórico apenas — a
  * mensagem não é enviada por aqui e a trava global permanece intacta.
  */
-export async function registerDailyActionMessage(input: DailyActionLogInput): Promise<void> {
-  await writeLedger(DAILY_ACTION_EVENTS.message, {
-    ...input,
-    reason: input.reason.trim() || "Mensagem tratada pelo Executivo na Ação do Dia.",
-    outcome: input.outcome ?? "registrada",
+export async function registerDailyActionMessage(
+  input: DailyActionLogInput,
+): Promise<{ concluded: boolean; reason: string | null }> {
+  const queueItemId = queueItemIdFromActionKey(input.actionKey);
+  const outcome = await concludeQueueStep({
+    leadId: input.leadId,
+    step: input.step,
+    queueItemId,
   });
+
+  await writeLedger(
+    DAILY_ACTION_EVENTS.message,
+    {
+      ...input,
+      reason: input.reason.trim() || "Mensagem tratada pelo Executivo na Ação do Dia.",
+      outcome: input.outcome ?? (outcome.concluded ? "enviada" : "registrada"),
+    },
+    { queueItemId, motorResultado: outcome.reason },
+  );
+
+  return outcome;
+}
+
+/**
+ * A chave da ação já carrega a tarefa REAL da fila:
+ * `queue:<lead>:<fluxo>-<etapa>:<id>`. Nada é inventado aqui.
+ */
+function queueItemIdFromActionKey(actionKey: string): string | null {
+  if (!actionKey.startsWith("queue:")) return null;
+  const id = actionKey.split(":").pop() ?? "";
+  return id.length > 0 ? id : null;
+}
+
+/**
+ * CONCLUSÃO DA ETAPA NO MOTOR EXISTENTE. A mesma tarefa de
+ * `relationship_queue` é encerrada (EXECUTED, `executed_at`, resultado)
+ * e o avanço continua sendo calculado pelo motor. Idempotente: repetir
+ * a confirmação não duplica histórico nem agendamento.
+ */
+async function concludeQueueStep(params: {
+  leadId: string | null;
+  step: string | null;
+  queueItemId: string | null;
+}): Promise<{ concluded: boolean; reason: string | null }> {
+  if (!params.leadId || !params.step || !params.queueItemId) {
+    return { concluded: false, reason: null };
+  }
+  const { productionEngine } = await import("@/server/relationship/engine.server");
+  const { isKnownStep } = await import("@/lib/relationship/step-registry");
+  if (!isKnownStep(params.step)) return { concluded: false, reason: null };
+  const decision = await productionEngine().confirmManualExecution({
+    leadId: params.leadId,
+    step: params.step as never,
+    queueItemId: params.queueItemId,
+  });
+  return { concluded: decision.outcome === "sent", reason: decision.reason ?? null };
 }
 
 /**

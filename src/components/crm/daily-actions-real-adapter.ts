@@ -108,8 +108,15 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
         });
       },
       registerMessage: async (item, note) => {
-        await registerMessage({ data: actionRef(item, note) });
-        return { ok: true, message: "Mensagem registrada no histórico." };
+        const result = (await registerMessage({ data: actionRef(item, note) })) as {
+          concluded?: boolean;
+        };
+        return {
+          ok: true,
+          message: result?.concluded
+            ? "Etapa concluída — o motor segue para a próxima."
+            : "Mensagem registrada no histórico.",
+        };
       },
       resolveMeeting: async (item, attended, note) => {
         if (!item.meetingId) return { ok: false, message: "Reunião sem origem oficial." };

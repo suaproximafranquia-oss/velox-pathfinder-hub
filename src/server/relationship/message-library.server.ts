@@ -27,14 +27,6 @@ import {
   type RenderResult,
 } from "@/lib/relationship/messages";
 import { resolveTreatment } from "@/lib/relationship/names";
-import {
-  AWAITING_ACTIVATION_STEPS,
-  WORD_MESSAGES,
-  wordMessageForEngineStep,
-  WORD_SOURCE_REFERENCE,
-  engineStepForWord,
-  type WordMessage,
-} from "@/lib/relationship/word-library";
 import { DEFAULT_STEP_LABELS, stepDisplayLabel } from "@/lib/relationship/step-labels";
 
 export type LibraryMessage = {
@@ -94,22 +86,33 @@ export const PENDING_TEXT_STEPS = ["E27", AUTO_REPLY_STEP] as const;
  * na ordem em que o documento as apresenta. O nome editorial do Word
  * (E2, E5, E6, E7) vive no rótulo; a chave é a do motor.
  */
-export const WORD_STEP_ORDER: string[] = WORD_MESSAGES.map((m) =>
-  engineStepForWord(m.stepKey),
-);
+export const WORD_STEP_ORDER: string[] = [
+  "E0",
+  "E1",
+  "E3",
+  "E4",
+  "E12",
+  "E20",
+  "FINALIZACAO",
+  "R1",
+  "R2",
+  "R3",
+  "RE0",
+  "RE1",
+  "RE2",
+  "RE3",
+  "RF0",
+  "RF1",
+];
 
 /**
- * Etapas que existiam antes do Word e permanecem no banco por causa do
+ * Etapas que existiam antes e permanecem no banco por causa do
  * HISTÓRICO (envios, filas e snapshots já gravados). Elas não fazem
  * parte da nomenclatura oficial e não recebem conteúdo novo.
  */
 export const LEGACY_STEPS: string[] = ["E0_V1", "V3", "V4"];
 
-/**
- * Chaves criadas pela primeira importação do Word que NÃO são
- * executáveis pelo motor. Continuam no banco (histórico) e são
- * desativadas — o conteúdo delas vive agora na chave técnica.
- */
+/** Chaves antigas mantidas apenas por histórico; não são executáveis. */
 export const WORD_ALIAS_STEPS: string[] = ["E2", "E5", "E6", "E7"];
 
 export const LIBRARY_STEP_ORDER: string[] = [
@@ -155,46 +158,6 @@ function toMessage(row: Record<string, any>): LibraryMessage {
   };
 }
 
-/** A etapa nasce inativa (texto oficial existe, mas aguarda ativação)? */
-function awaitsActivation(engineStep: string): boolean {
-  return (AWAITING_ACTIVATION_STEPS as readonly string[]).includes(engineStep);
-}
-
-/** Linha da Biblioteca a partir de uma mensagem oficial do Word. */
-function wordRow(
-  message: WordMessage,
-  version: number,
-  supersedesId: string | null,
-): Record<string, unknown> {
-  const engineStep = engineStepForWord(message.stepKey);
-  return {
-    scope: "production",
-    step_key: engineStep,
-    code: `LIB-${engineStep}`,
-    // O TÍTULO é o rótulo editorial do Word — apresentação, não chave.
-    title: message.title,
-    purpose: engineStep.toLowerCase(),
-    body: message.body,
-    body_without_name: message.bodyWithoutName,
-    version,
-    active: !awaitsActivation(engineStep),
-    content_group: message.contentGroup,
-    button_kind: message.button,
-    supersedes_id: supersedesId,
-    created_by_name: "Word oficial",
-    source_kind: "word",
-    source_reference: WORD_SOURCE_REFERENCE,
-    imported_at: new Date().toISOString(),
-    import_version: version,
-    notes:
-      `Texto oficial transcrito do documento ${WORD_SOURCE_REFERENCE}` +
-      (message.stepKey === engineStep ? "." : ` (${message.stepKey} do Word).`) +
-      (awaitsActivation(engineStep)
-        ? " Aguardando ativação explícita pela Gestão — o motor não envia enquanto estiver inativa."
-        : ""),
-  };
-}
-
 /**
  * Semeadura única: garante que cada etapa possua ao menos a versão 1.
  * Idempotente — só insere o que ainda não existe.
@@ -209,12 +172,8 @@ export async function ensureLibrarySeed(): Promise<void> {
   const rows: Record<string, unknown>[] = [];
   for (const step of LIBRARY_STEP_ORDER) {
     if (known.has(step)) continue;
-    const official = wordMessageForEngineStep(step);
     const fixed = (HOMOLOGATION_MESSAGES as Record<string, any>)[step];
-    if (official) {
-      // Etapa oficial do Word: nasce já com o texto oficial (v1).
-      rows.push(wordRow(official, 1, null));
-    } else if (fixed) {
+    if (fixed) {
       rows.push({
         scope: "production",
         step_key: step,
@@ -407,94 +366,6 @@ export async function publishLibraryVersion(params: {
     .single();
   if (error) throw new Error(error.message);
   return toMessage(data);
-}
-
-export type WordImportEntry = {
-  stepKey: string;
-  outcome: "criada" | "nova_versao" | "inalterada" | "protegida";
-  version: number | null;
-  /** Motivo legível quando a etapa foi preservada sem reimportação. */
-  reason?: string;
-};
-
-/**
- * IMPORTAÇÃO DO WORD OFICIAL.
- *
- * Regras não negociáveis:
- *  • conteúdo idêntico ao que já está ativo NÃO gera nova versão;
- *  • conteúdo diferente gera a versão seguinte, preservando a anterior;
- *  • etapas ausentes do Word (E20, E27) nunca são preenchidas;
- *  • snapshots de envios anteriores nunca são tocados;
- *  • TEXTO EDITADO MANUALMENTE É INTOCÁVEL: se a versão ativa da etapa
- *    não veio do Word (`source_kind !== "word"`), a reimportação NÃO
- *    sobrescreve nem desativa nada — a etapa é devolvida como
- *    "protegida", com o motivo. Reimportar deixou de ser capaz de
- *    apagar ajuste feito pela operação.
- */
-export async function importWordLibrary(actor: {
-  actorId?: string | null;
-  actorName: string;
-}): Promise<WordImportEntry[]> {
-  await ensureLibrarySeed();
-  const result: WordImportEntry[] = [];
-
-  for (const official of WORD_MESSAGES) {
-    const engineStep = engineStepForWord(official.stepKey);
-    const { data: history } = await supabaseAdmin
-      .from("relationship_message_library")
-      .select("*")
-      .eq("scope", "production")
-      .eq("step_key", engineStep)
-      .order("version", { ascending: false });
-    const rows = (history ?? []) as any[];
-    const current = rows.find((r) => r.active) ?? rows[0] ?? null;
-
-    if (current && String(current.source_kind ?? "word") !== "word") {
-      result.push({
-        stepKey: engineStep,
-        outcome: "protegida",
-        version: Number(current.version ?? 1),
-        reason: `Versão ativa editada manualmente por ${current.created_by_name ?? "operação"} — preservada. A reimportação do Word não sobrescreve texto manual.`,
-      });
-      continue;
-    }
-
-    if (
-      current &&
-      String(current.body ?? "") === official.body &&
-      String(current.body_without_name ?? "") === official.bodyWithoutName
-    ) {
-      result.push({
-        stepKey: engineStep,
-        outcome: "inalterada",
-        version: Number(current.version ?? 1),
-      });
-      continue;
-    }
-
-    const nextVersion = rows[0]?.version ? Number(rows[0].version) + 1 : 1;
-    if (current) {
-      await supabaseAdmin
-        .from("relationship_message_library")
-        .update({ active: false } as any)
-        .eq("id", current.id);
-    }
-    const { error } = await supabaseAdmin
-      .from("relationship_message_library")
-      .insert({
-        ...wordRow(official, nextVersion, current?.id ?? null),
-        created_by: actor.actorId ?? null,
-        created_by_name: actor.actorName,
-      } as any);
-    if (error) throw new Error(`${engineStep}: ${error.message}`);
-    result.push({
-      stepKey: engineStep,
-      outcome: rows.length ? "nova_versao" : "criada",
-      version: nextVersion,
-    });
-  }
-
-  return result;
 }
 
 /**
