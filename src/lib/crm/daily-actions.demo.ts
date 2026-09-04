@@ -79,17 +79,17 @@ const SEEDS: Seed[] = [
   { name: "Planejamento semanal (exemplo)", kind: "compromisso", source: "agenda", stepLabel: null, title: "Planejamento semanal (exemplo)", dayOffset: 1, minutesFromNow: 1600 },
 
   // ——— Mensagens da jornada (E1, E2, E3 e fechamento) ———
-  { name: "Renata Fictícia", kind: "mensagem", source: "queue", stepLabel: "E1", title: "Mensagem E1 — Primeiro acompanhamento", dayOffset: 0 },
-  { name: "Gustavo Exemplo", kind: "mensagem", source: "queue", stepLabel: "E1", title: "Mensagem E1 — Primeiro acompanhamento", dayOffset: -1 },
-  { name: "Helena Teste", kind: "mensagem", source: "queue", stepLabel: "E2", title: "Mensagem E2 — Acompanhamento", dayOffset: 0 },
-  { name: "Ricardo Amostra", kind: "mensagem", source: "queue", stepLabel: "E2", title: "Mensagem E2 — Acompanhamento", dayOffset: -3 },
-  { name: "Sônia Demonstração", kind: "mensagem", source: "queue", stepLabel: "E3", title: "Mensagem E3 — Segundo acompanhamento", dayOffset: 0 },
-  { name: "Vinícius Modelo", kind: "mensagem", source: "queue", stepLabel: "E3", title: "Mensagem E3 — Segundo acompanhamento", dayOffset: -2 },
-  { name: "Tatiane Exemplo", kind: "mensagem", source: "queue", stepLabel: "E4", title: "Mensagem E4 — Acompanhamento mais firme", dayOffset: 0 },
+  { name: "Renata Fictícia", kind: "mensagem", source: "queue", stepLabel: "E1", title: "Etapa E1 — Copiar mensagem", dayOffset: 0 },
+  { name: "Gustavo Exemplo", kind: "mensagem", source: "queue", stepLabel: "E1", title: "Etapa E1 — Copiar mensagem", dayOffset: -1 },
+  { name: "Helena Teste", kind: "mensagem", source: "queue", stepLabel: "E2", title: "Etapa E2 — Copiar mensagem", dayOffset: 0 },
+  { name: "Ricardo Amostra", kind: "mensagem", source: "queue", stepLabel: "E2", title: "Etapa E2 — Copiar mensagem", dayOffset: -3 },
+  { name: "Sônia Demonstração", kind: "mensagem", source: "queue", stepLabel: "E3", title: "Etapa E3 — Copiar mensagem", dayOffset: 0 },
+  { name: "Vinícius Modelo", kind: "mensagem", source: "queue", stepLabel: "E3", title: "Etapa E3 — Copiar mensagem", dayOffset: -2 },
+  { name: "Tatiane Exemplo", kind: "mensagem", source: "queue", stepLabel: "E4", title: "Etapa E4 — Copiar mensagem", dayOffset: 0 },
   { name: "Eduardo Fictício", kind: "mensagem", source: "closure", stepLabel: "E7 — Checkpoint da Apresentação Digital", title: "Checkpoint da Apresentação Digital", dayOffset: 0 },
   { name: "Luciana Amostra", kind: "mensagem", source: "closure", stepLabel: "Finalização do ciclo", title: "Finalização do ciclo", dayOffset: -1 },
-  { name: "Marcelo Teste", kind: "mensagem", source: "queue", stepLabel: "R1", title: "Mensagem R1 — Primeira tentativa após desaparecimento", dayOffset: 0 },
-  { name: "Priscila Demonstração", kind: "mensagem", source: "queue", stepLabel: "V3", title: "Mensagem V3 — Visualizou e não respondeu", dayOffset: 1 },
+  { name: "Marcelo Teste", kind: "mensagem", source: "queue", stepLabel: "R1", title: "Etapa R1 — Copiar mensagem", dayOffset: 0 },
+  { name: "Priscila Demonstração", kind: "mensagem", source: "queue", stepLabel: "V3", title: "Etapa V3 — Copiar mensagem", dayOffset: 1 },
 
   // ——— Ligações da cadência ———
   { name: "Alberto Exemplo", kind: "ligacao", source: "cadence", stepLabel: null, title: "Ligação", dayOffset: 0, callable: true },
