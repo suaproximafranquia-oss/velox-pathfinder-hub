@@ -263,7 +263,53 @@ export const ASSETS = {
       content_type: "image/jpeg",
     },
   ),
+
+  /* Marcas do Grupo — páginas institucionais /financeira, /solar, /seguradora */
+  "logo-velox-financeira": entry(
+    "logos",
+    "logo-velox-financeira",
+    "Marca da Velox Soluções Financeiras — página institucional",
+    logoFinanceira,
+  ),
+  "logo-velox-solar": entry(
+    "logos",
+    "logo-velox-solar",
+    "Marca da Velox Solar — página institucional",
+    logoSolar,
+  ),
+  "logo-velox-seguros": entry(
+    "logos",
+    "logo-velox-seguros",
+    "Marca da Velox Seguros — página institucional",
+    logoSeguros,
+  ),
+  "foto-financeira-consultoria": entry("images", "foto-financeira-consultoria", "Hero da página /financeira", {
+    url: fotoFinanceiraHero,
+    original_filename: "financeira-hero.jpg",
+    content_type: "image/jpeg",
+  }),
+  "foto-solar-usina": entry("images", "foto-solar-usina", "Hero da página /solar", {
+    url: fotoSolarHero,
+    original_filename: "solar-hero.jpg",
+    content_type: "image/jpeg",
+  }),
+  "foto-solar-instalacao": entry("images", "foto-solar-instalacao", "Instalação fotovoltaica — /solar", {
+    url: fotoSolarCard,
+    original_filename: "solar-card.jpg",
+    content_type: "image/jpeg",
+  }),
+  "foto-seguros-familia": entry("images", "foto-seguros-familia", "Hero da página /seguradora", {
+    url: fotoSegurosHero,
+    original_filename: "seguros-hero.jpg",
+    content_type: "image/jpeg",
+  }),
+  "foto-seguros-atendimento": entry("images", "foto-seguros-atendimento", "Atendimento consultivo — /seguradora", {
+    url: fotoSegurosCard,
+    original_filename: "seguros-card.jpg",
+    content_type: "image/jpeg",
+  }),
 } satisfies Record<string, AssetEntry>;
+
 
 export type AssetKey = keyof typeof ASSETS;
 
