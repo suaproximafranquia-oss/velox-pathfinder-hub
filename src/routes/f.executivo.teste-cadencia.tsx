@@ -234,6 +234,21 @@ function TestLabPage() {
                   className="ml-2 w-16 rounded-lg border border-[color:var(--border)] bg-transparent px-2 py-1"
                 />
               </label>
+              <label className="text-xs text-[color:var(--muted-foreground)]">
+                Executivo responsável
+                <select
+                  value={responsible}
+                  onChange={(e) => setResponsible(e.target.value)}
+                  className="ml-2 rounded-lg border border-[color:var(--border)] bg-transparent px-2 py-1"
+                >
+                  <option value="">Sem responsável (E0 manual)</option>
+                  {directory.map((entry) => (
+                    <option key={entry.executiveId} value={entry.executiveId}>
+                      {entry.name ?? entry.executiveId}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 type="button"
                 onClick={handleCreate}
