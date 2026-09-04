@@ -9,32 +9,114 @@ Legenda usada em todo o documento:
 
 ---
 
+## 0. Modelo de negócio validado com dados reais
+
+### 0.1 As quatro entidades
+
+| Entidade | O que é | Onde vive hoje [C] |
+|---|---|---|
+| PESSOA / INVESTIDOR | o ser humano; nasce uma vez e nunca se duplica | não existe. `portal_leads` (96 linhas) é o mais próximo |
+| OPORTUNIDADE | intenção comercial datada, com estágio e cadência | `crm_leads` (621 linhas), `stage_key`, `entry_count` |
+| CARD | projeção operacional de uma oportunidade para um responsável | `workspace_e0_actions.card_id`, board do Workspace |
+| ORIGEM | como aquela intenção chegou | `origin` / `external_source` espalhados em ambas as tabelas |
+
+### 0.2 Três casos reais
+
+**Caso 1 — GreenSales (`gs_58419` / Carlos)**
+```text
+PESSOA        não existe como entidade
+IDENTIDADE    portal_leads.identity_key = NULL  ← GreenSales não gera identity_key [C]
+ORIGEM        portal_leads.origin=GreenSales | crm_leads.origin=LeadAds  ← duas origens divergentes p/ o mesmo fato [C]
+OPORTUNIDADE  crm_leads 61f20e85-58c8-4662-b392-a549abe0301a, stage_key=zero_contato
+CARD          existe via gs_58419
+RESPONSÁVEL   portal_leads.responsible_executive_id=usr_thiago (crm_leads não tem responsável) [C]
+CADÊNCIA      relationship_queue lead_id='gs_58419' (texto) + ligações recalculadas de crm_leads (UUID)
+HISTÓRICO     crm_timeline.investor_id='gs_58419'
+```
+Falha: a mesma pessoa é referenciada por dois identificadores incompatíveis conforme o trecho do sistema.
+
+**Caso 2 — Meta (`ld_752e4c86…` / "TEST META Canal")**
+```text
+IDENTIDADE    identity_key = 'p:11983482822'  ← aqui existe [C]
+ORIGEM        Meta
+OPORTUNIDADE  não existe: workspace_e0_actions.crm_lead_id = NULL [C]
+CARD          existe sem oportunidade
+CADÊNCIA      impossível: o motor de ligações lê crm_leads
+```
+Falha: card sem oportunidade ⇒ o canal Meta/TikTok não consegue entrar na cadência.
+
+**Caso 3 — mesma pessoa, mais de uma entrada (telefone 12999887766)**
+```text
+portal_leads ld_mt7zwv6mr87x  "Juvanildo"  origem: Link personalizado · Velox Financeira
+portal_leads ld_mt7p6loyurxj  "Lucas"      origem: Portal Velox
+mesmo telefone, dois registros, duas "pessoas" para o sistema [C]
+```
+E na reentrada: 8 linhas de `crm_leads` têm `entry_count = 2` (ex.: Claudio gregorio, `last_entry_at` 03/09/2026) [C] — a segunda entrada **sobrescreve** o mesmo registro em vez de criar uma segunda oportunidade. Histórico da primeira passagem fica mesclado com o da segunda.
+
+### 0.3 Cobertura medida [C]
+- `crm_leads` = 621; `portal_leads` = 96.
+- Apenas **72** oportunidades têm pessoa correspondente — mesmo número pelo `id` (`gs_||external_id`) e pelo telefone. Ou seja: **549 oportunidades sem pessoa**, e a reconciliação por telefone não recupera nenhuma além das já ligadas.
+- `identity_key` está preenchida nos leads Portal/Meta/TikTok e **nula** nos GreenSales.
+
+### 0.4 Resposta à regra de negócio (item 3)
+**Sim, confirmado como necessário:** uma pessoa pode gerar N oportunidades ao longo do tempo sem virar outra pessoa. O motor já pressupõe isso (fluxos RE0–RE3 de reentrada) e o dado real já mostra o fenômeno (`entry_count=2`, duplicatas por telefone). Hoje o sistema representa isso de duas formas erradas: incrementando um contador sobre a mesma linha, ou criando um segundo "lead" que é lido como outra pessoa.
+
+### 0.5 Cardinalidades necessárias
+- **INVESTIDOR 1 ─ N OPORTUNIDADES** — obrigatório. 1:1 quebra reentrada e multiproduto (Financeira, Solar, Seguros).
+- **OPORTUNIDADE 1 ─ N CARDS** — necessário, não 1:1. Uma oportunidade pode ser recriada no board após transferência de responsável, reabertura ou mudança de pipeline, e cada card tem seu próprio ciclo de vida operacional. O card é o que o executivo vê; a oportunidade é o que o negócio mede.
+- **INVESTIDOR 1 ─ N IDENTIFICADORES DE ORIGEM** — `(source, external_id)` único por origem.
+
+### 0.6 Alternativa A x B
+
+**A) `portal_leads` promovida a INVESTIDOR**
+- Vantagens: já tem `identity_key`, responsável e origem; menos tabelas novas; a ficha do investidor e o `step-message` já resolvem por ela.
+- Desvantagens: a tabela tem 57 colunas misturando pessoa, jornada do Portal, liberação de conteúdo, janela de conversa e estado comercial; `identity_key` nula em GreenSales; ela própria já contém duplicatas da mesma pessoa [C] — promover uma tabela que duplica pessoas não resolve o bloqueador.
+- Migração: aparentemente menor, mas exige deduplicar as linhas existentes *dentro* da tabela canônica, o processo mais arriscado possível.
+- Histórico: `crm_timeline` já aponta para ela — ganho real.
+- Quatro origens: GreenSales entraria com identidade nula; Meta/TikTok ok; Portal ok.
+- Central de Cadência: herda campos de jornada do Portal que não têm sentido para Solar/Seguros.
+- Dívida técnica: alta — perpetua "lead do Portal" como se fosse "pessoa".
+
+**B) Nova tabela `investors`, `portal_leads` como registro de entrada do Portal**
+- Vantagens: pessoa fica mínima e estável (nome, `identity_key`, telefone, e-mail, criada em); as quatro origens entram pelo mesmo caminho via `investor_identifiers`; deduplicação acontece *fora* das tabelas de origem, sem mexer nelas; serve Financeira, Solar e Seguros sem carregar jornada do Portal.
+- Desvantagens: uma tabela e um backfill a mais; conviver com duas leituras durante a transição.
+- Migração: aditiva. `portal_leads` e `crm_leads` só ganham `investor_id`; nada é reescrito.
+- Histórico: `crm_timeline`/`relationship_engine_log` ganham `investor_id` como coluna adicional e mantêm o `lead_id` textual original.
+- Quatro origens: simétricas por construção. GreenSales sem `identity_key` é resolvido no ato do vínculo, por telefone/e-mail, com fila de revisão.
+- Central de Cadência: a instância da cadência pende de `investor_id` + `opportunity_id`, sem dependência do Portal.
+- Dívida técnica: baixa. O risco é apenas o custo do backfill.
+
+### 0.7 RECOMENDO B
+
+Motivo: o bloqueador não é "falta um ID", é **falta a entidade pessoa**. `portal_leads` não pode ser a pessoa porque ela mesma já representa a mesma pessoa em linhas separadas [C] e cobre só 72 das 621 oportunidades. Promovê-la transformaria um registro de entrada em verdade canônica e a deduplicação teria de ser feita destrutivamente dentro da própria tabela canônica. Com `investors` + `investor_identifiers`, `portal_leads` permanece intacta como o que sempre foi — o registro de entrada do Portal — e a cadeia ORIGEM → INVESTIDOR → OPORTUNIDADE → CARD → CADÊNCIA → AÇÕES → EXECUÇÕES → HISTÓRICO passa a ser idêntica para GreenSales, Portal, TikTok e Meta.
+
+---
+
 ## 1. Identidade única do investidor
 
 Fatos [C]:
-- `portal_leads` já possui `identity_key`, `identity_alternates`, `identity_conflict`, `external_id`, `external_source`, `origin`, `responsible_executive_id` e `responsible_executive_slug`.
-- `crm_leads` possui `external_id`, `external_source`, `origin` — e **não** possui coluna de responsável.
+- `portal_leads` já possui `identity_key`, `identity_alternates`, `identity_conflict`, `external_id`, `external_source`, `origin`, `responsible_executive_id` e `responsible_executive_slug` — mas `identity_key` é nula nos leads GreenSales.
+- `crm_leads` possui `external_id`, `external_source`, `origin`, `stage_key`, `entry_count` — e **não** possui coluna de responsável.
 - `workspace_e0_actions` possui `card_id`, `crm_lead_id` (nulo nos cards TikTok/Meta), `responsible_executive_id`.
 - `relationship_queue`, `relationship_cadences`, `crm_cadence_tasks`, `crm_timeline` guardam `lead_id`/`investor_id` como texto livre, com formatos misturados (`gs_<external_id>`, UUID, `ld_...`).
-- Cobertura real: 419 leads elegíveis em `crm_leads` contra 11 correspondências em `portal_leads`.
+- Cobertura real: 621 oportunidades, 96 leads de Portal, 72 vínculos.
 
 Desenho proposto:
 
-a) **Investidor canônico = `portal_leads`** [R]. É a única tabela que já carrega identidade (`identity_key`), responsável e origem. Ela deve ser promovida a "pessoa", não a "lead comercial".
+a) **Investidor canônico = nova entidade `investors`** (alternativa B) [R]. `portal_leads` continua sendo o registro de entrada do Portal.
 
-b) **Chave canônica = `portal_leads.id` (UUID/texto estável), com `identity_key` como chave de deduplicação** (telefone normalizado em 11 dígitos + e-mail) [R]. Nenhuma outra tabela deve inventar um formato de ID.
+b) **Chave canônica = `investors.id` (UUID), com `identity_key` como chave de deduplicação** (telefone normalizado em 11 dígitos + e-mail) [R]. Nenhuma outra tabela deve inventar um formato de ID.
 
-c) **Origens apontam, nunca criam identidade** [R]: uma tabela de vínculos (conceitual) `investor_identifiers` com `(investor_id, source, external_id)` — `source` ∈ GreenSales, Portal, TikTok, Meta, manual. `gs_58619` deixa de ser um ID e passa a ser um *identificador de origem* de um investidor.
+c) **Origens apontam, nunca criam identidade** [R]: `investor_identifiers` com `(investor_id, source, external_id)` único — `source` ∈ GreenSales, Portal, TikTok, Meta, manual. `gs_58619` deixa de ser um ID e passa a ser um *identificador de origem*.
 
-d) **`portal_leads` 1:N `crm_leads`** [R]. Uma pessoa pode ter mais de uma oportunidade comercial ao longo do tempo (reentrada, nova unidade, novo produto). `crm_leads` ganha `investor_id` apontando para o canônico. O inverso (1:1) fecharia a porta para reentrada, que já existe no motor (RE0–RE3).
+d) **`investors` 1:N `crm_leads` (oportunidades)** e **oportunidade 1:N cards** [R]. `crm_leads` ganha `investor_id`; reentrada passa a criar nova oportunidade em vez de incrementar `entry_count` sobre a mesma linha.
 
-e) **Card do Workspace = projeção da oportunidade, não da pessoa** [R]. Card referencia `crm_lead_id` (oportunidade) e, por ele, `investor_id`. Cards TikTok/Meta hoje sem `crm_lead_id` [C] passariam a exigir a criação da oportunidade no ato da entrada — caminho único de entrada.
+e) **Card = projeção da oportunidade, nunca da pessoa** [R]. Card referencia a oportunidade e, por ela, o investidor. Cards TikTok/Meta hoje sem `crm_lead_id` [C] passariam a exigir a criação da oportunidade no ato da entrada — caminho único de entrada.
 
-f) **Preservação do histórico**: nada é apagado nem reescrito [R]. Cada tabela histórica ganha uma coluna adicional `investor_id` preenchida por backfill; o `lead_id` textual original permanece para sempre como registro do que foi gravado à época. Registros sem correspondência ficam com `investor_id` nulo e são tratados como histórico órfão legítimo (ex.: `gs_55023`, que tem timeline mas não tem linha em `portal_leads` [C]).
+f) **Preservação do histórico**: nada é apagado nem reescrito [R]. Cada tabela histórica ganha `investor_id` por backfill; o identificador textual original permanece para sempre. Sem correspondência ⇒ `investor_id` nulo, histórico órfão legítimo (ex.: `gs_55023` [C]).
 
-g) **Continuam existindo**: `portal_leads` (promovida), `crm_leads` (oportunidade), `relationship_queue`, `relationship_cadences`, `crm_timeline`, `relationship_engine_log`, `workspace_e0_actions`. **Passam a apontar** para `investor_id`: queue, cadences, timeline, engine_log, e0_actions, cadence_tasks. **Nada é substituído nesta fase.**
+g) **Continuam existindo**: `portal_leads`, `crm_leads`, `relationship_queue`, `relationship_cadences`, `crm_timeline`, `relationship_engine_log`, `workspace_e0_actions`, `portal_meetings`. **Passam a apontar** para `investor_id`: queue, cadences, timeline, engine_log, e0_actions, cadence_tasks. **Nada é substituído nesta fase.**
 
-[D] Se a pessoa canônica deve viver em `portal_leads` renomeada conceitualmente para "Investidor", ou se preferimos uma tabela nova `investors` com `portal_leads` virando apenas mais uma origem. A primeira preserva mais dados; a segunda é mais limpa semanticamente.
 
 ---
 
