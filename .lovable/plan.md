@@ -1,53 +1,109 @@
-# Auditoria TEST-20260904-B + correção mínima do gerador de leads de teste
+# Diagnóstico — Camada institucional /financeira, /solar, /seguradora
 
-## A) Diagnóstico (somente leitura — nada foi alterado)
+Somente leitura. Nada foi alterado.
 
-**Onde o lead B está agora: não existe.** Nenhum registro foi criado em nenhuma tabela.
+## 1. O que existe hoje em cada rota
 
-Evidências:
+Verificado em `src/routes/`: **nenhuma das três rotas existe**.
 
-- `crm_leads`: nenhuma linha com `test_batch_id = 'TEST-20260904-B'` nem `external_id LIKE 'TEST-20260904-B%'`. Só existe o lead do lote A (`f99b30ef-…`, `TEST-20260904-A-01`, `[TESTE] Ana Teste 01`, `is_test=t`, `stage_key=novos`, `entered_entry_stage_at=2026-09-04 01:57:27Z`, `canonical_investor_id=NULL`, `environment=NULL`).
-- `portal_leads`: **nenhum card** `gs_TEST-20260904-B-01` — e também **nenhum** `gs_TEST-20260904-A-01`. Os únicos `is_test=true` no Portal são três registros antigos de 24/08 (`ld_test4a_*`).
-- `workspace_e0_actions`, `crm_messages` (`msg_e0_*`), `relationship_cadences`, `relationship_queue`: nada para B.
-- `test_batches`: o lote `TEST-20260904-B` existe (criado 02:14:55Z por thiago.rodrigues), com `lead_count = 1` — contagem otimista do laboratório, não prova de lead criado.
+- `/financeira` — não existe arquivo de rota.
+- `/solar` — não existe. O que existe é `src/routes/s.index.tsx`, que responde em `/s` e é a página operacional da unidade (identidade curta + `UnitInterestForm`).
+- `/seguradora` — não existe. O equivalente atual é `src/routes/seg.index.tsx` em `/seg`, com a mesma estrutura de `/s`.
 
-**Último ponto confirmado do fluxo e causa exata:**
+Os três caminhos já estão previstos como destino futuro em `src/components/group/landing/group-content.ts` (campo `href` de `COMPANIES`), e `group-companies.tsx` renderiza o botão "Saiba mais" como `<span aria-disabled>` justamente porque as páginas ainda não existem.
 
-`crm_lead_events` registra, às 02:14:56Z, no lead **do lote A**:
+## 2. Como o conteúdo está estruturado hoje
 
-> `duplicidade_evitada` — "Entrada TEST-20260904-B-01 ignorada pela trava de telefone: este lead já existe como TEST-20260904-A-01. Nenhum registro foi criado, fundido ou apagado."
+- A landing do Grupo (`/`) usa um padrão já correto: **conteúdo separado da apresentação**. Todo o texto vive em um único módulo (`group-content.ts`: `HERO`, `NUMBERS`, `COMPANIES`, `WHY`, `ABOUT`, `FRONTS`, `VALUES`, `TIMELINE`, `FOOTER`) e os componentes apenas consomem.
+- A composição da página é uma lista fixa de componentes em `group-landing-page.tsx`.
+- `/s` e `/seg` têm o texto inline no próprio arquivo de rota (arrays `BULLETS`, parágrafos no JSX).
+- Imagens vêm do registro de assets (`assetUrl(...)` de `@/lib/assets/registry`).
+- `universo.tsx` (1.883 linhas) contém material institucional rico (frentes, valores, números) que hoje é a principal fonte de texto oficial reaproveitável.
 
-Ou seja: o laboratório **passou sim** pelo `intakeLead` esperado, mas o fluxo parou na **segunda trava de deduplicação por telefone** (`src/server/crm/lead-service.server.ts`, bloco `if (!existing)` → comparação de `normalizePhone`), que retorna `deduplicated: true` **antes** de qualquer criação de card.
+## 3. Componentes já reutilizáveis entre as três páginas
 
-**Por que os telefones colidem:** `buildSyntheticLead` (`src/lib/testing/test-lab.ts`) gera o telefone de forma determinística **apenas pelo índice**, sem o lote:
+Prontos para uso, sem mudança de comportamento:
 
+- `src/components/group/landing/`: `GroupHeader`, `GroupHero`, `GroupNumbers`, `GroupWhy`, `GroupAbout`, `GroupFooter`, `GroupReveal` (animação de entrada), `GroupCompanies`.
+- `src/components/site/v2/`: `ChapterCover`, `EditorialSection`/`Prose`, `FeaturePanel`, `StatBand`, `ProductGrid`, `TimelineRail`, `Gallery`, `Pullquote`, `SectionShell`/`Eyebrow`/`EdgeRule`, `MediaSlot`, `FlowDiagram`, `PortfolioCatalog` — é praticamente um kit de seções editoriais já existente.
+- `src/components/group/unit-interest-form.tsx` — captação por unidade (`solar` e `seguros` hoje).
+
+Obstáculo real: esses componentes recebem props **fixas e tipadas**, não um bloco genérico. Para virarem "seções de CMS" precisam de um mapa `tipo de seção → componente`.
+
+## 4. Existe mecanismo de cadastro/edição desse conteúdo?
+
+Não para essas páginas. O conteúdo institucional público é 100% código (`group-content.ts`, `s.index.tsx`, `seg.index.tsx`).
+
+Existe, porém, um **padrão de CMS já implementado e validado no projeto**, que serve de modelo:
+- `/f/executivo/institucional` → `src/routes/f.executivo.institucional.tsx`
+- servidor: `src/server/magazine.server.ts`, tabela `portal_institutional_blocks` (blocos por módulo, com `position` e mídia)
+- funções cliente: `src/lib/magazine.functions.ts`, incluindo upload de arquivo (`uploadMagazineFile`)
+
+Ou seja: já existe editor de blocos ordenáveis com imagem/vídeo — mas ele publica no Portal do Investidor, não nas páginas institucionais do Grupo.
+
+## 5. Arquitetura mais simples para conteúdo editável
+
+Recomendação: **CMS de blocos por marca**, espelhando o padrão de `portal_institutional_blocks`, isolado no ambiente institucional.
+
+Modelo de dados mínimo (duas tabelas):
+
+```text
+brand_pages          brand_sections
+-----------          --------------
+id                   id
+slug (financeira|    page_id -> brand_pages
+      solar|         type    (hero | stats | features | editorial |
+      seguradora)             gallery | timeline | quote | cta ...)
+title/meta           position (int)
+published (bool)     content  (jsonb: título, texto, bullets, itens)
+                     media    (jsonb: urls + alt)
+                     published (bool)
 ```
-`${TEST_PHONE_PREFIX}${String(900000000 + index).slice(0, 9)}`
+
+Regras:
+- `content` em JSONB permite tipos de seção diferentes por marca sem migration nova a cada seção.
+- Ordem e quantidade livres por marca (`position`).
+- Leitura pública via loader da rota com cliente publicável e política `SELECT` para `anon` restrita a `published = true`; escrita apenas por admin autenticado.
+- Fallback: se a marca não tiver seções publicadas, a rota renderiza um conteúdo padrão em código (nada de página vazia).
+
+Isso elimina a necessidade de passar texto dentro de comandos: o texto passa a ser digitado em uma tela administrativa.
+
+## 6. Estrutura visual comum com seções variáveis
+
+Um único **renderizador de página** para as três marcas:
+
+```text
+/financeira ┐
+/solar      ├─► BrandPage(slug) ─► header + <SectionRenderer sections[]> + footer
+/seguradora ┘                          │
+                                       └─ mapa: type -> componente existente
 ```
 
-O primeiro lead de qualquer lote tem `index = 0` e, portanto, **sempre o mesmo telefone**. O lote B nasceu com o telefone idêntico ao da Ana Teste 01.
+- O invólucro (header, tipografia, grid, footer, tokens de cor) é o mesmo — garante unidade visual do Grupo.
+- Cada marca define seu próprio `accent` (dourado/solar/seguros) por token, não por componente novo.
+- A diferença entre marcas é apenas a **lista de seções** vinda do banco; o renderizador ignora tipos desconhecidos.
 
-**Diferença concreta entre A e B:** nenhuma diferença de configuração, cenário ou responsável. A única diferença é que A foi o **primeiro** a usar aquele telefone; B chegou depois e foi barrado pela trava. Observação importante: **A também não aparece no Portal de Leads** — A foi criada antes da correção do fluxo de E0 adiada, quando o card só nascia depois da janela; ela ficou em `e0_adiada` sem card.
+## 7. Cadastro posterior de textos e imagens por seção
 
-**Arquivo/função responsável pelo desvio:** `src/lib/testing/test-lab.ts` → `buildSyntheticLead` (telefone e e-mail não incluem o identificador do lote no telefone). A trava em `lead-service.server.ts` funcionou corretamente — ela protegeu a base.
+- Tela admin (mesmo padrão de `f.executivo.institucional.tsx`): escolher marca → lista de seções ordenáveis → editar campos do tipo escolhido → publicar.
+- Imagens: reaproveitar o fluxo de upload já existente (bucket de mídia + URL salva no JSONB `media`), com `alt` obrigatório por acessibilidade e SEO.
+- Pré-visualização usando o mesmo `SectionRenderer` da página pública, evitando divergência entre editor e resultado.
 
-**A correção anterior está sendo exercitada?** Não. O lote B nunca chegou à criação de card, porque a trava de telefone atua antes disso. A correção do card-antes-da-janela continua **não validada** na prática.
+## 8. Arquivos/rotas/componentes envolvidos numa futura implementação
 
-**É seguro criar o próximo lead?** Só depois de corrigir o gerador de telefone: qualquer novo lote com 1 lead vai colidir de novo com a Ana Teste 01 e repetir exatamente este resultado.
+Novos:
+- `src/routes/financeira.tsx`, `src/routes/solar.tsx`, `src/routes/seguradora.tsx` (cada uma com `head()` própria).
+- `src/components/group/brand/brand-page.tsx` e `section-renderer.tsx` + mapa de tipos.
+- `src/lib/group/brand-pages.functions.ts` e `src/server/group/brand-pages.server.ts`.
+- Rota administrativa institucional (ex.: `src/routes/f.executivo.paginas-institucionais.tsx`) — apenas tela de administração; não altera operação.
+- Uma migration aditiva (`brand_pages`, `brand_sections`, GRANTs + RLS).
 
-## B) Correção proposta (mínima, um arquivo)
+Alterados (mínimo):
+- `src/components/group/landing/group-companies.tsx` — habilitar os botões "Saiba mais" com `Link`.
+- `src/components/group/landing/group-content.ts` — `href` já aponta para os destinos corretos; sem mudança de texto.
 
-Escopo: `src/lib/testing/test-lab.ts`, função `buildSyntheticLead`.
+Não tocados: `/f`, `/s`, `/seg` operacionais, Portal do Investidor, CRM, Cadência, Ação do Dia, Biblioteca, GreenSales, Safety Lock.
 
-- Derivar o telefone fictício do **par lote + índice**, não só do índice: incorporar um sufixo numérico determinístico extraído do `batchId` (data + letra do lote) ao número gerado, mantendo o `TEST_PHONE_PREFIX` e o formato de 11 dígitos.
-- Manter inalterado o caso `telefone_invalido` (continua `"000"`).
-- E-mail já contém o `batchId` — permanece como está.
-- Nada mais é tocado: `intakeLead`, trava de duplicidade, janela de E0, cadência, Biblioteca, Ação do Dia, Safety Lock, Portal, GreenSales e demais ambientes permanecem intactos.
+## Recomendação
 
-Validação: apenas typecheck, build e os testes já existentes do laboratório/CRM. Nenhum sync, tick, cron, envio, novo lote ou limpeza.
-
-## C) Depois da correção
-
-Um novo lote (ex.: `TEST-20260904-C`, cenário `sem_acao_humana`, responsável Thiago) passará pela trava e permitirá validar, pela primeira vez, o comportamento corrigido: `crm_leads` → card `gs_<external_id>` com responsável e `is_test`/`test_batch_id` → `e0_adiada` (se fora da janela) → retomada às 07:00 preservando contexto.
-
-O lote `TEST-20260904-B` fica como registro vazio em `test_batches`; nada a limpar, nada foi criado.
+Implementar em duas etapas: (1) as três rotas com o renderizador e conteúdo padrão em código, ativando os botões da landing; (2) a camada editável (tabelas + tela admin), com o código virando apenas fallback. Assim as páginas existem cedo e o CMS entra sem retrabalho visual.
