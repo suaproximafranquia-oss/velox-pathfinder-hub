@@ -14,6 +14,10 @@ import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator } from "@/lib/crm/permissions";
 import { TEST_SCENARIOS, scenarioLabel, type TestScenarioKey } from "@/lib/testing/test-lab";
 import {
+  listarDiretorioExecutivos,
+  type ExecutiveDirectoryEntry,
+} from "@/lib/executive-directory.functions";
+import {
   applyBatchActionFn,
   createTestBatchFn,
   listTestBatchesFn,
@@ -73,7 +77,10 @@ function TestLabPage() {
   const [perScenario, setPerScenario] = useState(1);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [directory, setDirectory] = useState<ExecutiveDirectoryEntry[]>([]);
+  const [responsible, setResponsible] = useState<string>("");
 
+  const listDirectory = useServerFn(listarDiretorioExecutivos);
   const listBatches = useServerFn(listTestBatchesFn);
   const readLeads = useServerFn(readBatchLeadsFn);
   const createBatch = useServerFn(createTestBatchFn);
@@ -106,6 +113,13 @@ function TestLabPage() {
   }, [session, refreshBatches]);
 
   useEffect(() => {
+    if (!session) return;
+    void listDirectory().then((entries) =>
+      setDirectory((entries as ExecutiveDirectoryEntry[]).filter((e) => e.status === "ativo")),
+    );
+  }, [session, listDirectory]);
+
+  useEffect(() => {
     if (!selected) return;
     void refreshLeads();
     const timer = setInterval(() => void refreshLeads(), 30000);
@@ -123,7 +137,9 @@ function TestLabPage() {
     setBusy(true);
     setNote(null);
     try {
-      const res = await createBatch({ data: { scenarios, perScenario } });
+      const res = await createBatch({
+        data: { scenarios, perScenario, responsibleExecutiveId: responsible || null },
+      });
       setNote(
         res.ok
           ? `Lote ${res.batchId} criado com ${res.leads.length} leads fictícios.`
@@ -217,6 +233,21 @@ function TestLabPage() {
                   onChange={(e) => setPerScenario(Number(e.target.value))}
                   className="ml-2 w-16 rounded-lg border border-[color:var(--border)] bg-transparent px-2 py-1"
                 />
+              </label>
+              <label className="text-xs text-[color:var(--muted-foreground)]">
+                Executivo responsável
+                <select
+                  value={responsible}
+                  onChange={(e) => setResponsible(e.target.value)}
+                  className="ml-2 rounded-lg border border-[color:var(--border)] bg-transparent px-2 py-1"
+                >
+                  <option value="">Sem responsável (E0 manual)</option>
+                  {directory.map((entry) => (
+                    <option key={entry.executiveId} value={entry.executiveId}>
+                      {entry.name ?? entry.executiveId}
+                    </option>
+                  ))}
+                </select>
               </label>
               <button
                 type="button"
