@@ -60,6 +60,7 @@ export const createTestBatchFn = createServerFn({ method: "POST" })
       notes: data.notes ?? null,
       createdBy: context.userId,
       createdByName: (context.claims as { email?: string })?.email ?? "administrador",
+      responsibleExecutiveId: data.responsibleExecutiveId ?? null,
     });
   });
 
