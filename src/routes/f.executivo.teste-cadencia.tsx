@@ -14,6 +14,10 @@ import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator } from "@/lib/crm/permissions";
 import { TEST_SCENARIOS, scenarioLabel, type TestScenarioKey } from "@/lib/testing/test-lab";
 import {
+  listarDiretorioExecutivos,
+  type ExecutiveDirectoryEntry,
+} from "@/lib/executive-directory.functions";
+import {
   applyBatchActionFn,
   createTestBatchFn,
   listTestBatchesFn,
