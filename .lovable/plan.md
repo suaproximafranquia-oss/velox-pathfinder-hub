@@ -243,7 +243,8 @@ Justificativa da ordem: dependência (Fase 4) é impossível sem resultado persi
 
 ## Decisões pendentes [D]
 
-1. Tabela canônica: promover `portal_leads` ou criar `investors` nova.
+1. Tabela canônica: recomendação fechada em **B — nova `investors`** (seção 0.7); falta seu aceite.
 2. Publicar nova versão da cadência migra instâncias em curso ou só afeta novas.
-3. Reconciliação dos ~408 leads sem vínculo: automática por telefone/e-mail com revisão, ou 100% manual.
+3. Reconciliação das 549 oportunidades sem pessoa: telefone/e-mail não resolve nenhuma além das 72 já ligadas [C] — decidir entre criar um investidor por oportunidade órfã ou tratá-las como histórico sem pessoa.
 4. Cards de teste TikTok/Meta: reconciliar ou marcar definitivamente como não-produção.
+5. Reentrada: criar nova oportunidade (recomendado) ou manter `entry_count` na mesma linha.
