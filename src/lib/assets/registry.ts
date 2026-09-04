@@ -62,6 +62,16 @@ import portalExperiencias from "@/assets/portal-experiencias.png.asset.json";
 import portalSimulador from "@/assets/portal-simulador.jpg.asset.json";
 import portalPrincipios from "@/assets/portal-principios.jpg";
 
+/* Marcas e fotografia das páginas institucionais das três frentes. */
+import logoFinanceira from "@/assets/brands/logo-velox-financeira.png.asset.json";
+import logoSolar from "@/assets/brands/logo-velox-solar.png.asset.json";
+import logoSeguros from "@/assets/brands/logo-velox-seguros.png.asset.json";
+import fotoFinanceiraHero from "@/assets/brands/financeira-hero.jpg";
+import fotoSolarHero from "@/assets/brands/solar-hero.jpg";
+import fotoSolarCard from "@/assets/brands/solar-card.jpg";
+import fotoSegurosHero from "@/assets/brands/seguros-hero.jpg";
+import fotoSegurosCard from "@/assets/brands/seguros-card.jpg";
+
 /* ------------------------------- tipos --------------------------------- */
 
 export type AssetCategory = "images" | "videos" | "logos" | "documents";
