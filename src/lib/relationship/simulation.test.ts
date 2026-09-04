@@ -36,8 +36,10 @@ describe("simulador de homologação", () => {
       executiveName: "Thiago Rodrigues",
       portalLink: "https://exemplo.invalido/f/thiago-rodrigues",
     };
+    // Não existe mais escolha de conteúdo: o link pertence à mensagem.
+    // O que precisa ser reproduzível é a sequência de mensagens.
     const contents = (out: Awaited<ReturnType<typeof runSimulation>>) =>
-      out.messages.filter((m) => m.contentId).map((m) => `${m.leadId}:${m.step}:${m.contentId}`);
+      out.messages.map((m) => `${m.leadId}:${m.step}:${m.button?.url ?? ""}`);
 
     const a = await runSimulation({ ...base, runId: "TEST-SEED-A", seed: 111 });
     const b = await runSimulation({ ...base, runId: "TEST-SEED-B", seed: 111 });
@@ -46,8 +48,7 @@ describe("simulador de homologação", () => {
     expect(a.seed).toBe(111);
     expect(contents(a)).toEqual(contents(b));
     expect(contents(a).length).toBeGreaterThan(0);
-    // A rotação passou a ser determinística (Etapa 3): a semente não
-    // altera qual conteúdo é escolhido — só o estado da Biblioteca altera.
+    // A semente não altera o link: ele vem sempre da própria mensagem.
     expect(contents(a)).toEqual(contents(c));
   });
 });
