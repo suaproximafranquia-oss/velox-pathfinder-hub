@@ -1,102 +1,73 @@
-# Validação — camada institucional /financeira, /solar, /seguradora
+# Auditoria (somente leitura) — Ação do Dia × Cadência × transição E0 → E1 (/f)
 
-Segunda rodada, somente leitura. Nada foi alterado (inclusive `roadmap.md`, que só pode ser atualizado após a aprovação).
+Nada foi alterado: sem código, sem banco, sem migration, sem configuração, sem execução de tick/sync.
 
-## Bloco 1 — Formulário institucional
+## 1. E0
 
-1-2. Componente único: `src/components/group/unit-interest-form.tsx` (`UnitInterestForm`).
-- Grava via `registrarInteresseUnidade` em `src/lib/group/unit-leads.functions.ts` (server fn `POST`, sem autenticação, usa `supabaseAdmin`).
-- Tabelas: `group_unit_leads` (cadastro) e `group_unit_lead_events` (histórico append-only).
-- Campos gravados: `unit`, `name`, `whatsapp` + `whatsapp_key` (só dígitos), `email` + `email_key`, `city`, `investment_range` (`10_20 | 20_30 | acima_30`), `origin`, `campaign`, `from_group`, `last_submitted_at`, `first_contact_status='pendente'`, `submissions`.
-- A marca é identificada pelo campo `unit`, hoje restrito por validação a `solar | seguros` (constante `UNITS`).
-- Identidade: mesma `unit` + mesmo `whatsapp_key` = mesma pessoa; novo envio faz UPDATE + evento `novo_envio`, nunca segundo card.
+1. **Onde a E0 executada é registrada**: `crm_messages` com id fixo `msg_e0_<cardId>` (trava de idempotência), snapshot em `relationship_message_sends`, evento em `crm_lead_events` (`e0_enviada` / `e0_simulada` / `e0_manual_executada`), cadência em `relationship_cadences` (`executed_steps=["E0"]`, `state=CADENCE_ACTIVE`) e, no modo manual, `workspace_e0_actions.state='EXECUTADA'`.
+2. **Como a Ação do Dia decide mostrar E0**: `buildDailyActions` (`src/server/crm/daily-actions.server.ts`) chama `listPendingE0Actions()` (`src/server/crm/e0-actions.server.ts`), que lê **apenas** `workspace_e0_actions` com `state='PENDENTE'`. É a única fonte do card "Primeiro contato com lead novo".
+3. **Por que uma E0 automática já executada continua aparecendo** — causa confirmada em dados reais: a retomada da E0 adiada roda mais de uma vez. Em `gs_TEST-20260904-A-01` e `gs_58997`, às 10:04 UTC a retomada resolveu **manual** (card ainda sem responsável) e criou `workspace_e0_actions` PENDENTE; às 12:11 UTC a mesma retomada resolveu **automático** (card já com `usr_thiago`) e executou `registerFirstContact` — E0 enviada, cadência ativa, mas **ninguém fecha a linha PENDENTE**. `registerFirstContact` não conhece `workspace_e0_actions`; só `executeE0Action` marca EXECUTADA. Resultado: E0 concluída + ação humana órfã na Ação do Dia (e sem responsável, portanto visível para todos os executivos).
+4. **Consulta que olha só PENDENTE**: sim — `listPendingE0Actions`, `.eq("state","PENDENTE")`, sem qualquer verificação de `msg_e0_<cardId>` ou de cadência.
+5. **Condição exata que deveria excluir a E0**: existir prova de execução para o card — `crm_messages.id = 'msg_e0_' || card_id` (ou `relationship_cadences.executed_steps` contendo E0 para aquele `lead_id`). Havendo prova, a ação não é ação humana.
+6. **Pode ser resolvido só na Ação do Dia?** Sim: filtrar em `listPendingE0Actions`/`buildDailyActions` resolve a exibição sem tocar no motor E0. A correção estrutural (fechar a linha PENDENTE quando a E0 sai por outro caminho) é opcional e independente.
 
-3. Reuso na Home: **tecnicamente possível e já é o que acontece** — `group-franchise-cta.tsx` já usa o mesmo `UnitInterestForm` com `fromGroup`. Incluir Financeira exige apenas ampliar a lista `UNITS` (e o tipo `unit`) para aceitar `financeira`; nenhuma segunda lógica de formulário é necessária.
-   Ressalva importante: hoje Financeira é bloqueada de propósito. Ampliar `UNITS` é decisão de negócio (Bloco 9 B), não detalhe técnico.
+## 2. Estado NOVOS
 
-4. Sim: `unit` é coluna própria, então Solar, Seguros e Financeira ficam individualmente identificáveis e as carteiras seguem separadas por unidade.
+7. **Onde vive**: `crm_leads.stage_key='novos'` (+ `stage_entered_at`, `entered_entry_stage_at`) para leads GreenSales; para leads nascidos no Portal/TikTok/Meta o equivalente é `portal_leads.relationship_started_at` nulo (`commercial_state`).
+8. **Evento que representa a saída**: leitura única em `src/server/relationship/lead-context.server.ts` — `awaitingFirstHumanAction = (stage_key === 'novos')`; `leftEntryStageAt = stage_entered_at` da etapa atual. No caminho Portal, `leftEntryStageAt = relationship_started_at`.
+9/10. **Caminhos reais de saída**: (a) mudança de `stage_key` no CRM/Workspace (arrastar card ou `set_lead_operational`); (b) sincronização com a origem trazendo outra etapa; (c) para leads Portal, "Iniciar Relacionamento" no CRM ou "Solicitar Atendimento" pelo investidor, que gravam `relationship_started_at`.
+11. **Diferenças**: abrir o card **não** é atividade (regra vigente) e não muda nada; ligar / registrar tentativa (`crm_cadence_tasks`, `crm_lead_events`) registra histórico mas **não** tira de NOVOS; copiar/enviar mensagem também não; **só** a mudança de `stage_key` (ou `relationship_started_at`) tira de NOVOS.
+12. **Primeiro contato humano verdadeiro hoje**: a transição de etapa registrada em `stage_entered_at` (GreenSales) / `relationship_started_at` (Portal). É isso que o motor lê.
+13. **Auditoria**: sim — `crm_lead_events`, `crm_timeline`, `relationship_engine_log` e os próprios campos de timestamp.
 
-## Bloco 2 — Destino dos leads vindos de `/`
+## 3. Início da contagem da E1
 
-5. Registro em `group_unit_leads` + evento `registrado` em `group_unit_lead_events`. **Nada** é criado em `portal_leads`, `crm_leads`, `relationship_*` ou cadência.
-6. Origem: `origin` = valor do parâmetro `o` da URL, ou o padrão `"Portal Institucional do Grupo Velox"`; além disso `from_group = true` marca explicitamente a vinda da Home.
-7. Marca/interesse: `unit = 'solar' | 'seguros'`.
-8. Responsável inicial: **nenhum** — `responsible_executive_id` nasce nulo; a atribuição é manual por `atribuirResponsavelUnidade`, com registro de autor e data.
-9. Não vira card do Workspace da Financeira. A "carteira" é a tela `/f/executivo/unidades`, alimentada por `listarInteressadosUnidade`. Não existe chamada a `intakeLead` nem a `ensureWorkspaceCard` nesse caminho.
-10. Identificador: o `id` (uuid) de `group_unit_leads`; o histórico referencia por `lead_id`. Não existe padrão `gs_<external_id>` aqui.
-11. Confirmado: como não entram em `crm_leads`/`portal_leads`, esses leads **não participam** de rotação, redistribuição, FIFO, E0 nem cadência dos colaboradores.
+14/15. `src/lib/relationship/decide.ts` → `referenceMoment()`: referência = **o maior** entre `lastOutboundAt ?? startedAt` (a E0) e `leftEntryStageAt`. O vencimento sai de `dueMomentAfterBusinessDays(referência, 1 dia útil, config)` (E1 = `businessDaysAfterReference: 1`).
+16/17. **Existe contagem antes de sair de NOVOS?** Não pela decisão: `awaitingFirstHumanAction` bloqueia toda etapa que não seja E0/E0_V1 ("Lead ainda em NOVOS…"). Risco residual: quando `loadLeadStageContext` devolve `null` (lead sem espelho em `crm_leads` **e** sem `portal_leads`), o portão fica desligado e a E1 conta só a partir da E0.
+18/19. **Sim, o comportamento desejado já é o do motor atual** e pode ser reforçado sem criar segundo relógio: o único relógio é `decide.ts` + `calendar.ts`, alimentado por `lead-context.server.ts`.
 
-## Bloco 3 — Thiago híbrido
+## 4. Cadência configurada (`src/lib/relationship/config.ts`, fluxo `sem_resposta`)
 
-12. Regra em `src/lib/portal-workspace.ts`: `HYBRID_WORKSPACE_USER_IDS = ["usr_thiago"]` → `isHybridWorkspaceUser()` → `workspaceScopesFor(userId, role)` devolve `["green_sales","redistribuicao","portal","tiktok","meta"]` para o híbrido e para `super_admin`. Demais colaboradores recebem só `green_sales` e `redistribuicao`. O identificador técnico é permanente; o nome exibido nunca é usado.
-13. **Não é a mesma regra** e não precisa ser. A carteira das unidades usa outro controle: `assertUnitPortfolioAccess` (`src/server/authorization.server.ts`), que exige `admin` ou `manager` via `readAdministrativeAccess`. Reutilizar significa manter esse controle, não estender `WorkspaceScope`.
-14. Confirmado: colaborador comum não vê a carteira das unidades (falha em `assertUnitPortfolioAccess`) nem os escopos Portal/TikTok/Meta.
-15. Confirmado: Administrador (`admin`) tem acesso pleno à carteira das unidades e a todos os escopos do Workspace.
-16. Nenhuma permissão nova é necessária para Solar/Seguros. Se o negócio quiser Thiago (perfil Colaborador) operando a carteira das unidades, isso é decisão pendente — hoje ele só entra por permissão administrativa, não pelo híbrido.
+| Código | Label (`step-labels.ts`) | Delay | Unidade | Referência | Condição | Agendamento |
+|---|---|---|---|---|---|---|
+| E0 | E0 — Primeiro contato | 0 | dias úteis | entrada do lead | entrada + janela operacional | `crm_messages msg_e0_*` / `workspace_e0_actions` |
+| E1 | E1 — Primeiro acompanhamento | 1 | dias úteis | max(E0, saída de NOVOS) | fora de NOVOS + etapa elegível no fechamento | `relationship_queue` (PENDING) |
+| E3 | E3 — Segundo acompanhamento | 2 | dias úteis | mesma referência | E1 executada | `relationship_queue` |
+| E4 | E4 — Acompanhamento mais firme | 3 | dias úteis | mesma referência | E3 executada | `relationship_queue` |
+| E12 | E12 — Encerramento sem resposta | 5 | dias úteis | mesma referência | E4 executada; terminal (E30 desligada) | `relationship_queue` |
 
-## Bloco 4 — Portal
+22. **Sim**, E1 é a primeira etapa após E0 no fluxo `sem_resposta` (E0 → E1 → E3 → E4 → E12).
+23. **Condições que alteram/pulam E1**: resposta do investidor (vai para reengajamento/`RESPONDED`), duas visualizações (fluxo `visualizacao`), reentrada (RE0…), etapa terminal OPORTUNIDADE no fechamento, arquivamento, motor desligado, ausência de template oficial com janela de 24h fechada, e reprogramação automática quando o vencimento cai fora do dia útil/horário.
 
-17. Sim. O Workspace já exibe leads de origens diferentes por abas.
-18. Diferenciação atual: `WorkspaceScope` (`green_sales`, `redistribuicao`, `portal`, `tiktok`, `meta`, `central_unica`), decidido por `resolveLeadScope` (`src/lib/lead-routing.ts`) e persistido no card; canais pagos entram por `/origem/$channel`. A origem institucional do Grupo **não é um escopo** — ela vive em outra tabela, com `origin` + `from_group`.
-19. Sim: para Solar e Seguros a estrutura já existe e já está em produção (`group_unit_leads` + `/f/executivo/unidades`). **Nenhum módulo novo é necessário.**
-20. Sem limitação — desde que se aceite que essa carteira é separada do Portal dos Leads da Financeira, o que é justamente o isolamento desejado.
+## 5. Ação do Dia
 
-## Bloco 5 — Card e ficha
+24/25. `src/server/crm/daily-actions.server.ts` → `buildDailyActions`, normalizado por `src/lib/crm/daily-actions.ts`. Fontes: E0 pendente, reuniões, agenda, fechamento (E27/Finalização), `relationship_queue` PENDING com `due_at <= hoje` e fila de ligações recalculada (`buildCadenceQueue`).
+26. **Como sabe que concluiu**: pelo estado da fonte — item sai de PENDING na fila, `workspace_e0_actions` vira EXECUTADA, reunião muda de status, `crm_cadence_tasks` DONE — **não** por marcação própria.
+27. **Duplicação**: `actionKey` determinístico por fonte + `normalizeDailyActions` + supressão diária de puladas (`listSkippedActionKeys`).
+28. **Etapa ainda não vencida**: fica em `relationship_queue` com `status='PENDING'` e `due_at` futuro (filtro `if (dueDate > today) continue`).
+29. **O que faz aparecer**: nenhuma escrita nova — basta `due_at` alcançar o dia operacional corrente.
+30. **Sim**: "etapa existente" = linha PENDING na fila; "ação liberada" = essa linha com `due_at` até hoje e não suprimida.
 
-21. Ficha oficial: a linha de `group_unit_leads` exibida em `/f/executivo/unidades`, com histórico de `group_unit_lead_events`.
-22. "Ver ficha completa" abriria essa tela filtrando pelo `id` do interessado (por exemplo `?lead=<id>`), sem passar por card do CRM.
-23. Confirmado e já é o comportamento atual: nada é enviado para `/s` ou `/seg` operacionais por causa da marca escolhida; a escolha só define `unit`.
+## 6. Dependência e rótulos
 
-## Bloco 6 — Home institucional
+31/32. Confere com o motor atual: com E0 concluída e o lead fora de NOVOS, a E1 é agendada; enquanto `due_at` for futuro ela não aparece.
+33/34. Hoje o card de fila mostra `title: "Mensagem E1"` e `stepLabel` bruto (`E1`), e o painel exibe "Ver mensagem completa". Para ler "Etapa 1 — Copiar mensagem" a alteração é de apresentação, em dois pontos: título/rótulo em `buildDailyActions` (bloco `for (const item of queue)`, usando `stepDisplayLabel`) e os textos do botão em `src/components/crm/daily-actions-overlay.tsx`. Nenhum impacto no motor.
 
-24. Confirmado. `group-companies.tsx` já renderiza os três cards a partir de `COMPANIES` em `group-content.ts`. Falta apenas: imagem/logo por marca, ajuste do texto curto e trocar o `<span aria-disabled>` por `<Link>`.
-25-28. Confirmado: sem reconstrução da Home. Os `href` em `group-content.ts` já são `/financeira`, `/solar`, `/seguradora`.
+## 7. Comportamento esperado por cenário
 
-## Bloco 7 — Três páginas
+- **A — E0 automática executada, lead ainda NOVO**: hoje aparece indevidamente a ação de E0 se existir linha PENDENTE órfã (caso observado). Correto: nada aparece; contagem da E1 não começou; próxima ação é humana (tirar de NOVOS).
+- **B — E0 automática executada, lead saiu de NOVOS**: E0 não deve aparecer; a contagem inicia em `stage_entered_at`; E1 entra na fila e aparece quando vencer.
+- **C — E0 manual pendente**: aparece como "Primeiro contato com lead novo", prioridade máxima; sem contagem de E1; próxima ação é executar a E0.
+- **D — E0 manual executada + saiu de NOVOS**: E0 desaparece (state EXECUTADA); contagem da E1 a partir do maior entre E0 e a saída de NOVOS; E1 aparece no vencimento.
 
-29. Confirmado. Um invólucro compartilhado (header, footer, grid, tipografia, espaçamento, CTA, breakpoints) e um conteúdo por marca em módulo próprio. Os componentes editoriais de `src/components/site/v2/` cobrem hero, estatísticas, editorial, galeria, timeline, citação e catálogo.
-30. Confirmado: **nenhum CMS/editor nesta etapa**. Conteúdo em módulos TypeScript por marca, alimentados pelo Word e pelas referências visuais.
+## 8. Conclusão
 
-## Bloco 8 — Impacto e segurança
+- **A) Causa**: linha `workspace_e0_actions` em PENDENTE criada pela retomada em modo manual e nunca fechada quando a mesma retomada, no ciclo seguinte, executou a E0 automaticamente (`registerFirstContact` não fecha a ação). Comprovado em `gs_TEST-20260904-A-01` e `gs_58997` (pendente 10:04 → `msg_e0_*` 12:11).
+- **B) Relógio da E1**: `decide.ts::referenceMoment` = max(E0/`lastOutboundAt`, `leftEntryStageAt`), + 1 dia útil, ajustado pelo calendário operacional.
+- **C) "Saiu de NOVOS"**: `crm_leads.stage_key` deixar de ser `novos` (timestamp `stage_entered_at`); para leads do Portal, `portal_leads.relationship_started_at`.
+- **D) Menor alteração**: filtrar, na leitura, as ações de E0 cujo card já tenha `msg_e0_<cardId>` (ou E0 nos `executed_steps`) — camada da Ação do Dia apenas.
+- **E) Arquivos**: `src/server/crm/e0-actions.server.ts` (ou `src/server/crm/daily-actions.server.ts`) para o filtro; opcionalmente `daily-actions.server.ts` + `daily-actions-overlay.tsx` para os rótulos da E1.
+- **F)** Sim, o motor E0 permanece intocado (`first-contact.server.ts`, `first-contact-queue.server.ts`, `lead-intake.server.ts`, `engine`/`decide`).
+- **G) Riscos**: nenhum sobre CRM, GreenSales, cadência ou Safety Lock (leitura pura, sem envio). Risco único: um filtro largo demais poderia esconder uma E0 manual legítima — por isso a prova deve ser por card (`msg_e0_<cardId>`), nunca por lead ou por nome.
 
-31-32. Arquivos compartilhados tocados numa implementação futura:
-
-| Arquivo | Alteração | Risco em /f, /s, /seg, CRM, Cadência, Ação do Dia, E0, Safety Lock |
-|---|---|---|
-| `src/components/group/landing/group-companies.tsx` | ativar `Link` | nenhum — só a Home |
-| `src/components/group/landing/group-content.ts` | imagens/logos/texto | nenhum |
-| `src/routes/financeira.tsx`, `solar.tsx`, `seguradora.tsx` | novos | nenhum |
-| `src/components/group/brand/*` | novos | nenhum |
-| `src/lib/assets/registry` | novos logos | nenhum (aditivo) |
-
-33. Um único ponto **sensível**: incluir `financeira` em `UNITS` dentro de `src/lib/group/unit-leads.functions.ts`. Esse arquivo é a captação viva de Solar/Seguros. Alteração aditiva não afeta CRM/cadência/E0/Safety Lock (o caminho nunca os chama), mas mexe em código em produção — por isso não foi tocado e fica como decisão explícita.
-34. Confirmado: as três páginas podem ser construídas sem alterar uma linha de lógica operacional de `/f`, `/s`, `/seg`, CRM, Cadência, Ação do Dia, E0 ou Safety Lock.
-
-## Bloco 9 — Recomendação final
-
-**A) Confirmado**
-- As três rotas não existem; a Home e os cards existem e só precisam de ativação.
-- Formulário institucional único, reutilizável, com marca identificável por `unit`.
-- Solar/Seguros já têm carteira própria isolada, sem rotação, sem E0, sem cadência.
-- Acesso à carteira já é restrito a permissão administrativa; colaboradores comuns não veem.
-- Nenhum CMS é necessário; nenhuma permissão nova é necessária.
-
-**B) Precisa de decisão**
-1. Financeira na Home terá formulário próprio (ampliando `UNITS`) ou continuará sem captação institucional?
-2. Thiago, no perfil Colaborador, deve enxergar a carteira das unidades? Hoje não enxerga (regra administrativa, não híbrida).
-3. Logos oficiais das três marcas em arquivo — ainda não estão no registro de assets.
-
-**C) Menor conjunto de alterações**
-1. `src/components/group/brand/brand-page.tsx` — invólucro compartilhado.
-2. Três módulos de conteúdo (um por marca).
-3. Três arquivos de rota com `head()` própria.
-4. `group-companies.tsx` — ativar "Saiba mais".
-5. `group-content.ts` — imagens/logos/textos curtos.
-
-**D) O Word + referências visuais são suficientes?** Sim para textos e estrutura. Faltam apenas: logos em arquivo, imagens em alta e o texto alternativo/legenda de cada imagem (acessibilidade e SEO).
-
-**E) Sequência mais econômica**
-1. Rodada 1: invólucro + as três rotas com o conteúdo do Word já aplicado, e ativação dos botões — tudo em uma única entrega.
-2. Rodada 2 (só se necessário): refino visual pontual com as referências.
-3. Rodada 3 (opcional, futura): camada editável, se um dia o conteúdo passar a mudar com frequência.
-Evitar rodadas separadas para "estrutura" e "conteúdo": duplica custo sem ganho.
+Nenhuma implementação foi feita.
