@@ -137,7 +137,9 @@ function TestLabPage() {
     setBusy(true);
     setNote(null);
     try {
-      const res = await createBatch({ data: { scenarios, perScenario } });
+      const res = await createBatch({
+        data: { scenarios, perScenario, responsibleExecutiveId: responsible || null },
+      });
       setNote(
         res.ok
           ? `Lote ${res.batchId} criado com ${res.leads.length} leads fictícios.`
