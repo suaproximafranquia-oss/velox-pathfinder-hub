@@ -139,6 +139,19 @@ const FIRST = ["Ana", "Bruno", "Carla", "Diego", "Elisa", "Fábio", "Gisele", "H
 const LAST = ["Teste", "Ensaio", "Simulação", "Laboratório"];
 
 /**
+ * Semente numérica determinística e estável a partir do identificador do
+ * lote. Garante que lotes diferentes nunca reutilizem o mesmo telefone
+ * sintético, evitando a trava real de duplicidade entre lotes distintos.
+ */
+function batchSeed(batchId: string): number {
+  let hash = 0;
+  for (let i = 0; i < batchId.length; i += 1) {
+    hash = (hash * 31 + batchId.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % 99_999_990;
+}
+
+/**
  * Lead fictício de um lote. O nome carrega a etiqueta visível "[TESTE]"
  * apenas para leitura humana no board — quem decide o que é teste é
  * SEMPRE a marcação técnica, nunca o texto.
@@ -154,7 +167,7 @@ export function buildSyntheticLead(
   const phone =
     scenario === "telefone_invalido"
       ? "000"
-      : `${TEST_PHONE_PREFIX}${String(900000000 + index).slice(0, 9)}`;
+      : `${TEST_PHONE_PREFIX}${String(900_000_000 + batchSeed(batchId) + index).slice(0, 9)}`;
   return {
     externalId: `${batchId}-${suffix}`,
     name: `[TESTE] ${first} ${last} ${suffix}`,
