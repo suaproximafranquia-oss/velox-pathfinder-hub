@@ -1,5 +1,5 @@
 /**
- * CARTEIRA DAS UNIDADES DO GRUPO — Velox Solar e Velox Seguros.
+ * CARTEIRA INSTITUCIONAL DO GRUPO — Financeira, Solar e Seguros.
  *
  * Carteira SEPARADA da Financeira: nada aqui entra em `portal_leads`,
  * CRM, Ação do Dia ou cadência. O primeiro contato é humano, a situação
@@ -24,16 +24,16 @@ export const Route = createFileRoute("/f/executivo/unidades")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Unidades do Grupo — interessados Solar e Seguros | Velox" },
+      { title: "Unidades do Grupo — interessados das três marcas | Velox" },
       {
         name: "description",
         content:
-          "Carteira dos interessados nas unidades Velox Solar e Velox Seguros, separada da operação da Financeira.",
+          "Carteira dos interessados captados pelas páginas institucionais das três marcas do Grupo Velox.",
       },
       { property: "og:title", content: "Unidades do Grupo — Velox" },
       {
         property: "og:description",
-        content: "Interessados de Velox Solar e Velox Seguros em carteira própria.",
+        content: "Interessados das três marcas do Grupo Velox em carteira própria.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/f/executivo/unidades")({
   component: UnitLeadsPage,
 });
 
-type UnitKey = "solar" | "seguros";
+type UnitKey = "financeira" | "solar" | "seguros";
 
 type UnitLead = {
   id: string;
@@ -99,6 +99,7 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 const TABS: Array<{ key: UnitKey; label: string; icon: typeof Sun }> = [
+  { key: "financeira", label: "Velox Soluções Financeiras", icon: Building2 },
   { key: "solar", label: "Velox Solar", icon: Sun },
   { key: "seguros", label: "Velox Seguros", icon: ShieldCheck },
 ];
@@ -114,7 +115,7 @@ function UnitLeadsPage() {
   const readHistory = useServerFn(historicoInteressadoUnidade);
 
   const [session, setSession] = useState<ExecutiveSession | null>(null);
-  const [unit, setUnit] = useState<UnitKey>("solar");
+  const [unit, setUnit] = useState<UnitKey>("financeira");
   const [rows, setRows] = useState<UnitLead[]>([]);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");

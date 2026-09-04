@@ -196,9 +196,16 @@ function RootRoutes() {
   // nem o redirecionamento do Gateway do Portal.
   const isRemarketing = pathname.startsWith("/f/remarketing");
   const isPortal = pathname === "/f" || pathname === "/f/";
-  // Raiz institucional do Grupo e páginas Solar/Seguros: sem shell editorial
-  // do Portal e sem qualquer redirecionamento de Gateway.
-  const isGroup = pathname === "/" || pathname === "/s" || pathname === "/seg";
+  // Camada institucional do Grupo (raiz, páginas das três marcas e as
+  // páginas Solar/Seguros): sem shell editorial do Portal e sem qualquer
+  // redirecionamento de Gateway.
+  const isGroup =
+    pathname === "/" ||
+    pathname === "/financeira" ||
+    pathname === "/solar" ||
+    pathname === "/seguradora" ||
+    pathname === "/s" ||
+    pathname === "/seg";
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";
   // Agenda Operacional Global: disponível em todo ambiente interno da

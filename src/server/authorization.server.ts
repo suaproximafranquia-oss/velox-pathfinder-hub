@@ -35,10 +35,29 @@ export async function assertAdministrativeAccess(context: AuthorizationContext):
   if (!access.admin) throw new Error("Área restrita à permissão administrativa.");
 }
 
-/** Carteiras das unidades do Grupo (Solar/Seguros): Administrador ou Gestor. */
+/**
+ * Carteiras institucionais do Grupo (Financeira/Solar/Seguros):
+ * Administrador, Gestor ou o Colaborador HÍBRIDO já reconhecido pelo
+ * Workspace (`HYBRID_WORKSPACE_USER_IDS`). Nenhuma matriz nova de
+ * permissão foi criada: reaproveita-se a mesma fonte já existente.
+ */
 export async function assertUnitPortfolioAccess(context: AuthorizationContext): Promise<void> {
   const access = await readAdministrativeAccess(context);
-  if (!access.admin && !access.manager) {
-    throw new Error("Carteira restrita à permissão administrativa.");
+  if (access.admin || access.manager) return;
+
+  const { isHybridWorkspaceUser } = await import("@/lib/portal-workspace");
+  const client = context.supabase as unknown as {
+    from?: (table: string) => any;
+  };
+  if (typeof client.from === "function") {
+    const { data } = await client
+      .from("executive_profiles")
+      .select("executive_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    const executiveId = (data as { executive_id?: string } | null)?.executive_id;
+    if (executiveId && isHybridWorkspaceUser(String(executiveId))) return;
   }
+
+  throw new Error("Carteira restrita à permissão administrativa.");
 }

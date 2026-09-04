@@ -47,7 +47,7 @@ export const COMPANIES: Array<{
   bullets: string[];
   image: string;
   imageAlt: string;
-  /** Página institucional futura — nunca aponta para o Portal do Investidor. */
+  /** Página institucional pública — nunca aponta para o Portal do Investidor. */
   href: string;
 }> = [
   {
@@ -56,8 +56,8 @@ export const COMPANIES: Array<{
     tagline:
       "O núcleo da operação: crédito, consórcios, financiamentos e soluções financeiras completas.",
     bullets: ["Crédito e consórcio", "Carteira de clientes ativa", "Jornada completa do investidor"],
-    image: assetUrl("mercado-distrito-financeiro"),
-    imageAlt: "Distrito financeiro — Velox Soluções Financeiras",
+    image: assetUrl("foto-financeira-consultoria"),
+    imageAlt: "Atendimento consultivo da Velox Soluções Financeiras",
     href: "/financeira",
   },
   {
@@ -66,8 +66,8 @@ export const COMPANIES: Array<{
     tagline:
       "Unidade de energia solar do Grupo Velox, com estrutura, projeto e atendimento próprios.",
     bullets: ["Energia solar", "Eficiência energética", "Projetos residenciais e empresariais"],
-    image: assetUrl("plataforma-tecnologica"),
-    imageAlt: "Operação tecnológica da Velox Solar",
+    image: assetUrl("foto-solar-instalacao"),
+    imageAlt: "Instalação de módulos fotovoltaicos pela Velox Solar",
     href: "/solar",
   },
   {
@@ -76,8 +76,8 @@ export const COMPANIES: Array<{
     tagline:
       "Corretora própria do grupo, com carteira, atendimento e estrutura independentes.",
     bullets: ["Proteção patrimonial", "Vida e previdência", "Seguros corporativos"],
-    image: assetUrl("reuniao-colaborativa"),
-    imageAlt: "Atendimento da Velox Seguros",
+    image: assetUrl("foto-seguros-atendimento"),
+    imageAlt: "Atendimento consultivo da Velox Seguros",
     href: "/seguradora",
   },
 ];

@@ -1,12 +1,11 @@
 /**
  * Seção "Seja um Franqueado" (#seja-um-franqueado).
  *
- * O visitante escolhe qual frente despertou seu interesse. Para Solar e
- * Seguros o formulário OFICIAL existente (`unit-interest-form.tsx`) é
- * reaproveitado sem alteração. Para a Financeira NÃO existe caminho de
- * captação equivalente neste formulário (ele só aceita `solar` e
- * `seguros`) — e nenhuma estrutura paralela foi criada: a interface fica
- * preparada e informa a limitação.
+ * O visitante escolhe qual frente despertou seu interesse. As três
+ * frentes usam o MESMO formulário oficial (`unit-interest-form.tsx`),
+ * que grava na carteira institucional (`group_unit_leads`). Nenhuma
+ * estrutura paralela de captação existe aqui: nada entra em
+ * `portal_leads`, CRM, cadência ou Ação do Dia.
  */
 import { useState } from "react";
 import { Building2, ShieldCheck, Sun } from "lucide-react";
@@ -69,22 +68,7 @@ export function GroupFranchiseCta() {
 
         <GroupReveal delay={160} className="mt-8">
           <div className="rounded-3xl border border-white/10 bg-[#0b1226] p-6 md:p-10">
-            {choice === "financeira" ? (
-              <div className="mx-auto max-w-xl text-center">
-                <h3 className="text-lg font-semibold text-white">Velox Soluções Financeiras</h3>
-                <p className="mt-3 text-sm leading-relaxed text-white/60">
-                  O interesse na frente de Soluções Financeiras é conduzido pelo canal oficial da
-                  unidade. Esta página institucional ainda não possui o formulário dessa frente —
-                  nenhum caminho paralelo de captação foi criado.
-                </p>
-                <p className="mt-4 text-xs text-white/40">
-                  Interface preparada para receber o formulário oficial quando ele for
-                  disponibilizado para o ambiente institucional.
-                </p>
-              </div>
-            ) : (
-              <UnitInterestForm unit={choice} fromGroup />
-            )}
+            <UnitInterestForm unit={choice} fromGroup origin="Landing institucional do Grupo Velox" />
           </div>
         </GroupReveal>
       </div>

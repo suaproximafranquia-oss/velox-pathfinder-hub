@@ -1,5 +1,6 @@
 /**
- * Interessados nas unidades Velox Solar e Velox Seguros.
+ * Interessados nas marcas do Grupo (Financeira, Solar e Seguros)
+ * captados pelas páginas institucionais.
  *
  * O Portal Institucional NÃO abre jornada operacional para essas
  * unidades: ele apenas registra o interesse, que vira card na carteira
@@ -15,7 +16,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const RANGES = ["10_20", "20_30", "acima_30"] as const;
-const UNITS = ["solar", "seguros"] as const;
+const UNITS = ["financeira", "solar", "seguros"] as const;
 const CONTACT_STATUS = ["pendente", "em_contato", "encerrado"] as const;
 
 export type UnitLeadInput = {
