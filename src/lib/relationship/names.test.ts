@@ -59,6 +59,7 @@ describe("personalização segura de nome", () => {
       executiveName: "Thiago",
       portalLink: "https://x.test/p",
       confirmedInvestorName: "Patrícia",
+      fallbackContentUrl: "https://x.test/c",
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
