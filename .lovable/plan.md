@@ -1,73 +1,125 @@
-# Auditoria (somente leitura) — Ação do Dia × Cadência × transição E0 → E1 (/f)
+# Auditoria (somente leitura) — Biblioteca × Ação do Dia × Histórico × KPI × Campanha × Remarketing (/f)
 
-Nada foi alterado: sem código, sem banco, sem migration, sem configuração, sem execução de tick/sync.
+Nada foi implementado, alterado ou executado: sem código, sem banco, sem migration, sem tick/sync/cron, sem envio. (Observação: neste modo só o arquivo de plano pode ser gravado, então a nova tarefa ainda não foi anotada em `roadmap.md`.)
 
-## 1. E0
+## 1. Fonte oficial das mensagens
 
-1. **Onde a E0 executada é registrada**: `crm_messages` com id fixo `msg_e0_<cardId>` (trava de idempotência), snapshot em `relationship_message_sends`, evento em `crm_lead_events` (`e0_enviada` / `e0_simulada` / `e0_manual_executada`), cadência em `relationship_cadences` (`executed_steps=["E0"]`, `state=CADENCE_ACTIVE`) e, no modo manual, `workspace_e0_actions.state='EXECUTADA'`.
-2. **Como a Ação do Dia decide mostrar E0**: `buildDailyActions` (`src/server/crm/daily-actions.server.ts`) chama `listPendingE0Actions()` (`src/server/crm/e0-actions.server.ts`), que lê **apenas** `workspace_e0_actions` com `state='PENDENTE'`. É a única fonte do card "Primeiro contato com lead novo".
-3. **Por que uma E0 automática já executada continua aparecendo** — causa confirmada em dados reais: a retomada da E0 adiada roda mais de uma vez. Em `gs_TEST-20260904-A-01` e `gs_58997`, às 10:04 UTC a retomada resolveu **manual** (card ainda sem responsável) e criou `workspace_e0_actions` PENDENTE; às 12:11 UTC a mesma retomada resolveu **automático** (card já com `usr_thiago`) e executou `registerFirstContact` — E0 enviada, cadência ativa, mas **ninguém fecha a linha PENDENTE**. `registerFirstContact` não conhece `workspace_e0_actions`; só `executeE0Action` marca EXECUTADA. Resultado: E0 concluída + ação humana órfã na Ação do Dia (e sem responsável, portanto visível para todos os executivos).
-4. **Consulta que olha só PENDENTE**: sim — `listPendingE0Actions`, `.eq("state","PENDENTE")`, sem qualquer verificação de `msg_e0_<cardId>` ou de cadência.
-5. **Condição exata que deveria excluir a E0**: existir prova de execução para o card — `crm_messages.id = 'msg_e0_' || card_id` (ou `relationship_cadences.executed_steps` contendo E0 para aquele `lead_id`). Havendo prova, a ação não é ação humana.
-6. **Pode ser resolvido só na Ação do Dia?** Sim: filtrar em `listPendingE0Actions`/`buildDailyActions` resolve a exibição sem tocar no motor E0. A correção estrutural (fechar a linha PENDENTE quando a E0 sai por outro caminho) é opcional e independente.
+1. **Tabelas**: texto oficial em `relationship_message_library`; conteúdo de valor (mídia/link) em `relationship_contents`; vínculo etapa↔conteúdo em `relationship_step_content_bindings`; templates aprovados da Meta em `meta_templates`/`crm_meta_templates` via `relationship_template_bindings`. `relationship_content_groups` é legado congelado (não é lido nem escrito).
+2. **Consulta**: `getActiveLibraryMessage` e `renderFromLibrary` em `src/server/relationship/message-library.server.ts:302,491`; mídia em `src/server/relationship/step-media.server.ts` (`loadStepContentBindings:75`).
+3. **Versão ativa**: `select ... active = true` com índice único parcial `(scope, purpose) WHERE active` — é impossível haver duas versões ativas de texto. `publishLibraryVersion` desativa a anterior antes de inserir a nova.
+4. **Campos**: `step_key/purpose` (etapa), fluxo vem do motor (`config.ts`), `version`, `title` (rótulo visível), `body` / `body_without_name` (variante com e sem nome), assinatura resolvida em tempo de render pelo executivo responsável (`resolveLeadExecutive`), `content_group`, `active`.
+5. **Mais de um conteúdo ativo por etapa**: sim, e é exatamente o problema (§2).
+6. **Regra determinística**: `selectFromPool` em `src/lib/relationship/content.ts:83` — ativos → prioriza não usados → menor `usage_count` → `last_used_at` mais antigo → `id`. Zero aleatoriedade.
+7/8. **A Ação do Dia usa a mesma cadeia** (`getDailyActionMessageFn` → `prepareStepMessage` → `renderFromLibrary`), mas **não** usa `selectFromPool` para mídia: usa `loadStepContentBindings`, que é mais restrito. Aí nasce a divergência.
 
-## 2. Estado NOVOS
+## 2. Causa exata do erro "Etapa 1 exige conteúdo do grupo E1"
 
-7. **Onde vive**: `crm_leads.stage_key='novos'` (+ `stage_entered_at`, `entered_entry_stage_at`) para leads GreenSales; para leads nascidos no Portal/TikTok/Meta o equivalente é `portal_leads.relationship_started_at` nulo (`commercial_state`).
-8. **Evento que representa a saída**: leitura única em `src/server/relationship/lead-context.server.ts` — `awaitingFirstHumanAction = (stage_key === 'novos')`; `leftEntryStageAt = stage_entered_at` da etapa atual. No caminho Portal, `leftEntryStageAt = relationship_started_at`.
-9/10. **Caminhos reais de saída**: (a) mudança de `stage_key` no CRM/Workspace (arrastar card ou `set_lead_operational`); (b) sincronização com a origem trazendo outra etapa; (c) para leads Portal, "Iniciar Relacionamento" no CRM ou "Solicitar Atendimento" pelo investidor, que gravam `relationship_started_at`.
-11. **Diferenças**: abrir o card **não** é atividade (regra vigente) e não muda nada; ligar / registrar tentativa (`crm_cadence_tasks`, `crm_lead_events`) registra histórico mas **não** tira de NOVOS; copiar/enviar mensagem também não; **só** a mudança de `stage_key` (ou `relationship_started_at`) tira de NOVOS.
-12. **Primeiro contato humano verdadeiro hoje**: a transição de etapa registrada em `stage_entered_at` (GreenSales) / `relationship_started_at` (Portal). É isso que o motor lê.
-13. **Auditoria**: sim — `crm_lead_events`, `crm_timeline`, `relationship_engine_log` e os próprios campos de timestamp.
+9. **Causa comprovada em dados**: `relationship_step_content_bindings` tem **6 vínculos ativos para E1** (e 6 para E3, 3 para R2). `loadStepContentBindings` (`step-media.server.ts:75-82`) só devolve o conteúdo quando a etapa tem **exatamente um** vínculo ativo; com 6, devolve nada. Sem `contentName`, `renderMessageSpec` (`src/lib/relationship/messages.ts:471-476`) detecta o placeholder de conteúdo no corpo e bloqueia com o texto exibido. E4 tem 1 vínculo ativo — por isso E4 funciona e E1 não. Não é falta de cadastro: é excesso de vínculos ativos num caminho que não sabe rotacionar.
+10. **Arquivos**: `src/server/relationship/step-message.server.ts` (`prepareStepMessage:54`, `resolveStepContent:37`), `step-media.server.ts:75`, `messages.ts:439-490`.
+11. **Fonte diferente do motor?** O texto é o mesmo; a **seleção de mídia** é diferente — o motor usa `selectFromPool` (rotação), a leitura da Ação do Dia usa vínculo único.
+12. **Fallback**: não existe — corretamente, o sistema mostra o motivo em vez de inventar texto.
+13. **Word**: `src/lib/relationship/word-library.ts` existe apenas como semente/importação (`ensureLibrarySeed`, `importWordLibrary`). Não é lido em nenhum envio nem na Ação do Dia.
+14. **Duplicidade de conteúdo**: não há texto duplicado — o TypeScript (`word-library.ts`, `HOMOLOGATION_MESSAGES`) é só semente da versão 1. A única duplicidade real é a de **vínculos de mídia** por etapa.
+15. **Fonte única oficial**: `relationship_message_library` (texto ativo) + `relationship_contents` via `relationship_step_content_bindings` (mídia).
+16. **Função a reutilizar**: `prepareStepMessage` já é a certa; o que falta é ela resolver mídia pela mesma rotação do motor (`selectFromPool`) em vez de exigir vínculo único.
 
-## 3. Início da contagem da E1
+## 3. Atualização automática quando a Biblioteca muda
 
-14/15. `src/lib/relationship/decide.ts` → `referenceMoment()`: referência = **o maior** entre `lastOutboundAt ?? startedAt` (a E0) e `leftEntryStageAt`. O vencimento sai de `dueMomentAfterBusinessDays(referência, 1 dia útil, config)` (E1 = `businessDaysAfterReference: 1`).
-16/17. **Existe contagem antes de sair de NOVOS?** Não pela decisão: `awaitingFirstHumanAction` bloqueia toda etapa que não seja E0/E0_V1 ("Lead ainda em NOVOS…"). Risco residual: quando `loadLeadStageContext` devolve `null` (lead sem espelho em `crm_leads` **e** sem `portal_leads`), o portão fica desligado e a E1 conta só a partir da E0.
-18/19. **Sim, o comportamento desejado já é o do motor atual** e pode ser reforçado sem criar segundo relógio: o único relógio é `decide.ts` + `calendar.ts`, alimentado por `lead-context.server.ts`.
+17. **Sim, a arquitetura já permite**: toda leitura é `select` direto no Supabase, sem cache de servidor.
+18/19. Bloqueio único: o caminho de mídia descrito em §2. Corrigido isso, publicar nova versão na Biblioteca já reflete na próxima abertura da Ação do Dia.
+20. **Cache**: não há cache server-side; no cliente vale a política do React Query (a mensagem é buscada sob demanda ao abrir o card).
+21. **localStorage de mensagens**: não existe para a Biblioteca. Os usos de `localStorage` no CRM são de UI (tema, presença, leitura de conversa).
+22. **Conteúdo estático a abandonar**: nenhum em produção — `word-library.ts` e `HOMOLOGATION_MESSAGES` já estão restritos à semente/importação.
 
-## 4. Cadência configurada (`src/lib/relationship/config.ts`, fluxo `sem_resposta`)
+## 4. Nomenclatura para o executivo
 
-| Código | Label (`step-labels.ts`) | Delay | Unidade | Referência | Condição | Agendamento |
-|---|---|---|---|---|---|---|
-| E0 | E0 — Primeiro contato | 0 | dias úteis | entrada do lead | entrada + janela operacional | `crm_messages msg_e0_*` / `workspace_e0_actions` |
-| E1 | E1 — Primeiro acompanhamento | 1 | dias úteis | max(E0, saída de NOVOS) | fora de NOVOS + etapa elegível no fechamento | `relationship_queue` (PENDING) |
-| E3 | E3 — Segundo acompanhamento | 2 | dias úteis | mesma referência | E1 executada | `relationship_queue` |
-| E4 | E4 — Acompanhamento mais firme | 3 | dias úteis | mesma referência | E3 executada | `relationship_queue` |
-| E12 | E12 — Encerramento sem resposta | 5 | dias úteis | mesma referência | E4 executada; terminal (E30 desligada) | `relationship_queue` |
+23. **Título da ação**: `src/server/crm/daily-actions.server.ts:250` → `title: \`Mensagem ${item.step}\`` e `stepLabel: String(item.step)` (linha 242) — a fila usa a **chave crua**. O bloco de fechamento (linha 213) já usa `stepDisplayLabel`, prova de que a camada de rótulo existe e só não foi aplicada à fila.
+24. **Texto do botão**: `src/components/crm/daily-actions-overlay.tsx:538` ("Ver mensagem completa") e :455 ("Executar primeiro contato (E0)").
+25. **Como mudar sem tocar no técnico**: `src/lib/relationship/step-labels.ts` já é a camada oficial de apresentação (chave técnica nunca muda; já traduz E20→E6, E27→E7). Basta acrescentar ali o formato "Etapa N — Copiar mensagem" e usá-lo no título da fila e no botão do overlay.
+26. **Correspondência atual**: E0=Primeiro contato; E1=Etapa 1; E3=Etapa 2 (segundo acompanhamento); E4=Etapa 3; E12=encerramento; E20→"E6"; E27→"E7". Ou seja, o número apresentado **não** é o número da chave — a numeração visível precisa ser definida na camada de rótulos, nunca inferida do código técnico.
 
-22. **Sim**, E1 é a primeira etapa após E0 no fluxo `sem_resposta` (E0 → E1 → E3 → E4 → E12).
-23. **Condições que alteram/pulam E1**: resposta do investidor (vai para reengajamento/`RESPONDED`), duas visualizações (fluxo `visualizacao`), reentrada (RE0…), etapa terminal OPORTUNIDADE no fechamento, arquivamento, motor desligado, ausência de template oficial com janela de 24h fechada, e reprogramação automática quando o vencimento cai fora do dia útil/horário.
+## 5. Copiar mensagem
 
-## 5. Ação do Dia
+27/28. **Já existe**: `prepareStepMessage` (`src/server/relationship/step-message.server.ts:54`), exposta por `getDailyActionMessageFn` (`src/lib/crm/daily-actions.functions.ts:90`) e consumida pelo adaptador real (`daily-actions-real-adapter.ts:103`).
+29/30. **Sim**: resolve nome do investidor (com variante sem nome quando não há nome utilizável), assinatura do **executivo responsável pelo lead**, link do Portal e conteúdo vinculado.
+31. **Sim** — retorna exatamente a versão ativa da Biblioteca ou o motivo do bloqueio.
+32/33. **Clipboard**: hoje o overlay exibe a mensagem, mas não há função de cópia. O menor ponto é um `navigator.clipboard.writeText(body)` no modal de mensagem do overlay — mudança puramente de interface.
+34. **Menor implementação**: botão "Etapa N — Copiar mensagem" no overlay + a correção de mídia do §2 (senão o corpo vem nulo para E1/E3/R2).
 
-24/25. `src/server/crm/daily-actions.server.ts` → `buildDailyActions`, normalizado por `src/lib/crm/daily-actions.ts`. Fontes: E0 pendente, reuniões, agenda, fechamento (E27/Finalização), `relationship_queue` PENDING com `due_at <= hoje` e fila de ligações recalculada (`buildCadenceQueue`).
-26. **Como sabe que concluiu**: pelo estado da fonte — item sai de PENDING na fila, `workspace_e0_actions` vira EXECUTADA, reunião muda de status, `crm_cadence_tasks` DONE — **não** por marcação própria.
-27. **Duplicação**: `actionKey` determinístico por fonte + `normalizeDailyActions` + supressão diária de puladas (`listSkippedActionKeys`).
-28. **Etapa ainda não vencida**: fica em `relationship_queue` com `status='PENDING'` e `due_at` futuro (filtro `if (dueDate > today) continue`).
-29. **O que faz aparecer**: nenhuma escrita nova — basta `due_at` alcançar o dia operacional corrente.
-30. **Sim**: "etapa existente" = linha PENDING na fila; "ação liberada" = essa linha com `due_at` até hoje e não suprimida.
+## 6. Confirmação "Mensagem enviada?"
 
-## 6. Dependência e rótulos
+35/36/37. **Existe** `registerDailyActionMessageFn` → `registerDailyActionMessage` (`src/server/crm/daily-actions-log.server.ts:100`), que grava em `relationship_engine_log` (auditoria) e `crm_timeline` (leitura humana), com `outcome: "registrada"`. **Não envia nada** e não toca a fila.
+38. **Identificador**: `leadId` do card (`crm_timeline.investor_id`) — nunca nome ou telefone.
+39/40. **Duplicação**: como é log append-only, dois cliques geram dois registros. A conclusão real da fila é feita por `claimQueueItem`/`updateQueueItem` (`src/server/relationship/repository.server.ts:213-236`), com UPDATE condicional `status='PENDING'` (reserva atômica) e `upsert onConflict (scope,run_id,lead_id,step)` — esses sim são idempotentes.
+41. **Forma mais segura**: no "SIM", além do log, marcar o item da fila via `updateQueueItem` (status executado + `executed_at` + `result`), reutilizando a mesma reserva atômica. No "NÃO", apenas registrar a tentativa e deixar o item PENDING.
 
-31/32. Confere com o motor atual: com E0 concluída e o lead fora de NOVOS, a E1 é agendada; enquanto `due_at` for futuro ela não aparece.
-33/34. Hoje o card de fila mostra `title: "Mensagem E1"` e `stepLabel` bruto (`E1`), e o painel exibe "Ver mensagem completa". Para ler "Etapa 1 — Copiar mensagem" a alteração é de apresentação, em dois pontos: título/rótulo em `buildDailyActions` (bloco `for (const item of queue)`, usando `stepDisplayLabel`) e os textos do botão em `src/components/crm/daily-actions-overlay.tsx`. Nenhum impacto no motor.
+## 7. Jornada / histórico / notas
 
-## 7. Comportamento esperado por cenário
+42/43. Observações e pulos vão para `relationship_engine_log` + `crm_timeline`; **não há mais `localStorage`** em `src/components/crm/*`.
+44/45/46. O Workspace lê a Jornada por `jornadaDoLead` → `loadLeadJourney` (`src/server/relationship/journey.server.ts:140`), cruzando `crm_timeline`, `crm_messages`, `relationship_message_sends`, `crm_cadence_tasks`, `portal_meetings`, `portal_journey_events`; o ID de ligação é `investor_id`.
+47/48/49. **Divergência encontrada**: `RELATIONAL_TIMELINE_EVENTS` (`journey.server.ts:90-98`) lista apenas `lead_criado, contato_recebido, atividade_portal, nota_executivo, mudanca_coluna, oportunidade, primeiro_contato`. Os eventos `acao_do_dia_*` **não estão nessa lista**, então são classificados como "técnico" e não aparecem na aba relacional ("Notas do Executivo"). É por isso que o executivo sente que a Ação do Dia e o Workspace divergem.
+50. **Menor alteração**: incluir os eventos `acao_do_dia_*` na whitelist relacional (uma linha), ou gravar a confirmação como `nota_executivo`/`primeiro_contato` conforme o caso.
+51. **Confirmado**: a gravação já usa o ID real do card/lead.
 
-- **A — E0 automática executada, lead ainda NOVO**: hoje aparece indevidamente a ação de E0 se existir linha PENDENTE órfã (caso observado). Correto: nada aparece; contagem da E1 não começou; próxima ação é humana (tirar de NOVOS).
-- **B — E0 automática executada, lead saiu de NOVOS**: E0 não deve aparecer; a contagem inicia em `stage_entered_at`; E1 entra na fila e aparece quando vencer.
-- **C — E0 manual pendente**: aparece como "Primeiro contato com lead novo", prioridade máxima; sem contagem de E1; próxima ação é executar a E0.
-- **D — E0 manual executada + saiu de NOVOS**: E0 desaparece (state EXECUTADA); contagem da E1 a partir do maior entre E0 e a saída de NOVOS; E1 aparece no vencimento.
+## 8. E1 → próxima etapa
 
-## 8. Conclusão
+52. Fluxo `sem_resposta`: depois de E1 vem **E3** (2 dias úteis), depois E4 (3), depois E12 (5).
+53. Cálculo em `src/lib/relationship/decide.ts` (`decideNextAction`/`referenceMoment`) + calendário operacional.
+54. **Sim**, o motor agenda automaticamente em `relationship_queue` no próximo tique após a execução ser registrada.
+55/56. **Confirmado**: a Ação do Dia deve apenas refletir a fila. Nenhuma sequência, fila ou relógio paralelo deve ser criado.
 
-- **A) Causa**: linha `workspace_e0_actions` em PENDENTE criada pela retomada em modo manual e nunca fechada quando a mesma retomada, no ciclo seguinte, executou a E0 automaticamente (`registerFirstContact` não fecha a ação). Comprovado em `gs_TEST-20260904-A-01` e `gs_58997` (pendente 10:04 → `msg_e0_*` 12:11).
-- **B) Relógio da E1**: `decide.ts::referenceMoment` = max(E0/`lastOutboundAt`, `leftEntryStageAt`), + 1 dia útil, ajustado pelo calendário operacional.
-- **C) "Saiu de NOVOS"**: `crm_leads.stage_key` deixar de ser `novos` (timestamp `stage_entered_at`); para leads do Portal, `portal_leads.relationship_started_at`.
-- **D) Menor alteração**: filtrar, na leitura, as ações de E0 cujo card já tenha `msg_e0_<cardId>` (ou E0 nos `executed_steps`) — camada da Ação do Dia apenas.
-- **E) Arquivos**: `src/server/crm/e0-actions.server.ts` (ou `src/server/crm/daily-actions.server.ts`) para o filtro; opcionalmente `daily-actions.server.ts` + `daily-actions-overlay.tsx` para os rótulos da E1.
-- **F)** Sim, o motor E0 permanece intocado (`first-contact.server.ts`, `first-contact-queue.server.ts`, `lead-intake.server.ts`, `engine`/`decide`).
-- **G) Riscos**: nenhum sobre CRM, GreenSales, cadência ou Safety Lock (leitura pura, sem envio). Risco único: um filtro largo demais poderia esconder uma E0 manual legítima — por isso a prova deve ser por card (`msg_e0_<cardId>`), nunca por lead ou por nome.
+## 9. KPI Manager
+
+57. `src/routes/f.executivo.kpi.tsx` (`KpiManagerPage`).
+58/59. `kpiCollaborators()` (linha 101) → `visibleCollaborators()` (`src/lib/teams.ts:49`): para admin/diretora devolve `OPERATIONAL_EXECUTIVE_IDS` **filtrados por `status === "ativo"`**.
+60. **Causa comprovada em dados, não em código**: `executive_user_status` tem `usr_thiago = ativo` e `usr_carlos, usr_larissa, usr_marton, usr_milton, usr_paulo, usr_talita = inativo` (todos marcados em 29/08 por Thiago Rodrigues). A aba "Geral" é fixa por role. Ou seja, o Administrador vê "Geral + Thiago" porque só Thiago está ativo.
+61. Colaborador: `users.filter(u => u.id === session.userId)` — só o próprio.
+62/63. Não há autorização de servidor: os dados de KPI vivem em `localStorage` (`src/lib/kpi-manager.ts:137-178`). A única regra de leitura ampla é `canAccessKpiOf` (`kpi-manager.ts:350`), usada pela IA, e o bloqueio de escrita na tela é apenas `isConsolidated`.
+64/65/66. **Sim, dá para separar** — hoje elas nem existem separadamente.
+67. **Menor alteração**: (a) reativar os executivos em `executive_user_status` ou permitir que a lista de leitura inclua inativos marcados como tal; (b) introduzir `canEditKpiOf(actor, target)` (só o próprio) chamada antes de gravar célula/reset/seed, mantendo `visibleCollaborators` para leitura.
+
+## 10. Painel de Campanha
+
+68. `src/routes/f.executivo.campanhas.tsx` + `src/components/executive/kpi/painel-campanhas.tsx`.
+69. `collaborators` montado na própria rota (linhas 64-70) a partir de `OPERATIONAL_EXECUTIVE_IDS` filtrados por `status === "ativo"`.
+70/71. **Mesma causa do KPI**: não há restrição por role (o código diz explicitamente que todos veem o mesmo ranking) — só Thiago aparece porque os demais estão `inativo` no banco.
+72/73. Leitura: sem restrição de role. Gravação: só `personalSales` do próprio `session.userId`; o painel é somente leitura.
+74. **Confirmado**: ampliar a leitura não amplia gravação nenhuma.
+75. **Menor alteração**: corrigir o status dos executivos (dado) ou, se a intenção é manter inativos, incluir na lista do ranking os executivos operacionais independentemente do `status`, marcando visualmente os inativos.
+
+## 11. Remarketing
+
+76. `src/routes/f.remarketing.index.tsx`.
+77. Layout limitado no próprio arquivo: header `max-w-6xl` (linha 49) e `<main className="mx-auto max-w-7xl px-6 pt-24 pb-16">` (linha 85); `remarketing-workspace.tsx` não impõe largura própria.
+78. **Sim, é só visual.**
+79. Trocar/remover os `max-w-*` (ex.: `max-w-screen-2xl` ou largura total com padding) e dar destaque ao cabeçalho "Ambiente de Remarketing — CRM operacional independente".
+80. **Confirmado**: nenhuma regra de Remarketing é tocada.
+
+## 12. Cenários (conceituais)
+
+- **A** — E0 automática, lead em NOVOS: nada deve aparecer (hoje aparece a E0 órfã, causa da 1ª bateria). Cadência não conta.
+- **B** — saiu de NOVOS, E1 não venceu: nada aparece; o item existe em `relationship_queue` com `due_at` futuro.
+- **C** — E1 venceu: aparece um card de mensagem — hoje "Mensagem E1", desejado "Etapa 1 — Copiar mensagem".
+- **D** — copiou e confirmou SIM: registro em `relationship_engine_log` + `crm_timeline` (e, corretamente, conclusão do item da fila); o motor então agenda E3 no próximo tique.
+- **E** — confirmou NÃO: a etapa **não** é concluída; o item permanece PENDING e reaparece conforme as regras de janela/dia operacional.
+
+## 13. Conclusão
+
+- **A)** Fonte oficial: `relationship_message_library` (texto ativo) + `relationship_contents` via `relationship_step_content_bindings`.
+- **B)** Erro E1: seis vínculos ativos na etapa e um resolvedor que só aceita um — `step-media.server.ts:75` devolve vazio e `messages.ts:475` bloqueia.
+- **C)** Função a reutilizar: `prepareStepMessage` / `renderFromLibrary`, com a mídia resolvida por `selectFromPool`.
+- **D)** Atualização automática: já é nativa (sem cache); resolvido o item B, publicar na Biblioteca basta.
+- **E)** "Copiar mensagem — Etapa X": rótulo em `step-labels.ts` + título da fila em `daily-actions.server.ts:242,250` + botão/clipboard em `daily-actions-overlay.tsx`.
+- **F)** "Mensagem enviada? SIM": `registerDailyActionMessage` + conclusão do item via `updateQueueItem` (reserva atômica já existente).
+- **G)** Jornada: incluir `acao_do_dia_*` na whitelist relacional de `journey.server.ts:90-98`.
+- **H)** KPI só com Thiago: `executive_user_status` com os outros seis `inativo`.
+- **I)** Painel de Campanha: mesma causa de dados, não de permissão.
+- **J)** Remarketing: `max-w-6xl`/`max-w-7xl` em `f.remarketing.index.tsx:49,85`.
+- **K)** Arquivos numa entrega futura: `step-message.server.ts`, `step-media.server.ts` (ou uso de `selectFromPool`), `daily-actions.server.ts`, `daily-actions-overlay.tsx`, `step-labels.ts`, `daily-actions-log.server.ts`, `journey.server.ts`, `f.executivo.kpi.tsx`/`teams.ts`, `f.remarketing.index.tsx`.
+- **L)** Riscos: baixos e localizados; o maior é confundir rótulo apresentado com chave técnica — a chave nunca deve mudar.
+- **M)** **E0 permanece intocado.**
+- **N)** **Nenhum novo motor, fila ou relógio.**
+- **O)** **Não é necessário importar Word** para atualizar mensagens.
+- **P)** Sequência recomendada: (1) rotação de mídia na leitura da mensagem; (2) filtro defensivo da E0 órfã; (3) rótulos "Etapa N — Copiar mensagem" + clipboard; (4) confirmação SIM/NÃO com conclusão da fila; (5) whitelist da Jornada; (6) visibilidade de KPI/Campanha; (7) layout do Remarketing.
 
 Nenhuma implementação foi feita.
