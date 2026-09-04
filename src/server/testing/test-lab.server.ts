@@ -34,6 +34,14 @@ export type CreateBatchInput = {
   notes?: string | null;
   createdBy?: string | null;
   createdByName?: string;
+  /**
+   * Executivo RESPONSÁVEL pelos leads do lote. Opcional: ausente mantém
+   * o comportamento anterior (card sem responsável → E0 manual). Quando
+   * informado, o lead percorre o MESMO caminho de um lead real com dono
+   * — a identidade é convertida em `connectionUserId` e o modo do E0
+   * continua sendo decidido pelas permissões do próprio executivo.
+   */
+  responsibleExecutiveId?: string | null;
 };
 
 export type BatchLead = {
