@@ -48,7 +48,7 @@ function BibliotecaPage() {
   if (!session) return null;
 
   return (
-    <ExecutiveShell session={session}>
+    <ExecutiveShell session={session} title="Biblioteca de Mensagens">
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
         <header className="flex items-center gap-2">
           <LibraryBig className="h-5 w-5 text-[color:var(--gold)]" />
