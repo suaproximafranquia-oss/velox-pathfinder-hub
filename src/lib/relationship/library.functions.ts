@@ -66,22 +66,6 @@ export const renomearRotuloEtapa = createServerFn({ method: "POST" })
     return renameLibraryStep({ stepKey: data.stepKey, label: data.label ?? "" });
   });
 
-/**
- * Importa/atualiza a Biblioteca a partir do Word oficial. Texto igual ao
- * que já está ativo não gera versão nova; texto diferente cria a versão
- * seguinte e preserva a anterior.
- */
-export const importarBibliotecaOficial = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { importWordLibrary } = await import(
-      "@/server/relationship/message-library.server"
-    );
-    const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
-    return importWordLibrary({ actorId: context.userId, actorName: String(name) });
-  });
-
-
 export const jornadaDoLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { leadId: string; layer?: "relacional" | "tecnico" | "todos" }) => {
