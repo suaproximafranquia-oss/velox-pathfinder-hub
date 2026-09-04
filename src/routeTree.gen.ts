@@ -10,8 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UniversoRouteImport } from './routes/universo'
+import { Route as SolarRouteImport } from './routes/solar'
+import { Route as SeguradoraRouteImport } from './routes/seguradora'
 import { Route as RemarketingRouteImport } from './routes/remarketing'
 import { Route as PortalLeadsRouteImport } from './routes/portal-leads'
+import { Route as FinanceiraRouteImport } from './routes/financeira'
 import { Route as FRouteImport } from './routes/f'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as CrmRouteImport } from './routes/crm'
@@ -113,6 +116,16 @@ const UniversoRoute = UniversoRouteImport.update({
   path: '/universo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SolarRoute = SolarRouteImport.update({
+  id: '/solar',
+  path: '/solar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SeguradoraRoute = SeguradoraRouteImport.update({
+  id: '/seguradora',
+  path: '/seguradora',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RemarketingRoute = RemarketingRouteImport.update({
   id: '/remarketing',
   path: '/remarketing',
@@ -121,6 +134,11 @@ const RemarketingRoute = RemarketingRouteImport.update({
 const PortalLeadsRoute = PortalLeadsRouteImport.update({
   id: '/portal-leads',
   path: '/portal-leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanceiraRoute = FinanceiraRouteImport.update({
+  id: '/financeira',
+  path: '/financeira',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FRoute = FRouteImport.update({
@@ -610,8 +628,11 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRoute
   '/entrar': typeof EntrarRoute
   '/f': typeof FRouteWithChildren
+  '/financeira': typeof FinanceiraRoute
   '/portal-leads': typeof PortalLeadsRoute
   '/remarketing': typeof RemarketingRoute
+  '/seguradora': typeof SeguradoraRoute
+  '/solar': typeof SolarRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -709,8 +730,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/crm': typeof CrmRoute
   '/entrar': typeof EntrarRoute
+  '/financeira': typeof FinanceiraRoute
   '/portal-leads': typeof PortalLeadsRoute
   '/remarketing': typeof RemarketingRoute
+  '/seguradora': typeof SeguradoraRoute
+  '/solar': typeof SolarRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -806,8 +830,11 @@ export interface FileRoutesById {
   '/crm': typeof CrmRoute
   '/entrar': typeof EntrarRoute
   '/f': typeof FRouteWithChildren
+  '/financeira': typeof FinanceiraRoute
   '/portal-leads': typeof PortalLeadsRoute
   '/remarketing': typeof RemarketingRoute
+  '/seguradora': typeof SeguradoraRoute
+  '/solar': typeof SolarRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -908,8 +935,11 @@ export interface FileRouteTypes {
     | '/crm'
     | '/entrar'
     | '/f'
+    | '/financeira'
     | '/portal-leads'
     | '/remarketing'
+    | '/seguradora'
+    | '/solar'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -1007,8 +1037,11 @@ export interface FileRouteTypes {
     | '/'
     | '/crm'
     | '/entrar'
+    | '/financeira'
     | '/portal-leads'
     | '/remarketing'
+    | '/seguradora'
+    | '/solar'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -1103,8 +1136,11 @@ export interface FileRouteTypes {
     | '/crm'
     | '/entrar'
     | '/f'
+    | '/financeira'
     | '/portal-leads'
     | '/remarketing'
+    | '/seguradora'
+    | '/solar'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -1204,8 +1240,11 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRoute
   EntrarRoute: typeof EntrarRoute
   FRoute: typeof FRouteWithChildren
+  FinanceiraRoute: typeof FinanceiraRoute
   PortalLeadsRoute: typeof PortalLeadsRoute
   RemarketingRoute: typeof RemarketingRoute
+  SeguradoraRoute: typeof SeguradoraRoute
+  SolarRoute: typeof SolarRoute
   UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
@@ -1265,6 +1304,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UniversoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/solar': {
+      id: '/solar'
+      path: '/solar'
+      fullPath: '/solar'
+      preLoaderRoute: typeof SolarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seguradora': {
+      id: '/seguradora'
+      path: '/seguradora'
+      fullPath: '/seguradora'
+      preLoaderRoute: typeof SeguradoraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/remarketing': {
       id: '/remarketing'
       path: '/remarketing'
@@ -1277,6 +1330,13 @@ declare module '@tanstack/react-router' {
       path: '/portal-leads'
       fullPath: '/portal-leads'
       preLoaderRoute: typeof PortalLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financeira': {
+      id: '/financeira'
+      path: '/financeira'
+      fullPath: '/financeira'
+      preLoaderRoute: typeof FinanceiraRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/f': {
@@ -2099,8 +2159,11 @@ const rootRouteChildren: RootRouteChildren = {
   CrmRoute: CrmRoute,
   EntrarRoute: EntrarRoute,
   FRoute: FRouteWithChildren,
+  FinanceiraRoute: FinanceiraRoute,
   PortalLeadsRoute: PortalLeadsRoute,
   RemarketingRoute: RemarketingRoute,
+  SeguradoraRoute: SeguradoraRoute,
+  SolarRoute: SolarRoute,
   UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,
