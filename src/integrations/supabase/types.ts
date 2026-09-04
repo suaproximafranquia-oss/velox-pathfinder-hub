@@ -253,6 +253,7 @@ export type Database = {
       }
       crm_cadence_tasks: {
         Row: {
+          canonical_investor_id: string | null
           channel: string
           completed_at: string | null
           completed_by: string | null
@@ -269,6 +270,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          canonical_investor_id?: string | null
           channel?: string
           completed_at?: string | null
           completed_by?: string | null
@@ -285,6 +287,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          canonical_investor_id?: string | null
           channel?: string
           completed_at?: string | null
           completed_by?: string | null
@@ -301,6 +304,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_cadence_tasks_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_cadence_tasks_lead_id_fkey"
             columns: ["lead_id"]
@@ -386,11 +396,13 @@ export type Database = {
       }
       crm_leads: {
         Row: {
+          canonical_investor_id: string | null
           capture_form: string | null
           created_at: string
           email: string
           entered_entry_stage_at: string | null
           entry_count: number
+          environment: string | null
           external_created_at: string | null
           external_id: string
           external_pipeline_id: string | null
@@ -425,11 +437,13 @@ export type Database = {
           welcome_template: string | null
         }
         Insert: {
+          canonical_investor_id?: string | null
           capture_form?: string | null
           created_at?: string
           email?: string
           entered_entry_stage_at?: string | null
           entry_count?: number
+          environment?: string | null
           external_created_at?: string | null
           external_id: string
           external_pipeline_id?: string | null
@@ -464,11 +478,13 @@ export type Database = {
           welcome_template?: string | null
         }
         Update: {
+          canonical_investor_id?: string | null
           capture_form?: string | null
           created_at?: string
           email?: string
           entered_entry_stage_at?: string | null
           entry_count?: number
+          environment?: string | null
           external_created_at?: string | null
           external_id?: string
           external_pipeline_id?: string | null
@@ -502,7 +518,15 @@ export type Database = {
           welcome_status?: string
           welcome_template?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_messages: {
         Row: {
@@ -735,6 +759,7 @@ export type Database = {
         Row: {
           actor_id: string | null
           at: string
+          canonical_investor_id: string | null
           created_at: string
           event: string
           id: string
@@ -747,6 +772,7 @@ export type Database = {
         Insert: {
           actor_id?: string | null
           at?: string
+          canonical_investor_id?: string | null
           created_at?: string
           event: string
           id: string
@@ -759,6 +785,7 @@ export type Database = {
         Update: {
           actor_id?: string | null
           at?: string
+          canonical_investor_id?: string | null
           created_at?: string
           event?: string
           id?: string
@@ -768,7 +795,15 @@ export type Database = {
           reason?: string
           simulated?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "crm_timeline_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       executive_profiles: {
         Row: {
@@ -999,6 +1034,88 @@ export type Database = {
           whatsapp_key?: string | null
         }
         Relationships: []
+      }
+      investor_identifiers: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          investor_id: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          investor_id: string
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          investor_id?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_identifiers_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investors: {
+        Row: {
+          created_at: string
+          emails: string[]
+          id: string
+          identity_key: string | null
+          merged_at: string | null
+          merged_into_id: string | null
+          merged_reason: string | null
+          name: string
+          phones: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          emails?: string[]
+          id?: string
+          identity_key?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
+          merged_reason?: string | null
+          name: string
+          phones?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          emails?: string[]
+          id?: string
+          identity_key?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
+          merged_reason?: string | null
+          name?: string
+          phones?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investors_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       knowledge_documents: {
         Row: {
@@ -1502,6 +1619,7 @@ export type Database = {
           archived_at: string | null
           archived_by: string | null
           campaign: string | null
+          canonical_investor_id: string | null
           city: string
           closed_at: string | null
           commercial_state: string
@@ -1561,6 +1679,7 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           campaign?: string | null
+          canonical_investor_id?: string | null
           city?: string
           closed_at?: string | null
           commercial_state?: string
@@ -1620,6 +1739,7 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           campaign?: string | null
+          canonical_investor_id?: string | null
           city?: string
           closed_at?: string | null
           commercial_state?: string
@@ -1675,7 +1795,15 @@ export type Database = {
           whatsapp?: string
           whatsapp_confirmed_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "portal_leads_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       portal_meetings: {
         Row: {
@@ -1879,6 +2007,7 @@ export type Database = {
           auto_reply_total_count: number
           auto_reply_window_count: number
           auto_reply_window_started_at: string | null
+          canonical_investor_id: string | null
           close_reason: string | null
           closed_at: string | null
           content_history: Json
@@ -1916,6 +2045,7 @@ export type Database = {
           auto_reply_total_count?: number
           auto_reply_window_count?: number
           auto_reply_window_started_at?: string | null
+          canonical_investor_id?: string | null
           close_reason?: string | null
           closed_at?: string | null
           content_history?: Json
@@ -1953,6 +2083,7 @@ export type Database = {
           auto_reply_total_count?: number
           auto_reply_window_count?: number
           auto_reply_window_started_at?: string | null
+          canonical_investor_id?: string | null
           close_reason?: string | null
           closed_at?: string | null
           content_history?: Json
@@ -1984,7 +2115,15 @@ export type Database = {
           updated_at?: string
           window_open_until?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "relationship_cadences_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       relationship_content_groups: {
         Row: {
@@ -2317,6 +2456,7 @@ export type Database = {
         Row: {
           action: string
           actor: string | null
+          canonical_investor_id: string | null
           created_at: string
           details: Json
           id: string
@@ -2325,6 +2465,7 @@ export type Database = {
         Insert: {
           action: string
           actor?: string | null
+          canonical_investor_id?: string | null
           created_at?: string
           details?: Json
           id?: string
@@ -2333,12 +2474,21 @@ export type Database = {
         Update: {
           action?: string
           actor?: string | null
+          canonical_investor_id?: string | null
           created_at?: string
           details?: Json
           id?: string
           scope?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "relationship_engine_log_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       relationship_events: {
         Row: {
@@ -2604,6 +2754,7 @@ export type Database = {
       relationship_queue: {
         Row: {
           attempts: number
+          canonical_investor_id: string | null
           created_at: string
           due_at: string
           executed_at: string | null
@@ -2621,6 +2772,7 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          canonical_investor_id?: string | null
           created_at?: string
           due_at: string
           executed_at?: string | null
@@ -2638,6 +2790,7 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          canonical_investor_id?: string | null
           created_at?: string
           due_at?: string
           executed_at?: string | null
@@ -2653,7 +2806,15 @@ export type Database = {
           step?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "relationship_queue_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       relationship_sim_runs: {
         Row: {
@@ -3270,6 +3431,7 @@ export type Database = {
       }
       workspace_e0_actions: {
         Row: {
+          canonical_investor_id: string | null
           card_id: string
           created_at: string
           crm_lead_id: string | null
@@ -3289,6 +3451,7 @@ export type Database = {
           state: string
         }
         Insert: {
+          canonical_investor_id?: string | null
           card_id: string
           created_at?: string
           crm_lead_id?: string | null
@@ -3308,6 +3471,7 @@ export type Database = {
           state?: string
         }
         Update: {
+          canonical_investor_id?: string | null
           card_id?: string
           created_at?: string
           crm_lead_id?: string | null
@@ -3326,7 +3490,15 @@ export type Database = {
           result?: string | null
           state?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workspace_e0_actions_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workspace_module_permissions: {
         Row: {
