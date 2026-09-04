@@ -129,6 +129,7 @@ export async function createTestBatch(input: CreateBatchInput): Promise<CreateBa
           pipeline,
           settings,
           test: { batchId },
+          connectionUserId,
         });
         leads.push({
           id: lead.externalId,
