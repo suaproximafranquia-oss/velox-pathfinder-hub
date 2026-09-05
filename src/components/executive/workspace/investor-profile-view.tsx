@@ -1010,17 +1010,26 @@ function TabComentarios({ investor }: { investor: Investor; session: ExecutiveSe
       ) : (
         <ul className="space-y-2">
           {items.map((c) => (
-            <li
-              key={c.id}
-              className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3"
-            >
-              <div className="flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
-                <span>{c.authorName ?? "Executivo"}</span>
-                <span>{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
-              </div>
-              <p className="mt-1 text-sm whitespace-pre-wrap">{c.body}</p>
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => setOpen(c)}
+                className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3 text-left transition hover:border-[color:var(--gold)]/60"
+              >
+                <div className="flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
+                  <span>{c.authorName ?? "Executivo"}</span>
+                  <span>{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
+                </div>
+                <p className="mt-1 text-sm whitespace-pre-wrap line-clamp-3">{c.body}</p>
+                {c.body.length > 160 ? (
+                  <span className="mt-1 block text-[11px] text-[color:var(--muted-foreground)]">
+                    … ver registro completo
+                  </span>
+                ) : null}
+              </button>
             </li>
           ))}
+
           {legacy.map((c) => (
             <li
               key={`legado-${c.id}`}
