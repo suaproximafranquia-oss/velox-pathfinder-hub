@@ -30,6 +30,10 @@ type Action = {
   step: string | null;
   status: "executada" | "pendente" | "cancelada" | "nao_realizada";
   overdue: boolean;
+  /** Obrigação planejada dentro do período (visão ADERÊNCIA). */
+  planned: boolean;
+  /** Executada dentro do período (visão PRODUÇÃO). */
+  produced: boolean;
   plannedAt: string | null;
   executedAt: string | null;
   result: string | null;
