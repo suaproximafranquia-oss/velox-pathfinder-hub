@@ -215,7 +215,20 @@ export function CentralOperacoesHome() {
     return report.skips.filter(drill.skipFilter ?? (() => true));
   }, [report, drill]);
 
-  function openExecutive(summary: Summary, metric: keyof Summary | "todas", label: string) {
+  type Metric =
+    | "planejadas"
+    | "producao"
+    | "executadasDoPlanejado"
+    | "pendentes"
+    | "vencidas"
+    | "canceladas"
+    | "puladas";
+
+  /**
+   * O drill-down usa exatamente o mesmo predicado que gerou o número:
+   * não existe consulta paralela com outra regra.
+   */
+  function openExecutive(summary: Summary, metric: Metric, label: string) {
     const isUnassigned = summary.executiveId === "__sem_responsavel_historico__";
     const matchExec = (a: Action) =>
       summary.executiveId === "__totais__"
@@ -243,20 +256,22 @@ export function CentralOperacoesHome() {
       executiveId: summary.executiveId,
       filter: (a) => {
         if (!matchExec(a)) return false;
-        if (metric === "executadas") return a.status === "executada";
+        if (metric === "producao") return a.produced;
+        if (!a.planned) return false;
+        if (metric === "executadasDoPlanejado") return a.status === "executada";
         if (metric === "pendentes") return a.status === "pendente";
         if (metric === "canceladas") return a.status === "cancelada";
-        if (metric === "vencidas") return a.overdue;
+        if (metric === "vencidas") return a.status === "pendente" && a.overdue;
         return true;
       },
     });
   }
 
-  function openKind(kind: Kind) {
+  function openKind(kind: Kind, view: "planejado" | "producao") {
     setDrill({
-      title: KIND_LABEL[kind],
+      title: `${KIND_LABEL[kind]} — ${view === "producao" ? "produção do período" : "planejadas no período"}`,
       executiveId: null,
-      filter: (a) => a.kind === kind,
+      filter: (a) => a.kind === kind && (view === "producao" ? a.produced : a.planned),
     });
   }
 
