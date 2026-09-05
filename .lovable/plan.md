@@ -1,70 +1,50 @@
-# AUDITORIA — Identificação dos códigos `vendedor_id` GreenSales (Financeira /f)
+# AUDITORIA — Qual campo representa o vendedor/responsável no payload GDigital (Financeira /f)
 
-Somente leitura. Nada foi construído, alterado, sincronizado ou executado.
+Somente leitura. Nada construído, alterado ou executado. Nenhuma chamada externa feita.
 
-## 1. Onde nasce `vendedor_id`
+## 1–2. Contrato inspecionado
 
-- A integração (`src/server/greensales.server.ts`) usa apenas 3 chamadas à API GDigital (`https://back.gdigital.com.br/`):
-  - `POST /login` — autenticação;
-  - `POST /lead/list` — listagem paginada de leads;
-  - `GET /lead/{id}` — detalhe do lead.
-- O tipo `GreenSalesLead` declara `vendedor_id?: number | null`, ou seja, o campo é esperado no **payload do lead** (listagem e/ou detalhe).
-- O extrator do Bloco 2 (`greenSalesVendorId` em `src/server/crm/responsible.server.ts`) lê `raw["vendedor_id"]` ou `raw["vendedor"]["id"]`.
-- Não há no projeto nenhum endpoint/consulta de "usuários", "vendedores", "owners" ou "sellers" do GreenSales — apenas leads.
+- `GreenSalesLead` (`src/server/greensales.server.ts`, linhas 31–45): declara `vendedor_id?: number | null` e **não declara `user_id` nem `pre_user_id`** — mas o tipo termina com `[key: string]: unknown`, ou seja, qualquer campo extra da origem passa pelo tipo sem ser nomeado.
+- `POST /lead/list` e `GET /lead/{id}` não têm parser de responsável: o código mescla `{ ...listed, ...detail }` e grava tudo em `crm_leads.raw_payload`.
+- `normalizeGreenSalesLead` (`src/lib/greensales/normalize.ts`) extrai apenas nome, e-mail, whatsapp, cidade, campanha e material/origem. **Nenhum campo de responsável é normalizado.**
 
-## 2. Existe lista de vendedores GreenSales?
+## 3. Onde `user_id` existe
 
-**Não.** Nenhuma estrutura ID|Nome de vendedores existe no código ou no banco. O projeto nunca consumiu nome de vendedor da origem.
+`user_id` **não faz parte formal do tipo nem do mapeamento** — existe apenas dentro do `raw_payload` histórico: 637 dos 639 leads com `user_id = 37193`, `pre_user_id = 0`, e nenhum `vendedor_id`/`vendedor`.
 
-## 3. Dados históricos aproveitáveis — DESCOBERTA CENTRAL
+## 4. Outros campos candidatos no payload
 
-`crm_leads.raw_payload` (jsonb) guarda o payload bruto mesclado (listagem + detalhe) de 639 leads. Auditoria das chaves presentes:
+Chaves presentes nos 639 payloads: `user_id`, `pre_user_id`, `user_updated_at`, `event_id`, `qualification`, `situations`, `journey`, `activities_*`, `products`, `companies`, `notes`, `address`, `register`, `register_form`, `follow_up`, `soft_bounce_*`. Os únicos com semântica de pessoa/dono são **`user_id`** e **`pre_user_id`** ("pré-usuário", provável responsável anterior ou usuário de pré-atendimento — o código não define). Nenhum outro campo representa vendedor/executor/dono.
 
-- **`vendedor_id` NÃO existe em nenhum payload armazenado** — nem `vendedor` aninhado.
-- O que existe é **`user_id`**: presente em 637 dos 639 leads, **sempre com o valor `37193`**, e `pre_user_id` sempre `0`.
+## 5. Comparação com base apenas no contrato existente
 
-Ou seja: o payload real da origem identifica o dono do lead pelo campo **`user_id`**, não `vendedor_id`. Hoje, todos os leads sincronizados pertencem ao mesmo usuário GreenSales `37193`.
+| Campo | No tipo? | Nos dados? | Significado comprovável pelo código |
+|---|---|---|---|
+| `vendedor_id` | Sim (declarado) | **Nunca** apareceu | Nenhum — campo esperado mas nunca observado |
+| `vendedor.id` | Não | **Nunca** apareceu | Nenhum |
+| `user_id` | Não (cai no índice genérico) | 637/639 leads, valor único `37193` | Único identificador de usuário presente em todo payload real |
+| `pre_user_id` | Não | Sempre `0` | Indefinido; nome sugere "usuário anterior/pré", sem prova |
 
-## 4. Algum lead existente permite identificar o vendedor?
+## Respostas objetivas
 
-Parcialmente: qualquer lead com `raw_payload` revela `user_id = 37193`. Mas o payload **não traz o nome do vendedor**, então o projeto não consegue provar a quem pertence `37193`.
+**A) `user_id` é o campo correto?**
+É o **único campo real observado** que identifica um usuário da origem por lead. O código não prova que ele seja "responsável atual" — mas também não existe nenhum outro candidato no payload real.
 
-Evidência indireta forte: a **única conexão GreenSales** cadastrada (`crm_connections`) pertence a **usr_thiago (Thiago Rodrigues)** — todos os leads entraram por essa conta. Isso sugere que `37193` pode ser o próprio usuário da conta conectada, mas **não é prova**: pode ser o dono atribuído aos leads, não o dono da conta.
+**B) Há evidência suficiente no código para afirmar isso?**
+**Não.** O código prova apenas que `user_id` existe e é estável; não prova a semântica (responsável atual vs. criador/importador). O tipo declara `vendedor_id`, que nunca se materializou — ou seja, o tipo foi escrito por expectativa, não por observação.
 
-## 5. Relação com os 7 executivos
+**C) Precisamos de confirmação externa?**
+**Sim.** Antes de alterar o extrator, é necessário confirmar com a GDigital/Admin GreenSales (documentação ou painel): (1) o que `user_id` representa no lead; (2) qual campo representa o vendedor responsável atual; (3) a lista ID|Nome dos 7 executivos.
 
-- Nenhum `greensales_vendor_id` cadastrado (todos os 7: NULL) — confirmado no banco.
-- Nenhum dado histórico relaciona Carlos, Marton, Paulo, Larissa, Milton ou Talita a qualquer código da origem — eles nunca apareceram em payload porque, até aqui, **todos os leads vieram com o mesmo `user_id`**.
-- Não foi feita nenhuma inferência por igualdade de IDs.
+**D) Menor alteração, SE `user_id` for confirmado como responsável:**
+Adicionar uma única linha ao extrator `greenSalesVendorId` em `src/server/crm/responsible.server.ts`, aceitando `raw["user_id"]` como terceira fonte (após `vendedor_id` e `vendedor.id`). Uma função, um arquivo, sem migration, sem mudança de schema — a coluna `greensales_vendor_id` e o cadastro do Bloco 3 permanecem. (Não executar agora.)
 
-## 6. Gestão de Usuários (Bloco 3)
+**E) `greensales_vendor_id` continua representando o mesmo identificador?**
+Sim. A coluna é texto livre e já guarda "o identificador do vendedor na origem"; seja ele `vendedor_id` ou `user_id`, o cadastro manual do Bloco 3 e o resolvedor `resolveResponsibleByVendorId` não mudam.
 
-Confirmado: a coluna `executive_profiles.greensales_vendor_id` existe, o campo "Código do vendedor na origem (GreenSales)" está na tela `/f/executivo/usuarios`, com bloqueio de duplicidade. O local de cadastro manual está pronto.
+**F) Risco de `user_id` ser criador/importador e não responsável?**
+**Existe e é real.** Em CRMs desse tipo, `user_id` pode ser o dono atual OU o usuário que cadastrou o lead — e a presença de `pre_user_id` e `user_updated_at` sugere que a origem distingue papéis. Como 100% dos leads históricos têm o mesmo valor, não há variação nos dados para diferenciar os significados. Por isso a confirmação externa (item C) é bloqueadora: cadastrar os 7 códigos contra o campo errado faria a redistribuição mover leads para o executivo errado.
 
-## 7. Cenário final: conseguimos descobrir os códigos pelo projeto?
+## Conclusão
 
-**Resposta: D — NÃO está disponível dentro do projeto**, com um agravante importante:
-
-1. O histórico só conhece **um** usuário da origem (`37193`), sem nome.
-2. O campo que o Bloco 2 lê (`vendedor_id` / `vendedor.id`) **nunca apareceu** em payload real armazenado — o campo real observado é `user_id`.
-3. O projeto não tem endpoint de listagem de vendedores.
-
-### O que precisamos obter externamente
-
-Da **Administração GreenSales/GDigital** (tela de usuários/equipe do app.gdigital.com.br):
-
-- A lista **ID | Nome** de cada vendedor (Thiago, Carlos, Marton, Paulo, Larissa, Milton, Talita).
-
-E uma validação conceitual antes de ativar a redistribuição:
-
-- Confirmar se o identificador do vendedor no lead é o campo **`user_id`** (observado em 637 payloads) e não `vendedor_id`. Se for, o extrator `greenSalesVendorId` precisará ler `user_id` — ajuste futuro, fora desta auditoria.
-
-## 8–10. Escopo respeitado
-
-Nenhuma automação, tela nova, sincronização, cron, lead de teste ou redistribuição foi criada/executada. `/s`, `/seg` e `/` intocados. Safety Lock intacto.
-
-## 11. Recomendação do próximo passo
-
-1. **Admin obtém no painel GreenSales** a lista ID|Nome dos 7 executivos (manual, única vez).
-2. **Admin cadastra** os códigos na Gestão de Usuários (Bloco 3 já pronto).
-3. **Antes do primeiro teste de redistribuição**, validar com um lead fictício de lote de teste qual campo o payload fresco entrega (`user_id` vs `vendedor_id`) e, se necessário, corrigir o extrator — construção mínima, somente após autorização.
+O projeto hoje **não consegue afirmar** qual campo é o responsável: o campo esperado (`vendedor_id`) nunca chegou; o campo real (`user_id`) tem semântica não comprovada. O próximo passo não é código — é obter da Administração GreenSales/GDigital: **(1)** o significado de `user_id` no lead e **(2)** a lista oficial ID|Nome dos vendedores. Só depois disso autoriza-se a alteração mínima do extrator (item D) e o cadastro dos códigos.
