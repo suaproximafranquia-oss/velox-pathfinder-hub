@@ -25,6 +25,7 @@ import { Route as ManualIndexRouteImport } from './routes/manual/index'
 import { Route as FIndexRouteImport } from './routes/f.index'
 import { Route as ExecutivoIndexRouteImport } from './routes/executivo.index'
 import { Route as SegSlugRouteImport } from './routes/seg.$slug'
+import { Route as SPortalRouteImport } from './routes/s.portal'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as OrigemChannelRouteImport } from './routes/origem.$channel'
 import { Route as ManualConcluidoRouteImport } from './routes/manual/concluido'
@@ -191,6 +192,11 @@ const ExecutivoIndexRoute = ExecutivoIndexRouteImport.update({
 const SegSlugRoute = SegSlugRouteImport.update({
   id: '/seg/$slug',
   path: '/seg/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SPortalRoute = SPortalRouteImport.update({
+  id: '/s/portal',
+  path: '/s/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SSlugRoute = SSlugRouteImport.update({
@@ -687,6 +693,7 @@ export interface FileRoutesByFullPath {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
+  '/s/portal': typeof SPortalRoute
   '/seg/$slug': typeof SegSlugRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/f/': typeof FIndexRoute
@@ -788,6 +795,7 @@ export interface FileRoutesByTo {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
+  '/s/portal': typeof SPortalRoute
   '/seg/$slug': typeof SegSlugRoute
   '/executivo': typeof ExecutivoIndexRoute
   '/f': typeof FIndexRoute
@@ -893,6 +901,7 @@ export interface FileRoutesById {
   '/manual/concluido': typeof ManualConcluidoRoute
   '/origem/$channel': typeof OrigemChannelRoute
   '/s/$slug': typeof SSlugRoute
+  '/s/portal': typeof SPortalRoute
   '/seg/$slug': typeof SegSlugRoute
   '/executivo/': typeof ExecutivoIndexRoute
   '/f/': typeof FIndexRoute
@@ -1000,6 +1009,7 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/origem/$channel'
     | '/s/$slug'
+    | '/s/portal'
     | '/seg/$slug'
     | '/executivo/'
     | '/f/'
@@ -1101,6 +1111,7 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/origem/$channel'
     | '/s/$slug'
+    | '/s/portal'
     | '/seg/$slug'
     | '/executivo'
     | '/f'
@@ -1205,6 +1216,7 @@ export interface FileRouteTypes {
     | '/manual/concluido'
     | '/origem/$channel'
     | '/s/$slug'
+    | '/s/portal'
     | '/seg/$slug'
     | '/executivo/'
     | '/f/'
@@ -1306,6 +1318,7 @@ export interface RootRouteChildren {
   ManualConcluidoRoute: typeof ManualConcluidoRoute
   OrigemChannelRoute: typeof OrigemChannelRoute
   SSlugRoute: typeof SSlugRoute
+  SPortalRoute: typeof SPortalRoute
   SegSlugRoute: typeof SegSlugRoute
   ExecutivoIndexRoute: typeof ExecutivoIndexRoute
   ManualIndexRoute: typeof ManualIndexRoute
@@ -1432,6 +1445,13 @@ declare module '@tanstack/react-router' {
       path: '/seg/$slug'
       fullPath: '/seg/$slug'
       preLoaderRoute: typeof SegSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/portal': {
+      id: '/s/portal'
+      path: '/s/portal'
+      fullPath: '/s/portal'
+      preLoaderRoute: typeof SPortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/s/$slug': {
@@ -2243,6 +2263,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManualConcluidoRoute: ManualConcluidoRoute,
   OrigemChannelRoute: OrigemChannelRoute,
   SSlugRoute: SSlugRoute,
+  SPortalRoute: SPortalRoute,
   SegSlugRoute: SegSlugRoute,
   ExecutivoIndexRoute: ExecutivoIndexRoute,
   ManualIndexRoute: ManualIndexRoute,
