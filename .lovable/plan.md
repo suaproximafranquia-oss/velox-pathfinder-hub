@@ -1,110 +1,70 @@
-# Auditoria técnica — Financeira /f após o BLOCO 2
+# AUDITORIA — Identificação dos códigos `vendedor_id` GreenSales (Financeira /f)
 
-Somente leitura. Nada foi construído, alterado, migrado ou executado.
+Somente leitura. Nada foi construído, alterado, sincronizado ou executado.
 
-## 1. vendedor_id — estado atual
+## 1. Onde nasce `vendedor_id`
 
-- A origem entrega o campo: `src/server/greensales.server.ts:41` → `vendedor_id?: number | null` (numérico na origem).
-- O projeto extrai o valor sem suposições em `greenSalesVendorId(raw)` (`src/server/crm/responsible.server.ts:54`), aceitando `vendedor_id` direto ou aninhado em `vendedor.id`, sempre convertido para **texto**.
-- Armazenamento do vínculo: coluna **`executive_profiles.greensales_vendor_id` (text)**, criada na migration do Bloco 2, com índice único parcial (`WHERE greensales_vendor_id IS NOT NULL`).
-- Existe vínculo direto GreenSales → executivo interno? **Sim, estruturalmente**: `executive_profiles.greensales_vendor_id` → `executive_profiles.executive_id`.
-- ⚠️ INCONSISTÊNCIA OPERACIONAL: a coluna está **100% vazia**. Consulta atual em `executive_profiles`: Carlos, Larissa, Marton, Milton, Paulo, Talita, Thiago Rodrigues — todos com `greensales_vendor_id = NULL` e `slug = NULL`. Ou seja, o Bloco 2 criou a estrutura, mas o cadastro que a alimenta ainda não existe. Na prática, hoje `resolveResponsibleByVendorId` sempre devolve `null` e o sistema recai no comportamento anterior.
+- A integração (`src/server/greensales.server.ts`) usa apenas 3 chamadas à API GDigital (`https://back.gdigital.com.br/`):
+  - `POST /login` — autenticação;
+  - `POST /lead/list` — listagem paginada de leads;
+  - `GET /lead/{id}` — detalhe do lead.
+- O tipo `GreenSalesLead` declara `vendedor_id?: number | null`, ou seja, o campo é esperado no **payload do lead** (listagem e/ou detalhe).
+- O extrator do Bloco 2 (`greenSalesVendorId` em `src/server/crm/responsible.server.ts`) lê `raw["vendedor_id"]` ou `raw["vendedor"]["id"]`.
+- Não há no projeto nenhum endpoint/consulta de "usuários", "vendedores", "owners" ou "sellers" do GreenSales — apenas leads.
 
-## 2. Mapa de IDs
+## 2. Existe lista de vendedores GreenSales?
 
-- `executive_profiles.executive_id` — texto legível, padrão `usr_<nome>` (`usr_thiago`, `usr_carlos`, `usr_marton`, `usr_paulo`, `usr_larissa`, `usr_milton`, `usr_talita`). É o ID interno usado por cards, E0, cadência e histórico.
-- `executive_profiles.user_id` — UUID de autenticação (todos os 7 possuem). Ligação com o login.
-- `executive_profiles.slug` — link personalizado do Portal; atualmente NULL para todos.
-- `executive_profiles.greensales_vendor_id` — código do vendedor **na origem**; hoje NULL para todos.
-- `crm_connections.user_id` — dono da conexão de sincronização (caminho técnico, não é o responsável do lead).
-- `portal_leads.responsible_executive_id` / `responsible_executive_slug` — responsável operacional atual do card.
-- `investors.id` + `investor_identifiers(source, external_id)` — identidade canônica da pessoa, independente do executivo.
+**Não.** Nenhuma estrutura ID|Nome de vendedores existe no código ou no banco. O projeto nunca consumiu nome de vendedor da origem.
 
-Não há igualdade numérica implícita entre `vendedor_id` e nenhum ID interno: a correspondência só existe se cadastrada explicitamente na coluna acima.
+## 3. Dados históricos aproveitáveis — DESCOBERTA CENTRAL
 
-## 3. Resolução de responsável
+`crm_leads.raw_payload` (jsonb) guarda o payload bruto mesclado (listagem + detalhe) de 639 leads. Auditoria das chaves presentes:
 
-Cadeia atual em `src/server/crm/lead-intake.server.ts`:
+- **`vendedor_id` NÃO existe em nenhum payload armazenado** — nem `vendedor` aninhado.
+- O que existe é **`user_id`**: presente em 637 dos 639 leads, **sempre com o valor `37193`**, e `pre_user_id` sempre `0`.
 
-1. Linha 155 — entrada GreenSales: `resolveResponsibleByVendorId(greenSalesVendorId(raw))` (fonte: origem).
-2. Linha 241 — fallback: `resolveResponsibleByUserId(context.connectionUserId)` (dono da conexão que rodou a sincronização).
-3. Sem nenhum dos dois: o card nasce **sem responsável** — nada é inventado, nenhum lead cai automaticamente para Thiago.
+Ou seja: o payload real da origem identifica o dono do lead pelo campo **`user_id`**, não `vendedor_id`. Hoje, todos os leads sincronizados pertencem ao mesmo usuário GreenSales `37193`.
 
-Portanto o Bloco 2 **passou a usar `vendedor_id` na prática no código**, mas o efeito real hoje é nulo por falta de cadastro (ver item 1).
+## 4. Algum lead existente permite identificar o vendedor?
 
-## 4. Gestão de Usuários
+Parcialmente: qualquer lead com `raw_payload` revela `user_id = 37193`. Mas o payload **não traz o nome do vendedor**, então o projeto não consegue provar a quem pertence `37193`.
 
-- Tela: `/f/executivo/usuarios` (`src/routes/f.executivo.usuarios.tsx`; a rota antiga `/executivo/usuarios` só redireciona).
-- Persistência: `src/server/executive-auth.server.ts` faz `upsert` em `executive_profiles` com `user_id, executive_id, email, name` (onConflict `user_id`).
-- **Não existe hoje** campo para o Admin informar o `vendedor_id` do GreenSales.
-- Local tecnicamente coerente para o vínculo: o próprio formulário de criação/edição do executivo, gravando na coluna já existente `executive_profiles.greensales_vendor_id`. Não é necessária segunda tabela de usuários.
+Evidência indireta forte: a **única conexão GreenSales** cadastrada (`crm_connections`) pertence a **usr_thiago (Thiago Rodrigues)** — todos os leads entraram por essa conta. Isso sugere que `37193` pode ser o próprio usuário da conta conectada, mas **não é prova**: pode ser o dono atribuído aos leads, não o dono da conta.
 
-## 5. Redistribuição do Bloco 2 (`src/server/crm/ownership.server.ts`)
+## 5. Relação com os 7 executivos
 
-- A) Mudança detectada quando `responsável atual do card ≠ responsável informado pela origem` (linhas 104-108).
-- B) Responsável anterior: `readCardResponsible(cardId)` → `portal_leads.responsible_executive_id`.
-- C) Novo responsável: exclusivamente `originResponsible` (vindo do `vendedor_id`).
-- D) Origem da mudança: registrada como `source = 'greensales_sync'` e só é chamada quando `isGreenSalesEntry`.
-- E) `lead_ownership_history` recebe card, lead, investidor canônico, anterior/novo, sequência, origem, evento, ciclo, contato real, se gerou nova entrada, motivo e `change_key`.
-- F) Idempotência: `change_key = card|anterior|novo|seq` com índice único; erro `23505` é tratado como "já registrado".
-- G) `ownership_seq` = contagem do histórico + 1; é passado à nova E0 (`ownershipSeq`/`ownershipKey = own<seq>`).
-- H) `hasRealHumanContact({leadId, crmLeadId})` é consultado antes de qualquer nova entrada — autoridade única do Bloco 1.
-- I) Ciclo: nenhum ciclo novo é criado aqui; o ciclo ativo é apenas **lido** (`activeCycleId`) para registro. A nova entrada é representada pela chave de titularidade.
-- J) E0 nova só é criada quando **não há contato humano real**; manual via `createPendingE0Action`, automática via `registerFirstContact` com `cycleKey`.
-- K) Sim — o modo vem sempre de `resolveExecutiveE0Mode(next)`, do NOVO responsável.
+- Nenhum `greensales_vendor_id` cadastrado (todos os 7: NULL) — confirmado no banco.
+- Nenhum dado histórico relaciona Carlos, Marton, Paulo, Larissa, Milton ou Talita a qualquer código da origem — eles nunca apareceram em payload porque, até aqui, **todos os leads vieram com o mesmo `user_id`**.
+- Não foi feita nenhuma inferência por igualdade de IDs.
 
-## 6. Ponto crítico — origem x executor da sincronização
+## 6. Gestão de Usuários (Bloco 3)
 
-Hoje **existe diferença clara**: a redistribuição só é acionada com `originResponsible` resolvido pelo `vendedor_id` (linha 91-97 aborta sem ele). O `connectionUserId` nunca alimenta `applyOriginResponsibleChange` — ele só serve de fallback para cards que nascem sem dono (linha 241). Logo, "A → B" só é detectado porque o GreenSales passou a informar B.
+Confirmado: a coluna `executive_profiles.greensales_vendor_id` existe, o campo "Código do vendedor na origem (GreenSales)" está na tela `/f/executivo/usuarios`, com bloqueio de duplicidade. O local de cadastro manual está pronto.
 
-⚠️ Ressalva: enquanto `greensales_vendor_id` estiver vazio, nenhuma redistribuição jamais será detectada.
+## 7. Cenário final: conseguimos descobrir os códigos pelo projeto?
 
-## 7. ZERO CONTATO / NOVOS
+**Resposta: D — NÃO está disponível dentro do projeto**, com um agravante importante:
 
-A redistribuição **não consulta, não depende e não é bloqueada** por ZERO CONTATO nem por NOVOS. A única condição é mudança de responsável + `hasRealHumanContact`. (As referências a ZERO CONTATO vivem em cadência/board, fora deste caminho.)
+1. O histórico só conhece **um** usuário da origem (`37193`), sem nome.
+2. O campo que o Bloco 2 lê (`vendedor_id` / `vendedor.id`) **nunca apareceu** em payload real armazenado — o campo real observado é `user_id`.
+3. O projeto não tem endpoint de listagem de vendedores.
 
-## 8. E0 por ciclo — `workspace_e0_actions`
+### O que precisamos obter externamente
 
-- O UNIQUE simples em `card_id` foi **removido**; passou a valer o índice único `(card_id, ownership_seq)`.
-- `ownership_seq` default 0 = entrada histórica preservada; N>0 = nova titularidade.
-- `ownership_key` transporta `own<seq>` até o `cycleKey` da E0, evitando colisão com a trava `msg_e0_<cardId>`.
-- Uma segunda E0 legítima coexiste com a histórica porque muda a sequência.
-- Risco residual: se a chave de mensagem não for propagada em algum caminho de E0 automática, a trava antiga ainda poderia barrar — vale verificação dirigida antes de operar redistribuição real.
+Da **Administração GreenSales/GDigital** (tela de usuários/equipe do app.gdigital.com.br):
 
-## 9. Identidade canônica
+- A lista **ID | Nome** de cada vendedor (Thiago, Carlos, Marton, Paulo, Larissa, Milton, Talita).
 
-- Função única: `resolveOrCreateInvestor` (`src/server/crm/identity.server.ts`), com regras puras em `src/lib/crm/identity.ts`.
-- Prioridade: telefone normalizado (`p:<dígitos>`), depois e-mail (`e:<email>`); nome nunca funde sozinho.
-- Conflito (mesmo telefone, nomes incompatíveis): cria investidor separado sem chave e registra `identidade_conflito`; nunca funde nem bloqueia o lead.
-- `canonical_investor_id` é gravado em `crm_leads` e `portal_leads` **somente quando nulo**; o card nunca é trocado, fundido ou apagado.
+E uma validação conceitual antes de ativar a redistribuição:
 
-## 10. Migrations do Bloco 2
+- Confirmar se o identificador do vendedor no lead é o campo **`user_id`** (observado em 637 payloads) e não `vendedor_id`. Se for, o extrator `greenSalesVendorId` precisará ler `user_id` — ajuste futuro, fora desta auditoria.
 
-Uma única: `20260905021512_77d40d78-...sql`, estritamente aditiva.
-- `executive_profiles`: + `greensales_vendor_id` (text) + índice único parcial.
-- `lead_ownership_history`: nova tabela append-only, com GRANTs, RLS (leitura admin/manager via `has_role`), trigger de `updated_at`, único em `change_key`, índices por card/sequência e por investidor.
-- `workspace_e0_actions`: + `ownership_seq`, + `ownership_key`, remoção do UNIQUE de `card_id`, criação do único `(card_id, ownership_seq)`.
+## 8–10. Escopo respeitado
 
-## 11. Backup
+Nenhuma automação, tela nova, sincronização, cron, lead de teste ou redistribuição foi criada/executada. `/s`, `/seg` e `/` intocados. Safety Lock intacto.
 
-`lead_ownership_history` **já está incluída** na captura (`src/server/backup.server.ts:64`, pk `id`). `workspace_e0_actions` permanece protegida contra restauração.
+## 11. Recomendação do próximo passo
 
-## 12. Isolamento
-
-Todas as alterações do Bloco 2 estão em `src/server/crm/*`, `src/lib/crm/identity.ts` e `src/server/backup.server.ts`, sempre condicionadas a entrada GreenSales. Nada em `/s`, `/seg` ou `/`. Portal, TikTok e Meta seguem o caminho anterior. Safety Lock intocada.
-
-## 13. Pendências reais
-
-1. Cadastro dos `vendedor_id` do GreenSales para os 7 executivos (sem isso o Bloco 2 é inerte).
-2. Campo de cadastro na Gestão de Usuários e persistência no `upsert` do servidor.
-3. `slug` vazio para todos os executivos — impacta link personalizado, já sinalizado em regra anterior.
-4. Verificação dirigida da propagação do `cycleKey` nas E0 automáticas de redistribuição.
-5. Nenhuma linha em `lead_ownership_history` — o caminho ainda não foi exercitado.
-
-## 14. Conclusão
-
-✅ BLOCO 2 COERENTE no código e no schema — com ⚠️ INCONSISTÊNCIA de ativação: a estrutura existe, mas o dado que a liga ao GreenSales ainda não foi cadastrado, então nenhuma redistribuição pode ocorrer hoje.
-
-## 15. Recomendação do próximo bloco
-
-BLOCO 3 — "Ativação do vínculo de origem": expor `greensales_vendor_id` na Gestão de Usuários (leitura/gravação na coluna já existente), permitir o cadastro pelo Admin e, só depois, validar a redistribuição com um lead fictício de lote de teste. Nenhuma nova tabela.
+1. **Admin obtém no painel GreenSales** a lista ID|Nome dos 7 executivos (manual, única vez).
+2. **Admin cadastra** os códigos na Gestão de Usuários (Bloco 3 já pronto).
+3. **Antes do primeiro teste de redistribuição**, validar com um lead fictício de lote de teste qual campo o payload fresco entrega (`user_id` vs `vendedor_id`) e, se necessário, corrigir o extrator — construção mínima, somente após autorização.
