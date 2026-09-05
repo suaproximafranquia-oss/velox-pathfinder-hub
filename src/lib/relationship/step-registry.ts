@@ -20,10 +20,50 @@ export const NON_CADENCE_STEPS = [
   "RESPOSTA_AUTOMATICA",
 ] as const;
 
-export const KNOWN_STEP_KEYS: readonly string[] = [
+/** Etapas declaradas em código — base mínima, nunca a única fonte. */
+export const BASE_STEP_KEYS: readonly string[] = [
   ...Object.keys(STEPS),
   ...NON_CADENCE_STEPS,
 ];
+
+/**
+ * Compatibilidade: continua exportado e continua contendo as etapas
+ * declaradas em código.
+ */
+export const KNOWN_STEP_KEYS: readonly string[] = BASE_STEP_KEYS;
+
+/**
+ * BLOCO 2 — ETAPAS CONHECIDAS = BIBLIOTECA ATIVA ∪ HISTÓRICO.
+ *
+ * O conjunto dinâmico é carregado no servidor (ver
+ * `step-registry.server.ts`) e registrado aqui. Etapas históricas
+ * continuam reconhecidas mesmo quando saem da Biblioteca; etapas novas
+ * da Biblioteca passam a ser reconhecidas sem alterar código.
+ *
+ * Nada aqui decide ORDEM ou PRAZO de fluxo — apenas responde
+ * "esta chave é uma etapa reconhecida?".
+ */
+const dynamicStepKeys = new Set<string>();
+
+function normalize(step: string): string {
+  return step.trim().toUpperCase();
+}
+
+export function registerKnownSteps(steps: Iterable<string>): void {
+  for (const step of steps) {
+    const key = normalize(String(step ?? ""));
+    if (key) dynamicStepKeys.add(key);
+  }
+}
+
+/** Somente para testes: limpa o conjunto dinâmico registrado. */
+export function resetDynamicKnownSteps(): void {
+  dynamicStepKeys.clear();
+}
+
+export function knownStepKeys(): string[] {
+  return [...new Set([...BASE_STEP_KEYS, ...dynamicStepKeys])];
+}
 
 /**
  * Etapas que o MOTOR anexa material. Derivadas de `STEPS` — não existe
@@ -36,10 +76,12 @@ export const CONTENT_REQUIRED_STEPS: readonly string[] = Object.values(STEPS)
 
 export function isKnownStep(step: string | null | undefined): boolean {
   if (!step) return false;
-  return KNOWN_STEP_KEYS.includes(step.trim().toUpperCase());
+  const key = normalize(step);
+  return BASE_STEP_KEYS.includes(key) || dynamicStepKeys.has(key);
 }
 
 /** Motivo padronizado do bloqueio — usado no log e na interface. */
 export function unknownStepReason(step: string): string {
   return `Etapa desconhecida "${step}": não existe no motor. Nada foi enviado. Cadastre a etapa oficial ou corrija o vínculo na Biblioteca.`;
 }
+
