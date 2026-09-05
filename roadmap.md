@@ -31,8 +31,8 @@
 - [ ] Bloco 3 — itens de fila sem ciclo registrado, card principal entre múltiplos cards da mesma identidade
 
 ## Bloco 4 — Fluxo administrável com versão congelada (05/09)
-- [ ] Tabelas `relationship_flow_versions` + `relationship_flow_steps` (versão publicada imutável)
-- [ ] `relationship_cadences.flow_version_id/flow_version` e `relationship_queue.flow_version_id`
-- [ ] Resolvedor server-side único de versão de fluxo (etapas, ordem, prazo)
-- [ ] Motor lê ordem/prazo da versão do ciclo; ciclo legado usa fallback do config.ts
-- [ ] Área administrativa de Fluxos (rascunho, associação, drag-and-drop, publicação)
+- [x] Tabelas `relationship_flow_versions` + `relationship_flow_steps` (versão publicada imutável)
+- [x] `relationship_cadences.flow_version_id/flow_version` e `relationship_queue.flow_version_id`
+- [x] Resolvedor server-side único de versão de fluxo (etapas, ordem, prazo)
+- [x] Motor lê ordem/prazo da versão do ciclo; ciclo legado usa fallback do config.ts
+- [x] Área administrativa de Fluxos (rascunho, associação, drag-and-drop, publicação)
