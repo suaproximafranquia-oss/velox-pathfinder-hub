@@ -27,12 +27,18 @@ export type PreparedStepMessage = {
   /** Motivo legível quando não há texto oficial disponível. */
   blockedReason: string | null;
   libraryVersion: number | null;
+  /** Identificação da versão usada — necessária para o snapshot histórico. */
+  libraryId: string | null;
+  libraryCode: string | null;
+  /** Texto original da Biblioteca, antes da personalização. */
+  templateBody: string | null;
   /** Nome usado no tratamento (ou null quando a versão sem nome foi usada). */
   investorNameUsed: string | null;
   executiveName: string | null;
   contentName: string | null;
   contentUrl: string | null;
 };
+
 
 export async function prepareStepMessage(params: {
   leadId: string;
@@ -58,6 +64,9 @@ export async function prepareStepMessage(params: {
       body: null,
       blockedReason: executive.reason,
       libraryVersion: null,
+      libraryId: null,
+      libraryCode: null,
+      templateBody: null,
       investorNameUsed: null,
       executiveName: null,
       contentName: null,
@@ -78,6 +87,9 @@ export async function prepareStepMessage(params: {
       body: null,
       blockedReason: result.reason,
       libraryVersion: message?.version ?? null,
+      libraryId: message?.id ?? null,
+      libraryCode: message?.code ?? null,
+      templateBody: message?.body ?? null,
       investorNameUsed: null,
       executiveName: executive.name,
       contentName: message?.contentLabel ?? null,
@@ -91,9 +103,13 @@ export async function prepareStepMessage(params: {
     body,
     blockedReason: null,
     libraryVersion: message?.version ?? null,
+    libraryId: message?.id ?? null,
+    libraryCode: message?.code ?? null,
+    templateBody: message?.body ?? null,
     investorNameUsed: result.treatment ?? null,
     executiveName: executive.name,
     contentName: message?.contentLabel ?? null,
     contentUrl: message?.contentUrl ?? null,
   };
+
 }
