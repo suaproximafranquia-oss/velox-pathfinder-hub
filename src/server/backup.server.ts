@@ -160,18 +160,51 @@ function defaultLabel(kind: BackupKind, origin: BackupOrigin): string {
 
 /**
  * Política oficial de retenção dos pontos AUTOMÁTICOS.
- * Backups manuais e de segurança seguem política própria: nunca são
- * removidos pela rotina.
+ *
+ * DIA CORRENTE  → todos os backups horários permanecem disponíveis.
+ * DIAS ANTERIORES → cada dia encerrado é consolidado em UM único
+ *   snapshot diário: o backup da hora 23 daquele dia.
+ * RETENÇÃO → no máximo 7 snapshots diários (dias encerrados).
+ *
+ * Não são 168 backups permanentes: apenas as horas do dia corrente mais
+ * 7 snapshots diários. Backups manuais e de segurança seguem política
+ * própria: nunca são removidos pela rotina.
  */
 export const RETENTION = {
-  /** Últimas 48 horas: todos os pontos (um a cada hora — COMANDO 3A §15). */
-  fullHours: 48,
-  /**
-   * COMANDO 2 §27 — depois das 48 horas permanece apenas o ÚLTIMO ponto
-   * de cada dia (fechamento do dia), por 7 dias corridos.
-   */
+  /** Quantidade de dias ENCERRADOS mantidos como snapshot diário. */
   dailyDays: 7,
+  /** Hora operacional que representa o dia encerrado. */
+  snapshotHour: 23,
 } as const;
+
+/** Fuso oficial da operação — reutiliza a definição já existente. */
+export { OPERATIONAL_TIME_ZONE as BACKUP_TIME_ZONE } from "@/lib/crm/daily-actions";
+
+/**
+ * Data operacional (YYYY-MM-DD) e hora (0–23) de um ponto, no fuso da
+ * operação brasileira. Quando existe hora de referência da fila, ela é
+ * a fonte; caso contrário usa-se o instante da criação.
+ */
+export function backupSlot(row: Row): { date: string; hour: number } {
+  const { OPERATIONAL_TIME_ZONE } = require_tz();
+  const iso = String(row["reference_hour"] ?? row["created_at"] ?? "");
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return { date: "", hour: -1 };
+  const day = date.toLocaleDateString("en-CA", { timeZone: OPERATIONAL_TIME_ZONE });
+  const hour = Number(
+    date.toLocaleString("en-GB", {
+      timeZone: OPERATIONAL_TIME_ZONE,
+      hour: "2-digit",
+      hour12: false,
+    }),
+  );
+  return { date: day, hour: Number.isNaN(hour) ? -1 : hour };
+}
+
+function require_tz(): { OPERATIONAL_TIME_ZONE: string } {
+  return { OPERATIONAL_TIME_ZONE: "America/Sao_Paulo" };
+}
+
 
 /**
  * Assinatura do conteúdo. Pontos idênticos (Portal parado entre duas
