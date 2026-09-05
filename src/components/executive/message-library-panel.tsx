@@ -65,6 +65,14 @@ export function MessageLibraryPanel() {
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
   const [contentUrl, setContentUrl] = useState("");
   const [contentLabel, setContentLabel] = useState("");
+  /* BLOCO 3 — criação e ordenação visual. */
+  const [creating, setCreating] = useState(false);
+  const [newKey, setNewKey] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [savingNew, setSavingNew] = useState(false);
+  const [order, setOrder] = useState<string[]>([]);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
