@@ -36,3 +36,5 @@
 - [x] Resolvedor server-side único de versão de fluxo (etapas, ordem, prazo)
 - [x] Motor lê ordem/prazo da versão do ciclo; ciclo legado usa fallback do config.ts
 - [x] Área administrativa de Fluxos (rascunho, associação, drag-and-drop, publicação)
+
+- [x] Central de Operações (/f/executivo/central-operacoes): leitura consolidada por período, executivo e tipo, com drill-down e snapshot de responsável na fila.
