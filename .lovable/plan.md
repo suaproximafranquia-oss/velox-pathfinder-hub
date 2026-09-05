@@ -1,134 +1,84 @@
-# Central de Operações (/f) — fechamento da semântica dos dados
+# Confluência — /f /s /seg, Corporate Workspace e identidade GreenSales
 
-Somente leitura. Nada foi implementado, alterado ou migrado.
+Diagnóstico somente leitura. Nada foi alterado.
 
-### 1. LIGAÇÕES
+## 1. Portais do Investidor — /f, /s, /seg
 
-- **Onde nasce o planejamento:** em memória, a cada consulta, dentro de
-  `buildCadenceQueue("call")` (`src/server/crm/cadence.server.ts`). Não existe linha
-  de "ligação planejada" em lugar nenhum do banco.
-- **Fonte existente:** `crm_leads` (etapa elegível, `stage_entered_at`,
-  `last_entry_at`/`external_created_at`/`ingested_at`) + histórico de conclusões em
-  `crm_cadence_tasks` (`status='DONE'`) + data de ativação da cadência
-  (`loadCadenceActivationDate`) + `relationship_queue` das mensagens pendentes, usada
-  apenas como preferência de calendário.
-- **Data prevista:** calculada por `nextCallAttempt(baseDate, history, planned)`; a
-  fila só devolve a PRÓXIMA tentativa e descarta `dueDate > hoje`. Ou seja: existe
-  data prevista, mas apenas para hoje/atrasadas, nunca para o futuro.
-- **Executivo:** não faz parte do cálculo. A fila é por lead; o responsável só existe
-  no card (`portal_leads.responsible_executive_id`, dono atual) ou em `completed_by`
-  após a execução. Não há responsável histórico de ligação planejada.
-- **Lead:** `crm_leads.id`, com `external_id` como ponte para `portal_leads`
-  (`gs_<external_id>`).
-- **O sistema sabe, antes da conclusão, que "para este lead, nesta data, deveria
-  existir uma ligação"?** SIM, mas apenas de forma derivada e volátil, e somente para
-  a data corrente ou anterior — não há registro persistido, então não há como
-  reconstruir historicamente o que estava previsto em 03/09.
-- **É possível representar sem nova estrutura?** SIM para "hoje" (a Central pode
-  chamar `buildCadenceQueue("call")` e obter planejadas/pendentes/vencidas do dia);
-  NÃO para períodos passados (7/30 dias), porque o passado não é reconstruível — a
-  regra depende do estado atual do lead, que já mudou.
-- **Menor estrutura necessária (se o histórico for exigido):** persistir a obrigação
-  no momento em que a fila a calcula pela primeira vez — uma linha `PENDING` na
-  própria `crm_cadence_tasks` (mesma chave `lead_id,channel,cycle_date,step_day` já
-  usada no upsert de conclusão), gravada pelo motor existente e nunca por um segundo
-  motor. Isso muda o significado da tabela de "conclusões" para "tarefas", que é
-  exatamente a ressalva levantada — por isso é uma decisão, não uma recomendação
-  automática. A alternativa sem tocar na tabela é aceitar que ligações só têm
-  leitura confiável no dia corrente.
+**Estado atual**
 
-### 2. E0
+- `/f` (rota `f.index.tsx`) — **JÁ EXISTE** como Portal do Investidor completo: hero, cards de módulos, overlays (Manual, Material Institucional, Simulador, Nossa Estrutura, Revista, Princípios), Gateway de identificação, registro de telefone, feed de notícias e sessão do investidor.
+- `/s` e `/seg` (`s.index.tsx`, `seg.index.tsx`) — **NÃO EXISTEM como portal**. São páginas institucionais estáticas de uma tela: título, três bullets e o componente `unit-interest-form` (formulário de interesse). Não carregam nenhum módulo, overlay ou simulador.
+- `/s/{slug}` e `/seg/{slug}` — **redirecionam** para `/s` e `/seg`, com o comentário explícito de que "Solar e Seguros são institucionais nesta versão". É essa a razão de tudo cair no formulário: a decisão está no próprio arquivo de rota, não em um bug.
+- `/f/{slug}` — redireciona para `/f` levando marca e executivo em `search` (`e`, `m`, `o`, `b`).
 
-- **Existe prazo formal?** NÃO. Não há `due_at`, `deadline`, SLA ou equivalente em
-  `workspace_e0_actions` nem em nenhuma configuração de primeiro contato.
-- **Fonte do prazo:** inexistente. O que existe é a JANELA OPERACIONAL
-  (`src/lib/crm/e0-window.ts`): Seg–Sex 07:00–22:30, Sábado 07:00–12:00, Domingo sem
-  envio, sempre em America/Sao_Paulo. Ela define quando o E0 PODE acontecer, não até
-  quando ele DEVE acontecer.
-- **Regra atual:** o E0 nasce na entrada do lead; fora da janela é adiado e retomado
-  na próxima abertura (`first-contact-queue.server.ts`). No modo manual vira ação
-  pendente de prioridade máxima na Ação do Dia, sem prazo.
-- **Central deve considerar vencido como:** hoje ela usa idade desde `created_at`, o
-  que torna todo E0 pendente automaticamente vencido — isso não representa regra
-  nenhuma do negócio. O correto, dentro do que a arquitetura suporta, é NÃO
-  classificar E0 como vencido enquanto não houver prazo formal; no máximo, tratar
-  como vencido o E0 pendente cuja janela do dia de entrada já fechou (fecho do dia
-  operacional), que é a única referência temporal existente.
-- **Existe estrutura nova necessária?** NÃO para deixar de marcar vencido. SIM apenas
-  se a operação quiser um prazo real (campo `due_at` em `workspace_e0_actions` ou uma
-  configuração única de "E0 até X horas/fim do dia").
+**a) A estrutura de /f é reaproveitável?** — **EXISTE PARCIALMENTE.**
+Existe reaproveitamento real de baixo nível: `PORTAL_BRANDS` (marca por prefixo), `portal-modules.ts` (registro de módulos), overlays independentes (`src/components/portal/*`), `portal-overlay-shell`, sessão/gateway e `business-unit`/`navigation-environment` (prefixo de unidade). O que **não existe** é a camada de página: `f.index.tsx` é um arquivo único, com conteúdo, assets e regras da Financeira embutidos — não é um componente parametrizado por marca.
 
-### 3. PERÍODO
+**c) Diferenciação financeiro/solar/seguros** — **EXISTE PARCIALMENTE.** Existe no nível de identidade (`PORTAL_BRANDS`, prefixos, origem do lead, `brand-content.ts` das páginas institucionais). **Não existe** no nível de conteúdo do portal: `portal-modules.ts` é global, sem chave de marca, e não há tabela/config de módulos por unidade.
 
-- **Planejadas no período:** mensagem `relationship_queue.due_at`; ligação — data
-  calculada pela fila (sem histórico persistido); E0 `created_at`; reunião
-  `scheduled_at`.
-- **Executadas no período:** mensagem `relationship_queue.executed_at`; ligação
-  `crm_cadence_tasks.completed_at`; E0 `workspace_e0_actions.executed_at`; reunião —
-  não existe data de desfecho: `portal_meetings` tem apenas `scheduled_at` e `status`,
-  então "realizada no período" só pode ser aproximada pelo horário agendado.
-- **É possível separar?** SIM para mensagem, ligação e E0. PARCIAL para reunião.
-- **Campos utilizados:** os quatro pares acima; nenhum campo novo é necessário.
-- **Principal risco:** as duas visões precisam ser consultas distintas (uma por data
-  de obrigação, outra por data de execução) e nunca somadas na mesma tabela — se
-  forem unidas, a mesma ação planejada e executada em dias diferentes apareceria duas
-  vezes. Mantendo-as como visões separadas, não há dupla contagem.
+**d) Menor alteração arquitetural futura (sem replicar conteúdo agora)**
 
-### 4. SCOPE
+1. Extrair o corpo de `f.index.tsx` para um componente `InvestorPortalHome({ brand })`, mantendo `/f` como um consumidor fino desse componente (comportamento idêntico, zero mudança visual).
+2. Dar chave de marca ao registro de módulos: `portal-modules.ts` passa a mapear `brandKey → módulos disponíveis`, com a Financeira mantendo exatamente a lista atual.
+3. Trocar os redirects de `s.$slug`/`seg.$slug` por entrada de contexto igual à de `/f` quando cada portal existir — não antes.
+4. `/s` e `/seg` só migram de página institucional para portal quando houver conteúdo próprio: enquanto não houver, permanecem como estão.
 
-- **Campo correto:** `relationship_queue.scope`, com os valores do motor
-  (`production` | `homologation`, em `src/lib/relationship/types.ts`). Hoje as 38
-  linhas existentes são todas `production`.
-- **Fonte:** o próprio motor, que já opera scoped (`createRepository(scope, runId)`);
-  rodadas de homologação também usam `run_id` não nulo — produção é `run_id IS NULL`.
-- **Atenção:** `portal_leads.scope` NÃO é ambiente — guarda a origem
-  (green_sales, portal, tiktok, meta, redistribuicao). O marcador de teste do lead é
-  `is_test` / `test_batch_id`, usado pelo laboratório.
-- **Onde aplicar filtro:** `relationship_queue` (`scope='production'` e
-  `run_id IS NULL`) e, nas quatro fontes, exclusão de leads `is_test`. Ligações,
-  reuniões e E0 não têm coluna de ambiente própria; o isolamento delas depende do
-  `is_test` do lead.
-- **Estrutura nova necessária?** NÃO. É só filtro de leitura na Central.
+Isso não exige migration, não duplica conteúdo e não toca no motor.
 
-### 5. KPIs
+## 2. Corporate Workspace — menu do Administrador
 
-- **Planejadas:** obrigações cuja data de obrigação cai no período (mensagem `due_at`,
-  E0 `created_at`, reunião `scheduled_at`, ligação apenas no dia corrente).
-- **Executadas:** duas leituras, ambas legítimas e nomeadas explicitamente —
-  "executadas do que era previsto" (subconjunto das planejadas) e "produção do
-  período" (por `executed_at` / `completed_at`). Nunca somar as duas.
-- **Pendentes:** obrigações do período ainda não concluídas, canceladas nem puladas.
-- **Vencidas:** pendentes cujo prazo formal já passou — hoje aplicável a mensagem
-  (`due_at`) e ligação (data prevista do dia); E0 fica fora até haver prazo; reunião
-  passada sem desfecho é "aguardando desfecho", não vencida.
-- **Puladas:** eventos `acao_do_dia_pulada` em `relationship_engine_log`, pela data do
-  log. Continuam fora da contagem de status, como categoria própria.
-- **Canceladas:** E0 `CANCELADA` e reunião cancelada, pela data de obrigação.
-- **KPI principal recomendado:** "produção do período" (executadas por data efetiva),
-  porque é a pergunta de gestão diária; "aderência ao planejado" fica como segunda
-  leitura no mesmo painel, com rótulo distinto.
-- **Sobreposição:** só a de vencidas dentro de pendentes. Recomendo manter vencidas
-  como recorte visível de pendentes (rótulo "das quais X vencidas"), não como cartão
-  paralelo que parece somar.
+**a) Origem do menu** — **EXISTE PARCIALMENTE (regras híbridas).**
+O menu é montado em um único lugar — `src/components/executive/executive-shell.tsx`, em quatro listas: `daily`, `centrais`, `relationship`, `administrative`. Porém a decisão de visibilidade **não** vem de uma matriz única: convivem quatro mecanismos diferentes no mesmo arquivo:
+- `useModuleAccess(...)` (permissões por usuário no banco) para CRM, Remarketing, Portal dos Leads e Backup de Conversas;
+- comparação direta `session.activeRole === "super_admin" | "diretora"` para Central de Backup, Revista, Biblioteca, Homologação, Laboratório;
+- `administrativeAccess` (`user_roles`) para Central de Operações e Apresentação Digital;
+- `canManageUsers(role)` para Usuários.
 
-### 6. DECISÕES A TOMAR
+Além disso, cada rota repete sua própria checagem (guards de módulo e `assertManager` nas server functions). Ou seja: o menu é centralizado, a **autorização** não é.
 
-1. Ligações históricas: aceitar leitura confiável só no dia corrente, ou passar
-   `crm_cadence_tasks` a registrar também a obrigação pendente (mudança de
-   significado da tabela).
-2. E0: deixar de marcar vencido, usar o fechamento do dia operacional, ou criar um
-   prazo formal.
-3. KPI principal: produção por data efetiva (recomendado) ou aderência ao planejado.
-4. Vencidas: recorte dentro de pendentes (recomendado) ou cartão separado.
-5. Reuniões: aceitar `scheduled_at` como data de produção ou registrar data de
-   desfecho.
-6. Isolamento: confirmar que a Central deve ver apenas `production`, `run_id IS NULL`
-   e leads não marcados como teste.
+**b) Onde está definida a visibilidade por perfil** — nos quatro pontos acima, mais `src/lib/workspace-permissions.ts` (ON/OFF individual de CRM, Portal dos Leads e E0), `portal-workspace.ts` (escopos/carteiras) e `hooks/use-administrative-access.ts`.
 
-### 7. ESTRUTURA NOVA REALMENTE INDISPENSÁVEL
+**Diferenças em relação à lista desejada:**
+- Faltam no menu: KPI Manager existe; **Central de Captação, Operações, Reuniões, Alertas, Backup** existem; **não encontrei** item de menu para "Central de Reuniões" ausente — está presente. Não há divergência de itens faltantes, exceto que a ordem/agrupamento atual difere da lista desejada.
+- **Apresentação Digital está hoje no menu lateral** (grupo `relationship`, visível com acesso administrativo) — contraria a regra desejada.
 
-Nenhuma, para corrigir E0, período e escopo — tudo é leitura.
-Apenas se a decisão 1 for "quero histórico de ligações planejadas": persistir a
-obrigação pendente na `crm_cadence_tasks` já existente, escrita pelo motor atual,
-sem criar tabela nem segundo motor. E, se a decisão 2 for "quero prazo real de E0":
-um único campo de prazo em `workspace_e0_actions`.
+**c) Ação do Dia** — **JÁ EXISTE corretamente vinculada.** O overlay (`daily-actions-overlay.tsx`) é aberto de dentro de `portal-leads-board.tsx`, ou seja, dentro do Portal dos Leads. Não há item no menu lateral. As únicas outras entradas são de homologação/demo (`/f/executivo/acao-do-dia-demo` e `/f/executivo/homologacao/acao-do-dia`), restritas a `super_admin`.
+
+**d) Apresentação Digital** — **JÁ EXISTE rota própria:** `/f/executivo/apresentacao-digital` (`src/routes/f.executivo.apresentacao-digital.tsx`).
+
+**e) Botões "Home"/"Voltar" indo para o institucional** — **EXISTE PARCIALMENTE o mecanismo central.**
+Já existe `src/lib/navigation-environment.ts` (`homePathFor` / `homePathOrRoot`), que resolve a Home do ambiente pelo pathname. Mas ele é consumido por apenas quatro lugares: `journey-chrome`, `module-chrome`, `manual/concluido` e `error-page`. Vários pontos ainda usam `to="/"` fixo — entre eles `__root.tsx` (duas ocorrências), `f.executivo.index.tsx`, `f.index.tsx` e as páginas institucionais. É exatamente por isso que alguns "Home/Voltar" saem para o Grupo Velox. A correção é única: fazer esses pontos consumirem `homePathOrRoot(pathname)`.
+
+## 3. Portal dos Leads / GreenSales — identidade do executivo
+
+**a) Vínculo usuário interno → usuário GreenSales → ID GreenSales** — **JÁ EXISTE.**
+`executive_profiles.greensales_vendor_id` guarda o `vendedor_id` da origem; `resolveResponsibleByVendorId` (em `src/server/crm/responsible.server.ts`) resolve o executivo responsável a partir dele, sem inventar dono quando não há mapeamento.
+
+**b) Autenticação individual do GreenSales** — **JÁ EXISTE (por usuário), com fallback global.**
+`crm_connections` (provider `greensales`) guarda credenciais cifradas **por `user_id`**; `greenSalesLogin` usa as credenciais recebidas e só cai em `GREENSALES_EMAIL`/`GREENSALES_PASSWORD` do servidor quando nenhuma é passada. Ou seja: o modelo por executivo existe; o global permanece como fallback.
+
+**c) O que bloqueia o colaborador com Portal dos Leads liberado** — **CONFIRMADO.**
+São **duas camadas independentes**. A permissão de módulo (`workspace_permissions` → `useModuleAccess`) libera a rota e o item de menu, mas as server functions do CRM (`src/lib/crm/leads.functions.ts`, `daily-actions.functions.ts`, `cadence.functions.ts`, `meta-templates.functions.ts`) chamam `assertManager`, que exige papel `admin` ou `manager` em `user_roles` e lança **"Acesso restrito à gestão do CRM."**. Um colaborador com o módulo ON não tem esse papel — daí a mensagem.
+
+**d) Ponto arquitetural correto para cadastrar a identidade GreenSales** — o campo já existe e já é editável em **Gestão de Usuários** (`/f/executivo/usuarios`, campo `greensalesVendorId`, com validação de unicidade). O que **NÃO EXISTE** é uma seção equivalente em **Meu Perfil**: lá o GreenSales aparece apenas como um status informativo ("Redirecionamento externo ativo"). O caminho correto futuro é uma seção em Meu Perfil que leia/escreva o mesmo `executive_profiles.greensales_vendor_id` e a mesma `crm_connections` do usuário autenticado — sem criar segunda tabela nem segunda fonte de verdade.
+
+## Resumo por item
+
+| Item | Situação |
+| --- | --- |
+| /f como Portal do Investidor | JÁ EXISTE |
+| /s e /seg como portais próprios | NÃO EXISTE (institucional + formulário, por decisão explícita no código) |
+| Estrutura reaproveitável para 3 portais | EXISTE PARCIALMENTE (marca/módulos/overlays sim; página parametrizada não) |
+| Diferenciação por marca | EXISTE PARCIALMENTE (identidade sim; conteúdo por marca não) |
+| Menu montado num único arquivo | JÁ EXISTE (`executive-shell.tsx`) |
+| Matriz única de permissões | NÃO EXISTE (quatro mecanismos coexistem) |
+| Ação do Dia dentro do Portal dos Leads | JÁ EXISTE |
+| Apresentação Digital fora do menu lateral | NÃO EXISTE (hoje está no menu) |
+| Rota da Apresentação Digital | JÁ EXISTE (`/f/executivo/apresentacao-digital`) |
+| Mecanismo central de Home por ambiente | EXISTE PARCIALMENTE (existe, pouco adotado) |
+| Vínculo executivo ↔ vendedor GreenSales | JÁ EXISTE (`executive_profiles.greensales_vendor_id`) |
+| Credencial GreenSales por usuário | JÁ EXISTE (`crm_connections`, com fallback global) |
+| Bloqueio do colaborador no Portal dos Leads | CONFIRMADO (`assertManager` exige admin/manager em `user_roles`) |
+| Cadastro da identidade GreenSales em Meu Perfil | NÃO EXISTE (existe só em Gestão de Usuários) |
+
+Nenhuma implementação foi feita. Próximos blocos possíveis, em ordem de menor esforço: (1) unificar Home por ambiente; (2) tirar Apresentação Digital do menu e levá-la para o card de Módulos da Home; (3) extrair `InvestorPortalHome({ brand })`; (4) seção GreenSales em Meu Perfil.
