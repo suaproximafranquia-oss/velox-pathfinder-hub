@@ -193,10 +193,17 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     return { kind: "none", reason: "Cadência sem evento de referência — etapa não é criada." };
   }
 
+  /**
+   * BLOCO 4 §13 — o prazo de um ciclo VERSIONADO vem da associação
+   * fluxo↔etapa. As regras de calendário (dias úteis, janelas,
+   * feriados) continuam exatamente as mesmas: muda só a ORIGEM do
+   * número de dias.
+   */
+  const plannedDays = plan ? planBusinessDays(plan, step) : null;
   const businessDays =
     record.flow === "reengajamento"
       ? config.reengagementBusinessDays
-      : definition.businessDaysAfterReference;
+      : (plannedDays ?? definition.businessDaysAfterReference);
   const dueAt = dueMomentAfterBusinessDays(reference, businessDays, config);
 
   if (ctx.nowIso < dueAt) {
