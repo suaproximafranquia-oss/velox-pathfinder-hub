@@ -436,14 +436,12 @@ export async function buildOperationsReport(input: OperationsInput): Promise<Ope
     for (const target of [bucket, totals]) {
       target.planejadas += 1;
       target.porTipo[action.kind] += 1;
+      // "não realizada/não compareceu" é desfecho próprio: não entra em
+      // executadas, pendentes nem canceladas.
       if (action.status === "executada") target.executadas += 1;
       else if (action.status === "cancelada") target.canceladas += 1;
-      else if (action.status === "nao_realizada") target.canceladas += 0;
-      else target.pendentes += 1;
+      else if (action.status === "pendente") target.pendentes += 1;
       if (action.overdue) target.vencidas += 1;
-    }
-    if (action.status === "nao_realizada") {
-      bucket.canceladas += 0;
     }
   }
 
