@@ -159,6 +159,12 @@ export function createEngine(options: EngineOptions): Engine {
   /** Núcleo: decide e, quando permitido, executa uma única ação. */
   async function evaluate(record: CadenceRecord): Promise<EngineDecision> {
     const nowIso = clock.nowIso();
+
+    const historical = await historicalCycleReason(record);
+    if (historical) {
+      return log(record, { step: record.currentStep, outcome: "noop", reason: historical });
+    }
+
     const templates = await repository.loadTemplates();
     const context = leadContext ? ((await leadContext(record.leadId)) ?? {}) : {};
 
