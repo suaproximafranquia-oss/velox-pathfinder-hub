@@ -28,3 +28,66 @@ export const ensureExecutiveAuthUser = createServerFn({ method: "POST" })
     const userId = await ensureAuthUser(official);
     return { ok: true as const, userId, executiveId: official.executiveId };
   });
+
+/**
+ * IDENTIDADE OFICIAL DO USUÁRIO AUTENTICADO.
+ *
+ * Cadeia única: Auth user.id → executive_profiles.user_id → executive_id
+ * → dados do executivo; papel em `user_roles`; situação em
+ * `executive_user_status`. O navegador não substitui nada disto.
+ */
+export const identidadeDoUsuario = createServerFn({ method: "POST" })
+  .middleware([
+    (await import("@/integrations/supabase/auth-middleware")).requireSupabaseAuth,
+  ])
+  .handler(async ({ context }) => {
+    const { resolveServerIdentity } = await import("@/server/identity.server");
+    const identity = await resolveServerIdentity(context.userId);
+    return {
+      userId: identity.userId,
+      executiveId: identity.executiveId,
+      name: identity.name,
+      email: identity.email,
+      slug: identity.slug,
+      whatsapp: identity.whatsapp,
+      greensalesVendorId: identity.greensalesVendorId,
+      role: identity.role,
+      status: identity.status,
+    };
+  });
+
+/**
+ * Provisiona a CONTA DE ACESSO de um usuário criado na Gestão de
+ * Usuários. A senha existe apenas no mecanismo de autenticação — nunca
+ * no navegador e nunca na ficha do executivo.
+ *
+ * Preservação: usuários existentes não são recriados nem têm IDs,
+ * vendor_id, WhatsApp ou permissões alterados.
+ */
+export const provisionarAcessoExecutivo = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      executiveId: string;
+      email: string;
+      name: string;
+      password: string;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const email = data.email.trim().toLowerCase();
+    if (!email || !data.executiveId || data.password.length < 6) {
+      return { ok: false as const, reason: "dados" as const };
+    }
+    const { ensureAuthUser } = await import("@/server/executive-auth.server");
+    try {
+      const userId = await ensureAuthUser({
+        executiveId: data.executiveId,
+        email,
+        name: data.name,
+        password: data.password,
+      });
+      return { ok: true as const, userId };
+    } catch {
+      return { ok: false as const, reason: "provisionamento" as const };
+    }
+  });
