@@ -298,7 +298,11 @@ export function DailyActionsOverlay({
     }
   }
 
-  /** MENSAGEM — leitura do texto oficial. Esta tela nunca envia nada. */
+  /**
+   * MENSAGEM — leitura do texto oficial e cópia imediata. Esta tela
+   * nunca envia nada e COPIAR NÃO CONCLUI a ação: só o botão Concluído
+   * encerra o item da fila.
+   */
   async function handleOpenMessage(item: DailyAction) {
     setBusy(true);
     setMessage(null);
@@ -307,7 +311,19 @@ export function DailyActionsOverlay({
       setMessage(view);
       setCopied(false);
       setMessageOpen(true);
-      if (!view) setFeedback("Esta ação não tem mensagem oficial vinculada.");
+      if (!view) {
+        setFeedback("Esta ação não tem mensagem oficial vinculada.");
+        return;
+      }
+      const body = view.body?.trim();
+      if (body) {
+        try {
+          await navigator.clipboard.writeText(body);
+          setCopied(true);
+        } catch {
+          setFeedback("Não foi possível copiar automaticamente — selecione o texto na janela.");
+        }
+      }
     } finally {
       setBusy(false);
     }
