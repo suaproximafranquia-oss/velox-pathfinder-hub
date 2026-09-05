@@ -7,6 +7,9 @@
  * conforme a política de retenção, e a restauração só ocorre depois de o
  * estado atual ter sido preservado em um Backup de Segurança.
  */
+import { OPERATIONAL_TIME_ZONE, operationalDate } from "@/lib/crm/daily-actions";
+
+
 
 /**
  * Tabelas que compõem o estado operacional do Portal.
