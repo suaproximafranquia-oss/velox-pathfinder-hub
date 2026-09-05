@@ -1,153 +1,134 @@
-# Validação funcional — Central de Operações (/f)
+# Central de Operações (/f) — fechamento da semântica dos dados
 
-Somente leitura da implementação atual (`src/server/crm/operations-center.server.ts`,
-`src/lib/crm/operations-center.functions.ts`, `src/components/executive/central-operacoes/central-home.tsx`,
-`src/routes/f.executivo.central-operacoes.tsx`). Nada foi alterado.
+Somente leitura. Nada foi implementado, alterado ou migrado.
 
-## 1. Planejadas
-Toda linha lida da fonte primária conta como uma ação planejada, uma única vez:
-- mensagem → `relationship_queue` (qualquer status), janela por `due_at`;
-- ligação → `crm_cadence_tasks`, janela por `due_date`;
-- E0 → `workspace_e0_actions`, janela por `created_at`;
-- reunião → `portal_meetings`, janela por `scheduled_at`.
+### 1. LIGAÇÕES
 
-"Planejadas" é o universo; executada/pendente/cancelada são subconjuntos exclusivos da
-mesma linha (um `if/else if`), logo não há dupla contagem entre categorias de status.
-"Vencida" é sinalizador paralelo (ver item 4) e "pulada" vem de outra fonte (item 5).
+- **Onde nasce o planejamento:** em memória, a cada consulta, dentro de
+  `buildCadenceQueue("call")` (`src/server/crm/cadence.server.ts`). Não existe linha
+  de "ligação planejada" em lugar nenhum do banco.
+- **Fonte existente:** `crm_leads` (etapa elegível, `stage_entered_at`,
+  `last_entry_at`/`external_created_at`/`ingested_at`) + histórico de conclusões em
+  `crm_cadence_tasks` (`status='DONE'`) + data de ativação da cadência
+  (`loadCadenceActivationDate`) + `relationship_queue` das mensagens pendentes, usada
+  apenas como preferência de calendário.
+- **Data prevista:** calculada por `nextCallAttempt(baseDate, history, planned)`; a
+  fila só devolve a PRÓXIMA tentativa e descarta `dueDate > hoje`. Ou seja: existe
+  data prevista, mas apenas para hoje/atrasadas, nunca para o futuro.
+- **Executivo:** não faz parte do cálculo. A fila é por lead; o responsável só existe
+  no card (`portal_leads.responsible_executive_id`, dono atual) ou em `completed_by`
+  após a execução. Não há responsável histórico de ligação planejada.
+- **Lead:** `crm_leads.id`, com `external_id` como ponte para `portal_leads`
+  (`gs_<external_id>`).
+- **O sistema sabe, antes da conclusão, que "para este lead, nesta data, deveria
+  existir uma ligação"?** SIM, mas apenas de forma derivada e volátil, e somente para
+  a data corrente ou anterior — não há registro persistido, então não há como
+  reconstruir historicamente o que estava previsto em 03/09.
+- **É possível representar sem nova estrutura?** SIM para "hoje" (a Central pode
+  chamar `buildCadenceQueue("call")` e obter planejadas/pendentes/vencidas do dia);
+  NÃO para períodos passados (7/30 dias), porque o passado não é reconstruível — a
+  regra depende do estado atual do lead, que já mudou.
+- **Menor estrutura necessária (se o histórico for exigido):** persistir a obrigação
+  no momento em que a fila a calcula pela primeira vez — uma linha `PENDING` na
+  própria `crm_cadence_tasks` (mesma chave `lead_id,channel,cycle_date,step_day` já
+  usada no upsert de conclusão), gravada pelo motor existente e nunca por um segundo
+  motor. Isso muda o significado da tabela de "conclusões" para "tarefas", que é
+  exatamente a ressalva levantada — por isso é uma decisão, não uma recomendação
+  automática. A alternativa sem tocar na tabela é aceitar que ligações só têm
+  leitura confiável no dia corrente.
 
-## 2. Executadas
-- mensagem: `relationship_queue.status = 'EXECUTED'`;
-- ligação: `crm_cadence_tasks.status = 'DONE'`;
-- E0: `workspace_e0_actions.state = 'EXECUTADA'`;
-- reunião: `portal_meetings.status` em realizada/concluída.
+### 2. E0
 
-`relationship_message_sends`, `relationship_engine_log`, `crm_timeline`, notas e
-tentativas não geram linha de ação — não somam.
+- **Existe prazo formal?** NÃO. Não há `due_at`, `deadline`, SLA ou equivalente em
+  `workspace_e0_actions` nem em nenhuma configuração de primeiro contato.
+- **Fonte do prazo:** inexistente. O que existe é a JANELA OPERACIONAL
+  (`src/lib/crm/e0-window.ts`): Seg–Sex 07:00–22:30, Sábado 07:00–12:00, Domingo sem
+  envio, sempre em America/Sao_Paulo. Ela define quando o E0 PODE acontecer, não até
+  quando ele DEVE acontecer.
+- **Regra atual:** o E0 nasce na entrada do lead; fora da janela é adiado e retomado
+  na próxima abertura (`first-contact-queue.server.ts`). No modo manual vira ação
+  pendente de prioridade máxima na Ação do Dia, sem prazo.
+- **Central deve considerar vencido como:** hoje ela usa idade desde `created_at`, o
+  que torna todo E0 pendente automaticamente vencido — isso não representa regra
+  nenhuma do negócio. O correto, dentro do que a arquitetura suporta, é NÃO
+  classificar E0 como vencido enquanto não houver prazo formal; no máximo, tratar
+  como vencido o E0 pendente cuja janela do dia de entrada já fechou (fecho do dia
+  operacional), que é a única referência temporal existente.
+- **Existe estrutura nova necessária?** NÃO para deixar de marcar vencido. SIM apenas
+  se a operação quiser um prazo real (campo `due_at` em `workspace_e0_actions` ou uma
+  configuração única de "E0 até X horas/fim do dia").
 
-## 3. Pendentes
-Pendente = a linha existe e não está executada, cancelada nem "não compareceu":
-`PENDING/qualquer outro` na fila, `≠ DONE` na ligação, `PENDENTE` no E0, reunião com
-status ainda aberto. Uma ação atrasada **continua contando em pendentes** e também
-marca vencidas. Pendente e vencida NÃO são mutuamente exclusivas — vencida é um
-recorte de pendentes, não uma categoria separada.
+### 3. PERÍODO
 
-## 4. Vencidas
-Derivada em memória, nada é persistido: `status = pendente` e data planejada
-(`due_at` / `due_date` fim do dia / `created_at` do E0 / `scheduled_at`) anterior ao
-instante da consulta. Uma ação vencida conta em pendentes E em vencidas (por desenho).
+- **Planejadas no período:** mensagem `relationship_queue.due_at`; ligação — data
+  calculada pela fila (sem histórico persistido); E0 `created_at`; reunião
+  `scheduled_at`.
+- **Executadas no período:** mensagem `relationship_queue.executed_at`; ligação
+  `crm_cadence_tasks.completed_at`; E0 `workspace_e0_actions.executed_at`; reunião —
+  não existe data de desfecho: `portal_meetings` tem apenas `scheduled_at` e `status`,
+  então "realizada no período" só pode ser aproximada pelo horário agendado.
+- **É possível separar?** SIM para mensagem, ligação e E0. PARCIAL para reunião.
+- **Campos utilizados:** os quatro pares acima; nenhum campo novo é necessário.
+- **Principal risco:** as duas visões precisam ser consultas distintas (uma por data
+  de obrigação, outra por data de execução) e nunca somadas na mesma tabela — se
+  forem unidas, a mesma ação planejada e executada em dias diferentes apareceria duas
+  vezes. Mantendo-as como visões separadas, não há dupla contagem.
 
-## 5. Puladas
-Fonte exclusiva: `relationship_engine_log` com `action='acao_do_dia_pulada'`.
-`crm_timeline` não é lido em nenhum ponto do módulo. O drill-down expõe data,
-ação/título, etapa, investidor (via `details.leadId` → `portal_leads`), motivo,
-executivo e o identificador (`actionKey`).
+### 4. SCOPE
 
-## 6. Canceladas
-Somente E0 `CANCELADA` e reunião com status cancelado. Cancelamento nunca soma em
-executadas (ramos exclusivos). Reunião "não compareceu" é desfecho próprio
-(`nao_realizada`): entra em planejadas, mas não em executadas/pendentes/canceladas.
+- **Campo correto:** `relationship_queue.scope`, com os valores do motor
+  (`production` | `homologation`, em `src/lib/relationship/types.ts`). Hoje as 38
+  linhas existentes são todas `production`.
+- **Fonte:** o próprio motor, que já opera scoped (`createRepository(scope, runId)`);
+  rodadas de homologação também usam `run_id` não nulo — produção é `run_id IS NULL`.
+- **Atenção:** `portal_leads.scope` NÃO é ambiente — guarda a origem
+  (green_sales, portal, tiktok, meta, redistribuicao). O marcador de teste do lead é
+  `is_test` / `test_batch_id`, usado pelo laboratório.
+- **Onde aplicar filtro:** `relationship_queue` (`scope='production'` e
+  `run_id IS NULL`) e, nas quatro fontes, exclusão de leads `is_test`. Ligações,
+  reuniões e E0 não têm coluna de ambiente própria; o isolamento delas depende do
+  `is_test` do lead.
+- **Estrutura nova necessária?** NÃO. É só filtro de leitura na Central.
 
-## 7. Período
-Cada tipo usa sua própria âncora — não há `created_at` genérico:
-mensagem `due_at`; ligação `due_date`; reunião `scheduled_at`; pulo `created_at` do
-log; E0 `created_at` (é a data em que a obrigação nasce). Hoje/Ontem/7/30 e
-personalizado apenas montam o intervalo `[from, to)` em UTC.
+### 5. KPIs
 
-## 8. Métrica por executivo
-Mensagem usa `relationship_queue.responsible_executive_id`, gravado por trigger no
-INSERT e restaurado ao valor antigo em qualquer UPDATE — não é recalculado, não é
-sobrescrito pelo dono atual, e NULL nunca é preenchido. E0 usa seu próprio
-`responsible_executive_id`; reunião usa `executive_id`; ligação usa `completed_by`
-(quem executou). O dono atual do lead aparece apenas como campo contextual separado.
+- **Planejadas:** obrigações cuja data de obrigação cai no período (mensagem `due_at`,
+  E0 `created_at`, reunião `scheduled_at`, ligação apenas no dia corrente).
+- **Executadas:** duas leituras, ambas legítimas e nomeadas explicitamente —
+  "executadas do que era previsto" (subconjunto das planejadas) e "produção do
+  período" (por `executed_at` / `completed_at`). Nunca somar as duas.
+- **Pendentes:** obrigações do período ainda não concluídas, canceladas nem puladas.
+- **Vencidas:** pendentes cujo prazo formal já passou — hoje aplicável a mensagem
+  (`due_at`) e ligação (data prevista do dia); E0 fica fora até haver prazo; reunião
+  passada sem desfecho é "aguardando desfecho", não vencida.
+- **Puladas:** eventos `acao_do_dia_pulada` em `relationship_engine_log`, pela data do
+  log. Continuam fora da contagem de status, como categoria própria.
+- **Canceladas:** E0 `CANCELADA` e reunião cancelada, pela data de obrigação.
+- **KPI principal recomendado:** "produção do período" (executadas por data efetiva),
+  porque é a pergunta de gestão diária; "aderência ao planejado" fica como segunda
+  leitura no mesmo painel, com rótulo distinto.
+- **Sobreposição:** só a de vencidas dentro de pendentes. Recomendo manter vencidas
+  como recorte visível de pendentes (rótulo "das quais X vencidas"), não como cartão
+  paralelo que parece somar.
 
-## 9. Responsável histórico não registrado
-Ações com responsável nulo caem em um bucket próprio rotulado "Responsável histórico
-não registrado" e nas listas aparecem com esse mesmo texto. Nunca são distribuídas
-entre executivos atuais.
+### 6. DECISÕES A TOMAR
 
-## 10. Ligações
-Uma linha de `crm_cadence_tasks` = uma tarefa. Tentativas/chamadas não são lidas.
-`outcome SIM/NÃO` vira apenas rótulo de resultado ("Atendeu"/"Não atendeu").
+1. Ligações históricas: aceitar leitura confiável só no dia corrente, ou passar
+   `crm_cadence_tasks` a registrar também a obrigação pendente (mudança de
+   significado da tabela).
+2. E0: deixar de marcar vencido, usar o fechamento do dia operacional, ou criar um
+   prazo formal.
+3. KPI principal: produção por data efetiva (recomendado) ou aderência ao planejado.
+4. Vencidas: recorte dentro de pendentes (recomendado) ou cartão separado.
+5. Reuniões: aceitar `scheduled_at` como data de produção ou registrar data de
+   desfecho.
+6. Isolamento: confirmar que a Central deve ver apenas `production`, `run_id IS NULL`
+   e leads não marcados como teste.
 
-## 11. Mensagens e duplicidade
-Contagem exclusivamente por `relationship_queue`. `relationship_message_sends` é lida
-só para exibir o snapshot no detalhe (chave `lead_id::step`), sem somar.
-`relationship_engine_log` só alimenta pulos. Uma mensagem executada conta uma vez.
+### 7. ESTRUTURA NOVA REALMENTE INDISPENSÁVEL
 
-## 12. E0
-Fonte única `workspace_e0_actions`. `crm_messages` não é consultada em nenhum ponto.
-Nenhuma lógica de E0 foi tocada.
-
-## 13. Reuniões
-Fonte única `portal_meetings`. O status do banco é preservado (aparece cru no campo
-"Resultado"); a classificação é apenas de leitura, por comparação normalizada.
-Cancelada e realizada são ramos exclusivos.
-
-## 14. Taxas
-- taxa de execução = executadas ÷ planejadas (denominador = todas as ações do período
-  daquele executivo);
-- taxa de pulo = puladas ÷ (executadas + puladas).
-Ambas retornam vazio ("—") quando o denominador é zero.
-
-## 15. Drill-down
-Os cartões e as células da tabela chamam os mesmos predicados usados na
-consolidação, sobre a mesma lista `actions` já carregada (executivo + status, ou
-`overdue`, ou tipo). Puladas usa a lista `skips` com o mesmo critério de executivo.
-Número e lista são, por construção, o mesmo conjunto.
-
-## 16. Investidor
-Identificador operacional = `portal_leads.id`. Mensagem usa `lead_id`; E0 usa
-`card_id`; reunião usa `investor_id`; pulo usa `details.leadId`. Ligação percorre
-`crm_cadence_tasks.lead_id` → `crm_leads` → `external_id` → `gs_<external_id>` em
-`portal_leads`.
-
-## 17. Histórico e ficha
-Central → executivo → ação → investidor → ficha existente
-`/f/executivo/dashboard?perfil=<leadId>&escopo=<scope>`. Nenhuma ficha nova foi criada.
-
-## 18. Somente leitura
-O módulo servidor usa apenas `select`. Não há insert/update/delete/rpc, nem chamada
-ao motor, à cadência, ao ownership, à Biblioteca, aos Fluxos ou ao WhatsApp. A tela
-só tem filtros de período e aberturas de lista/detalhe.
-
-## 19. Preservação
-`/`, `/s`, `/seg`, Safety Lock, envio real, motor, Biblioteca, Fluxos, Workspace,
-Ação do Dia, ownership, redistribuição e histórico não foram tocados. As únicas
-mudanças do bloco anterior foram a coluna de snapshot na fila (aditiva) e os arquivos
-novos da Central, mais um item de menu.
-
-## 20. Conclusão
-
-A) PLANEJAMENTO: NÃO — ver I-1 e I-2.
-B) STATUS: SIM (com a ressalva explícita de que vencida é subconjunto de pendente, item 4).
-C) PERÍODO: SIM — cada tipo usa sua âncora; ver a limitação I-3.
-D) EXECUTIVO: SIM.
-E) DUPLICIDADE: NÃO — nenhum caminho conta a mesma ação duas vezes.
-F) DRILL-DOWN: SIM.
-G) SOMENTE LEITURA: SIM.
-H) PRESERVAÇÃO: SIM.
-
-I) PROBLEMAS REAIS
-
-1. **Ligações planejadas não existem como linha.** `crm_cadence_tasks` hoje só recebe
-   registro na conclusão (banco atual: 12 linhas, todas `DONE`). Consequência: a
-   Central mostra ligações executadas, mas nunca ligações pendentes ou vencidas —
-   o número de "planejadas" de ligação é, na prática, igual ao de executadas.
-
-2. **E0 pendente é sempre "vencido".** A âncora do E0 é `created_at`; como qualquer
-   E0 criado antes de agora é anterior ao instante da consulta, todo E0 pendente é
-   marcado como vencido (banco atual: 5 pendentes). Falta um prazo próprio de E0.
-
-3. **A janela é por data planejada, não por execução.** Uma ação planejada fora do
-   período mas executada dentro dele não aparece. "Executadas: N" hoje significa
-   "planejadas no período e já executadas", o que subestima a produção do dia.
-
-4. **Sem filtro de ambiente/escopo na fila.** A leitura de `relationship_queue` não
-   filtra `scope` nem leads de teste. Hoje é inofensivo (todas as 38 linhas são
-   `production`), mas uma rodada de homologação passaria a contar junto.
-
-5. **Ligação sem correspondência no Portal fica sem ficha.** O vínculo depende de
-   `crm_leads.external_id` no formato GreenSales (`gs_*`); leads sem esse
-   identificador aparecem sem link para a ficha.
-
-Nada foi corrigido nesta etapa, conforme solicitado.
+Nenhuma, para corrigir E0, período e escopo — tudo é leitura.
+Apenas se a decisão 1 for "quero histórico de ligações planejadas": persistir a
+obrigação pendente na `crm_cadence_tasks` já existente, escrita pelo motor atual,
+sem criar tabela nem segundo motor. E, se a decisão 2 for "quero prazo real de E0":
+um único campo de prazo em `workspace_e0_actions`.
