@@ -26,6 +26,7 @@ import {
   Radar,
   LibraryBig,
   BookOpen,
+  Activity,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
