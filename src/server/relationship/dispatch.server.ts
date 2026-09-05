@@ -104,6 +104,8 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
    * ETAPA DESCONHECIDA NÃO EXECUTA. Antes de tocar em lead, texto ou
    * canal, a chave é conferida no registro oficial de etapas.
    */
+  const { ensureKnownSteps } = await import("@/server/relationship/step-registry.server");
+  await ensureKnownSteps();
   if (!isKnownStep(step)) {
     const motivo = unknownStepReason(String(step));
     await log("etapa_desconhecida", { leadId: request.leadId, step, motivo });

@@ -20,8 +20,14 @@ export type CadenceFlow =
 /**
  * Etapas do motor. São identificadores internos (nunca exibidos ao
  * Executivo) e NÃO significam dias corridos.
+ *
+ * BLOCO 2 — REGISTRO DINÂMICO: as etapas abaixo continuam válidas e com
+ * o MESMO significado, mas o tipo deixa de ser uma união fechada: uma
+ * etapa criada na Biblioteca (ex.: "E9") é uma chave legítima sem exigir
+ * alteração de TypeScript. A segurança passa a ser em tempo de execução
+ * (`isKnownStep`), não no tipo.
  */
-export type CadenceStep =
+export type KnownCadenceStep =
   | "E0" // primeiro contato
   | "E0_V1" // primeiro contato de quem chegou pelo Portal do Investidor
   | "E1" // primeiro acompanhamento
@@ -42,6 +48,9 @@ export type CadenceStep =
   // COMANDO 4A §8 — recontato tardio do fluxo sem resposta (integrado,
   // ativação controlada por E30_ENABLED enquanto não há texto oficial).
   | "E30";
+
+export type CadenceStep = KnownCadenceStep | (string & {});
+
 
 /** Estados persistentes da cadência. */
 export type CadenceState =
