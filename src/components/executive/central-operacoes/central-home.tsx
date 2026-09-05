@@ -564,7 +564,17 @@ function PeriodPicker(props: {
   );
 }
 
-function MetricCard({ label, value, onClick }: { label: string; value: number; onClick: () => void }) {
+function MetricCard({
+  label,
+  value,
+  onClick,
+  hint,
+}: {
+  label: string;
+  value: number;
+  onClick: () => void;
+  hint?: string;
+}) {
   return (
     <button
       type="button"
@@ -573,6 +583,9 @@ function MetricCard({ label, value, onClick }: { label: string; value: number; o
     >
       <span className="text-[11px] text-[color:var(--muted-foreground)]">{label}</span>
       <strong className="mt-1 block text-2xl">{value}</strong>
+      {hint ? (
+        <span className="mt-0.5 block text-[10px] text-[color:var(--muted-foreground)]">{hint}</span>
+      ) : null}
     </button>
   );
 }
