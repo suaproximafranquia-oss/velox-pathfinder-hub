@@ -403,9 +403,13 @@ function UsuariosPage() {
                 ["email", "E-mail Corporativo", "email", "nome@empresa.com.br"],
                 ["phone", "Telefone", "tel", "(11) 90000-0000"],
                 ["birthDate", "Data de nascimento", "date", ""],
-                ["password", "Senha Inicial", "text", "Definir senha temporária"],
+                ["password", "Senha Inicial", "password", "Definir senha temporária"],
               ] as const
-            ).map(([field, label, type, placeholder]) => (
+            )
+              // A senha só é definida na criação e vai direto para o
+              // servidor; não é guardada nem reexibida no navegador.
+              .filter(([field]) => field !== "password" || !draft.id)
+              .map(([field, label, type, placeholder]) => (
               <div key={field}>
                 <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
                   {label}
