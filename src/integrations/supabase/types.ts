@@ -264,6 +264,7 @@ export type Database = {
           lead_id: string
           note: string | null
           outcome: string | null
+          responsible_executive_id: string | null
           status: string
           step_day: number
           step_key: string | null
@@ -281,6 +282,7 @@ export type Database = {
           lead_id: string
           note?: string | null
           outcome?: string | null
+          responsible_executive_id?: string | null
           status?: string
           step_day: number
           step_key?: string | null
@@ -298,6 +300,7 @@ export type Database = {
           lead_id?: string
           note?: string | null
           outcome?: string | null
+          responsible_executive_id?: string | null
           status?: string
           step_day?: number
           step_key?: string | null
