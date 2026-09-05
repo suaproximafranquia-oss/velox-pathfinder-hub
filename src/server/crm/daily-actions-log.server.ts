@@ -217,13 +217,21 @@ export async function registerDailyActionMessage(
  * tabela tem índice único sobre ele — dois registros para a mesma
  * execução são impossíveis. Nenhum envio real acontece aqui.
  */
+export type ManualMessageSnapshot = {
+  renderedBody: string;
+  templateBody: string;
+  libraryCode: string | null;
+  libraryVersion: number | null;
+  contentUrl: string | null;
+};
+
 async function recordManualMessageSnapshot(params: {
   leadId: string;
   step: string;
   queueItemId: string;
   actorId: string;
   nowIso: string;
-}): Promise<void> {
+}): Promise<ManualMessageSnapshot | null> {
   try {
     const [{ prepareStepMessage }, { recordMessageSnapshot }, { isSimulatedExecution }] =
       await Promise.all([
@@ -237,7 +245,7 @@ async function recordManualMessageSnapshot(params: {
       step: params.step,
     });
     // Sem texto oficial não há o que congelar: o motivo já ficou no ledger.
-    if (!prepared.body) return;
+    if (!prepared.body) return null;
 
     const { data: cadence } = await supabaseAdmin
       .from("relationship_cadences")
@@ -265,10 +273,20 @@ async function recordManualMessageSnapshot(params: {
       simulated: isSimulatedExecution(),
       sentAt: params.nowIso,
     });
+
+    return {
+      renderedBody: prepared.body,
+      templateBody: prepared.templateBody ?? prepared.body,
+      libraryCode: prepared.libraryCode ?? null,
+      libraryVersion: prepared.libraryVersion ?? null,
+      contentUrl: prepared.contentUrl ?? null,
+    };
   } catch {
     // O snapshot é histórico: sua falha nunca desfaz a conclusão da etapa.
+    return null;
   }
 }
+
 
 
 /**
