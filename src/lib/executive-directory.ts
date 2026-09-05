@@ -110,6 +110,7 @@ export async function persistExecutiveProfile(patch: {
   photoUrl?: string;
   postPresentationVideoUrl?: string;
   gestorId?: string;
+  greensalesVendorId?: string;
 }): Promise<void> {
   const { salvarPerfilExecutivo } = await import("@/lib/executive-directory.functions");
   await salvarPerfilExecutivo({ data: patch });

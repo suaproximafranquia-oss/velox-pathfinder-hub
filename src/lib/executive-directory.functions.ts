@@ -29,6 +29,11 @@ export type ExecutiveDirectoryEntry = {
   photoUrl: string | null;
   postPresentationVideoUrl: string | null;
   gestorId: string | null;
+  /**
+   * BLOCO 3 — vínculo com o vendedor da origem GreenSales. É o único
+   * caminho pelo qual a origem consegue apontar o responsável interno.
+   */
+  greensalesVendorId: string | null;
   /** "ativo" | "inativo" — ausência de linha é tratada como ativo. */
   status: "ativo" | "inativo";
 };
@@ -43,7 +48,7 @@ function text(row: ProfileRow, key: string): string | null {
 }
 
 const PROFILE_COLUMNS =
-  "executive_id,name,email,slug,whatsapp,title,role_title,phone,admission_date,birth_date,photo_url,post_presentation_video_url,gestor_id";
+  "executive_id,name,email,slug,whatsapp,title,role_title,phone,admission_date,birth_date,photo_url,post_presentation_video_url,gestor_id,greensales_vendor_id";
 
 /**
  * Leitura do diretório. Qualquer membro autenticado do Workspace lê —
@@ -83,6 +88,7 @@ export const listarDiretorioExecutivos = createServerFn({ method: "POST" })
           photoUrl: text(row, "photo_url"),
           postPresentationVideoUrl: text(row, "post_presentation_video_url"),
           gestorId: text(row, "gestor_id"),
+          greensalesVendorId: text(row, "greensales_vendor_id"),
           status: statusById.get(executiveId) === "inativo" ? "inativo" : "ativo",
         } satisfies ExecutiveDirectoryEntry;
       })
@@ -102,6 +108,7 @@ const patchSchema = z.object({
   photoUrl: z.string().max(2_000_000).optional(),
   postPresentationVideoUrl: z.string().max(2000).optional(),
   gestorId: z.string().max(120).optional(),
+  greensalesVendorId: z.string().max(60).optional(),
 });
 
 function nullable(value: string | undefined): string | null | undefined {
@@ -150,6 +157,7 @@ export const salvarPerfilExecutivo = createServerFn({ method: "POST" })
       photoUrl: "photo_url",
       postPresentationVideoUrl: "post_presentation_video_url",
       gestorId: "gestor_id",
+      greensalesVendorId: "greensales_vendor_id",
     };
     for (const [input, column] of Object.entries(map)) {
       const value = nullable((data as Record<string, string | undefined>)[input]);
