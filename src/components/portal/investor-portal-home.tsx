@@ -53,6 +53,24 @@ const sedeFachadaImg = { url: assetUrl("portal-capa-sede") };
 const revistaImg = { url: assetUrl("portal-capa-revista") };
 const experienciasImg = { url: assetUrl("portal-capa-experiencias") };
 const simuladorImg = { url: assetUrl("portal-capa-simulador") };
+
+/* Capas exclusivas do Portal Solar — identidade visual de energia solar. */
+import solarCardManual from "@/assets/portal-solar/card-manual.jpg";
+import solarCardMaterial from "@/assets/portal-solar/card-material.jpg";
+import solarCardSimulador from "@/assets/portal-solar/card-simulador.jpg";
+import solarCardEstrutura from "@/assets/portal-solar/card-estrutura.jpg";
+import solarCardRevista from "@/assets/portal-solar/card-revista.jpg";
+import solarCardPrincipios from "@/assets/portal-solar/card-principios.jpg";
+
+/** Capas temáticas de energia solar, por chave de módulo (somente /s/portal). */
+const SOLAR_COVERS: Record<string, string> = {
+  manual: solarCardManual,
+  universo: solarCardMaterial,
+  "modulo-vi": solarCardSimulador,
+  sede: solarCardEstrutura,
+  revista: solarCardRevista,
+  cultura: solarCardPrincipios,
+};
 import {
   hasPortalSession,
   setJourneyStatus,
@@ -413,6 +431,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
         )}
         <ModulesGrid
           unlocked={unlocked}
+          brandKey={brandKey}
           onOpen={(m) => {
             const mod = getPortalModule(m.moduleKey);
             if (!mod) return;
@@ -556,6 +575,20 @@ function Hero({ brandKey }: { brandKey: string }) {
    */
   const overlayBase = brandKey === "solar" ? "#71be66" : "var(--brand-blue-deep)";
 
+  /**
+   * Degradês do Hero por marca. A Financeira mantém o degradê original.
+   * A Solar usa o mesmo verde (#71be66) com a intensidade do rodapé reduzida,
+   * para não formar faixa sólida e manter a fotografia visível de ponta a ponta.
+   */
+  const mainGradient =
+    brandKey === "solar"
+      ? `linear-gradient(180deg, color-mix(in oklab, ${overlayBase} 34%, transparent) 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 30%, transparent) 78%, color-mix(in oklab, ${overlayBase} 36%, transparent) 100%)`
+      : `linear-gradient(180deg, color-mix(in oklab, ${overlayBase} 34%, transparent) 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 32%, transparent) 78%, color-mix(in oklab, ${overlayBase} 62%, transparent) 100%)`;
+  const bottomGradient =
+    brandKey === "solar"
+      ? `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 52%, transparent) 82%, color-mix(in oklab, ${overlayBase} 72%, transparent) 100%)`
+      : `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 45%, transparent) 45%, color-mix(in oklab, ${overlayBase} 88%, transparent) 82%, ${overlayBase} 100%)`;
+
   return (
     <section className="relative isolate overflow-hidden -mt-[88px]">
       {/* Fotografia institucional como cenário integral */}
@@ -573,8 +606,7 @@ function Hero({ brandKey }: { brandKey: string }) {
         <div
           className="absolute inset-0"
           style={{
-            background:
-              `linear-gradient(180deg, color-mix(in oklab, ${overlayBase} 34%, transparent) 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 32%, transparent) 78%, color-mix(in oklab, ${overlayBase} 62%, transparent) 100%)`,
+            background: mainGradient,
           }}
         />
         <div
@@ -589,8 +621,7 @@ function Hero({ brandKey }: { brandKey: string }) {
           aria-hidden
           className="absolute inset-x-0 bottom-0 h-56"
           style={{
-            background:
-              `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 45%, transparent) 45%, color-mix(in oklab, ${overlayBase} 88%, transparent) 82%, ${overlayBase} 100%)`,
+            background: bottomGradient,
           }}
         />
         <div aria-hidden className="absolute inset-0 portal-grid opacity-[0.08]" />
@@ -666,7 +697,23 @@ function Hero({ brandKey }: { brandKey: string }) {
   );
 }
 
-function ModulesGrid({ onOpen, unlocked }: { onOpen: (m: ModuleCard) => void; unlocked: boolean }) {
+function ModulesGrid({
+  onOpen,
+  unlocked,
+  brandKey,
+}: {
+  onOpen: (m: ModuleCard) => void;
+  unlocked: boolean;
+  brandKey: string;
+}) {
+  /**
+   * Solar usa capas temáticas de energia solar; Financeira mantém as capas
+   * institucionais originais. Títulos, textos e lógica são inalterados.
+   */
+  const modules =
+    brandKey === "solar"
+      ? MODULES.map((m) => ({ ...m, cover: SOLAR_COVERS[m.key] ?? m.cover }))
+      : MODULES;
   return (
     <section
       id="modulos"
@@ -687,7 +734,7 @@ function ModulesGrid({ onOpen, unlocked }: { onOpen: (m: ModuleCard) => void; un
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((m) => (
+          {modules.map((m) => (
             <ModuleTile
               key={m.key}
               module={m}
