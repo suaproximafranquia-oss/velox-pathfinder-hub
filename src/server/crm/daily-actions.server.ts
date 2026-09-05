@@ -18,7 +18,10 @@ import {
 } from "@/lib/crm/daily-actions";
 import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import { listClosureDuties } from "@/server/relationship/closure.server";
-import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
+import {
+  filterE0WithFirstContact,
+  listPendingE0Actions,
+} from "@/server/crm/e0-actions.server";
 import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 
@@ -119,11 +122,22 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   const actions: DailyAction[] = [];
 
   /**
+   * PROTEÇÃO DEFENSIVA: card cujo primeiro contato JÁ está registrado
+   * nunca aparece como E0 pendente, mesmo que a pendência tenha
+   * sobrado por qualquer motivo. Nada é apagado aqui — apenas não é
+   * exibido como tarefa humana.
+   */
+  const firstContactDone = await filterE0WithFirstContact(
+    firstContacts.map((a) => a.card_id),
+  ).catch(() => new Set<string>());
+
+  /**
    * PRIMEIRO CONTATO (E0) EM MODO MANUAL — prioridade máxima.
    * A ação já foi decidida pelo motor de entrada; aqui ela apenas
    * aparece para ser executada pelo executivo.
    */
   for (const pending of firstContacts) {
+    if (firstContactDone.has(pending.card_id)) continue;
     const identity = identities.get(pending.card_id);
     const dueDate = operationalDate(pending.created_at);
     actions.push({
