@@ -163,7 +163,63 @@ export async function buildCadenceQueue(
         ? -1
         : 1,
   );
+  /**
+   * PERSISTÊNCIA DA OBRIGAÇÃO (não é um segundo motor).
+   *
+   * A obrigação continua sendo DECIDIDA aqui, pelo mesmo cálculo de
+   * sempre. O que passa a existir é o REGISTRO dela: a mesma linha de
+   * `crm_cadence_tasks` que já recebia a conclusão passa a nascer como
+   * PENDING, com a mesma chave de idempotência
+   * (`lead_id,channel,cycle_date,step_day`). Insert "do nothing": uma
+   * tarefa já existente — PENDING ou DONE — nunca é sobrescrita, então
+   * rodar a fila várias vezes não duplica nem apaga desfecho.
+   */
+  await persistPlannedCalls(queue, channel).catch(() => {});
+
   return queue;
+}
+
+/**
+ * Grava as obrigações calculadas que ainda não têm linha. O responsável
+ * histórico é o dono do lead NESTE instante (nascimento da obrigação) e,
+ * por trigger no banco, nunca mais é recalculado. Tarefas antigas
+ * permanecem NULL — não há backfill.
+ */
+async function persistPlannedCalls(
+  queue: CadenceQueueItem[],
+  channel: CadenceChannel,
+): Promise<void> {
+  if (queue.length === 0) return;
+
+  const portalIds = queue.map((item) => `gs_${item.externalId}`).filter(Boolean);
+  const owners = new Map<string, string | null>();
+  if (portalIds.length > 0) {
+    const { data } = await supabaseAdmin
+      .from("portal_leads")
+      .select("id,responsible_executive_id")
+      .in("id", portalIds);
+    for (const row of data ?? []) {
+      owners.set(String(row.id), (row.responsible_executive_id as string | null) ?? null);
+    }
+  }
+
+  const rows = queue.map((item) => ({
+    lead_id: item.leadId,
+    channel,
+    step_day: item.step,
+    step_key: stepKey(channel, item.step),
+    cycle_date: item.entryDate,
+    due_date: item.dueDate,
+    status: "PENDING",
+    responsible_executive_id: owners.get(`gs_${item.externalId}`) ?? null,
+  }));
+
+  await supabaseAdmin
+    .from("crm_cadence_tasks")
+    .upsert(rows as any, {
+      onConflict: "lead_id,channel,cycle_date,step_day",
+      ignoreDuplicates: true,
+    });
 }
 
 /**

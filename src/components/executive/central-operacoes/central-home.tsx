@@ -30,6 +30,10 @@ type Action = {
   step: string | null;
   status: "executada" | "pendente" | "cancelada" | "nao_realizada";
   overdue: boolean;
+  /** Obrigação planejada dentro do período (visão ADERÊNCIA). */
+  planned: boolean;
+  /** Executada dentro do período (visão PRODUÇÃO). */
+  produced: boolean;
   plannedAt: string | null;
   executedAt: string | null;
   result: string | null;
@@ -69,13 +73,16 @@ type Summary = {
   executiveId: string;
   executiveName: string;
   planejadas: number;
-  executadas: number;
+  executadasDoPlanejado: number;
   pendentes: number;
-  puladas: number;
-  canceladas: number;
+  /** Subconjunto de pendentes — nunca somar às demais. */
   vencidas: number;
-  porTipo: Record<Kind, number>;
-  taxaExecucao: number | null;
+  canceladas: number;
+  producao: number;
+  puladas: number;
+  porTipoPlanejado: Record<Kind, number>;
+  porTipoProducao: Record<Kind, number>;
+  taxaAderencia: number | null;
   taxaSkip: number | null;
 };
 
@@ -208,7 +215,20 @@ export function CentralOperacoesHome() {
     return report.skips.filter(drill.skipFilter ?? (() => true));
   }, [report, drill]);
 
-  function openExecutive(summary: Summary, metric: keyof Summary | "todas", label: string) {
+  type Metric =
+    | "planejadas"
+    | "producao"
+    | "executadasDoPlanejado"
+    | "pendentes"
+    | "vencidas"
+    | "canceladas"
+    | "puladas";
+
+  /**
+   * O drill-down usa exatamente o mesmo predicado que gerou o número:
+   * não existe consulta paralela com outra regra.
+   */
+  function openExecutive(summary: Summary, metric: Metric, label: string) {
     const isUnassigned = summary.executiveId === "__sem_responsavel_historico__";
     const matchExec = (a: Action) =>
       summary.executiveId === "__totais__"
@@ -236,20 +256,22 @@ export function CentralOperacoesHome() {
       executiveId: summary.executiveId,
       filter: (a) => {
         if (!matchExec(a)) return false;
-        if (metric === "executadas") return a.status === "executada";
+        if (metric === "producao") return a.produced;
+        if (!a.planned) return false;
+        if (metric === "executadasDoPlanejado") return a.status === "executada";
         if (metric === "pendentes") return a.status === "pendente";
         if (metric === "canceladas") return a.status === "cancelada";
-        if (metric === "vencidas") return a.overdue;
+        if (metric === "vencidas") return a.status === "pendente" && a.overdue;
         return true;
       },
     });
   }
 
-  function openKind(kind: Kind) {
+  function openKind(kind: Kind, view: "planejado" | "producao") {
     setDrill({
-      title: KIND_LABEL[kind],
+      title: `${KIND_LABEL[kind]} — ${view === "producao" ? "produção do período" : "planejadas no período"}`,
       executiveId: null,
-      filter: (a) => a.kind === kind,
+      filter: (a) => a.kind === kind && (view === "producao" ? a.produced : a.planned),
     });
   }
 
@@ -286,39 +308,93 @@ export function CentralOperacoesHome() {
         </p>
       ) : report ? (
         <>
-          <section className="grid grid-cols-2 gap-3 md:grid-cols-6">
-            <MetricCard label="Planejadas" value={report.totals.planejadas} onClick={() => openExecutive(report.totals, "todas", "Planejadas")} />
-            <MetricCard label="Executadas" value={report.totals.executadas} onClick={() => openExecutive(report.totals, "executadas", "Executadas")} />
-            <MetricCard label="Pendentes" value={report.totals.pendentes} onClick={() => openExecutive(report.totals, "pendentes", "Pendentes")} />
-            <MetricCard label="Vencidas" value={report.totals.vencidas} onClick={() => openExecutive(report.totals, "vencidas", "Vencidas")} />
-            <MetricCard label="Puladas" value={report.totals.puladas} onClick={() => openExecutive(report.totals, "puladas", "Puladas")} />
-            <MetricCard label="Canceladas" value={report.totals.canceladas} onClick={() => openExecutive(report.totals, "canceladas", "Canceladas")} />
+          {/* PRODUÇÃO DO PERÍODO — o que foi efetivamente executado,
+              pela data de execução. Não é somável com a aderência. */}
+          <section className="rounded-xl border border-[color:var(--border)] p-4">
+            <header className="mb-3">
+              <h2 className="text-sm font-medium">Produção do período</h2>
+              <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                Ações efetivamente executadas dentro do período, pela data da execução.
+                Inclui ações planejadas em outros dias. Não somar com a aderência abaixo.
+              </p>
+            </header>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              <MetricCard
+                label="Executadas — produção"
+                value={report.totals.producao}
+                onClick={() => openExecutive(report.totals, "producao", "Produção do período")}
+              />
+              {(Object.keys(KIND_LABEL) as Kind[]).map((kind) => {
+                const Icon = KIND_ICON[kind];
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => openKind(kind, "producao")}
+                    className="rounded-xl border border-[color:var(--border)] px-4 py-3 text-left transition hover:border-[color:var(--gold)]"
+                  >
+                    <span className="flex items-center gap-2 text-[11px] text-[color:var(--muted-foreground)]">
+                      <Icon className="h-3.5 w-3.5" /> {KIND_LABEL[kind]}
+                    </span>
+                    <strong className="mt-1 block text-xl">
+                      {report.totals.porTipoProducao[kind]}
+                    </strong>
+                  </button>
+                );
+              })}
+            </div>
           </section>
 
-          <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {(Object.keys(KIND_LABEL) as Kind[]).map((kind) => {
-              const Icon = KIND_ICON[kind];
-              return (
-                <button
-                  key={kind}
-                  type="button"
-                  onClick={() => openKind(kind)}
-                  className="rounded-xl border border-[color:var(--border)] px-4 py-3 text-left transition hover:border-[color:var(--gold)]"
-                >
-                  <span className="flex items-center gap-2 text-[11px] text-[color:var(--muted-foreground)]">
-                    <Icon className="h-3.5 w-3.5" /> {KIND_LABEL[kind]}
-                  </span>
-                  <strong className="mt-1 block text-xl">{report.totals.porTipo[kind]}</strong>
-                </button>
-              );
-            })}
+          {/* ADERÊNCIA AO PLANEJAMENTO — obrigações cuja data planejada
+              caiu no período. Overdue é subconjunto de pendentes. */}
+          <section className="rounded-xl border border-[color:var(--border)] p-4">
+            <header className="mb-3">
+              <h2 className="text-sm font-medium">Aderência ao planejamento</h2>
+              <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                Obrigações cujo vencimento caiu no período: quantas foram cumpridas, quantas
+                seguem em aberto. Taxa = executadas do planejado ÷ planejadas.
+              </p>
+            </header>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              <MetricCard label="Planejadas" value={report.totals.planejadas} onClick={() => openExecutive(report.totals, "planejadas", "Planejadas")} />
+              <MetricCard label="Executadas — do planejado" value={report.totals.executadasDoPlanejado} onClick={() => openExecutive(report.totals, "executadasDoPlanejado", "Executadas do planejado")} />
+              <MetricCard
+                label="Pendentes"
+                value={report.totals.pendentes}
+                hint={`inclui ${report.totals.vencidas} vencida(s)`}
+                onClick={() => openExecutive(report.totals, "pendentes", "Pendentes")}
+              />
+              <MetricCard label="Puladas" value={report.totals.puladas} onClick={() => openExecutive(report.totals, "puladas", "Puladas")} />
+              <MetricCard label="Canceladas" value={report.totals.canceladas} onClick={() => openExecutive(report.totals, "canceladas", "Canceladas")} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+              {(Object.keys(KIND_LABEL) as Kind[]).map((kind) => {
+                const Icon = KIND_ICON[kind];
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => openKind(kind, "planejado")}
+                    className="rounded-xl border border-[color:var(--border)] px-4 py-3 text-left transition hover:border-[color:var(--gold)]"
+                  >
+                    <span className="flex items-center gap-2 text-[11px] text-[color:var(--muted-foreground)]">
+                      <Icon className="h-3.5 w-3.5" /> {KIND_LABEL[kind]}
+                    </span>
+                    <strong className="mt-1 block text-xl">
+                      {report.totals.porTipoPlanejado[kind]}
+                    </strong>
+                  </button>
+                );
+              })}
+            </div>
           </section>
 
           <section className="rounded-xl border border-[color:var(--border)]">
             <header className="flex items-center justify-between border-b border-[color:var(--border)] px-4 py-3">
               <h2 className="text-sm font-medium">Por executivo</h2>
               <span className="text-[11px] text-[color:var(--muted-foreground)]">
-                Taxa de execução e de pulo aparecem quando há base suficiente.
+                Responsável histórico da ação, nunca o dono atual do lead. “Vencidas” está
+                dentro de “Pendentes”.
               </span>
             </header>
             <div className="overflow-x-auto">
@@ -326,12 +402,13 @@ export function CentralOperacoesHome() {
                 <thead className="text-[color:var(--muted-foreground)]">
                   <tr>
                     <th className="px-4 py-2 font-normal">Executivo</th>
+                    <th className="px-3 py-2 font-normal">Produção</th>
                     <th className="px-3 py-2 font-normal">Planejadas</th>
-                    <th className="px-3 py-2 font-normal">Executadas</th>
-                    <th className="px-3 py-2 font-normal">Pendentes</th>
+                    <th className="px-3 py-2 font-normal">Exec. do planejado</th>
+                    <th className="px-3 py-2 font-normal">Pendentes (vencidas)</th>
                     <th className="px-3 py-2 font-normal">Puladas</th>
                     <th className="px-3 py-2 font-normal">Canceladas</th>
-                    <th className="px-3 py-2 font-normal">Execução</th>
+                    <th className="px-3 py-2 font-normal">Aderência</th>
                     <th className="px-3 py-2 font-normal">Pulo</th>
                   </tr>
                 </thead>
@@ -344,18 +421,34 @@ export function CentralOperacoesHome() {
                           {exec.executiveName}
                         </span>
                       </td>
-                      <NumberCell value={exec.planejadas} onClick={() => openExecutive(exec, "todas", "Planejadas")} />
-                      <NumberCell value={exec.executadas} onClick={() => openExecutive(exec, "executadas", "Executadas")} />
-                      <NumberCell value={exec.pendentes} onClick={() => openExecutive(exec, "pendentes", "Pendentes")} />
+                      <NumberCell value={exec.producao} onClick={() => openExecutive(exec, "producao", "Produção do período")} />
+                      <NumberCell value={exec.planejadas} onClick={() => openExecutive(exec, "planejadas", "Planejadas")} />
+                      <NumberCell value={exec.executadasDoPlanejado} onClick={() => openExecutive(exec, "executadasDoPlanejado", "Executadas do planejado")} />
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => openExecutive(exec, "pendentes", "Pendentes")}
+                          className="underline decoration-dotted"
+                        >
+                          {exec.pendentes}
+                        </button>{" "}
+                        <button
+                          type="button"
+                          onClick={() => openExecutive(exec, "vencidas", "Vencidas (dentro de pendentes)")}
+                          className="text-[color:var(--muted-foreground)] underline decoration-dotted"
+                        >
+                          ({exec.vencidas} venc.)
+                        </button>
+                      </td>
                       <NumberCell value={exec.puladas} onClick={() => openExecutive(exec, "puladas", "Puladas")} />
                       <NumberCell value={exec.canceladas} onClick={() => openExecutive(exec, "canceladas", "Canceladas")} />
-                      <td className="px-3 py-2">{exec.taxaExecucao === null ? "—" : `${exec.taxaExecucao}%`}</td>
+                      <td className="px-3 py-2">{exec.taxaAderencia === null ? "—" : `${exec.taxaAderencia}%`}</td>
                       <td className="px-3 py-2">{exec.taxaSkip === null ? "—" : `${exec.taxaSkip}%`}</td>
                     </tr>
                   ))}
                   {report.executives.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-6 text-center text-[color:var(--muted-foreground)]">
+                      <td colSpan={9} className="px-4 py-6 text-center text-[color:var(--muted-foreground)]">
                         Nenhuma ação no período.
                       </td>
                     </tr>
@@ -471,7 +564,17 @@ function PeriodPicker(props: {
   );
 }
 
-function MetricCard({ label, value, onClick }: { label: string; value: number; onClick: () => void }) {
+function MetricCard({
+  label,
+  value,
+  onClick,
+  hint,
+}: {
+  label: string;
+  value: number;
+  onClick: () => void;
+  hint?: string;
+}) {
   return (
     <button
       type="button"
@@ -480,6 +583,9 @@ function MetricCard({ label, value, onClick }: { label: string; value: number; o
     >
       <span className="text-[11px] text-[color:var(--muted-foreground)]">{label}</span>
       <strong className="mt-1 block text-2xl">{value}</strong>
+      {hint ? (
+        <span className="mt-0.5 block text-[10px] text-[color:var(--muted-foreground)]">{hint}</span>
+      ) : null}
     </button>
   );
 }
