@@ -95,7 +95,11 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
               leadId: item.leadId,
               step: item.cadence.step,
               event: "ligacao",
-              outcome: outcome === "SIM" ? "Atendeu" : rang ? "Chamou e não atendeu" : "Não atendeu",
+              outcome: outcome === "SIM"
+                  ? "Atendeu"
+                  : rang
+                    ? `Chamou ${rang}x e não atendeu`
+                    : "Não atendeu",
             },
           });
         } catch {
