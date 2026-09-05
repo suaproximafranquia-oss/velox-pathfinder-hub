@@ -1,4 +1,14 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+/**
+ * BASE ÚNICA DO PORTAL DO INVESTIDOR.
+ *
+ * Corpo extraído de `src/routes/f.index.tsx` sem reescrita de lógica: as
+ * rotas `/f` (Financeira) e `/s/portal` (Solar — base visual/demo)
+ * consomem exatamente a mesma estrutura. Só duas coisas variam:
+ * `brandKey` (marca gravada no contexto de entrada) e `homePath` (Home
+ * do próprio portal). Todo o resto — sessão, Gateway, overlays, módulos
+ * e conteúdo — permanece idêntico ao que já existia.
+ */
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   BookOpen,
@@ -200,9 +210,16 @@ const MODULES: ModuleCard[] = [
   },
 ];
 
-function PortalHome() {
+export type InvestorPortalHomeProps = {
+  /** Marca/operação do portal (`financeira`, `solar`, `seguros`). */
+  brandKey: string;
+  /** Home do próprio portal — nenhuma rota é escrita à mão aqui dentro. */
+  homePath: "/f" | "/s/portal";
+};
+
+export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomeProps) {
   const navigate = useNavigate();
-  const search = Route.useSearch() as HomeSearch;
+  const search = useSearch({ strict: false }) as HomeSearch;
   /** Único overlay ativo por vez — regra oficial do Portal. */
   const [active, setActive] = useState<{
     key: "gateway" | PortalModuleKey;
@@ -339,7 +356,7 @@ function PortalHome() {
         unit: search.u ?? readEntryContext().unit,
         origin: search.o ?? readEntryContext().origin,
         campaign: search.c ?? readEntryContext().campaign,
-        brand: search.b ?? readEntryContext().brand,
+        brand: search.b ?? readEntryContext().brand ?? brandKey,
         // COMANDO 3 §8 — canal oficial do link de origem (TikTok/Meta).
         channel:
           search.ch === "tiktok" || search.ch === "meta"
@@ -358,7 +375,7 @@ function PortalHome() {
       // Campanhas patrocinadas não são personalizadas: o lead pertence ao
       // Executivo Padrão do workspace.
       if (ctx.campaign === "anuncio" && !search.e) clearResponsibleExecutive();
-      navigate({ to: "/f", search: {}, replace: true });
+      navigate({ to: homePath, search: {}, replace: true });
       return;
     }
 
@@ -369,7 +386,7 @@ function PortalHome() {
     } else {
       openGateway(getPortalModule(ctx.pendingModule)?.title ?? null);
     }
-  }, [navigate, openGateway, openModule, search]);
+  }, [brandKey, homePath, navigate, openGateway, openModule, search]);
 
   /** Continuidade: retoma o contexto da jornada anterior. */
   useEffect(() => {
@@ -384,7 +401,7 @@ function PortalHome() {
 
   return (
     <div className="min-h-screen">
-      <PortalHeader />
+      <PortalHeader homePath={homePath} />
       <main>
         <Hero />
         {resume && !active && (
@@ -510,11 +527,11 @@ function ResumeBanner({
   );
 }
 
-function PortalHeader() {
+function PortalHeader({ homePath }: { homePath: InvestorPortalHomeProps["homePath"] }) {
   return (
     <header className="relative z-30">
       <div className="mx-auto flex max-w-7xl items-center px-6 py-6 md:px-10">
-        <Link to="/f" className="flex items-center gap-3">
+        <Link to={homePath} className="flex items-center gap-3">
           <span
             className="inline-flex h-9 w-9 items-center justify-center border portal-serif text-lg"
             style={{ borderColor: "var(--brand-orange)", color: "var(--brand-orange)" }}
