@@ -153,9 +153,48 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     notes: row["notes"] ?? null,
     sourceKind: row["source_kind"] ?? null,
     sourceReference: row["source_reference"] ?? null,
+    displayPosition:
+      row["display_position"] === null || row["display_position"] === undefined
+        ? null
+        : Number(row["display_position"]),
     awaitingOfficialText:
       !row["active"] || String(row["body"] ?? "").trim().length === 0,
   };
+}
+
+/**
+ * BLOCO 3 — POSIÇÃO VISUAL DA BIBLIOTECA.
+ *
+ * `display_position` é ordenação de VITRINE. Não é ordem de execução:
+ * fluxo, prazo e sequência do motor continuam em `STEPS`/`FLOW_SEQUENCE`.
+ * A posição é atributo da ETAPA (step_key), por isso todas as versões
+ * da mesma etapa carregam o mesmo número.
+ */
+async function assignMissingPositions(): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("relationship_message_library")
+    .select("step_key, display_position" as any)
+    .eq("scope", "production");
+  const rows = (data ?? []) as any[];
+  const missing = [
+    ...new Set(
+      rows
+        .filter((r) => r.display_position === null || r.display_position === undefined)
+        .map((r) => r.step_key)
+        .filter(Boolean),
+    ),
+  ].sort();
+  if (missing.length === 0) return;
+  let next =
+    Math.max(0, ...rows.map((r) => Number(r.display_position ?? 0) || 0)) + 10;
+  for (const step of missing) {
+    await supabaseAdmin
+      .from("relationship_message_library")
+      .update({ display_position: next } as any)
+      .eq("scope", "production")
+      .eq("step_key", step);
+    next += 10;
+  }
 }
 
 /**
