@@ -1,195 +1,174 @@
-# AUDITORIA DE VIABILIDADE — Biblioteca como fonte única das etapas (Financeira /f)
+# RODADA FINAL — Como uma nova etapa entra no fluxo (Financeira /f)
 
-Somente leitura. Nada construído, alterado, migrado ou executado.
+Somente leitura. Nada construído, alterado, migrado ou executado. As opções abaixo são apresentadas para sua decisão; não escolhi nenhuma regra de negócio em seu nome.
 
-## P1 — É tecnicamente possível?
+## P1 — Como E9 entra num fluxo
 
-**SIM, MAS COM RESSALVAS.** Não é reconstrução do motor. As ressalvas concretas:
+- **A) Entra automaticamente em algum fluxo.** Tecnicamente exigiria uma convenção de ordenação (alfanumérica, por exemplo). O motor hoje **não tem** nenhuma ordenação implícita: `nextStep()` percorre `FLOW_SEQUENCE` literalmente. Inventar essa convenção significaria que "E9" entraria entre "E4" e "E12" por acaso do texto — comportamento não previsível pelo administrador. **Não recomendo.**
+- **B) Nasce cadastrada e INERTE até alguém definir o fluxo.** A mensagem existe, é editável e testável; o motor a reconhece como etapa válida, mas `nextStep()` nunca a escolhe porque ela não tem fluxo/posição. Custo técnico: um par de campos e uma verificação. **Menor risco.**
+- **C) O próprio cadastro permite escolher o fluxo.** É (B) com a associação feita na mesma tela. Funciona, mas cria a chance de uma etapa entrar em produção no mesmo instante em que o texto ainda está sendo escrito.
+- **D) Alternativa:** (B) + uma tela de "fluxo" separada, onde a Gestora arruma a sequência com todas as etapas já publicadas à vista. Separa "escrever conteúdo" de "mudar a operação" — que são decisões de naturezas diferentes.
 
-1. **`CadenceStep` é um tipo TypeScript literal** (`src/lib/relationship/types.ts:24`), usado em `CadenceRecord.executedSteps`, `EngineAction`, `applyEvent`. Uma chave criada em runtime não existe nesse tipo — o tipo precisa passar a ser `string` com validação em runtime. É a mudança de maior alcance, mas é mecânica.
-2. **`FLOW_SEQUENCE`** (`config.ts`) define a ordem. Criar E9 na Biblioteca **não diz ao motor onde E9 entra** — esse é o problema real, não a validação.
-3. **`STEPS[step]`** é consultado em `decide.ts:151` para obter `businessDaysAfterReference`, `templatePurpose` e `contentGroup`. Uma etapa sem essas propriedades não pode ser programada. Precisam vir da Biblioteca.
-4. **`message-library.server.ts`** semeia a partir de listas literais; a Biblioteca só mostra o que está nessas listas.
+## P2 — "Está na Biblioteca, então usa"
 
-## P2 — Mapa de dependências
+Sua interpretação — *"estar na Biblioteca significa que a etapa existe e está disponível ao motor, mas não necessariamente que ela é inserida automaticamente em todos os fluxos"* — **é tecnicamente correta e coerente com sua regra**: continua não havendo lista paralela no código; a Biblioteca segue mandando. Ela apenas passa a declarar duas informações em vez de uma: *existe* e *onde entra*.
 
-| Arquivo | Função/uso | Dependência | O que faz | Pode virar dinâmica? | Risco |
-|---|---|---|---|---|---|
-| `lib/relationship/config.ts` | `STEPS`, `FLOW_SEQUENCE`, `RELATIONSHIP_CONFIG` | — (origem) | Declara etapas, prazos, finalidade, conteúdo e ordem dos fluxos | Etapas/ordem: sim. Janelas/calendário: não | 🔴 alto |
-| `lib/relationship/types.ts` | `CadenceStep`, `CadenceFlow` | tipo literal | Restringe a chave em tempo de compilação | Sim (virar `string`) | 🔴 alto |
-| `lib/relationship/step-registry.ts` | `KNOWN_STEP_KEYS`, `isKnownStep`, `CONTENT_REQUIRED_STEPS` | `STEPS` | Recusa etapa desconhecida | Sim — vira consulta à Biblioteca ∪ histórico | 🟡 médio |
-| `lib/relationship/decide.ts` | `nextStep`, `isStepInOrder`, `decideNextAction` | `FLOW_SEQUENCE`, `STEPS` | Escolhe a próxima etapa e calcula vencimento | Sim, se ordem/prazo vierem como dado | 🔴 alto |
-| `lib/relationship/machine.ts` | `applyEvent` | `CadenceStep` | Máquina de estados | Só o tipo | 🟢 baixo |
-| `lib/relationship/reactivation.ts` | regra E30 | `STEPS`, `FLOW_SEQUENCE` | Reativação | Parcial | 🟡 médio |
-| `lib/relationship/current-steps.ts` | fotografia das etapas | `STEPS`, `FLOW_SEQUENCE` | Exibição | Sim | 🟢 baixo |
-| `lib/relationship/engine.ts` | orquestração + `confirmManualExecution` | `STEPS` | Executa/conclui | Parcial | 🟡 médio |
-| `server/relationship/message-library.server.ts` | `WORD_STEP_ORDER`, `LEGACY_STEPS`, `WORD_ALIAS_STEPS`, `PENDING_TEXT_STEPS`, `LIBRARY_STEP_ORDER`, `isKnownStep` | listas literais | Semeia e lista a Biblioteca | **Sim — é o ponto central** | 🟡 médio |
-| `server/relationship/dispatch.server.ts` | envio | `isKnownStep` | Recusa etapa desconhecida | Sim | 🟡 médio |
-| `server/relationship/library-diagnostics.server.ts` | lacunas | `STEPS` | Diagnóstico | Sim | 🟢 baixo |
-| `server/relationship/engine.server.ts` | motor de produção | `config` | Instância | Sim | 🟡 médio |
-| `server/relationship/audit.server.ts` | auditoria | `config` | Leitura | Sim | 🟢 baixo |
-| `server/relationship/calendar-admin.server.ts` | calendário | `config` | Janelas — **deve continuar em código** | Não | 🟢 baixo |
-| `server/crm/automation.server.ts` | automação | `config` | Agendamento | Parcial | 🟡 médio |
-| `server/crm/daily-actions-log.server.ts` | conclusão | `isKnownStep` | Valida antes de concluir | Sim | 🟡 médio |
-| `routes/universo.tsx` | apresentação | `STEPS` | Exibição institucional | Sim | 🟢 baixo |
-| Testes (`engine.test`, `entry.test`, `comando-3d`, `comando-4f`, `refino-final`) | — | `STEPS`, `FLOW_SEQUENCE`, `isKnownStep` | Fixam o comportamento atual | Precisarão ser ajustados | 🟡 médio |
-| `step_key` (14 ocorrências em `server/relationship/*`) | leitura/gravação | coluna texto | Identidade da mensagem | Já é dado | 🟢 baixo |
+**Impacto da interpretação alternativa** (Biblioteca = inserção automática): toda mensagem criada viraria obrigação para investidores reais no mesmo dia, inclusive rascunhos e testes; e como não há ordenação implícita, seria necessário inventar uma. Isso transformaria um erro de digitação numa mudança de cadência em produção.
 
-## P3 — Código x dado
+**Decisão sua**, mas as duas leituras respeitam "a Biblioteca manda" — a diferença é se publicar conteúdo é, por si só, um ato operacional.
 
-**Hoje em código, deveria ser dado da Biblioteca:** existência da etapa (`STEPS`), rótulo, prazo em dias úteis (`businessDaysAfterReference`), finalidade do template (`templatePurpose`), exigência de conteúdo (`contentGroup`), ordem no fluxo (`FLOW_SEQUENCE`), listas de semeadura da Biblioteca.
+## P3 — Posição
 
-**Obrigatoriamente em código:** máquina de estados e prioridade de eventos (`machine.ts`), bloqueios de automação (`blocksAutomation`), janelas/dias úteis (`calendar.ts`), regra de contato humano real, idempotência e claim de fila, E0/primeiro contato e ownership, etapas terminais (`closing.ts`), decisão de canal/modo de execução e **Safety Lock**.
+- **A) Campo `position`** (número por fluxo): simples de ler no motor, mas exige recalcular números ao inserir no meio.
+- **B) Arrastar e soltar**: melhor experiência; grava exatamente a mesma coisa que (A) por baixo. É uma camada de interface sobre (A), não uma arquitetura diferente.
+- **C) "Depois de E3"** (lista encadeada): elegante, mas frágil — se E3 for desativada, a corrente quebra e a ordem fica ambígua.
+- **D) Recomendação**: **(A) como armazenamento + (B) como interface**, quando houver tempo. É o mais seguro para o sistema atual porque `nextStep()` só precisa ordenar por um número.
 
-## P4 — O problema dos fluxos
+## P4 — Prazo
 
-**A) Ordem na Biblioteca.** Adiciona-se `flow` + `position` por mensagem. Simples de ler, mas transforma a sequência inteira em dado editável: um erro de digitação da Gestora reordena a cadência real de todos os leads.
-**B) Etapa criada e depois associada a um fluxo, também na Biblioteca.** Mesma estrutura de (A), porém em duas ações: criar a mensagem (inerte) e depois publicá-la num fluxo. Uma etapa recém-criada **não entra em produção sozinha** — precisa de um ato explícito.
-**C) Alternativa: Biblioteca declara existência+conteúdo; o fluxo permanece uma configuração versionada, editável em tela própria, com fotografia por versão.** O ciclo guarda a versão do fluxo com que nasceu — ninguém tem a sequência mudada no meio do caminho.
+Hoje `businessDaysAfterReference` vive em `STEPS` (`config.ts`) e é lido em `decide.ts:163`.
 
-**Mais segura para o sistema atual: (B) com o mecanismo de versão de (C).** (A) é a mais arriscada. A regra "o que está na Biblioteca manda" continua valendo — só distingue "existe" de "está em produção neste fluxo".
+- **A) Na Biblioteca (na mensagem)**: prazo viaja com a versão publicada, ganhando versionamento de graça. Problema conceitual: o prazo é da *etapa no fluxo*, não do texto — mudar uma vírgula no texto publicaria uma nova versão do prazo junto.
+- **B) Na configuração de fluxo** (na associação etapa↔fluxo): o prazo pertence ao par (fluxo, etapa) — que é exatamente o que ele significa. Permite E9 com 2 dias em `sem_resposta` e 5 dias em `reengajamento`.
+- **C) Outro lugar**: fragmentaria a configuração.
 
-## P5 — Casos
+**Preserva melhor a arquitetura: (B).** Conteúdo na mensagem; comportamento na associação com o fluxo.
 
-- **CASO A** — funciona; é o estado atual.
-- **CASO B (E9 só na Biblioteca)** — hoje: `isKnownStep("E9")` = falso; `dispatch.server.ts` e `daily-actions-log.server.ts` recusam; `nextStep()` nunca a escolhe, pois não está em `FLOW_SEQUENCE`; e a tela nem a exibe, porque `LIBRARY_STEP_ORDER` não a contém. **Efeito prático: E9 é invisível e inerte.** Para reconhecer: `KNOWN_STEP_KEYS` derivado da Biblioteca ∪ histórico; `CadenceStep` como `string`; posição no fluxo declarada.
-- **CASO C (E3 desativada na Biblioteca)** — hoje: **E3 continua sendo criada**, porque a decisão vem de `FLOW_SEQUENCE`, não da Biblioteca. O envio é que falha depois, por falta de texto ativo. Para corrigir: `nextStep()` deve pular etapa sem versão ativa; itens já na fila devem ser bloqueados com motivo; histórico intocado.
-- **CASO D (E9 e E10)** — **NÃO COMPROVADO que exista qualquer ordenação automática**. Não há ordem alfanumérica no motor. Sem posição declarada, o motor não saberia. Reforça a escolha (B).
-- **CASO E (conteúdo de E3 alterado)** — nova ação usa a versão ativa (funciona hoje, via `renderFromLibrary`); ação antiga **deveria** mostrar o snapshot — ver P7.
+## P5 — Nova etapa inerte
 
-## P6 — Versionamento na execução
+**Sim, recomendo tecnicamente.** Criar E9 sem fluxo/posição deve produzir uma mensagem existente, versionada, visível e **sem gerar nenhuma ação**. Motivo concreto: hoje um texto incompleto salvo na Biblioteca já é lido por `renderFromLibrary` na próxima execução da etapa; a inércia dá um espaço seguro entre "escrever" e "entrar em produção". É a arquitetura mais segura entre as viáveis.
 
-**Já existe o campo certo.** `relationship_message_sends` tem `library_id`, `library_version`, `rendered_body`, `step`, `content_url`, `investor_name_used`, `cadence_id`, `simulated`, `sent_at`. **Nenhuma migration é necessária** para o snapshot.
+## P6 — Rascunho / Publicado / Ativo no fluxo
 
-**Lacuna:** apenas `e0.server.ts` e `e20.functions.ts` gravam nessa tabela. `confirmManualExecution` (`engine.ts`) — o caminho da Ação do Dia — **não grava**. Corrigir é acrescentar uma escrita, sem quebrar histórico.
+Os três conceitos **não são todos necessários**, porque dois já existem:
+- **Publicado** = `version` + `active = true` (já implementado).
+- **Ativo no fluxo** = ter fluxo + posição (é o conceito novo, e é o que P1-B propõe).
+- **Rascunho** = **complexidade desnecessária hoje**. Uma etapa sem fluxo já é, na prática, um rascunho seguro. Adicionar um terceiro estado exigiria migration e uma regra de "quem promove o rascunho" que não tem dono definido.
 
-## P7 — Histórico (E3 v1 em 05/09, v2 em 10/09)
+**Recomendação: dois estados (publicado, ativo no fluxo).**
 
-**Tecnicamente possível, e a estrutura já existe** — `relationship_message_sends` guardaria `rendered_body` + `library_version = 1`. **A lacuna é exatamente a de P6**: execuções manuais pela Ação do Dia não geram essa linha, então hoje o Workspace mostraria a etapa mas não o texto de 05/09. Auditoria adicional recomendada: contar linhas de `relationship_message_sends` por origem para medir a cobertura real.
+## P7 — Alteração de ordem (E0→E1→**E9**→E3→E4)
 
-## P8 — Fila
+Recomendação mais segura, item a item:
+- **A) Novos ciclos** — usam a nova ordem. Sem ressalvas.
+- **B) Ciclos já iniciados** — **mantêm a ordem com que nasceram**. Mudar a ordem no meio da jornada muda o que o investidor recebe sem que ninguém tenha decidido isso caso a caso.
+- **C) Ciclos que já executaram E3** — inserir E9 antes de E3 num ciclo que já executou E3 faria `isStepInOrder` recusar E9 permanentemente (ela exige que todas as anteriores estejam executadas, e E9 passaria a ser "anterior" a algo já feito). Resultado: fila travada ou etapa nunca criada. **Este é o argumento técnico mais forte a favor de B.**
+- **D) Ações já na fila** — permanecem como estão. A fila é o passado decidido; nunca deve ser reescrita por mudança de configuração.
 
-`relationship_cadences` = ciclo; `relationship_queue` = ação planejada/executada; Biblioteca = conteúdo. **A Biblioteca nunca deve escrever na fila.**
+## P8 — Versionamento do fluxo
 
-- **Duplicação**: unicidade lógica `(lead_id, ciclo, step, ownership_seq)`; a fila só é criada pelo motor.
-- **Retroatividade indevida**: etapa nova vale a partir da sua data de criação; `operational_since` (Bloco 1) já é o precedente.
-- **Duas E9 no mesmo ciclo**: `decide.ts` já impede via `executedSteps.includes(step)` e `isStepInOrder`.
-- **Idempotência**: preservada pelo claim de `confirmManualExecution`; publicar versão nova não recria item nem reabre item concluído.
+**Confirmo: é a solução tecnicamente mais segura**, e é ela que torna P7-B implementável. Sem guardar a versão do fluxo no ciclo, a única forma de proteger jornadas em andamento seria congelar a configuração — o que anula o objetivo. Com a versão gravada em `relationship_cadences`, cada ciclo é resolvido contra a sequência que valia quando nasceu, e a mudança administrativa fica automaticamente restrita a quem entra depois. É o mesmo princípio de `operational_since`, já implementado no Bloco 1.
 
-## P9 — Ciclos existentes
+## P9 — E9 em mais de um fluxo
 
-- **(A) Receber E9 automaticamente** — o lead em curso ganha obrigação retroativa; `isStepInOrder` pode recusá-la se E9 for posicionada antes de etapas já executadas, gerando fila travada. **Alto risco.**
-- **(B) Só ciclos novos** — comportamento previsível, alinhado ao marco operacional já implementado. **Menor risco; recomendada.**
-- **(C) Caso a caso** — mais flexível, exige tela de aplicação e auditoria por lead. Bom como evolução posterior de (B).
+**Pode e deve poder.** Modelagem recomendada: `step_key` é o identificador da **mensagem** (uma por chave, versionada); a associação `(fluxo, step_key)` é uma linha separada com `position` e `prazo`.
 
-## P10 — Limite atual
+- Conteúdo: **o mesmo** — é a mesma mensagem.
+- Prazo: **pode ser diferente** por fluxo.
+- Posição: **pode ser diferente** por fluxo.
 
-- **Banco**: suporta — `step_key` é `text`, sem enum, sem CHECK observado.
-- **Backend**: a leitura é `select` completo sem `.limit()` nessa consulta; suporta.
-- **UI**: `MessageLibraryPanel` renderiza `[...steps.keys()]` num container com `max-h-[360px] overflow-y-auto` — rola, não limita.
-- **Paginação**: não existe, e não é necessária nessa ordem de grandeza.
-- **Limite artificial real**: apenas as listas `WORD_STEP_ORDER`/`LEGACY_STEPS`/`WORD_ALIAS_STEPS`/`PENDING_TEXT_STEPS` em `message-library.server.ts`, mais `isKnownStep`. Nenhum outro limite encontrado no projeto.
+Se um dia o texto precisar variar por fluxo, o caminho é criar uma chave distinta (ex.: `E9_RE`), nunca duplicar `step_key`.
 
-## P11 — Botão "+"
+## P10 — A chave pode ser "qualquer coisa"?
 
-**A estrutura suporta.** `publishLibraryVersion` já cria a versão 1 quando não existe linha para a `step_key`; falta apenas a UI passar uma chave nova em vez de escolher de uma lista, e a listagem deixar de se basear em `LIBRARY_STEP_ORDER`.
+A chave **pode** ser identificador puro, mas existem hoje **exceções reais com tratamento especial no código** — e essas não podem virar apenas configuração:
 
-**Obrigatórios hoje**: `stepKey`, `body`. **Deveriam passar a ser preenchíveis** (hoje escondidos da tela, mas usados pelo motor): `content_group`, `requires_video`, `requires_template`, `meta_template_name`, `button_kind`, `code`, `scope` — mais os campos novos de fluxo/posição/prazo, se adotarmos (B).
+| Chave/grupo | Onde | Tratamento especial |
+|---|---|---|
+| `E0`, `E0_V1` | `decide.ts:15` (`FIRST_CONTACT_STEPS`) | Únicas permitidas enquanto o lead está em NOVOS |
+| `E0_V1` | `machine.ts:176` | Ocupa a posição de E0 nos executados |
+| `RE0` | `machine.ts:171` | Abertura obrigatória da reentrada |
+| `E30` | `decide.ts:158` | Conta a partir do início da jornada, não da última mensagem |
+| `E20`, `E27`, `FINALIZACAO`, `RESPOSTA_AUTOMATICA` | `step-registry.ts:16` | Fora da máquina de cadência |
+| `E12` | `config.ts` | Encerra o fluxo enquanto E30 estiver desativada |
 
-## P12 — "Qualquer mensagem"
+Ou seja: `E10`, `V5`, `R4`, `RF2` seriam chaves comuns, sem obstáculo. As seis linhas acima continuam sendo comportamento de código.
 
-**O banco já aceita qualquer texto** em `step_key` — não há enum nem CHECK. A restrição é 100% de código (`isKnownStep`). O regex `^[A-Z][A-Z0-9_]{0,15}$` **não é tecnicamente necessário**; é higiene, para evitar `e9`, `E 9`, acento ou espaço criando chaves que parecem iguais mas não são — lembrando que `isKnownStep` já faz `toUpperCase()`, o que hoje mascara parte do problema.
+## P11 — E0
 
-## P13 — Podemos eliminar a lista manual?
+**Confirmado: E0 permanece exceção arquitetural.** Origem, titularidade, ownership, `workspace_e0_actions`, `ownership_seq` e primeiro contato **não são tocados**.
 
-**SIM, quanto à existência das etapas.** Arquitetura mínima: (1) `CadenceStep` vira `string`; (2) `KNOWN_STEP_KEYS` passa a ser função assíncrona = chaves ativas da Biblioteca ∪ chaves já presentes no histórico; (3) `STEPS[step]` é substituído por leitura das propriedades da própria mensagem; (4) a semeadura por lista literal é removida.
+Por quê, tecnicamente: E0 não é decidida pelo fluxo — é decidida na *entrada* do lead (`lead-intake.server.ts`), depende do responsável resolvido, tem janela horária própria (Seg–Sex 07:00–22:30, Sáb até mais cedo), modo manual/automático por executivo, e sua unicidade é `(card_id, ownership_seq)` — atrelada à titularidade, não ao ciclo. Colocá-la sob a configuração da Biblioteca misturaria a regra de entrada com a regra de cadência e reabriria o risco de E0 duplicada por redistribuição.
 
-**NÃO pode sair do código**: a *ordem e as condições de transição* como lógica — mesmo que a sequência vire dado, quem interpreta a sequência, aplica prioridade de eventos, calcula dia útil, verifica bloqueio e garante idempotência continua sendo código. Motivo: são regras com dependência temporal e de concorrência, não texto.
-
-## P14 — Prova de conceito (E9 "Primeiro contato")
-
-1. **Nasce** — o administrador usa "+ Adicionar mensagem", informa `E9`, título e texto.
-2. **Armazenada** — uma linha em `relationship_message_library` com `step_key='E9'`, `version=1`, `active=true`. *(funciona hoje se a UI permitir a chave)*
-3. **Motor descobre** — **GAP**: hoje `isKnownStep('E9')` é falso. Falta derivar o registro da Biblioteca.
-4. **Sabe se está ativa** — `active = true`; já existe.
-5. **Qual conteúdo usar** — `renderFromLibrary` lê a versão ativa; já existe.
-6. **Onde E9 entra** — **GAP**: falta `flow` + `position` na Biblioteca. Sem isso, `nextStep()` nunca a escolhe.
-7. **Cria a ação** — **GAP parcial**: `decide.ts` precisa dos prazos vindos da mensagem em vez de `STEPS[step]`.
-8. **Ação do Dia encontra** — funciona sem mudança: lê `relationship_queue` genericamente por `step`.
-9. **Executivo executa** — funciona: "Etapa E9 — Copiar mensagem" + confirmação SIM/NÃO.
-10. **Workspace registra** — funciona parcialmente: `writeLedger` grava em `relationship_engine_log` + `crm_timeline`. **GAP**: eventos `acao_do_dia_*` podem estar fora da whitelist da visão relacional.
-11. **Histórico preserva a versão** — **GAP**: `confirmManualExecution` não grava em `relationship_message_sends`, embora os campos existam.
-12. **Central contabiliza** — **GAP**: a Central não existe, e "previstas" exige o snapshot diário de planejado.
-
-**Cinco GAPs, nenhum deles estrutural.**
-
-## P15 — Arquitetura proposta
+## P12 — Redação final proposta da regra
 
 ```text
-BIBLIOTECA  relationship_message_library
-   conteúdo · etapa (step_key) · versão · ativo · link · fluxo+posição · prazo
-        ↓ (lida, nunca escreve fila)
-MOTOR       machine.ts · decide.ts · calendar.ts · engine.ts
-   transições · janelas · idempotência · Safety Lock   [CÓDIGO]
-        ↓
-CICLO       relationship_cadences
-   flow · state · executedSteps · operational_since · versão do fluxo
-        ↓
-FILA        relationship_queue
-   step · due_at · status · executed_at · result · canonical_investor_id
-        ↓
-AÇÃO DO DIA  leitura pura, sem tabela própria
-   prioridade: primeiro contato > reunião > agenda > cadência
-        ↓
-EXECUÇÃO    queue (verdade) + relationship_message_sends (SNAPSHOT: library_id, version, rendered_body)
-        ↓
-WORKSPACE   relationship_engine_log (auditoria) + crm_timeline (histórico humano)
-        ↓
-CENTRAL DE OPERAÇÕES  agregação do ledger + snapshot diário de planejado
+CRIAR        administrador cadastra step_key + título + texto na Biblioteca
+   ↓
+CONFIGURAR   link, rótulo, exigência de material (opcional)
+   ↓
+PUBLICAR     versão N fica ativa — a etapa EXISTE e é reconhecida pelo motor,
+             mas ainda NÃO gera ação (inerte)
+   ↓
+ASSOCIAR     administrador associa a etapa a um fluxo, com posição e prazo
+AO FLUXO     → isso incrementa a VERSÃO DO FLUXO
+   ↓
+ATIVAR       (não é um passo separado — associar já ativa)
+   ↓
+MOTOR        etapa válida = existe na Biblioteca (ativa) OU consta do histórico
+RECONHECE
+   ↓
+NOVOS        ciclos criados a partir de agora nascem com a nova versão do fluxo
+CICLOS       e passam a receber a etapa; ciclos em andamento seguem a versão
+             com que nasceram
+   ↓
+DESATIVAR    etapa sem versão ativa deixa de gerar NOVAS ações;
+             itens já na fila são bloqueados com motivo legível
+   ↓
+HISTÓRICO    queue, engine_log, timeline e o snapshot em
+PRESERVADO   relationship_message_sends nunca são reescritos
 ```
 
-## P16 — Impacto
+**Passo desnecessário:** "ATIVAR" como ato separado — associar ao fluxo já é a ativação. Manter os dois seria burocracia sem ganho.
 
-**🟡 MÉDIA — refatoração controlada, não reconstrução.**
+## P13 — Menor arquitetura possível
 
-Motivo: a máquina de estados, a fila, o versionamento e os campos de snapshot **já existem e não mudam**. O que muda é a *origem da lista de etapas* e a *tipagem*. O maior volume é mecânico (`CadenceStep` literal → `string`, mais ajuste de testes). Se a ordem dos fluxos também virasse dado sem versionamento, aí sim subiria para 🔴.
+1. `step_key` continua sendo a identidade imutável (**já existe**).
+2. Versionamento de conteúdo (**já existe**).
+3. Snapshot da execução em `relationship_message_sends` (**campos já existem**; falta a escrita no caminho manual).
+4. **Uma tabela nova**: associação `(flow, step_key, position, business_days)` + um número de versão do fluxo.
+5. **Uma coluna nova** em `relationship_cadences`: versão do fluxo com que o ciclo nasceu.
+6. `CadenceStep` deixa de ser tipo literal e passa a ser `string` validada em runtime.
+7. `isKnownStep` = Biblioteca ativa ∪ histórico.
+8. `decide.ts` lê sequência e prazo da associação, em vez de `FLOW_SEQUENCE`/`STEPS`.
 
-## P17 — Regra de segurança
+Uma tabela, uma coluna. Nada mais é estritamente necessário.
 
-Confirmado: nenhuma solução proposta altera o Safety Lock (que segue chamado nas 5 saídas para a Graph API, imediatamente antes de cada `fetch`), cria caminho alternativo para a Meta, toca `/s`, `/seg` ou `/`, mexe em E0 sem autorização, apaga histórico, renumera etapas existentes, reseta ciclos, cria redistribuição automática ou ativa envio real.
+## P14 — Risco
+
+| Parte | Risco | Motivo |
+|---|---|---|
+| Biblioteca dinâmica (listar do banco) | 🟢 | Só remove listas literais de exibição |
+| Novas etapas (reconhecimento) | 🟡 | Depende de `isKnownStep` e da tipagem |
+| Fluxo configurável | 🔴 | Passa a governar o que o investidor recebe |
+| Posição | 🟡 | Erro reordena cadência; mitigado pelo versionamento |
+| Prazo | 🟡 | Erro adianta/atrasa envios |
+| Versionamento de fluxo | 🟢 | É justamente a proteção |
+| Migração de `CadenceStep` | 🟡 | Alto volume, baixo risco lógico; testes existentes cobrem |
+| Alteração de `decide.ts` | 🔴 | Coração da decisão do motor |
+| Impacto em E0 | 🟢 | Fora do escopo por decisão explícita |
+| Impacto na fila | 🟡 | Só se a fila for recriada — o que a arquitetura proíbe |
 
 ---
 
 ## CONCLUSÕES
 
-### 1. É POSSÍVEL?
-**SIM, COM RESSALVAS** — as ressalvas são o tipo `CadenceStep`, a ordem dos fluxos e as propriedades de prazo hoje em `STEPS`.
+### A) Regra já fechada
+Biblioteca é a fonte de verdade sobre quais etapas existem e qual conteúdo usar; fim da lista paralela no código; versão ativa manda nas novas ações; desativar não gera novas ações; histórico preservado; E0/ownership/Safety Lock intocados; `/s`, `/seg`, `/` intocados.
 
-### 2. O QUE PRECISA MUDAR
-1. `CadenceStep`/`CadenceFlow`: tipo literal → `string` validado em runtime.
-2. `KNOWN_STEP_KEYS`/`isKnownStep`: derivar da Biblioteca ∪ histórico.
-3. `message-library.server.ts`: remover as quatro listas literais de semeadura.
-4. Biblioteca ganha `flow`, `position` e prazo por mensagem.
-5. `decide.ts`: ler prazos/finalidade da mensagem em vez de `STEPS[step]`; pular etapa sem versão ativa.
-6. `confirmManualExecution`: gravar snapshot em `relationship_message_sends`.
-7. UI: botão "+" e campos hoje ocultos.
-8. Testes atualizados.
+### B) Precisa da sua decisão (negócio, não técnica)
+1. **Publicar na Biblioteca é, por si só, um ato operacional?** — inerte até associar ao fluxo (recomendado) **ou** entra em produção ao publicar.
+2. **Onde fica o prazo** — na mensagem **ou** na associação com o fluxo (recomendado).
+3. **Ciclos em andamento** ao mudar a ordem — mantêm a versão antiga (recomendado), adotam a nova, ou decisão caso a caso.
+4. **Onde a ordem é editada** — na própria tela da Biblioteca **ou** em uma tela de fluxo separada.
 
-### 3. O QUE NÃO PODE SER MEXIDO
-Safety Lock; `whatsapp.server.ts`; `machine.ts` (prioridade de eventos); `calendar.ts` (janelas/dias úteis); E0 e `workspace_e0_actions`; ownership/`lead_ownership_history`; identidade canônica; histórico em queue/log/timeline/sends; `step_key` de etapas existentes; `/s`, `/seg`, `/`.
+### C) Recomendação técnica
+Etapa nasce inerte; prazo e posição na associação `(fluxo, etapa)`; versão do fluxo gravada no ciclo; ordem editada em tela própria; E0 fora do modelo.
 
-### 4. MENOR CAMINHO SEGURO
-- **Bloco A** — Snapshot da execução (`confirmManualExecution` → `relationship_message_sends`). Sem migration, ganho imediato de rastreabilidade, risco baixo.
-- **Bloco B** — Registro dinâmico: `isKnownStep` por Biblioteca ∪ histórico, com `CadenceStep` como `string`. Ainda sem mudar decisão de fluxo.
-- **Bloco C** — Biblioteca dinâmica: fim das listas de semeadura + botão "+" + campos ocultos expostos. Etapa nova nasce inerte.
-- **Bloco D** — Fluxo como dado: `flow`/`position`/prazo na mensagem; `decide.ts` passa a lê-los; versão de fluxo por ciclo; nova etapa só vale para ciclos novos.
-- **Bloco E** — Central de Operações (snapshot de planejado + relatório).
+### D) Podemos construir?
+**SIM** — e não construirei nada até sua autorização.
 
-## NÃO COMPROVADO NO CÓDIGO ATUAL
-1. Ordenação automática de chaves novas (E9/E10) — não existe; ver P5-D.
-2. Cobertura real de `relationship_message_sends` por origem — auditoria: contagem por `origin` na tabela.
-3. Se `acao_do_dia_*` aparece na visão relacional da jornada — auditoria: ler a whitelist em `journey.server.ts`.
-4. Existência de CHECK/enum em `step_key` — o schema tipa como texto; auditoria: consultar as constraints da tabela.
+**Primeiro bloco recomendado: o snapshot da execução** (gravar `library_id`, `library_version` e `rendered_body` em `relationship_message_sends` quando a Ação do Dia confirma a execução). Por quê: é o único item que **não depende de nenhuma decisão pendente**, não precisa de migration, não muda comportamento operacional, e resolve hoje a perda de rastreabilidade — além de ser pré-requisito de tudo que vem depois, porque sem snapshot qualquer mudança futura na Biblioteca já começa a apagar a memória do que foi usado.
 
 ## Observação de escopo
 Em modo de planejamento só posso escrever este arquivo; `roadmap.md` será atualizado no primeiro bloco de construção aprovado.
