@@ -384,7 +384,7 @@ export function createEngine(options: EngineOptions): Engine {
     const fresh = await repository.registerEvent(sentEvent);
     let updated = fresh ? applyEvent(record, sentEvent, config).record : record;
 
-    if (STEPS[action.step].terminal) {
+    if (STEPS[action.step]?.terminal) {
       const closeEvent: EngineEvent = {
         id: `${repository.scope}:${record.leadId}:${action.step}:completed`,
         scope: repository.scope,
