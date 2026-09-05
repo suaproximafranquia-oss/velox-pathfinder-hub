@@ -58,8 +58,8 @@ export function DailyActionsOverlay({
 }: {
   open: boolean;
   onClose: () => void;
-  /** Abre a ficha completa do investidor em endereço próprio. */
-  onOpenLead: (leadId: string) => void;
+  /** Abre a ficha completa do investidor no Workspace operacional. */
+  onOpenLead: (leadId: string, scope: string | null) => void;
   /**
    * FONTE DOS DADOS. O painel não conhece servidor nem banco: tudo o
    * que ele faz passa por este adaptador. O modo real o liga às funções
@@ -764,48 +764,46 @@ export function DailyActionsOverlay({
                 </p>
               </div>
               <div className="space-y-2 border-t border-white/10 px-4 py-3">
+                {copied && (
+                  <p className="text-[11px] text-emerald-200/80">
+                    Mensagem copiada. Copiar não conclui a ação.
+                  </p>
+                )}
                 <input
                   value={messageNote}
                   onChange={(e) => setMessageNote(e.target.value)}
-                  placeholder="Observação (opcional)"
+                  placeholder="Observação operacional (opcional)"
                   className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
                 />
-                {!copied ? (
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => void copyMessage()}
                     disabled={!message?.body}
-                    className="w-full rounded-lg border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-3 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                    className="flex-1 rounded-lg border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-3 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
                   >
-                    Copiar mensagem
+                    {copied ? "Copiar novamente" : "Copiar mensagem"}
                   </button>
-                ) : (
-                  <div className="space-y-2">
-                    {/* Nada é enviado pelo sistema: o Executivo cola no
-                        WhatsApp e confirma aqui o que realmente fez. */}
-                    <p className="text-sm text-white/70">
-                      Mensagem copiada. Você enviou esta mensagem ao investidor?
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleRegisterMessage(selected)}
-                        disabled={busy || !message?.body}
-                        className="flex-1 rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
-                      >
-                        SIM — enviei
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCopied(false)}
-                        disabled={busy}
-                        className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10 disabled:opacity-50"
-                      >
-                        NÃO — ainda não
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  {selected.leadId && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenLead(selected.leadId as string, selected.scope ?? null)}
+                      className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                    >
+                      Ver ficha completa
+                    </button>
+                  )}
+                </div>
+                {/* Nada é enviado pelo sistema: somente Concluído encerra
+                    a ação, grava histórico, snapshot e a observação. */}
+                <button
+                  type="button"
+                  onClick={() => void handleRegisterMessage(selected)}
+                  disabled={busy || !message?.body}
+                  className="w-full rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                >
+                  <Check className="mr-1 inline h-4 w-4" /> Concluído
+                </button>
               </div>
             </div>
           </div>
