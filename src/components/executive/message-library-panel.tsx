@@ -228,16 +228,57 @@ export function MessageLibraryPanel() {
 
   return (
     <section className={card}>
-      <header className="mb-4 flex items-center gap-2">
-        <MessageSquareText className="h-4 w-4 text-[color:var(--gold)]" />
-        <div>
+      <header className="mb-4 flex items-start gap-2">
+        <MessageSquareText className="mt-0.5 h-4 w-4 text-[color:var(--gold)]" />
+        <div className="flex-1">
           <h2 className="text-sm font-medium">Mensagens do Motor</h2>
           <p className="text-[11px] text-[color:var(--muted-foreground)]">
             Fonte oficial das cadências. Editar publica uma nova versão — o histórico
             enviado nunca é reescrito.
           </p>
         </div>
+        <button type="button" onClick={() => setCreating((v) => !v)} className={gold}>
+          <Plus className="h-3.5 w-3.5" /> Adicionar
+        </button>
       </header>
+
+      {/* NOVA ETAPA — passa a existir na Biblioteca e a ser reconhecida.
+          NÃO entra em nenhum fluxo do motor: isso é o Bloco 4. */}
+      {creating ? (
+        <div className="mb-4 space-y-2 rounded-xl border border-[color:var(--border)] p-3">
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value.toUpperCase())}
+              className="w-40 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs uppercase outline-none focus:border-[color:var(--gold)]/50"
+              placeholder="Chave (ex.: E9)"
+            />
+            <input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              className="min-w-56 flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs outline-none focus:border-[color:var(--gold)]/50"
+              placeholder="Rótulo exibido (opcional)"
+            />
+            <button
+              type="button"
+              onClick={() => void createStep()}
+              disabled={savingNew || !newKey.trim()}
+              className={gold}
+            >
+              {savingNew ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              Criar etapa
+            </button>
+          </div>
+          <p className="text-[11px] text-[color:var(--muted-foreground)]">
+            A etapa nasce no fim da lista e sem texto oficial. Ela não é adicionada a
+            nenhum fluxo automaticamente — o motor continua com a sequência atual.
+          </p>
+        </div>
+      ) : null}
 
       {/* DIAGNÓSTICO: o que impediria o motor de enviar, visível aqui. */}
       {diagnostics &&
