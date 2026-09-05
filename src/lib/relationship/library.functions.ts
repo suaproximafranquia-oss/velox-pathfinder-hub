@@ -32,6 +32,8 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "biblioteca");
     const { publishLibraryVersion } = await import(
       "@/server/relationship/message-library.server"
     );
@@ -59,7 +61,9 @@ export const renomearRotuloEtapa = createServerFn({ method: "POST" })
     if (!input?.stepKey) throw new Error("Etapa obrigatória.");
     return input;
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "biblioteca");
     const { renameLibraryStep } = await import(
       "@/server/relationship/message-library.server"
     );
@@ -86,6 +90,8 @@ export const criarEtapaBiblioteca = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "biblioteca");
     const { createLibraryStep } = await import(
       "@/server/relationship/message-library.server"
     );
@@ -112,7 +118,9 @@ export const reordenarBiblioteca = createServerFn({ method: "POST" })
     if (!Array.isArray(input?.stepKeys)) throw new Error("Ordem inválida.");
     return input;
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "biblioteca");
     const { reorderLibrarySteps } = await import(
       "@/server/relationship/message-library.server"
     );

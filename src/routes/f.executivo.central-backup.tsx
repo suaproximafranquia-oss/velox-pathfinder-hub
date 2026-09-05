@@ -6,6 +6,7 @@
  * é precedida, obrigatoriamente, de um Backup de Segurança do estado
  * atual. Área exclusiva do Administrador.
  */
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -68,7 +69,12 @@ export const Route = createFileRoute("/f/executivo/central-backup")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: BackupCenterPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="central_backup">
+      <BackupCenterPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function formatMoment(iso: string): string {

@@ -6,6 +6,7 @@
  * "conteúdo" deixou de existir — não há mais vínculo etapa ↔ conteúdo,
  * pool nem rotação. Nada nesta tela dispara mensagem.
  */
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LibraryBig } from "lucide-react";
@@ -32,7 +33,12 @@ export const Route = createFileRoute("/f/executivo/biblioteca")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: BibliotecaPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="biblioteca">
+      <BibliotecaPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function BibliotecaPage() {

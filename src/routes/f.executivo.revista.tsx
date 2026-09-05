@@ -6,6 +6,7 @@
  * como o investidor a lê. Edição nunca é excluída — apenas desativada.
  * Os módulos institucionais têm página própria.
  */
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookMarked, Eye, Loader2, Plus, Trash2, Upload } from "lucide-react";
@@ -55,7 +56,12 @@ export const Route = createFileRoute("/f/executivo/revista")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: RevistaAdminPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="revista">
+      <RevistaAdminPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 const card = "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5";

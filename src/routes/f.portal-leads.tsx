@@ -5,6 +5,7 @@
  * apenas remove o restante da interface do Portal para dar largura ao
  * quadro. Continua somente leitura: a movimentação real é na origem.
  */
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { PortalLeadsBoard } from "@/components/crm/portal-leads-board";
@@ -36,7 +37,9 @@ export const Route = createFileRoute("/f/portal-leads")({
   ssr: false,
   component: () => (
     <OperationalGuard>
-      <PortalLeadsPage />
+      <WorkspaceResourceGuard resource="portal_leads">
+        <PortalLeadsPage />
+      </WorkspaceResourceGuard>
     </OperationalGuard>
   ),
 });

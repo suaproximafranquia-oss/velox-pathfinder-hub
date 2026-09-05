@@ -98,15 +98,14 @@ function toView(row: LeadRow): CrmLeadView {
 const LEAD_FIELDS =
   "id,external_id,name,phone,email,origin,capture_form,pipeline_name,stage_key,external_created_at,ingested_at,last_synced_at,sync_status,sync_error,welcome_status,welcome_sent_at,welcome_error,welcome_link";
 
+/**
+ * AUTORIZAÇÃO ÚNICA — a decisão vem da camada central do Corporate
+ * Workspace (papel efetivo + permissão de módulo), a MESMA usada pelo
+ * menu e pelo guard da rota. Nenhuma regra paralela vive aqui.
+ */
 async function assertManager(context: { supabase: never; userId: string }) {
-  const supabase = context.supabase as unknown as {
-    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: boolean | null }>;
-  };
-  const [admin, manager] = await Promise.all([
-    supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
-    supabase.rpc("has_role", { _user_id: context.userId, _role: "manager" }),
-  ]);
-  if (!admin.data && !manager.data) throw new Error("Acesso restrito à gestão do CRM.");
+  const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+  await assertWorkspaceAccess(context as never, "portal_leads");
 }
 
 /** Lista os leads do nosso CRM, com filtros de operação. */

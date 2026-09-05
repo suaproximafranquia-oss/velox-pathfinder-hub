@@ -4,6 +4,7 @@
  * Não é um CRM e não substitui o Workspace: aqui o executivo apenas
  * acompanha de onde os leads estão chegando e administra as origens.
  */
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -56,7 +57,12 @@ export const Route = createFileRoute("/f/executivo/captacao")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: CaptacaoPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="captacao">
+      <CaptacaoPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 const TONE_CLASS: Record<string, string> = {

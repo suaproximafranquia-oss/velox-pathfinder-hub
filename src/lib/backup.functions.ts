@@ -34,15 +34,13 @@ export type RestoreLogEntry = {
   createdAt: string;
 };
 
+/** AUTORIZAÇÃO ÚNICA — mesma decisão central do Corporate Workspace. */
 async function assertAdmin(context: {
   supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
   userId: string;
 }): Promise<void> {
-  const { data } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (data !== true) throw new Error("Acesso restrito ao Administrador.");
+  const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+  await assertWorkspaceAccess(context as never, "central_backup");
 }
 
 /** Lista dos pontos de restauração e do histórico de restaurações. */

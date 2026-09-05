@@ -1,3 +1,4 @@
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 /**
@@ -15,5 +16,9 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
  * existentes.
  */
 export const Route = createFileRoute("/f/executivo/homologacao")({
-  component: () => <Outlet />,
+  component: () => (
+    <WorkspaceResourceGuard resource="homologacao">
+      <Outlet />
+    </WorkspaceResourceGuard>
+  ),
 });

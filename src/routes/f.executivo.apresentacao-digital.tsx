@@ -8,6 +8,7 @@
  * Editar nunca apaga: publica uma nova versão. As apresentações já
  * emitidas seguem exibindo o roteiro congelado na emissão.
  */
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -45,7 +46,12 @@ export const Route = createFileRoute("/f/executivo/apresentacao-digital")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: ApresentacaoDigitalPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="apresentacao_digital">
+      <ApresentacaoDigitalPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 type Chapter = {

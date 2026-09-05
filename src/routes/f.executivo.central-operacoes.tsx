@@ -5,6 +5,7 @@
  * pulada ou reagendada aqui. A permissão real é validada no servidor
  * (administração/gestão); a tela apenas apresenta o resultado.
  */
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
@@ -30,7 +31,12 @@ export const Route = createFileRoute("/f/executivo/central-operacoes")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: CentralOperacoesPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="central_operacoes">
+      <CentralOperacoesPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function CentralOperacoesPage() {

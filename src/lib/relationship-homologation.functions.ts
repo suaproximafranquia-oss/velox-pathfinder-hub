@@ -7,15 +7,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+/** AUTORIZAÇÃO ÚNICA — mesma decisão central do Corporate Workspace. */
 async function assertManager(context: { supabase: never; userId: string }) {
-  const supabase = context.supabase as unknown as {
-    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: boolean | null }>;
-  };
-  const [admin, manager] = await Promise.all([
-    supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
-    supabase.rpc("has_role", { _user_id: context.userId, _role: "manager" }),
-  ]);
-  if (!admin.data && !manager.data) throw new Error("Acesso restrito à gestão.");
+  const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+  await assertWorkspaceAccess(context as never, "homologacao");
 }
 
 export const runRelationshipHomologation = createServerFn({ method: "POST" })
