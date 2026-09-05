@@ -202,6 +202,20 @@ function UsuariosPage() {
       if (!existing) return;
       if (!canManageTargetUser(session.activeRole, existing.role)) return;
     }
+    // BLOCO 3 — o código do vendedor da origem é exclusivo: dois
+    // executivos com o mesmo código tornariam a origem ambígua.
+    const vendorId = (draft.greensalesVendorId ?? "").trim();
+    if (vendorId) {
+      const clash = users.find(
+        (u) => u.id !== draft.id && (u.greensalesVendorId ?? "").trim() === vendorId,
+      );
+      if (clash) {
+        toast.error(
+          `O código ${vendorId} já está vinculado a ${clash.name}.`,
+        );
+        return;
+      }
+    }
     const { username, slug } = slugifyEmail(draft.email);
     // §Slugs reservados — validação BLOQUEANTE: nada é gravado e o usuário
     // recebe a razão e uma sugestão de alternativa.
@@ -216,6 +230,7 @@ function UsuariosPage() {
     }
     const complete: Draft = {
       ...draft,
+      greensalesVendorId: vendorId,
       username,
       slug: check.slug,
     };
