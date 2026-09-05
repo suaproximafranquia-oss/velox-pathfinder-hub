@@ -87,6 +87,12 @@ export type DecisionContext = {
   awaitingFirstHumanAction?: boolean;
   /** Instante em que o lead saiu de NOVOS — referência real da E1. */
   leftEntryStageAt?: string | null;
+  /**
+   * BLOCO 4 — versão de fluxo congelada no nascimento do ciclo. Quando
+   * presente, é ela que define quais etapas participam, em que ordem e
+   * com que prazo. Ausente (ciclo legado) ⇒ comportamento anterior.
+   */
+  flowPlan?: FlowPlan | null;
 };
 
 /**
