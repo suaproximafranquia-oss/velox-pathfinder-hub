@@ -99,6 +99,7 @@ export function createEngine(options: EngineOptions): Engine {
   const random = options.random ?? Math.random;
   const virtualTemplates = options.virtualTemplates ?? false;
   const leadContext = options.leadContext;
+  const activationMark = options.activationMark;
 
   if (repository.scope !== dispatcher.scope) {
     throw new Error("Repositório e despachante pertencem a escopos diferentes.");
@@ -113,6 +114,19 @@ export function createEngine(options: EngineOptions): Engine {
       runId: repository.runId,
       at,
     });
+  }
+
+  /**
+   * CICLO HISTÓRICO (BLOCO 1). Sem marco informado, o comportamento é
+   * exatamente o anterior. Com marco, um ciclo histórico nunca gera
+   * nova obrigação — o histórico permanece intacto.
+   */
+  async function historicalCycleReason(record: CadenceRecord): Promise<string | null> {
+    if (!activationMark) return null;
+    const mark = await activationMark();
+    if (!mark) return null;
+    const verdict = classifyCycle(record, mark);
+    return verdict.operational ? null : verdict.reason;
   }
 
   async function log(
