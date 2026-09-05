@@ -66,6 +66,59 @@ export const renomearRotuloEtapa = createServerFn({ method: "POST" })
     return renameLibraryStep({ stepKey: data.stepKey, label: data.label ?? "" });
   });
 
+/**
+ * BLOCO 3 — CRIAR ETAPA PELA BIBLIOTECA. A etapa passa a existir e a ser
+ * reconhecida, mas NÃO entra em nenhum fluxo do motor.
+ */
+export const criarEtapaBiblioteca = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      stepKey: string;
+      title?: string | null;
+      body?: string | null;
+      bodyWithoutName?: string | null;
+      contentUrl?: string | null;
+      contentLabel?: string | null;
+    }) => {
+      if (!input?.stepKey?.trim()) throw new Error("Informe a chave da etapa.");
+      return input;
+    },
+  )
+  .handler(async ({ data, context }) => {
+    const { createLibraryStep } = await import(
+      "@/server/relationship/message-library.server"
+    );
+    const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
+    return createLibraryStep({
+      stepKey: data.stepKey,
+      title: data.title ?? null,
+      body: data.body ?? null,
+      bodyWithoutName: data.bodyWithoutName ?? null,
+      contentUrl: data.contentUrl ?? null,
+      contentLabel: data.contentLabel ?? null,
+      actorId: context.userId,
+      actorName: String(name),
+    });
+  });
+
+/**
+ * BLOCO 3 — ORDEM VISUAL DA BIBLIOTECA. Não altera fluxo, prazo nem
+ * ordem de execução do motor.
+ */
+export const reordenarBiblioteca = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { stepKeys: string[] }) => {
+    if (!Array.isArray(input?.stepKeys)) throw new Error("Ordem inválida.");
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const { reorderLibrarySteps } = await import(
+      "@/server/relationship/message-library.server"
+    );
+    return reorderLibrarySteps(data.stepKeys);
+  });
+
 export const jornadaDoLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { leadId: string; layer?: "relacional" | "tecnico" | "todos" }) => {

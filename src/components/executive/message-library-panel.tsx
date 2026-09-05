@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Film, History, Loader2, MessageSquareText, Save, Tag } from "lucide-react";
+import {
+  Film,
+  GripVertical,
+  History,
+  Loader2,
+  MessageSquareText,
+  Plus,
+  Save,
+  Tag,
+} from "lucide-react";
 import {
   listarMensagensBiblioteca,
+  criarEtapaBiblioteca,
   diagnosticoDaBiblioteca,
   publicarVersaoMensagem,
   renomearRotuloEtapa,
+  reordenarBiblioteca,
 } from "@/lib/relationship/library.functions";
 
 type LibraryMessage = {
@@ -54,6 +65,14 @@ export function MessageLibraryPanel() {
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
   const [contentUrl, setContentUrl] = useState("");
   const [contentLabel, setContentLabel] = useState("");
+  /* BLOCO 3 — criação e ordenação visual. */
+  const [creating, setCreating] = useState(false);
+  const [newKey, setNewKey] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [savingNew, setSavingNew] = useState(false);
+  const [order, setOrder] = useState<string[]>([]);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,8 +107,71 @@ export function MessageLibraryPanel() {
     return map;
   }, [messages]);
 
+  /* A ordem vem do servidor (posição salva) e é espelhada localmente
+     apenas para o arrastar fluir sem esperar a gravação. */
+  useEffect(() => {
+    setOrder([...steps.keys()]);
+  }, [steps]);
+
+  const visibleSteps = useMemo(() => {
+    const known = [...steps.keys()];
+    const ordered = order.filter((key) => steps.has(key));
+    return [...ordered, ...known.filter((key) => !ordered.includes(key))];
+  }, [order, steps]);
+
   const selected = step ? (steps.get(step) ?? []) : [];
   const active = selected.find((m) => m.active) ?? selected[0] ?? null;
+
+  /** Move a etapa arrastada para a posição de destino e persiste. */
+  async function dropOn(targetKey: string) {
+    const source = dragKey;
+    setDragKey(null);
+    if (!source || source === targetKey) return;
+    const next = visibleSteps.filter((k) => k !== source);
+    const index = next.indexOf(targetKey);
+    next.splice(index < 0 ? next.length : index, 0, source);
+    setOrder(next);
+    setSavingOrder(true);
+    try {
+      const updated = (await reordenarBiblioteca({
+        data: { stepKeys: next },
+      })) as LibraryMessage[];
+      setMessages(updated);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao salvar a ordem.");
+      await load();
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
+  /** Cria a etapa na Biblioteca. Ela NÃO entra em nenhum fluxo. */
+  async function createStep() {
+    const key = newKey.trim().toUpperCase();
+    if (!key || savingNew) return;
+    setSavingNew(true);
+    try {
+      const updated = (await criarEtapaBiblioteca({
+        data: { stepKey: key, title: newTitle.trim() || null },
+      })) as LibraryMessage[];
+      setMessages(updated);
+      setNewKey("");
+      setNewTitle("");
+      setCreating(false);
+      setError(null);
+      setStep(key);
+      setDraft("");
+      setDraftWithoutName("");
+      setLabel(newTitle.trim() || key);
+      setContentUrl("");
+      setContentLabel("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao criar a etapa.");
+    } finally {
+      setSavingNew(false);
+    }
+  }
 
   function openStep(key: string) {
     setStep(key);
@@ -146,16 +228,57 @@ export function MessageLibraryPanel() {
 
   return (
     <section className={card}>
-      <header className="mb-4 flex items-center gap-2">
-        <MessageSquareText className="h-4 w-4 text-[color:var(--gold)]" />
-        <div>
+      <header className="mb-4 flex items-start gap-2">
+        <MessageSquareText className="mt-0.5 h-4 w-4 text-[color:var(--gold)]" />
+        <div className="flex-1">
           <h2 className="text-sm font-medium">Mensagens do Motor</h2>
           <p className="text-[11px] text-[color:var(--muted-foreground)]">
             Fonte oficial das cadências. Editar publica uma nova versão — o histórico
             enviado nunca é reescrito.
           </p>
         </div>
+        <button type="button" onClick={() => setCreating((v) => !v)} className={gold}>
+          <Plus className="h-3.5 w-3.5" /> Adicionar
+        </button>
       </header>
+
+      {/* NOVA ETAPA — passa a existir na Biblioteca e a ser reconhecida.
+          NÃO entra em nenhum fluxo do motor: isso é o Bloco 4. */}
+      {creating ? (
+        <div className="mb-4 space-y-2 rounded-xl border border-[color:var(--border)] p-3">
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value.toUpperCase())}
+              className="w-40 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs uppercase outline-none focus:border-[color:var(--gold)]/50"
+              placeholder="Chave (ex.: E9)"
+            />
+            <input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              className="min-w-56 flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs outline-none focus:border-[color:var(--gold)]/50"
+              placeholder="Rótulo exibido (opcional)"
+            />
+            <button
+              type="button"
+              onClick={() => void createStep()}
+              disabled={savingNew || !newKey.trim()}
+              className={gold}
+            >
+              {savingNew ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              Criar etapa
+            </button>
+          </div>
+          <p className="text-[11px] text-[color:var(--muted-foreground)]">
+            A etapa nasce no fim da lista e sem texto oficial. Ela não é adicionada a
+            nenhum fluxo automaticamente — o motor continua com a sequência atual.
+          </p>
+        </div>
+      ) : null}
 
       {/* DIAGNÓSTICO: o que impediria o motor de enviar, visível aqui. */}
       {diagnostics &&
@@ -187,42 +310,62 @@ export function MessageLibraryPanel() {
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-[220px_1fr]">
-          <ul className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
-            {[...steps.keys()].map((key) => {
-              const list = steps.get(key) ?? [];
-              const current = list.find((m) => m.active) ?? list[0];
-              /* Sem versão ativa = o motor NÃO envia esta etapa. O
-                 rótulo continua editável; o texto é que falta. */
-              const awaiting = !list.some((m) => m.active && m.body.trim());
-              return (
-                <li key={key}>
-                  <button
-                    type="button"
-                    onClick={() => openStep(key)}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs transition ${
-                      step === key
-                        ? "border-[color:var(--gold)] text-[color:var(--gold)]"
-                        : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
-                    }`}
+          <div>
+            <p className="mb-1 flex items-center gap-1 text-[10px] text-[color:var(--muted-foreground)]">
+              <GripVertical className="h-3 w-3" /> Arraste para organizar a exibição
+              {savingOrder ? " · salvando…" : ""}
+            </p>
+            {/* ORDEM VISUAL da Biblioteca. Não altera a ordem de execução
+                do motor: fluxo e prazos seguem inalterados. */}
+            <ul className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
+              {visibleSteps.map((key) => {
+                const list = steps.get(key) ?? [];
+                const current = list.find((m) => m.active) ?? list[0];
+                /* Sem versão ativa = o motor NÃO envia esta etapa. O
+                   rótulo continua editável; o texto é que falta. */
+                const awaiting = !list.some((m) => m.active && m.body.trim());
+                return (
+                  <li
+                    key={key}
+                    draggable
+                    onDragStart={() => setDragKey(key)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      void dropOn(key);
+                    }}
+                    onDragEnd={() => setDragKey(null)}
+                    className={dragKey === key ? "opacity-50" : ""}
                   >
-                    <span className="min-w-0 truncate">
-                      {current?.displayLabel ?? key}
-                      <span className="ml-1 text-[10px] opacity-60">({key})</span>
-                    </span>
-                    <span className="shrink-0 text-[10px]">
-                      {awaiting ? (
-                        <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-amber-400">
-                          aguardando texto oficial
-                        </span>
-                      ) : (
-                        `v${current?.version}`
-                      )}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                    <button
+                      type="button"
+                      onClick={() => openStep(key)}
+                      className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${
+                        step === key
+                          ? "border-[color:var(--gold)] text-[color:var(--gold)]"
+                          : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
+                      }`}
+                    >
+                      <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab opacity-50" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {current?.displayLabel ?? key}
+                        <span className="ml-1 text-[10px] opacity-60">({key})</span>
+                      </span>
+                      <span className="shrink-0 text-[10px]">
+                        {awaiting ? (
+                          <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-amber-400">
+                            aguardando texto oficial
+                          </span>
+                        ) : (
+                          `v${current?.version}`
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
           <div className="space-y-3">
             {step ? (
