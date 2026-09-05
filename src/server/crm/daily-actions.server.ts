@@ -20,6 +20,7 @@ import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import { listClosureDuties } from "@/server/relationship/closure.server";
 import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
 import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
+import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
