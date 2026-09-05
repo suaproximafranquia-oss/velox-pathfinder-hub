@@ -169,6 +169,12 @@ export type ExecutiveUser = {
   birthDate?: string;
   /** Gestor direto — referência para hierarquia visual (opcional). */
   gestorId?: string;
+  /**
+   * BLOCO 3 — identificador do vendedor no GreenSales. Sem este cadastro
+   * a origem não consegue apontar o responsável e nenhuma redistribuição
+   * é reconhecida. Não há dedução por nome, e-mail ou conexão.
+   */
+  greensalesVendorId?: string;
   /** Mantido para compatibilidade com telas legadas; deriva do e-mail. */
   username: string;
   /** Senha inicial (será substituída por hash no backend real). */
@@ -327,6 +333,8 @@ export function loadUsers(): ExecutiveUser[] {
                   stored.postPresentationVideoUrl ?? seed.postPresentationVideoUrl,
                 admissionDate: stored.admissionDate ?? seed.admissionDate,
                 birthDate: stored.birthDate ?? seed.birthDate,
+                greensalesVendorId:
+                  stored.greensalesVendorId ?? seed.greensalesVendorId,
               }
             : seed,
         );
@@ -361,6 +369,8 @@ function applyServerDirectory(users: ExecutiveUser[]): ExecutiveUser[] {
       postPresentationVideoUrl:
         official.postPresentationVideoUrl ?? user.postPresentationVideoUrl,
       gestorId: official.gestorId ?? user.gestorId,
+      greensalesVendorId:
+        official.greensalesVendorId ?? user.greensalesVendorId,
       // SITUAÇÃO: só o servidor decide. Seed e navegador não reativam.
       status: official.status,
     };
@@ -417,6 +427,7 @@ async function mirrorUsersToServer(users: ExecutiveUser[]): Promise<void> {
         photoUrl: user.photoUrl ?? "",
         postPresentationVideoUrl: user.postPresentationVideoUrl ?? "",
         gestorId: user.gestorId ?? "",
+        greensalesVendorId: user.greensalesVendorId ?? "",
       });
     }
   } catch {

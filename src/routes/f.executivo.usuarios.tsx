@@ -202,6 +202,20 @@ function UsuariosPage() {
       if (!existing) return;
       if (!canManageTargetUser(session.activeRole, existing.role)) return;
     }
+    // BLOCO 3 — o código do vendedor da origem é exclusivo: dois
+    // executivos com o mesmo código tornariam a origem ambígua.
+    const vendorId = (draft.greensalesVendorId ?? "").trim();
+    if (vendorId) {
+      const clash = users.find(
+        (u) => u.id !== draft.id && (u.greensalesVendorId ?? "").trim() === vendorId,
+      );
+      if (clash) {
+        toast.error(
+          `O código ${vendorId} já está vinculado a ${clash.name}.`,
+        );
+        return;
+      }
+    }
     const { username, slug } = slugifyEmail(draft.email);
     // §Slugs reservados — validação BLOQUEANTE: nada é gravado e o usuário
     // recebe a razão e uma sugestão de alternativa.
@@ -216,6 +230,7 @@ function UsuariosPage() {
     }
     const complete: Draft = {
       ...draft,
+      greensalesVendorId: vendorId,
       username,
       slug: check.slug,
     };
@@ -371,6 +386,36 @@ function UsuariosPage() {
                 />
               </div>
             ))}
+            {/*
+              BLOCO 3 — vínculo com o vendedor da origem GreenSales.
+              Só o cadastro explícito aqui permite que a origem aponte o
+              responsável interno; nada é deduzido por nome, e-mail ou
+              conexão. Campo opcional: em branco = sem vínculo.
+            */}
+            <div>
+              <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
+                Código do vendedor na origem (GreenSales)
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Ex.: 1042"
+                value={draft.greensalesVendorId ?? ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    greensalesVendorId: e.target.value.replace(/[^0-9]/g, ""),
+                  })
+                }
+                className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50 placeholder:text-[color:var(--muted-foreground)]/50"
+              />
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[color:var(--muted-foreground)]">
+                Sem este código, os cadastros vindos da origem não são
+                reconhecidos como deste executivo e nenhuma passagem de
+                responsável é registrada.
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
