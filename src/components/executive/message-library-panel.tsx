@@ -107,8 +107,71 @@ export function MessageLibraryPanel() {
     return map;
   }, [messages]);
 
+  /* A ordem vem do servidor (posição salva) e é espelhada localmente
+     apenas para o arrastar fluir sem esperar a gravação. */
+  useEffect(() => {
+    setOrder([...steps.keys()]);
+  }, [steps]);
+
+  const visibleSteps = useMemo(() => {
+    const known = [...steps.keys()];
+    const ordered = order.filter((key) => steps.has(key));
+    return [...ordered, ...known.filter((key) => !ordered.includes(key))];
+  }, [order, steps]);
+
   const selected = step ? (steps.get(step) ?? []) : [];
   const active = selected.find((m) => m.active) ?? selected[0] ?? null;
+
+  /** Move a etapa arrastada para a posição de destino e persiste. */
+  async function dropOn(targetKey: string) {
+    const source = dragKey;
+    setDragKey(null);
+    if (!source || source === targetKey) return;
+    const next = visibleSteps.filter((k) => k !== source);
+    const index = next.indexOf(targetKey);
+    next.splice(index < 0 ? next.length : index, 0, source);
+    setOrder(next);
+    setSavingOrder(true);
+    try {
+      const updated = (await reordenarBiblioteca({
+        data: { stepKeys: next },
+      })) as LibraryMessage[];
+      setMessages(updated);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao salvar a ordem.");
+      await load();
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
+  /** Cria a etapa na Biblioteca. Ela NÃO entra em nenhum fluxo. */
+  async function createStep() {
+    const key = newKey.trim().toUpperCase();
+    if (!key || savingNew) return;
+    setSavingNew(true);
+    try {
+      const updated = (await criarEtapaBiblioteca({
+        data: { stepKey: key, title: newTitle.trim() || null },
+      })) as LibraryMessage[];
+      setMessages(updated);
+      setNewKey("");
+      setNewTitle("");
+      setCreating(false);
+      setError(null);
+      setStep(key);
+      setDraft("");
+      setDraftWithoutName("");
+      setLabel(newTitle.trim() || key);
+      setContentUrl("");
+      setContentLabel("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao criar a etapa.");
+    } finally {
+      setSavingNew(false);
+    }
+  }
 
   function openStep(key: string) {
     setStep(key);
