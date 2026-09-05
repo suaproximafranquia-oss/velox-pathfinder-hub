@@ -20,3 +20,12 @@
 - [x] Ação do Dia ignora fila de ciclo histórico (`listHistoricalCycleLeadIds`)
 - [x] Definição única de CONTATO HUMANO REAL (`human-contact.ts` + `human-contact.server.ts`, somente leitura)
 - [ ] Bloco 2 — itens de fila sem ciclo registrado, histórico de titularidade e redistribuição
+
+## Bloco 2 — Identidade canônica + titularidade + redistribuição GreenSales (05/09)
+- [x] `executive_profiles.greensales_vendor_id`: responsável vem da ORIGEM (`vendedor_id`), não do dono do cron
+- [x] `lead_ownership_history` append-only e idempotente (`change_key`), incluída no backup
+- [x] Resolução única de identidade canônica (`src/lib/crm/identity.ts` + `src/server/crm/identity.server.ts`), vínculo sem fusão
+- [x] Redistribuição real detectada por responsável origem × responsável do card (`ownership.server.ts`), sem ZERO CONTATO como bloqueador
+- [x] Nova entrada operacional por titularidade (`workspace_e0_actions.ownership_seq` + `cycleKey` da E0), decidida pelo NOVO responsável
+- [ ] PENDENTE DE CADASTRO: mapear `greensales_vendor_id` de cada executivo — sem isso a redistribuição não é reconhecida
+- [ ] Bloco 3 — itens de fila sem ciclo registrado, card principal entre múltiplos cards da mesma identidade

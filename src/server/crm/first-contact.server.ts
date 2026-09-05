@@ -39,6 +39,11 @@ export type FirstContactInput = {
    * demais → E0. Nunca converte uma origem em outra.
    */
   entryOrigin?: import("@/lib/relationship/origin").EntryOrigin;
+  /**
+   * Nova entrada operacional (BLOCO 2 — redistribuição real). Ausente =
+   * comportamento histórico intacto.
+   */
+  cycleKey?: string | null;
 };
 
 export type FirstContactResult =
@@ -81,6 +86,7 @@ export async function registerFirstContact(
     origin: input.origin,
     ownerId: input.ownerId,
     simulated: Boolean(input.simulated),
+    cycleKey: input.cycleKey ?? null,
   });
   if (!dispatch.registered) return { registered: false, reason: dispatch.reason };
   const at = new Date().toISOString();
@@ -114,7 +120,7 @@ export async function registerFirstContact(
       });
     }
     await engine.handleEvent({
-      id: `e0_${input.leadId}`,
+      id: input.cycleKey ? `e0_${input.leadId}__${input.cycleKey}` : `e0_${input.leadId}`,
       scope: "production",
       leadId: input.leadId,
       type: "FIRST_CONTACT_SENT",

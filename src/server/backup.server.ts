@@ -60,6 +60,8 @@ export const BACKUP_TABLES = [
   { table: "remarketing_conversations", pk: "id" },
   { table: "remarketing_messages", pk: "id" },
   { table: "crm_meta_templates", pk: "id" },
+  // BLOCO 2 — histórico de titularidade: append-only e insubstituível.
+  { table: "lead_ownership_history", pk: "id" },
 ] as const;
 
 

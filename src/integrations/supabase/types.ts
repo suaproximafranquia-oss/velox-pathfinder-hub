@@ -813,6 +813,7 @@ export type Database = {
           email: string
           executive_id: string
           gestor_id: string | null
+          greensales_vendor_id: string | null
           name: string | null
           phone: string | null
           photo_url: string | null
@@ -831,6 +832,7 @@ export type Database = {
           email: string
           executive_id: string
           gestor_id?: string | null
+          greensales_vendor_id?: string | null
           name?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -849,6 +851,7 @@ export type Database = {
           email?: string
           executive_id?: string
           gestor_id?: string | null
+          greensales_vendor_id?: string | null
           name?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -1167,6 +1170,74 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: []
+      }
+      lead_ownership_history: {
+        Row: {
+          cadence_cycle_id: string | null
+          canonical_investor_id: string | null
+          card_id: string
+          change_key: string
+          changed_at: string
+          created_at: string
+          crm_lead_id: string | null
+          had_real_human_contact: boolean
+          id: string
+          new_executive_id: string
+          ownership_seq: number
+          previous_executive_id: string | null
+          reason: string | null
+          source: string
+          source_event_id: string | null
+          triggered_new_entry: boolean
+          updated_at: string
+        }
+        Insert: {
+          cadence_cycle_id?: string | null
+          canonical_investor_id?: string | null
+          card_id: string
+          change_key: string
+          changed_at?: string
+          created_at?: string
+          crm_lead_id?: string | null
+          had_real_human_contact?: boolean
+          id?: string
+          new_executive_id: string
+          ownership_seq?: number
+          previous_executive_id?: string | null
+          reason?: string | null
+          source?: string
+          source_event_id?: string | null
+          triggered_new_entry?: boolean
+          updated_at?: string
+        }
+        Update: {
+          cadence_cycle_id?: string | null
+          canonical_investor_id?: string | null
+          card_id?: string
+          change_key?: string
+          changed_at?: string
+          created_at?: string
+          crm_lead_id?: string | null
+          had_real_human_contact?: boolean
+          id?: string
+          new_executive_id?: string
+          ownership_seq?: number
+          previous_executive_id?: string | null
+          reason?: string | null
+          source?: string
+          source_event_id?: string | null
+          triggered_new_entry?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_ownership_history_canonical_investor_id_fkey"
+            columns: ["canonical_investor_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       magazine_editions: {
         Row: {
@@ -3324,6 +3395,8 @@ export type Database = {
           lead_whatsapp: string | null
           note: string | null
           origin: string
+          ownership_key: string | null
+          ownership_seq: number
           reactivation: boolean
           responsible_executive_id: string | null
           result: string | null
@@ -3344,6 +3417,8 @@ export type Database = {
           lead_whatsapp?: string | null
           note?: string | null
           origin?: string
+          ownership_key?: string | null
+          ownership_seq?: number
           reactivation?: boolean
           responsible_executive_id?: string | null
           result?: string | null
@@ -3364,6 +3439,8 @@ export type Database = {
           lead_whatsapp?: string | null
           note?: string | null
           origin?: string
+          ownership_key?: string | null
+          ownership_seq?: number
           reactivation?: boolean
           responsible_executive_id?: string | null
           result?: string | null

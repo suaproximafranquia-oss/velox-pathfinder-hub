@@ -30,8 +30,12 @@ import { createPendingE0Action } from "@/server/crm/e0-actions.server";
 import { resolveExecutiveE0Mode } from "@/server/crm/first-contact-mode.server";
 import {
   backfillCardResponsible,
+  greenSalesVendorId,
   resolveResponsibleByUserId,
+  resolveResponsibleByVendorId,
 } from "@/server/crm/responsible.server";
+import { linkCanonicalInvestor, resolveOrCreateInvestor } from "@/server/crm/identity.server";
+import { applyOriginResponsibleChange } from "@/server/crm/ownership.server";
 import { resolveBoardStage, type PipelineMap } from "@/server/crm/pipeline-service.server";
 
 export type IntakeSettings = Awaited<ReturnType<typeof loadSettings>>;
@@ -138,6 +142,55 @@ export async function intakeLead(
    */
   if (outcome.deduplicated) return result;
 
+  /**
+   * BLOCO 2 — IDENTIDADE CANÔNICA (vínculo, nunca fusão) e
+   * REDISTRIBUIÇÃO INFORMADA PELA ORIGEM. Exclusivo do GreenSales:
+   * Portal, TikTok e Meta seguem exatamente como antes.
+   */
+  const isGreenSalesEntry = !context.entryOrigin || context.entryOrigin === "GREENSALES";
+  const cardId = `gs_${externalId}`;
+  let canonicalInvestorId: string | null = null;
+  /** Responsável informado pela PRÓPRIA origem (nunca o dono do cron). */
+  let originResponsible = isGreenSalesEntry
+    ? await resolveResponsibleByVendorId(greenSalesVendorId(raw))
+    : null;
+
+  if (isGreenSalesEntry) {
+    const identity = await resolveOrCreateInvestor({
+      source: "greensales",
+      externalId,
+      name: normalized.name,
+      phone: normalized.whatsapp,
+      email: normalized.email,
+    });
+    canonicalInvestorId = identity.investorId;
+    await linkCanonicalInvestor({
+      investorId: canonicalInvestorId,
+      cardId,
+      crmLeadId: outcome.lead.id,
+    });
+
+    const redistribution = await applyOriginResponsibleChange({
+      cardId,
+      crmLeadId: outcome.lead.id,
+      canonicalInvestorId,
+      originResponsible,
+      sourceEventId: (raw["updated_at"] as string) ?? null,
+      leadName: normalized.name,
+      leadWhatsapp: normalized.whatsapp,
+      entryAt: lastEntryAt,
+      enteredEntryStageAt: (outcome.lead as unknown as {
+        entered_entry_stage_at?: string | null;
+      }).entered_entry_stage_at,
+      isTestLead: isTest,
+    });
+    if (redistribution.redistributed) {
+      result.e0Reason = redistribution.reason;
+      if (redistribution.newEntry === "manual") result.e0 = "manual";
+      if (redistribution.newEntry === "automatica") result.e0 = "enviada";
+    }
+  }
+
   const eligibility = cadenceEligibility(
     {
       enteredEntryStageAt: (outcome.lead as unknown as {
@@ -178,7 +231,15 @@ export async function intakeLead(
      * Responsável resolvido NO SERVIDOR, a partir da conexão de origem.
      * Sem identidade resolvível o card nasce sem responsável.
      */
-    const responsible = await resolveResponsibleByUserId(context.connectionUserId);
+    /**
+     * §2 — a ORIGEM informa o responsável. A conexão que executou a
+     * sincronização é apenas o caminho técnico: ela só é usada quando o
+     * `vendedor_id` não pode ser resolvido (nenhum responsável é
+     * inventado e nenhum lead é atribuído automaticamente a Thiago).
+     */
+    originResponsible =
+      originResponsible ?? (await resolveResponsibleByUserId(context.connectionUserId));
+    const responsible = originResponsible;
     const card = await ensureWorkspaceCard({
       externalId,
       responsibleExecutiveId: responsible?.executiveId ?? null,

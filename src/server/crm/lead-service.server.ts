@@ -52,6 +52,8 @@ export type LeadEventType =
   | "e0_manual_executada"
   | "e0_manual_simulada"
   | "e0_manual_bloqueada"
+  /** BLOCO 2 — troca de responsável informada pela origem (append-only). */
+  | "titularidade_alterada"
   | "lead_nao_localizado"
   | "duplicidade_evitada"
   | "movimentacao_manual"
