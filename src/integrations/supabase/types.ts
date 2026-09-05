@@ -1073,6 +1073,45 @@ export type Database = {
           },
         ]
       }
+      investor_notes: {
+        Row: {
+          author_executive_id: string | null
+          author_name: string | null
+          author_user_id: string | null
+          body: string
+          created_at: string
+          id: string
+          lead_id: string
+          scope: string | null
+          source_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_executive_id?: string | null
+          author_name?: string | null
+          author_user_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          scope?: string | null
+          source_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_executive_id?: string | null
+          author_name?: string | null
+          author_user_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          scope?: string | null
+          source_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       investors: {
         Row: {
           created_at: string
