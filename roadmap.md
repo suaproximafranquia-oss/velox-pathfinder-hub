@@ -13,3 +13,10 @@
 - [x] processDeferredFirstContacts reutiliza card, preserva responsável/teste e respeita Automático x Manual
 - [x] Corrigir telefone sintético do Laboratório para ser único por `batchId + índice`
 - [ ] Segundo lead de teste dentro da janela (a criar manualmente)
+
+## Bloco 1 — Marco operacional + contato real (05/09)
+- [x] `operational_since` no ciclo (`relationship_cadences`) e função única `classifyCycle`/`isOperationalCycle` em `src/lib/relationship/cycle.ts`
+- [x] Motor deixa de gerar obrigação nova em ciclo histórico (evaluate + scheduleFollowUp)
+- [x] Ação do Dia ignora fila de ciclo histórico (`listHistoricalCycleLeadIds`)
+- [x] Definição única de CONTATO HUMANO REAL (`human-contact.ts` + `human-contact.server.ts`, somente leitura)
+- [ ] Bloco 2 — itens de fila sem ciclo registrado, histórico de titularidade e redistribuição
