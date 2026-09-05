@@ -154,6 +154,13 @@ export type BackupRecord = {
   counts: Record<string, number>;
   createdAt: string;
   createdByName: string;
+  /** Hora cheia de referência da fila automática, quando houver. */
+  referenceHour?: string | null;
+  /** Data operacional (America/Sao_Paulo) do ponto. */
+  operationalDay?: string;
+  /** Hora operacional (0–23) do ponto. */
+  operationalHour?: number;
+
 };
 
 function defaultLabel(kind: BackupKind, origin: BackupOrigin): string {
