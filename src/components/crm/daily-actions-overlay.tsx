@@ -566,10 +566,14 @@ export function DailyActionsOverlay({
                       disabled={busy}
                       className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
                     >
-                      <MessageSquare className="h-4 w-4" /> Ver mensagem completa
+                      <MessageSquare className="h-4 w-4" />
+                      {selected.stepLabel ? `Copiar ${selected.stepLabel}` : "Copiar mensagem"}
                     </button>
                   )}
-                  {selected.phone && (
+                  {/* Ações de MENSAGEM não abrem conversa: o texto é copiado
+                      e o Executivo conduz a conversa por fora. Ligações
+                      mantêm o comportamento próprio, intacto. */}
+                  {selected.phone && selected.kind !== "mensagem" && (
                     <button
                       type="button"
                       onClick={() => void handleWhatsapp(selected)}
@@ -582,7 +586,7 @@ export function DailyActionsOverlay({
                   {selected.leadId && (
                     <button
                       type="button"
-                      onClick={() => onOpenLead(selected.leadId as string)}
+                      onClick={() => onOpenLead(selected.leadId as string, selected.scope ?? null)}
                       className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition hover:bg-white/[0.08]"
                     >
                       <ExternalLink className="h-4 w-4" /> Ver ficha completa
