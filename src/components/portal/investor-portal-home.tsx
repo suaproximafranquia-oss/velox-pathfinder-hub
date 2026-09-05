@@ -685,7 +685,23 @@ function Hero({ brandKey }: { brandKey: string }) {
   );
 }
 
-function ModulesGrid({ onOpen, unlocked }: { onOpen: (m: ModuleCard) => void; unlocked: boolean }) {
+function ModulesGrid({
+  onOpen,
+  unlocked,
+  brandKey,
+}: {
+  onOpen: (m: ModuleCard) => void;
+  unlocked: boolean;
+  brandKey: string;
+}) {
+  /**
+   * Solar usa capas temáticas de energia solar; Financeira mantém as capas
+   * institucionais originais. Títulos, textos e lógica são inalterados.
+   */
+  const modules =
+    brandKey === "solar"
+      ? MODULES.map((m) => ({ ...m, cover: SOLAR_COVERS[m.key] ?? m.cover }))
+      : MODULES;
   return (
     <section
       id="modulos"
