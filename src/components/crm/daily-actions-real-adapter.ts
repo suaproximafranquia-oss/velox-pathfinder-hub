@@ -93,7 +93,8 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
             data: {
               actionKey: item.actionKey,
               leadId: item.leadId,
-              step: item.cadence.step,
+              step: item.stepLabel ?? String(item.cadence.step),
+
               event: "ligacao",
               outcome: outcome === "SIM"
                   ? "Atendeu"
