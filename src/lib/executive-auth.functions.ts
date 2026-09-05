@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
  * Provisiona (idempotente) a conta autenticada do executivo oficial para
@@ -37,9 +38,7 @@ export const ensureExecutiveAuthUser = createServerFn({ method: "POST" })
  * `executive_user_status`. O navegador não substitui nada disto.
  */
 export const identidadeDoUsuario = createServerFn({ method: "POST" })
-  .middleware([
-    (await import("@/integrations/supabase/auth-middleware")).requireSupabaseAuth,
-  ])
+  .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { resolveServerIdentity } = await import("@/server/identity.server");
     const identity = await resolveServerIdentity(context.userId);
@@ -78,6 +77,16 @@ export const provisionarAcessoExecutivo = createServerFn({ method: "POST" })
     if (!email || !data.executiveId || data.password.length < 6) {
       return { ok: false as const, reason: "dados" as const };
     }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // PRESERVAÇÃO: um executivo já cadastrado nunca é recriado nem tem a
+    // senha redefinida por esta rota.
+    const { data: existing } = await supabaseAdmin
+      .from("executive_profiles")
+      .select("executive_id")
+      .or(`executive_id.eq.${data.executiveId},email.eq.${email}`)
+      .maybeSingle();
+    if (existing) return { ok: false as const, reason: "ja_existe" as const };
+
     const { ensureAuthUser } = await import("@/server/executive-auth.server");
     try {
       const userId = await ensureAuthUser({
