@@ -31,9 +31,22 @@ function referenceMoment(record: CadenceRecord, ctx?: DecisionContext): string |
   return base > left ? base : left;
 }
 
+/**
+ * BLOCO 4 — a sequência operacional vem da VERSÃO DO FLUXO do ciclo
+ * quando ela existe. Ciclo legado (sem versão) continua na sequência do
+ * `config.ts`, sem qualquer reescrita.
+ */
+function sequenceOf(flow: CadenceFlow, plan?: FlowPlan | null): CadenceStep[] {
+  if (plan && plan.flowKey === flow) {
+    const sequence = planSequence(plan);
+    if (sequence.length > 0) return sequence;
+  }
+  return FLOW_SEQUENCE[flow] ?? [];
+}
+
 /** Próxima etapa permitida do fluxo — nunca fora de ordem. */
-export function nextStep(record: CadenceRecord): CadenceStep | null {
-  const sequence = FLOW_SEQUENCE[record.flow];
+export function nextStep(record: CadenceRecord, plan?: FlowPlan | null): CadenceStep | null {
+  const sequence = sequenceOf(record.flow, plan);
   for (const step of sequence) {
     if (!record.executedSteps.includes(step)) return step;
   }
@@ -41,8 +54,13 @@ export function nextStep(record: CadenceRecord): CadenceStep | null {
 }
 
 /** A etapa respeita a ordem do fluxo? */
-export function isStepInOrder(flow: CadenceFlow, step: CadenceStep, executed: CadenceStep[]) {
-  const sequence = FLOW_SEQUENCE[flow];
+export function isStepInOrder(
+  flow: CadenceFlow,
+  step: CadenceStep,
+  executed: CadenceStep[],
+  plan?: FlowPlan | null,
+) {
+  const sequence = sequenceOf(flow, plan);
   const index = sequence.indexOf(step);
   if (index < 0) return false;
   return sequence.slice(0, index).every((prev) => executed.includes(prev));
