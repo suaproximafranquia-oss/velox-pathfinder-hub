@@ -127,6 +127,28 @@ export async function registerDailyActionMessage(
     });
   }
 
+  /**
+   * OBSERVAÇÃO OPERACIONAL → NOTAS DO EXECUTIVO. Só quando a ação foi
+   * REALMENTE concluída agora e há texto: copiar, abrir a ficha ou
+   * pular nunca criam nota. A chave de origem é o item da fila, então
+   * repetir a conclusão não duplica. Falha aqui nunca desfaz a
+   * conclusão, o snapshot ou o avanço da cadência.
+   */
+  if (outcome.concluded && input.leadId && input.reason.trim().length > 0) {
+    try {
+      const { addInvestorNote } = await import("@/server/crm/investor-notes.server");
+      await addInvestorNote({
+        leadId: input.leadId,
+        body: input.reason.trim(),
+        userId: input.userId,
+        executiveId: input.executiveId,
+        sourceKey: `acao_do_dia:${queueItemId ?? input.actionKey}`,
+      });
+    } catch {
+      // Nota é histórico complementar: nunca invalida a execução.
+    }
+  }
+
   await writeLedger(
     DAILY_ACTION_EVENTS.message,
     {
