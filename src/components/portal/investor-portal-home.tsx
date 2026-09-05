@@ -606,8 +606,7 @@ function Hero({ brandKey }: { brandKey: string }) {
         <div
           className="absolute inset-0"
           style={{
-            background:
-              `linear-gradient(180deg, color-mix(in oklab, ${overlayBase} 34%, transparent) 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 32%, transparent) 78%, color-mix(in oklab, ${overlayBase} 62%, transparent) 100%)`,
+            background: mainGradient,
           }}
         />
         <div
@@ -622,8 +621,7 @@ function Hero({ brandKey }: { brandKey: string }) {
           aria-hidden
           className="absolute inset-x-0 bottom-0 h-56"
           style={{
-            background:
-              `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 45%, transparent) 45%, color-mix(in oklab, ${overlayBase} 88%, transparent) 82%, ${overlayBase} 100%)`,
+            background: bottomGradient,
           }}
         />
         <div aria-hidden className="absolute inset-0 portal-grid opacity-[0.08]" />
