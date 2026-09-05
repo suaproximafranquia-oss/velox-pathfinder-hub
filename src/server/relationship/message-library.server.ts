@@ -253,17 +253,128 @@ export async function ensureLibrarySeed(): Promise<void> {
   }
 }
 
-/** Todas as versões de todas as etapas, mais novas primeiro. */
+/**
+ * Todas as versões de todas as etapas, mais novas primeiro.
+ * A ordem entre ETAPAS segue a posição definida pelo usuário.
+ */
 export async function listLibraryMessages(): Promise<LibraryMessage[]> {
   await ensureLibrarySeed();
+  await assignMissingPositions();
   const { data, error } = await supabaseAdmin
     .from("relationship_message_library")
     .select("*")
     .eq("scope", "production")
+    .order("display_position" as any, { ascending: true, nullsFirst: false })
     .order("step_key", { ascending: true })
     .order("version", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map(toMessage);
+}
+
+/**
+ * BLOCO 3 — CRIAÇÃO DE ETAPA PELA PRÓPRIA BIBLIOTECA.
+ *
+ * Não existe lista fixa de chaves permitidas: a Biblioteca é a fonte de
+ * verdade da EXISTÊNCIA da etapa. A etapa nasce no FIM da lista e,
+ * deliberadamente, INERTE para o motor — nenhum fluxo é alterado aqui.
+ * A associação etapa → fluxo é assunto do Bloco 4.
+ */
+export async function createLibraryStep(params: {
+  stepKey: string;
+  title?: string | null;
+  body?: string | null;
+  bodyWithoutName?: string | null;
+  purpose?: string | null;
+  contentGroup?: string | null;
+  contentUrl?: string | null;
+  contentLabel?: string | null;
+  buttonKind?: "portal" | "content" | null;
+  notes?: string | null;
+  actorId?: string | null;
+  actorName: string;
+}): Promise<LibraryMessage[]> {
+  const stepKey = params.stepKey.trim().toUpperCase();
+  if (!/^[A-Z0-9_]{2,32}$/.test(stepKey)) {
+    throw new Error(
+      "Chave da etapa inválida. Use letras, números e underscore (ex.: E9, RE4).",
+    );
+  }
+  await ensureLibrarySeed();
+  await assignMissingPositions();
+
+  const { data: existing } = await supabaseAdmin
+    .from("relationship_message_library")
+    .select("id")
+    .eq("scope", "production")
+    .eq("step_key", stepKey)
+    .limit(1);
+  if ((existing ?? []).length > 0) {
+    throw new Error(`A etapa ${stepKey} já existe na Biblioteca.`);
+  }
+
+  const { data: positions } = await supabaseAdmin
+    .from("relationship_message_library")
+    .select("display_position" as any)
+    .eq("scope", "production");
+  const next =
+    Math.max(
+      0,
+      ...((positions ?? []) as any[]).map((r) => Number(r.display_position ?? 0) || 0),
+    ) + 10;
+
+  const body = (params.body ?? "").trim();
+  const { error } = await supabaseAdmin.from("relationship_message_library").insert({
+    scope: "production",
+    step_key: stepKey,
+    code: `LIB-${stepKey}`,
+    title: params.title?.trim() || stepKey,
+    purpose: params.purpose?.trim() || stepKey.toLowerCase(),
+    body,
+    body_without_name: params.bodyWithoutName?.trim() || null,
+    version: 1,
+    /* Sem texto = slot vazio e inativo: o motor não inventa mensagem. */
+    active: body.length > 0,
+    content_group: params.contentGroup?.trim() || null,
+    content_url: params.contentUrl?.trim() || null,
+    content_label: params.contentLabel?.trim() || null,
+    button_kind: params.buttonKind ?? null,
+    display_position: next,
+    created_by: params.actorId ?? null,
+    created_by_name: params.actorName,
+    notes: params.notes ?? "Etapa criada pela Biblioteca.",
+  } as any);
+  if (error) throw new Error(error.message);
+
+  /* Reconhecimento imediato pelo mecanismo dinâmico do Bloco 2. */
+  registerKnownSteps([stepKey]);
+
+  return listLibraryMessages();
+}
+
+/**
+ * BLOCO 3 — ORDENAÇÃO MANUAL PERSISTENTE.
+ *
+ * Grava apenas `display_position`. Não toca em texto, versão, histórico,
+ * fila, ciclo ou fluxo — e jamais altera o `step_key`.
+ */
+export async function reorderLibrarySteps(
+  orderedStepKeys: string[],
+): Promise<LibraryMessage[]> {
+  const seen = new Set<string>();
+  let position = 10;
+  for (const raw of orderedStepKeys) {
+    const stepKey = String(raw ?? "").trim().toUpperCase();
+    if (!stepKey || seen.has(stepKey)) continue;
+    seen.add(stepKey);
+    const { error } = await supabaseAdmin
+      .from("relationship_message_library")
+      .update({ display_position: position } as any)
+      .eq("scope", "production")
+      .eq("step_key", stepKey);
+    if (error) throw new Error(error.message);
+    position += 10;
+  }
+  return listLibraryMessages();
 }
 
 /**
