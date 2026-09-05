@@ -142,6 +142,20 @@ function BackupCenterPage() {
   }, [isAdmin, reload]);
 
   const full = useMemo(() => backups.filter((b) => b.kind === "completo"), [backups]);
+  // Política de retenção: o dia corrente mantém os backups horários; cada
+  // dia encerrado é representado por UM snapshot diário (o das 23:00).
+  const today = useMemo(
+    () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+    [],
+  );
+  const todayHourly = useMemo(
+    () => full.filter((b) => (b.operationalDay ?? "") === today),
+    [full, today],
+  );
+  const dailySnapshots = useMemo(
+    () => full.filter((b) => (b.operationalDay ?? "") !== "" && (b.operationalDay ?? "") < today),
+    [full, today],
+  );
   const conversations = useMemo(() => backups.filter((b) => b.kind === "conversas"), [backups]);
   const lastFull = full[0] ?? null;
 
@@ -286,8 +300,9 @@ function BackupCenterPage() {
           <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Stat label="Último backup" value={lastFull ? formatMoment(lastFull.createdAt) : "—"} icon={Clock} />
             <Stat label="Próximo backup" value={nextRun(lastFull?.createdAt ?? null)} icon={Clock} />
-            <Stat label="Status" value={loading ? "Carregando…" : "Rotina ativa · 15 min"} icon={ShieldCheck} />
-            <Stat label="Pontos disponíveis" value={String(full.length)} icon={DatabaseBackup} />
+            <Stat label="Status" value={loading ? "Carregando…" : "Rotina ativa · horária"} icon={ShieldCheck} />
+            <Stat label="Hoje (horários)" value={String(todayHourly.length)} icon={DatabaseBackup} />
+            <Stat label="Snapshots diários" value={`${dailySnapshots.length} de 7`} icon={ShieldCheck} />
             <Stat label="Armazenamento" value={formatBytes(totalBytes)} icon={HardDrive} />
           </dl>
         </section>
@@ -351,18 +366,43 @@ function BackupCenterPage() {
           </div>
         </section>
 
-        {/* Histórico de pontos de restauração */}
+        {/* Hoje — backups horários */}
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
-          <h2 className="text-lg font-semibold">Histórico de Pontos de Restauração</h2>
+          <h2 className="text-lg font-semibold">Hoje — Backups Horários</h2>
+          <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
+            Durante o dia em andamento, cada hora cheia gera um ponto próprio.
+            Nenhum deles é consolidado ou removido enquanto o dia não terminar.
+          </p>
           <BackupTable
-            rows={full}
+            rows={todayHourly}
             busy={busy}
             empty={
               loading
                 ? "Carregando pontos de restauração…"
-                : "Nenhum ponto de restauração registrado até o momento."
+                : "Nenhum backup horário registrado hoje até o momento."
             }
             onRestore={setPending}
+          />
+        </section>
+
+        {/* Snapshots diários — 7 dias */}
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
+          <h2 className="text-lg font-semibold">Snapshots Diários — Últimos 7 Dias</h2>
+          <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
+            Cada dia encerrado é representado por um único snapshot: o backup
+            das 23:00 daquele dia. São mantidos os 7 dias encerrados mais
+            recentes; o oitavo é descartado automaticamente.
+          </p>
+          <BackupTable
+            rows={dailySnapshots}
+            busy={busy}
+            empty={
+              loading
+                ? "Carregando snapshots diários…"
+                : "Nenhum snapshot diário disponível ainda."
+            }
+            onRestore={setPending}
+            showDay
           />
         </section>
 
@@ -501,11 +541,14 @@ function BackupTable({
   busy,
   empty,
   onRestore,
+  showDay = false,
 }: {
   rows: BackupSummary[];
   busy: string | null;
   empty: string;
   onRestore: (record: BackupSummary) => void;
+  /** Snapshots diários: identifica o dia representado pelo ponto. */
+  showDay?: boolean;
 }) {
   if (rows.length === 0) {
     return <p className="mt-4 text-sm text-[color:var(--muted-foreground)]">{empty}</p>;
@@ -516,6 +559,7 @@ function BackupTable({
         <thead className="text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
           <tr>
             <th className="py-2 pr-4">Data e hora</th>
+            {showDay ? <th className="py-2 pr-4">Dia representado</th> : null}
             <th className="py-2 pr-4">Tipo</th>
             <th className="py-2 pr-4">Origem</th>
             <th className="py-2 pr-4">Identificador</th>
@@ -528,6 +572,13 @@ function BackupTable({
           {rows.map((b) => (
             <tr key={b.id} className="border-t border-[color:var(--border)]">
               <td className="py-3 pr-4">{formatMoment(b.createdAt)}</td>
+              {showDay ? (
+                <td className="py-3 pr-4">
+                  {b.operationalDay
+                    ? `${b.operationalDay.split("-").reverse().join("/")} · 23:00`
+                    : "—"}
+                </td>
+              ) : null}
               <td className="py-3 pr-4">{BACKUP_KIND_LABEL[b.kind] ?? b.kind}</td>
               <td className="py-3 pr-4">{BACKUP_ORIGIN_LABEL[b.origin] ?? b.origin}</td>
               <td className="py-3 pr-4 font-mono text-xs">{b.id.slice(0, 8)}</td>
