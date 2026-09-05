@@ -29,3 +29,10 @@
 - [x] Nova entrada operacional por titularidade (`workspace_e0_actions.ownership_seq` + `cycleKey` da E0), decidida pelo NOVO responsável
 - [ ] PENDENTE DE CADASTRO: mapear `greensales_vendor_id` de cada executivo — sem isso a redistribuição não é reconhecida
 - [ ] Bloco 3 — itens de fila sem ciclo registrado, card principal entre múltiplos cards da mesma identidade
+
+## Bloco 4 — Fluxo administrável com versão congelada (05/09)
+- [ ] Tabelas `relationship_flow_versions` + `relationship_flow_steps` (versão publicada imutável)
+- [ ] `relationship_cadences.flow_version_id/flow_version` e `relationship_queue.flow_version_id`
+- [ ] Resolvedor server-side único de versão de fluxo (etapas, ordem, prazo)
+- [ ] Motor lê ordem/prazo da versão do ciclo; ciclo legado usa fallback do config.ts
+- [ ] Área administrativa de Fluxos (rascunho, associação, drag-and-drop, publicação)
