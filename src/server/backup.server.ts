@@ -7,6 +7,9 @@
  * conforme a política de retenção, e a restauração só ocorre depois de o
  * estado atual ter sido preservado em um Backup de Segurança.
  */
+import { OPERATIONAL_TIME_ZONE, operationalDate } from "@/lib/crm/daily-actions";
+
+
 
 /**
  * Tabelas que compõem o estado operacional do Portal.
@@ -151,6 +154,13 @@ export type BackupRecord = {
   counts: Record<string, number>;
   createdAt: string;
   createdByName: string;
+  /** Hora cheia de referência da fila automática, quando houver. */
+  referenceHour?: string | null;
+  /** Data operacional (America/Sao_Paulo) do ponto. */
+  operationalDay?: string;
+  /** Hora operacional (0–23) do ponto. */
+  operationalHour?: number;
+
 };
 
 function defaultLabel(kind: BackupKind, origin: BackupOrigin): string {
@@ -160,18 +170,47 @@ function defaultLabel(kind: BackupKind, origin: BackupOrigin): string {
 
 /**
  * Política oficial de retenção dos pontos AUTOMÁTICOS.
- * Backups manuais e de segurança seguem política própria: nunca são
- * removidos pela rotina.
+ *
+ * DIA CORRENTE  → todos os backups horários permanecem disponíveis.
+ * DIAS ANTERIORES → cada dia encerrado é consolidado em UM único
+ *   snapshot diário: o backup da hora 23 daquele dia.
+ * RETENÇÃO → no máximo 7 snapshots diários (dias encerrados).
+ *
+ * Não são 168 backups permanentes: apenas as horas do dia corrente mais
+ * 7 snapshots diários. Backups manuais e de segurança seguem política
+ * própria: nunca são removidos pela rotina.
  */
 export const RETENTION = {
-  /** Últimas 48 horas: todos os pontos (um a cada hora — COMANDO 3A §15). */
-  fullHours: 48,
-  /**
-   * COMANDO 2 §27 — depois das 48 horas permanece apenas o ÚLTIMO ponto
-   * de cada dia (fechamento do dia), por 7 dias corridos.
-   */
+  /** Quantidade de dias ENCERRADOS mantidos como snapshot diário. */
   dailyDays: 7,
+  /** Hora operacional que representa o dia encerrado. */
+  snapshotHour: 23,
 } as const;
+
+/** Fuso oficial da operação — reutiliza a definição central já existente. */
+export const BACKUP_TIME_ZONE = OPERATIONAL_TIME_ZONE;
+
+/**
+ * Data operacional (YYYY-MM-DD) e hora (0–23) de um ponto, no fuso da
+ * operação brasileira. Quando existe hora de referência da fila, ela é
+ * a fonte; caso contrário usa-se o instante da criação.
+ */
+export function backupSlot(row: Row): { date: string; hour: number } {
+  const iso = String(row["reference_hour"] ?? row["created_at"] ?? "");
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return { date: "", hour: -1 };
+  const day = operationalDate(date);
+  const hour = Number(
+    date.toLocaleString("en-GB", {
+      timeZone: BACKUP_TIME_ZONE,
+      hour: "2-digit",
+      hour12: false,
+    }),
+  );
+  return { date: day, hour: Number.isNaN(hour) ? -1 : hour };
+}
+
+
 
 /**
  * Assinatura do conteúdo. Pontos idênticos (Portal parado entre duas
@@ -307,6 +346,10 @@ export function toRecord(row: Row): BackupRecord {
     counts: (row["table_counts"] as Record<string, number>) ?? {},
     createdAt: String(row["created_at"] ?? ""),
     createdByName: String(row["created_by_name"] ?? "Sistema"),
+    referenceHour: (row["reference_hour"] as string | null) ?? null,
+    operationalDay: backupSlot(row).date,
+    operationalHour: backupSlot(row).hour,
+
   };
 }
 
@@ -347,57 +390,68 @@ export async function restoreBackupPayload(backupId: string): Promise<RestoreRes
 }
 
 /**
- * Retenção oficial dos pontos automáticos (COMANDO 2 §27 + 3A §15):
- *  · últimas 48 horas — todos (um por hora);
- *  · de 48 horas a 7 dias — apenas o ÚLTIMO ponto de cada dia
- *    (fechamento do dia);
- *  · além de 7 dias — o ponto é descartado.
- * Backups manuais e de segurança seguem política própria e nunca são
- * removidos aqui. Ao final, conteúdos sem nenhum ponto associado são
- * liberados — nenhum dado do Portal é tocado.
+ * Consolidação e retenção dos pontos AUTOMÁTICOS.
+ *
+ *  · DIA CORRENTE — nada é removido: todos os backups horários do dia
+ *    em andamento permanecem disponíveis.
+ *  · DIA ENCERRADO — permanece somente o backup da hora 23 daquele dia,
+ *    que passa a ser o snapshot diário. Os demais horários são removidos
+ *    APENAS depois que o snapshot das 23:00 estiver identificado.
+ *  · Se o backup das 23:00 não existir, o dia NÃO é consolidado: todos os
+ *    seus pontos são preservados e a inconsistência é registrada.
+ *  · RETENÇÃO — no máximo 7 dias encerrados. Dias além disso saem por
+ *    completo.
+ *
+ * A rotina é idempotente: tudo é derivado do estado atual da tabela, sem
+ * marcação de execução. Backups manuais e de segurança (protected) nunca
+ * são tocados. Nenhum dado de negócio é lido ou apagado aqui — apenas
+ * artefatos de backup.
  */
 export async function pruneBackups(): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("portal_backups")
-    .select("id,created_at,origin,kind,protected")
+    .select("id,created_at,reference_hour,origin,kind,protected")
     .eq("origin", "automatico")
     .order("created_at", { ascending: false });
   if (error || !data) return 0;
 
-  const now = Date.now();
-  const hour = 3_600_000;
-  const day = 24 * hour;
-  const keep = new Set<string>();
-  const buckets = new Set<string>();
-  const drop: string[] = [];
+  const today = operationalDate(new Date());
+  const byDay = new Map<string, { id: string; hour: number }[]>();
+
   for (const row of data as Row[]) {
-    const id = String(row["id"]);
-    if (row["protected"] === true) {
-      keep.add(id);
-      continue;
-    }
-    const at = Date.parse(String(row["created_at"]));
-    const age = now - at;
-    let bucket: string;
-    if (age <= RETENTION.fullHours * hour) {
-      bucket = `raw:${id}`; // 48h: todos os pontos (um por hora)
-    } else if (age <= RETENTION.dailyDays * day) {
-      // A lista vem em ordem decrescente: o primeiro ponto de cada dia
-      // é justamente o ÚLTIMO gerado naquele dia (fechamento do dia).
-      bucket = `day:${Math.floor(at / day)}`;
-    } else {
-      drop.push(id); // além do horizonte de retenção
-      continue;
-    }
-    if (buckets.has(bucket)) continue;
-    buckets.add(bucket);
-    keep.add(id);
+    if (row["protected"] === true) continue; // política própria
+    const slot = backupSlot(row);
+    if (!slot.date) continue; // data ilegível: preservado por segurança
+    const list = byDay.get(slot.date) ?? [];
+    list.push({ id: String(row["id"]), hour: slot.hour });
+    byDay.set(slot.date, list);
   }
-  const remove = (data as Row[])
-    .map((r) => String(r["id"]))
-    .filter((id) => !keep.has(id) && !drop.includes(id))
-    .concat(drop);
+
+  // Dias encerrados, do mais recente para o mais antigo.
+  const closedDays = [...byDay.keys()].filter((d) => d < today).sort().reverse();
+  const withinRetention = new Set(closedDays.slice(0, RETENTION.dailyDays));
+  const remove: string[] = [];
+
+  for (const day of closedDays) {
+    const points = byDay.get(day) ?? [];
+    if (!withinRetention.has(day)) {
+      // Fora dos últimos 7 dias encerrados: o dia inteiro sai.
+      remove.push(...points.map((p) => p.id));
+      continue;
+    }
+    const snapshot = points.find((p) => p.hour === RETENTION.snapshotHour);
+    if (!snapshot) {
+      // Defensivo: sem o representante das 23:00 nada é apagado.
+      console.warn(
+        `[backup] consolidação incompleta em ${day}: não há backup das ${RETENTION.snapshotHour}:00. Nenhum ponto do dia foi removido.`,
+      );
+      continue;
+    }
+    // O snapshot já está identificado e preservado — só então removemos.
+    remove.push(...points.filter((p) => p.id !== snapshot.id).map((p) => p.id));
+  }
+
   if (remove.length) {
     for (let i = 0; i < remove.length; i += 100) {
       await supabaseAdmin
@@ -409,6 +463,7 @@ export async function pruneBackups(): Promise<number> {
   await pruneOrphanBlobs();
   return remove.length;
 }
+
 
 /** Libera conteúdos que não pertencem mais a nenhum ponto de restauração. */
 async function pruneOrphanBlobs(): Promise<void> {
