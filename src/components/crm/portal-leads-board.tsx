@@ -613,11 +613,14 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           void load();
         }}
         /**
-         * A ficha completa tem endereço próprio e abre em nova aba: o
-         * Executivo consulta o investidor sem perder a fila do dia.
+         * A ficha completa é o WORKSPACE OPERACIONAL já existente — não
+         * há tela paralela de investidor. Abre em nova aba para o
+         * Executivo não perder a fila do dia.
          */
-        onOpenLead={(leadId) => {
-          window.open(`/f/executivo/investidores/${leadId}`, "_blank", "noopener");
+        onOpenLead={(leadId, scope) => {
+          const query = new URLSearchParams({ perfil: leadId });
+          if (scope) query.set("escopo", scope);
+          window.open(`/f/executivo/dashboard?${query.toString()}`, "_blank", "noopener");
         }}
       />
     </>
