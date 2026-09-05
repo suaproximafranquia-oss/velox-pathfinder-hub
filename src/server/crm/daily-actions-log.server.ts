@@ -111,6 +111,22 @@ export async function registerDailyActionMessage(
     queueItemId,
   });
 
+  /**
+   * SNAPSHOT HISTÓRICO DA EXECUÇÃO. Só quando a tarefa REAL da fila foi
+   * concluída agora: uma confirmação repetida devolve `concluded: false`
+   * e não chega aqui. O snapshot é imutável — editar a Biblioteca depois
+   * não reescreve esta linha.
+   */
+  if (outcome.concluded) {
+    await recordManualMessageSnapshot({
+      leadId: input.leadId!,
+      step: input.step!,
+      queueItemId: queueItemId!,
+      actorId: input.executiveId ?? input.userId,
+      nowIso: input.nowIso ?? new Date().toISOString(),
+    });
+  }
+
   await writeLedger(
     DAILY_ACTION_EVENTS.message,
     {
@@ -123,6 +139,70 @@ export async function registerDailyActionMessage(
 
   return outcome;
 }
+
+/**
+ * CONGELA O CONTEÚDO EFETIVAMENTE UTILIZADO em
+ * `relationship_message_sends`, reutilizando exatamente as funções que
+ * já montam o texto exibido na tela (`prepareStepMessage`) e que já
+ * gravam o snapshot nos demais caminhos (`recordMessageSnapshot`).
+ *
+ * IDEMPOTÊNCIA: `message_id` é derivado do item ORIGINAL da fila e a
+ * tabela tem índice único sobre ele — dois registros para a mesma
+ * execução são impossíveis. Nenhum envio real acontece aqui.
+ */
+async function recordManualMessageSnapshot(params: {
+  leadId: string;
+  step: string;
+  queueItemId: string;
+  actorId: string;
+  nowIso: string;
+}): Promise<void> {
+  try {
+    const [{ prepareStepMessage }, { recordMessageSnapshot }, { isSimulatedExecution }] =
+      await Promise.all([
+        import("@/server/relationship/step-message.server"),
+        import("@/server/relationship/message-library.server"),
+        import("@/server/relationship/execution-mode.server"),
+      ]);
+
+    const prepared = await prepareStepMessage({
+      leadId: params.leadId,
+      step: params.step,
+    });
+    // Sem texto oficial não há o que congelar: o motivo já ficou no ledger.
+    if (!prepared.body) return;
+
+    const { data: cadence } = await supabaseAdmin
+      .from("relationship_cadences")
+      .select("id")
+      .eq("lead_id", params.leadId)
+      .eq("scope", "production")
+      .maybeSingle();
+
+    await recordMessageSnapshot({
+      leadId: params.leadId,
+      step: params.step,
+      renderedBody: prepared.body,
+      templateBody: prepared.templateBody ?? prepared.body,
+      libraryId: prepared.libraryId,
+      libraryVersion: prepared.libraryVersion,
+      libraryCode: prepared.libraryCode,
+      investorNameUsed: prepared.investorNameUsed,
+      actorId: params.actorId,
+      actorName: prepared.executiveName,
+      origin: "executivo",
+      cadenceId: (cadence as { id?: string } | null)?.id ?? null,
+      messageId: `acao_do_dia:${params.queueItemId}`,
+      contentUrl: prepared.contentUrl,
+      channel: "whatsapp",
+      simulated: isSimulatedExecution(),
+      sentAt: params.nowIso,
+    });
+  } catch {
+    // O snapshot é histórico: sua falha nunca desfaz a conclusão da etapa.
+  }
+}
+
 
 /**
  * A chave da ação já carrega a tarefa REAL da fila:
