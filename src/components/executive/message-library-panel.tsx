@@ -310,42 +310,62 @@ export function MessageLibraryPanel() {
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-[220px_1fr]">
-          <ul className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
-            {[...steps.keys()].map((key) => {
-              const list = steps.get(key) ?? [];
-              const current = list.find((m) => m.active) ?? list[0];
-              /* Sem versão ativa = o motor NÃO envia esta etapa. O
-                 rótulo continua editável; o texto é que falta. */
-              const awaiting = !list.some((m) => m.active && m.body.trim());
-              return (
-                <li key={key}>
-                  <button
-                    type="button"
-                    onClick={() => openStep(key)}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs transition ${
-                      step === key
-                        ? "border-[color:var(--gold)] text-[color:var(--gold)]"
-                        : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
-                    }`}
+          <div>
+            <p className="mb-1 flex items-center gap-1 text-[10px] text-[color:var(--muted-foreground)]">
+              <GripVertical className="h-3 w-3" /> Arraste para organizar a exibição
+              {savingOrder ? " · salvando…" : ""}
+            </p>
+            {/* ORDEM VISUAL da Biblioteca. Não altera a ordem de execução
+                do motor: fluxo e prazos seguem inalterados. */}
+            <ul className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
+              {visibleSteps.map((key) => {
+                const list = steps.get(key) ?? [];
+                const current = list.find((m) => m.active) ?? list[0];
+                /* Sem versão ativa = o motor NÃO envia esta etapa. O
+                   rótulo continua editável; o texto é que falta. */
+                const awaiting = !list.some((m) => m.active && m.body.trim());
+                return (
+                  <li
+                    key={key}
+                    draggable
+                    onDragStart={() => setDragKey(key)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      void dropOn(key);
+                    }}
+                    onDragEnd={() => setDragKey(null)}
+                    className={dragKey === key ? "opacity-50" : ""}
                   >
-                    <span className="min-w-0 truncate">
-                      {current?.displayLabel ?? key}
-                      <span className="ml-1 text-[10px] opacity-60">({key})</span>
-                    </span>
-                    <span className="shrink-0 text-[10px]">
-                      {awaiting ? (
-                        <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-amber-400">
-                          aguardando texto oficial
-                        </span>
-                      ) : (
-                        `v${current?.version}`
-                      )}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                    <button
+                      type="button"
+                      onClick={() => openStep(key)}
+                      className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${
+                        step === key
+                          ? "border-[color:var(--gold)] text-[color:var(--gold)]"
+                          : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
+                      }`}
+                    >
+                      <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab opacity-50" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {current?.displayLabel ?? key}
+                        <span className="ml-1 text-[10px] opacity-60">({key})</span>
+                      </span>
+                      <span className="shrink-0 text-[10px]">
+                        {awaiting ? (
+                          <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-amber-400">
+                            aguardando texto oficial
+                          </span>
+                        ) : (
+                          `v${current?.version}`
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
           <div className="space-y-3">
             {step ? (
