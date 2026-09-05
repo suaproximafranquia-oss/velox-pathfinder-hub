@@ -73,13 +73,16 @@ type Summary = {
   executiveId: string;
   executiveName: string;
   planejadas: number;
-  executadas: number;
+  executadasDoPlanejado: number;
   pendentes: number;
-  puladas: number;
-  canceladas: number;
+  /** Subconjunto de pendentes — nunca somar às demais. */
   vencidas: number;
-  porTipo: Record<Kind, number>;
-  taxaExecucao: number | null;
+  canceladas: number;
+  producao: number;
+  puladas: number;
+  porTipoPlanejado: Record<Kind, number>;
+  porTipoProducao: Record<Kind, number>;
+  taxaAderencia: number | null;
   taxaSkip: number | null;
 };
 
