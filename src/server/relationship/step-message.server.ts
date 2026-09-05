@@ -64,6 +64,9 @@ export async function prepareStepMessage(params: {
       body: null,
       blockedReason: executive.reason,
       libraryVersion: null,
+      libraryId: null,
+      libraryCode: null,
+      templateBody: null,
       investorNameUsed: null,
       executiveName: null,
       contentName: null,
@@ -84,6 +87,9 @@ export async function prepareStepMessage(params: {
       body: null,
       blockedReason: result.reason,
       libraryVersion: message?.version ?? null,
+      libraryId: message?.id ?? null,
+      libraryCode: message?.code ?? null,
+      templateBody: message?.body ?? null,
       investorNameUsed: null,
       executiveName: executive.name,
       contentName: message?.contentLabel ?? null,
@@ -97,9 +103,13 @@ export async function prepareStepMessage(params: {
     body,
     blockedReason: null,
     libraryVersion: message?.version ?? null,
+    libraryId: message?.id ?? null,
+    libraryCode: message?.code ?? null,
+    templateBody: message?.body ?? null,
     investorNameUsed: result.treatment ?? null,
     executiveName: executive.name,
     contentName: message?.contentLabel ?? null,
     contentUrl: message?.contentUrl ?? null,
   };
+
 }
