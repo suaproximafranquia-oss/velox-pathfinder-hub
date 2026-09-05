@@ -92,6 +92,7 @@ import { Route as FExecutivoFluxosRouteImport } from './routes/f.executivo.fluxo
 import { Route as FExecutivoDashboardRouteImport } from './routes/f.executivo.dashboard'
 import { Route as FExecutivoCriativaRouteImport } from './routes/f.executivo.criativa'
 import { Route as FExecutivoConfiguracoesRouteImport } from './routes/f.executivo.configuracoes'
+import { Route as FExecutivoCentralOperacoesRouteImport } from './routes/f.executivo.central-operacoes'
 import { Route as FExecutivoCentralBackupRouteImport } from './routes/f.executivo.central-backup'
 import { Route as FExecutivoCelebracaoRouteImport } from './routes/f.executivo.celebracao'
 import { Route as FExecutivoCaptacaoRouteImport } from './routes/f.executivo.captacao'
@@ -528,6 +529,12 @@ const FExecutivoConfiguracoesRoute = FExecutivoConfiguracoesRouteImport.update({
   path: '/configuracoes',
   getParentRoute: () => FExecutivoRoute,
 } as any)
+const FExecutivoCentralOperacoesRoute =
+  FExecutivoCentralOperacoesRouteImport.update({
+    id: '/central-operacoes',
+    path: '/central-operacoes',
+    getParentRoute: () => FExecutivoRoute,
+  } as any)
 const FExecutivoCentralBackupRoute = FExecutivoCentralBackupRouteImport.update({
   id: '/central-backup',
   path: '/central-backup',
@@ -697,6 +704,7 @@ export interface FileRoutesByFullPath {
   '/f/executivo/captacao': typeof FExecutivoCaptacaoRoute
   '/f/executivo/celebracao': typeof FExecutivoCelebracaoRoute
   '/f/executivo/central-backup': typeof FExecutivoCentralBackupRoute
+  '/f/executivo/central-operacoes': typeof FExecutivoCentralOperacoesRoute
   '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
   '/f/executivo/criativa': typeof FExecutivoCriativaRoute
   '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
@@ -797,6 +805,7 @@ export interface FileRoutesByTo {
   '/f/executivo/captacao': typeof FExecutivoCaptacaoRoute
   '/f/executivo/celebracao': typeof FExecutivoCelebracaoRoute
   '/f/executivo/central-backup': typeof FExecutivoCentralBackupRoute
+  '/f/executivo/central-operacoes': typeof FExecutivoCentralOperacoesRoute
   '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
   '/f/executivo/criativa': typeof FExecutivoCriativaRoute
   '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
@@ -901,6 +910,7 @@ export interface FileRoutesById {
   '/f/executivo/captacao': typeof FExecutivoCaptacaoRoute
   '/f/executivo/celebracao': typeof FExecutivoCelebracaoRoute
   '/f/executivo/central-backup': typeof FExecutivoCentralBackupRoute
+  '/f/executivo/central-operacoes': typeof FExecutivoCentralOperacoesRoute
   '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
   '/f/executivo/criativa': typeof FExecutivoCriativaRoute
   '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
@@ -1007,6 +1017,7 @@ export interface FileRouteTypes {
     | '/f/executivo/captacao'
     | '/f/executivo/celebracao'
     | '/f/executivo/central-backup'
+    | '/f/executivo/central-operacoes'
     | '/f/executivo/configuracoes'
     | '/f/executivo/criativa'
     | '/f/executivo/dashboard'
@@ -1107,6 +1118,7 @@ export interface FileRouteTypes {
     | '/f/executivo/captacao'
     | '/f/executivo/celebracao'
     | '/f/executivo/central-backup'
+    | '/f/executivo/central-operacoes'
     | '/f/executivo/configuracoes'
     | '/f/executivo/criativa'
     | '/f/executivo/dashboard'
@@ -1210,6 +1222,7 @@ export interface FileRouteTypes {
     | '/f/executivo/captacao'
     | '/f/executivo/celebracao'
     | '/f/executivo/central-backup'
+    | '/f/executivo/central-operacoes'
     | '/f/executivo/configuracoes'
     | '/f/executivo/criativa'
     | '/f/executivo/dashboard'
@@ -1890,6 +1903,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoConfiguracoesRouteImport
       parentRoute: typeof FExecutivoRoute
     }
+    '/f/executivo/central-operacoes': {
+      id: '/f/executivo/central-operacoes'
+      path: '/central-operacoes'
+      fullPath: '/f/executivo/central-operacoes'
+      preLoaderRoute: typeof FExecutivoCentralOperacoesRouteImport
+      parentRoute: typeof FExecutivoRoute
+    }
     '/f/executivo/central-backup': {
       id: '/f/executivo/central-backup'
       path: '/central-backup'
@@ -2077,6 +2097,7 @@ interface FExecutivoRouteChildren {
   FExecutivoCaptacaoRoute: typeof FExecutivoCaptacaoRoute
   FExecutivoCelebracaoRoute: typeof FExecutivoCelebracaoRoute
   FExecutivoCentralBackupRoute: typeof FExecutivoCentralBackupRoute
+  FExecutivoCentralOperacoesRoute: typeof FExecutivoCentralOperacoesRoute
   FExecutivoConfiguracoesRoute: typeof FExecutivoConfiguracoesRoute
   FExecutivoCriativaRoute: typeof FExecutivoCriativaRoute
   FExecutivoDashboardRoute: typeof FExecutivoDashboardRoute
@@ -2114,6 +2135,7 @@ const FExecutivoRouteChildren: FExecutivoRouteChildren = {
   FExecutivoCaptacaoRoute: FExecutivoCaptacaoRoute,
   FExecutivoCelebracaoRoute: FExecutivoCelebracaoRoute,
   FExecutivoCentralBackupRoute: FExecutivoCentralBackupRoute,
+  FExecutivoCentralOperacoesRoute: FExecutivoCentralOperacoesRoute,
   FExecutivoConfiguracoesRoute: FExecutivoConfiguracoesRoute,
   FExecutivoCriativaRoute: FExecutivoCriativaRoute,
   FExecutivoDashboardRoute: FExecutivoDashboardRoute,
