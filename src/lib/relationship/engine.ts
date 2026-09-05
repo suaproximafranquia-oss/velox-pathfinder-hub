@@ -9,6 +9,7 @@
 import { decideNextAction } from "./decide";
 import { RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { applyEvent, blocksAutomation, initialRecord } from "./machine";
+import { classifyCycle, type ActivationMark } from "./cycle";
 import { hasTemplateForPurpose, findBinding } from "./templates";
 import { realClock, type EngineClock } from "./clock";
 import type { EngineDispatcher, EngineRepository } from "./ports";
@@ -72,6 +73,12 @@ export type EngineOptions = {
     leftEntryStageAt?: string | null;
     stageAtClosing?: string | null;
   } | null>;
+  /**
+   * MARCO OPERACIONAL (BLOCO 1). Quando informado, ciclos históricos
+   * deixam de gerar novas obrigações — sem apagar nada e sem alterar a
+   * lógica das etapas. Omitido (homologação/demo) ⇒ nada muda.
+   */
+  activationMark?: () => Promise<ActivationMark>;
 };
 
 /** Eventos que invalidam etapas já programadas (§96, §97, §98). */
