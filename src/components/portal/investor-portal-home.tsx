@@ -53,6 +53,24 @@ const sedeFachadaImg = { url: assetUrl("portal-capa-sede") };
 const revistaImg = { url: assetUrl("portal-capa-revista") };
 const experienciasImg = { url: assetUrl("portal-capa-experiencias") };
 const simuladorImg = { url: assetUrl("portal-capa-simulador") };
+
+/* Capas exclusivas do Portal Solar — identidade visual de energia solar. */
+import solarCardManual from "@/assets/portal-solar/card-manual.jpg";
+import solarCardMaterial from "@/assets/portal-solar/card-material.jpg";
+import solarCardSimulador from "@/assets/portal-solar/card-simulador.jpg";
+import solarCardEstrutura from "@/assets/portal-solar/card-estrutura.jpg";
+import solarCardRevista from "@/assets/portal-solar/card-revista.jpg";
+import solarCardPrincipios from "@/assets/portal-solar/card-principios.jpg";
+
+/** Capas temáticas de energia solar, por chave de módulo (somente /s/portal). */
+const SOLAR_COVERS: Record<string, string> = {
+  manual: solarCardManual,
+  universo: solarCardMaterial,
+  "modulo-vi": solarCardSimulador,
+  sede: solarCardEstrutura,
+  revista: solarCardRevista,
+  cultura: solarCardPrincipios,
+};
 import {
   hasPortalSession,
   setJourneyStatus,
