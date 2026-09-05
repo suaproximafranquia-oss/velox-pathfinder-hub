@@ -53,6 +53,12 @@ import {
 } from "@/lib/simulator-history";
 import { formatBRL } from "@/lib/simulator-products";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { E20Panel } from "@/components/executive/workspace/e20-panel";
 import { E0Panel } from "@/components/executive/workspace/e0-panel";
 
@@ -956,6 +962,7 @@ function TabComentarios({ investor }: { investor: Investor; session: ExecutiveSe
   const [legacy, setLegacy] = useState<InvestorComment[]>([]);
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState<InvestorNoteView | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -1010,17 +1017,26 @@ function TabComentarios({ investor }: { investor: Investor; session: ExecutiveSe
       ) : (
         <ul className="space-y-2">
           {items.map((c) => (
-            <li
-              key={c.id}
-              className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3"
-            >
-              <div className="flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
-                <span>{c.authorName ?? "Executivo"}</span>
-                <span>{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
-              </div>
-              <p className="mt-1 text-sm whitespace-pre-wrap">{c.body}</p>
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => setOpen(c)}
+                className="w-full rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3 text-left transition hover:border-[color:var(--gold)]/60"
+              >
+                <div className="flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
+                  <span>{c.authorName ?? "Executivo"}</span>
+                  <span>{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
+                </div>
+                <p className="mt-1 text-sm whitespace-pre-wrap line-clamp-3">{c.body}</p>
+                {c.body.length > 160 ? (
+                  <span className="mt-1 block text-[11px] text-[color:var(--muted-foreground)]">
+                    … ver registro completo
+                  </span>
+                ) : null}
+              </button>
             </li>
           ))}
+
           {legacy.map((c) => (
             <li
               key={`legado-${c.id}`}
@@ -1038,6 +1054,25 @@ function TabComentarios({ investor }: { investor: Investor; session: ExecutiveSe
           ))}
         </ul>
       )}
+
+      <Dialog open={!!open} onOpenChange={(v) => !v && setOpen(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Registro do histórico</DialogTitle>
+          </DialogHeader>
+          {open ? (
+            <div className="space-y-2">
+              <div className="text-[11px] text-[color:var(--muted-foreground)]">
+                {open.authorName ?? "Executivo"} ·{" "}
+                {new Date(open.createdAt).toLocaleString("pt-BR")}
+              </div>
+              <p className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm">
+                {open.body}
+              </p>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

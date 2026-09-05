@@ -13,6 +13,7 @@ import {
   getDailyActionMessageFn,
   listDailyActions,
   noteDailyActionFn,
+  recordDailyActionHistoryFn,
   registerDailyActionMessageFn,
   rescheduleMeetingFn,
   resolveMeetingOutcomeFn,
@@ -43,6 +44,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
   const noteAction = useServerFn(noteDailyActionFn);
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
   const registerMessage = useServerFn(registerDailyActionMessageFn);
+  const recordHistory = useServerFn(recordDailyActionHistoryFn);
   const resolveMeeting = useServerFn(resolveMeetingOutcomeFn);
   const rescheduleMeeting = useServerFn(rescheduleMeetingFn);
 
@@ -54,6 +56,21 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
         const result = await executeFirstContact({
           data: { actionId: item.firstContactActionId },
         });
+        if (result.ok) {
+          // Histórico complementar: nunca bloqueia a execução da E0.
+          try {
+            await recordHistory({
+              data: {
+                actionKey: item.actionKey,
+                leadId: item.leadId,
+                step: item.stepLabel,
+                event: "primeiro_contato",
+              },
+            });
+          } catch {
+            /* histórico é complementar */
+          }
+        }
         return result.ok
           ? { ok: true, message: "Primeiro contato registrado." }
           : { ok: false, message: result.reason ?? undefined };
@@ -71,6 +88,24 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
             rang: outcome === "NAO" ? (rang ?? null) : null,
           },
         });
+        try {
+          await recordHistory({
+            data: {
+              actionKey: item.actionKey,
+              leadId: item.leadId,
+              step: item.stepLabel ?? String(item.cadence.step),
+
+              event: "ligacao",
+              outcome: outcome === "SIM"
+                  ? "Atendeu"
+                  : rang
+                    ? `Chamou ${rang}x e não atendeu`
+                    : "Não atendeu",
+            },
+          });
+        } catch {
+          /* histórico é complementar */
+        }
         return { ok: true, message: "Tentativa registrada." };
       },
       openWhatsapp: async (item) => {
@@ -159,6 +194,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
       noteAction,
       loadStepMessage,
       registerMessage,
+      recordHistory,
       resolveMeeting,
       rescheduleMeeting,
     ],

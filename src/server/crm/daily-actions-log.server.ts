@@ -17,6 +17,11 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { operationalDate } from "@/lib/crm/daily-actions";
+import {
+  formatOperationalMoment,
+  historyHeadline,
+  recordDailyActionHistory,
+} from "@/server/crm/daily-actions-history.server";
 
 /** Ações registradas por esta tela. Vocabulário fechado. */
 export const DAILY_ACTION_EVENTS = {
@@ -87,14 +92,34 @@ export async function skipDailyAction(input: DailyActionLogInput): Promise<void>
   if (reason.length < 3) {
     throw new Error("Justificativa obrigatória para pular uma ação do dia.");
   }
-  await writeLedger(DAILY_ACTION_EVENTS.skip, { ...input, reason });
+  const nowIso = input.nowIso ?? new Date().toISOString();
+  await writeLedger(DAILY_ACTION_EVENTS.skip, { ...input, reason, nowIso });
+  await recordDailyActionHistory({
+    leadId: input.leadId,
+    sourceKey: `acao_do_dia:${input.actionKey}:pulada`,
+    headline: historyHeadline("Ação pulada", input.step, nowIso),
+    sections: [{ label: "Motivo", value: reason }],
+    userId: input.userId,
+    executiveId: input.executiveId,
+  });
 }
 
 /** OBSERVAÇÃO operacional vinculada à ação e ao investidor. */
 export async function noteDailyAction(input: DailyActionLogInput): Promise<void> {
   const reason = input.reason.trim();
   if (reason.length < 3) throw new Error("Escreva a observação antes de salvar.");
-  await writeLedger(DAILY_ACTION_EVENTS.note, { ...input, reason });
+  const nowIso = input.nowIso ?? new Date().toISOString();
+  await writeLedger(DAILY_ACTION_EVENTS.note, { ...input, reason, nowIso });
+  await recordDailyActionHistory({
+    leadId: input.leadId,
+    // Cada observação é um acontecimento próprio: a chave carrega o
+    // instante, então o Executivo pode registrar mais de uma.
+    sourceKey: `acao_do_dia:${input.actionKey}:observacao:${nowIso}`,
+    headline: historyHeadline("Observação do Executivo", input.step, nowIso),
+    sections: [{ label: "Observação", value: reason }],
+    userId: input.userId,
+    executiveId: input.executiveId,
+  });
 }
 
 /**
@@ -104,6 +129,7 @@ export async function noteDailyAction(input: DailyActionLogInput): Promise<void>
 export async function registerDailyActionMessage(
   input: DailyActionLogInput,
 ): Promise<{ concluded: boolean; reason: string | null }> {
+  const nowIso = input.nowIso ?? new Date().toISOString();
   const queueItemId = queueItemIdFromActionKey(input.actionKey);
   const outcome = await concludeQueueStep({
     leadId: input.leadId,
@@ -117,13 +143,14 @@ export async function registerDailyActionMessage(
    * e não chega aqui. O snapshot é imutável — editar a Biblioteca depois
    * não reescreve esta linha.
    */
+  let snapshot: ManualMessageSnapshot | null = null;
   if (outcome.concluded) {
-    await recordManualMessageSnapshot({
+    snapshot = await recordManualMessageSnapshot({
       leadId: input.leadId!,
       step: input.step!,
       queueItemId: queueItemId!,
       actorId: input.executiveId ?? input.userId,
-      nowIso: input.nowIso ?? new Date().toISOString(),
+      nowIso,
     });
   }
 
@@ -149,10 +176,32 @@ export async function registerDailyActionMessage(
     }
   }
 
+  /**
+   * CONTEÚDO EXECUTADO → NOTAS DO EXECUTIVO. Reaproveita EXCLUSIVAMENTE
+   * o snapshot já congelado nesta execução (`relationship_message_sends`):
+   * nenhuma nova consulta à Biblioteca e nenhum segundo snapshot.
+   */
+  if (outcome.concluded && snapshot) {
+    await recordDailyActionHistory({
+      leadId: input.leadId,
+      sourceKey: `acao_do_dia:${queueItemId ?? input.actionKey}:mensagem`,
+      headline: historyHeadline("Mensagem enviada", input.step, nowIso),
+      sections: [
+        { label: "Biblioteca", value: snapshot.libraryCode },
+        { label: "Versão", value: snapshot.libraryVersion?.toString() ?? null },
+        { label: "Conteúdo", value: snapshot.contentUrl },
+        { label: "Mensagem", value: snapshot.renderedBody },
+      ],
+      userId: input.userId,
+      executiveId: input.executiveId,
+    });
+  }
+
   await writeLedger(
     DAILY_ACTION_EVENTS.message,
     {
       ...input,
+      nowIso,
       reason: input.reason.trim() || "Mensagem tratada pelo Executivo na Ação do Dia.",
       outcome: input.outcome ?? (outcome.concluded ? "enviada" : "registrada"),
     },
@@ -161,6 +210,7 @@ export async function registerDailyActionMessage(
 
   return outcome;
 }
+
 
 /**
  * CONGELA O CONTEÚDO EFETIVAMENTE UTILIZADO em
@@ -172,13 +222,21 @@ export async function registerDailyActionMessage(
  * tabela tem índice único sobre ele — dois registros para a mesma
  * execução são impossíveis. Nenhum envio real acontece aqui.
  */
+export type ManualMessageSnapshot = {
+  renderedBody: string;
+  templateBody: string;
+  libraryCode: string | null;
+  libraryVersion: number | null;
+  contentUrl: string | null;
+};
+
 async function recordManualMessageSnapshot(params: {
   leadId: string;
   step: string;
   queueItemId: string;
   actorId: string;
   nowIso: string;
-}): Promise<void> {
+}): Promise<ManualMessageSnapshot | null> {
   try {
     const [{ prepareStepMessage }, { recordMessageSnapshot }, { isSimulatedExecution }] =
       await Promise.all([
@@ -192,7 +250,7 @@ async function recordManualMessageSnapshot(params: {
       step: params.step,
     });
     // Sem texto oficial não há o que congelar: o motivo já ficou no ledger.
-    if (!prepared.body) return;
+    if (!prepared.body) return null;
 
     const { data: cadence } = await supabaseAdmin
       .from("relationship_cadences")
@@ -220,10 +278,20 @@ async function recordManualMessageSnapshot(params: {
       simulated: isSimulatedExecution(),
       sentAt: params.nowIso,
     });
+
+    return {
+      renderedBody: prepared.body,
+      templateBody: prepared.templateBody ?? prepared.body,
+      libraryCode: prepared.libraryCode ?? null,
+      libraryVersion: prepared.libraryVersion ?? null,
+      contentUrl: prepared.contentUrl ?? null,
+    };
   } catch {
     // O snapshot é histórico: sua falha nunca desfaz a conclusão da etapa.
+    return null;
   }
 }
+
 
 
 /**
@@ -334,6 +402,19 @@ export async function resolveMeetingOutcome(input: {
     },
     { meetingId: input.meetingId },
   );
+
+  await recordDailyActionHistory({
+    leadId: input.leadId,
+    sourceKey: `acao_do_dia:${input.actionKey}:reuniao`,
+    headline: historyHeadline(
+      input.attended ? "Reunião concluída" : "Reunião sem comparecimento",
+      null,
+      nowIso,
+    ),
+    sections: [{ label: "Observação", value: input.note.trim() }],
+    userId: input.userId,
+    executiveId: input.executiveId,
+  });
 }
 
 /** REAGENDAMENTO — mesma reunião, nova data, na fonte oficial. */
@@ -376,4 +457,16 @@ export async function rescheduleMeeting(input: {
     },
     { meetingId: input.meetingId, novaData: when.toISOString() },
   );
+
+  await recordDailyActionHistory({
+    leadId: input.leadId,
+    sourceKey: `acao_do_dia:${input.actionKey}:reagendada:${when.toISOString()}`,
+    headline: historyHeadline("Ação reagendada", null, nowIso),
+    sections: [
+      { label: "Nova data", value: formatOperationalMoment(when.toISOString()) },
+      { label: "Observação", value: input.note.trim() },
+    ],
+    userId: input.userId,
+    executiveId: input.executiveId,
+  });
 }
