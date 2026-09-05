@@ -27,12 +27,18 @@ export type PreparedStepMessage = {
   /** Motivo legível quando não há texto oficial disponível. */
   blockedReason: string | null;
   libraryVersion: number | null;
+  /** Identificação da versão usada — necessária para o snapshot histórico. */
+  libraryId: string | null;
+  libraryCode: string | null;
+  /** Texto original da Biblioteca, antes da personalização. */
+  templateBody: string | null;
   /** Nome usado no tratamento (ou null quando a versão sem nome foi usada). */
   investorNameUsed: string | null;
   executiveName: string | null;
   contentName: string | null;
   contentUrl: string | null;
 };
+
 
 export async function prepareStepMessage(params: {
   leadId: string;
