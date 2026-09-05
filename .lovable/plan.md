@@ -1,6 +1,14 @@
-# Central de Operações (/f) — mapa técnico do que já existe
+# Central de Operações (/f) — mapa técnico + decisão do responsável planejado
 
 Levantamento somente de leitura. Nada foi alterado.
+
+## Decisão fechada: responsável no planejamento (OPÇÃO A)
+
+- Adicionar `responsible_executive_id` **somente em `relationship_queue`**, preenchida automaticamente no nascimento do item (upsert em `repository.server.ts`) com o dono válido naquele instante, e nunca recalculada depois.
+- Itens antigos ficam nulos: "responsável histórico não registrado", sem preenchimento retroativo.
+- `crm_cadence_tasks` **não** recebe coluna: linhas de ligação só existem na conclusão (upsert `DONE` com `completed_by`); não há linha de "ligação planejada" persistida onde gravar um snapshot — o planejado de ligações é derivado ao vivo da titularidade do lead.
+- E0 (`workspace_e0_actions.responsible_executive_id`), reuniões (`executive_id`) e agenda (`executive_id`) já guardam o responsável; nada mais precisa de coluna.
+- Problema histórico resolvido pela coluna, em uma frase: preservar para a Central **a qual executivo uma mensagem de cadência foi planejada**, mesmo se o lead mudar de responsável depois.
 
 ## 1. Ações planejadas (fontes usadas hoje pela Ação do Dia)
 
