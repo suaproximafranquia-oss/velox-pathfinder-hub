@@ -202,3 +202,61 @@ export async function executeE0Action(input: {
 
   return { ok: true, state: "EXECUTADA" };
 }
+
+/**
+ * NEUTRALIZAÇÃO DA PENDÊNCIA DE E0 (correção pontual).
+ *
+ * Quando o PRIMEIRO CONTATO acontece pelo caminho automático do motor,
+ * uma eventual ação manual de E0 ainda PENDENTE do mesmo card deixa de
+ * fazer sentido: ela seria uma segunda E0. A pendência é ENCERRADA
+ * (estado CANCELADA + motivo), nunca apagada — o registro permanece
+ * auditável, com data e razão.
+ *
+ * Nada mais muda: ownership, redistribuição, modo manual, Safety Lock
+ * e histórico continuam exatamente como estavam.
+ */
+export async function closePendingE0Actions(input: {
+  cardId: string;
+  reason?: string;
+}): Promise<{ closed: number }> {
+  if (!input.cardId) return { closed: 0 };
+  const { data } = await supabaseAdmin
+    .from("workspace_e0_actions")
+    .select("id")
+    .eq("card_id", input.cardId)
+    .eq("state", "PENDENTE");
+  const ids = (data ?? []).map((row) => (row as { id: string }).id);
+  if (ids.length === 0) return { closed: 0 };
+
+  await supabaseAdmin
+    .from("workspace_e0_actions")
+    .update({
+      state: "CANCELADA",
+      executed_at: new Date().toISOString(),
+      result: input.reason ?? "ENCERRADA: primeiro contato já registrado pelo motor.",
+    } as never)
+    .in("id", ids);
+  return { closed: ids.length };
+}
+
+/**
+ * PROTEÇÃO DEFENSIVA DA AÇÃO DO DIA: cards cujo primeiro contato já
+ * está efetivamente registrado (`msg_e0_<card>` em `crm_messages`) não
+ * podem aparecer como E0 pendente, qualquer que seja o motivo pelo qual
+ * a pendência tenha sobrado.
+ */
+export async function filterE0WithFirstContact(cardIds: string[]): Promise<Set<string>> {
+  const unique = [...new Set(cardIds.filter(Boolean))];
+  if (unique.length === 0) return new Set();
+  const { data } = await supabaseAdmin
+    .from("crm_messages")
+    .select("investor_id,id")
+    .in("investor_id", unique)
+    .like("id", "msg_e0_%");
+  const done = new Set<string>();
+  for (const row of data ?? []) {
+    const investorId = (row as { investor_id?: string }).investor_id;
+    if (investorId) done.add(investorId);
+  }
+  return done;
+}

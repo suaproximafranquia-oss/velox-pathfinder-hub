@@ -92,6 +92,19 @@ export async function registerFirstContact(
   const at = new Date().toISOString();
 
   /**
+   * PRIMEIRO CONTATO JÁ ACONTECEU: uma eventual ação manual de E0 ainda
+   * PENDENTE deste card é encerrada (nunca apagada) para não reaparecer
+   * como tarefa humana. A execução manual, quando é ela quem chega
+   * aqui, marca a própria ação como EXECUTADA logo em seguida.
+   */
+  try {
+    const { closePendingE0Actions } = await import("@/server/crm/e0-actions.server");
+    await closePendingE0Actions({ cardId: input.leadId });
+  } catch {
+    // Encerrar a pendência é higiene: nunca invalida a E0 registrada.
+  }
+
+  /**
    * ELO QUE FALTAVA: a E0 passa a existir também para o MOTOR DE
    * RELACIONAMENTO. Sem este registro o lead nunca ganhava cadência e
    * nenhuma etapa posterior (E1 em diante) era calculada — a mensagem

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BEHAVIOR_LABEL, journeySummary } from "@/lib/journey/insights";
 import {
   ArrowLeft,
@@ -23,7 +23,12 @@ import {
 import { loadUsers, type ExecutiveSession } from "@/lib/executive-auth";
 import { buildInvestorProfile, type InvestorProfile } from "@/lib/investor-profile";
 import { onEvent } from "@/lib/events/bus";
-import { addComment, listComments, type InvestorComment } from "@/lib/investor-comments";
+import { listComments, type InvestorComment } from "@/lib/investor-comments";
+import {
+  addInvestorNoteFn,
+  listInvestorNotesFn,
+  type InvestorNoteView,
+} from "@/lib/crm/investor-notes.functions";
 import { openInvestorReport } from "@/lib/investor-report-lazy";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
@@ -939,32 +944,43 @@ function MeetingList({
   );
 }
 
-/* ---------- Aba Comentários ---------- */
-function TabComentarios({
-  investor,
-  session,
-}: {
-  investor: Investor;
-  session: ExecutiveSession;
-}) {
-  const [items, setItems] = useState<InvestorComment[]>([]);
+/* ---------- Aba Notas do Executivo ---------- */
+/**
+ * As notas oficiais vivem no BACKEND: o mesmo executivo encontra as
+ * mesmas notas em qualquer computador. As notas antigas guardadas no
+ * navegador continuam visíveis apenas como LEGADO — nunca são apagadas
+ * e nunca recebem novos registros.
+ */
+function TabComentarios({ investor }: { investor: Investor; session: ExecutiveSession }) {
+  const [items, setItems] = useState<InvestorNoteView[]>([]);
+  const [legacy, setLegacy] = useState<InvestorComment[]>([]);
   const [body, setBody] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setItems(listComments(investor.id));
+  const reload = useCallback(async () => {
+    try {
+      setItems(await listInvestorNotesFn({ data: { leadId: investor.id } }));
+    } catch {
+      setItems([]);
+    }
   }, [investor.id]);
 
-  const submit = () => {
+  useEffect(() => {
+    setLegacy(listComments(investor.id));
+    void reload();
+  }, [investor.id, reload]);
+
+  const submit = async () => {
     const t = body.trim();
-    if (!t) return;
-    addComment({
-      investorId: investor.id,
-      authorId: session.userId,
-      authorName: session.name,
-      body: t,
-    });
-    setBody("");
-    setItems(listComments(investor.id));
+    if (!t || saving) return;
+    setSaving(true);
+    try {
+      await addInvestorNoteFn({ data: { leadId: investor.id, body: t } });
+      setBody("");
+      await reload();
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -980,8 +996,8 @@ function TabComentarios({
         <div className="mt-2 flex justify-end">
           <button
             type="button"
-            onClick={submit}
-            disabled={!body.trim()}
+            onClick={() => void submit()}
+            disabled={!body.trim() || saving}
             className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-3.5 py-2 text-xs hover:border-[color:var(--gold)] transition disabled:opacity-40"
           >
             <MessageSquarePlus className="h-3.5 w-3.5" /> Registrar nota
@@ -989,7 +1005,7 @@ function TabComentarios({
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {items.length === 0 && legacy.length === 0 ? (
         <EmptyState icon={MessageSquarePlus} text="Nenhuma nota interna registrada ainda." />
       ) : (
         <ul className="space-y-2">
@@ -999,10 +1015,25 @@ function TabComentarios({
               className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-4 py-3"
             >
               <div className="flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
-                <span>{c.authorName}</span>
+                <span>{c.authorName ?? "Executivo"}</span>
                 <span>{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
               </div>
               <p className="mt-1 text-sm whitespace-pre-wrap">{c.body}</p>
+            </li>
+          ))}
+          {legacy.map((c) => (
+            <li
+              key={`legado-${c.id}`}
+              className="rounded-2xl border border-dashed border-[color:var(--border)] bg-[color:var(--card)]/20 px-4 py-3"
+            >
+              <div className="flex items-center justify-between text-[11px] text-[color:var(--muted-foreground)]">
+                <span>
+                  {c.authorName} ·{" "}
+                  <span className="uppercase tracking-wide opacity-70">legado</span>
+                </span>
+                <span>{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
+              </div>
+              <p className="mt-1 text-sm whitespace-pre-wrap opacity-80">{c.body}</p>
             </li>
           ))}
         </ul>
