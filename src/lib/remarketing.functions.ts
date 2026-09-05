@@ -9,7 +9,9 @@ import type { RemarketingCampaign, RemarketingContact } from "@/lib/remarketing/
 
 export const listRemarketingCampaigns = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async (): Promise<RemarketingCampaign[]> => {
+  .handler(async ({ context }): Promise<RemarketingCampaign[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { listCampaigns } = await import("@/server/remarketing/engine.server");
     return listCampaigns();
   });
@@ -17,7 +19,9 @@ export const listRemarketingCampaigns = createServerFn({ method: "POST" })
 export const listRemarketingContacts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ campaignId: z.string().uuid() }).parse(data))
-  .handler(async ({ data }): Promise<RemarketingContact[]> => {
+  .handler(async ({ data, context }): Promise<RemarketingContact[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { listContacts } = await import("@/server/remarketing/engine.server");
     return listContacts(data.campaignId);
   });
@@ -43,6 +47,8 @@ export const createRemarketingCampaign = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data, context }): Promise<RemarketingCampaign> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { createCampaign } = await import("@/server/remarketing/engine.server");
     return createCampaign({ ...data, createdBy: context.userId ?? null });
   });
@@ -57,7 +63,9 @@ export const updateRemarketingCampaignStatus = createServerFn({ method: "POST" }
       })
       .parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { setCampaignStatus, listCampaigns } = await import(
       "@/server/remarketing/engine.server"
     );
@@ -68,7 +76,9 @@ export const updateRemarketingCampaignStatus = createServerFn({ method: "POST" }
 export const deleteRemarketingCampaign = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ campaignId: z.string().uuid() }).parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { deleteCampaign, listCampaigns } = await import("@/server/remarketing/engine.server");
     await deleteCampaign(data.campaignId);
     return listCampaigns();
@@ -79,7 +89,9 @@ export const deleteRemarketingCampaign = createServerFn({ method: "POST" })
  * ------------------------------------------------------------------ */
 export const listRemarketingConversations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { listConversations } = await import("@/server/remarketing/conversations.server");
     return listConversations();
   });
@@ -87,7 +99,9 @@ export const listRemarketingConversations = createServerFn({ method: "POST" })
 export const listRemarketingMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ conversationId: z.string().uuid() }).parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { listMessages, markConversationRead } = await import(
       "@/server/remarketing/conversations.server"
     );
@@ -106,7 +120,9 @@ export const sendRemarketingReply = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { replyManually } = await import("@/server/remarketing/conversations.server");
     return replyManually(data);
   });
@@ -122,7 +138,9 @@ export const updateRemarketingConversation = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "remarketing");
     const { setConversationStatus, renameConversation, listConversations } = await import(
       "@/server/remarketing/conversations.server"
     );
