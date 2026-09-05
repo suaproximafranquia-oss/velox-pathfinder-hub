@@ -19,6 +19,9 @@ export type BackupSummary = {
   counts: Record<string, number>;
   createdAt: string;
   createdByName: string;
+  referenceHour?: string | null;
+  operationalDay?: string;
+  operationalHour?: number;
 };
 
 export type RestoreLogEntry = {
@@ -51,7 +54,9 @@ export const listBackups = createServerFn({ method: "GET" })
     const { toRecord } = await import("@/server/backup.server");
     const { data } = await supabaseAdmin
       .from("portal_backups")
-      .select("id,label,kind,origin,status,size_bytes,table_counts,created_at,created_by_name")
+      .select(
+        "id,label,kind,origin,status,size_bytes,table_counts,created_at,created_by_name,reference_hour",
+      )
       .order("created_at", { ascending: false })
       .limit(300);
     const { data: restores } = await supabaseAdmin
