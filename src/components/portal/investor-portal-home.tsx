@@ -575,6 +575,20 @@ function Hero({ brandKey }: { brandKey: string }) {
    */
   const overlayBase = brandKey === "solar" ? "#71be66" : "var(--brand-blue-deep)";
 
+  /**
+   * Degradês do Hero por marca. A Financeira mantém o degradê original.
+   * A Solar usa o mesmo verde (#71be66) com a intensidade do rodapé reduzida,
+   * para não formar faixa sólida e manter a fotografia visível de ponta a ponta.
+   */
+  const mainGradient =
+    brandKey === "solar"
+      ? `linear-gradient(180deg, color-mix(in oklab, ${overlayBase} 34%, transparent) 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 30%, transparent) 78%, color-mix(in oklab, ${overlayBase} 36%, transparent) 100%)`
+      : `linear-gradient(180deg, color-mix(in oklab, ${overlayBase} 34%, transparent) 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 32%, transparent) 78%, color-mix(in oklab, ${overlayBase} 62%, transparent) 100%)`;
+  const bottomGradient =
+    brandKey === "solar"
+      ? `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 52%, transparent) 82%, color-mix(in oklab, ${overlayBase} 72%, transparent) 100%)`
+      : `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 45%, transparent) 45%, color-mix(in oklab, ${overlayBase} 88%, transparent) 82%, ${overlayBase} 100%)`;
+
   return (
     <section className="relative isolate overflow-hidden -mt-[88px]">
       {/* Fotografia institucional como cenário integral */}
