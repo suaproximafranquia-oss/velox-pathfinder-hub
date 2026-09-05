@@ -124,6 +124,13 @@ export type CadenceRecord = {
    * são classificados por compatibilidade em `cycle.ts`.
    */
   operationalSince: string | null;
+  /**
+   * BLOCO 4 — VERSÃO DO FLUXO congelada no nascimento do ciclo.
+   * Gravada uma única vez; nunca atualizada. Ciclo legado = null.
+   */
+  flowVersionId?: string | null;
+  /** Cópia numérica da versão, para leitura e auditoria. */
+  flowVersion?: number | null;
   /** Início manual ou automático do primeiro contato. */
   startedBy: "automatic" | "manual" | null;
   lastEventType: EngineEventType | null;
@@ -169,6 +176,8 @@ export type QueueItem = {
   executedAt: string | null;
   result: string | null;
   reason: string | null;
+  /** BLOCO 4 — versão de fluxo herdada do ciclo que originou a ação. */
+  flowVersionId?: string | null;
 };
 
 /** Ação que o motor autoriza — nunca um texto inventado. */
