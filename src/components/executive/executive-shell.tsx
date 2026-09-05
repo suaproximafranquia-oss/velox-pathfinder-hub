@@ -44,6 +44,8 @@ import { cn } from "@/lib/utils";
 import { RecognitionHost } from "@/components/recognition/recognition-host";
 import { GoogleStatusIndicator } from "@/components/executive/google-status-indicator";
 import { useModuleAccess } from "@/hooks/use-workspace-permissions";
+import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
+import type { WorkspaceResource } from "@/lib/workspace-authorization";
 import { useAdministrativeAccess } from "@/hooks/use-administrative-access";
 
 export function ExecutiveShell({
@@ -121,7 +123,14 @@ export function ExecutiveShell({
    * permanece bloqueada pelo guard próprio.
    */
   const canCrm = useModuleAccess(session.userId, session.activeRole, "crm");
-  const canPortalLeads = useModuleAccess(session.userId, session.activeRole, "portal_leads");
+  /**
+   * AUTORIZAÇÃO ÚNICA — o menu passa a refletir exatamente a decisão do
+   * servidor (`workspace-authorization`). Enquanto ela não chega, nada é
+   * exibido: o menu nunca concede o que o servidor negaria.
+   */
+  const workspaceAuth = useWorkspaceAuthorization();
+  const allow = (resource: WorkspaceResource) => workspaceAuth?.allowed[resource] === true;
+  const canPortalLeads = allow("portal_leads");
 
 
   /**
@@ -141,7 +150,7 @@ export function ExecutiveShell({
      * drawer ou sobreposição sobre o Workspace; a aba original permanece
      * intacta. Visível para o mesmo público com acesso ao CRM.
      */
-    ...(canCrm
+    ...(allow("remarketing")
       ? [{ to: unitPath("/remarketing"), label: "Remarketing", icon: Megaphone, newTab: true }]
       : []),
     { to: unitPath("/executivo/kpi"), label: "KPI Manager", icon: Gauge },
@@ -158,10 +167,12 @@ export function ExecutiveShell({
    * Conteúdos passa a ser um item permanente do menu administrativo.
    */
   const centrais = [
-    { to: unitPath("/executivo/captacao"), label: "Central de Captação", icon: Radar },
+    ...(allow("captacao")
+      ? [{ to: unitPath("/executivo/captacao"), label: "Central de Captação", icon: Radar }]
+      : []),
     /* Central de Operações — leitura gerencial consolidada. Restrita a
        quem tem permissão administrativa/gestão (user_roles). */
-    ...(administrativeAccess
+    ...(allow("central_operacoes")
       ? [{ to: unitPath("/executivo/central-operacoes"), label: "Central de Operações", icon: Activity }]
       : []),
     /* Central de Templates saiu do menu: os templates da Meta são
@@ -169,27 +180,23 @@ export function ExecutiveShell({
 
     { to: unitPath("/executivo/reunioes"), label: "Central de Reuniões", icon: Calendar },
     { to: unitPath("/executivo/alertas"), label: "Central de Alertas", icon: Bell },
-    ...(session.activeRole === "super_admin"
+    ...(allow("central_backup")
       ? [{ to: unitPath("/executivo/central-backup"), label: "Central de Backup", icon: Archive }]
       : []),
-    ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
-      ? [
-          { to: unitPath("/executivo/revista"), label: "Revista Velox", icon: BookOpen },
-        ]
+    ...(allow("revista")
+      ? [{ to: unitPath("/executivo/revista"), label: "Revista Velox", icon: BookOpen }]
       : []),
   ];
 
   const relationship = [
-    ...(session.activeRole === "super_admin" || session.activeRole === "diretora"
-      ? [
-          { to: unitPath("/executivo/biblioteca"), label: "Biblioteca de Conteúdos", icon: LibraryBig },
-        ]
+    ...(allow("biblioteca")
+      ? [{ to: unitPath("/executivo/biblioteca"), label: "Biblioteca de Conteúdos", icon: LibraryBig }]
       : []),
     /**
      * Apresentação Digital e carteiras das unidades do Grupo dependem de
      * PERMISSÃO administrativa (user_roles) — nunca do cargo operacional.
      */
-    ...(administrativeAccess
+    ...(allow("apresentacao_digital")
       ? [
           {
             to: unitPath("/executivo/apresentacao-digital"),
@@ -200,20 +207,20 @@ export function ExecutiveShell({
           // A rota /f/executivo/unidades, seus dados e formulários permanecem.
         ]
       : []),
-    ...(session.activeRole === "super_admin"
+    ...(allow("homologacao")
       ? [{ to: unitPath("/executivo/homologacao"), label: "Central de Homologação", icon: FlaskConical }]
       : []),
-    ...(canCrm
+    ...(allow("backup_conversas")
       ? [{ to: unitPath("/executivo/backups"), label: "Backup de Conversas", icon: Archive }]
       : []),
   ];
 
   const administrative = [
-    ...(canManageUsers(session.activeRole)
+    ...(allow("usuarios")
       ? [{ to: unitPath("/executivo/usuarios"), label: "Usuários", icon: UserCog }]
       : []),
     { to: unitPath("/executivo/perfil"), label: "Meu Perfil", icon: UserCircle2 },
-    ...(session.activeRole === "super_admin"
+    ...(allow("configuracoes")
       ? [{ to: unitPath("/executivo/configuracoes"), label: "Configurações", icon: Settings }]
       : []),
     ...(session.activeRole === "super_admin" && isHomologationEnvironment()
