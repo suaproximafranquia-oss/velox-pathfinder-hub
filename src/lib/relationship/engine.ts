@@ -403,6 +403,8 @@ export function createEngine(options: EngineOptions): Engine {
    */
   async function scheduleFollowUp(record: CadenceRecord): Promise<string | null> {
     try {
+      // Ciclo histórico não recebe nova etapa programada (BLOCO 1).
+      if (await historicalCycleReason(record)) return null;
       const templates = await repository.loadTemplates();
       const context = leadContext ? ((await leadContext(record.leadId)) ?? {}) : {};
       const action = decideNextAction(record, {
