@@ -88,6 +88,7 @@ import { Route as FExecutivoHomologacaoRouteImport } from './routes/f.executivo.
 import { Route as FExecutivoHomeRouteImport } from './routes/f.executivo.home'
 import { Route as FExecutivoGreensalesSyncRouteImport } from './routes/f.executivo.greensales-sync'
 import { Route as FExecutivoGreensalesRouteImport } from './routes/f.executivo.greensales'
+import { Route as FExecutivoFluxosRouteImport } from './routes/f.executivo.fluxos'
 import { Route as FExecutivoDashboardRouteImport } from './routes/f.executivo.dashboard'
 import { Route as FExecutivoCriativaRouteImport } from './routes/f.executivo.criativa'
 import { Route as FExecutivoConfiguracoesRouteImport } from './routes/f.executivo.configuracoes'
@@ -507,6 +508,11 @@ const FExecutivoGreensalesRoute = FExecutivoGreensalesRouteImport.update({
   path: '/greensales',
   getParentRoute: () => FExecutivoRoute,
 } as any)
+const FExecutivoFluxosRoute = FExecutivoFluxosRouteImport.update({
+  id: '/fluxos',
+  path: '/fluxos',
+  getParentRoute: () => FExecutivoRoute,
+} as any)
 const FExecutivoDashboardRoute = FExecutivoDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -694,6 +700,7 @@ export interface FileRoutesByFullPath {
   '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
   '/f/executivo/criativa': typeof FExecutivoCriativaRoute
   '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
+  '/f/executivo/fluxos': typeof FExecutivoFluxosRoute
   '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
   '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
   '/f/executivo/home': typeof FExecutivoHomeRoute
@@ -793,6 +800,7 @@ export interface FileRoutesByTo {
   '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
   '/f/executivo/criativa': typeof FExecutivoCriativaRoute
   '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
+  '/f/executivo/fluxos': typeof FExecutivoFluxosRoute
   '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
   '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
   '/f/executivo/home': typeof FExecutivoHomeRoute
@@ -896,6 +904,7 @@ export interface FileRoutesById {
   '/f/executivo/configuracoes': typeof FExecutivoConfiguracoesRoute
   '/f/executivo/criativa': typeof FExecutivoCriativaRoute
   '/f/executivo/dashboard': typeof FExecutivoDashboardRoute
+  '/f/executivo/fluxos': typeof FExecutivoFluxosRoute
   '/f/executivo/greensales': typeof FExecutivoGreensalesRoute
   '/f/executivo/greensales-sync': typeof FExecutivoGreensalesSyncRoute
   '/f/executivo/home': typeof FExecutivoHomeRoute
@@ -1001,6 +1010,7 @@ export interface FileRouteTypes {
     | '/f/executivo/configuracoes'
     | '/f/executivo/criativa'
     | '/f/executivo/dashboard'
+    | '/f/executivo/fluxos'
     | '/f/executivo/greensales'
     | '/f/executivo/greensales-sync'
     | '/f/executivo/home'
@@ -1100,6 +1110,7 @@ export interface FileRouteTypes {
     | '/f/executivo/configuracoes'
     | '/f/executivo/criativa'
     | '/f/executivo/dashboard'
+    | '/f/executivo/fluxos'
     | '/f/executivo/greensales'
     | '/f/executivo/greensales-sync'
     | '/f/executivo/home'
@@ -1202,6 +1213,7 @@ export interface FileRouteTypes {
     | '/f/executivo/configuracoes'
     | '/f/executivo/criativa'
     | '/f/executivo/dashboard'
+    | '/f/executivo/fluxos'
     | '/f/executivo/greensales'
     | '/f/executivo/greensales-sync'
     | '/f/executivo/home'
@@ -1850,6 +1862,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FExecutivoGreensalesRouteImport
       parentRoute: typeof FExecutivoRoute
     }
+    '/f/executivo/fluxos': {
+      id: '/f/executivo/fluxos'
+      path: '/fluxos'
+      fullPath: '/f/executivo/fluxos'
+      preLoaderRoute: typeof FExecutivoFluxosRouteImport
+      parentRoute: typeof FExecutivoRoute
+    }
     '/f/executivo/dashboard': {
       id: '/f/executivo/dashboard'
       path: '/dashboard'
@@ -2061,6 +2080,7 @@ interface FExecutivoRouteChildren {
   FExecutivoConfiguracoesRoute: typeof FExecutivoConfiguracoesRoute
   FExecutivoCriativaRoute: typeof FExecutivoCriativaRoute
   FExecutivoDashboardRoute: typeof FExecutivoDashboardRoute
+  FExecutivoFluxosRoute: typeof FExecutivoFluxosRoute
   FExecutivoGreensalesRoute: typeof FExecutivoGreensalesRoute
   FExecutivoGreensalesSyncRoute: typeof FExecutivoGreensalesSyncRoute
   FExecutivoHomeRoute: typeof FExecutivoHomeRoute
@@ -2097,6 +2117,7 @@ const FExecutivoRouteChildren: FExecutivoRouteChildren = {
   FExecutivoConfiguracoesRoute: FExecutivoConfiguracoesRoute,
   FExecutivoCriativaRoute: FExecutivoCriativaRoute,
   FExecutivoDashboardRoute: FExecutivoDashboardRoute,
+  FExecutivoFluxosRoute: FExecutivoFluxosRoute,
   FExecutivoGreensalesRoute: FExecutivoGreensalesRoute,
   FExecutivoGreensalesSyncRoute: FExecutivoGreensalesSyncRoute,
   FExecutivoHomeRoute: FExecutivoHomeRoute,

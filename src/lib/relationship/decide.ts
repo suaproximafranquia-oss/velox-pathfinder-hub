@@ -8,6 +8,7 @@
 import { dueMomentAfterBusinessDays, isEligibleMoment, nextEligibleMoment } from "./calendar";
 import { FLOW_SEQUENCE, RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { blocksAutomation, isWindowOpen } from "./machine";
+import { planBusinessDays, planSequence, type FlowPlan } from "./flow-plan";
 import { isTerminalStage, isAutomationEligibleStage } from "./closing";
 import type { CadenceFlow, CadenceRecord, CadenceStep, EngineAction } from "./types";
 
@@ -31,9 +32,22 @@ function referenceMoment(record: CadenceRecord, ctx?: DecisionContext): string |
   return base > left ? base : left;
 }
 
+/**
+ * BLOCO 4 — a sequência operacional vem da VERSÃO DO FLUXO do ciclo
+ * quando ela existe. Ciclo legado (sem versão) continua na sequência do
+ * `config.ts`, sem qualquer reescrita.
+ */
+function sequenceOf(flow: CadenceFlow, plan?: FlowPlan | null): CadenceStep[] {
+  if (plan && plan.flowKey === flow) {
+    const sequence = planSequence(plan);
+    if (sequence.length > 0) return sequence;
+  }
+  return FLOW_SEQUENCE[flow] ?? [];
+}
+
 /** Próxima etapa permitida do fluxo — nunca fora de ordem. */
-export function nextStep(record: CadenceRecord): CadenceStep | null {
-  const sequence = FLOW_SEQUENCE[record.flow];
+export function nextStep(record: CadenceRecord, plan?: FlowPlan | null): CadenceStep | null {
+  const sequence = sequenceOf(record.flow, plan);
   for (const step of sequence) {
     if (!record.executedSteps.includes(step)) return step;
   }
@@ -41,8 +55,13 @@ export function nextStep(record: CadenceRecord): CadenceStep | null {
 }
 
 /** A etapa respeita a ordem do fluxo? */
-export function isStepInOrder(flow: CadenceFlow, step: CadenceStep, executed: CadenceStep[]) {
-  const sequence = FLOW_SEQUENCE[flow];
+export function isStepInOrder(
+  flow: CadenceFlow,
+  step: CadenceStep,
+  executed: CadenceStep[],
+  plan?: FlowPlan | null,
+) {
+  const sequence = sequenceOf(flow, plan);
   const index = sequence.indexOf(step);
   if (index < 0) return false;
   return sequence.slice(0, index).every((prev) => executed.includes(prev));
@@ -68,6 +87,12 @@ export type DecisionContext = {
   awaitingFirstHumanAction?: boolean;
   /** Instante em que o lead saiu de NOVOS — referência real da E1. */
   leftEntryStageAt?: string | null;
+  /**
+   * BLOCO 4 — versão de fluxo congelada no nascimento do ciclo. Quando
+   * presente, é ela que define quais etapas participam, em que ordem e
+   * com que prazo. Ausente (ciclo legado) ⇒ comportamento anterior.
+   */
+  flowPlan?: FlowPlan | null;
 };
 
 /**
@@ -124,11 +149,12 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     };
   }
 
-  const step = nextStep(record);
+  const plan = ctx.flowPlan ?? null;
+  const step = nextStep(record, plan);
   if (!step) {
     return { kind: "none", reason: "Todas as etapas do fluxo já foram executadas." };
   }
-  if (!isStepInOrder(record.flow, step, record.executedSteps)) {
+  if (!isStepInOrder(record.flow, step, record.executedSteps, plan)) {
     return { kind: "none", reason: `Etapa ${step} fora de ordem no fluxo ${record.flow}.` };
   }
   if (record.executedSteps.includes(step)) {
@@ -148,7 +174,14 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     };
   }
 
-  const definition = STEPS[step];
+  const definition = STEPS[step] ?? {
+    step,
+    flow: record.flow,
+    businessDaysAfterReference: 0,
+    templatePurpose: "conteudo_relacionamento",
+    contentGroup: null,
+    terminal: false,
+  };
   /**
    * COMANDO 4A §8 — a E30 é contada a partir do INÍCIO DA JORNADA
    * (regra já definida em `reactivation.ts`), não da última mensagem.
@@ -160,10 +193,17 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     return { kind: "none", reason: "Cadência sem evento de referência — etapa não é criada." };
   }
 
+  /**
+   * BLOCO 4 §13 — o prazo de um ciclo VERSIONADO vem da associação
+   * fluxo↔etapa. As regras de calendário (dias úteis, janelas,
+   * feriados) continuam exatamente as mesmas: muda só a ORIGEM do
+   * número de dias.
+   */
+  const plannedDays = plan ? planBusinessDays(plan, step) : null;
   const businessDays =
     record.flow === "reengajamento"
       ? config.reengagementBusinessDays
-      : definition.businessDaysAfterReference;
+      : (plannedDays ?? definition.businessDaysAfterReference);
   const dueAt = dueMomentAfterBusinessDays(reference, businessDays, config);
 
   if (ctx.nowIso < dueAt) {

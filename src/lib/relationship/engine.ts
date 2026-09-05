@@ -10,6 +10,7 @@ import { decideNextAction } from "./decide";
 import { RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { applyEvent, blocksAutomation, initialRecord } from "./machine";
 import { classifyCycle, type ActivationMark } from "./cycle";
+import type { FlowPlan } from "./flow-plan";
 import { hasTemplateForPurpose, findBinding } from "./templates";
 import { realClock, type EngineClock } from "./clock";
 import type { EngineDispatcher, EngineRepository } from "./ports";
@@ -79,6 +80,13 @@ export type EngineOptions = {
    * lógica das etapas. Omitido (homologação/demo) ⇒ nada muda.
    */
   activationMark?: () => Promise<ActivationMark>;
+  /**
+   * BLOCO 4 — RESOLVEDOR DA VERSÃO DE FLUXO. Recebe o ciclo e devolve a
+   * configuração congelada no nascimento dele (etapas, ordem, prazo).
+   * Omitido (demo/testes) ⇒ o motor segue a sequência do `config.ts`,
+   * exatamente como antes.
+   */
+  flowPlan?: (record: CadenceRecord) => Promise<FlowPlan | null>;
 };
 
 /** Eventos que invalidam etapas já programadas (§96, §97, §98). */
@@ -100,6 +108,17 @@ export function createEngine(options: EngineOptions): Engine {
   const virtualTemplates = options.virtualTemplates ?? false;
   const leadContext = options.leadContext;
   const activationMark = options.activationMark;
+  const flowPlanResolver = options.flowPlan;
+
+  /** Plano operacional do ciclo — null mantém o comportamento anterior. */
+  async function planFor(record: CadenceRecord): Promise<FlowPlan | null> {
+    if (!flowPlanResolver) return null;
+    try {
+      return await flowPlanResolver(record);
+    } catch {
+      return null;
+    }
+  }
 
   if (repository.scope !== dispatcher.scope) {
     throw new Error("Repositório e despachante pertencem a escopos diferentes.");
@@ -168,11 +187,14 @@ export function createEngine(options: EngineOptions): Engine {
     const templates = await repository.loadTemplates();
     const context = leadContext ? ((await leadContext(record.leadId)) ?? {}) : {};
 
+    const flowPlan = await planFor(record);
+
     const action = decideNextAction(record, {
       nowIso,
       enabled,
       config,
       ...context,
+      flowPlan,
       hasTemplateForPurpose: (purpose) =>
         virtualTemplates || hasTemplateForPurpose(templates, purpose),
     });
@@ -222,6 +244,7 @@ export function createEngine(options: EngineOptions): Engine {
         executedAt: null,
         result: null,
         reason: action.reason,
+        flowVersionId: record.flowVersionId ?? null,
       };
       await repository.upsertQueueItem(item);
       return log(record, { step: action.step, outcome: "scheduled", reason: action.reason });
@@ -298,6 +321,7 @@ export function createEngine(options: EngineOptions): Engine {
       executedAt: null,
       result: null,
       reason: action.reason,
+      flowVersionId: record.flowVersionId ?? null,
     });
 
 
@@ -360,7 +384,7 @@ export function createEngine(options: EngineOptions): Engine {
     const fresh = await repository.registerEvent(sentEvent);
     let updated = fresh ? applyEvent(record, sentEvent, config).record : record;
 
-    if (STEPS[action.step].terminal) {
+    if (STEPS[action.step]?.terminal) {
       const closeEvent: EngineEvent = {
         id: `${repository.scope}:${record.leadId}:${action.step}:completed`,
         scope: repository.scope,
@@ -412,6 +436,7 @@ export function createEngine(options: EngineOptions): Engine {
         enabled,
         config,
         ...context,
+        flowPlan: await planFor(record),
         hasTemplateForPurpose: (purpose) =>
           virtualTemplates || hasTemplateForPurpose(templates, purpose),
       });
@@ -436,6 +461,7 @@ export function createEngine(options: EngineOptions): Engine {
         executedAt: null,
         result: null,
         reason: action.reason,
+        flowVersionId: record.flowVersionId ?? null,
       });
       return action.step;
     } catch {

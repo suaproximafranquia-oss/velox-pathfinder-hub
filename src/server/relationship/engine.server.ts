@@ -15,6 +15,7 @@ import { createRepository } from "./repository.server";
 import { productionDispatcher } from "./dispatch.server";
 import { loadLeadStageContext } from "./lead-context.server";
 import { loadCadenceActivationDate } from "@/server/crm/automation.server";
+import { resolveCyclePlan } from "./flow-versions.server";
 
 export function productionEngine(): Engine {
   /**
@@ -46,6 +47,13 @@ export function productionEngine(): Engine {
     // O relógio da cadência só começa depois da primeira ação humana:
     // enquanto o lead estiver em NOVOS, nada é programado.
     leadContext: loadLeadStageContext,
+    /**
+     * BLOCO 4 — o ciclo segue a VERSÃO DO FLUXO congelada no seu
+     * nascimento. Ciclo sem versão (legado) recebe o plano de
+     * compatibilidade do `config.ts`: nada muda para quem já está em
+     * andamento.
+     */
+    flowPlan: (record) => resolveCyclePlan(record.flow, record.flowVersionId ?? null),
   });
 }
 
