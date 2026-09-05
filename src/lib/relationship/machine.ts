@@ -30,6 +30,8 @@ export function initialRecord(input: {
     currentStep: null,
     executedSteps: [],
     startedAt: null,
+    // Ciclo criado agora nasce na operação atual (BLOCO 1).
+    operationalSince: input.at,
     startedBy: null,
     lastEventType: null,
     lastEventAt: null,

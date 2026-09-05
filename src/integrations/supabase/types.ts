@@ -2027,6 +2027,7 @@ export type Database = {
           name_confirmed: boolean
           opened_reason: string | null
           opening_template_history: Json
+          operational_since: string | null
           previous_state: string | null
           read_count: number
           response_count: number
@@ -2065,6 +2066,7 @@ export type Database = {
           name_confirmed?: boolean
           opened_reason?: string | null
           opening_template_history?: Json
+          operational_since?: string | null
           previous_state?: string | null
           read_count?: number
           response_count?: number
@@ -2103,6 +2105,7 @@ export type Database = {
           name_confirmed?: boolean
           opened_reason?: string | null
           opening_template_history?: Json
+          operational_since?: string | null
           previous_state?: string | null
           read_count?: number
           response_count?: number

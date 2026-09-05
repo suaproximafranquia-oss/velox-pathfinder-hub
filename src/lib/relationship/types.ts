@@ -109,6 +109,12 @@ export type CadenceRecord = {
   /** Etapas já executadas — base da idempotência e da ordem. */
   executedSteps: CadenceStep[];
   startedAt: string | null;
+  /**
+   * NASCIMENTO OPERACIONAL DO CICLO (BLOCO 1). Preenchido apenas em
+   * ciclos criados na nova operação; ciclos legados permanecem nulos e
+   * são classificados por compatibilidade em `cycle.ts`.
+   */
+  operationalSince: string | null;
   /** Início manual ou automático do primeiro contato. */
   startedBy: "automatic" | "manual" | null;
   lastEventType: EngineEventType | null;

@@ -14,9 +14,22 @@ import { isSimulatedExecution } from "./execution-mode.server";
 import { createRepository } from "./repository.server";
 import { productionDispatcher } from "./dispatch.server";
 import { loadLeadStageContext } from "./lead-context.server";
+import { loadCadenceActivationDate } from "@/server/crm/automation.server";
 
 export function productionEngine(): Engine {
+  /**
+   * MARCO OPERACIONAL (BLOCO 1). Lido no máximo uma vez por instância do
+   * motor e usado apenas para classificar o ciclo — a autoridade da
+   * decisão continua sendo `cycle.ts`.
+   */
+  let markPromise: Promise<string | null> | null = null;
+  const activationMark = () => {
+    markPromise ??= loadCadenceActivationDate().catch(() => null);
+    return markPromise;
+  };
+
   return createEngine({
+    activationMark,
     repository: createRepository("production", null),
     dispatcher: productionDispatcher,
     clock: realClock,

@@ -20,6 +20,7 @@ import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import { listClosureDuties } from "@/server/relationship/closure.server";
 import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
 import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
+import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -103,6 +104,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
    */
   const meetingSlots = new Set(meetings.map((m) => new Date(m.scheduled_at).toISOString()));
   const queue = queueRes.data ?? [];
+  const historicalLeadIds = await listHistoricalCycleLeadIds(
+    queue.map((q) => q.lead_id as string),
+  );
 
   const identities = await loadLeadIdentities([
     ...meetings.map((m) => m.investor_id as string),
@@ -229,6 +233,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
 
   for (const item of queue) {
     const leadId = item.lead_id as string;
+    // BLOCO 1 — dívida de ciclo histórico não vira trabalho de hoje.
+    if (historicalLeadIds.has(leadId)) continue;
     const identity = identities.get(leadId);
     const dueDate = operationalDate(item.due_at);
     if (dueDate > today) continue;

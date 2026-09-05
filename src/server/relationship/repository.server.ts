@@ -32,6 +32,7 @@ function toRecord(row: Row): CadenceRecord {
     currentStep: row.current_step ?? null,
     executedSteps: (row.executed_steps ?? []) as CadenceStep[],
     startedAt: row.started_at ?? null,
+    operationalSince: row.operational_since ?? null,
     startedBy: row.started_by ?? null,
     lastEventType: row.last_event_type ?? null,
     lastEventAt: row.last_event_at ?? null,
@@ -110,6 +111,8 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         current_step: record.currentStep,
         executed_steps: record.executedSteps,
         started_at: record.startedAt,
+        // Ciclo legado permanece sem carimbo: nunca é preenchido retroativamente.
+        operational_since: record.operationalSince,
         started_by: record.startedBy,
         last_event_type: record.lastEventType,
         last_event_at: record.lastEventAt,

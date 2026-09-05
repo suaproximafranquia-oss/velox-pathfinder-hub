@@ -9,6 +9,7 @@
 import { decideNextAction } from "./decide";
 import { RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { applyEvent, blocksAutomation, initialRecord } from "./machine";
+import { classifyCycle, type ActivationMark } from "./cycle";
 import { hasTemplateForPurpose, findBinding } from "./templates";
 import { realClock, type EngineClock } from "./clock";
 import type { EngineDispatcher, EngineRepository } from "./ports";
@@ -72,6 +73,12 @@ export type EngineOptions = {
     leftEntryStageAt?: string | null;
     stageAtClosing?: string | null;
   } | null>;
+  /**
+   * MARCO OPERACIONAL (BLOCO 1). Quando informado, ciclos históricos
+   * deixam de gerar novas obrigações — sem apagar nada e sem alterar a
+   * lógica das etapas. Omitido (homologação/demo) ⇒ nada muda.
+   */
+  activationMark?: () => Promise<ActivationMark>;
 };
 
 /** Eventos que invalidam etapas já programadas (§96, §97, §98). */
@@ -92,6 +99,7 @@ export function createEngine(options: EngineOptions): Engine {
   const random = options.random ?? Math.random;
   const virtualTemplates = options.virtualTemplates ?? false;
   const leadContext = options.leadContext;
+  const activationMark = options.activationMark;
 
   if (repository.scope !== dispatcher.scope) {
     throw new Error("Repositório e despachante pertencem a escopos diferentes.");
@@ -106,6 +114,19 @@ export function createEngine(options: EngineOptions): Engine {
       runId: repository.runId,
       at,
     });
+  }
+
+  /**
+   * CICLO HISTÓRICO (BLOCO 1). Sem marco informado, o comportamento é
+   * exatamente o anterior. Com marco, um ciclo histórico nunca gera
+   * nova obrigação — o histórico permanece intacto.
+   */
+  async function historicalCycleReason(record: CadenceRecord): Promise<string | null> {
+    if (!activationMark) return null;
+    const mark = await activationMark();
+    if (!mark) return null;
+    const verdict = classifyCycle(record, mark);
+    return verdict.operational ? null : verdict.reason;
   }
 
   async function log(
@@ -138,6 +159,12 @@ export function createEngine(options: EngineOptions): Engine {
   /** Núcleo: decide e, quando permitido, executa uma única ação. */
   async function evaluate(record: CadenceRecord): Promise<EngineDecision> {
     const nowIso = clock.nowIso();
+
+    const historical = await historicalCycleReason(record);
+    if (historical) {
+      return log(record, { step: record.currentStep, outcome: "noop", reason: historical });
+    }
+
     const templates = await repository.loadTemplates();
     const context = leadContext ? ((await leadContext(record.leadId)) ?? {}) : {};
 
@@ -376,6 +403,8 @@ export function createEngine(options: EngineOptions): Engine {
    */
   async function scheduleFollowUp(record: CadenceRecord): Promise<string | null> {
     try {
+      // Ciclo histórico não recebe nova etapa programada (BLOCO 1).
+      if (await historicalCycleReason(record)) return null;
       const templates = await repository.loadTemplates();
       const context = leadContext ? ((await leadContext(record.leadId)) ?? {}) : {};
       const action = decideNextAction(record, {
