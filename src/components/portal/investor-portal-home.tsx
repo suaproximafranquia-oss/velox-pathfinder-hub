@@ -403,7 +403,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
     <div className="min-h-screen">
       <PortalHeader homePath={homePath} />
       <main>
-        <Hero />
+        <Hero brandKey={brandKey} />
         {resume && !active && (
           <ResumeBanner
             title={resume.title}
