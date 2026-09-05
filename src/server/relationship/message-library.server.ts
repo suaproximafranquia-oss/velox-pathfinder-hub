@@ -384,6 +384,8 @@ export async function renderFromLibrary(
    * ETAPA DESCONHECIDA NÃO RENDERIZA. Nenhum texto é montado para uma
    * chave que o motor não reconhece — o erro aparece explícito.
    */
+  const { ensureKnownSteps } = await import("@/server/relationship/step-registry.server");
+  await ensureKnownSteps();
   if (!isKnownStep(stepKey)) {
     return { result: { ok: false, reason: unknownStepReason(stepKey) }, message: null };
   }

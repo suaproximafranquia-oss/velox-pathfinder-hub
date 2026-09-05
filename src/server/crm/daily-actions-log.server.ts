@@ -230,6 +230,8 @@ async function concludeQueueStep(params: {
   }
   const { productionEngine } = await import("@/server/relationship/engine.server");
   const { isKnownStep } = await import("@/lib/relationship/step-registry");
+  const { ensureKnownSteps } = await import("@/server/relationship/step-registry.server");
+  await ensureKnownSteps();
   if (!isKnownStep(params.step)) return { concluded: false, reason: null };
   const decision = await productionEngine().confirmManualExecution({
     leadId: params.leadId,
