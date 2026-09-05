@@ -17,6 +17,11 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { operationalDate } from "@/lib/crm/daily-actions";
+import {
+  formatOperationalMoment,
+  historyHeadline,
+  recordDailyActionHistory,
+} from "@/server/crm/daily-actions-history.server";
 
 /** Ações registradas por esta tela. Vocabulário fechado. */
 export const DAILY_ACTION_EVENTS = {
@@ -397,6 +402,19 @@ export async function resolveMeetingOutcome(input: {
     },
     { meetingId: input.meetingId },
   );
+
+  await recordDailyActionHistory({
+    leadId: input.leadId,
+    sourceKey: `acao_do_dia:${input.actionKey}:reuniao`,
+    headline: historyHeadline(
+      input.attended ? "Reunião concluída" : "Reunião sem comparecimento",
+      null,
+      nowIso,
+    ),
+    sections: [{ label: "Observação", value: input.note.trim() }],
+    userId: input.userId,
+    executiveId: input.executiveId,
+  });
 }
 
 /** REAGENDAMENTO — mesma reunião, nova data, na fonte oficial. */
@@ -439,4 +457,16 @@ export async function rescheduleMeeting(input: {
     },
     { meetingId: input.meetingId, novaData: when.toISOString() },
   );
+
+  await recordDailyActionHistory({
+    leadId: input.leadId,
+    sourceKey: `acao_do_dia:${input.actionKey}:reagendada:${when.toISOString()}`,
+    headline: historyHeadline("Ação reagendada", null, nowIso),
+    sections: [
+      { label: "Nova data", value: formatOperationalMoment(when.toISOString()) },
+      { label: "Observação", value: input.note.trim() },
+    ],
+    userId: input.userId,
+    executiveId: input.executiveId,
+  });
 }
