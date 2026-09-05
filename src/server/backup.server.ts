@@ -346,6 +346,10 @@ export function toRecord(row: Row): BackupRecord {
     counts: (row["table_counts"] as Record<string, number>) ?? {},
     createdAt: String(row["created_at"] ?? ""),
     createdByName: String(row["created_by_name"] ?? "Sistema"),
+    referenceHour: (row["reference_hour"] as string | null) ?? null,
+    operationalDay: backupSlot(row).date,
+    operationalHour: backupSlot(row).hour,
+
   };
 }
 
