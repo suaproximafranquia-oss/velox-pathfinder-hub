@@ -1,66 +1,46 @@
-# Bloco 4 — Fluxo administrável com versão congelada (definição arquitetural)
+# Ação do Dia (/f) — ajustes confirmados
 
-Resposta de arquitetura. Nada foi construído.
+A especificação está coerente com a arquitetura atual. Uma única consequência arquitetural real: as Notas do Executivo hoje vivem apenas no navegador, então precisam ganhar um lugar próprio no banco antes de a observação da Ação do Dia poder ser salva nelas.
 
-Princípio: a Biblioteca continua dona da EXISTÊNCIA e do CONTEÚDO da etapa. O FLUXO passa a ser uma configuração separada (quais etapas, em que ordem, com que prazo), publicada em versões imutáveis. Cada ciclo guarda a versão que usou.
+## 1. Notas do Executivo saem do navegador
 
-## 1. Estrutura de dados proposta (2 tabelas novas, nada removido)
+- Nova tabela no banco para notas do investidor: texto, autor (executivo), data/hora, vínculo com o lead (`portal_leads.id`), escopo do ambiente e uma chave de origem para evitar duplicidade.
+- Acesso controlado: só usuários autenticados leem/escrevem; gravação sempre pelo servidor, com o autor vindo da sessão (nunca enviado pelo navegador).
+- A aba "Notas do Executivo" da ficha passa a ler e gravar no banco.
+- Consequência: notas escritas hoje no navegador não aparecem automaticamente no novo lugar. Proposta padrão: manter uma leitura de compatibilidade que ainda exibe as notas locais antigas, marcadas como legado, sem reescrever nada. Nada é apagado.
 
-`relationship_flow_versions`
-- `id`
-- `flow_key` (texto: sem_resposta, visualizacao, reengajamento, reentrada, relacionamento_frio)
-- `version` (inteiro, incremental por fluxo)
-- `status`: rascunho | publicada | arquivada
-- `published_at`, `published_by`
-- único: (flow_key, version); apenas uma publicada por fluxo (índice parcial)
+## 2. E0 / primeiro contato — duas correções
 
-`relationship_flow_steps`
-- `id`
-- `flow_version_id` (referência acima)
-- `step_key` (texto livre — o mesmo da Biblioteca, sem alterar nem duplicar a etapa)
-- `position` (inteiro, ordem dentro do fluxo)
-- `business_days_after_reference` (prazo em dias úteis, próprio da associação)
-- `active` (permite desligar uma etapa numa versão sem apagar histórico)
-- único: (flow_version_id, step_key) e (flow_version_id, position)
+- Quando o motor executa o primeiro contato automaticamente, uma ação manual E0 pendente do mesmo investidor é encerrada/neutralizada no mesmo momento (sem apagar registro, apenas encerrando o estado).
+- Filtro defensivo na montagem da Ação do Dia: E0 não é exibido quando o primeiro contato já está registrado.
+- Nada mais em E0 muda: modo manual continua aparecendo, ownership, redistribuição e o mecanismo geral ficam intactos.
 
-Consequências diretas:
-- Associação etapa→fluxo = uma linha aqui; não exige tocar código.
-- Multi-fluxo = a mesma `step_key` aparece em versões de fluxos diferentes, com posição e prazo próprios (E8 em sem_resposta pos. 8 / 3 dias; E8 em reengajamento pos. 3 / 5 dias).
-- `display_position` da Biblioteca (Bloco 3) continua sendo só visual e não é lido pelo motor.
-- Editar um fluxo nunca faz UPDATE numa versão publicada: cria-se uma nova versão (cópia das linhas), edita-se em rascunho e publica-se.
+## 3. Ações de mensagem — botões
 
-## 2. Onde a versão fica vinculada ao ciclo
+- Botões: "Copiar mensagem" (rotulado pela etapa, ex.: Copiar E1), "Ver ficha completa", campo opcional de observação, "Concluído".
+- "Abrir conversa" sai apenas das ações de mensagem.
+- O texto copiado é exatamente a mensagem oficial já renderizada para aquele investidor (mesma preparação que alimenta o snapshot).
+- Copiar e abrir ficha não concluem nada. Só "Concluído" conclui.
+- Ações de ligação ficam exatamente como estão.
 
-Em `relationship_cadences`, dois campos: `flow_version_id` e `flow_version` (número, redundante para leitura/auditoria). Gravados uma única vez, na criação do ciclo, com a versão publicada naquele instante. Nunca atualizados depois.
+## 4. Ver ficha completa
 
-Para itens já enfileirados, `relationship_queue` carrega o `flow_version_id` herdado do ciclo, de modo que uma ação pendente continua explicável mesmo se o ciclo for reprocessado.
+- Navega para o Workspace existente: `/f/executivo/dashboard?perfil=<leadId>&escopo=<scope>`, reaproveitando o mecanismo atual. Nenhuma tela nova.
 
-Ciclos legados (sem `flow_version_id`) resolvem para uma "versão 1" gerada a partir do `config.ts` atual — histórico permanece intacto e coerente.
+## 5. Observação → Nota
 
-## 3. Comportamento de ciclos novos x existentes
+- Só grava nota quando "Concluído" é acionado e há texto.
+- Copiar, abrir ficha, pular ou concluir sem texto não geram nota.
+- A gravação é idempotente pela chave de origem da ação: repetir a conclusão não duplica nota.
+- A nota é gravada junto da conclusão, mas uma falha ao gravar a nota não desfaz a conclusão, o snapshot nem o avanço da cadência.
 
-- Ciclo existente: lê sempre a sua `flow_version_id`. Publicar uma nova versão com E8 no meio não injeta E8 nele.
-- Ciclo novo: recebe a versão publicada no momento da criação e segue a nova sequência.
-- Nada é apagado: publicar versão não mexe em `relationship_queue`, `relationship_message_sends`, `crm_timeline`, `relationship_engine_log`.
-- Etapas já executadas não são recalculadas: o motor só decide a PRÓXIMA etapa, e sempre dentro da versão do ciclo.
-- Mudança futura é sempre "para frente": nenhuma escrita retroativa.
+## Pontos técnicos
 
-## 4. Etapa em múltiplos fluxos
+- Migration mínima: uma tabela de notas com GRANTs e RLS; nenhuma alteração em tabelas de cadência, fila, ciclos ou histórico.
+- Escrita via server function autenticada; `localStorage` deixa de ser fonte de verdade.
+- Chave de idempotência da nota derivada do identificador do item da fila, no mesmo padrão já usado pelo snapshot.
+- Preservado sem alteração: histórico, cadência, ownership, redistribuição, Safety Lock do WhatsApp (nenhum envio real), `/s`, `/seg` e `/`.
 
-A etapa é identificada apenas por `step_key` na Biblioteca (conteúdo/versão da mensagem). Participação, ordem e prazo vivem em `relationship_flow_steps`, por versão de fluxo. Logo, a mesma etapa participa de N fluxos sem cópia de conteúdo e sem novo cadastro em código.
+## Decisão em aberto
 
-## 5. Partes do motor que passariam a ler essa configuração (no Bloco 4)
-
-Somente leitura substituída, sem reescrever o motor:
-- `src/lib/relationship/config.ts`: `FLOW_SEQUENCE` e `businessDaysAfterReference` deixam de ser a fonte e viram fallback/semente da versão 1.
-- `decide.ts` / máquina de estados: "próxima etapa do fluxo" e "prazo" passam a vir de um resolvedor por `flow_version_id`.
-- Scheduler / `dispatch.server.ts`: cálculo de vencimento usa o prazo da associação.
-- Criação de ciclo (repositório de cadências): grava `flow_version_id`.
-- `step-registry.server.ts` (Bloco 2): passa a considerar também etapas presentes em versões de fluxo como conhecidas.
-- Painel da Biblioteca ganha uma aba/tela separada de Fluxos (associar, ordenar, prazo, publicar).
-
-Permanecem em código e fora de dados: E0/RE0/E30 e os especiais (E20, E27, FINALIZACAO, RESPOSTA_AUTOMATICA), Safety Lock, janelas de envio, ownership/redistribuição.
-
-## Menor alteração necessária
-
-Duas tabelas novas + dois campos em `relationship_cadences` (e um em `relationship_queue`) + um resolvedor de fluxo por versão que o motor consulta no lugar das constantes. Nenhuma tabela existente é reescrita, nenhum histórico é migrado, o motor atual continua o mesmo.
+Se as notas antigas do navegador devem ser exibidas como legado (proposta acima) ou simplesmente ignoradas.
