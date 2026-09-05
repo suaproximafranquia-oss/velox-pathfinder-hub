@@ -1,3 +1,4 @@
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock } from "lucide-react";
@@ -53,7 +54,12 @@ export const Route = createFileRoute("/f/executivo/configuracoes")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: ConfiguracoesPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="configuracoes">
+      <ConfiguracoesPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function ConfiguracoesPage() {

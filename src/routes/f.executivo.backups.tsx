@@ -5,6 +5,7 @@
  * permanente. Nenhuma função operacional é oferecida aqui. A abertura de
  * qualquer backup exige motivo declarado e gera log permanente.
  */
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -73,7 +74,12 @@ export const Route = createFileRoute("/f/executivo/backups")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: BackupsPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="backup_conversas">
+      <BackupsPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function BackupsPage() {

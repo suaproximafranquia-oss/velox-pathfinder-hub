@@ -1,3 +1,4 @@
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LogOut, Megaphone, MessagesSquare } from "lucide-react";
@@ -27,7 +28,12 @@ export const Route = createFileRoute("/f/remarketing/")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: RemarketingPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="remarketing">
+      <RemarketingPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function RemarketingPage() {

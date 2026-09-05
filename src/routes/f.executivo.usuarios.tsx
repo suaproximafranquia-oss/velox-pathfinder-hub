@@ -1,3 +1,4 @@
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { validateExecutiveSlug } from "@/lib/business-unit";
 import {
   refreshExecutiveDirectory,
@@ -35,7 +36,12 @@ export const Route = createFileRoute("/f/executivo/usuarios")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: UsuariosPage,
+  /** Autorização única do Corporate Workspace (servidor decide). */
+  component: () => (
+    <WorkspaceResourceGuard resource="usuarios">
+      <UsuariosPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 type Draft = Omit<ExecutiveUser, "id"> & { id?: string };
