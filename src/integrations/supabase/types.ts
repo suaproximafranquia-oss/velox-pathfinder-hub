@@ -3647,6 +3647,10 @@ export type Database = {
         }[]
       }
       automation_request_headers: { Args: { _name?: string }; Returns: Json }
+      can_access_e0_action: {
+        Args: { _card_id: string; _responsible_executive_id: string }
+        Returns: boolean
+      }
       can_access_investor: { Args: { _investor_id: string }; Returns: boolean }
       can_access_relationship: {
         Args: { _lead_id: string; _scope: string }

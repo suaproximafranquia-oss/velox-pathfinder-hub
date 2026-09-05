@@ -242,16 +242,45 @@ function UsuariosPage() {
     };
     if (draft.id) {
       persist(users.map((u) => (u.id === draft.id ? { ...(complete as ExecutiveUser) } : u)));
-    } else {
-      const created: ExecutiveUser = {
-        ...(complete as ExecutiveUser),
-        id: newUserId(),
-        password: complete.password || "senha123",
-      };
-      persist([...users, created]);
+      setDraft(null);
+      return;
     }
+    // §5 — a senha existe apenas no mecanismo de autenticação do
+    // servidor. Nada de credencial no navegador.
+    const initialPassword = (complete.password ?? "").trim();
+    if (initialPassword.length < 6) {
+      toast.error("Defina uma senha inicial com pelo menos 6 caracteres.");
+      return;
+    }
+    const created: ExecutiveUser = {
+      ...(complete as ExecutiveUser),
+      id: newUserId(),
+      password: "",
+    };
     setDraft(null);
+    void (async () => {
+      const { provisionarAcessoExecutivo } = await import("@/lib/executive-auth.functions");
+      const result = await provisionarAcessoExecutivo({
+        data: {
+          executiveId: created.id,
+          email: created.email,
+          name: created.name,
+          password: initialPassword,
+        },
+      });
+      if (!result.ok) {
+        toast.error(
+          result.reason === "ja_existe"
+            ? "Já existe um usuário com este e-mail."
+            : "Não foi possível criar o acesso deste usuário.",
+        );
+        return;
+      }
+      persist([...users, created]);
+      toast.success(`Acesso criado para ${created.name}.`);
+    })();
   }
+
 
   if (!session) return null;
 
@@ -374,9 +403,13 @@ function UsuariosPage() {
                 ["email", "E-mail Corporativo", "email", "nome@empresa.com.br"],
                 ["phone", "Telefone", "tel", "(11) 90000-0000"],
                 ["birthDate", "Data de nascimento", "date", ""],
-                ["password", "Senha Inicial", "text", "Definir senha temporária"],
+                ["password", "Senha Inicial", "password", "Definir senha temporária"],
               ] as const
-            ).map(([field, label, type, placeholder]) => (
+            )
+              // A senha só é definida na criação e vai direto para o
+              // servidor; não é guardada nem reexibida no navegador.
+              .filter(([field]) => field !== "password" || !draft.id)
+              .map(([field, label, type, placeholder]) => (
               <div key={field}>
                 <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
                   {label}

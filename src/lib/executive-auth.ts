@@ -190,6 +190,8 @@ const USERS_KEY = "atlas:users:v3";
 const ACTIVE_ROLE_KEY = "atlas:activeRole:v1";
 
 const WORKSPACE_VELOX = "velox";
+/** Workspace padrão das sessões resolvidas pelo servidor. */
+const ACTIVE_WORKSPACE_SEED_ID = WORKSPACE_VELOX;
 const LEAD_ORIGIN_ONLY_USER_IDS = new Set(["usr_joao", "usr_felipe"]);
 
 export const SEED_USERS: ExecutiveUser[] = [
@@ -399,9 +401,16 @@ export function saveUsers(users: ExecutiveUser[]) {
       throw new InvalidExecutiveSlugError(check.message, check.suggestion);
     }
   }
+  // §5 — SENHA NUNCA VAI PARA O NAVEGADOR. O cache local existe apenas
+  // para apresentação; a credencial vive só no mecanismo de
+  // autenticação (Supabase Auth).
   window.localStorage.setItem(
     USERS_KEY,
-    JSON.stringify(users.filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id))),
+    JSON.stringify(
+      users
+        .filter((u) => !LEAD_ORIGIN_ONLY_USER_IDS.has(u.id))
+        .map(({ password: _senha, ...rest }) => ({ ...rest, password: "" })),
+    ),
   );
   // O navegador é apenas espelho: a mesma edição sobe para o servidor,
   // que é quem o motor consulta (WhatsApp do executivo, slug da E0…).
@@ -530,7 +539,11 @@ export async function signInWithCloud(
   password: string,
 ): Promise<ExecutiveSession | null> {
   const session = signIn(email, password);
-  if (!session) return null;
+  // §5 — sem senha no navegador, quem valida a credencial é o servidor:
+  // usuários provisionados pela Gestão de Usuários entram diretamente
+  // pela autenticação oficial e têm a identidade resolvida pela cadeia
+  // Auth → executive_profiles → user_roles.
+  if (!session) return signInFromServer(email, password);
   try {
     const [{ supabase }, { ensureExecutiveAuthUser }] = await Promise.all([
       import("@/integrations/supabase/client"),
@@ -548,6 +561,54 @@ export async function signInWithCloud(
     /* o acesso ao workspace nunca é bloqueado por indisponibilidade externa */
   }
   return session;
+}
+
+/**
+ * Login resolvido inteiramente pelo servidor: a senha é verificada pela
+ * autenticação oficial e o perfil vem da cadeia
+ * `executive_profiles` → `user_roles`. O navegador não decide nada.
+ */
+async function signInFromServer(
+  email: string,
+  password: string,
+): Promise<ExecutiveSession | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const [{ supabase }, { identidadeDoUsuario }] = await Promise.all([
+      import("@/integrations/supabase/client"),
+      import("@/lib/executive-auth.functions"),
+    ]);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (error) return null;
+
+    const identity = await identidadeDoUsuario();
+    if (!identity.executiveId || identity.status === "inativo") {
+      await supabase.auth.signOut();
+      return null;
+    }
+    const role: ExecutiveRole =
+      identity.role === "admin"
+        ? "super_admin"
+        : identity.role === "manager"
+          ? "diretora"
+          : "executivo";
+    const session: ExecutiveSession = {
+      userId: identity.executiveId,
+      workspaceId: ACTIVE_WORKSPACE_SEED_ID,
+      role,
+      activeRole: role,
+      name: identity.name ?? email,
+      email: identity.email ?? email,
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    window.localStorage.removeItem(ACTIVE_ROLE_KEY);
+    return session;
+  } catch {
+    return null;
+  }
 }
 
 export function newUserId(): string {
