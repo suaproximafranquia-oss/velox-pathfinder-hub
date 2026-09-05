@@ -2893,6 +2893,7 @@ export type Database = {
           lead_id: string
           priority: number
           reason: string | null
+          responsible_executive_id: string | null
           result: string | null
           run_id: string | null
           scope: string
@@ -2912,6 +2913,7 @@ export type Database = {
           lead_id: string
           priority?: number
           reason?: string | null
+          responsible_executive_id?: string | null
           result?: string | null
           run_id?: string | null
           scope: string
@@ -2931,6 +2933,7 @@ export type Database = {
           lead_id?: string
           priority?: number
           reason?: string | null
+          responsible_executive_id?: string | null
           result?: string | null
           run_id?: string | null
           scope?: string

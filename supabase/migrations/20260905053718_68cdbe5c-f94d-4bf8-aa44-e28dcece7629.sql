@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.relationship_queue_stamp_responsible() FROM PUBLIC, anon, authenticated;
