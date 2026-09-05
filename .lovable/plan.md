@@ -1,121 +1,196 @@
-# Segunda rodada de análise técnica — Financeira /f (somente leitura)
+# Última rodada arquitetural — Financeira /f (somente leitura)
 
-Nada foi alterado, executado ou criado. Todas as respostas vêm da leitura do código e de consultas de leitura ao banco.
+Nada foi alterado, executado, criado ou enviado. Onde o código atual não permite concluir, está escrito "não determinável no estado atual".
 
-## 1. Marco operacional / leads antigos
+## 1. Contato humano real
 
-- 1.1 Todo item da fila de relacionamento nasce em um único ponto (`upsertQueueItem`, `repository.server.ts`), chamado pelo motor (`engine.ts`) em três situações: agendamento de etapa, item imediato e follow-up.
-- 1.2 A data de vencimento é calculada por dias úteis a partir do último evento (`decide.ts`). Nem `decide.ts` nem `engine.ts` consultam o marco.
-- 1.3 Hoje o marco (`cadence_activation_date` = 2026-09-03) só é lido na **entrada**: ingestão de lead e registro da E0. A decisão do motor, a fila e a Ação do Dia não o consultam.
-- 1.4 Sim, há risco: o cron de sincronização chama o tick do motor, que reavalia qualquer lead com cadência aberta, item vencido ou E0 já registrada — sem filtro por data. Filtrar só na Ação do Dia esconde o efeito, não o impede.
-- 1.5 Recomendação: gravar o marco **no próprio ciclo** (a cadência nasce carimbada como "pós-marco" ou "histórica") e o motor recusar avanço de ciclo histórico. Marco na entrada + carimbo no ciclo + filtro de leitura, nessa ordem de autoridade.
-- 1.6 Outro marco: não. `is_test`/`test_batch_id` controlam simulação, não elegibilidade. Não existe `activated_at` por ambiente.
+- 1.1 Evidências que hoje existem no sistema: primeiro contato enviado; mensagem enviada pelo motor; mensagem enviada manualmente pelo executivo; mensagem recebida do investidor; entrega e leitura da mensagem; conteúdo enviado; ligação registrada como concluída com desfecho atendeu/não atendeu; reunião com desfecho resolvido; agendamento criado; observação escrita; confirmação de nome; interrupção/retomada manual. Só as duas primeiras famílias e a ligação concluída representam tentativa real de alcançar a pessoa.
+- 1.2 Sim, vários parecem contato e não deveriam bloquear reentrada: abertura do card, entrega/leitura técnica da mensagem, observação escrita, criação de agendamento sem conversa, confirmação de nome, mudança de coluna. Nenhum deles prova que a pessoa foi abordada pelo novo responsável.
+- 1.3 Não. Envio bloqueado pela trava não alcança ninguém. Hoje o registro fica com resultado de bloqueio, distinguível do envio real — deve ser tratado como "não houve contato".
+- 1.4 Não. Copiar mensagem não é envio. Hoje, porém, a confirmação "SIM" na Ação do Dia grava exatamente o mesmo evento de mensagem enviada — ou seja, o sistema confia na declaração humana. Essa declaração é o único sinal disponível e deve continuar sendo aceita como contato.
+- 1.5 Não como contato consumado; sim como tentativa. Deve contar para a sequência de tentativas, não para bloquear reentrada em primeira aproximação.
+- 1.6 Sim. Ligação atendida é o contato humano mais forte que o sistema registra.
+- 1.7 Não. Observação é registro interno.
+- 1.8 Não deveria; mas hoje a criação de agenda cancela pendências da fila, ou seja, o motor já a trata como interrupção. É um ponto de divergência entre "interrompe a cadência" e "houve contato".
+- 1.9 Definição técnica recomendada, sem subjetividade: **existe pelo menos um destes registros para o investidor — mensagem efetivamente enviada (automática ou declarada manualmente, com resultado diferente de bloqueado/falha), mensagem recebida do investidor, ou ligação concluída com desfecho atendeu.** Tudo o mais é atividade interna.
 
-## 2. Identidade única
+## 2. Limite da redistribuição
 
-- 2.1 A identidade operacional de fato é o card (`portal_leads.id`, no formato `gs_<id>` ou `ld_<id>`): é essa chave que a fila usa (100% dos itens).
-- 2.2/2.3 Existem duas chaves concorrentes para a mesma pessoa: o espelho da origem (639 registros) e o card (115). A camada canônica existe (`investors` + `investor_identifiers`) mas cobre só 11% do espelho e 78% dos cards. O mesmo investidor pode existir com identificadores diferentes.
-- 2.4 A reconciliação existe (`canonical_investor_id`), porém parcial e não obrigatória; a ingestão não a preenche.
-- 2.5 Caminho recomendado: tornar a criação do card obrigada a resolver/criar a identidade canônica (por telefone normalizado + origem), sem mexer nos IDs já existentes — a identidade passa a ser um vínculo, não uma troca de chave.
-- 2.6 Sim: a Ação do Dia deveria agrupar por identidade canônica e continuar executando sobre o card.
-- 2.7 Impacto real: a trava que impede E0 duplicada é por card, não por pessoa. Dois cards da mesma pessoa hoje podem gerar duas E0. Jornada, notas, reuniões e mensagens também ficam divididas entre os dois IDs.
+- 2.1 Sim. Sem essa trava, alternância entre dois executivos gera primeira aproximação infinita.
+- 2.2 Não. Hoje o card guarda apenas o responsável atual e nunca é reatribuído; não existe registro de titularidade anterior. Nenhuma das quatro situações é distinguível — não determinável no estado atual.
+- 2.3 Não existe nenhum conceito de ciclo de redistribuição.
+- 2.4 Estrutura mínima: um registro de titularidade por lead (executivo anterior, executivo novo, data, origem da mudança) e um contador/identificador de ciclo no próprio card. Isso basta para bloquear repetição e para carimbar a primeira aproximação, sem qualquer estrutura de recuperação.
+- 2.5 Confirmado explicitamente: a futura Retomada (ER) é assunto separado e não deve ser antecipada por esta correção.
 
-## 3. Redistribuição manual no GreenSales
+## 3. Identidade canônica
 
-- 3.1 O responsável vem no pacote da origem (`vendedor_id`).
-- 3.2 Ele **nunca é lido** — o único uso é a definição do tipo. O responsável é resolvido pela conexão que executou a sincronização, não pelo lead.
-- 3.3 Melhor detecção: comparar o responsável da origem com o responsável do card a cada sincronização — não depende de tag.
-- 3.4 Sim, é necessário histórico de titularidade por investidor: hoje o card guarda apenas o dono atual e nunca é reatribuído (o preenchimento tardio só age quando está vazio).
-- 3.5 Distinção viável com o que existe: card inexistente = novo; card existente com responsável diferente = redistribuído; mudança apenas de coluna = mesma titularidade; contato real = existe evento de mensagem/ligação/E0 concluída.
-- 3.6 Disparo correto: o evento "mudança de responsável detectada na sincronização".
-- 3.7 Reutilizar E0. Ela já é a etapa de primeira aproximação e respeita Manual/Automático por executivo; criar outro tipo de entrada criaria um terceiro fluxo.
-- 3.8 A duplicidade é evitada tornando a chave da nova entrada dependente do par lead+responsável (hoje a trava é só por lead), mantendo a mesma natureza atômica de hoje.
-- 3.9 O histórico anterior é preservado naturalmente: nada é apagado; basta o registro de troca de titularidade com data e executivo anterior.
-- ZERO CONTATO em si não bloqueia; o que bloqueia é o lead não ser reconhecido como "entrada" quando as etiquetas não chegam na listagem.
+- 3.1 Prioridade recomendada: telefone normalizado como chave forte; e-mail como chave forte secundária; nome apenas como desempate/confirmação, nunca sozinho. Origem não deve entrar na chave (senão a mesma pessoa vinda de dois canais nunca se une).
+- 3.2 Não. Telefone pode faltar, vir malformado ou ser compartilhado. É suficiente como chave primária de tentativa, não como garantia.
+- 3.3 Não unir automaticamente quando nomes divergem claramente: criar identidades distintas e marcar como conflito para revisão humana. Nunca fundir sozinho.
+- 3.4 É justamente para isso que serve a tabela de identificadores: a identidade recebe um segundo telefone; o antigo permanece vinculado ao histórico.
+- 3.5 Criar identidade sem identificador de telefone, apoiada em e-mail ou apenas local ao card. Nunca bloquear a entrada por falta de telefone.
+- 3.6 Normalizar ambos para o mesmo formato e tratar como o mesmo identificador, distinguindo apenas o canal de envio. Hoje já existe normalização de WhatsApp.
+- 3.7 Sim. Resolver (ou criar) a identidade antes do card evita órfãos e é o único jeito de a trava de primeira aproximação funcionar por pessoa.
+- 3.8 Sim. O card continua sendo a unidade operacional da fila; a identidade é a camada de agrupamento.
+- 3.9/3.10 Recomendado: **apenas vincular, com um card marcado como principal.** Consolidar ou desativar cards apaga história operacional e quebra as filas que referenciam o card antigo. Vincular é reversível; fundir não é.
 
-## 4. Dois motores
+## 4. Primeira aproximação duplicada
 
-- 4.1 Relacionamento: etapas de conteúdo (E/R/RE/RF), sequência obrigatória, fila persistida com estados, encerramento explícito e snapshot de mensagem.
-- 4.2 Ligações: tentativas L2–L5, dias úteis, desfecho atendeu/não atendeu. Não persiste "tarefa pendente" — a fila é recalculada a cada leitura.
-- 4.3 Autoridade recomendada: o motor de relacionamento deve ser dono de etapa atual, próxima etapa, vencimento, encerramento e dependências; o de ligações deve ser dono apenas do **resultado** da ligação, reportado ao primeiro.
-- 4.4 Sim, os dois conduzem o mesmo investidor ao mesmo tempo, por desenho.
-- 4.5 A colisão é apenas atenuada: a cadência de mensagens do módulo antigo está desligada por bandeira e a ligação evita (em até um dia útil) cair no mesmo dia da mensagem — coincidência continua permitida.
-- 4.6 A futura Central de Cadência deve configurar **um único motor**, com ligação como canal desse motor.
-- 4.7 Para não surgirem três motores: uma fila persistida única, com canal como atributo, e um só lugar que calcula vencimento.
+- 4.1 Sim, mas como trava de segundo nível: a trava por card continua, e a identidade evita segunda abordagem à mesma pessoa dentro do mesmo ciclo.
+- 4.2 Mantendo o responsável e o ciclo na chave — a redistribuição abre um novo ciclo e, por isso, libera legitimamente nova primeira aproximação.
+- 4.3/4.4 Melhor representação: **investidor + responsável + ciclo operacional.** "Card + responsável" não impede duplicação entre dois cards da mesma pessoa; "investidor + ciclo" impede a redistribuição legítima.
+- 4.5 Sim, esse é o risco real: usar só investidor bloquearia uma abordagem legítima de novo responsável, e uma reconciliação errada (telefone compartilhado) bloquearia uma pessoa diferente. Por isso a fusão automática deve ser conservadora.
 
-## 5. Histórico de etapas
+## 5. Marco operacional
 
-- 5.1 Fonte mais confiável: o log de eventos do relacionamento (append-only, idempotente), somado à lista de etapas executadas na cadência e ao registro imutável de mensagens enviadas.
-- 5.2 Não é uniforme: para ligações, só existe linha quando concluída — ausência não prova nada.
-- 5.3 Distinguível hoje: executada, cancelada, encerrada (por ciclo) e manual x automática (por texto do resultado). **Não** distinguível: pulada ao nível de etapa e substituída/reagendada.
-- 5.4 Sim para mensagens (estados discretos na fila). Não para ligações (não existe estado pendente persistido).
-- 5.5 Quase: falta um registro de reagendamento/cancelamento por etapa com autor e horário. Sem isso, transições condicionais futuras terão pontos cegos.
-- 5.6 Sem rastro suficiente: ligação não realizada, reagendamento de etapa (a data anterior é sobrescrita) e cancelamento automático (sem autor).
+- 5.1 O marco deve qualificar o **ciclo**: ciclos nascidos antes da data são históricos; ciclos nascidos depois são operacionais. Isso é mais estável do que olhar a data de criação do lead.
+- 5.2 Deve continuar histórica. Um evento novo não deve ressuscitar dívida antiga — exceto se abrir explicitamente um novo ciclo.
+- 5.3 Sim. Redistribuição depois do marco é entrada operacional nova.
+- 5.4 Sim, exatamente: o ciclo é novo, mesmo que a pessoa seja antiga.
+- 5.5 Sim. Primeira aproximação criada manualmente hoje é sempre pós-marco.
+- 5.6 Hoje é único para todo o ambiente (uma configuração global). Um marco por executivo é possível no futuro, mas cria auditoria confusa; recomendação é manter único por ambiente.
+- 5.7 Sim, o Admin deve poder ler e alterar, com registro de quem alterou — hoje é um valor de configuração sem histórico de alteração.
+- 5.8 Risco: qualquer lead pós-marco que dependa de cadência aberta antes da data ficaria sem sequência; e mudar a data retroativamente altera a leitura de todo o passado, porque nada está carimbado no ciclo. Enquanto o marco for só uma data global comparada em tempo de leitura, ele é frágil.
+- 5.9 Melhor opção: carimbar no ciclo, no momento da criação, algo equivalente a `operational_since` (data/hora de nascimento operacional) mais um sinalizador histórico. Nome de época (`cadence_epoch`) só se houver mais de um marco no futuro; hoje é desnecessário.
 
-## 6. Agendamento
+## 6. Ação do Dia — o que é "planejado"
 
-- 6.1 Quase: a tabela de reuniões já tem investidor, executivo, data/hora, duração, estado (7 valores), origem, motivo de cancelamento e observações.
-- 6.2 Falta: histórico de alterações e um estado explícito de comparecimento (hoje "compareceu/não compareceu" vira Concluída/Cancelada).
-- 6.3 O reagendamento **sobrescreve** a data; a data anterior não fica na tabela (só o novo horário aparece no log).
-- 6.4/6.5 Não existe vínculo estrutural com etapa/fluxo — a reunião e a fila são apenas mescladas na mesma lista do dia. Esse vínculo precisará ser criado.
+- 6.1 Sim. A fila em tempo real é o comportamento correto para o executivo.
+- 6.2 Sim — snapshot **apenas para auditoria administrativa**, sem influenciar a operação.
+- 6.3 Todos os campos listados são adequados; acrescentar a chave da ação (para casar com execução/pulo) e o ambiente.
+- 6.4 O snapshot deve representar o início do dia, e ser complementado por acréscimos do dia (uma linha por ação com o horário em que ela apareceu). Só o início do dia esconderia trabalho legítimo.
+- 6.5 O dia operacional deve começar no início da janela de envio (a operação já usa 09:00, com fechamento às 22:00) no fuso de São Paulo.
+- 6.6 Sim, marcada como surgida às 14h.
+- 6.7 Sim — planejada e executada, com os dois horários. Caso contrário o relatório subnotifica produção.
 
-## 7. Notas do executivo
+## 7. Semântica de Pular
 
-- 7.1/7.2 A observação registrada na Ação do Dia é gravada em dois lugares ao mesmo tempo: log técnico e linha do tempo do investidor, ligada ao ID do card.
-- 7.3 São camadas diferentes: linha do tempo = leitura humana por investidor; log técnico = auditoria; "Nota do Executivo" é um terceiro caminho que grava só na linha do tempo.
-- 7.4 Fonte oficial recomendada: a linha do tempo do investidor; o log técnico permanece como auditoria.
-- 7.5 Sim — e hoje pior: a tela que grava a "Nota do Executivo" não está ligada a nenhuma rota do aplicativo (código órfão), e a ficha atual não exibe notas.
-- 7.6 Recomendação: uma fonte de leitura (linha do tempo) + um log de auditoria; nada de terceiro histórico.
+- 7.1 Resposta: **E — depende do tipo**, com regra fixa por tipo (não à escolha do executivo).
+- 7.2 Comportamento recomendado por tipo:
+  - Primeira aproximação: nunca some; volta no próximo dia útil (é obrigação de entrada).
+  - Mensagem de etapa: sai do dia e volta no próximo dia útil, sem avançar a etapa.
+  - Ligação: sai do dia e conta como tentativa não realizada; a tentativa continua devida.
+  - Reunião: não pode ser pulada — só reagendada, cancelada ou resolvida.
+  - Compromisso de agenda: pode ser pulado e desaparecer do dia, pois é item pessoal.
+  Hoje, na prática, tudo é tratado igual: o pulo suprime o item **apenas naquele dia**, por chave de ação e data.
+- 7.3 Hoje significa "não executei hoje": não existe registro de tentativa perdida. Semanticamente deveria ser "não executado por decisão, com justificativa".
+- 7.4 Sim, os cinco são situações distintas e hoje só três existem: pulou (Ação do Dia), cancelou (fila) e reagendou (reunião). "Não executou" e "não conseguiu executar" não existem — não determinável no estado atual.
+- 7.5 Sim. Sem esses estados, transições condicionais futuras (ex.: três recusas seguidas ⇒ mudar de fluxo) não têm base.
 
-## 8. Relatório administrativo
+## 8. Ligação como canal
 
-- 8.1 Parcialmente: executado e pulado são reconstruíveis; **planejado não é** — ele é calculado na hora e nunca fotografado.
-- 8.2 Fonte principal: o log de ações do dia (vocabulário fechado de eventos), unido às tarefas de ligação concluídas.
-- 8.3 Executado x pulado por executivo e por dia: sim. Planejado histórico: só com uma foto diária.
-- 8.4 Já são gravados quem clicou e de quem é o lead — porém dentro do campo livre, não em coluna própria.
-- 8.5 A justificativa do pulo é obrigatória (mínimo 3 caracteres) e persistida.
-- 8.6/8.7 Recomendação: calcular a partir do histórico e persistir apenas uma foto diária do planejado — sem tabela agregada de resultados.
+- 8.1 Não. Ligação não deve virar etapa da mesma numeração E/R/RE/RF — isso obrigaria renumerar toda a Biblioteca.
+- 8.2 Correto: **canal associado a uma etapa**, exatamente como no exemplo E3 → canal ligação e/ou mensagem.
+- 8.3 Dependência recomendada: a ligação é a primeira tentativa da etapa; a mensagem é o complemento da mesma etapa.
+- 8.4 Sim: ligação não atendida libera a mensagem da etapa.
+- 8.5 Não cancelada automaticamente — depende do desfecho. Ligação atendida com conversa produtiva deve dispensar a mensagem daquela etapa; ligação atendida sem avanço não deveria.
+- 8.6 Sim. Reunião marcada é interrupção: as ações posteriores devem ser recalculadas a partir dela (o motor já cancela pendências quando surge agendamento).
+- 8.7 Sim, obrigatoriamente. Hoje o desfecho da ligação é apenas SIM/NÃO em uma fila separada e o motor de mensagens nunca o recebe.
+- 8.8 Fonte de verdade do próximo passo deve ser **o motor de relacionamento**, alimentado pelos resultados de todos os canais.
 
-## 9. Permissões da Gestora
+## 9. Biblioteca
 
-- 9.1 Sim, hoje ela vê tudo, mas por regra de aplicação; o acesso ao banco é feito com credencial administrativa que ignora as políticas.
-- 9.2 A distinção já existe no código: modo supervisão (vê responsável, origem, situação) x completo (dono do relacionamento, vê conteúdo privado).
-- 9.3 Manter supervisão de leitura e nunca colocá-la como responsável de card — a Ação do Dia é montada por responsável, então ela não recebe ações alheias.
-- 9.4 Sim: Admin com poder de correção; Gestora com leitura ampla e justificativas.
-- Achado relevante: a tabela de papéis do banco tem uma única linha (Admin). A Gestora não existe como "manager" ali — se algum dia a leitura passar a respeitar as políticas, ela perde a visão silenciosamente.
+- 9.1 Confirmado: há garantia técnica de uma única versão ativa por etapa.
+- 9.2 Regra recomendada: **uma ativa por combinação etapa + variante de nome + assinatura**; duas mensagens livres para a mesma etapa devem ser proibidas.
+- 9.3 Sim, é exatamente a recomendação — e é o que o modelo atual já suporta.
+- 9.4 Sim. O conteúdo (link e rótulo) deve permanecer dentro da própria mensagem, como está hoje.
+- 9.5 Confirmado: vídeo, link, texto, orientação e assinatura são atributos da mensagem, não entidades operacionais separadas. O sistema antigo de conteúdos já foi removido; resta apenas o agrupamento por finalidade dentro da configuração do motor.
 
-## 10. Central de Alertas
+## 10. Central de Nomes
 
-- 10.1/10.2 Não há tabela de alertas: tudo é recalculado no navegador a partir de investidores, reuniões e jornadas.
-- 10.3 Sim — a lista fica guardada no navegador (três chaves locais, limitadas a 300/500 itens).
-- 10.4 Não há invalidação por relevância, apenas descarte dos mais antigos por limite.
-- 10.5 Sim: um alerta antigo pode apontar para investidor que não existe mais; a tela mostra o cartão sem contato. Isso explica plausivelmente o caso "Augusto" sem qualquer dado semeado.
+- 10.1 Sim. Ela decide o tratamento usado nas mensagens.
+- 10.2 Não deve alterar cadastro. Hoje ela não altera — trabalha sobre o nome recebido.
+- 10.3 Sim. A rejeição manual já é persistente e deve continuar.
+- 10.4 Deve alterar somente o tratamento; o nome cadastral pertence à origem/investidor.
+- 10.5 Precedência recomendada: nome confirmado pelo próprio investidor > correção do executivo > detecção automática > nome bruto da origem.
 
-## 11. Apresentação digital / E20
+## 11. Reuniões
 
-- 11.1/11.2 Capítulos são versionados e publicados; a emissão cria uma ocorrência ligada ao lead, assinada pelo executivo responsável real.
-- 11.3 A emissão é feita pela função de emissão da E20, que encerra ocorrência anterior aberta antes de abrir a nova.
-- 11.4/11.5 Não há envio: é geração de link e texto para cópia manual, com registro humano de "enviado". Por isso não passa pela trava global — que continua ativa nos caminhos reais de envio. Recomendação: se um dia a E20 enviar sozinha, ela precisa passar pela trava.
-- 11.6/11.7 Sim: cada emissão congela o roteiro e o texto; alterações posteriores não afetam ocorrências já emitidas. A imutabilidade é garantida pelo aplicativo, não por regra de banco.
+- 11.1 Reagendar deve criar nova ocorrência ligada à anterior. Hoje sobrescreve.
+- 11.2 Sim, o compromisso original deve permanecer visível.
+- 11.3 Comparecimento deve ser **resultado**, não estado — o estado é agendada/cancelada/concluída.
+- 11.4 Sim, são situações diferentes e hoje ambas caem no mesmo desfecho de cancelamento.
+- 11.5 Sim; hoje há apenas quem atualizou por último, sem histórico de alterações.
+- 11.6 Sim; hoje não há qualquer vínculo com a etapa que gerou a reunião.
+- 11.7 O **motor**, a partir do resultado da reunião. Executivo e regra configurada influenciam por meio do resultado registrado, não decidindo diretamente.
 
-## 12. Resíduos
+## 12. Notas e histórico
 
-- 12.1 Sujeira inofensiva: a coluna de ambiente do espelho (nunca lida) e a "fotografia" documental das etapas. Podem causar comportamento incorreto: os quatro dicionários de etapas simultâneos e a segunda lista de conteúdos usada na homologação (pode divergir do que o motor decide).
-- 12.2 Preservar: aliases históricos e etapas legadas da Biblioteca (mensagens antigas continuam legíveis).
-- 12.3 Antes da Central de Cadência: unificar os dicionários de etapas em uma fonte única.
-- 12.4 Dependência escondida: a exigência de conteúdo por etapa é derivada da configuração — mexer nela altera diagnósticos da Biblioteca.
-- Não há cache de mensagens: a versão ativa é sempre lida do banco na hora.
+- 12.1 Sim: a nota do executivo deve ser apenas um evento na linha do tempo.
+- 12.2 Sim, um tipo próprio de nota do executivo, para separá-la de eventos do motor.
+- 12.3 Sim aos seis campos. Hoje autor, data/hora e investidor existem; ação relacionada e etapa só de forma indireta.
+- 12.4 Visível para o executivo responsável, Admin e Gestora — sendo nota operacional, não conteúdo privado de conversa.
+- 12.5 Não recomendado. Nota privada por executivo cria histórico invisível e conflita com supervisão.
 
-## 13. Conclusão
+## 13. Gestora e Admin
 
-**A) Já decidíveis:** motor de relacionamento como autoridade única de etapa/vencimento; identidade canônica como vínculo obrigatório na criação do card; responsável da origem passa a ser lido; linha do tempo como fonte oficial de nota; dicionário único de etapas.
+- 13.1/13.2 Recomendação: **formalizar como papel do sistema**, mantendo o perfil funcional como consequência. Hoje a autoridade dela existe só numa lista dentro do código, enquanto o banco só conhece Admin.
+- 13.3 Garantia: popular o papel no banco antes de qualquer mudança de acesso e ter uma verificação que falhe visivelmente (tela de erro) em vez de simplesmente devolver lista vazia.
+- 13.4 Sim, a separação de três níveis é a correta e já corresponde ao modelo de acesso existente (completo x supervisão).
+- 13.5 Somente dados operacionais. Conteúdo privado deve permanecer restrito ao responsável — é assim que o código já se comporta.
 
-**B) Precisam de regra de negócio:** o que conta como "contato real" para reabrir E0; se a redistribuição reinicia o ciclo ou só troca o dono; política de comparecimento/reagendamento; escopo exato do que a Gestora pode ler.
+## 14. Alertas
 
-**C) Seguro implementar:** carimbo de marco no ciclo; histórico de titularidade; foto diária do planejado; vínculo reunião↔etapa; ligar a nota do executivo a uma tela real.
+- 14.1 Sim, recomendo eliminar a persistência da lista de alertas no navegador.
+- 14.2 Manter no navegador apenas preferências e marcações visuais (lido, dispensado).
+- 14.3 Sim, sempre derivado dos registros atuais.
+- 14.4 Correto: nenhum alerta deve existir sem entidade válida.
+- 14.5 Investidor removido ⇒ alerta desaparece; investidor mesclado ⇒ alerta aponta para a identidade resultante.
 
-**D) Não implementar ainda:** unificação dos dois motores; troca de chave primária de identidade; Central de Cadência configurável; redistribuição automática.
+## 15. Apresentação Digital / E20
 
-**E) Dependências:** identidade canônica antecede redistribuição e relatório; histórico por etapa antecede transições condicionais; dicionário único antecede a Central de Cadência.
+- 15.1 Sim, manter manual por enquanto — é o que mantém a E20 fora do caminho de envio automático.
+- 15.2/15.3 Hoje "enviado" é uma **declaração humana**; o sistema distingue apenas "emitido/link gerado" de "declarado enviado". Não distingue "copiado". Confirmação de recebimento não existe.
+- 15.4 Modelo futuro: três estados explícitos — emitido, entregue ao investidor (declarado) e acessado (já existe registro de acesso ao link).
+- 15.5 Sim, E20 deve ser etapa do mesmo motor, como já é conceitualmente.
+- 15.6 Sim, bloquear etapas posteriores até a confirmação é coerente com a natureza de fechamento da E20.
+- 15.7 Sim; a imutabilidade deve continuar, e é reforçável no banco no futuro.
 
-**F) Ordem recomendada:** 1) marco no ciclo; 2) identidade canônica obrigatória; 3) leitura do responsável da origem + histórico de titularidade; 4) rastro por etapa (reagendou/cancelou/pulou, com autor); 5) reunião como entidade ligada ao fluxo; 6) relatório administrativo; 7) dicionário único de etapas; 8) só então Central de Cadência.
+## 16. Dicionário de etapas
+
+- 16.1 Fonte canônica: a configuração executável do motor (`config.ts`) — é ela que decide.
+- 16.2 Sim, os rótulos devem ser derivados dessa mesma fonte.
+- 16.3 A fotografia atual pode continuar, mas **apenas como documentação**, nunca consultada por código de decisão.
+- 16.4 Preservar aliases num mapa único de tradução (chave antiga → chave atual), separado da lista de etapas vigentes.
+- 16.5 Sim: as chaves de etapa estão gravadas em fila, eventos, cadências, envios e Biblioteca. Nenhuma chave já usada pode ser renomeada — só traduzida.
+
+## 17. Legado
+
+- 17.1 Não apagar (histórico operacional): eventos do relacionamento, fila, cadências, envios de mensagem com texto congelado, decisões, log do motor, linha do tempo, tarefas de ligação, ações de primeira aproximação, reuniões, ocorrências e acessos da E20, capítulos da apresentação, mensagens da Biblioteca (inclusive versões antigas), lotes de teste e backups.
+- 17.2 Pode sair com segurança: coluna de ambiente do espelho (nunca lida), canal de mensagem desligado por bandeira dentro do módulo de ligações, dicionários de etapas duplicados, lista paralela de conteúdos da homologação, documentação e comentários residuais.
+- 17.3 Classificação: **código morto** = canal desligado, dicionários duplicados, tela de nota órfã; **tabela histórica** = tudo do 17.1; **alias** = chaves antigas de etapa (preservar como tradução); **dado operacional** = fila, cadências, cards, reuniões; **documentação** = fotografia das etapas e roteiro; **seed** = conteúdo inicial da Biblioteca (só remover depois que houver versão publicada própria); **cache** = alertas e eventos guardados no navegador (descartáveis).
+
+## 18. Central de Cadência
+
+- 18.1/18.2 Devem ir para o banco (configuráveis): dias e intervalos entre etapas, horários da janela, feriados, textos e links das mensagens, rótulos e ativação/desativação de etapas. Devem permanecer em código: ordem estrutural dos fluxos, condições de transição, regras de interrupção e encerramento, idempotência e a trava de envio.
+- 18.3 Sim, o risco é real: cadência 100% configurável vira uma linguagem de programação sem tipos, impossível de testar. A separação acima é a proteção.
+- 18.4 Mínimo para o Admin: intervalos, janela/feriados, conteúdo das mensagens e ligar/desligar etapa.
+- 18.5 Sim. O motor deve continuar com regras estruturais em código mesmo depois da Central.
+
+## 19. Retomada futura (só conceito)
+
+- 19.1 Confirmado: totalmente separada da correção de redistribuição manual.
+- 19.2 O fluxo descrito é coerente com o modelo atual, mas **nada dele existe hoje** — sequência ER, fila de recuperação e arquivo não estão implementados; portanto é conceito, não determinável no estado atual.
+- 19.3 Sim, conceitualmente antigos responsáveis ficam inelegíveis naquele ciclo.
+- 19.4 Sim, três responsáveis por ciclo é o limite conceitual assumido.
+- 19.5 Confirmado: só após aprovação específica.
+
+## 20. Conclusão
+
+**A. Já definidas:** definição de contato real (1.9); ciclo como portador do marco; identidade por vínculo, nunca fusão automática; chave de primeira aproximação = investidor + responsável + ciclo; ligação como canal da etapa; motor como fonte única do próximo passo; uma mensagem ativa por etapa+variante+assinatura, com conteúdo dentro dela; Central de Nomes só decide tratamento; linha do tempo como fonte humana; alerta sempre derivado; E20 manual; configuração executável como dicionário canônico.
+
+**B. Precisam de decisão do negócio:** se agendamento sem conversa conta como contato; se ligação atendida sem avanço dispensa a mensagem da etapa; limite de redistribuições e prazo de inelegibilidade; se a Gestora vira papel formal agora; horário exato do início do dia operacional; se o marco é alterável pelo Admin.
+
+**C. Podem ser implementadas:** carimbo operacional no ciclo; histórico de titularidade; leitura do responsável vindo da origem; resolução da identidade antes do card; snapshot diário de auditoria; estados de pulo/cancelamento/reagendamento por etapa; vínculo reunião↔etapa e reagendamento como nova ocorrência; tipo próprio de nota; alertas derivados; dicionário único de etapas.
+
+**D. Devem esperar:** unificação dos dois motores; ligação como canal do motor; Central de Cadência; Retomada/ER; qualquer fusão de cards; automação de envio da E20.
+
+**E. Dependências:** contato real ⇒ redistribuição; identidade ⇒ trava de primeira aproximação e relatório; histórico de titularidade ⇒ limite de redistribuição; estados de execução ⇒ relatório e transições condicionais; resultado estruturado da ligação ⇒ motor único; dicionário único ⇒ Central de Cadência.
+
+**F. Riscos de regressão:** reconciliação agressiva unindo pessoas distintas pelo mesmo telefone; marco carimbado no ciclo despertando dívida antiga se aplicado ao contrário; trava por identidade impedindo primeira aproximação legítima; mudança de chave de etapa quebrando fila/eventos já gravados; migrar leitura para políticas de banco e deixar a Gestora sem acesso; mexer na fila de ligações sem preservar as tarefas concluídas.
+
+**G. Ordem recomendada:** 1) definição de contato real como função única e auditável; 2) carimbo operacional no ciclo; 3) identidade resolvida antes do card (só vínculo); 4) leitura do responsável da origem + histórico de titularidade + limite de ciclo; 5) primeira aproximação por investidor+responsável+ciclo; 6) estados de execução (pulou/cancelou/reagendou/não executou); 7) snapshot diário de auditoria e relatório; 8) reunião ligada à etapa; 9) papel formal da Gestora; 10) dicionário único; 11) resultado estruturado da ligação; 12) Central de Cadência; 13) Retomada.
+
+**H. Não mexer:** a trava global de envio de WhatsApp e todos os seus pontos de saída; o isolamento entre `/f`, `/s`, `/seg` e a página institucional; dados reais do Portal e da integração de origem; histórico já gravado (eventos, envios, ocorrências, reuniões, linha do tempo, backups); chaves de etapa já persistidas; Thiago Rodrigues e os registros preservados no reset.
+
+**I. Prioridades:** P0 — contato real, carimbo do ciclo, identidade antes do card, responsável da origem + histórico de titularidade, trava de primeira aproximação. P1 — estados de execução, snapshot/relatório, reunião ligada à etapa, resultado estruturado da ligação. P2 — papel formal da Gestora, alertas derivados, dicionário único, tipo próprio de nota. P3 — limpeza de código morto, documentação, três estados da E20, Central de Cadência.
