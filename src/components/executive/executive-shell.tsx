@@ -32,7 +32,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   getSession,
   signOut,
-  canManageUsers,
   availableRoles,
   setActiveRole,
   ROLE_LABEL,
@@ -46,7 +45,6 @@ import { GoogleStatusIndicator } from "@/components/executive/google-status-indi
 import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
 import type { WorkspaceResource } from "@/lib/workspace-authorization";
-import { useAdministrativeAccess } from "@/hooks/use-administrative-access";
 
 export function ExecutiveShell({
   session,
@@ -63,7 +61,6 @@ export function ExecutiveShell({
 }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const administrativeAccess = useAdministrativeAccess() === true;
 
   useEffect(() => {
     void (async () => {
