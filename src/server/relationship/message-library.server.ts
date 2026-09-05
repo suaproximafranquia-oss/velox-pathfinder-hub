@@ -18,7 +18,11 @@
  *    legível em vez de inventar mensagem.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { isKnownStep, unknownStepReason } from "@/lib/relationship/step-registry";
+import {
+  isKnownStep,
+  registerKnownSteps,
+  unknownStepReason,
+} from "@/lib/relationship/step-registry";
 import {
   HOMOLOGATION_MESSAGES,
   renderMessageSpec,
