@@ -403,7 +403,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
     <div className="min-h-screen">
       <PortalHeader homePath={homePath} />
       <main>
-        <Hero />
+        <Hero brandKey={brandKey} />
         {resume && !active && (
           <ResumeBanner
             title={resume.title}
@@ -548,7 +548,14 @@ function PortalHeader({ homePath }: { homePath: InvestorPortalHomeProps["homePat
   );
 }
 
-function Hero() {
+function Hero({ brandKey }: { brandKey: string }) {
+  /**
+   * Cor base do overlay do Hero. A Financeira mantém o azul institucional
+   * original; a Solar usa o verde da identidade (#71be66). A transparência
+   * (alpha) de cada ponto do degradê permanece inalterada.
+   */
+  const overlayBase = brandKey === "solar" ? "#71be66" : "var(--brand-blue-deep)";
+
   return (
     <section className="relative isolate overflow-hidden -mt-[88px]">
       {/* Fotografia institucional como cenário integral */}
@@ -567,7 +574,7 @@ function Hero() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, color-mix(in oklab, var(--brand-blue-deep) 34%, transparent) 0%, color-mix(in oklab, var(--brand-blue-deep) 26%, transparent) 45%, color-mix(in oklab, var(--brand-blue-deep) 32%, transparent) 78%, color-mix(in oklab, var(--brand-blue-deep) 62%, transparent) 100%)",
+              `linear-gradient(180deg, color-mix(in oklab, ${overlayBase} 34%, transparent) 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 32%, transparent) 78%, color-mix(in oklab, ${overlayBase} 62%, transparent) 100%)`,
           }}
         />
         <div
@@ -583,7 +590,7 @@ function Hero() {
           className="absolute inset-x-0 bottom-0 h-56"
           style={{
             background:
-              "linear-gradient(180deg, transparent 0%, color-mix(in oklab, var(--brand-blue-deep) 45%, transparent) 45%, color-mix(in oklab, var(--brand-blue-deep) 88%, transparent) 82%, var(--brand-blue-deep) 100%)",
+              `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 45%, transparent) 45%, color-mix(in oklab, ${overlayBase} 88%, transparent) 82%, ${overlayBase} 100%)`,
           }}
         />
         <div aria-hidden className="absolute inset-0 portal-grid opacity-[0.08]" />
