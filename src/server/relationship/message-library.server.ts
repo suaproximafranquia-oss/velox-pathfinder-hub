@@ -56,6 +56,8 @@ export type LibraryMessage = {
   /** Procedência do conteúdo: "word" quando veio do documento oficial. */
   sourceKind: string | null;
   sourceReference: string | null;
+  /** Posição VISUAL na Biblioteca (Bloco 3). Não é ordem do motor. */
+  displayPosition: number | null;
   /**
    * A etapa ainda não pode ser enviada pelo motor: ou não há texto
    * oficial, ou o texto existe mas aguarda ativação pela Gestão.
