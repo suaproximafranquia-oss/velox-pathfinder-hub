@@ -431,6 +431,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
         )}
         <ModulesGrid
           unlocked={unlocked}
+          brandKey={brandKey}
           onOpen={(m) => {
             const mod = getPortalModule(m.moduleKey);
             if (!mod) return;
