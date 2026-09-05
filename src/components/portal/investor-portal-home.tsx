@@ -722,7 +722,7 @@ function ModulesGrid({
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((m) => (
+          {modules.map((m) => (
             <ModuleTile
               key={m.key}
               module={m}
