@@ -10,6 +10,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { EngineRepository } from "@/lib/relationship/ports";
 import type { TemplateResolver } from "@/lib/relationship/templates";
 import { initialRecord } from "@/lib/relationship/machine";
+import { getPublishedVersion } from "./flow-versions.server";
 import type {
   CadenceRecord,
   CadenceStep,
@@ -29,6 +30,8 @@ function toRecord(row: Row): CadenceRecord {
     state: row.state,
     previousState: row.previous_state ?? null,
     flow: row.flow,
+    flowVersionId: row.flow_version_id ?? null,
+    flowVersion: row.flow_version ?? null,
     currentStep: row.current_step ?? null,
     executedSteps: (row.executed_steps ?? []) as CadenceStep[],
     startedAt: row.started_at ?? null,
@@ -67,6 +70,7 @@ function toQueueItem(row: Row): QueueItem {
     executedAt: row.executed_at ?? null,
     result: row.result ?? null,
     reason: row.reason ?? null,
+    flowVersionId: row.flow_version_id ?? null,
   };
 }
 
@@ -145,9 +149,20 @@ export function createRepository(scope: EngineScope, runId: string | null = null
           .eq("id", current.id);
         return;
       }
-      await supabaseAdmin
-        .from("relationship_cadences")
-        .insert({ ...payload, instance_seq: 1, active: true } as any);
+      /**
+       * BLOCO 4 §4 — NASCIMENTO DO CICLO: a versão PUBLICADA do fluxo é
+       * congelada aqui, uma única vez. Nenhuma atualização posterior
+       * altera esta versão; publicar uma versão nova vale apenas para
+       * ciclos futuros.
+       */
+      const published = await getPublishedVersion(record.flow).catch(() => null);
+      await supabaseAdmin.from("relationship_cadences").insert({
+        ...payload,
+        instance_seq: 1,
+        active: true,
+        flow_version_id: published?.id ?? null,
+        flow_version: published?.version ?? null,
+      } as any);
     },
 
     /** Idempotência: a mesma chave de evento nunca produz dois efeitos. */
@@ -197,6 +212,8 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         executed_at: item.executedAt,
         result: item.result,
         reason: item.reason,
+        // Versão herdada do ciclo: a ação pendente continua explicável.
+        flow_version_id: item.flowVersionId ?? null,
         updated_at: new Date().toISOString(),
       };
       const { data, error } = await supabaseAdmin
