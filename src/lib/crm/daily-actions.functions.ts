@@ -159,3 +159,49 @@ export const rescheduleMeetingFn = createServerFn({ method: "POST" })
     await rescheduleMeeting({ ...data, userId: context.userId, executiveId });
     return { ok: true as const };
   });
+
+/**
+ * HISTÓRICO COMPLEMENTAR DA AÇÃO DO DIA (ligação e primeiro contato).
+ *
+ * NÃO executa nada: a ligação e a E0 continuam sendo concluídas pelas
+ * suas próprias funções oficiais. Aqui apenas o acontecimento vira uma
+ * linha nas Notas do Executivo do MESMO investidor (`leadId`).
+ */
+export const recordDailyActionHistoryFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      actionKey: string;
+      leadId: string | null;
+      step: string | null;
+      event: "ligacao" | "primeiro_contato" | "whatsapp";
+      outcome?: string | null;
+      note?: string | null;
+    }) => data,
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { historyHeadline, recordDailyActionHistory } = await import(
+      "@/server/crm/daily-actions-history.server"
+    );
+    const nowIso = new Date().toISOString();
+    const label =
+      data.event === "primeiro_contato"
+        ? "Primeiro contato registrado"
+        : data.event === "whatsapp"
+          ? "WhatsApp aberto pelo Executivo"
+          : "Ligação realizada";
+    await recordDailyActionHistory({
+      leadId: data.leadId,
+      sourceKey: `acao_do_dia:${data.actionKey}:${data.event}:${nowIso}`,
+      headline: historyHeadline(label, data.step, nowIso),
+      sections: [
+        { label: "Resultado", value: data.outcome ?? null },
+        { label: "Observação", value: data.note ?? null },
+      ],
+      executiveId,
+      userId: context.userId,
+    });
+    return { ok: true as const };
+  });
