@@ -448,7 +448,7 @@ export function CentralOperacoesHome() {
                   ))}
                   {report.executives.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-6 text-center text-[color:var(--muted-foreground)]">
+                      <td colSpan={9} className="px-4 py-6 text-center text-[color:var(--muted-foreground)]">
                         Nenhuma ação no período.
                       </td>
                     </tr>
