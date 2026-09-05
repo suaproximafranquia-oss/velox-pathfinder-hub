@@ -174,7 +174,14 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     };
   }
 
-  const definition = STEPS[step];
+  const definition = STEPS[step] ?? {
+    step,
+    flow: record.flow,
+    businessDaysAfterReference: 0,
+    templatePurpose: "conteudo_relacionamento",
+    contentGroup: null,
+    terminal: false,
+  };
   /**
    * COMANDO 4A §8 — a E30 é contada a partir do INÍCIO DA JORNADA
    * (regra já definida em `reactivation.ts`), não da última mensagem.
