@@ -8,6 +8,7 @@
 import { dueMomentAfterBusinessDays, isEligibleMoment, nextEligibleMoment } from "./calendar";
 import { FLOW_SEQUENCE, RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { blocksAutomation, isWindowOpen } from "./machine";
+import { planBusinessDays, planSequence, type FlowPlan } from "./flow-plan";
 import { isTerminalStage, isAutomationEligibleStage } from "./closing";
 import type { CadenceFlow, CadenceRecord, CadenceStep, EngineAction } from "./types";
 
