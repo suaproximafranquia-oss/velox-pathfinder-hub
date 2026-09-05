@@ -2545,6 +2545,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           created_by_name: string
+          display_position: number | null
           id: string
           import_version: number | null
           imported_at: string | null
@@ -2574,6 +2575,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_name?: string
+          display_position?: number | null
           id?: string
           import_version?: number | null
           imported_at?: string | null
@@ -2603,6 +2605,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_name?: string
+          display_position?: number | null
           id?: string
           import_version?: number | null
           imported_at?: string | null
