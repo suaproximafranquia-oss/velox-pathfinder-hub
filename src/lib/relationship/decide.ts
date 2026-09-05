@@ -149,11 +149,12 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     };
   }
 
-  const step = nextStep(record);
+  const plan = ctx.flowPlan ?? null;
+  const step = nextStep(record, plan);
   if (!step) {
     return { kind: "none", reason: "Todas as etapas do fluxo já foram executadas." };
   }
-  if (!isStepInOrder(record.flow, step, record.executedSteps)) {
+  if (!isStepInOrder(record.flow, step, record.executedSteps, plan)) {
     return { kind: "none", reason: `Etapa ${step} fora de ordem no fluxo ${record.flow}.` };
   }
   if (record.executedSteps.includes(step)) {
