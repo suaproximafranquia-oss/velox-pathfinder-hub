@@ -53,6 +53,12 @@ import {
 } from "@/lib/simulator-history";
 import { formatBRL } from "@/lib/simulator-products";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { E20Panel } from "@/components/executive/workspace/e20-panel";
 import { E0Panel } from "@/components/executive/workspace/e0-panel";
 
@@ -956,6 +962,7 @@ function TabComentarios({ investor }: { investor: Investor; session: ExecutiveSe
   const [legacy, setLegacy] = useState<InvestorComment[]>([]);
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState<InvestorNoteView | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -1047,6 +1054,25 @@ function TabComentarios({ investor }: { investor: Investor; session: ExecutiveSe
           ))}
         </ul>
       )}
+
+      <Dialog open={!!open} onOpenChange={(v) => !v && setOpen(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Registro do histórico</DialogTitle>
+          </DialogHeader>
+          {open ? (
+            <div className="space-y-2">
+              <div className="text-[11px] text-[color:var(--muted-foreground)]">
+                {open.authorName ?? "Executivo"} ·{" "}
+                {new Date(open.createdAt).toLocaleString("pt-BR")}
+              </div>
+              <p className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm">
+                {open.body}
+              </p>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
