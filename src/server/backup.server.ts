@@ -177,8 +177,8 @@ export const RETENTION = {
   snapshotHour: 23,
 } as const;
 
-/** Fuso oficial da operação — reutiliza a definição já existente. */
-export { OPERATIONAL_TIME_ZONE as BACKUP_TIME_ZONE } from "@/lib/crm/daily-actions";
+/** Fuso oficial da operação — reutiliza a definição central já existente. */
+export const BACKUP_TIME_ZONE = OPERATIONAL_TIME_ZONE;
 
 /**
  * Data operacional (YYYY-MM-DD) e hora (0–23) de um ponto, no fuso da
@@ -186,14 +186,13 @@ export { OPERATIONAL_TIME_ZONE as BACKUP_TIME_ZONE } from "@/lib/crm/daily-actio
  * a fonte; caso contrário usa-se o instante da criação.
  */
 export function backupSlot(row: Row): { date: string; hour: number } {
-  const { OPERATIONAL_TIME_ZONE } = require_tz();
   const iso = String(row["reference_hour"] ?? row["created_at"] ?? "");
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return { date: "", hour: -1 };
-  const day = date.toLocaleDateString("en-CA", { timeZone: OPERATIONAL_TIME_ZONE });
+  const day = operationalDate(date);
   const hour = Number(
     date.toLocaleString("en-GB", {
-      timeZone: OPERATIONAL_TIME_ZONE,
+      timeZone: BACKUP_TIME_ZONE,
       hour: "2-digit",
       hour12: false,
     }),
@@ -201,9 +200,6 @@ export function backupSlot(row: Row): { date: string; hour: number } {
   return { date: day, hour: Number.isNaN(hour) ? -1 : hour };
 }
 
-function require_tz(): { OPERATIONAL_TIME_ZONE: string } {
-  return { OPERATIONAL_TIME_ZONE: "America/Sao_Paulo" };
-}
 
 
 /**
