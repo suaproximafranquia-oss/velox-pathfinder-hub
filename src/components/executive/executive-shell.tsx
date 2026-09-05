@@ -158,6 +158,11 @@ export function ExecutiveShell({
    */
   const centrais = [
     { to: unitPath("/executivo/captacao"), label: "Central de Captação", icon: Radar },
+    /* Central de Operações — leitura gerencial consolidada. Restrita a
+       quem tem permissão administrativa/gestão (user_roles). */
+    ...(administrativeAccess
+      ? [{ to: unitPath("/executivo/central-operacoes"), label: "Central de Operações", icon: Activity }]
+      : []),
     /* Central de Templates saiu do menu: os templates da Meta são
        geridos pela Biblioteca oficial e pelo Motor. */
 
