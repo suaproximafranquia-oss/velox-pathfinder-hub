@@ -77,6 +77,14 @@ export async function dispatchFirstContact(input: {
   ownerId: string | null;
   /** Decisão de ambiente já tomada pelo chamador (`executionMode`). */
   simulated: boolean;
+  /**
+   * NOVA ENTRADA OPERACIONAL (BLOCO 2). Ausente = comportamento
+   * histórico intacto (uma única E0 por card). Presente = a chave de
+   * idempotência passa a considerar também o ciclo/titularidade, para
+   * que uma redistribuição REAL possa ter a sua primeira aproximação
+   * sem apagar nem reabrir a E0 anterior.
+   */
+  cycleKey?: string | null;
 }): Promise<E0Dispatch> {
   const template = await loadE0MetaTemplate();
   const contactButton = template?.buttons.find((b) => b.role === "contato") ?? null;
@@ -121,7 +129,9 @@ export async function dispatchFirstContact(input: {
   if (!rendered.ok) return { registered: false, reason: rendered.reason };
 
   const body = rendered.button ? `${rendered.body}\n\n${rendered.button.url}` : rendered.body;
-  const messageId = e0MessageId(input.leadId);
+  const messageId = input.cycleKey
+    ? `${e0MessageId(input.leadId)}__${input.cycleKey}`
+    : e0MessageId(input.leadId);
   const at = new Date().toISOString();
 
   /**

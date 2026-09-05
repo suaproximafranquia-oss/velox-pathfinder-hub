@@ -52,11 +52,20 @@ export async function createPendingE0Action(input: {
   entryAt?: string | null;
   enteredEntryStageAt?: string | null;
   reactivation?: boolean;
+  /**
+   * Sequência de titularidade (BLOCO 2). 0 = primeira entrada
+   * operacional do card (comportamento histórico). N>0 = nova entrada
+   * após redistribuição REAL — a E0 anterior permanece intacta.
+   */
+  ownershipSeq?: number;
+  ownershipKey?: string | null;
 }): Promise<{ ok: boolean; created: boolean; reason?: string }> {
+  const ownershipSeq = input.ownershipSeq ?? 0;
   const { data: existing } = await supabaseAdmin
     .from("workspace_e0_actions")
     .select("id,state")
     .eq("card_id", input.cardId)
+    .eq("ownership_seq", ownershipSeq)
     .maybeSingle();
   if (existing) return { ok: true, created: false };
 
@@ -71,6 +80,8 @@ export async function createPendingE0Action(input: {
     entered_entry_stage_at: input.enteredEntryStageAt ?? null,
     reactivation: Boolean(input.reactivation),
     state: "PENDENTE",
+    ownership_seq: ownershipSeq,
+    ownership_key: input.ownershipKey ?? null,
   } as never);
   if (error) return { ok: false, created: false, reason: error.message };
   return { ok: true, created: true };
