@@ -2087,6 +2087,8 @@ export type Database = {
           ended_at: string | null
           executed_steps: Json
           flow: string
+          flow_version: number | null
+          flow_version_id: string | null
           id: string
           instance_seq: number
           last_event_at: string | null
@@ -2126,6 +2128,8 @@ export type Database = {
           ended_at?: string | null
           executed_steps?: Json
           flow: string
+          flow_version?: number | null
+          flow_version_id?: string | null
           id?: string
           instance_seq?: number
           last_event_at?: string | null
@@ -2165,6 +2169,8 @@ export type Database = {
           ended_at?: string | null
           executed_steps?: Json
           flow?: string
+          flow_version?: number | null
+          flow_version_id?: string | null
           id?: string
           instance_seq?: number
           last_event_at?: string | null
@@ -2195,6 +2201,13 @@ export type Database = {
             columns: ["canonical_investor_id"]
             isOneToOne: false
             referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationship_cadences_flow_version_id_fkey"
+            columns: ["flow_version_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_flow_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -2532,6 +2545,80 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_flow_steps: {
+        Row: {
+          active: boolean
+          business_days_after_reference: number
+          created_at: string
+          flow_version_id: string
+          id: string
+          position: number
+          step_key: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          business_days_after_reference?: number
+          created_at?: string
+          flow_version_id: string
+          id?: string
+          position: number
+          step_key: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          business_days_after_reference?: number
+          created_at?: string
+          flow_version_id?: string
+          id?: string
+          position?: number
+          step_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_flow_steps_flow_version_id_fkey"
+            columns: ["flow_version_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_flow_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_flow_versions: {
+        Row: {
+          created_at: string
+          flow_key: string
+          id: string
+          published_at: string | null
+          published_by: string | null
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          flow_key: string
+          id?: string
+          published_at?: string | null
+          published_by?: string | null
+          status?: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          flow_key?: string
+          id?: string
+          published_at?: string | null
+          published_by?: string | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       relationship_message_library: {
         Row: {
           active: boolean
@@ -2762,6 +2849,7 @@ export type Database = {
           due_at: string
           executed_at: string | null
           flow: string
+          flow_version_id: string | null
           id: string
           lead_id: string
           priority: number
@@ -2780,6 +2868,7 @@ export type Database = {
           due_at: string
           executed_at?: string | null
           flow: string
+          flow_version_id?: string | null
           id?: string
           lead_id: string
           priority?: number
@@ -2798,6 +2887,7 @@ export type Database = {
           due_at?: string
           executed_at?: string | null
           flow?: string
+          flow_version_id?: string | null
           id?: string
           lead_id?: string
           priority?: number
@@ -2815,6 +2905,13 @@ export type Database = {
             columns: ["canonical_investor_id"]
             isOneToOne: false
             referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationship_queue_flow_version_id_fkey"
+            columns: ["flow_version_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_flow_versions"
             referencedColumns: ["id"]
           },
         ]
