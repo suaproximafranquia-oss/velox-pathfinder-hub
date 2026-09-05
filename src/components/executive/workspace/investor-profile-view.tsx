@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BEHAVIOR_LABEL, journeySummary } from "@/lib/journey/insights";
 import {
   ArrowLeft,
@@ -23,7 +23,12 @@ import {
 import { loadUsers, type ExecutiveSession } from "@/lib/executive-auth";
 import { buildInvestorProfile, type InvestorProfile } from "@/lib/investor-profile";
 import { onEvent } from "@/lib/events/bus";
-import { addComment, listComments, type InvestorComment } from "@/lib/investor-comments";
+import { listComments, type InvestorComment } from "@/lib/investor-comments";
+import {
+  addInvestorNoteFn,
+  listInvestorNotesFn,
+  type InvestorNoteView,
+} from "@/lib/crm/investor-notes.functions";
 import { openInvestorReport } from "@/lib/investor-report-lazy";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
