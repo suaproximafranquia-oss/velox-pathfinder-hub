@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Film, History, Loader2, MessageSquareText, Save, Tag } from "lucide-react";
+import {
+  Film,
+  GripVertical,
+  History,
+  Loader2,
+  MessageSquareText,
+  Plus,
+  Save,
+  Tag,
+} from "lucide-react";
 import {
   listarMensagensBiblioteca,
+  criarEtapaBiblioteca,
   diagnosticoDaBiblioteca,
   publicarVersaoMensagem,
   renomearRotuloEtapa,
+  reordenarBiblioteca,
 } from "@/lib/relationship/library.functions";
 
 type LibraryMessage = {
