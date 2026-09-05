@@ -57,7 +57,9 @@ export const saveMagazineEdition = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<MagazineEdition[]> => {
+  .handler(async ({ data, context }): Promise<MagazineEdition[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "revista");
     const { saveEdition } = await import("@/server/magazine.server");
     return saveEdition(data);
   });
@@ -68,7 +70,9 @@ export const setMagazineEditionPublished = createServerFn({ method: "POST" })
   .inputValidator((data) =>
     z.object({ id: z.string().uuid(), published: z.boolean() }).parse(data),
   )
-  .handler(async ({ data }): Promise<MagazineEdition[]> => {
+  .handler(async ({ data, context }): Promise<MagazineEdition[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "revista");
     const { setEditionPublished } = await import("@/server/magazine.server");
     return setEditionPublished(data.id, data.published);
   });
@@ -90,7 +94,9 @@ export const saveMagazinePage = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<MagazineEdition[]> => {
+  .handler(async ({ data, context }): Promise<MagazineEdition[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "revista");
     const { savePage } = await import("@/server/magazine.server");
     return savePage(data);
   });
@@ -99,7 +105,9 @@ export const saveMagazinePage = createServerFn({ method: "POST" })
 export const deleteMagazinePage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }): Promise<MagazineEdition[]> => {
+  .handler(async ({ data, context }): Promise<MagazineEdition[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "revista");
     const { deletePagePair } = await import("@/server/magazine.server");
     return deletePagePair(data.id);
   });
@@ -108,7 +116,9 @@ export const deleteMagazinePage = createServerFn({ method: "POST" })
 export const deleteMagazineEdition = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }): Promise<MagazineEdition[]> => {
+  .handler(async ({ data, context }): Promise<MagazineEdition[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "revista");
     const { deleteEditionCompletely } = await import("@/server/magazine.server");
     return deleteEditionCompletely(data.id);
   });
@@ -138,7 +148,9 @@ export const saveInstitutionalContent = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<InstitutionalBlock[]> => {
+  .handler(async ({ data, context }): Promise<InstitutionalBlock[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "revista");
     const { saveInstitutionalBlock } = await import("@/server/magazine.server");
     return saveInstitutionalBlock(data);
   });
@@ -146,7 +158,9 @@ export const saveInstitutionalContent = createServerFn({ method: "POST" })
 export const deleteInstitutionalContent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }): Promise<InstitutionalBlock[]> => {
+  .handler(async ({ data, context }): Promise<InstitutionalBlock[]> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "revista");
     const { deleteInstitutionalBlock } = await import("@/server/magazine.server");
     return deleteInstitutionalBlock(data.id);
   });
@@ -162,7 +176,9 @@ export const uploadMagazineFile = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<{ reference: string }> => {
+  .handler(async ({ data, context }): Promise<{ reference: string }> => {
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    await assertWorkspaceAccess(context as never, "revista");
     const { uploadMagazineMedia } = await import("@/server/magazine.server");
     return uploadMagazineMedia(data);
   });
