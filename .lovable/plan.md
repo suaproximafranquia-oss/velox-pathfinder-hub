@@ -1,117 +1,142 @@
-# AUDITORIA + PLANO — Ação do Dia como fila operacional (Financeira /f)
+# RODADA DE ARQUITETURA — Biblioteca como fonte dinâmica (Financeira /f)
 
 Somente leitura. Nada foi construído, alterado, migrado ou executado.
 
-## A) Safety Lock — evidências e conclusão
+## BLOCO 1 — Biblioteca de Conteúdo
 
-Evidências (`src/server/whatsapp-safety-lock.server.ts`, `src/server/whatsapp.server.ts`, `src/server/remarketing/engine.server.ts`):
+**Estrutura de dados.** Tabela única: `relationship_message_library` (27 colunas). Campos relevantes: `step_key`, `purpose`, `code`, `title`, `body`, `body_without_name`, `content_url`, `content_label`, `content_group`, `version`, `active`, `supersedes_id`, `scope`, `requires_video`, `requires_template`, `meta_template_name`, `button_kind`, `source_kind`, `source_reference`, `notes`, `created_by`, `created_by_name`. Código: `src/server/relationship/message-library.server.ts` (leitura/gravação), `src/lib/relationship/library.functions.ts` (ponte), `src/components/executive/message-library-panel.tsx` (UI), `src/routes/f.executivo.biblioteca.tsx` (rota).
 
-1. **Existe caminho técnico para a Meta?** Sim: 5 chamadas `fetch` a `graph.facebook.com/v20.0/...` — 4 em `whatsapp.server.ts` (texto, template, mídia/upload, envio) e 1 em `remarketing/engine.server.ts`. São os únicos pontos de saída no projeto (`rg graph.facebook.com` retorna apenas esses arquivos).
-2. **A trava bloqueia?** Sim. `blockRealWhatsappSend` é chamado em **todas as 5** rotas de saída, e cada uma retorna antes do `fetch` quando a trava responde.
-3. **O bloqueio é imediatamente antes da Graph API?** Sim — a checagem está no mesmo bloco, linhas antes do `fetch` (ex. linha 65 → fetch 75; 175 → 182; 249 → 265; 445 → 474).
-4. **Caminhos alternativos?** Não encontrados. Nenhum outro arquivo referencia a Graph API, e não há cliente HTTP genérico apontando para a Meta.
-5. **Permite envio hoje?** Não. `whatsappSafetyLockStatus` exige `now >= 2029-01-01` **e** `WHATSAPP_REAL_SEND_ENABLED=true`. Hoje (2026) a trava temporal já é suficiente; ambas as condições falham.
-6. **Algum comando anterior poderia ter disparado envio real?** Não pelo código: as evoluções recentes (Biblioteca, confirmação manual, Blocos 1 e 2) trabalham com cópia de texto e registro de histórico; `registerDailyActionMessage` conclui a fila sem tocar em canal. NÃO COMPROVADO em termos de logs de runtime — a menor auditoria seria contar registros `whatsapp_safety_lock` em `relationship_engine_log` (leitura, sem alteração).
-7. **Jobs/schedulers/webhooks capazes de furar a trava?** Não: qualquer job só envia através de `whatsapp.server.ts`/remarketing, e ambos passam pela trava. Além disso `resolveExecutionMode`/`resolveChannelMode` já forçam simulação fora de produção e em lead de teste — segunda camada independente.
+**Identificação da etapa.** A chave é `step_key` (texto), com fallback histórico para `purpose`. `code` existe mas é secundário. Não há `stage`, `sequence` nem `channel` na Biblioteca.
 
-**Conclusão: envio real está bloqueado por construção, em ponto único e correto. Nada nesta evolução exige tocar na trava.**
+**Onde está a lista de etapas — três fontes distintas:**
 
-## B) Estado atual encontrado
+| Fonte | Onde | Papel |
+|---|---|---|
+| Configuração | `src/lib/relationship/config.ts` (`STEPS`) + `step-registry.ts` (`NON_CADENCE_STEPS`) | Define o que o motor **pode executar** e a sequência dos fluxos |
+| Conteúdo | `relationship_message_library` | Define o **texto e o link** de cada etapa |
+| Histórico | `relationship_queue`, `relationship_message_sends`, `relationship_engine_log`, `crm_timeline`, `crm_cadence_tasks` | Guarda o que **foi** feito, com as chaves gravadas |
 
-- **Motor**: `src/lib/relationship/config.ts` é o dicionário executável real. Etapas existentes hoje: `E0`, `E0_V1`, `E1`, `E3`, `E4`, `E12`, `E30`, `V3`, `V4`, `R1`, `R2`, `R3`, `RE0`–`RE3`, `RF0`, `RF1`. Fluxos: `sem_resposta: E0→E1→E3→E4→E12→E30`, `visualizacao: E0→E1→V3→V4`, `reengajamento`, `reentrada`, `frio`.
-  **Divergência explícita: a sequência conceitual do pedido (E1–E8, E5=material, E6=cobrança, E7, E8=finalização) NÃO existe hoje.** Não há E2, E5, E6, E7, E8. Renomear ou renumerar quebraria chaves persistidas em `relationship_queue.step`, `crm_cadence_tasks.step_key` e no histórico.
-- **Ação do Dia** (`src/server/crm/daily-actions.server.ts`): agregador de leitura de 6 fontes — E0 pendente (`workspace_e0_actions`), `portal_meetings`, `workspace_agenda_events`, fechamento E20/E27, `relationship_queue` (mensagens) e `buildCadenceQueue("call")` sobre `crm_cadence_tasks` (ligações). Recalcula em tempo real; não persiste fila diária.
-- **Dois motores confirmados**: `relationship_queue` (mensagens, motor persistente) e `crm_cadence_tasks` (ligações, fila legada com `step_day`, `channel`, `outcome`, `note`, `completed_at`, `canonical_investor_id`).
-- **Ligação**: o fluxo "atendeu? / chamou?" **já existe** (`cadence.server.ts` linhas 181–226) e grava `outcome` + `rang` + nota — mas em `crm_cadence_tasks`, fora do motor.
-- **Reunião**: `MEETING_FOCUS_WINDOW_MS = 5 min` já implementado; `priorityMax` já garante topo da fila; desfecho/reagendamento gravam em `portal_meetings` + ledger.
-- **Pular / observação**: `daily-actions-log.server.ts` grava em `relationship_engine_log` + `crm_timeline`; supressão só vale para a data operacional (volta no dia seguinte). Não avança cadência.
-- **Identidade**: `canonical_investor_id` já existe em `relationship_queue` e `crm_cadence_tasks`.
+**Dependência obrigatória de config.ts: SIM, é bloqueante.** `step-registry.ts` monta `KNOWN_STEP_KEYS` a partir de `Object.keys(STEPS)`; `isKnownStep()` recusa qualquer chave fora dessa lista, com a mensagem "Etapa desconhecida … não existe no motor". Além disso `message-library.server.ts` mantém suas próprias listas fixas: `WORD_STEP_ORDER`, `LEGACY_STEPS` (`E0_V1`, `V3`, `V4`), `WORD_ALIAS_STEPS` (`E2`, `E5`, `E6`, `E7`), `PENDING_TEXT_STEPS`, `LIBRARY_STEP_ORDER`. O `config.ts` também é importado por `engine.server.ts`, `automation.server.ts`, `audit.server.ts`, `library-diagnostics.server.ts` e `calendar-admin.server.ts`.
 
-## C) O que já existe e deve ser reutilizado
+**Forma mais segura de inverter a fonte** sem quebrar chaves históricas: manter `step_key` como identificador imutável e passar `KNOWN_STEP_KEYS` a ser a **união** de (a) chaves ativas da Biblioteca e (b) chaves já presentes no histórico. Nunca derivar validade de uma lista literal. `config.ts` deixa de declarar *quais* etapas existem e passa a declarar apenas *regras de comportamento* (janelas, fluxos, dependências) para as chaves que a Biblioteca fornecer.
 
-`relationship_queue` (ações de mensagem), `relationship_message_library` (conteúdo + `content_url`/`content_label`), `workspace_e0_actions` (E0 por titularidade), `portal_meetings` (reuniões), `workspace_agenda_events`, `relationship_engine_log` (auditoria) + `crm_timeline` (leitura humana), `confirmManualExecution` no engine, `MEETING_FOCUS_WINDOW_MS`, `listSkippedActionKeys`, `resolveBucket`/`normalizeDailyActions`, e o adaptador `DailyActionsAdapter` (real x demo).
+**Versionamento: JÁ EXISTE.** Publicar cria `version + 1`, marca a anterior `active = false` e liga por `supersedes_id`. Uma versão ativa por `step_key` (índice único parcial). Editar nunca sobrescreve. **Porém**: a execução hoje **não grava o snapshot do texto usado** — só conclui a fila e registra a etapa. Essa é a lacuna real de rastreabilidade.
 
-## D) Parcialmente implementado
+**Desativar uma mensagem — comportamento recomendado:** novas ações → não devem ser criadas para a etapa; ações já criadas e ainda pendentes → devem ser bloqueadas com motivo legível (o motor já faz isso quando falta texto ativo); ações executadas e histórico → intocados, sempre.
 
-| Item | Situação |
+## BLOCO 2 — Novas etapas automáticas
+
+**O que impediria E9 hoje:** `isKnownStep("E9")` retorna falso, porque `E9` não está em `STEPS`. O motor recusaria a etapa e nada sairia. Segundo bloqueio: `LIBRARY_STEP_ORDER` não listaria E9, então a própria tela da Biblioteca não a semearia.
+
+**Cadastro duplicado necessário hoje:** sim — `config.ts` (`STEPS` + fluxo) e `message-library.server.ts` (`WORD_STEP_ORDER`). Duas listas para o mesmo conceito.
+
+**Convenção:** recomendo aceitar qualquer chave que case com `^[A-Z][A-Z0-9_]{0,15}$`, sem exigir sequência numérica. Não existe hoje validação de sequência — mas existe **ordem fixa hardcoded** em `FLOWS`: `sem_resposta: E0→E1→E3→E4→E12→E30`, `visualizacao: E0→E1→V3→V4`, mais `reengajamento`, `reentrada`, `frio`. Isso é o que realmente impede E9 de "entrar sozinha" num fluxo.
+
+**Código x dado:**
+- Continua em **código**: máquina de estados, idempotência, janelas de envio, Safety Lock, gatilhos de interrupção, regra de contato humano real, E0 (origem e titularidade).
+- Passa a ser **dado**: existência da etapa, rótulo, texto, link, ordem dentro do fluxo, se exige material.
+
+## BLOCO 3 — Botão "+"
+
+**O botão "+" NÃO EXISTE.** A tela só lista as etapas semeadas e permite editar/publicar. O limite de ~9 mensagens **não é do banco nem visual**: é a lista literal `WORD_STEP_ORDER` + `LEGACY_STEPS` + `PENDING_TEXT_STEPS` no servidor, que define quais linhas são semeadas e exibidas. O banco aceita qualquer `step_key`.
+
+**Campos obrigatórios hoje ao publicar:** `stepKey` e `body`. Opcionais: `bodyWithoutName`, `contentUrl`, `contentLabel`, `title`, `notes`.
+
+**Campos usados pelo motor e ausentes na interface:** `content_group`, `requires_video`, `requires_template`, `meta_template_name`, `button_kind`, `scope`, `code`.
+**Campos na interface plenamente usados pelo motor:** texto, texto sem nome, link, rótulo do link, rótulo da etapa. Nenhum campo da tela é inútil.
+
+## BLOCO 4 — Motor e fila
+
+**Como o motor descobre ações:** a partir do estado do ciclo em `relationship_cadences`, aplicando `FLOWS`/`STEPS` para calcular a próxima etapa e gravando o item em `relationship_queue`.
+
+| Estrutura | Papel |
 |---|---|
-| Ligação atendeu/chamou | Lógica pronta, mas no motor legado `crm_cadence_tasks`, sem vínculo a etapa/ciclo do motor |
-| Snapshot da mensagem executada | Conclui a fila e loga o passo, mas **não grava o texto/versão efetivamente usado** |
-| Pular | Justificativa e auditoria OK; retorno é "no próximo dia calendário", não "próximo dia útil" |
-| Reunião | Desfecho/reagendamento OK, mas reagendar **sobrescreve** `scheduled_at` em vez de criar nova ocorrência ligada à anterior |
-| Vínculo ação↔ciclo | `canonical_investor_id` existe nas duas filas, mas a Ação do Dia agrupa por `lead_id`/card, não por ciclo |
-| Relatório administrativo | Inexistente como tela; os dados-base já estão no ledger, mas **"devidas" não são persistidas** — só o executado |
+| `relationship_cadences` | O ciclo: fluxo, estado, `operational_since` |
+| `relationship_queue` | A ação planejada e sua execução (`status`, `executed_at`, `result`, `canonical_investor_id`) |
+| `relationship_message_library` | Conteúdo versionado |
+| `workspace_e0_actions` | E0 por titularidade (`ownership_seq`) |
+| `crm_cadence_tasks` | Fila legada de ligações — **segunda fonte de verdade, divergência real** |
 
-## E) O que precisa ser construído
+**Com a Biblioteca dinâmica:** conteúdo → Biblioteca; sequência → Biblioteca (ordem declarada) + código (regras de transição); programação → motor/scheduler; execução → `relationship_queue`; histórico → queue + ledger + snapshot.
 
-1. Unificação da ligação como **canal de etapa** dentro de `relationship_queue` (novo `channel`), com desativação progressiva de `crm_cadence_tasks` sem apagar histórico.
-2. Snapshot histórico da mensagem executada (texto + versão da Library) no registro de execução.
-3. Reagendamento de reunião como **nova ocorrência encadeada** (`rescheduled_from`), preservando a anterior.
-4. Regra de retorno do pulo por **próximo dia útil** (usando o calendário já existente em `relationship_non_business_days`).
-5. Relatório administrativo agregado (devidas × executadas × puladas), com "devidas" capturadas de forma reprodutível.
-6. Overlay do card do investidor a partir do relatório.
+**Duplicação e idempotência:** manter a unicidade por `(cardId, cycle, step, ownership_seq)`. Alterar a Biblioteca nunca deve recriar item já existente — a Biblioteca muda o *conteúdo*, não a *fila*.
 
-## F) Arquitetura recomendada
+**Etapa nova para ciclos antigos:** recomendo **não aplicar retroativamente**. A etapa nova vale para ciclos iniciados após sua criação (mesma lógica de `operational_since` do Bloco 1). Aplicar a ciclos correntes deve ser decisão explícita do administrador, nunca automática.
 
-**Um motor, uma fila, uma leitura.**
+## BLOCO 5 — Ação do Dia → Workspace
 
-```text
-relationship_cadences (ciclo)
-   └─ relationship_queue (AÇÃO planejada: step + channel + due_at + canonical_investor_id)
-         ├─ channel = "mensagem"  → Library (texto + link)
-         ├─ channel = "ligacao"   → atendeu?/chamou?
-         └─ portal_meetings       → reunião (ocorrências encadeadas)
-                    ↓
-        daily-actions.server.ts  (LEITURA: normaliza + prioriza + esconde puladas do dia)
-                    ↓
-    relationship_engine_log (auditoria) + crm_timeline (histórico humano)
-                    ↓
-        Relatório administrativo = agregação do MESMO ledger
-```
+**Onde a execução é registrada hoje** (`daily-actions-log.server.ts`): `relationship_engine_log` (auditoria, `details` jsonb) + `crm_timeline` (leitura humana) + a fonte oficial (`relationship_queue` via `confirmManualExecution`, ou `portal_meetings` para reunião). Ligação é a exceção: grava em `crm_cadence_tasks` (`outcome`, `rang`, `note`, `completed_at`).
 
-Regras: a Ação do Dia continua sem tabela própria; toda execução escreve no ledger com o `queue.id` original; o motor continua dono de ordem, transição, idempotência e Safety Lock; a Central Única lê a mesma agregação.
+**O registro identifica:** investidor (sim, `leadId`), card (sim, é o mesmo id), etapa (sim), ação (sim), executivo (sim), data/hora (sim), resultado (sim). **Ciclo: NÃO** — o `cycle` não é gravado no evento.
 
-**Ponto crítico do relatório:** "devidas" não podem ser reconstruídas depois que a fila avança. Recomendação mínima: um **snapshot diário de planejado** (uma linha por ação devida por dia, gravada na primeira leitura do dia) — não é uma segunda operação, é a fotografia do que a fila mostrou. Sem isso, o relatório só consegue contar executadas e puladas.
+**"Executada" x "concluída com resultado":** existe a distinção — `registerDailyActionMessage` retorna `{ concluded }`; se a fila não puder ser concluída, o evento é gravado como "registrada" em vez de "enviada".
 
-## G) Riscos de regressão
+**Resultados hoje:** atendeu / não atendeu / chamou / não chamou → `crm_cadence_tasks`. Mensagem → queue + ledger. Pulo e nota → ledger + timeline. **Caixa postal NÃO EXISTE** como resultado.
 
-- **E0**: risco alto se a ligação migrar de fila — E0 tem janela e origem próprias. Manter E0 intacta no Bloco seguinte.
-- **Ownership/redistribuição**: `ownership_seq` participa do `cycleKey` das E0; qualquer chave nova de ação deve incluí-lo.
-- **Identidade**: múltiplos cards por investidor — agregar por `canonical_investor_id` no relatório, mas **executar** sempre por card.
-- **`crm_cadence_tasks`**: desligar a fonte sem migrar histórico apagaria o passado das ligações. Coexistência obrigatória.
-- **`relationship_message_library`**: uma versão ativa por combinação — não introduzir concorrência.
-- **Reuniões**: mudar `rescheduleMeeting` afeta `portal_meetings`, usada também fora da Ação do Dia.
-- **Safety Lock / `/s` / `/seg` / `/`**: intocados. `whatsapp.server.ts` é compartilhado — não alterar.
+**Nota do executivo:** `relationship_engine_log` + `crm_timeline`, evento `acao_do_dia_observacao`.
 
-## H) Dependências e bloqueios
+**Por que não chega ao Workspace:** três causas comprovadas — (1) a ligação grava em `crm_cadence_tasks` e **não passa por `writeLedger`**, logo não gera linha em `crm_timeline`; (2) a auditoria anterior identificou eventos `acao_do_dia_*` fora da whitelist da visão relacional da jornada; (3) não há registro de "caixa postal" nem snapshot do conteúdo.
 
-- **BLOQUEADOR mantido**: vínculo GreenSales. `user_id` observado no payload não está comprovado como vendedor. Sem confirmação externa (lista ID|Nome da Administração GreenSales), nenhuma redistribuição real deve ser ativada.
-- Snapshot de "devidas" é pré-requisito do relatório administrativo.
-- Calendário de dias úteis é pré-requisito da regra de pulo.
+**Função central: existe parcialmente** — `writeLedger` já é o ponto único, mas a ligação não a usa. **Fonte de verdade recomendada da execução: `relationship_queue`** (a ação e seu desfecho), com `relationship_engine_log` como projeção de auditoria e `crm_timeline` como projeção humana. Uma execução, um `execution_id`, três leituras.
 
-## I) Ordem recomendada dos próximos blocos
+## BLOCO 6 — Pular
 
-1. **Bloco 3** (pendente): auditorias mínimas + ativação do vendor ID, sem redistribuição real.
-2. **Bloco 4** — Execução registrada: snapshot da mensagem usada + pulo por próximo dia útil.
-3. **Bloco 5** — Ligação como canal do motor (coexistência com o legado).
-4. **Bloco 6** — Reunião com ocorrências encadeadas.
-5. **Bloco 7** — Snapshot de planejado + relatório administrativo + overlay do card.
+Hoje: `skipDailyAction` exige justificativa (mínimo 3 caracteres, erro explícito se faltar). **Não existe lista de motivos** — é texto livre, logo não existe "Outro". Registra em `relationship_engine_log` (`acao_do_dia_pulada`) e em `crm_timeline`. **Não avança a cadência** — o motor não é chamado. A ação é suprimida apenas na **data operacional corrente** (`listSkippedActionKeys` compara `operationalDate`), portanto **retorna no dia seguinte de calendário, não no próximo dia útil**. Para indicadores: os dados existem no ledger, mas não há tela que os leia.
 
-## J) Respostas objetivas
+## BLOCO 7 — Central Administrativa
 
-1. **Melhor arquitetura**: manter a Ação do Dia como leitura pura e mover a ligação para dentro de `relationship_queue` como canal — nenhum motor novo.
-2. **Fontes de verdade**: ações → `relationship_queue`; E0 → `workspace_e0_actions`; ligações → hoje `crm_cadence_tasks`, futuro `relationship_queue`; mensagens → `relationship_message_library`; reuniões → `portal_meetings`; pulos/observações/execuções → `relationship_engine_log` + `crm_timeline`; relatório → agregação desse ledger.
-3. **Registro sem duplicar**: um evento por execução, chaveado pelo `queue.id`; `relationship_engine_log` é a auditoria, `crm_timeline` a leitura humana. Idempotência via claim já existente em `confirmManualExecution`.
-4. **Vínculo ação↔etapa/ciclo/card**: executar sempre por `card_id` + `cycle`; agregar por `canonical_investor_id`; incluir `ownership_seq` na chave quando houver redistribuição.
-5. **Pular**: nunca chamar o motor; apenas gravar evento e suprimir na data operacional, com retorno no próximo dia útil. Já é assim, faltando a regra de dia útil.
-6. **Reunião 5 min antes**: já funciona via `MEETING_FOCUS_WINDOW_MS` + `priorityMax`; nenhuma mudança no scheduler é necessária.
-7. **Ligação no motor**: reaproveitar `outcome`/`rang`/`note` já implementados, gravando na fila do motor; "atendeu" alimenta `hasRealHumanContact`, "chamou" não.
-8. **Relatório**: leitura agregada do ledger + snapshot diário de planejado; nenhuma fila paralela.
-9. **Já existe parcialmente**: ligação atendeu/chamou, pulo auditável, reunião 5 min, conclusão da fila. **Falta**: snapshot da mensagem, ocorrências de reunião, dia útil, relatório, unificação da ligação.
-10. **Riscos**: ver seção G — os maiores são E0, `crm_cadence_tasks` e reuniões compartilhadas.
-11. **Próximo bloco**: Bloco 3 (vendor ID), bloqueado pela confirmação externa GreenSales; se essa confirmação demorar, iniciar pelo Bloco 4, que é independente.
-12. **Auditorias mínimas antes de "fila sem ciclo" e "card principal"**: (a) quantos itens de `relationship_queue` estão sem `cadence`/ciclo; (b) quantos investidores têm mais de um card ativo em `/f`; (c) cobertura de `canonical_investor_id` nas duas filas; (d) quantos itens pendentes pertencem a ciclos históricos. As quatro são consultas de leitura.
+**Não existe.** Confirmado: nenhuma rota ou componente agrega execução por executivo.
+
+**Recomendação:** menu dentro da área do executivo, visível só para Administração/Gestora, com o nome **Central de Operações** — "Central Administrativa" confunde com a Gestão de Usuários e "Monitoramento" soa passivo.
+
+Deve mostrar por executivo: previstas, executadas, puladas, pendentes, ligações, mensagens, reuniões, demais ações.
+
+**"Previstas" deve significar TODAS as ações devidas do dia**, independentemente de o executivo ter aberto a tela — caso contrário o indicador premia quem não abre. **Isso não é reconstruível hoje**: a fila é recalculada em tempo real e, depois que avança, o passado não é reproduzível.
+
+**Recomendação para criar o registro sem virar segunda fila:** um **snapshot append-only de planejado** — uma linha por ação devida por dia, gravada na primeira leitura do dia e nunca alterada depois. Ele não é lido pela operação (a Ação do Dia continua recalculando), só pelo relatório. É fotografia, não fila.
+
+**Deve abrir o lead/card: sim.** Deve mostrar motivo do pulo, nota, data/hora, resultado, etapa/ciclo e mensagem/conteúdo utilizado: **sim para todos** — sendo que "conteúdo utilizado" depende do snapshot da mensagem, que ainda não existe.
+
+## BLOCO 8 — Período e gestão
+
+Recomendo já nascer com hoje / ontem / últimos 7 dias / mês / período personalizado — a estrutura é a mesma consulta com intervalo, e limitar a "hoje" obrigaria refazer depois. Filtros por executivo, etapa, resultado, pulos e período: todos viáveis sobre a mesma fonte.
+
+## BLOCO 9 — Permissões
+
+Acesso: administrador (tudo) e gestora (todos os executivos sob sua gestão). Executivo: apenas os próprios números — ou nenhum acesso, se preferir manter a Central puramente gerencial.
+
+**Estado atual:** existe `has_role` com os papéis `admin`, `manager`, `user`, `current_executive_id()` e `workspace_module_permissions`. **Falta**: a Gestora (Larissa) depende de regras de aplicação, não de papel formal em `user_roles` — auditoria anterior já apontou isso. Precisará ser formalizada antes da Central.
+
+## BLOCO 10 — Histórico e auditoria
+
+`relationship_engine_log` = **auditoria técnica** (append-only, `details` jsonb, ator, escopo). `crm_timeline` = **histórico humano** exibido na ficha/Workspace. Hoje `writeLedger` já grava nos dois a partir de uma chamada — o modelo está certo, falta a ligação usá-lo.
+
+**Uma execução, duas visões: sim** — desde que exista um `execution_id` compartilhado. **Contagem única na Central:** contar pelo `queue.id`/`execution_id`, nunca por número de linhas de log. **Conteúdo exato preservado:** gravando no momento da execução o `library_message_id` + `version` + o texto renderizado; a Biblioteca pode mudar depois sem afetar o passado.
+
+## BLOCO 11 — Segurança
+
+Confirmado, por leitura do código: a trava global permanece obrigatória e nenhuma proposta acima a toca. `blockRealWhatsappSend` é chamado nas 5 (cinco) saídas para a Graph API, imediatamente antes de cada `fetch`; não existe outro caminho para a Meta no projeto. Nenhuma arquitetura aqui cria caminho alternativo — o relatório e a Biblioteca são leitura e conteúdo, não canal. Continuamos em modo seguro/simulação (`resolveExecutionMode` força simulação fora de produção e em lead de teste). `/s`, `/seg` e `/` permanecem intocados; a única atenção é que `whatsapp.server.ts` é compartilhado e não deve ser alterado.
+
+## BLOCO 12 — REGRA-MÃE
+
+> **O universo de etapas e conteúdos do motor é descoberto dinamicamente a partir da Biblioteca de Mensagens; o código declara apenas como as etapas se comportam, nunca quais existem. Toda execução gera uma única ocorrência, imutável, com snapshot do conteúdo utilizado, da qual derivam a auditoria técnica, o histórico humano e os indicadores administrativos.**
+
+- **Fonte de verdade** — existência/rótulo/texto/link/ordem: `relationship_message_library`. Execução: `relationship_queue` (mais `portal_meetings` para reuniões). Ciclo: `relationship_cadences`.
+- **Permanece em código** — máquina de estados, transições, dependências, janelas, idempotência, contato humano real, E0/titularidade e Safety Lock.
+- **Passa a ser dado** — quais etapas existem, seus rótulos, textos, links, ordem no fluxo e exigência de material.
+- **Histórico preservado** — `step_key` imutável; validade da etapa = ativas na Biblioteca ∪ presentes no histórico; snapshot de conteúdo por execução; versão anterior nunca reescrita.
+- **Sem duplicidade** — unicidade `(card, ciclo, etapa, ownership_seq)`; alterar a Biblioteca muda conteúdo, nunca cria fila.
+- **Ação do Dia** — continua leitura pura, sem tabela própria.
+- **Workspace** — alimentado automaticamente por `writeLedger`, incluindo a ligação (hoje é a exceção).
+- **Central de Operações** — agregação do mesmo ledger + snapshot diário de planejado; nenhuma operação paralela.
+
+## NÃO COMPROVADO NO CÓDIGO ATUAL
+
+1. Que os eventos `acao_do_dia_*` aparecem hoje na ficha do investidor — auditoria mínima: ler a whitelist de eventos em `journey.server.ts`.
+2. Quantas ações de ligação existem sem correspondência em `crm_timeline` — auditoria mínima: contagem comparativa entre `crm_cadence_tasks` concluídas e eventos de timeline no mesmo período.
+3. Se a Gestora tem papel formal em `user_roles` — auditoria mínima: consulta de leitura em `user_roles`.
+4. Se `vendedor_id`/`user_id` do GreenSales representa o responsável — bloqueador anterior, depende de confirmação externa.
 
 ## Observação de escopo
 
-Este pedido inclui "registrar a tarefa em roadmap.md". Em modo de planejamento só posso escrever este arquivo; o roadmap será atualizado no primeiro bloco de construção aprovado.
+Este pedido pede registro em `roadmap.md`; em modo de planejamento só posso escrever este arquivo. O roadmap será atualizado no primeiro bloco de construção aprovado.
