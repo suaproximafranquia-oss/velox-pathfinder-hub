@@ -17,6 +17,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { productionEngine } from "./engine.server";
+import { listHistoricalCycleLeadIds } from "./cycle.server";
 
 export type RelationshipTickSummary = {
   evaluated: number;
@@ -66,6 +67,16 @@ async function eligibleLeadIds(nowIso: string): Promise<string[]> {
     .order("at", { ascending: false })
     .limit(BATCH);
   for (const row of firstContacts ?? []) ids.add(row.investor_id);
+
+  /**
+   * BLOCO 1 — CICLO HISTÓRICO NÃO É DÍVIDA OPERACIONAL. Leads cujo
+   * ciclo ativo nasceu antes do marco saem da reavaliação: o motor não
+   * avança nem executa obrigações deles. Leads SEM ciclo registrado
+   * não são excluídos aqui — sem vínculo seguro, nada é inventado e a
+   * decisão permanece no motor.
+   */
+  const historical = await listHistoricalCycleLeadIds(Array.from(ids)).catch(() => new Set<string>());
+  for (const id of historical) ids.delete(id);
 
   return Array.from(ids).slice(0, BATCH);
 }
