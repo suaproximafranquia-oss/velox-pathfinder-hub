@@ -103,6 +103,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
    */
   const meetingSlots = new Set(meetings.map((m) => new Date(m.scheduled_at).toISOString()));
   const queue = queueRes.data ?? [];
+  const historicalLeadIds = await listHistoricalCycleLeadIds(
+    queue.map((q) => q.lead_id as string),
+  );
 
   const identities = await loadLeadIdentities([
     ...meetings.map((m) => m.investor_id as string),
@@ -229,6 +232,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
 
   for (const item of queue) {
     const leadId = item.lead_id as string;
+    // BLOCO 1 — dívida de ciclo histórico não vira trabalho de hoje.
+    if (historicalLeadIds.has(leadId)) continue;
     const identity = identities.get(leadId);
     const dueDate = operationalDate(item.due_at);
     if (dueDate > today) continue;
