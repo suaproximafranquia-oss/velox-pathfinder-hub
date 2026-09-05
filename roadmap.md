@@ -38,3 +38,6 @@
 - [x] Área administrativa de Fluxos (rascunho, associação, drag-and-drop, publicação)
 
 - [x] Central de Operações (/f/executivo/central-operacoes): leitura consolidada por período, executivo e tipo, com drill-down e snapshot de responsável na fila.
+
+- [x] Central de Operações /f: obrigações de ligação persistidas como PENDING, responsável histórico congelado, Produção x Aderência separadas, overdue como subconjunto de pendentes, filtros de produção/teste.
+- [ ] Central de Backup: backup horário do dia corrente + snapshot diário das 23:00 dos últimos 7 dias (bloco futuro, não implementar agora).
