@@ -308,9 +308,21 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     setSession(s);
   }, [navigate]);
 
-  const allowed = session
-    ? isCrmAdministrator(session.activeRole) || isCrmSupervisor(session.activeRole)
-    : false;
+  /**
+   * AUTORIDADE ÚNICA — quem libera o Portal é o servidor (matriz central
+   * do Corporate Workspace). O navegador apenas reflete a resposta; a
+   * antiga regra de papel do CRM deixou de decidir acesso.
+   */
+  const workspaceAuth = useWorkspaceAuthorization();
+  const allowed = workspaceAuth?.allowed.portal_leads === true;
+  /** Gestão do espelho (sincronizar, carga histórica) segue com a gestão. */
+  const canManageMirror =
+    workspaceAuth !== null && workspaceAuth.role !== "executivo";
+  /**
+   * A Gestora é exclusivamente gerencial: nenhuma superfície operacional
+   * da Ação do Dia aparece no Portal para ela.
+   */
+  const showDailyActions = workspaceAuth !== null && workspaceAuth.role !== "diretora";
 
   const load = useCallback(async () => {
     setLoading(true);
