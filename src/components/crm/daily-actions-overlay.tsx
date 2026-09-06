@@ -136,9 +136,19 @@ export function DailyActionsOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  /** Relógio da janela operacional — reavaliado enquanto o painel está aberto. */
+  useEffect(() => {
+    if (!open) return;
+    setOperationalWindow(resolveOperationalWindow());
+    const timer = window.setInterval(() => setOperationalWindow(resolveOperationalWindow()), 30000);
+    return () => window.clearInterval(timer);
+  }, [open]);
+
   /** Trocar de ação limpa os rascunhos da ação anterior. */
   useEffect(() => {
     setCallAwaitingRing(null);
+    setCallPending(null);
+    setCallNote("");
     setSkipOpen(false);
     setSkipReason("");
     setNote("");
@@ -148,6 +158,7 @@ export function DailyActionsOverlay({
     setMessageOpen(false);
     setMessageNote("");
   }, [selectedKey]);
+
 
 
   const selected = useMemo(
