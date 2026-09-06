@@ -264,63 +264,6 @@ function ProfileFields({
   );
 }
 
-/** Upload direto do vídeo individual — sem depender de hospedagem externa. */
-function VideoUploadButton({
-  executiveId,
-  onUploaded,
-}: {
-  executiveId: string;
-  onUploaded: (url: string) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const pick = async (file: File) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
-        reader.readAsDataURL(file);
-      });
-      const { url } = await uploadPostPresentationVideo({
-        data: {
-          executiveId,
-          fileName: file.name,
-          mimeType: file.type || "video/mp4",
-          base64,
-        },
-      });
-      onUploaded(url);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível enviar o vídeo.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="mt-2 flex items-center gap-3">
-      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition">
-        <Upload className="h-3 w-3" />
-        {busy ? "Enviando vídeo…" : "Enviar vídeo"}
-        <input
-          type="file"
-          accept="video/*"
-          className="hidden"
-          disabled={busy}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void pick(file);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      {error && <span className="text-[11px] text-red-400">{error}</span>}
-    </div>
-  );
-}
-
 function IntegrationsSection() {
   const integrations = [
     { name: "Green Sales (CRM)", status: "Redirecionamento externo ativo" },
