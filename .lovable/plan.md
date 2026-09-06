@@ -1,85 +1,177 @@
-# Diagnóstico — Central de Backup (/f)
+# Bateria final — respostas de homologação e refino
 
-Investigação somente leitura. Nada foi alterado, apagado ou executado.
+Respostas numeradas. "Confirmado" = entendimento registrado como regra. Itens marcados **[DECISÃO]** dependem de resposta sua; itens **[VERIFICAR]** exigem leitura adicional antes de construir.
 
-## 1. Arquitetura atual
+## 1. Manual do Investidor
 
-- Tela: `src/routes/f.executivo.central-backup.tsx` (rota `/f/executivo/central-backup`). Existe também a rota antiga `src/routes/executivo.central-backup.tsx`.
-- Seções da tela: indicadores; "Execuções Automáticas por Hora" (fila); "Hoje — Backups Horários"; "Snapshots Diários — Últimos 7 Dias"; "Backup de Conversas"; "Restaurações Realizadas".
-- Leitura: `src/lib/backup.functions.ts` (`listBackups`, limite 300, admin-only).
-- Motor: `src/server/backup.server.ts` (captura, criação, restauração, `pruneBackups`, `pruneOrphanBlobs`).
-- Fila: `src/server/backup-queue.server.ts` + rotas `src/routes/api/public/backup/run.ts` (registra a hora) e `.../process.ts` (executa uma solicitação).
-- Tabelas: `portal_backups` (registro do ponto), `portal_backup_blobs` (conteúdo, por hash), `portal_backup_requests` (fila horária), `portal_restores` (auditoria).
-- Colunas relevantes de `portal_backups`: `kind` (`completo`/`conversas`), `origin` (`automatico`/`manual`/`pre_restauracao`), `status`, `protected`, `reference_hour` (hora cheia em UTC), `created_at`, `size_bytes`, `table_counts`, `payload_hash`.
-- Não existe coluna que marque "snapshot diário" ou "23:00". Isso é sempre derivado em tempo de leitura por `backupSlot()`, que converte `reference_hour`/`created_at` para America/Sao_Paulo.
-- `src/lib/crm/backups.ts` (rota `/f/executivo/backups`) NÃO é backup: é uma visão somente leitura do relacionamento, calculada na hora. Não guarda nada.
+1. Confirmado — remover vídeos dos capítulos 1, 7 e 14.
+2. Confirmado — remover toda referência textual a vídeo nesses capítulos ("no vídeo a seguir", "assista", etc.).
+3. Confirmado — complemento textual apenas de equilíbrio visual, sem inventar informação nova; qualquer texto novo será mínimo e neutro.
+4. **[VERIFICAR]** O slot de vídeo é renderizado pelo componente de capítulo (`chapter-view.tsx` + `video-slot.tsx`); a lista exata de capítulos com vídeo sai da leitura do roteiro do Manual antes da construção. Se houver outros com vídeo, listo para sua confirmação antes de remover.
 
-## 2. Como os backups são criados
+## 2. Remarketing
 
-- A cada hora cheia, uma chamada externa registra a solicitação (`enqueueBackupRequest`), com unicidade por hora — idempotente, nunca duplica a hora.
-- O processador executa uma solicitação por vez, com lease de 10 min e máximo de 5 tentativas; antes de criar, verifica se aquela hora já produziu ponto, então retry não duplica.
-- Todo ponto automático é um snapshot COMPLETO (todas as tabelas listadas em `BACKUP_TABLES`), não incremental. Conteúdos idênticos compartilham o mesmo registro em `portal_backup_blobs` via hash.
-- Não existe criação específica das 23:00: o snapshot diário é apenas o ponto horário daquela hora, eleito na leitura/limpeza.
-- "Backup de Conversas" só existe por ação manual do administrador. Não há rotina automática nem retenção de 24 horas em lugar nenhum do código — a regra de 24h das mensagens NÃO está implementada hoje.
+5. Confirmado — Remarketing passa a ocupar a mesma largura/área útil do CRM principal.
+6. Confirmado — Campanhas e Conversas usam a área maior, mantendo as duas abas.
+7. Confirmado — identificado como "CRM de Remarketing".
+8. Confirmado — infraestrutura/motor/API Meta compartilháveis; leads, histórico, etapas, notas, ações e estados NUNCA se misturam.
+9. Confirmado — nenhuma ligação automática entre etapas do CRM operacional e campanhas de Remarketing agora.
+10. Confirmado — ER/redistribuição NÃO será implementado agora.
+11. Confirmado — ER só volta no futuro, com todos os executivos no mesmo sistema e regra segura de conciliação Portal × GreenSales.
 
-## 3. Como a retenção funciona hoje
+## 3. Templates de Remarketing
 
-- `pruneBackups()` é chamada em um único lugar: no fim de `processNextBackupRequest()`, após cada execução bem-sucedida da fila. Não há cron próprio de limpeza. Se a fila parar, a retenção para junto.
-- Lê apenas `origin = 'automatico'`, ignora `protected = true`, agrupa por dia operacional (America/Sao_Paulo), preserva o dia corrente inteiro, mantém os 7 dias encerrados mais recentes com só o ponto da hora 23, e descarta os dias além disso.
-- Comparações usam a hora do servidor convertida para o fuso da operação — o navegador não participa.
-- Estado real do banco hoje (06/09, 16h SP): 17 pontos horários de hoje, 1 ponto por dia encerrado de 30/08 a 05/09, e nada anterior. Ou seja, a consolidação de `portal_backups` ESTÁ funcionando.
+12. Confirmado — Central de Templates para cadastrar/administrar templates oficiais das campanhas.
+13. Confirmado — somente templates previamente aprovados pela Meta; o Portal não aprova nada.
+14. Confirmado — o Portal não altera o conteúdo aprovado; cadastro é apenas referência (nome, identificador, parâmetros de envio).
+15. Confirmado — cadastro com nome, identificador Meta, idioma/categoria e situação ativa/inativa.
+16. Confirmado — seletor "Template oficial" lista apenas ativos e válidos.
+17. Confirmado — desativar template não apaga campanhas nem histórico.
+18. Confirmado — o histórico da campanha guarda a identificação do template usado (snapshot da referência), mesmo após desativação.
+19. Confirmado — o template do E0 segue o fluxo próprio do E0, independente de campanhas.
+20. Confirmado — o E0 automático não será alterado por causa dos templates de Remarketing.
 
-## 4. O que está errado (comprovado)
+## 4. Larissa / Gestora
 
-1. **A tela mistura pontos manuais antigos nos "Snapshots Diários"** — `f.executivo.central-backup.tsx` monta a lista só por `kind === "completo"` e `dia < hoje`, sem filtrar `origin`. Assim, pontos manuais e de segurança de 09/08 e 17/08 aparecem como se fossem snapshots diários e ainda são rotulados "· 23:00" mesmo tendo sido criados às 10:00/18:00. Isso explica a sensação de "backups antigos que deveriam ter sumido" e de janela de 7 dias desrespeitada.
-2. **Quatro snapshots foram consolidados na hora errada** — 30/08, 31/08, 01/09 e 02/09 sobreviveram com o ponto das 20:00 (São Paulo), resultado da política antiga que usava a hora UTC. Como o dia não tem mais nenhum ponto das 23:00, a trava defensiva atual nunca vai corrigi-los sozinha.
-3. **A fila nunca é limpa** — `portal_backup_requests` tem 245 linhas cobrindo 11 dias e cresce indefinidamente. A tela exibe as últimas 48, dando a aparência de "muitos registros horários repetidos de dias anteriores".
-4. **O conteúdo dos backups apagados não é liberado** — há 167 registros órfãos em `portal_backup_blobs`, 918 MB, sem nenhum ponto que os referencie (28 hashes em uso, 195 blobs armazenados). `pruneOrphanBlobs()` existe e roda depois de `pruneBackups()`, mas seu resultado e seus erros são ignorados; na prática o espaço não está sendo devolvido. A causa provável é a execução ser cortada por tempo/CPU logo após a captura pesada, já com a solicitação marcada como concluída — a confirmar por instrumentação.
-5. **A retenção depende inteiramente da fila** — não há mecanismo independente. Falha ou pausa na fila congela a limpeza silenciosamente.
-6. **Não existe retenção de 24 horas para o backup de mensagens** — regra de negócio ausente no código.
+21. Confirmado — Gestora não aparece como executiva comercial no KPI Manager.
+22. Confirmado — não aparece como executiva no Painel de Campanhas.
+23. Confirmado — fora de rankings, comparações e indicadores de executivos.
+24. Confirmado — visualiza individualmente cada executivo no KPI Manager.
+25. Confirmado — KPI da Larissa: "Minha equipe" + seleção individual dos ativos.
+26. Confirmado — vê todos os colaboradores ativos; nunca a si própria como executiva.
+27. Confirmado — Larissa NÃO acessa o Remarketing.
+28. Confirmado — Larissa NÃO acessa a Central de Captação.
+29. Confirmado — mantém acesso à Biblioteca de Conteúdo.
+30. Confirmado — edição na Biblioteca conforme permissão de gestão já existente.
+31. Confirmado — mantém acesso à Central de Operações.
+32. Confirmado — Central de Operações: visão consolidada + visão individual por colaborador.
+33. Confirmado — mantém acesso à Central de Reuniões.
+34. Confirmado — mantém acesso à Central de Alertas.
+35. Confirmado — sem acesso administrativo à Revista Velox.
+36. Confirmado — em Usuários, administra somente colaboradores; não edita o próprio perfil de gestora nem o administrador.
 
-Não encontrei: recriação de backups antigos, duplicação por hora, filtro de status errado, limite de paginação atrapalhando a rotina, nem risco de UTC na classificação atual (a conversão de fuso está correta).
+## 5. Portal dos Leads / visão gerencial
 
-## 5. Estado atual x esperado
+37. Confirmado — Portal da Larissa mostra leads de todos os executivos ativos.
+38. Confirmado — indicadores representam a equipe, não o administrador.
+39. Confirmado — filtro "Todos" ou executivo específico.
+40. Confirmado — ao filtrar, indicadores, listas e detalhes passam a ser do executivo.
+41. Confirmado — executivos veem somente os próprios leads.
+42. Confirmado — administrador vê todos.
+43. Confirmado — executivos inativos/excluídos não aparecem como seleção normal; histórico só quando necessário.
 
-| Dia (SP) | Atual | Esperado |
-|---|---|---|
-| 06/09 (hoje) | 17 pontos horários (00h–16h) | igual — correto |
-| 05/09 | 1 ponto às 23h | correto |
-| 04/09 | 1 ponto às 23h | correto |
-| 03/09 | 1 ponto às 23h | correto |
-| 02/09, 01/09, 31/08, 30/08 | 1 ponto às 20h cada | deveria ser o das 23h — legado da política antiga |
-| até 29/08 | nenhum automático | correto |
-| 09/08 e 17/08 | 4 manuais + 2 de segurança | corretos no banco, mas exibidos como snapshot diário na tela |
-| Fila | 245 linhas, 11 dias | só a janela útil precisaria ficar |
-| Conteúdos | 195 blobs / 1,15 GB, sendo 167 órfãos / 918 MB | apenas os 28 em uso |
+## 6. KPI / Campanhas
 
-## 6. Reset
+44. Confirmado — Administrador vê todos os ativos no KPI Manager.
+45. Confirmado — Gestora vê todos os ativos individualmente no KPI Manager.
+46. Confirmado — Colaborador vê somente os próprios indicadores.
+47. Confirmado — Administrador vê todos os ativos no Painel de Campanhas.
+48. Confirmado — Gestora vê todos os ativos no Painel de Campanhas.
+49. Confirmado — Larissa fora desses painéis como executiva.
+50. Confirmado — novos executivos ativos aparecem automaticamente, sem cadastro manual.
+51. Confirmado — desativados deixam de aparecer.
 
-É seguro e restrito. Um reset tocaria apenas `portal_backups`, `portal_backup_blobs` e `portal_backup_requests`. Nenhuma delas guarda dado operacional; não há chave estrangeira ligando outros módulos a elas, e nenhum outro módulo (CRM, Portal dos Leads, Ação do Dia, Motor, Biblioteca, KPI, Campanhas, Alertas, reuniões, WhatsApp) lê essas tabelas. `portal_restores` referencia ids de backup e deve ser preservada como auditoria.
+## 7. Central de Operações / ações puladas
 
-Reset mínimo recomendado (não executado): apagar os blobs órfãos, apagar as solicitações de fila anteriores à janela útil e nada mais — os pontos de `portal_backups` já estão praticamente no formato certo. Não recomendo começar do zero: hoje existem snapshots válidos dos últimos 7 dias e os pontos manuais/de segurança são históricos legítimos.
+52. Confirmado — cada colaborador vê as próprias ações puladas.
+53. Confirmado — histórico original do pulo nunca é apagado.
+54. Confirmado — ação pulada pode ser recuperada/concluída depois.
+55. Confirmado — mensagem pulada e depois enviada: sai de "Puladas" (-1) e entra em "Mensagens concluídas" (+1).
+56. Confirmado — ligação pulada e depois realizada: mesma regra de contagem.
+57. Confirmado — a recuperação não apaga a evidência de que foi pulada.
+58. Confirmado — o sistema registra quando a ação pulada foi recuperada/concluída.
+59. Confirmado — sem alterar a lógica atual de geração das ações do dia.
+60. Confirmado — sem alterar a janela operacional atual.
 
-## 7. Correção mínima recomendada (a implementar depois da sua aprovação)
+## 8. Brian Analytics / IA
 
-1. Filtrar a seção "Snapshots Diários" por `origin = automatico`, e mostrar a hora real do ponto em vez do rótulo fixo "23:00"; listar manuais e de segurança em uma seção própria.
-2. Tornar a consolidação tolerante: quando o dia encerrado não tiver ponto exatamente das 23h, eleger o ponto mais tardio do dia como snapshot oficial (em vez de não consolidar nada). Isso normaliza 30/08–02/09 sem apagar nada indevido.
-3. Dar retenção própria à fila: manter as solicitações das últimas 48 horas mais as falhas, remover o resto na mesma rotina.
-4. Fazer a liberação de conteúdo órfão ser verificada (contar e registrar removidos/erros) e executá-la em bloco separado, para não morrer junto com a captura.
-5. Implementar a política de 24 horas do Backup de Conversas: retenção própria, sem interferir na dos snapshots gerais.
-6. Manter tudo no fuso da operação (America/Sao_Paulo), como já está.
+61. Confirmado — nenhuma IA em produção dependente de créditos da plataforma de desenvolvimento.
+62. Confirmado — sem contratação obrigatória de API externa só para manter o botão.
+63. Confirmado (proposta) — remover o botão "IA Executiva / Relatório Inteligente" por enquanto. Os arquivos existem (`brain-ai-report.ts`, `executive-ai-dialog.tsx`, rota `f.executivo.brain.tsx`); a remoção é só do ponto de entrada, sem apagar relatórios tradicionais.
+64. Confirmado — relatórios tradicionais (sem IA generativa) permanecem.
+65. N/A se a 63 for "sim". Se for "não", paro e pergunto: fonte oficial da IA e responsável pelo custo.
 
-## 8. Arquivos/funções que seriam alterados
+## 9. Apresentação Digital
 
-- `src/server/backup.server.ts` — `pruneBackups`, `pruneOrphanBlobs`, política de retenção.
-- `src/server/backup-queue.server.ts` — limpeza da fila.
-- `src/routes/f.executivo.central-backup.tsx` — separação das seções e rótulos.
-- `src/lib/backup.functions.ts` — apenas se a tela precisar de um recorte adicional.
+66. Confirmado — a estrutura atual não corresponde ao desejado.
+67. Confirmado — reconstrução simples em vez de adaptação.
+68. Confirmado — administração apenas com o necessário.
+69. Confirmado — conteúdo: um pequeno texto + um vídeo.
+70. Confirmado — página própria no navegador, com URL específica.
+71. Confirmado — dentro do ambiente administrativo, mantém o menu lateral do Workspace.
+72. Confirmado — a página pública do investidor NÃO tem menu administrativo.
+73. Confirmado — sem capítulos.
+74. Confirmado — sem roteiro complexo.
+75. Confirmado — sem thumbnail obrigatória.
+76. Confirmado — sem múltiplos vídeos.
+77. Confirmado — sem conteúdo inventado para preencher.
+78. Confirmado — administrador cadastra URL do vídeo + texto e publica.
+79. Confirmado — "Ver como o investidor" continua, pré-visualizando a página pública exata.
+80. **[DECISÃO]** Recomendo UMA apresentação vigente por ambiente (Financeira, Solar, Seguradora) — mais simples e coerente com "URL específica". Se precisar de várias por campanha, o modelo muda. Aguardo confirmação.
 
-## 9. Migration
+## 10. Rotas públicas / ambientes
 
-Desnecessária para a correção mínima: toda a política é derivável das colunas existentes. Só se tornaria necessária se você quiser uma marcação explícita e permanente de "snapshot diário" na linha do backup.
+Estado atual confirmado no código: existem `/f`, `/financeira`, `/solar`, `/seguradora`, `/s` (com `/s/portal` e `/s/{executivo}`), `/seg` (com `/seg/{executivo}`). Não existe `/sol`.
 
-## 10. Risco
+81. **`/f`** — workspace operacional da Financeira (CRM, executivo, Portal dos Leads) + link público `/f/{executivo}`.
+82. **`/financeira`** — página institucional pública da marca Financeira.
+83. **`/sol`** — não existe hoje; proposta: não criar.
+84. **`/solar`** — página institucional pública da marca Solar.
+85. **`/seg`** — workspace/ambiente lógico da Seguradora + link público `/seg/{executivo}`.
+86. **`/seguradora`** — página institucional pública da marca Seguradora.
+87. **`/s`** — hoje é o ambiente Solar (inclui `/s/portal` e `/s/{executivo}`).
+88. **[DECISÃO]** Minha recomendação: **manter `/s`** como prefixo curto oficial do Portal do Investidor Solar (curto funciona melhor em WhatsApp). Alternativa: aposentar `/s` e usar só `/solar/{executivo}`.
+89. **[DECISÃO]** Conforme a 88: `…/s/{executivo}` (recomendado) ou `…/solar/{executivo}`.
+90. **[DECISÃO]** Portal do Investidor Seguradora: `…/seg/{executivo}` (já existe). Alternativa: `/seguradora/{executivo}`.
+91. **[DECISÃO]** Para a entrada conjunta Solar + Seguradora, proponho uma rota única nova, ex.: `/solar-seguros` (institucional conjunta). Aguardo nome/URL definitivos.
+92. Confirmado — Financeira, Solar e Seguradora seguem logicamente separadas.
+93. Confirmado — o conjunto Solar + Seguradora é entrada/gestão conjunta, sem misturar dados das operações.
 
-🟢 baixo — as mudanças ficam contidas nas três tabelas de backup e na tela da Central, sem tocar em dados operacionais.
+## 11. Corporate Workspace
+
+94. Confirmado — um único item para o ambiente conjunto Solar + Seguradora.
+95. **[DECISÃO]** Sugestão de nome: "Solar + Seguros". ("Seg + Sol" também funciona; aguardo escolha.)
+96. Confirmado — leads da Solar chegam ao ambiente Solar.
+97. Confirmado — leads da Seguradora chegam ao ambiente Seguradora.
+98. Confirmado — leads da Financeira ficam exclusivamente em `/f`.
+99. Confirmado — nenhuma alteração na Financeira afeta Solar/Seguradora, salvo pedido explícito.
+
+## 12. Central de Homologação
+
+100. Confirmado — simulador bilateral antigo (E0, E1, E3, E4, E12, E30) está obsoleto.
+101. Confirmado — não manter interface apresentando etapas antigas como atuais.
+102. Confirmado (proposta) — remover o simulador antigo.
+103. Se a decisão for não remover, ele será totalmente adaptado às etapas atuais — nunca um meio-termo.
+104. Confirmado — nenhuma etapa nova será criada por causa do simulador.
+
+## 13. GreenSales
+
+105. Confirmado — conexão individual do GreenSales não será tocada agora.
+106. Confirmado — cada executivo usa as próprias credenciais, sem compartilhamento.
+107. Confirmado — a visão consolidada da gestora não usa credenciais individuais dos executivos.
+108. Confirmado — propriedade dos leads na GreenSales não será alterada agora.
+109. Confirmado — rotação interna do Portal × proprietário na GreenSales fica para fase futura, junto com ER.
+
+## 14. Regras intocáveis
+
+110. Confirmado — motor do E0 não será alterado.
+111. Confirmado — Biblioteca de Conteúdo é a fonte oficial das mensagens.
+112. Confirmado — registros históricos de ações e mensagens imutáveis.
+113. Confirmado — nenhum histórico operacional real será apagado por causa de interface.
+114. Confirmado — nenhum disparo real de WhatsApp será liberado.
+115. Confirmado — WhatsApp Safety Lock permanece intacto.
+116. Confirmado — verdade no servidor; localStorage/sessionStorage nunca como fonte de verdade.
+117. Confirmado — nenhuma segunda fonte paralela de verdade.
+118. Confirmado — sem migrations quando a estrutura existente resolver. (Exceção provável: Central de Templates e nova Apresentação Digital podem exigir tabelas novas — serão propostas separadamente, com GRANT + RLS.)
+119. Confirmado — sem refatoração estética de módulos funcionando.
+120. Confirmado — o próximo comando atua somente no confirmado aqui.
+121. Confirmado — consolidação em UM único comando de construção, dentro de ~10.000 caracteres.
+122. Confirmado — se algo exigir investigação, paro e faço uma pergunta específica antes de construir.
+
+## Pendências de decisão (bloqueiam o comando único)
+
+- **Q80** — uma apresentação vigente por ambiente? (recomendo: sim)
+- **Q88/89** — `/s/{executivo}` permanece como URL oficial do Portal Solar? (recomendo: sim)
+- **Q90** — Portal Seguradora em `/seg/{executivo}`? (recomendo: sim)
+- **Q91/95** — nome e URL da entrada conjunta Solar + Seguradora. (sugestão: "Solar + Seguros", rota `/solar-seguros`)
+- **Q102/103** — remover ou adaptar o simulador antigo? (recomendo: remover)
