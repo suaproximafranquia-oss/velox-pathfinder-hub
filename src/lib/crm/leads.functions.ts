@@ -105,7 +105,55 @@ const LEAD_FIELDS =
  */
 async function assertManager(context: { supabase: never; userId: string }) {
   const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
-  await assertWorkspaceAccess(context as never, "portal_leads");
+  return assertWorkspaceAccess(context as never, "portal_leads");
+}
+
+/**
+ * Ações de gestão do espelho (sincronizar, carga histórica e movimentação
+ * de contingência) permanecem exatamente como já eram: exclusivas de
+ * Administrador e Gestão. Nada aqui altera a origem nem a titularidade.
+ */
+async function assertMirrorManagement(context: { supabase: never; userId: string }) {
+  const identity = await assertManager(context);
+  if (identity.role === "executivo") {
+    throw new Error("Ação restrita à gestão do Portal dos Leads.");
+  }
+  return identity;
+}
+
+/**
+ * RECORTE DO COLABORADOR — titularidade interna oficial.
+ *
+ * `crm_leads` é apenas o espelho da origem e NÃO tem responsável. A
+ * titularidade vive no card operacional (`portal_leads.responsible_
+ * executive_id`), então o recorte é feito pelos cards do executivo
+ * autenticado — resolvido no servidor, nunca pelo navegador.
+ *
+ * `null` = sem recorte (Administrador e Gestão mantêm a visão atual).
+ */
+async function ownExternalIds(
+  context: { supabase: never },
+  identity: { role: string; executiveId: string | null },
+): Promise<string[] | null> {
+  if (identity.role !== "executivo") return null;
+  if (!identity.executiveId) return [];
+  const supabase = context.supabase as unknown as {
+    from: (t: string) => {
+      select: (c: string) => {
+        eq: (
+          c: string,
+          v: string,
+        ) => Promise<{ data: { external_id: string | null }[] | null }>;
+      };
+    };
+  };
+  const { data } = await supabase
+    .from("portal_leads")
+    .select("external_id")
+    .eq("responsible_executive_id", identity.executiveId);
+  return (data ?? [])
+    .map((row) => (row.external_id ?? "").trim())
+    .filter((value) => value.length > 0);
 }
 
 /** Lista os leads do nosso CRM, com filtros de operação. */
@@ -121,12 +169,15 @@ export const listCrmLeads = createServerFn({ method: "POST" })
       .parse(data ?? {}),
   )
   .handler(async ({ data, context }): Promise<CrmLeadView[]> => {
-    await assertManager(context as never);
+    const identity = await assertManager(context as never);
+    const scoped = await ownExternalIds(context as never, identity);
+    if (scoped && scoped.length === 0) return [];
     let query = context.supabase
       .from("crm_leads")
       .select(LEAD_FIELDS)
       .order("external_created_at", { ascending: false })
       .limit(500);
+    if (scoped) query = query.in("external_id", scoped);
     if (data.stageKey) query = query.eq("stage_key", data.stageKey);
     if (data.welcomeStatus) query = query.eq("welcome_status", data.welcomeStatus);
     if (data.search?.trim()) {
@@ -147,7 +198,8 @@ export const getCrmLead = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ lead: CrmLeadView | null; events: CrmLeadEventView[] }> => {
-      await assertManager(context as never);
+      const identity = await assertManager(context as never);
+      const scoped = await ownExternalIds(context as never, identity);
       const [lead, events] = await Promise.all([
         context.supabase.from("crm_leads").select(LEAD_FIELDS).eq("id", data.id).maybeSingle(),
         context.supabase
@@ -158,8 +210,16 @@ export const getCrmLead = createServerFn({ method: "POST" })
           .limit(200),
       ]);
       if (lead.error) throw new Error(lead.error.message);
+      /**
+       * O `id` vem do cliente, mas quem decide o alcance é o servidor:
+       * fora da titularidade do executivo, a ficha volta vazia.
+       */
+      const row = lead.data ? (lead.data as unknown as LeadRow) : null;
+      if (scoped && (!row || !scoped.includes(row.external_id))) {
+        return { lead: null, events: [] };
+      }
       return {
-        lead: lead.data ? toView(lead.data as unknown as LeadRow) : null,
+        lead: row ? toView(row) : null,
         events: (events.data ?? []).map((e) => ({
           id: e.id,
           type: e.type,
@@ -203,7 +263,7 @@ export const listCrmSyncRuns = createServerFn({ method: "POST" })
 export const runCrmSyncNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertManager(context as never);
+    await assertMirrorManagement(context as never);
     const { runLeadSync } = await import("@/server/crm/lead-sync.server");
     return runLeadSync("manual", context.userId);
   });
@@ -212,7 +272,7 @@ export const runCrmSyncNow = createServerFn({ method: "POST" })
 export const runCrmBackfillNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertManager(context as never);
+    await assertMirrorManagement(context as never);
     const { runGreenSalesBackfill } = await import("@/server/crm/lead-sync.server");
     return runGreenSalesBackfill(context.userId);
   });
@@ -240,7 +300,7 @@ export const moveCrmLeadStage = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; message: string }> => {
-    await assertManager(context as never);
+    await assertMirrorManagement(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { recordEvent } = await import("@/server/crm/lead-service.server");
 

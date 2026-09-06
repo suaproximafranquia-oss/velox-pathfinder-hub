@@ -19,7 +19,7 @@ import { useRealDailyActionsAdapter } from "@/components/crm/daily-actions-real-
 
 import { getDailyActionsSummary } from "@/lib/crm/daily-actions.functions";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
+import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
 import {
   getCrmLead,
   listCrmLeads,
@@ -121,12 +121,15 @@ function LeadDialog({
   stages,
   onClose,
   onMove,
+  canMove,
 }: {
   lead: CrmLeadView;
   events: CrmLeadEventView[];
   stages: CrmStageView[];
   onClose: () => void;
   onMove: (lead: CrmLeadView, stage: CrmStageView) => Promise<void>;
+  /** Contingência local continua sendo decisão de gestão. */
+  canMove: boolean;
 }) {
   const [moveTarget, setMoveTarget] = useState("");
   const [moving, setMoving] = useState(false);
@@ -182,6 +185,7 @@ function LeadDialog({
         </div>
 
 
+        {canMove && (
         <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
           <p className="text-[11px] font-medium text-amber-300">Mover para (contingência local)</p>
           <p className="mt-1 text-[10px] leading-relaxed text-white/50">
@@ -247,6 +251,7 @@ function LeadDialog({
           </div>
 
         </div>
+        )}
 
         <h3 className="mt-6 mb-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
           Histórico
@@ -308,9 +313,21 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     setSession(s);
   }, [navigate]);
 
-  const allowed = session
-    ? isCrmAdministrator(session.activeRole) || isCrmSupervisor(session.activeRole)
-    : false;
+  /**
+   * AUTORIDADE ÚNICA — quem libera o Portal é o servidor (matriz central
+   * do Corporate Workspace). O navegador apenas reflete a resposta; a
+   * antiga regra de papel do CRM deixou de decidir acesso.
+   */
+  const workspaceAuth = useWorkspaceAuthorization();
+  const allowed = workspaceAuth?.allowed.portal_leads === true;
+  /** Gestão do espelho (sincronizar, carga histórica) segue com a gestão. */
+  const canManageMirror =
+    workspaceAuth !== null && workspaceAuth.role !== "executivo";
+  /**
+   * A Gestora é exclusivamente gerencial: nenhuma superfície operacional
+   * da Ação do Dia aparece no Portal para ela.
+   */
+  const showDailyActions = workspaceAuth !== null && workspaceAuth.role !== "diretora";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -325,9 +342,13 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       setRuns(history);
       setStages(stageList);
       setConnection(conn);
-      try {
-        setCallsSummary(await fetchCallsSummary());
-      } catch {
+      if (showDailyActions) {
+        try {
+          setCallsSummary(await fetchCallsSummary());
+        } catch {
+          setCallsSummary(null);
+        }
+      } else {
         setCallsSummary(null);
       }
     } catch (error) {
@@ -335,7 +356,15 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     } finally {
       setLoading(false);
     }
-  }, [fetchCallsSummary, fetchConnection, fetchLeads, fetchRuns, fetchStages, search]);
+  }, [
+    fetchCallsSummary,
+    fetchConnection,
+    fetchLeads,
+    fetchRuns,
+    fetchStages,
+    search,
+    showDailyActions,
+  ]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -525,6 +554,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
             {lastSync && (
               <span className="text-[10px] text-white/40">Atualizado {formatDate(lastSync)}</span>
             )}
+            {showDailyActions && (
             <button
               type="button"
               onClick={() => setCallsOpen(true)}
@@ -540,6 +570,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
                 </span>
               )}
             </button>
+            )}
             <button
               type="button"
               onClick={handleSync}
@@ -601,12 +632,13 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           stages={stages}
           onClose={() => setSelectedId(null)}
           onMove={handleMove}
+          canMove={canManageMirror}
         />
       )}
 
       <DailyActionsOverlay
         adapter={dailyActionsAdapter}
-        open={callsOpen}
+        open={showDailyActions && callsOpen}
 
         onClose={() => {
           setCallsOpen(false);
