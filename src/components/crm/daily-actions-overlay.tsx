@@ -75,6 +75,21 @@ export function DailyActionsOverlay({
   const [busy, setBusy] = useState(false);
   /** Ligação sem atendimento aguardando a resposta "chamou?". */
   const [callAwaitingRing, setCallAwaitingRing] = useState<string | null>(null);
+  /**
+   * Resultado da ligação já escolhido, aguardando a confirmação final.
+   * "Não atendeu" é resultado da tentativa; só "Concluído" encerra.
+   */
+  const [callPending, setCallPending] = useState<{
+    key: string;
+    outcome: "SIM" | "NAO";
+    rang: boolean | null;
+  } | null>(null);
+  const [callNote, setCallNote] = useState("");
+  /** Janela operacional de execução manual (06–22 seg–sex, 06–17 sáb). */
+  const [operationalWindow, setOperationalWindow] = useState<OperationalWindow>(() =>
+    resolveOperationalWindow(),
+  );
+
   const [skipOpen, setSkipOpen] = useState(false);
   const [skipReason, setSkipReason] = useState("");
   const [note, setNote] = useState("");
