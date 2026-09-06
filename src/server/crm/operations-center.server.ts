@@ -61,6 +61,8 @@ export type SkipRecord = {
   investorName: string | null;
   step: string | null;
   motivo: string | null;
+  /** Concluída depois: continua no histórico, mas não conta como pulo. */
+  recuperada: boolean;
 };
 
 export type ProductionReport = {
@@ -232,6 +234,7 @@ export async function buildProductionReport(
         "acao_do_dia_mensagem_registrada",
         "acao_do_dia_reuniao_resolvida",
         "acao_do_dia_pulada",
+        "acao_do_dia_pulo_recuperado",
       ])
       .gte("created_at", fromIso)
       .lt("created_at", toIso)
@@ -287,6 +290,17 @@ export async function buildProductionReport(
     LedgerRow & { action?: string | null }
   >;
 
+  /**
+   * RECUPERAÇÃO: a ação pulada que foi concluída depois deixa de contar
+   * como pulo. O registro original permanece intacto no histórico.
+   */
+  const recoveredKeys = new Set<string>();
+  for (const row of ledgerWithAction) {
+    if (String(row.action ?? "") !== "acao_do_dia_pulo_recuperado") continue;
+    const key = detailString((row.details ?? {}) as Record<string, unknown>, "actionKey");
+    if (key) recoveredKeys.add(key);
+  }
+
   for (const row of ledgerWithAction) {
     /** O tipo do registro vem da própria linha; nada é inferido. */
     const action = String(row.action ?? "");
@@ -318,9 +332,10 @@ export async function buildProductionReport(
     }
 
     if (action === "acao_do_dia_pulada") {
+      const recuperada = recoveredKeys.has(actionKey);
       const key = `pulo:${actionKey}:${date}`;
       if (seen.has(key)) continue;
-      push({ key, metric: "pulos", date, executiveId });
+      if (!recuperada) push({ key, metric: "pulos", date, executiveId });
       skips.push({
         id: String(row.id),
         at: detailString(details, "at") ?? row.created_at,
@@ -334,6 +349,7 @@ export async function buildProductionReport(
         investorName: detailString(details, "title"),
         step: detailString(details, "step"),
         motivo: detailString(details, "motivo"),
+        recuperada,
       });
     }
   }

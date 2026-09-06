@@ -578,6 +578,7 @@ export type Database = {
           footer: string | null
           header: string | null
           id: string
+          is_active: boolean
           language: string | null
           meta_id: string | null
           meta_name: string
@@ -598,6 +599,7 @@ export type Database = {
           footer?: string | null
           header?: string | null
           id?: string
+          is_active?: boolean
           language?: string | null
           meta_id?: string | null
           meta_name: string
@@ -618,6 +620,7 @@ export type Database = {
           footer?: string | null
           header?: string | null
           id?: string
+          is_active?: boolean
           language?: string | null
           meta_id?: string | null
           meta_name?: string
@@ -807,6 +810,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      environment_presentations: {
+        Row: {
+          created_at: string
+          environment: string
+          id: string
+          intro_text: string
+          is_published: boolean
+          published_at: string | null
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          environment: string
+          id?: string
+          intro_text?: string
+          is_published?: boolean
+          published_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          id?: string
+          intro_text?: string
+          is_published?: boolean
+          published_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string
+          video_url?: string | null
+        }
+        Relationships: []
       }
       executive_profiles: {
         Row: {

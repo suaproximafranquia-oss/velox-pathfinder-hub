@@ -22,6 +22,7 @@ import {
   listMetaTemplates,
   saveMetaTemplate,
   deleteMetaTemplate,
+  setMetaTemplateActive,
 } from "@/lib/crm/meta-templates.functions";
 import {
   TEMPLATE_PURPOSES,
@@ -217,6 +218,23 @@ function TemplatesPage() {
     }
   };
 
+  const toggleActive = async (id: string, isActive: boolean) => {
+    setBusy(true);
+    try {
+      await ensureCloudSession();
+      await setMetaTemplateActive({ data: { id, isActive } });
+      setStatus(
+        isActive
+          ? "Template ativado: já aparece no seletor das campanhas."
+          : "Template desativado: sai do seletor das campanhas. Campanhas e históricos existentes foram preservados.",
+      );
+      await refresh();
+      setDetail((current) => (current && current.id === id ? { ...current, isActive } : current));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const remove = async (id: string) => {
     setBusy(true);
     try {
@@ -360,6 +378,7 @@ function TemplatesPage() {
                     <th className="py-2 pr-4 font-normal">Idioma</th>
                     <th className="py-2 pr-4 font-normal">Categoria</th>
                     <th className="py-2 pr-4 font-normal">Status</th>
+                    <th className="py-2 pr-4 font-normal">Situação</th>
                     <th className="py-2" />
                   </tr>
                 </thead>
@@ -386,6 +405,16 @@ function TemplatesPage() {
                       <td className="py-2 pr-4">{display(t.language)}</td>
                       <td className="py-2 pr-4">{display(t.category)}</td>
                       <td className="py-2 pr-4">{display(t.status)}</td>
+                      <td className="py-2 pr-4">
+                        <button
+                          type="button"
+                          className={ghost}
+                          disabled={busy}
+                          onClick={() => void toggleActive(t.id, !t.isActive)}
+                        >
+                          {t.isActive ? "Ativo" : "Inativo"}
+                        </button>
+                      </td>
                       <td className="py-2 text-right">
                         <button
                           type="button"
@@ -568,17 +597,28 @@ function TemplatesPage() {
               <h2 className="font-display text-base">{display(detail.name)}</h2>
               <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
                 Finalidade: {purposeLabel(detail.purpose)} · ID Meta: {display(detail.metaId)} ·{" "}
-                {display(detail.language)} · {display(detail.category)} · {display(detail.status)}
+                {display(detail.language)} · {display(detail.category)} · {display(detail.status)} ·{" "}
+                {detail.isActive ? "Ativo" : "Inativo"}
               </p>
             </div>
-            <button
-              type="button"
-              className={ghost}
-              disabled={busy}
-              onClick={() => void remove(detail.id)}
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Remover cadastro
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className={ghost}
+                disabled={busy}
+                onClick={() => void toggleActive(detail.id, !detail.isActive)}
+              >
+                {detail.isActive ? "Desativar template" : "Ativar template"}
+              </button>
+              <button
+                type="button"
+                className={ghost}
+                disabled={busy}
+                onClick={() => void remove(detail.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Remover cadastro
+              </button>
+            </div>
           </div>
           <TemplateContent reading={detail} />
         </section>

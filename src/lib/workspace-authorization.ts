@@ -53,10 +53,13 @@ const TODOS: ExecutiveRole[] = ["super_admin", "diretora", "executivo"];
 
 /** Papéis autorizados por recurso — intenção funcional já vigente. */
 const ROLE_MATRIX: Record<WorkspaceResource, ExecutiveRole[]> = {
-  captacao: ADMIN_GESTAO,
+  // Central de Captação é operação de captação, não de gestão: a Gestora
+  // não acessa (decisão definitiva do perfil gerencial).
+  captacao: ADMIN,
   biblioteca: ADMIN_GESTAO,
   homologacao: ADMIN,
-  revista: ADMIN_GESTAO,
+  // Revista Velox: administração é exclusiva do Administrador.
+  revista: ADMIN,
   // Relatório somente leitura: colaborador vê apenas a própria produção
   // (o recorte é feito no servidor, jamais pelo navegador).
   central_operacoes: TODOS,
@@ -66,9 +69,9 @@ const ROLE_MATRIX: Record<WorkspaceResource, ExecutiveRole[]> = {
   backup_conversas: TODOS,
   usuarios: ADMIN_GESTAO,
   configuracoes: ADMIN,
-  // Remarketing é área de gestão: Colaborador não acessa (nem no menu,
-  // nem na rota, nem nas server functions — decisão única).
-  remarketing: ADMIN_GESTAO,
+  // Remarketing é CRM independente operado pela administração: nem
+  // Colaborador nem Gestora acessam (menu, rota e server function).
+  remarketing: ADMIN,
 
 };
 

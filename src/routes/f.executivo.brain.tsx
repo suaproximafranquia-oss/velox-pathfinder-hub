@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarRange, ChevronDown, Sparkles, UserSquare2 } from "lucide-react";
+import { CalendarRange, ChevronDown, UserSquare2 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { buildOperationalSnapshot } from "@/lib/brain-data";
@@ -16,7 +16,6 @@ import { AVAILABLE_MONTHS, DEFAULT_MONTH_KEY } from "@/lib/kpi-manager";
 import { visibleCollaborators } from "@/lib/teams";
 import { KpiCard } from "@/components/executive/brain/kpi-card";
 import { FunnelCard } from "@/components/executive/brain/funnel-card";
-import { ExecutiveAiDialog } from "@/components/executive/brain/executive-ai-dialog";
 import {
   BlockTitle,
   ClosingSummary,
@@ -55,7 +54,6 @@ function BrainPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [monthKey, setMonthKey] = useState(DEFAULT_MONTH_KEY);
   const [scope, setScope] = useState<ScopeSelection | null>(null);
-  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     const s = getSession();
@@ -81,9 +79,10 @@ function BrainPage() {
 
   const scopes = availableScopes(session.activeRole);
   const executives = visibleCollaborators(session);
-  // IA Executiva: exclusiva de Administrador e Gestora.
-  const canUseExecutiveAi =
-    session.activeRole === "super_admin" || session.activeRole === "diretora";
+  /**
+   * O PONTO DE ENTRADA DE IA FOI REMOVIDO do Brain Analytics. Os
+   * relatórios tradicionais continuam intactos.
+   */
 
   function chooseScope(mode: ScopeMode) {
     if (!session) return;
@@ -131,16 +130,6 @@ function BrainPage() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canUseExecutiveAi ? (
-            <button
-              type="button"
-              onClick={() => setAiOpen(true)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--gold)]/40 bg-[color:var(--accent)] px-3 py-1.5 text-xs text-[color:var(--foreground)] transition hover:border-[color:var(--gold)]/70"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-[color:var(--gold)]" />
-              IA Executiva
-            </button>
-          ) : null}
           <label className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/40 px-3 py-1.5 text-xs">
           <CalendarRange className="h-3.5 w-3.5 text-[color:var(--muted-foreground)]" />
           <select
@@ -157,16 +146,6 @@ function BrainPage() {
           </label>
         </div>
       </div>
-
-      {canUseExecutiveAi ? (
-        <ExecutiveAiDialog
-          open={aiOpen}
-          onClose={() => setAiOpen(false)}
-          analytics={analytics}
-          snapshot={snapshot}
-          actorName={session.name}
-        />
-      ) : null}
 
       <ScopeBreadcrumb mode={scope.mode} />
 

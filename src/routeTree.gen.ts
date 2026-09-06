@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UniversoRouteImport } from './routes/universo'
+import { Route as SolarSegurosRouteImport } from './routes/solar-seguros'
 import { Route as SolarRouteImport } from './routes/solar'
 import { Route as SeguradoraRouteImport } from './routes/seguradora'
 import { Route as RemarketingRouteImport } from './routes/remarketing'
@@ -117,6 +118,11 @@ import { Route as ApiPublicBackupProcessRouteImport } from './routes/api/public/
 const UniversoRoute = UniversoRouteImport.update({
   id: '/universo',
   path: '/universo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SolarSegurosRoute = SolarSegurosRouteImport.update({
+  id: '/solar-seguros',
+  path: '/solar-seguros',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SolarRoute = SolarRouteImport.update({
@@ -652,6 +658,7 @@ export interface FileRoutesByFullPath {
   '/remarketing': typeof RemarketingRoute
   '/seguradora': typeof SeguradoraRoute
   '/solar': typeof SolarRoute
+  '/solar-seguros': typeof SolarSegurosRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -757,6 +764,7 @@ export interface FileRoutesByTo {
   '/remarketing': typeof RemarketingRoute
   '/seguradora': typeof SeguradoraRoute
   '/solar': typeof SolarRoute
+  '/solar-seguros': typeof SolarSegurosRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -860,6 +868,7 @@ export interface FileRoutesById {
   '/remarketing': typeof RemarketingRoute
   '/seguradora': typeof SeguradoraRoute
   '/solar': typeof SolarRoute
+  '/solar-seguros': typeof SolarSegurosRoute
   '/universo': typeof UniversoRoute
   '/e/$slug': typeof ESlugRoute
   '/executivo/administracao': typeof ExecutivoAdministracaoRoute
@@ -968,6 +977,7 @@ export interface FileRouteTypes {
     | '/remarketing'
     | '/seguradora'
     | '/solar'
+    | '/solar-seguros'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -1073,6 +1083,7 @@ export interface FileRouteTypes {
     | '/remarketing'
     | '/seguradora'
     | '/solar'
+    | '/solar-seguros'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -1175,6 +1186,7 @@ export interface FileRouteTypes {
     | '/remarketing'
     | '/seguradora'
     | '/solar'
+    | '/solar-seguros'
     | '/universo'
     | '/e/$slug'
     | '/executivo/administracao'
@@ -1282,6 +1294,7 @@ export interface RootRouteChildren {
   RemarketingRoute: typeof RemarketingRoute
   SeguradoraRoute: typeof SeguradoraRoute
   SolarRoute: typeof SolarRoute
+  SolarSegurosRoute: typeof SolarSegurosRoute
   UniversoRoute: typeof UniversoRoute
   ESlugRoute: typeof ESlugRoute
   ExecutivoAdministracaoRoute: typeof ExecutivoAdministracaoRoute
@@ -1340,6 +1353,13 @@ declare module '@tanstack/react-router' {
       path: '/universo'
       fullPath: '/universo'
       preLoaderRoute: typeof UniversoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/solar-seguros': {
+      id: '/solar-seguros'
+      path: '/solar-seguros'
+      fullPath: '/solar-seguros'
+      preLoaderRoute: typeof SolarSegurosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/solar': {
@@ -2227,6 +2247,7 @@ const rootRouteChildren: RootRouteChildren = {
   RemarketingRoute: RemarketingRoute,
   SeguradoraRoute: SeguradoraRoute,
   SolarRoute: SolarRoute,
+  SolarSegurosRoute: SolarSegurosRoute,
   UniversoRoute: UniversoRoute,
   ESlugRoute: ESlugRoute,
   ExecutivoAdministracaoRoute: ExecutivoAdministracaoRoute,

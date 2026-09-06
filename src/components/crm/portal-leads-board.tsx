@@ -19,6 +19,7 @@ import { useRealDailyActionsAdapter } from "@/components/crm/daily-actions-real-
 
 import { getDailyActionsSummary } from "@/lib/crm/daily-actions.functions";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
+import { listPortalLeadsExecutives } from "@/lib/crm/leads.functions";
 import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
 import {
   getCrmLead,
@@ -290,6 +291,13 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const [notice, setNotice] = useState<string | null>(null);
   const [callsOpen, setCallsOpen] = useState(false);
   const [callsSummary, setCallsSummary] = useState<{ overdue: number; today: number } | null>(null);
+  /**
+   * VISÃO GERENCIAL — "Todos" consolida a equipe inteira; escolher um
+   * executivo recorta indicadores, lista, detalhes e contagens para ele.
+   * O recorte real acontece no servidor: nada é espelhado no navegador.
+   */
+  const [teamFilter, setTeamFilter] = useState<{ id: string; name: string }[]>([]);
+  const [executiveFilter, setExecutiveFilter] = useState("");
 
   const fetchLeads = useServerFn(listCrmLeads);
   const fetchRuns = useServerFn(listCrmSyncRuns);
@@ -300,6 +308,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
   const runBackfill = useServerFn(runCrmBackfillNow);
   const moveLead = useServerFn(moveCrmLeadStage);
   const fetchCallsSummary = useServerFn(getDailyActionsSummary);
+  const fetchTeamFilter = useServerFn(listPortalLeadsExecutives);
   /** Modo real: o painel usa exatamente as funções oficiais de sempre. */
   const dailyActionsAdapter = useRealDailyActionsAdapter();
 
@@ -333,7 +342,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     setLoading(true);
     try {
       const [rows, history, stageList, conn] = await Promise.all([
-        fetchLeads({ data: { search } }),
+        fetchLeads({ data: { search, executiveId: executiveFilter } }),
         fetchRuns({}),
         fetchStages({}),
         fetchConnection({}),
@@ -357,6 +366,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       setLoading(false);
     }
   }, [
+    executiveFilter,
     fetchCallsSummary,
     fetchConnection,
     fetchLeads,
@@ -370,6 +380,23 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     if (!allowed) return;
     void load();
   }, [allowed, load]);
+
+  /** Lista de executivos do filtro — decidida pelo servidor. */
+  useEffect(() => {
+    if (!allowed) return;
+    let cancelled = false;
+    void fetchTeamFilter({})
+      .then((rows) => {
+        if (!cancelled) setTeamFilter(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setTeamFilter([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [allowed, fetchTeamFilter]);
+
 
   useEffect(() => {
     if (!selectedId) {
@@ -550,6 +577,28 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
                 className="w-full bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
               />
             </div>
+            {teamFilter.length > 0 && (
+              <select
+                value={executiveFilter}
+                onChange={(e) => setExecutiveFilter(e.target.value)}
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none"
+                style={{ colorScheme: "dark" }}
+                aria-label="Filtrar por executivo"
+              >
+                <option value="" style={{ backgroundColor: "#0b1220", color: "#e5e7eb" }}>
+                  Todos os executivos
+                </option>
+                {teamFilter.map((member) => (
+                  <option
+                    key={member.id}
+                    value={member.id}
+                    style={{ backgroundColor: "#0b1220", color: "#e5e7eb" }}
+                  >
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <ConnectionDot state={connection} />
             {lastSync && (
               <span className="text-[10px] text-white/40">Atualizado {formatDate(lastSync)}</span>

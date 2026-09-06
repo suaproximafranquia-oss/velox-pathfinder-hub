@@ -45,3 +45,30 @@
 - [x] Corrigir escopo do Painel de Campanhas (colaborador deve ver todos os executivos ativos) — somente /f/executivo/campanhas
 
 - [x] Central de Alertas /f: servidor como fonte de verdade (etapa 1) — alertas derivados de portal_leads, portal_journey_events, portal_engagement, portal_meetings e lead_ownership_history; "Contato Solicitado" pendente de persistência server-side.
+
+## Refinamento único (06/09)
+- [ ] 1. Manual: remover vídeos dos capítulos 1, 7 e 14 + referências textuais; relatar outros capítulos com vídeo
+- [ ] 2. Remarketing: largura do CRM, identidade "CRM de Remarketing"
+- [ ] 3. Central de Templates (Meta) para campanhas de Remarketing
+- [ ] 4. Larissa gestora: permissões e visibilidade
+- [ ] 5. Portal dos Leads: visão gerencial com filtro por executivo
+- [ ] 6. KPI e Campanhas: escopos por perfil
+- [ ] 7. Central de Operações: recuperação de ações puladas
+- [ ] 8. Brian Analytics: remover ponto de entrada da IA Executiva
+- [ ] 9. Apresentação Digital: reconstrução simples (texto + 1 vídeo)
+- [ ] 10. Homologação: remover simulador antigo
+- [ ] 11/12. Rotas definitivas + ambiente conjunto "Solar + Seguros" (/solar-seguros)
+- [ ] 13. Apresentação Digital em Módulos, menu por permissão
+
+### Situação (06/09, fim do bloco)
+- [x] Manual: vídeos dos capítulos 1, 7 e 14 removidos (não havia outros)
+- [x] CRM de Remarketing ampliado e isolado
+- [x] Central de Templates com ativo/inativo (snapshots preservados)
+- [x] Permissões definitivas da Gestora
+- [x] Portal dos Leads com filtro gerencial por executivo (server-side)
+- [x] KPI e Campanhas com equipe ativa dinâmica
+- [x] Recuperação de ações puladas (registro append-only + Central de Operações)
+- [x] Ponto de entrada de IA removido do Brain (relatórios preservados)
+- [x] Simulador antigo removido definitivamente
+- [x] /solar-seguros criado + item "Solar + Seguros" no Workspace
+- [ ] Apresentação Digital: uma vigente por ambiente — pendente de decisão

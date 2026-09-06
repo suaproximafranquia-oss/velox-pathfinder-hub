@@ -31,7 +31,6 @@ export const CHAPTERS: Chapter[] = [
     seoTitle: "Manual do Investidor Velox — Uma apresentação guiada",
     seoDescription:
       "Um manual digital para conhecer a franquia Velox com transparência — antes de qualquer conversa comercial.",
-    hasVideo: true,
     nextPath: "/manual/proposito",
     nextTeaser: "A seguir: por que criamos este Manual.",
     continueLabel: "Iniciar a leitura",
@@ -143,7 +142,6 @@ export const CHAPTERS: Chapter[] = [
     nextTeaser: "A seguir: o investimento para começar.",
     prevPath: "/manual/personalizando-sua-jornada",
     nextPath: "/manual/investimento",
-    hasVideo: true,
   },
   {
     slug: "investimento",
@@ -265,7 +263,6 @@ export const CHAPTERS: Chapter[] = [
     seoDescription:
       "Agora que você entende o modelo, converse com um especialista Velox.",
     transitionFromPrev: "Você concluiu o Manual. Agora, o convite.",
-    hasVideo: true,
     prevPath: "/manual/autoavaliacao",
     isFinal: true,
   },

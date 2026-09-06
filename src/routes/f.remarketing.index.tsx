@@ -24,7 +24,7 @@ import { RemarketingChat } from "@/components/remarketing/remarketing-chat";
 export const Route = createFileRoute("/f/remarketing/")({
   head: () => ({
     meta: [
-      { title: `Remarketing — ${WORKSPACE.workspaceName}` },
+      { title: `CRM de Remarketing — ${WORKSPACE.workspaceName}` },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -52,7 +52,7 @@ function RemarketingPage() {
   return (
     <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] bg-grain">
       <header className="fixed inset-x-0 top-0 z-40 border-b border-[color:var(--border)] bg-[color:var(--navy-deep)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
+        <div className="flex w-full items-center justify-between gap-4 px-6 py-4 lg:px-10">
           <div className="flex items-center gap-3">
             {WORKSPACE.workspaceLogoUrl ? (
               <img
@@ -63,7 +63,7 @@ function RemarketingPage() {
             ) : null}
             <div className="flex flex-col leading-tight">
               <span className="font-display text-sm tracking-[0.18em] text-[color:var(--foreground)]">
-                Remarketing
+                CRM de Remarketing
               </span>
               <span className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
                 {WORKSPACE.workspaceName} · ambiente independente
@@ -88,15 +88,15 @@ function RemarketingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 pt-24 pb-16 md:pt-28">
+      <main className="w-full px-6 pt-24 pb-16 md:pt-28 lg:px-10">
         <div className="mb-8 flex items-center gap-3">
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/50 text-[color:var(--gold)]">
             <Megaphone className="h-5 w-5" strokeWidth={1.5} />
           </span>
           <div>
-            <h1 className="font-display text-2xl md:text-3xl">Ambiente de Remarketing</h1>
+            <h1 className="font-display text-2xl md:text-3xl">CRM de Remarketing</h1>
             <p className="text-xs text-[color:var(--muted-foreground)]">
-              CRM operacional independente — isolado do CRM de Relacionamento.
+              CRM independente do CRM operacional: leads, histórico, etapas, notas, ações e titularidade nunca se misturam.
             </p>
           </div>
         </div>
