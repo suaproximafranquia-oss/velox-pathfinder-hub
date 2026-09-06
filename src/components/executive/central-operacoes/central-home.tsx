@@ -43,6 +43,7 @@ type Skip = {
   investorName: string | null;
   step: string | null;
   motivo: string | null;
+  recuperada?: boolean;
 };
 
 type Report = {
@@ -379,6 +380,7 @@ export function CentralOperacoesHome() {
                       <th className="px-4 py-2 text-left">Investidor</th>
                       <th className="px-4 py-2 text-left">Etapa</th>
                       <th className="px-4 py-2 text-left">Motivo</th>
+                      <th className="px-4 py-2 text-left">Situação</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -410,6 +412,15 @@ export function CentralOperacoesHome() {
                           <td className="px-4 py-2">{skip.step ?? "—"}</td>
                           <td className="px-4 py-2 text-muted-foreground">
                             {skip.motivo ?? "—"}
+                          </td>
+                          <td className="px-4 py-2">
+                            {skip.recuperada === true ? (
+                              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
+                                Recuperada
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Em aberto</span>
+                            )}
                           </td>
                         </tr>
                       );
