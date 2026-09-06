@@ -95,6 +95,7 @@ export async function backfillCardResponsible(
   responsible: ResolvedResponsible,
 ): Promise<boolean> {
   if (!responsible) return false;
+  if (await isManagementExecutive(responsible.executiveId)) return false;
   const { data } = await supabaseAdmin
     .from("portal_leads")
     .select("id,responsible_executive_id")
