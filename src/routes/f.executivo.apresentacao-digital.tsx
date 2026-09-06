@@ -15,6 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowDown, ArrowUp, Eye, Film, Plus, Save, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { EnvironmentPresentationsCard } from "@/components/executive/environment-presentations-card";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   listarCapitulos,
@@ -182,6 +183,8 @@ function ApresentacaoDigitalPage() {
   return (
     <ExecutiveShell session={session!} title="Apresentação Digital">
       <div className="space-y-6">
+        <EnvironmentPresentationsCard />
+
         <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <Film className="h-4 w-4" aria-hidden />
