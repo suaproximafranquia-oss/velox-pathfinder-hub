@@ -61,5 +61,9 @@ A aplicação já tem uma definição única de data operacional em São Paulo, 
 
 ## 8. Perguntas ainda indispensáveis
 
-1. Quinto card "Total de ações" nos indicadores superiores: incluir ou manter apenas os quatro? (A coluna "Total" nas tabelas já está aprovada.)
-2. Quando Larissa clicar em um lead pulado e as regras de acesso não permitirem abrir a ficha daquele investidor, o que deve acontecer: mostrar apenas os dados do registro (investidor, etapa, motivo, horário) sem link, ou exibir um aviso de acesso indisponível?
+PLANEJAMENTO FECHADO — NÃO HÁ MAIS PERGUNTAS INDISPENSÁVEIS.
+
+Respostas finais registradas:
+
+1. Não haverá quinto card. Os quatro indicadores superiores são: Ligações efetuadas, Mensagens enviadas, Reuniões realizadas, Pulos. A coluna "Total" permanece apenas nas tabelas.
+2. Quando as regras server-side não permitirem abrir a ficha, o registro do pulo continua visível (investidor, etapa, motivo, horário), sem expor dados não autorizados, e o link é substituído por um aviso "Acesso indisponível".
