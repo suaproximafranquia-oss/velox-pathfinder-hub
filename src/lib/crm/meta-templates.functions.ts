@@ -45,6 +45,7 @@ function toRecord(row: Record<string, unknown>): MetaTemplateRecord {
     variables: Array.isArray(row.variables) ? (row.variables as MetaTemplateRecord["variables"]) : [],
     buttons: Array.isArray(row.buttons) ? (row.buttons as MetaTemplateRecord["buttons"]) : [],
     purpose: (String(row.purpose ?? "outro") as MetaTemplatePurpose) ?? "outro",
+    isActive: row.is_active === undefined || row.is_active === null ? true : Boolean(row.is_active),
     notes: clean(row.notes),
     createdByName: String(row.created_by_name ?? ""),
     createdAt: String(row.created_at ?? ""),
@@ -265,6 +266,7 @@ const savePayload = z.object({
     )
     .default([]),
   purpose: z.string().default("outro"),
+  isActive: z.boolean().default(true),
   notes: z.string().nullable().optional(),
   createdByName: z.string().default(""),
   /** true = usuário autorizou sobrescrever o cadastro existente. */
@@ -316,6 +318,7 @@ export const saveMetaTemplate = createServerFn({ method: "POST" })
         variables: data.variables,
         buttons: data.buttons,
         purpose: data.purpose,
+        is_active: data.isActive,
         notes: data.notes ?? null,
         created_by: context.userId as string,
         created_by_name: data.createdByName,
@@ -360,10 +363,32 @@ export const listCrmRelationshipTemplates = createServerFn({ method: "POST" })
     const { data, error } = await supabaseAdmin
       .from("crm_meta_templates")
       .select("*")
+      .eq("is_active", true)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? [])
       .map((row) => toRecord(row as Record<string, unknown>))
       .filter((r) => (r.name ?? "").trim().length > 0)
       .map(metaTemplateToCrmOption);
+  });
+
+/**
+ * Ativa/desativa um template oficial. Desativar apenas o esconde do
+ * seletor das campanhas: nenhuma campanha, histórico ou snapshot é
+ * apagado, e o conteúdo aprovado na Meta permanece intocado.
+ */
+export const setMetaTemplateActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ id: z.string().uuid(), isActive: z.boolean() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("crm_meta_templates")
+      .update({ is_active: data.isActive, updated_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });

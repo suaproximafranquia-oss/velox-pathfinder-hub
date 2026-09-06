@@ -80,6 +80,8 @@ export type MetaTemplateReading = {
 export type MetaTemplateRecord = MetaTemplateReading & {
   id: string;
   purpose: MetaTemplatePurpose;
+  /** Somente templates ativos aparecem no seletor das campanhas. */
+  isActive: boolean;
   notes: string | null;
   createdByName: string;
   createdAt: string;
