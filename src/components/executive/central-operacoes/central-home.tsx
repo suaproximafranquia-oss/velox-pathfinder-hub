@@ -324,7 +324,8 @@ export function CentralOperacoesHome() {
             </section>
           ) : null}
 
-          <section className="overflow-hidden rounded-xl border border-border bg-card">
+          {!(report.scope === "propria" && period === "hoje") ? (
+            <section className="overflow-hidden rounded-xl border border-border bg-card">
             <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
               Produção por dia
             </h2>
