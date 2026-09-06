@@ -169,12 +169,12 @@ export const salvarApresentacaoAmbiente = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { assertAdministrativeAccess } = await import("@/server/authorization.server");
-    const access = await assertAdministrativeAccess(context as any);
+    await assertAdministrativeAccess(context as any);
     const { saveEnvironmentPresentation } = await import(
       "@/server/relationship/environment-presentation.server"
     );
     return saveEnvironmentPresentation({
       ...data,
-      actorId: (access as { userId?: string })?.userId ?? null,
+      actorId: (context as { userId?: string }).userId ?? null,
     });
   });
