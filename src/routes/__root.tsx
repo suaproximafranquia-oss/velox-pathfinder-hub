@@ -204,6 +204,7 @@ function RootRoutes() {
     pathname === "/financeira" ||
     pathname === "/solar" ||
     pathname === "/seguradora" ||
+    pathname === "/solar-seguros" ||
     pathname === "/s" ||
     pathname === "/seg";
   const isUniverso = pathname.startsWith("/universo");
