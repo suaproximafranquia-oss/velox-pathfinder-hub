@@ -358,6 +358,7 @@ export function CentralOperacoesHome() {
               </table>
             </div>
           </section>
+          ) : null}
 
           <section className="overflow-hidden rounded-xl border border-border bg-card">
             <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
