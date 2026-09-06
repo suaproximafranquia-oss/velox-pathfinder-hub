@@ -4,6 +4,7 @@ import { isHomologationEnvironment } from "@/lib/environment";
 import { unitPath } from "@/lib/business-unit";
 import {
   Sprout,
+  Sun,
   LayoutGrid,
   LayoutDashboard,
   UserCog,
