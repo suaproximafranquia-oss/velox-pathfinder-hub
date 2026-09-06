@@ -19,7 +19,7 @@ import { useRealDailyActionsAdapter } from "@/components/crm/daily-actions-real-
 
 import { getDailyActionsSummary } from "@/lib/crm/daily-actions.functions";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import { isCrmAdministrator, isCrmSupervisor } from "@/lib/crm/permissions";
+import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
 import {
   getCrmLead,
   listCrmLeads,
@@ -337,9 +337,13 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       setRuns(history);
       setStages(stageList);
       setConnection(conn);
-      try {
-        setCallsSummary(await fetchCallsSummary());
-      } catch {
+      if (showDailyActions) {
+        try {
+          setCallsSummary(await fetchCallsSummary());
+        } catch {
+          setCallsSummary(null);
+        }
+      } else {
         setCallsSummary(null);
       }
     } catch (error) {
@@ -347,7 +351,15 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     } finally {
       setLoading(false);
     }
-  }, [fetchCallsSummary, fetchConnection, fetchLeads, fetchRuns, fetchStages, search]);
+  }, [
+    fetchCallsSummary,
+    fetchConnection,
+    fetchLeads,
+    fetchRuns,
+    fetchStages,
+    search,
+    showDailyActions,
+  ]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -537,6 +549,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
             {lastSync && (
               <span className="text-[10px] text-white/40">Atualizado {formatDate(lastSync)}</span>
             )}
+            {showDailyActions && (
             <button
               type="button"
               onClick={() => setCallsOpen(true)}
@@ -552,6 +565,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
                 </span>
               )}
             </button>
+            )}
             <button
               type="button"
               onClick={handleSync}
