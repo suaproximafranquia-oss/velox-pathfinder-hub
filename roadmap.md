@@ -43,3 +43,5 @@
 - [ ] Central de Backup: backup horário do dia corrente + snapshot diário das 23:00 dos últimos 7 dias (bloco futuro, não implementar agora).
 
 - [x] Corrigir escopo do Painel de Campanhas (colaborador deve ver todos os executivos ativos) — somente /f/executivo/campanhas
+
+- [x] Central de Alertas /f: servidor como fonte de verdade (etapa 1) — alertas derivados de portal_leads, portal_journey_events, portal_engagement, portal_meetings e lead_ownership_history; "Contato Solicitado" pendente de persistência server-side.
