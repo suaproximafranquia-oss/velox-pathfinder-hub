@@ -8,7 +8,9 @@
 - Só reuniões concluídas pela Ação do Dia com resultado "compareceu".
 - A produção pertence a quem executou.
 - Sem gráfico, sem "Ver detalhes", sem atrasados, sem cobrança, sem redistribuição, sem expurgo.
-- Colaborador vê só a própria operação; Larissa vê a equipe e não aparece como linha; Thiago alterna entre "Toda a equipe" e "Minha operação".
+- Colaborador (Marton, Milton, Paulo, Carlos, Talita) abre direto em "Minha operação" e vê só a si.
+- Larissa é exclusivamente gestora: visão da equipe, sem operação própria, sem "Minha operação", sem linha na tabela e nunca tratada como autora ou executora de qualquer ação. Consultar um pulo é apenas leitura gerencial — não conclui, não pula, não altera lead nem cadência.
+- Thiago é a exceção: administrador com operação própria, alterna entre "Toda a equipe" e "Minha operação".
 - Períodos: Hoje, Ontem, Últimos 7 dias, Este mês, Personalizado (sem datas futuras). Dias sem produção aparecem com zero.
 - Pulos clicáveis abrem a relação de leads pulados.
 
@@ -45,7 +47,9 @@ Verificações feitas:
 
 ## 5. Permissões e escopo
 
-O servidor já resolve usuário logado, papel (administração, gestão, colaborador) e executivo correspondente pela identidade central existente. A Central usará exatamente isso: o recorte é decidido no servidor a partir da sessão, e o pedido do navegador não carrega identificador de executivo. Um colaborador não consegue, por URL ou parâmetro, ver a operação de outra pessoa. Larissa e Thiago recebem a equipe; Thiago pode pedir o recorte "minha operação", que o servidor resolve pela própria identidade dele.
+O servidor já resolve usuário logado, papel (administração, gestão, colaborador) e executivo correspondente pela identidade central existente. A Central usará exatamente isso: o recorte é decidido no servidor a partir da sessão, e o pedido do navegador não carrega identificador de executivo. Um colaborador não consegue, por URL ou parâmetro, ver a operação de outra pessoa.
+
+Perfil de gestão (Larissa): recebe sempre a visão da equipe, sem alternância e sem recorte próprio — mesmo que algum registro antigo a apontasse como autora, ela não aparece como linha de produção. Administração (Thiago): recebe a equipe e pode pedir "minha operação", resolvida pela própria identidade dele no servidor.
 
 ## 6. Navegação pelo lead
 
