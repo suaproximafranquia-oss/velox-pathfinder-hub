@@ -122,20 +122,16 @@ function ProfileFields({
   const [draft, setDraft] = useState({
     name: user?.name ?? session.name,
     email: user?.email ?? session.email,
-    whatsapp: user?.whatsapp ?? user?.phone ?? "",
     admissionDate: user?.admissionDate ?? "",
     birthDate: user?.birthDate ?? "",
-    postPresentationVideoUrl: user?.postPresentationVideoUrl ?? "",
   });
 
   function startEdit() {
     setDraft({
       name: user?.name ?? session.name,
       email: user?.email ?? session.email,
-      whatsapp: user?.whatsapp ?? user?.phone ?? "",
       admissionDate: user?.admissionDate ?? "",
       birthDate: user?.birthDate ?? "",
-      postPresentationVideoUrl: user?.postPresentationVideoUrl ?? "",
     });
     setEditing(true);
   }
@@ -148,11 +144,8 @@ function ProfileFields({
       ...user,
       name: draft.name.trim() || user.name,
       email: draft.email.trim().toLowerCase() || user.email,
-      whatsapp: draft.whatsapp.trim() || undefined,
       admissionDate: draft.admissionDate || undefined,
       birthDate: draft.birthDate || undefined,
-      // COMANDO 3D §17 — link individual, sem fallback de outro executivo.
-      postPresentationVideoUrl: draft.postPresentationVideoUrl.trim() || undefined,
     };
     const all = loadUsers().map((u) => (u.id === updated.id ? updated : u));
     saveUsers(all);
@@ -160,13 +153,7 @@ function ProfileFields({
     setEditing(false);
   }
 
-  type EditableKey =
-    | "name"
-    | "email"
-    | "whatsapp"
-    | "admissionDate"
-    | "birthDate"
-    | "postPresentationVideoUrl";
+  type EditableKey = "name" | "email" | "admissionDate" | "birthDate";
   const rows: Array<{
     icon: typeof UserCircle2;
     label: string;
