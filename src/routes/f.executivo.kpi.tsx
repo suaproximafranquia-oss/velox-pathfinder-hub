@@ -139,11 +139,67 @@ function buildConsolidatedDataset(
   };
 }
 
+/**
+ * O escopo (quem aparece no KPI) é resolvido NO SERVIDOR pela identidade
+ * autenticada — o navegador não decide nem pode ampliar o recorte por
+ * URL, parâmetro ou manipulação de estado.
+ */
 function KpiManagerBody({ session }: { session: ExecutiveSession }) {
-  const collaborators = useMemo(() => kpiCollaborators(session), [session]);
-  const canUseConsolidated = session.activeRole !== "executivo";
-  const defaultViewId = canUseConsolidated ? CONSOLIDATED_VIEW_ID : session.userId;
-  const [viewId, setViewId] = useState(defaultViewId);
+  const resolveScope = useServerFn(resolverEscopoKpi);
+  const [scope, setScope] = useState<KpiScope | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const s = await resolveScope({ data: undefined as never });
+        if (alive) setScope(s);
+      } catch {
+        // Falha de leitura NUNCA amplia o escopo: cai no recorte mínimo
+        // (a própria operação) até o servidor responder.
+        if (alive) {
+          setScope({
+            role: "user",
+            selfExecutiveId: session.userId,
+            selfName: session.name,
+            canUseConsolidated: false,
+            collaborators: [{ id: session.userId, name: session.name }],
+          });
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [resolveScope, session.userId, session.name]);
+
+  if (!scope) {
+    return (
+      <ExecutiveShell session={session} title="KPI Manager" fullBleed>
+        <div className="p-8 text-sm text-[color:var(--muted-foreground)]">
+          Carregando escopo autorizado…
+        </div>
+      </ExecutiveShell>
+    );
+  }
+  return <KpiManagerScoped session={session} scope={scope} />;
+}
+
+function KpiManagerScoped({
+  session,
+  scope,
+}: {
+  session: ExecutiveSession;
+  scope: KpiScope;
+}) {
+  const collaborators = scope.collaborators;
+  const canUseConsolidated = scope.canUseConsolidated;
+  const selfId = scope.selfExecutiveId ?? session.userId;
+  const defaultViewId = canUseConsolidated ? CONSOLIDATED_VIEW_ID : selfId;
+  const [rawViewId, setViewId] = useState(defaultViewId);
+  // Trava server-side refletida na UI: colaborador só enxerga a própria
+  // operação — qualquer viewId divergente é ignorado.
+  const viewId = scope.role === "user" ? selfId : rawViewId;
   const defaults = useMemo(
     () => ({
       monthKey: DEFAULT_MONTH_KEY,
