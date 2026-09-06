@@ -27,6 +27,8 @@ export type CrmLeadView = {
   welcomeSentAt: string | null;
   welcomeError: string | null;
   welcomeLink: string | null;
+  /** Executivo responsável pelo card operacional (fonte: portal_leads). */
+  responsibleExecutiveId: string | null;
 };
 
 export type CrmLeadEventView = {
@@ -92,7 +94,46 @@ function toView(row: LeadRow): CrmLeadView {
     welcomeSentAt: row.welcome_sent_at,
     welcomeError: row.welcome_error,
     welcomeLink: row.welcome_link,
+    responsibleExecutiveId: null,
   };
+}
+
+/**
+ * VISÃO GERENCIAL — titularidade por lead vinda do card operacional.
+ *
+ * `crm_leads` é o espelho da origem e não guarda responsável; a
+ * titularidade oficial vive em `portal_leads.responsible_executive_id`.
+ * Esta leitura apenas ANEXA esse dado e, quando pedido, recorta a lista
+ * por executivo. Nenhuma titularidade é criada ou alterada aqui.
+ */
+async function responsibleByExternalId(
+  context: { supabase: never },
+  externalIds: string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (externalIds.length === 0) return out;
+  const supabase = context.supabase as unknown as {
+    from: (t: string) => {
+      select: (c: string) => {
+        in: (
+          c: string,
+          v: string[],
+        ) => Promise<{
+          data: { external_id: string | null; responsible_executive_id: string | null }[] | null;
+        }>;
+      };
+    };
+  };
+  const { data } = await supabase
+    .from("portal_leads")
+    .select("external_id,responsible_executive_id")
+    .in("external_id", externalIds);
+  for (const row of data ?? []) {
+    const key = (row.external_id ?? "").trim();
+    const value = (row.responsible_executive_id ?? "").trim();
+    if (key && value) out.set(key, value);
+  }
+  return out;
 }
 
 const LEAD_FIELDS =
@@ -165,6 +206,8 @@ export const listCrmLeads = createServerFn({ method: "POST" })
         stageKey: z.string().optional(),
         search: z.string().optional(),
         welcomeStatus: z.string().optional(),
+        /** Recorte gerencial: "" ou ausente = equipe inteira autorizada. */
+        executiveId: z.string().max(120).optional(),
       })
       .parse(data ?? {}),
   )
@@ -186,7 +229,39 @@ export const listCrmLeads = createServerFn({ method: "POST" })
     }
     const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
-    return (rows as unknown as LeadRow[]).map(toView);
+    const views = (rows as unknown as LeadRow[]).map(toView);
+
+    const responsible = await responsibleByExternalId(
+      context as never,
+      views.map((v) => v.externalId).filter(Boolean),
+    );
+    for (const view of views) {
+      view.responsibleExecutiveId = responsible.get(view.externalId) ?? null;
+    }
+
+    // Recorte por executivo: só faz sentido para quem enxerga a equipe.
+    const wanted = (data.executiveId ?? "").trim();
+    if (wanted && !scoped) {
+      return views.filter((v) => v.responsibleExecutiveId === wanted);
+    }
+    return views;
+  });
+
+/**
+ * Executivos ativos disponíveis no filtro do Portal dos Leads.
+ *
+ * Administrador e Gestora recebem a equipe inteira; Colaborador recebe
+ * lista vazia, porque continua vendo apenas os próprios leads.
+ */
+export const listPortalLeadsExecutives = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ id: string; name: string }[]> => {
+    const identity = await assertManager(context as never);
+    if (identity.role === "executivo") return [];
+    const { listActiveOperationalExecutives } = await import(
+      "@/server/operational-team.server"
+    );
+    return listActiveOperationalExecutives();
   });
 
 /** Ficha completa: dados do lead e histórico de eventos. */
