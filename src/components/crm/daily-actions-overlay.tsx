@@ -464,6 +464,18 @@ export function DailyActionsOverlay({
 
         <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_340px]">
           <section className="flex min-h-0 flex-col justify-center gap-5 overflow-y-auto border-b border-white/10 p-6 md:border-b-0 md:border-r">
+            {locked && (
+              <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.07] p-3">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-amber-200/90">
+                  Fora da janela operacional
+                </p>
+                <p className="mt-1 text-sm text-white/70">
+                  {operationalWindow.label}. A execução está indisponível e as pendências
+                  continuam registradas — retomam {operationalWindow.nextLabel}.
+                </p>
+              </div>
+            )}
+
             {loading && actions.length === 0 ? (
               <p className="text-sm text-white/50">Reunindo as ações do dia…</p>
             ) : !selected ? (
