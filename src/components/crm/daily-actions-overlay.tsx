@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
+import { copyToClipboard } from "@/lib/clipboard";
 import {
   resolveOperationalWindow,
   type OperationalWindow,
@@ -363,33 +364,43 @@ export function DailyActionsOverlay({
         setFeedback("Esta ação não tem mensagem oficial vinculada.");
         return;
       }
-      const body = view.body?.trim();
-      if (body) {
-        try {
-          await navigator.clipboard.writeText(body);
-          setCopied(true);
-        } catch {
-          setFeedback("Não foi possível copiar automaticamente — selecione o texto na janela.");
-        }
-      }
+      await copyMessageBody(view.body);
     } finally {
       setBusy(false);
     }
   }
 
-  async function copyMessage() {
-    const body = message?.body?.trim();
-    if (!body) return;
-    try {
-      await navigator.clipboard.writeText(body);
-      setCopied(true);
-    } catch {
-      setFeedback("Não foi possível copiar automaticamente — selecione o texto acima.");
+  /**
+   * CÓPIA REAL. O texto vem da Biblioteca oficial já resolvida pelo
+   * servidor; só uma cópia CONFIRMADA marca a mensagem como copiada e
+   * libera o botão Concluído.
+   */
+  async function copyMessageBody(raw: string | null | undefined) {
+    const body = (raw ?? "").trim();
+    if (!body) {
+      setCopied(false);
+      return false;
     }
+    const ok = await copyToClipboard(body);
+    setCopied(ok);
+    setFeedback(
+      ok
+        ? "Mensagem copiada da Biblioteca."
+        : "A cópia não foi realizada — selecione o texto na janela e copie manualmente.",
+    );
+    return ok;
+  }
+
+  async function copyMessage() {
+    await copyMessageBody(message?.body);
   }
 
   async function handleRegisterMessage(item: DailyAction) {
     if (!operationalWindow.open) return;
+    if (!copied) {
+      setFeedback("Copie a mensagem oficial antes de concluir.");
+      return;
+    }
     setBusy(true);
     try {
       const result = await adapter.registerMessage(item, messageNote.trim());
@@ -896,11 +907,13 @@ export function DailyActionsOverlay({
                 </p>
               </div>
               <div className="space-y-2 border-t border-white/10 px-4 py-3">
-                {copied && (
-                  <p className="text-[11px] text-emerald-200/80">
-                    Mensagem copiada. Copiar não conclui a ação.
-                  </p>
-                )}
+                <p
+                  className={`text-[11px] ${copied ? "text-emerald-200/80" : "text-amber-200/80"}`}
+                >
+                  {copied
+                    ? "Mensagem copiada. Copiar não conclui a ação."
+                    : "Copie a mensagem oficial para liberar o botão Concluído."}
+                </p>
                 <input
                   value={messageNote}
                   onChange={(e) => setMessageNote(e.target.value)}
@@ -931,8 +944,12 @@ export function DailyActionsOverlay({
                 <button
                   type="button"
                   onClick={() => void handleRegisterMessage(selected)}
-                  disabled={busy || !message?.body}
-                  className="w-full rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                  disabled={busy || !message?.body || !copied}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    copied
+                      ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"
+                      : "border-white/15 bg-white/[0.04] text-white/40"
+                  }`}
                 >
                   <Check className="mr-1 inline h-4 w-4" /> Concluído
                 </button>
