@@ -78,6 +78,72 @@ function UsuariosPage() {
   const [users, setUsers] = useState<ExecutiveUser[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [permissionsFor, setPermissionsFor] = useState<ExecutiveUser | null>(null);
+  /**
+   * SEGURANÇA / ACESSO — apenas o ESTADO da senha vem do servidor.
+   * A senha atual nunca é lida, exibida ou devolvida ao navegador.
+   */
+  const [passwordConfigured, setPasswordConfigured] = useState<boolean | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
+
+  const editingId = draft?.id ?? null;
+
+  useEffect(() => {
+    setResetOpen(false);
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordConfigured(null);
+    if (!editingId) return;
+    let alive = true;
+    void (async () => {
+      const { estadoDeSenhaExecutivo } = await import("@/lib/executive-auth.functions");
+      const result = await estadoDeSenhaExecutivo({ data: { executiveId: editingId } });
+      if (alive && result.ok) setPasswordConfigured(result.configurada);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [editingId]);
+
+  async function submitPasswordReset() {
+    if (!editingId) return;
+    if (newPassword.length < 6) {
+      toast.error("A nova senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("A confirmação não confere com a nova senha.");
+      return;
+    }
+    setResetting(true);
+    try {
+      const { redefinirSenhaExecutivo } = await import("@/lib/executive-auth.functions");
+      const result = await redefinirSenhaExecutivo({
+        data: { executiveId: editingId, novaSenha: newPassword },
+      });
+      if (!result.ok) {
+        toast.error(
+          result.reason === "sem_permissao"
+            ? "Somente o Administrador pode redefinir a senha de outro usuário."
+            : result.reason === "sem_conta"
+              ? "Este usuário ainda não possui acesso provisionado."
+              : result.reason === "senha_curta"
+                ? "A nova senha precisa ter pelo menos 6 caracteres."
+                : "Não foi possível redefinir a senha. Tente novamente.",
+        );
+        return;
+      }
+      setNewPassword("");
+      setConfirmPassword("");
+      setResetOpen(false);
+      setPasswordConfigured(true);
+      toast.success("Senha redefinida com sucesso.");
+    } finally {
+      setResetting(false);
+    }
+  }
 
   useEffect(() => {
     const s = getSession();
