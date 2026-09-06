@@ -123,3 +123,58 @@ export const roteiroVigente = createServerFn({ method: "POST" })
     const { currentScript } = await import("@/server/relationship/presentation.server");
     return currentScript();
   });
+
+/**
+ * APRESENTAÇÃO VIGENTE POR AMBIENTE (Financeira, Solar, Seguradora).
+ *
+ * Modelo simples e deliberado: UMA apresentação vigente por ambiente,
+ * com texto de abertura e um vídeo. Não substitui nem interfere nos
+ * capítulos versionados já usados pela Financeira — é uma camada
+ * separada, e cada ambiente continua isolado.
+ */
+export const ENVIRONMENT_PRESENTATION_KEYS = ["financeira", "solar", "seguradora"] as const;
+export type EnvironmentPresentationKey = (typeof ENVIRONMENT_PRESENTATION_KEYS)[number];
+
+export const listarApresentacoesAmbiente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
+    const { listEnvironmentPresentations } = await import(
+      "@/server/relationship/environment-presentation.server"
+    );
+    return listEnvironmentPresentations();
+  });
+
+export const salvarApresentacaoAmbiente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      environment: string;
+      introText: string;
+      videoUrl: string;
+      isPublished: boolean;
+    }) => {
+      const environment = String(input.environment ?? "").trim();
+      if (!ENVIRONMENT_PRESENTATION_KEYS.includes(environment as EnvironmentPresentationKey)) {
+        throw new Error("Ambiente inválido para a apresentação.");
+      }
+      return {
+        environment,
+        introText: String(input.introText ?? "").trim(),
+        videoUrl: String(input.videoUrl ?? "").trim(),
+        isPublished: Boolean(input.isPublished),
+      };
+    },
+  )
+  .handler(async ({ data, context }) => {
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    const access = await assertAdministrativeAccess(context as any);
+    const { saveEnvironmentPresentation } = await import(
+      "@/server/relationship/environment-presentation.server"
+    );
+    return saveEnvironmentPresentation({
+      ...data,
+      actorId: (access as { userId?: string })?.userId ?? null,
+    });
+  });
