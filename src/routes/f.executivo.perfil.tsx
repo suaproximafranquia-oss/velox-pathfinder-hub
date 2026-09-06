@@ -171,13 +171,6 @@ function ProfileFields({
       locked: true,
     },
     {
-      icon: MessageCircle,
-      label: "WhatsApp",
-      value: user?.whatsapp ?? user?.phone ?? "A cadastrar",
-      editable: "whatsapp",
-      inputType: "tel",
-    },
-    {
       icon: Cake,
       label: "Data de nascimento",
       value: user?.birthDate
@@ -199,15 +192,6 @@ function ProfileFields({
       icon: Shield,
       label: "Permissões atuais",
       value: ROLE_LABEL[session.activeRole],
-    },
-    {
-      icon: MessageCircle,
-      label: "Vídeo de pós-apresentação (individual)",
-      value:
-        user?.postPresentationVideoUrl ??
-        "Vídeo de pós-apresentação não configurado para este executivo.",
-      editable: "postPresentationVideoUrl",
-      inputType: "url",
     },
   ];
   return (
