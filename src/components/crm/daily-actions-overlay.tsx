@@ -248,6 +248,7 @@ export function DailyActionsOverlay({
    * executivo executou. Nenhum envio real é liberado por esta tela.
    */
   async function handleFirstContact(item: DailyAction) {
+    if (!operationalWindow.open) return;
     if (!item.firstContactActionId) return;
     setBusy(true);
     setFeedback(null);
@@ -267,6 +268,7 @@ export function DailyActionsOverlay({
   }
 
   async function handleWhatsapp(item: DailyAction) {
+    if (!operationalWindow.open) return;
     const result = await adapter.openWhatsapp(item);
     if (result.message) setFeedback(result.message);
   }
@@ -308,6 +310,7 @@ export function DailyActionsOverlay({
 
   /** REUNIÃO — desfecho registrado na própria reunião. */
   async function handleMeetingOutcome(item: DailyAction, attended: boolean) {
+    if (!operationalWindow.open) return;
     setBusy(true);
     try {
       const result = await adapter.resolveMeeting(item, attended, meetingNote.trim());
@@ -321,6 +324,7 @@ export function DailyActionsOverlay({
   }
 
   async function handleReschedule(item: DailyAction) {
+    if (!operationalWindow.open) return;
     if (!rescheduleAt) {
       setFeedback("Informe a nova data e hora da reunião.");
       return;
@@ -385,6 +389,7 @@ export function DailyActionsOverlay({
   }
 
   async function handleRegisterMessage(item: DailyAction) {
+    if (!operationalWindow.open) return;
     setBusy(true);
     try {
       const result = await adapter.registerMessage(item, messageNote.trim());
