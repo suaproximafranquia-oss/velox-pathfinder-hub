@@ -199,24 +199,31 @@ export function DailyActionsOverlay({
   }
 
   /**
-   * LIGAÇÃO. "Atendeu?" é sempre a primeira pergunta. Quando NÃO, a
-   * tela pergunta se o telefone CHAMOU antes de registrar — as duas
-   * respostas viram histórico na mesma tentativa. Nenhuma quantidade
-   * de tentativas é decidida aqui: quem define é a cadência.
+   * LIGAÇÃO. "Atendeu?" é sempre a primeira pergunta e a resposta é
+   * apenas o RESULTADO da tentativa — ela nunca encerra a ação sozinha.
+   * O encerramento acontece só no botão "Concluído"; se houver
+   * observação, ela é salva antes nas Notas do Executivo. Nenhuma
+   * quantidade de tentativas é decidida aqui: quem define é a cadência.
    */
   async function completeCall(item: DailyAction, outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!item.cadence) return;
+    if (!operationalWindow.open) return;
     setBusy(true);
     try {
+      const observation = callNote.trim();
+      if (observation.length >= 3) await adapter.addNote(item, observation);
       const result = await adapter.completeCall(item, outcome, rang);
       if (result.ok) {
         setCallAwaitingRing(null);
+        setCallPending(null);
+        setCallNote("");
         applyResult(item.actionKey, result);
       } else setFeedback(result.message ?? "Não foi possível registrar a ligação.");
     } finally {
       setBusy(false);
     }
   }
+
 
   /**
    * PRIMEIRO CONTATO (E0) em modo manual: a execução usa o MESMO
