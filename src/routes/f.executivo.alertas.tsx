@@ -2,38 +2,34 @@
  * Central de Alertas — repositório permanente.
  *
  * DF 2.4.2: a Central deixa de ser um ambiente operacional. Aqui nenhum
- * alerta é excluído ou arquivado — apenas consultado. A operação dos
- * alertas ativos acontece exclusivamente no CRM de Relacionamento.
- * Estrutura preparada para pesquisa, filtros, períodos e exportação.
+ * alerta é excluído ou arquivado — apenas consultado.
+ *
+ * ETAPA 1 (servidor como fonte de verdade): os alertas exibidos são
+ * derivados exclusivamente de tabelas do servidor (portal_leads,
+ * portal_journey_events, portal_engagement, portal_meetings e
+ * lead_ownership_history). Nenhum estado de navegador
+ * (`atlas:workspace-alerts:v1`, `velox:journey:v1`, `velox:events:v1`,
+ * base local de leads) participa da geração de alertas reais.
+ *
+ * "Contato Solicitado" não é gerado nesta etapa: ainda não existe
+ * registro server-side desse pedido.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { BellRing, Search, Mail, Phone, Tag } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import { onEvent } from "@/lib/events/bus";
 import {
-  listWorkspaceAlertHistory,
-  runWorkspaceAlertEvaluation,
-  WORKSPACE_ALERT_CATEGORY_LABEL,
-  type WorkspaceAlert,
-} from "@/lib/workspace-alerts";
+  listServerWorkspaceAlerts,
+  type ServerWorkspaceAlert,
+} from "@/lib/workspace-alerts.functions";
+import { WORKSPACE_ALERT_CATEGORY_LABEL } from "@/lib/workspace-alerts";
 import { cn } from "@/lib/utils";
-import { onSync } from "@/lib/sync-bus";
-import { loadLeads } from "@/lib/leads";
-import { WORKSPACE_SCOPE_LABEL, isWorkspaceScope } from "@/lib/portal-workspace";
-
-/** Dados do investidor exibidos na listagem (ITEM 04). */
-type AlertContact = {
-  name: string;
-  email: string;
-  whatsapp: string;
-  origin: string;
-};
 
 function digits(value: string): string {
   return value.replace(/\D+/g, "");
 }
+
 
 export const Route = createFileRoute("/f/executivo/alertas")({
   head: () => ({
