@@ -263,7 +263,7 @@ export const listCrmSyncRuns = createServerFn({ method: "POST" })
 export const runCrmSyncNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertManager(context as never);
+    await assertMirrorManagement(context as never);
     const { runLeadSync } = await import("@/server/crm/lead-sync.server");
     return runLeadSync("manual", context.userId);
   });
@@ -272,7 +272,7 @@ export const runCrmSyncNow = createServerFn({ method: "POST" })
 export const runCrmBackfillNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertManager(context as never);
+    await assertMirrorManagement(context as never);
     const { runGreenSalesBackfill } = await import("@/server/crm/lead-sync.server");
     return runGreenSalesBackfill(context.userId);
   });
@@ -300,7 +300,7 @@ export const moveCrmLeadStage = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; message: string }> => {
-    await assertManager(context as never);
+    await assertMirrorManagement(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { recordEvent } = await import("@/server/crm/lead-service.server");
 
