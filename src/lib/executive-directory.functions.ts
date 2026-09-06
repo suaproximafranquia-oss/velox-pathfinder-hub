@@ -114,23 +114,15 @@ export type CampaignTeamEntry = {
 export const listarEquipeCampanhas = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async (): Promise<CampaignTeamEntry[]> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [{ data: profiles }, { data: statuses }] = await Promise.all([
-      supabaseAdmin.from("executive_profiles").select("executive_id,name"),
-      supabaseAdmin.from("executive_user_status").select("executive_id,status"),
-    ]);
-    const inactive = new Set<string>();
-    for (const row of (statuses ?? []) as ProfileRow[]) {
-      const id = text(row, "executive_id");
-      if (id && text(row, "status") === "inativo") inactive.add(id);
-    }
-    return ((profiles ?? []) as ProfileRow[])
-      .map((row) => {
-        const id = text(row, "executive_id");
-        if (!id || inactive.has(id)) return null;
-        return { executiveId: id, name: text(row, "name") ?? id };
-      })
-      .filter((entry): entry is CampaignTeamEntry => entry !== null);
+    const { listActiveOperationalExecutives } = await import(
+      "@/server/operational-team.server"
+    );
+    // Executivos ativos, sem a Gestora: novos entram automaticamente e
+    // inativos/excluídos deixam de aparecer.
+    return (await listActiveOperationalExecutives()).map((entry) => ({
+      executiveId: entry.id,
+      name: entry.name,
+    }));
   });
 
 const patchSchema = z.object({

@@ -17,7 +17,6 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { OPERATIONAL_EXECUTIVE_IDS } from "@/lib/teams";
 
 export type KpiScopeEntry = { id: string; name: string };
 
@@ -67,10 +66,15 @@ export const resolverEscopoKpi = createServerFn({ method: "POST" })
       if (id && text(row, "status") === "inativo") inactive.add(id);
     }
 
-    // Equipe operacional ativa — mesmo critério de ativo/inativo do Workspace.
-    const activeOperational: KpiScopeEntry[] = OPERATIONAL_EXECUTIVE_IDS.filter(
-      (id) => !inactive.has(id) && nameById.has(id),
-    ).map((id) => ({ id, name: nameById.get(id) ?? id }));
+    // Equipe operacional ativa — fonte única no servidor: entra todo
+    // executivo ativo (inclusive os cadastrados depois), sai quem está
+    // inativo e sai a Gestora, que não é executiva comercial.
+    const { listActiveOperationalExecutives } = await import(
+      "@/server/operational-team.server"
+    );
+    const activeOperational: KpiScopeEntry[] = (
+      await listActiveOperationalExecutives()
+    ).map((entry) => ({ id: entry.id, name: nameById.get(entry.id) ?? entry.name }));
 
     let collaborators: KpiScopeEntry[];
     if (role === "user") {
