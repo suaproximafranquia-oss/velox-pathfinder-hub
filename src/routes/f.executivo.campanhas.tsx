@@ -64,13 +64,42 @@ function CampaignsPage() {
   // DEF 2.4.9 §6 — o Painel de Campanhas é corporativo: Colaborador,
   // Gestor e Administrador enxergam exatamente o mesmo ranking. Nenhum
   // dado financeiro privado é exibido, apenas a posição na campanha.
+  //
+  // A situação ativo/inativo vem SEMPRE do servidor (diretório oficial),
+  // nunca do cadastro guardado no navegador — assim todos os perfis veem
+  // exatamente os mesmos integrantes ativos.
+  const readDirectory = useServerFn(listarDiretorioExecutivos);
+  const [activeIds, setActiveIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const rows = await readDirectory({ data: undefined as never });
+        if (!alive) return;
+        setActiveIds(
+          (rows as { executiveId: string; status: string }[])
+            .filter((r) => r.status === "ativo")
+            .map((r) => r.executiveId),
+        );
+      } catch {
+        if (alive) setActiveIds([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [readDirectory]);
+
   const collaborators = useMemo(() => {
-    if (!session) return [];
-    const users = loadUsers().filter((u) => u.status === "ativo");
-    return OPERATIONAL_EXECUTIVE_IDS.map((id) => users.find((u) => u.id === id)).filter(
-      (u): u is NonNullable<typeof u> => Boolean(u),
-    );
-  }, [session]);
+    if (!session || activeIds === null) return [];
+    const allowed = new Set(activeIds);
+    const users = loadUsers();
+    return OPERATIONAL_EXECUTIVE_IDS.filter((id) => allowed.has(id))
+      .map((id) => users.find((u) => u.id === id))
+      .filter((u): u is NonNullable<typeof u> => Boolean(u));
+  }, [session, activeIds]);
+
 
   const personalSales = useMemo(() => {
     if (!session) return 0;
