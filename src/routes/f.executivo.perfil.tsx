@@ -4,7 +4,6 @@ import {
   UserCircle2,
   Mail,
   Briefcase,
-  MessageCircle,
   Calendar,
   Cake,
   Shield,
@@ -12,7 +11,6 @@ import {
   Check,
   X,
   Lock,
-  Upload,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { GoogleWorkspaceCard } from "@/components/executive/google-workspace-card";
@@ -20,7 +18,6 @@ import { ExecutiveWhatsappCard } from "@/components/executive/executive-whatsapp
 import { GreenSalesConnectionSection } from "@/components/crm/greensales-connection-section";
 import { CrmThemePicker } from "@/components/executive/crm-theme-picker";
 import { ExecutivePhotoCard } from "@/components/executive/executive-photo-card";
-import { uploadPostPresentationVideo } from "@/lib/executive-video.functions";
 import {
   getSession,
   loadUsers,
@@ -125,20 +122,16 @@ function ProfileFields({
   const [draft, setDraft] = useState({
     name: user?.name ?? session.name,
     email: user?.email ?? session.email,
-    whatsapp: user?.whatsapp ?? user?.phone ?? "",
     admissionDate: user?.admissionDate ?? "",
     birthDate: user?.birthDate ?? "",
-    postPresentationVideoUrl: user?.postPresentationVideoUrl ?? "",
   });
 
   function startEdit() {
     setDraft({
       name: user?.name ?? session.name,
       email: user?.email ?? session.email,
-      whatsapp: user?.whatsapp ?? user?.phone ?? "",
       admissionDate: user?.admissionDate ?? "",
       birthDate: user?.birthDate ?? "",
-      postPresentationVideoUrl: user?.postPresentationVideoUrl ?? "",
     });
     setEditing(true);
   }
@@ -151,11 +144,8 @@ function ProfileFields({
       ...user,
       name: draft.name.trim() || user.name,
       email: draft.email.trim().toLowerCase() || user.email,
-      whatsapp: draft.whatsapp.trim() || undefined,
       admissionDate: draft.admissionDate || undefined,
       birthDate: draft.birthDate || undefined,
-      // COMANDO 3D §17 — link individual, sem fallback de outro executivo.
-      postPresentationVideoUrl: draft.postPresentationVideoUrl.trim() || undefined,
     };
     const all = loadUsers().map((u) => (u.id === updated.id ? updated : u));
     saveUsers(all);
@@ -163,13 +153,7 @@ function ProfileFields({
     setEditing(false);
   }
 
-  type EditableKey =
-    | "name"
-    | "email"
-    | "whatsapp"
-    | "admissionDate"
-    | "birthDate"
-    | "postPresentationVideoUrl";
+  type EditableKey = "name" | "email" | "admissionDate" | "birthDate";
   const rows: Array<{
     icon: typeof UserCircle2;
     label: string;
@@ -185,13 +169,6 @@ function ProfileFields({
       label: "Cargo",
       value: user?.title ?? "—",
       locked: true,
-    },
-    {
-      icon: MessageCircle,
-      label: "WhatsApp",
-      value: user?.whatsapp ?? user?.phone ?? "A cadastrar",
-      editable: "whatsapp",
-      inputType: "tel",
     },
     {
       icon: Cake,
@@ -215,15 +192,6 @@ function ProfileFields({
       icon: Shield,
       label: "Permissões atuais",
       value: ROLE_LABEL[session.activeRole],
-    },
-    {
-      icon: MessageCircle,
-      label: "Vídeo de pós-apresentação (individual)",
-      value:
-        user?.postPresentationVideoUrl ??
-        "Vídeo de pós-apresentação não configurado para este executivo.",
-      editable: "postPresentationVideoUrl",
-      inputType: "url",
     },
   ];
   return (
@@ -259,17 +227,6 @@ function ProfileFields({
           </div>
         )}
       </div>
-      {/*
-        BLOQUEIO OPERACIONAL VISÍVEL: sem WhatsApp cadastrado o primeiro
-        contato (E0) do executivo NÃO é disparado — nem parcialmente.
-      */}
-      {!(user?.whatsapp ?? user?.phone) ? (
-        <p className="mx-5 mt-4 rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-4 py-3 text-[11px] text-[color:var(--gold)]">
-          WhatsApp não cadastrado. Enquanto este campo estiver vazio, o primeiro
-          contato (E0) dos seus leads fica bloqueado — nenhuma mensagem sai com
-          número institucional no lugar do seu.
-        </p>
-      ) : null}
       <div className="divide-y divide-[color:var(--border)]/60">
       {rows.map((r) => {
         const Icon = r.icon;
@@ -298,77 +255,12 @@ function ProfileFields({
               ) : (
                 <p className="text-sm mt-0.5 break-all">{r.value}</p>
               )}
-              {r.editable === "postPresentationVideoUrl" && isEditing && (
-                <VideoUploadButton
-                  executiveId={user?.id ?? "executivo"}
-                  onUploaded={(url) =>
-                    setDraft((d) => ({ ...d, postPresentationVideoUrl: url }))
-                  }
-                />
-              )}
             </div>
           </div>
         );
       })}
       </div>
     </section>
-  );
-}
-
-/** Upload direto do vídeo individual — sem depender de hospedagem externa. */
-function VideoUploadButton({
-  executiveId,
-  onUploaded,
-}: {
-  executiveId: string;
-  onUploaded: (url: string) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const pick = async (file: File) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
-        reader.readAsDataURL(file);
-      });
-      const { url } = await uploadPostPresentationVideo({
-        data: {
-          executiveId,
-          fileName: file.name,
-          mimeType: file.type || "video/mp4",
-          base64,
-        },
-      });
-      onUploaded(url);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível enviar o vídeo.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="mt-2 flex items-center gap-3">
-      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-[11px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition">
-        <Upload className="h-3 w-3" />
-        {busy ? "Enviando vídeo…" : "Enviar vídeo"}
-        <input
-          type="file"
-          accept="video/*"
-          className="hidden"
-          disabled={busy}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void pick(file);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      {error && <span className="text-[11px] text-red-400">{error}</span>}
-    </div>
   );
 }
 
