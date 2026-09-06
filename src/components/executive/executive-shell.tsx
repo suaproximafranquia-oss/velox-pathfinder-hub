@@ -28,7 +28,15 @@ import {
   BookOpen,
   Activity,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   getSession,
   signOut,
@@ -46,6 +54,26 @@ import { useModuleAccess } from "@/hooks/use-workspace-permissions";
 import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
 import type { WorkspaceResource } from "@/lib/workspace-authorization";
 
+/**
+ * SHELL PERSISTENTE DO CORPORATE WORKSPACE (/f/executivo).
+ *
+ * A estrutura (header, menu lateral, rodapé) é montada UMA ÚNICA VEZ pelo
+ * layout pai `src/routes/f.executivo.tsx` através de `ExecutiveShellFrame`.
+ * A troca de rota altera apenas o conteúdo central (`<Outlet />`), sem
+ * desmontar o menu nem reexecutar os efeitos de inicialização.
+ *
+ * As páginas continuam declarando `<ExecutiveShell title=… fullBleed=…>`:
+ * dentro do frame esse componente NÃO desenha shell nenhum — apenas informa
+ * título/fullBleed ao frame já montado e devolve o próprio conteúdo. Fora do
+ * frame (outros ambientes que reaproveitam o componente) o comportamento
+ * antigo é integralmente preservado.
+ */
+type ShellFrameApi = {
+  setFrame: (frame: { title: string; fullBleed: boolean }) => void;
+};
+
+const ShellFrameContext = createContext<ShellFrameApi | null>(null);
+
 export function ExecutiveShell({
   session,
   children,
@@ -59,6 +87,67 @@ export function ExecutiveShell({
    *  workspace independente (usado pelo KPI Manager). */
   fullBleed?: boolean;
 }) {
+  const frame = useContext(ShellFrameContext);
+  if (frame) {
+    return (
+      <ShellContentAdapter frame={frame} title={title} fullBleed={fullBleed}>
+        {children}
+      </ShellContentAdapter>
+    );
+  }
+  return (
+    <ExecutiveShellFrame session={session} title={title} fullBleed={fullBleed}>
+      {children}
+    </ExecutiveShellFrame>
+  );
+}
+
+/** Somente reporta título/fullBleed ao shell persistente. Não renderiza chrome. */
+function ShellContentAdapter({
+  frame,
+  title,
+  fullBleed,
+  children,
+}: {
+  frame: ShellFrameApi;
+  title: string;
+  fullBleed: boolean;
+  children: ReactNode;
+}) {
+  useLayoutEffect(() => {
+    frame.setFrame({ title, fullBleed });
+  }, [frame, title, fullBleed]);
+  return <>{children}</>;
+}
+
+/**
+ * Estrutura real do Workspace. Montada pelo layout `/f/executivo` e mantida
+ * viva durante toda a navegação interna.
+ */
+export function ExecutiveShellFrame({
+  session,
+  children,
+  title: initialTitle = "",
+  fullBleed: initialFullBleed = false,
+}: {
+  session: ExecutiveSession;
+  children: ReactNode;
+  title?: string;
+  fullBleed?: boolean;
+}) {
+  const [frameState, setFrameState] = useState({
+    title: initialTitle,
+    fullBleed: initialFullBleed,
+  });
+  const frameApi = useRef<ShellFrameApi>({
+    setFrame: (next) =>
+      setFrameState((prev) =>
+        prev.title === next.title && prev.fullBleed === next.fullBleed ? prev : next,
+      ),
+  }).current;
+  const title = frameState.title;
+  const fullBleed = frameState.fullBleed;
+
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -344,8 +433,9 @@ export function ExecutiveShell({
         </aside>
         <main className="min-w-0" style={{ overflowX: "clip" }}>
           <h1 className={cn("font-display text-2xl md:text-3xl", fullBleed ? "mb-3" : "mb-8")}>{title}</h1>
-          {children}
+          <ShellFrameContext.Provider value={frameApi}>{children}</ShellFrameContext.Provider>
         </main>
+
       </div>
 
       <footer className="border-t border-[color:var(--border)] bg-[color:var(--navy-deep)]/60">
