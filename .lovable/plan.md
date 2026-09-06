@@ -47,7 +47,9 @@ Verificações feitas:
 
 ## 5. Permissões e escopo
 
-O servidor já resolve usuário logado, papel (administração, gestão, colaborador) e executivo correspondente pela identidade central existente. A Central usará exatamente isso: o recorte é decidido no servidor a partir da sessão, e o pedido do navegador não carrega identificador de executivo. Um colaborador não consegue, por URL ou parâmetro, ver a operação de outra pessoa. Larissa e Thiago recebem a equipe; Thiago pode pedir o recorte "minha operação", que o servidor resolve pela própria identidade dele.
+O servidor já resolve usuário logado, papel (administração, gestão, colaborador) e executivo correspondente pela identidade central existente. A Central usará exatamente isso: o recorte é decidido no servidor a partir da sessão, e o pedido do navegador não carrega identificador de executivo. Um colaborador não consegue, por URL ou parâmetro, ver a operação de outra pessoa.
+
+Perfil de gestão (Larissa): recebe sempre a visão da equipe, sem alternância e sem recorte próprio — mesmo que algum registro antigo a apontasse como autora, ela não aparece como linha de produção. Administração (Thiago): recebe a equipe e pode pedir "minha operação", resolvida pela própria identidade dele no servidor.
 
 ## 6. Navegação pelo lead
 
