@@ -850,6 +850,45 @@ export type Database = {
         }
         Relationships: []
       }
+      environment_presentations_history: {
+        Row: {
+          archived_at: string
+          created_at: string
+          environment: string
+          id: string
+          intro_text: string | null
+          is_published: boolean
+          published_at: string | null
+          updated_by: string | null
+          updated_by_name: string | null
+          video_url: string | null
+        }
+        Insert: {
+          archived_at?: string
+          created_at?: string
+          environment: string
+          id?: string
+          intro_text?: string | null
+          is_published?: boolean
+          published_at?: string | null
+          updated_by?: string | null
+          updated_by_name?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          archived_at?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          intro_text?: string | null
+          is_published?: boolean
+          published_at?: string | null
+          updated_by?: string | null
+          updated_by_name?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       executive_profiles: {
         Row: {
           admission_date: string | null
