@@ -101,17 +101,8 @@ function KpiManagerPage() {
   return <KpiManagerBody session={session} />;
 }
 
-function kpiCollaborators(session: ExecutiveSession): ExecutiveUser[] {
-  const visible = visibleCollaborators(session).filter(
-    (u) => u.id !== "usr_joao" && u.id !== "usr_felipe",
-  );
-  if (session.activeRole !== "super_admin") return visible;
-
-  const currentUser = loadUsers().find(
-    (u) => u.id === session.userId && u.status === "ativo",
-  );
-  if (!currentUser || visible.some((u) => u.id === currentUser.id)) return visible;
-  return [currentUser, ...visible];
+function kpiCollaborators(_session: ExecutiveSession): ExecutiveUser[] {
+  return [];
 }
 
 function initialsFor(name: string): string {
