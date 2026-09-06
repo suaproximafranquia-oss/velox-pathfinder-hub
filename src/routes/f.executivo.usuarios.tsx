@@ -78,6 +78,72 @@ function UsuariosPage() {
   const [users, setUsers] = useState<ExecutiveUser[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [permissionsFor, setPermissionsFor] = useState<ExecutiveUser | null>(null);
+  /**
+   * SEGURANÇA / ACESSO — apenas o ESTADO da senha vem do servidor.
+   * A senha atual nunca é lida, exibida ou devolvida ao navegador.
+   */
+  const [passwordConfigured, setPasswordConfigured] = useState<boolean | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
+
+  const editingId = draft?.id ?? null;
+
+  useEffect(() => {
+    setResetOpen(false);
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordConfigured(null);
+    if (!editingId) return;
+    let alive = true;
+    void (async () => {
+      const { estadoDeSenhaExecutivo } = await import("@/lib/executive-auth.functions");
+      const result = await estadoDeSenhaExecutivo({ data: { executiveId: editingId } });
+      if (alive && result.ok) setPasswordConfigured(result.configurada);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [editingId]);
+
+  async function submitPasswordReset() {
+    if (!editingId) return;
+    if (newPassword.length < 6) {
+      toast.error("A nova senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("A confirmação não confere com a nova senha.");
+      return;
+    }
+    setResetting(true);
+    try {
+      const { redefinirSenhaExecutivo } = await import("@/lib/executive-auth.functions");
+      const result = await redefinirSenhaExecutivo({
+        data: { executiveId: editingId, novaSenha: newPassword },
+      });
+      if (!result.ok) {
+        toast.error(
+          result.reason === "sem_permissao"
+            ? "Somente o Administrador pode redefinir a senha de outro usuário."
+            : result.reason === "sem_conta"
+              ? "Este usuário ainda não possui acesso provisionado."
+              : result.reason === "senha_curta"
+                ? "A nova senha precisa ter pelo menos 6 caracteres."
+                : "Não foi possível redefinir a senha. Tente novamente.",
+        );
+        return;
+      }
+      setNewPassword("");
+      setConfirmPassword("");
+      setResetOpen(false);
+      setPasswordConfigured(true);
+      toast.success("Senha redefinida com sucesso.");
+    } finally {
+      setResetting(false);
+    }
+  }
 
   useEffect(() => {
     const s = getSession();
@@ -490,6 +556,88 @@ function UsuariosPage() {
                 </select>
               </div>
             </div>
+            {/*
+              SEGURANÇA / ACESSO — a senha atual nunca é exibida nem
+              recuperada. A redefinição vai direto ao servidor, pelo
+              mecanismo oficial de autenticação, e é autorizada lá.
+            */}
+            {draft.id && actorRole === "super_admin" && (
+              <div className="rounded-xl border border-[color:var(--border)] p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+                      Segurança / Acesso
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {passwordConfigured === null
+                        ? "Verificando estado do acesso…"
+                        : passwordConfigured
+                          ? "Senha configurada · Senha atual: protegida"
+                          : "Senha não configurada"}
+                    </p>
+                  </div>
+                  {!resetOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setResetOpen(true)}
+                      className="rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+                    >
+                      Redefinir senha
+                    </button>
+                  )}
+                </div>
+                {resetOpen && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
+                        Nova senha
+                      </label>
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)] mb-1.5">
+                        Confirmar nova senha
+                      </label>
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-sm outline-none focus:border-[color:var(--gold)]/50"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetOpen(false);
+                          setNewPassword("");
+                          setConfirmPassword("");
+                        }}
+                        className="rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={resetting}
+                        onClick={() => void submitPasswordReset()}
+                        className="rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-3 py-1.5 text-xs text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition disabled:opacity-50"
+                      >
+                        {resetting ? "Salvando…" : "Salvar nova senha"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
