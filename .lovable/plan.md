@@ -1,47 +1,95 @@
-# Diagnóstico — Escopo do KPI Manager e do Painel de Campanhas (/f)
+# Ação do Dia — Homologação × Real (diagnóstico somente leitura)
 
-Investigação somente de leitura. Nenhum arquivo, dado, permissão ou regra foi alterado.
+Nenhum arquivo, banco, permissão ou regra foi alterado.
 
-## 1. Causa técnica encontrada
+## Fato central
 
-São três causas independentes, e juntas explicam todos os sintomas relatados.
+Os dois ambientes usam **o mesmo componente de tela**: `src/components/crm/daily-actions-overlay.tsx`.
+A única coisa que muda é o **adaptador** injetado. Logo, botões, gate do "Concluído",
+janela operacional e textos de aviso são idênticos; o que muda é o que acontece por trás.
 
-**Causa 1 — A lista de pessoas é lida com a permissão do próprio usuário, e essa permissão só permite ler a própria ficha.**
-A regra de leitura da tabela de fichas dos executivos autoriza: administrador vê todos; qualquer outro perfil vê apenas a própria ficha. Tanto o KPI quanto o Painel de Campanhas montam a lista de executivos lendo essa tabela com a permissão do usuário logado. Resultado: Marton (colaborador) e Larissa (gestora) recebem uma lista com uma única pessoa — eles mesmos. O administrador é o único que recebe a lista completa. Isso explica exatamente por que Marton via todos antes e passou a ver só a própria operação.
+## 1. Fluxo Homologação
 
-**Causa 2 — Quase toda a equipe está marcada como inativa no cadastro.**
-Situação atual gravada: ativos apenas Marton e Thiago. Inativos: Larissa, Milton, Paulo, Carlos e Talita. Os dois módulos filtram por "ativo", então mesmo o administrador, que enxerga a lista inteira, só recebe duas pessoas. É isso que faz Thiago achar que "não vê todos" no KPI.
+- Rota: `src/routes/f.executivo.homologacao.acao-do-dia.tsx` (legado `/f/executivo/acao-do-dia-demo` redireciona)
+- Componente de entrada: `src/components/executive/homologation-daily-actions-demo.tsx` → `DailyActionsOverlay`
+- Adaptador: `createDemoDailyActionsAdapter()` em `src/lib/crm/daily-actions.demo.ts`
+- Fonte da fila: 36 registros fictícios em memória (`SEEDS`), gerados no navegador
+- Fonte da mensagem: **texto fabricado no próprio adaptador** ("Mensagem fictícia de demonstração para …"); não toca a Biblioteca
+- Copiar: mesmo `copyToClipboard` do real (clipboard verdadeiro)
+- Concluído: `registerMessage` do demo → sempre `ok: true`, `requeue: true` → item volta ao fim da fila
+- Persistência: **nenhuma**. Nada de servidor, banco, cadência, snapshot ou notas
+- Ver ficha completa: `onOpenLead` é uma função vazia — não abre nada
 
-**Causa 3 — Os números de KPI/Campanha ficam guardados no navegador de cada pessoa, não no banco.**
-Os lançamentos do KPI são gravados localmente na máquina de quem lançou. Portanto, mesmo com a lista correta, o administrador vê zero para os colegas: os números do Marton existem só no navegador do Marton. O Painel de Campanhas consome exatamente a mesma fonte, então o ranking também é sempre "local".
+## 2. Fluxo Real
 
-## 2. Arquivos e funções envolvidos
+- Rota/tela: `src/components/crm/portal-leads-board.tsx` (Portal dos Leads, `/f`), que abre o mesmo `DailyActionsOverlay`
+- Adaptador: `useRealDailyActionsAdapter()` em `src/components/crm/daily-actions-real-adapter.ts`
+- Fila: `listDailyActions` (`src/lib/crm/daily-actions.functions.ts`) → `src/server/crm/daily-actions.server.ts`
+- Fonte da mensagem: `getDailyActionMessageFn` → `prepareStepMessage` (`src/server/relationship/step-message.server.ts`)
+  → versão ATIVA de `relationship_message_library` + executivo responsável + link do Portal.
+  Sem versão ativa, retorna `blockedReason` e **nenhum texto** (nada é improvisado)
+- Copiar: `copyToClipboard` (`src/lib/clipboard.ts`), com alternativa `execCommand` quando a API do navegador falha
+- Concluído: `registerDailyActionMessageFn` → `registerDailyActionMessage`
+  (`src/server/crm/daily-actions-log.server.ts`) → conclui o item da fila, grava snapshot imutável
+  da mensagem e, havendo texto, cria a nota do executivo. Item sai da fila (`dropAction`)
+- Pular: `skipDailyActionFn`; Observação: `noteDailyActionFn` (ambos em `daily-actions-log.server.ts`)
+- Ver ficha completa: abre `/f/executivo/dashboard?perfil=<leadId>&escopo=<scope>` em nova aba
 
-- `src/lib/kpi-scope.functions.ts` (`resolverEscopoKpi`) — decide quem aparece no KPI; lê fichas e situação com a permissão do usuário e cruza com a lista operacional fixa.
-- `src/server/identity.server.ts` (`resolveServerIdentity`) — define o papel (admin / manager / user) a partir das permissões gravadas. Está correto: Thiago = admin, Larissa = manager, demais = user.
-- `src/lib/teams.ts` (`OPERATIONAL_EXECUTIVE_IDS`) — lista operacional fixa usada pelos dois módulos.
-- `src/routes/f.executivo.campanhas.tsx` — monta a lista do Painel de Campanhas: cruza a lista operacional fixa com o diretório lido do servidor; se a leitura falhar, cai para lista vazia.
-- `src/lib/executive-directory.functions.ts` (`listarDiretorioExecutivos`) — leitura do diretório com a permissão do usuário (ponto onde o recorte encolhe).
-- `src/components/executive/kpi/painel-campanhas.tsx` e `src/lib/kpi-manager.ts` — origem dos números (armazenamento local do navegador).
-- Regras de leitura no banco: fichas dos executivos (admin vê tudo, demais só a própria) e situação ativo/inativo (leitura ampla).
+## 3. Tabela de diferenças
 
-## 3. Diferença entre os caminhos de Marton, Larissa e Thiago
+| Item | Homologação | Real |
+| --- | --- | --- |
+| Tela/botões | mesmo overlay | mesmo overlay |
+| Fila | fixture em memória | servidor autenticado |
+| Texto do "Copiar" | frase fictícia do adaptador | Biblioteca ativa via `prepareStepMessage` |
+| Texto pode faltar | nunca (sempre há corpo) | sim: `blockedReason` quando não há versão ativa ou executivo sem WhatsApp/slug |
+| Confirmação da cópia | mesmo `copyToClipboard`, estado `copied` | idêntico |
+| Gate do "Concluído" | `!message?.body || !copied` | idêntico |
+| Efeito do "Concluído" | volta ao fim da fila, nada gravado | conclui etapa, snapshot, nota, sai da fila |
+| Pular | mensagem simulada | grava em Notas do Executivo (executivo, etapa, data/hora, motivo) |
+| Observação | não grava | grava |
+| Ver ficha | não faz nada | abre a ficha exata do lead |
+| Janela operacional | mesma trava (domingo fechado) | mesma trava |
 
-```text
-                 papel      lista de fichas recebida     ativos aplicados     resultado hoje
-Marton           user       só a própria ficha           só ele               vê só a si
-Larissa          manager    só a própria ficha           nenhum (ela inativa) vê equipe vazia
-Thiago           admin      todas as fichas              Marton + Thiago      vê 2 pessoas
-```
+## 4. O que a Homologação faz "melhor" (e por quê)
 
-Divergência frente à regra de negócio:
+Não há comportamento superior de código: a sensação vem de a demo **nunca falhar**.
+Ela sempre tem texto, sempre conclui e sempre reabastece a fila. No real, os mesmos
+botões dependem de: existir versão ativa na Biblioteca para a etapa, o executivo
+responsável ter slug/WhatsApp, e a janela operacional estar aberta.
 
-- KPI — colaborador: correto (próprio). Gestora: incorreto (deveria ver a equipe, recebe lista vazia). Administrador: incorreto por dado (equipe reduzida a 2 por causa dos inativos) e sem números dos colegas.
-- Campanhas — colaborador e gestora: incorreto (deveriam ver todos os ativos, veem só a si). Administrador: parcialmente correto, limitado pelos inativos e pelos números locais.
+Um ponto legítimo a levar para o real: **transparência do bloqueio**.
+Hoje, com a janela fechada (domingo), o botão "Concluído" do painel de mensagem
+continua com aparência habilitada e o clique simplesmente não faz nada — `handleRegisterMessage`
+retorna sem mensagem quando `operationalWindow.open` é falso (overlay, linha ~399).
+O mesmo silêncio ocorre em ligação e reunião. Isso explica a impressão de "o real não conclui".
 
-## 4. Correção mínima recomendada (para aplicar depois, mediante aprovação)
+## 5. O que é apenas mock e NÃO deve ser copiado
 
-1. **Lista de pessoas vinda de uma leitura autorizada no servidor.** Fazer o KPI e o Painel de Campanhas montarem a lista de executivos por uma leitura server-side com privilégio, devolvendo apenas nome, identificador e situação — sem expor dado sensível. Isso corrige Marton e Larissa sem mexer em regras de permissão do banco.
-2. **Escopo por módulo, explícito.** KPI: colaborador → só ele; gestora e administrador → equipe. Campanhas: sempre a equipe ativa completa, para os três perfis. Hoje os dois módulos usam o mesmo recorte individual.
-3. **Revisar a situação ativo/inativo do cadastro.** Decisão do negócio: se Larissa, Milton, Paulo, Carlos e Talita devem aparecer, precisam voltar a "ativo" na Gestão de Usuários. Nenhum código resolve isso.
-4. **Números compartilhados (etapa maior, separada).** Enquanto os lançamentos do KPI viverem no navegador de cada pessoa, nenhuma visão consolidada será real. Para equipe e ranking verdadeiros, os lançamentos precisam ser gravados no banco. Recomendo tratar isso como um comando próprio, depois dos itens 1 a 3.
+- Fila circular (`requeue`) — no real a ação concluída deve sair da fila
+- Texto de mensagem gerado no cliente
+- Resultados sempre `ok: true`
+- `onOpenLead` vazio
+- Telefones e nomes fictícios
+
+## 6. Conclusão objetiva
+
+Já correto no real:
+- Ver ficha completa abre o lead exato
+- Pular grava executivo, etapa, data, hora e motivo nas Notas
+- Copiar usa a mensagem oficial da Biblioteca, com fallback de cópia manual
+- "Concluído" só habilita após cópia confirmada
+- "Concluído" conclui a etapa, grava snapshot e avança a fila
+
+Precisa de correção (único ponto encontrado, sem presumir outros):
+- Fora da janela operacional (hoje, domingo) o "Concluído" do painel de mensagem
+  parece clicável e não devolve nenhuma explicação; deveria ficar visivelmente
+  desabilitado ou informar "fora da janela operacional". Mesmo silêncio em ligação,
+  reunião e reagendamento.
+
+Arquivos envolvidos numa futura correção (apenas apresentação):
+- `src/components/crm/daily-actions-overlay.tsx` (estado `locked` já existe; falta aplicá-lo
+  ao botão do painel de mensagem e emitir feedback nos retornos antecipados)
+
+Validação funcional de ponta a ponta do "Copiar → Concluído" com dados reais só pode
+ocorrer dentro da janela (segunda a sábado), por causa da própria regra operacional.
