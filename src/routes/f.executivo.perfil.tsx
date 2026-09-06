@@ -92,7 +92,13 @@ function PerfilPage() {
             if (s) setSession(s);
           }}
         />
+        {/* Dados individuais do próprio executivo — sempre visíveis. */}
+        <ExecutiveWhatsappCard />
+        <div className="mt-6">
+          <GreenSalesConnectionSection />
+        </div>
         {isAdminProfile && (
+
           <>
             <CrmThemePicker userId={session.userId} />
             <IntegrationsSection />
