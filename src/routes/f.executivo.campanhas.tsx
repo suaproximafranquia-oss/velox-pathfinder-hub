@@ -11,9 +11,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Trophy } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import { OPERATIONAL_EXECUTIVE_IDS } from "@/lib/teams";
-import { loadUsers } from "@/lib/executive-auth";
-import { listarDiretorioExecutivos } from "@/lib/executive-directory.functions";
+import { listarEquipeCampanhas } from "@/lib/executive-directory.functions";
 import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
