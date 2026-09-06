@@ -23,12 +23,17 @@ import {
 } from "lucide-react";
 import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
 import {
+  resolveOperationalWindow,
+  type OperationalWindow,
+} from "@/lib/crm/daily-actions-window";
+import {
   KIND_LABEL,
   operationalTime,
   type DailyAction,
   type DailyActionBucket,
   type DailyActionKind,
 } from "@/lib/crm/daily-actions";
+
 
 
 function formatDay(iso: string): string {
