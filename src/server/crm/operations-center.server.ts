@@ -226,7 +226,7 @@ export async function buildProductionReport(
       .limit(5000),
     supabaseAdmin
       .from("relationship_engine_log")
-      .select("id,actor,details,created_at")
+      .select("id,action,actor,details,created_at")
       .eq("scope", "production")
       .in("action", [
         "acao_do_dia_mensagem_registrada",
@@ -283,30 +283,13 @@ export async function buildProductionReport(
   }
 
   const skips: SkipRecord[] = [];
-  const ledgerRows = (ledgerRes.data ?? []) as Array<LedgerRow & { action?: string }>;
   const ledgerWithAction = (ledgerRes.data ?? []) as Array<
     LedgerRow & { action?: string | null }
   >;
-  void ledgerRows;
-
-  /** O tipo do registro vem da própria linha; nada é inferido. */
-  const { data: actionsData } = await supabaseAdmin
-    .from("relationship_engine_log")
-    .select("id,action")
-    .in(
-      "id",
-      ledgerWithAction.map((r) => r.id),
-    )
-    .limit(5000);
-  const actionById = new Map<string, string>(
-    ((actionsData ?? []) as Array<{ id: string; action: string }>).map((r) => [
-      String(r.id),
-      String(r.action),
-    ]),
-  );
 
   for (const row of ledgerWithAction) {
-    const action = actionById.get(String(row.id)) ?? "";
+    /** O tipo do registro vem da própria linha; nada é inferido. */
+    const action = String(row.action ?? "");
     const details = (row.details ?? {}) as Record<string, unknown>;
     /** E0 nunca é produção da Central, em nenhuma métrica. */
     if (detailString(details, "kind") === "primeiro_contato") continue;
