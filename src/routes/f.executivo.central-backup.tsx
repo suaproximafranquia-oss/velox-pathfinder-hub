@@ -148,22 +148,36 @@ function BackupCenterPage() {
   }, [isAdmin, reload]);
 
   const full = useMemo(() => backups.filter((b) => b.kind === "completo"), [backups]);
-  // Política de retenção: o dia corrente mantém os backups horários; cada
-  // dia encerrado é representado por UM snapshot diário (o das 23:00).
+  // Política: só o ponto AUTOMÁTICO participa das seções horária e
+  // diária. Manuais e de segurança têm seção própria.
+  const automatic = useMemo(() => full.filter((b) => b.origin === "automatico"), [full]);
   const today = useMemo(
     () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
     [],
   );
   const todayHourly = useMemo(
-    () => full.filter((b) => (b.operationalDay ?? "") === today),
-    [full, today],
+    () => automatic.filter((b) => (b.operationalDay ?? "") === today),
+    [automatic, today],
   );
+  // Snapshot diário oficial: exclusivamente o backup automático das 23:00
+  // (America/Sao_Paulo) de um dia já encerrado.
   const dailySnapshots = useMemo(
-    () => full.filter((b) => (b.operationalDay ?? "") !== "" && (b.operationalDay ?? "") < today),
-    [full, today],
+    () =>
+      automatic.filter(
+        (b) =>
+          (b.operationalDay ?? "") !== "" &&
+          (b.operationalDay ?? "") < today &&
+          b.operationalHour === 23,
+      ),
+    [automatic, today],
+  );
+  const manualPoints = useMemo(
+    () => full.filter((b) => b.origin !== "automatico"),
+    [full],
   );
   const conversations = useMemo(() => backups.filter((b) => b.kind === "conversas"), [backups]);
   const lastFull = full[0] ?? null;
+
 
   async function handleCreate(kind: "completo" | "conversas") {
     if (!session) return;
@@ -376,8 +390,9 @@ function BackupCenterPage() {
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
           <h2 className="text-lg font-semibold">Hoje — Backups Horários</h2>
           <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
-            Durante o dia em andamento, cada hora cheia gera um ponto próprio.
-            Nenhum deles é consolidado ou removido enquanto o dia não terminar.
+            Somente pontos automáticos do dia em andamento (horário de São
+            Paulo). Nenhum deles é consolidado ou removido enquanto o dia não
+            terminar.
           </p>
           <BackupTable
             rows={todayHourly}
@@ -395,9 +410,10 @@ function BackupCenterPage() {
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
           <h2 className="text-lg font-semibold">Snapshots Diários — Últimos 7 Dias</h2>
           <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
-            Cada dia encerrado é representado por um único snapshot: o backup
-            das 23:00 daquele dia. São mantidos os 7 dias encerrados mais
-            recentes; o oitavo é descartado automaticamente.
+            Cada dia encerrado é representado por um único ponto: o backup
+            automático das 23:00 daquele dia, no horário de São Paulo. Nenhum
+            outro horário é promovido a snapshot. São mantidos os 7 dias
+            encerrados mais recentes.
           </p>
           <BackupTable
             rows={dailySnapshots}
@@ -412,6 +428,25 @@ function BackupCenterPage() {
           />
         </section>
 
+        {/* Pontos manuais e de segurança */}
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
+          <h2 className="text-lg font-semibold">Pontos Manuais e de Segurança</h2>
+          <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
+            Criados por ação do Administrador ou antes de uma restauração.
+            Não participam da consolidação diária nem da janela de 7 dias.
+          </p>
+          <BackupTable
+            rows={manualPoints}
+            busy={busy}
+            empty={
+              loading ? "Carregando…" : "Nenhum ponto manual ou de segurança registrado."
+            }
+            onRestore={setPending}
+          />
+        </section>
+
+
+
 
         {/* Backup de Conversas */}
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
@@ -421,8 +456,9 @@ function BackupCenterPage() {
               <div>
                 <h2 className="text-lg font-semibold">Backup de Conversas</h2>
                 <p className="text-sm text-[color:var(--muted-foreground)]">
-                  Categoria separada por volume e natureza própria. Não
-                  substitui nem fragmenta o Backup Completo do Portal.
+                  Categoria separada, com retenção própria: apenas as
+                  últimas 24 horas são mantidas. Não substitui nem fragmenta
+                  o Backup Completo do Portal.
                 </p>
               </div>
             </div>
@@ -581,7 +617,9 @@ function BackupTable({
               {showDay ? (
                 <td className="py-3 pr-4">
                   {b.operationalDay
-                    ? `${b.operationalDay.split("-").reverse().join("/")} · 23:00`
+                    ? `${b.operationalDay.split("-").reverse().join("/")} · ${String(
+                        b.operationalHour ?? 0,
+                      ).padStart(2, "0")}:00`
                     : "—"}
                 </td>
               ) : null}
