@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { GoogleWorkspaceCard } from "@/components/executive/google-workspace-card";
+import { ExecutiveWhatsappCard } from "@/components/executive/executive-whatsapp-card";
+import { GreenSalesConnectionSection } from "@/components/crm/greensales-connection-section";
 import { CrmThemePicker } from "@/components/executive/crm-theme-picker";
 import { ExecutivePhotoCard } from "@/components/executive/executive-photo-card";
 import { uploadPostPresentationVideo } from "@/lib/executive-video.functions";
@@ -92,7 +94,13 @@ function PerfilPage() {
             if (s) setSession(s);
           }}
         />
+        {/* Dados individuais do próprio executivo — sempre visíveis. */}
+        <ExecutiveWhatsappCard />
+        <div className="mt-6">
+          <GreenSalesConnectionSection />
+        </div>
         {isAdminProfile && (
+
           <>
             <CrmThemePicker userId={session.userId} />
             <IntegrationsSection />
