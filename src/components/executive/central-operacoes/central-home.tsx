@@ -324,39 +324,41 @@ export function CentralOperacoesHome() {
             </section>
           ) : null}
 
-          <section className="overflow-hidden rounded-xl border border-border bg-card">
-            <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
-              Produção por dia
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Dia</th>
-                    <th className="px-4 py-2 text-right">Ligações</th>
-                    <th className="px-4 py-2 text-right">Mensagens</th>
-                    <th className="px-4 py-2 text-right">Reuniões</th>
-                    <th className="px-4 py-2 text-right">Pulos</th>
-                    <th className="px-4 py-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.days.map((day) => (
-                    <tr key={day.date} className="border-t border-border/60">
-                      <td className="px-4 py-2 text-foreground">{formatDay(day.date)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{day.ligacoes}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{day.mensagens}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{day.reunioes}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{day.pulos}</td>
-                      <td className="px-4 py-2 text-right font-semibold tabular-nums">
-                        {day.total}
-                      </td>
+          {!(report.scope === "propria" && period === "hoje") ? (
+            <section className="overflow-hidden rounded-xl border border-border bg-card">
+              <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
+                Produção por dia
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Dia</th>
+                      <th className="px-4 py-2 text-right">Ligações</th>
+                      <th className="px-4 py-2 text-right">Mensagens</th>
+                      <th className="px-4 py-2 text-right">Reuniões</th>
+                      <th className="px-4 py-2 text-right">Pulos</th>
+                      <th className="px-4 py-2 text-right">Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  </thead>
+                  <tbody>
+                    {report.days.map((day) => (
+                      <tr key={day.date} className="border-t border-border/60">
+                        <td className="px-4 py-2 text-foreground">{formatDay(day.date)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{day.ligacoes}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{day.mensagens}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{day.reunioes}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{day.pulos}</td>
+                        <td className="px-4 py-2 text-right font-semibold tabular-nums">
+                          {day.total}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
 
           <section className="overflow-hidden rounded-xl border border-border bg-card">
             <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
