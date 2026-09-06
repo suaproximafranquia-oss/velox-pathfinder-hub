@@ -41,7 +41,11 @@ export const Route = createFileRoute("/f/executivo/administracao")({
       },
     ],
   }),
-  component: AdministracaoPage,
+  component: () => (
+    <WorkspaceResourceGuard resource="administracao">
+      <AdministracaoPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function AdministracaoPage() {

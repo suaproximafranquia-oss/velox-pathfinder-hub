@@ -44,7 +44,11 @@ export const Route = createFileRoute("/f/executivo/teste-cadencia")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: TestLabPage,
+  component: () => (
+    <WorkspaceResourceGuard resource="teste_cadencia">
+      <TestLabPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 type Batch = { id: string; status: string; scenarios: string[]; leadCount: number; createdAt: string };

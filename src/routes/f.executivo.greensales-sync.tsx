@@ -35,7 +35,11 @@ export const Route = createFileRoute("/f/executivo/greensales-sync")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: GreenSalesSyncPage,
+  component: () => (
+    <WorkspaceResourceGuard resource="greensales_sync">
+      <GreenSalesSyncPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function GreenSalesSyncPage() {

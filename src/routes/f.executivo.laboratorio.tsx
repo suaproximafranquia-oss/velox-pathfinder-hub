@@ -32,7 +32,11 @@ export const Route = createFileRoute("/f/executivo/laboratorio")({
   head: () => ({
     meta: [{ title: "Laboratório Atlas — Simulações" }, { name: "robots", content: "noindex" }],
   }),
-  component: LaboratorioPage,
+  component: () => (
+    <WorkspaceResourceGuard resource="laboratorio">
+      <LaboratorioPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 type SimSpec = {
