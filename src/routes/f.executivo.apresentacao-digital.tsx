@@ -385,63 +385,8 @@ function ApresentacaoDigitalPage() {
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Eye className="h-4 w-4" aria-hidden />
-              Pré-visualização do roteiro
-            </h2>
-            <button
-              type="button"
-              onClick={() => setPreview((value) => !value)}
-              className="rounded border border-[color:var(--border)] px-3 py-1.5 text-[11px] uppercase tracking-[0.14em]"
-            >
-              {preview ? "Ocultar" : "Ver como o investidor"}
-            </button>
-          </div>
-          {preview ? (
-            <ol className="mt-4 space-y-4">
-              {chapters
-                .filter((chapter) => chapter.isActive)
-                .map((chapter, index) => (
-                  <li
-                    key={chapter.id}
-                    className="rounded-xl border border-[color:var(--border)] bg-[color:var(--background)] p-4"
-                  >
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-[color:var(--muted-foreground)]">
-                      Capítulo {index + 1} · v{chapter.version}
-                    </p>
-                    <h3 className="mt-1 text-sm font-semibold">{chapter.title}</h3>
-                    {chapter.description ? (
-                      <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-                        {chapter.description}
-                      </p>
-                    ) : null}
-                    {chapter.videoUrl ? (
-                      <div className="mt-3 aspect-video overflow-hidden rounded-lg bg-black/40">
-                        <iframe
-                          src={chapter.videoUrl}
-                          title={chapter.title}
-                          loading="lazy"
-                          allowFullScreen
-                          className="h-full w-full"
-                        />
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-[color:var(--muted-foreground)]">
-                        Vídeo ainda não definido.
-                      </p>
-                    )}
-                  </li>
-                ))}
-            </ol>
-          ) : (
-            <p className="mt-2 text-xs text-[color:var(--muted-foreground)]">
-              A pré-visualização mostra exatamente o roteiro publicado que uma nova apresentação
-              congelaria.
-            </p>
-          )}
-        </section>
+        <EnvironmentPresentationPreview />
+
 
       </div>
     </ExecutiveShell>
