@@ -93,6 +93,44 @@ export const listarDiretorioExecutivos = createServerFn({ method: "POST" })
         } satisfies ExecutiveDirectoryEntry;
       })
       .filter((entry): entry is ExecutiveDirectoryEntry => entry !== null);
+});
+
+export type CampaignTeamEntry = {
+  executiveId: string;
+  name: string;
+};
+
+/**
+ * EQUIPE ATIVA PARA O PAINEL DE CAMPANHAS — leitura autorizada no servidor.
+ *
+ * A lista geral (`listarDiretorioExecutivos`) lê com a permissão do
+ * usuário, e a RLS só entrega a própria ficha para colaborador/gestora.
+ * O Painel de Campanhas é corporativo: todo perfil deve enxergar todos
+ * os executivos ativos. Esta função devolve APENAS id + nome dos
+ * executivos ativos — nenhum dado sensível — e é consumida exclusivamente
+ * pelo Painel de Campanhas (/f/executivo/campanhas). O KPI Manager
+ * continua com seu próprio escopo, inalterado.
+ */
+export const listarEquipeCampanhas = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async (): Promise<CampaignTeamEntry[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: profiles }, { data: statuses }] = await Promise.all([
+      supabaseAdmin.from("executive_profiles").select("executive_id,name"),
+      supabaseAdmin.from("executive_user_status").select("executive_id,status"),
+    ]);
+    const inactive = new Set<string>();
+    for (const row of (statuses ?? []) as ProfileRow[]) {
+      const id = text(row, "executive_id");
+      if (id && text(row, "status") === "inativo") inactive.add(id);
+    }
+    return ((profiles ?? []) as ProfileRow[])
+      .map((row) => {
+        const id = text(row, "executive_id");
+        if (!id || inactive.has(id)) return null;
+        return { executiveId: id, name: text(row, "name") ?? id };
+      })
+      .filter((entry): entry is CampaignTeamEntry => entry !== null);
   });
 
 const patchSchema = z.object({
