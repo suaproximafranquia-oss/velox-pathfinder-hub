@@ -56,9 +56,9 @@ export const Route = createFileRoute("/f/executivo/alertas")({
 function AlertsCenterPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
-  const [alerts, setAlerts] = useState<WorkspaceAlert[]>([]);
+  const [alerts, setAlerts] = useState<ServerWorkspaceAlert[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const s = getSession();
@@ -71,57 +71,47 @@ function AlertsCenterPage() {
 
   useEffect(() => {
     if (!session) return;
-    function refresh() {
-      runWorkspaceAlertEvaluation(session!);
-      setAlerts(listWorkspaceAlertHistory(session!));
-      setTick((v) => v + 1);
-    }
-    refresh();
-    const off = onEvent(() => refresh());
-    const offSync = onSync(() => refresh());
-    return () => { off(); offSync(); };
-  }, [session]);
-
-  /** Índice de contatos por Lead — alimenta exibição e pesquisa parcial. */
-  const contacts = useMemo(() => {
-    const map = new Map<string, AlertContact>();
-    for (const l of loadLeads()) {
-      map.set(l.id, {
-        name: l.name,
-        email: l.email ?? "",
-        whatsapp: l.whatsapp ?? "",
-        origin: isWorkspaceScope(l.scope)
-          ? WORKSPACE_SCOPE_LABEL[l.scope]
-          : "Portal",
+    let alive = true;
+    setLoading(true);
+    listServerWorkspaceAlerts()
+      .then((rows) => {
+        if (alive) setAlerts(rows);
+      })
+      .catch(() => {
+        if (alive) setAlerts([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
-    }
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]);
+    return () => {
+      alive = false;
+    };
+  }, [session]);
 
   const visible = useMemo(() => {
     const raw = query.trim().toLowerCase();
     if (!raw) return alerts;
     const num = digits(raw);
     return alerts.filter((a) => {
-      const c = a.investorId ? contacts.get(a.investorId) : undefined;
       const hay = [
         a.title,
         a.description,
         WORKSPACE_ALERT_CATEGORY_LABEL[a.category],
-        c?.name,
-        c?.email,
-        c?.origin,
+        a.investorName,
+        a.investorEmail,
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
       if (hay.includes(raw)) return true;
       // Pesquisa parcial por WhatsApp: "9988" localiza o número completo.
-      if (num.length >= 2 && c?.whatsapp && digits(c.whatsapp).includes(num)) return true;
+      if (num.length >= 2 && a.investorWhatsapp && digits(a.investorWhatsapp).includes(num)) {
+        return true;
+      }
       return false;
     });
-  }, [alerts, query, contacts]);
+  }, [alerts, query]);
+
 
   const active = useMemo(() => visible.filter((a) => !a.archived), [visible]);
   const resolved = useMemo(() => visible.filter((a) => a.archived), [visible]);
