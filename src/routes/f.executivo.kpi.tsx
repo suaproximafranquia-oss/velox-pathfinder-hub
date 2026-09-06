@@ -14,12 +14,16 @@ import {
   Users,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { useServerFn } from "@tanstack/react-start";
 import {
   getSession,
-  loadUsers,
   type ExecutiveSession,
-  type ExecutiveUser,
 } from "@/lib/executive-auth";
+import {
+  resolverEscopoKpi,
+  type KpiScope,
+  type KpiScopeEntry,
+} from "@/lib/kpi-scope.functions";
 import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
@@ -40,7 +44,6 @@ import {
   type KpiDataset,
   type KpiIndicator,
 } from "@/lib/kpi-manager";
-import { visibleCollaborators } from "@/lib/teams";
 import { isHomologationEnvironment } from "@/lib/environment";
 import { cn } from "@/lib/utils";
 import { KpiAiAssistant } from "@/components/executive/kpi-ai-assistant";
@@ -98,18 +101,6 @@ function KpiManagerPage() {
   return <KpiManagerBody session={session} />;
 }
 
-function kpiCollaborators(session: ExecutiveSession): ExecutiveUser[] {
-  const visible = visibleCollaborators(session).filter(
-    (u) => u.id !== "usr_joao" && u.id !== "usr_felipe",
-  );
-  if (session.activeRole !== "super_admin") return visible;
-
-  const currentUser = loadUsers().find(
-    (u) => u.id === session.userId && u.status === "ativo",
-  );
-  if (!currentUser || visible.some((u) => u.id === currentUser.id)) return visible;
-  return [currentUser, ...visible];
-}
 
 function initialsFor(name: string): string {
   return name
@@ -121,7 +112,7 @@ function initialsFor(name: string): string {
 }
 
 function buildConsolidatedDataset(
-  collaborators: ExecutiveUser[],
+  collaborators: KpiScopeEntry[],
   monthKey: string,
 ): KpiDataset {
   const matrix: KpiDataset["matrix"] = {};
@@ -148,11 +139,67 @@ function buildConsolidatedDataset(
   };
 }
 
+/**
+ * O escopo (quem aparece no KPI) é resolvido NO SERVIDOR pela identidade
+ * autenticada — o navegador não decide nem pode ampliar o recorte por
+ * URL, parâmetro ou manipulação de estado.
+ */
 function KpiManagerBody({ session }: { session: ExecutiveSession }) {
-  const collaborators = useMemo(() => kpiCollaborators(session), [session]);
-  const canUseConsolidated = session.activeRole !== "executivo";
-  const defaultViewId = canUseConsolidated ? CONSOLIDATED_VIEW_ID : session.userId;
-  const [viewId, setViewId] = useState(defaultViewId);
+  const resolveScope = useServerFn(resolverEscopoKpi);
+  const [scope, setScope] = useState<KpiScope | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const s = await resolveScope({ data: undefined as never });
+        if (alive) setScope(s);
+      } catch {
+        // Falha de leitura NUNCA amplia o escopo: cai no recorte mínimo
+        // (a própria operação) até o servidor responder.
+        if (alive) {
+          setScope({
+            role: "user",
+            selfExecutiveId: session.userId,
+            selfName: session.name,
+            canUseConsolidated: false,
+            collaborators: [{ id: session.userId, name: session.name }],
+          });
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [resolveScope, session.userId, session.name]);
+
+  if (!scope) {
+    return (
+      <ExecutiveShell session={session} title="KPI Manager" fullBleed>
+        <div className="p-8 text-sm text-[color:var(--muted-foreground)]">
+          Carregando escopo autorizado…
+        </div>
+      </ExecutiveShell>
+    );
+  }
+  return <KpiManagerScoped session={session} scope={scope} />;
+}
+
+function KpiManagerScoped({
+  session,
+  scope,
+}: {
+  session: ExecutiveSession;
+  scope: KpiScope;
+}) {
+  const collaborators = scope.collaborators;
+  const canUseConsolidated = scope.canUseConsolidated;
+  const selfId = scope.selfExecutiveId ?? session.userId;
+  const defaultViewId = canUseConsolidated ? CONSOLIDATED_VIEW_ID : selfId;
+  const [rawViewId, setViewId] = useState(defaultViewId);
+  // Trava server-side refletida na UI: colaborador só enxerga a própria
+  // operação — qualquer viewId divergente é ignorado.
+  const viewId = scope.role === "user" ? selfId : rawViewId;
   const defaults = useMemo(
     () => ({
       monthKey: DEFAULT_MONTH_KEY,
@@ -167,12 +214,12 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
   const activeCollab = isConsolidated
     ? null
     : collaborators.find((c) => c.id === viewId) ?? collaborators[0] ?? null;
-  const activeUserId = activeCollab?.id ?? session.userId;
+  const activeUserId = activeCollab?.id ?? selfId;
   const activeLabel = isConsolidated
-    ? session.activeRole === "super_admin"
+    ? scope.role === "admin"
       ? "Consolidado geral"
       : "Consolidado da equipe"
-    : activeCollab?.name ?? session.name;
+    : activeCollab?.name ?? scope.selfName ?? session.name;
 
   const [dataset, setDataset] = useState<KpiDataset>(() =>
     loadDataset(activeUserId, activeMonth.key),
@@ -389,7 +436,7 @@ function KpiManagerBody({ session }: { session: ExecutiveSession }) {
                 >
                   <BarChart3 className="h-3.5 w-3.5" />
                 </span>
-                {session.activeRole === "super_admin" ? "Geral" : "Equipe"}
+                {scope.role === "admin" ? "Geral" : "Equipe"}
               </button>
             )}
             {collaborators.map((c) => {
@@ -489,7 +536,7 @@ function KpiStatusCard({
   collaborators,
   monthKey,
 }: {
-  collaborators: ExecutiveUser[];
+  collaborators: KpiScopeEntry[];
   monthKey: string;
 }) {
   const month = findMonth(monthKey);
