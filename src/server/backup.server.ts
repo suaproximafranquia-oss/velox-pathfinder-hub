@@ -392,29 +392,32 @@ export async function restoreBackupPayload(backupId: string): Promise<RestoreRes
 /**
  * Consolidação e retenção dos pontos AUTOMÁTICOS.
  *
- *  · DIA CORRENTE — nada é removido: todos os backups horários do dia
- *    em andamento permanecem disponíveis.
- *  · DIA ENCERRADO — permanece somente o backup da hora 23 daquele dia,
- *    que passa a ser o snapshot diário. Os demais horários são removidos
- *    APENAS depois que o snapshot das 23:00 estiver identificado.
- *  · Se o backup das 23:00 não existir, o dia NÃO é consolidado: todos os
- *    seus pontos são preservados e a inconsistência é registrada.
- *  · RETENÇÃO — no máximo 7 dias encerrados. Dias além disso saem por
- *    completo.
+ *  · DIA CORRENTE (America/Sao_Paulo) — nada é removido.
+ *  · DIA ENCERRADO — permanece EXCLUSIVAMENTE o backup automático da
+ *    hora 23 no fuso operacional. Nenhum outro horário é promovido a
+ *    snapshot: se as 23:00 não existirem, o dia não é consolidado e a
+ *    inconsistência é registrada.
+ *  · RETENÇÃO — no máximo 7 dias encerrados; além disso o dia sai inteiro.
  *
- * A rotina é idempotente: tudo é derivado do estado atual da tabela, sem
- * marcação de execução. Backups manuais e de segurança (protected) nunca
- * são tocados. Nenhum dado de negócio é lido ou apagado aqui — apenas
- * artefatos de backup.
+ * Idempotente: tudo é derivado do estado atual da tabela. Backups
+ * manuais/de segurança (protected) não são tocados aqui.
  */
-export async function pruneBackups(): Promise<number> {
+export async function pruneBackups(): Promise<{
+  removed: number;
+  incompleteDays: string[];
+}> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("portal_backups")
     .select("id,created_at,reference_hour,origin,kind,protected")
     .eq("origin", "automatico")
-    .order("created_at", { ascending: false });
-  if (error || !data) return 0;
+    .eq("kind", "completo")
+    .order("created_at", { ascending: false })
+    .limit(5000);
+  if (error || !data) {
+    console.error("[backup] retenção não pôde ler os pontos:", error?.message);
+    return { removed: 0, incompleteDays: [] };
+  }
 
   const today = operationalDate(new Date());
   const byDay = new Map<string, { id: string; hour: number }[]>();
@@ -428,59 +431,229 @@ export async function pruneBackups(): Promise<number> {
     byDay.set(slot.date, list);
   }
 
-  // Dias encerrados, do mais recente para o mais antigo.
   const closedDays = [...byDay.keys()].filter((d) => d < today).sort().reverse();
   const withinRetention = new Set(closedDays.slice(0, RETENTION.dailyDays));
   const remove: string[] = [];
+  const incompleteDays: string[] = [];
 
   for (const day of closedDays) {
     const points = byDay.get(day) ?? [];
     if (!withinRetention.has(day)) {
-      // Fora dos últimos 7 dias encerrados: o dia inteiro sai.
       remove.push(...points.map((p) => p.id));
       continue;
     }
     const snapshot = points.find((p) => p.hour === RETENTION.snapshotHour);
     if (!snapshot) {
-      // Defensivo: sem o representante das 23:00 nada é apagado.
+      incompleteDays.push(day);
       console.warn(
-        `[backup] consolidação incompleta em ${day}: não há backup das ${RETENTION.snapshotHour}:00. Nenhum ponto do dia foi removido.`,
+        `[backup] consolidação incompleta em ${day}: não há backup das ${RETENTION.snapshotHour}:00 (${BACKUP_TIME_ZONE}). Nenhum ponto do dia foi removido.`,
       );
       continue;
     }
-    // O snapshot já está identificado e preservado — só então removemos.
     remove.push(...points.filter((p) => p.id !== snapshot.id).map((p) => p.id));
   }
 
-  if (remove.length) {
-    for (let i = 0; i < remove.length; i += 100) {
-      await supabaseAdmin
-        .from("portal_backups")
-        .delete()
-        .in("id", remove.slice(i, i + 100));
-    }
-  }
-  await pruneOrphanBlobs();
-  return remove.length;
+  const removed = await deleteBackupsById(remove);
+  return { removed, incompleteDays };
 }
 
-
-/** Libera conteúdos que não pertencem mais a nenhum ponto de restauração. */
-async function pruneOrphanBlobs(): Promise<void> {
+/** Remoção em blocos, com erro registrado em vez de silencioso. */
+async function deleteBackupsById(ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: refs } = await supabaseAdmin
+  let removed = 0;
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const { error } = await supabaseAdmin.from("portal_backups").delete().in("id", chunk);
+    if (error) {
+      console.error("[backup] falha ao remover pontos de restauração:", error.message);
+      continue;
+    }
+    removed += chunk.length;
+  }
+  return removed;
+}
+
+/**
+ * Retenção própria do BACKUP DE CONVERSAS: somente as últimas 24 horas.
+ * A janela é contada a partir do instante real de criação (o instante é
+ * absoluto — o fuso operacional é usado apenas na apresentação), e é
+ * totalmente independente da política dos snapshots gerais.
+ */
+export const CONVERSATION_RETENTION_HOURS = 24;
+
+export async function pruneConversationBackups(): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const cutoff = new Date(
+    Date.now() - CONVERSATION_RETENTION_HOURS * 60 * 60 * 1000,
+  ).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("portal_backups")
+    .select("id,created_at")
+    .eq("kind", "conversas")
+    .lt("created_at", cutoff)
+    .limit(5000);
+  if (error) {
+    console.error("[backup] retenção de conversas falhou na leitura:", error.message);
+    return 0;
+  }
+  return deleteBackupsById(((data ?? []) as Row[]).map((r) => String(r["id"])));
+}
+
+/**
+ * Retenção da fila. Mantém as solicitações das últimas 48 horas (janela
+ * operacional do processador) e as falhas dos últimos 7 dias, úteis para
+ * diagnóstico. O restante sai. Remover uma solicitação antiga não recria
+ * nem apaga nenhum backup: são estruturas independentes.
+ */
+export const QUEUE_RETENTION_HOURS = 48;
+export const QUEUE_FAILURE_RETENTION_DAYS = 7;
+
+export async function pruneBackupRequests(): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const now = Date.now();
+  const recent = new Date(now - QUEUE_RETENTION_HOURS * 60 * 60 * 1000).toISOString();
+  const failureCutoff = new Date(
+    now - QUEUE_FAILURE_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from("portal_backup_requests")
+    .select("id,reference_hour,status")
+    .lt("reference_hour", recent)
+    .limit(5000);
+  if (error) {
+    console.error("[backup] retenção da fila falhou na leitura:", error.message);
+    return 0;
+  }
+  const ids = ((data ?? []) as Row[])
+    .filter((r) => {
+      const status = String(r["status"] ?? "");
+      const hour = String(r["reference_hour"] ?? "");
+      // Falhas recentes permanecem para diagnóstico.
+      if (status === "falha" && hour >= failureCutoff) return false;
+      return true;
+    })
+    .map((r) => String(r["id"]));
+
+  let removed = 0;
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const { error: delError } = await supabaseAdmin
+      .from("portal_backup_requests")
+      .delete()
+      .in("id", chunk);
+    if (delError) {
+      console.error("[backup] falha ao remover solicitações antigas:", delError.message);
+      continue;
+    }
+    removed += chunk.length;
+  }
+  return removed;
+}
+
+/**
+ * Libera conteúdos que não pertencem mais a nenhum ponto de restauração.
+ * Executa fora do bloco pesado da captura e em lotes pequenos, para não
+ * ser interrompida no meio; o resultado é sempre verificado e registrado.
+ */
+export async function pruneOrphanBlobs(
+  maxRemovals = 60,
+): Promise<{ removed: number; failed: number }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: refs, error: refError } = await supabaseAdmin
     .from("portal_backups")
     .select("payload_hash")
-    .not("payload_hash", "is", null);
+    .not("payload_hash", "is", null)
+    .limit(5000);
+  if (refError) {
+    console.error("[backup] limpeza de conteúdos: falha ao ler referências:", refError.message);
+    return { removed: 0, failed: 0 };
+  }
   const used = new Set((refs ?? []).map((r) => String((r as Row)["payload_hash"])));
-  const { data: blobs } = await supabaseAdmin.from("portal_backup_blobs").select("hash");
+  const { data: blobs, error: blobError } = await supabaseAdmin
+    .from("portal_backup_blobs")
+    .select("hash")
+    .limit(5000);
+  if (blobError) {
+    console.error("[backup] limpeza de conteúdos: falha ao listar:", blobError.message);
+    return { removed: 0, failed: 0 };
+  }
   const orphans = (blobs ?? [])
     .map((b) => String((b as Row)["hash"]))
-    .filter((h) => !used.has(h));
-  for (let i = 0; i < orphans.length; i += 100) {
-    await supabaseAdmin
+    .filter((h) => !used.has(h))
+    .slice(0, maxRemovals);
+
+  let removed = 0;
+  let failed = 0;
+  for (let i = 0; i < orphans.length; i += 10) {
+    const chunk = orphans.slice(i, i + 10);
+    const { error } = await supabaseAdmin
       .from("portal_backup_blobs")
       .delete()
-      .in("hash", orphans.slice(i, i + 100));
+      .in("hash", chunk);
+    if (error) {
+      failed += chunk.length;
+      console.error("[backup] falha ao liberar conteúdos órfãos:", error.message);
+      continue;
+    }
+    removed += chunk.length;
   }
+  if (removed || failed) {
+    console.info(`[backup] conteúdos liberados: ${removed} · falhas: ${failed}`);
+  }
+  return { removed, failed };
+}
+
+export type RetentionSummary = {
+  backupsRemoved: number;
+  conversationsRemoved: number;
+  requestsRemoved: number;
+  blobsRemoved: number;
+  blobFailures: number;
+  incompleteDays: string[];
+  errors: string[];
+};
+
+/**
+ * Política completa de retenção, em etapas independentes: a falha de uma
+ * etapa não impede as demais e nunca passa despercebida.
+ */
+export async function runBackupRetention(): Promise<RetentionSummary> {
+  const summary: RetentionSummary = {
+    backupsRemoved: 0,
+    conversationsRemoved: 0,
+    requestsRemoved: 0,
+    blobsRemoved: 0,
+    blobFailures: 0,
+    incompleteDays: [],
+    errors: [],
+  };
+  const step = async (name: string, fn: () => Promise<void>) => {
+    try {
+      await fn();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "falha desconhecida";
+      summary.errors.push(`${name}: ${message}`);
+      console.error(`[backup] retenção — ${name} falhou:`, message);
+    }
+  };
+
+  await step("snapshots", async () => {
+    const result = await pruneBackups();
+    summary.backupsRemoved = result.removed;
+    summary.incompleteDays = result.incompleteDays;
+  });
+  await step("conversas", async () => {
+    summary.conversationsRemoved = await pruneConversationBackups();
+  });
+  await step("fila", async () => {
+    summary.requestsRemoved = await pruneBackupRequests();
+  });
+  await step("conteudos", async () => {
+    const result = await pruneOrphanBlobs();
+    summary.blobsRemoved = result.removed;
+    summary.blobFailures = result.failed;
+  });
+  return summary;
 }

@@ -138,18 +138,52 @@ export type ProcessResult =
   | { processed: true; referenceHour: string; failed: true; attempts: number; error: string };
 
 /**
+ * Executa a política de retenção sem nunca derrubar o processamento: um
+ * erro aqui é registrado, não propagado.
+ */
+async function runRetentionSafely(): Promise<void> {
+  try {
+    const { runBackupRetention } = await import("@/server/backup.server");
+    const summary = await runBackupRetention();
+    console.info(
+      `[backup] retenção — pontos: ${summary.backupsRemoved}, conversas: ${summary.conversationsRemoved}, fila: ${summary.requestsRemoved}, conteúdos: ${summary.blobsRemoved}`,
+    );
+    if (summary.errors.length) {
+      console.error("[backup] retenção concluída com falhas:", summary.errors.join(" | "));
+    }
+    if (summary.incompleteDays.length) {
+      console.warn(
+        `[backup] dias sem snapshot das 23:00 (não consolidados): ${summary.incompleteDays.join(", ")}`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[backup] retenção não pôde ser executada:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
+/**
  * Executa UMA solicitação por chamada. Sem solicitação pendente, a
- * execução custa uma única leitura.
+ * execução custa uma única leitura — e, uma vez por hora, aproveita a
+ * ociosidade para rodar a retenção, de modo que a política nunca fique
+ * refém de um backup ter ou não sido produzido.
  */
 export async function processNextBackupRequest(): Promise<ProcessResult> {
   const owner = `worker-${Math.random().toString(36).slice(2, 10)}`;
   const item = await claimNextRequest(owner);
-  if (!item) return { processed: false, reason: "vazio" };
+  if (!item) {
+    if (new Date().getUTCMinutes() === 30) await runRetentionSafely();
+    return { processed: false, reason: "vazio" };
+  }
+
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { createBackup, validateBackupPersisted, pruneBackups } = await import(
+  const { createBackup, validateBackupPersisted } = await import(
     "@/server/backup.server"
   );
+
 
   try {
     // Retry nunca duplica: se a hora já produziu um ponto, reaproveita.
@@ -187,7 +221,7 @@ export async function processNextBackupRequest(): Promise<ProcessResult> {
       })
       .eq("id", item.id);
 
-    await pruneBackups();
+    await runRetentionSafely();
     return {
       processed: true,
       referenceHour: item.referenceHour,
