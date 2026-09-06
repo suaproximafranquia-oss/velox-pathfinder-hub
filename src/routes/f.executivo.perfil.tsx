@@ -255,14 +255,6 @@ function ProfileFields({
               ) : (
                 <p className="text-sm mt-0.5 break-all">{r.value}</p>
               )}
-              {r.editable === "postPresentationVideoUrl" && isEditing && (
-                <VideoUploadButton
-                  executiveId={user?.id ?? "executivo"}
-                  onUploaded={(url) =>
-                    setDraft((d) => ({ ...d, postPresentationVideoUrl: url }))
-                  }
-                />
-              )}
             </div>
           </div>
         );
