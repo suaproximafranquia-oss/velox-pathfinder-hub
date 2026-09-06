@@ -168,10 +168,17 @@ Estado atual confirmado no código: existem `/f`, `/financeira`, `/solar`, `/seg
 121. Confirmado — consolidação em UM único comando de construção, dentro de ~10.000 caracteres.
 122. Confirmado — se algo exigir investigação, paro e faço uma pergunta específica antes de construir.
 
-## Pendências de decisão (bloqueiam o comando único)
+## Decisões finais (confirmadas — nada mais bloqueia o comando único)
 
-- **Q80** — uma apresentação vigente por ambiente? (recomendo: sim)
-- **Q88/89** — `/s/{executivo}` permanece como URL oficial do Portal Solar? (recomendo: sim)
-- **Q90** — Portal Seguradora em `/seg/{executivo}`? (recomendo: sim)
-- **Q91/95** — nome e URL da entrada conjunta Solar + Seguradora. (sugestão: "Solar + Seguros", rota `/solar-seguros`)
-- **Q102/103** — remover ou adaptar o simulador antigo? (recomendo: remover)
+- **Q80** — UMA apresentação vigente por ambiente (Financeira, Solar, Seguradora). Sem múltiplas apresentações simultâneas por campanha.
+- **Q88/89** — Portal do Investidor Solar oficial em `/s/{executivo}`; `/solar` permanece como página institucional da Solar.
+- **Q90** — Portal do Investidor Seguradora oficial em `/seg/{executivo}`; `/seguradora` permanece como página institucional da Seguradora.
+- **Q91/95** — Ambiente conjunto: nome "Solar + Seguros" no Corporate Workspace, rota institucional `/solar-seguros`. É entrada/gestão conjunta; Solar e Seguradora permanecem logicamente separadas por origem e dados.
+- **Q102/103** — Remover definitivamente o simulador antigo (E0, E1, E3, E4, E12, E30), sem criar outro simulador para substituí-lo agora.
+- **Q4** — Antes de remover vídeos além dos capítulos 1, 7 e 14, listo os capítulos encontrados para sua confirmação.
+- **Q63** — Remoção do botão "IA Executiva / Relatório Inteligente" confirmada; relatórios tradicionais preservados.
+
+## Próximo passo
+
+Com tudo fechado, a construção será entregue em UM único comando consolidado (~10.000 caracteres), atuando somente no que está confirmado acima. Se durante a construção algo exigir investigação, paro e faço uma pergunta específica em vez de agir no escuro.
+
