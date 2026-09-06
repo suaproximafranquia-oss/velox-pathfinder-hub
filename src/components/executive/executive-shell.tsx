@@ -433,8 +433,9 @@ export function ExecutiveShellFrame({
         </aside>
         <main className="min-w-0" style={{ overflowX: "clip" }}>
           <h1 className={cn("font-display text-2xl md:text-3xl", fullBleed ? "mb-3" : "mb-8")}>{title}</h1>
-          {children}
+          <ShellFrameContext.Provider value={frameApi}>{children}</ShellFrameContext.Provider>
         </main>
+
       </div>
 
       <footer className="border-t border-[color:var(--border)] bg-[color:var(--navy-deep)]/60">
