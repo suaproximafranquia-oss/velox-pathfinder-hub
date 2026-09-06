@@ -12,7 +12,7 @@ import { WorkspaceResourceGuard } from "@/components/executive/workspace-resourc
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowDown, ArrowUp, Eye, Film, Plus, Save, UploadCloud } from "lucide-react";
+import { ArrowDown, ArrowUp, Film, Plus, Save, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { EnvironmentPresentationsCard } from "@/components/executive/environment-presentations-card";
