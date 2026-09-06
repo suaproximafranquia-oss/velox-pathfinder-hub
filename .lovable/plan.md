@@ -1,95 +1,97 @@
-# Ação do Dia — Homologação × Real (diagnóstico somente leitura)
+# Central de Alertas (/f) — origem dos eventos (diagnóstico somente leitura)
 
-Nenhum arquivo, banco, permissão ou regra foi alterado.
+Nada foi alterado: nenhum arquivo, banco, migration, RLS, permissão ou dado.
 
-## Fato central
+## 1. Fonte dos alertas
 
-Os dois ambientes usam **o mesmo componente de tela**: `src/components/crm/daily-actions-overlay.tsx`.
-A única coisa que muda é o **adaptador** injetado. Logo, botões, gate do "Concluído",
-janela operacional e textos de aviso são idênticos; o que muda é o que acontece por trás.
+- Tela: `src/routes/f.executivo.alertas.tsx`
+- Dados: **não há tabela no banco**. Os alertas vivem no `localStorage` do navegador,
+  na chave `atlas:workspace-alerts:v1` (`src/lib/workspace-alerts.ts`).
+- Chaves auxiliares no mesmo navegador: `atlas:investor-last-seen:v1`,
+  `atlas:workspace-alerts-read:v1`, `velox:journey:v1` (jornadas),
+  `velox:events:v1` (barramento de eventos) e a base local de leads.
+- Nenhuma server function participa: a Central lê e escreve exclusivamente no navegador.
 
-## 1. Fluxo Homologação
+## 2. Quem cria os alertas
 
-- Rota: `src/routes/f.executivo.homologacao.acao-do-dia.tsx` (legado `/f/executivo/acao-do-dia-demo` redireciona)
-- Componente de entrada: `src/components/executive/homologation-daily-actions-demo.tsx` → `DailyActionsOverlay`
-- Adaptador: `createDemoDailyActionsAdapter()` em `src/lib/crm/daily-actions.demo.ts`
-- Fonte da fila: 36 registros fictícios em memória (`SEEDS`), gerados no navegador
-- Fonte da mensagem: **texto fabricado no próprio adaptador** ("Mensagem fictícia de demonstração para …"); não toca a Biblioteca
-- Copiar: mesmo `copyToClipboard` do real (clipboard verdadeiro)
-- Concluído: `registerMessage` do demo → sempre `ok: true`, `requeue: true` → item volta ao fim da fila
-- Persistência: **nenhuma**. Nada de servidor, banco, cadência, snapshot ou notas
-- Ver ficha completa: `onOpenLead` é uma função vazia — não abre nada
+`runWorkspaceAlertEvaluation(session)` em `src/lib/workspace-alerts.ts`, disparado
+pela própria página a cada abertura e a cada evento do barramento (com intervalo mínimo
+de 5 s). Ela executa cinco avaliadores:
 
-## 2. Fluxo Real
+- `evaluateInvestorMovement()` — retorno ao Portal
+- `evaluateNewLeads(session)` — "Novo investidor: X" a partir da base local de leads
+- `evaluateJourneyAlerts(session)` — percorre `listJourneys()` (localStorage) e gera
+  início de jornada, manual concluído, **simulação**, pedido de contato e engajamento
+- `evaluateMeetingReminders` / `evaluateMeetingLifecycle` — reuniões
 
-- Rota/tela: `src/components/crm/portal-leads-board.tsx` (Portal dos Leads, `/f`), que abre o mesmo `DailyActionsOverlay`
-- Adaptador: `useRealDailyActionsAdapter()` em `src/components/crm/daily-actions-real-adapter.ts`
-- Fila: `listDailyActions` (`src/lib/crm/daily-actions.functions.ts`) → `src/server/crm/daily-actions.server.ts`
-- Fonte da mensagem: `getDailyActionMessageFn` → `prepareStepMessage` (`src/server/relationship/step-message.server.ts`)
-  → versão ATIVA de `relationship_message_library` + executivo responsável + link do Portal.
-  Sem versão ativa, retorna `blockedReason` e **nenhum texto** (nada é improvisado)
-- Copiar: `copyToClipboard` (`src/lib/clipboard.ts`), com alternativa `execCommand` quando a API do navegador falha
-- Concluído: `registerDailyActionMessageFn` → `registerDailyActionMessage`
-  (`src/server/crm/daily-actions-log.server.ts`) → conclui o item da fila, grava snapshot imutável
-  da mensagem e, havendo texto, cria a nota do executivo. Item sai da fila (`dropAction`)
-- Pular: `skipDailyActionFn`; Observação: `noteDailyActionFn` (ambos em `daily-actions-log.server.ts`)
-- Ver ficha completa: abre `/f/executivo/dashboard?perfil=<leadId>&escopo=<scope>` em nova aba
+## 3. "Thiago simulou o potencial de receita"
 
-## 3. Tabela de diferenças
+- Código exato: `evaluateJourneyAlerts`, bloco `if (record.counters.simulations > 0)`,
+  título `` `${record.name} simulou potencial de receita` `` (workspace-alerts.ts, ~linha 336).
+- O nome exibido é o **nome do registro de jornada**, não o do executivo logado. Portanto o
+  alerta não afirma que o usuário Thiago simulou: afirma que uma jornada chamada "Thiago" tem
+  contador de simulações maior que zero.
+- Existem dois leads reais com esse nome no banco: `Thiago Rodrigues` (27/08) e `Thiago`
+  (22/08) — o lead preservado do reset.
+- O contador vem do registro local em `velox:journey:v1`, criado por `registerJourney` /
+  `trackJourney` quando o Portal é aberto **naquele navegador**. Não há registro
+  correspondente de `simulator.completed` para nenhum lead "Thiago" em
+  `portal_journey_events`: as únicas conclusões de simulador gravadas no banco são de
+  22/08, do lead `Daniele` (`ld_mt3w9q2zytov`).
+- Conclusão: o evento não tem lastro no banco; ele existe apenas no armazenamento do
+  navegador que abriu o Portal em nome de "Thiago" (teste do próprio administrador).
 
-| Item | Homologação | Real |
-| --- | --- | --- |
-| Tela/botões | mesmo overlay | mesmo overlay |
-| Fila | fixture em memória | servidor autenticado |
-| Texto do "Copiar" | frase fictícia do adaptador | Biblioteca ativa via `prepareStepMessage` |
-| Texto pode faltar | nunca (sempre há corpo) | sim: `blockedReason` quando não há versão ativa ou executivo sem WhatsApp/slug |
-| Confirmação da cópia | mesmo `copyToClipboard`, estado `copied` | idêntico |
-| Gate do "Concluído" | `!message?.body || !copied` | idêntico |
-| Efeito do "Concluído" | volta ao fim da fila, nada gravado | conclui etapa, snapshot, nota, sai da fila |
-| Pular | mensagem simulada | grava em Notas do Executivo (executivo, etapa, data/hora, motivo) |
-| Observação | não grava | grava |
-| Ver ficha | não faz nada | abre a ficha exata do lead |
-| Janela operacional | mesma trava (domingo fechado) | mesma trava |
+## 4. Lead "Augusto"
 
-## 4. O que a Homologação faz "melhor" (e por quê)
+- Consulta ao banco: `portal_leads`, `crm_leads` e `group_unit_leads` — **nenhum registro**
+  com nome contendo "Augusto".
+- Também não existe "Augusto" em nenhum arquivo do repositório (nenhum seed, fixture ou
+  demo cita esse nome).
+- Origem provável: um nome digitado numa abertura de teste do Portal nesse mesmo navegador,
+  que criou um registro em `velox:journey:v1` / base local de leads e, por consequência,
+  o alerta "Novo investidor: Augusto".
 
-Não há comportamento superior de código: a sensação vem de a demo **nunca falhar**.
-Ela sempre tem texto, sempre conclui e sempre reabastece a fila. No real, os mesmos
-botões dependem de: existir versão ativa na Biblioteca para a etapa, o executivo
-responsável ter slug/WhatsApp, e a janela operacional estar aberta.
+## 5. Vazamento de demo/homologação/teste
 
-Um ponto legítimo a levar para o real: **transparência do bloqueio**.
-Hoje, com a janela fechada (domingo), o botão "Concluído" do painel de mensagem
-continua com aparência habilitada e o clique simplesmente não faz nada — `handleRegisterMessage`
-retorna sem mensagem quando `operationalWindow.open` é falso (overlay, linha ~399).
-O mesmo silêncio ocorre em ligação e reunião. Isso explica a impressão de "o real não conclui".
+Não há seed, fixture ou gerador de alertas fictícios no código da Central. O que existe é
+mais sutil: **qualquer visita de teste ao Portal feita no mesmo navegador do executivo
+grava jornada local**, e a Central transforma essa jornada em alerta com aparência
+de acontecimento real. Os fixtures de demonstração da Ação do Dia e o laboratório de lotes
+`TEST-*` não alimentam esta tela.
 
-## 5. O que é apenas mock e NÃO deve ser copiado
+## 6. Cache / localStorage
 
-- Fila circular (`requeue`) — no real a ação concluída deve sair da fila
-- Texto de mensagem gerado no cliente
-- Resultados sempre `ok: true`
-- `onOpenLead` vazio
-- Telefones e nomes fictícios
+Sim — é a causa estrutural. Tudo (alertas, jornadas, últimos vistos, base local de leads)
+é `localStorage` por navegador. Efeitos:
 
-## 6. Conclusão objetiva
+- Alertas antigos (como o de 29/08) permanecem para sempre nesse navegador, mesmo depois de
+  o dado de origem deixar de existir no banco.
+- Outro executivo, em outro navegador, vê um conjunto diferente de alertas.
+- Limpar o navegador apaga o histórico; nenhum outro dispositivo é afetado.
 
-Já correto no real:
-- Ver ficha completa abre o lead exato
-- Pular grava executivo, etapa, data, hora e motivo nas Notas
-- Copiar usa a mensagem oficial da Biblioteca, com fallback de cópia manual
-- "Concluído" só habilita após cópia confirmada
-- "Concluído" conclui a etapa, grava snapshot e avança a fila
+## 7. Duplicações / recriações
 
-Precisa de correção (único ponto encontrado, sem presumir outros):
-- Fora da janela operacional (hoje, domingo) o "Concluído" do painel de mensagem
-  parece clicável e não devolve nenhuma explicação; deveria ficar visivelmente
-  desabilitado ou informar "fora da janela operacional". Mesmo silêncio em ligação,
-  reunião e reagendamento.
+Há proteção parcial: `pushAlert` ignora IDs repetidos e "Novo investidor" usa ID estável
+por lead (`wa_novo_lead_<id>`). Porém os alertas de jornada (simulação, manual concluído,
+engajamento, início de jornada) usam `date: record.lastActivityAt` na composição do ID —
+então **cada nova atividade da jornada recria o mesmo tipo de alerta com nova data**. É
+por isso que eventos "antigos" reaparecem.
 
-Arquivos envolvidos numa futura correção (apenas apresentação):
-- `src/components/crm/daily-actions-overlay.tsx` (estado `locked` já existe; falta aplicá-lo
-  ao botão do painel de mensagem e emitir feedback nos retornos antecipados)
+## 8. Causa técnica provável
 
-Validação funcional de ponta a ponta do "Copiar → Concluído" com dados reais só pode
-ocorrer dentro da janela (segunda a sábado), por causa da própria regra operacional.
+A Central de Alertas não lê acontecimentos do banco: ela **deriva** alertas de estado local
+do navegador. Registros de teste do Portal criados no navegador do administrador viram
+alertas indistinguíveis dos reais, ficam presos localmente e são recriados a cada nova
+atividade da jornada.
+
+## 9. Correção mínima recomendada (para uma etapa futura, não aplicada)
+
+1. Marcar a origem: alertas derivados de jornada local exibirem a procedência (Portal neste
+   navegador) ou serem gerados apenas quando o lead existir na base real do servidor.
+2. Estabilizar os IDs dos alertas de jornada (um por lead + tipo, sem a data), eliminando a
+   recriação a cada atividade.
+3. Médio prazo: mover a Central para leitura server-side (`portal_journey_events`,
+   `portal_leads`, `portal_meetings`), tornando o histórico compartilhado e auditável.
+
+Arquivos envolvidos numa futura correção: `src/lib/workspace-alerts.ts`,
+`src/lib/journey/engine.ts`, `src/routes/f.executivo.alertas.tsx`.
