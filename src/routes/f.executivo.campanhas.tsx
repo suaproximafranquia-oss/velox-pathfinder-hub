@@ -66,37 +66,40 @@ function CampaignsPage() {
   // A situação ativo/inativo vem SEMPRE do servidor (diretório oficial),
   // nunca do cadastro guardado no navegador — assim todos os perfis veem
   // exatamente os mesmos integrantes ativos.
-  const readDirectory = useServerFn(listarDiretorioExecutivos);
-  const [activeIds, setActiveIds] = useState<string[] | null>(null);
+  const readTeam = useServerFn(listarEquipeCampanhas);
+  const [activeTeam, setActiveTeam] = useState<
+    { executiveId: string; name: string }[] | null
+  >(null);
 
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
-        const rows = await readDirectory({ data: undefined as never });
+        const rows = await readTeam({ data: undefined as never });
         if (!alive) return;
-        setActiveIds(
-          (rows as { executiveId: string; status: string }[])
-            .filter((r) => r.status === "ativo")
-            .map((r) => r.executiveId),
-        );
+        setActiveTeam(rows as { executiveId: string; name: string }[]);
       } catch {
-        if (alive) setActiveIds([]);
+        if (alive) setActiveTeam([]);
       }
     })();
     return () => {
       alive = false;
     };
-  }, [readDirectory]);
+  }, [readTeam]);
 
   const collaborators = useMemo(() => {
-    if (!session || activeIds === null) return [];
-    const allowed = new Set(activeIds);
-    const users = loadUsers();
-    return OPERATIONAL_EXECUTIVE_IDS.filter((id) => allowed.has(id))
-      .map((id) => users.find((u) => u.id === id))
-      .filter((u): u is NonNullable<typeof u> => Boolean(u));
-  }, [session, activeIds]);
+    if (!session || activeTeam === null) return [];
+    // O Painel de Campanhas é corporativo: TODOS os perfis (colaborador,
+    // gestora e administrador) enxergam os mesmos executivos ativos,
+    // dinamicamente, sem lista fixa no código. O painel consome apenas
+    // id + nome; o relatório PDF usa exclusivamente esses dois campos.
+    return activeTeam.map(
+      (entry) =>
+        ({ id: entry.executiveId, name: entry.name }) as ReturnType<
+          typeof loadUsers
+        >[number],
+    );
+  }, [session, activeTeam]);
 
 
   const personalSales = useMemo(() => {
