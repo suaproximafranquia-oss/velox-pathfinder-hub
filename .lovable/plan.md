@@ -1,104 +1,80 @@
-# Diagnóstico — Navegação do Corporate Workspace /f (somente leitura)
+# Relatório forense de código legado — Workspace Financeira /f
 
-Nada foi alterado. Escopo restrito ao ambiente Financeira /f.
+Somente leitura. Nada foi alterado, apagado, renomeado ou migrado.
 
-## A. O que os HARs provam
+## Arquitetura atual considerada (base da análise)
 
-Os arquivos HAR disponíveis nos anexos são:
+`src/routes/f.executivo.tsx` → `OperationalGuard` → `ExecutiveShellFrame` → `Outlet` → página, com `<ExecutiveShell title fullBleed>` atuando apenas como declaração de título/tela cheia. Autorização em três camadas legítimas: `assertWorkspaceAccess`/`autorizacaoWorkspace` (recursos do menu), `useModuleAccess` (módulos operacionais: CRM, Portal dos Leads, Backups) e RLS no banco. Identidade: Supabase Auth → `executive_profiles` → `user_roles`. Motor: `relationship_queue` + versões de fluxo + Biblioteca de Conteúdos. Titularidade: `portal_leads.responsible_executive_id`.
 
-- `veloxgrupo.com.br.har`, `veloxgrupo.com.br-2.har`, `veloxgrupo.com.br-3.har` (capturados em 29/08, conteúdo idêntico entre si) — são navegações no site institucional WordPress `veloxgrupo.com.br` (Elementor, jQuery, wp-content). Nenhuma requisição do Corporate Workspace.
-- `adm.greennsales.com.br.har` e `-2` (24/08) — navegação no sistema GreenSales.
+---
 
-Ou seja: **não há HAR do Corporate Workspace /f nesta conversa**. Os HARs provam apenas o carregamento do site WordPress e do GreenSales; não provam nada sobre cliques no menu lateral do Workspace. Para conclusão baseada em rede seria necessário um HAR capturado em `/f/executivo/...` com pelo menos duas trocas de item de menu.
+## 🔴 GRUPO A — CANDIDATOS FORTES A REMOÇÃO
 
-O diagnóstico abaixo é, portanto, baseado no código atual — que é suficiente para explicar o comportamento relatado.
+Todos com verificação de import direto, import dinâmico e busca por nome em todo `src`.
 
-## B. O que o código prova
+| # | Arquivo | O que é | Evidência | Risco |
+|---|---|---|---|---|
+| A1 | `src/hooks/use-administrative-access.ts` | Hook que decidiria acesso à Apresentação Digital | Zero consumidores. A rota chama `permissaoApresentacao` direto e é protegida por `WorkspaceResourceGuard resource="apresentacao_digital"` | BAIXO |
+| A2 | `src/lib/knowledge-base.ts` (466 linhas) | Acervo de documentos com estado local (listDocuments/addDocument, rótulos) | Zero referências ao módulo em todo `src`; a Central de Conhecimento atual não o importa | BAIXO |
+| A3 | `src/lib/notifications.ts` (124 linhas) | Fila de notificações client-side (`ensureNotificationsSubscribed`, `markAllRead`…) | Zero referências; a Central de Alertas usa fonte própria | BAIXO |
+| A4 | `src/lib/report-generators.ts` (311 linhas) | `exportReportPdf` / `exportReportExcel` | Zero referências; a rota `/f/executivo/relatorios` virou redirect para o Brain | BAIXO |
+| A5 | `src/lib/relationship.functions.ts` | `getRelationshipEngineStatus`, `getRelationshipTimeline` | Zero chamadores; o motor é lido por `src/lib/relationship/*.functions.ts` | BAIXO |
+| A6 | `src/lib/executive-video.functions.ts` | `uploadPostPresentationVideo` | Zero chamadores desde a remoção da seção "Vídeo de pós-apresentação" da ficha do executivo | BAIXO |
+| A7 | `src/components/executive/pendings-card.tsx` | Card de pendências | Zero consumidores | BAIXO |
+| A8 | `src/components/executive/brain/chart-card.tsx` | Cartão de gráfico do Brain | Zero consumidores; o Brain atual não o importa | BAIXO |
+| A9 | `src/components/executive/reports/infographic-dashboard.tsx` | Painel infográfico de relatórios | Zero consumidores (par do A4) | BAIXO |
+| A10 | `src/components/crm/crm-lead-journey.tsx` | Jornada do lead no CRM | Zero consumidores; a ficha usa `crm-lead-ficha` | BAIXO |
 
-1. **O shell não é um layout persistente.** `ExecutiveShell` (`src/components/executive/executive-shell.tsx`) é importado e renderizado **dentro de cada página**: `f.executivo.home.tsx`, `f.executivo.kpi.tsx`, `f.executivo.campanhas.tsx`, `f.executivo.brain.tsx`, `f.executivo.criativa.tsx`, `f.executivo.central-operacoes.tsx`, `f.executivo.reunioes.tsx`, `f.executivo.alertas.tsx`, etc. (~30 rotas). O layout `f.executivo.tsx` renderiza apenas `OperationalGuard > Outlet`, sem shell.
-2. **Trocar de rota troca o componente filho do `Outlet`** — o React desmonta a árvore inteira da página anterior, inclusive o `ExecutiveShell` daquela página, e monta um `ExecutiveShell` novo. Menu, header, footer e todos os `useEffect` de inicialização são recriados a cada clique.
-3. **Efeitos de inicialização reexecutam a cada navegação**, dentro do shell: abertura do token (`getAccessToken`), `hydrateMeetingsFromServer()`, `pullLeads()`, `hydrateCrmFromServer()`, verificação periódica de status do usuário (`listExecutiveStatus`) e o start da sincronização de permissões.
-4. **A autorização do menu é buscada de novo a cada montagem.** `useWorkspaceAuthorization` faz `autorizacaoWorkspace()` dentro de um `useEffect` com estado local, sem cache compartilhado (não usa TanStack Query). Como o hook morre junto com o shell, cada navegação dispara uma nova chamada e o menu fica **vazio/fail-closed até a resposta chegar** — é isso que produz a sensação de "a lateral recarregou".
-5. **O guard de rota agrava o efeito.** Em várias páginas, `WorkspaceResourceGuard` envolve a página **inteira** (inclusive o shell) e retorna `null` enquanto `allowed === null`. Resultado: tela em branco entre a saída da página anterior e a chegada da autorização — visualmente idêntico a um reload.
-6. **Os itens do menu usam `<Link>` do TanStack Router** — navegação SPA. As exceções são intencionais: CRM, Remarketing e Portal dos Leads usam `<a target="_blank">` (abrem nova aba, por decisão de produto).
-7. **Não há `key` por pathname** e nenhum `window.location.assign/href/replace` na navegação do menu. Os únicos `window.location.reload()` do Workspace são: troca de perfil ativo (`ProfileSwitcher`) e o Laboratório — ambos deliberados.
-8. O `QueryClientProvider` fica no `__root` e não é recriado; só o shell e os providers internos das páginas remontam.
+Também sem chamador, porém com risco MÉDIO por serem portas de entrada de funções de servidor que podem ser reativadas por operação administrativa: `src/lib/campaign-ai.functions.ts` (`generateCampaignDraft`), `src/lib/crm/historical-import.functions.ts` (`runHistoricalImport`), `src/lib/google-mail.functions.ts` (`sendGoogleMail`). O código de servidor correspondente continua existindo; antes de remover, confirmar se alguma rotina administrativa depende deles.
 
-## C. Existe full page reload? **NÃO** (na navegação normal do menu)
+---
 
-A navegação é SPA. Reload de documento só ocorre em: troca de perfil, Laboratório, itens de nova aba e o botão "Go home" da tela de erro.
+## 🟠 GRUPO B — LEGADO PROVÁVEL, PRECISA CONFIRMAÇÃO
 
-## D. Existe remount do shell? **SIM**
+**B1 — Páginas sem nenhum caminho de acesso pela interface.** Rotas existentes, funcionais, mas sem link em nenhum lugar do produto (apenas alcançáveis digitando a URL):
 
-Confirmado por construção: o shell vive dentro de cada rota, portanto é obrigatoriamente desmontado e remontado a cada troca de item de menu.
+- `/f/executivo/templates` (658 linhas) — o próprio menu documenta: "Central de Templates saiu do menu: os templates da Meta são geridos pela Biblioteca oficial e pelo Motor". É o caso mais claro de página substituída.
+- `/f/executivo/administracao` (440 linhas) e `/f/executivo/recursos` (298 linhas) — Recursos só é linkado por Administração, e Administração não é linkada por ninguém: as duas formam uma ilha fechada. Recursos usa `src/lib/resources` e `src/lib/governance`, mecanismos anteriores à autorização server-side atual.
+- `/f/executivo/investidores` e `/f/executivo/investidores/$id` (153 linhas + ficha) — sem link; a ficha do investidor hoje é aberta pelo CRM/Ação do Dia.
+- `/f/executivo/fluxos` (67 linhas) — administração de versões de fluxo, sem link no menu.
+- `/f/executivo/identidade` (151 linhas) — fila de pendências de identidade, sem link no menu.
 
-## E. Componente que provoca
+Dúvida: algumas dessas telas podem ser acessos administrativos deliberados por URL (o mesmo padrão já documentado em "Unidades do Grupo"). Precisam de confirmação sua, uma a uma, antes de qualquer remoção. Risco: BAIXO para Templates, MÉDIO para as demais.
 
-`ExecutiveShell`, por estar instanciado por página em vez de estar no layout `src/routes/f.executivo.tsx`. Contribuem: `useWorkspaceAuthorization` (sem cache) e `WorkspaceResourceGuard` envolvendo o shell.
+**B2 — Duas rotas para a titularidade.** `src/server/crm/responsible.server.ts` + `ownership.server.ts` resolvem responsável a partir do vendedor GreenSales (cadeia real: `lead-sync` → `lead-intake` → `ownership`), enquanto vários outros pontos leem/gravam `responsible_executive_id` diretamente. Não é código morto — é dívida de dois caminhos coexistindo. Risco: MÉDIO. Nenhuma unificação proposta aqui.
 
-## F. Mecanismo de navegação
+**B3 — Duas filas.** `first-contact-queue.server.ts` (entrada/primeiro contato) e `relationship_queue` (execução do motor) convivem, com `crm/cadence.server.ts` escrevendo nos dois. Funcionalmente é entrada → execução, não duplicata; a atenção é a possibilidade de divergência em falha parcial de sync. Risco: MÉDIO.
 
-`<Link>` (SPA correta). O problema **não** é o mecanismo de navegação, é a posição do shell na árvore.
+**B4 — Ramo "workspace" de `src/lib/navigation-environment.ts`.** O arquivo é consumido por `manual/concluido`, `error-page`, `journey-chrome` e `module-chrome` — nenhum deles no ramo `/f/executivo`. O caso `"workspace"` → `/f/executivo/home` existe mas nunca é exercitado pelo Workspace, que navega por `unitPath` + `Link`. O arquivo como um todo é usado por outros ambientes: MANTER o arquivo; só o ramo é possivelmente ocioso. Risco: BAIXO isoladamente, MÉDIO se alguém apagar o arquivo.
 
-## G. Requests repetidos desnecessariamente a cada clique
+**B5 — `/f/executivo/greensales` e `/f/executivo/greensales-sync`.** Só `greensales-sync` aparece em `src/config/modules.ts`; a página `greensales` não tem link. Precisa confirmar se ainda cumpre função administrativa. Risco: MÉDIO.
 
-- `autorizacaoWorkspace` (1x por shell + 1x por `WorkspaceResourceGuard` da rota — hooks independentes, sem cache: geralmente 2 chamadas por página).
-- `situacaoOperacional` / `listExecutiveStatus` (identidade/status).
-- Sincronizações de hidratação: reuniões, leads do Portal, CRM.
-- Nenhum JS/CSS é rebaixado: assets permanecem em cache do SPA.
+---
 
-Causa principal: **shell instanciado por rota** (item 1). Causas secundárias: autorização sem cache compartilhado e guard cobrindo o shell.
+## 🟡 GRUPO C — ANTIGO, MAS AINDA NECESSÁRIO
 
-## H. Arquitetura correta
+- **30 rotas `src/routes/executivo.*.tsx`** (sem o prefixo `/f`) — são apenas `redirect` para `/f/executivo/...`, preservando links e favoritos anteriores à criação da unidade de negócio. Preservam `search`, sem lógica duplicada. MANTER enquanto houver links antigos publicados. Risco de remoção: MÉDIO (quebra URLs antigas).
+- **`/f/executivo/relatorios` e `/f/executivo/acao-do-dia-demo`** — redirects internos (Brain Analytics e Central de Homologação). Mesma lógica: baratos e protegem links salvos.
+- **`/f/executivo/unidades`** — carteira institucional do Grupo; a remoção foi só do menu, documentada em comentário. A rota, os dados e os formulários seguem em uso.
+- **`SEED_USERS` em `src/lib/executive-auth.ts`** — hoje ainda é o fallback de bootstrap do diretório/login quando o servidor não devolve perfis; o servidor sobrescreve quando há dado real. Não é mock de demonstração solto. Observação: contém credenciais em texto no código-fonte — ponto para uma investigação própria, fora deste escopo.
+- **Demonstração da Ação do Dia** (`src/lib/crm/daily-actions.demo.ts` + `homologation-daily-actions-demo.tsx` + `/f/executivo/homologacao/acao-do-dia`) — adaptador 100% em memória, sem Supabase e sem WhatsApp, dentro da Central de Homologação e sob o guard de sessão do layout `/f/executivo`. Não interfere em produção.
+- **`/f/executivo/teste-cadencia` e `/f/executivo/laboratorio`** — ambientes de teste com leads fictícios forçados a simulação; o Laboratório só aparece no menu em ambiente de homologação. São ferramentas vivas, não sobras.
 
-Mover o shell para o layout da rota pai `/f/executivo`:
+---
 
-```text
-f.executivo.tsx (layout)
-  OperationalGuard
-    ExecutiveShell            <- monta 1x, permanece montado
-      <Outlet />              <- só o miolo troca
-```
+## 🟢 GRUPO D — NÃO TOCAR
 
-Com o título de cada página vindo do contexto de rota/`head` ou de um pequeno provider, e a autorização resolvida **uma vez** e compartilhada (TanStack Query com `staleTime`, ou contexto do layout). O guard passa a proteger apenas o conteúdo central, não o shell. A decisão continua **server-side** — nada de autorização no cliente.
+Shell atual (`ExecutiveShellFrame` + adaptador `ExecutiveShell`, incluindo o caminho de compatibilidade quando não há frame — usado por ambientes fora de `/f/executivo`); `OperationalGuard`; `WorkspaceResourceGuard`; `assertWorkspaceAccess`/`autorizacaoWorkspace`; `use-workspace-permissions` e `use-workspace-authorization` (funções distintas, sem sobreposição real); RLS; identidade server-truth; E0; `relationship_queue`, versões de fluxo e Biblioteca de Conteúdos (camadas `message-library` → `step-message` → `e0-template` são hierarquia, não duplicata); CRM; GreenSales; Portal dos Leads; Central de Operações; KPI; Campanhas; Safety Lock do WhatsApp (`whatsapp.server` → `crm/messaging` → `dispatch` é cadeia única, sem caminho paralelo de envio); Central de Backup e Backup de Conversas (módulos diferentes, fontes diferentes); isolamento de `/`, `/s`, `/s/portal`, `/seg`.
 
-## I. Arquivos que uma construção futura tocaria
+---
 
-- `src/routes/f.executivo.tsx` (passa a montar o shell).
-- `src/components/executive/executive-shell.tsx` (aceitar filhos via `Outlet`; título por contexto).
-- ~30 rotas `f.executivo.*.tsx` (remover a instância local do shell, manter só o conteúdo).
-- `src/hooks/use-workspace-authorization.ts` (cache compartilhado, mantendo fail-closed).
-- `src/components/executive/workspace-resource-guard.tsx` (envolver só o conteúdo central).
+## Resultado final
 
-## J. Riscos
-
-- Rotas com `fullBleed` (KPI Manager) e páginas que hoje renderizam shell em estados intermediários precisam de tratamento individual.
-- Páginas que hoje escondem o shell inteiro atrás do guard passariam a mostrar o shell com o miolo bloqueado — mudança visual aceitável, mas precisa ser confirmada.
-- Efeitos hoje disparados a cada navegação passariam a rodar só uma vez; qualquer tela que dependa disso como "refresh implícito" precisa de revalidação própria.
-- Alto número de arquivos tocados: recomenda-se fazer por lotes.
-
-## K. O que não deve ser alterado
-
-`assertWorkspaceAccess`, RLS, `WorkspaceResourceGuard` (permanece, apenas reposicionado), `OperationalGuard`, titularidade, GreenSales, cadência, Ação do Dia, Central de Operações, KPI, Painel de Campanhas, e os ambientes `/s`, `/s/portal`, `/seg`, `/`.
-
-## 10. Apresentação Digital
-
-- Rota alvo: `/f/executivo/apresentacao-digital` — o arquivo existe (`src/routes/f.executivo.apresentacao-digital.tsx`) e o recurso está mapeado como `apresentacao_digital` (admin/gestão).
-- Origem do erro: nos estados iniciais a página renderiza `<ExecutiveShell session={session!} …>` **antes** de `getSession()` ter retornado. O shell lê `session.userId` / `session.name` — com `session` nulo isso lança em tempo de execução.
-- O erro sobe até o `errorComponent` do `__root.tsx`.
-- Esse fallback tem um link **hardcoded** `<a href="/">Go home</a>` (`src/routes/__root.tsx`, bloco `ErrorComponent`) — e `<Link to="/">` também no `notFoundComponent`. Por serem `"/"` fixos e, no caso do `<a>`, navegação de documento, o usuário cai na Home institucional das três marcas em vez da Home do Workspace `/f/executivo/home`.
-- Existe utilitário próprio para isso, hoje não usado nessas telas: `homePathFor` / `homePathOrRoot` em `src/lib/navigation-environment.ts`.
-- Correção fica para construção separada.
-
-## 11. Painel de Campanhas
-
-Nada alterado. Registro: o filtro considera apenas executivos com `status === "ativo"` a partir de `listarDiretorioExecutivos` — coerente com o teste observado (Marton inativo deixa de aparecer).
-
-## Componentes compartilhados entre ambientes (apenas informativo)
-
-- `src/routes/__root.tsx` (inclui o `ErrorComponent` com `"/"` fixo) atende todos os ambientes — qualquer mudança ali é global.
-- `ExecutiveShell`, `WorkspaceResourceGuard`, `OperationalGuard` e `use-workspace-authorization` hoje são usados apenas pelo ramo `/f`.
-
-## Menor alteração segura recomendada
-
-Mover a montagem do `ExecutiveShell` para `src/routes/f.executivo.tsx`, com `<Outlet />` no lugar de `children`, e passar a resolver a autorização uma única vez em cache compartilhado. Sozinha, essa mudança elimina o remount da lateral e as chamadas duplicadas, sem tocar em guards, RLS ou regras de acesso.
+1. **Candidatos fortes:** 10 (mais 3 de risco médio).
+2. **Candidatos prováveis:** 5 famílias (B1 a B5), sendo B1 com 6 páginas.
+3. **Falsos positivos importantes evitados:** as 30 rotas `/executivo/*` (parecem duplicatas, são redirects), os três hooks de permissão (parecem duplicados, têm papéis distintos), `message-library`/`step-message`/`e0-template` (camadas), `backups` vs `central-backup` (módulos distintos), `SEED_USERS` (fallback de bootstrap ativo).
+4. **Famílias de legado encontradas:** (a) módulos client-side de uma era anterior ao server-truth — conhecimento, notificações, relatórios, recursos/governança; (b) portas de função de servidor sem chamador; (c) componentes visuais órfãos; (d) páginas administrativas que perderam o link; (e) redirects históricos (legítimos).
+5. **Resíduos por área:** SEED_USERS — presente e **ainda usado**; mocks — só o adaptador de demonstração isolado na Homologação; fallback de identidade — apenas o SEED_USERS; navegação antiga — só o ramo "workspace" ocioso; shell antigo — **nenhum resíduo**, a área ficou limpa após a correção; CRM antigo — dois caminhos de titularidade (não morto); GreenSales antigo — página `greensales` sem link; motor antigo — nenhum arquivo órfão; WhatsApp antigo — nenhum caminho de envio paralelo; backup antigo — nenhum, só o shim de URL.
+6. **As 5 limpezas mais seguras (se um dia autorizadas):** A1, A2, A3, A4+A9 juntos, A7+A8+A10.
+7. **Não recomendo tocar:** Grupo D inteiro, os redirects do Grupo C e `SEED_USERS`.
+8. **Exigem segunda investigação antes de qualquer remoção:** as 6 páginas de B1 (uma a uma), `campaign-ai`/`historical-import`/`google-mail`, a dupla de titularidade B2 e as duas filas B3.
