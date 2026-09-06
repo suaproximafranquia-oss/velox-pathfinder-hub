@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
+import { copyToClipboard } from "@/lib/clipboard";
 import {
   resolveOperationalWindow,
   type OperationalWindow,
