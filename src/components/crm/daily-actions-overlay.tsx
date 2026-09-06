@@ -662,6 +662,54 @@ export function DailyActionsOverlay({
                   </button>
                 </div>
 
+                {/*
+                  LIGAÇÃO — confirmação final. O resultado já foi
+                  escolhido; a observação é opcional e, quando existe,
+                  vira Nota do Executivo antes de a ação ser concluída.
+                */}
+                {selected.cadence && callPending?.key === selected.actionKey && (
+                  <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">
+                      Resultado: {callPending.outcome === "SIM" ? "Atendeu" : "Não atendeu"}
+                      {callPending.outcome === "NAO"
+                        ? callPending.rang
+                          ? " · chamou"
+                          : " · não chamou"
+                        : ""}
+                    </p>
+                    <input
+                      value={callNote}
+                      onChange={(e) => setCallNote(e.target.value)}
+                      placeholder="Observação da ligação (opcional)"
+                      className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void completeCall(selected, callPending.outcome, callPending.rang)
+                        }
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
+                      >
+                        <Check className="h-4 w-4" /> Concluído
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCallPending(null);
+                          setCallNote("");
+                        }}
+                        className="text-[11px] text-white/40 underline underline-offset-4"
+                      >
+                        alterar resultado
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+
+
                 {/* REUNIÃO — reagendamento na própria reunião oficial. */}
                 {selected.kind === "reuniao" && (
                   <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
