@@ -100,3 +100,66 @@ export const provisionarAcessoExecutivo = createServerFn({ method: "POST" })
       return { ok: false as const, reason: "provisionamento" as const };
     }
   });
+
+/**
+ * SEGURANÇA / ACESSO — estado da senha de um usuário.
+ *
+ * Devolve apenas se existe (ou não) uma conta de acesso provisionada
+ * no mecanismo oficial de autenticação. A senha em si JAMAIS é lida,
+ * devolvida ou registrada.
+ */
+export const estadoDeSenhaExecutivo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { executiveId: string }) => data)
+  .handler(async ({ data, context }) => {
+    const { resolveServerIdentity } = await import("@/server/identity.server");
+    const actor = await resolveServerIdentity(context.userId);
+    if (actor.role !== "admin") return { ok: false as const, reason: "sem_permissao" as const };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profile } = await supabaseAdmin
+      .from("executive_profiles")
+      .select("user_id")
+      .eq("executive_id", data.executiveId)
+      .maybeSingle();
+    return {
+      ok: true as const,
+      configurada: Boolean((profile as { user_id?: string } | null)?.user_id),
+    };
+  });
+
+/**
+ * Redefine a senha de um usuário pelo FLUXO OFICIAL de autenticação
+ * (Supabase Auth Admin). Nenhuma tabela paralela, nenhum hash próprio,
+ * nenhuma senha devolvida ao navegador.
+ *
+ * Autorização validada no SERVIDOR: só Administrador (`user_roles.role`
+ * = admin) redefine a senha de outro usuário.
+ */
+export const redefinirSenhaExecutivo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { executiveId: string; novaSenha: string }) => data)
+  .handler(async ({ data, context }) => {
+    const { resolveServerIdentity } = await import("@/server/identity.server");
+    const actor = await resolveServerIdentity(context.userId);
+    if (actor.role !== "admin") return { ok: false as const, reason: "sem_permissao" as const };
+
+    const senha = data.novaSenha ?? "";
+    if (senha.length < 6) return { ok: false as const, reason: "senha_curta" as const };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profile } = await supabaseAdmin
+      .from("executive_profiles")
+      .select("user_id")
+      .eq("executive_id", data.executiveId)
+      .maybeSingle();
+    const userId = (profile as { user_id?: string } | null)?.user_id;
+    if (!userId) return { ok: false as const, reason: "sem_conta" as const };
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: senha,
+    });
+    // A mensagem de erro nunca ecoa a senha enviada.
+    if (error) return { ok: false as const, reason: "falha" as const };
+    return { ok: true as const };
+  });
