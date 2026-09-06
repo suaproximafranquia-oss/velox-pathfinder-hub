@@ -30,6 +30,8 @@ export const DAILY_ACTION_EVENTS = {
   message: "acao_do_dia_mensagem_registrada",
   meeting: "acao_do_dia_reuniao_resolvida",
   reschedule: "acao_do_dia_reuniao_reagendada",
+  /** Ação antes pulada e depois efetivamente concluída. */
+  recovery: "acao_do_dia_pulo_recuperado",
 } as const;
 
 export type DailyActionLogInput = {
@@ -102,6 +104,68 @@ export async function skipDailyAction(input: DailyActionLogInput): Promise<void>
     userId: input.userId,
     executiveId: input.executiveId,
   });
+}
+
+/**
+ * RECUPERAÇÃO DE AÇÃO PULADA — nada é apagado. O pulo original continua
+ * gravado e imutável; este registro apenas declara que a MESMA ação foi
+ * concluída depois. A Central de Operações usa isso para deixar de
+ * contá-la como pulada, sem reescrever histórico.
+ */
+export async function recordSkipRecovery(input: {
+  actionKey: string;
+  leadId: string | null;
+  kind: string;
+  step: string | null;
+  title: string;
+  userId: string;
+  executiveId: string | null;
+  via: string;
+  nowIso: string;
+}): Promise<void> {
+  try {
+    const since = new Date(
+      new Date(input.nowIso).getTime() - 90 * 24 * 3600 * 1000,
+    ).toISOString();
+    const { data } = await supabaseAdmin
+      .from("relationship_engine_log")
+      .select("action,details")
+      .in("action", [DAILY_ACTION_EVENTS.skip, DAILY_ACTION_EVENTS.recovery])
+      .gte("created_at", since)
+      .limit(4000);
+
+    let skipped = false;
+    let recovered = false;
+    for (const row of (data ?? []) as Array<{
+      action?: string | null;
+      details?: Record<string, unknown> | null;
+    }>) {
+      if ((row.details ?? {})["actionKey"] !== input.actionKey) continue;
+      if (row.action === DAILY_ACTION_EVENTS.skip) skipped = true;
+      if (row.action === DAILY_ACTION_EVENTS.recovery) recovered = true;
+    }
+    // Só recupera o que foi realmente pulado, e uma única vez.
+    if (!skipped || recovered) return;
+
+    await writeLedger(
+      DAILY_ACTION_EVENTS.recovery,
+      {
+        actionKey: input.actionKey,
+        leadId: input.leadId,
+        kind: input.kind,
+        step: input.step,
+        title: input.title,
+        reason: "Ação pulada anteriormente e concluída pelo Executivo.",
+        userId: input.userId,
+        executiveId: input.executiveId,
+        outcome: "recuperada",
+        nowIso: input.nowIso,
+      },
+      { via: input.via },
+    );
+  } catch {
+    // Recuperação é leitura de histórico: nunca invalida a conclusão.
+  }
 }
 
 /** OBSERVAÇÃO operacional vinculada à ação e ao investidor. */
@@ -207,6 +271,20 @@ export async function registerDailyActionMessage(
     },
     { queueItemId, motorResultado: outcome.reason },
   );
+
+  if (outcome.concluded) {
+    await recordSkipRecovery({
+      actionKey: input.actionKey,
+      leadId: input.leadId,
+      kind: input.kind,
+      step: input.step,
+      title: input.title,
+      userId: input.userId,
+      executiveId: input.executiveId,
+      via: "mensagem",
+      nowIso,
+    });
+  }
 
   return outcome;
 }
@@ -415,6 +493,20 @@ export async function resolveMeetingOutcome(input: {
     userId: input.userId,
     executiveId: input.executiveId,
   });
+
+  if (input.attended) {
+    await recordSkipRecovery({
+      actionKey: input.actionKey,
+      leadId: input.leadId,
+      kind: "reuniao",
+      step: null,
+      title: input.title,
+      userId: input.userId,
+      executiveId: input.executiveId,
+      via: "reuniao",
+      nowIso,
+    });
+  }
 }
 
 /** REAGENDAMENTO — mesma reunião, nova data, na fonte oficial. */
