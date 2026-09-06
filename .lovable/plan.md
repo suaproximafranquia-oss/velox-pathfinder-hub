@@ -1,97 +1,78 @@
-# Central de Alertas (/f) — origem dos eventos (diagnóstico somente leitura)
+# Central de Alertas (/f) — mapa arquitetural para eliminar o localStorage
 
-Nada foi alterado: nenhum arquivo, banco, migration, RLS, permissão ou dado.
+Diagnóstico somente leitura. Nada foi alterado: nenhum arquivo, banco, migration, RLS ou dado.
 
-## 1. Fonte dos alertas
+## Como a Central lê hoje
 
-- Tela: `src/routes/f.executivo.alertas.tsx`
-- Dados: **não há tabela no banco**. Os alertas vivem no `localStorage` do navegador,
-  na chave `atlas:workspace-alerts:v1` (`src/lib/workspace-alerts.ts`).
-- Chaves auxiliares no mesmo navegador: `atlas:investor-last-seen:v1`,
-  `atlas:workspace-alerts-read:v1`, `velox:journey:v1` (jornadas),
-  `velox:events:v1` (barramento de eventos) e a base local de leads.
-- Nenhuma server function participa: a Central lê e escreve exclusivamente no navegador.
+`src/routes/f.executivo.alertas.tsx` → `runWorkspaceAlertEvaluation()` em
+`src/lib/workspace-alerts.ts`. **Nenhuma consulta server-side direta.** Toda a leitura é do
+navegador; parte desse estado local, porém, é espelho hidratado do servidor:
 
-## 2. Quem cria os alertas
+| Estado local | Chave | É espelho do servidor? |
+| --- | --- | --- |
+| Alertas | `atlas:workspace-alerts:v1` | Não — só existe no navegador |
+| Último visto | `atlas:investor-last-seen:v1` | Não |
+| Lidos | `atlas:workspace-alerts-read:v1` | Não (preferência, aceitável) |
+| Jornadas | `velox:journey:v1` | Não — gravado por visitas ao Portal naquele navegador |
+| Barramento de eventos | `velox:events:v1` | Não |
+| Leads | base local (`loadLeads`) | Sim — `replaceLeads` do espelho de `portal_leads` |
+| Reuniões | `listMeetings` | Sim — hidratado por `listMeetingsFromServer` |
 
-`runWorkspaceAlertEvaluation(session)` em `src/lib/workspace-alerts.ts`, disparado
-pela própria página a cada abertura e a cada evento do barramento (com intervalo mínimo
-de 5 s). Ela executa cinco avaliadores:
+## Tabelas server-side já existentes e populadas
 
-- `evaluateInvestorMovement()` — retorno ao Portal
-- `evaluateNewLeads(session)` — "Novo investidor: X" a partir da base local de leads
-- `evaluateJourneyAlerts(session)` — percorre `listJourneys()` (localStorage) e gera
-  início de jornada, manual concluído, **simulação**, pedido de contato e engajamento
-- `evaluateMeetingReminders` / `evaluateMeetingLifecycle` — reuniões
+| Tabela | Conteúdo | Volume atual |
+| --- | --- | --- |
+| `portal_leads` | leads reais | 123 |
+| `portal_journey_events` | eventos do Portal (`module.opened`, `manual.chapter.completed`, `manual.completed`, `simulator.started`, `simulator.completed`, `material.viewed`, `identity.created`) | 127 |
+| `portal_engagement` | sessões, retornos, tempo ativo, módulos, primeiro/último acesso | 15 |
+| `portal_meetings` | reuniões e ciclo de vida | 1 |
+| `crm_timeline` | histórico operacional do card | 1.119 |
+| `investor_notes` | notas do executivo | 6 |
+| `workspace_e0_actions`, `relationship_queue`, `relationship_events` | motor de relacionamento | — |
 
-## 3. "Thiago simulou o potencial de receita"
+## Mapa por tipo de alerta
 
-- Código exato: `evaluateJourneyAlerts`, bloco `if (record.counters.simulations > 0)`,
-  título `` `${record.name} simulou potencial de receita` `` (workspace-alerts.ts, ~linha 336).
-- O nome exibido é o **nome do registro de jornada**, não o do executivo logado. Portanto o
-  alerta não afirma que o usuário Thiago simulou: afirma que uma jornada chamada "Thiago" tem
-  contador de simulações maior que zero.
-- Existem dois leads reais com esse nome no banco: `Thiago Rodrigues` (27/08) e `Thiago`
-  (22/08) — o lead preservado do reset.
-- O contador vem do registro local em `velox:journey:v1`, criado por `registerJourney` /
-  `trackJourney` quando o Portal é aberto **naquele navegador**. Não há registro
-  correspondente de `simulator.completed` para nenhum lead "Thiago" em
-  `portal_journey_events`: as únicas conclusões de simulador gravadas no banco são de
-  22/08, do lead `Daniele` (`ld_mt3w9q2zytov`).
-- Conclusão: o evento não tem lastro no banco; ele existe apenas no armazenamento do
-  navegador que abriu o Portal em nome de "Thiago" (teste do próprio administrador).
+| Alerta | Evento real | Fonte server-side existente | Depende de localStorage hoje? | Caminho recomendado |
+| --- | --- | --- | --- | --- |
+| Novo Investidor Identificado | lead criado | `portal_leads.created_at` | Sim (base local, mas é espelho) | Derivar direto de `portal_leads` no servidor |
+| Movimentação do Investidor | retorno ao Portal após inatividade | `portal_engagement.last_access_at` / `returns`; `portal_journey_events` | Sim (`atlas:investor-last-seen`) | Comparar acessos no servidor; o "último visto" deixa de ser do navegador |
+| Atividade no Portal | abertura de módulo | `portal_journey_events` (`module.opened`) | Sim (jornada local) | Fonte pronta no servidor |
+| Manual Concluído | conclusão da leitura | `portal_journey_events` (`manual.completed`) + `portal_leads.journey_completed_at` | Sim | Fonte pronta |
+| **Simulação Realizada** | simulação concluída | `portal_journey_events` (`simulator.completed`) — só 2 registros, ambos do lead Daniele | Sim (contador local) | Fonte pronta; hoje o alerta vem do contador do navegador, por isso o caso "Thiago" |
+| Contato Solicitado (WhatsApp) | pedido de contato | **Não há registro dedicado** | Sim | Precisa ser persistido (evento de jornada ou coluna própria) |
+| Engajamento Elevado | escore de prontidão | Calculável de `portal_engagement` + `portal_journey_events` | Sim (cálculo local) | Recalcular no servidor |
+| Lembrete de Reunião | reunião nas próximas 24h | `portal_meetings` | Espelho do servidor | Fonte pronta |
+| Reunião solicitada/confirmada/alterada/cancelada | mudança de status | `portal_meetings.status`, `updated_at` | Espelho | Fonte pronta |
+| Lead redistribuído / arquivado / reaberto / proprietário alterado | movimentação do card | `lead_ownership_history`, `crm_timeline` | Sim (barramento local) | Fonte pronta |
+| Conversa restaurada, Falha operacional | operações internas | Parcial (`crm_timeline`) | Sim | Avaliar caso a caso |
 
-## 4. Lead "Augusto"
+## Sem fonte server-side confiável hoje
 
-- Consulta ao banco: `portal_leads`, `crm_leads` e `group_unit_leads` — **nenhum registro**
-  com nome contendo "Augusto".
-- Também não existe "Augusto" em nenhum arquivo do repositório (nenhum seed, fixture ou
-  demo cita esse nome).
-- Origem provável: um nome digitado numa abertura de teste do Portal nesse mesmo navegador,
-  que criou um registro em `velox:journey:v1` / base local de leads e, por consequência,
-  o alerta "Novo investidor: Augusto".
+1. **Pedido de contato por WhatsApp** — só existe como evento do navegador; precisaria virar
+   registro do servidor no momento em que o investidor clica.
+2. **Prontidão para contato / engajamento elevado** — não é um acontecimento gravado, é um
+   cálculo; deveria ser recalculado no servidor a partir de jornada + engajamento.
+3. **O próprio histórico de alertas** — não existe tabela. Hoje ele é por navegador e por
+   dispositivo: não é compartilhado entre usuários, não está no banco e some se o
+   armazenamento local for limpo.
 
-## 5. Vazamento de demo/homologação/teste
+## Menor caminho arquitetural (proposta, não implementada)
 
-Não há seed, fixture ou gerador de alertas fictícios no código da Central. O que existe é
-mais sutil: **qualquer visita de teste ao Portal feita no mesmo navegador do executivo
-grava jornada local**, e a Central transforma essa jornada em alerta com aparência
-de acontecimento real. Os fixtures de demonstração da Ação do Dia e o laboratório de lotes
-`TEST-*` não alimentam esta tela.
+Etapa 1 — **leitura server-side, sem tabela nova e sem migration**: uma server function
+autenticada que deriva os alertas, sob demanda, de `portal_leads`, `portal_journey_events`,
+`portal_engagement`, `portal_meetings` e `lead_ownership_history`, respeitando o recorte por
+executivo responsável. A Central passa a exibir só o que existe no banco; o localStorage vira,
+no máximo, marcação de "lido". Isso já elimina os casos "Thiago simulou" e "Augusto", porque
+nenhum deles tem registro no servidor.
 
-## 6. Cache / localStorage
+Etapa 2 — **persistência dos eventos que faltam**: gravar o pedido de contato por WhatsApp
+como evento de jornada no servidor (aí sim exigiria uma migration apenas se optarmos por
+coluna/tabela própria em vez de reaproveitar `portal_journey_events`).
 
-Sim — é a causa estrutural. Tudo (alertas, jornadas, últimos vistos, base local de leads)
-é `localStorage` por navegador. Efeitos:
+Etapa 3 — **histórico compartilhado (opcional)**: tabela `workspace_alerts` para estado de
+leitura e arquivamento por usuário. Só então haveria migration com GRANT e RLS por executivo.
 
-- Alertas antigos (como o de 29/08) permanecem para sempre nesse navegador, mesmo depois de
-  o dado de origem deixar de existir no banco.
-- Outro executivo, em outro navegador, vê um conjunto diferente de alertas.
-- Limpar o navegador apaga o histórico; nenhum outro dispositivo é afetado.
-
-## 7. Duplicações / recriações
-
-Há proteção parcial: `pushAlert` ignora IDs repetidos e "Novo investidor" usa ID estável
-por lead (`wa_novo_lead_<id>`). Porém os alertas de jornada (simulação, manual concluído,
-engajamento, início de jornada) usam `date: record.lastActivityAt` na composição do ID —
-então **cada nova atividade da jornada recria o mesmo tipo de alerta com nova data**. É
-por isso que eventos "antigos" reaparecem.
-
-## 8. Causa técnica provável
-
-A Central de Alertas não lê acontecimentos do banco: ela **deriva** alertas de estado local
-do navegador. Registros de teste do Portal criados no navegador do administrador viram
-alertas indistinguíveis dos reais, ficam presos localmente e são recriados a cada nova
-atividade da jornada.
-
-## 9. Correção mínima recomendada (para uma etapa futura, não aplicada)
-
-1. Marcar a origem: alertas derivados de jornada local exibirem a procedência (Portal neste
-   navegador) ou serem gerados apenas quando o lead existir na base real do servidor.
-2. Estabilizar os IDs dos alertas de jornada (um por lead + tipo, sem a data), eliminando a
-   recriação a cada atividade.
-3. Médio prazo: mover a Central para leitura server-side (`portal_journey_events`,
-   `portal_leads`, `portal_meetings`), tornando o histórico compartilhado e auditável.
-
-Arquivos envolvidos numa futura correção: `src/lib/workspace-alerts.ts`,
-`src/lib/journey/engine.ts`, `src/routes/f.executivo.alertas.tsx`.
+Arquivos envolvidos numa futura construção: `src/lib/workspace-alerts.ts`,
+`src/routes/f.executivo.alertas.tsx`, um novo `*.functions.ts` de alertas e um
+`*.server.ts` correspondente. As etapas 1 e 2 (reaproveitando `portal_journey_events`)
+**não exigem migration**.
