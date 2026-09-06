@@ -145,10 +145,18 @@ function AlertsCenterPage() {
         </label>
       </div>
 
-      <Section title="Ativos" count={active.length} items={active} contacts={contacts} />
-      <div className="mt-8">
-        <Section title="Resolvidos" count={resolved.length} items={resolved} contacts={contacts} />
-      </div>
+      {loading ? (
+        <div className="rounded-2xl border border-dashed border-[color:var(--border)] p-6 text-center text-xs text-[color:var(--muted-foreground)]">
+          Carregando alertas do servidor…
+        </div>
+      ) : (
+        <>
+          <Section title="Ativos" count={active.length} items={active} />
+          <div className="mt-8">
+            <Section title="Resolvidos" count={resolved.length} items={resolved} />
+          </div>
+        </>
+      )}
     </ExecutiveShell>
   );
 }
@@ -157,12 +165,10 @@ function Section({
   title,
   count,
   items,
-  contacts,
 }: {
   title: string;
   count: number;
-  items: WorkspaceAlert[];
-  contacts: Map<string, AlertContact>;
+  items: ServerWorkspaceAlert[];
 }) {
   return (
     <section>
@@ -179,8 +185,16 @@ function Section({
       ) : (
         <ul className="space-y-2.5">
           {items.map((a) => {
-            const c = a.investorId ? contacts.get(a.investorId) : undefined;
+            const c = a.investorName
+              ? {
+                  name: a.investorName,
+                  email: a.investorEmail ?? "",
+                  whatsapp: a.investorWhatsapp ?? "",
+                  origin: "Portal",
+                }
+              : undefined;
             return (
+
             <li
               key={a.id}
               className={cn(
