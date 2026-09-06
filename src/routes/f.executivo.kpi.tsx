@@ -101,9 +101,6 @@ function KpiManagerPage() {
   return <KpiManagerBody session={session} />;
 }
 
-function kpiCollaborators(_session: ExecutiveSession): ExecutiveUser[] {
-  return [];
-}
 
 function initialsFor(name: string): string {
   return name
@@ -115,7 +112,7 @@ function initialsFor(name: string): string {
 }
 
 function buildConsolidatedDataset(
-  collaborators: ExecutiveUser[],
+  collaborators: KpiScopeEntry[],
   monthKey: string,
 ): KpiDataset {
   const matrix: KpiDataset["matrix"] = {};
