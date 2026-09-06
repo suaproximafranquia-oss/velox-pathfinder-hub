@@ -177,6 +177,12 @@ export function DailyActionsOverlay({
 
   const overdueCount = actions.filter((a) => a.bucket === "atrasada").length;
   const todayCount = actions.filter((a) => a.bucket === "hoje" || a.bucket === "agora").length;
+  /**
+   * Fora da janela operacional nada é executado — a pendência continua
+   * na lista, apenas indisponível até a próxima abertura.
+   */
+  const locked = !operationalWindow.open;
+
 
   function dropAction(key: string) {
     setActions((prev) => {
