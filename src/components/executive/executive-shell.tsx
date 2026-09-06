@@ -293,9 +293,16 @@ export function ExecutiveShellFrame({
           // A rota /f/executivo/unidades, seus dados e formulários permanecem.
         ]
       : []),
+    /**
+     * SOLAR + SEGUROS — entrada institucional conjunta das duas frentes.
+     * Apenas apresentação pública: Solar e Seguros continuam isoladas em
+     * origem, dados e operação.
+     */
+    { to: "/solar-seguros", label: "Solar + Seguros", icon: Sun, newTab: true },
     ...(allow("homologacao")
       ? [{ to: unitPath("/executivo/homologacao"), label: "Central de Homologação", icon: FlaskConical }]
       : []),
+
     ...(allow("backup_conversas")
       ? [{ to: unitPath("/executivo/backups"), label: "Backup de Conversas", icon: Archive }]
       : []),
