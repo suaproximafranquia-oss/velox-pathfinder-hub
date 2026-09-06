@@ -51,6 +51,8 @@ function HomologacaoPage() {
     setSession(getSession());
   }, []);
 
+  if (!session) return null;
+
   return (
     <ExecutiveShell session={session} title="Central de Homologação">
       <div className="space-y-6">
