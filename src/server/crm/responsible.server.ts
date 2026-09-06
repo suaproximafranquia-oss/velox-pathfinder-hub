@@ -50,6 +50,8 @@ export async function resolveResponsibleByVendorId(
     .eq("greensales_vendor_id", value)
     .maybeSingle();
   if (!data?.executive_id) return null;
+  // Mesmo vindo da origem, gestão nunca vira responsável.
+  if (await isManagementExecutive(data.executive_id)) return null;
   return { executiveId: data.executive_id, slug: data.slug ?? null };
 }
 
