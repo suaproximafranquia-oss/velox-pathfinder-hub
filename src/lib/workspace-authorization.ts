@@ -66,7 +66,10 @@ const ROLE_MATRIX: Record<WorkspaceResource, ExecutiveRole[]> = {
   backup_conversas: TODOS,
   usuarios: ADMIN_GESTAO,
   configuracoes: ADMIN,
-  remarketing: TODOS,
+  // Remarketing é área de gestão: Colaborador não acessa (nem no menu,
+  // nem na rota, nem nas server functions — decisão única).
+  remarketing: ADMIN_GESTAO,
+
 };
 
 /**
