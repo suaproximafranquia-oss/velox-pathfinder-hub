@@ -96,9 +96,7 @@ function CampaignsPage() {
     // id + nome; o relatório PDF usa exclusivamente esses dois campos.
     return activeTeam.map(
       (entry) =>
-        ({ id: entry.executiveId, name: entry.name }) as ReturnType<
-          typeof loadUsers
-        >[number],
+        ({ id: entry.executiveId, name: entry.name }) as ExecutiveUser,
     );
   }, [session, activeTeam]);
 
