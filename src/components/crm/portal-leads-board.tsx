@@ -251,6 +251,7 @@ function LeadDialog({
           </div>
 
         </div>
+        )}
 
         <h3 className="mt-6 mb-2 text-xs uppercase tracking-wide text-[color:var(--muted-foreground)]">
           Histórico
