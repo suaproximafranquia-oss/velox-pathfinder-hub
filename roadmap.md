@@ -59,3 +59,16 @@
 - [ ] 10. Homologação: remover simulador antigo
 - [ ] 11/12. Rotas definitivas + ambiente conjunto "Solar + Seguros" (/solar-seguros)
 - [ ] 13. Apresentação Digital em Módulos, menu por permissão
+
+### Situação (06/09, fim do bloco)
+- [x] Manual: vídeos dos capítulos 1, 7 e 14 removidos (não havia outros)
+- [x] CRM de Remarketing ampliado e isolado
+- [x] Central de Templates com ativo/inativo (snapshots preservados)
+- [x] Permissões definitivas da Gestora
+- [x] Portal dos Leads com filtro gerencial por executivo (server-side)
+- [x] KPI e Campanhas com equipe ativa dinâmica
+- [x] Recuperação de ações puladas (registro append-only + Central de Operações)
+- [x] Ponto de entrada de IA removido do Brain (relatórios preservados)
+- [x] Simulador antigo removido definitivamente
+- [x] /solar-seguros criado + item "Solar + Seguros" no Workspace
+- [ ] Apresentação Digital: uma vigente por ambiente — pendente de decisão
