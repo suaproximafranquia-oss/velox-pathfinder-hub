@@ -944,8 +944,12 @@ export function DailyActionsOverlay({
                 <button
                   type="button"
                   onClick={() => void handleRegisterMessage(selected)}
-                  disabled={busy || !message?.body}
-                  className="w-full rounded-lg border border-emerald-400/50 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                  disabled={busy || !message?.body || !copied}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    copied
+                      ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"
+                      : "border-white/15 bg-white/[0.04] text-white/40"
+                  }`}
                 >
                   <Check className="mr-1 inline h-4 w-4" /> Concluído
                 </button>
