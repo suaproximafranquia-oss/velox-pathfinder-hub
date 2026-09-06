@@ -23,12 +23,17 @@ import {
 } from "lucide-react";
 import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
 import {
+  resolveOperationalWindow,
+  type OperationalWindow,
+} from "@/lib/crm/daily-actions-window";
+import {
   KIND_LABEL,
   operationalTime,
   type DailyAction,
   type DailyActionBucket,
   type DailyActionKind,
 } from "@/lib/crm/daily-actions";
+
 
 
 function formatDay(iso: string): string {
@@ -75,6 +80,21 @@ export function DailyActionsOverlay({
   const [busy, setBusy] = useState(false);
   /** Ligação sem atendimento aguardando a resposta "chamou?". */
   const [callAwaitingRing, setCallAwaitingRing] = useState<string | null>(null);
+  /**
+   * Resultado da ligação já escolhido, aguardando a confirmação final.
+   * "Não atendeu" é resultado da tentativa; só "Concluído" encerra.
+   */
+  const [callPending, setCallPending] = useState<{
+    key: string;
+    outcome: "SIM" | "NAO";
+    rang: boolean | null;
+  } | null>(null);
+  const [callNote, setCallNote] = useState("");
+  /** Janela operacional de execução manual (06–22 seg–sex, 06–17 sáb). */
+  const [operationalWindow, setOperationalWindow] = useState<OperationalWindow>(() =>
+    resolveOperationalWindow(),
+  );
+
   const [skipOpen, setSkipOpen] = useState(false);
   const [skipReason, setSkipReason] = useState("");
   const [note, setNote] = useState("");
@@ -116,9 +136,19 @@ export function DailyActionsOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  /** Relógio da janela operacional — reavaliado enquanto o painel está aberto. */
+  useEffect(() => {
+    if (!open) return;
+    setOperationalWindow(resolveOperationalWindow());
+    const timer = window.setInterval(() => setOperationalWindow(resolveOperationalWindow()), 30000);
+    return () => window.clearInterval(timer);
+  }, [open]);
+
   /** Trocar de ação limpa os rascunhos da ação anterior. */
   useEffect(() => {
     setCallAwaitingRing(null);
+    setCallPending(null);
+    setCallNote("");
     setSkipOpen(false);
     setSkipReason("");
     setNote("");
@@ -128,6 +158,7 @@ export function DailyActionsOverlay({
     setMessageOpen(false);
     setMessageNote("");
   }, [selectedKey]);
+
 
 
   const selected = useMemo(
@@ -146,6 +177,12 @@ export function DailyActionsOverlay({
 
   const overdueCount = actions.filter((a) => a.bucket === "atrasada").length;
   const todayCount = actions.filter((a) => a.bucket === "hoje" || a.bucket === "agora").length;
+  /**
+   * Fora da janela operacional nada é executado — a pendência continua
+   * na lista, apenas indisponível até a próxima abertura.
+   */
+  const locked = !operationalWindow.open;
+
 
   function dropAction(key: string) {
     setActions((prev) => {
@@ -179,18 +216,24 @@ export function DailyActionsOverlay({
   }
 
   /**
-   * LIGAÇÃO. "Atendeu?" é sempre a primeira pergunta. Quando NÃO, a
-   * tela pergunta se o telefone CHAMOU antes de registrar — as duas
-   * respostas viram histórico na mesma tentativa. Nenhuma quantidade
-   * de tentativas é decidida aqui: quem define é a cadência.
+   * LIGAÇÃO. "Atendeu?" é sempre a primeira pergunta e a resposta é
+   * apenas o RESULTADO da tentativa — ela nunca encerra a ação sozinha.
+   * O encerramento acontece só no botão "Concluído"; se houver
+   * observação, ela é salva antes nas Notas do Executivo. Nenhuma
+   * quantidade de tentativas é decidida aqui: quem define é a cadência.
    */
   async function completeCall(item: DailyAction, outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!item.cadence) return;
+    if (!operationalWindow.open) return;
     setBusy(true);
     try {
+      const observation = callNote.trim();
+      if (observation.length >= 3) await adapter.addNote(item, observation);
       const result = await adapter.completeCall(item, outcome, rang);
       if (result.ok) {
         setCallAwaitingRing(null);
+        setCallPending(null);
+        setCallNote("");
         applyResult(item.actionKey, result);
       } else setFeedback(result.message ?? "Não foi possível registrar a ligação.");
     } finally {
@@ -198,12 +241,14 @@ export function DailyActionsOverlay({
     }
   }
 
+
   /**
    * PRIMEIRO CONTATO (E0) em modo manual: a execução usa o MESMO
    * caminho oficial do modo automático; aqui só registramos que o
    * executivo executou. Nenhum envio real é liberado por esta tela.
    */
   async function handleFirstContact(item: DailyAction) {
+    if (!operationalWindow.open) return;
     if (!item.firstContactActionId) return;
     setBusy(true);
     setFeedback(null);
@@ -223,6 +268,7 @@ export function DailyActionsOverlay({
   }
 
   async function handleWhatsapp(item: DailyAction) {
+    if (!operationalWindow.open) return;
     const result = await adapter.openWhatsapp(item);
     if (result.message) setFeedback(result.message);
   }
@@ -264,6 +310,7 @@ export function DailyActionsOverlay({
 
   /** REUNIÃO — desfecho registrado na própria reunião. */
   async function handleMeetingOutcome(item: DailyAction, attended: boolean) {
+    if (!operationalWindow.open) return;
     setBusy(true);
     try {
       const result = await adapter.resolveMeeting(item, attended, meetingNote.trim());
@@ -277,6 +324,7 @@ export function DailyActionsOverlay({
   }
 
   async function handleReschedule(item: DailyAction) {
+    if (!operationalWindow.open) return;
     if (!rescheduleAt) {
       setFeedback("Informe a nova data e hora da reunião.");
       return;
@@ -341,6 +389,7 @@ export function DailyActionsOverlay({
   }
 
   async function handleRegisterMessage(item: DailyAction) {
+    if (!operationalWindow.open) return;
     setBusy(true);
     try {
       const result = await adapter.registerMessage(item, messageNote.trim());
@@ -420,6 +469,18 @@ export function DailyActionsOverlay({
 
         <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_340px]">
           <section className="flex min-h-0 flex-col justify-center gap-5 overflow-y-auto border-b border-white/10 p-6 md:border-b-0 md:border-r">
+            {locked && (
+              <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.07] p-3">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-amber-200/90">
+                  Fora da janela operacional
+                </p>
+                <p className="mt-1 text-sm text-white/70">
+                  {operationalWindow.label}. A execução está indisponível e as pendências
+                  continuam registradas — retomam {operationalWindow.nextLabel}.
+                </p>
+              </div>
+            )}
+
             {loading && actions.length === 0 ? (
               <p className="text-sm text-white/50">Reunindo as ações do dia…</p>
             ) : !selected ? (
@@ -480,35 +541,41 @@ export function DailyActionsOverlay({
                     <button
                       type="button"
                       onClick={() => void handleFirstContact(selected)}
-                      disabled={busy}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                      disabled={busy || locked}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
                     >
                       <Check className="h-4 w-4" /> Executar primeiro contato (E0)
                     </button>
                   )}
-                  {selected.cadence && callAwaitingRing !== selected.actionKey && (
-                    <>
-                      <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
-                        O investidor atendeu?
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void completeCall(selected, "SIM")}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
-                      >
-                        <Check className="h-4 w-4" /> Sim
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCallAwaitingRing(selected.actionKey)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
-                      >
-                        <X className="h-4 w-4" /> Não
-                      </button>
-                    </>
-                  )}
+                  {/* LIGAÇÃO — resultado da tentativa. Nenhuma resposta
+                      encerra a ação: só o botão Concluído encerra. */}
+                  {selected.cadence &&
+                    callAwaitingRing !== selected.actionKey &&
+                    callPending?.key !== selected.actionKey && (
+                      <>
+                        <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
+                          O investidor atendeu?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCallPending({ key: selected.actionKey, outcome: "SIM", rang: true })
+                          }
+                          disabled={busy || locked}
+                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
+                        >
+                          <Check className="h-4 w-4" /> Atendeu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCallAwaitingRing(selected.actionKey)}
+                          disabled={busy || locked}
+                          className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
+                        >
+                          <X className="h-4 w-4" /> Não atendeu
+                        </button>
+                      </>
+                    )}
                   {selected.cadence && callAwaitingRing === selected.actionKey && (
                     <>
                       <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
@@ -516,17 +583,31 @@ export function DailyActionsOverlay({
                       </span>
                       <button
                         type="button"
-                        onClick={() => void completeCall(selected, "NAO", true)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] disabled:opacity-50"
+                        onClick={() => {
+                          setCallAwaitingRing(null);
+                          setCallPending({
+                            key: selected.actionKey,
+                            outcome: "NAO",
+                            rang: true,
+                          });
+                        }}
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] disabled:opacity-40"
                       >
                         Sim, chamou
                       </button>
                       <button
                         type="button"
-                        onClick={() => void completeCall(selected, "NAO", false)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
+                        onClick={() => {
+                          setCallAwaitingRing(null);
+                          setCallPending({
+                            key: selected.actionKey,
+                            outcome: "NAO",
+                            rang: false,
+                          });
+                        }}
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
                       >
                         Não chamou
                       </button>
@@ -544,16 +625,16 @@ export function DailyActionsOverlay({
                       <button
                         type="button"
                         onClick={() => void handleMeetingOutcome(selected, true)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
                       >
                         <Check className="h-4 w-4" /> Compareceu
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleMeetingOutcome(selected, false)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
                       >
                         <X className="h-4 w-4" /> Não compareceu
                       </button>
@@ -563,26 +644,29 @@ export function DailyActionsOverlay({
                     <button
                       type="button"
                       onClick={() => void handleOpenMessage(selected)}
-                      disabled={busy}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                      disabled={busy || locked}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
                     >
                       <MessageSquare className="h-4 w-4" />
                       {selected.stepLabel ? `Copiar ${selected.stepLabel}` : "Copiar mensagem"}
                     </button>
                   )}
+
                   {/* Ações de MENSAGEM não abrem conversa: o texto é copiado
-                      e o Executivo conduz a conversa por fora. Ligações
-                      mantêm o comportamento próprio, intacto. */}
-                  {selected.phone && selected.kind !== "mensagem" && (
+                      e o Executivo conduz a conversa por fora. LIGAÇÃO é
+                      canal de ligação: não existe atalho de WhatsApp aqui. */}
+                  {selected.phone && selected.kind !== "mensagem" && !selected.cadence && (
                     <button
                       type="button"
                       onClick={() => void handleWhatsapp(selected)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20"
+                      disabled={locked}
+                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
                     >
                       <MessageCircle className="h-4 w-4" />
-                      {selected.cadence ? "Tentar ligação pelo WhatsApp" : "Abrir conversa"}
+                      Abrir conversa
                     </button>
                   )}
+
                   {selected.leadId && (
                     <button
                       type="button"
@@ -600,6 +684,54 @@ export function DailyActionsOverlay({
                     <SkipForward className="h-4 w-4" /> Pular
                   </button>
                 </div>
+
+                {/*
+                  LIGAÇÃO — confirmação final. O resultado já foi
+                  escolhido; a observação é opcional e, quando existe,
+                  vira Nota do Executivo antes de a ação ser concluída.
+                */}
+                {selected.cadence && callPending?.key === selected.actionKey && (
+                  <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">
+                      Resultado: {callPending.outcome === "SIM" ? "Atendeu" : "Não atendeu"}
+                      {callPending.outcome === "NAO"
+                        ? callPending.rang
+                          ? " · chamou"
+                          : " · não chamou"
+                        : ""}
+                    </p>
+                    <input
+                      value={callNote}
+                      onChange={(e) => setCallNote(e.target.value)}
+                      placeholder="Observação da ligação (opcional)"
+                      className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void completeCall(selected, callPending.outcome, callPending.rang)
+                        }
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
+                      >
+                        <Check className="h-4 w-4" /> Concluído
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCallPending(null);
+                          setCallNote("");
+                        }}
+                        className="text-[11px] text-white/40 underline underline-offset-4"
+                      >
+                        alterar resultado
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+
 
                 {/* REUNIÃO — reagendamento na própria reunião oficial. */}
                 {selected.kind === "reuniao" && (
