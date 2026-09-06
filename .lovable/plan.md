@@ -8,7 +8,9 @@
 - Só reuniões concluídas pela Ação do Dia com resultado "compareceu".
 - A produção pertence a quem executou.
 - Sem gráfico, sem "Ver detalhes", sem atrasados, sem cobrança, sem redistribuição, sem expurgo.
-- Colaborador vê só a própria operação; Larissa vê a equipe e não aparece como linha; Thiago alterna entre "Toda a equipe" e "Minha operação".
+- Colaborador (Marton, Milton, Paulo, Carlos, Talita) abre direto em "Minha operação" e vê só a si.
+- Larissa é exclusivamente gestora: visão da equipe, sem operação própria, sem "Minha operação", sem linha na tabela e nunca tratada como autora ou executora de qualquer ação. Consultar um pulo é apenas leitura gerencial — não conclui, não pula, não altera lead nem cadência.
+- Thiago é a exceção: administrador com operação própria, alterna entre "Toda a equipe" e "Minha operação".
 - Períodos: Hoje, Ontem, Últimos 7 dias, Este mês, Personalizado (sem datas futuras). Dias sem produção aparecem com zero.
 - Pulos clicáveis abrem a relação de leads pulados.
 
