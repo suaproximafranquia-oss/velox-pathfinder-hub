@@ -518,35 +518,41 @@ export function DailyActionsOverlay({
                     <button
                       type="button"
                       onClick={() => void handleFirstContact(selected)}
-                      disabled={busy}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                      disabled={busy || locked}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
                     >
                       <Check className="h-4 w-4" /> Executar primeiro contato (E0)
                     </button>
                   )}
-                  {selected.cadence && callAwaitingRing !== selected.actionKey && (
-                    <>
-                      <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
-                        O investidor atendeu?
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void completeCall(selected, "SIM")}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
-                      >
-                        <Check className="h-4 w-4" /> Sim
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCallAwaitingRing(selected.actionKey)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
-                      >
-                        <X className="h-4 w-4" /> Não
-                      </button>
-                    </>
-                  )}
+                  {/* LIGAÇÃO — resultado da tentativa. Nenhuma resposta
+                      encerra a ação: só o botão Concluído encerra. */}
+                  {selected.cadence &&
+                    callAwaitingRing !== selected.actionKey &&
+                    callPending?.key !== selected.actionKey && (
+                      <>
+                        <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
+                          O investidor atendeu?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCallPending({ key: selected.actionKey, outcome: "SIM", rang: true })
+                          }
+                          disabled={busy || locked}
+                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
+                        >
+                          <Check className="h-4 w-4" /> Atendeu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCallAwaitingRing(selected.actionKey)}
+                          disabled={busy || locked}
+                          className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
+                        >
+                          <X className="h-4 w-4" /> Não atendeu
+                        </button>
+                      </>
+                    )}
                   {selected.cadence && callAwaitingRing === selected.actionKey && (
                     <>
                       <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
@@ -554,17 +560,31 @@ export function DailyActionsOverlay({
                       </span>
                       <button
                         type="button"
-                        onClick={() => void completeCall(selected, "NAO", true)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] disabled:opacity-50"
+                        onClick={() => {
+                          setCallAwaitingRing(null);
+                          setCallPending({
+                            key: selected.actionKey,
+                            outcome: "NAO",
+                            rang: true,
+                          });
+                        }}
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-white/80 transition hover:bg-white/[0.08] disabled:opacity-40"
                       >
                         Sim, chamou
                       </button>
                       <button
                         type="button"
-                        onClick={() => void completeCall(selected, "NAO", false)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
+                        onClick={() => {
+                          setCallAwaitingRing(null);
+                          setCallPending({
+                            key: selected.actionKey,
+                            outcome: "NAO",
+                            rang: false,
+                          });
+                        }}
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
                       >
                         Não chamou
                       </button>
@@ -582,16 +602,16 @@ export function DailyActionsOverlay({
                       <button
                         type="button"
                         onClick={() => void handleMeetingOutcome(selected, true)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
                       >
                         <Check className="h-4 w-4" /> Compareceu
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleMeetingOutcome(selected, false)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-50"
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
                       >
                         <X className="h-4 w-4" /> Não compareceu
                       </button>
@@ -601,13 +621,14 @@ export function DailyActionsOverlay({
                     <button
                       type="button"
                       onClick={() => void handleOpenMessage(selected)}
-                      disabled={busy}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
+                      disabled={busy || locked}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
                     >
                       <MessageSquare className="h-4 w-4" />
                       {selected.stepLabel ? `Copiar ${selected.stepLabel}` : "Copiar mensagem"}
                     </button>
                   )}
+
                   {/* Ações de MENSAGEM não abrem conversa: o texto é copiado
                       e o Executivo conduz a conversa por fora. LIGAÇÃO é
                       canal de ligação: não existe atalho de WhatsApp aqui. */}
