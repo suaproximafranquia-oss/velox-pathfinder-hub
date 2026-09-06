@@ -16,6 +16,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   interpretMetaTemplateCaptures,

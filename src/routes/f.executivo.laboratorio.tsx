@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import {
   getSession,
   loadUsers,
