@@ -16,6 +16,7 @@ import { ArrowDown, ArrowUp, Eye, Film, Plus, Save, UploadCloud } from "lucide-r
 import { toast } from "sonner";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { EnvironmentPresentationsCard } from "@/components/executive/environment-presentations-card";
+import { EnvironmentPresentationPreview } from "@/components/executive/environment-presentation-preview";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   listarCapitulos,
