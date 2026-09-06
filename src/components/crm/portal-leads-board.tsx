@@ -366,6 +366,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
       setLoading(false);
     }
   }, [
+    executiveFilter,
     fetchCallsSummary,
     fetchConnection,
     fetchLeads,
@@ -379,6 +380,23 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     if (!allowed) return;
     void load();
   }, [allowed, load]);
+
+  /** Lista de executivos do filtro — decidida pelo servidor. */
+  useEffect(() => {
+    if (!allowed) return;
+    let cancelled = false;
+    void fetchTeamFilter({})
+      .then((rows) => {
+        if (!cancelled) setTeamFilter(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setTeamFilter([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [allowed, fetchTeamFilter]);
+
 
   useEffect(() => {
     if (!selectedId) {
