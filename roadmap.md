@@ -41,3 +41,5 @@
 
 - [x] Central de Operações /f: obrigações de ligação persistidas como PENDING, responsável histórico congelado, Produção x Aderência separadas, overdue como subconjunto de pendentes, filtros de produção/teste.
 - [ ] Central de Backup: backup horário do dia corrente + snapshot diário das 23:00 dos últimos 7 dias (bloco futuro, não implementar agora).
+
+- [ ] Corrigir escopo do Painel de Campanhas (colaborador deve ver todos os executivos ativos) — somente /f/executivo/campanhas
