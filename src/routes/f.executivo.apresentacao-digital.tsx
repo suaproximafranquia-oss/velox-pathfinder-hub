@@ -1,31 +1,26 @@
 /**
- * ADMINISTRAÇÃO DO ROTEIRO DA APRESENTAÇÃO DIGITAL (E6 / E20).
+ * APRESENTAÇÃO DIGITAL — UM VÍDEO E UMA DESCRIÇÃO POR AMBIENTE.
  *
- * A área existe para CADASTRAR os vídeos que compõem a apresentação —
- * não para disparar apresentações. A geração continua exclusiva da
- * ficha do investidor no Workspace.
- *
- * Editar nunca apaga: publica uma nova versão. As apresentações já
- * emitidas seguem exibindo o roteiro congelado na emissão.
+ * Ferramenta deliberadamente simples: seletor de ambiente, player,
+ * descrição e publicação. Não existe roteiro, capítulo, capa nem
+ * sequência de vídeos. Financeira, Solar e Seguradora permanecem
+ * isoladas; a infraestrutura de publicação (uma vigente por ambiente,
+ * histórico append-only e proteção contra falha parcial) é reutilizada
+ * exatamente como já estava.
  */
-import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowDown, ArrowUp, Film, Plus, Save, UploadCloud } from "lucide-react";
+import { Eye, Save, Video } from "lucide-react";
 import { toast } from "sonner";
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
-import { EnvironmentPresentationsCard } from "@/components/executive/environment-presentations-card";
-import { EnvironmentPresentationPreview } from "@/components/executive/environment-presentation-preview";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
-  listarCapitulos,
+  ENVIRONMENT_PRESENTATION_KEYS,
+  listarApresentacoesAmbiente,
   permissaoApresentacao,
-  salvarCapitulo,
-  alternarCapitulo,
-  reordenarCapitulos,
-  listarRascunhos,
-  publicarCapitulo,
+  salvarApresentacaoAmbiente,
 } from "@/lib/relationship/presentation.functions";
 
 export const Route = createFileRoute("/f/executivo/apresentacao-digital")({
@@ -36,19 +31,18 @@ export const Route = createFileRoute("/f/executivo/apresentacao-digital")({
       {
         name: "description",
         content:
-          "Cadastro e versionamento dos capítulos em vídeo da Apresentação Digital enviada ao investidor.",
+          "Vídeo e descrição da apresentação vigente de cada ambiente: Financeira, Solar e Seguradora.",
       },
       { property: "og:title", content: "Apresentação Digital — Atlas Platform" },
       {
         property: "og:description",
-        content: "Roteiro versionado dos vídeos da Apresentação Digital.",
+        content: "Uma apresentação em vídeo vigente por ambiente.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
-  /** Autorização única do Corporate Workspace (servidor decide). */
   component: () => (
     <WorkspaceResourceGuard resource="apresentacao_digital">
       <ApresentacaoDigitalPage />
@@ -56,107 +50,121 @@ export const Route = createFileRoute("/f/executivo/apresentacao-digital")({
   ),
 });
 
-type Chapter = {
-  id: string;
-  chapterKey: string;
-  version: number;
-  title: string;
-  description: string | null;
-  videoUrl: string | null;
-  thumbnailUrl: string | null;
-  sortOrder: number;
-  isActive: boolean;
-  updatedAt: string;
-  isDraft: boolean;
-  publishedAt: string | null;
-  publishedByName: string | null;
+const LABEL: Record<string, string> = {
+  financeira: "Financeira",
+  solar: "Solar",
+  seguradora: "Seguradora",
 };
 
-const EMPTY_DRAFT = {
-  chapterKey: null as string | null,
-  title: "",
-  description: "",
-  videoUrl: "",
-  thumbnailUrl: "",
-  isActive: true,
+type Item = {
+  environment: string;
+  introText: string | null;
+  videoUrl: string | null;
+  isPublished: boolean;
+  publishedAt?: string | null;
 };
+
+type Draft = { videoUrl: string; description: string; isPublished: boolean };
+
+const EMPTY: Draft = { videoUrl: "", description: "", isPublished: false };
+
+/** Aceita link normal do YouTube/Vimeo e devolve a forma reproduzível. */
+function toEmbedUrl(url: string): string {
+  const value = url.trim();
+  const youtube = value.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/,
+  );
+  if (youtube) return `https://www.youtube.com/embed/${youtube[1]}`;
+  const vimeo = value.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  return value;
+}
+
+function isFileVideo(url: string) {
+  return /\.(mp4|webm|ogg)(\?|$)/i.test(url.trim());
+}
+
+function VideoPlayer({ url, title }: { url: string; title: string }) {
+  if (isFileVideo(url)) {
+    return (
+      <video src={url} controls className="h-full w-full" aria-label={title}>
+        <track kind="captions" />
+      </video>
+    );
+  }
+  return (
+    <iframe
+      src={toEmbedUrl(url)}
+      title={title}
+      loading="lazy"
+      allowFullScreen
+      className="h-full w-full"
+    />
+  );
+}
 
 function ApresentacaoDigitalPage() {
   const readPermission = useServerFn(permissaoApresentacao);
-  const list = useServerFn(listarCapitulos);
-  const save = useServerFn(salvarCapitulo);
-  const toggle = useServerFn(alternarCapitulo);
-  const reorder = useServerFn(reordenarCapitulos);
-  const listDrafts = useServerFn(listarRascunhos);
-  const publish = useServerFn(publicarCapitulo);
+  const list = useServerFn(listarApresentacoesAmbiente);
+  const save = useServerFn(salvarApresentacaoAmbiente);
 
   const [session, setSession] = useState<ExecutiveSession | null>(null);
   const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [draft, setDraft] = useState({ ...EMPTY_DRAFT });
-  const [drafts, setDrafts] = useState<Chapter[]>([]);
-  const [preview, setPreview] = useState(false);
-  const [working, setWorking] = useState(false);
+  const [environment, setEnvironment] = useState<string>(ENVIRONMENT_PRESENTATION_KEYS[0]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [draft, setDraft] = useState<Draft>({ ...EMPTY });
+  const [busy, setBusy] = useState(false);
+  const [investorView, setInvestorView] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const permission = await readPermission({});
       setAllowed(permission.allowed);
       if (!permission.allowed) return;
-      const [current, pending] = await Promise.all([list({}), listDrafts({})]);
-      setChapters(current as Chapter[]);
-      setDrafts(pending as Chapter[]);
+      setItems((await list({})) as Item[]);
     } catch (error) {
       setAllowed(false);
-      toast.error(error instanceof Error ? error.message : "Falha ao carregar o roteiro.");
+      toast.error(error instanceof Error ? error.message : "Falha ao carregar a apresentação.");
     }
-  }, [readPermission, list, listDrafts]);
+  }, [readPermission, list]);
 
   useEffect(() => {
     setSession(getSession());
     void load();
   }, [load]);
 
-  async function submit(publishNow: boolean) {
-    if (!draft.title.trim()) {
-      toast.error("Informe o título do capítulo.");
-      return;
-    }
-    setWorking(true);
+  // Ao trocar de ambiente, o editor reflete a apresentação daquele ambiente.
+  useEffect(() => {
+    const found = items.find((item) => item.environment === environment);
+    setDraft(
+      found
+        ? {
+            videoUrl: found.videoUrl ?? "",
+            description: found.introText ?? "",
+            isPublished: found.isPublished,
+          }
+        : { ...EMPTY },
+    );
+  }, [environment, items]);
+
+  async function submit() {
+    setBusy(true);
     try {
-      const result = (await save({
+      await save({
         data: {
-          chapterKey: draft.chapterKey,
-          title: draft.title.trim(),
-          description: draft.description.trim() || null,
-          videoUrl: draft.videoUrl.trim() || null,
-          thumbnailUrl: draft.thumbnailUrl.trim() || null,
-          sortOrder: chapters.length,
-          isActive: draft.isActive,
-          publish: publishNow,
+          environment,
+          introText: draft.description,
+          videoUrl: draft.videoUrl,
+          isPublished: draft.isPublished,
         },
-      })) as Chapter[];
-      setChapters(result);
-      setDraft({ ...EMPTY_DRAFT });
-      setDrafts((await listDrafts({})) as Chapter[]);
-      toast.success(publishNow ? "Nova versão publicada." : "Rascunho salvo — não entra em nenhuma emissão.");
+      });
+      setItems((await list({})) as Item[]);
+      toast.success(`Apresentação da ${LABEL[environment]} salva.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao salvar.");
     } finally {
-      setWorking(false);
+      setBusy(false);
     }
-  }
-
-  async function move(index: number, direction: -1 | 1) {
-    const next = [...chapters];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    const a = next[index]!;
-    next[index] = next[target]!;
-    next[target] = a;
-    setChapters(next);
-    const result = (await reorder({ data: { order: next.map((c) => c.chapterKey) } })) as Chapter[];
-    setChapters(result);
   }
 
   if (!session || allowed === null) {
@@ -173,222 +181,141 @@ function ApresentacaoDigitalPage() {
         <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-6">
           <h2 className="text-sm font-semibold">Área restrita</h2>
           <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-            O cadastro dos vídeos da Apresentação Digital depende de permissão administrativa. Ele
-            não é liberado pelo cargo operacional.
+            A Apresentação Digital depende de permissão administrativa. Ela não é liberada pelo
+            cargo operacional.
           </p>
         </div>
       </ExecutiveShell>
     );
   }
 
+  const published = items.find((item) => item.environment === environment && item.isPublished);
+
   return (
     <ExecutiveShell session={session!} title="Apresentação Digital">
-      <div className="space-y-6">
-        <EnvironmentPresentationsCard />
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* 1. Ambiente */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex rounded-lg border border-[color:var(--border)] p-1">
+            {ENVIRONMENT_PRESENTATION_KEYS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setEnvironment(key);
+                  setInvestorView(false);
+                }}
+                className={`rounded px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] ${
+                  environment === key
+                    ? "bg-[color:var(--primary)] text-[color:var(--primary-foreground)]"
+                    : "text-[color:var(--muted-foreground)]"
+                }`}
+              >
+                {LABEL[key]}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setInvestorView((value) => !value)}
+            className="inline-flex items-center gap-2 rounded border border-[color:var(--border)] px-3 py-1.5 text-[11px] uppercase tracking-[0.14em]"
+          >
+            <Eye className="h-3.5 w-3.5" aria-hidden />
+            {investorView ? "Voltar à edição" : "Ver como o investidor"}
+          </button>
+        </div>
 
-        <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Film className="h-4 w-4" aria-hidden />
-            Roteiro vigente
-          </h2>
-          <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
-            Este é o roteiro que uma NOVA apresentação congelaria. Apresentações já emitidas não
-            mudam.
-          </p>
-
-          {chapters.length === 0 ? (
-            <p className="mt-4 text-sm text-[color:var(--muted-foreground)]">
-              Nenhum capítulo cadastrado. Enquanto o roteiro estiver vazio, a apresentação é gerada
-              sem vídeos — nada é inventado.
-            </p>
+        {investorView ? (
+          /* 7. Página pública: player + descrição, nada mais. */
+          published && published.videoUrl ? (
+            <section className="space-y-4">
+              <div className="aspect-video overflow-hidden rounded-xl bg-black">
+                <VideoPlayer
+                  url={published.videoUrl}
+                  title={`Apresentação — ${LABEL[environment]}`}
+                />
+              </div>
+              {published.introText ? (
+                <p className="whitespace-pre-line text-sm leading-relaxed text-[color:var(--foreground)]">
+                  {published.introText}
+                </p>
+              ) : null}
+            </section>
           ) : (
-            <ul className="mt-4 space-y-2">
-              {chapters.map((chapter, index) => (
-                <li
-                  key={chapter.id}
-                  className="flex flex-wrap items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2"
-                >
-                  <span className="text-xs text-[color:var(--muted-foreground)]">{index + 1}.</span>
-                  <div className="min-w-[220px] flex-1">
-                    <p className="text-sm text-[color:var(--foreground)]">{chapter.title}</p>
-                    <p className="text-[11px] text-[color:var(--muted-foreground)]">
-                      versão {chapter.version} · {chapter.videoUrl ? "vídeo definido" : "sem vídeo"}
-                      {chapter.publishedAt
-                        ? ` · publicada em ${new Date(chapter.publishedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`
-                        : ""}
-                      {chapter.publishedByName ? ` por ${chapter.publishedByName}` : ""}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void move(index, -1)}
-                    className="rounded border border-[color:var(--border)] p-1"
-                    aria-label="Subir"
-                  >
-                    <ArrowUp className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void move(index, 1)}
-                    className="rounded border border-[color:var(--border)] p-1"
-                    aria-label="Descer"
-                  >
-                    <ArrowDown className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const result = (await toggle({
-                        data: { chapterKey: chapter.chapterKey, active: !chapter.isActive },
-                      })) as Chapter[];
-                      setChapters(result);
-                    }}
-                    className="rounded border border-[color:var(--border)] px-2 py-1 text-[11px] uppercase tracking-[0.14em]"
-                  >
-                    {chapter.isActive ? "Ativo" : "Inativo"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDraft({
-                        chapterKey: chapter.chapterKey,
-                        title: chapter.title,
-                        description: chapter.description ?? "",
-                        videoUrl: chapter.videoUrl ?? "",
-                        thumbnailUrl: chapter.thumbnailUrl ?? "",
-                        isActive: chapter.isActive,
-                      })
-                    }
-                    className="rounded border border-[color:var(--border)] px-2 py-1 text-[11px] uppercase tracking-[0.14em]"
-                  >
-                    Editar
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+            <div className="rounded-xl border border-dashed border-[color:var(--border)] p-10 text-center">
+              <Video className="mx-auto h-6 w-6 text-[color:var(--muted-foreground)]" aria-hidden />
+              <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">
+                Nenhuma apresentação publicada para {LABEL[environment]}.
+              </p>
+            </div>
+          )
+        ) : (
+          <section className="space-y-5">
+            {/* 2. Player */}
+            {draft.videoUrl.trim() ? (
+              <div className="aspect-video overflow-hidden rounded-xl bg-black">
+                <VideoPlayer
+                  url={draft.videoUrl}
+                  title={`Apresentação — ${LABEL[environment]}`}
+                />
+              </div>
+            ) : (
+              <div className="flex aspect-video flex-col items-center justify-center rounded-xl border border-dashed border-[color:var(--border)] text-center">
+                <Video className="h-6 w-6 text-[color:var(--muted-foreground)]" aria-hidden />
+                <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">
+                  Nenhuma apresentação configurada para {LABEL[environment]}.
+                </p>
+              </div>
+            )}
 
-        <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            {draft.chapterKey ? <Save className="h-4 w-4" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
-            {draft.chapterKey ? "Publicar nova versão do capítulo" : "Novo capítulo"}
-          </h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="text-xs text-[color:var(--muted-foreground)]">
-              Título
-              <input
-                value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                className="mt-1 w-full rounded border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--foreground)]"
-              />
-            </label>
-            <label className="text-xs text-[color:var(--muted-foreground)]">
+            <label className="block text-xs text-[color:var(--muted-foreground)]">
               URL do vídeo
               <input
                 value={draft.videoUrl}
-                onChange={(e) => setDraft({ ...draft, videoUrl: e.target.value })}
+                onChange={(event) => setDraft({ ...draft, videoUrl: event.target.value })}
+                placeholder="https://"
                 className="mt-1 w-full rounded border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--foreground)]"
               />
             </label>
-            <label className="text-xs text-[color:var(--muted-foreground)]">
-              Imagem de capa (opcional)
-              <input
-                value={draft.thumbnailUrl}
-                onChange={(e) => setDraft({ ...draft, thumbnailUrl: e.target.value })}
-                className="mt-1 w-full rounded border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--foreground)]"
-              />
-            </label>
-            <label className="text-xs text-[color:var(--muted-foreground)]">
-              Descrição (opcional)
-              <input
+
+            {/* 3. Descrição */}
+            <label className="block text-xs text-[color:var(--muted-foreground)]">
+              Descrição da apresentação
+              <textarea
+                rows={6}
                 value={draft.description}
-                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                onChange={(event) => setDraft({ ...draft, description: event.target.value })}
                 className="mt-1 w-full rounded border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--foreground)]"
               />
             </label>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              disabled={working}
-              onClick={() => void submit(true)}
-              className="rounded-lg bg-[color:var(--gold)] px-4 py-2 text-xs uppercase tracking-[0.14em] text-[color:var(--navy-deep,#0b1b33)] disabled:opacity-50"
-            >
-              {draft.chapterKey ? "Publicar nova versão" : "Publicar capítulo"}
-            </button>
-            <button
-              type="button"
-              disabled={working}
-              onClick={() => void submit(false)}
-              className="rounded-lg border border-[color:var(--border)] px-4 py-2 text-xs uppercase tracking-[0.14em] disabled:opacity-50"
-            >
-              Salvar rascunho
-            </button>
-            {draft.chapterKey ? (
+
+            {/* 4. Publicar / salvar */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
+                <input
+                  type="checkbox"
+                  checked={draft.isPublished}
+                  onChange={(event) => setDraft({ ...draft, isPublished: event.target.checked })}
+                />
+                Publicada
+              </label>
               <button
                 type="button"
-                onClick={() => setDraft({ ...EMPTY_DRAFT })}
-                className="rounded-lg border border-[color:var(--border)] px-4 py-2 text-xs uppercase tracking-[0.14em]"
+                disabled={busy}
+                onClick={() => void submit()}
+                className="inline-flex items-center gap-2 rounded border border-[color:var(--border)] px-4 py-2 text-[11px] uppercase tracking-[0.14em] disabled:opacity-40"
               >
-                Cancelar edição
+                <Save className="h-3.5 w-3.5" aria-hidden />
+                Salvar
               </button>
-            ) : null}
+            </div>
+
             <p className="text-[11px] text-[color:var(--muted-foreground)]">
-              Editar não apaga: a versão anterior continua registrada. Rascunho nunca entra em uma
-              apresentação já emitida nem em uma nova emissão.
+              Uma apresentação vigente por ambiente. Salvar aqui não afeta os outros ambientes; a
+              versão anterior fica preservada no histórico.
             </p>
-          </div>
-        </section>
-
-        {drafts.length > 0 ? (
-          <section className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <UploadCloud className="h-4 w-4" aria-hidden />
-              Rascunhos aguardando publicação ({drafts.length})
-            </h2>
-            <ul className="mt-4 space-y-2">
-              {drafts.map((chapter) => (
-                <li
-                  key={chapter.id}
-                  className="flex flex-wrap items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2"
-                >
-                  <div className="min-w-[220px] flex-1">
-                    <p className="text-sm">{chapter.title}</p>
-                    <p className="text-[11px] text-[color:var(--muted-foreground)]">
-                      rascunho v{chapter.version}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={working}
-                    onClick={async () => {
-                      setWorking(true);
-                      try {
-                        setChapters((await publish({
-                          data: { chapterKey: chapter.chapterKey },
-                        })) as Chapter[]);
-                        setDrafts((await listDrafts({})) as Chapter[]);
-                        toast.success("Rascunho publicado.");
-                      } catch (error) {
-                        toast.error(error instanceof Error ? error.message : "Falha ao publicar.");
-                      } finally {
-                        setWorking(false);
-                      }
-                    }}
-                    className="rounded border border-[color:var(--border)] px-2 py-1 text-[11px] uppercase tracking-[0.14em]"
-                  >
-                    Publicar
-                  </button>
-                </li>
-              ))}
-            </ul>
           </section>
-        ) : null}
-
-        <EnvironmentPresentationPreview />
-
-
+        )}
       </div>
     </ExecutiveShell>
   );
