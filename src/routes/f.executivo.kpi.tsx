@@ -214,12 +214,12 @@ function KpiManagerScoped({
   const activeCollab = isConsolidated
     ? null
     : collaborators.find((c) => c.id === viewId) ?? collaborators[0] ?? null;
-  const activeUserId = activeCollab?.id ?? session.userId;
+  const activeUserId = activeCollab?.id ?? selfId;
   const activeLabel = isConsolidated
-    ? session.activeRole === "super_admin"
+    ? scope.role === "admin"
       ? "Consolidado geral"
       : "Consolidado da equipe"
-    : activeCollab?.name ?? session.name;
+    : activeCollab?.name ?? scope.selfName ?? session.name;
 
   const [dataset, setDataset] = useState<KpiDataset>(() =>
     loadDataset(activeUserId, activeMonth.key),
@@ -436,7 +436,7 @@ function KpiManagerScoped({
                 >
                   <BarChart3 className="h-3.5 w-3.5" />
                 </span>
-                {session.activeRole === "super_admin" ? "Geral" : "Equipe"}
+                {scope.role === "admin" ? "Geral" : "Equipe"}
               </button>
             )}
             {collaborators.map((c) => {
@@ -536,7 +536,7 @@ function KpiStatusCard({
   collaborators,
   monthKey,
 }: {
-  collaborators: ExecutiveUser[];
+  collaborators: KpiScopeEntry[];
   monthKey: string;
 }) {
   const month = findMonth(monthKey);
