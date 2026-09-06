@@ -198,7 +198,8 @@ export const getCrmLead = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ lead: CrmLeadView | null; events: CrmLeadEventView[] }> => {
-      await assertManager(context as never);
+      const identity = await assertManager(context as never);
+      const scoped = await ownExternalIds(context as never, identity);
       const [lead, events] = await Promise.all([
         context.supabase.from("crm_leads").select(LEAD_FIELDS).eq("id", data.id).maybeSingle(),
         context.supabase
@@ -209,8 +210,16 @@ export const getCrmLead = createServerFn({ method: "POST" })
           .limit(200),
       ]);
       if (lead.error) throw new Error(lead.error.message);
+      /**
+       * O `id` vem do cliente, mas quem decide o alcance é o servidor:
+       * fora da titularidade do executivo, a ficha volta vazia.
+       */
+      const row = lead.data ? (lead.data as unknown as LeadRow) : null;
+      if (scoped && (!row || !scoped.includes(row.external_id))) {
+        return { lead: null, events: [] };
+      }
       return {
-        lead: lead.data ? toView(lead.data as unknown as LeadRow) : null,
+        lead: row ? toView(row) : null,
         events: (events.data ?? []).map((e) => ({
           id: e.id,
           type: e.type,
