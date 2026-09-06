@@ -609,18 +609,20 @@ export function DailyActionsOverlay({
                     </button>
                   )}
                   {/* Ações de MENSAGEM não abrem conversa: o texto é copiado
-                      e o Executivo conduz a conversa por fora. Ligações
-                      mantêm o comportamento próprio, intacto. */}
-                  {selected.phone && selected.kind !== "mensagem" && (
+                      e o Executivo conduz a conversa por fora. LIGAÇÃO é
+                      canal de ligação: não existe atalho de WhatsApp aqui. */}
+                  {selected.phone && selected.kind !== "mensagem" && !selected.cadence && (
                     <button
                       type="button"
                       onClick={() => void handleWhatsapp(selected)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20"
+                      disabled={locked}
+                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
                     >
                       <MessageCircle className="h-4 w-4" />
-                      {selected.cadence ? "Tentar ligação pelo WhatsApp" : "Abrir conversa"}
+                      Abrir conversa
                     </button>
                   )}
+
                   {selected.leadId && (
                     <button
                       type="button"
