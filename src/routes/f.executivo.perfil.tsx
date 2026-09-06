@@ -4,7 +4,6 @@ import {
   UserCircle2,
   Mail,
   Briefcase,
-  MessageCircle,
   Calendar,
   Cake,
   Shield,
@@ -12,7 +11,6 @@ import {
   Check,
   X,
   Lock,
-  Upload,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { GoogleWorkspaceCard } from "@/components/executive/google-workspace-card";
@@ -20,7 +18,6 @@ import { ExecutiveWhatsappCard } from "@/components/executive/executive-whatsapp
 import { GreenSalesConnectionSection } from "@/components/crm/greensales-connection-section";
 import { CrmThemePicker } from "@/components/executive/crm-theme-picker";
 import { ExecutivePhotoCard } from "@/components/executive/executive-photo-card";
-import { uploadPostPresentationVideo } from "@/lib/executive-video.functions";
 import {
   getSession,
   loadUsers,
