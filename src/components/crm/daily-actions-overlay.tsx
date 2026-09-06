@@ -907,11 +907,13 @@ export function DailyActionsOverlay({
                 </p>
               </div>
               <div className="space-y-2 border-t border-white/10 px-4 py-3">
-                {copied && (
-                  <p className="text-[11px] text-emerald-200/80">
-                    Mensagem copiada. Copiar não conclui a ação.
-                  </p>
-                )}
+                <p
+                  className={`text-[11px] ${copied ? "text-emerald-200/80" : "text-amber-200/80"}`}
+                >
+                  {copied
+                    ? "Mensagem copiada. Copiar não conclui a ação."
+                    : "Copie a mensagem oficial para liberar o botão Concluído."}
+                </p>
                 <input
                   value={messageNote}
                   onChange={(e) => setMessageNote(e.target.value)}
