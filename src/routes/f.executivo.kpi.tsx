@@ -14,12 +14,16 @@ import {
   Users,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { useServerFn } from "@tanstack/react-start";
 import {
   getSession,
-  loadUsers,
   type ExecutiveSession,
-  type ExecutiveUser,
 } from "@/lib/executive-auth";
+import {
+  resolverEscopoKpi,
+  type KpiScope,
+  type KpiScopeEntry,
+} from "@/lib/kpi-scope.functions";
 import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
@@ -40,7 +44,6 @@ import {
   type KpiDataset,
   type KpiIndicator,
 } from "@/lib/kpi-manager";
-import { visibleCollaborators } from "@/lib/teams";
 import { isHomologationEnvironment } from "@/lib/environment";
 import { cn } from "@/lib/utils";
 import { KpiAiAssistant } from "@/components/executive/kpi-ai-assistant";
