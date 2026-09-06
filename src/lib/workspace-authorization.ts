@@ -57,7 +57,9 @@ const ROLE_MATRIX: Record<WorkspaceResource, ExecutiveRole[]> = {
   biblioteca: ADMIN_GESTAO,
   homologacao: ADMIN,
   revista: ADMIN_GESTAO,
-  central_operacoes: ADMIN_GESTAO,
+  // Relatório somente leitura: colaborador vê apenas a própria produção
+  // (o recorte é feito no servidor, jamais pelo navegador).
+  central_operacoes: TODOS,
   portal_leads: TODOS,
   apresentacao_digital: ADMIN_GESTAO,
   central_backup: ADMIN,
