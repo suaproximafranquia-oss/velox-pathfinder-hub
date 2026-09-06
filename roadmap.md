@@ -71,4 +71,4 @@
 - [x] Ponto de entrada de IA removido do Brain (relatórios preservados)
 - [x] Simulador antigo removido definitivamente
 - [x] /solar-seguros criado + item "Solar + Seguros" no Workspace
-- [ ] Apresentação Digital: uma vigente por ambiente — pendente de decisão
+- [x] Apresentação Digital: uma apresentação vigente por ambiente (simples)
