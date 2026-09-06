@@ -83,7 +83,18 @@ const ROLE_MATRIX: Record<WorkspaceResource, ExecutiveRole[]> = {
   // Remarketing é CRM independente operado pela administração: nem
   // Colaborador nem Gestora acessam (menu, rota e server function).
   remarketing: ADMIN,
-
+  // Administração: mesma intenção já vigente em `governance.ts`
+  // (configurações são do Administrador; campos personalizados e
+  // usuários também são da Gestão). As seções internas continuam
+  // filtradas por capacidade — aqui apenas se fecha a porta da rota.
+  administracao: ADMIN_GESTAO,
+  // Central de Templates: `listMetaTemplates` já é admin-only no servidor.
+  templates: ADMIN,
+  // GreenSales Sync, Laboratório e Teste de Cadência já se declaram
+  // "exclusivo do Administrador" no próprio código das telas.
+  greensales_sync: ADMIN,
+  laboratorio: ADMIN,
+  teste_cadencia: ADMIN,
 };
 
 /**
