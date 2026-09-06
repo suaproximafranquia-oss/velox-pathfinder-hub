@@ -1,48 +1,59 @@
-# Titularidade GreenSales — Financeira /f
+# Central de Operações — relatório fiel da Ação do Dia (/f)
 
-Hoje todo lead novo do GreenSales acaba atribuído a Thiago Rodrigues. O card é criado corretamente na entrada, mas o dono fica errado, então os demais executivos não enxergam os próprios investidores.
+A Central deixa de ser um painel de aderência/pendências e passa a ser um relatório do que foi **efetivamente realizado** na Ação do Dia: quatro números, um resumo por dia e nada além disso. Nenhuma ação é criada, executada ou alterada por esta tela.
 
-## Causa confirmada
+## Decisões já fechadas
 
-- Nenhum dos sete executivos tem o código de vendedor do GreenSales preenchido no cadastro (campo existe, está vazio para todos).
-- Sem esse código, a entrada usa um caminho reserva: assume o usuário da conexão do GreenSales (Thiago) como responsável.
-- Com o dono errado, a regra de visibilidade do banco esconde o card de quem não é o dono nem administrador.
+- Ligação concluída conta como **ligação efetuada**, tenha o investidor atendido ou não.
+- Primeiro contato (E0) **não aparece** na Central.
+- Só entram reuniões **concluídas pela Ação do Dia**.
+- Cada número pertence a **quem executou** a ação, não ao responsável do lead.
+- Sem gráfico, sem "Ver detalhes", sem atrasos, sem redistribuição, sem expurgo agora.
 
-## O que será feito
+## O que a tela mostra
 
-1. **Cadastro do código de vendedor na tela de Usuários**
-   - Campo "Código GreenSales" passa a ser gravado no servidor, junto de nome, e-mail e WhatsApp.
-   - Somente Administrador/Gestora podem alterar.
-   - Validação: código único por executivo; aviso claro se já estiver em uso.
+Seletor de período no topo: Hoje, Ontem, Últimos 7 dias, Este mês, Período personalizado (data inicial/final, sem datas futuras).
 
-2. **Cadastro dos códigos informados**
-   - Preenchimento dos códigos de vendedor de cada executivo conforme a lista oficial que você fornecer (nenhum código será inventado).
+Quatro cards com o total do período:
 
-3. **Entrada de leads: dono correto e rastreável**
-   - A resolução por código de vendedor continua sendo a primeira e única fonte oficial.
-   - O caminho reserva deixa de silenciosamente eleger o dono da conexão: quando o vendedor não é reconhecido, o lead entra como "sem responsável definido", com registro do código recebido para diagnóstico, e continua visível para Administrador e Gestora.
-   - Nenhuma alteração em E0, cadência, Ação do Dia, WhatsApp ou Safety Lock.
+- Ligações efetuadas
+- Mensagens enviadas
+- Reuniões realizadas
+- Pulos
 
-4. **Correção de titularidade dos cards já criados (opcional, sob confirmação)**
-   - Após os códigos estarem cadastrados, um ajuste pontual reatribui apenas os cards cujo lead traz um código de vendedor que agora resolve para outro executivo.
-   - Só cards do escopo GreenSales, sem tocar em histórico, mensagens, etapas ou datas.
-   - Nada é executado sem você aprovar a lista exata de cards afetados.
+Abaixo:
 
-5. **Papéis dos usuários**
-   - Seis executivos não têm papel registrado no servidor, o que também limita o que enxergam. Cada um recebe o papel correspondente (Gestora ou Colaborador) no mesmo movimento.
+- **Colaborador** (Marton, Milton, Paulo, Carlos, Talita): abre direto na própria operação, com a tabela "Resumo por dia" — Data | Ligações | Mensagens | Reuniões | Pulos | Total. Dias sem produção aparecem com zero.
+- **Gestora (Larissa) e Administrador (Thiago)**: tabela consolidada Executivo | Ligações | Mensagens | Reuniões | Pulos | Total, com a mesma tabela por dia logo abaixo (totais da equipe). Larissa não aparece como linha de executiva; Thiago aparece, porque também opera.
+- Thiago pode alternar entre "Toda a equipe" e "Minha operação".
+- Clicar no número de **Pulos** abre a relação dos leads pulados (investidor, etapa, motivo, horário) e cada linha leva ao lead pelo seu identificador oficial, abrindo onde ele estiver disponível para aquele usuário.
 
-## Detalhes técnicos
+Visual: mesmos componentes, cores e espaçamentos já usados no Portal Financeira; área de conteúdo clara sobre o ambiente atual, números grandes nos cards, tabela com rolagem horizontal em telas estreitas.
 
-- `executive_profiles.greensales_vendor_id`: gravação via server function de gestão de usuários, com índice único parcial (ignora nulos).
-- `src/server/crm/responsible.server.ts`: mantém `resolveResponsibleByVendorId` como fonte oficial; `lead-intake.server.ts:240-242` deixa de aplicar `connectionUserId` como responsável e passa a registrar evento `responsavel_nao_resolvido` com o `vendedor_id` bruto.
-- `portal_leads` sem responsável continua legível por admin/gestora pela policy atual.
-- Reatribuição (item 4) roda como script de dados revisado, atualizando somente `responsible_executive_id`/`responsible_executive_slug` em `portal_leads` de `scope=green_sales`, com registro em `lead_ownership_history`.
-- `user_roles`: inserção dos papéis faltantes por migration/dados, sem alterar `usr_thiago`.
+## Onde os números nascem (sem nova fonte de verdade)
 
-## Preservado
+Todos já existem hoje; nada é criado e nenhuma tabela nova é necessária.
 
-IDs, usuários, WhatsApp, permissões de módulo, camada centralizada de autorização, Ação do Dia, Notas do Executivo, histórico, E0/cadência, Safety Lock, `/s`, `/seg` e `/`.
+| Indicador | Fonte oficial | Quem executou | Data usada |
+| --- | --- | --- | --- |
+| Ligações efetuadas | `crm_cadence_tasks` com `status=DONE` e canal de ligação | `completed_by` | `completed_at` |
+| Mensagens enviadas | `relationship_engine_log` `acao_do_dia_mensagem_registrada`, apenas quando a etapa foi de fato concluída | `actor` | `details.at` |
+| Reuniões realizadas | `relationship_engine_log` `acao_do_dia_reuniao_resolvida` com resultado "compareceu" | `actor` | `details.at` |
+| Pulos | `relationship_engine_log` `acao_do_dia_pulada` | `actor` | `details.at` |
 
-## Preciso de você
+Detalhe técnico relevante: hoje o registro de mensagem grava no histórico mesmo quando a confirmação é repetida; o relatório vai contar apenas as execuções que realmente concluíram a etapa (o registro já traz esse resultado), evitando contagem dupla.
 
-A lista oficial de código de vendedor GreenSales por executivo (Larissa, Marton, Milton, Paulo, Carlos, Talita, Thiago) e o papel de cada um (Gestora ou Colaborador).
+Agrupamento por **data operacional** (fuso de São Paulo), a mesma usada pela Ação do Dia — assim o relatório bate exatamente com o que o executivo viu na tela.
+
+Autorização continua no servidor, pela camada centralizada já existente: colaborador recebe apenas o próprio recorte (filtrado no servidor, não no navegador); gestão e administração recebem a equipe.
+
+## Alterações técnicas previstas
+
+- `src/server/crm/operations-center.server.ts`: novo agregador de produção (quatro indicadores, por executivo e por dia), substituindo a consolidação de aderência/pendências/vencidas. Somente leitura.
+- `src/lib/crm/operations-center.functions.ts`: passa a aceitar período livre e a resolver o escopo (própria operação x equipe) pela identidade server-side; deixa de exigir perfil de gestão para o colaborador ver o próprio relatório.
+- `src/components/executive/central-operacoes/central-home.tsx`: nova composição — seletor de período, quatro cards, tabela por executivo (gestão/admin), tabela por dia e painel de pulos com navegação para o lead.
+- Nada é tocado na Ação do Dia, no motor de cadência, na fila, na Biblioteca, no E0, no WhatsApp, no Safety Lock, nem em `/s`, `/seg` e `/`.
+
+## Retenção
+
+Nada será apagado nesta etapa. As fontes acima também sustentam auditoria, timeline e histórico do relacionamento, então um expurgo de 12 meses só faria sentido como cópia consolidada própria da Central — algo a decidir depois, em separado.
