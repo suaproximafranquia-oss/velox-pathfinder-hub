@@ -26,7 +26,12 @@ export type WorkspaceResource =
   | "backup_conversas"
   | "usuarios"
   | "configuracoes"
-  | "remarketing";
+  | "remarketing"
+  | "administracao"
+  | "templates"
+  | "greensales_sync"
+  | "laboratorio"
+  | "teste_cadencia";
 
 export const WORKSPACE_RESOURCE_LABEL: Record<WorkspaceResource, string> = {
   captacao: "Central de Captação",
@@ -41,11 +46,17 @@ export const WORKSPACE_RESOURCE_LABEL: Record<WorkspaceResource, string> = {
   usuarios: "Usuários",
   configuracoes: "Configurações",
   remarketing: "Remarketing",
+  administracao: "Administração",
+  templates: "Central de Templates",
+  greensales_sync: "GreenSales Sync",
+  laboratorio: "Laboratório Atlas",
+  teste_cadencia: "Teste de Cadência",
 };
 
 export const WORKSPACE_RESOURCES = Object.keys(
   WORKSPACE_RESOURCE_LABEL,
 ) as WorkspaceResource[];
+
 
 const ADMIN: ExecutiveRole[] = ["super_admin"];
 const ADMIN_GESTAO: ExecutiveRole[] = ["super_admin", "diretora"];
