@@ -1,151 +1,104 @@
-# Diagnóstico — Portal dos Leads /f (somente leitura, nada foi alterado)
+# Diagnóstico — Navegação do Corporate Workspace /f (somente leitura)
 
-## 1. Acesso ao Portal
+Nada foi alterado. Escopo restrito ao ambiente Financeira /f.
 
-- Rota: `/f/portal-leads` (`src/routes/f.portal-leads.tsx`), `ssr: false`.
-- Componente: `PortalLeadsBoard` (`src/components/crm/portal-leads-board.tsx`), também usado embutido no CRM.
-- Camadas de entrada, nesta ordem:
-  1. `OperationalGuard` (sessão do navegador existe);
-  2. `WorkspaceResourceGuard resource="portal_leads"` → matriz única `src/lib/workspace-authorization.ts`;
-  3. `useModuleAccess(..., "portal_leads")` na própria página;
-  4. dentro do quadro, uma **quarta** verificação própria: `isCrmAdministrator || isCrmSupervisor`.
-- Matriz: `portal_leads` = papéis `TODOS` (super_admin, diretora, executivo) + módulo obrigatório `portal_leads` ligado.
-- Servidor: `listCrmLeads`/`getCrmLead` chamam `assertWorkspaceAccess(context, "portal_leads")` (`src/server/workspace-authorization.server.ts`), mesma matriz.
-- CRM habilitado **não** influencia o Portal (o módulo `crm` é exigido por `backup_conversas` e `remarketing`, não por `portal_leads`).
+## A. O que os HARs provam
 
-### Mensagem de bloqueio
-Existem duas coisas diferentes com texto parecido:
+Os arquivos HAR disponíveis nos anexos são:
 
-- **"Área restrita à gestão do CRM."** — string literal em `portal-leads-board.tsx` (linha ~568), decidida **no navegador** por `allowed = isCrmAdministrator(role) || isCrmSupervisor(role)` (`src/lib/crm/permissions.ts`). Colaborador (`executivo`) cai sempre nela, mesmo com papel e módulo liberados.
-- **"Acesso restrito à gestão do CRM."** — erro lançado em `src/lib/crm/daily-actions.functions.ts` e `src/lib/crm/cadence.functions.ts`, quando `has_role(admin)` e `has_role(manager)` são falsos. É o que impede o contador de "Ações do Dia" dentro do quadro para colaborador (o erro é engolido e o contador some).
+- `veloxgrupo.com.br.har`, `veloxgrupo.com.br-2.har`, `veloxgrupo.com.br-3.har` (capturados em 29/08, conteúdo idêntico entre si) — são navegações no site institucional WordPress `veloxgrupo.com.br` (Elementor, jQuery, wp-content). Nenhuma requisição do Corporate Workspace.
+- `adm.greennsales.com.br.har` e `-2` (24/08) — navegação no sistema GreenSales.
 
-## 2. Escopo por perfil
+Ou seja: **não há HAR do Corporate Workspace /f nesta conversa**. Os HARs provam apenas o carregamento do site WordPress e do GreenSales; não provam nada sobre cliques no menu lateral do Workspace. Para conclusão baseada em rede seria necessário um HAR capturado em `/f/executivo/...` com pelo menos duas trocas de item de menu.
 
-| Perfil | Abre a rota? | Deveria (matriz) | Entrega hoje |
-|---|---|---|---|
-| Thiago (admin/super_admin) | sim | quadro completo | quadro completo |
-| Larissa (manager/diretora) | sim | quadro completo | quadro completo (tratada como supervisora do CRM) |
-| Marton, Milton, Paulo, Carlos, Talita (user/executivo) | sim, a rota abre | ver o quadro (matriz permite) | tela "Área restrita à gestão do CRM." |
+O diagnóstico abaixo é, portanto, baseado no código atual — que é suficiente para explicar o comportamento relatado.
 
-- (D) o escopo dos dados é servidor: `assertWorkspaceAccess` + RLS.
-- (E/F) nenhum `executive_id` do navegador é aceito nas funções do Portal; o quadro não envia identificador de executivo.
-- (G) diferença Portal x CRM: a matriz separa os dois, mas o componente do Portal ainda usa a regra antiga do CRM (`super_admin`/`diretora`).
+## B. O que o código prova
 
-## 3. Titularidade
+1. **O shell não é um layout persistente.** `ExecutiveShell` (`src/components/executive/executive-shell.tsx`) é importado e renderizado **dentro de cada página**: `f.executivo.home.tsx`, `f.executivo.kpi.tsx`, `f.executivo.campanhas.tsx`, `f.executivo.brain.tsx`, `f.executivo.criativa.tsx`, `f.executivo.central-operacoes.tsx`, `f.executivo.reunioes.tsx`, `f.executivo.alertas.tsx`, etc. (~30 rotas). O layout `f.executivo.tsx` renderiza apenas `OperationalGuard > Outlet`, sem shell.
+2. **Trocar de rota troca o componente filho do `Outlet`** — o React desmonta a árvore inteira da página anterior, inclusive o `ExecutiveShell` daquela página, e monta um `ExecutiveShell` novo. Menu, header, footer e todos os `useEffect` de inicialização são recriados a cada clique.
+3. **Efeitos de inicialização reexecutam a cada navegação**, dentro do shell: abertura do token (`getAccessToken`), `hydrateMeetingsFromServer()`, `pullLeads()`, `hydrateCrmFromServer()`, verificação periódica de status do usuário (`listExecutiveStatus`) e o start da sincronização de permissões.
+4. **A autorização do menu é buscada de novo a cada montagem.** `useWorkspaceAuthorization` faz `autorizacaoWorkspace()` dentro de um `useEffect` com estado local, sem cache compartilhado (não usa TanStack Query). Como o hook morre junto com o shell, cada navegação dispara uma nova chamada e o menu fica **vazio/fail-closed até a resposta chegar** — é isso que produz a sensação de "a lateral recarregou".
+5. **O guard de rota agrava o efeito.** Em várias páginas, `WorkspaceResourceGuard` envolve a página **inteira** (inclusive o shell) e retorna `null` enquanto `allowed === null`. Resultado: tela em branco entre a saída da página anterior e a chegada da autorização — visualmente idêntico a um reload.
+6. **Os itens do menu usam `<Link>` do TanStack Router** — navegação SPA. As exceções são intencionais: CRM, Remarketing e Portal dos Leads usam `<a target="_blank">` (abrem nova aba, por decisão de produto).
+7. **Não há `key` por pathname** e nenhum `window.location.assign/href/replace` na navegação do menu. Os únicos `window.location.reload()` do Workspace são: troca de perfil ativo (`ProfileSwitcher`) e o Laboratório — ambos deliberados.
+8. O `QueryClientProvider` fica no `__root` e não é recriado; só o shell e os providers internos das páginas remontam.
 
-- Campo oficial: `portal_leads.responsible_executive_id` (+ `responsible_executive_slug` como espelho de conveniência).
-- Resolução: `src/server/crm/responsible.server.ts` — `resolveResponsibleByVendorId` (origem) e `resolveResponsibleByUserId` (dono da conexão), ambas contra `executive_profiles` (`greensales_vendor_id` / `user_id` → `executive_id`).
-- `backfillCardResponsible` só preenche card sem dono; nunca sobrescreve.
-- `crm_leads` (o espelho exibido no Portal) **não tem** coluna de responsável: a titularidade vive no card operacional `portal_leads`.
-- Fonte de verdade interna: `portal_leads.responsible_executive_id`.
+## C. Existe full page reload? **NÃO** (na navegação normal do menu)
 
-## 4. GreenSales → Portal
+A navegação é SPA. Reload de documento só ocorre em: troca de perfil, Laboratório, itens de nova aba e o botão "Go home" da tela de erro.
 
-- Leitura server-only em `src/server/greensales.server.ts` (`POST /login`, `POST /lead/list`), consumida por `src/server/crm/lead-intake.server.ts` (`intakeLead`).
-- Responsável: `greenSalesVendorId(raw)` lê `vendedor_id` (ou `vendedor.id`) → `resolveResponsibleByVendorId`.
-- `user_id` e `pre_user_id` do payload **não são usados** para titularidade (não aparecem no código de resolução). `user_id` só existe como `crm_connections.user_id`, que é a identidade do nosso executivo dono da conexão.
-- `responsible_executive_id` é definido no momento em que o card é criado (`ensureWorkspaceCard`), antes da E0, e é persistido em `portal_leads`.
-- Fallback: quando o `vendedor_id` não resolve, usa-se `resolveResponsibleByUserId(context.connectionUserId)` — o dono da conexão que rodou a sincronização. Se nada resolver, o card nasce **sem responsável** (nenhum dono inventado).
+## D. Existe remount do shell? **SIM**
 
-## 5. Conexão individual do GreenSales
+Confirmado por construção: o shell vive dentro de cada rota, portanto é obrigatoriamente desmontado e remontado a cada troca de item de menu.
 
-- Armazenada em `crm_connections` (`user_id` + `provider='greensales'`, credencial cifrada), gravada por `connectGreenSales`; a senha nunca volta ao navegador.
-- Escolha da credencial (`src/server/crm/connections.server.ts`): 1) conexão ATIVA do próprio usuário; 2) qualquer conexão ATIVA mais recente (fallback global interno); 3) segredos `GREENSALES_EMAIL`/`GREENSALES_PASSWORD`.
-- O Portal funciona sem conexão individual: o quadro lê o banco espelhado, não a origem. Sem conexão própria o indicador mostra "Desconectado", mas a leitura continua.
-- A ausência de conexão individual **não** é a causa da mensagem de acesso restrito — são mecanismos independentes.
+## E. Componente que provoca
 
-## 6. Meu Perfil e WhatsApp
+`ExecutiveShell`, por estar instanciado por página em vez de estar no layout `src/routes/f.executivo.tsx`. Contribuem: `useWorkspaceAuthorization` (sem cache) e `WorkspaceResourceGuard` envolvendo o shell.
 
-- Número oficial: `executive_profiles.whatsapp`; gravado por `salvarPerfilExecutivo` a partir de `ExecutiveWhatsappCard`, com o `executiveId` resolvido pela identidade server-side.
-- `src/lib/whatsapp-number.ts` já normaliza e produz `waLink` (`https://wa.me/55…`), com teste próprio; e `src/lib/relationship/e0-destinations.ts` já usa o `wa.me` do responsável.
-- O quadro do Portal **não** lê esse número hoje; o adaptador da Ação do Dia (`daily-actions-real-adapter.ts`) abre `wa.me` com o número do **lead**, não do executivo. Ou seja: capacidade pronta, uso no Portal ainda não existe.
+## F. Mecanismo de navegação
 
-## 7. Leads exibidos
+`<Link>` (SPA correta). O problema **não** é o mecanismo de navegação, é a posição do shell na árvore.
 
-- `listCrmLeads` lê `crm_leads`, ordena por `external_created_at` desc, limite fixo 500, sem paginação.
-- Filtros disponíveis na função: `stageKey`, `welcomeStatus`, `search` (nome/e-mail/telefone). A interface só usa `search`.
-- Não há filtro de responsável, de ambiente, de produção/homologação nem de período na consulta.
-- Colunas vêm de `crm_pipeline_stages` (`visible = true`); lead sem `stage_key` não aparece em coluna (contado como "sem etapa no funil").
-- Risco de escopo: a consulta não recorta por executivo — quem protege é a RLS de `crm_leads`, que hoje só libera `admin` e `manager`. Logo, colaborador não vê leads de terceiros, mas também não vê nenhum.
+## G. Requests repetidos desnecessariamente a cada clique
 
-## 8. Ação do Dia
+- `autorizacaoWorkspace` (1x por shell + 1x por `WorkspaceResourceGuard` da rota — hooks independentes, sem cache: geralmente 2 chamadas por página).
+- `situacaoOperacional` / `listExecutiveStatus` (identidade/status).
+- Sincronizações de hidratação: reuniões, leads do Portal, CRM.
+- Nenhum JS/CSS é rebaixado: assets permanecem em cache do SPA.
 
-- O quadro apenas **abre** o overlay (`DailyActionsOverlay` + `useRealDailyActionsAdapter`) e mostra o contador `getDailyActionsSummary`.
-- O identificador de ligação é `DailyAction.leadId` = `portal_leads.id` (card operacional).
-- A responsabilidade é resolvida no servidor por `current_executive_id()` dentro das funções da Ação do Dia; o Portal não envia executivo.
-- O Portal não cria ações nem tarefas de cadência. A Ação do Dia é que grava (fila, logs, notas) e o Portal só relê.
-- Leitura pura no Portal: lista, ficha, histórico de eventos, execuções de sync, estado da conexão.
+Causa principal: **shell instanciado por rota** (item 1). Causas secundárias: autorização sem cache compartilhado e guard cobrindo o shell.
 
-## 9. Relacionamento / cadência
+## H. Arquitetura correta
 
-- `relationship_queue`, `relationship_engine_log`, `crm_cadence_tasks`, `relationship_message_library`: o Portal **não lê nem grava** diretamente. Tudo isso é alcançado apenas através do overlay da Ação do Dia.
-- Escritas do próprio Portal: somente `moveCrmLeadStage` (contingência local, auditada em `crm_lead_events`), `runCrmSyncNow` e `runCrmBackfillNow`.
-- E0/E1+ não são disparadas pelo Portal; a E0 nasce no `intakeLead`.
-- Não existe lógica de cadência paralela dentro do Portal.
+Mover o shell para o layout da rota pai `/f/executivo`:
 
-## 10. Mensagem histórica — veredito
+```text
+f.executivo.tsx (layout)
+  OperationalGuard
+    ExecutiveShell            <- monta 1x, permanece montado
+      <Outlet />              <- só o miolo troca
+```
 
-(A) Ainda pode acontecer, e acontece hoje para colaborador. (B) Não foi corrigida. (C) Não depende de conexão GreenSales individual. (D) Não depende do módulo/matriz — o colaborador já passa por eles. (E) Combinação real: a matriz nova libera, mas o componente do quadro mantém a regra antiga de papel (`super_admin`/`diretora`), e a RLS de `crm_leads`/`crm_lead_events` também só libera `admin`/`manager`. São dois bloqueios independentes e ambos ativos.
+Com o título de cada página vindo do contexto de rota/`head` ou de um pequeno provider, e a autorização resolvida **uma vez** e compartilhada (TanStack Query com `staleTime`, ou contexto do layout). O guard passa a proteger apenas o conteúdo central, não o shell. A decisão continua **server-side** — nada de autorização no cliente.
 
-## 11. Administrador
+## I. Arquivos que uma construção futura tocaria
 
-- Vê tudo (RLS `has_role(admin)`), sem alternância de escopo e sem "Minha operação" no Portal — o Portal não tem seletor de escopo.
-- Identidade do Thiago resolvida server-side: Supabase Auth → `executive_profiles.user_id` → `executive_id`, papel em `user_roles`.
-- Diferença para o KPI Manager: lá existe escopo equipe x própria operação; no Portal não existe esse conceito.
+- `src/routes/f.executivo.tsx` (passa a montar o shell).
+- `src/components/executive/executive-shell.tsx` (aceitar filhos via `Outlet`; título por contexto).
+- ~30 rotas `f.executivo.*.tsx` (remover a instância local do shell, manter só o conteúdo).
+- `src/hooks/use-workspace-authorization.ts` (cache compartilhado, mantendo fail-closed).
+- `src/components/executive/workspace-resource-guard.tsx` (envolver só o conteúdo central).
 
-## 12. Gestora / Larissa
+## J. Riscos
 
-- Vê o quadro inteiro como supervisora (`isCrmSupervisor`), o que é coerente com o papel gerencial.
-- Não há "operação própria" nem "Minha operação" no Portal.
-- Ponto de atenção: o botão "Ações do Dia" e o contador aparecem também para ela, e as funções da Ação do Dia aceitam `manager` — ou seja, o Portal ainda a expõe a uma superfície operacional, embora ela não tenha carteira.
+- Rotas com `fullBleed` (KPI Manager) e páginas que hoje renderizam shell em estados intermediários precisam de tratamento individual.
+- Páginas que hoje escondem o shell inteiro atrás do guard passariam a mostrar o shell com o miolo bloqueado — mudança visual aceitável, mas precisa ser confirmada.
+- Efeitos hoje disparados a cada navegação passariam a rodar só uma vez; qualquer tela que dependa disso como "refresh implícito" precisa de revalidação própria.
+- Alto número de arquivos tocados: recomenda-se fazer por lotes.
 
-## 13. Colaborador
+## K. O que não deve ser alterado
 
-- Acesso à rota: liberado pela matriz e pelo módulo.
-- Escopo entregue: nenhum — tela "Área restrita à gestão do CRM.".
-- Mesmo que a tela liberasse, `crm_leads`/`crm_lead_events` retornariam vazio por RLS.
-- Titularidade e GreenSales: não interferem nesse bloqueio.
-- Proteção server-side: existe e é sólida (matriz + RLS); o problema é excesso, não falta.
+`assertWorkspaceAccess`, RLS, `WorkspaceResourceGuard` (permanece, apenas reposicionado), `OperationalGuard`, titularidade, GreenSales, cadência, Ação do Dia, Central de Operações, KPI, Painel de Campanhas, e os ambientes `/s`, `/s/portal`, `/seg`, `/`.
 
-## 14. `executive_profiles` usado pelo Portal
+## 10. Apresentação Digital
 
-- `user_id` (identidade e dono da conexão), `executive_id` (responsável do card), `slug`, `name` (rótulo da conexão), `greensales_vendor_id` (mapeamento da origem).
-- `whatsapp` existe e é gravado em Meu Perfil, mas o Portal não consome.
-- `status`/`executive_user_status` não são consultados pelo Portal.
-- Não existe coluna `vendor_id` separada: o campo é `greensales_vendor_id`.
+- Rota alvo: `/f/executivo/apresentacao-digital` — o arquivo existe (`src/routes/f.executivo.apresentacao-digital.tsx`) e o recurso está mapeado como `apresentacao_digital` (admin/gestão).
+- Origem do erro: nos estados iniciais a página renderiza `<ExecutiveShell session={session!} …>` **antes** de `getSession()` ter retornado. O shell lê `session.userId` / `session.name` — com `session` nulo isso lança em tempo de execução.
+- O erro sobe até o `errorComponent` do `__root.tsx`.
+- Esse fallback tem um link **hardcoded** `<a href="/">Go home</a>` (`src/routes/__root.tsx`, bloco `ErrorComponent`) — e `<Link to="/">` também no `notFoundComponent`. Por serem `"/"` fixos e, no caso do `<a>`, navegação de documento, o usuário cai na Home institucional das três marcas em vez da Home do Workspace `/f/executivo/home`.
+- Existe utilitário próprio para isso, hoje não usado nessas telas: `homePathFor` / `homePathOrRoot` em `src/lib/navigation-environment.ts`.
+- Correção fica para construção separada.
 
-## 15. Rotas e navegação
+## 11. Painel de Campanhas
 
-- Portal: `/f/portal-leads`; também embutido em `/f/crm`.
-- Ficha do investidor: `/f/executivo/dashboard?perfil=<portal_leads.id>` (+ `escopo`), aberta em nova aba pelo overlay da Ação do Dia (`window.open`, `noopener`).
-- O diálogo do próprio quadro mostra a ficha do espelho `crm_leads` (dados + eventos), não a ficha operacional.
-- Nenhum `executive_id` trafega por URL.
-- O `window.open` é hardcoded com prefixo `/f`, então não há risco de sair do ambiente Financeira — mas também não é derivado do ambiente atual (seria um hardcode a revisar se o mesmo componente for reusado em `/s` ou `/seg`).
-- Redirecionamento sem sessão vai para `/f/executivo` (dentro do ambiente).
+Nada alterado. Registro: o filtro considera apenas executivos com `status === "ativo"` a partir de `listarDiretorioExecutivos` — coerente com o teste observado (Marton inativo deixa de aparecer).
 
-## 16. Segurança
+## Componentes compartilhados entre ambientes (apenas informativo)
 
-- 🟢 Autorização de rota e de dados: matriz única + `assertWorkspaceAccess` + RLS.
-- 🟢 Escolha do executivo: nunca vem do navegador (`current_executive_id()`).
-- 🟢 Credenciais GreenSales: nunca retornam ao cliente.
-- 🟢 Titularidade: não pode ser alterada pelo Portal.
-- 🟡 Seleção de lead: o `id` vem do cliente, mas RLS + `assertWorkspaceAccess` limitam o alcance.
-- 🟡 Movimentação de contingência (`moveCrmLeadStage`): escrita disparada pelo cliente, protegida pela mesma matriz — hoje só gestão alcança.
-- 🔴 Decisão de exibição `allowed` no `portal-leads-board.tsx`: puramente client-side. Não vaza dado (a RLS segura), mas é uma segunda regra de autorização fora da camada única.
+- `src/routes/__root.tsx` (inclui o `ErrorComponent` com `"/"` fixo) atende todos os ambientes — qualquer mudança ali é global.
+- `ExecutiveShell`, `WorkspaceResourceGuard`, `OperationalGuard` e `use-workspace-authorization` hoje são usados apenas pelo ramo `/f`.
 
-## 17. Situação por item
+## Menor alteração segura recomendada
 
-- 🟢 Não mexer: intake GreenSales, resolução de responsável, RLS de `portal_leads`, isolamento Portal x Ação do Dia, credenciais/conexões, contingência auditada.
-- 🟡 Depende de condição externa: conexão GreenSales individual (fallback global ativo), `greensales_vendor_id` de Larissa e Talita nulos, WhatsApp do executivo depende de preenchimento em Meu Perfil.
-- 🔴 Problemas reais: (a) regra de papel duplicada no componente do quadro bloqueia colaborador; (b) RLS de `crm_leads`/`crm_lead_events` só admite admin/manager, sem recorte por responsável; (c) Larissa exposta ao botão Ações do Dia; (d) `listCrmLeads` sem recorte por responsável nem paginação (limite 500).
-- ⏸️ Congelados, sem proposta: ER, redistribuição automática, alteração automática de titularidade, sincronização de responsável com o GreenSales.
-
-## 18. Pontos que, apenas em tese, exigiriam construção futura
-
-1. Unificar a decisão de exibição do quadro na matriz única, eliminando a regra antiga de papel.
-2. Definir o recorte de leitura do colaborador (por responsável) tanto na consulta quanto na RLS de `crm_leads`.
-3. Decidir a presença do botão Ações do Dia para a gestora.
-4. Paginação/filtros no quadro (período, etapa, status) acima dos 500 registros.
-5. Uso do WhatsApp do executivo no Portal, se e quando fizer sentido.
-
-Nada disso foi implementado: este documento é apenas a fotografia do estado atual.
+Mover a montagem do `ExecutiveShell` para `src/routes/f.executivo.tsx`, com `<Outlet />` no lugar de `children`, e passar a resolver a autorização uma única vez em cache compartilhado. Sozinha, essa mudança elimina o remount da lateral e as chamadas duplicadas, sem tocar em guards, RLS ou regras de acesso.
