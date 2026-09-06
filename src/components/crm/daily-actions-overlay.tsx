@@ -364,33 +364,43 @@ export function DailyActionsOverlay({
         setFeedback("Esta ação não tem mensagem oficial vinculada.");
         return;
       }
-      const body = view.body?.trim();
-      if (body) {
-        try {
-          await navigator.clipboard.writeText(body);
-          setCopied(true);
-        } catch {
-          setFeedback("Não foi possível copiar automaticamente — selecione o texto na janela.");
-        }
-      }
+      await copyMessageBody(view.body);
     } finally {
       setBusy(false);
     }
   }
 
-  async function copyMessage() {
-    const body = message?.body?.trim();
-    if (!body) return;
-    try {
-      await navigator.clipboard.writeText(body);
-      setCopied(true);
-    } catch {
-      setFeedback("Não foi possível copiar automaticamente — selecione o texto acima.");
+  /**
+   * CÓPIA REAL. O texto vem da Biblioteca oficial já resolvida pelo
+   * servidor; só uma cópia CONFIRMADA marca a mensagem como copiada e
+   * libera o botão Concluído.
+   */
+  async function copyMessageBody(raw: string | null | undefined) {
+    const body = (raw ?? "").trim();
+    if (!body) {
+      setCopied(false);
+      return false;
     }
+    const ok = await copyToClipboard(body);
+    setCopied(ok);
+    setFeedback(
+      ok
+        ? "Mensagem copiada da Biblioteca."
+        : "A cópia não foi realizada — selecione o texto na janela e copie manualmente.",
+    );
+    return ok;
+  }
+
+  async function copyMessage() {
+    await copyMessageBody(message?.body);
   }
 
   async function handleRegisterMessage(item: DailyAction) {
     if (!operationalWindow.open) return;
+    if (!copied) {
+      setFeedback("Copie a mensagem oficial antes de concluir.");
+      return;
+    }
     setBusy(true);
     try {
       const result = await adapter.registerMessage(item, messageNote.trim());
