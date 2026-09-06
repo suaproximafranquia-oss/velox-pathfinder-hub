@@ -2,38 +2,34 @@
  * Central de Alertas — repositório permanente.
  *
  * DF 2.4.2: a Central deixa de ser um ambiente operacional. Aqui nenhum
- * alerta é excluído ou arquivado — apenas consultado. A operação dos
- * alertas ativos acontece exclusivamente no CRM de Relacionamento.
- * Estrutura preparada para pesquisa, filtros, períodos e exportação.
+ * alerta é excluído ou arquivado — apenas consultado.
+ *
+ * ETAPA 1 (servidor como fonte de verdade): os alertas exibidos são
+ * derivados exclusivamente de tabelas do servidor (portal_leads,
+ * portal_journey_events, portal_engagement, portal_meetings e
+ * lead_ownership_history). Nenhum estado de navegador
+ * (`atlas:workspace-alerts:v1`, `velox:journey:v1`, `velox:events:v1`,
+ * base local de leads) participa da geração de alertas reais.
+ *
+ * "Contato Solicitado" não é gerado nesta etapa: ainda não existe
+ * registro server-side desse pedido.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { BellRing, Search, Mail, Phone, Tag } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
-import { onEvent } from "@/lib/events/bus";
 import {
-  listWorkspaceAlertHistory,
-  runWorkspaceAlertEvaluation,
-  WORKSPACE_ALERT_CATEGORY_LABEL,
-  type WorkspaceAlert,
-} from "@/lib/workspace-alerts";
+  listServerWorkspaceAlerts,
+  type ServerWorkspaceAlert,
+} from "@/lib/workspace-alerts.functions";
+import { WORKSPACE_ALERT_CATEGORY_LABEL } from "@/lib/workspace-alerts";
 import { cn } from "@/lib/utils";
-import { onSync } from "@/lib/sync-bus";
-import { loadLeads } from "@/lib/leads";
-import { WORKSPACE_SCOPE_LABEL, isWorkspaceScope } from "@/lib/portal-workspace";
-
-/** Dados do investidor exibidos na listagem (ITEM 04). */
-type AlertContact = {
-  name: string;
-  email: string;
-  whatsapp: string;
-  origin: string;
-};
 
 function digits(value: string): string {
   return value.replace(/\D+/g, "");
 }
+
 
 export const Route = createFileRoute("/f/executivo/alertas")({
   head: () => ({
@@ -60,9 +56,9 @@ export const Route = createFileRoute("/f/executivo/alertas")({
 function AlertsCenterPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
-  const [alerts, setAlerts] = useState<WorkspaceAlert[]>([]);
+  const [alerts, setAlerts] = useState<ServerWorkspaceAlert[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const s = getSession();
@@ -75,57 +71,47 @@ function AlertsCenterPage() {
 
   useEffect(() => {
     if (!session) return;
-    function refresh() {
-      runWorkspaceAlertEvaluation(session!);
-      setAlerts(listWorkspaceAlertHistory(session!));
-      setTick((v) => v + 1);
-    }
-    refresh();
-    const off = onEvent(() => refresh());
-    const offSync = onSync(() => refresh());
-    return () => { off(); offSync(); };
-  }, [session]);
-
-  /** Índice de contatos por Lead — alimenta exibição e pesquisa parcial. */
-  const contacts = useMemo(() => {
-    const map = new Map<string, AlertContact>();
-    for (const l of loadLeads()) {
-      map.set(l.id, {
-        name: l.name,
-        email: l.email ?? "",
-        whatsapp: l.whatsapp ?? "",
-        origin: isWorkspaceScope(l.scope)
-          ? WORKSPACE_SCOPE_LABEL[l.scope]
-          : "Portal",
+    let alive = true;
+    setLoading(true);
+    listServerWorkspaceAlerts()
+      .then((rows) => {
+        if (alive) setAlerts(rows);
+      })
+      .catch(() => {
+        if (alive) setAlerts([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
-    }
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]);
+    return () => {
+      alive = false;
+    };
+  }, [session]);
 
   const visible = useMemo(() => {
     const raw = query.trim().toLowerCase();
     if (!raw) return alerts;
     const num = digits(raw);
     return alerts.filter((a) => {
-      const c = a.investorId ? contacts.get(a.investorId) : undefined;
       const hay = [
         a.title,
         a.description,
         WORKSPACE_ALERT_CATEGORY_LABEL[a.category],
-        c?.name,
-        c?.email,
-        c?.origin,
+        a.investorName,
+        a.investorEmail,
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
       if (hay.includes(raw)) return true;
       // Pesquisa parcial por WhatsApp: "9988" localiza o número completo.
-      if (num.length >= 2 && c?.whatsapp && digits(c.whatsapp).includes(num)) return true;
+      if (num.length >= 2 && a.investorWhatsapp && digits(a.investorWhatsapp).includes(num)) {
+        return true;
+      }
       return false;
     });
-  }, [alerts, query, contacts]);
+  }, [alerts, query]);
+
 
   const active = useMemo(() => visible.filter((a) => !a.archived), [visible]);
   const resolved = useMemo(() => visible.filter((a) => a.archived), [visible]);
@@ -159,10 +145,18 @@ function AlertsCenterPage() {
         </label>
       </div>
 
-      <Section title="Ativos" count={active.length} items={active} contacts={contacts} />
-      <div className="mt-8">
-        <Section title="Resolvidos" count={resolved.length} items={resolved} contacts={contacts} />
-      </div>
+      {loading ? (
+        <div className="rounded-2xl border border-dashed border-[color:var(--border)] p-6 text-center text-xs text-[color:var(--muted-foreground)]">
+          Carregando alertas do servidor…
+        </div>
+      ) : (
+        <>
+          <Section title="Ativos" count={active.length} items={active} />
+          <div className="mt-8">
+            <Section title="Resolvidos" count={resolved.length} items={resolved} />
+          </div>
+        </>
+      )}
     </ExecutiveShell>
   );
 }
@@ -171,12 +165,10 @@ function Section({
   title,
   count,
   items,
-  contacts,
 }: {
   title: string;
   count: number;
-  items: WorkspaceAlert[];
-  contacts: Map<string, AlertContact>;
+  items: ServerWorkspaceAlert[];
 }) {
   return (
     <section>
@@ -193,8 +185,16 @@ function Section({
       ) : (
         <ul className="space-y-2.5">
           {items.map((a) => {
-            const c = a.investorId ? contacts.get(a.investorId) : undefined;
+            const c = a.investorName
+              ? {
+                  name: a.investorName,
+                  email: a.investorEmail ?? "",
+                  whatsapp: a.investorWhatsapp ?? "",
+                  origin: "Portal",
+                }
+              : undefined;
             return (
+
             <li
               key={a.id}
               className={cn(
