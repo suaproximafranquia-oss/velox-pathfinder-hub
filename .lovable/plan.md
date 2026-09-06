@@ -1,59 +1,61 @@
-# Central de Operações — relatório fiel da Ação do Dia (/f)
+# Central de Operações /f — fechamento técnico
 
-A Central deixa de ser um painel de aderência/pendências e passa a ser um relatório do que foi **efetivamente realizado** na Ação do Dia: quatro números, um resumo por dia e nada além disso. Nenhuma ação é criada, executada ou alterada por esta tela.
+## 1. Decisões fechadas
 
-## Decisões já fechadas
+- Relatório do que aconteceu na Ação do Dia. Quatro indicadores: ligações efetuadas, mensagens enviadas, reuniões realizadas, pulos.
+- Ligação conta como efetuada tenha atendido ou não. Pular não gera ligação.
+- Primeiro contato (E0) fica fora da Central.
+- Só reuniões concluídas pela Ação do Dia com resultado "compareceu".
+- A produção pertence a quem executou.
+- Sem gráfico, sem "Ver detalhes", sem atrasados, sem cobrança, sem redistribuição, sem expurgo.
+- Colaborador vê só a própria operação; Larissa vê a equipe e não aparece como linha; Thiago alterna entre "Toda a equipe" e "Minha operação".
+- Períodos: Hoje, Ontem, Últimos 7 dias, Este mês, Personalizado (sem datas futuras). Dias sem produção aparecem com zero.
+- Pulos clicáveis abrem a relação de leads pulados.
 
-- Ligação concluída conta como **ligação efetuada**, tenha o investidor atendido ou não.
-- Primeiro contato (E0) **não aparece** na Central.
-- Só entram reuniões **concluídas pela Ação do Dia**.
-- Cada número pertence a **quem executou** a ação, não ao responsável do lead.
-- Sem gráfico, sem "Ver detalhes", sem atrasos, sem redistribuição, sem expurgo agora.
+## 2. Fontes de dados confirmadas
 
-## O que a tela mostra
+| Indicador | Registro oficial | Executor | Momento | Confiável hoje |
+| --- | --- | --- | --- | --- |
+| Ligações efetuadas | tarefa de cadência do canal ligação com situação concluída | `completed_by` (usuário) | `completed_at` | Sim |
+| Mensagens enviadas | registro `acao_do_dia_mensagem_registrada` com resultado "enviada" | `actor` | `details.at` | Sim, com o filtro de resultado |
+| Reuniões realizadas | registro `acao_do_dia_reuniao_resolvida` com resultado "compareceu" | `actor` | `details.at` | Sim |
+| Pulos | registro `acao_do_dia_pulada` | `actor` | `details.at` | Sim |
 
-Seletor de período no topo: Hoje, Ontem, Últimos 7 dias, Este mês, Período personalizado (data inicial/final, sem datas futuras).
+Verificações feitas:
 
-Quatro cards com o total do período:
+- A conclusão da ligação grava uma única linha por tentativa (chave lead + canal + ciclo + etapa), portanto repetir a confirmação sobrescreve em vez de duplicar.
+- O registro de mensagem sempre é gravado, mas carrega o resultado da execução: "enviada" quando a etapa foi realmente concluída agora e "registrada" quando foi repetição. Ele também guarda o identificador da tarefa original, o que permite contar uma vez só.
+- O registro de reunião e o de pulo são gravados exclusivamente pelos caminhos da Ação do Dia; nenhuma outra tela produz esses mesmos registros.
+- O primeiro contato segue por outro caminho (ação de E0 do Workspace) e nunca gera o registro de mensagem — não há risco de virar produção, e o filtro por tipo de ação serve de segunda barreira.
 
-- Ligações efetuadas
-- Mensagens enviadas
-- Reuniões realizadas
-- Pulos
+## 3. Riscos de duplicidade
 
-Abaixo:
+- Mensagem: confirmar duas vezes gera dois registros; resolvido contando apenas resultado "enviada" e uma ocorrência por tarefa original.
+- Reunião: resolver o desfecho duas vezes geraria dois registros; resolvido contando uma ocorrência por reunião.
+- Pulo: pular a mesma ação em dias diferentes gera dois registros — e isso é correto, são dois pulos. No mesmo dia, a contagem é única por ação e data operacional.
+- Ligação: sem risco, pela chave única da tarefa.
 
-- **Colaborador** (Marton, Milton, Paulo, Carlos, Talita): abre direto na própria operação, com a tabela "Resumo por dia" — Data | Ligações | Mensagens | Reuniões | Pulos | Total. Dias sem produção aparecem com zero.
-- **Gestora (Larissa) e Administrador (Thiago)**: tabela consolidada Executivo | Ligações | Mensagens | Reuniões | Pulos | Total, com a mesma tabela por dia logo abaixo (totais da equipe). Larissa não aparece como linha de executiva; Thiago aparece, porque também opera.
-- Thiago pode alternar entre "Toda a equipe" e "Minha operação".
-- Clicar no número de **Pulos** abre a relação dos leads pulados (investidor, etapa, motivo, horário) e cada linha leva ao lead pelo seu identificador oficial, abrindo onde ele estiver disponível para aquele usuário.
+## 4. Riscos de contagem incorreta
 
-Visual: mesmos componentes, cores e espaçamentos já usados no Portal Financeira; área de conteúdo clara sobre o ambiente atual, números grandes nos cards, tabela com rolagem horizontal em telas estreitas.
+- **Identidade do executor mistura duas chaves.** As ligações guardam o usuário de login; os registros de relacionamento guardam o executivo quando existe e caem no usuário de login quando não existe. A Central precisa reconhecer as duas formas e converter ambas para o mesmo executivo, senão a mesma pessoa apareceria em duas linhas. Isso é resolvido só na leitura, sem tocar em nada gravado.
+- **Registros antigos sem executivo identificado** ficam sem dono; serão agrupados como "não identificado" em vez de atribuídos a alguém.
+- **Leads de teste/homologação** não podem entrar na produção real: as mensagens já são filtradas por ambiente de produção; as ligações precisam do mesmo cuidado na leitura.
+- Nada é perdido: toda ação concluída pela Ação do Dia deixa um dos registros acima.
+- Não é necessária nenhuma alteração na Ação do Dia para a Central ser fiel.
 
-## Onde os números nascem (sem nova fonte de verdade)
+## 5. Permissões e escopo
 
-Todos já existem hoje; nada é criado e nenhuma tabela nova é necessária.
+O servidor já resolve usuário logado, papel (administração, gestão, colaborador) e executivo correspondente pela identidade central existente. A Central usará exatamente isso: o recorte é decidido no servidor a partir da sessão, e o pedido do navegador não carrega identificador de executivo. Um colaborador não consegue, por URL ou parâmetro, ver a operação de outra pessoa. Larissa e Thiago recebem a equipe; Thiago pode pedir o recorte "minha operação", que o servidor resolve pela própria identidade dele.
 
-| Indicador | Fonte oficial | Quem executou | Data usada |
-| --- | --- | --- | --- |
-| Ligações efetuadas | `crm_cadence_tasks` com `status=DONE` e canal de ligação | `completed_by` | `completed_at` |
-| Mensagens enviadas | `relationship_engine_log` `acao_do_dia_mensagem_registrada`, apenas quando a etapa foi de fato concluída | `actor` | `details.at` |
-| Reuniões realizadas | `relationship_engine_log` `acao_do_dia_reuniao_resolvida` com resultado "compareceu" | `actor` | `details.at` |
-| Pulos | `relationship_engine_log` `acao_do_dia_pulada` | `actor` | `details.at` |
+## 6. Navegação pelo lead
 
-Detalhe técnico relevante: hoje o registro de mensagem grava no histórico mesmo quando a confirmação é repetida; o relatório vai contar apenas as execuções que realmente concluíram a etapa (o registro já traz esse resultado), evitando contagem dupla.
+Será reutilizado o mesmo caminho que o Portal dos Leads e a Ação do Dia já usam hoje: abrir a ficha do investidor pelo identificador oficial do lead, deixando as regras de acesso decidirem o que cada pessoa enxerga. Nenhuma rota nova, nenhuma lógica paralela de localização.
 
-Agrupamento por **data operacional** (fuso de São Paulo), a mesma usada pela Ação do Dia — assim o relatório bate exatamente com o que o executivo viu na tela.
+## 7. Períodos, datas e fuso
 
-Autorização continua no servidor, pela camada centralizada já existente: colaborador recebe apenas o próprio recorte (filtrado no servidor, não no navegador); gestão e administração recebem a equipe.
+A aplicação já tem uma definição única de data operacional em São Paulo, usada pela Ação do Dia. A Central usará essa mesma função para agrupar por dia e para montar os períodos, sem criar segunda definição de fuso. Datas futuras ficam bloqueadas no seletor e no servidor.
 
-## Alterações técnicas previstas
+## 8. Perguntas ainda indispensáveis
 
-- `src/server/crm/operations-center.server.ts`: novo agregador de produção (quatro indicadores, por executivo e por dia), substituindo a consolidação de aderência/pendências/vencidas. Somente leitura.
-- `src/lib/crm/operations-center.functions.ts`: passa a aceitar período livre e a resolver o escopo (própria operação x equipe) pela identidade server-side; deixa de exigir perfil de gestão para o colaborador ver o próprio relatório.
-- `src/components/executive/central-operacoes/central-home.tsx`: nova composição — seletor de período, quatro cards, tabela por executivo (gestão/admin), tabela por dia e painel de pulos com navegação para o lead.
-- Nada é tocado na Ação do Dia, no motor de cadência, na fila, na Biblioteca, no E0, no WhatsApp, no Safety Lock, nem em `/s`, `/seg` e `/`.
-
-## Retenção
-
-Nada será apagado nesta etapa. As fontes acima também sustentam auditoria, timeline e histórico do relacionamento, então um expurgo de 12 meses só faria sentido como cópia consolidada própria da Central — algo a decidir depois, em separado.
+1. Quinto card "Total de ações" nos indicadores superiores: incluir ou manter apenas os quatro? (A coluna "Total" nas tabelas já está aprovada.)
+2. Quando Larissa clicar em um lead pulado e as regras de acesso não permitirem abrir a ficha daquele investidor, o que deve acontecer: mostrar apenas os dados do registro (investidor, etapa, motivo, horário) sem link, ou exibir um aviso de acesso indisponível?
