@@ -96,6 +96,18 @@ export async function applyOriginResponsibleChange(input: {
     };
   }
 
+  {
+    const { isManagementExecutive } = await import("@/server/crm/manager-guard.server");
+    if (await isManagementExecutive(input.originResponsible.executiveId)) {
+      return {
+        ...NONE,
+        reason:
+          "Perfil de gestão não pode ser responsável por lead — titularidade preservada.",
+      };
+    }
+  }
+
+
   const card = await readCardResponsible(input.cardId);
   if (!card.exists) {
     return { ...NONE, reason: "Card ainda não existe — entrada normal de lead novo." };
