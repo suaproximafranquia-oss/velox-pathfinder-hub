@@ -34,27 +34,31 @@ import {
   type RedistributionPlan,
 } from "@/lib/crm/redistribution";
 import { EngagementPanel } from "@/components/executive/workspace/engagement-panel";
+import { SolSegPanel } from "@/components/executive/workspace/sol-seg-panel";
 
 /**
- * Abas do Workspace. "Engajamento" é uma aba INDEPENDENTE, adicionada
- * ao final: nenhuma aba existente (inclusive PORTAL) muda de posição,
- * nome, permissão ou comportamento.
+ * Abas do Workspace. "Engajamento" e "Sol + Seg" são abas INDEPENDENTES,
+ * adicionadas ao final: nenhuma aba existente (inclusive PORTAL) muda de
+ * posição, nome, permissão ou comportamento. "Sol + Seg" não é carteira
+ * de Leads — é o módulo interno das frentes Solar e Seguros.
  */
-type WorkspaceTab = WorkspaceScope | "engajamento";
+type WorkspaceTab = WorkspaceScope | "engajamento" | "sol_seg";
 
 const TAB_LABEL: Record<WorkspaceTab, string> = {
   ...WORKSPACE_SCOPE_LABEL,
   engajamento: "Engajamento",
+  sol_seg: "Sol + Seg",
 };
 
 function isWorkspaceTab(value: unknown): value is WorkspaceTab {
-  return isWorkspaceScope(value) || value === "engajamento";
+  return isWorkspaceScope(value) || value === "engajamento" || value === "sol_seg";
 }
 
 /**
  * Pertencimento por escopo — regra ÚNICA, usada tanto pela listagem de
  * cards quanto pelos contadores das abas. Portal jamais mistura com
- * Green Sales; Engajamento não é carteira (nunca conta Leads).
+ * Green Sales; Engajamento e Sol + Seg não são carteiras (nunca contam
+ * Leads).
  */
 function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
   if (scope === "portal") return i.origin === "portal";
@@ -63,7 +67,7 @@ function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
   // COMANDO 3 §8 — carteiras próprias dos links oficiais de canal.
   if (scope === "tiktok") return i.origin === "tiktok";
   if (scope === "meta") return i.origin === "meta";
-  if (scope === "engajamento") return false;
+  if (scope === "engajamento" || scope === "sol_seg") return false;
   return (
     i.origin !== "portal" &&
     i.origin !== "redistribuicao" &&
@@ -72,6 +76,7 @@ function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
     i.origin !== "meta"
   );
 }
+
 
 type DashboardSearch = { perfil?: string; escopo?: WorkspaceTab };
 
