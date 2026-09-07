@@ -112,8 +112,9 @@ function WorkspacePage() {
   // ETAPA 02.1 §Doc01 — abas oficiais por perfil: Green Sales e
   // Redistribuição para todos; Portal apenas para Administrador/híbrido.
   const tabs: WorkspaceTab[] = session
-    ? [...workspaceScopesFor(session.userId, session.activeRole), "engajamento"]
-    : ["green_sales", "engajamento"];
+    ? [...workspaceScopesFor(session.userId, session.activeRole), "engajamento", "sol_seg"]
+    : ["green_sales", "engajamento", "sol_seg"];
+
   const scope: WorkspaceTab =
     search.escopo && tabs.includes(search.escopo) ? search.escopo : "green_sales";
 
