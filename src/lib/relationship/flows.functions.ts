@@ -90,7 +90,11 @@ export const publicarVersaoFluxo = createServerFn({ method: "POST" })
     return publishFlowVersion({ versionId: data.versionId, publishedBy: context.userId });
   });
 
-/** Etapas disponíveis para associação: a Biblioteca é dona da existência. */
+/** Etapas disponíveis para associação: a Biblioteca é dona da existência.
+ *
+ * A Biblioteca retorna todas as versões históricas; aqui reduzimos para
+ * uma única entrada por etapa, usando a versão vigente (ativa) e,
+ * na ausência de uma ativa, a mais recente. */
 export const etapasDisponiveis = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -99,8 +103,27 @@ export const etapasDisponiveis = createServerFn({ method: "GET" })
       "@/server/relationship/message-library.server"
     );
     const messages = await listLibraryMessages();
-    return messages.map((m: any) => ({
-      stepKey: m.stepKey,
-      title: m.title ?? null,
-    }));
+    const byStep = new Map<string, { stepKey: string; title: string | null }>();
+    for (const m of messages as Array<{
+      stepKey: string;
+      title: string | null;
+      active: boolean;
+      version: number;
+    }>) {
+      const existing = byStep.get(m.stepKey);
+      if (
+        !existing ||
+        (m.active && !byStep.get(m.stepKey)?.active) ||
+        (m.active === (byStep.get(m.stepKey)?.active ?? false) &&
+          m.version > (byStep.get(m.stepKey)?.version ?? 0))
+      ) {
+        byStep.set(m.stepKey, {
+          stepKey: m.stepKey,
+          title: m.title ?? null,
+          active: m.active,
+          version: m.version,
+        } as any);
+      }
+    }
+    return [...byStep.values()];
   });
