@@ -33,8 +33,11 @@ function HomePage() {
   if (!session) return null;
 
   const visibleModules = PLATFORM_MODULES.filter(
-    (m) => !m.requiresRole || m.requiresRole.includes(session.activeRole),
+    (m) =>
+      (!m.requiresRole || m.requiresRole.includes(session.activeRole)) &&
+      (!m.requiresResource || auth?.allowed[m.requiresResource] === true),
   );
+
 
   return (
     <ExecutiveShell session={session} title={`Bem-vindo, ${session.name.split(" ")[0]}`}>
