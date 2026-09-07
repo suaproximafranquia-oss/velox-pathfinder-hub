@@ -5,13 +5,11 @@ import {
   History,
   Loader2,
   MessageSquareText,
-  Plus,
   Save,
   Tag,
 } from "lucide-react";
 import {
   listarMensagensBiblioteca,
-  criarEtapaBiblioteca,
   diagnosticoDaBiblioteca,
   publicarVersaoMensagem,
   renomearRotuloEtapa,
@@ -66,10 +64,6 @@ export function MessageLibraryPanel() {
   const [contentUrl, setContentUrl] = useState("");
   const [contentLabel, setContentLabel] = useState("");
   /* BLOCO 3 — criação e ordenação visual. */
-  const [creating, setCreating] = useState(false);
-  const [newKey, setNewKey] = useState("");
-  const [newTitle, setNewTitle] = useState("");
-  const [savingNew, setSavingNew] = useState(false);
   const [order, setOrder] = useState<string[]>([]);
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
@@ -165,32 +159,6 @@ export function MessageLibraryPanel() {
   }
 
   /** Cria a etapa na Biblioteca. Ela NÃO entra em nenhum fluxo. */
-  async function createStep() {
-    const key = newKey.trim().toUpperCase();
-    if (!key || savingNew) return;
-    setSavingNew(true);
-    try {
-      const updated = (await criarEtapaBiblioteca({
-        data: { stepKey: key, title: newTitle.trim() || null },
-      })) as LibraryMessage[];
-      setMessages(updated);
-      setNewKey("");
-      setNewTitle("");
-      setCreating(false);
-      setError(null);
-      setStep(key);
-      setDraft("");
-      setDraftWithoutName("");
-      setLabel(newTitle.trim() || key);
-      setContentUrl("");
-      setContentLabel("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao criar a etapa.");
-    } finally {
-      setSavingNew(false);
-    }
-  }
-
   function openStep(key: string) {
     setStep(key);
     const list = steps.get(key) ?? [];
