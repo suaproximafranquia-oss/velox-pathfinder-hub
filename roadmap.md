@@ -73,3 +73,10 @@
 - [x] /solar-seguros criado + item "Solar + Seguros" no Workspace
 - [x] Apresentação Digital: uma apresentação vigente por ambiente (simples)
 - [x] KPI: persistência server-side dos lançamentos (tabela kpi_entries; localStorage deixa de ser fonte de verdade)
+
+### Biblioteca de Mensagens — fundação (07/09)
+- [x] Configuração do motor passa a ser a única fonte das etapas; Biblioteca guarda só mensagens/versões
+- [x] Nova versão herda a posição da etapa (fim do salto para o final)
+- [x] Rotina de posição faltante conservadora (nunca sobrescreve posição existente)
+- [x] Chave livre deixa de criar etapa real; registros órfãos preservados como legado
+- [ ] Próxima etapa: organizar conscientemente os nomes exibidos (títulos deslocados)

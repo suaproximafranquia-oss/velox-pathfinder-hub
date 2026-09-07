@@ -99,7 +99,7 @@ export const etapasDisponiveis = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { listLibraryMessages } = await import(
+    const { listLibraryMessages, isOfficialStep } = await import(
       "@/server/relationship/message-library.server"
     );
     const messages = (await listLibraryMessages()) as Array<{
@@ -113,6 +113,8 @@ export const etapasDisponiveis = createServerFn({ method: "GET" })
       { stepKey: string; title: string | null; active: boolean; version: number }
     >();
     for (const m of messages) {
+      /* Só etapa OFICIAL da configuração pode ser associada a um fluxo. */
+      if (!isOfficialStep(m.stepKey)) continue;
       const current = byStep.get(m.stepKey);
       if (
         !current ||
