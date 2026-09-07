@@ -1,116 +1,115 @@
-# Diagnóstico técnico (somente leitura) — KPI da Gestora, Ação do Dia e Templates/Remarketing
+# Diagnóstico (somente leitura) — Central de Templates × E0 × Remarketing (/f)
 
-Nada foi alterado: código, banco, permissões, rotas, interface e roadmap permanecem intactos.
+Nada foi alterado: sem migração, sem edição de código, sem mudança de dados.
 
-## 1. KPI DA GESTORA
-
-ESTADO ATUAL
-- Backend: `resolverEscopoKpi` (server function autenticada) resolve identidade por Supabase Auth → `executive_profiles` → `user_roles` e devolve o recorte: colaborador vê só a si; gestora vê a equipe operacional ativa sem a própria linha; admin vê a equipe inteira incluindo a si.
-- A lista de executivos vem de `listActiveOperationalExecutives`: entra quem tem ficha ativa, sai quem está `inativo` em `executive_user_status`, sai quem é `manager` puro (gestão não é linha operacional). Executivos novos entram automaticamente.
-- Frontend: a tela chama o servidor, e em caso de falha cai no recorte mínimo (a própria operação) — nunca amplia. Colaborador tem `viewId` forçado ao próprio id, mesmo que o estado local seja manipulado.
-- Para a Gestora: existe "Consolidado da equipe" (padrão) e abas individuais por executivo. Não existe aba "Eu" — por decisão explícita, porque ela não tem operação própria.
-- Hoje: 7 fichas de executivo, 0 inativos.
-
-JÁ CORRETO
-- Visão "Minha equipe" (consolidado) e seleção individual por executivo.
-- Ausência de "Eu" para a Gestora é intencional e coerente com a regra de ownership (gestão nunca é responsável por lead).
-- Segurança do `executiveId`: o escopo é decidido no servidor; o navegador não amplia por URL/parâmetro/estado.
-- Exclusão da Larissa como executiva e filtro de inativos estão centralizados em uma única fonte no servidor.
-
-DIVERGÊNCIAS
-- Os NÚMEROS do KPI não são server-side: `loadDataset`/`saveDataset` leem e gravam em `localStorage` (`atlas:kpi:v1:{executivo}:{mês}`). O consolidado da equipe é a soma dos datasets locais do PRÓPRIO navegador.
-- Consequência prática: a Gestora só enxerga lançamentos feitos naquele navegador. Os lançamentos reais dos executivos (feitos nos computadores deles) não aparecem — o consolidado tende a vir vazio ou incompleto, sem erro visível.
-- O recorte está certo; a fonte de dados é que não é a verdade operacional.
-- Há também funções de "limpar mês" e "gerar massa de homologação" gravando sobre o mesmo armazenamento local.
-
-ARQUIVOS/FUNÇÕES/TABELAS
-- `src/lib/kpi-scope.functions.ts` (`resolverEscopoKpi`)
-- `src/server/operational-team.server.ts` (`listActiveOperationalExecutives`)
-- `src/server/identity.server.ts` (`resolveServerIdentity`)
-- `src/routes/f.executivo.kpi.tsx` (`KpiManagerBody`, `KpiManagerScoped`, `buildConsolidatedDataset`)
-- `src/lib/kpi-manager.ts` (`loadDataset`, `saveDataset`, `resetDataset`, `seedHomologationDataset`)
-- Tabelas: `executive_profiles`, `executive_user_status`, `user_roles`. Nenhuma tabela de KPI existe.
-
-RISCO REAL
-- Alto para gestão: decisão gerencial sobre dados que não são compartilhados nem auditáveis; perda silenciosa ao limpar cache/trocar de máquina; nenhum registro histórico no servidor.
-- Baixo para segurança: nada vaza, porque cada navegador só tem o que digitou.
-
-RECOMENDAÇÃO
-- O que falta NÃO é permissão nem visão: é persistência server-side dos lançamentos de KPI (uma tabela por executivo/mês/indicador/dia, com escrita autorizada pelo mesmo escopo já existente e leitura consolidada no servidor). Menor construção: manter exatamente a tela e o `resolverEscopoKpi` atuais e trocar apenas a origem dos dados (`loadDataset`/`saveDataset` → leitura/gravação autenticada), preservando os cálculos.
-
-## 2. AÇÃO DO DIA — RECUPERAÇÃO DE AÇÃO PULADA
+## 1. CENTRAL DE TEMPLATES
 
 ESTADO ATUAL
-- Pular exige justificativa (mínimo 3 caracteres) e grava em `relationship_engine_log` (ação `acao_do_dia_pulada`, com `actionKey`, lead, etapa, motivo, autor e `operationalDate`), mais linha legível em `crm_timeline` e registro no histórico da ficha. Nada é apagado.
-- A ação some da fila porque a montagem do dia filtra as chaves puladas: `listSkippedActionKeys` lê os pulos das últimas 72h e mantém apenas os cujo `operationalDate` é o dia de hoje. Ou seja, o "sumiço" vale só para o dia corrente — no dia seguinte a ação volta a aparecer naturalmente, se ainda for devida.
-- `recordSkipRecovery` não é acionável pelo usuário: é chamado automaticamente quando a MESMA `actionKey` é efetivamente concluída depois — ao registrar a mensagem (quando o motor conclui o passo) ou ao concluir reunião com comparecimento. Ele varre os últimos 90 dias, confirma que houve pulo e que ainda não há recuperação, e só então grava `acao_do_dia_pulo_recuperado`.
-- Idempotência: garantida pela checagem "já existe recuperação para esta `actionKey`" antes de gravar; e a função é envolvida em try/catch, de modo que falha de recuperação nunca invalida a conclusão.
-- Contadores: a Central de Operações lê os dois eventos; o pulo recuperado deixa de contar como pulo, mas continua listado com marca `recuperada`. Histórico é append-only, nunca reescrito.
-- Hoje: 5 pulos registrados, 0 recuperações.
+- Rota `/f/executivo/templates` funcional, protegida por `WorkspaceResourceGuard resource="templates"`.
+- Acesso: apenas Administrador (`ROLE_MATRIX.templates = ADMIN`). No servidor, `assertManager` aceita `super_admin` e `diretora` — ou seja, a porta da tela é mais restrita que a porta do servidor.
+- Criar/editar/ativar/desativar/excluir: mesmas permissões de servidor (`super_admin`/`diretora`); na prática só o Administrador chega à tela.
+- Cadastro por captura de tela do Gerenciador da Meta: a imagem é lida por IA (`interpretMetaTemplateCaptures`, gemini-2.5-flash, temperatura 0, instrução "nunca inventar"; campo não visível vira null). O operador revisa e confirma; edição manual dos campos existe na tela.
+- Validação: apenas `name` obrigatório (Zod). Todos os outros campos são texto livre/opcional. Há detecção de duplicidade por `meta_name` + `language`, com confirmação de sobrescrita.
+- Exclusão: chama `deleteMetaTemplate` direto, **sem diálogo de confirmação**.
 
-JÁ CORRETO
-- Persistência, justificativa obrigatória, auditoria append-only, filtro por dia operacional, idempotência e contabilidade corrigida sem apagar histórico.
+ARMAZENAMENTO (tabela `crm_meta_templates`)
+- Armazenados: `meta_id`, `meta_name`, `language`, `category`, `status`, `header`, `body`, `footer`, `buttons` (jsonb), `variables` (jsonb), `purpose`, `notes`, `is_active`, `meta_updated_at`, `created_by`, `created_by_name`, `created_at`, `updated_at`.
+- Não existe "atualizado por": `created_by`/`created_by_name` são sobrescritos a cada upsert; não há autor separado da edição.
 
-DIVERGÊNCIAS
-- Não existe recuperação MANUAL: dentro do próprio dia, uma ação pulada por engano não pode ser trazida de volta à fila; só reaparece no dia seguinte (se ainda devida) ou é "recuperada" indiretamente ao concluir a mensagem/reunião por outro caminho.
-- Os 0 registros de recuperação indicam que o caminho automático ainda não foi exercitado em produção — o mecanismo está implementado, mas não comprovado por dados reais.
+FUNÇÕES (`src/lib/crm/meta-templates.functions.ts`)
+- listar: `listMetaTemplates` (admin) e `listCrmRelationshipTemplates` (só `is_active = true`, sem checagem de papel)
+- criar/editar: `saveMetaTemplate` (upsert único)
+- ativar/desativar: `setMetaTemplateActive`
+- excluir: `deleteMetaTemplate`
+- leitura da captura: `interpretMetaTemplateCaptures`
 
-ARQUIVOS/FUNÇÕES/TABELAS
-- `src/server/crm/daily-actions-log.server.ts` (`skipDailyAction`, `recordSkipRecovery`, `listSkippedActionKeys`, `registerDailyActionMessage`, resolução de reunião, `DAILY_ACTION_EVENTS`)
-- `src/server/crm/daily-actions.server.ts` (filtro `visible` na montagem do dia)
-- `src/server/crm/operations-center.server.ts` (contagem de pulos e marcação `recuperada`)
-- `src/server/crm/daily-actions-history.server.ts`
-- Tabelas: `relationship_engine_log`, `crm_timeline`, `portal_meetings`
+RISCO REAL: baixo hoje (0 registros); exclusão sem confirmação é o único ponto sensível.
 
-RISCO REAL
-- Baixo. O pior caso é operacional e temporário: um pulo acidental tira a ação da fila até o dia seguinte, sem perda de histórico nem de cadência.
-
-RECOMENDAÇÃO
-- Não é necessário construir uma "recuperação" nova. Se quiser resolver o erro de clique, o menor ajuste possível é um botão "Trazer de volta" na lista de pulos do dia, que grava um evento de recuperação (o já existente) e passa a ser considerado por `listSkippedActionKeys` ao remontar a fila — sem tocar em geração de ações, janelas, cadência ou contadores. Prioridade baixa.
-
-## 3. TEMPLATES + REMARKETING
+## 2. STATUS META
 
 ESTADO ATUAL
-- `crm_meta_templates` (tabela oficial e viva): `meta_name`, `meta_id`, `language`, `category`, `status`, `meta_updated_at`, `header`, `body`, `footer`, `variables` (jsonb), `buttons` (jsonb), `purpose`, `is_active`, `notes`, `created_by`, `created_by_name`, `created_at`, `updated_at`.
-- `meta_templates` (legada): apenas `name`, `body`, `category`, `language`, `status`, `created_by`, datas.
-- Existe SIM tela de cadastro: `/f/executivo/templates` (protegida por `WorkspaceResourceGuard resource="templates"`, hoje restrita a Administrador). O cadastro é feito colando as capturas do Gerenciador da Meta; o sistema interpreta e grava em `crm_meta_templates`. O Portal não cria nem submete templates à Meta.
-- Status/aprovação: o campo `status` é texto livre vindo da leitura da tela da Meta. Quem valida de fato é a E0: `loadE0MetaTemplate` aceita apenas `aprovado`, `approved` ou `ativo`; qualquer outro valor bloqueia a entrega externa com motivo legível.
-- Relação com E0: a E0 lê o template de finalidade `primeiro_contato`, mais recente por `updated_at`; sem cadastro aprovado, o envio real é bloqueado (a lógica interna continua rodando).
-- Remarketing (`/f/remarketing`, ambiente independente): campanhas em `remarketing_campaigns` com snapshot textual próprio (`template_name`, `template_label`, `template_language`, `template_body`, `template_version` incrementado a cada edição); contatos e conversas em tabelas próprias. Não há chave estrangeira nem leitura de `crm_meta_templates`.
-- Os "filtros" do Remarketing hoje são de operação da campanha (status: em execução, pausada, cancelada) e status do contato — não há segmentação por origem/etapa do CRM.
-- Volumes atuais: `crm_meta_templates` 0, `meta_templates` 0, campanhas/contatos/mensagens de remarketing 0.
-
-JÁ CORRETO
-- Infraestrutura de cadastro, ativação/desativação, finalidade, variáveis e botões existe e está protegida por papel.
-- Snapshot versionado por campanha preserva o conteúdo efetivamente usado.
-- Isolamento entre CRM operacional e CRM de Remarketing está respeitado.
+- `status` é `text` livre, salvo exatamente como a IA leu na captura. Não há enum, normalização, nem validação.
+- Única comparação em todo o código: `e0-template.server.ts:66` → aceita `aprovado`, `approved`, `ativo` (minúsculas). Qualquer outro valor rejeita o template para envio real. Status vazio/null **passa** (não bloqueia).
+- Não há uso de `pendente`, `pending`, `rejeitado`, `rejected`, `paused` em nenhum lugar.
 
 DIVERGÊNCIAS
-- `meta_templates` (legada) está vazia e sem nenhum consumidor de interface: só `listTemplates`/`saveTemplate`/`deleteTemplate` em `src/lib/comms.functions.ts`, que não são importados por nenhuma tela — código órfão.
-- `status` não tem vocabulário fechado: aceita qualquer texto; só a E0 aplica a regra de aprovação. Nada impede um template "pendente" ser marcado ativo na tela.
-- Remarketing não reaproveita o cadastro oficial: o operador digita nome/corpo do template livremente, sem vínculo com `crm_meta_templates`, o que permite divergência com o que a Meta aprovou.
-- A E0 escolhe o template mais recente por finalidade, sem seleção explícita de "vigente" — com dois cadastros de `primeiro_contato`, a escolha é implícita.
-- Como tudo está zerado, hoje a E0 real está, na prática, bloqueada por ausência de template cadastrado.
+- A tela permite marcar `is_active = true` mesmo com status não aprovado; o backend não impede — só a E0 verifica, e apenas no momento do envio.
+- "Aprovado pela Meta" (`status`) e "ativo no Portal" (`is_active`) são campos distintos, porém não relacionados por nenhuma regra: hoje as duas noções convivem sem consistência garantida.
 
-ARQUIVOS/FUNÇÕES/TABELAS
-- `src/routes/f.executivo.templates.tsx`, `src/lib/crm/meta-templates.functions.ts`, `src/lib/crm/meta-templates.ts`
-- `src/server/relationship/e0-template.server.ts` (`loadE0MetaTemplate`, `E0_TEMPLATE_MISSING_REASON`)
-- `src/server/remarketing/engine.server.ts`, `src/components/remarketing/*`, `src/routes/f.remarketing.index.tsx`
-- `src/lib/comms.functions.ts` (funções legadas órfãs de `meta_templates`)
-- Tabelas: `crm_meta_templates`, `meta_templates` (legada), `remarketing_campaigns`, `remarketing_contacts`, `remarketing_conversations`, `remarketing_messages`
+## 3. TEMPLATE VIGENTE
 
-RISCO REAL
-- Operacional alto no curto prazo: sem template cadastrado, a E0 não tem entrega externa possível.
-- Médio de conformidade: nome/corpo digitados à mão no Remarketing podem divergir do aprovado pela Meta.
-- Baixo: tabela legada vazia e sem uso.
+- Não existe conceito de vigente/default. Nenhuma restrição de unicidade por `purpose`.
+- Podem existir vários templates ativos com `purpose = primeiro_contato`.
+- A E0 escolhe: `purpose = primeiro_contato` → `order by updated_at desc` → `limit 1`. Ignora `is_active`.
+- Portanto a escolha é determinística (o mais recentemente atualizado), mas frágil: salvar um rascunho novo troca silenciosamente o template da E0, e desativar não tira o template da E0.
 
-RECOMENDAÇÃO
-- Não é necessário construir uma "Central de Templates" nova — ela já existe e é suficiente. O que falta é conteúdo (cadastro dos templates aprovados) e três ajustes pequenos, em ordem: (a) vocabulário fechado de status com marcação explícita do template vigente por finalidade; (b) no Remarketing, seleção a partir do cadastro oficial em vez de digitação livre, mantendo o snapshot atual; (c) remoção do código legado órfão de `meta_templates`.
+## 4. E0
 
-## ORDEM RECOMENDADA
+- Tabela: `crm_meta_templates`. Filtro: `purpose = 'primeiro_contato'`, ordenado por `updated_at desc`, `limit 1`.
+- Sem template, ou sem `meta_name`, ou com status fora da lista aceita → retorna `null`.
+- Nesse caso a E0 continua rodando: registra a mensagem e marca entrega externa pendente com motivo legível (`E0_TEMPLATE_MISSING_REASON`); apenas o envio real fica bloqueado.
+- Safety Lock permanece independente e anterior a tudo (`blockRealWhatsappSend`).
 
-1. Persistência server-side dos lançamentos do KPI (única divergência que compromete decisão gerencial hoje).
-2. Cadastro/definição do template oficial da E0 com status fechado e vigente explícito por finalidade.
-3. Vínculo do Remarketing ao cadastro oficial de templates, preservando o snapshot versionado.
-4. Botão "Trazer de volta" para ação pulada no mesmo dia (opcional, baixo impacto).
-5. Remoção do código legado órfão de `meta_templates`.
+## 5. REMARKETING — TEMPLATE
+
+- Existe seletor: `remarketing-workspace.tsx` carrega `listCrmRelationshipTemplates` (só `is_active = true`) — portanto **há** integração com `crm_meta_templates`. Não há digitação livre de nome/corpo na criação.
+- O identificador gravado é o `meta_name` (campo `id` da opção), não o UUID: `createRemarketingCampaign` grava snapshot em `remarketing_campaigns` (`template_name`, `template_label`, `template_language`, `template_body`, `template_version`).
+- Não existe `template_id`/FK para `crm_meta_templates`. O envio (`runRemarketingEngine`/`sendTemplate`) usa **exclusivamente o snapshot** — nunca relê o cadastro.
+- O seletor do Remarketing **não filtra por status aprovado**: aceita qualquer template ativo, inclusive um que a E0 recusaria.
+
+## 6. FILTROS
+
+- Não existe filtro de segmentação. A tela lista campanhas e contatos; o "filtro" existente é apenas o estado da campanha usado para habilitar botões (iniciar/pausar/cancelar) e o status do contato exibido na tabela — visual, no frontend, sobre dados já carregados.
+- Não há filtro por origem, etapa do CRM, produto, executivo ou período, nem no frontend nem no backend. A base de contatos vem de colagem de números na criação da campanha.
+
+## 7. RELAÇÃO E0 × TEMPLATES × REMARKETING
+
+Fluxo real:
+```text
+Meta (aprovação)  →  captura de tela  →  IA  →  crm_meta_templates
+                                                   ├─ E0: purpose=primeiro_contato + status aprovado (ignora is_active)
+                                                   └─ Remarketing: is_active=true (ignora status e purpose) → snapshot na campanha
+```
+- Mesma tabela, mesmo cadastro; funções de leitura diferentes, com critérios divergentes.
+- Remarketing pode usar template que a E0 recusaria (status não aprovado). E0 pode usar template desativado que o Remarketing não ofereceria.
+- Compartilhamento por `purpose` só na E0. Risco de interferência entre fluxos: baixo em execução (Remarketing congela snapshot), mas alto em governança — o mesmo cadastro obedece a duas regras distintas.
+
+## 8. `meta_templates` LEGADO
+
+- Consumidores: apenas `src/lib/comms.functions.ts` (`listTemplates`, `saveTemplate`, `deleteTemplate`) — nenhuma rota ou componente importa essas funções: código morto.
+- Demais menções: `src/integrations/supabase/types.ts` (tipos gerados), `backup.server.ts` e `workspace-reset.server.ts` (listas de tabelas).
+- 0 registros. Pode ser aposentada sem impacto funcional.
+
+## 9. AMBIENTES
+
+- `crm_meta_templates` não tem coluna de ambiente. Consumidores: apenas a Central de Templates (/f), a E0 (Financeira) e o Remarketing (/f/ln).
+- Solar (`/s`) e Seguradora (`/seg`) não consultam a tabela nem possuem Remarketing.
+- Conclusão: a ausência de `environment` não é problema operacional hoje.
+
+## 10. DADOS ATUAIS
+
+Todas vazias: `crm_meta_templates` 0, `meta_templates` 0, `remarketing_campaigns` 0, `remarketing_contacts` 0, `remarketing_conversations` 0, `remarketing_messages` 0.
+
+## 11. CAUSA DO PROBLEMA DA HOMOLOGAÇÃO
+
+Falta de cadastro, pura e simples: `crm_meta_templates` está com 0 registros, então `listCrmRelationshipTemplates` devolve lista vazia e o botão de criar campanha fica bloqueado (`disabled ... || !template`). Não é falta de seletor, nem de integração, nem filtro/status incorreto.
+
+## 12. RECOMENDAÇÃO
+
+A Central de Templates já é a fonte oficial: tabela única, cadastro completo, E0 e Remarketing lendo dela. Falta só governança do estado do template.
+
+- Status fechado para aprovação Meta — **B (pequeno ajuste)**: normalizar/limitar valores e usar o mesmo critério nos dois consumidores.
+- Conceito de template vigente — **C (construção necessária)**: hoje a E0 escolhe pelo `updated_at` e ignora `is_active`; um cadastro novo troca o template oficial sem intenção.
+- Seleção do template no Remarketing — **B**: já existe; falta apenas exigir status aprovado, alinhando com a E0.
+- Snapshot da campanha — **A**: já correto e desejável (envio não relê o cadastro).
+- Vínculo por ID — **A/B**: hoje grava `meta_name`; um `template_id` opcional só melhora auditoria, não corrige nada.
+- Coluna `environment` — **A**: sem uso fora da Financeira.
+- Remoção de `meta_templates` + funções em `comms.functions.ts` — **D**: legado morto, 0 registros.
+
+## ORDEM MÍNIMA DE CONSTRUÇÃO
+
+1. Fechar `status` em valores conhecidos (com normalização na gravação).
+2. Definir template vigente por finalidade: E0 passa a exigir `is_active = true` + status aprovado, com regra explícita de desempate.
+3. Remarketing passa a oferecer somente templates aprovados (mesmo critério da E0).
+4. (Opcional) Confirmação antes de excluir template.
+5. (Posterior) Remover `meta_templates` e o código morto de `comms.functions.ts`.
