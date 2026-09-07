@@ -251,8 +251,12 @@ async function assignMissingPositions(): Promise<void> {
 
 
 /**
- * Semeadura única: garante que cada etapa possua ao menos a versão 1.
- * Idempotente — só insere o que ainda não existe.
+ * Semeadura: garante que TODA etapa oficial da configuração possua ao
+ * menos a versão 1 (slot vazio quando não há texto). Idempotente — só
+ * insere o que ainda não existe e nunca apaga registro antigo.
+ *
+ * A lista percorrida é a CONFIGURAÇÃO (`OFFICIAL_STEP_KEYS`). Etapa nova
+ * na configuração aparece sozinha na Biblioteca, sem cadastro manual.
  */
 export async function ensureLibrarySeed(): Promise<void> {
   const { data } = await supabaseAdmin
@@ -262,7 +266,7 @@ export async function ensureLibrarySeed(): Promise<void> {
   const known = new Set((data ?? []).map((r: any) => r.step_key).filter(Boolean));
 
   const rows: Record<string, unknown>[] = [];
-  for (const step of LIBRARY_STEP_ORDER) {
+  for (const step of OFFICIAL_STEP_KEYS) {
     if (known.has(step)) continue;
     const fixed = (HOMOLOGATION_MESSAGES as Record<string, any>)[step];
     if (fixed) {
