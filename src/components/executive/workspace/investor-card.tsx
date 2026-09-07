@@ -55,6 +55,11 @@ const ORIGIN_META: Record<
     dot: "bg-blue-500",
     hover: "hover:border-blue-500/60 hover:shadow-[0_18px_40px_-24px_rgba(59,130,246,0.55)]",
   },
+  sol_seg: {
+    label: "Sol + Seg",
+    dot: "bg-orange-400",
+    hover: "hover:border-orange-400/60 hover:shadow-[0_18px_40px_-24px_rgba(251,146,60,0.55)]",
+  },
   manual: {
     label: "Manual",
     dot: "bg-violet-500",
