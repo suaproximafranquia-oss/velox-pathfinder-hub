@@ -480,7 +480,7 @@ function ScopeTabs({
     >
       {items.map((s) => {
         const active = s === current;
-        const count = s === "engajamento" ? undefined : counts?.[s];
+        const count = s === "engajamento" || s === "sol_seg" ? undefined : counts?.[s];
         return (
           <button
             key={s}
