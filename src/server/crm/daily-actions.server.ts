@@ -328,5 +328,21 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   const skipped = await listSkippedActionKeys(nowIso).catch(() => new Set<string>());
   const visible = skipped.size ? actions.filter((a) => !skipped.has(a.actionKey)) : actions;
 
-  return normalizeDailyActions(visible);
+  /**
+   * RECONCILIAÇÃO DA FILA OPERACIONAL ATUAL.
+   *
+   * A obrigação só é trabalho de hoje quando o LEAD ainda está na
+   * carteira operacional vigente. Card inexistente ou ARQUIVADO (ponto
+   * zero) não gera ação. Nada é apagado: histórico, timeline, auditoria
+   * e as fontes oficiais permanecem intactos — apenas não são exibidos
+   * como tarefa pendente. Ações sem lead (Agenda) seguem inalteradas.
+   */
+  const operational = visible.filter((a) => {
+    if (!a.leadId) return true;
+    const identity = identities.get(a.leadId);
+    return Boolean(identity) && !identity!.archived;
+  });
+
+  return normalizeDailyActions(operational);
 }
+
