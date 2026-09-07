@@ -42,6 +42,11 @@ export type PlatformModule = {
   status: "ativo" | "em_breve";
   /** Perfis mínimos com acesso. `undefined` = todos os perfis autenticados. */
   requiresRole?: Array<"super_admin" | "diretora" | "executivo">;
+  /**
+   * Recurso do Workspace exigido para exibir o card. Usa exatamente a
+   * mesma autorização do menu lateral — nenhuma permissão nova.
+   */
+  requiresResource?: "revista" | "apresentacao_digital";
 };
 
 export const PLATFORM_MODULES: PlatformModule[] = [
@@ -56,16 +61,27 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     status: "ativo",
   },
   {
-    id: "greensales-sync",
-    name: "GreenSales Sync",
+    id: "revista",
+    name: "Revista Velox",
     description:
-      "Importação somente leitura dos leads criados hoje no GreenSales para o Portal Atlas.",
-    icon: Download,
-    to: unitPath("/executivo/greensales-sync"),
+      "Edições institucionais da Revista Velox, em leitura de página dupla.",
+    icon: BookOpen,
+    to: unitPath("/executivo/revista"),
     status: "ativo",
-    requiresRole: ["super_admin"],
+    requiresResource: "revista",
+  },
+  {
+    id: "apresentacao-digital",
+    name: "Apresentação Digital",
+    description:
+      "Apresentação vigente do ambiente, com histórico preservado.",
+    icon: Sparkles,
+    to: unitPath("/executivo/apresentacao-digital"),
+    status: "ativo",
+    requiresResource: "apresentacao_digital",
   },
 ];
+
 
 // Ícones mantidos apenas para compatibilidade de importação — os demais
 // módulos vivem exclusivamente no menu lateral, sem duplicar atalhos.
