@@ -602,17 +602,42 @@ function KpiStatusCard({
     now.getMonth() + 1 === Number(month.key.slice(5, 7));
   const refDay = Math.min(inMonth ? now.getDate() : totalDays, totalDays);
 
-  let latestUpdate = 0;
-  const pending: string[] = [];
-  for (const c of collaborators) {
-    const ds = loadDataset(c.id, monthKey);
-    if (ds.updatedAt > latestUpdate) latestUpdate = ds.updatedAt;
-    const hasEntry = INDICATORS.some((ind) => {
-      const v = ds.matrix[ind.id]?.[refDay];
-      return typeof v === "number" && v > 0;
-    });
-    if (!hasEntry) pending.push(c.name.split(" ")[0]);
-  }
+  // Pendências lidas do SERVIDOR (nunca do navegador de quem abre a tela).
+  const readMonth = useServerFn(lerKpiMes);
+  const [status, setStatus] = useState<{ latestUpdate: number; pending: string[] }>({
+    latestUpdate: 0,
+    pending: [],
+  });
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      let latest = 0;
+      const missing: string[] = [];
+      for (const c of collaborators) {
+        try {
+          const payload = await readMonth({
+            data: { monthKey, executiveId: c.id },
+          });
+          if (payload.updatedAt > latest) latest = payload.updatedAt;
+          const hasEntry = payload.cells.some(
+            (cell) => cell.day === refDay && cell.value > 0,
+          );
+          if (!hasEntry) missing.push(c.name.split(" ")[0] ?? c.name);
+        } catch {
+          missing.push(c.name.split(" ")[0] ?? c.name);
+        }
+      }
+      if (alive) setStatus({ latestUpdate: latest, pending: missing });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [readMonth, collaborators, monthKey, refDay]);
+
+  const latestUpdate = status.latestUpdate;
+  const pending = status.pending;
+
 
   let tone: "ok" | "warn" | "alert" = "ok";
   let title = "Todos os KPI's atualizados";
