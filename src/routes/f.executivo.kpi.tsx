@@ -111,33 +111,29 @@ function initialsFor(name: string): string {
     .toUpperCase();
 }
 
-function buildConsolidatedDataset(
-  collaborators: KpiScopeEntry[],
+/**
+ * Monta a matriz da tela a partir das células devolvidas pelo servidor.
+ * O consolidado já vem somado do servidor — o navegador não soma dados
+ * de outros executivos nem lê armazenamento local.
+ */
+function datasetFromCells(
+  userId: string,
   monthKey: string,
+  payload: KpiMonthDTO,
 ): KpiDataset {
   const matrix: KpiDataset["matrix"] = {};
   for (const ind of INDICATORS) matrix[ind.id] = {};
-  let updatedAt = Date.now();
-
-  for (const collaborator of collaborators) {
-    const ds = loadDataset(collaborator.id, monthKey);
-    updatedAt = Math.max(updatedAt, ds.updatedAt);
-    for (const ind of INDICATORS) {
-      const row = ds.matrix[ind.id] ?? {};
-      for (const dayKey in row) {
-        const day = Number(dayKey);
-        matrix[ind.id][day] = (matrix[ind.id][day] ?? 0) + (row[day] ?? 0);
-      }
-    }
+  for (const cell of payload.cells) {
+    if (!matrix[cell.indicatorId]) matrix[cell.indicatorId] = {};
+    matrix[cell.indicatorId]![cell.day] = cell.value;
   }
-
-  return {
-    userId: CONSOLIDATED_VIEW_ID,
-    monthKey,
-    matrix,
-    updatedAt,
-  };
+  return { userId, monthKey, matrix, updatedAt: payload.updatedAt };
 }
+
+function emptyDataset(userId: string, monthKey: string): KpiDataset {
+  return datasetFromCells(userId, monthKey, { cells: [], updatedAt: Date.now() });
+}
+
 
 /**
  * O escopo (quem aparece no KPI) é resolvido NO SERVIDOR pela identidade
