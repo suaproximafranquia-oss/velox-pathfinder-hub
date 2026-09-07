@@ -185,6 +185,7 @@ function toMessage(row: Record<string, any>): LibraryMessage {
       row["display_position"] === null || row["display_position"] === undefined
         ? null
         : Number(row["display_position"]),
+    official: isOfficialStep(row["step_key"]),
     awaitingOfficialText:
       !row["active"] || String(row["body"] ?? "").trim().length === 0,
   };
