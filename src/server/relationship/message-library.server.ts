@@ -397,12 +397,9 @@ export async function createLibraryStep(params: {
     display_position: next,
     created_by: params.actorId ?? null,
     created_by_name: params.actorName,
-    notes: params.notes ?? "Etapa criada pela Biblioteca.",
+    notes: params.notes ?? "Primeira mensagem da etapa oficial.",
   } as any);
   if (error) throw new Error(error.message);
-
-  /* Reconhecimento imediato pelo mecanismo dinâmico do Bloco 2. */
-  registerKnownSteps([stepKey]);
 
   return listLibraryMessages();
 }
