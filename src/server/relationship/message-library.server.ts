@@ -175,6 +175,11 @@ function toMessage(row: Record<string, any>): LibraryMessage {
  * fluxo, prazo e sequência do motor continuam em `STEPS`/`FLOW_SEQUENCE`.
  * A posição é atributo da ETAPA (step_key), por isso todas as versões
  * da mesma etapa carregam o mesmo número.
+ *
+ * CONSERVADORA: uma etapa que JÁ tem posição em qualquer versão nunca
+ * é reposicionada. A versão nova sem posição apenas herda a posição da
+ * etapa. Só uma etapa realmente nova — sem posição em nenhuma versão —
+ * recebe um número inédito no fim da lista.
  */
 async function assignMissingPositions(): Promise<void> {
   const { data } = await supabaseAdmin
@@ -182,6 +187,17 @@ async function assignMissingPositions(): Promise<void> {
     .select("step_key, display_position" as any)
     .eq("scope", "production");
   const rows = (data ?? []) as any[];
+
+  /** Posição já existente por etapa (a menor gravada vale). */
+  const known = new Map<string, number>();
+  for (const row of rows) {
+    const step = row.step_key;
+    const pos = Number(row.display_position);
+    if (!step || !Number.isFinite(pos)) continue;
+    const current = known.get(step);
+    if (current === undefined || pos < current) known.set(step, pos);
+  }
+
   const missing = [
     ...new Set(
       rows
@@ -191,17 +207,25 @@ async function assignMissingPositions(): Promise<void> {
     ),
   ].sort();
   if (missing.length === 0) return;
-  let next =
-    Math.max(0, ...rows.map((r) => Number(r.display_position ?? 0) || 0)) + 10;
+
+  let next = Math.max(0, ...[...known.values()]) + 10;
   for (const step of missing) {
+    const inherited = known.get(step);
+    const position = inherited ?? next;
+    if (inherited === undefined) {
+      known.set(step, position);
+      next += 10;
+    }
+    /* Só as linhas SEM posição são tocadas: nada existente é sobrescrito. */
     await supabaseAdmin
       .from("relationship_message_library")
-      .update({ display_position: next } as any)
+      .update({ display_position: position } as any)
       .eq("scope", "production")
-      .eq("step_key", step);
-    next += 10;
+      .eq("step_key", step)
+      .is("display_position", null);
   }
 }
+
 
 /**
  * Semeadura única: garante que cada etapa possua ao menos a versão 1.
