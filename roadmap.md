@@ -72,3 +72,4 @@
 - [x] Simulador antigo removido definitivamente
 - [x] /solar-seguros criado + item "Solar + Seguros" no Workspace
 - [x] Apresentação Digital: uma apresentação vigente por ambiente (simples)
+- [x] KPI: persistência server-side dos lançamentos (tabela kpi_entries; localStorage deixa de ser fonte de verdade)

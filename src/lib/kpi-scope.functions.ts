@@ -17,84 +17,18 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { KpiScope, KpiScopeEntry } from "@/server/kpi/kpi-scope.server";
 
-export type KpiScopeEntry = { id: string; name: string };
+export type { KpiScope, KpiScopeEntry };
 
-export type KpiScope = {
-  role: "user" | "manager" | "admin";
-  selfExecutiveId: string | null;
-  selfName: string | null;
-  /** Consolidado ("Equipe") existe para gestão/admin, nunca para colaborador. */
-  canUseConsolidated: boolean;
-  /** Abas individuais autorizadas para este usuário. */
-  collaborators: KpiScopeEntry[];
-};
-
-type Row = Record<string, unknown>;
-
-function text(row: Row, key: string): string | null {
-  const value = row[key];
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
+/**
+ * A REGRA vive em `@/server/kpi/kpi-scope.server` e é a mesma usada
+ * pela leitura/gravação dos lançamentos — não existe segunda matriz.
+ */
 export const resolverEscopoKpi = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<KpiScope> => {
-    // Identidade oficial — import dinâmico porque identity.server é server-only.
-    const { resolveServerIdentity } = await import("@/server/identity.server");
-    const identity = await resolveServerIdentity(context.userId);
-    const role = identity.role;
-    const selfId = identity.executiveId;
-
-    const [{ data: profiles, error }, { data: statuses }] = await Promise.all([
-      context.supabase.from("executive_profiles").select("executive_id,name"),
-      context.supabase
-        .from("executive_user_status")
-        .select("executive_id,status"),
-    ]);
-    if (error) throw new Error(error.message);
-
-    const nameById = new Map<string, string>();
-    for (const row of (profiles ?? []) as Row[]) {
-      const id = text(row, "executive_id");
-      const name = text(row, "name");
-      if (id) nameById.set(id, name ?? id);
-    }
-    const inactive = new Set<string>();
-    for (const row of (statuses ?? []) as Row[]) {
-      const id = text(row, "executive_id");
-      if (id && text(row, "status") === "inativo") inactive.add(id);
-    }
-
-    // Equipe operacional ativa — fonte única no servidor: entra todo
-    // executivo ativo (inclusive os cadastrados depois), sai quem está
-    // inativo e sai a Gestora, que não é executiva comercial.
-    const { listActiveOperationalExecutives } = await import(
-      "@/server/operational-team.server"
-    );
-    const activeOperational: KpiScopeEntry[] = (
-      await listActiveOperationalExecutives()
-    ).map((entry) => ({ id: entry.id, name: nameById.get(entry.id) ?? entry.name }));
-
-    let collaborators: KpiScopeEntry[];
-    if (role === "user") {
-      collaborators = selfId
-        ? [{ id: selfId, name: identity.name ?? selfId }]
-        : [];
-    } else if (role === "manager") {
-      // Gestora: equipe, sem a própria operação como linha individual.
-      collaborators = activeOperational.filter((c) => c.id !== selfId);
-    } else {
-      // Administrador: equipe completa — a própria operação já está na
-      // lista operacional (Thiago), o que habilita a alternância.
-      collaborators = activeOperational;
-    }
-
-    return {
-      role,
-      selfExecutiveId: selfId,
-      selfName: identity.name,
-      canUseConsolidated: role !== "user",
-      collaborators,
-    };
+    const { resolveKpiScope } = await import("@/server/kpi/kpi-scope.server");
+    return resolveKpiScope(context.userId, context.supabase as never);
   });
+

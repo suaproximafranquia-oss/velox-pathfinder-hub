@@ -1294,6 +1294,42 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_entries: {
+        Row: {
+          created_at: string
+          day: number
+          executive_id: string
+          id: string
+          indicator_id: string
+          month_key: string
+          updated_at: string
+          updated_by: string | null
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          day: number
+          executive_id: string
+          id?: string
+          indicator_id: string
+          month_key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          day?: number
+          executive_id?: string
+          id?: string
+          indicator_id?: string
+          month_key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
       lead_ownership_history: {
         Row: {
           cadence_cycle_id: string | null

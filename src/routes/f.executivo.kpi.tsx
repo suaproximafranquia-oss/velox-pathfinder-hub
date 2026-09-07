@@ -25,6 +25,12 @@ import {
   type KpiScopeEntry,
 } from "@/lib/kpi-scope.functions";
 import {
+  lerKpiMes,
+  salvarKpiCelula,
+  limparKpiMes,
+  type KpiMonthDTO,
+} from "@/lib/kpi-data.functions";
+import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
   INDICATORS,
@@ -34,10 +40,7 @@ import {
   formatCurrency,
   formatValue,
   isWeekend,
-  loadDataset,
-  resetDataset,
   seedHomologationDataset,
-  saveDataset,
   summarize,
   sumRow,
   useKpiContext,
@@ -111,33 +114,29 @@ function initialsFor(name: string): string {
     .toUpperCase();
 }
 
-function buildConsolidatedDataset(
-  collaborators: KpiScopeEntry[],
+/**
+ * Monta a matriz da tela a partir das células devolvidas pelo servidor.
+ * O consolidado já vem somado do servidor — o navegador não soma dados
+ * de outros executivos nem lê armazenamento local.
+ */
+function datasetFromCells(
+  userId: string,
   monthKey: string,
+  payload: KpiMonthDTO,
 ): KpiDataset {
   const matrix: KpiDataset["matrix"] = {};
   for (const ind of INDICATORS) matrix[ind.id] = {};
-  let updatedAt = Date.now();
-
-  for (const collaborator of collaborators) {
-    const ds = loadDataset(collaborator.id, monthKey);
-    updatedAt = Math.max(updatedAt, ds.updatedAt);
-    for (const ind of INDICATORS) {
-      const row = ds.matrix[ind.id] ?? {};
-      for (const dayKey in row) {
-        const day = Number(dayKey);
-        matrix[ind.id][day] = (matrix[ind.id][day] ?? 0) + (row[day] ?? 0);
-      }
-    }
+  for (const cell of payload.cells) {
+    if (!matrix[cell.indicatorId]) matrix[cell.indicatorId] = {};
+    matrix[cell.indicatorId]![cell.day] = cell.value;
   }
-
-  return {
-    userId: CONSOLIDATED_VIEW_ID,
-    monthKey,
-    matrix,
-    updatedAt,
-  };
+  return { userId, monthKey, matrix, updatedAt: payload.updatedAt };
 }
+
+function emptyDataset(userId: string, monthKey: string): KpiDataset {
+  return datasetFromCells(userId, monthKey, { cells: [], updatedAt: Date.now() });
+}
+
 
 /**
  * O escopo (quem aparece no KPI) é resolvido NO SERVIDOR pela identidade
@@ -221,28 +220,61 @@ function KpiManagerScoped({
       : "Consolidado da equipe"
     : activeCollab?.name ?? scope.selfName ?? session.name;
 
+  const readMonth = useServerFn(lerKpiMes);
+  const saveCell = useServerFn(salvarKpiCelula);
+  const clearMonth = useServerFn(limparKpiMes);
+
   const [dataset, setDataset] = useState<KpiDataset>(() =>
-    loadDataset(activeUserId, activeMonth.key),
+    emptyDataset(activeUserId, activeMonth.key),
   );
   const [savedFlash, setSavedFlash] = useState(false);
   const [flashCell, setFlashCell] = useState<string | null>(null);
-  const saveTimer = useRef<number | null>(null);
   const flashTimer = useRef<number | null>(null);
+  /** Massa de homologação vive só em memória — nunca vai ao servidor. */
+  const [homologationOnly, setHomologationOnly] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     setViewId(defaultViewId);
   }, [defaultViewId]);
 
+  // FONTE DE VERDADE: servidor. O navegador não guarda lançamentos.
   useEffect(() => {
-    if (!isConsolidated) setDataset(loadDataset(activeUserId, activeMonth.key));
-  }, [activeUserId, activeMonth.key, isConsolidated]);
+    if (homologationOnly) return;
+    let alive = true;
+    const targetId = isConsolidated ? null : activeUserId;
+    void (async () => {
+      try {
+        const payload = await readMonth({
+          data: { monthKey: activeMonth.key, executiveId: targetId },
+        });
+        if (alive)
+          setDataset(
+            datasetFromCells(
+              targetId ?? CONSOLIDATED_VIEW_ID,
+              activeMonth.key,
+              payload,
+            ),
+          );
+      } catch {
+        if (alive)
+          setDataset(emptyDataset(targetId ?? CONSOLIDATED_VIEW_ID, activeMonth.key));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [
+    readMonth,
+    activeUserId,
+    activeMonth.key,
+    isConsolidated,
+    homologationOnly,
+    reloadToken,
+  ]);
 
   const days = daysInMonth(activeMonth);
-  const consolidatedDataset = useMemo(
-    () => buildConsolidatedDataset(collaborators, activeMonth.key),
-    [collaborators, activeMonth.key],
-  );
-  const visibleDataset = isConsolidated ? consolidatedDataset : dataset;
+  const visibleDataset = dataset;
   const summary = useMemo(() => summarize(visibleDataset), [visibleDataset]);
 
   function commitCell(indicatorId: string, day: number, next: number) {
@@ -250,16 +282,28 @@ function KpiManagerScoped({
     setDataset((prev) => {
       const nextMatrix = { ...prev.matrix };
       nextMatrix[indicatorId] = { ...(nextMatrix[indicatorId] ?? {}), [day]: next };
-      const nd: KpiDataset = { ...prev, matrix: nextMatrix, updatedAt: Date.now() };
-      // Persistência com debounce
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-      saveTimer.current = window.setTimeout(() => {
-        saveDataset(nd);
-        setSavedFlash(true);
-        window.setTimeout(() => setSavedFlash(false), 1400);
-      }, 250);
-      return nd;
+      return { ...prev, matrix: nextMatrix, updatedAt: Date.now() };
     });
+    if (!homologationOnly) {
+      // Gravação autorizada no servidor — o próprio servidor valida
+      // se este usuário pode lançar para este executivo.
+      void saveCell({
+        data: {
+          monthKey: activeMonth.key,
+          executiveId: activeUserId,
+          indicatorId,
+          day,
+          value: next,
+        },
+      })
+        .then(() => {
+          setSavedFlash(true);
+          window.setTimeout(() => setSavedFlash(false), 1400);
+        })
+        .catch(() => {
+          /* falha de gravação não altera a tela; recarregar mostra o servidor */
+        });
+    }
     const cellKey = `${indicatorId}-${day}`;
     setFlashCell(cellKey);
     if (flashTimer.current) window.clearTimeout(flashTimer.current);
@@ -269,21 +313,29 @@ function KpiManagerScoped({
   function resetMonth() {
     if (isConsolidated) return;
     if (!window.confirm(`Limpar todos os lançamentos de ${activeMonth.label}?`)) return;
-    const fresh = resetDataset(activeUserId, activeMonth.key);
-    setDataset(fresh);
+    if (homologationOnly) {
+      setDataset(emptyDataset(activeUserId, activeMonth.key));
+      setHomologationOnly(false);
+      return;
+    }
+    void clearMonth({ data: { monthKey: activeMonth.key, executiveId: activeUserId } })
+      .then(() => setReloadToken((t) => t + 1))
+      .catch(() => setReloadToken((t) => t + 1));
   }
 
-  /** DEF 3.0.2 §7 — massa fictícia para homologar o Brain Analytics. */
+  /** DEF 3.0.2 §7 — massa fictícia, apenas em memória, nunca persistida. */
   function seedMonth() {
     if (isConsolidated) return;
     if (
       !window.confirm(
-        `Gerar massa de HOMOLOGAÇÃO para ${activeMonth.label}? Os lançamentos atuais serão substituídos.`,
+        `Gerar massa de HOMOLOGAÇÃO para ${activeMonth.label}? A visualização atual será substituída (nada é gravado no servidor).`,
       )
     )
       return;
+    setHomologationOnly(true);
     setDataset(seedHomologationDataset(activeUserId, activeMonth.key));
   }
+
 
   return (
     <ExecutiveShell session={session} title="KPI Manager" fullBleed>
@@ -550,17 +602,42 @@ function KpiStatusCard({
     now.getMonth() + 1 === Number(month.key.slice(5, 7));
   const refDay = Math.min(inMonth ? now.getDate() : totalDays, totalDays);
 
-  let latestUpdate = 0;
-  const pending: string[] = [];
-  for (const c of collaborators) {
-    const ds = loadDataset(c.id, monthKey);
-    if (ds.updatedAt > latestUpdate) latestUpdate = ds.updatedAt;
-    const hasEntry = INDICATORS.some((ind) => {
-      const v = ds.matrix[ind.id]?.[refDay];
-      return typeof v === "number" && v > 0;
-    });
-    if (!hasEntry) pending.push(c.name.split(" ")[0]);
-  }
+  // Pendências lidas do SERVIDOR (nunca do navegador de quem abre a tela).
+  const readMonth = useServerFn(lerKpiMes);
+  const [status, setStatus] = useState<{ latestUpdate: number; pending: string[] }>({
+    latestUpdate: 0,
+    pending: [],
+  });
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      let latest = 0;
+      const missing: string[] = [];
+      for (const c of collaborators) {
+        try {
+          const payload = await readMonth({
+            data: { monthKey, executiveId: c.id },
+          });
+          if (payload.updatedAt > latest) latest = payload.updatedAt;
+          const hasEntry = payload.cells.some(
+            (cell) => cell.day === refDay && cell.value > 0,
+          );
+          if (!hasEntry) missing.push(c.name.split(" ")[0] ?? c.name);
+        } catch {
+          missing.push(c.name.split(" ")[0] ?? c.name);
+        }
+      }
+      if (alive) setStatus({ latestUpdate: latest, pending: missing });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [readMonth, collaborators, monthKey, refDay]);
+
+  const latestUpdate = status.latestUpdate;
+  const pending = status.pending;
+
 
   let tone: "ok" | "warn" | "alert" = "ok";
   let title = "Todos os KPI's atualizados";
