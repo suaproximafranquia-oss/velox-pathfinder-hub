@@ -18,6 +18,7 @@ export type WorkspaceResource =
   | "captacao"
   | "biblioteca"
   | "homologacao"
+  | "central_nomes"
   | "revista"
   | "central_operacoes"
   | "portal_leads"
@@ -37,6 +38,7 @@ export const WORKSPACE_RESOURCE_LABEL: Record<WorkspaceResource, string> = {
   captacao: "Central de Captação",
   biblioteca: "Biblioteca de Conteúdos",
   homologacao: "Central de Homologação",
+  central_nomes: "Central dos Nomes",
   revista: "Revista Velox",
   central_operacoes: "Central de Operações",
   portal_leads: "Portal dos Leads",
@@ -69,6 +71,8 @@ const ROLE_MATRIX: Record<WorkspaceResource, ExecutiveRole[]> = {
   captacao: ADMIN,
   biblioteca: ADMIN_GESTAO,
   homologacao: ADMIN,
+  // Central dos Nomes: dicionário manual — exclusivo do Administrador.
+  central_nomes: ADMIN,
   // Revista Velox: administração é exclusiva do Administrador.
   revista: ADMIN,
   // Relatório somente leitura: colaborador vê apenas a própria produção

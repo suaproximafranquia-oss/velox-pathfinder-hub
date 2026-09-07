@@ -26,6 +26,7 @@ import {
   Radar,
   LibraryBig,
   Activity,
+  SpellCheck,
 } from "lucide-react";
 import {
   createContext,
@@ -272,6 +273,10 @@ export function ExecutiveShellFrame({
       : []),
     ...(allow("homologacao")
       ? [{ to: unitPath("/executivo/homologacao"), label: "Central de Homologação", icon: FlaskConical }]
+      : []),
+    /* Central dos Nomes — último item das Centrais, exclusivo do Admin. */
+    ...(allow("central_nomes")
+      ? [{ to: unitPath("/executivo/central-nomes"), label: "Central dos Nomes", icon: SpellCheck }]
       : []),
   ];
 
