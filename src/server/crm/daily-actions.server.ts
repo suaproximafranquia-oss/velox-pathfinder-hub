@@ -329,9 +329,13 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       dueDate: item.dueDate,
       startsAt: null,
       endsAt: null,
-      overdue: item.overdue,
+      overdue: isOverdueByBusinessDays(availabilityFromDate(item.dueDate), nowIso),
       priorityMax: false,
-      bucket: resolveBucket({ dueDate: item.dueDate, startsAt: null, nowIso }),
+      bucket: isOverdueByBusinessDays(availabilityFromDate(item.dueDate), nowIso)
+        ? "atrasada"
+        : item.dueDate > operationalDate(nowIso)
+          ? "futura"
+          : "hoje",
       title: item.attempts.length > 0 ? `Ligação — ${attemptLabel(item.attempts.length + 1)}` : "Ligação",
       responsibleName: null,
       attempts: item.attempts,
