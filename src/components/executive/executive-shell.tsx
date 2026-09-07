@@ -4,7 +4,6 @@ import { isHomologationEnvironment } from "@/lib/environment";
 import { unitPath } from "@/lib/business-unit";
 import {
   Sprout,
-  Sun,
   LayoutGrid,
   LayoutDashboard,
   UserCog,
@@ -26,7 +25,6 @@ import {
   Archive,
   Radar,
   LibraryBig,
-  BookOpen,
   Activity,
 } from "lucide-react";
 import {
@@ -358,7 +356,7 @@ export function ExecutiveShellFrame({
         <div
           className={cn(
             "mx-auto flex items-center justify-between px-6 py-4 gap-4",
-            fullBleed ? "max-w-none" : "max-w-6xl",
+            fullBleed ? "max-w-none" : "max-w-[82rem]",
           )}
         >
           <div className="flex items-center gap-3">
@@ -399,7 +397,7 @@ export function ExecutiveShellFrame({
         className={cn(
           "mx-auto px-6 grid gap-8 md:grid-cols-[220px_minmax(0,1fr)]",
           fullBleed ? "pt-20 md:pt-24 pb-4" : "pt-24 md:pt-28 pb-16",
-          fullBleed ? "max-w-none" : "max-w-6xl",
+          fullBleed ? "max-w-none" : "max-w-[82rem]",
         )}
         style={fullBleed ? ({ ["--atlas-shell-offset" as never]: "224px" } as React.CSSProperties) : undefined}
       >
@@ -428,7 +426,7 @@ export function ExecutiveShellFrame({
         <div
           className={cn(
             "mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]",
-            fullBleed ? "max-w-none" : "max-w-6xl",
+            fullBleed ? "max-w-none" : "max-w-[82rem]",
           )}
         >
           <span>{WORKSPACE.workspaceName} · {WORKSPACE.workspaceTagline}</span>
