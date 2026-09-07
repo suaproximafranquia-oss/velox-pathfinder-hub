@@ -138,3 +138,132 @@ São quatro camadas sem nenhuma amarração entre si — daí o descasamento atu
 4. Agrupar visualmente por família derivada da chave (E, V, R, RE, RF, avulsas), mantendo a ordenação manual dentro do grupo.
 5. Corrigir os rótulos deslocados é decisão de conteúdo, não de código: exige uma passada de renomeação consciente — nenhuma renomeação automática deve ser feita pelo sistema.
 6. Nada acima altera regra, prazo, fluxo, fila, histórico ou envio.
+
+---
+
+# Parte 2 — Arquitetura entre a configuração do fluxo e a Biblioteca
+
+Somente leitura. Nada foi alterado nesta rodada.
+
+## 1. Fonte de verdade atual da EXISTÊNCIA das etapas
+
+Hoje existem **duas** fontes, e a segunda é a que manda na prática:
+
+1. **Configuração em código** — `src/lib/relationship/config.ts`: o objeto `STEPS` (definição de cada etapa: fluxo, prazo em dias úteis, finalidade de template, grupo de conteúdo, se é terminal) e `FLOW_SEQUENCE` (a ordem de cada fluxo). Complementada por `src/lib/relationship/step-registry.ts`, que soma as etapas fora da cadência (E20, E27, FINALIZACAO, RESPOSTA_AUTOMATICA).
+2. **Conjunto dinâmico vindo do banco** — `src/server/relationship/step-registry.server.ts` declara literalmente: "etapas conhecidas = etapas ATIVAS da Biblioteca + etapas já usadas no histórico". Qualquer chave ativa na Biblioteca passa a ser reconhecida pelo motor como etapa válida, sem existir em `STEPS`.
+
+Há ainda uma terceira estrutura prevista (versões de fluxo em banco: `relationship_flow_versions` / `relationship_flow_steps`), mas ela está **vazia** — nenhuma versão publicada. Logo, não influencia nada hoje.
+
+## 2. Etapas oficiais da configuração (22)
+
+Cadência (`STEPS` + `FLOW_SEQUENCE`):
+
+| stepKey | Rótulo padrão em código | Sequência | Família | Executável | Situação |
+|---|---|---|---|---|---|
+| E0 | E0 — Primeiro contato | sem_resposta #1 (0 d.ú.) | E | sim | ativa |
+| E0_V1 | E0 V1 — Primeiro contato (veio do Portal) | variante de E0 (0 d.ú.) | E | sim | ativa |
+| E1 | E1 — Primeiro acompanhamento | sem_resposta #2 (1 d.ú.) | E | sim | ativa |
+| E3 | E3 — Segundo acompanhamento | sem_resposta #3 (2 d.ú.) | E | sim | ativa |
+| E4 | E4 — Acompanhamento mais firme | sem_resposta #4 (3 d.ú.) | E | sim | ativa |
+| E12 | E12 — Encerramento sem resposta | sem_resposta #5 (5 d.ú.) | E | sim | ativa (terminal enquanto E30 desligada) |
+| E30 | E30 — Recontato tardio | sem_resposta #6 (22 d.ú.) | E | sim | **desativada** por trava (`E30_ENABLED`) |
+| V3 | V3 — Visualizou e não respondeu | visualizacao #3 (2 d.ú.) | V | sim | ativa |
+| V4 | V4 — Encerramento da interação visualizada | visualizacao #4 (3 d.ú.) | V | sim | ativa (terminal) |
+| R1 | R1 — Primeira tentativa após desaparecimento | reengajamento #1 (2 d.ú.) | R | sim | ativa |
+| R2 | R2 — Segunda tentativa | reengajamento #2 (2 d.ú.) | R | sim | ativa |
+| R3 | R3 — Interrupção das tentativas | reengajamento #3 (2 d.ú.) | R | sim | ativa (terminal) |
+| RE0 | RE0 — Reentrada: retomada | reentrada #1 (0 d.ú.) | RE | sim | ativa |
+| RE1 | RE1 — Reentrada: como avaliar | reentrada #2 (2 d.ú.) | RE | sim | ativa |
+| RE2 | RE2 — Reentrada: estrutura e suporte | reentrada #3 (3 d.ú.) | RE | sim | ativa |
+| RE3 | RE3 — Reentrada: encerramento | reentrada #4 (5 d.ú.) | RE | sim | ativa (terminal) |
+| RF0 | RF0 — Relacionamento esfriado: retomada | frio #1 (1 d.ú.) | RF | sim | ativa |
+| RF1 | RF1 — Relacionamento esfriado: encerramento | frio #2 (3 d.ú.) | RF | sim | ativa (terminal) |
+
+Fora da cadência (registro `NON_CADENCE_STEPS`):
+
+| stepKey | Rótulo padrão | Família | Executável | Situação |
+|---|---|---|---|---|
+| E20 | exibido como "E6 — Apresentação Digital" | avulsa | sim (fora de fila) | ativa |
+| E27 | exibido como "E7 — Checkpoint da Apresentação" | avulsa | sim | sem texto oficial previsto |
+| FINALIZACAO | Finalização do ciclo | avulsa | sim | ativa |
+| RESPOSTA_AUTOMATICA | Resposta automática — janela 24h | avulsa | sim | sem texto oficial previsto |
+
+## 3. Configuração x Biblioteca (26 registros)
+
+| Etapa oficial | Registro na Biblioteca | Nome exibido hoje |
+|---|---|---|
+| E0 | sim | E0 — Primeiro contato |
+| E0_V1 | sim | Livre |
+| E1 | sim | E1 — Primeiro acompanhamento |
+| E3 | sim | E2 — Segundo acompanhamento |
+| E4 | sim | R2 — Segundo reengajamento |
+| E12 | sim | E3 — Terceiro acompanhamento |
+| E30 | **não existe** | — |
+| V3 | sim | Liberado para novas mensagem |
+| V4 | sim | ER2 - Etapa de RMK 2 |
+| R1 | sim | RE3 — Finalização / oferta digital |
+| R2 | sim | RF0 — Follow-up de reunião |
+| R3 | sim | RF1 — Finalização / alternativa digital |
+| RE0 | sim | E5 — Apresentação Digital |
+| RE1 | sim | E8 — Finalização |
+| RE2 | sim | R4 — Finalização do Reengajamento |
+| RE3 | sim | ER0 - Etapa de RMK 0 |
+| RF0 | sim | Liberado para novas mensagem |
+| RF1 | sim | Liberado para novas mensagem |
+| E20 | sim | E6 — Acompanhamento da apresentação digital |
+| E27 | sim | E7 — Última tentativa de contato |
+| FINALIZACAO | sim | RE2 — Reentrada / suporte |
+| RESPOSTA_AUTOMATICA | sim | Liberado para novas mensagem |
+
+Registros da Biblioteca **sem correspondente na configuração** (órfãos): **E2, E5, E6, E7, TESTE** — 5 chaves.
+
+Etapa oficial **sem registro na Biblioteca**: **E30** (única).
+
+## 4. Por que existem E2/E5/E6/E7/TESTE/V3/V4
+
+- **V3 e V4 são oficiais** — pertencem ao fluxo de visualização; a presença delas está correta.
+- **E2, E5, E6, E7** são *aliases históricos*: nomes editoriais do documento oficial que nunca viraram etapa do motor. O código os declara explicitamente como "chaves antigas mantidas apenas por histórico, não executáveis" (`WORD_ALIAS_STEPS`), mas a semeadura/criação acabou gerando registro próprio para elas na tabela.
+- **TESTE** foi criada manualmente pela própria tela: a Biblioteca permite criar qualquer chave nova (`criarEtapaBiblioteca`), com a justificativa em código de que "a Biblioteca é a fonte de verdade da EXISTÊNCIA da etapa".
+
+## 5. O que a Biblioteca é hoje, segundo o código
+
+Resposta pelo código atual: **(A) — uma segunda fonte de verdade de etapas.**
+
+Provas: a criação de etapa pela tela chama `registerKnownSteps`; o carregador do servidor declara a Biblioteca ativa como fonte das etapas operacionais; e a lista de etapas oferecida ao configurador de fluxos (`etapasDisponiveis`) é montada a partir da Biblioteca, não de `STEPS`. Ou seja, digitar uma chave nova na Biblioteca cria, de fato, uma etapa reconhecida pelo motor. A intenção declarada nos comentários é (B), mas o comportamento implementado é (A).
+
+## 6. É possível a Biblioteca derivar a lista da configuração?
+
+Sim, tecnicamente é direto, e todos os seis comportamentos pedidos são alcançáveis sem tocar no motor:
+
+- A lista passa a ser gerada a partir de `STEPS` + etapas fora da cadência, e não de `select distinct step_key`.
+- Para cada etapa oficial, procura-se a versão ativa na tabela; havendo, mostra texto e histórico; não havendo, o cartão aparece como "sem mensagem cadastrada" (essa noção já existe no campo `awaitingOfficialText`).
+- Etapa nova na configuração aparece sozinha, sem cadastro manual — a semeadura já percorre uma lista e insere só o que falta; basta essa lista virar a configuração.
+- Etapa que sai da configuração deixa de constar como operacional, e seus registros continuam intactos no banco, visíveis em uma seção de histórico/legado (é onde E2, E5, E6, E7 e TESTE cairiam).
+- Para impedir que um `title` crie etapa, basta o reconhecimento do motor deixar de somar "Biblioteca ativa" e passar a somar "configuração + histórico já executado". O histórico executado hoje contém apenas E0, E1, E3, E20 e FINALIZACAO — todas oficiais, então nada em produção quebraria.
+
+## 7. Menor arquitetura para a posição
+
+Duas opções, ambas mínimas:
+
+- **Opção enxuta (sem migração):** manter `display_position` na linha, mas (a) copiar a posição da versão anterior no insert da nova versão e (b) tornar a rotina de preenchimento conservadora — só atribui "fim da lista" quando a etapa não tem posição em nenhuma versão. Resolve salto, arrastar, histórico e etapa nova.
+- **Opção estrutural (com tabela nova):** uma tabela pequena `step_key → position`, tornando a posição atributo da etapa por definição. Mais limpa a longo prazo, exige migração e reescrita da leitura/ordenação.
+
+Se a lista passar a derivar da configuração (item 6), a ordem natural pode vir da própria sequência dos fluxos, e a posição manual vira apenas um ajuste opcional por cima.
+
+## 8. Sobre o `title`
+
+Pelo código, `title` é **apresentação editável**: a renomeação grava só esse campo, não cria versão e não toca em chave, fila ou histórico. Na prática, porém, ele **virou o identificador que as pessoas leem** — e como não há nenhuma amarração com `step_key`, os nomes se deslocaram e hoje 20 dos 26 cartões exibem um código que pertence a outra chave. Não é uso indevido pelo sistema; é ausência de vínculo e de exibição da chave técnica.
+
+## 9. Conclusão
+
+**A) Fonte única da existência/identidade das etapas:** a configuração do motor (`STEPS` + etapas fora da cadência). É ela que define prazo, fluxo, ordem e execução; nada que não esteja ali é executável de verdade.
+
+**B) Função da Biblioteca:** repositório de mensagens e versionamento das etapas definidas na configuração — opção **(B)**. Ela deve responder "qual texto esta etapa usa hoje e quais versões existiram", nunca "quais etapas existem".
+
+**C) Para a Biblioteca acompanhar a configuração automaticamente:** gerar a lista a partir da configuração em vez do `distinct` da tabela; semear por essa lista; exibir etapa sem mensagem como slot vazio; e remover a criação livre de chave como criadora de etapa real (a chave passa a ser escolhida entre as oficiais).
+
+**D) Para a nova versão preservar a posição:** copiar a posição da versão anterior no momento do insert e impedir que a rotina de preenchimento reatribua posição a etapa que já possui uma.
+
+**E) Órfãos atuais:** E2, E5, E6, E7 e TESTE. Nenhum deles aparece no histórico de envios, fila ou cadências — são órfãos puros de catálogo, sem uso operacional.
+
+**F) Risco de "arrumar os nomes" antes:** sim, e é o principal. Enquanto a chave não estiver visível ao lado do nome, renomear manualmente é trabalhar às cegas: é fácil escrever "E4" no cartão da chave RE2 e piorar o descasamento. Além disso, sem a correção da posição, cada salvamento continua jogando a etapa para o fim, embaralhando a lista no meio da arrumação. A ordem segura é: mostrar a chave técnica e corrigir a posição primeiro; renomear depois, com a chave à vista.
