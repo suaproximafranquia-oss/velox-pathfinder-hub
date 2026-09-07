@@ -394,7 +394,10 @@ function WorkspacePage() {
           {scope === "redistribuicao" && <RedistributionPanel tick={tick} />}
           {scope === "engajamento" ? (
             <EngagementPanel onOpen={openProfile} />
+          ) : scope === "sol_seg" ? (
+            <SolSegPanel />
           ) : (
+
             <>
           <WorkspaceHeader
             query={query}
