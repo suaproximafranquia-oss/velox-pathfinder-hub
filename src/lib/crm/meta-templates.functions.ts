@@ -325,7 +325,11 @@ export const saveMetaTemplate = createServerFn({ method: "POST" })
         variables: data.variables,
         buttons: data.buttons,
         purpose: data.purpose,
-        is_active: data.isActive,
+        // Atualizar um cadastro já vigente preserva a vigência apenas
+        // enquanto ele continuar aprovado na Meta.
+        is_active:
+          data.isActive ||
+          Boolean(existing?.isActive && isMetaApproved(normalizeMetaStatus(data.status))),
         notes: data.notes ?? null,
         created_by: context.userId as string,
         created_by_name: data.createdByName,
