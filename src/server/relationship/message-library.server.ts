@@ -327,12 +327,12 @@ export async function listLibraryMessages(): Promise<LibraryMessage[]> {
 }
 
 /**
- * BLOCO 3 — CRIAÇÃO DE ETAPA PELA PRÓPRIA BIBLIOTECA.
+ * PRIMEIRA MENSAGEM DE UMA ETAPA OFICIAL.
  *
- * Não existe lista fixa de chaves permitidas: a Biblioteca é a fonte de
- * verdade da EXISTÊNCIA da etapa. A etapa nasce no FIM da lista e,
- * deliberadamente, INERTE para o motor — nenhum fluxo é alterado aqui.
- * A associação etapa → fluxo é assunto do Bloco 4.
+ * A Biblioteca NÃO cria etapa. A existência da etapa vem da
+ * configuração do motor; aqui apenas nasce o slot de mensagem de uma
+ * etapa oficial que ainda não tem registro. Chave fora da configuração
+ * é recusada com motivo legível.
  */
 export async function createLibraryStep(params: {
   stepKey: string;
@@ -349,13 +349,14 @@ export async function createLibraryStep(params: {
   actorName: string;
 }): Promise<LibraryMessage[]> {
   const stepKey = params.stepKey.trim().toUpperCase();
-  if (!/^[A-Z0-9_]{2,32}$/.test(stepKey)) {
+  if (!isOfficialStep(stepKey)) {
     throw new Error(
-      "Chave da etapa inválida. Use letras, números e underscore (ex.: E9, RE4).",
+      `A etapa ${stepKey} não existe na configuração do motor. A Biblioteca guarda mensagens de etapas oficiais — uma etapa nova nasce na configuração e aparece aqui automaticamente.`,
     );
   }
   await ensureLibrarySeed();
   await assignMissingPositions();
+
 
   const { data: existing } = await supabaseAdmin
     .from("relationship_message_library")
