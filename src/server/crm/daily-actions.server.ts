@@ -159,7 +159,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   for (const pending of firstContacts) {
     if (firstContactDone.has(pending.card_id)) continue;
     const identity = identities.get(pending.card_id);
-    const dueDate = operationalDate(pending.created_at);
+    /**
+     * O primeiro contato fica disponível no primeiro DIA ÚTIL após a
+     * chegada; só vira atraso quando esse dia útil termina sem conclusão.
+     */
+    const dueDate = availabilityDate(pending.created_at);
+    const overdue = isOverdueByBusinessDays(dueDate, nowIso);
     actions.push({
       actionKey: `first_contact:${pending.card_id}:e0`,
       source: "first_contact",
