@@ -16,6 +16,11 @@ import {
   resolveBucket,
   type DailyAction,
 } from "@/lib/crm/daily-actions";
+import {
+  availabilityDate,
+  availabilityFromDate,
+  isOverdueByBusinessDays,
+} from "@/lib/crm/daily-actions-overdue";
 import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import { listClosureDuties } from "@/server/relationship/closure.server";
 import {
@@ -154,7 +159,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   for (const pending of firstContacts) {
     if (firstContactDone.has(pending.card_id)) continue;
     const identity = identities.get(pending.card_id);
-    const dueDate = operationalDate(pending.created_at);
+    /**
+     * O primeiro contato fica disponível no primeiro DIA ÚTIL após a
+     * chegada; só vira atraso quando esse dia útil termina sem conclusão.
+     */
+    const dueDate = availabilityDate(pending.created_at);
+    const overdue = isOverdueByBusinessDays(dueDate, nowIso);
     actions.push({
       actionKey: `first_contact:${pending.card_id}:e0`,
       source: "first_contact",
@@ -167,9 +177,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       dueDate,
       startsAt: null,
       endsAt: null,
-      overdue: dueDate < today,
+      overdue,
       priorityMax: true,
-      bucket: dueDate < today ? "atrasada" : "hoje",
+      bucket: overdue ? "atrasada" : "hoje",
       title: "Primeiro contato com lead novo",
       responsibleName: pending.responsible_executive_id ?? null,
       attempts: [],
@@ -247,9 +257,13 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       dueDate: duty.dueDate,
       startsAt: null,
       endsAt: null,
-      overdue: duty.dueDate < today,
+      overdue: isOverdueByBusinessDays(availabilityFromDate(duty.dueDate), nowIso),
       priorityMax: false,
-      bucket: resolveBucket({ dueDate: duty.dueDate, startsAt: null, nowIso }),
+      bucket: isOverdueByBusinessDays(availabilityFromDate(duty.dueDate), nowIso)
+        ? "atrasada"
+        : duty.dueDate > operationalDate(nowIso)
+          ? "futura"
+          : "hoje",
       title:
         duty.kind === "checkpoint"
           ? "Checkpoint da Apresentação Digital"
@@ -279,9 +293,11 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       dueDate,
       startsAt: null,
       endsAt: null,
-      overdue: dueDate < today,
+      overdue: isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso),
       priorityMax: false,
-      bucket: resolveBucket({ dueDate, startsAt: null, nowIso }),
+      bucket: isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso)
+        ? "atrasada"
+        : "hoje",
       // A ação humana é COPIAR o texto oficial e colar no WhatsApp.
       title: `Etapa ${item.step} — Copiar mensagem`,
       responsibleName: null,
@@ -313,9 +329,13 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       dueDate: item.dueDate,
       startsAt: null,
       endsAt: null,
-      overdue: item.overdue,
+      overdue: isOverdueByBusinessDays(availabilityFromDate(item.dueDate), nowIso),
       priorityMax: false,
-      bucket: resolveBucket({ dueDate: item.dueDate, startsAt: null, nowIso }),
+      bucket: isOverdueByBusinessDays(availabilityFromDate(item.dueDate), nowIso)
+        ? "atrasada"
+        : item.dueDate > operationalDate(nowIso)
+          ? "futura"
+          : "hoje",
       title: item.attempts.length > 0 ? `Ligação — ${attemptLabel(item.attempts.length + 1)}` : "Ligação",
       responsibleName: null,
       attempts: item.attempts,
