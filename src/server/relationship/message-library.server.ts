@@ -522,6 +522,17 @@ export async function publishLibraryVersion(params: {
   const current = rows.find((r: any) => r.active) ?? rows[0] ?? null;
   const nextVersion = (rows[0] as any)?.version ? Number((rows[0] as any).version) + 1 : 1;
 
+  /**
+   * POSIÇÃO PERTENCE À ETAPA, NÃO À VERSÃO. A versão nova herda a
+   * posição já existente da etapa — publicar jamais move o cartão para
+   * o fim da lista.
+   */
+  const inheritedPosition =
+    rows
+      .map((r: any) => Number(r.display_position))
+      .filter((n: number) => Number.isFinite(n))
+      .sort((a: number, b: number) => a - b)[0] ?? null;
+
   if (current) {
     await supabaseAdmin
       .from("relationship_message_library")
@@ -540,6 +551,7 @@ export async function publishLibraryVersion(params: {
       body: params.body,
       body_without_name: params.bodyWithoutName ?? null,
       version: nextVersion,
+      display_position: inheritedPosition,
       active: params.body.trim().length > 0,
       content_group:
         params.contentGroup !== undefined
