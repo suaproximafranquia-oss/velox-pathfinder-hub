@@ -1,131 +1,116 @@
-# Diagnóstico profundo — Financeira /f (somente leitura)
+# Diagnóstico técnico (somente leitura) — KPI da Gestora, Ação do Dia e Templates/Remarketing
 
-Nada foi alterado: sem código novo, sem migração, sem permissão, rota, interface ou dado modificado.
-Legenda: **BACKEND** = regra no servidor/banco; **FRONTEND** = só interface; **MENU** = só visibilidade; **PARCIAL**; **NÃO EXISTE**.
+Nada foi alterado: código, banco, permissões, rotas, interface e roadmap permanecem intactos.
 
-## 1. Gestora / Larissa — permissões e visão
+## 1. KPI DA GESTORA
 
-**ESTADO ATUAL**
-- Banco: `executive_profiles.executive_id = usr_larissa`, `user_roles.role = manager`, status ativo, **sem código GreenSales** (`greensales_vendor_id` nulo).
-- Servidor traduz `manager → diretora` (`src/lib/executive-auth.ts:592-597`; `src/server/workspace-authorization.server.ts:56-60`). Perfil nunca vem do navegador.
-- Matriz única `ROLE_MATRIX` (`src/lib/workspace-authorization.ts:55-76`): diretora TEM biblioteca, apresentação digital, usuários, central de operações, portal de leads, backup de conversas; NÃO tem captação, homologação, revista, central de backup, configurações, **remarketing**.
-- `src/server/operational-team.server.ts:44-63` remove a gestora (manager sem admin) de toda lista de "executivo ativo" — logo ela não aparece em KPI, Campanhas nem rankings. `src/lib/kpi-scope.functions.ts:84-86` reforça.
-- Permissões de módulo de Larissa no banco: `crm=true`, `portal_leads=true`, `e0_automatico=false`.
+ESTADO ATUAL
+- Backend: `resolverEscopoKpi` (server function autenticada) resolve identidade por Supabase Auth → `executive_profiles` → `user_roles` e devolve o recorte: colaborador vê só a si; gestora vê a equipe operacional ativa sem a própria linha; admin vê a equipe inteira incluindo a si.
+- A lista de executivos vem de `listActiveOperationalExecutives`: entra quem tem ficha ativa, sai quem está `inativo` em `executive_user_status`, sai quem é `manager` puro (gestão não é linha operacional). Executivos novos entram automaticamente.
+- Frontend: a tela chama o servidor, e em caso de falha cai no recorte mínimo (a própria operação) — nunca amplia. Colaborador tem `viewId` forçado ao próprio id, mesmo que o estado local seja manipulado.
+- Para a Gestora: existe "Consolidado da equipe" (padrão) e abas individuais por executivo. Não existe aba "Eu" — por decisão explícita, porque ela não tem operação própria.
+- Hoje: 7 fichas de executivo, 0 inativos.
 
-**JÁ CORRETO**
-Papel, exclusão dela como executiva (BACKEND, não cosmético), bloqueio de Remarketing e Captação, escopo de equipe na Central de Operações, Biblioteca e Gestão de Usuários.
+JÁ CORRETO
+- Visão "Minha equipe" (consolidado) e seleção individual por executivo.
+- Ausência de "Eu" para a Gestora é intencional e coerente com a regra de ownership (gestão nunca é responsável por lead).
+- Segurança do `executiveId`: o escopo é decidido no servidor; o navegador não amplia por URL/parâmetro/estado.
+- Exclusão da Larissa como executiva e filtro de inativos estão centralizados em uma única fonte no servidor.
 
-**DIVERGÊNCIAS**
-1. Rotas sem `WorkspaceResourceGuard`: `kpi`, `campanhas`, `dashboard`, `home`, `alertas`, `reunioes`, `investidores`, `administracao`, `brain`, `criativa`, `relatorios`, `templates`, `fluxos`, `laboratorio`, `greensales*`, `teste-cadencia`, `acao-do-dia-demo`. Protegidas só pela sessão (`src/routes/f.executivo.tsx:23-30`). Para KPI/Campanhas/Alertas/Reuniões isso é intencional (recurso de todos), mas **`administracao`, `templates`, `greensales*`, `laboratorio` e `teste-cadencia` ficam abertos por URL direta a qualquer sessão válida, inclusive colaborador** — esses recursos sequer existem no `ROLE_MATRIX`.
-2. "Central de Reuniões" e "Central de Alertas" não são recursos da matriz — existem só como rota + menu, sem regra de papel formal.
-3. "Gerenciar colaboradores permitidos" existe (recurso `usuarios`, ADMIN_GESTAO) — OK; mas redefinição de senha é ação de Admin.
-4. Não há regra que impeça atribuir lead a Larissa: o bloqueio é só nas listas de executivos, não no `responsible_executive_id`.
+DIVERGÊNCIAS
+- Os NÚMEROS do KPI não são server-side: `loadDataset`/`saveDataset` leem e gravam em `localStorage` (`atlas:kpi:v1:{executivo}:{mês}`). O consolidado da equipe é a soma dos datasets locais do PRÓPRIO navegador.
+- Consequência prática: a Gestora só enxerga lançamentos feitos naquele navegador. Os lançamentos reais dos executivos (feitos nos computadores deles) não aparecem — o consolidado tende a vir vazio ou incompleto, sem erro visível.
+- O recorte está certo; a fonte de dados é que não é a verdade operacional.
+- Há também funções de "limpar mês" e "gerar massa de homologação" gravando sobre o mesmo armazenamento local.
 
-**ARQUIVOS/TABELAS**
-`src/lib/workspace-authorization.ts`, `src/server/workspace-authorization.server.ts`, `src/server/operational-team.server.ts`, `src/lib/kpi-scope.functions.ts`, `src/components/executive/executive-shell.tsx:219-322`, `src/routes/f.executivo*.tsx`, tabelas `user_roles`, `executive_profiles`, `executive_user_status`, `workspace_module_permissions`.
+ARQUIVOS/FUNÇÕES/TABELAS
+- `src/lib/kpi-scope.functions.ts` (`resolverEscopoKpi`)
+- `src/server/operational-team.server.ts` (`listActiveOperationalExecutives`)
+- `src/server/identity.server.ts` (`resolveServerIdentity`)
+- `src/routes/f.executivo.kpi.tsx` (`KpiManagerBody`, `KpiManagerScoped`, `buildConsolidatedDataset`)
+- `src/lib/kpi-manager.ts` (`loadDataset`, `saveDataset`, `resetDataset`, `seedHomologationDataset`)
+- Tabelas: `executive_profiles`, `executive_user_status`, `user_roles`. Nenhuma tabela de KPI existe.
 
-**SE FOR CONSTRUIR**
-Registrar `administracao`, `templates`, `greensales`, `laboratorio`, `reunioes`, `alertas` na matriz única e aplicar o guard nessas rotas.
+RISCO REAL
+- Alto para gestão: decisão gerencial sobre dados que não são compartilhados nem auditáveis; perda silenciosa ao limpar cache/trocar de máquina; nenhum registro histórico no servidor.
+- Baixo para segurança: nada vaza, porque cada navegador só tem o que digitou.
 
-## 2. Portal de Leads — visão da gestora
+RECOMENDAÇÃO
+- O que falta NÃO é permissão nem visão: é persistência server-side dos lançamentos de KPI (uma tabela por executivo/mês/indicador/dia, com escrita autorizada pelo mesmo escopo já existente e leitura consolidada no servidor). Menor construção: manter exatamente a tela e o `resolverEscopoKpi` atuais e trocar apenas a origem dos dados (`loadDataset`/`saveDataset` → leitura/gravação autenticada), preservando os cálculos.
 
-**ESTADO ATUAL**
-- O recorte é **100% RLS no banco**, não no navegador: `can_read_crm_lead(_external_id)` = `admin OR manager OR responsible_executive_id = current_executive_id()`; `can_access_investor` idêntica.
-- Admin e gestora leem a carteira inteira; colaborador só os próprios. `listPortalLeads` faz `select("*")` e o banco corta.
-- Filtro por executivo existe na tela (`portal-leads-board.tsx`, `executiveId` enviado ao servidor).
-- GreenSales: `crm_connections` só serve à **sincronização e atribuição de responsável** (`src/server/crm/responsible.server.ts:14-65`), nunca à leitura. Hoje há apenas 1 conexão registrada; 648 `crm_leads` e 124 `portal_leads` persistidos.
+## 2. AÇÃO DO DIA — RECUPERAÇÃO DE AÇÃO PULADA
 
-**JÁ CORRETO**
-Visão consolidada da equipe para a gestora; independência de conexão GreenSales pessoal (desconectar Larissa **não** apaga a visão consolidada); filtro por executivo; ownership como fonte.
+ESTADO ATUAL
+- Pular exige justificativa (mínimo 3 caracteres) e grava em `relationship_engine_log` (ação `acao_do_dia_pulada`, com `actionKey`, lead, etapa, motivo, autor e `operationalDate`), mais linha legível em `crm_timeline` e registro no histórico da ficha. Nada é apagado.
+- A ação some da fila porque a montagem do dia filtra as chaves puladas: `listSkippedActionKeys` lê os pulos das últimas 72h e mantém apenas os cujo `operationalDate` é o dia de hoje. Ou seja, o "sumiço" vale só para o dia corrente — no dia seguinte a ação volta a aparecer naturalmente, se ainda for devida.
+- `recordSkipRecovery` não é acionável pelo usuário: é chamado automaticamente quando a MESMA `actionKey` é efetivamente concluída depois — ao registrar a mensagem (quando o motor conclui o passo) ou ao concluir reunião com comparecimento. Ele varre os últimos 90 dias, confirma que houve pulo e que ainda não há recuperação, e só então grava `acao_do_dia_pulo_recuperado`.
+- Idempotência: garantida pela checagem "já existe recuperação para esta `actionKey`" antes de gravar; e a função é envolvida em try/catch, de modo que falha de recuperação nunca invalida a conclusão.
+- Contadores: a Central de Operações lê os dois eventos; o pulo recuperado deixa de contar como pulo, mas continua listado com marca `recuperada`. Histórico é append-only, nunca reescrito.
+- Hoje: 5 pulos registrados, 0 recuperações.
 
-**DIVERGÊNCIAS**
-1. `can_read_crm_lead` e `can_access_investor` **não checam status ativo/inativo** do executivo: leads de executivo desligado continuam visíveis à gestão (aceitável) mas não são reclassificados.
-2. Se algum lead receber `responsible_executive_id = usr_larissa`, ele passa a ser lead pessoal dela e entra em contadores de responsável — não há trava.
-3. Ação do Dia já é ocultada para diretora no frontend (`portal-leads-board.tsx:339`), mas não há bloqueio equivalente no servidor.
+JÁ CORRETO
+- Persistência, justificativa obrigatória, auditoria append-only, filtro por dia operacional, idempotência e contabilidade corrigida sem apagar histórico.
 
-**ARQUIVOS/TABELAS** `src/components/crm/portal-leads-board.tsx`, `src/lib/portal-leads.functions.ts:348-358`, `src/server/crm/lead-service.server.ts`, `responsible.server.ts`, `connections.server.ts`; tabelas `crm_leads`, `portal_leads`, `investors`, `crm_connections`, `lead_ownership_history`; funções `can_read_crm_lead`, `can_access_investor`, `current_executive_id`.
+DIVERGÊNCIAS
+- Não existe recuperação MANUAL: dentro do próprio dia, uma ação pulada por engano não pode ser trazida de volta à fila; só reaparece no dia seguinte (se ainda devida) ou é "recuperada" indiretamente ao concluir a mensagem/reunião por outro caminho.
+- Os 0 registros de recuperação indicam que o caminho automático ainda não foi exercitado em produção — o mecanismo está implementado, mas não comprovado por dados reais.
 
-## 3. KPI Manager e Campaign Panel
+ARQUIVOS/FUNÇÕES/TABELAS
+- `src/server/crm/daily-actions-log.server.ts` (`skipDailyAction`, `recordSkipRecovery`, `listSkippedActionKeys`, `registerDailyActionMessage`, resolução de reunião, `DAILY_ACTION_EVENTS`)
+- `src/server/crm/daily-actions.server.ts` (filtro `visible` na montagem do dia)
+- `src/server/crm/operations-center.server.ts` (contagem de pulos e marcação `recuperada`)
+- `src/server/crm/daily-actions-history.server.ts`
+- Tabelas: `relationship_engine_log`, `crm_timeline`, `portal_meetings`
 
-**ESTADO ATUAL** — ambos resolvem escopo no BACKEND.
-- KPI: `resolverEscopoKpi` (`src/lib/kpi-scope.functions.ts:40-99`) — colaborador só ele; manager equipe ativa sem si mesma; admin equipe + própria linha.
-- Campanhas: `listarEquipeCampanhas` (`src/lib/executive-directory.functions.ts:114-126`) — mesma fonte `listActiveOperationalExecutives()`, todos os papéis veem todos os executivos ativos.
-- Inativos saem por `executive_user_status`; executivo novo ativo entra automaticamente (lista derivada, sem cadastro paralelo).
+RISCO REAL
+- Baixo. O pior caso é operacional e temporário: um pulo acidental tira a ação da fila até o dia seguinte, sem perda de histórico nem de cadência.
 
-**JÁ CORRETO** Todas as regras esperadas dos dois módulos estão implementadas no servidor, inclusive a exclusão da gestora.
+RECOMENDAÇÃO
+- Não é necessário construir uma "recuperação" nova. Se quiser resolver o erro de clique, o menor ajuste possível é um botão "Trazer de volta" na lista de pulos do dia, que grava um evento de recuperação (o já existente) e passa a ser considerado por `listSkippedActionKeys` ao remontar a fila — sem tocar em geração de ações, janelas, cadência ou contadores. Prioridade baixa.
 
-**DIVERGÊNCIAS**
-1. "Minha equipe" e "KPI individual por executivo" para a gestora: o escopo de equipe existe; a seleção individual por executivo dentro do KPI precisa de confirmação de UI (existe alternância Equipe×Eu para admin; para gestora não há "Eu").
-2. Rotas KPI/Campanhas sem guard (ver bloco 1) — porém sem consequência de dados, pois o payload já é recortado.
+## 3. TEMPLATES + REMARKETING
 
-**ARQUIVOS** `kpi-scope.functions.ts`, `executive-directory.functions.ts`, `operational-team.server.ts`, `src/routes/f.executivo.kpi.tsx`, `f.executivo.campanhas.tsx`.
+ESTADO ATUAL
+- `crm_meta_templates` (tabela oficial e viva): `meta_name`, `meta_id`, `language`, `category`, `status`, `meta_updated_at`, `header`, `body`, `footer`, `variables` (jsonb), `buttons` (jsonb), `purpose`, `is_active`, `notes`, `created_by`, `created_by_name`, `created_at`, `updated_at`.
+- `meta_templates` (legada): apenas `name`, `body`, `category`, `language`, `status`, `created_by`, datas.
+- Existe SIM tela de cadastro: `/f/executivo/templates` (protegida por `WorkspaceResourceGuard resource="templates"`, hoje restrita a Administrador). O cadastro é feito colando as capturas do Gerenciador da Meta; o sistema interpreta e grava em `crm_meta_templates`. O Portal não cria nem submete templates à Meta.
+- Status/aprovação: o campo `status` é texto livre vindo da leitura da tela da Meta. Quem valida de fato é a E0: `loadE0MetaTemplate` aceita apenas `aprovado`, `approved` ou `ativo`; qualquer outro valor bloqueia a entrega externa com motivo legível.
+- Relação com E0: a E0 lê o template de finalidade `primeiro_contato`, mais recente por `updated_at`; sem cadastro aprovado, o envio real é bloqueado (a lógica interna continua rodando).
+- Remarketing (`/f/remarketing`, ambiente independente): campanhas em `remarketing_campaigns` com snapshot textual próprio (`template_name`, `template_label`, `template_language`, `template_body`, `template_version` incrementado a cada edição); contatos e conversas em tabelas próprias. Não há chave estrangeira nem leitura de `crm_meta_templates`.
+- Os "filtros" do Remarketing hoje são de operação da campanha (status: em execução, pausada, cancelada) e status do contato — não há segmentação por origem/etapa do CRM.
+- Volumes atuais: `crm_meta_templates` 0, `meta_templates` 0, campanhas/contatos/mensagens de remarketing 0.
 
-## 4. Ação do Dia — "Pular"
+JÁ CORRETO
+- Infraestrutura de cadastro, ativação/desativação, finalidade, variáveis e botões existe e está protegida por papel.
+- Snapshot versionado por campanha preserva o conteúdo efetivamente usado.
+- Isolamento entre CRM operacional e CRM de Remarketing está respeitado.
 
-**ESTADO ATUAL**
-- Pular é **append-only**: evento `acao_do_dia_pulada` em `relationship_engine_log` + espelho em `crm_timeline` (`src/server/crm/daily-actions-log.server.ts:27-107`). Grava autor, lead, etapa, data/hora e justificativa obrigatória (≥3 caracteres). **Não existe coluna/estado "pulada"** em tabela dedicada.
-- A ação some da fila do dia por filtro em memória (`listSkippedActionKeys`, linhas 412-434 + `daily-actions.server.ts:320-321`) e volta no dia seguinte se a fonte oficial continuar pendente.
-- Recuperação **existe** (`recordSkipRecovery`, linhas 109-169), idempotente, sem apagar o pulo — mas é **implícita**: dispara só quando a mesma ação é depois concluída (mensagem confirmada ou reunião com comparecimento). Não há botão "Recuperar".
-- Contadores: Central de Operações (`operations-center.server.ts:288-364`) conta como "pulo" apenas o que não tem recuperação casada, e exibe coluna "Recuperada" em `central-home.tsx:368-417`.
+DIVERGÊNCIAS
+- `meta_templates` (legada) está vazia e sem nenhum consumidor de interface: só `listTemplates`/`saveTemplate`/`deleteTemplate` em `src/lib/comms.functions.ts`, que não são importados por nenhuma tela — código órfão.
+- `status` não tem vocabulário fechado: aceita qualquer texto; só a E0 aplica a regra de aprovação. Nada impede um template "pendente" ser marcado ativo na tela.
+- Remarketing não reaproveita o cadastro oficial: o operador digita nome/corpo do template livremente, sem vínculo com `crm_meta_templates`, o que permite divergência com o que a Meta aprovou.
+- A E0 escolhe o template mais recente por finalidade, sem seleção explícita de "vigente" — com dois cadastros de `primeiro_contato`, a escolha é implícita.
+- Como tudo está zerado, hoje a E0 real está, na prática, bloqueada por ausência de template cadastrado.
 
-**JÁ CORRETO** Histórico preservado, idempotência, não vira concluída, contadores diferenciam pulada/recuperada/concluída.
+ARQUIVOS/FUNÇÕES/TABELAS
+- `src/routes/f.executivo.templates.tsx`, `src/lib/crm/meta-templates.functions.ts`, `src/lib/crm/meta-templates.ts`
+- `src/server/relationship/e0-template.server.ts` (`loadE0MetaTemplate`, `E0_TEMPLATE_MISSING_REASON`)
+- `src/server/remarketing/engine.server.ts`, `src/components/remarketing/*`, `src/routes/f.remarketing.index.tsx`
+- `src/lib/comms.functions.ts` (funções legadas órfãs de `meta_templates`)
+- Tabelas: `crm_meta_templates`, `meta_templates` (legada), `remarketing_campaigns`, `remarketing_contacts`, `remarketing_conversations`, `remarketing_messages`
 
-**DIVERGÊNCIAS** Não existe ação explícita de "devolver à fila hoje": a recuperação depende de a ação reaparecer naturalmente. Não há motivo estruturado (é texto livre) nem estado consultável por lead fora do ledger.
+RISCO REAL
+- Operacional alto no curto prazo: sem template cadastrado, a E0 não tem entrega externa possível.
+- Médio de conformidade: nome/corpo digitados à mão no Remarketing podem divergir do aprovado pela Meta.
+- Baixo: tabela legada vazia e sem uso.
 
-**TABELAS** `relationship_engine_log`, `crm_timeline`, `relationship_queue`, `portal_meetings`, `crm_cadence_tasks`.
+RECOMENDAÇÃO
+- Não é necessário construir uma "Central de Templates" nova — ela já existe e é suficiente. O que falta é conteúdo (cadastro dos templates aprovados) e três ajustes pequenos, em ordem: (a) vocabulário fechado de status com marcação explícita do template vigente por finalidade; (b) no Remarketing, seleção a partir do cadastro oficial em vez de digitação livre, mantendo o snapshot atual; (c) remoção do código legado órfão de `meta_templates`.
 
-## 5. Central de Templates + Remarketing
+## ORDEM RECOMENDADA
 
-**ESTADO ATUAL**
-- Existem **duas** tabelas de template: `crm_meta_templates` (atual: `meta_name`, `language`, `status`, `is_active`, `purpose`, `variables`, `buttons`, único por nome+idioma) e `meta_templates` (legado, usada só por `src/lib/comms.functions.ts`). Ambas estão **vazias hoje** (0 linhas), assim como `campaigns` e `remarketing_campaigns`.
-- Remarketing lê `crm_meta_templates` via `listCrmRelationshipTemplates` (`src/lib/crm/meta-templates.functions.ts:358-373`, filtro `is_active=true`). **Não usa `relationship_message_library`** — essa é exclusiva do motor de relacionamento (72 linhas).
-- Ao criar campanha, grava snapshot textual (`template_name/label/language/body` em `remarketing_campaigns`) com `template_version` incremental; o envio nunca relê o template. **Sem FK** para o template de origem.
-- E0 lê a mesma tabela por convenção `purpose='primeiro_contato'` + status aprovado (`src/server/relationship/e0-template.server.ts:52-73`).
-
-**JÁ CORRETO** Cadastro central com nome Meta, idioma, conteúdo, status, ativo/inativo, variáveis; snapshot imutável na campanha; separação Library × Templates Meta.
-
-**DIVERGÊNCIAS**
-1. **Não existe coluna de ambiente** em nenhuma tabela de template.
-2. `status` é texto livre ("aprovado"/"approved"/"ativo") — não há enum que distinga formalmente "aprovado pela Meta" de "criado internamente".
-3. Duas tabelas paralelas (`meta_templates` legado ainda vivo).
-4. Vínculo campanha→template é por texto, não por chave; e E0↔Remarketing se ligam só por convenção de `purpose`.
-
-**REUTILIZÁVEL** `crm_meta_templates` + `meta-templates.functions.ts` + snapshot de campanha já cobrem a maior parte; não precisa recomeçar.
-
-## 6. Brian Analytics / IA Executiva
-
-**ESTADO ATUAL** O botão **já não existe** (`src/routes/f.executivo.brain.tsx:82-85`). O backend `generateBrainReport` (`src/lib/brain-ai.functions.ts`) e o PDF `brain-ai-report.ts` continuam no repositório, sem chamador: código morto. Usava Lovable AI Gateway (`google/gemini-3.5-flash`, `LOVABLE_API_KEY`), com custo e tratamento de 429/402.
-
-**JÁ CORRETO** Relatório tradicional (`reports.ts`) é independente da IA e segue funcionando.
-
-**DIVERGÊNCIA** Restam dois arquivos órfãos; nenhuma rota específica de IA existe.
-
-## 7. Manual — vídeos
-
-**ESTADO ATUAL** **Nenhum capítulo do Manual tem vídeo hoje.** O tipo `Chapter` tem `hasVideo?: boolean` (`src/lib/journey-data.ts:14`) e `chapter-view.tsx:76-79` renderiza `VideoSlot`, mas **nenhum dos 14 capítulos define `hasVideo: true`**; `video-slot.tsx:19` é placeholder ("em breve"), sem URL. Capítulos 1 (`recepcao`), 7 (`operacao`) e 14 (`proximos-passos`) — **sem vídeo**. `presentation_chapters` está vazia (0 linhas); o único campo de vídeo real do sistema é `environment_presentations.video_url` (por ambiente, não por capítulo) e essa tabela também está vazia.
-
-**CONCLUSÃO** Não há o que remover: a remoção pedida anteriormente não tem alvo.
-
-## 8. Rotas e ambientes
-
-**ESTADO ATUAL** Existem e estão registradas no routeTree: `/f` (+ árvore `f.executivo.*`), `/financeira`, `/solar`, `/seguradora`, `/s`, `/s/$slug`, `/s/portal`, `/seg`, `/seg/$slug`, `/solar-seguros`. **`/sol` não existe.** Sem conflito de path. O menu `/f` aponta para Solar/Seguros por um único item externo, "Solar + Seguros" → `/solar-seguros` (`executive-shell.tsx:302`), em nova aba.
-
-**DIVERGÊNCIA** Apenas a coexistência `/s` (portal) × `/s/portal` × `/s/$slug`, que pode confundir leitura humana, mas não gera sobreposição técnica.
-
-## 9. Isolamento entre ambientes
-
-**COMPARTILHADOS**
-- `environment_presentations` / `environment_presentations_history` — multiambiente real, isolado por coluna `environment` (uma vigente por ambiente).
-- Código do CRM e do motor de relacionamento (`src/server/crm/*`, `src/server/relationship/*`) e tabelas `crm_leads`, `portal_leads`, `executive_profiles`, `user_roles`, `workspace_module_permissions` — **usados hoje apenas pela Financeira**; `/s` e `/seg` são páginas institucionais/estáticas que não chamam esse código.
-- Identidade/autorização (`identity.server.ts`, `workspace-authorization*`) é global por usuário, não por ambiente.
-
-**RISCO** Estrutural e futuro: hoje mudar `/f` não afeta `/s` nem `/seg` porque eles não consomem o motor. Se Solar/Seguros passarem a usar CRM, o isolamento precisará virar coluna de ambiente nas tabelas operacionais — o que **não existe hoje**.
-
-## PRÓXIMAS CONSTRUÇÕES RECOMENDADAS (em ordem)
-
-1. Fechar as rotas abertas por URL: registrar `administracao`, `templates`, `greensales`, `laboratorio`, `teste-cadencia`, `reunioes`, `alertas` na matriz única e aplicar o guard.
-2. Trava para que a Gestora nunca seja `responsible_executive_id` de lead (regra de servidor + verificação no intake).
-3. Botão explícito de "Recuperar ação pulada" (usando `recordSkipRecovery`, sem tocar no histórico).
-4. Central de Templates: enum de status Meta (aprovado × interno), coluna de ambiente e vínculo por chave entre campanha e template; aposentar `meta_templates` legado.
-5. KPI da Gestora: seleção individual por executivo dentro da visão de equipe.
-6. Limpeza dos órfãos de IA (`brain-ai.functions.ts`, `brain-ai-report.ts`), se confirmada a decisão de não religar.
+1. Persistência server-side dos lançamentos do KPI (única divergência que compromete decisão gerencial hoje).
+2. Cadastro/definição do template oficial da E0 com status fechado e vigente explícito por finalidade.
+3. Vínculo do Remarketing ao cadastro oficial de templates, preservando o snapshot versionado.
+4. Botão "Trazer de volta" para ação pulada no mesmo dia (opcional, baixo impacto).
+5. Remoção do código legado órfão de `meta_templates`.
