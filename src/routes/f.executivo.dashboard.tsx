@@ -34,27 +34,31 @@ import {
   type RedistributionPlan,
 } from "@/lib/crm/redistribution";
 import { EngagementPanel } from "@/components/executive/workspace/engagement-panel";
+import { SolSegPanel } from "@/components/executive/workspace/sol-seg-panel";
 
 /**
- * Abas do Workspace. "Engajamento" é uma aba INDEPENDENTE, adicionada
- * ao final: nenhuma aba existente (inclusive PORTAL) muda de posição,
- * nome, permissão ou comportamento.
+ * Abas do Workspace. "Engajamento" e "Sol + Seg" são abas INDEPENDENTES,
+ * adicionadas ao final: nenhuma aba existente (inclusive PORTAL) muda de
+ * posição, nome, permissão ou comportamento. "Sol + Seg" não é carteira
+ * de Leads — é o módulo interno das frentes Solar e Seguros.
  */
-type WorkspaceTab = WorkspaceScope | "engajamento";
+type WorkspaceTab = WorkspaceScope | "engajamento" | "sol_seg";
 
 const TAB_LABEL: Record<WorkspaceTab, string> = {
   ...WORKSPACE_SCOPE_LABEL,
   engajamento: "Engajamento",
+  sol_seg: "Sol + Seg",
 };
 
 function isWorkspaceTab(value: unknown): value is WorkspaceTab {
-  return isWorkspaceScope(value) || value === "engajamento";
+  return isWorkspaceScope(value) || value === "engajamento" || value === "sol_seg";
 }
 
 /**
  * Pertencimento por escopo — regra ÚNICA, usada tanto pela listagem de
  * cards quanto pelos contadores das abas. Portal jamais mistura com
- * Green Sales; Engajamento não é carteira (nunca conta Leads).
+ * Green Sales; Engajamento e Sol + Seg não são carteiras (nunca contam
+ * Leads).
  */
 function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
   if (scope === "portal") return i.origin === "portal";
@@ -63,7 +67,7 @@ function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
   // COMANDO 3 §8 — carteiras próprias dos links oficiais de canal.
   if (scope === "tiktok") return i.origin === "tiktok";
   if (scope === "meta") return i.origin === "meta";
-  if (scope === "engajamento") return false;
+  if (scope === "engajamento" || scope === "sol_seg") return false;
   return (
     i.origin !== "portal" &&
     i.origin !== "redistribuicao" &&
@@ -72,6 +76,7 @@ function belongsToScope(i: { origin?: string }, scope: WorkspaceTab): boolean {
     i.origin !== "meta"
   );
 }
+
 
 type DashboardSearch = { perfil?: string; escopo?: WorkspaceTab };
 
@@ -107,8 +112,9 @@ function WorkspacePage() {
   // ETAPA 02.1 §Doc01 — abas oficiais por perfil: Green Sales e
   // Redistribuição para todos; Portal apenas para Administrador/híbrido.
   const tabs: WorkspaceTab[] = session
-    ? [...workspaceScopesFor(session.userId, session.activeRole), "engajamento"]
-    : ["green_sales", "engajamento"];
+    ? [...workspaceScopesFor(session.userId, session.activeRole), "engajamento", "sol_seg"]
+    : ["green_sales", "engajamento", "sol_seg"];
+
   const scope: WorkspaceTab =
     search.escopo && tabs.includes(search.escopo) ? search.escopo : "green_sales";
 
@@ -254,7 +260,7 @@ function WorkspacePage() {
       ? allInvestors
       : allInvestors.filter((i) => i.assignedToUserId === session.userId);
     for (const tab of tabs) {
-      if (tab === "engajamento") continue;
+      if (tab === "engajamento" || tab === "sol_seg") continue;
       counts[tab] = visible.filter((i) => belongsToScope(i, tab)).length;
     }
     return counts;
@@ -388,7 +394,10 @@ function WorkspacePage() {
           {scope === "redistribuicao" && <RedistributionPanel tick={tick} />}
           {scope === "engajamento" ? (
             <EngagementPanel onOpen={openProfile} />
+          ) : scope === "sol_seg" ? (
+            <SolSegPanel />
           ) : (
+
             <>
           <WorkspaceHeader
             query={query}
@@ -471,7 +480,7 @@ function ScopeTabs({
     >
       {items.map((s) => {
         const active = s === current;
-        const count = s === "engajamento" ? undefined : counts?.[s];
+        const count = s === "engajamento" || s === "sol_seg" ? undefined : counts?.[s];
         return (
           <button
             key={s}
