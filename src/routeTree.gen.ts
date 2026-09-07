@@ -112,6 +112,7 @@ import { Route as FExecutivoInvestidoresIdRouteImport } from './routes/f.executi
 import { Route as FExecutivoHomologacaoAcaoDoDiaRouteImport } from './routes/f.executivo.homologacao.acao-do-dia'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicRemarketingRunRouteImport } from './routes/api/public/remarketing/run'
+import { Route as ApiPublicNameCentralProcessRouteImport } from './routes/api/public/name-central/process'
 import { Route as ApiPublicCrmSyncRouteImport } from './routes/api/public/crm/sync'
 import { Route as ApiPublicBackupRunRouteImport } from './routes/api/public/backup/run'
 import { Route as ApiPublicBackupProcessRouteImport } from './routes/api/public/backup/process'
@@ -638,6 +639,12 @@ const ApiPublicRemarketingRunRoute = ApiPublicRemarketingRunRouteImport.update({
   path: '/api/public/remarketing/run',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicNameCentralProcessRoute =
+  ApiPublicNameCentralProcessRouteImport.update({
+    id: '/api/public/name-central/process',
+    path: '/api/public/name-central/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCrmSyncRoute = ApiPublicCrmSyncRouteImport.update({
   id: '/api/public/crm/sync',
   path: '/api/public/crm/sync',
@@ -756,6 +763,7 @@ export interface FileRoutesByFullPath {
   '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
+  '/api/public/name-central/process': typeof ApiPublicNameCentralProcessRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/f/executivo/homologacao/acao-do-dia': typeof FExecutivoHomologacaoAcaoDoDiaRoute
@@ -859,6 +867,7 @@ export interface FileRoutesByTo {
   '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
+  '/api/public/name-central/process': typeof ApiPublicNameCentralProcessRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/f/executivo/homologacao/acao-do-dia': typeof FExecutivoHomologacaoAcaoDoDiaRoute
@@ -968,6 +977,7 @@ export interface FileRoutesById {
   '/api/public/backup/process': typeof ApiPublicBackupProcessRoute
   '/api/public/backup/run': typeof ApiPublicBackupRunRoute
   '/api/public/crm/sync': typeof ApiPublicCrmSyncRoute
+  '/api/public/name-central/process': typeof ApiPublicNameCentralProcessRoute
   '/api/public/remarketing/run': typeof ApiPublicRemarketingRunRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/f/executivo/homologacao/acao-do-dia': typeof FExecutivoHomologacaoAcaoDoDiaRoute
@@ -1078,6 +1088,7 @@ export interface FileRouteTypes {
     | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
+    | '/api/public/name-central/process'
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
     | '/f/executivo/homologacao/acao-do-dia'
@@ -1181,6 +1192,7 @@ export interface FileRouteTypes {
     | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
+    | '/api/public/name-central/process'
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
     | '/f/executivo/homologacao/acao-do-dia'
@@ -1289,6 +1301,7 @@ export interface FileRouteTypes {
     | '/api/public/backup/process'
     | '/api/public/backup/run'
     | '/api/public/crm/sync'
+    | '/api/public/name-central/process'
     | '/api/public/remarketing/run'
     | '/api/public/whatsapp/webhook'
     | '/f/executivo/homologacao/acao-do-dia'
@@ -1354,6 +1367,7 @@ export interface RootRouteChildren {
   ApiPublicBackupProcessRoute: typeof ApiPublicBackupProcessRoute
   ApiPublicBackupRunRoute: typeof ApiPublicBackupRunRoute
   ApiPublicCrmSyncRoute: typeof ApiPublicCrmSyncRoute
+  ApiPublicNameCentralProcessRoute: typeof ApiPublicNameCentralProcessRoute
   ApiPublicRemarketingRunRoute: typeof ApiPublicRemarketingRunRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
@@ -2081,6 +2095,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRemarketingRunRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/name-central/process': {
+      id: '/api/public/name-central/process'
+      path: '/api/public/name-central/process'
+      fullPath: '/api/public/name-central/process'
+      preLoaderRoute: typeof ApiPublicNameCentralProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/crm/sync': {
       id: '/api/public/crm/sync'
       path: '/api/public/crm/sync'
@@ -2316,6 +2337,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicBackupProcessRoute: ApiPublicBackupProcessRoute,
   ApiPublicBackupRunRoute: ApiPublicBackupRunRoute,
   ApiPublicCrmSyncRoute: ApiPublicCrmSyncRoute,
+  ApiPublicNameCentralProcessRoute: ApiPublicNameCentralProcessRoute,
   ApiPublicRemarketingRunRoute: ApiPublicRemarketingRunRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }
