@@ -289,27 +289,32 @@ export async function intakeLead(
     }
 
     /**
-     * JANELA OPERACIONAL DA E0 (§16): fora de Seg–Sex 07:00–22:30 e
-     * Sáb 07:00–12:00 nada é ENTREGUE. A janela controla SOMENTE a
-     * execução da E0 — o card já nasceu acima, com responsável e
-     * marcação de teste preservados, e a etapa é retomada na próxima
-     * abertura da janela com o MESMO contexto.
-     */
-    if (isE0NightWindow()) {
-      await deferFirstContact(outcome.lead.id);
-      result.e0 = "adiada";
-      return result;
-    }
-
-    /**
      * MODO DO E0 — do EXECUTIVO RESPONSÁVEL PELO LEAD, nunca global.
      * Automático só existe com CRM ON + Portal dos Leads ON e escolha
      * explícita do Administrador; qualquer outra combinação é manual.
      */
     const e0Mode = await resolveExecutiveE0Mode(responsible?.executiveId ?? null);
 
+    /**
+     * JANELA OPERACIONAL DA E0 (§16): fora de Seg–Sex 07:00–22:30 e
+     * Sáb 07:00–12:00 nada é ENTREGUE. A janela controla SOMENTE a
+     * EXECUÇÃO — nunca a CRIAÇÃO da obrigação.
+     *
+     * MANUAL: a obrigação nasce imediatamente como pendente na Ação do
+     * Dia (nenhuma mensagem sai) e é trabalhada no próximo período
+     * operacional. AUTOMÁTICO: comportamento inalterado — a etapa é
+     * adiada e retomada pela fila oficial na abertura da janela.
+     */
+    if (isE0NightWindow()) {
+      await deferFirstContact(outcome.lead.id);
+      if (e0Mode.mode !== "manual") {
+        result.e0 = "adiada";
+        return result;
+      }
+    }
 
     if (e0Mode.mode === "manual") {
+
       const pending = await createPendingE0Action({
         cardId: card.cardId,
         crmLeadId: outcome.lead.id,

@@ -105,9 +105,16 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     if (CLOSED_MEETING_STATUS.has(String(m.status ?? "").toLowerCase())) return false;
     return !input.executiveId || m.executive_id === input.executiveId;
   });
+  /**
+   * Compromissos marcados como `historico` foram encerrados na operação
+   * e permanecem gravados apenas para auditoria — nunca voltam à fila.
+   */
   const agenda = (agendaRes.data ?? []).filter(
-    (e) => !input.executiveId || e.executive_id === input.executiveId,
+    (e) =>
+      String((e as { source?: string | null }).source ?? "agenda") !== "historico" &&
+      (!input.executiveId || e.executive_id === input.executiveId),
   );
+
   /**
    * A Agenda também registra as reuniões. Quando o mesmo horário já
    * chega por `portal_meetings`, o evento de Agenda é descartado — a
