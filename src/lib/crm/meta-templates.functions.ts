@@ -14,6 +14,7 @@ import type {
   MetaTemplatePurpose,
 } from "@/lib/crm/meta-templates";
 import type { CrmMetaTemplateOption } from "@/lib/crm/meta-templates";
+import { isMetaApproved, normalizeMetaStatus } from "@/lib/crm/meta-template-status";
 
 async function assertManager(context: { supabase: unknown; userId: string }) {
   const { getExecutiveRoleForUser } = await import("@/server/executive-auth.server");
@@ -266,7 +267,11 @@ const savePayload = z.object({
     )
     .default([]),
   purpose: z.string().default("outro"),
-  isActive: z.boolean().default(true),
+  /**
+   * Vigência NUNCA é concedida pelo cadastro: um template novo entra
+   * inativo e só passa a valer quando alguém o ativa explicitamente.
+   */
+  isActive: z.boolean().default(false),
   notes: z.string().nullable().optional(),
   createdByName: z.string().default(""),
   /** true = usuário autorizou sobrescrever o cadastro existente. */
