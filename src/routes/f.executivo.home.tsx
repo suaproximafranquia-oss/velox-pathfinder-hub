@@ -22,7 +22,9 @@ export const Route = createFileRoute("/f/executivo/home")({
 
 function HomePage() {
   const navigate = useNavigate();
+  const auth = useWorkspaceAuthorization();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
+
 
   useEffect(() => {
     const s = getSession();
