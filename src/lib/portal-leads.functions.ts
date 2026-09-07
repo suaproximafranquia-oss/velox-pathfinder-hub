@@ -309,6 +309,8 @@ export const redistributePortalLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { id: string; executiveId: string }) => data)
   .handler(async ({ data, context }) => {
+    const { assertAssignableExecutive } = await import("@/server/crm/manager-guard.server");
+    await assertAssignableExecutive(data.executiveId);
     const { error } = await context.supabase
       .from("portal_leads")
       .update({
