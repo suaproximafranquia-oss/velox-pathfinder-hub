@@ -80,3 +80,6 @@
 - [x] Rotina de posição faltante conservadora (nunca sobrescreve posição existente)
 - [x] Chave livre deixa de criar etapa real; registros órfãos preservados como legado
 - [ ] Próxima etapa: organizar conscientemente os nomes exibidos (títulos deslocados)
+
+## Central dos Nomes (07/09)
+- [ ] Central dos Nomes em /f: menu (Admin), tela de colagem, servidor, dedupe, cards por faixa, busca, contador, exclusao
