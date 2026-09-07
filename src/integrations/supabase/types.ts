@@ -1532,6 +1532,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          name_length: number | null
           normalized_key: string
           updated_at: string
         }
@@ -1540,6 +1541,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          name_length?: number | null
           normalized_key: string
           updated_at?: string
         }
@@ -1548,7 +1550,112 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          name_length?: number | null
           normalized_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      name_central_import_chunks: {
+        Row: {
+          created_at: string
+          id: string
+          import_id: string
+          item_count: number
+          payload: string
+          processed_at: string | null
+          seq: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          import_id: string
+          item_count?: number
+          payload: string
+          processed_at?: string | null
+          seq: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          import_id?: string
+          item_count?: number
+          payload?: string
+          processed_at?: string | null
+          seq?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "name_central_import_chunks_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "name_central_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      name_central_imports: {
+        Row: {
+          added_names: number
+          attempts: number
+          chunk_size: number
+          created_at: string
+          created_by: string | null
+          existing_names: number
+          filename: string | null
+          finished_at: string | null
+          id: string
+          invalid_names: number
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
+          processed_names: number
+          source: string
+          started_at: string | null
+          status: string
+          total_names: number
+          updated_at: string
+        }
+        Insert: {
+          added_names?: number
+          attempts?: number
+          chunk_size?: number
+          created_at?: string
+          created_by?: string | null
+          existing_names?: number
+          filename?: string | null
+          finished_at?: string | null
+          id?: string
+          invalid_names?: number
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          processed_names?: number
+          source?: string
+          started_at?: string | null
+          status?: string
+          total_names?: number
+          updated_at?: string
+        }
+        Update: {
+          added_names?: number
+          attempts?: number
+          chunk_size?: number
+          created_at?: string
+          created_by?: string | null
+          existing_names?: number
+          filename?: string | null
+          finished_at?: string | null
+          id?: string
+          invalid_names?: number
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          processed_names?: number
+          source?: string
+          started_at?: string | null
+          status?: string
+          total_names?: number
           updated_at?: string
         }
         Relationships: []
@@ -3810,6 +3917,8 @@ export type Database = {
         Returns: boolean
       }
       is_portal_member: { Args: never; Returns: boolean }
+      name_central_import_sleep: { Args: never; Returns: undefined }
+      name_central_import_wake: { Args: never; Returns: undefined }
       portal_email_key: { Args: { _email: string }; Returns: string }
       portal_phone_key: { Args: { _phone: string }; Returns: string }
       resolve_portal_identity: {
