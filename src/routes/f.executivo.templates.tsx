@@ -35,6 +35,7 @@ import {
   type MetaTemplateRecord,
   type MetaTemplatePurpose,
 } from "@/lib/crm/meta-templates";
+import { metaStatusLabel, isMetaApproved } from "@/lib/crm/meta-template-status";
 import { CRM_TEMPLATES } from "@/lib/crm/templates";
 import { cn } from "@/lib/utils";
 
@@ -230,11 +231,13 @@ function TemplatesPage() {
       await setMetaTemplateActive({ data: { id, isActive } });
       setStatus(
         isActive
-          ? "Template ativado: já aparece no seletor das campanhas."
-          : "Template desativado: sai do seletor das campanhas. Campanhas e históricos existentes foram preservados.",
+          ? "Template vigente: passa a ser o único usado nesta finalidade (os demais da mesma finalidade foram desativados). Campanhas e históricos existentes foram preservados."
+          : "Template desativado: sai do seletor das campanhas e deixa de ser usado. Campanhas e históricos existentes foram preservados.",
       );
       await refresh();
       setDetail((current) => (current && current.id === id ? { ...current, isActive } : current));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Falha ao alterar a vigência.");
     } finally {
       setBusy(false);
     }
@@ -318,7 +321,7 @@ function TemplatesPage() {
                 <tr>
                   <th className="py-2 pr-4 font-normal">Nome</th>
                   <th className="py-2 pr-4 font-normal">Finalidade</th>
-                  <th className="py-2 pr-4 font-normal">Status</th>
+                  <th className="py-2 pr-4 font-normal">Status na Meta</th>
                   <th className="py-2 pr-4 font-normal">Versão</th>
                   <th className="py-2 pr-4 font-normal">ID Meta</th>
                   <th className="py-2" />
@@ -334,7 +337,7 @@ function TemplatesPage() {
                         {t.purpose}
                       </td>
                       <td className="py-2 pr-4">
-                        {record ? display(record.status) : "Não cadastrado na Meta"}
+                        {record ? metaStatusLabel(record.status) : "Não cadastrado na Meta"}
                       </td>
                       <td className="py-2 pr-4">{record ? "1" : "—"}</td>
                       <td className="py-2 pr-4 font-mono text-[11px]">
@@ -382,8 +385,8 @@ function TemplatesPage() {
                     <th className="py-2 pr-4 font-normal">Template Meta</th>
                     <th className="py-2 pr-4 font-normal">Idioma</th>
                     <th className="py-2 pr-4 font-normal">Categoria</th>
-                    <th className="py-2 pr-4 font-normal">Status</th>
-                    <th className="py-2 pr-4 font-normal">Situação</th>
+                    <th className="py-2 pr-4 font-normal">Status na Meta (aprovação)</th>
+                    <th className="py-2 pr-4 font-normal">Vigente no Portal</th>
                     <th className="py-2" />
                   </tr>
                 </thead>
@@ -409,7 +412,7 @@ function TemplatesPage() {
                       <td className="py-2 pr-4 font-mono text-[11px]">{display(t.name)}</td>
                       <td className="py-2 pr-4">{display(t.language)}</td>
                       <td className="py-2 pr-4">{display(t.category)}</td>
-                      <td className="py-2 pr-4">{display(t.status)}</td>
+                      <td className="py-2 pr-4">{metaStatusLabel(t.status)}</td>
                       <td className="py-2 pr-4">
                         <button
                           type="button"
@@ -417,7 +420,11 @@ function TemplatesPage() {
                           disabled={busy}
                           onClick={() => void toggleActive(t.id, !t.isActive)}
                         >
-                          {t.isActive ? "Ativo" : "Inativo"}
+                          {t.isActive
+                            ? "Vigente"
+                            : isMetaApproved(t.status)
+                              ? "Tornar vigente"
+                              : "Não vigente"}
                         </button>
                       </td>
                       <td className="py-2 text-right">
@@ -518,7 +525,7 @@ function TemplatesPage() {
                 ["ID Meta", reading.metaId],
                 ["Categoria", reading.category],
                 ["Idioma", reading.language],
-                ["Status", reading.status],
+                ["Status na Meta", reading.status],
                 ["Última atualização", reading.metaUpdatedAt],
               ] as [string, string | null][]
             ).map(([label, value]) => (
@@ -602,8 +609,9 @@ function TemplatesPage() {
               <h2 className="font-display text-base">{display(detail.name)}</h2>
               <p className="mt-1 text-[11px] text-[color:var(--muted-foreground)]">
                 Finalidade: {purposeLabel(detail.purpose)} · ID Meta: {display(detail.metaId)} ·{" "}
-                {display(detail.language)} · {display(detail.category)} · {display(detail.status)} ·{" "}
-                {detail.isActive ? "Ativo" : "Inativo"}
+                {display(detail.language)} · {display(detail.category)} ·{" "}
+                {metaStatusLabel(detail.status)} ·{" "}
+                {detail.isActive ? "Vigente no Portal" : "Não vigente no Portal"}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

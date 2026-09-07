@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { ButtonRole } from "@/lib/relationship/e0-destinations";
+import { isMetaApproved } from "@/lib/crm/meta-template-status";
 
 export type MetaTemplateButton = {
   index: number;
@@ -48,12 +49,17 @@ function parseVariables(raw: unknown): string[] {
     .filter((name) => name.length > 0);
 }
 
-/** Template aprovado da E0, quando existir cadastro. */
+/**
+ * Template VIGENTE da E0: finalidade `primeiro_contato`, aprovado na
+ * Meta e explicitamente ativo. Um cadastro novo não assume a E0 só por
+ * ter `updated_at` mais recente — a vigência é concedida na Central.
+ */
 export async function loadE0MetaTemplate(): Promise<E0MetaTemplate | null> {
   const { data } = await supabaseAdmin
     .from("crm_meta_templates")
-    .select("meta_name,language,status,buttons,variables,purpose")
+    .select("meta_name,language,status,buttons,variables,purpose,is_active")
     .eq("purpose", "primeiro_contato")
+    .eq("is_active", true)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -61,9 +67,8 @@ export async function loadE0MetaTemplate(): Promise<E0MetaTemplate | null> {
   if (!row) return null;
   const name = String(row["meta_name"] ?? "").trim();
   if (name.length === 0) return null;
-  const status = String(row["status"] ?? "").toLowerCase();
-  // Só template aprovado pode ir para a Meta.
-  if (status && !["aprovado", "approved", "ativo"].includes(status)) return null;
+  // REGRA ÚNICA de aprovação — a mesma usada pelo Remarketing.
+  if (!isMetaApproved(row["status"] as string | null)) return null;
   return {
     name,
     language: String(row["language"] ?? "pt_BR"),
