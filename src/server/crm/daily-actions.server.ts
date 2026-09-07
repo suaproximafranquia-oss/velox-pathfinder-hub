@@ -261,9 +261,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       priorityMax: false,
       bucket: isOverdueByBusinessDays(availabilityFromDate(duty.dueDate), nowIso)
         ? "atrasada"
-        : resolveBucket({ dueDate: duty.dueDate, startsAt: null, nowIso }) === "atrasada"
-          ? "hoje"
-          : resolveBucket({ dueDate: duty.dueDate, startsAt: null, nowIso }),
+        : duty.dueDate > operationalDate(nowIso)
+          ? "futura"
+          : "hoje",
       title:
         duty.kind === "checkpoint"
           ? "Checkpoint da Apresentação Digital"
