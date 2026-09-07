@@ -102,4 +102,5 @@ void [
   Megaphone,
   Radar,
   Archive,
+  Download,
 ];
