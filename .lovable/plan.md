@@ -1,48 +1,35 @@
-# Diagnóstico somente-leitura — Arquitetura da Biblioteca de Mensagens (Financeira /f)
+# Central dos Nomes — diagnóstico do lote e correção mínima
 
-Nenhuma alteração, migration ou construção executada. Apenas inspeção de código.
+## O que foi verificado (somente leitura)
 
-## 1. O comando foi aplicado?
+A tabela da Central existe e está **vazia: 0 nomes, nenhuma data de criação**. Ou seja, o lote não chegou a ser gravado — nem parcialmente.
 
-SIM, com uma ressalva pontual (ver item 7). Conclusão: **APLICADO**.
+## Respostas
 
-## 2. Quem determina a lista de etapas exibida
+1. **Não há lotes.** A tela envia o texto colado inteiro numa única chamada (`name-central-panel.tsx`, `handleAdd`, linha ~56). O "500" que existe no servidor é apenas o tamanho interno de cada consulta/gravação dentro da mesma chamada única.
+2. O botão chama `adicionarNomesCentral` (`src/lib/relationship/name-central.functions.ts`, linhas 26-36), que executa `addCentralNames` (`src/server/relationship/name-central.server.ts`, linhas 48-94).
+3. **Não chegou.** A tabela está zerada, sem nenhum registro nem horário de gravação.
+4. Sim. Com ~100 mil nomes, a mesma chamada precisa fazer ~200 consultas de verificação + ~200 gravações + uma releitura completa da lista, tudo em uma requisição só. O ambiente de execução corta a requisição bem antes disso (tempo/CPU por requisição), e o navegador ficou "processando" até a conexão cair. Também há o limite prático de tamanho do corpo enviado.
+5. Em tese o que já foi gravado ficaria salvo (cada bloco é gravado separadamente, não há transação única). Como a tabela está vazia, o corte aconteceu **antes** da primeira gravação — provavelmente ainda na fase de verificação de duplicados (linhas 62-71), que é a parte mais lenta.
+6. Sim, o contador vem do servidor: é o tamanho da lista devolvida por `listCentralNames`. Ele mostra 0 porque o banco realmente tem 0.
+7. A lista dos cards também vem do servidor a cada operação (`listarNomesCentral`), com teto de 20.000 registros na leitura (linha 31) — isso já seria um problema numa base de 100 mil.
+8. **Não foi aplicada.** Não existe envio progressivo, barra de progresso, nem inserção incremental. A versão atual foi feita para volumes pequenos/médios.
+9. O "Upload Word" **nunca foi construído** — não existe nenhum código de leitura de arquivo na Central. Só há a caixa de colagem.
 
-- `listLibraryMessages()` em `src/server/relationship/message-library.server.ts:315`.
-- Ela chama `ensureLibrarySeed()` (linha 261), que percorre `OFFICIAL_STEP_KEYS` — derivado de `BASE_STEP_KEYS` = `STEPS` (config) + etapas oficiais fora da cadência (`E20`, `E27`, `FINALIZACAO`, `RESPOSTA_AUTOMATICA`) — e semeia slots faltantes (vazios/inativos quando não há texto oficial).
-- A ordem de exibição vem de `display_position` (banco), não de lista fixa.
-- O painel (`message-library-panel.tsx`) exibe operacionalmente apenas mensagens com `official === true`; registros fora da configuração aparecem em bloco separado "Histórico fora da configuração", preservados e não operacionais.
+## Correção mínima proposta (item 10)
 
-## 3. Lista derivada da configuração?
+Sem mexer em motor, cadência, CRM ou outros ambientes:
 
-Sim. `OFFICIAL_STEP_KEYS` (message-library.server.ts:144) é construído a partir de `BASE_STEP_KEYS`, que vem de `STEPS`/`NON_CADENCE_STEPS` em `src/lib/relationship/config.ts` e `step-registry.ts`. Não há lista paralela alimentando o motor.
+1. **Fatiar no navegador**: a tela quebra o texto colado em blocos de ~2.000 nomes e envia um bloco por vez, em sequência, mostrando "processando X de Y" e somando os resultados. Cada chamada passa a durar segundos, nunca minutos.
+2. **Simplificar o servidor**: remover a fase de verificação prévia de duplicados e deixar o próprio banco resolver (já existe índice único). Grava-se o bloco ignorando repetidos e conta-se quantos entraram. Isso corta metade das idas ao banco.
+3. **Não reler a lista inteira a cada bloco**: a inclusão devolve apenas os números (adicionados/já existentes); a lista é recarregada uma única vez ao final.
+4. **Contador e listagem para base grande**: o contador passa a ser uma contagem direta no banco (sem trazer as linhas) e a listagem passa a ser paginada/limitada por busca, em vez do teto fixo de 20.000.
+5. **Progresso visível**: os cards já carregados são exibidos e o total sobe conforme os blocos terminam.
 
-## 4. Ainda existem WORD_STEP_ORDER / LIBRARY_STEP_ORDER / WORD_ALIAS_STEPS / LEGACY_STEPS?
+Opcional, se desejado depois: botão "Upload Word/TXT/CSV", que apenas extrai o texto do arquivo no navegador e alimenta o mesmo caminho em blocos.
 
-Sim, continuam declaradas em `message-library.server.ts:100-133`, MAS uma busca em todo `src` confirma que **nenhum outro arquivo as importa nem usa**: são constantes órfãs, sem efeito em semeadura, listagem ou motor. São resíduo inerte; não configuram segunda fonte de verdade. Recomendação futura (não executada): removê-las para evitar confusão.
+## Detalhes técnicos
 
-## 5. Etapa nova na configuração aparece automaticamente?
-
-Sim. `ensureLibrarySeed()` percorre `OFFICIAL_STEP_KEYS` a cada listagem; uma chave nova em `STEPS` entra em `BASE_STEP_KEYS` → recebe slot vazio/inativo ("Sem mensagem cadastrada" / "aguardando texto oficial") sem cadastro manual.
-
-## 6. Nova versão preserva display_position?
-
-Sim. `publishLibraryVersion()` (linhas 525-534) calcula `inheritedPosition` (menor posição existente da etapa) e grava no insert (linha 554). `assignMissingPositions()` (linhas 207-250) é conservadora: herda posição conhecida e só atribui número novo a etapa sem nenhuma posição prévia. Publicar não joga a etapa para o fim.
-
-## 7. Existe botão/fluxo de "Adicionar etapa" na Biblioteca?
-
-- **Interface:** NÃO. O painel (`message-library-panel.tsx`) não tem mais o formulário "Criar etapa" — nem estado `creating/newKey/newTitle`, nem botão. Nenhum componente importa `criarEtapaBiblioteca`.
-- **Backend:** a server function `criarEtapaBiblioteca` em `src/lib/relationship/library.functions.ts:77` ainda existe (sem consumidor na UI), mas o servidor `createLibraryStep()` (message-library.server.ts:337) **rejeita qualquer chave fora da configuração** com erro explícito e, para chave oficial, só cria o slot se ainda não existir — exatamente o caso coberto pela semeadura automática. Não há conflito prático com a regra "configuração é a fonte de verdade"; a função está inerte para chaves arbitrárias. Comentário desatualizado na linha 73-75 do functions file ainda diz "A etapa passa a existir e a ser reconhecida" — texto residual, sem efeito.
-
-## 8. Arquivos alterados pela implementação
-
-1. `src/server/relationship/message-library.server.ts` — `OFFICIAL_STEP_KEYS`/`isOfficialStep`, campo `official` em `toMessage`, semeadura por configuração, `assignMissingPositions` conservadora, herança de `display_position` na publicação, guarda de chave oficial em `createLibraryStep`.
-2. `src/server/relationship/step-registry.server.ts` — removida a leitura de chaves ativas da Biblioteca como fonte de etapas reconhecidas; restam configuração + histórico (sends/queue/cadences).
-3. `src/lib/relationship/flows.functions.ts` — `etapasDisponiveis` reduz por `stepKey` (ativa ou maior versão) e filtra por `isOfficialStep`.
-4. `src/components/executive/message-library-panel.tsx` — removida a criação livre de etapa; split oficial × histórico; drag-and-drop e edição de rótulo/versão preservados.
-
-## Conclusão final
-
-**APLICADO.** A configuração do motor é a única fonte de existência de etapas; a Biblioteca é repositório de mensagens/versionamento/posição. Etapas removidas da configuração saem da operação e ficam como histórico; etapas novas aparecem automaticamente; `display_position` é preservada ao versionar. Únicos resíduos inertes: constantes `WORD_STEP_ORDER`/`LIBRARY_STEP_ORDER`/`WORD_ALIAS_STEPS`/`LEGACY_STEPS` sem uso e a função `criarEtapaBiblioteca` sem consumidor — nenhum dos dois tem efeito operacional.
-
-Sem nenhuma ação proposta. Não avancei para a Central dos Nomes.
+- Arquivos envolvidos: `src/components/executive/name-central-panel.tsx` (envio único), `src/server/relationship/name-central.server.ts` (`addCentralNames` linhas 48-94, `listCentralNames` linhas 26-39), `src/lib/relationship/name-central.functions.ts` (assinatura das funções).
+- Nenhuma migration é necessária: o índice único `name_central_normalized_key_uidx` já garante a deduplicação.
+- Nada é alterado no motor de relacionamento, E0, Ação do Dia, Biblioteca ou demais ambientes.
