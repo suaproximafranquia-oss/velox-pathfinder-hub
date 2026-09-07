@@ -102,27 +102,29 @@ export const etapasDisponiveis = createServerFn({ method: "GET" })
     const { listLibraryMessages } = await import(
       "@/server/relationship/message-library.server"
     );
-    const messages = await listLibraryMessages();
-    const byStep = new Map<string, { stepKey: string; title: string | null }>();
-    for (const m of messages as Array<{
+    const messages = (await listLibraryMessages()) as Array<{
       stepKey: string;
       title: string | null;
       active: boolean;
       version: number;
-    }>) {
-      const existing = byStep.get(m.stepKey);
+    }>;
+    const byStep = new Map<
+      string,
+      { stepKey: string; title: string | null; active: boolean; version: number }
+    >();
+    for (const m of messages) {
+      const current = byStep.get(m.stepKey);
       if (
-        !existing ||
-        (m.active && !byStep.get(m.stepKey)?.active) ||
-        (m.active === (byStep.get(m.stepKey)?.active ?? false) &&
-          m.version > (byStep.get(m.stepKey)?.version ?? 0))
+        !current ||
+        (m.active && !current.active) ||
+        (m.active === current.active && m.version > current.version)
       ) {
         byStep.set(m.stepKey, {
           stepKey: m.stepKey,
           title: m.title ?? null,
           active: m.active,
           version: m.version,
-        } as any);
+        });
       }
     }
     return [...byStep.values()];
