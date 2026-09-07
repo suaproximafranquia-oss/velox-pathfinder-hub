@@ -83,3 +83,6 @@
 
 ## Central dos Nomes (07/09)
 - [x] Central dos Nomes em /f: menu (Admin), tela de colagem, servidor, dedupe, cards por faixa, busca, contador, exclusao
+- [x] Importação assíncrona: fila server-side (name_central_imports + blocos), digestão em segundo plano com retomada, progresso persistente
+- [x] Upload Word (.docx) usando o mesmo pipeline da colagem
+- [x] Listagem paginada + contador real no banco (fim do limite de 20.000)
