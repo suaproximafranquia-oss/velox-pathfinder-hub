@@ -31,6 +31,8 @@ type LibraryMessage = {
   notes: string | null;
   contentUrl: string | null;
   contentLabel: string | null;
+  /** A etapa existe na configuração do motor (é operacional). */
+  official: boolean;
 };
 
 type Diagnostics = {
