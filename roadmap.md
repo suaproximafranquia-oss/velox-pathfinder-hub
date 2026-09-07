@@ -82,4 +82,4 @@
 - [ ] Próxima etapa: organizar conscientemente os nomes exibidos (títulos deslocados)
 
 ## Central dos Nomes (07/09)
-- [ ] Central dos Nomes em /f: menu (Admin), tela de colagem, servidor, dedupe, cards por faixa, busca, contador, exclusao
+- [x] Central dos Nomes em /f: menu (Admin), tela de colagem, servidor, dedupe, cards por faixa, busca, contador, exclusao
