@@ -9,6 +9,8 @@ import {
 } from "@/lib/executive-auth";
 import { PLATFORM_MODULES, type PlatformModule } from "@/config/modules";
 import { WORKSPACE } from "@/config/workspace";
+import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
+
 
 export const Route = createFileRoute("/f/executivo/home")({
   head: () => ({
