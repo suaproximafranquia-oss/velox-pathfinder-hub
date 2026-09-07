@@ -310,7 +310,9 @@ export const saveMetaTemplate = createServerFn({ method: "POST" })
         meta_id: data.metaId ?? null,
         language: data.language ?? null,
         category: data.category ?? null,
-        status: data.status ?? null,
+        // Vocabulário controlado: grava o valor canônico quando a leitura
+        // corresponde a um estado conhecido da Meta; senão preserva o texto.
+        status: normalizeMetaStatus(data.status) ?? data.status ?? null,
         meta_updated_at: data.metaUpdatedAt ?? null,
         header: data.header ?? null,
         body: data.body ?? null,
@@ -369,13 +371,19 @@ export const listCrmRelationshipTemplates = createServerFn({ method: "POST" })
     return (data ?? [])
       .map((row) => toRecord(row as Record<string, unknown>))
       .filter((r) => (r.name ?? "").trim().length > 0)
+      // MESMA REGRA DA E0: template não aprovado na Meta não é oferecido.
+      .filter((r) => isMetaApproved(r.status))
       .map(metaTemplateToCrmOption);
   });
 
 /**
- * Ativa/desativa um template oficial. Desativar apenas o esconde do
- * seletor das campanhas: nenhuma campanha, histórico ou snapshot é
- * apagado, e o conteúdo aprovado na Meta permanece intocado.
+ * Ativa/desativa um template oficial — a VIGÊNCIA é decidida aqui, no
+ * servidor, e nunca pelo `updated_at`.
+ *
+ * Ativar exige status aprovado na Meta e torna o template o ÚNICO
+ * vigente da sua finalidade (os demais da mesma finalidade são
+ * desativados na mesma operação). Desativar apenas o esconde: nenhuma
+ * campanha, histórico ou snapshot é apagado.
  */
 export const setMetaTemplateActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -385,9 +393,45 @@ export const setMetaTemplateActive = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const now = new Date().toISOString();
+
+    if (!data.isActive) {
+      const { error } = await supabaseAdmin
+        .from("crm_meta_templates")
+        .update({ is_active: false, updated_at: now })
+        .eq("id", data.id);
+      if (error) throw new Error(error.message);
+      return { ok: true as const };
+    }
+
+    const { data: target, error: readError } = await supabaseAdmin
+      .from("crm_meta_templates")
+      .select("id,status,purpose")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!target) throw new Error("Template não encontrado.");
+    const row = target as Record<string, unknown>;
+    if (!isMetaApproved(row["status"] as string | null)) {
+      throw new Error(
+        "Somente template aprovado pela Meta pode ficar vigente. Atualize o cadastro com a captura do status aprovado.",
+      );
+    }
+
+    // Vigência única por finalidade: primeiro derruba os demais, depois
+    // ativa o escolhido — nenhuma janela deixa dois vigentes.
+    const purpose = String(row["purpose"] ?? "outro");
+    const { error: clearError } = await supabaseAdmin
+      .from("crm_meta_templates")
+      .update({ is_active: false, updated_at: now })
+      .eq("purpose", purpose)
+      .eq("is_active", true)
+      .neq("id", data.id);
+    if (clearError) throw new Error(clearError.message);
+
     const { error } = await supabaseAdmin
       .from("crm_meta_templates")
-      .update({ is_active: data.isActive, updated_at: new Date().toISOString() })
+      .update({ is_active: true, updated_at: now })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
