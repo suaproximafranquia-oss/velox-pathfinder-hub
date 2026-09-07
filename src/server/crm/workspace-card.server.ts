@@ -12,6 +12,7 @@
  * operacional já existente é sobrescrito.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isManagementExecutive } from "@/server/crm/manager-guard.server";
 import { sanitizeRawPayload } from "@/server/crm/lead-service.server";
 
 export type WorkspaceCardInput = {
