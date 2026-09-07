@@ -69,7 +69,9 @@ export async function ensureWorkspaceCard(
     // Lead vindo da origem pertence SEMPRE ao Workspace GreenSales.
     scope: "green_sales",
     personalized: false,
-    responsible_executive_id: input.responsibleExecutiveId ?? null,
+    responsible_executive_id: (await isManagementExecutive(input.responsibleExecutiveId))
+      ? null
+      : (input.responsibleExecutiveId ?? null),
     responsible_executive_slug: input.responsibleExecutiveSlug ?? null,
     campaign: input.campaign ?? null,
     device: null,
