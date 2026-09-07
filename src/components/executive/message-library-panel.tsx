@@ -5,13 +5,11 @@ import {
   History,
   Loader2,
   MessageSquareText,
-  Plus,
   Save,
   Tag,
 } from "lucide-react";
 import {
   listarMensagensBiblioteca,
-  criarEtapaBiblioteca,
   diagnosticoDaBiblioteca,
   publicarVersaoMensagem,
   renomearRotuloEtapa,
@@ -33,6 +31,8 @@ type LibraryMessage = {
   notes: string | null;
   contentUrl: string | null;
   contentLabel: string | null;
+  /** A etapa existe na configuração do motor (é operacional). */
+  official: boolean;
 };
 
 type Diagnostics = {
@@ -66,10 +66,6 @@ export function MessageLibraryPanel() {
   const [contentUrl, setContentUrl] = useState("");
   const [contentLabel, setContentLabel] = useState("");
   /* BLOCO 3 — criação e ordenação visual. */
-  const [creating, setCreating] = useState(false);
-  const [newKey, setNewKey] = useState("");
-  const [newTitle, setNewTitle] = useState("");
-  const [savingNew, setSavingNew] = useState(false);
   const [order, setOrder] = useState<string[]>([]);
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
@@ -97,14 +93,31 @@ export function MessageLibraryPanel() {
     void load();
   }, [load]);
 
+  /**
+   * ETAPAS OPERACIONAIS = as que a CONFIGURAÇÃO do motor reconhece.
+   * Registros de chaves que saíram (ou nunca fizeram parte) da
+   * configuração continuam gravados, mas fora da lista operacional.
+   */
   const steps = useMemo(() => {
     const map = new Map<string, LibraryMessage[]>();
     for (const message of messages) {
+      if (!message.official) continue;
       const list = map.get(message.stepKey) ?? [];
       list.push(message);
       map.set(message.stepKey, list);
     }
     return map;
+  }, [messages]);
+
+  const legacySteps = useMemo(() => {
+    const map = new Map<string, LibraryMessage[]>();
+    for (const message of messages) {
+      if (message.official) continue;
+      const list = map.get(message.stepKey) ?? [];
+      list.push(message);
+      map.set(message.stepKey, list);
+    }
+    return [...map.entries()];
   }, [messages]);
 
   /* A ordem vem do servidor (posição salva) e é espelhada localmente
@@ -121,6 +134,7 @@ export function MessageLibraryPanel() {
 
   const selected = step ? (steps.get(step) ?? []) : [];
   const active = selected.find((m) => m.active) ?? selected[0] ?? null;
+
 
   /** Move a etapa arrastada para a posição de destino e persiste. */
   async function dropOn(targetKey: string) {
@@ -147,32 +161,6 @@ export function MessageLibraryPanel() {
   }
 
   /** Cria a etapa na Biblioteca. Ela NÃO entra em nenhum fluxo. */
-  async function createStep() {
-    const key = newKey.trim().toUpperCase();
-    if (!key || savingNew) return;
-    setSavingNew(true);
-    try {
-      const updated = (await criarEtapaBiblioteca({
-        data: { stepKey: key, title: newTitle.trim() || null },
-      })) as LibraryMessage[];
-      setMessages(updated);
-      setNewKey("");
-      setNewTitle("");
-      setCreating(false);
-      setError(null);
-      setStep(key);
-      setDraft("");
-      setDraftWithoutName("");
-      setLabel(newTitle.trim() || key);
-      setContentUrl("");
-      setContentLabel("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao criar a etapa.");
-    } finally {
-      setSavingNew(false);
-    }
-  }
-
   function openStep(key: string) {
     setStep(key);
     const list = steps.get(key) ?? [];
@@ -233,52 +221,13 @@ export function MessageLibraryPanel() {
         <div className="flex-1">
           <h2 className="text-sm font-medium">Mensagens do Motor</h2>
           <p className="text-[11px] text-[color:var(--muted-foreground)]">
-            Fonte oficial das cadências. Editar publica uma nova versão — o histórico
-            enviado nunca é reescrito.
+            Fonte oficial das cadências. A lista de etapas vem da configuração do
+            motor; aqui se escreve e versiona o texto de cada uma. Editar publica uma
+            nova versão — o histórico enviado nunca é reescrito.
           </p>
         </div>
-        <button type="button" onClick={() => setCreating((v) => !v)} className={gold}>
-          <Plus className="h-3.5 w-3.5" /> Adicionar
-        </button>
       </header>
 
-      {/* NOVA ETAPA — passa a existir na Biblioteca e a ser reconhecida.
-          NÃO entra em nenhum fluxo do motor: isso é o Bloco 4. */}
-      {creating ? (
-        <div className="mb-4 space-y-2 rounded-xl border border-[color:var(--border)] p-3">
-          <div className="flex flex-wrap gap-2">
-            <input
-              value={newKey}
-              onChange={(e) => setNewKey(e.target.value.toUpperCase())}
-              className="w-40 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs uppercase outline-none focus:border-[color:var(--gold)]/50"
-              placeholder="Chave (ex.: E9)"
-            />
-            <input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              className="min-w-56 flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs outline-none focus:border-[color:var(--gold)]/50"
-              placeholder="Rótulo exibido (opcional)"
-            />
-            <button
-              type="button"
-              onClick={() => void createStep()}
-              disabled={savingNew || !newKey.trim()}
-              className={gold}
-            >
-              {savingNew ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Plus className="h-3.5 w-3.5" />
-              )}
-              Criar etapa
-            </button>
-          </div>
-          <p className="text-[11px] text-[color:var(--muted-foreground)]">
-            A etapa nasce no fim da lista e sem texto oficial. Ela não é adicionada a
-            nenhum fluxo automaticamente — o motor continua com a sequência atual.
-          </p>
-        </div>
-      ) : null}
 
       {/* DIAGNÓSTICO: o que impediria o motor de enviar, visível aqui. */}
       {diagnostics &&
@@ -365,9 +314,34 @@ export function MessageLibraryPanel() {
                 );
               })}
             </ul>
+
+            {/* REGISTROS FORA DA CONFIGURAÇÃO — preservados como
+                histórico, sem participar da operação. Nada é apagado. */}
+            {legacySteps.length > 0 ? (
+              <div className="mt-3 rounded-xl border border-[color:var(--border)] p-3">
+                <p className="text-[10px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
+                  Histórico fora da configuração
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {legacySteps.map(([key, list]) => (
+                    <li
+                      key={key}
+                      className="truncate text-[11px] text-[color:var(--muted-foreground)]"
+                    >
+                      {list[0]?.displayLabel ?? key}
+                      <span className="ml-1 opacity-60">({key})</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-[10px] text-[color:var(--muted-foreground)]">
+                  Guardados apenas como registro. O motor não usa estas entradas.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-3">
+
             {step ? (
               <>
                 {/* RÓTULO VISÍVEL — apresentação apenas. A chave técnica

@@ -1,12 +1,16 @@
 /**
- * BLOCO 2 — CARGA DAS ETAPAS RECONHECIDAS (SERVER ONLY).
+ * CARGA DAS ETAPAS RECONHECIDAS (SERVER ONLY).
  *
- * ETAPAS CONHECIDAS = ETAPAS ATIVAS DA BIBLIOTECA + ETAPAS JÁ EXISTENTES
- * NO HISTÓRICO.
+ * ETAPAS CONHECIDAS = CONFIGURAÇÃO OFICIAL DO MOTOR (`STEPS` + etapas
+ * fora da cadência, já embutidas em `BASE_STEP_KEYS`) + ETAPAS JÁ
+ * EXISTENTES NO HISTÓRICO.
+ *
+ * A Biblioteca DEIXOU de ser fonte de existência de etapa: uma chave
+ * cadastrada lá não vira etapa do motor. A Biblioteca guarda apenas a
+ * mensagem e o versionamento das etapas que a configuração reconhece.
  *
  * Este módulo apenas LÊ. Não cria tabela, não altera schema, não decide
- * ordem, prazo ou fluxo — nada além de responder "esta chave é uma etapa
- * reconhecida pelo motor?".
+ * ordem, prazo ou fluxo.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { registerKnownSteps } from "@/lib/relationship/step-registry";
@@ -19,16 +23,8 @@ let inflight: Promise<void> | null = null;
 async function load(): Promise<void> {
   const keys: string[] = [];
 
-  // A) Biblioteca ativa — fonte de verdade das etapas operacionais.
-  const library = await supabaseAdmin
-    .from("relationship_message_library")
-    .select("step_key")
-    .eq("active", true);
-  for (const row of library.data ?? []) {
-    if (row.step_key) keys.push(row.step_key);
-  }
+  // Histórico — uma etapa já utilizada continua interpretável.
 
-  // B) Histórico — uma etapa já utilizada continua interpretável.
   const sends = await supabaseAdmin.from("relationship_message_sends").select("step").limit(5000);
   for (const row of sends.data ?? []) if (row.step) keys.push(row.step);
 

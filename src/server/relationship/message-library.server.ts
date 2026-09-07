@@ -19,8 +19,8 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  BASE_STEP_KEYS,
   isKnownStep,
-  registerKnownSteps,
   unknownStepReason,
 } from "@/lib/relationship/step-registry";
 import {
@@ -62,6 +62,11 @@ export type LibraryMessage = {
   sourceReference: string | null;
   /** Posição VISUAL na Biblioteca (Bloco 3). Não é ordem do motor. */
   displayPosition: number | null;
+  /**
+   * A etapa existe na CONFIGURAÇÃO OFICIAL do motor. Só etapa oficial é
+   * operacional; as demais permanecem apenas como histórico/legado.
+   */
+  official: boolean;
   /**
    * A etapa ainda não pode ser enviada pelo motor: ou não há texto
    * oficial, ou o texto existe mas aguarda ativação pela Gestão.
@@ -128,6 +133,23 @@ export const LIBRARY_STEP_ORDER: string[] = [
 ];
 
 /**
+ * FONTE ÚNICA DA EXISTÊNCIA DAS ETAPAS = CONFIGURAÇÃO DO MOTOR.
+ *
+ * `BASE_STEP_KEYS` é derivado de `STEPS` (cadência) + as etapas oficiais
+ * fora da cadência. A Biblioteca NÃO cria etapa: ela guarda a mensagem
+ * e o versionamento das etapas que a configuração já reconhece.
+ * Registros de chaves que não estão aqui continuam gravados, mas deixam
+ * de ser tratados como etapa operacional.
+ */
+export const OFFICIAL_STEP_KEYS: string[] = [...new Set(BASE_STEP_KEYS)];
+
+export function isOfficialStep(stepKey: string | null | undefined): boolean {
+  if (!stepKey) return false;
+  return OFFICIAL_STEP_KEYS.includes(String(stepKey).trim().toUpperCase());
+}
+
+
+/**
  * Rótulos padrão. A chave técnica (E20, E27…) permanece intocada no
  * banco, na fila e nos snapshots — isto é apresentação. A Gestão pode
  * sobrescrever o rótulo pela Biblioteca sem gerar versão nova de texto.
@@ -163,6 +185,7 @@ function toMessage(row: Record<string, any>): LibraryMessage {
       row["display_position"] === null || row["display_position"] === undefined
         ? null
         : Number(row["display_position"]),
+    official: isOfficialStep(row["step_key"]),
     awaitingOfficialText:
       !row["active"] || String(row["body"] ?? "").trim().length === 0,
   };
@@ -175,6 +198,11 @@ function toMessage(row: Record<string, any>): LibraryMessage {
  * fluxo, prazo e sequência do motor continuam em `STEPS`/`FLOW_SEQUENCE`.
  * A posição é atributo da ETAPA (step_key), por isso todas as versões
  * da mesma etapa carregam o mesmo número.
+ *
+ * CONSERVADORA: uma etapa que JÁ tem posição em qualquer versão nunca
+ * é reposicionada. A versão nova sem posição apenas herda a posição da
+ * etapa. Só uma etapa realmente nova — sem posição em nenhuma versão —
+ * recebe um número inédito no fim da lista.
  */
 async function assignMissingPositions(): Promise<void> {
   const { data } = await supabaseAdmin
@@ -182,6 +210,17 @@ async function assignMissingPositions(): Promise<void> {
     .select("step_key, display_position" as any)
     .eq("scope", "production");
   const rows = (data ?? []) as any[];
+
+  /** Posição já existente por etapa (a menor gravada vale). */
+  const known = new Map<string, number>();
+  for (const row of rows) {
+    const step = row.step_key;
+    const pos = Number(row.display_position);
+    if (!step || !Number.isFinite(pos)) continue;
+    const current = known.get(step);
+    if (current === undefined || pos < current) known.set(step, pos);
+  }
+
   const missing = [
     ...new Set(
       rows
@@ -191,21 +230,33 @@ async function assignMissingPositions(): Promise<void> {
     ),
   ].sort();
   if (missing.length === 0) return;
-  let next =
-    Math.max(0, ...rows.map((r) => Number(r.display_position ?? 0) || 0)) + 10;
+
+  let next = Math.max(0, ...[...known.values()]) + 10;
   for (const step of missing) {
+    const inherited = known.get(step);
+    const position = inherited ?? next;
+    if (inherited === undefined) {
+      known.set(step, position);
+      next += 10;
+    }
+    /* Só as linhas SEM posição são tocadas: nada existente é sobrescrito. */
     await supabaseAdmin
       .from("relationship_message_library")
-      .update({ display_position: next } as any)
+      .update({ display_position: position } as any)
       .eq("scope", "production")
-      .eq("step_key", step);
-    next += 10;
+      .eq("step_key", step)
+      .is("display_position", null);
   }
 }
 
+
 /**
- * Semeadura única: garante que cada etapa possua ao menos a versão 1.
- * Idempotente — só insere o que ainda não existe.
+ * Semeadura: garante que TODA etapa oficial da configuração possua ao
+ * menos a versão 1 (slot vazio quando não há texto). Idempotente — só
+ * insere o que ainda não existe e nunca apaga registro antigo.
+ *
+ * A lista percorrida é a CONFIGURAÇÃO (`OFFICIAL_STEP_KEYS`). Etapa nova
+ * na configuração aparece sozinha na Biblioteca, sem cadastro manual.
  */
 export async function ensureLibrarySeed(): Promise<void> {
   const { data } = await supabaseAdmin
@@ -215,7 +266,7 @@ export async function ensureLibrarySeed(): Promise<void> {
   const known = new Set((data ?? []).map((r: any) => r.step_key).filter(Boolean));
 
   const rows: Record<string, unknown>[] = [];
-  for (const step of LIBRARY_STEP_ORDER) {
+  for (const step of OFFICIAL_STEP_KEYS) {
     if (known.has(step)) continue;
     const fixed = (HOMOLOGATION_MESSAGES as Record<string, any>)[step];
     if (fixed) {
@@ -276,12 +327,12 @@ export async function listLibraryMessages(): Promise<LibraryMessage[]> {
 }
 
 /**
- * BLOCO 3 — CRIAÇÃO DE ETAPA PELA PRÓPRIA BIBLIOTECA.
+ * PRIMEIRA MENSAGEM DE UMA ETAPA OFICIAL.
  *
- * Não existe lista fixa de chaves permitidas: a Biblioteca é a fonte de
- * verdade da EXISTÊNCIA da etapa. A etapa nasce no FIM da lista e,
- * deliberadamente, INERTE para o motor — nenhum fluxo é alterado aqui.
- * A associação etapa → fluxo é assunto do Bloco 4.
+ * A Biblioteca NÃO cria etapa. A existência da etapa vem da
+ * configuração do motor; aqui apenas nasce o slot de mensagem de uma
+ * etapa oficial que ainda não tem registro. Chave fora da configuração
+ * é recusada com motivo legível.
  */
 export async function createLibraryStep(params: {
   stepKey: string;
@@ -298,13 +349,14 @@ export async function createLibraryStep(params: {
   actorName: string;
 }): Promise<LibraryMessage[]> {
   const stepKey = params.stepKey.trim().toUpperCase();
-  if (!/^[A-Z0-9_]{2,32}$/.test(stepKey)) {
+  if (!isOfficialStep(stepKey)) {
     throw new Error(
-      "Chave da etapa inválida. Use letras, números e underscore (ex.: E9, RE4).",
+      `A etapa ${stepKey} não existe na configuração do motor. A Biblioteca guarda mensagens de etapas oficiais — uma etapa nova nasce na configuração e aparece aqui automaticamente.`,
     );
   }
   await ensureLibrarySeed();
   await assignMissingPositions();
+
 
   const { data: existing } = await supabaseAdmin
     .from("relationship_message_library")
@@ -345,12 +397,9 @@ export async function createLibraryStep(params: {
     display_position: next,
     created_by: params.actorId ?? null,
     created_by_name: params.actorName,
-    notes: params.notes ?? "Etapa criada pela Biblioteca.",
+    notes: params.notes ?? "Primeira mensagem da etapa oficial.",
   } as any);
   if (error) throw new Error(error.message);
-
-  /* Reconhecimento imediato pelo mecanismo dinâmico do Bloco 2. */
-  registerKnownSteps([stepKey]);
 
   return listLibraryMessages();
 }
@@ -473,6 +522,17 @@ export async function publishLibraryVersion(params: {
   const current = rows.find((r: any) => r.active) ?? rows[0] ?? null;
   const nextVersion = (rows[0] as any)?.version ? Number((rows[0] as any).version) + 1 : 1;
 
+  /**
+   * POSIÇÃO PERTENCE À ETAPA, NÃO À VERSÃO. A versão nova herda a
+   * posição já existente da etapa — publicar jamais move o cartão para
+   * o fim da lista.
+   */
+  const inheritedPosition =
+    rows
+      .map((r: any) => Number(r.display_position))
+      .filter((n: number) => Number.isFinite(n))
+      .sort((a: number, b: number) => a - b)[0] ?? null;
+
   if (current) {
     await supabaseAdmin
       .from("relationship_message_library")
@@ -491,6 +551,7 @@ export async function publishLibraryVersion(params: {
       body: params.body,
       body_without_name: params.bodyWithoutName ?? null,
       version: nextVersion,
+      display_position: inheritedPosition,
       active: params.body.trim().length > 0,
       content_group:
         params.contentGroup !== undefined
