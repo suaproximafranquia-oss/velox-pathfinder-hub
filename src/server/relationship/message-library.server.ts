@@ -133,6 +133,23 @@ export const LIBRARY_STEP_ORDER: string[] = [
 ];
 
 /**
+ * FONTE ÚNICA DA EXISTÊNCIA DAS ETAPAS = CONFIGURAÇÃO DO MOTOR.
+ *
+ * `BASE_STEP_KEYS` é derivado de `STEPS` (cadência) + as etapas oficiais
+ * fora da cadência. A Biblioteca NÃO cria etapa: ela guarda a mensagem
+ * e o versionamento das etapas que a configuração já reconhece.
+ * Registros de chaves que não estão aqui continuam gravados, mas deixam
+ * de ser tratados como etapa operacional.
+ */
+export const OFFICIAL_STEP_KEYS: string[] = [...new Set(BASE_STEP_KEYS)];
+
+export function isOfficialStep(stepKey: string | null | undefined): boolean {
+  if (!stepKey) return false;
+  return OFFICIAL_STEP_KEYS.includes(String(stepKey).trim().toUpperCase());
+}
+
+
+/**
  * Rótulos padrão. A chave técnica (E20, E27…) permanece intocada no
  * banco, na fila e nos snapshots — isto é apresentação. A Gestão pode
  * sobrescrever o rótulo pela Biblioteca sem gerar versão nova de texto.
