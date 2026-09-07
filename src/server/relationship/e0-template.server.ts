@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { ButtonRole } from "@/lib/relationship/e0-destinations";
+import { isMetaApproved } from "@/lib/crm/meta-template-status";
 
 export type MetaTemplateButton = {
   index: number;
