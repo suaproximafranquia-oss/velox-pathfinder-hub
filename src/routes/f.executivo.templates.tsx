@@ -35,6 +35,7 @@ import {
   type MetaTemplateRecord,
   type MetaTemplatePurpose,
 } from "@/lib/crm/meta-templates";
+import { metaStatusLabel, isMetaApproved } from "@/lib/crm/meta-template-status";
 import { CRM_TEMPLATES } from "@/lib/crm/templates";
 import { cn } from "@/lib/utils";
 
@@ -230,11 +231,13 @@ function TemplatesPage() {
       await setMetaTemplateActive({ data: { id, isActive } });
       setStatus(
         isActive
-          ? "Template ativado: já aparece no seletor das campanhas."
-          : "Template desativado: sai do seletor das campanhas. Campanhas e históricos existentes foram preservados.",
+          ? "Template vigente: passa a ser o único usado nesta finalidade (os demais da mesma finalidade foram desativados). Campanhas e históricos existentes foram preservados."
+          : "Template desativado: sai do seletor das campanhas e deixa de ser usado. Campanhas e históricos existentes foram preservados.",
       );
       await refresh();
       setDetail((current) => (current && current.id === id ? { ...current, isActive } : current));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Falha ao alterar a vigência.");
     } finally {
       setBusy(false);
     }
