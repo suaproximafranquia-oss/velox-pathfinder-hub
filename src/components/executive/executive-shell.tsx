@@ -250,8 +250,10 @@ export function ExecutiveShellFrame({
   ];
 
   /**
-   * COMANDO 3C §5 — as "Centrais" ficam agrupadas e a Biblioteca de
-   * Conteúdos passa a ser um item permanente do menu administrativo.
+   * COMANDO 3C §5 — as "Centrais" ficam agrupadas em um único bloco.
+   * A Central de Homologação passou a integrar este bloco; a Revista
+   * Velox e a Apresentação Digital saíram do menu e viraram cards de
+   * Módulo na Home (rotas, permissões e conteúdo inalterados).
    */
   const centrais = [
     ...(allow("captacao")
@@ -270,8 +272,8 @@ export function ExecutiveShellFrame({
     ...(allow("central_backup")
       ? [{ to: unitPath("/executivo/central-backup"), label: "Central de Backup", icon: Archive }]
       : []),
-    ...(allow("revista")
-      ? [{ to: unitPath("/executivo/revista"), label: "Revista Velox", icon: BookOpen }]
+    ...(allow("homologacao")
+      ? [{ to: unitPath("/executivo/homologacao"), label: "Central de Homologação", icon: FlaskConical }]
       : []),
   ];
 
@@ -279,35 +281,11 @@ export function ExecutiveShellFrame({
     ...(allow("biblioteca")
       ? [{ to: unitPath("/executivo/biblioteca"), label: "Biblioteca de Conteúdos", icon: LibraryBig }]
       : []),
-    /**
-     * Apresentação Digital e carteiras das unidades do Grupo dependem de
-     * PERMISSÃO administrativa (user_roles) — nunca do cargo operacional.
-     */
-    ...(allow("apresentacao_digital")
-      ? [
-          {
-            to: unitPath("/executivo/apresentacao-digital"),
-            label: "Apresentação Digital",
-            icon: LibraryBig,
-          },
-          // "Unidades do Grupo" removida apenas da NAVEGAÇÃO (decisão de menu).
-          // A rota /f/executivo/unidades, seus dados e formulários permanecem.
-        ]
-      : []),
-    /**
-     * SOLAR + SEGUROS — entrada institucional conjunta das duas frentes.
-     * Apenas apresentação pública: Solar e Seguros continuam isoladas em
-     * origem, dados e operação.
-     */
-    { to: "/solar-seguros", label: "Solar + Seguros", icon: Sun, newTab: true },
-    ...(allow("homologacao")
-      ? [{ to: unitPath("/executivo/homologacao"), label: "Central de Homologação", icon: FlaskConical }]
-      : []),
-
     ...(allow("backup_conversas")
       ? [{ to: unitPath("/executivo/backups"), label: "Backup de Conversas", icon: Archive }]
       : []),
   ];
+
 
   const administrative = [
     ...(allow("usuarios")
