@@ -29,6 +29,10 @@ export const updateWorkspaceOperational = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: WorkspaceOperationalPatch) => data)
   .handler(async ({ data, context }) => {
+    if (data.responsibleExecutiveId) {
+      const { assertAssignableExecutive } = await import("@/server/crm/manager-guard.server");
+      await assertAssignableExecutive(data.responsibleExecutiveId);
+    }
     const patch = {
       notes: data.notes,
       viewed_at: data.viewedAt,

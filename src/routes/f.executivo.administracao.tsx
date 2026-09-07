@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { can } from "@/lib/governance";
 import {
@@ -41,7 +42,11 @@ export const Route = createFileRoute("/f/executivo/administracao")({
       },
     ],
   }),
-  component: AdministracaoPage,
+  component: () => (
+    <WorkspaceResourceGuard resource="administracao">
+      <AdministracaoPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 function AdministracaoPage() {

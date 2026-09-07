@@ -203,9 +203,15 @@ export const syncPortalLead = createServerFn({ method: "POST" })
           : ("portal" as const);
     // O proprietário definido por uma transferência oficial nunca é
     // apagado por uma sincronização posterior da jornada.
-    const preservedOwner =
+    const { isManagementExecutive } = await import("@/server/crm/manager-guard.server");
+    const candidateOwner =
       current?.responsible_executive_id ??
       (scope === "green_sales" ? executiveId : null);
+    // Gestão nunca nasce como responsável de lead novo (posse já
+    // existente na base permanece intocada).
+    const preservedOwner =
+      current?.responsible_executive_id ??
+      ((await isManagementExecutive(candidateOwner)) ? null : candidateOwner);
     /**
      * COMANDO 3A §3 — ATIVIDADE SÓ AVANÇA COM ATIVIDADE REAL.
      *
@@ -303,6 +309,8 @@ export const redistributePortalLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { id: string; executiveId: string }) => data)
   .handler(async ({ data, context }) => {
+    const { assertAssignableExecutive } = await import("@/server/crm/manager-guard.server");
+    await assertAssignableExecutive(data.executiveId);
     const { error } = await context.supabase
       .from("portal_leads")
       .update({
@@ -330,6 +338,8 @@ export const assignPortalLeadOwner = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { id: string; executiveId: string | null }) => data)
   .handler(async ({ data, context }) => {
+    const { assertAssignableExecutive } = await import("@/server/crm/manager-guard.server");
+    await assertAssignableExecutive(data.executiveId);
     const { error } = await context.supabase
       .from("portal_leads")
       .update({

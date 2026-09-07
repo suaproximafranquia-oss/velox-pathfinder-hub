@@ -12,6 +12,7 @@
  * operacional já existente é sobrescrito.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isManagementExecutive } from "@/server/crm/manager-guard.server";
 import { sanitizeRawPayload } from "@/server/crm/lead-service.server";
 
 export type WorkspaceCardInput = {
@@ -69,7 +70,9 @@ export async function ensureWorkspaceCard(
     // Lead vindo da origem pertence SEMPRE ao Workspace GreenSales.
     scope: "green_sales",
     personalized: false,
-    responsible_executive_id: input.responsibleExecutiveId ?? null,
+    responsible_executive_id: (await isManagementExecutive(input.responsibleExecutiveId))
+      ? null
+      : (input.responsibleExecutiveId ?? null),
     responsible_executive_slug: input.responsibleExecutiveSlug ?? null,
     campaign: input.campaign ?? null,
     device: null,

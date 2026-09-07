@@ -16,6 +16,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { ensureCloudSession, getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import {
   interpretMetaTemplateCaptures,
@@ -56,7 +57,11 @@ export const Route = createFileRoute("/f/executivo/templates")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: TemplatesPage,
+  component: () => (
+    <WorkspaceResourceGuard resource="templates">
+      <TemplatesPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 const card = "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5";

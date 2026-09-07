@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { FlaskConical, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
+import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { isCrmAdministrator } from "@/lib/crm/permissions";
 import { TEST_SCENARIOS, scenarioLabel, type TestScenarioKey } from "@/lib/testing/test-lab";
@@ -44,7 +45,11 @@ export const Route = createFileRoute("/f/executivo/teste-cadencia")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: TestLabPage,
+  component: () => (
+    <WorkspaceResourceGuard resource="teste_cadencia">
+      <TestLabPage />
+    </WorkspaceResourceGuard>
+  ),
 });
 
 type Batch = { id: string; status: string; scenarios: string[]; leadCount: number; createdAt: string };

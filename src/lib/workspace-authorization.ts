@@ -26,7 +26,12 @@ export type WorkspaceResource =
   | "backup_conversas"
   | "usuarios"
   | "configuracoes"
-  | "remarketing";
+  | "remarketing"
+  | "administracao"
+  | "templates"
+  | "greensales_sync"
+  | "laboratorio"
+  | "teste_cadencia";
 
 export const WORKSPACE_RESOURCE_LABEL: Record<WorkspaceResource, string> = {
   captacao: "Central de Captação",
@@ -41,11 +46,17 @@ export const WORKSPACE_RESOURCE_LABEL: Record<WorkspaceResource, string> = {
   usuarios: "Usuários",
   configuracoes: "Configurações",
   remarketing: "Remarketing",
+  administracao: "Administração",
+  templates: "Central de Templates",
+  greensales_sync: "GreenSales Sync",
+  laboratorio: "Laboratório Atlas",
+  teste_cadencia: "Teste de Cadência",
 };
 
 export const WORKSPACE_RESOURCES = Object.keys(
   WORKSPACE_RESOURCE_LABEL,
 ) as WorkspaceResource[];
+
 
 const ADMIN: ExecutiveRole[] = ["super_admin"];
 const ADMIN_GESTAO: ExecutiveRole[] = ["super_admin", "diretora"];
@@ -72,7 +83,18 @@ const ROLE_MATRIX: Record<WorkspaceResource, ExecutiveRole[]> = {
   // Remarketing é CRM independente operado pela administração: nem
   // Colaborador nem Gestora acessam (menu, rota e server function).
   remarketing: ADMIN,
-
+  // Administração: mesma intenção já vigente em `governance.ts`
+  // (configurações são do Administrador; campos personalizados e
+  // usuários também são da Gestão). As seções internas continuam
+  // filtradas por capacidade — aqui apenas se fecha a porta da rota.
+  administracao: ADMIN_GESTAO,
+  // Central de Templates: `listMetaTemplates` já é admin-only no servidor.
+  templates: ADMIN,
+  // GreenSales Sync, Laboratório e Teste de Cadência já se declaram
+  // "exclusivo do Administrador" no próprio código das telas.
+  greensales_sync: ADMIN,
+  laboratorio: ADMIN,
+  teste_cadencia: ADMIN,
 };
 
 /**

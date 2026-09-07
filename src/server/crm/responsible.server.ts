@@ -8,6 +8,7 @@
  * gravado.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isManagementExecutive } from "@/server/crm/manager-guard.server";
 
 export type ResolvedResponsible = { executiveId: string; slug: string | null } | null;
 
@@ -21,6 +22,8 @@ export async function resolveResponsibleByUserId(
     .eq("user_id", userId)
     .maybeSingle();
   if (!data?.executive_id) return null;
+  // Gestão não é linha operacional: o card fica SEM responsável.
+  if (await isManagementExecutive(data.executive_id)) return null;
   return { executiveId: data.executive_id, slug: data.slug ?? null };
 }
 
@@ -47,6 +50,8 @@ export async function resolveResponsibleByVendorId(
     .eq("greensales_vendor_id", value)
     .maybeSingle();
   if (!data?.executive_id) return null;
+  // Mesmo vindo da origem, gestão nunca vira responsável.
+  if (await isManagementExecutive(data.executive_id)) return null;
   return { executiveId: data.executive_id, slug: data.slug ?? null };
 }
 
@@ -90,6 +95,7 @@ export async function backfillCardResponsible(
   responsible: ResolvedResponsible,
 ): Promise<boolean> {
   if (!responsible) return false;
+  if (await isManagementExecutive(responsible.executiveId)) return false;
   const { data } = await supabaseAdmin
     .from("portal_leads")
     .select("id,responsible_executive_id")
