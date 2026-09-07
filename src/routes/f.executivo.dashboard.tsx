@@ -260,7 +260,7 @@ function WorkspacePage() {
       ? allInvestors
       : allInvestors.filter((i) => i.assignedToUserId === session.userId);
     for (const tab of tabs) {
-      if (tab === "engajamento") continue;
+      if (tab === "engajamento" || tab === "sol_seg") continue;
       counts[tab] = visible.filter((i) => belongsToScope(i, tab)).length;
     }
     return counts;
