@@ -35,7 +35,13 @@ const CLOSED_MEETING_STATUS = new Set([
   "não compareceu",
 ]);
 
-type LeadIdentity = { name: string; phone: string; scope: string | null };
+type LeadIdentity = {
+  name: string;
+  phone: string;
+  scope: string | null;
+  /** Card fora da operação atual (arquivado no ponto zero). */
+  archived: boolean;
+};
 
 async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdentity>> {
   const map = new Map<string, LeadIdentity>();
@@ -43,17 +49,19 @@ async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdenti
   if (unique.length === 0) return map;
   const { data } = await supabaseAdmin
     .from("portal_leads")
-    .select("id,name,whatsapp,scope")
+    .select("id,name,whatsapp,scope,archived_at")
     .in("id", unique);
   for (const row of data ?? []) {
     map.set(row.id, {
       name: row.name ?? "Investidor",
       phone: row.whatsapp ?? "",
       scope: row.scope ?? null,
+      archived: Boolean((row as { archived_at?: string | null }).archived_at),
     });
   }
   return map;
 }
+
 
 export type DailyActionsInput = {
   /** Executivo autenticado — dono da Agenda e das reuniões exibidas. */
