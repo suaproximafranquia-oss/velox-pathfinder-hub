@@ -314,9 +314,34 @@ export function MessageLibraryPanel() {
                 );
               })}
             </ul>
+
+            {/* REGISTROS FORA DA CONFIGURAÇÃO — preservados como
+                histórico, sem participar da operação. Nada é apagado. */}
+            {legacySteps.length > 0 ? (
+              <div className="mt-3 rounded-xl border border-[color:var(--border)] p-3">
+                <p className="text-[10px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
+                  Histórico fora da configuração
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {legacySteps.map(([key, list]) => (
+                    <li
+                      key={key}
+                      className="truncate text-[11px] text-[color:var(--muted-foreground)]"
+                    >
+                      {list[0]?.displayLabel ?? key}
+                      <span className="ml-1 opacity-60">({key})</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-[10px] text-[color:var(--muted-foreground)]">
+                  Guardados apenas como registro. O motor não usa estas entradas.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-3">
+
             {step ? (
               <>
                 {/* RÓTULO VISÍVEL — apresentação apenas. A chave técnica
