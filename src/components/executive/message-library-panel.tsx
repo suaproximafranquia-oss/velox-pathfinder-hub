@@ -97,14 +97,31 @@ export function MessageLibraryPanel() {
     void load();
   }, [load]);
 
+  /**
+   * ETAPAS OPERACIONAIS = as que a CONFIGURAÇÃO do motor reconhece.
+   * Registros de chaves que saíram (ou nunca fizeram parte) da
+   * configuração continuam gravados, mas fora da lista operacional.
+   */
   const steps = useMemo(() => {
     const map = new Map<string, LibraryMessage[]>();
     for (const message of messages) {
+      if (!message.official) continue;
       const list = map.get(message.stepKey) ?? [];
       list.push(message);
       map.set(message.stepKey, list);
     }
     return map;
+  }, [messages]);
+
+  const legacySteps = useMemo(() => {
+    const map = new Map<string, LibraryMessage[]>();
+    for (const message of messages) {
+      if (message.official) continue;
+      const list = map.get(message.stepKey) ?? [];
+      list.push(message);
+      map.set(message.stepKey, list);
+    }
+    return [...map.entries()];
   }, [messages]);
 
   /* A ordem vem do servidor (posição salva) e é espelhada localmente
@@ -121,6 +138,7 @@ export function MessageLibraryPanel() {
 
   const selected = step ? (steps.get(step) ?? []) : [];
   const active = selected.find((m) => m.active) ?? selected[0] ?? null;
+
 
   /** Move a etapa arrastada para a posição de destino e persiste. */
   async function dropOn(targetKey: string) {
