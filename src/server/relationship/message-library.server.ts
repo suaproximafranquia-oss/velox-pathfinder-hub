@@ -19,8 +19,8 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  BASE_STEP_KEYS,
   isKnownStep,
-  registerKnownSteps,
   unknownStepReason,
 } from "@/lib/relationship/step-registry";
 import {
@@ -62,6 +62,11 @@ export type LibraryMessage = {
   sourceReference: string | null;
   /** Posição VISUAL na Biblioteca (Bloco 3). Não é ordem do motor. */
   displayPosition: number | null;
+  /**
+   * A etapa existe na CONFIGURAÇÃO OFICIAL do motor. Só etapa oficial é
+   * operacional; as demais permanecem apenas como histórico/legado.
+   */
+  official: boolean;
   /**
    * A etapa ainda não pode ser enviada pelo motor: ou não há texto
    * oficial, ou o texto existe mas aguarda ativação pela Gestão.
