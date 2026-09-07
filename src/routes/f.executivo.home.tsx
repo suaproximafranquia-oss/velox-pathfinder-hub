@@ -9,6 +9,8 @@ import {
 } from "@/lib/executive-auth";
 import { PLATFORM_MODULES, type PlatformModule } from "@/config/modules";
 import { WORKSPACE } from "@/config/workspace";
+import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
+
 
 export const Route = createFileRoute("/f/executivo/home")({
   head: () => ({
@@ -22,7 +24,9 @@ export const Route = createFileRoute("/f/executivo/home")({
 
 function HomePage() {
   const navigate = useNavigate();
+  const auth = useWorkspaceAuthorization();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
+
 
   useEffect(() => {
     const s = getSession();
@@ -33,8 +37,11 @@ function HomePage() {
   if (!session) return null;
 
   const visibleModules = PLATFORM_MODULES.filter(
-    (m) => !m.requiresRole || m.requiresRole.includes(session.activeRole),
+    (m) =>
+      (!m.requiresRole || m.requiresRole.includes(session.activeRole)) &&
+      (!m.requiresResource || auth?.allowed[m.requiresResource] === true),
   );
+
 
   return (
     <ExecutiveShell session={session} title={`Bem-vindo, ${session.name.split(" ")[0]}`}>

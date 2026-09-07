@@ -32,6 +32,8 @@ export type InvestorOrigin =
   | "meta"
   /** COMANDO 4G — carteira própria da Gestora. */
   | "central_unica"
+  /** Canal operacional Sol + Seg (Solar e Seguros na origem). */
+  | "sol_seg"
   | "manual";
 
 /**
