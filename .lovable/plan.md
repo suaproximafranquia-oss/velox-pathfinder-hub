@@ -1,269 +1,48 @@
-# Diagnóstico — Ordem e nomes das etapas na Biblioteca (Financeira /f)
-
-Somente leitura. Nada foi alterado: nenhum registro criado, renomeado, reordenado ou apagado; nenhuma migração executada.
-
-## 1. Fonte de verdade da ORDEM
-
-A ordem é **uma coluna no banco**: `relationship_message_library.display_position`, dentro de `scope = 'production'`.
+# Diagnóstico somente-leitura — Arquitetura da Biblioteca de Mensagens (Financeira /f)
 
-- A listagem ordena por `display_position` (crescente), depois `step_key`, depois `version` (mais nova primeiro).
-- A tela apenas espelha essa ordem; o arrastar grava posições 10, 20, 30… por `step_key`.
-- A ordem da Biblioteca é vitrine. Ela **não** é a ordem de execução — o motor continua usando a configuração de fluxos (`STEPS` / `FLOW_SEQUENCE`), que não foi tocada.
+Nenhuma alteração, migration ou construção executada. Apenas inspeção de código.
 
-Existe também uma rotina automática de "preencher posição faltante": qualquer registro sem posição recebe `maior posição + 10` — e esse número é aplicado a **todas as versões daquela etapa**.
+## 1. O comando foi aplicado?
 
-## 2. Inventário atual (26 etapas, todas com posição preenchida, todas com versão ativa)
+SIM, com uma ressalva pontual (ver item 7). Conclusão: **APLICADO**.
 
-Posição → chave técnica → nome exibido hoje → nº de versões:
+## 2. Quem determina a lista de etapas exibida
 
-| Pos | stepKey | Nome exibido | Versões |
-|-----|---------|--------------|---------|
-| 10 | E0 | E0 — Primeiro contato | 6 |
-| 20 | E1 | E1 — Primeiro acompanhamento | 5 |
-| 30 | E3 | E2 — Segundo acompanhamento | 4 |
-| 40 | E12 | E3 — Terceiro acompanhamento | 4 |
-| 50 | E2 | E4 — Oferta de apresentação digital | 2 |
-| 60 | RE0 | E5 — Apresentação Digital | 5 |
-| 70 | E20 | E6 — Acompanhamento da apresentação digital | 3 |
-| 80 | E27 | E7 — Última tentativa de contato | 3 |
-| 90 | RE1 | E8 — Finalização | 3 |
-| 100 | E4 | R2 — Segundo reengajamento | 2 |
-| 110 | E5 | R3 — Oferta de apresentação digital | 3 |
-| 120 | RE2 | R4 — Finalização do Reengajamento | 3 |
-| 130 | E6 | RE0 — Reentrada | 3 |
-| 140 | E7 | RE1 — Reentrada / conteúdo | 2 |
-| 150 | FINALIZACAO | RE2 — Reentrada / suporte | 2 |
-| 160 | R1 | RE3 — Finalização / oferta digital | 2 |
-| 170 | R2 | RF0 — Follow-up de reunião | 2 |
-| 180 | R3 | RF1 — Finalização / alternativa digital | 2 |
-| 190 | RE3 | ER0 - Etapa de RMK 0 | 3 |
-| 200 | TESTE | ER1 - Etapa de RMK 1 | 2 |
-| 210 | V4 | ER2 - Etapa de RMK 2 | 3 |
-| 220 | RESPOSTA_AUTOMATICA | Liberado para novas mensagem | 2 |
-| 230 | RF0 | Liberado para novas mensagem | 2 |
-| 240 | RF1 | Liberado para novas mensagem | 2 |
-| 250 | V3 | Liberado para novas mensagem | 2 |
-| 260 | E0_V1 | Livre | 6 |
+- `listLibraryMessages()` em `src/server/relationship/message-library.server.ts:315`.
+- Ela chama `ensureLibrarySeed()` (linha 261), que percorre `OFFICIAL_STEP_KEYS` — derivado de `BASE_STEP_KEYS` = `STEPS` (config) + etapas oficiais fora da cadência (`E20`, `E27`, `FINALIZACAO`, `RESPOSTA_AUTOMATICA`) — e semeia slots faltantes (vazios/inativos quando não há texto oficial).
+- A ordem de exibição vem de `display_position` (banco), não de lista fixa.
+- O painel (`message-library-panel.tsx`) exibe operacionalmente apenas mensagens com `official === true`; registros fora da configuração aparecem em bloco separado "Histórico fora da configuração", preservados e não operacionais.
 
-Observações do inventário:
+## 3. Lista derivada da configuração?
 
-- A posição está gravada **em cada linha de versão**, repetida para todas as versões da mesma etapa. Ou seja: hoje ela é, na prática, atributo da etapa, mas fisicamente vive na versão — e é justamente aí que nasce o problema.
-- O "nome exibido" vem do campo `title` da versão ativa. Não existe validação alguma entre `title` e `step_key`.
-- Grupo/tipo da etapa não é um campo: o agrupamento é apenas visual/por prefixo, e hoje o prefixo do nome não corresponde ao prefixo da chave.
+Sim. `OFFICIAL_STEP_KEYS` (message-library.server.ts:144) é construído a partir de `BASE_STEP_KEYS`, que vem de `STEPS`/`NON_CADENCE_STEPS` em `src/lib/relationship/config.ts` e `step-registry.ts`. Não há lista paralela alimentando o motor.
 
-## 3. O que acontece ao salvar uma NOVA VERSÃO
+## 4. Ainda existem WORD_STEP_ORDER / LIBRARY_STEP_ORDER / WORD_ALIAS_STEPS / LEGACY_STEPS?
 
-1. A versão ativa atual é desativada (nada é apagado).
-2. É inserida **uma linha nova** com `version = anterior + 1`, herdando texto/link/rótulo informados.
-3. Essa linha nova é criada **sem `display_position`** (fica nula) — o insert não copia a posição da etapa.
-4. Na recarga da lista, a rotina de preenchimento vê a etapa com posição nula e grava, para **todas as versões dessa etapa**, o valor `maior posição existente + 10`.
-5. Como esse valor é sempre maior que todos os outros, a etapa **vai para o fim da lista**.
+Sim, continuam declaradas em `message-library.server.ts:100-133`, MAS uma busca em todo `src` confirma que **nenhum outro arquivo as importa nem usa**: são constantes órfãs, sem efeito em semeadura, listagem ou motor. São resíduo inerte; não configuram segunda fonte de verdade. Recomendação futura (não executada): removê-las para evitar confusão.
 
-Esse é o mecanismo exato do sintoma "salvei e a etapa foi para o final". As posições atuais (10 a 260, perfeitamente espaçadas) indicam que a lista já foi rearrastada manualmente depois desses saltos.
+## 5. Etapa nova na configuração aparece automaticamente?
 
-## 4. O caso do HAR (E2 → stepKey=E12)
+Sim. `ensureLibrarySeed()` percorre `OFFICIAL_STEP_KEYS` a cada listagem; uma chave nova em `STEPS` entra em `BASE_STEP_KEYS` → recebe slot vazio/inativo ("Sem mensagem cadastrada" / "aguardando texto oficial") sem cadastro manual.
 
-Sim, é esperado que a requisição carregue uma chave diferente do nome na tela — e não é bug de envio, é o descasamento de rótulos:
+## 6. Nova versão preserva display_position?
 
-- O nome "E2 — Segundo acompanhamento" está gravado na etapa de chave **E3**.
-- O nome "E3 — Terceiro acompanhamento" está gravado na etapa de chave **E12**.
+Sim. `publishLibraryVersion()` (linhas 525-534) calcula `inheritedPosition` (menor posição existente da etapa) e grava no insert (linha 554). `assignMissingPositions()` (linhas 207-250) é conservadora: herda posição conhecida e só atribui número novo a etapa sem nenhuma posição prévia. Publicar não joga a etapa para o fim.
 
-Então, ao editar o cartão rotulado "E3", a chamada sai com `stepKey=E12`; ao editar o rotulado "E2", sai com `stepKey=E3`. O identificador é interno e consistente com o registro editado — a inconsistência é de **nomenclatura**, não de gravação. O texto foi salvo na etapa certa do ponto de vista do banco, mas na etapa "errada" do ponto de vista de quem lê o nome.
+## 7. Existe botão/fluxo de "Adicionar etapa" na Biblioteca?
 
-## 5. Inventário de códigos reconhecidos pelo motor (configuração, não rótulos)
+- **Interface:** NÃO. O painel (`message-library-panel.tsx`) não tem mais o formulário "Criar etapa" — nem estado `creating/newKey/newTitle`, nem botão. Nenhum componente importa `criarEtapaBiblioteca`.
+- **Backend:** a server function `criarEtapaBiblioteca` em `src/lib/relationship/library.functions.ts:77` ainda existe (sem consumidor na UI), mas o servidor `createLibraryStep()` (message-library.server.ts:337) **rejeita qualquer chave fora da configuração** com erro explícito e, para chave oficial, só cria o slot se ainda não existir — exatamente o caso coberto pela semeadura automática. Não há conflito prático com a regra "configuração é a fonte de verdade"; a função está inerte para chaves arbitrárias. Comentário desatualizado na linha 73-75 do functions file ainda diz "A etapa passa a existir e a ser reconhecida" — texto residual, sem efeito.
 
-- **E***: E0, E0_V1, E1, E3, E4, E12, E30 (E30 travada/desativada), mais E20 e E27 como etapas fora da cadência.
-- **V***: V3, V4 (fluxo de visualização).
-- **R***: R1, R2, R3.
-- **RE***: RE0, RE1, RE2, RE3.
-- **RF***: RF0, RF1.
-- **FINALIZACAO** e **RESPOSTA_AUTOMATICA**: etapas oficiais fora da cadência.
-- **ER***: **não existe nenhuma etapa ER no motor nem no banco.**
-- Chaves presentes na Biblioteca sem papel no motor: E2, E5, E6, E7 (aliases históricos) e **TESTE** (etapa criada manualmente).
+## 8. Arquivos alterados pela implementação
 
-## 6. R0 / R1 / R2 / R3 / R4
+1. `src/server/relationship/message-library.server.ts` — `OFFICIAL_STEP_KEYS`/`isOfficialStep`, campo `official` em `toMessage`, semeadura por configuração, `assignMissingPositions` conservadora, herança de `display_position` na publicação, guarda de chave oficial em `createLibraryStep`.
+2. `src/server/relationship/step-registry.server.ts` — removida a leitura de chaves ativas da Biblioteca como fonte de etapas reconhecidas; restam configuração + histórico (sends/queue/cadences).
+3. `src/lib/relationship/flows.functions.ts` — `etapasDisponiveis` reduz por `stepKey` (ativa ou maior versão) e filtra por `isOfficialStep`.
+4. `src/components/executive/message-library-panel.tsx` — removida a criação livre de etapa; split oficial × histórico; drag-and-drop e edição de rótulo/versão preservados.
 
-- Configuração do motor: existem **R1, R2, R3** (fluxo de reengajamento, 2 dias úteis entre etapas; R3 é terminal). **R0 e R4 não existem** no motor.
-- Banco: as chaves R1, R2 e R3 existem, cada uma com 2 versões e versão ativa com texto.
-- Nenhuma delas foi removida. O que aconteceu é que os **rótulos foram deslocados**: R1 exibe "RE3", R2 exibe "RF0", R3 exibe "RF1". Os nomes "R2/R3/R4" que aparecem na tela pertencem, na verdade, às chaves E4, E5 e RE2.
-- Conclusão: R1/R2 não sumiram nem foram filtrados — elas apenas deixaram de se chamar R1/R2 na exibição.
+## Conclusão final
 
-## 7. RE0 / RE1 / RE2 / RE3
+**APLICADO.** A configuração do motor é a única fonte de existência de etapas; a Biblioteca é repositório de mensagens/versionamento/posição. Etapas removidas da configuração saem da operação e ficam como histórico; etapas novas aparecem automaticamente; `display_position` é preservada ao versionar. Únicos resíduos inertes: constantes `WORD_STEP_ORDER`/`LIBRARY_STEP_ORDER`/`WORD_ALIAS_STEPS`/`LEGACY_STEPS` sem uso e a função `criarEtapaBiblioteca` sem consumidor — nenhum dos dois tem efeito operacional.
 
-- RE = **Reentrada**: lead já conhecido que se cadastra de novo e não recomeça o primeiro contato. Sequência própria RE0 → RE1 → RE2 → RE3 (0, 2, 3 e 5 dias úteis; RE3 encerra).
-- São etapas reais do motor, com prazo e conteúdo definidos em configuração.
-- Não são "reengajamento" (esse é o fluxo R) nem remarketing.
-- Hoje as chaves RE0, RE1, RE2 e RE3 estão exibindo, respectivamente, os nomes "E5", "E8", "R4" e "ER0" — de novo, deslocamento de rótulo.
-
-## 8. ER0 / ER1 / ER2
-
-- **ER não é uma etapa do motor.** Não existe na configuração, não existe como chave no banco e ninguém consome "ER".
-- São apenas **nomes digitados** nos rótulos de três registros existentes: RE3 ("ER0 - Etapa de RMK 0"), TESTE ("ER1 - Etapa de RMK 1") e V4 ("ER2 - Etapa de RMK 2").
-- Pelo texto do rótulo ("RMK"), a intenção era Remarketing — mas o Remarketing não lê a Biblioteca de Mensagens; ele usa os templates Meta. Ou seja, essas três entradas hoje ocupam chaves da cadência principal (inclusive V4, que é etapa executável do fluxo de visualização).
-- Aparecem "junto das demais" porque a Biblioteca é uma lista única e plana, sem separação por grupo.
-
-## 9. Fontes concorrentes de ordem e nomenclatura
-
-Ordem:
-
-1. `display_position` no banco — única fonte real da lista.
-2. Rotina automática de posição faltante — sobrescreve com "fim da lista".
-3. Ordem do motor (`FLOW_SEQUENCE`) — independente e não refletida na tela.
-4. Listas em código (ordem do documento oficial, snapshot das etapas) — usadas só na semeadura inicial e na tela de "fotografia", não na ordenação.
-
-Nomenclatura:
-
-1. `title` da versão ativa (o que aparece na tela) — editável livremente.
-2. Tabela de rótulos padrão em código (usada só quando não há título salvo).
-3. `step_key` (chave técnica, imutável, usada por motor/fila/histórico).
-4. Tradução fixa de apresentação E20→E6 e E27→E7 em código.
-
-São quatro camadas sem nenhuma amarração entre si — daí o descasamento atual.
-
-## 10. Conclusão
-
-**A) Por que a etapa vai para o fim ao salvar:** a nova versão é inserida sem posição, e a rotina de preenchimento atribui "maior posição + 10" a toda a etapa.
-
-**B) Por que R2/R1 parecem ter sumido:** não sumiram. As chaves existem e estão ativas; os rótulos exibidos foram deslocados para outras chaves, e os nomes "R…" hoje estão em E4/E5/RE2.
-
-**C) Por que ER0/ER1/ER2 aparecem junto das etapas:** são rótulos digitados sobre as chaves RE3, TESTE e V4. Não existe grupo ER, e a Biblioteca é uma lista única sem separação por família.
-
-**D) Há inconsistência entre chave e nome exibido?** Sim, generalizada: 20 das 26 entradas exibem um nome cujo prefixo não corresponde à chave técnica. O dado gravado está correto; a leitura humana é que está enganosa.
-
-**E) Menor correção possível (proposta, não executada):**
-
-1. Ao publicar nova versão, copiar a posição da versão anterior no próprio insert — uma linha de código. Isso já elimina o salto para o fim, preserva histórico e não toca no motor.
-2. Tornar a rotina de posição faltante conservadora: preencher só quando a etapa realmente não tem nenhuma posição em nenhuma versão, herdando o valor existente quando houver.
-3. Exibir a chave técnica ao lado do rótulo em cada cartão, para que nome e chave nunca mais se percam de vista (só apresentação).
-4. Agrupar visualmente por família derivada da chave (E, V, R, RE, RF, avulsas), mantendo a ordenação manual dentro do grupo.
-5. Corrigir os rótulos deslocados é decisão de conteúdo, não de código: exige uma passada de renomeação consciente — nenhuma renomeação automática deve ser feita pelo sistema.
-6. Nada acima altera regra, prazo, fluxo, fila, histórico ou envio.
-
----
-
-# Parte 2 — Arquitetura entre a configuração do fluxo e a Biblioteca
-
-Somente leitura. Nada foi alterado nesta rodada.
-
-## 1. Fonte de verdade atual da EXISTÊNCIA das etapas
-
-Hoje existem **duas** fontes, e a segunda é a que manda na prática:
-
-1. **Configuração em código** — `src/lib/relationship/config.ts`: o objeto `STEPS` (definição de cada etapa: fluxo, prazo em dias úteis, finalidade de template, grupo de conteúdo, se é terminal) e `FLOW_SEQUENCE` (a ordem de cada fluxo). Complementada por `src/lib/relationship/step-registry.ts`, que soma as etapas fora da cadência (E20, E27, FINALIZACAO, RESPOSTA_AUTOMATICA).
-2. **Conjunto dinâmico vindo do banco** — `src/server/relationship/step-registry.server.ts` declara literalmente: "etapas conhecidas = etapas ATIVAS da Biblioteca + etapas já usadas no histórico". Qualquer chave ativa na Biblioteca passa a ser reconhecida pelo motor como etapa válida, sem existir em `STEPS`.
-
-Há ainda uma terceira estrutura prevista (versões de fluxo em banco: `relationship_flow_versions` / `relationship_flow_steps`), mas ela está **vazia** — nenhuma versão publicada. Logo, não influencia nada hoje.
-
-## 2. Etapas oficiais da configuração (22)
-
-Cadência (`STEPS` + `FLOW_SEQUENCE`):
-
-| stepKey | Rótulo padrão em código | Sequência | Família | Executável | Situação |
-|---|---|---|---|---|---|
-| E0 | E0 — Primeiro contato | sem_resposta #1 (0 d.ú.) | E | sim | ativa |
-| E0_V1 | E0 V1 — Primeiro contato (veio do Portal) | variante de E0 (0 d.ú.) | E | sim | ativa |
-| E1 | E1 — Primeiro acompanhamento | sem_resposta #2 (1 d.ú.) | E | sim | ativa |
-| E3 | E3 — Segundo acompanhamento | sem_resposta #3 (2 d.ú.) | E | sim | ativa |
-| E4 | E4 — Acompanhamento mais firme | sem_resposta #4 (3 d.ú.) | E | sim | ativa |
-| E12 | E12 — Encerramento sem resposta | sem_resposta #5 (5 d.ú.) | E | sim | ativa (terminal enquanto E30 desligada) |
-| E30 | E30 — Recontato tardio | sem_resposta #6 (22 d.ú.) | E | sim | **desativada** por trava (`E30_ENABLED`) |
-| V3 | V3 — Visualizou e não respondeu | visualizacao #3 (2 d.ú.) | V | sim | ativa |
-| V4 | V4 — Encerramento da interação visualizada | visualizacao #4 (3 d.ú.) | V | sim | ativa (terminal) |
-| R1 | R1 — Primeira tentativa após desaparecimento | reengajamento #1 (2 d.ú.) | R | sim | ativa |
-| R2 | R2 — Segunda tentativa | reengajamento #2 (2 d.ú.) | R | sim | ativa |
-| R3 | R3 — Interrupção das tentativas | reengajamento #3 (2 d.ú.) | R | sim | ativa (terminal) |
-| RE0 | RE0 — Reentrada: retomada | reentrada #1 (0 d.ú.) | RE | sim | ativa |
-| RE1 | RE1 — Reentrada: como avaliar | reentrada #2 (2 d.ú.) | RE | sim | ativa |
-| RE2 | RE2 — Reentrada: estrutura e suporte | reentrada #3 (3 d.ú.) | RE | sim | ativa |
-| RE3 | RE3 — Reentrada: encerramento | reentrada #4 (5 d.ú.) | RE | sim | ativa (terminal) |
-| RF0 | RF0 — Relacionamento esfriado: retomada | frio #1 (1 d.ú.) | RF | sim | ativa |
-| RF1 | RF1 — Relacionamento esfriado: encerramento | frio #2 (3 d.ú.) | RF | sim | ativa (terminal) |
-
-Fora da cadência (registro `NON_CADENCE_STEPS`):
-
-| stepKey | Rótulo padrão | Família | Executável | Situação |
-|---|---|---|---|---|
-| E20 | exibido como "E6 — Apresentação Digital" | avulsa | sim (fora de fila) | ativa |
-| E27 | exibido como "E7 — Checkpoint da Apresentação" | avulsa | sim | sem texto oficial previsto |
-| FINALIZACAO | Finalização do ciclo | avulsa | sim | ativa |
-| RESPOSTA_AUTOMATICA | Resposta automática — janela 24h | avulsa | sim | sem texto oficial previsto |
-
-## 3. Configuração x Biblioteca (26 registros)
-
-| Etapa oficial | Registro na Biblioteca | Nome exibido hoje |
-|---|---|---|
-| E0 | sim | E0 — Primeiro contato |
-| E0_V1 | sim | Livre |
-| E1 | sim | E1 — Primeiro acompanhamento |
-| E3 | sim | E2 — Segundo acompanhamento |
-| E4 | sim | R2 — Segundo reengajamento |
-| E12 | sim | E3 — Terceiro acompanhamento |
-| E30 | **não existe** | — |
-| V3 | sim | Liberado para novas mensagem |
-| V4 | sim | ER2 - Etapa de RMK 2 |
-| R1 | sim | RE3 — Finalização / oferta digital |
-| R2 | sim | RF0 — Follow-up de reunião |
-| R3 | sim | RF1 — Finalização / alternativa digital |
-| RE0 | sim | E5 — Apresentação Digital |
-| RE1 | sim | E8 — Finalização |
-| RE2 | sim | R4 — Finalização do Reengajamento |
-| RE3 | sim | ER0 - Etapa de RMK 0 |
-| RF0 | sim | Liberado para novas mensagem |
-| RF1 | sim | Liberado para novas mensagem |
-| E20 | sim | E6 — Acompanhamento da apresentação digital |
-| E27 | sim | E7 — Última tentativa de contato |
-| FINALIZACAO | sim | RE2 — Reentrada / suporte |
-| RESPOSTA_AUTOMATICA | sim | Liberado para novas mensagem |
-
-Registros da Biblioteca **sem correspondente na configuração** (órfãos): **E2, E5, E6, E7, TESTE** — 5 chaves.
-
-Etapa oficial **sem registro na Biblioteca**: **E30** (única).
-
-## 4. Por que existem E2/E5/E6/E7/TESTE/V3/V4
-
-- **V3 e V4 são oficiais** — pertencem ao fluxo de visualização; a presença delas está correta.
-- **E2, E5, E6, E7** são *aliases históricos*: nomes editoriais do documento oficial que nunca viraram etapa do motor. O código os declara explicitamente como "chaves antigas mantidas apenas por histórico, não executáveis" (`WORD_ALIAS_STEPS`), mas a semeadura/criação acabou gerando registro próprio para elas na tabela.
-- **TESTE** foi criada manualmente pela própria tela: a Biblioteca permite criar qualquer chave nova (`criarEtapaBiblioteca`), com a justificativa em código de que "a Biblioteca é a fonte de verdade da EXISTÊNCIA da etapa".
-
-## 5. O que a Biblioteca é hoje, segundo o código
-
-Resposta pelo código atual: **(A) — uma segunda fonte de verdade de etapas.**
-
-Provas: a criação de etapa pela tela chama `registerKnownSteps`; o carregador do servidor declara a Biblioteca ativa como fonte das etapas operacionais; e a lista de etapas oferecida ao configurador de fluxos (`etapasDisponiveis`) é montada a partir da Biblioteca, não de `STEPS`. Ou seja, digitar uma chave nova na Biblioteca cria, de fato, uma etapa reconhecida pelo motor. A intenção declarada nos comentários é (B), mas o comportamento implementado é (A).
-
-## 6. É possível a Biblioteca derivar a lista da configuração?
-
-Sim, tecnicamente é direto, e todos os seis comportamentos pedidos são alcançáveis sem tocar no motor:
-
-- A lista passa a ser gerada a partir de `STEPS` + etapas fora da cadência, e não de `select distinct step_key`.
-- Para cada etapa oficial, procura-se a versão ativa na tabela; havendo, mostra texto e histórico; não havendo, o cartão aparece como "sem mensagem cadastrada" (essa noção já existe no campo `awaitingOfficialText`).
-- Etapa nova na configuração aparece sozinha, sem cadastro manual — a semeadura já percorre uma lista e insere só o que falta; basta essa lista virar a configuração.
-- Etapa que sai da configuração deixa de constar como operacional, e seus registros continuam intactos no banco, visíveis em uma seção de histórico/legado (é onde E2, E5, E6, E7 e TESTE cairiam).
-- Para impedir que um `title` crie etapa, basta o reconhecimento do motor deixar de somar "Biblioteca ativa" e passar a somar "configuração + histórico já executado". O histórico executado hoje contém apenas E0, E1, E3, E20 e FINALIZACAO — todas oficiais, então nada em produção quebraria.
-
-## 7. Menor arquitetura para a posição
-
-Duas opções, ambas mínimas:
-
-- **Opção enxuta (sem migração):** manter `display_position` na linha, mas (a) copiar a posição da versão anterior no insert da nova versão e (b) tornar a rotina de preenchimento conservadora — só atribui "fim da lista" quando a etapa não tem posição em nenhuma versão. Resolve salto, arrastar, histórico e etapa nova.
-- **Opção estrutural (com tabela nova):** uma tabela pequena `step_key → position`, tornando a posição atributo da etapa por definição. Mais limpa a longo prazo, exige migração e reescrita da leitura/ordenação.
-
-Se a lista passar a derivar da configuração (item 6), a ordem natural pode vir da própria sequência dos fluxos, e a posição manual vira apenas um ajuste opcional por cima.
-
-## 8. Sobre o `title`
-
-Pelo código, `title` é **apresentação editável**: a renomeação grava só esse campo, não cria versão e não toca em chave, fila ou histórico. Na prática, porém, ele **virou o identificador que as pessoas leem** — e como não há nenhuma amarração com `step_key`, os nomes se deslocaram e hoje 20 dos 26 cartões exibem um código que pertence a outra chave. Não é uso indevido pelo sistema; é ausência de vínculo e de exibição da chave técnica.
-
-## 9. Conclusão
-
-**A) Fonte única da existência/identidade das etapas:** a configuração do motor (`STEPS` + etapas fora da cadência). É ela que define prazo, fluxo, ordem e execução; nada que não esteja ali é executável de verdade.
-
-**B) Função da Biblioteca:** repositório de mensagens e versionamento das etapas definidas na configuração — opção **(B)**. Ela deve responder "qual texto esta etapa usa hoje e quais versões existiram", nunca "quais etapas existem".
-
-**C) Para a Biblioteca acompanhar a configuração automaticamente:** gerar a lista a partir da configuração em vez do `distinct` da tabela; semear por essa lista; exibir etapa sem mensagem como slot vazio; e remover a criação livre de chave como criadora de etapa real (a chave passa a ser escolhida entre as oficiais).
-
-**D) Para a nova versão preservar a posição:** copiar a posição da versão anterior no momento do insert e impedir que a rotina de preenchimento reatribua posição a etapa que já possui uma.
-
-**E) Órfãos atuais:** E2, E5, E6, E7 e TESTE. Nenhum deles aparece no histórico de envios, fila ou cadências — são órfãos puros de catálogo, sem uso operacional.
-
-**F) Risco de "arrumar os nomes" antes:** sim, e é o principal. Enquanto a chave não estiver visível ao lado do nome, renomear manualmente é trabalhar às cegas: é fácil escrever "E4" no cartão da chave RE2 e piorar o descasamento. Além disso, sem a correção da posição, cada salvamento continua jogando a etapa para o fim, embaralhando a lista no meio da arrumação. A ordem segura é: mostrar a chave técnica e corrigir a posição primeiro; renomear depois, com a chave à vista.
+Sem nenhuma ação proposta. Não avancei para a Central dos Nomes.
