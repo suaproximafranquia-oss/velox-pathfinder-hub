@@ -25,6 +25,12 @@ import {
   type KpiScopeEntry,
 } from "@/lib/kpi-scope.functions";
 import {
+  lerKpiMes,
+  salvarKpiCelula,
+  limparKpiMes,
+  type KpiMonthDTO,
+} from "@/lib/kpi-data.functions";
+import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
   INDICATORS,
@@ -34,10 +40,7 @@ import {
   formatCurrency,
   formatValue,
   isWeekend,
-  loadDataset,
-  resetDataset,
   seedHomologationDataset,
-  saveDataset,
   summarize,
   sumRow,
   useKpiContext,
