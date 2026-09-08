@@ -85,8 +85,8 @@ export function useRealDailyActionsAdapter(
       completeCall: async (item, outcome, rang) => {
         /**
          * LIGAÇÃO DA RÉGUA V2 — a ação interna vive na fila do motor.
-         * Atendeu ⇒ as ações restantes da etapa são canceladas e o ciclo
-         * aguarda o encaminhamento; não atendeu ⇒ a régua segue
+         * Atendeu ⇒ as ações restantes da etapa são canceladas e a régua
+         * segue para a próxima etapa; não atendeu ⇒ a régua segue
          * (2ª ligação em 10 min; depois a mensagem para copiar).
          * Nenhuma mensagem é enviada por aqui.
          */
@@ -130,8 +130,8 @@ export function useRealDailyActionsAdapter(
             ok: true,
             /** Fila oficial já recalculada pelo servidor. */
             queue: result?.queue,
-            message: result?.awaitingHandoff
-              ? "Ligação atendida — nenhuma mensagem é enviada; a cadência aguarda o seu encaminhamento."
+            message: outcome === "SIM"
+              ? "Ligação atendida — nenhuma mensagem é enviada; a cadência segue a régua normalmente."
               : isE0 && order === 1
                 ? "Não atendeu — a 2ª ligação da E0 será liberada em 10 minutos."
                 : isE0
