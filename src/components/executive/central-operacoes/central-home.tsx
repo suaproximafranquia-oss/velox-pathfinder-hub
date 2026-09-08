@@ -16,6 +16,7 @@ import {
   Loader2,
   MessageSquare,
   Phone,
+  RotateCcw,
   SkipForward,
 } from "lucide-react";
 import { relatorioOperacoes } from "@/lib/crm/operations-center.functions";
