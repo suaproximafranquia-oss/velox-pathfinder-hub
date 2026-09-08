@@ -1,80 +1,50 @@
-# Validação final do desenho das etapas e transições
+# Construção do motor de cadência + Ação do Dia (Financeira /f)
 
-Somente leitura. Nada foi alterado: nem código, nem banco, nem mensagens, nem Biblioteca, nem Ação do Dia.
+Escopo exclusivo da Financeira `/f`. Nada de `/`, `/s`, `/s/portal`, `/seg`, Solar ou Seguros. Nenhum dado, histórico, versão de Biblioteca, auditoria ou registro é apagado. Safety Lock intocado, nenhum envio real.
 
-## 1. Fluxo E — caminho sem resposta
+## O que passa a existir
 
-**Confirmado:** E0 → E1 → E2 → E3 → E4 → E7 → E8, sem nenhuma outra etapa entre elas. E5 e E6 existem apenas como ramificação com material e nunca aparecem no caminho sem resposta. A designação de funções está correta: E0 primeiro contato, E1 primeira tentativa (com as duas ligações internas), E2 segunda tentativa, E3 terceira tentativa, E4 quarta tentativa + oferta, E7 checkmate, E8 finalização.
+**Etapas oficiais** — E0, E1, E2, E3, E4, E5, E6, E7, E8, R1–R4, RE0–RE3. Nenhuma outra. E12, E20, E27, E30, RF e ER ficam fora da régua comercial (registros antigos são preservados, apenas não geram obrigação nova).
 
-## 2. Intervalos do fluxo E
+**Régua E (sem resposta)**: E0 = D0 · E1 +1 · E2 +2 · E3 +2 · E4 +2 · E7 +4 · E8 +3.
+**Ramo com material**: E4 → E5 imediato · E6 +7 · E7 +2 · E8 +3.
+**R**: R1 · +2 R2 · +2 R3 · +4 R4; com material R2 · +4 R4 (R3 pulada).
+**RE**: RE0 imediato · RE1 +1 · com nova apresentação RE2 +2 e RE3 +5; sem ela RE3 +3.
 
-**Confirmados sem ressalva comercial:** D0 · +1 · +2 · +2 · +2 · +4 · +3. Com a âncora aprovada (data teórica na origem + piso da execução anterior), o ciclo termina em D14 em qualquer entrada de segunda a sexta — exatamente a intenção de ~15 dias. Nenhum intervalo precisa de ajuste.
+**Âncora**: data teórica contada a partir da origem do ciclo, com a execução da etapa anterior como piso. Atraso desloca, nunca comprime nem empilha.
 
-## 3. E4 → E5 e régua com material
+**Calendário**: dias de calendário; vencimento teórico no sábado vai para segunda, no domingo para terça, feriado para o próximo dia operacional. Duas etapas do mesmo lead nunca no mesmo dia — a segunda desloca.
 
-**Confirmado.** O sinal é a resposta do lead pedindo ou concordando em receber a apresentação. E5 executa imediatamente como próxima ação, sem intervalo artificial. Depois: E5 → E6 em +7 dias, E6 → E7 em +2 dias, E7 → E8 em +3 dias. É a régua definitiva do ramo com material.
+**Janelas da cadência**: seg–sex 09:00–17:30, sábado 08:00–16:00, domingo fechado. E0 mantém a configuração própria por executivo (manual/automático e janela), sem mistura.
 
-## 4. Dois contextos de E7/E8
+**Ações internas**: E1 = ligação 1 → 3h → ligação 2 → mensagem. E2, E3, E4 = ligação → mensagem. Tudo dentro da mesma etapa; nunca E1.1/E2.1. A Ação do Dia mostra só a próxima ação liberada, e ligação sempre antes de mensagem. Se a ligação mudar o fluxo (atendeu, virou agendamento, mudou de estágio, ciclo encerrado), as ações seguintes da etapa saem da fila e o histórico é preservado.
 
-**Confirmado.** Um único par de etapas E7/E8, cada uma com dois textos possíveis, e o motor escolhe pelo histórico estruturado do ciclo: existe registro de apresentação enviada → MATERIAL_ENVIADO; não existe → SEM_CONTATO. Nenhuma interpretação de texto em nenhum ponto.
+**Contexto de E7/E8**: um par de etapas, dois textos. Com registro estruturado de apresentação enviada → MATERIAL_ENVIADO; sem ele → SEM_CONTATO. Nunca por leitura de texto.
 
-## 5. Função comercial de E7
+**Material fora do E5**: ação explícita "apresentação digital enviada" registrada no histórico do ciclo, equivalente à conclusão de E5. Sem etapa nova, sem etiqueta, sem mudar estágio.
 
-**Confirmado.** E7 não é finalização: busca uma definição sobre a continuidade da conversa, não uma decisão de compra. No contexto SEM_CONTATO é a tentativa final de abrir diálogo; no contexto MATERIAL_ENVIADO é o checkmate sobre o material — viu, faz sentido, tem dúvida, quer conversar, não quer continuar.
+**Agendamento**: mover para AGENDAMENTO congela E/R/RE imediatamente; nada novo é gerado enquanto o lead estiver lá. R só é liberado pela movimentação humana AGENDAMENTO → FRIOS. O espelhamento do follow-up e a prioridade do compromisso permanecem como estão.
 
-## 6. E8 — finalização
+**L1–L4**: param de gerar novas obrigações. Histórico, auditoria e tarefas já registradas continuam existindo e podem ser concluídas normalmente.
 
-**Confirmado.** E8 encerra o ciclo atual por ausência de comunicação suficiente, sem apagar histórico. No contexto MATERIAL_ENVIADO, a mensagem deixa claro que o material foi enviado, que retorno foi solicitado, que houve novas tentativas, que o executivo encerra e que a porta permanece aberta.
+## Como será feito (técnico)
 
-## 7. Gatilho do R
+Checkpoint de segurança antes de qualquer alteração.
 
-**Confirmado.** O fluxo R só é liberado por decisão humana de mover o lead de AGENDAMENTO para FRIOS após o compromisso não ocorrer. Enquanto o lead estiver em AGENDAMENTO, toda a cadência (E, RE, R) fica congelada. O não comparecimento sozinho não inicia R.
+1. **Configuração do fluxo** (`src/lib/relationship/config.ts`, `types.ts`): novas definições de etapa com intervalos em dias de calendário, sequências `sem_resposta`, ramo material, `reengajamento` (R1–R4) e `reentrada` (RE0–RE3), mais o plano de ações internas por etapa. E12/E20/E27/E30 saem das sequências ativas sem serem removidos como chave histórica.
+2. **Calendário e janelas** (`src/lib/relationship/calendar.ts`): unidade de dias de calendário, deslocamento sábado→segunda / domingo→terça / feriado→próximo dia operacional (usando a fonte central de feriados já existente), janela única 09:00–17:30 e sábado 08:00–16:00, e a regra de não repetir etapa do mesmo lead no mesmo dia. A janela do E0 permanece separada.
+3. **Decisão e máquina** (`decide.ts`, `machine.ts`, `flow-plan.ts`): âncora teórica + piso de execução; bifurcações por contexto de material; congelamento por AGENDAMENTO; liberação de R por transição humana para FRIOS.
+4. **Ações internas persistidas**: cada etapa passa a materializar suas ações ordenadas com estado próprio (pendente/concluída/cancelada) e liberação sequencial; a etapa só conclui quando a última ação aplicável termina.
+5. **Ação do Dia** (`src/server/crm/daily-actions.server.ts`): passa a expor apenas a ação liberada, com ligação antes de mensagem, e a descartar ações obsoletas após mudança de fluxo. Continua apenas lendo obrigações.
+6. **Fila L1–L4** (`src/server/crm/cadence.server.ts`): geração de novas tarefas L2/L3/L4 desativada; leitura e conclusão das existentes mantidas.
+7. **Biblioteca** (`message-library.server.ts`, `step-message.server.ts`): as etapas oficiais passam a ser E0–E8, R1–R4 e RE0–RE3; E7 e E8 ganham eixo de contexto (SEM_CONTATO / MATERIAL_ENVIADO) além de COM NOME / SEM NOME, que continua consultando a Central dos Nomes. Nenhuma versão existente é alterada ou apagada.
 
-## 8. R1–R4
+**Banco**: será necessária uma migration mínima para (a) ações internas da etapa com ordem, estado e horário de liberação, (b) referência teórica separada da operacional na fila, e (c) o registro estruturado de apresentação enviada no ciclo. Antes de escrevê-la, verifico se `relationship_queue`, `relationship_events` e `relationship_cadences` já comportam parte disso, para reaproveitar colunas em vez de criar tabelas paralelas. Nenhum dado existente é migrado ou removido; ciclos em andamento seguem com as obrigações que já possuem.
 
-**Confirmado.** Sem material: R1 · +2 R2 · +2 R3 · +4 R4. Com material: R1 · +2 R2 · +4 R4, e R3 é pulada. Confirmado também o requisito editorial: as mensagens R não podem conter referência temporal ligada à origem do lead ("há X dias", "desde o cadastro", "desde o E4") — precisam funcionar a partir de qualquer momento de entrada em Agendamento.
+## Testes direcionados
 
-## 9. RE — reentrada
+Simulações de entrada em segunda, sexta, sábado e domingo; E1 com ligação às 14:00 e às 16:00 (atravessando a janela); ordem ligação→mensagem em E2, E3 e E4; mudança para AGENDAMENTO durante a etapa; ramo E5/E6; contextos de E7/E8; R com e sem material; RE com e sem nova apresentação; ausência de novas obrigações L2/L3/L4; nenhuma etapa dupla no mesmo dia; atraso deslocando sem comprimir. Mais TypeScript e build limpos.
 
-**Confirmado.** RE0 imediato, RE1 em +1 dia. Quando precisa de nova apresentação: RE1 · +2 RE2 · +5 RE3. Quando já existe apresentação enviada no ciclo de reentrada: RE1 · +3 RE3 direto. Estrutura correta, sem ajustes.
+## Ponto que exige sua ciência
 
-## 10. Condição de RE2
-
-**Confirmado.** RE2 existe somente quando a reentrada precisa de uma nova apresentação. Com registro estruturado de material enviado, RE2 é pulada e o caminho vai direto para RE3.
-
-## 11. RF
-
-**Confirmado.** RF0/RF1 permanecem preservados como conceito futuro de relacionamento pós-finalização, fora desta construção. Nenhum RF novo será criado.
-
-## 12. ER
-
-**Confirmado.** ER não existe na cadência e fica totalmente fora desta construção: nada de criar, restaurar, renomear ou organizar ER0–ER3.
-
-## 13. Passagem para Agendamento
-
-**Confirmado.** Em qualquer etapa de E, R ou RE, quando o humano move o lead para AGENDAMENTO a cadência congela imediatamente e nenhuma etapa nova é gerada enquanto o lead lá permanecer. O retorno ao fluxo acontece somente pelas regras já definidas para o resultado do agendamento.
-
-## 14. Apresentação enviada fora de E5
-
-**Confirmado.** O registro manual de "apresentação digital enviada" no histórico do ciclo é suficiente para o motor reconhecer o contexto MATERIAL_ENVIADO dali em diante. Sem estágio novo, sem etiqueta, sem interpretação de mensagem e sem mexer no estágio atual do lead.
-
-## 15. Etapas x ações internas
-
-**Confirmado como regra estrutural.** Uma etapa pode ter várias ações internas ordenadas (ligação 1 → espera de 3h → ligação 2 → mensagem) e continua sendo uma única etapa no histórico e na Biblioteca. Nunca haverá E1.1, E1.2 ou equivalente. A mesma lógica vale para qualquer etapa futura com mais de uma ação.
-
-## 16. Resultado final
-
-1. Sequência E — **confirmada**.
-2. Intervalos E — **confirmados**.
-3. Ramificação E5/E6 — **confirmada**.
-4. Contextos E7/E8 — **confirmados**.
-5. R1–R4 — **confirmados**.
-6. RE0–RE3 — **confirmados**.
-7. RF — **preservado para futuro**.
-8. ER — **totalmente fora**.
-9. Agendamento congela a cadência — **confirmado**.
-10. Registro de material fora de E5 — **confirmado**.
-11. Ações internas não criam etapas — **confirmado**.
-12. Decisões de negócio pendentes — **nenhuma**.
-
-ARQUITETURA FINAL DA CADÊNCIA PRONTA PARA CONSTRUÇÃO.
+O motor de relacionamento e a Ação do Dia são compartilhados com outros ambientes. A implementação será feita de modo que apenas a Financeira `/f` use a nova régua, mantendo o comportamento atual para os demais. Se durante a construção algum ponto não puder ser isolado, eu paro e informo antes de alterar.
