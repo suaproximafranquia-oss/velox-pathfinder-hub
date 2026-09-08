@@ -36,7 +36,9 @@ export type DailyActionSource =
   | "agenda"
   | "closure"
   | "queue"
-  | "cadence";
+  | "cadence"
+  /** Ligação atendida sem encaminhamento registrado — decisão humana. */
+  | "handoff";
 export type DailyActionKind =
   | "primeiro_contato"
   | "reuniao"
