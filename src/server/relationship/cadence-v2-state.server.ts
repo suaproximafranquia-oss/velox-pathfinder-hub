@@ -184,3 +184,39 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
     materialRequestedAt: material.materialRequestedAt,
   };
 }
+
+/**
+ * CONTEXTO DE UMA ETAPA PARA UM LEAD — leitura pura (não decide nada,
+ * não grava nada). É a mesma fonte estruturada usada pelo motor:
+ *
+ *  • E7/E8 → material efetivamente disponibilizado (CONTENT_SENT);
+ *  • E1/E2/E3 → caminho V já decidido e congelado (V1/V2/V3) ou
+ *    contexto normal (sem contexto);
+ *  • R3 → passagem histórica válida por E4 no histórico REAL do lead.
+ */
+export async function resolveStepContextForLead(
+  leadId: string,
+  step: string,
+  scope: string = "production",
+): Promise<import("@/lib/relationship/cadence-v2").StepContext | null> {
+  const key = String(step ?? "").trim().toUpperCase();
+
+  if (key === "E7" || key === "E8") {
+    const material = await loadMaterialState(leadId);
+    return material.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
+  }
+
+  if (key === "E1" || key === "E2" || key === "E3") {
+    const { readVisualPath } = await import("./visual-path.server");
+    const visual = await readVisualPath(leadId);
+    if (!visual) return null;
+    return key === "E1" ? "V1" : key === "E2" ? "V2" : "V3";
+  }
+
+  if (key === "R3") {
+    const { reachedE4Historically } = await import("./visual-path.server");
+    return (await reachedE4Historically(leadId, scope)) ? "JA_PASSOU_E4" : "NAO_CHEGOU_E4";
+  }
+
+  return null;
+}
