@@ -169,8 +169,72 @@ export const rescheduleMeetingFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    const { isGreenSalesMirror } = await import("@/server/crm/daily-actions-log.server");
+    if (await isGreenSalesMirror(data.meetingId)) {
+      throw new Error(
+        "Compromisso do GreenSales: o reagendamento é feito no GreenSales e o Portal atualiza automaticamente.",
+      );
+    }
     const { rescheduleMeeting } = await import("@/server/crm/daily-actions-log.server");
     await rescheduleMeeting({ ...data, userId: context.userId, executiveId });
+    return { ok: true as const };
+  });
+
+/**
+ * FINANCEIRA /f — AGENDAMENTO ESPELHADO DO GREENSALES.
+ * "Houve contato de agendamento?" SIM/NÃO; no NÃO, "Deseja reagendar?".
+ * Nunca move o lead de estágio; nunca reagenda pelo Portal.
+ */
+export const resolveFollowUpContactFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      meetingId: string;
+      contacted: boolean;
+      willReschedule?: boolean;
+      note?: string;
+      actionKey: string;
+    }) => data,
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    const { registerFollowUpContact, registerFollowUpNoContact } = await import(
+      "@/server/crm/greensales-followup.server"
+    );
+    const result = data.contacted
+      ? await registerFollowUpContact({ meetingId: data.meetingId, actorId: executiveId, note: data.note ?? null })
+      : await registerFollowUpNoContact({
+          meetingId: data.meetingId,
+          willReschedule: Boolean(data.willReschedule),
+          actorId: executiveId,
+          note: data.note ?? null,
+        });
+    if (!result.ok) throw new Error(result.reason ?? "Não foi possível registrar o desfecho.");
+    return { ok: true as const };
+  });
+
+/** Obrigação de 24h — "Deseja encerrar esse fluxo?" SIM encerra; NÃO orienta mover para Frios. */
+export const resolveFollowUpReviewFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { meetingId: string; close: boolean; note?: string; actionKey: string }) => data)
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    const { resolveFollowUpReview } = await import("@/server/crm/greensales-followup.server");
+    const result = await resolveFollowUpReview({
+      meetingId: data.meetingId,
+      close: data.close,
+      actorId: executiveId,
+      note: data.note ?? null,
+    });
+    if (!result.ok) throw new Error(result.reason ?? "Não foi possível registrar a decisão.");
     return { ok: true as const };
   });
 

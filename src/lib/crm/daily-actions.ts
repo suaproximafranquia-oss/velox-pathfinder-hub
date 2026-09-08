@@ -87,6 +87,18 @@ export type DailyAction = {
   /** Reunião de origem (`portal_meetings.id`), quando for uma reunião. */
   meetingId?: string;
   /**
+   * Compromisso ESPELHADO do follow_up do GreenSales (Financeira /f).
+   * `mode = "contato"`: perguntar se houve contato de agendamento.
+   * `mode = "revisao_24h"`: obrigação de decidir encerrar ou retomar.
+   * Reagendamento acontece SOMENTE no GreenSales — nunca aqui.
+   */
+  followUp?: {
+    mode: "contato" | "revisao_24h";
+    state: string | null;
+    scheduledAt: string;
+    reviewDueAt: string | null;
+  };
+  /**
    * Mensagem oficial da jornada: identifica a etapa para que a tela
    * possa LER o texto na Biblioteca. Nenhuma cópia é feita aqui.
    */

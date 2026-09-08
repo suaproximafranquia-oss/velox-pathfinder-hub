@@ -468,6 +468,16 @@ export async function listSkippedActionKeys(nowIso: string): Promise<Set<string>
  * Nenhuma máquina de estados nova: apenas os status já permitidos pela
  * própria tabela.
  */
+/** Compromisso espelhado do GreenSales (Financeira /f) — fluxo próprio. */
+export async function isGreenSalesMirror(meetingId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("portal_meetings")
+    .select("external_source")
+    .eq("id", meetingId)
+    .maybeSingle();
+  return (data as { external_source?: string | null } | null)?.external_source === "greensales";
+}
+
 export async function resolveMeetingOutcome(input: {
   meetingId: string;
   attended: boolean;

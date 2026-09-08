@@ -29,6 +29,7 @@ import {
 } from "@/server/crm/e0-actions.server";
 import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
+import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -85,7 +86,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     await Promise.all([
     supabaseAdmin
       .from("portal_meetings")
-      .select("id,investor_id,investor_name,executive_id,executive_name,scheduled_at,duration_min,status,topic")
+      .select(
+        "id,investor_id,investor_name,executive_id,executive_name,scheduled_at,duration_min,status,topic,external_source,follow_up_state,follow_up_review_due_at",
+      )
       .gte("scheduled_at", horizonStart)
       .lt("scheduled_at", horizonEnd)
       .limit(500),
@@ -112,8 +115,24 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     ]);
 
   const meetings = (meetingsRes.data ?? []).filter((m) => {
-    if (CLOSED_MEETING_STATUS.has(String(m.status ?? "").toLowerCase())) return false;
-    return !input.executiveId || m.executive_id === input.executiveId;
+    if (!input.executiveId || m.executive_id === input.executiveId) {
+      /**
+       * FINANCEIRA /f — compromisso ESPELHADO do GreenSales: a obrigação
+       * existe enquanto PENDENTE (contato) ou quando a verificação de
+       * 24h venceu (VENCIDO_SEM_CONTATO). Demais estados não são ação.
+       */
+      if (m.external_source === "greensales") {
+        const state = String(m.follow_up_state ?? "");
+        if (state === FOLLOW_UP_STATES.pending) return true;
+        if (state === FOLLOW_UP_STATES.expiredNoContact) {
+          const due = m.follow_up_review_due_at ? Date.parse(m.follow_up_review_due_at) : NaN;
+          return Number.isFinite(due) && due <= Date.parse(nowIso);
+        }
+        return false;
+      }
+      return !CLOSED_MEETING_STATUS.has(String(m.status ?? "").toLowerCase());
+    }
+    return false;
   });
   /**
    * Compromissos marcados como `historico` foram encerrados na operação
@@ -212,6 +231,41 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     const startsAt = new Date(meeting.scheduled_at).toISOString();
     const identity = identities.get(meeting.investor_id as string);
     const duration = Number(meeting.duration_min ?? 60);
+    if (meeting.external_source === "greensales") {
+      const review = String(meeting.follow_up_state ?? "") === FOLLOW_UP_STATES.expiredNoContact;
+      const anchor = review && meeting.follow_up_review_due_at
+        ? new Date(meeting.follow_up_review_due_at).toISOString()
+        : startsAt;
+      actions.push({
+        actionKey: `meeting:${meeting.investor_id}:${review ? "revisao24h" : "agendamento"}:${anchor}`,
+        source: "meeting",
+        kind: "reuniao",
+        leadId: meeting.investor_id as string,
+        name: identity?.name ?? meeting.investor_name ?? "Investidor",
+        phone: identity?.phone ?? "",
+        scope: identity?.scope ?? null,
+        stepLabel: review ? "Verificação 24h" : "Agendamento",
+        dueDate: operationalDate(anchor),
+        startsAt: anchor,
+        endsAt: review ? null : new Date(new Date(startsAt).getTime() + duration * 60000).toISOString(),
+        overdue: operationalDate(anchor) < today,
+        priorityMax: true,
+        bucket: review
+          ? (operationalDate(anchor) < today ? "atrasada" : "agora")
+          : resolveBucket({ dueDate: operationalDate(startsAt), startsAt, nowIso }),
+        title: review ? "Verificar agendamento sem contato (24h)" : "Agendamento (GreenSales)",
+        responsibleName: meeting.executive_name ?? null,
+        attempts: [],
+        meetingId: meeting.id as string,
+        followUp: {
+          mode: review ? "revisao_24h" : "contato",
+          state: meeting.follow_up_state ?? null,
+          scheduledAt: startsAt,
+          reviewDueAt: meeting.follow_up_review_due_at ?? null,
+        },
+      });
+      continue;
+    }
     actions.push({
       actionKey: `meeting:${meeting.investor_id ?? "sem-lead"}:reuniao:${startsAt}`,
       source: "meeting",

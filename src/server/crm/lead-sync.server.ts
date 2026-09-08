@@ -425,6 +425,7 @@ async function runLeadSyncInner(
        * comportamento, para que o ambiente de teste percorra exatamente
        * este caminho.
        */
+      const previousStageKey = storedStage.get(externalId) ?? null;
       const outcome = await intakeLead(raw, { pipeline, settings, connectionUserId });
       if (outcome.deduplicated) summary.duplicatesAvoided += 1;
       else if (outcome.created) summary.created += 1;
@@ -434,6 +435,29 @@ async function runLeadSyncInner(
       if (outcome.failed) {
         summary.failed += 1;
         summary.errors.push(`Lead ${externalId}: ${outcome.error ?? "falha desconhecida"}`);
+      }
+
+      /**
+       * FINANCEIRA /f — AGENDAMENTOS → FRIOS é a única transição que
+       * libera o reengajamento (R). Ela é detectada aqui, a partir da
+       * etapa ESTRUTURADA da origem, e registrada uma única vez.
+       */
+      if (!outcome.failed && !outcome.deduplicated && storedStage.has(externalId)) {
+        const currentStageKey = stageKeyOf(raw as ScannedLead);
+        if (currentStageKey && currentStageKey !== previousStageKey) {
+          const { releaseReengagementOnFrios } = await import(
+            "@/server/crm/greensales-followup.server"
+          );
+          await releaseReengagementOnFrios({
+            externalId,
+            previousStageKey,
+            currentStageKey,
+          }).catch((error: unknown) => {
+            summary.errors.push(
+              `Lead ${externalId} (reengajamento): ${error instanceof Error ? error.message : "falha desconhecida"}`,
+            );
+          });
+        }
       }
 
     } catch (error) {
@@ -451,6 +475,29 @@ async function runLeadSyncInner(
   const deferredRun = await processDeferredFirstContacts();
   summary.welcomeSent += deferredRun.sent;
   summary.errors.push(...deferredRun.errors);
+
+  /**
+   * FINANCEIRA /f — ESPELHO DO FOLLOW_UP (GreenSales → portal_meetings).
+   * Roda depois de todo o espelhamento de leads, com o follow_up mais
+   * recente visto na listagem da origem. Somente AGENDAMENTOS; nunca
+   * cria etapa, nunca move estágio, nunca envia mensagem.
+   */
+  try {
+    const { syncGreenSalesFollowUps } = await import("@/server/crm/greensales-followup.server");
+    const overrides = new Map<string, unknown>();
+    for (const listed of scanned) {
+      const rec = listed as Record<string, unknown>;
+      if (Object.prototype.hasOwnProperty.call(rec, "follow_up")) {
+        overrides.set(String(listed.id), rec["follow_up"]);
+      }
+    }
+    const followUps = await syncGreenSalesFollowUps(overrides);
+    summary.errors.push(...followUps.errors);
+  } catch (error) {
+    summary.errors.push(
+      `Follow-up GreenSales: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+    );
+  }
 
   return finish("OK");
 }
