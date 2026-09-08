@@ -100,7 +100,7 @@ export async function buildCadenceQueue(
   // a ligação aconteceu de verdade e o desfecho informado pelo
   // Executivo — é daí que parte (ou não) o próximo passo.
   const done = new Map<string, CadenceAttempt[]>();
-  for (const task of tasks ?? []) {
+  for (const task of (tasks ?? []).filter((t) => t.status === "DONE")) {
     const key = `${task.lead_id}::${task.cycle_date}`;
     const list = done.get(key) ?? [];
     list.push({
@@ -149,6 +149,13 @@ export async function buildCadenceQueue(
           );
     if (!next) continue;
     if (next.dueDate > today) continue;
+    /**
+     * L2/L3/L4 não geram mais obrigação nova: a partir da segunda
+     * tentativa só permanece na fila o que JÁ estava registrado.
+     */
+    if (next.step >= 2 && !existingObligations.has(`${row.id}::${cycleDate}::${next.step}`)) {
+      continue;
+    }
     queue.push({
       leadId: row.id,
       externalId: row.external_id,
