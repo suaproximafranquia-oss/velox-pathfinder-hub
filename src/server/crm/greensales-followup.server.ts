@@ -228,7 +228,7 @@ export async function syncOneFollowUp(
       scheduled_at: decision.scheduledAt,
       duration_min: 30,
       status: "Agendada",
-      topic: MIRROR_TOPIC,
+      topic,
       origin: "greensales",
       external_source: GREENSALES_SOURCE,
       external_ref: followUpExternalRef(item.externalId),
@@ -253,7 +253,7 @@ export async function syncOneFollowUp(
     await appendTimeline({
       leadId,
       event: "agendamento_greensales_espelhado",
-      reason: `Compromisso do GreenSales espelhado para ${decision.scheduledAt}.`,
+      reason: `${modality === "VIDEOCHAMADA" ? "Videochamada criada" : "Agendamento criado"} — ${formatBr(decision.scheduledAt)}.`,
       at: nowIso,
     });
     return decision;
@@ -350,7 +350,7 @@ export async function syncGreenSalesFollowUps(
       .from("crm_leads")
       .select("external_id,stage_key,raw_payload")
       .eq("external_source", GREENSALES_SOURCE)
-      .eq("stage_key", AGENDAMENTOS_STAGE)
+      .in("stage_key", FOLLOW_UP_ELIGIBLE_STAGES)
       .limit(2000),
     supabaseAdmin
       .from("portal_meetings")
