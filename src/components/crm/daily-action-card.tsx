@@ -62,7 +62,10 @@ export function DailyActionCard({
   locked: boolean;
   onOpenLead?: (leadId: string, scope: string | null) => void;
   /** A ação saiu da lista (concluída, pulada ou recolocada na fila). */
-  onResolved: (actionKey: string, result: { requeue?: boolean; message?: string }) => void;
+  onResolved: (
+    actionKey: string,
+    result: { requeue?: boolean; message?: string; queue?: DailyAction[] },
+  ) => void;
   /** Releitura da lista oficial após uma execução. */
   onReload?: (silent?: boolean) => void;
   /** Último resultado de ligação, reversível pelo painel que hospeda o card. */
@@ -105,7 +108,7 @@ export function DailyActionCard({
     setFeedback(null);
   }, [item.actionKey]);
 
-  function applyResult(result: { requeue?: boolean; message?: string }) {
+  function applyResult(result: { requeue?: boolean; message?: string; queue?: DailyAction[] }) {
     onResolved(item.actionKey, result);
     if (result.message) setFeedback(result.message);
   }
