@@ -23,9 +23,11 @@ import {
   followUpExternalRef,
   followUpMeetingId,
   followUpModality,
+  VIDEO_STAGE,
   isCommitmentStageToFrios,
   planFollowUpSync,
   reviewDueAt,
+  type FollowUpModality,
   type FollowUpSyncDecision,
 } from "@/lib/crm/greensales-followup";
 
@@ -317,8 +319,15 @@ export async function syncOneFollowUp(
     await appendTimeline({
       leadId,
       event: "agendamento_greensales_espelhado",
-      reason: `${modality === "VIDEOCHAMADA" ? "Videochamada criada" : "Agendamento criado"} — ${formatBr(decision.scheduledAt)}.`,
+      reason: `${noteSubject(modality).created} — ${formatBr(decision.scheduledAt)}.`,
       at: nowIso,
+    });
+    await appendFollowUpNote({
+      leadId,
+      externalId: item.externalId,
+      kind: "criado",
+      at: decision.scheduledAt,
+      body: `${noteSubject(modality).created} — ${formatBrFull(decision.scheduledAt)}`,
     });
     return decision;
   }
@@ -355,6 +364,13 @@ export async function syncOneFollowUp(
       reason: `Reagendado no GreenSales: ${formatBr(decision.from)} → ${formatBr(decision.to)}.`,
       at: nowIso,
     });
+    await appendFollowUpNote({
+      leadId,
+      externalId: item.externalId,
+      kind: "reagendado",
+      at: decision.to,
+      body: `${noteSubject(modality).noun} reagendado — ${formatBrFull(decision.from)} → ${formatBrFull(decision.to)}`,
+    });
     return decision;
   }
 
@@ -383,6 +399,13 @@ export async function syncOneFollowUp(
       event: "agendamento_greensales_cancelado",
       reason: decision.detail,
       at: nowIso,
+    });
+    await appendFollowUpNote({
+      leadId,
+      externalId: item.externalId,
+      kind: "cancelado",
+      at: existing.scheduled_at,
+      body: `${noteSubject(followUpModality(existing.topic === FOLLOW_UP_TOPIC.VIDEOCHAMADA ? VIDEO_STAGE : AGENDAMENTOS_STAGE)).cancelled} — ${formatBrFull(existing.scheduled_at)}`,
     });
     return decision;
   }
