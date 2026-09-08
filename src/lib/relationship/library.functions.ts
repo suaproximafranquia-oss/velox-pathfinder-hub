@@ -19,8 +19,8 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       stepKey: string;
-      /** Contexto do conteúdo (E7/E8). */
-      stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
+      /** Contexto do conteúdo (E1/E2/E3, E7/E8, R3). */
+      stepContext?: string | null;
       body: string;
       bodyWithoutName?: string | null;
       title?: string | null;
