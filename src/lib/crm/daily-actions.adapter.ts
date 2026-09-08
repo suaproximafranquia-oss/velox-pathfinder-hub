@@ -66,6 +66,19 @@ export type DailyActionsAdapter = {
     scheduledAt: string,
     note: string,
   ) => Promise<AdapterResult>;
+  /**
+   * FINANCEIRA /f — agendamento espelhado do GreenSales.
+   * "Houve contato de agendamento?" (SIM/NÃO) e, no NÃO, "Deseja reagendar?".
+   */
+  resolveFollowUpContact: (
+    item: DailyAction,
+    decision: { contacted: boolean; willReschedule?: boolean; note: string },
+  ) => Promise<AdapterResult>;
+  /** Obrigação de 24h — encerrar (SIM) ou retomar em Frios (NÃO). */
+  resolveFollowUpReview: (
+    item: DailyAction,
+    decision: { close: boolean; note: string },
+  ) => Promise<AdapterResult>;
 };
 
 

@@ -18,6 +18,8 @@ import {
   registerQueueCallOutcomeFn,
   rescheduleMeetingFn,
   resolveMeetingOutcomeFn,
+  resolveFollowUpContactFn,
+  resolveFollowUpReviewFn,
   skipDailyActionFn,
 } from "@/lib/crm/daily-actions.functions";
 import { executeFirstContactAction } from "@/lib/crm/first-contact-mode.functions";
@@ -49,6 +51,8 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
   const recordHistory = useServerFn(recordDailyActionHistoryFn);
   const resolveMeeting = useServerFn(resolveMeetingOutcomeFn);
   const rescheduleMeeting = useServerFn(rescheduleMeetingFn);
+  const resolveFollowUpContact = useServerFn(resolveFollowUpContactFn);
+  const resolveFollowUpReview = useServerFn(resolveFollowUpReviewFn);
 
   return useMemo<DailyActionsAdapter>(
     () => ({
@@ -223,6 +227,51 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
         });
         return { ok: true, message: "Reunião reagendada." };
       },
+      resolveFollowUpContact: async (item, decision) => {
+        if (!item.meetingId) return { ok: false, message: "Agendamento sem origem oficial." };
+        try {
+          await resolveFollowUpContact({
+            data: {
+              meetingId: item.meetingId,
+              contacted: decision.contacted,
+              willReschedule: decision.willReschedule,
+              note: decision.note,
+              actionKey: item.actionKey,
+            },
+          });
+        } catch (error) {
+          return { ok: false, message: error instanceof Error ? error.message : "Falha ao registrar." };
+        }
+        return {
+          ok: true,
+          message: decision.contacted
+            ? "Contato de agendamento registrado."
+            : decision.willReschedule
+              ? "Faça o novo agendamento no GreenSales — o Portal atualiza automaticamente."
+              : "Registrado sem contato. Amanhã a Ação do Dia pedirá a decisão de encerrar ou retomar.",
+        };
+      },
+      resolveFollowUpReview: async (item, decision) => {
+        if (!item.meetingId) return { ok: false, message: "Agendamento sem origem oficial." };
+        try {
+          await resolveFollowUpReview({
+            data: {
+              meetingId: item.meetingId,
+              close: decision.close,
+              note: decision.note,
+              actionKey: item.actionKey,
+            },
+          });
+        } catch (error) {
+          return { ok: false, message: error instanceof Error ? error.message : "Falha ao registrar." };
+        }
+        return {
+          ok: true,
+          message: decision.close
+            ? "Fluxo de agendamento encerrado."
+            : "Então retire esse lead de Agendamento e mova para Frios no GreenSales para retomarmos o relacionamento.",
+        };
+      },
     }),
     [
       fetchActions,
@@ -237,6 +286,8 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
       recordHistory,
       resolveMeeting,
       rescheduleMeeting,
+      resolveFollowUpContact,
+      resolveFollowUpReview,
     ],
   );
 }
