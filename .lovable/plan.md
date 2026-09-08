@@ -1,82 +1,132 @@
-# Follow-up do GreenSales como origem do agendamento — fechamento da arquitetura
+# Arquitetura — Follow-up do GreenSales e Motor de Datas da Cadência
 
-Somente leitura. Nada foi alterado: nem código, nem banco, nem cadência, nem Ação do Dia.
+Somente leitura. Nada foi alterado: nem código, nem banco, nem cadência, nem mensagens, nem Ação do Dia.
 
-## 1. O que já existe e pode ser reutilizado
+---
 
-- **Compromisso interno**: `portal_meetings` já guarda lead, data/hora, duração, executivo responsável, situação, motivo de cancelamento, observações, tópico e um campo `origin` (hoje só "portal" ou "executivo").
-- **Coluna do funil**: as colunas reais do funil são NOVOS, ZERO CONTATO, FRIOS, AGENDAMENTOS, OPORTUNIDADES, VÍDEO, 4COF/CONTRATO, PAGAMENTO, REMARKETING, VENCEMOS, FINALIZADO e NÃO LOCALIZADOS. A coluna vigente do lead fica em `crm_leads.stage_key`, espelhada do GreenSales — o Portal não decide coluna.
+# PARTE A — Follow-up do GreenSales como origem do agendamento
+
+## A1. O que já existe e pode ser reutilizado
+
+- **Compromisso interno**: `portal_meetings` já guarda lead, data/hora, duração, executivo responsável, situação, motivo de cancelamento, observações, tópico e um campo de origem (hoje só "portal" ou "executivo").
+- **Colunas reais do funil**: NOVOS, ZERO CONTATO, FRIOS, AGENDAMENTOS, OPORTUNIDADES, VÍDEO, 4COF/CONTRATO, PAGAMENTO, REMARKETING, VENCEMOS, FINALIZADO, NÃO LOCALIZADOS. A coluna vigente fica em `crm_leads.stage_key`, espelhada do GreenSales.
 - **Bloqueio da cadência**: o motor já tem o estado "agendado", que bloqueia integralmente qualquer etapa automática.
-- **Elegibilidade do relacionamento**: a fila de cadência só considera leads nas colunas ZERO CONTATO e FRIOS. Lead em AGENDAMENTOS já é, por construção, inelegível.
-- **Ação do Dia**: já lê reuniões de `portal_meetings`, marca reunião como prioridade máxima, entra em foco poucos minutos antes do horário e usa o card padrão com nome, telefone e Ver ficha.
-- **Desfecho e histórico**: já existem registro de compareceu / não compareceu e de reagendamento, ambos gravados em livro append-only + histórico do lead.
-- **Responsável do lead**: `portal_leads.responsible_executive_id` (+ slug), com regra de congelamento — uma vez definido, não é sobrescrito.
+- **Elegibilidade do relacionamento**: a fila de cadência só considera ZERO CONTATO e FRIOS. Lead em AGENDAMENTOS já é inelegível por construção.
+- **Ação do Dia**: já lê `portal_meetings`, trata reunião como prioridade máxima, entra em foco poucos minutos antes do horário, com card padrão (nome, telefone, Ver ficha).
+- **Desfecho e histórico**: já existem compareceu / não compareceu / reagendada, gravados em livro append-only e no histórico do lead.
+- **Responsável**: `portal_leads.responsible_executive_id`, atribuído no Portal e congelado depois de definido.
 
-## 2. O que falta para o fluxo pretendido
+## A2. O que falta
 
-1. Leitura do `follow_up` na sincronização (hoje nenhum código lê esse campo; ele só existe dentro da cópia bruta do lead).
+1. Ler o `follow_up` na sincronização (hoje nenhum código lê; ele só existe na cópia bruta do lead).
 2. Identidade externa no compromisso (origem + id do lead na origem).
-3. Regra de espelho: compromisso de origem GreenSales não tem data editada no Portal.
-4. Desfecho novo "sem contato e sem reagendamento", que não encerra o compromisso.
+3. Regra de espelho: data não editável no Portal.
+4. Desfecho "sem contato e sem reagendamento", que não encerra o compromisso.
 5. Obrigação persistente de verificação em 24 horas.
-6. Gatilho de liberação do R somente na transição de coluna AGENDAMENTOS → FRIOS percebida pela sincronização.
+6. Liberação do R somente na transição AGENDAMENTOS → FRIOS percebida pela sincronização.
 
-## 3. follow_up + reunião manual no mesmo lead
+## A3. follow_up + reunião manual
 
-Hoje as duas coisas coexistiriam e apareceriam como duas ações distintas, porque a Ação do Dia só deduplica reunião × evento de agenda quando o horário é idêntico — não há nada que reconheça "mesmo compromisso" entre origens.
+Hoje as duas coexistiriam como ações separadas: a deduplicação só ocorre quando o horário é idêntico. Menor regra, sem tabela nova: um único compromisso ativo de origem GreenSales por lead, com precedência sobre reunião manual do mesmo lead no mesmo período (fusão ou bloqueio na criação).
 
-Menor regra, sem tabela nova: por lead, **um único compromisso ativo de origem GreenSales**, identificado por origem + id externo; quando ele existe, ele tem precedência e a reunião manual do mesmo lead no mesmo período é absorvida (fundida no espelho) ou impedida na criação. Não é preciso apagar reuniões manuais antigas — basta a precedência.
+## A4. follow_up apagado
 
-## 4. follow_up apagado na origem
+A sincronização hoje não percebe nada, porque não lê o campo. Lendo-o, a comparação valor-atual × valor-espelhado cobre tudo: existe → ativo; mudou → mesmo compromisso reagendado com evento no histórico; sumiu → compromisso cancelado com motivo "removido na origem". Nunca se cria reunião nova.
 
-A sincronização atual não percebe nada, porque não lê o campo. Passando a lê-lo, a comparação valor-atual × valor-espelhado cobre os três casos sem estrutura nova:
+## A5. follow_up sem estado AGENDAMENTO
 
-- existe → compromisso ativo;
-- mudou → o mesmo compromisso é atualizado e um evento de reagendamento é gravado;
-- sumiu → o compromisso espelhado é cancelado (situação Cancelada + motivo "follow-up removido na origem").
+Compatível. A condição é direta: só vira compromisso quando a coluna for AGENDAMENTOS. Em NOVOS ou FRIOS o follow_up é ignorado, e a cadência segue normal nas colunas elegíveis.
 
-Nenhuma reunião nova é criada em nenhum dos casos.
+## A6. Identidade do compromisso
 
-## 5. follow_up sem estado AGENDAMENTO
+Par (origem = "greensales", id do lead na origem). Mudança de horário atualiza o mesmo registro. Cabe em `portal_meetings`; falta apenas o campo de id externo e um valor de origem novo.
 
-Compatível e recomendável. A coluna vigente já está em `crm_leads.stage_key`, então a condição é direta: só vira compromisso quando `stage_key = agendamentos`. Lead em NOVOS ou FRIOS com follow_up preenchido é ignorado. Isso também protege a cadência: nas colunas elegíveis (ZERO CONTATO/FRIOS) o relacionamento continua rodando normalmente.
+## A7. Ligação com T-5 / Ação do Dia
 
-## 6. Identidade do compromisso GreenSales
+Automática: gravado em `portal_meetings`, o compromisso herda card padrão, prioridade máxima e foco antes do horário. A pergunta de contato já existe como desfecho com nota. A mudança é, no "não", oferecer reagendar na origem (sem gravar horário no Portal) ou marcar vencido sem contato.
 
-Usar `portal_meetings`, sem tabela nova, com dois atributos de identidade: origem = "greensales" e id do lead na origem (59193). A chave de unicidade é o par (origem, id externo) — mudança de horário atualiza o mesmo registro, nunca cria outro. Hoje `origin` existe mas só aceita dois valores e não há campo para o id externo: é aí que entra a alteração mínima.
+## A8. Guardar "vencido sem contato"
 
-## 7. Ligação com T-5 / Ação do Dia
+Não existe hoje: "não compareceu" encerra a reunião e nada sobra. Solução mínima: situação própria que mantém o compromisso vivo + obrigação de verificação com vencimento em 24 horas, na fila que a Ação do Dia já lê.
 
-Automática. Gravado o compromisso em `portal_meetings`, ele herda tudo: card padrão com nome, telefone e Ver ficha, prioridade máxima, foco cinco minutos antes e ação principal no horário. A pergunta "Houve contato no agendamento?" já existe como desfecho compareceu/não compareceu com nota. A única mudança na tela é, no "não", oferecer as duas saídas: instrução para reagendar na origem (o Portal não grava horário novo) ou o estado de vencido sem contato.
+## A9. Verificação de 24 horas
 
-## 8. Guardar "vencido sem contato e sem reagendamento"
+Suportada assim que existir a obrigação do A8. "Sim" encerra a cadência (o motor já tem encerramento). "Não" apenas instrui a mover para FRIOS na origem — o Portal não move nada e não inicia R.
 
-Hoje não existe: "não compareceu" encerra o compromisso como Cancelada e nada sobra para o dia seguinte. É a maior lacuna. A forma mais barata é uma situação própria do compromisso (ex.: "vencido sem contato") que o mantém vivo, mais uma obrigação de verificação com vencimento em 24 horas — usando a fila de obrigações que a Ação do Dia já lê.
+## A10. Liberar R apenas após AGENDAMENTOS → FRIOS
 
-## 9. Verificação de 24 horas
+Já é estrutural: em AGENDAMENTOS o lead está fora das colunas elegíveis e o estado agendado bloqueia tudo. Falta ligar a transição percebida ao desbloqueio explícito desse estado.
 
-Suportada assim que existir a obrigação persistida do item 8: a Ação do Dia é agregador de leitura e exibe o card padrão com o texto de decisão. "Sim" encerra a cadência (o motor já tem encerramento). "Não" apenas mostra a instrução de mover para FRIOS na origem — o Portal não move o lead e não inicia nada.
+## A11. Responsável quando o vendedor vem vazio
 
-## 10. Liberar R somente após AGENDAMENTOS → FRIOS
+Regra existente: o responsável é o do Portal, congelado após definido; o GreenSales não é fonte disso. O compromisso herda esse responsável. No lead 59193 ele está vazio — o compromisso nasceria sem dono e não apareceria para ninguém. **Decisão necessária**: bloquear a criação sem responsável, ou criar e listar como pendência de atribuição.
 
-Já é o comportamento estrutural: lead em AGENDAMENTOS está fora das colunas elegíveis e, com o estado agendado, toda etapa automática fica bloqueada. Quando a sincronização perceber a coluna FRIOS, o lead volta a ser elegível. Falta apenas ligar essa transição ao desbloqueio explícito do estado agendado no motor.
+## A12. Menor construção (Parte A)
 
-## 11. Responsável quando o vendedor vem vazio
+Ler follow_up só em AGENDAMENTOS; identidade externa em `portal_meetings`; espelhamento idempotente (criar/atualizar/cancelar) com evento de reagendamento; precedência sobre reunião manual; desfecho "vencido sem contato" + verificação em 24h; desbloqueio do R pela transição de coluna. Nenhuma tabela nova, nenhuma agenda paralela.
 
-Regra existente: o responsável é o do lead no Portal (`portal_leads.responsible_executive_id`), atribuído no Portal e congelado depois de definido; o GreenSales não é fonte desse dado. O compromisso deve herdar esse responsável. Risco real: no lead 59193 o responsável está vazio — nesse caso o compromisso nasceria sem dono e não apareceria na Ação do Dia de ninguém. **Decisão necessária antes de construir**: bloquear a criação do espelho sem responsável, ou criar e listar como pendência de atribuição.
+---
 
-## 12. Menor construção necessária
+# PARTE B — Motor de datas da cadência
 
-1. Sincronização passa a ler o `follow_up` apenas quando o lead está em AGENDAMENTOS.
-2. `portal_meetings` ganha identidade externa (origem "greensales" + id do lead na origem) — nenhuma tabela nova.
-3. Espelhamento idempotente: criar, atualizar horário ou cancelar; sempre o mesmo registro; evento de reagendamento no histórico a cada mudança percebida.
-4. Precedência do espelho sobre reunião manual do mesmo lead.
-5. Desfecho "vencido sem contato" + obrigação de verificação em 24 horas.
-6. Decisão de 24 horas: encerrar cadência, ou instruir a mover para FRIOS.
-7. Desbloqueio do R condicionado à transição de coluna percebida pela sincronização.
+## B1. Como o motor calcula datas hoje
 
-Nada disso toca GreenSales, Safety Lock, envio de WhatsApp, ou as réguas E, R, RE e RF.
+Cada etapa tem um número de dias, e a data de vencimento sai de uma função única que soma esses dias a partir de um instante de referência e, em seguida, empurra o resultado para o próximo momento operacional válido. O vencimento fica gravado na fila; a Ação do Dia só lê.
 
-## Único ponto em aberto
+## B2. Onde a regra está configurada
 
-O tratamento do compromisso quando o lead ainda não tem responsável no Portal (item 11).
+Centralizada em dois arquivos: a configuração das etapas e das janelas (`src/lib/relationship/config.ts`) e o calendário (`src/lib/relationship/calendar.ts`). A decisão de qual etapa e para quando fica em `decide.ts`. Não está espalhada. Existe, porém, um segundo motor menor e independente para a fila de ligações (`src/lib/crm/cadence.ts`, L1–L4), que tem seus próprios intervalos.
+
+## B3. Corridos ou úteis?
+
+**Dias úteis** — em todo o motor de mensagens e também na fila de ligações. O conceito de dias corridos não existe hoje em nenhum prazo de cadência.
+
+## B4. Sábado e domingo hoje
+
+Sábado é dia útil parcial: há janela de envio das 09:00 às 12:00. Domingo não tem janela nenhuma. Feriados também não. Uma etapa que caia em dia sem janela não é perdida nem substituída: é empurrada para a próxima abertura, que é sempre o próximo dia com janela — ou seja, hoje sábado empurra para segunda, e domingo também empurra para segunda. **A regra "domingo → terça" não existe.**
+
+## B5. Atraso
+
+Não há recálculo nem perda. Se o vencimento já passou e o momento atual é operacional, a etapa fica devida agora e aparece como pendente/atrasada. Se o momento atual está fora da janela, ela é empurrada para a próxima abertura, sempre para frente. A Ação do Dia tem, além disso, um cálculo próprio de "atrasado" em dias úteis, apenas para exibição.
+
+## B6. Como calcula a próxima etapa
+
+A partir da **execução real da etapa anterior** (a última saída registrada), não da data teórica original do ciclo. Para o fluxo de acompanhamento há ainda um piso: a contagem só começa depois que o lead sai da coluna NOVOS. Consequência prática: um atraso desloca toda a sequência para frente — não acumula várias etapas no mesmo dia.
+
+## B7. Múltiplas ações dentro de uma etapa
+
+Não existe. Cada etapa é um disparo único. O que existe hoje é uma segunda fila, a de ligações (L1 manual, L2 +2 dias úteis, L3 +1, L4 +3), independente das etapas de mensagem. Não há nenhum conceito de subpasso dentro de uma etapa.
+
+## B8. E1 com duas ligações e intervalo de 3 horas
+
+Não é representável hoje. Os intervalos são em dias úteis, nunca em horas; não há segundo passo dentro da etapa; e não há regra de transbordo do tipo "passou das 17h, a segunda ligação vai para o próximo período". Isso exige passos internos com intervalo em horas e uma regra explícita de transbordo — é a lacuna maior da Parte B.
+
+## B9. Feriados
+
+Existem e são centralizados: nacionais + estaduais de São Paulo, calculados automaticamente, mais datas extras administráveis pela gestão, somadas ao calendário oficial. Feriado não tem janela e não conta como dia útil; a etapa é deslocada para o próximo dia com janela.
+
+## B10. Calendário × janela de execução
+
+Hoje estão **acoplados**: a mesma função calcula o dia e já devolve um instante dentro da janela de envio. Não existe registro separado de "data teórica" e "data operacional" — só o vencimento final. Além disso, convivem janelas diferentes: mensagens 09:00–21:00 (sábado 09:00–12:00), E0 07:00–22:30, e a janela da execução manual da Ação do Dia (06:00–22:00, sábado até 17:00). Os horários que você citou (09:00–17:30 e sábado 08:00–16:00) **não** são os configurados hoje.
+
+## B11. Como a Ação do Dia recebe as obrigações
+
+Exatamente como você quer: ela é agregadora de leitura. Lê reuniões, agenda, fila do motor, fila de ligações e primeiros contatos, normaliza, deduplica e ordena por prioridade. Não decide etapa nem recalcula data. A separação que você pede já está garantida.
+
+## B12. A regra sábado → segunda / domingo → terça é compatível?
+
+Compatível, e é uma alteração pequena — mas **não é o comportamento atual em dois aspectos**: hoje a contagem é em dias úteis (não corridos) e domingo cai em segunda (não em terça). Como o deslocamento acontece num único ponto do calendário, dá para trocar a contagem para dias corridos e aplicar o deslocamento por dia da semana sem transformar nada em "dias úteis". A distribuição que você descreve (A+C na segunda, B+D na terça) sai naturalmente do calendário, sem cota artificial por dia.
+
+## B13. Menor alteração necessária depois (Parte B)
+
+1. Separar, no cálculo, **data teórica** (referência + intervalo em dias corridos) de **data operacional** (deslocamento sábado → segunda, domingo → terça, feriado → próximo dia com janela) e guardar as duas na fila.
+2. Trocar a unidade de intervalo das etapas de "dias úteis" para "dias corridos", mantendo a tabela de intervalos configurável por etapa.
+3. Ajustar as janelas de execução para os horários que você definir, unificando as janelas divergentes que existem hoje.
+4. Introduzir passos internos de etapa com intervalo em horas (caso E1: ligação, +3h, ligação, mensagem) e regra explícita de transbordo quando a janela fechar.
+5. Manter intocado: a Ação do Dia como leitora, o cálculo a partir da execução real, o calendário de feriados centralizado, e o agendamento — compromisso de agenda é data real e **nunca** é deslocado pela regra de cadência.
+
+## Pontos que precisam da sua decisão antes de construir
+
+- Confirmar os horários operacionais definitivos (os atuais são outros).
+- Confirmar se a mudança para dias corridos vale também para R e RE, ou só para o fluxo E nesta etapa.
+- Como tratar o compromisso quando o lead ainda não tem responsável no Portal (Parte A, item 11).
