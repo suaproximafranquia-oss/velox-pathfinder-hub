@@ -6,7 +6,7 @@
  * proteção da posição 1 na Ação do Dia.
  */
 import { describe, expect, it } from "vitest";
-import { applyEvent, createInitialRecord } from "./machine";
+import { applyEvent, initialRecord } from "./machine";
 import { decideNextAction } from "./decide";
 import { nextReleasedAction } from "./cadence-v2";
 import { actionRank, normalizeDailyActions, type DailyAction } from "@/lib/crm/daily-actions";
@@ -14,7 +14,7 @@ import { actionRank, normalizeDailyActions, type DailyAction } from "@/lib/crm/d
 const NOW = "2026-09-08T12:30:00.000Z"; // terça, 09:30 BRT
 
 function baseRecord() {
-  return createInitialRecord({ scope: "production", leadId: "gs_1", nowIso: NOW } as never);
+  return initialRecord({ scope: "production", leadId: "gs_1", at: NOW });
 }
 
 describe("E0 manual — abertura na régua V2", () => {
@@ -68,13 +68,13 @@ describe("E0 manual — decisão em NOVOS", () => {
       executedAt: a.executedAt ?? null,
       result: a.result ?? null,
     })),
+    cycle: { materialSent: false },
     stageKey: "novos",
     awaitingHandoff: false,
-    materialSent: false,
   });
 
   it("primeira ação é a ligação 1 da E0, mesmo com o lead em NOVOS", () => {
-    const decision = decideNextAction(opened, { nowIso: NOW, stageAtClosing: "novos", v2: v2([]) as never });
+    const decision = decideNextAction(opened, { nowIso: NOW, enabled: true, stageAtClosing: "novos", v2: v2([]) } as never);
     expect(decision.kind).toBe("schedule_step");
     if (decision.kind === "schedule_step") {
       expect(decision.step).toBe("E0");
@@ -118,9 +118,10 @@ describe("E0 manual — decisão em NOVOS", () => {
   it("E1+ continua bloqueada enquanto o lead está em NOVOS", () => {
     const decision = decideNextAction(opened, {
       nowIso: NOW,
+      enabled: true,
       stageAtClosing: "novos",
-      v2: { ...v2([]), executedSteps: ["E0"] } as never,
-    });
+      v2: { ...v2([]), executedSteps: ["E0"] },
+    } as never);
     expect(decision.kind).toBe("none");
   });
 });
