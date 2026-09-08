@@ -23,9 +23,11 @@ import {
   followUpExternalRef,
   followUpMeetingId,
   followUpModality,
-  isAgendamentosToFrios,
+  VIDEO_STAGE,
+  isCommitmentStageToFrios,
   planFollowUpSync,
   reviewDueAt,
+  type FollowUpModality,
   type FollowUpSyncDecision,
 } from "@/lib/crm/greensales-followup";
 
@@ -45,6 +47,55 @@ function formatBr(iso: string): string {
   }).formatToParts(d);
   const get = (t: string) => f.find((p) => p.type === t)?.value ?? "";
   return `${get("day")}/${get("month")} às ${get("hour")}:${get("minute")}`;
+}
+
+/** Data completa e legível (DD/MM/AAAA às HH:MM) para a nota. */
+function formatBrFull(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const f = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(d);
+  const get = (t: string) => f.find((p) => p.type === t)?.value ?? "";
+  return `${get("day")}/${get("month")}/${get("year")} às ${get("hour")}:${get("minute")}`;
+}
+
+/** Rótulo do compromisso na Nota do Executivo, por modalidade. */
+function noteSubject(modality: FollowUpModality | null): { noun: string; created: string; cancelled: string } {
+  return modality === "VIDEOCHAMADA"
+    ? { noun: "Videochamada", created: "Videochamada criada", cancelled: "Videochamada cancelada" }
+    : { noun: "Agendamento", created: "Agendamento criado", cancelled: "Agendamento cancelado" };
+}
+
+/**
+ * NOTA DO EXECUTIVO do compromisso — mesmo mecanismo oficial já usado
+ * pela Ação do Dia (`addInvestorNote`). Idempotente pelo `source_key`;
+ * falhar aqui NUNCA desfaz o espelhamento do compromisso.
+ */
+async function appendFollowUpNote(input: {
+  leadId: string;
+  externalId: string;
+  kind: "criado" | "reagendado" | "cancelado";
+  at: string;
+  body: string;
+}): Promise<void> {
+  try {
+    const { addInvestorNote } = await import("@/server/crm/investor-notes.server");
+    await addInvestorNote({
+      leadId: input.leadId,
+      body: input.body,
+      executiveId: null,
+      authorName: "Sincronização GreenSales",
+      sourceKey: `greensales:follow_up:${input.externalId}:${input.kind}:${input.at}`,
+    });
+  } catch {
+    // Nota é registro complementar: nunca invalida a sincronização.
+  }
 }
 
 type MirrorRow = {
@@ -268,8 +319,15 @@ export async function syncOneFollowUp(
     await appendTimeline({
       leadId,
       event: "agendamento_greensales_espelhado",
-      reason: `${modality === "VIDEOCHAMADA" ? "Videochamada criada" : "Agendamento criado"} — ${formatBr(decision.scheduledAt)}.`,
+      reason: `${noteSubject(modality).created} — ${formatBr(decision.scheduledAt)}.`,
       at: nowIso,
+    });
+    await appendFollowUpNote({
+      leadId,
+      externalId: item.externalId,
+      kind: "criado",
+      at: decision.scheduledAt,
+      body: `${noteSubject(modality).created} — ${formatBrFull(decision.scheduledAt)}`,
     });
     return decision;
   }
@@ -306,6 +364,13 @@ export async function syncOneFollowUp(
       reason: `Reagendado no GreenSales: ${formatBr(decision.from)} → ${formatBr(decision.to)}.`,
       at: nowIso,
     });
+    await appendFollowUpNote({
+      leadId,
+      externalId: item.externalId,
+      kind: "reagendado",
+      at: decision.to,
+      body: `${noteSubject(modality).noun} reagendado — ${formatBrFull(decision.from)} → ${formatBrFull(decision.to)}`,
+    });
     return decision;
   }
 
@@ -334,6 +399,13 @@ export async function syncOneFollowUp(
       event: "agendamento_greensales_cancelado",
       reason: decision.detail,
       at: nowIso,
+    });
+    await appendFollowUpNote({
+      leadId,
+      externalId: item.externalId,
+      kind: "cancelado",
+      at: existing.scheduled_at,
+      body: `${noteSubject(followUpModality(existing.topic === FOLLOW_UP_TOPIC.VIDEOCHAMADA ? VIDEO_STAGE : AGENDAMENTOS_STAGE)).cancelled} — ${formatBrFull(existing.scheduled_at)}`,
     });
     return decision;
   }
@@ -612,8 +684,10 @@ export async function releaseReengagementOnFrios(input: {
   currentStageKey: string | null;
   stageEnteredAt?: string | null;
 }): Promise<{ released: boolean; reason: string }> {
-  if (!isAgendamentosToFrios(input.previousStageKey, input.currentStageKey)) {
-    return { released: false, reason: "Não é a transição AGENDAMENTOS → FRIOS." };
+  // VÍDEO → FRIOS é equivalente a AGENDAMENTOS → FRIOS: mesma regra,
+  // mesmo motor, mesma fila — só a etapa de origem foi ampliada.
+  if (!isCommitmentStageToFrios(input.previousStageKey, input.currentStageKey)) {
+    return { released: false, reason: "Não é a transição de compromisso (AGENDAMENTOS/VÍDEO) → FRIOS." };
   }
   const leadId = `gs_${input.externalId}`;
   const at = input.stageEnteredAt ?? new Date().toISOString();

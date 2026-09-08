@@ -91,7 +91,12 @@ export async function resolveAuthorName(input: {
 export async function addInvestorNote(input: {
   leadId: string;
   body: string;
-  userId: string;
+  /**
+   * Autor humano da nota. AUSENTE somente em registros automáticos do
+   * servidor (ex.: sincronização do GreenSales), que informam
+   * `authorName` explicitamente. Chamadas humanas continuam iguais.
+   */
+  userId?: string | null;
   executiveId: string | null;
   authorName?: string | null;
   scope?: string | null;
@@ -111,13 +116,15 @@ export async function addInvestorNote(input: {
 
   const authorName =
     input.authorName ??
-    (await resolveAuthorName({ executiveId: input.executiveId, userId: input.userId }));
+    (input.userId
+      ? await resolveAuthorName({ executiveId: input.executiveId, userId: input.userId })
+      : null);
 
   const { error } = await supabaseAdmin.from("investor_notes").insert({
     lead_id: input.leadId,
     body,
     scope: input.scope ?? null,
-    author_user_id: input.userId,
+    author_user_id: input.userId ?? null,
     author_executive_id: input.executiveId,
     author_name: authorName,
     source_key: input.sourceKey ?? null,
