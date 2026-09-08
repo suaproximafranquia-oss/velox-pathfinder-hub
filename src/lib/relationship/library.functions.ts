@@ -19,6 +19,8 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       stepKey: string;
+      /** Contexto do conteúdo (E7/E8). */
+      stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
       body: string;
       bodyWithoutName?: string | null;
       title?: string | null;
@@ -40,6 +42,7 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
     const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
     return publishLibraryVersion({
       stepKey: data.stepKey,
+      stepContext: data.stepContext ?? null,
       body: data.body,
       bodyWithoutName: data.bodyWithoutName ?? null,
       title: data.title ?? null,

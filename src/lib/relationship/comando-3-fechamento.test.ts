@@ -25,6 +25,6 @@ describe("Comando 3 — rótulos de exibição", () => {
   it("mostra E6 para a chave técnica E20 e respeita o rótulo salvo", () => {
     expect(stepDisplayLabel("E20")).toBe("E6 — Apresentação Digital");
     expect(stepDisplayLabel("E20", "Apresentação")).toBe("Apresentação");
-    expect(stepDisplayLabel("E1")).toBe("E1");
+    expect(stepDisplayLabel("E1")).toBe("E1 — Primeiro acompanhamento");
   });
 });

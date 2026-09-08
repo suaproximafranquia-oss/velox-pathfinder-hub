@@ -405,16 +405,42 @@ export type StepActionPlan = {
   kind: StepActionKind;
   /** Horas de espera após a ação anterior da MESMA etapa. */
   waitHoursAfterPrevious: number;
+  /**
+   * Espera em MINUTOS após a ação anterior da mesma etapa. Quando
+   * presente, prevalece sobre `waitHoursAfterPrevious` (a E0 usa 10
+   * minutos entre a primeira e a segunda ligação).
+   */
+  waitMinutesAfterPrevious?: number;
   /** Rótulo operacional exibido ao executivo. */
   label: string;
 };
 
+/** Espera efetiva, em minutos, entre uma ação e a anterior da etapa. */
+export function waitMinutesOf(action: StepActionPlan): number {
+  return action.waitMinutesAfterPrevious ?? action.waitHoursAfterPrevious * 60;
+}
+
 /**
  * AÇÕES INTERNAS DA ETAPA. Continuam sendo UMA etapa: nunca E1.1/E2.1.
  * A ligação sempre vem antes da mensagem.
+ *
+ * E0 é etapa real da régua: ligação 1 → 10 minutos → ligação 2 →
+ * mensagem (somente se as duas ligações não forem atendidas).
  */
 export function stepActions(step: CadenceV2Step): StepActionPlan[] {
   switch (step) {
+    case "E0":
+      return [
+        { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação 1" },
+        {
+          order: 2,
+          kind: "call",
+          waitHoursAfterPrevious: 0,
+          waitMinutesAfterPrevious: 10,
+          label: "Ligação 2",
+        },
+        { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
+      ];
     case "E1":
       return [
         { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação 1" },
@@ -432,6 +458,7 @@ export function stepActions(step: CadenceV2Step): StepActionPlan[] {
       return [{ order: 1, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" }];
   }
 }
+
 
 export type ActionState = {
   order: number;
@@ -471,14 +498,16 @@ export function nextReleasedAction(input: {
     if (previous && previousState?.status !== "DONE") return null;
 
     let releaseAt = input.stepDueAt;
-    if (previous && previousState?.executedAt && action.waitHoursAfterPrevious > 0) {
+    const waitMinutes = waitMinutesOf(action);
+    if (previous && previousState?.executedAt && waitMinutes > 0) {
       const candidate = new Date(
-        Date.parse(previousState.executedAt) + action.waitHoursAfterPrevious * 3_600_000,
+        Date.parse(previousState.executedAt) + waitMinutes * 60_000,
       ).toISOString();
       releaseAt = candidate;
     } else if (previousState?.executedAt) {
       releaseAt = previousState.executedAt;
     }
+
     // Fora da janela a ação não se perde: vai para a próxima abertura.
     return { action, releaseAt: nextOpenMoment(releaseAt) };
   }

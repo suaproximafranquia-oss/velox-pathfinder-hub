@@ -31,6 +31,8 @@ type LibraryMessage = {
   notes: string | null;
   contentUrl: string | null;
   contentLabel: string | null;
+  /** Contexto do conteúdo (E7/E8): SEM_CONTATO ou MATERIAL_ENVIADO. */
+  stepContext: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
   /** A etapa existe na configuração do motor (é operacional). */
   official: boolean;
 };
@@ -58,6 +60,14 @@ export function MessageLibraryPanel() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  /**
+   * E7/E8 TÊM DOIS CONTEXTOS INDEPENDENTES: investidor que nunca
+   * respondeu (SEM_CONTATO) e investidor que já recebeu o material
+   * (MATERIAL_ENVIADO). Cada contexto tem os seus próprios textos com
+   * nome e sem nome — quatro conteúdos ao todo, sem aproveitamento de
+   * um no outro.
+   */
+  const [ctx, setCtx] = useState<"SEM_CONTATO" | "MATERIAL_ENVIADO">("SEM_CONTATO");
   const [contentUrl, setContentUrl] = useState("");
   const [contentLabel, setContentLabel] = useState("");
   /* BLOCO 3 — criação e ordenação visual. */
@@ -114,8 +124,22 @@ export function MessageLibraryPanel() {
     return [...ordered, ...known.filter((key) => !ordered.includes(key))];
   }, [order, steps]);
 
-  const selected = step ? (steps.get(step) ?? []) : [];
+  const needsContext = step === "E7" || step === "E8";
+  const selected = step
+    ? (steps.get(step) ?? []).filter((m) => (needsContext ? m.stepContext === ctx : true))
+    : [];
   const active = selected.find((m) => m.active) ?? selected[0] ?? null;
+
+  /* Trocar de contexto recarrega os textos DAQUELE contexto. */
+  useEffect(() => {
+    if (!needsContext || !step) return;
+    const list = (steps.get(step) ?? []).filter((m) => m.stepContext === ctx);
+    const current = list.find((m) => m.active) ?? list[0];
+    setDraft(current?.body ?? "");
+    setDraftWithoutName(current?.bodyWithoutName ?? "");
+    setContentUrl(current?.contentUrl ?? "");
+    setContentLabel(current?.contentLabel ?? "");
+  }, [ctx, needsContext, step, steps]);
 
 
   /** Move a etapa arrastada para a posição de destino e persiste. */
@@ -145,7 +169,10 @@ export function MessageLibraryPanel() {
   /** Cria a etapa na Biblioteca. Ela NÃO entra em nenhum fluxo. */
   function openStep(key: string) {
     setStep(key);
-    const list = steps.get(key) ?? [];
+    const contextual = key === "E7" || key === "E8";
+    const list = (steps.get(key) ?? []).filter((m) =>
+      contextual ? m.stepContext === ctx : true,
+    );
     const current = list.find((m) => m.active) ?? list[0];
     setDraft(current?.body ?? "");
     setDraftWithoutName(current?.bodyWithoutName ?? "");
@@ -181,6 +208,7 @@ export function MessageLibraryPanel() {
       await publicarVersaoMensagem({
         data: {
           stepKey: step,
+          stepContext: needsContext ? ctx : null,
           body: draft,
           bodyWithoutName: draftWithoutName.trim() ? draftWithoutName : null,
           contentUrl: contentUrl.trim() ? contentUrl.trim() : null,
@@ -289,6 +317,36 @@ export function MessageLibraryPanel() {
                 {/* RÓTULO VISÍVEL — apresentação apenas. A chave técnica
                     ({step}) nunca muda: fila, snapshots e histórico
                     continuam gravados nela. */}
+                {needsContext ? (
+                  <div className="rounded-xl border border-[color:var(--border)] p-3">
+                    <p className="mb-2 text-[11px] text-[color:var(--muted-foreground)]">
+                      Contexto do conteúdo — cada um tem texto próprio, sem
+                      aproveitar o do outro.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(
+                        [
+                          ["SEM_CONTATO", "Investidor que nunca respondeu"],
+                          ["MATERIAL_ENVIADO", "Investidor que já recebeu o material"],
+                        ] as const
+                      ).map(([value, text]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setCtx(value)}
+                          className={`rounded-full border px-3 py-1.5 text-[11px] transition ${
+                            ctx === value
+                              ? "border-[color:var(--gold)] text-[color:var(--gold)]"
+                              : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
+                          }`}
+                        >
+                          {text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     value={label}

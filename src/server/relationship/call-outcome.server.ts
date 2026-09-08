@@ -40,7 +40,12 @@ export async function registerQueueCallOutcome(input: {
     return { concluded: false, awaitingHandoff: false };
   }
 
-  await supabaseAdmin
+  /**
+   * CONCORRÊNCIA: a escrita só acontece se a linha AINDA estiver
+   * pendente. Duas abas, dois cliques ou duas requisições simultâneas
+   * resolvem a mesma ação uma única vez — a segunda não altera nada.
+   */
+  const { data: claimed } = await supabaseAdmin
     .from("relationship_queue")
     .update({
       status: "EXECUTED",
@@ -48,7 +53,13 @@ export async function registerQueueCallOutcome(input: {
       result: input.outcome,
       updated_at: nowIso,
     } as never)
-    .eq("id", input.queueItemId);
+    .eq("id", input.queueItemId)
+    .in("status", ["PENDING", "PROCESSING"])
+    .select("id");
+  if (!claimed || claimed.length === 0) {
+    return { concluded: false, awaitingHandoff: false };
+  }
+
 
   await supabaseAdmin.from("crm_lead_events").insert({
     lead_id: row.lead_id,
@@ -71,7 +82,8 @@ export async function registerQueueCallOutcome(input: {
     return { concluded: true, awaitingHandoff: false };
   }
 
-  // Atendeu: as ações seguintes da etapa perderam a finalidade.
+  // Atendeu: as ações seguintes DA MESMA ETAPA perderam a finalidade.
+  // As obrigações das demais etapas do lead permanecem intactas.
   await supabaseAdmin
     .from("relationship_queue")
     .update({
@@ -82,7 +94,9 @@ export async function registerQueueCallOutcome(input: {
     } as never)
     .eq("scope", row.scope)
     .eq("lead_id", row.lead_id)
+    .eq("step", row.step)
     .in("status", ["PENDING", "PROCESSING"]);
+
 
   await supabaseAdmin
     .from("relationship_cadences")

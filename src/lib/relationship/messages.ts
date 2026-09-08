@@ -390,6 +390,11 @@ export type RenderInput = {
   /** Executivo respondeu NÃO à sugestão de nome (§22). */
   nameRejected?: boolean;
   /**
+   * Primeiro nome reconhecido pela CENTRAL DOS NOMES (consulta feita no
+   * servidor antes da renderização). Somente o primeiro nome.
+   */
+  centralFirstName?: string | null;
+  /**
    * Link usado APENAS quando a especificação não traz o seu próprio
    * (textos fixos de homologação/simulação). Em produção o link vem
    * sempre da versão ativa da Biblioteca.
@@ -466,6 +471,7 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
     executiveProvidedName: input.executiveProvidedName ?? null,
     rawName: input.rawInvestorName ?? null,
     manuallyRejected: input.nameRejected ?? false,
+    centralFirstName: input.centralFirstName ?? null,
   });
   const treatment = message.usesInvestorName ? resolution.treatment : NEUTRAL_TREATMENT;
 

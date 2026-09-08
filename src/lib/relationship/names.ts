@@ -115,6 +115,7 @@ export function looksLikeName(raw: string | null | undefined): boolean {
 export type TreatmentSource =
   | "confirmado_executivo"
   | "informado_executivo"
+  | "central_de_nomes"
   | "base_de_nomes"
   | "fallback";
 
@@ -145,6 +146,13 @@ export function resolveTreatment(input: {
   executiveProvidedName?: string | null;
   /** O Executivo respondeu NÃO à sugestão de nome. */
   manuallyRejected?: boolean;
+  /**
+   * PRIMEIRO NOME reconhecido pela CENTRAL DOS NOMES (consulta feita no
+   * servidor). Quando a Central reconhece o primeiro nome do cadastro,
+   * ele é o tratamento — sempre e somente o primeiro nome, nunca o
+   * nome completo e nunca um nome inventado.
+   */
+  centralFirstName?: string | null;
 }): TreatmentResolution {
   const confirmed = compoundTreatment(
     normalizeName(input.confirmedName).split(" ").filter(Boolean),
@@ -160,6 +168,10 @@ export function resolveTreatment(input: {
   }
   if (input.manuallyRejected) {
     return { treatment: NEUTRAL_TREATMENT, source: "fallback", personalized: false };
+  }
+  const central = normalizeName(input.centralFirstName).split(" ").filter(Boolean)[0] ?? "";
+  if (central) {
+    return { treatment: central, source: "central_de_nomes", personalized: true };
   }
   if (looksLikeName(input.rawName)) {
     const parts = normalizeName(input.rawName).split(" ").filter(Boolean);

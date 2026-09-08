@@ -37,6 +37,11 @@ export type LibraryMessage = {
   id: string;
   stepKey: string;
   code: string | null;
+  /**
+   * Contexto do conteúdo (E7/E8): SEM_CONTATO ou MATERIAL_ENVIADO.
+   * Null nas etapas de contexto único.
+   */
+  stepContext: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
   title: string;
   /** Rótulo visível da etapa. Apresentação — nunca a chave técnica. */
   displayLabel: string;
@@ -161,6 +166,7 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     id: row["id"],
     stepKey: row["step_key"] ?? String(row["purpose"] ?? "").toUpperCase(),
     code: row["code"] ?? null,
+    stepContext: (row["step_context"] ?? null) as LibraryMessage["stepContext"],
     title: row["title"],
     displayLabel: stepDisplayLabel(
       row["step_key"] ?? String(row["purpose"] ?? "").toUpperCase(),
@@ -516,6 +522,12 @@ export async function getActiveLibraryMessage(
  */
 export async function publishLibraryVersion(params: {
   stepKey: string;
+  /**
+   * EIXO DE CONTEXTO (E7/E8). Cada contexto tem versionamento e ativação
+   * PRÓPRIOS: publicar em SEM_CONTATO nunca desativa MATERIAL_ENVIADO e
+   * nunca empresta texto de um contexto para o outro.
+   */
+  stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
   body: string;
   bodyWithoutName?: string | null;
   title?: string | null;
@@ -530,12 +542,16 @@ export async function publishLibraryVersion(params: {
   sourceReference?: string | null;
 }): Promise<LibraryMessage> {
   await ensureLibrarySeed();
-  const { data: history } = await supabaseAdmin
+  const stepContext = params.stepContext ?? null;
+  let historyQuery = supabaseAdmin
     .from("relationship_message_library")
     .select("*")
     .eq("scope", "production")
-    .eq("step_key", params.stepKey)
-    .order("version", { ascending: false });
+    .eq("step_key", params.stepKey);
+  historyQuery = stepContext
+    ? historyQuery.eq("step_context", stepContext)
+    : historyQuery.is("step_context", null);
+  const { data: history } = await historyQuery.order("version", { ascending: false });
   const rows = history ?? [];
   const current = rows.find((r: any) => r.active) ?? rows[0] ?? null;
   const nextVersion = (rows[0] as any)?.version ? Number((rows[0] as any).version) + 1 : 1;
@@ -563,6 +579,7 @@ export async function publishLibraryVersion(params: {
     .insert({
       scope: "production",
       step_key: params.stepKey,
+      step_context: stepContext,
       code: (current as any)?.code ?? `LIB-${params.stepKey}`,
       title: params.title ?? (current as any)?.title ?? params.stepKey,
       purpose: (current as any)?.purpose ?? params.stepKey.toLowerCase(),
@@ -639,11 +656,24 @@ export async function renderFromLibrary(
     };
   }
 
+  /**
+   * CENTRAL DOS NOMES: a base oficial já existente é consultada aqui,
+   * antes de qualquer renderização, e devolve SOMENTE o primeiro nome.
+   */
+  const { resolveCentralFirstName } = await import(
+    "@/server/relationship/name-central-lookup.server"
+  );
+  const centralFirstName = input.nameRejected
+    ? null
+    : await resolveCentralFirstName(input.rawInvestorName ?? null);
+  const renderInput: RenderInput = { ...input, centralFirstName };
+
   const treatment = resolveTreatment({
     confirmedName: input.confirmedInvestorName ?? null,
     executiveProvidedName: input.executiveProvidedName ?? null,
     rawName: input.rawInvestorName ?? null,
     manuallyRejected: input.nameRejected ?? false,
+    centralFirstName,
   });
   const useWithoutName =
     !treatment.personalized && Boolean(message.bodyWithoutName?.trim());
@@ -658,7 +688,7 @@ export async function renderFromLibrary(
     contentUrl: message.contentUrl,
     contentLabel: message.contentLabel,
   };
-  return { result: renderMessageSpec(spec, input), message };
+  return { result: renderMessageSpec(spec, renderInput), message };
 }
 
 
