@@ -702,6 +702,56 @@ export async function releaseReengagementOnFrios(input: {
   });
   if (!first) return { released: false, reason: "Liberação já registrada para esta transição." };
 
+  /**
+   * DECISÃO HISTÓRICA — o R é consumido UMA vez por rodada de
+   * relacionamento. Antes de abrir a instância, o histórico REAL do
+   * lead (instâncias + fila já existentes) responde se ainda existe R
+   * a cumprir. Um R apenas iniciado e interrompido não bloqueia.
+   */
+  const [{ evaluateReengagementConsumption }, { listInstances }] = await Promise.all([
+    import("@/lib/relationship/reengagement-history"),
+    import("@/server/relationship/instances.server"),
+  ]);
+  const [instances, { data: queueRows }] = await Promise.all([
+    listInstances(leadId, "production"),
+    supabaseAdmin
+      .from("relationship_queue")
+      .select("flow,step,status")
+      .eq("scope", SCOPE)
+      .eq("lead_id", leadId),
+  ]);
+  const { data: instanceRows } = await supabaseAdmin
+    .from("relationship_cadences")
+    .select("flow,active,close_reason,executed_steps")
+    .eq("scope", SCOPE)
+    .eq("lead_id", leadId);
+  const consumption = evaluateReengagementConsumption({
+    instances: ((instanceRows ?? []) as Record<string, unknown>[]).map((row) => ({
+      flow: String(row["flow"] ?? ""),
+      active: Boolean(row["active"]),
+      closeReason: (row["close_reason"] as string | null) ?? null,
+      executedSteps: Array.isArray(row["executed_steps"])
+        ? (row["executed_steps"] as unknown[]).map(String)
+        : [],
+    })),
+    queue: ((queueRows ?? []) as Record<string, unknown>[]).map((row) => ({
+      flow: (row["flow"] as string | null) ?? null,
+      step: String(row["step"] ?? ""),
+      status: String(row["status"] ?? ""),
+    })),
+  });
+  if (consumption.consumed) {
+    // Nada é apagado, cancelado ou reescrito: apenas não nasce outro R.
+    await appendTimeline({
+      leadId,
+      event: "reengajamento_nao_liberado",
+      reason: consumption.reason,
+      at,
+    });
+    return { released: false, reason: consumption.reason };
+  }
+  void instances;
+
   const { openInstance } = await import("@/server/relationship/instances.server");
   const opened = await openInstance({
     leadId,

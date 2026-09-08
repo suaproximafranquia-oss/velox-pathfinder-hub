@@ -163,9 +163,13 @@ export function applyEvent(
       if (event.data?.["manualE0"] === true && record.state === "CADENCE_NOT_STARTED") {
         next.startedAt = next.startedAt ?? event.at;
         next.startedBy = "manual";
-        next.currentStep = "E0";
+        // Reentrada abre em RE0: o primeiro contato jamais se repete.
+        next.currentStep = next.flow === "reentrada" ? "RE0" : "E0";
         next.state = "CADENCE_ACTIVE";
-        reason = "E0 manual aberta na régua V2 — ligação 1 aguardando o executivo.";
+        reason =
+          next.flow === "reentrada"
+            ? "Reentrada aberta na régua V2 — RE0 aguardando o executivo."
+            : "E0 manual aberta na régua V2 — ligação 1 aguardando o executivo.";
         break;
       }
       reason = "Lead registrado no motor; cadência ainda não iniciada.";
