@@ -64,6 +64,7 @@ async function eligibleLeadIds(nowIso: string): Promise<string[]> {
     .from("crm_messages")
     .select("investor_id,at")
     .like("id", "msg_e0_%")
+    .is("voided_at", null)
     .order("at", { ascending: false })
     .limit(BATCH);
   for (const row of firstContacts ?? []) ids.add(row.investor_id);
@@ -110,7 +111,8 @@ async function bootstrapMissingCadences(leadIds: string[]): Promise<number> {
     .from("crm_messages")
     .select("investor_id,at")
     .in("investor_id", missing)
-    .like("id", "msg_e0_%");
+    .like("id", "msg_e0_%")
+    .is("voided_at", null);
 
   let recovered = 0;
   for (const row of firstContacts ?? []) {

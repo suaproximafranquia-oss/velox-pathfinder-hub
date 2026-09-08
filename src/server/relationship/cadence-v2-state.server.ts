@@ -111,15 +111,21 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
     ]);
 
 
-  const actions: V2QueueAction[] = ((queueRows ?? []) as Row[]).map((row) => ({
-    step: row.step,
-    actionOrder: row.action_order ?? 1,
-    actionKind: row.action_kind === "call" ? "call" : "message",
-    status: row.status,
-    dueAt: row.due_at,
-    executedAt: row.executed_at ?? null,
-    result: row.result ?? null,
-  }));
+  const actions: V2QueueAction[] = ((queueRows ?? []) as Row[])
+    // Linha neutralizada por "desfazer resultado" não é decisão da régua.
+    .filter(
+      (row) =>
+        !(row.status === "CANCELLED" && NEUTRALIZED_CANCEL_REASONS.has(row.cancel_reason ?? "")),
+    )
+    .map((row) => ({
+      step: row.step,
+      actionOrder: row.action_order ?? 1,
+      actionKind: row.action_kind === "call" ? "call" : "message",
+      status: row.status,
+      dueAt: row.due_at,
+      executedAt: row.executed_at ?? null,
+      result: row.result ?? null,
+    }));
 
   const originIso =
     record.startedAt ?? (cycleRow as Row | null)?.started_at ?? (cycleRow as Row | null)?.created_at;
