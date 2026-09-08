@@ -16,10 +16,13 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   AGENDAMENTOS_STAGE,
+  FOLLOW_UP_ELIGIBLE_STAGES,
   FOLLOW_UP_STATES,
+  FOLLOW_UP_TOPIC,
   GREENSALES_SOURCE,
   followUpExternalRef,
   followUpMeetingId,
+  followUpModality,
   isAgendamentosToFrios,
   planFollowUpSync,
   reviewDueAt,
@@ -27,7 +30,7 @@ import {
 } from "@/lib/crm/greensales-followup";
 
 const SCOPE = "production";
-const MIRROR_TOPIC = "Agendamento (GreenSales)";
+const MIRROR_TOPIC = FOLLOW_UP_TOPIC.AGENDAMENTO;
 
 type MirrorRow = {
   id: string;
@@ -35,6 +38,7 @@ type MirrorRow = {
   executive_id: string;
   scheduled_at: string;
   status: string;
+  topic: string | null;
   external_follow_up: string | null;
   follow_up_state: string | null;
   follow_up_review_due_at: string | null;
