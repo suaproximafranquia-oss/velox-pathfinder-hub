@@ -22,6 +22,7 @@ import {
 import { relatorioOperacoes } from "@/lib/crm/operations-center.functions";
 import { unitPath } from "@/lib/business-unit";
 import { operationalDate } from "@/lib/crm/daily-actions";
+import { PendingResolverModal } from "@/components/executive/central-operacoes/pending-resolver-modal";
 
 type Counts = {
   ligacoes: number;
@@ -46,6 +47,9 @@ type Skip = {
   investorName: string | null;
   step: string | null;
   motivo: string | null;
+  /** Identificação da ação original, já registrada no histórico do pulo. */
+  actionKey?: string | null;
+  kind?: string | null;
   recuperada?: boolean;
 };
 
@@ -137,6 +141,9 @@ export function CentralOperacoesHome() {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Pendência aberta para resolução dentro da própria Central. */
+  const [resolving, setResolving] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const range = useMemo(
     () => periodRange(period, customFrom, customTo),
@@ -164,7 +171,7 @@ export function CentralOperacoesHome() {
     return () => {
       cancelled = true;
     };
-  }, [fetchReport, range.from, range.to, scope]);
+  }, [fetchReport, range.from, range.to, scope, reloadKey]);
 
   /** Caminho oficial já usado pelo Portal dos Leads / Ação do Dia. */
   function investorHref(skip: Skip): string | null {
@@ -398,6 +405,7 @@ export function CentralOperacoesHome() {
                       <th className="px-4 py-2 text-left">Etapa</th>
                       <th className="px-4 py-2 text-left">Motivo</th>
                       <th className="px-4 py-2 text-left">Situação</th>
+                      <th className="px-4 py-2 text-left">Ação</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -439,6 +447,24 @@ export function CentralOperacoesHome() {
                               <span className="text-xs text-muted-foreground">Em aberto</span>
                             )}
                           </td>
+                          {/*
+                            RESOLVER PENDÊNCIA — a mesma ação é aberta
+                            aqui dentro, sem sair da Central e sem criar
+                            nada novo.
+                          */}
+                          <td className="px-4 py-2">
+                            {skip.recuperada !== true && skip.actionKey ? (
+                              <button
+                                type="button"
+                                onClick={() => setResolving(skip.actionKey as string)}
+                                className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20"
+                              >
+                                Resolver pendência
+                              </button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -449,6 +475,15 @@ export function CentralOperacoesHome() {
           </section>
         </>
       ) : null}
+
+      {/* A pendência é resolvida aqui mesmo, com o card original. */}
+      {resolving && (
+        <PendingResolverModal
+          actionKey={resolving}
+          onClose={() => setResolving(null)}
+          onResolved={() => setReloadKey((v) => v + 1)}
+        />
+      )}
     </div>
   );
 }

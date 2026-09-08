@@ -73,6 +73,13 @@ export type SkipRecord = {
   investorName: string | null;
   step: string | null;
   motivo: string | null;
+  /**
+   * Identificação da ação ORIGINAL, já presente no histórico do pulo.
+   * Nada novo é gravado: os campos apenas trafegam para a interface,
+   * que precisa deles para reabrir o mesmo card operacional.
+   */
+  actionKey: string | null;
+  kind: string | null;
   /** Concluída depois: continua no histórico, mas não conta como pulo. */
   recuperada: boolean;
 };
@@ -396,6 +403,8 @@ export async function buildProductionReport(
         investorName: detailString(details, "title"),
         step: detailString(details, "step"),
         motivo: detailString(details, "motivo"),
+        actionKey: detailString(details, "actionKey"),
+        kind: detailString(details, "kind"),
         recuperada,
       });
     }

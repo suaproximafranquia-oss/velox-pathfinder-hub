@@ -59,6 +59,12 @@ type ActionRefInput = {
   step: string | null;
   title: string;
   reason: string;
+  /**
+   * Resolução de uma pendência JÁ pulada, aberta pela Central de
+   * Operações. Não altera a ordem do dia: apenas permite concluir a
+   * mesma obrigação que ficou em aberto.
+   */
+  pendingRecovery?: boolean;
 };
 
 /**
@@ -78,7 +84,11 @@ export const skipDailyActionFn = createServerFn({ method: "POST" })
     const { assertCurrentAction, releaseQueueClaim, queueItemIdOf } = await import(
       "@/server/crm/daily-actions-gate.server"
     );
-    const current = await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    const current = await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     const { skipDailyAction } = await import("@/server/crm/daily-actions-log.server");
     await skipDailyAction({ ...data, userId: context.userId, executiveId });
     // Pular devolve a ação à fila (perde a reivindicação da posição 1).
@@ -108,12 +118,23 @@ export const noteDailyActionFn = createServerFn({ method: "POST" })
  */
 export const getDailyActionMessageFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { leadId: string; step: string; leadName?: string | null }) => data)
+  .inputValidator(
+    (data: {
+      leadId: string;
+      step: string;
+      leadName?: string | null;
+      pendingRecovery?: boolean;
+    }) => data,
+  )
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { assertCurrentLead } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentLead({ executiveId, leadId: data.leadId });
+    await assertCurrentLead({
+      executiveId,
+      leadId: data.leadId,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     const { prepareStepMessage } = await import("@/server/relationship/step-message.server");
     return prepareStepMessage({
       leadId: data.leadId,
@@ -130,7 +151,11 @@ export const registerDailyActionMessageFn = createServerFn({ method: "POST" })
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     const { registerDailyActionMessage } = await import(
       "@/server/crm/daily-actions-log.server"
     );
@@ -154,13 +179,18 @@ export const resolveMeetingOutcomeFn = createServerFn({ method: "POST" })
       leadId: string | null;
       actionKey: string;
       title: string;
+      pendingRecovery?: boolean;
     }) => data,
   )
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     const { resolveMeetingOutcome } = await import("@/server/crm/daily-actions-log.server");
     await resolveMeetingOutcome({ ...data, userId: context.userId, executiveId });
 
@@ -178,13 +208,18 @@ export const rescheduleMeetingFn = createServerFn({ method: "POST" })
       leadId: string | null;
       actionKey: string;
       title: string;
+      pendingRecovery?: boolean;
     }) => data,
   )
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     const { isGreenSalesMirror } = await import("@/server/crm/daily-actions-log.server");
     if (await isGreenSalesMirror(data.meetingId)) {
       throw new Error(
@@ -210,13 +245,18 @@ export const resolveFollowUpContactFn = createServerFn({ method: "POST" })
       willReschedule?: boolean;
       note?: string;
       actionKey: string;
+      pendingRecovery?: boolean;
     }) => data,
   )
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     const { registerFollowUpContact, registerFollowUpNoContact } = await import(
       "@/server/crm/greensales-followup.server"
     );
@@ -235,12 +275,24 @@ export const resolveFollowUpContactFn = createServerFn({ method: "POST" })
 /** Obrigação de 24h — "Deseja encerrar esse fluxo?" SIM encerra; NÃO orienta mover para Frios. */
 export const resolveFollowUpReviewFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { meetingId: string; close: boolean; note?: string; actionKey: string }) => data)
+  .inputValidator(
+    (data: {
+      meetingId: string;
+      close: boolean;
+      note?: string;
+      actionKey: string;
+      pendingRecovery?: boolean;
+    }) => data,
+  )
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     const { resolveFollowUpReview } = await import("@/server/crm/greensales-followup.server");
     const result = await resolveFollowUpReview({
       meetingId: data.meetingId,
@@ -311,6 +363,7 @@ export const registerQueueCallOutcomeFn = createServerFn({ method: "POST" })
         actionKey: z.string().min(1),
         outcome: z.enum(["SIM", "NAO"]),
         rang: z.union([z.number(), z.boolean()]).nullish(),
+        pendingRecovery: z.boolean().optional(),
       })
       .parse(data),
   )
@@ -319,17 +372,42 @@ export const registerQueueCallOutcomeFn = createServerFn({ method: "POST" })
     const executiveId = await currentExecutiveId(context as never);
     const { assertCurrentQueueItem } = await import("@/server/crm/daily-actions-gate.server");
     // O identificador do navegador só vale se for EXATAMENTE a ação corrente.
-    const { queueItemId } = await assertCurrentQueueItem({ executiveId, queueItemId: data.queueItemId });
+    const { current, queueItemId } = await assertCurrentQueueItem({
+      executiveId,
+      queueItemId: data.queueItemId,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     const { registerQueueCallOutcome } = await import(
       "@/server/relationship/call-outcome.server"
     );
 
-    return registerQueueCallOutcome({
+    const result = await registerQueueCallOutcome({
       queueItemId,
       outcome: data.outcome,
       rang: data.rang ?? null,
       actorId: context.userId,
     });
+
+    /**
+     * RECUPERAÇÃO DE PENDÊNCIA — só tem efeito quando ESTA MESMA ação
+     * foi pulada antes e ainda não havia sido recuperada. A própria
+     * `recordSkipRecovery` verifica isso e não faz nada caso contrário.
+     */
+    if ((result as { concluded?: boolean })?.concluded) {
+      const { recordSkipRecovery } = await import("@/server/crm/daily-actions-log.server");
+      await recordSkipRecovery({
+        actionKey: data.actionKey,
+        leadId: current.leadId,
+        kind: current.kind,
+        step: current.stepLabel ?? null,
+        title: current.title,
+        userId: context.userId,
+        executiveId,
+        via: "ligacao",
+        nowIso: new Date().toISOString(),
+      });
+    }
+    return result;
   });
 
 /**
@@ -429,7 +507,11 @@ export const postponeNewLeadFn = createServerFn({ method: "POST" })
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    const current = await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    const current = await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
     if (current.source !== "first_contact") {
       throw new Error("Adiar para o próximo dia útil vale apenas para lead novo.");
     }
@@ -488,4 +570,47 @@ export const resumeSkippedActionFn = createServerFn({ method: "POST" })
       executiveId,
     });
     return { ok: true as const };
+  });
+
+/**
+ * RESOLVER PENDÊNCIA DENTRO DA CENTRAL DE OPERAÇÕES.
+ *
+ * Devolve a MESMA obrigação já registrada (mesma `actionKey`) para que
+ * o card operacional possa ser aberto sobre a Central. Não cria fila,
+ * não cria obrigação e não altera a posição 1 da Ação do Dia: apenas
+ * registra a retomada (quando ainda não registrada hoje) e lê a ação
+ * oficial do servidor.
+ */
+export const resolvePendingActionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { actionKey: string }) =>
+    z.object({ actionKey: z.string().min(1) }).parse(data),
+  )
+  .handler(async ({ data, context }): Promise<DailyAction | null> => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { listSkippedPendings, resumeSkippedAction } = await import(
+      "@/server/crm/daily-actions-log.server"
+    );
+    /** Só o dono da pendência pode resolvê-la. */
+    const pendings = await listSkippedPendings({ executiveId });
+    const target = pendings.find((p) => p.actionKey === data.actionKey);
+    if (!target) throw new Error("Pendência não encontrada para este Executivo.");
+
+    if (!target.retomadaHoje) {
+      await resumeSkippedAction({
+        actionKey: target.actionKey,
+        leadId: target.leadId,
+        kind: target.kind,
+        step: target.step,
+        title: target.title,
+        userId: context.userId,
+        executiveId,
+      });
+    }
+
+    const { buildDailyActions } = await import("@/server/crm/daily-actions.server");
+    const { normalizeDailyActions } = await import("@/lib/crm/daily-actions");
+    const list = normalizeDailyActions(await buildDailyActions({ executiveId }));
+    return list.find((action) => action.actionKey === data.actionKey) ?? null;
   });
