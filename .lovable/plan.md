@@ -1,60 +1,109 @@
-# E0 na Ação do Dia — diagnóstico e menor correção possível
+# Diagnóstico — Ambiente V (V0/V1/V2/V3), Agendamento e retorno para R
 
-Escopo: exclusivamente Financeira `/f`. Nada de `/s`, `/s/portal`, `/seg`, Solar, Seguros.
+Somente análise. Nada foi alterado: nenhum código, migration, tabela, fila, cadência, mensagem ou Biblioteca.
 
-## A. O que já está correto
+## 1. O QUE JÁ EXISTE PARA ENGAJAMENTO
 
-- Para um lead novo, a primeira ação criada pelo servidor é uma **LIGAÇÃO**, não uma mensagem.
-  `src/server/crm/e0-actions.server.ts:96-103` → `openManualE0Cadence` (`src/server/relationship/e0-manual.server.ts:87-96`) → motor V2 → grava uma linha em `relationship_queue`.
-- A sequência oficial está declarada na régua V2: `src/lib/relationship/cadence-v2.ts:430-443`
-  `ordem 1 = call "Ligação 1"`, `ordem 2 = call "Ligação 2" (waitMinutesAfterPrevious: 10)`, `ordem 3 = message "Mensagem"`.
-- A segunda ligação é **persistida no banco**, não calculada na tela: o desfecho "não atendeu" chama `tickLead` (`src/server/relationship/call-outcome.server.ts:80-89`) e o motor grava a próxima linha (`src/lib/relationship/engine.ts:227-280`).
-- "Atendeu" encerra apenas as ações restantes da tentativa E0 e marca aguardo de encaminhamento; não cria mensagem.
-- Posição 1 é controlada **no servidor**: `src/server/crm/daily-actions-gate.server.ts:46-75` marca `PROCESSING` + `claimed_by`, e a ordenação dá prioridade máxima ao item reivindicado (`src/lib/crm/daily-actions.ts:181-209`). Ação vencida de outro lead entra atrás.
-- Clique fora da posição atual é rejeitado no servidor (`assertCurrentAction` / `assertCurrentLead` / `assertCurrentQueueItem`, `daily-actions-gate.server.ts:91-144`) em todas as funções de execução.
-- COPIAR consulta a versão ativa da Biblioteca no momento do clique: `getDailyActionMessageFn` (`src/lib/crm/daily-actions.functions.ts:109-123`) → `prepareStepMessage` → `renderFromLibrary`. Não há cópia armazenada na Ação do Dia.
+- Registro por investidor identificado (token assinado do Portal), nunca anônimo.
+- Agregado no servidor, por investidor: número de sessões, retornos, tempo ativo acumulado, primeiro acesso a cada módulo, último acesso a cada módulo, primeiro e último acesso geral.
+- Linha do tempo bruta: cada abertura de módulo e cada avanço de conteúdo é gravada com data/hora, módulo e percentual quando existe.
+- Regras já embutidas: sessão nova só após 4 horas sem atividade; intervalo maior que 5 minutos entre sinais não vira tempo ativo (aba aberta e parada não conta).
+- Classificação comercial pronta (sessões, retornos, tempo, amplitude, recência) usada na ficha do investidor.
 
-## B. O que ainda está errado
+## 2. COMO V0 PODERIA SER ALIMENTADO
 
-1. O card legado **"Executar primeiro contato (E0)"** continua existindo e funcional.
-2. Ao ser acionado, ele cria `crm_messages` e chama a Meta, **pulando as duas ligações**.
-3. A blindagem que esconde esse card depende de uma reconciliação que, se falhar, reexpõe o caminho legado (falha silenciosa).
-4. A segunda ligação aparece de forma passiva: ela existe no banco com horário previsto, mas surge na tela quando a Ação do Dia é reaberta após os 10 minutos — não há um disparo ativo no minuto exato.
+Sem inventar mecanismo novo: V0 nasce do cruzamento de dois registros que já existem.
 
-## C. Onde está o caminho legado
+- Marco formal de disponibilização do material: já existe como fato estruturado, com data/hora, no histórico de relacionamento do lead (registro de "material disponibilizado"). É esse marco, e não a conversa, que autoriza a leitura.
+- Atividade do investidor no material: já existe na linha do tempo do Portal, com data/hora e módulo.
 
-- Tela: `src/components/crm/daily-actions-overlay.tsx:624-631` (botão) e `:297-315` (handler).
-- Adaptador: `src/components/crm/daily-actions-real-adapter.ts:62-85`.
-- Função de servidor: `src/lib/crm/first-contact-mode.functions.ts:16-35` → `executeE0Action` (`src/server/crm/e0-actions.server.ts:128-234`) → `registerFirstContact` (`src/server/crm/first-contact.server.ts:53-159`) → `dispatchFirstContact` (`src/server/relationship/e0.server.ts:72-260`).
-- Onde a mensagem nasce e o envio acontece: `src/server/relationship/e0.server.ts:142-151` (insert em `crm_messages`) e `:211-222` (chamada à Meta).
-- Filtro que hoje esconde o card: `src/server/crm/daily-actions.server.ts:217-221`, dependente de `ensureManualE0Cadences()` em `:101-103`, cujo erro é engolido por um `catch` que devolve conjunto vazio.
+Cruzar por investidor e comparar data/hora é possível hoje, e o servidor consegue fazer essa leitura inteiramente (os dois lados já são server-side). Filtrar apenas atividade posterior à disponibilização também é possível, porque a linha do tempo guarda cada evento com hora.
 
-## D. Como a E0 está representada hoje
+## 3. O QUE SIGNIFICA VISUALIZAÇÃO REAL
 
-Linha em `relationship_queue` com `step = "E0"`, `action_order` (1, 2, 3) e `action_kind` (`call`, `call`, `message`). A tela apenas traduz `action_kind` para "ligação"/"mensagem" (`src/server/crm/daily-actions.server.ts:384,412`). Ou seja, a representação já é a correta.
+O que falta não é regra, é medida.
 
-## E. Como a fila/posição 1 é controlada hoje
+- O que já dá para afirmar com os dados atuais: se o investidor abriu o material depois do envio formal, quantas vezes voltou, em quantas sessões distintas e até onde avançou no conteúdo.
+- O que ainda não dá para afirmar com precisão: quanto tempo efetivo ele passou dentro do material depois daquela data. O tempo ativo hoje é um total acumulado do investidor no Portal inteiro, não um tempo por módulo e por período.
 
-Servidor. O item em atendimento fica `PROCESSING` com dono e recebe prioridade máxima na ordenação; qualquer outra ação vencida entra na posição seguinte. A proteção não depende do navegador.
+Por isso, qualquer limite numérico (minutos, percentual) definido agora seria arbitrário. A ordem correta é: primeiro passar a medir tempo efetivo por módulo e por período, depois calibrar o limite com dados reais.
 
-## F. Menor alteração necessária
+## 4. COMO V1/V2/V3 SE ENCAIXARIAM
 
-Três ajustes cirúrgicos, sem nova fila, sem nova tabela, sem migration, sem tocar em Biblioteca, motor de outras etapas, follow-up, agendamento, R3 ou E7/E8:
+O motor já sabe escolher texto diferente para a mesma etapa conforme o contexto do lead — é exatamente assim que hoje ele decide entre "sem contato" e "material enviado", e cada contexto já tem versão com nome e sem nome. V1/V2/V3 não seriam etapas novas: seriam E1/E2/E3 lidas em um terceiro contexto ("visualizou o material").
 
-1. **Fechar o executor legado para E0 manual**: em `executeE0Action`, inverter a lógica de tolerância — recusar sempre que o card for de entrada operacional atual, em vez de recusar só quando "governado pela V2" for comprovado. Falha na verificação passa a bloquear, não liberar.
-2. **Remover o card "Executar primeiro contato (E0)" da Ação do Dia**: parar de emitir itens de tipo `primeiro_contato` na montagem da fila e retirar o botão correspondente da tela. A pendência legada permanece no banco como histórico.
-3. **Tornar a reconciliação não-silenciosa**: quando `ensureManualE0Cadences()` falhar, a Ação do Dia deve omitir o card em vez de reexpor o caminho legado.
+Consequências diretas:
+- a identidade operacional continua E1/E2/E3 (fila, prazos, ordem, atrasos, tudo igual);
+- não nasce segunda fila nem segunda cadência: muda apenas de qual gaveta da Biblioteca o texto é lido;
+- não reiniciar V está garantido pela própria régua: ela nunca volta etapa; se a visualização for confirmada depois da E1, a próxima etapa aplicável (E2) é que passa a ser lida no contexto V.
 
-Opcional (não exigido pela regra): fazer a segunda ligação ser reavaliada pelo agendador já existente, para que apareça sem depender de reabrir a tela.
+Menor alteração necessária: (a) medir tempo efetivo por módulo no servidor; (b) gravar um marco de visualização confirmada como fato estruturado, no mesmo formato do marco de material disponibilizado; (c) admitir um terceiro valor de contexto e permitir que E1/E2/E3 aceitem contexto; (d) a Gestão cadastrar os textos nesse contexto.
 
-## G. Arquivos que precisariam mudar
+## 5. COMO V SE RELACIONA COM AGENDAMENTO
 
-- `src/server/crm/e0-actions.server.ts`
-- `src/server/crm/daily-actions.server.ts`
-- `src/components/crm/daily-actions-overlay.tsx`
-- `src/components/crm/daily-actions-real-adapter.ts` (remoção da chamada legada)
-- possivelmente `src/lib/crm/first-contact-mode.functions.ts` (deixar de expor a execução)
+Nada precisa ser criado. O agendamento hoje é um fato independente da etapa: quando surge, ele congela a régua e assume prioridade máxima na Ação do Dia. Como V1/V2/V3 continuam sendo E1/E2/E3, o comportamento seria idêntico ao de hoje, sem fila nem regra paralela.
 
-## H. O que NÃO precisaria mudar
+## 6. O QUE ACONTECE SE O AGENDAMENTO NÃO EVOLUIR
 
-Régua V2 (`cadence-v2.ts`), motor e decisão, `relationship_queue`, trava de posição/ordem (`daily-actions-gate.server.ts`), registro de desfecho de ligações, Biblioteca e o caminho de COPIAR, follow-up do GreenSales, agendamento, R3, E7/E8, Central dos Nomes, Safety Lock, e qualquer coisa fora de `/f`.
+Já implementado:
+- o compromisso fica registrado e pendente;
+- vencido o horário sem contato, entra na Ação do Dia a "Verificação 24h", com prioridade máxima e marcação de atraso;
+- o executivo registra o desfecho e decide entre encerrar o fluxo ou retomar o relacionamento;
+- o registro do agendamento e todo o histórico permanecem.
+
+Se o agendamento evolui, o fluxo é encerrado pela regra atual e o lead não recebe mais etapas da régua — nem E, nem V, nem R.
+
+## 7. COMO O LEAD ENTRA NO R
+
+Pela transição estruturada de estágio "Agendamentos → Frios", feita pelo executivo na origem. Essa transição, uma única vez, abre a instância de reengajamento, cancela o que restou do ciclo anterior e deixa a régua programar R1 → R2 → R3 → R4. Nenhuma mensagem é enviada nesse momento.
+
+## 8. COMO O SISTEMA DISTINGUE OS DOIS CONTEXTOS DE R3
+
+Hoje ele distingue apenas material recebido x não recebido: quando existe o marco de material disponibilizado, R2 pula direto para R4 — a regra do item 12 do pedido já está implementada e não precisa mudar.
+
+O que ainda não existe é a distinção entre "não chegou à E4" e "já passou pela E4". A informação existe no banco — cada etapa executada fica gravada na fila do lead com identificação da etapa e data —, mas hoje o motor não a consulta para escolher texto de R3, e o histórico de etapas guardado dentro da instância é reiniciado quando a instância de reengajamento é aberta. Ou seja: a informação está preservada no histórico do lead, mas precisa ser lida de lá, e não do contador da instância nova.
+
+Com isso, os três desfechos pedidos ficam decidíveis apenas com registros existentes:
+- material efetivamente disponibilizado → pula R3 (já funciona);
+- sem material e sem E4 executada → R3 como primeira oferta;
+- sem material e com E4 executada → R3 como reoferta.
+
+E a regra de ouro do item 10 fica respeitada: visualização do material não conta como "chegou à E4"; são fatos gravados separadamente.
+
+## 9. COMO O HISTÓRICO DE E4/E5/E6 É PRESERVADO
+
+- Etapas executadas ficam gravadas na fila do lead, com etapa, situação e data; nada é apagado, inclusive na troca de ambiente (o que sobra é cancelado, não removido).
+- Os marcos de material (pedido e disponibilizado) são eventos permanentes do lead, não da instância.
+- Risco real e único: ler o histórico do contador da instância nova (que nasce vazio) em vez do histórico do lead. É uma decisão de leitura, não uma perda de dado.
+
+## 10. O QUE JÁ EXISTE E O QUE PRECISA SER CRIADO
+
+Já existe: engajamento server-side com regra de atividade real; linha do tempo com data/hora e módulo; marco formal de material disponibilizado; seleção de texto por contexto com variantes com nome e sem nome; fila única com prazos e atrasos; agendamento com prioridade, verificação 24h e desfecho humano; entrada em R por transição de estágio; pulo de R3 quando houve material.
+
+Precisa ser criado: medição de tempo efetivo por módulo e por período; marco estruturado de visualização confirmada; terceiro contexto de etapa aceito por E1/E2/E3; segundo eixo de contexto para R3 (chegou ou não à E4) lido do histórico do lead; e os textos correspondentes cadastrados pela Gestão.
+
+## 11. MENOR ARQUITETURA POSSÍVEL
+
+Quatro peças, todas aditivas, nenhuma paralela:
+1. tempo efetivo por módulo no engajamento já existente (mesma regra de atividade real, sem segunda fórmula);
+2. um marco de visualização confirmada gravado como fato, igual ao marco de material;
+3. contexto de etapa com um valor a mais, e E1/E2/E3 passando a consultar contexto;
+4. contexto de R3 resolvido pelo histórico do lead.
+
+Sem tabela nova de fila, sem cadência nova, sem segundo motor de engajamento, sem etapa nova visível.
+
+## 12. RISCOS OU CONFLITOS ENCONTRADOS
+
+- Definir o limite de "consumo suficiente" antes de medir tempo por módulo produziria número arbitrário e alarmes falsos.
+- Ler "chegou à E4" do contador da instância nova daria resposta errada em todo lead que veio de agendamento.
+- Sem texto cadastrado no novo contexto, o motor por regra atual não envia nada e a etapa fica pendente — o cadastro precisa vir antes de ligar a chave.
+- Visualização e oferta são fatos distintos; tratá-los como um só quebraria a escolha de R3.
+- A leitura de V0 precisa considerar somente atividade posterior ao envio formal; ignorar isso transformaria acesso antigo ao Portal em visualização confirmada.
+
+## 13. CONCLUSÃO
+
+O conceito V se encaixa na arquitetura atual como uma leitura diferente da mesma régua, não como um caminho paralelo. O que falta é medição de tempo dentro do material, um marco de visualização confirmada e um eixo de contexto a mais — tudo aditivo.
+
+"É possível implementar o Ambiente V reutilizando o Engajamento atual, sem criar segunda fila, segunda cadência ou novo mecanismo de Engajamento?"
+
+SIM. O engajamento já é server-side, identificado, com regra própria de atividade real; a fila e a régua já tratam E1/E2/E3 com contexto e variantes de texto; o agendamento e a entrada em R já são independentes da etapa. A única lacuna é de medição e de vocabulário de contexto, não de mecanismo.
