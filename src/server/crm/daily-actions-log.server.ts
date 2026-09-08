@@ -32,6 +32,13 @@ export const DAILY_ACTION_EVENTS = {
   reschedule: "acao_do_dia_reuniao_reagendada",
   /** Ação antes pulada e depois efetivamente concluída. */
   recovery: "acao_do_dia_pulo_recuperado",
+  /**
+   * Pendência pulada trazida de volta para a fila de HOJE pelo próprio
+   * Executivo ("Resolver pendência"). Não é conclusão, não é nova
+   * obrigação e não cria segunda fila: apenas suspende a supressão do
+   * dia sobre a MESMA ação.
+   */
+  resume: "acao_do_dia_pulo_retomado",
 } as const;
 
 export type DailyActionLogInput = {
