@@ -214,6 +214,16 @@ export function createDemoDailyActionsAdapter(): DailyActionsAdapter {
       requeue: true,
       message: `Simulação: reunião de ${item.name} reagendada apenas na tela. Nada foi gravado.`,
     }),
+    resolveFollowUpContact: async (item): Promise<AdapterResult> => ({
+      ok: true,
+      requeue: true,
+      message: `Simulação: contato de agendamento de ${item.name} registrado apenas na tela.`,
+    }),
+    resolveFollowUpReview: async (item): Promise<AdapterResult> => ({
+      ok: true,
+      requeue: true,
+      message: `Simulação: verificação de 24h de ${item.name} registrada apenas na tela.`,
+    }),
   };
 }
 

@@ -96,6 +96,9 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
         .select("awaiting_handoff,started_at,created_at")
         .eq("scope", record.scope)
         .eq("lead_id", record.leadId)
+        .eq("active", true)
+        .order("instance_seq", { ascending: false })
+        .limit(1)
         .maybeSingle(),
       loadStageKey(record.leadId),
       loadMaterialState(record.leadId),

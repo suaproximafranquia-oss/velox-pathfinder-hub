@@ -100,6 +100,8 @@ export function DailyActionsOverlay({
   const [skipReason, setSkipReason] = useState("");
   const [note, setNote] = useState("");
   const [meetingNote, setMeetingNote] = useState("");
+  /** Agendamento GreenSales: "NÃO" houve contato → pergunta "Deseja reagendar?". */
+  const [followUpNoContact, setFollowUpNoContact] = useState<string | null>(null);
   const [rescheduleAt, setRescheduleAt] = useState("");
   const [message, setMessage] = useState<StepMessageView | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
@@ -319,6 +321,40 @@ export function DailyActionsOverlay({
         setMeetingNote("");
         applyResult(item.actionKey, result);
       } else setFeedback(result.message ?? "Não foi possível registrar o desfecho.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** AGENDAMENTO GREENSALES — "Houve contato de agendamento?" */
+  async function handleFollowUpContact(
+    item: DailyAction,
+    decision: { contacted: boolean; willReschedule?: boolean },
+  ) {
+    if (!operationalWindow.open) return;
+    setBusy(true);
+    try {
+      const result = await adapter.resolveFollowUpContact(item, { ...decision, note: meetingNote.trim() });
+      if (result.ok) {
+        setMeetingNote("");
+        setFollowUpNoContact(null);
+        applyResult(item.actionKey, result);
+      } else setFeedback(result.message ?? "Não foi possível registrar o desfecho.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** OBRIGAÇÃO DE 24h — "Deseja encerrar esse fluxo?" */
+  async function handleFollowUpReview(item: DailyAction, close: boolean) {
+    if (!operationalWindow.open) return;
+    setBusy(true);
+    try {
+      const result = await adapter.resolveFollowUpReview(item, { close, note: meetingNote.trim() });
+      if (result.ok) {
+        setMeetingNote("");
+        applyResult(item.actionKey, result);
+      } else setFeedback(result.message ?? "Não foi possível registrar a decisão.");
     } finally {
       setBusy(false);
     }
@@ -631,7 +667,85 @@ export function DailyActionsOverlay({
                       </button>
                     </>
                   )}
-                  {selected.kind === "reuniao" && (
+                  {selected.kind === "reuniao" && selected.followUp?.mode === "revisao_24h" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleFollowUpReview(selected, true)}
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
+                      >
+                        <X className="h-4 w-4" /> Sim, encerrar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleFollowUpReview(selected, false)}
+                        disabled={busy || locked}
+                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
+                      >
+                        <Check className="h-4 w-4" /> Não, retomar
+                      </button>
+                    </>
+                  )}
+                  {selected.kind === "reuniao" &&
+                    selected.followUp?.mode === "contato" &&
+                    followUpNoContact !== selected.actionKey && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void handleFollowUpContact(selected, { contacted: true })}
+                          disabled={busy || locked}
+                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
+                        >
+                          <Check className="h-4 w-4" /> Sim, houve contato
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFollowUpNoContact(selected.actionKey)}
+                          disabled={busy || locked}
+                          className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
+                        >
+                          <X className="h-4 w-4" /> Não houve contato
+                        </button>
+                      </>
+                    )}
+                  {selected.kind === "reuniao" &&
+                    selected.followUp?.mode === "contato" &&
+                    followUpNoContact === selected.actionKey && (
+                      <>
+                        <span className="text-[11px] uppercase tracking-[0.16em] text-white/50">
+                          Deseja reagendar?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleFollowUpContact(selected, { contacted: false, willReschedule: true })
+                          }
+                          disabled={busy || locked}
+                          className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
+                        >
+                          Sim, vou reagendar no GreenSales
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleFollowUpContact(selected, { contacted: false, willReschedule: false })
+                          }
+                          disabled={busy || locked}
+                          className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
+                        >
+                          Não
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFollowUpNoContact(null)}
+                          className="text-[11px] text-white/40 underline underline-offset-4"
+                        >
+                          voltar
+                        </button>
+                      </>
+                    )}
+                  {selected.kind === "reuniao" && !selected.followUp && (
                     <>
                       <button
                         type="button"
@@ -744,8 +858,28 @@ export function DailyActionsOverlay({
 
 
 
+                {/* AGENDAMENTO GREENSALES — pergunta oficial e observação. */}
+                {selected.kind === "reuniao" && selected.followUp && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                    <span className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--gold)]/80">
+                      {selected.followUp.mode === "revisao_24h"
+                        ? "Ontem houve um agendamento em que não houve contato e você optou por não reagendar. Deseja encerrar esse fluxo?"
+                        : "Houve contato de agendamento?"}
+                    </span>
+                    <span className="text-[11px] text-white/40">
+                      Reagendamentos são feitos no GreenSales — o Portal atualiza automaticamente.
+                    </span>
+                    <input
+                      value={meetingNote}
+                      onChange={(e) => setMeetingNote(e.target.value)}
+                      placeholder="Observação (opcional)"
+                      className="min-w-[220px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
+                    />
+                  </div>
+                )}
+
                 {/* REUNIÃO — reagendamento na própria reunião oficial. */}
-                {selected.kind === "reuniao" && (
+                {selected.kind === "reuniao" && !selected.followUp && (
                   <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                     <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
                       Reagendar

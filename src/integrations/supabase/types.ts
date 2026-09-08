@@ -2176,6 +2176,14 @@ export type Database = {
           duration_min: number
           executive_id: string
           executive_name: string
+          external_follow_up: string | null
+          external_ref: string | null
+          external_source: string | null
+          follow_up_history: Json
+          follow_up_review_due_at: string | null
+          follow_up_review_resolved_at: string | null
+          follow_up_state: string | null
+          follow_up_state_at: string | null
           google_event_id: string | null
           google_sync: string
           google_sync_error: string | null
@@ -2203,6 +2211,14 @@ export type Database = {
           duration_min?: number
           executive_id: string
           executive_name: string
+          external_follow_up?: string | null
+          external_ref?: string | null
+          external_source?: string | null
+          follow_up_history?: Json
+          follow_up_review_due_at?: string | null
+          follow_up_review_resolved_at?: string | null
+          follow_up_state?: string | null
+          follow_up_state_at?: string | null
           google_event_id?: string | null
           google_sync?: string
           google_sync_error?: string | null
@@ -2230,6 +2246,14 @@ export type Database = {
           duration_min?: number
           executive_id?: string
           executive_name?: string
+          external_follow_up?: string | null
+          external_ref?: string | null
+          external_source?: string | null
+          follow_up_history?: Json
+          follow_up_review_due_at?: string | null
+          follow_up_review_resolved_at?: string | null
+          follow_up_state?: string | null
+          follow_up_state_at?: string | null
           google_event_id?: string | null
           google_sync?: string
           google_sync_error?: string | null
