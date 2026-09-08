@@ -60,6 +60,9 @@ export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   template_automatico: "Template automático enviado pelo sistema",
   janela_reaberta: "Janela de conversação reaberta por Template",
   portal_liberado: "Portal do Investidor liberado manualmente",
+  agendamento_greensales_espelhado: "Compromisso criado",
+  agendamento_greensales_atualizado: "Compromisso reagendado",
+  agendamento_greensales_cancelado: "Compromisso cancelado",
 };
 
 export type CrmTimelineEntry = {

@@ -303,7 +303,7 @@ export async function syncOneFollowUp(
     await appendTimeline({
       leadId,
       event: "agendamento_greensales_atualizado",
-      reason: `Horário atualizado no GreenSales: ${decision.from} → ${decision.to}.`,
+      reason: `Reagendado no GreenSales: ${formatBr(decision.from)} → ${formatBr(decision.to)}.`,
       at: nowIso,
     });
     return decision;
