@@ -110,3 +110,54 @@ Verificado no código: `syncOneFollowUp` só consulta o estágio do lead, o `fol
 2. **A coluna vídeo chamada já chega ao Portal?** Sim. A etapa VÍDEO já está mapeada e o `follow_up` desses leads já está gravado — só não é lido.
 3. **Dá para reaproveitar a mesma lógica sem segundo motor?** Sim. É trocar uma comparação de etapa por um conjunto de etapas elegíveis e carregar a modalidade; tudo desemboca no mesmo `portal_meetings` e na mesma Ação do Dia.
 
+
+---
+
+# DIAGNÓSTICO COMPLEMENTAR — HISTÓRICO DO AGENDAMENTO + TRANSIÇÃO DA AÇÃO DO DIA
+
+## PARTE 1 — Registro do agendamento no histórico
+
+1. **Já existe evento?** Sim. `syncOneFollowUp` grava em `crm_timeline` (via `appendTimeline`) nos três momentos:
+   - criação → `agendamento_greensales_espelhado` ("Compromisso do GreenSales espelhado para <data>")
+   - reagendamento → `agendamento_greensales_atualizado` ("Horário atualizado no GreenSales: X → Y")
+   - cancelamento → `agendamento_greensales_cancelado` (com o motivo)
+   Além disso, o próprio `portal_meetings.follow_up_history` guarda um log append-only (`espelhado`, `reagendado_na_origem`, `cancelado`, `movido_para_frios`).
+2. **Onde:** tabela `crm_timeline`, gravada por `appendTimeline` em `src/server/crm/greensales-followup.server.ts` (linhas ~226, ~261, ~290 e demais transições). A leitura oficial é `pullCrmRecords` (`src/lib/crm/crm-sync.functions.ts`) e a apresentação usa `src/lib/crm/timeline.ts` (`listCrmTimeline`). O rótulo exibido vem de `CRM_TIMELINE_LABEL`.
+3. **Mecanismo a reutilizar:** exatamente esse — `crm_timeline` + `relationship_events`. Nada de sistema paralelo de notas.
+4. **Lacuna real:** os eventos de agendamento **não têm rótulo** em `CRM_TIMELINE_LABEL` (a lista de tipos não inclui `agendamento_greensales_*`), então hoje eles chegam ao banco mas podem não aparecer com nome legível na ficha do lead. É esse o ponto a corrigir — não a gravação.
+5. **Sequência histórica pretendida:** viável sem estrutura nova. E0 ligação 1 / ligação 2 / mensagem já são registradas; "AGENDAMENTO CRIADO", "REAGENDADO", "CANCELADO" já são gravados; os desfechos (compareceu / não compareceu / sem contato / reagendamento) já são gravados nas transições de `follow_up_state`.
+6. **Momento do registro:** já é no reconhecimento da sincronização, não no dia do compromisso. Correto.
+7. **Mudança de horário:** já registra `agendamento_greensales_atualizado` no MESMO registro (`external_ref` único) — nunca cria um segundo compromisso.
+8. **Cancelamento na origem:** já existe (`CANCELADO_ORIGEM` + evento de timeline). Reutilizável.
+9. **Permanência:** `crm_timeline` e `follow_up_history` são append-only; nada é apagado após a conclusão.
+10. **Independência da Ação do Dia:** confirmada — o registro nasce na sincronização, sem qualquer dependência de card aberto ou executado.
+
+## PARTE 2 — Transição para a próxima ação
+
+11. **O servidor sabe a próxima ação?** Sim. `buildDailyActions` (`src/server/crm/daily-actions.server.ts`) reconstrói toda a fila ordenada, incluindo a próxima ação do mesmo lead.
+12. **Função equivalente:** `buildDailyActions` é a autoridade única. Não existe hoje um `nextReleasedAction` que devolva só o próximo item.
+13/14/15. **Causa dos 10–15s:** é de interface, não de decisão de fila errada no servidor. No card (`daily-action-card.tsx`, `completeCall`) a conclusão chama `applyResult` → `dropAction` em `daily-actions-overlay.tsx`, que remove a ação da lista local e seleciona `rest[0]` — que naquele instante é **outro lead** (William), porque a mensagem E0 do Alex ainda não estava na lista (a ligação 2 só a libera ao ser concluída). Em seguida `onReload?.(true)` recarrega em silêncio, a mensagem do Alex aparece e volta para a posição 1. O servidor esteve certo o tempo todo; a UI é que exibiu um estado intermediário.
+16. **A resposta da conclusão já traz o suficiente?** Não. `registerQueueCallOutcomeFn` devolve o resultado da ligação (`concluded`, etc.), sem a próxima ação.
+17. **Dá para devolver a próxima ação junto?** Sim, e é o caminho natural: a mesma função pode chamar `buildDailyActions` ao final e devolver a fila recalculada (ou apenas o primeiro item), já autorizada pelas mesmas travas.
+18. **UI abrir imediatamente:** sim — com a fila vinda da própria resposta não há otimismo cego, é o estado oficial do servidor entregue uma rodada antes; elimina a janela dos 10–15s sem inventar nada no cliente.
+19. **Inconsistência:** se a gravação falhar, a resposta não vem `ok` e a UI não avança (comportamento atual já é esse); e a trava `assertCurrentQueueItem` continua rejeitando qualquer execução fora da posição 1, então mesmo uma tela desatualizada não consegue executar a ação errada.
+20/21/22/23. **Regras preservadas:** só se não houver outra ação liberada do mesmo lead a fila promove o próximo; posição 1 continua protegida no servidor; cards seguintes continuam visíveis e não interativos; concluir passa a significar "descobrir a próxima ação correta", não "pegar o próximo lead".
+
+## PARTE 3 — Separação dos fluxos (confirmada)
+
+- **A) COMPROMISSO:** nasce na origem (etapa elegível + `follow_up`) → `portal_meetings` → histórico. Independente da Ação do Dia.
+- **B) EXECUÇÃO:** a Ação do Dia apresenta e o executivo executa; o desfecho grava estado e histórico.
+- **C) CADÊNCIA:** a existência do compromisso não depende de ação anterior. A Ação do Dia executa, não descobre.
+
+## RESPOSTA FINAL (10 pontos)
+
+1. Em `crm_timeline` (histórico do lead), `relationship_events` (fatos do motor) e `portal_meetings.follow_up_history` (histórico do próprio compromisso).
+2. Sim — `agendamento_greensales_espelhado` / `_atualizado` / `_cancelado`.
+3. O mesmo `crm_timeline`; falta apenas o rótulo legível em `CRM_TIMELINE_LABEL`.
+4. Sim, e já é criado nesse momento.
+5. Sim — `buildDailyActions` já calcula; ela só não é consultada no retorno da conclusão.
+6. Na interface: `dropAction` seleciona `rest[0]` antes de a recarga silenciosa trazer a próxima ação do mesmo lead.
+7. Sim, devolvendo a fila recalculada na resposta de conclusão.
+8. Sim, sem esperar refetch, usando essa fila já autorizada.
+9. Mantendo `assertCurrentQueueItem`/posição 1 no servidor e só avançando quando a resposta for `ok`.
+10. Mínimo envolvido: `src/lib/crm/daily-actions.functions.ts` (retorno da conclusão), `src/components/crm/daily-actions-overlay.tsx` e `daily-action-card.tsx` (transição), `src/components/crm/daily-actions-real-adapter.ts` (repasse), `src/lib/crm/timeline.ts` (rótulos), `src/lib/crm/greensales-followup.ts` e `src/server/crm/greensales-followup.server.ts` (etapa VÍDEO por `stage_key`).
