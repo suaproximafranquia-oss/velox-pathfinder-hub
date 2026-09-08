@@ -35,7 +35,11 @@ import {
   AUTO_REPLY_STEP_KEY,
   OPERATIONAL_STEP_KEYS,
   isContextualStep,
+  isCurrentEditorialStep,
+  isHistoricalStep,
   isOperationalStep,
+  isValidStepCode,
+  parseStepIdentity,
   stepCombinations,
   type StepContext,
 } from "@/lib/relationship/operational-steps";
