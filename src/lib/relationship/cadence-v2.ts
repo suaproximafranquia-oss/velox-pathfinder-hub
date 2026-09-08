@@ -83,10 +83,29 @@ export function flowOfStep(step: CadenceV2Step): CadenceV2Flow {
 }
 
 /**
- * Contexto de leitura das etapas E7/E8. Uma única etapa, dois textos —
- * a escolha vem do histórico estruturado do ciclo.
+ * CONTEXTO DE LEITURA DE UMA ETAPA. Uma única etapa técnica, textos
+ * próprios por contexto — a escolha vem sempre do histórico
+ * estruturado, nunca de texto de conversa ou de interpretação.
+ *
+ *  • E7/E8 → material efetivamente enviado ou não;
+ *  • E1/E2/E3 → caminho V já decidido pelo motor (V1/V2/V3) ou contexto
+ *    normal (sem contexto);
+ *  • R3 → passagem histórica válida por E4.
+ *
+ * Sem a etapa informada, mantém o comportamento anterior (E7/E8).
  */
-export function resolveStepContext(cycle: CycleContext): StepContext {
+export function resolveStepContext(
+  cycle: CycleContext,
+  step?: CadenceV2Step | string | null,
+): StepContext | null {
+  const key = step ? String(step).trim().toUpperCase() : null;
+
+  if (key && VISUAL_CONTEXT_BY_STEP[key]) {
+    return cycle.visualPath ? VISUAL_CONTEXT_BY_STEP[key]! : null;
+  }
+  if (key === "R3") {
+    return cycle.reachedE4Historically ? "JA_PASSOU_E4" : "NAO_CHEGOU_E4";
+  }
   return cycle.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
 }
 
