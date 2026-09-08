@@ -334,6 +334,8 @@ export async function intakeLead(
           entered_entry_stage_at?: string | null;
         }).entered_entry_stage_at,
         reactivation: returning,
+        // Reentrada oficial (`resolveEntryFlow`) abre o ciclo em RE0.
+        reentry: entry.reentry,
       });
       result.e0 = "manual";
       result.e0Reason = `Primeiro contato manual — pendente na Ação do Dia. ${e0Mode.reason}`;
