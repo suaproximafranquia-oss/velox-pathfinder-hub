@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import {
   listarMensagensBiblioteca,
-  diagnosticoDaBiblioteca,
+  
   publicarVersaoMensagem,
   renomearRotuloEtapa,
   reordenarBiblioteca,
@@ -35,11 +35,6 @@ type LibraryMessage = {
   official: boolean;
 };
 
-type Diagnostics = {
-  stepsWithoutContent: { stepKey: string; contentGroup: string }[];
-  stepsWithoutText: string[];
-  contentsWithoutStep: { id: string; name: string }[];
-};
 
 const card = "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5";
 const gold =
@@ -62,7 +57,7 @@ export function MessageLibraryPanel() {
   const [renaming, setRenaming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
+  
   const [contentUrl, setContentUrl] = useState("");
   const [contentLabel, setContentLabel] = useState("");
   /* BLOCO 3 — criação e ordenação visual. */
@@ -76,18 +71,13 @@ export function MessageLibraryPanel() {
       const data = (await listarMensagensBiblioteca()) as LibraryMessage[];
       setMessages(data);
       setError(null);
-      try {
-        setDiagnostics((await diagnosticoDaBiblioteca()) as Diagnostics);
-      } catch {
-        /* diagnóstico é informativo: sua falha não bloqueia a Biblioteca */
-      }
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar a Biblioteca.");
     } finally {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     void load();
@@ -109,16 +99,8 @@ export function MessageLibraryPanel() {
     return map;
   }, [messages]);
 
-  const legacySteps = useMemo(() => {
-    const map = new Map<string, LibraryMessage[]>();
-    for (const message of messages) {
-      if (message.official) continue;
-      const list = map.get(message.stepKey) ?? [];
-      list.push(message);
-      map.set(message.stepKey, list);
-    }
-    return [...map.entries()];
-  }, [messages]);
+
+
 
   /* A ordem vem do servidor (posição salva) e é espelhada localmente
      apenas para o arrastar fluir sem esperar a gravação. */
@@ -229,29 +211,8 @@ export function MessageLibraryPanel() {
       </header>
 
 
-      {/* DIAGNÓSTICO: o que impediria o motor de enviar, visível aqui. */}
-      {diagnostics &&
-      (diagnostics.stepsWithoutContent.length > 0 ||
-        diagnostics.stepsWithoutText.length > 0) ? (
-        <ul className="mb-4 space-y-1 rounded-xl border border-[color:var(--border)] bg-[color:var(--muted)]/20 p-3 text-[11px] text-[color:var(--muted-foreground)]">
-          {diagnostics.stepsWithoutText.length > 0 ? (
-            <li>
-              Sem texto oficial (não envia):{" "}
-              <strong>{diagnostics.stepsWithoutText.join(", ")}</strong>
-            </li>
-          ) : null}
-          {diagnostics.stepsWithoutContent.length > 0 ? (
-            <li>
-              Etapa que exige link e está sem link configurado:{" "}
-              <strong>
-                {diagnostics.stepsWithoutContent
-                  .map((s) => `${s.stepKey} (grupo ${s.contentGroup})`)
-                  .join(", ")}
-              </strong>
-            </li>
-          ) : null}
-        </ul>
-      ) : null}
+
+
 
       {loading ? (
         <p className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
@@ -315,29 +276,10 @@ export function MessageLibraryPanel() {
               })}
             </ul>
 
-            {/* REGISTROS FORA DA CONFIGURAÇÃO — preservados como
-                histórico, sem participar da operação. Nada é apagado. */}
-            {legacySteps.length > 0 ? (
-              <div className="mt-3 rounded-xl border border-[color:var(--border)] p-3">
-                <p className="text-[10px] uppercase tracking-wide text-[color:var(--muted-foreground)]">
-                  Histórico fora da configuração
-                </p>
-                <ul className="mt-1 space-y-0.5">
-                  {legacySteps.map(([key, list]) => (
-                    <li
-                      key={key}
-                      className="truncate text-[11px] text-[color:var(--muted-foreground)]"
-                    >
-                      {list[0]?.displayLabel ?? key}
-                      <span className="ml-1 opacity-60">({key})</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-1 text-[10px] text-[color:var(--muted-foreground)]">
-                  Guardados apenas como registro. O motor não usa estas entradas.
-                </p>
-              </div>
-            ) : null}
+            {/* Registros de chaves fora da configuração atual do motor
+                permanecem gravados no banco, mas NÃO são apresentados
+                nesta interface editorial. Nada é apagado. */}
+
           </div>
 
           <div className="space-y-3">
