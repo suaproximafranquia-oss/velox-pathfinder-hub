@@ -25,8 +25,10 @@ import { operationalDate } from "@/lib/crm/daily-actions";
 type Counts = {
   ligacoes: number;
   mensagens: number;
+  enviadas: number;
   reunioes: number;
   pulos: number;
+  recuperadas: number;
   total: number;
 };
 
