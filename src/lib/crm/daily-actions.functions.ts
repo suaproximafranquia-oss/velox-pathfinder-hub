@@ -26,14 +26,18 @@ async function currentExecutiveId(context: { supabase: never }): Promise<string 
   return typeof data === "string" && data ? data : null;
 }
 
-/** Lista única do dia — recalculada a cada leitura a partir das fontes. */
+/**
+ * Lista única do dia — recalculada a cada leitura a partir das fontes.
+ * A leitura passa pela MESMA trava do servidor: a primeira ação é
+ * reivindicada (PROCESSING) e mantém a posição enquanto é trabalhada.
+ */
 export const listDailyActions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DailyAction[]> => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
-    const { buildDailyActions } = await import("@/server/crm/daily-actions.server");
-    return buildDailyActions({ executiveId });
+    const { currentDailyAction } = await import("@/server/crm/daily-actions-gate.server");
+    return (await currentDailyAction(executiveId)).list;
   });
 
 /** Contador discreto do botão: atrasadas x hoje x reuniões. */
@@ -71,12 +75,15 @@ export const skipDailyActionFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
-    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    const { assertCurrentAction, releaseQueueClaim, queueItemIdOf } = await import(
+      "@/server/crm/daily-actions-gate.server"
+    );
+    const current = await assertCurrentAction({ executiveId, actionKey: data.actionKey });
     const { skipDailyAction } = await import("@/server/crm/daily-actions-log.server");
     await skipDailyAction({ ...data, userId: context.userId, executiveId });
+    // Pular devolve a ação à fila (perde a reivindicação da posição 1).
+    await releaseQueueClaim(queueItemIdOf(current));
     return { ok: true as const };
-
   });
 
 /** OBSERVAÇÃO operacional, no mesmo histórico oficial. */
@@ -94,12 +101,19 @@ export const noteDailyActionFn = createServerFn({ method: "POST" })
 /**
  * MENSAGEM OFICIAL DA ETAPA — somente leitura da Biblioteca ativa.
  * Não envia, não altera cadência e não cria texto novo.
+ *
+ * Caminho único do COPIAR: Biblioteca (versão ativa) → Central dos
+ * Nomes → variante COM_NOME/SEM_NOME. Só a ação corrente pode ser
+ * copiada — copiar fora da posição é rejeitado no servidor.
  */
 export const getDailyActionMessageFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { leadId: string; step: string; leadName?: string | null }) => data)
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentLead } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentLead({ executiveId, leadId: data.leadId });
     const { prepareStepMessage } = await import("@/server/relationship/step-message.server");
     return prepareStepMessage({
       leadId: data.leadId,
@@ -303,18 +317,33 @@ export const registerQueueCallOutcomeFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
-    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    const { assertCurrentQueueItem } = await import("@/server/crm/daily-actions-gate.server");
+    // O identificador do navegador só vale se for EXATAMENTE a ação corrente.
+    const { queueItemId } = await assertCurrentQueueItem({ executiveId, queueItemId: data.queueItemId });
     const { registerQueueCallOutcome } = await import(
       "@/server/relationship/call-outcome.server"
     );
 
     return registerQueueCallOutcome({
-      queueItemId: data.queueItemId,
+      queueItemId,
       outcome: data.outcome,
       rang: data.rang ?? null,
       actorId: context.userId,
     });
+  });
+
+/**
+ * DESFAZER O RESULTADO DA LIGAÇÃO (Atendeu / Não atendeu) — reversível
+ * enquanto nenhuma ação posterior do investidor foi concluída. Nada é
+ * apagado; fica registrado no histórico do lead.
+ */
+export const undoQueueCallOutcomeFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ queueItemId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const { undoQueueCallOutcome } = await import("@/server/relationship/call-outcome.server");
+    return undoQueueCallOutcome({ queueItemId: data.queueItemId, actorId: context.userId });
   });
 
 /**
@@ -375,6 +404,8 @@ export const resolveHandoffFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentLead } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentLead({ executiveId, leadId: data.leadId });
     const { resolveHandoff } = await import("@/server/relationship/handoff.server");
     return resolveHandoff({
       leadId: data.leadId,
