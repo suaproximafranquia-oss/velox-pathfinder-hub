@@ -206,6 +206,8 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
       reachedE4Historically: reachedE4,
     },
     stageKey,
+    hasCommitment,
+    // Histórico apenas: não congela mais a régua.
     awaitingHandoff: Boolean((cycleRow as Row | null)?.awaiting_handoff),
     closed: ["COMPLETED", "CLOSED", "INTERRUPTED"].includes(record.state),
     materialRequestedAt: material.materialRequestedAt,
