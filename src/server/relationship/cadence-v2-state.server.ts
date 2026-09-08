@@ -44,9 +44,13 @@ export async function loadMaterialState(leadId: string): Promise<{
     .order("occurred_at", { ascending: true });
 
   let materialSent = false;
+  let materialSentAt: string | null = null;
   let materialRequestedAt: string | null = null;
   for (const row of (data ?? []) as Row[]) {
-    if (row.type === "CONTENT_SENT") materialSent = true;
+    if (row.type === "CONTENT_SENT") {
+      materialSent = true;
+      if (!materialSentAt) materialSentAt = row.occurred_at ?? null;
+    }
     if (row.type === "MATERIAL_REQUESTED" && !materialRequestedAt) {
       materialRequestedAt = row.occurred_at ?? null;
     }
@@ -56,6 +60,7 @@ export async function loadMaterialState(leadId: string): Promise<{
     materialSent,
     materialRequested: Boolean(materialRequestedAt) || materialSent,
     materialRequestedAt,
+    materialSentAt,
   };
 }
 
