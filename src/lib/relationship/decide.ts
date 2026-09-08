@@ -132,6 +132,31 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
   const blocked = blocksAutomation(record);
   if (blocked) return { kind: "none", reason: blocked };
 
+  /**
+   * DELEGAÇÃO À RÉGUA V2 — autoridade única da Financeira /f.
+   *
+   * A partir daqui o motor antigo não calcula mais etapa nem prazo para
+   * os fluxos E/R/RE: quem responde é `cadence-v2`. A gravação continua
+   * passando pela MESMA porta de persistência (fila do motor).
+   */
+  if (ctx.v2 && v2FlowOf(record.flow)) {
+    const decision = decideCadenceV2(ctx.v2);
+    if (decision.kind === "none") return { kind: "none", reason: decision.reason };
+    return {
+      kind: "schedule_step",
+      step: decision.step,
+      flow: record.flow,
+      dueAt: decision.dueAt,
+      reason: decision.reason,
+      actionOrder: decision.actionOrder,
+      actionKind: decision.actionKind,
+      actionLabel: decision.label,
+      theoreticalDate: decision.theoreticalDate,
+      originDate: decision.originDate,
+    };
+  }
+
+
   if (record.state === "RESPONDED" && record.flow === "reengajamento") {
     // Respondeu: só volta a agir depois do silêncio de N dias úteis.
     const reference = record.lastInboundAt;
