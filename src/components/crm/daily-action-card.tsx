@@ -130,7 +130,11 @@ export function DailyActionCard({
         setCallNote("");
         onUndoableChange?.(item.source === "queue" && adapter.undoCallOutcome ? item : null);
         applyResult(result);
-        if (item.source === "queue") onReload?.(true);
+        /**
+         * A fila oficial já veio na resposta: a transição visual é dela.
+         * Só recarregamos quando o servidor não devolveu a fila.
+         */
+        if (item.source === "queue" && !result.queue) onReload?.(true);
       } else {
         setFeedback(result.message ?? "Não foi possível registrar a ligação.");
         onReload?.(false);

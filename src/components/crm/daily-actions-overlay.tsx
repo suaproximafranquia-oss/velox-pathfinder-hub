@@ -186,7 +186,22 @@ export function DailyActionsOverlay({
     });
   }
 
-  function applyResult(key: string, result: { requeue?: boolean; message?: string }) {
+  function applyResult(
+    key: string,
+    result: { requeue?: boolean; message?: string; queue?: DailyAction[] },
+  ) {
+    /**
+     * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,
+     * é ela que define a próxima ação. Se o MESMO investidor tiver outra
+     * ação liberada (por exemplo a mensagem E0 após a 2ª ligação), ela já
+     * assume a posição 1, sem passar por outro lead nem esperar recarga.
+     */
+    if (result.queue) {
+      setActions(result.queue);
+      setSelectedKey(result.queue[0]?.actionKey ?? null);
+      if (result.message) setFeedback(result.message);
+      return;
+    }
     if (result.requeue) requeueAction(key);
     else dropAction(key);
     if (result.message) setFeedback(result.message);
