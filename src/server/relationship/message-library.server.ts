@@ -149,6 +149,7 @@ function toMessage(row: Record<string, any>): LibraryMessage {
         ? null
         : Number(row["display_position"]),
     official: isOfficialStep(row["step_key"]),
+    currentIdentity: isCurrentEditorialStep(row["step_key"]),
     awaitingOfficialText:
       !row["active"] || String(row["body"] ?? "").trim().length === 0,
   };
