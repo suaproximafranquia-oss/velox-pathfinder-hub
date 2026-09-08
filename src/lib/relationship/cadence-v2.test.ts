@@ -223,9 +223,15 @@ describe("ações internas da etapa", () => {
 });
 
 describe("agendamento", () => {
-  it("congela a cadência enquanto o lead estiver em AGENDAMENTOS", () => {
+  it("congela apenas com compromisso real (AGENDAMENTOS/VÍDEO + follow_up)", () => {
+    expect(isCadenceFrozen({ stageKey: "agendamentos", hasCommitment: true })).toBe(true);
+    expect(isCadenceFrozen({ stageKey: "video", hasCommitment: true })).toBe(true);
+    expect(isCadenceFrozen({ stageKey: "video", hasCommitment: false })).toBe(false);
+    expect(isCadenceFrozen({ stageKey: "agendamentos", hasCommitment: false })).toBe(false);
+    expect(isCadenceFrozen({ stageKey: "frio", hasCommitment: true })).toBe(false);
+    // Leitura antiga (sem o fato): AGENDAMENTOS mantém o comportamento histórico.
     expect(isCadenceFrozen({ stageKey: "agendamentos" })).toBe(true);
-    expect(isCadenceFrozen({ stageKey: "frio" })).toBe(false);
+    expect(isCadenceFrozen({ stageKey: "video" })).toBe(false);
   });
 
   it("R só é liberado pela movimentação humana AGENDAMENTOS → FRIOS", () => {

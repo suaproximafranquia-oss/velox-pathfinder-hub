@@ -582,12 +582,28 @@ export function actionSortWeight(kind: StepActionKind, order: number): number {
 // ------------------------------------------------------------ congelamento
 
 /**
- * AGENDAMENTO congela a cadência. Nenhuma etapa nova de E/R/RE é gerada
- * enquanto o lead permanecer lá — e o simples vencimento do horário do
- * compromisso NÃO inicia o fluxo R.
+ * COMPROMISSO REAL congela a cadência — e só ele. Atender uma ligação
+ * não congela nada. Compromisso é sempre o estágio ESTRUTURADO
+ * (AGENDAMENTOS ou VÍDEO) com `follow_up` presente; nenhuma tag,
+ * texto ou horário participa desta decisão.
+ *
+ * `hasCommitment` é o fato do `follow_up`. Quando o chamador não o
+ * conhece (leitura antiga), AGENDAMENTOS mantém o comportamento
+ * histórico de congelar pelo estágio; VÍDEO exige o fato.
  */
-export function isCadenceFrozen(input: { stageKey: string | null }): boolean {
-  return (input.stageKey ?? "").toLowerCase() === "agendamentos";
+export const COMMITMENT_STAGE_KEYS = ["agendamentos", "video"] as const;
+
+export function isCommitmentStage(stageKey: string | null): boolean {
+  return (COMMITMENT_STAGE_KEYS as readonly string[]).includes((stageKey ?? "").toLowerCase());
+}
+
+export function isCadenceFrozen(input: {
+  stageKey: string | null;
+  hasCommitment?: boolean;
+}): boolean {
+  const stage = (input.stageKey ?? "").toLowerCase();
+  if (!isCommitmentStage(stage)) return false;
+  return input.hasCommitment ?? stage === "agendamentos";
 }
 
 /**

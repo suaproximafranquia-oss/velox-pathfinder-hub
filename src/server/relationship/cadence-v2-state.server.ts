@@ -23,6 +23,32 @@ async function loadStageKey(leadId: string): Promise<string | null> {
   return (data as Row | null)?.stage_key ?? null;
 }
 
+/** Estados do espelho que já NÃO representam compromisso vigente. */
+const NON_COMMITMENT_FOLLOW_UP_STATES = new Set([
+  "CANCELADO_ORIGEM",
+  "CANCELADO_SAIDA_AGENDAMENTOS",
+  "ENCERRADO",
+  "RETOMAR_EM_FRIOS",
+]);
+
+/**
+ * COMPROMISSO REAL — o `follow_up` já espelhado em `portal_meetings`.
+ * Leitura pura: nenhuma tag, texto ou horário participa. Sem espelho
+ * vigente, o estágio sozinho não é compromisso.
+ */
+async function loadHasCommitment(leadId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("portal_meetings")
+    .select("follow_up_state,external_follow_up")
+    .eq("investor_id", leadId)
+    .limit(20);
+  return ((data ?? []) as Row[]).some(
+    (row) =>
+      Boolean(row.external_follow_up) &&
+      !NON_COMMITMENT_FOLLOW_UP_STATES.has(String(row.follow_up_state ?? "")),
+  );
+}
+
 /**
  * MATERIAL: só é verdade quando existe REGISTRO ESTRUTURADO de envio.
  * Falar, prometer ou demonstrar interesse não conta, e nenhum texto de
@@ -95,7 +121,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
   const flow = v2FlowOf(record.flow);
   if (!flow) return null;
 
-  const [{ data: queueRows }, { data: cycleRow }, stageKey, material, e0Executed] =
+  const [{ data: queueRows }, { data: cycleRow }, stageKey, hasCommitment, material, e0Executed] =
     await Promise.all([
       supabaseAdmin
         .from("relationship_queue")
@@ -113,6 +139,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
         .limit(1)
         .maybeSingle(),
       loadStageKey(record.leadId),
+      loadHasCommitment(record.leadId),
       loadMaterialState(record.leadId),
       loadE0Executed(record.leadId),
     ]);
@@ -179,6 +206,8 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
       reachedE4Historically: reachedE4,
     },
     stageKey,
+    hasCommitment,
+    // Histórico apenas: não congela mais a régua.
     awaitingHandoff: Boolean((cycleRow as Row | null)?.awaiting_handoff),
     closed: ["COMPLETED", "CLOSED", "INTERRUPTED"].includes(record.state),
     materialRequestedAt: material.materialRequestedAt,

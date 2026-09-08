@@ -17,7 +17,6 @@ import {
   type DailyAction,
 } from "@/lib/crm/daily-actions";
 import {
-  availabilityDate,
   availabilityFromDate,
   isOverdueByBusinessDays,
 } from "@/lib/crm/daily-actions-overdue";
@@ -428,47 +427,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   }
 
   /**
-   * AGUARDANDO ENCAMINHAMENTO — a ligação foi atendida e nenhuma
-   * decisão foi registrada. Depois de 1 dia útil isso vira pendência
-   * visível: a cadência não anda sozinha nesse estado.
+   * AGUARDANDO ENCAMINHAMENTO — regra aposentada. Atender uma ligação
+   * não congela a cadência, portanto não existe mais pendência de
+   * encaminhamento na Ação do Dia. Os registros antigos de
+   * `awaiting_handoff` permanecem no banco como histórico e não são
+   * apagados nem transformados em obrigação.
    */
-  const { data: waiting } = await supabaseAdmin
-    .from("relationship_cadences")
-    .select("lead_id,awaiting_handoff_since")
-    .eq("scope", "production")
-    .eq("awaiting_handoff", true)
-    .limit(500);
-  const waitingIdentities = await loadLeadIdentities(
-    (waiting ?? []).map((w) => (w as { lead_id: string }).lead_id),
-  );
-  for (const row of (waiting ?? []) as Array<Record<string, any>>) {
-    const leadId = row.lead_id as string;
-    const since = row.awaiting_handoff_since ?? nowIso;
-    const dueDate = availabilityDate(since);
-    if (dueDate > today) continue;
-    const identity = waitingIdentities.get(leadId);
-    if (!identity || identity.archived) continue;
-    const overdue = isOverdueByBusinessDays(dueDate, nowIso);
-    actions.push({
-      actionKey: `handoff:${leadId}:encaminhamento`,
-      source: "handoff",
-      kind: "compromisso",
-      leadId,
-      name: identity.name,
-      phone: identity.phone,
-      scope: identity.scope,
-      stepLabel: null,
-      dueDate,
-      startsAt: null,
-      endsAt: null,
-      overdue,
-      priorityMax: true,
-      bucket: overdue ? "atrasada" : "hoje",
-      title: "Registrar o encaminhamento da conversa",
-      responsibleName: null,
-      attempts: [],
-    });
-  }
 
   /**
    * PULADAS HOJE — a ação sai da lista do dia, mas continua registrada

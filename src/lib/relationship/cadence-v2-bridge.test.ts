@@ -61,21 +61,48 @@ describe("ponte cadence-v2 → decide", () => {
     }
   });
 
-  it("não cria obrigação quando o lead está agendado", () => {
+  it("não cria obrigação com compromisso real em AGENDAMENTOS", () => {
     const action = decideNextAction(record, {
       nowIso: v2.nowIso,
       enabled: true,
-      v2: { ...v2, stageKey: "agendamentos" },
+      v2: { ...v2, stageKey: "agendamentos", hasCommitment: true },
     } as never);
     expect(action.kind).toBe("none");
   });
 
-  it("não cria obrigação enquanto o encaminhamento não é registrado", () => {
+  it("não cria obrigação com compromisso real em VÍDEO", () => {
+    const action = decideNextAction(record, {
+      nowIso: v2.nowIso,
+      enabled: true,
+      v2: { ...v2, stageKey: "video", hasCommitment: true },
+    } as never);
+    expect(action.kind).toBe("none");
+  });
+
+  it("VÍDEO sem follow_up não congela a cadência", () => {
+    const action = decideNextAction(record, {
+      nowIso: v2.nowIso,
+      enabled: true,
+      v2: { ...v2, stageKey: "video", hasCommitment: false },
+    } as never);
+    expect(action.kind).toBe("schedule_step");
+  });
+
+  it("ligação atendida (awaiting_handoff histórico) NÃO congela mais a régua", () => {
     const action = decideNextAction(record, {
       nowIso: v2.nowIso,
       enabled: true,
       v2: { ...v2, awaitingHandoff: true },
     } as never);
-    expect(action.kind).toBe("none");
+    expect(action.kind).toBe("schedule_step");
+  });
+
+  it("atendeu e foi para FRIOS: a régua continua, sem bloqueio de encaminhamento", () => {
+    const action = decideNextAction(record, {
+      nowIso: v2.nowIso,
+      enabled: true,
+      v2: { ...v2, stageKey: "frio", awaitingHandoff: true },
+    } as never);
+    expect(action.kind).toBe("schedule_step");
   });
 });
