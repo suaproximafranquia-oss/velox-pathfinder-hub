@@ -52,7 +52,11 @@ export async function governedByV2(cardIds: string[]): Promise<Set<string>> {
  * Abre a E0 manual na régua V2 para UM card. Retorna true quando o card
  * fica governado pela régua (aberto agora ou já aberto antes).
  */
-export async function openManualE0Cadence(cardId: string, ownershipSeq = 0): Promise<boolean> {
+export async function openManualE0Cadence(
+  cardId: string,
+  ownershipSeq = 0,
+  options?: { reentry?: boolean },
+): Promise<boolean> {
   if (!cardId) return false;
   // Redistribuição real (seq > 0) fica no caminho legado por ora: um
   // ciclo já existente não pode ser reiniciado por aqui.
@@ -91,7 +95,13 @@ export async function openManualE0Cadence(cardId: string, ownershipSeq = 0): Pro
     leadId: cardId,
     type: "LEAD_CREATED",
     at: new Date().toISOString(),
-    data: { manualE0: true, origin: "acao_do_dia" },
+    data: {
+      manualE0: true,
+      origin: "acao_do_dia",
+      // Lead já conhecido com nova entrada comercial: a máquina abre em
+      // RE0 (reentrada) — nunca repete o primeiro contato.
+      ...(options?.reentry ? { reentry: true } : {}),
+    },
   });
   return true;
 }
