@@ -121,7 +121,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
   const flow = v2FlowOf(record.flow);
   if (!flow) return null;
 
-  const [{ data: queueRows }, { data: cycleRow }, stageKey, material, e0Executed] =
+  const [{ data: queueRows }, { data: cycleRow }, stageKey, hasCommitment, material, e0Executed] =
     await Promise.all([
       supabaseAdmin
         .from("relationship_queue")
@@ -139,6 +139,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
         .limit(1)
         .maybeSingle(),
       loadStageKey(record.leadId),
+      loadHasCommitment(record.leadId),
       loadMaterialState(record.leadId),
       loadE0Executed(record.leadId),
     ]);
