@@ -353,6 +353,7 @@ export function DailyActionsOverlay({
         setSkipReason("");
         setSkipOpen(false);
         applyResult(item.actionKey, result);
+        void loadPendings();
       } else setFeedback(result.message ?? "Não foi possível pular a ação.");
     } finally {
       setBusy(false);
