@@ -32,6 +32,8 @@ export async function loadMaterialState(leadId: string): Promise<{
   materialSent: boolean;
   materialRequested: boolean;
   materialRequestedAt: string | null;
+  /** Instante da disponibilização formal (CONTENT_SENT), quando houver. */
+  materialSentAt: string | null;
 }> {
   const { data } = await supabaseAdmin
     .from("relationship_events")
@@ -42,9 +44,13 @@ export async function loadMaterialState(leadId: string): Promise<{
     .order("occurred_at", { ascending: true });
 
   let materialSent = false;
+  let materialSentAt: string | null = null;
   let materialRequestedAt: string | null = null;
   for (const row of (data ?? []) as Row[]) {
-    if (row.type === "CONTENT_SENT") materialSent = true;
+    if (row.type === "CONTENT_SENT") {
+      materialSent = true;
+      if (!materialSentAt) materialSentAt = row.occurred_at ?? null;
+    }
     if (row.type === "MATERIAL_REQUESTED" && !materialRequestedAt) {
       materialRequestedAt = row.occurred_at ?? null;
     }
@@ -54,6 +60,7 @@ export async function loadMaterialState(leadId: string): Promise<{
     materialSent,
     materialRequested: Boolean(materialRequestedAt) || materialSent,
     materialRequestedAt,
+    materialSentAt,
   };
 }
 
@@ -130,6 +137,30 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
   const originIso =
     record.startedAt ?? (cycleRow as Row | null)?.started_at ?? (cycleRow as Row | null)?.created_at;
 
+  /**
+   * CAMINHO V — decisão do MOTOR, tomada uma única vez antes de existir
+   * a primeira etapa pós-E0 e congelada como fato. A Ação do Dia nunca
+   * decide isto; ela apenas consome o que o motor gravou.
+   */
+  const { ensureVisualPathDecision, reachedE4Historically } = await import("./visual-path.server");
+  const firstStepStarted =
+    actions.some((action) => action.step === "E1") ||
+    (record.executedSteps ?? []).map(String).includes("E1");
+
+  const [visualPath, reachedE4] = await Promise.all([
+    flow === "E"
+      ? ensureVisualPathDecision({
+          leadId: record.leadId,
+          firstStepStarted,
+          e0Executed,
+          materialSentAt: material.materialSentAt,
+        })
+      : Promise.resolve(false),
+    flow === "R"
+      ? reachedE4Historically(record.leadId, record.scope)
+      : Promise.resolve(false),
+  ]);
+
   return {
     nowIso: new Date().toISOString(),
     flow,
@@ -144,10 +175,48 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
       materialSent: material.materialSent,
       materialRequested: material.materialRequested,
       needsNewPresentation: false,
+      visualPath,
+      reachedE4Historically: reachedE4,
     },
     stageKey,
     awaitingHandoff: Boolean((cycleRow as Row | null)?.awaiting_handoff),
     closed: ["COMPLETED", "CLOSED", "INTERRUPTED"].includes(record.state),
     materialRequestedAt: material.materialRequestedAt,
   };
+}
+
+/**
+ * CONTEXTO DE UMA ETAPA PARA UM LEAD — leitura pura (não decide nada,
+ * não grava nada). É a mesma fonte estruturada usada pelo motor:
+ *
+ *  • E7/E8 → material efetivamente disponibilizado (CONTENT_SENT);
+ *  • E1/E2/E3 → caminho V já decidido e congelado (V1/V2/V3) ou
+ *    contexto normal (sem contexto);
+ *  • R3 → passagem histórica válida por E4 no histórico REAL do lead.
+ */
+export async function resolveStepContextForLead(
+  leadId: string,
+  step: string,
+  scope: string = "production",
+): Promise<import("@/lib/relationship/cadence-v2").StepContext | null> {
+  const key = String(step ?? "").trim().toUpperCase();
+
+  if (key === "E7" || key === "E8") {
+    const material = await loadMaterialState(leadId);
+    return material.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
+  }
+
+  if (key === "E1" || key === "E2" || key === "E3") {
+    const { readVisualPath } = await import("./visual-path.server");
+    const visual = await readVisualPath(leadId);
+    if (!visual) return null;
+    return key === "E1" ? "V1" : key === "E2" ? "V2" : "V3";
+  }
+
+  if (key === "R3") {
+    const { reachedE4Historically } = await import("./visual-path.server");
+    return (await reachedE4Historically(leadId, scope)) ? "JA_PASSOU_E4" : "NAO_CHEGOU_E4";
+  }
+
+  return null;
 }

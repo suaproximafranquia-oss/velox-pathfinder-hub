@@ -20,11 +20,48 @@ export const OPERATIONAL_STEP_KEYS: readonly string[] = [
   AUTO_REPLY_STEP_KEY,
 ];
 
-/** Únicas etapas com eixo de contexto. Nenhuma outra recebe contexto. */
-export const CONTEXTUAL_STEP_KEYS: readonly string[] = ["E7", "E8"];
-
-export const STEP_CONTEXTS = ["SEM_CONTATO", "MATERIAL_ENVIADO"] as const;
+/**
+ * EIXO DE CONTEXTO DAS ETAPAS.
+ *
+ * Contexto é DIMENSÃO da mensagem — nunca etapa técnica nova. Cada
+ * combinação etapa + contexto tem versionamento e ativação próprios,
+ * com as duas redações já existentes (COM NOME / SEM NOME).
+ *
+ *  • E7/E8 → SEM_CONTATO | MATERIAL_ENVIADO (estrutura de referência);
+ *  • E1/E2/E3 → contexto normal (sem contexto) ou o caminho V
+ *    (V1/V2/V3), decidido UMA ÚNICA VEZ pelo motor antes da E1;
+ *  • R3 → NÃO_CHEGOU_E4 | JÁ_PASSOU_E4, pelo histórico real do lead.
+ */
+export const STEP_CONTEXTS = [
+  "SEM_CONTATO",
+  "MATERIAL_ENVIADO",
+  "V1",
+  "V2",
+  "V3",
+  "NAO_CHEGOU_E4",
+  "JA_PASSOU_E4",
+] as const;
 export type StepContext = (typeof STEP_CONTEXTS)[number];
+
+/** Combinações oficiais por etapa. `null` = contexto normal da etapa. */
+export const STEP_CONTEXT_MAP: Readonly<Record<string, Array<StepContext | null>>> = {
+  E1: [null, "V1"],
+  E2: [null, "V2"],
+  E3: [null, "V3"],
+  E7: ["SEM_CONTATO", "MATERIAL_ENVIADO"],
+  E8: ["SEM_CONTATO", "MATERIAL_ENVIADO"],
+  R3: ["NAO_CHEGOU_E4", "JA_PASSOU_E4"],
+};
+
+/** Etapas com eixo de contexto. Nenhuma outra recebe contexto. */
+export const CONTEXTUAL_STEP_KEYS: readonly string[] = Object.keys(STEP_CONTEXT_MAP);
+
+/**
+ * Etapas em que o contexto é OBRIGATÓRIO: não existe versão sem
+ * contexto elegível para envio (E7/E8 e R3). Em E1/E2/E3 o contexto
+ * normal continua sendo a linha sem contexto.
+ */
+export const CONTEXT_REQUIRED_STEP_KEYS: readonly string[] = ["E7", "E8", "R3"];
 
 export function isOperationalStep(step: string | null | undefined): boolean {
   if (!step) return false;
@@ -36,13 +73,29 @@ export function isContextualStep(step: string | null | undefined): boolean {
   return CONTEXTUAL_STEP_KEYS.includes(String(step).trim().toUpperCase());
 }
 
-/**
- * Combinações operacionais de uma etapa (uma versão ativa por combinação):
- * E7/E8 → [SEM_CONTATO, MATERIAL_ENVIADO]; demais → [null].
- */
-export function stepCombinations(step: string): Array<StepContext | null> {
-  return isContextualStep(step) ? [...STEP_CONTEXTS] : [null];
+/** O contexto é obrigatório para enviar esta etapa? */
+export function requiresStepContext(step: string | null | undefined): boolean {
+  if (!step) return false;
+  return CONTEXT_REQUIRED_STEP_KEYS.includes(String(step).trim().toUpperCase());
 }
+
+/** Contextos válidos de uma etapa (uma versão ativa por combinação). */
+export function stepCombinations(step: string): Array<StepContext | null> {
+  const key = String(step ?? "").trim().toUpperCase();
+  const contexts = STEP_CONTEXT_MAP[key];
+  return contexts ? [...contexts] : [null];
+}
+
+/** Rótulo humano de cada contexto — apresentação, nunca chave técnica. */
+export const STEP_CONTEXT_LABELS: Readonly<Record<StepContext, string>> = {
+  SEM_CONTATO: "Investidor que nunca respondeu",
+  MATERIAL_ENVIADO: "Investidor que já recebeu o material",
+  V1: "Caminho V — visualização confirmada do material",
+  V2: "Caminho V — segunda mensagem",
+  V3: "Caminho V — terceira mensagem",
+  NAO_CHEGOU_E4: "Lead que nunca chegou à E4",
+  JA_PASSOU_E4: "Lead que já passou pela E4",
+};
 
 /**
  * CHAVES HISTÓRICAS: registros antigos que permanecem no banco apenas

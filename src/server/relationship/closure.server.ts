@@ -142,11 +142,20 @@ export async function executeClosureDuty(duty: ClosureDuty): Promise<ClosureOutc
     .eq("id", duty.leadId)
     .maybeSingle();
 
-  const { result, message: libraryMessage } = await renderFromLibrary(duty.step, {
-    executiveName: executive.name,
-    portalLink: duty.linkUrl,
-    rawInvestorName: lead?.name ?? null,
-  });
+  const { isContextualStep } = await import("@/lib/relationship/operational-steps");
+  const { resolveStepContextForLead } = await import("./cadence-v2-state.server");
+  const closureContext = isContextualStep(duty.step)
+    ? await resolveStepContextForLead(duty.leadId, duty.step)
+    : null;
+  const { result, message: libraryMessage } = await renderFromLibrary(
+    duty.step,
+    {
+      executiveName: executive.name,
+      portalLink: duty.linkUrl,
+      rawInvestorName: lead?.name ?? null,
+    },
+    closureContext,
+  );
   if (!result.ok) {
     await log("fechamento_sem_texto", { ...duty, motivo: result.reason });
     return { duty, executed: false, simulated: false, reason: result.reason };

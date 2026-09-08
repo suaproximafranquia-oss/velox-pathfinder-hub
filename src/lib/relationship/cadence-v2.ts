@@ -47,9 +47,34 @@ export type CycleContext = {
   materialRequested?: boolean;
   /** Reentrada que exige nova apresentação. */
   needsNewPresentation?: boolean;
+  /**
+   * CAMINHO V — decidido UMA ÚNICA VEZ antes da criação da E1 e
+   * congelado no histórico do lead. Quando verdadeiro, E1/E2/E3 são
+   * lidas nos contextos V1/V2/V3. Nunca é reconsultado no ciclo.
+   */
+  visualPath?: boolean;
+  /**
+   * Existe passagem histórica válida por E4 no HISTÓRICO REAL DO LEAD
+   * (não apenas na instância corrente). Define o contexto da R3.
+   */
+  reachedE4Historically?: boolean;
 };
 
-export type StepContext = "SEM_CONTATO" | "MATERIAL_ENVIADO";
+export type StepContext =
+  | "SEM_CONTATO"
+  | "MATERIAL_ENVIADO"
+  | "V1"
+  | "V2"
+  | "V3"
+  | "NAO_CHEGOU_E4"
+  | "JA_PASSOU_E4";
+
+/** Contexto do caminho V correspondente a cada etapa E1/E2/E3. */
+const VISUAL_CONTEXT_BY_STEP: Readonly<Record<string, StepContext>> = {
+  E1: "V1",
+  E2: "V2",
+  E3: "V3",
+};
 
 export function flowOfStep(step: CadenceV2Step): CadenceV2Flow {
   if (step.startsWith("RE")) return "RE";
@@ -58,10 +83,29 @@ export function flowOfStep(step: CadenceV2Step): CadenceV2Flow {
 }
 
 /**
- * Contexto de leitura das etapas E7/E8. Uma única etapa, dois textos —
- * a escolha vem do histórico estruturado do ciclo.
+ * CONTEXTO DE LEITURA DE UMA ETAPA. Uma única etapa técnica, textos
+ * próprios por contexto — a escolha vem sempre do histórico
+ * estruturado, nunca de texto de conversa ou de interpretação.
+ *
+ *  • E7/E8 → material efetivamente enviado ou não;
+ *  • E1/E2/E3 → caminho V já decidido pelo motor (V1/V2/V3) ou contexto
+ *    normal (sem contexto);
+ *  • R3 → passagem histórica válida por E4.
+ *
+ * Sem a etapa informada, mantém o comportamento anterior (E7/E8).
  */
-export function resolveStepContext(cycle: CycleContext): StepContext {
+export function resolveStepContext(
+  cycle: CycleContext,
+  step?: CadenceV2Step | string | null,
+): StepContext | null {
+  const key = step ? String(step).trim().toUpperCase() : null;
+
+  if (key && VISUAL_CONTEXT_BY_STEP[key]) {
+    return cycle.visualPath ? VISUAL_CONTEXT_BY_STEP[key]! : null;
+  }
+  if (key === "R3") {
+    return cycle.reachedE4Historically ? "JA_PASSOU_E4" : "NAO_CHEGOU_E4";
+  }
   return cycle.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
 }
 

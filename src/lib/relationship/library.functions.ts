@@ -4,6 +4,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { stepCombinations } from "@/lib/relationship/operational-steps";
 
 export const listarMensagensBiblioteca = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -19,8 +20,8 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       stepKey: string;
-      /** Contexto do conteúdo (E7/E8). */
-      stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
+      /** Contexto do conteúdo (E1/E2/E3, E7/E8, R3). */
+      stepContext?: string | null;
       body: string;
       bodyWithoutName?: string | null;
       title?: string | null;
@@ -30,6 +31,11 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
     }) => {
       if (!input?.stepKey) throw new Error("Etapa obrigatória.");
       if (!input?.body?.trim()) throw new Error("O texto da mensagem não pode ficar vazio.");
+      /* O contexto precisa pertencer à etapa: nada de contexto avulso. */
+      const allowed = stepCombinations(input.stepKey).map((c) => String(c ?? ""));
+      if (!allowed.includes(String(input.stepContext ?? ""))) {
+        throw new Error(`Contexto inválido para a etapa ${input.stepKey}.`);
+      }
       return input;
     },
   )
@@ -42,7 +48,7 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
     const name = (context.claims as Record<string, any> | null)?.["email"] ?? "Executivo";
     return publishLibraryVersion({
       stepKey: data.stepKey,
-      stepContext: data.stepContext ?? null,
+      stepContext: (data.stepContext ?? null) as never,
       body: data.body,
       bodyWithoutName: data.bodyWithoutName ?? null,
       title: data.title ?? null,

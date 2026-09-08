@@ -130,9 +130,16 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
     portalLink: recipient.portalLink,
     rawInvestorName: recipient.name,
   };
+  /* Etapa contextual: o contexto vem do histórico estruturado do lead. */
+  const { isContextualStep } = await import("@/lib/relationship/operational-steps");
+  const { resolveStepContextForLead } = await import("./cadence-v2-state.server");
+  const dispatchContext = isContextualStep(step)
+    ? await resolveStepContextForLead(request.leadId, step)
+    : null;
   const { result: rendered, message: libraryMessage } = await renderFromLibrary(
     step,
     renderInput,
+    dispatchContext,
   );
   if (!rendered.ok) {
     await log("envio_bloqueado", { leadId: request.leadId, step, motivo: rendered.reason });

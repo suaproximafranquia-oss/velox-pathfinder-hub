@@ -9,6 +9,12 @@ import {
   Tag,
 } from "lucide-react";
 import {
+  stepCombinations,
+  STEP_CONTEXT_LABELS,
+  isContextualStep,
+  type StepContext,
+} from "@/lib/relationship/operational-steps";
+import {
   listarMensagensBiblioteca,
   
   publicarVersaoMensagem,
@@ -31,8 +37,8 @@ type LibraryMessage = {
   notes: string | null;
   contentUrl: string | null;
   contentLabel: string | null;
-  /** Contexto do conteúdo (E7/E8): SEM_CONTATO ou MATERIAL_ENVIADO. */
-  stepContext: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
+  /** Contexto do conteúdo (E1/E2/E3, E7/E8, R3). Null = contexto normal. */
+  stepContext: StepContext | null;
   /** A etapa existe na configuração do motor (é operacional). */
   official: boolean;
   /** A chave é a identidade atual (não histórica) — é o que se lista. */
@@ -69,7 +75,7 @@ export function MessageLibraryPanel() {
    * nome e sem nome — quatro conteúdos ao todo, sem aproveitamento de
    * um no outro.
    */
-  const [ctx, setCtx] = useState<"SEM_CONTATO" | "MATERIAL_ENVIADO">("SEM_CONTATO");
+  const [ctx, setCtx] = useState<StepContext | null>(null);
   const [contentUrl, setContentUrl] = useState("");
   const [contentLabel, setContentLabel] = useState("");
   /* BLOCO 3 — criação e ordenação visual. */
@@ -126,7 +132,12 @@ export function MessageLibraryPanel() {
     return [...ordered, ...known.filter((key) => !ordered.includes(key))];
   }, [order, steps]);
 
-  const needsContext = step === "E7" || step === "E8";
+  const needsContext = isContextualStep(step);
+  /** Contextos oficiais da etapa aberta (null = contexto normal). */
+  const contexts = useMemo(
+    () => (step ? stepCombinations(step) : [null]),
+    [step],
+  );
   const selected = step
     ? (steps.get(step) ?? []).filter((m) => (needsContext ? m.stepContext === ctx : true))
     : [];
@@ -171,9 +182,12 @@ export function MessageLibraryPanel() {
   /** Cria a etapa na Biblioteca. Ela NÃO entra em nenhum fluxo. */
   function openStep(key: string) {
     setStep(key);
-    const contextual = key === "E7" || key === "E8";
+    const contextual = isContextualStep(key);
+    /* Abrir a etapa começa sempre pelo primeiro contexto dela. */
+    const first = stepCombinations(key)[0] ?? null;
+    if (contextual) setCtx(first);
     const list = (steps.get(key) ?? []).filter((m) =>
-      contextual ? m.stepContext === ctx : true,
+      contextual ? m.stepContext === first : true,
     );
     const current = list.find((m) => m.active) ?? list[0];
     setDraft(current?.body ?? "");
@@ -263,7 +277,8 @@ export function MessageLibraryPanel() {
             <ul className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
               {visibleSteps.map((key) => {
                 const list = steps.get(key) ?? [];
-                const contextual = key === "E7" || key === "E8";
+                const contextual = isContextualStep(key);
+                const keyContexts = stepCombinations(key);
                 const current = list.find((m) => m.active) ?? list[0];
                 /* Sem versão ativa = o motor NÃO envia esta etapa. Em E7/E8
                    cada contexto precisa da própria versão ativa; uma linha
@@ -272,7 +287,7 @@ export function MessageLibraryPanel() {
                 const hasText = (c: LibraryMessage["stepContext"]) =>
                   list.some((m) => m.stepContext === c && m.active && m.body.trim());
                 const pendingContexts = contextual
-                  ? (["SEM_CONTATO", "MATERIAL_ENVIADO"] as const).filter((c) => !hasText(c))
+                  ? keyContexts.filter((c) => !hasText(c))
                   : [];
                 const awaiting = contextual ? pendingContexts.length > 0 : !hasText(null);
                 const labelText = (current?.displayLabel ?? key).replace(
@@ -310,11 +325,11 @@ export function MessageLibraryPanel() {
                         {awaiting ? (
                           <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-amber-400">
                             {contextual && pendingContexts.length === 1
-                              ? `${pendingContexts[0]} aguardando texto`
+                              ? `${pendingContexts[0] ?? "NORMAL"} aguardando texto`
                               : "aguardando texto oficial"}
                           </span>
                         ) : contextual ? (
-                          "2 contextos ativos"
+                          `${keyContexts.length} contextos ativos`
                         ) : (
                           `v${current?.version}`
                         )}
@@ -341,19 +356,14 @@ export function MessageLibraryPanel() {
                 {needsContext ? (
                   <div className="rounded-xl border border-[color:var(--border)] p-3">
                     <p className="mb-2 text-[11px] text-[color:var(--muted-foreground)]">
-                      {step} tem dois contextos independentes, cada um com texto COM
-                      NOME e SEM NOME (quatro conteúdos). Nenhum contexto aproveita o
-                      texto do outro; contexto sem versão ativa fica bloqueado.
+                      {step} tem contextos independentes, cada um com texto COM NOME e
+                      SEM NOME. Nenhum contexto aproveita o texto do outro; contexto sem
+                      versão ativa fica bloqueado.
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {(
-                        [
-                          ["SEM_CONTATO", "Investidor que nunca respondeu"],
-                          ["MATERIAL_ENVIADO", "Investidor que já recebeu o material"],
-                        ] as const
-                      ).map(([value, text]) => (
+                      {contexts.map((value) => (
                         <button
-                          key={value}
+                          key={value ?? "NORMAL"}
                           type="button"
                           onClick={() => setCtx(value)}
                           className={`rounded-full border px-3 py-1.5 text-[11px] transition ${
@@ -362,7 +372,8 @@ export function MessageLibraryPanel() {
                               : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
                           }`}
                         >
-                          <span className="font-mono">{value}</span> · {text}
+                          <span className="font-mono">{value ?? "NORMAL"}</span> ·{" "}
+                          {value ? STEP_CONTEXT_LABELS[value] : "Contexto normal da etapa"}
                         </button>
                       ))}
                     </div>

@@ -19,10 +19,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { renderFromLibrary } from "./message-library.server";
 import { resolveLeadExecutive } from "./executive-identity.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
-import { loadMaterialState } from "./cadence-v2-state.server";
-
-/** Etapas cujo texto depende do contexto estruturado do ciclo. */
-const CONTEXTUAL_STEPS = new Set(["E7", "E8"]);
+import { resolveStepContextForLead } from "./cadence-v2-state.server";
+import { isContextualStep } from "@/lib/relationship/operational-steps";
 
 export type PreparedStepMessage = {
   step: string;
@@ -80,14 +78,13 @@ export async function prepareStepMessage(params: {
 
   const portalLink = executive.slug ? investorPortalUrl(executive.slug) : "";
   /**
-   * E7/E8 TÊM DOIS CONTEXTOS. Quem decide é o HISTÓRICO ESTRUTURADO
-   * (apresentação efetivamente registrada como enviada) — nunca o
-   * título, o texto ou a interpretação de uma conversa.
+   * ETAPAS CONTEXTUAIS (E1/E2/E3, E7/E8 e R3). Quem decide é sempre o
+   * HISTÓRICO ESTRUTURADO — material efetivamente enviado, caminho V já
+   * congelado pelo motor, passagem histórica por E4 — nunca o título, o
+   * texto ou a interpretação de uma conversa.
    */
-  const stepContext = CONTEXTUAL_STEPS.has(params.step)
-    ? (await loadMaterialState(params.leadId)).materialSent
-      ? ("MATERIAL_ENVIADO" as const)
-      : ("SEM_CONTATO" as const)
+  const stepContext = isContextualStep(params.step)
+    ? await resolveStepContextForLead(params.leadId, params.step)
     : null;
   const { result, message } = await renderFromLibrary(
     params.step,

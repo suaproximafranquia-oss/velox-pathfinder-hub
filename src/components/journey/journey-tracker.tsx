@@ -58,7 +58,24 @@ export function JourneyTracker() {
     const tick = window.setInterval(() => {
       if (document.visibilityState !== "visible" || !interacted) return;
       interacted = false;
-      heartbeat(getCurrentInvestorId(), moduleRef.current);
+      const investorId = getCurrentInvestorId();
+      heartbeat(investorId, moduleRef.current);
+      /**
+       * ESPELHO DO SINAL DE LEITURA NO SERVIDOR — somente nos módulos do
+       * material. É o que permite medir tempo efetivo de leitura do
+       * material depois da disponibilização formal, reutilizando o
+       * mesmo registro de jornada já existente (nenhum tracking novo).
+       */
+      if (investorId && (moduleRef.current === "material" || moduleRef.current === "manual")) {
+        void import("@/lib/portal-access").then((m) =>
+          m.pushPortalProgress({
+            investorId,
+            event: "journey.heartbeat",
+            module: moduleRef.current,
+            detail: "Leitura em andamento",
+          }),
+        );
+      }
     }, 15000);
 
     const sweep = window.setInterval(() => sweepIdleSessions(), 5 * 60 * 1000);
