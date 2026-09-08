@@ -30,7 +30,10 @@ export type CrmTimelineEvent =
   | "retorno_identificado"
   | "template_automatico"
   | "janela_reaberta"
-  | "portal_liberado";
+  | "portal_liberado"
+  | "agendamento_greensales_espelhado"
+  | "agendamento_greensales_atualizado"
+  | "agendamento_greensales_cancelado";
 
 export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   relacionamento_oficial: "Relacionamento oficial definido",
@@ -57,6 +60,9 @@ export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   template_automatico: "Template automático enviado pelo sistema",
   janela_reaberta: "Janela de conversação reaberta por Template",
   portal_liberado: "Portal do Investidor liberado manualmente",
+  agendamento_greensales_espelhado: "Compromisso criado",
+  agendamento_greensales_atualizado: "Compromisso reagendado",
+  agendamento_greensales_cancelado: "Compromisso cancelado",
 };
 
 export type CrmTimelineEntry = {

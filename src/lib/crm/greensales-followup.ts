@@ -13,7 +13,35 @@ import { OPERATIONAL_TIME_ZONE } from "@/lib/crm/daily-actions";
 
 export const GREENSALES_SOURCE = "greensales";
 export const AGENDAMENTOS_STAGE = "agendamentos";
+/** Etapa VÍDEO do quadro do GreenSales — outro TIPO de compromisso. */
+export const VIDEO_STAGE = "video";
 export const FRIOS_STAGE = "frio";
+
+/**
+ * Etapas do quadro que declaram compromisso. A elegibilidade vem SEMPRE
+ * do `stage_key` estruturado — nunca de tag, texto ou etiqueta.
+ */
+export const FOLLOW_UP_ELIGIBLE_STAGES: string[] = [AGENDAMENTOS_STAGE, VIDEO_STAGE];
+
+/** Modalidade do compromisso, derivada exclusivamente do estágio. */
+export type FollowUpModality = "AGENDAMENTO" | "VIDEOCHAMADA";
+
+export function followUpModality(stageKey: string | null): FollowUpModality | null {
+  const key = (stageKey ?? "").toLowerCase();
+  if (key === AGENDAMENTOS_STAGE) return "AGENDAMENTO";
+  if (key === VIDEO_STAGE) return "VIDEOCHAMADA";
+  return null;
+}
+
+/** Título do compromisso espelhado, por modalidade. */
+export const FOLLOW_UP_TOPIC: Record<FollowUpModality, string> = {
+  AGENDAMENTO: "Agendamento (GreenSales)",
+  VIDEOCHAMADA: "Videochamada (GreenSales)",
+};
+
+export function isFollowUpEligibleStage(stageKey: string | null): boolean {
+  return FOLLOW_UP_ELIGIBLE_STAGES.includes((stageKey ?? "").toLowerCase());
+}
 
 /** Estados operacionais do acompanhamento — vocabulário fechado. */
 export const FOLLOW_UP_STATES = {
@@ -112,7 +140,7 @@ export function planFollowUpSync(input: {
   existing: FollowUpMirror | null;
   nowIso: string;
 }): FollowUpSyncDecision {
-  const inAgendamentos = (input.stageKey ?? "").toLowerCase() === AGENDAMENTOS_STAGE;
+  const inAgendamentos = isFollowUpEligibleStage(input.stageKey);
   const scheduledAt = parseFollowUp(input.followUp);
   const existing = input.existing;
   const cancelledStates: string[] = [

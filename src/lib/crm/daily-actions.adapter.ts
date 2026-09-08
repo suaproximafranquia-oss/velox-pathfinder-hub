@@ -20,6 +20,12 @@ export type AdapterResult = {
    * sair dela. Usado apenas pela demonstração (fila contínua).
    */
   requeue?: boolean;
+  /**
+   * FILA OFICIAL RECALCULADA PELO SERVIDOR logo após a conclusão.
+   * Quando presente, é ELA que comanda a transição: se o mesmo
+   * investidor tiver outra ação liberada, ela já vem na posição 1.
+   */
+  queue?: DailyAction[];
 };
 
 /** Mensagem oficial da etapa, lida da Biblioteca ativa. */

@@ -16,10 +16,13 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   AGENDAMENTOS_STAGE,
+  FOLLOW_UP_ELIGIBLE_STAGES,
   FOLLOW_UP_STATES,
+  FOLLOW_UP_TOPIC,
   GREENSALES_SOURCE,
   followUpExternalRef,
   followUpMeetingId,
+  followUpModality,
   isAgendamentosToFrios,
   planFollowUpSync,
   reviewDueAt,
@@ -27,7 +30,22 @@ import {
 } from "@/lib/crm/greensales-followup";
 
 const SCOPE = "production";
-const MIRROR_TOPIC = "Agendamento (GreenSales)";
+const MIRROR_TOPIC = FOLLOW_UP_TOPIC.AGENDAMENTO;
+
+/** Data legível no fuso operacional, para o histórico do lead. */
+function formatBr(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const f = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(d);
+  const get = (t: string) => f.find((p) => p.type === t)?.value ?? "";
+  return `${get("day")}/${get("month")} às ${get("hour")}:${get("minute")}`;
+}
 
 type MirrorRow = {
   id: string;
@@ -35,6 +53,7 @@ type MirrorRow = {
   executive_id: string;
   scheduled_at: string;
   status: string;
+  topic: string | null;
   external_follow_up: string | null;
   follow_up_state: string | null;
   follow_up_review_due_at: string | null;
@@ -108,7 +127,7 @@ async function loadMirror(externalId: string): Promise<MirrorRow | null> {
   const { data } = await supabaseAdmin
     .from("portal_meetings")
     .select(
-      "id,investor_id,executive_id,scheduled_at,status,external_follow_up,follow_up_state,follow_up_review_due_at,follow_up_history",
+      "id,investor_id,executive_id,scheduled_at,status,topic,external_follow_up,follow_up_state,follow_up_review_due_at,follow_up_history",
     )
     .eq("external_source", GREENSALES_SOURCE)
     .eq("external_ref", followUpExternalRef(externalId))
@@ -184,6 +203,29 @@ export async function syncOneFollowUp(
     nowIso,
   });
   const rawFollowUp = item.followUp === null || item.followUp === undefined ? null : String(item.followUp).trim();
+  const modality = followUpModality(item.stageKey);
+  const topic = modality ? FOLLOW_UP_TOPIC[modality] : MIRROR_TOPIC;
+
+  /**
+   * MESMO compromisso, outra modalidade (AGENDAMENTOS ↔ VÍDEO): não
+   * cancela nem recria — apenas atualiza o tópico do mesmo registro.
+   */
+  if (existing && modality && (existing.topic ?? "") !== topic) {
+    await supabaseAdmin
+      .from("portal_meetings")
+      .update({
+        topic,
+        updated_at: nowIso,
+        follow_up_history: history(existing, {
+          at: nowIso,
+          event: "modalidade_atualizada",
+          state: existing.follow_up_state ?? FOLLOW_UP_STATES.pending,
+          detail: `Modalidade do compromisso atualizada para ${modality}.`,
+        }),
+      } as never)
+      .eq("id", existing.id);
+    existing.topic = topic;
+  }
 
   if (decision.kind === "create") {
     const identity = await loadLeadIdentity(leadId);
@@ -201,7 +243,7 @@ export async function syncOneFollowUp(
       scheduled_at: decision.scheduledAt,
       duration_min: 30,
       status: "Agendada",
-      topic: MIRROR_TOPIC,
+      topic,
       origin: "greensales",
       external_source: GREENSALES_SOURCE,
       external_ref: followUpExternalRef(item.externalId),
@@ -226,7 +268,7 @@ export async function syncOneFollowUp(
     await appendTimeline({
       leadId,
       event: "agendamento_greensales_espelhado",
-      reason: `Compromisso do GreenSales espelhado para ${decision.scheduledAt}.`,
+      reason: `${modality === "VIDEOCHAMADA" ? "Videochamada criada" : "Agendamento criado"} — ${formatBr(decision.scheduledAt)}.`,
       at: nowIso,
     });
     return decision;
@@ -261,7 +303,7 @@ export async function syncOneFollowUp(
     await appendTimeline({
       leadId,
       event: "agendamento_greensales_atualizado",
-      reason: `Horário atualizado no GreenSales: ${decision.from} → ${decision.to}.`,
+      reason: `Reagendado no GreenSales: ${formatBr(decision.from)} → ${formatBr(decision.to)}.`,
       at: nowIso,
     });
     return decision;
@@ -323,7 +365,7 @@ export async function syncGreenSalesFollowUps(
       .from("crm_leads")
       .select("external_id,stage_key,raw_payload")
       .eq("external_source", GREENSALES_SOURCE)
-      .eq("stage_key", AGENDAMENTOS_STAGE)
+      .in("stage_key", FOLLOW_UP_ELIGIBLE_STAGES)
       .limit(2000),
     supabaseAdmin
       .from("portal_meetings")

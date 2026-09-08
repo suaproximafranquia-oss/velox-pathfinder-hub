@@ -93,7 +93,7 @@ export function useRealDailyActionsAdapter(
         if (!item.cadence && item.actionKey.startsWith("queue:")) {
           const queueItemId = item.queueItemId ?? item.actionKey.split(":").pop() ?? "";
           if (!queueItemId) return { ok: false };
-          let result: { concluded?: boolean; awaitingHandoff?: boolean };
+          let result: { concluded?: boolean; awaitingHandoff?: boolean; queue?: DailyAction[] };
           try {
             result = (await registerQueueCall({
               data: {
@@ -103,7 +103,7 @@ export function useRealDailyActionsAdapter(
                 rang: outcome === "NAO" ? (rang ?? null) : null,
                 pendingRecovery,
               },
-            })) as { concluded?: boolean; awaitingHandoff?: boolean };
+            })) as { concluded?: boolean; awaitingHandoff?: boolean; queue?: DailyAction[] };
           } catch (error) {
             return { ok: false, message: error instanceof Error ? error.message : "Falha ao registrar." };
           }
@@ -128,6 +128,8 @@ export function useRealDailyActionsAdapter(
           const order = item.queueActionOrder ?? 1;
           return {
             ok: true,
+            /** Fila oficial já recalculada pelo servidor. */
+            queue: result?.queue,
             message: result?.awaitingHandoff
               ? "Ligação atendida — nenhuma mensagem é enviada; a cadência aguarda o seu encaminhamento."
               : isE0 && order === 1
@@ -221,9 +223,11 @@ export function useRealDailyActionsAdapter(
       registerMessage: async (item, note) => {
         const result = (await registerMessage({ data: actionRef(item, note, pendingRecovery) })) as {
           concluded?: boolean;
+          queue?: DailyAction[];
         };
         return {
           ok: true,
+          queue: result?.queue,
           message: result?.concluded
             ? "Etapa concluída — o motor segue para a próxima."
             : "Mensagem registrada no histórico.",

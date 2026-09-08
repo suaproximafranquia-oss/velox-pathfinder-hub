@@ -62,7 +62,10 @@ export function DailyActionCard({
   locked: boolean;
   onOpenLead?: (leadId: string, scope: string | null) => void;
   /** A ação saiu da lista (concluída, pulada ou recolocada na fila). */
-  onResolved: (actionKey: string, result: { requeue?: boolean; message?: string }) => void;
+  onResolved: (
+    actionKey: string,
+    result: { requeue?: boolean; message?: string; queue?: DailyAction[] },
+  ) => void;
   /** Releitura da lista oficial após uma execução. */
   onReload?: (silent?: boolean) => void;
   /** Último resultado de ligação, reversível pelo painel que hospeda o card. */
@@ -105,7 +108,7 @@ export function DailyActionCard({
     setFeedback(null);
   }, [item.actionKey]);
 
-  function applyResult(result: { requeue?: boolean; message?: string }) {
+  function applyResult(result: { requeue?: boolean; message?: string; queue?: DailyAction[] }) {
     onResolved(item.actionKey, result);
     if (result.message) setFeedback(result.message);
   }
@@ -127,7 +130,11 @@ export function DailyActionCard({
         setCallNote("");
         onUndoableChange?.(item.source === "queue" && adapter.undoCallOutcome ? item : null);
         applyResult(result);
-        if (item.source === "queue") onReload?.(true);
+        /**
+         * A fila oficial já veio na resposta: a transição visual é dela.
+         * Só recarregamos quando o servidor não devolveu a fila.
+         */
+        if (item.source === "queue" && !result.queue) onReload?.(true);
       } else {
         setFeedback(result.message ?? "Não foi possível registrar a ligação.");
         onReload?.(false);
