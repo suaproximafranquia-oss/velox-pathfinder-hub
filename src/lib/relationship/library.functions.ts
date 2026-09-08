@@ -32,8 +32,8 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
       if (!input?.stepKey) throw new Error("Etapa obrigatória.");
       if (!input?.body?.trim()) throw new Error("O texto da mensagem não pode ficar vazio.");
       /* O contexto precisa pertencer à etapa: nada de contexto avulso. */
-      const allowed = stepCombinations(input.stepKey).map((c) => c ?? "");
-      if (!allowed.includes(input.stepContext ?? "")) {
+      const allowed = stepCombinations(input.stepKey).map((c) => String(c ?? ""));
+      if (!allowed.includes(String(input.stepContext ?? ""))) {
         throw new Error(`Contexto inválido para a etapa ${input.stepKey}.`);
       }
       return input;
