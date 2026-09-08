@@ -91,7 +91,12 @@ export async function resolveAuthorName(input: {
 export async function addInvestorNote(input: {
   leadId: string;
   body: string;
-  userId: string;
+  /**
+   * Autor humano da nota. AUSENTE somente em registros automáticos do
+   * servidor (ex.: sincronização do GreenSales), que informam
+   * `authorName` explicitamente. Chamadas humanas continuam iguais.
+   */
+  userId?: string | null;
   executiveId: string | null;
   authorName?: string | null;
   scope?: string | null;
