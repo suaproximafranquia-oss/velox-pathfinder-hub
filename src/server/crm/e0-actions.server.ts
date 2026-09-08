@@ -141,20 +141,24 @@ export async function executeE0Action(input: {
     return { ok: false, state: action.state, reason: "Esta E0 já foi encerrada." };
   }
   /**
-   * E0 GOVERNADA PELA RÉGUA V2: o executor legado não pode mais disparar
-   * a mensagem — a E0 manual é ligação 1 → ligação 2 → mensagem para
-   * copiar, na Ação do Dia. Sem esta trava haveria duas E0 concorrentes.
+   * CAMINHO LEGADO ENCERRADO (FAIL-CLOSED).
+   *
+   * A E0 do fluxo operacional atual é etapa da régua V2 — ligação 1 →
+   * 10 min → ligação 2 → mensagem apenas para COPIAR. Este executor
+   * antigo NUNCA mais dispara o primeiro contato: ele não cria
+   * `crm_messages`, não chama `dispatchFirstContact` e não aciona a
+   * Meta. Qualquer erro de verificação também bloqueia — falha jamais
+   * vira permissão de envio.
+   *
+   * A função permanece apenas para compatibilidade/histórico.
    */
-  {
-    const { governedByV2 } = await import("@/server/relationship/e0-manual.server");
-    if ((await governedByV2([action.card_id])).has(action.card_id)) {
-      return {
-        ok: false,
-        state: "PENDENTE",
-        reason: "E0 governada pela régua V2 — execute pela Ação do Dia (ligação/mensagem para copiar).",
-      };
-    }
-  }
+  return {
+    ok: false,
+    state: "PENDENTE",
+    reason:
+      "E0 é executada pela Ação do Dia na régua V2 (ligação 1 → 10 min → ligação 2 → mensagem para copiar). O caminho antigo de primeiro contato está desativado.",
+  };
+
 
   const { data: card } = await supabaseAdmin
     .from("portal_leads")
