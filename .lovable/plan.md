@@ -1,88 +1,100 @@
-# Financeira /f — Diagnóstico da jornada de relacionamento x regra de negócio
+# Financeira /f — Mapa operacional da jornada E0–E8 (diagnóstico e recomendação)
 
-Somente leitura. Nada foi alterado: nem código, nem banco, nem configuração, nem fila, nem mensagens.
+Somente leitura. Nada foi alterado: código, banco, configuração, fila, mensagens e Ação do Dia permanecem intactos. Documentos históricos foram usados apenas como referência de entendimento, nunca como fonte do sistema.
 
-## 1. Fluxo REAL que o motor executa hoje
+## 1. Calendário da jornada E
 
-A autoridade é `src/lib/relationship/config.ts` (`STEPS` + `FLOW_SEQUENCE`) e `src/lib/relationship/decide.ts`.
+Legenda de origem do prazo:
+- **CONFIG** = valor que hoje existe de fato na configuração do motor.
+- **NÃO DEFINIDO NO MATERIAL** = a régua de negócio descreve a etapa, mas nenhum documento ou configuração fixa o número de dias.
 
-- Sem resposta: E0 (ou E0_V1 pelo Portal) → E1 → E3 → E4 → E12 → E30
-  (E30 travada por `E30_ENABLED`; com ela desligada, **E12 encerra o fluxo**)
-- Visualização (2 leituras sem resposta): E0 → E1 → V3 → V4 (fim)
-- Reengajamento (o investidor respondeu): R1 → R2 → R3 (fim)
-- Reentrada (lead conhecido que se cadastra de novo): RE0 → RE1 → RE2 → RE3
-- Relacionamento frio: RF0 → RF1
+Observação importante: as etapas técnicas atuais (E0, E1, E3, E4, E12) **não são** as etapas da sua régua. Só E0 e E1 coincidem em posição. Por isso os prazos abaixo não podem ser herdados por semelhança de nome.
 
-Não existem no motor: **E2, E5, E6, E7, E8, R4**. Também **não existe** nenhuma condição de "entrou no caminho do material" nem qualquer tratamento automático de não comparecimento em reunião. Ou seja: a régua de negócio E0→E1→E2→E3→E4→(E5/E6 | E7/E8) **não está implementada** — o motor tem uma régua mais curta, de 5 etapas, com um único caminho.
+| Etapa | Função | Prazo | Quando aparece na Ação do Dia | Condição para entrar | Próxima |
+|---|---|---|---|---|---|
+| E0 | Primeiro contato | 0 — imediato (CONFIG) | No cadastro, dentro da janela 07:00–22:30 (Dom não) | Lead novo | E1 |
+| E1 | 1ª tentativa | 1 dia útil (CONFIG) | 1 dia útil após E0, 09:00–21:00 | E0 executada e lead fora de NOVOS | E2 |
+| E2 | 2ª tentativa | NÃO DEFINIDO NO MATERIAL | — | E1 executada, sem resposta | E3 |
+| E3 | 3ª tentativa | NÃO DEFINIDO NO MATERIAL | — | E2 executada, sem resposta | E4 |
+| E4 | 4ª tentativa + oferta do material | NÃO DEFINIDO NO MATERIAL | — | E3 executada, sem resposta | E5 se aceitar; E7 se não evoluir |
+| E5 | Entrega/liberação do material digital | Prazo do ambiente = 7 dias (histórico); prazo de criação da própria etapa NÃO DEFINIDO | — | Evento explícito "aceitou receber material" | E6 |
+| E6 | Acompanhamento/cobrança do material | NÃO DEFINIDO NO MATERIAL | — | E5 executada | E7, ou encerra se for retorno pós-E8 |
+| E7 | Última sequência antes da finalização | NÃO DEFINIDO NO MATERIAL | — | E4 sem evolução, ou E6 concluída | E8 |
+| E8 | Finalização | NÃO DEFINIDO NO MATERIAL | — | E7 executada | Encerra |
 
-Como o motor decide: `nextStep` pega a primeira etapa da sequência do fluxo que ainda não foi executada; se a data de vencimento ainda não chegou, agenda; se chegou fora da janela, reagenda para a próxima abertura; se o lead está agendado, interrompido ou encerrado, nada é criado.
+Único prazo comprovado além de E0/E1: os 7 dias do ambiente do material digital. Todos os demais precisam de decisão sua.
 
-## 2. Prazos reais hoje
+Falta decidir, em dias úteis: E1→E2, E2→E3, E3→E4, E4→E7, E5 (a partir do aceite), E5→E6, E6→E7, E7→E8. E também: E5/E6 são contados em dias úteis como as demais, ou em dias corridos por causa do prazo de 7 dias do ambiente?
 
-Cada prazo é contado em **dias úteis a partir da última saída** (última mensagem enviada) ou, quando maior, a partir do momento em que o lead saiu da coluna NOVOS. Não são dias acumulados desde o cadastro.
+## 2. Dia a dia — exemplo com lead entrando na segunda
 
-| Etapa | Prazo (dias úteis após a referência) | Próxima etapa |
-|---|---|---|
-| E0 / E0_V1 | 0 (imediato) | E1 |
-| E1 | 1 | E3 |
-| E3 | 2 | E4 |
-| E4 | 3 | E12 |
-| E12 | 5 | fim (E30 desligada) |
-| E30 | 22 a partir do início da jornada | fim (desligada) |
-| V3 | 2 | V4 |
-| V4 | 3 | fim |
-| R1 / R2 / R3 | 2 cada (valor global de reengajamento) | R2 / R3 / fim |
-| RE0 / RE1 / RE2 / RE3 | 0 / 2 / 3 / 5 | fim |
-| RF0 / RF1 | 1 / 3 | fim |
+Como só E0 e E1 têm prazo comprovado, os dias seguintes ficam marcados como dependentes de decisão.
 
-Etapas E2, E5, E6, E7, E8 e R4 **não têm prazo** porque não existem na configuração.
+**A) Nunca responde**
+- Segunda: E0 (primeiro contato)
+- Terça: E1 (1ª tentativa)
+- Quarta em diante: E2 → E3 → E4 → E7 → E8, na cadência que você definir. Com 1 dia útil entre etapas, seria Quarta E2, Quinta E3, Sexta E4, Segunda E7, Terça E8.
 
-Janelas: E1+ envia Seg–Sex 09:00–21:00 e Sábado 09:00–12:00; E0 tem janela própria 07:00–22:30 (Sáb até 12:00, domingo não). Feriados nacionais e de SP não contam como dia útil, mais as datas extras cadastradas pela gestão.
+**B) Responde e aceita o material**
+- Segunda: E0
+- Terça: E1
+- Terça (resposta aceitando): a cadência de tentativas para; o caminho vira material
+- Quarta: E5 (liberação do material, ambiente válido por 7 dias)
+- Após o prazo de acompanhamento: E6 (cobrança do material)
+- Depois: E7 e E8 conforme a régua
 
-## 3. Casos de retorno do investidor — hoje x regra desejada
+**C) Já finalizado em E8 e volta a responder**
+- Segunda (resposta do investidor já finalizado): reabre no caminho do material
+- Terça: E5
+- Após o acompanhamento: E6
+- Em seguida: encerra. **Não repete E7 nem E8.**
 
-| Caso | Hoje | Regra desejada | Coincide? |
-|---|---|---|---|
-| a) Responde em E1/E2/E3/E4 | Fluxo vira reengajamento, estado RESPONDED, automação para; volta só após 2 dias úteis de silêncio, em R1→R2→R3 | Deveria seguir para o caminho do material (E5/E6) quando aceita | Não |
-| b) Responde depois do encerramento | Cadência encerrada bloqueia tudo; nenhuma etapa nova é criada | Deveria reabrir em E5 → E6 e encerrar sem repetir a finalização | Não |
-| c) Já recebeu material e responde | Nenhuma memória de "já recebeu material" existe; cai no mesmo R1→R2→R3 | Não reofertar material | Não |
-| d) Agendou e não compareceu | Agendamento coloca em SCHEDULED e bloqueia tudo; o não comparecimento é apenas registrado no histórico da Ação do Dia, sem nenhuma transição automática | Deveria iniciar R1→R2→R3→R4 | Não |
-| e) Já estava em R e não comparece de novo | Nada acontece automaticamente | Continuar de onde parou, sem reiniciar | Não |
+## 3. Eventos que mudam o caminho
 
-Ponto importante: hoje o "R" do sistema é o fluxo de **reengajamento por resposta**, não o fluxo de **não comparecimento**. São duas coisas diferentes usando as mesmas letras.
+| Evento | Transição esperada |
+|---|---|
+| Não respondeu | Continua a linha de tentativas: E1→E2→E3→E4, e depois E7→E8 |
+| Respondeu (sem aceitar material) | Automação pausa; o Executivo conduz; retoma na etapa seguinte se voltar a silenciar |
+| Aceitou receber material | Sai da linha de tentativas e entra em E5 |
+| Recebeu material (E5 executada) | Habilita E6 e marca a memória "já recebeu material" |
+| Visualizou material | Sinal de engajamento; pode antecipar ou dispensar a cobrança do E6 — **precisa de decisão sua** |
+| Agendou | Bloqueia toda a cadência automática (já é o comportamento atual) |
+| Compareceu | Sai do fluxo automático; condução do Executivo, com reagendamento se houver |
+| Não compareceu | Entra no fluxo R: R1→R2→R3→R4; se já recebeu material, pula R3 → R1→R2→R4 |
+| Voltou depois do E8 | Reabre em E5→E6 e encerra; nunca E7/E8 de novo |
+| Já recebeu material anteriormente | Nunca reofertar: pula E5 no caminho E e pula R3 no fluxo R |
+| Já estava em R e não compareceu de novo | Continua de onde parou, sem reiniciar o R |
 
-## 4. A Ação do Dia está preparada?
+Hoje, dos eventos acima, o motor só trata: não respondeu, respondeu e agendou. Aceite de material, entrega, visualização de material, comparecimento, não comparecimento e retorno pós-finalização não existem como eventos que mudem o caminho.
 
-Já funciona corretamente:
-- é apenas leitura da fila persistida; não inventa etapa nem decide jornada;
-- mostra a etapa que veio da fila;
-- o botão COPIAR busca, no clique, a versão ativa vigente da Biblioteca — não há texto paralelo nem cópia congelada;
-- se não existir versão ativa, a ação aparece com o motivo e o COPIAR fica bloqueado, sem inventar conteúdo;
-- CONCLUÍDO grava snapshot imutável (texto, id e versão da mensagem, autor, origem), com chave determinística — reconcluir não duplica;
-- prazos, dias úteis, feriados e janelas são respeitados pelo motor antes de a obrigação virar item da fila;
-- ligação e reunião registram desfecho e observação no histórico.
+## 4. Ação do Dia
 
-Ainda não existe:
-- criação de obrigação para etapas que não existem no motor (E2, E5, E6, E7, E8, R4);
-- ramificação condicional (aceitou material x não evoluiu);
-- memória de jornada do tipo "já recebeu o material", "já foi finalizado uma vez";
-- transição automática a partir de "não compareceu à reunião";
-- retomada pós-encerramento em E5/E6.
+Confirmado: a cadeia permanece exatamente essa —
 
-## Resumo
+motor decide → fila cria a obrigação → Ação do Dia mostra → executivo copia/executa → concluído → snapshot/histórico → motor decide a próxima.
 
-1. **Correto hoje:** a arquitetura. Motor decide → fila registra → Ação do Dia executa → Biblioteca fornece o texto vigente → conclusão grava snapshot. Prazos em dias úteis, janelas e calendário funcionam.
-2. **Divergente:** a régua. O motor tem 5 etapas lineares (E0, E1, E3, E4, E12) e nenhuma bifurcação; a regra de negócio tem 9 etapas com dois caminhos, retomada pós-finalização e fluxo de não comparecimento com salto condicional.
-3. **Falta:** criar as etapas ausentes com prazos próprios, criar as condições de entrada em cada caminho, criar a memória de jornada do lead, criar a transição de não comparecimento e a regra de reabertura pós-encerramento — além dos textos oficiais de cada etapa nova na Biblioteca.
-4. **Tamanho:** é **mudança estrutural**, não correção pequena. Muda a definição de fluxo (de lista fixa para caminho condicional) e exige um novo registro do que o lead já recebeu.
-5. **Arquivos envolvidos numa futura construção:**
-   - `src/lib/relationship/config.ts` (STEPS, FLOW_SEQUENCE, prazos)
-   - `src/lib/relationship/decide.ts` (bifurcação e condições de entrada)
-   - `src/lib/relationship/machine.ts` e `types.ts` (memória da jornada, eventos de material e de não comparecimento)
-   - `src/lib/relationship/flow-plan.ts` e `src/server/relationship/flow-versions.server.ts` (versionamento do novo fluxo)
-   - `src/server/relationship/closure.server.ts` e `scheduler.server.ts` (encerramento e reabertura)
-   - `src/server/crm/daily-actions*.ts` (desfecho da reunião passando a gerar transição)
-   - Biblioteca de Mensagens: textos oficiais das novas etapas
-   - Uma migration apenas para a memória da jornada e o versionamento do novo fluxo — sem tocar em histórico existente
+A Ação do Dia hoje já é apenas leitura da fila: ela não escolhe etapa, não calcula prazo e não cria obrigação. Isso não muda com a nova régua. A única evolução necessária do lado dela é que o desfecho de reunião ("não compareceu") passe a **emitir um evento** para o motor — quem decide a transição continua sendo o motor.
 
-Nenhuma dessas mudanças foi feita. Este documento é só o diagnóstico e a recomendação.
+## 5. Biblioteca
+
+Confirmado: cada etapa E0–E8 deve buscar o texto diretamente da Biblioteca, respeitando versão ativa, variante COM NOME / SEM NOME conforme a Central dos Nomes, e gravando snapshot no instante da execução. Nenhum texto paralelo em código. Sem versão ativa válida, a ação aparece com o motivo e o COPIAR fica bloqueado — sem inventar conteúdo. Esse comportamento já existe hoje e deve ser preservado.
+
+## 6. Fechamento
+
+**a) Comprovado pelos documentos e pelo sistema:** a sequência de nove etapas E0–E8; os dois caminhos (sem evolução e com material); a existência do ambiente de material com 7 dias; o retorno pós-E8 indo para E5→E6 e encerrando; o fluxo R de não comparecimento com salto de R3 quando o material já foi entregue.
+
+**b) Precisa de decisão sua:** todos os intervalos entre E1 e E8; se E5/E6 contam em dias úteis ou corridos; o que exatamente caracteriza "aceitou o material" (resposta afirmativa, clique no link, ambos); se a visualização do material altera o E6; quantos dias após o fim dos 7 dias entra o E6; se o retorno pós-E8 pode ocorrer mais de uma vez; e como o R interage com a memória de material.
+
+**c) Prazos comprovados:** E0 imediato; E1 um dia útil; ambiente do material 7 dias.
+
+**d) Prazos não comprovados:** E2, E3, E4, E5, E6, E7, E8 — nenhum documento fixa esses números.
+
+**e) Estrutura mínima para virar a régua sem destruir histórico:**
+1. Nova versão de fluxo, versionada, com as nove etapas e seus prazos. Ciclos em andamento continuam na versão antiga — o versionamento de fluxo já existe.
+2. Um registro de memória da jornada por lead: já recebeu material, já foi finalizado, já passou pelo R.
+3. Novos eventos no motor: aceite de material, entrega de material, comparecimento, não comparecimento, retorno pós-finalização.
+4. Decisão condicional no motor: a próxima etapa deixa de ser "a próxima da lista" e passa a considerar o caminho e a memória.
+5. Textos oficiais das etapas novas publicados na Biblioteca antes de qualquer ativação.
+6. Nenhuma renomeação de chave técnica existente e nenhuma remoção de versão histórica: a régua nova nasce ao lado da atual.
+
+Recomendação: **mudança estrutural**, feita em uma construção única e versionada, e só depois que os prazos do item (b) estiverem decididos.
