@@ -51,6 +51,21 @@ export const getDailyActionsSummary = createServerFn({ method: "POST" })
     return summarizeDailyActions(await buildDailyActions({ executiveId }));
   });
 
+/**
+ * FILA OFICIAL LOGO APÓS UMA CONCLUSÃO — mesma autoridade da leitura
+ * normal (`currentDailyAction` → `buildDailyActions`), devolvida junto
+ * com o resultado para que a interface já mostre a PRÓXIMA AÇÃO CORRETA
+ * (inclusive outra ação do MESMO investidor) sem esperar recarga.
+ */
+async function queueAfterOutcome(executiveId: string | null): Promise<DailyAction[]> {
+  try {
+    const { currentDailyAction } = await import("@/server/crm/daily-actions-gate.server");
+    return (await currentDailyAction(executiveId)).list;
+  } catch {
+    return [];
+  }
+}
+
 /** Dados mínimos de identificação da ação, vindos da própria lista. */
 type ActionRefInput = {
   actionKey: string;
