@@ -76,18 +76,13 @@ export function MessageLibraryPanel() {
       const data = (await listarMensagensBiblioteca()) as LibraryMessage[];
       setMessages(data);
       setError(null);
-      try {
-        setDiagnostics((await diagnosticoDaBiblioteca()) as Diagnostics);
-      } catch {
-        /* diagnóstico é informativo: sua falha não bloqueia a Biblioteca */
-      }
-
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar a Biblioteca.");
     } finally {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     void load();
