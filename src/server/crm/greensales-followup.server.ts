@@ -612,8 +612,10 @@ export async function releaseReengagementOnFrios(input: {
   currentStageKey: string | null;
   stageEnteredAt?: string | null;
 }): Promise<{ released: boolean; reason: string }> {
-  if (!isAgendamentosToFrios(input.previousStageKey, input.currentStageKey)) {
-    return { released: false, reason: "Não é a transição AGENDAMENTOS → FRIOS." };
+  // VÍDEO → FRIOS é equivalente a AGENDAMENTOS → FRIOS: mesma regra,
+  // mesmo motor, mesma fila — só a etapa de origem foi ampliada.
+  if (!isCommitmentStageToFrios(input.previousStageKey, input.currentStageKey)) {
+    return { released: false, reason: "Não é a transição de compromisso (AGENDAMENTOS/VÍDEO) → FRIOS." };
   }
   const leadId = `gs_${input.externalId}`;
   const at = input.stageEnteredAt ?? new Date().toISOString();
