@@ -6,6 +6,8 @@
  * de um motivo legível — tanto para enviar quanto para não enviar.
  */
 import { dueMomentAfterBusinessDays, isEligibleMoment, nextEligibleMoment } from "./calendar";
+import { decideCadenceV2, v2FlowOf, type V2DecisionInput } from "./cadence-v2-decide";
+
 import { FLOW_SEQUENCE, RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { blocksAutomation, isWindowOpen } from "./machine";
 import { planBusinessDays, planSequence, type FlowPlan } from "./flow-plan";
@@ -93,6 +95,13 @@ export type DecisionContext = {
    * com que prazo. Ausente (ciclo legado) ⇒ comportamento anterior.
    */
   flowPlan?: FlowPlan | null;
+  /**
+   * RÉGUA V2 (Financeira /f) — estado persistido do ciclo. Quando
+   * presente, a decisão de etapa/data/ação é DELEGADA integralmente à
+   * `cadence-v2`. Nenhum cálculo antigo por dias úteis participa.
+   */
+  v2?: V2DecisionInput | null;
+
 };
 
 /**
@@ -124,6 +133,31 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
 
   const blocked = blocksAutomation(record);
   if (blocked) return { kind: "none", reason: blocked };
+
+  /**
+   * DELEGAÇÃO À RÉGUA V2 — autoridade única da Financeira /f.
+   *
+   * A partir daqui o motor antigo não calcula mais etapa nem prazo para
+   * os fluxos E/R/RE: quem responde é `cadence-v2`. A gravação continua
+   * passando pela MESMA porta de persistência (fila do motor).
+   */
+  if (ctx.v2 && v2FlowOf(record.flow)) {
+    const decision = decideCadenceV2(ctx.v2);
+    if (decision.kind === "none") return { kind: "none", reason: decision.reason };
+    return {
+      kind: "schedule_step",
+      step: decision.step,
+      flow: record.flow,
+      dueAt: decision.dueAt,
+      reason: decision.reason,
+      actionOrder: decision.actionOrder,
+      actionKind: decision.actionKind,
+      actionLabel: decision.label,
+      theoreticalDate: decision.theoreticalDate,
+      originDate: decision.originDate,
+    };
+  }
+
 
   if (record.state === "RESPONDED" && record.flow === "reengajamento") {
     // Respondeu: só volta a agir depois do silêncio de N dias úteis.

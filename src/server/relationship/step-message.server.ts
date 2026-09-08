@@ -19,6 +19,10 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { renderFromLibrary } from "./message-library.server";
 import { resolveLeadExecutive } from "./executive-identity.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
+import { loadMaterialState } from "./cadence-v2-state.server";
+
+/** Etapas cujo texto depende do contexto estruturado do ciclo. */
+const CONTEXTUAL_STEPS = new Set(["E7", "E8"]);
 
 export type PreparedStepMessage = {
   step: string;
@@ -75,11 +79,25 @@ export async function prepareStepMessage(params: {
   }
 
   const portalLink = executive.slug ? investorPortalUrl(executive.slug) : "";
-  const { result, message } = await renderFromLibrary(params.step, {
-    executiveName: executive.name,
-    portalLink,
-    rawInvestorName: name,
-  });
+  /**
+   * E7/E8 TÊM DOIS CONTEXTOS. Quem decide é o HISTÓRICO ESTRUTURADO
+   * (apresentação efetivamente registrada como enviada) — nunca o
+   * título, o texto ou a interpretação de uma conversa.
+   */
+  const stepContext = CONTEXTUAL_STEPS.has(params.step)
+    ? (await loadMaterialState(params.leadId)).materialSent
+      ? ("MATERIAL_ENVIADO" as const)
+      : ("SEM_CONTATO" as const)
+    : null;
+  const { result, message } = await renderFromLibrary(
+    params.step,
+    {
+      executiveName: executive.name,
+      portalLink,
+      rawInvestorName: name,
+    },
+    stepContext,
+  );
 
   if (!result.ok) {
     return {

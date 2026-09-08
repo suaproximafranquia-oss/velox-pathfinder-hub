@@ -16,6 +16,7 @@ import { productionDispatcher } from "./dispatch.server";
 import { loadLeadStageContext } from "./lead-context.server";
 import { loadCadenceActivationDate } from "@/server/crm/automation.server";
 import { resolveCyclePlan } from "./flow-versions.server";
+import { loadCadenceV2State } from "./cadence-v2-state.server";
 
 export function productionEngine(): Engine {
   /**
@@ -54,6 +55,13 @@ export function productionEngine(): Engine {
      * andamento.
      */
     flowPlan: (record) => resolveCyclePlan(record.flow, record.flowVersionId ?? null),
+    /**
+     * RÉGUA V2 (Financeira /f) — autoridade única de etapa, prazo e ação
+     * interna dos fluxos E/R/RE. O estado vem do banco; a decisão vem do
+     * módulo puro `cadence-v2`. Não existe segundo motor nem segundo tick.
+     */
+    v2State: loadCadenceV2State,
+
   });
 }
 

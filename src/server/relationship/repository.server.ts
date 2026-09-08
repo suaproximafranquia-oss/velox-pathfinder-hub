@@ -71,6 +71,11 @@ function toQueueItem(row: Row): QueueItem {
     result: row.result ?? null,
     reason: row.reason ?? null,
     flowVersionId: row.flow_version_id ?? null,
+    actionOrder: row.action_order ?? null,
+    actionKind: (row.action_kind ?? null) as "call" | "message" | null,
+    theoreticalDate: row.theoretical_date ?? null,
+    originDate: row.origin_date ?? null,
+    cancelReason: row.cancel_reason ?? null,
   };
 }
 
@@ -214,11 +219,16 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         reason: item.reason,
         // Versão herdada do ciclo: a ação pendente continua explicável.
         flow_version_id: item.flowVersionId ?? null,
+        // RÉGUA V2: ação interna, data teórica e origem do ciclo.
+        action_order: item.actionOrder ?? 1,
+        action_kind: item.actionKind ?? null,
+        theoretical_date: item.theoreticalDate ?? null,
+        origin_date: item.originDate ?? null,
         updated_at: new Date().toISOString(),
       };
       const { data, error } = await supabaseAdmin
         .from("relationship_queue")
-        .upsert(payload as any, { onConflict: "scope,run_id,lead_id,step" })
+        .upsert(payload as any, { onConflict: "scope,run_id,lead_id,step,action_order" })
         .select("*")
         .single();
       if (error) throw new Error(error.message);
@@ -247,6 +257,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       if (patch.executedAt !== undefined) update["executed_at"] = patch.executedAt;
       if (patch.result !== undefined) update["result"] = patch.result;
       if (patch.reason !== undefined) update["reason"] = patch.reason;
+      if (patch.cancelReason !== undefined) update["cancel_reason"] = patch.cancelReason;
       await supabaseAdmin
         .from("relationship_queue")
         .update(update as any)
@@ -259,7 +270,12 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       const { data } = await scoped(
         supabaseAdmin
           .from("relationship_queue")
-          .update({ status: "CANCELLED", reason, updated_at: new Date().toISOString() } as any)
+          .update({
+            status: "CANCELLED",
+            reason,
+            cancel_reason: reason,
+            updated_at: new Date().toISOString(),
+          } as any)
           .in("status", ["PENDING", "PROCESSING"])
           .select("id") as any,
       ).eq("lead_id", leadId);

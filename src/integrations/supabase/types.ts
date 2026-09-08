@@ -2371,6 +2371,9 @@ export type Database = {
           auto_reply_total_count: number
           auto_reply_window_count: number
           auto_reply_window_started_at: string | null
+          awaiting_handoff: boolean
+          awaiting_handoff_reason: string | null
+          awaiting_handoff_since: string | null
           canonical_investor_id: string | null
           close_reason: string | null
           closed_at: string | null
@@ -2412,6 +2415,9 @@ export type Database = {
           auto_reply_total_count?: number
           auto_reply_window_count?: number
           auto_reply_window_started_at?: string | null
+          awaiting_handoff?: boolean
+          awaiting_handoff_reason?: string | null
+          awaiting_handoff_since?: string | null
           canonical_investor_id?: string | null
           close_reason?: string | null
           closed_at?: string | null
@@ -2453,6 +2459,9 @@ export type Database = {
           auto_reply_total_count?: number
           auto_reply_window_count?: number
           auto_reply_window_started_at?: string | null
+          awaiting_handoff?: boolean
+          awaiting_handoff_reason?: string | null
+          awaiting_handoff_since?: string | null
           canonical_investor_id?: string | null
           close_reason?: string | null
           closed_at?: string | null
@@ -2937,6 +2946,7 @@ export type Database = {
           scope: string
           source_kind: string | null
           source_reference: string | null
+          step_context: string | null
           step_key: string | null
           supersedes_id: string | null
           title: string
@@ -2967,6 +2977,7 @@ export type Database = {
           scope?: string
           source_kind?: string | null
           source_reference?: string | null
+          step_context?: string | null
           step_key?: string | null
           supersedes_id?: string | null
           title: string
@@ -2997,6 +3008,7 @@ export type Database = {
           scope?: string
           source_kind?: string | null
           source_reference?: string | null
+          step_context?: string | null
           step_key?: string | null
           supersedes_id?: string | null
           title?: string
@@ -3136,7 +3148,10 @@ export type Database = {
       }
       relationship_queue: {
         Row: {
+          action_kind: string | null
+          action_order: number
           attempts: number
+          cancel_reason: string | null
           canonical_investor_id: string | null
           created_at: string
           due_at: string
@@ -3145,6 +3160,7 @@ export type Database = {
           flow_version_id: string | null
           id: string
           lead_id: string
+          origin_date: string | null
           priority: number
           reason: string | null
           responsible_executive_id: string | null
@@ -3153,10 +3169,14 @@ export type Database = {
           scope: string
           status: string
           step: string
+          theoretical_date: string | null
           updated_at: string
         }
         Insert: {
+          action_kind?: string | null
+          action_order?: number
           attempts?: number
+          cancel_reason?: string | null
           canonical_investor_id?: string | null
           created_at?: string
           due_at: string
@@ -3165,6 +3185,7 @@ export type Database = {
           flow_version_id?: string | null
           id?: string
           lead_id: string
+          origin_date?: string | null
           priority?: number
           reason?: string | null
           responsible_executive_id?: string | null
@@ -3173,10 +3194,14 @@ export type Database = {
           scope: string
           status?: string
           step: string
+          theoretical_date?: string | null
           updated_at?: string
         }
         Update: {
+          action_kind?: string | null
+          action_order?: number
           attempts?: number
+          cancel_reason?: string | null
           canonical_investor_id?: string | null
           created_at?: string
           due_at?: string
@@ -3185,6 +3210,7 @@ export type Database = {
           flow_version_id?: string | null
           id?: string
           lead_id?: string
+          origin_date?: string | null
           priority?: number
           reason?: string | null
           responsible_executive_id?: string | null
@@ -3193,6 +3219,7 @@ export type Database = {
           scope?: string
           status?: string
           step?: string
+          theoretical_date?: string | null
           updated_at?: string
         }
         Relationships: [
