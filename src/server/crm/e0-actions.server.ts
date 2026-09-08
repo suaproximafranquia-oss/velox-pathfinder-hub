@@ -54,6 +54,12 @@ export async function createPendingE0Action(input: {
   enteredEntryStageAt?: string | null;
   reactivation?: boolean;
   /**
+   * REENTRADA (RE): lead já conhecido que realizou NOVA entrada
+   * comercial. Quando verdadeiro, a régua V2 abre o ciclo em RE0 —
+   * nunca em E0.
+   */
+  reentry?: boolean;
+  /**
    * Sequência de titularidade (BLOCO 2). 0 = primeira entrada
    * operacional do card (comportamento histórico). N>0 = nova entrada
    * após redistribuição REAL — a E0 anterior permanece intacta.
@@ -95,7 +101,7 @@ export async function createPendingE0Action(input: {
   if (ownershipSeq === 0) {
     try {
       const { openManualE0Cadence } = await import("@/server/relationship/e0-manual.server");
-      await openManualE0Cadence(input.cardId, 0);
+      await openManualE0Cadence(input.cardId, 0, { reentry: Boolean(input.reentry) });
     } catch {
       /* reconciliado no próximo ciclo/abertura da Ação do Dia */
     }
