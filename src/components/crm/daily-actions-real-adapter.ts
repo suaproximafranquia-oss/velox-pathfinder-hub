@@ -29,7 +29,7 @@ import type { DailyAction } from "@/lib/crm/daily-actions";
 import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
 
 /** Identificação mínima da ação enviada ao histórico oficial. */
-function actionRef(item: DailyAction, reason: string) {
+function actionRef(item: DailyAction, reason: string, pendingRecovery = false) {
   return {
     actionKey: item.actionKey,
     leadId: item.leadId,
@@ -37,10 +37,20 @@ function actionRef(item: DailyAction, reason: string) {
     step: item.stepLabel,
     title: item.title,
     reason,
+    pendingRecovery,
   };
 }
 
-export function useRealDailyActionsAdapter(): DailyActionsAdapter {
+/**
+ * `pendingRecovery` só é usado pela Central de Operações, ao resolver
+ * uma pendência JÁ pulada pelo próprio Executivo. Ele não cria fila nem
+ * obrigação: apenas informa ao servidor que a ação autorizada é aquela
+ * mesma pendência em aberto, e não a posição 1 do dia.
+ */
+export function useRealDailyActionsAdapter(
+  options: { pendingRecovery?: boolean } = {},
+): DailyActionsAdapter {
+  const pendingRecovery = options.pendingRecovery === true;
   const fetchActions = useServerFn(listDailyActions);
   const completeTask = useServerFn(completeCadenceTaskFn);
   const registerWhatsapp = useServerFn(registerWhatsappCallAttemptFn);
@@ -91,6 +101,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
                 actionKey: item.actionKey,
                 outcome,
                 rang: outcome === "NAO" ? (rang ?? null) : null,
+                pendingRecovery,
               },
             })) as { concluded?: boolean; awaitingHandoff?: boolean };
           } catch (error) {
@@ -193,22 +204,22 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
         return { ok: true };
       },
       skip: async (item, reason) => {
-        await skipAction({ data: actionRef(item, reason) });
+        await skipAction({ data: actionRef(item, reason, pendingRecovery) });
         return { ok: true, message: "Ação pulada e registrada no histórico." };
       },
       addNote: async (item, note) => {
-        await noteAction({ data: actionRef(item, note) });
+        await noteAction({ data: actionRef(item, note, pendingRecovery) });
         return { ok: true, message: "Observação registrada." };
       },
       loadMessage: async (item) => {
         const step = item.messageRef?.step ?? item.stepLabel;
         if (!item.leadId || !step) return null;
         return loadStepMessage({
-          data: { leadId: item.leadId, step, leadName: item.name },
+          data: { leadId: item.leadId, step, leadName: item.name, pendingRecovery },
         });
       },
       registerMessage: async (item, note) => {
-        const result = (await registerMessage({ data: actionRef(item, note) })) as {
+        const result = (await registerMessage({ data: actionRef(item, note, pendingRecovery) })) as {
           concluded?: boolean;
         };
         return {
@@ -228,6 +239,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
             leadId: item.leadId,
             actionKey: item.actionKey,
             title: item.title,
+            pendingRecovery,
           },
         });
         return {
@@ -245,6 +257,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
             leadId: item.leadId,
             actionKey: item.actionKey,
             title: item.title,
+            pendingRecovery,
           },
         });
         return { ok: true, message: "Reunião reagendada." };
@@ -259,6 +272,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
               willReschedule: decision.willReschedule,
               note: decision.note,
               actionKey: item.actionKey,
+              pendingRecovery,
             },
           });
         } catch (error) {
@@ -282,6 +296,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
               close: decision.close,
               note: decision.note,
               actionKey: item.actionKey,
+              pendingRecovery,
             },
           });
         } catch (error) {
