@@ -466,14 +466,19 @@ export function createEngine(options: EngineOptions): Engine {
         config,
         ...context,
         flowPlan: await planFor(record),
+        v2: await v2For(record),
         hasTemplateForPurpose: (purpose) =>
           virtualTemplates || hasTemplateForPurpose(templates, purpose),
       });
       if (action.kind === "none") return null;
       const dueAt = action.kind === "schedule_step" ? action.dueAt : clock.nowIso();
+      const actionOrder = action.kind === "schedule_step" ? action.actionOrder : undefined;
       const queue = await repository.loadQueue(record.leadId);
       const existing = queue.find(
-        (q) => q.step === action.step && (q.status === "PENDING" || q.status === "PROCESSING"),
+        (q) =>
+          q.step === action.step &&
+          (actionOrder === undefined || (q.actionOrder ?? 1) === actionOrder) &&
+          (q.status === "PENDING" || q.status === "PROCESSING"),
       );
       if (existing && existing.dueAt === dueAt) return action.step;
       await repository.upsertQueueItem({
