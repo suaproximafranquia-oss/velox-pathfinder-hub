@@ -455,24 +455,157 @@ async function concludeQueueStep(params: {
  * AÇÕES PULADAS HOJE. A supressão vale apenas para a data operacional
  * corrente: nada é apagado e a obrigação volta a aparecer amanhã se a
  * fonte oficial continuar pendente.
+ *
+ * RETOMADA: se o Executivo usou "Resolver pendência" hoje, a supressão
+ * do dia cai e a MESMA ação volta para a fila — sem nova obrigação.
  */
 export async function listSkippedActionKeys(nowIso: string): Promise<Set<string>> {
   const today = operationalDate(nowIso);
   const since = new Date(new Date(nowIso).getTime() - 3 * 24 * 3600 * 1000).toISOString();
   const { data } = await supabaseAdmin
     .from("relationship_engine_log")
-    .select("details,created_at")
-    .eq("action", DAILY_ACTION_EVENTS.skip)
+    .select("action,details,created_at")
+    .in("action", [DAILY_ACTION_EVENTS.skip, DAILY_ACTION_EVENTS.resume])
     .gte("created_at", since)
-    .limit(2000);
+    .limit(4000);
   const keys = new Set<string>();
+  const resumed = new Set<string>();
   for (const row of data ?? []) {
-    const details = (row as { details?: Record<string, unknown> }).details ?? {};
+    const typed = row as { action?: string | null; details?: Record<string, unknown> };
+    const details = typed.details ?? {};
     if (details["operationalDate"] !== today) continue;
     const key = details["actionKey"];
-    if (typeof key === "string") keys.add(key);
+    if (typeof key !== "string") continue;
+    if (typed.action === DAILY_ACTION_EVENTS.resume) resumed.add(key);
+    else keys.add(key);
   }
+  for (const key of resumed) keys.delete(key);
   return keys;
+}
+
+/** Pendência pulada ainda em aberto — leitura para a área de pendências. */
+export type SkippedPending = {
+  actionKey: string;
+  leadId: string | null;
+  kind: string | null;
+  step: string | null;
+  title: string | null;
+  motivo: string | null;
+  skippedAt: string;
+  skippedDate: string;
+  /** Já retomada hoje: a ação voltou para a fila da Ação do Dia. */
+  retomadaHoje: boolean;
+};
+
+/**
+ * PENDÊNCIAS PULADAS DO EXECUTIVO. Somente leitura do histórico oficial:
+ * pulos dos últimos 30 dias que ainda não foram recuperados (concluídos).
+ * Nenhuma obrigação nova é criada — a fila continua sendo a do motor.
+ */
+export async function listSkippedPendings(input: {
+  executiveId: string | null;
+  nowIso?: string;
+}): Promise<SkippedPending[]> {
+  const nowIso = input.nowIso ?? new Date().toISOString();
+  const today = operationalDate(nowIso);
+  const since = new Date(new Date(nowIso).getTime() - 30 * 24 * 3600 * 1000).toISOString();
+  const { data } = await supabaseAdmin
+    .from("relationship_engine_log")
+    .select("id,action,actor,details,created_at")
+    .eq("scope", "production")
+    .in("action", [
+      DAILY_ACTION_EVENTS.skip,
+      DAILY_ACTION_EVENTS.recovery,
+      DAILY_ACTION_EVENTS.resume,
+    ])
+    .gte("created_at", since)
+    .order("created_at", { ascending: true })
+    .limit(4000);
+
+  const rows = (data ?? []) as Array<{
+    action?: string | null;
+    actor?: string | null;
+    created_at: string;
+    details?: Record<string, unknown> | null;
+  }>;
+
+  const recovered = new Set<string>();
+  const resumedToday = new Set<string>();
+  const open = new Map<string, SkippedPending>();
+
+  for (const row of rows) {
+    const details = row.details ?? {};
+    const actionKey = details["actionKey"];
+    if (typeof actionKey !== "string") continue;
+    if (row.action === DAILY_ACTION_EVENTS.recovery) {
+      recovered.add(actionKey);
+      continue;
+    }
+    if (row.action === DAILY_ACTION_EVENTS.resume) {
+      if (details["operationalDate"] === today) resumedToday.add(actionKey);
+      continue;
+    }
+    /** ISOLAMENTO: cada Executivo vê apenas as suas próprias pendências. */
+    const owner =
+      typeof details["executivo"] === "string" ? (details["executivo"] as string) : row.actor;
+    if (input.executiveId && owner !== input.executiveId) continue;
+    const str = (key: string) =>
+      typeof details[key] === "string" && (details[key] as string).trim().length > 0
+        ? (details[key] as string)
+        : null;
+    open.set(actionKey, {
+      actionKey,
+      leadId: str("leadId"),
+      kind: str("kind"),
+      step: str("step"),
+      title: str("title"),
+      motivo: str("motivo"),
+      skippedAt: str("at") ?? row.created_at,
+      skippedDate: str("operationalDate") ?? operationalDate(row.created_at),
+      retomadaHoje: false,
+    });
+  }
+
+  const out: SkippedPending[] = [];
+  for (const [key, pending] of open) {
+    if (recovered.has(key)) continue;
+    out.push({ ...pending, retomadaHoje: resumedToday.has(key) });
+  }
+  return out.sort((a, b) => (a.skippedAt < b.skippedAt ? 1 : -1));
+}
+
+/**
+ * RESOLVER PENDÊNCIA — a MESMA ação volta para a fila de hoje.
+ *
+ * Não conclui, não recupera e não cria obrigação: apenas registra que o
+ * Executivo retomou a pendência. O motivo original do pulo permanece
+ * intacto no histórico e a recuperação só é registrada quando a ação
+ * for de fato concluída.
+ */
+export async function resumeSkippedAction(input: {
+  actionKey: string;
+  leadId: string | null;
+  kind: string | null;
+  step: string | null;
+  title: string | null;
+  userId: string;
+  executiveId: string | null;
+  nowIso?: string;
+}): Promise<{ ok: true }> {
+  const nowIso = input.nowIso ?? new Date().toISOString();
+  await writeLedger(DAILY_ACTION_EVENTS.resume, {
+    actionKey: input.actionKey,
+    leadId: input.leadId,
+    kind: input.kind ?? "pendencia",
+    step: input.step,
+    title: input.title ?? "Pendência retomada",
+    reason: "Pendência pulada retomada pelo Executivo.",
+    userId: input.userId,
+    executiveId: input.executiveId,
+    outcome: "retomada",
+    nowIso,
+  });
+  return { ok: true };
 }
 
 /**
