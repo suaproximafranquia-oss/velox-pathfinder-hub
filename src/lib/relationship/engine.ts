@@ -7,6 +7,7 @@
  * muda apenas o repositório, o despachante e o relógio.
  */
 import { decideNextAction } from "./decide";
+import type { V2DecisionInput } from "./cadence-v2-decide";
 import { RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { applyEvent, blocksAutomation, initialRecord } from "./machine";
 import { classifyCycle, type ActivationMark } from "./cycle";
@@ -116,6 +117,17 @@ export function createEngine(options: EngineOptions): Engine {
   const leadContext = options.leadContext;
   const activationMark = options.activationMark;
   const flowPlanResolver = options.flowPlan;
+  const v2StateResolver = options.v2State;
+
+  /** Estado da régua V2 — null mantém o comportamento anterior. */
+  async function v2For(record: CadenceRecord): Promise<V2DecisionInput | null> {
+    if (!v2StateResolver) return null;
+    try {
+      return await v2StateResolver(record);
+    } catch {
+      return null;
+    }
+  }
 
   /** Plano operacional do ciclo — null mantém o comportamento anterior. */
   async function planFor(record: CadenceRecord): Promise<FlowPlan | null> {
@@ -195,6 +207,7 @@ export function createEngine(options: EngineOptions): Engine {
     const context = leadContext ? ((await leadContext(record.leadId)) ?? {}) : {};
 
     const flowPlan = await planFor(record);
+    const v2 = await v2For(record);
 
     const action = decideNextAction(record, {
       nowIso,
@@ -202,6 +215,7 @@ export function createEngine(options: EngineOptions): Engine {
       config,
       ...context,
       flowPlan,
+      v2,
       hasTemplateForPurpose: (purpose) =>
         virtualTemplates || hasTemplateForPurpose(templates, purpose),
     });
@@ -225,7 +239,11 @@ export function createEngine(options: EngineOptions): Engine {
       }
       const queue = await repository.loadQueue(record.leadId);
       const already = queue.find(
-        (q) => q.step === action.step && (q.status === "PENDING" || q.status === "PROCESSING"),
+        (q) =>
+          q.step === action.step &&
+          (action.actionOrder === undefined ||
+            (q.actionOrder ?? 1) === action.actionOrder) &&
+          (q.status === "PENDING" || q.status === "PROCESSING"),
       );
       if (already && already.dueAt === action.dueAt) {
         // A etapa ESTÁ programada — o resultado é "scheduled", e não um
@@ -252,6 +270,10 @@ export function createEngine(options: EngineOptions): Engine {
         result: null,
         reason: action.reason,
         flowVersionId: record.flowVersionId ?? null,
+        actionOrder: action.actionOrder ?? null,
+        actionKind: action.actionKind ?? null,
+        theoreticalDate: action.theoreticalDate ?? null,
+        originDate: action.originDate ?? null,
       };
       await repository.upsertQueueItem(item);
       return log(record, { step: action.step, outcome: "scheduled", reason: action.reason });
