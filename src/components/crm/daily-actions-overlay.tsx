@@ -263,38 +263,6 @@ export function DailyActionsOverlay({
     if (result.message) setFeedback(result.message);
   }
 
-  /**
-   * LIGAÇÃO. "Atendeu?" é sempre a primeira pergunta e a resposta é
-   * apenas o RESULTADO da tentativa — ela nunca encerra a ação sozinha.
-   * O encerramento acontece só no botão "Concluído"; se houver
-   * observação, ela é salva antes nas Notas do Executivo. Nenhuma
-   * quantidade de tentativas é decidida aqui: quem define é a cadência.
-   */
-  async function completeCall(item: DailyAction, outcome: "SIM" | "NAO", rang?: boolean | null) {
-    if (!isCallAction(item)) return;
-    if (!operationalWindow.open) return;
-    setBusy(true);
-    try {
-      const observation = callNote.trim();
-      if (observation.length >= 3) await adapter.addNote(item, observation);
-      const result = await adapter.completeCall(item, outcome, rang);
-      if (result.ok) {
-        setCallAwaitingRing(null);
-        setCallPending(null);
-        setCallNote("");
-        setUndoable(item.source === "queue" && adapter.undoCallOutcome ? item : null);
-        applyResult(item.actionKey, result);
-        // A régua pode ter liberado a próxima ação (ex.: mensagem E0): relê a lista oficial.
-        if (item.source === "queue") void load(true);
-      } else {
-        setFeedback(result.message ?? "Não foi possível registrar a ligação.");
-        // Fora de ordem / já resolvida: a lista oficial é a verdade.
-        void load();
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
 
   /** DESFAZER o resultado da ligação — o servidor decide se ainda é reversível. */
   async function handleUndoCall() {
