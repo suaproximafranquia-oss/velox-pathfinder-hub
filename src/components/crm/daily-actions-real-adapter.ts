@@ -16,6 +16,7 @@ import {
   recordDailyActionHistoryFn,
   registerDailyActionMessageFn,
   registerQueueCallOutcomeFn,
+  undoQueueCallOutcomeFn,
   rescheduleMeetingFn,
   resolveMeetingOutcomeFn,
   resolveFollowUpContactFn,
@@ -48,6 +49,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
   const registerMessage = useServerFn(registerDailyActionMessageFn);
   const registerQueueCall = useServerFn(registerQueueCallOutcomeFn);
+  const undoQueueCall = useServerFn(undoQueueCallOutcomeFn);
   const recordHistory = useServerFn(recordDailyActionHistoryFn);
   const resolveMeeting = useServerFn(resolveMeetingOutcomeFn);
   const rescheduleMeeting = useServerFn(rescheduleMeetingFn);
@@ -85,19 +87,29 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
         /**
          * LIGAÇÃO DA RÉGUA V2 — a ação interna vive na fila do motor.
          * Atendeu ⇒ as ações restantes da etapa são canceladas e o ciclo
-         * aguarda o encaminhamento; não atendeu ⇒ a régua segue.
+         * aguarda o encaminhamento; não atendeu ⇒ a régua segue
+         * (2ª ligação em 10 min; depois a mensagem para copiar).
+         * Nenhuma mensagem é enviada por aqui.
          */
         if (!item.cadence && item.actionKey.startsWith("queue:")) {
-          const queueItemId = item.actionKey.split(":").pop() ?? "";
+          const queueItemId = item.queueItemId ?? item.actionKey.split(":").pop() ?? "";
           if (!queueItemId) return { ok: false };
-          const result = (await registerQueueCall({
-            data: {
-              queueItemId,
-              actionKey: item.actionKey,
-              outcome,
-              rang: outcome === "NAO" ? (rang ?? null) : null,
-            },
-          })) as { awaitingHandoff?: boolean };
+          let result: { concluded?: boolean; awaitingHandoff?: boolean };
+          try {
+            result = (await registerQueueCall({
+              data: {
+                queueItemId,
+                actionKey: item.actionKey,
+                outcome,
+                rang: outcome === "NAO" ? (rang ?? null) : null,
+              },
+            })) as { concluded?: boolean; awaitingHandoff?: boolean };
+          } catch (error) {
+            return { ok: false, message: error instanceof Error ? error.message : "Falha ao registrar." };
+          }
+          if (!result?.concluded) {
+            return { ok: false, message: "Esta ligação já foi resolvida — a lista foi atualizada." };
+          }
 
           try {
             await recordHistory({
@@ -112,11 +124,17 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
           } catch {
             /* histórico é complementar */
           }
+          const isE0 = item.stepLabel === "E0";
+          const order = item.queueActionOrder ?? 1;
           return {
             ok: true,
             message: result?.awaitingHandoff
-              ? "Ligação atendida — a cadência aguarda o encaminhamento."
-              : "Tentativa registrada.",
+              ? "Ligação atendida — nenhuma mensagem é enviada; a cadência aguarda o seu encaminhamento."
+              : isE0 && order === 1
+                ? "Não atendeu — a 2ª ligação da E0 será liberada em 10 minutos."
+                : isE0
+                  ? "Não atendeu — a mensagem E0 para copiar foi liberada."
+                  : "Tentativa registrada.",
           };
         }
         if (!item.cadence) return { ok: false };
@@ -150,6 +168,21 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
           /* histórico é complementar */
         }
         return { ok: true, message: "Tentativa registrada." };
+      },
+      undoCallOutcome: async (item) => {
+        const queueItemId = item.queueItemId ?? item.actionKey.split(":").pop() ?? "";
+        if (!queueItemId || !item.actionKey.startsWith("queue:")) return { ok: false };
+        try {
+          const result = (await undoQueueCall({ data: { queueItemId } })) as {
+            undone?: boolean;
+            reason?: string | null;
+          };
+          return result?.undone
+            ? { ok: true, message: "Resultado da ligação desfeito — a ação voltou para a fila." }
+            : { ok: false, message: result?.reason ?? "Não foi possível desfazer." };
+        } catch (error) {
+          return { ok: false, message: error instanceof Error ? error.message : "Falha ao desfazer." };
+        }
       },
       openWhatsapp: async (item) => {
         const digits = item.phone.replace(/\D/g, "");

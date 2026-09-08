@@ -542,6 +542,8 @@ export type Database = {
           id: string
           investor_id: string
           simulated: boolean
+          voided_at: string | null
+          voided_reason: string | null
         }
         Insert: {
           at?: string
@@ -553,6 +555,8 @@ export type Database = {
           id: string
           investor_id: string
           simulated?: boolean
+          voided_at?: string | null
+          voided_reason?: string | null
         }
         Update: {
           at?: string
@@ -564,6 +568,8 @@ export type Database = {
           id?: string
           investor_id?: string
           simulated?: boolean
+          voided_at?: string | null
+          voided_reason?: string | null
         }
         Relationships: []
       }
@@ -2838,6 +2844,8 @@ export type Database = {
           step: string | null
           template_id: string | null
           type: string
+          voided_at: string | null
+          voided_reason: string | null
         }
         Insert: {
           content_id?: string | null
@@ -2853,6 +2861,8 @@ export type Database = {
           step?: string | null
           template_id?: string | null
           type: string
+          voided_at?: string | null
+          voided_reason?: string | null
         }
         Update: {
           content_id?: string | null
@@ -2868,6 +2878,8 @@ export type Database = {
           step?: string | null
           template_id?: string | null
           type?: string
+          voided_at?: string | null
+          voided_reason?: string | null
         }
         Relationships: []
       }
@@ -3177,6 +3189,8 @@ export type Database = {
           attempts: number
           cancel_reason: string | null
           canonical_investor_id: string | null
+          claimed_at: string | null
+          claimed_by: string | null
           created_at: string
           due_at: string
           executed_at: string | null
@@ -3202,6 +3216,8 @@ export type Database = {
           attempts?: number
           cancel_reason?: string | null
           canonical_investor_id?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
           due_at: string
           executed_at?: string | null
@@ -3227,6 +3243,8 @@ export type Database = {
           attempts?: number
           cancel_reason?: string | null
           canonical_investor_id?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
           due_at?: string
           executed_at?: string | null
@@ -3848,6 +3866,8 @@ export type Database = {
           responsible_executive_id: string | null
           result: string | null
           state: string
+          voided_at: string | null
+          voided_reason: string | null
         }
         Insert: {
           canonical_investor_id?: string | null
@@ -3870,6 +3890,8 @@ export type Database = {
           responsible_executive_id?: string | null
           result?: string | null
           state?: string
+          voided_at?: string | null
+          voided_reason?: string | null
         }
         Update: {
           canonical_investor_id?: string | null
@@ -3892,6 +3914,8 @@ export type Database = {
           responsible_executive_id?: string | null
           result?: string | null
           state?: string
+          voided_at?: string | null
+          voided_reason?: string | null
         }
         Relationships: [
           {

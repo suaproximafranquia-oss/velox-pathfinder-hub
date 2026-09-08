@@ -64,6 +64,7 @@ async function eligibleLeadIds(nowIso: string): Promise<string[]> {
     .from("crm_messages")
     .select("investor_id,at")
     .like("id", "msg_e0_%")
+    .is("voided_at", null)
     .order("at", { ascending: false })
     .limit(BATCH);
   for (const row of firstContacts ?? []) ids.add(row.investor_id);
@@ -110,7 +111,8 @@ async function bootstrapMissingCadences(leadIds: string[]): Promise<number> {
     .from("crm_messages")
     .select("investor_id,at")
     .in("investor_id", missing)
-    .like("id", "msg_e0_%");
+    .like("id", "msg_e0_%")
+    .is("voided_at", null);
 
   let recovered = 0;
   for (const row of firstContacts ?? []) {
@@ -152,8 +154,24 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
   };
   const engine = productionEngine();
   const startedAt = new Date().toISOString();
+
+  /**
+   * E0 MANUAL → RÉGUA V2. Leads NOVOS de executivo em modo manual entram
+   * na régua aqui (idempotente), para que a fila exista mesmo sem
+   * ninguém abrir a Ação do Dia. Falha nunca derruba o ciclo.
+   */
+  try {
+    const { ensureManualE0Cadences } = await import("./e0-manual.server");
+    await ensureManualE0Cadences();
+  } catch (error) {
+    summary.errors.push(
+      `E0 manual: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+    );
+  }
+
   const leadIds = await eligibleLeadIds(startedAt);
   const recovered = await bootstrapMissingCadences(leadIds);
+
 
 
   for (const leadId of leadIds) {

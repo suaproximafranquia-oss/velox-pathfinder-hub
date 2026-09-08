@@ -224,6 +224,8 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         action_kind: item.actionKind ?? null,
         theoretical_date: item.theoreticalDate ?? null,
         origin_date: item.originDate ?? null,
+        // Reagendar uma linha antes neutralizada limpa o motivo antigo.
+        cancel_reason: item.cancelReason ?? null,
         updated_at: new Date().toISOString(),
       };
       const { data, error } = await supabaseAdmin

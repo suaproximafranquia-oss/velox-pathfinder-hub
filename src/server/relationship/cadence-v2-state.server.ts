@@ -70,14 +70,19 @@ export async function loadMaterialState(leadId: string): Promise<{
  * uma nova E0. Nada é apagado: o histórico existente é apenas lido.
  */
 async function loadE0Executed(leadId: string): Promise<boolean> {
+  // Registros ANULADOS (`voided_at`) são histórico: não contam como E0 feita.
   const { data } = await supabaseAdmin
     .from("workspace_e0_actions")
     .select("state")
     .eq("card_id", leadId)
     .eq("state", "EXECUTADA")
+    .is("voided_at", null)
     .limit(1);
   return ((data ?? []) as Row[]).length > 0;
 }
+
+/** Cancelamentos que NÃO representam decisão da régua (desfazer de resultado). */
+const NEUTRALIZED_CANCEL_REASONS = new Set(["undo_call_outcome"]);
 
 export async function loadCadenceV2State(record: CadenceRecord): Promise<V2DecisionInput | null> {
   const flow = v2FlowOf(record.flow);
@@ -87,7 +92,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
     await Promise.all([
       supabaseAdmin
         .from("relationship_queue")
-        .select("step,action_order,action_kind,status,due_at,executed_at,result")
+        .select("step,action_order,action_kind,status,due_at,executed_at,result,cancel_reason")
         .eq("scope", record.scope)
         .eq("lead_id", record.leadId)
         .order("due_at", { ascending: true }),
@@ -106,15 +111,21 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
     ]);
 
 
-  const actions: V2QueueAction[] = ((queueRows ?? []) as Row[]).map((row) => ({
-    step: row.step,
-    actionOrder: row.action_order ?? 1,
-    actionKind: row.action_kind === "call" ? "call" : "message",
-    status: row.status,
-    dueAt: row.due_at,
-    executedAt: row.executed_at ?? null,
-    result: row.result ?? null,
-  }));
+  const actions: V2QueueAction[] = ((queueRows ?? []) as Row[])
+    // Linha neutralizada por "desfazer resultado" não é decisão da régua.
+    .filter(
+      (row) =>
+        !(row.status === "CANCELLED" && NEUTRALIZED_CANCEL_REASONS.has(row.cancel_reason ?? "")),
+    )
+    .map((row) => ({
+      step: row.step,
+      actionOrder: row.action_order ?? 1,
+      actionKind: row.action_kind === "call" ? "call" : "message",
+      status: row.status,
+      dueAt: row.due_at,
+      executedAt: row.executed_at ?? null,
+      result: row.result ?? null,
+    }));
 
   const originIso =
     record.startedAt ?? (cycleRow as Row | null)?.started_at ?? (cycleRow as Row | null)?.created_at;

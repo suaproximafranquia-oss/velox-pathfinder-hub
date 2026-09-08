@@ -154,6 +154,20 @@ export function applyEvent(
       // Lead já conhecido que volta: nasce direto no fluxo de reentrada
       // (COMANDO 2B §1) — o primeiro contato nunca é repetido.
       if (event.data?.["reentry"] === true) next.flow = "reentrada";
+      /**
+       * E0 MANUAL (Financeira /f): o executivo está em modo manual, então
+       * a E0 NÃO é disparada pelo sistema — ela nasce como etapa REAL da
+       * régua V2 (ligação 1 → 10 min → ligação 2 → mensagem para copiar).
+       * A cadência abre já ativa, em E0, sem nenhum envio.
+       */
+      if (event.data?.["manualE0"] === true && current.state === "CADENCE_NOT_STARTED") {
+        next.startedAt = next.startedAt ?? event.at;
+        next.startedBy = "manual";
+        next.currentStep = "E0";
+        next.state = "CADENCE_ACTIVE";
+        reason = "E0 manual aberta na régua V2 — ligação 1 aguardando o executivo.";
+        break;
+      }
       reason = "Lead registrado no motor; cadência ainda não iniciada.";
       break;
 

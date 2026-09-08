@@ -115,7 +115,16 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
     return { kind: "none", reason: "Motor desabilitado — nenhum novo disparo é criado." };
   }
 
-  if (ctx.stageAtClosing !== undefined) {
+  /**
+   * RÉGUA V2 — decidida ANTES do filtro de estágio porque a E0 manual
+   * é a única etapa que vive em NOVOS: o lead ainda não teve contato,
+   * então a régua precisa cobrar ligação 1 → ligação 2 → mensagem ali.
+   * Para qualquer outra etapa (E1+), o filtro de estágio continua valendo.
+   */
+  const v2Decision = ctx.v2 && v2FlowOf(record.flow) ? decideCadenceV2(ctx.v2) : null;
+  const e0Obligation = v2Decision?.kind === "obligation" && v2Decision.step === "E0";
+
+  if (ctx.stageAtClosing !== undefined && !e0Obligation) {
     if (isTerminalStage(ctx.stageAtClosing)) {
       return {
         kind: "none",
@@ -141,8 +150,8 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
    * os fluxos E/R/RE: quem responde é `cadence-v2`. A gravação continua
    * passando pela MESMA porta de persistência (fila do motor).
    */
-  if (ctx.v2 && v2FlowOf(record.flow)) {
-    const decision = decideCadenceV2(ctx.v2);
+  if (v2Decision) {
+    const decision = v2Decision;
     if (decision.kind === "none") return { kind: "none", reason: decision.reason };
     return {
       kind: "schedule_step",

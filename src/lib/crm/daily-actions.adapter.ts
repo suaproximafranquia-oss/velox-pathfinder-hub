@@ -45,6 +45,8 @@ export type DailyActionsAdapter = {
     outcome: "SIM" | "NAO",
     rang?: boolean | null,
   ) => Promise<AdapterResult>;
+  /** Desfaz o último resultado de ligação da régua V2 (quando ainda reversível). */
+  undoCallOutcome?: (item: DailyAction) => Promise<AdapterResult>;
   openWhatsapp: (item: DailyAction) => Promise<AdapterResult>;
   /** Pular exige justificativa; o histórico é obrigatório. */
   skip: (item: DailyAction, reason: string) => Promise<AdapterResult>;
