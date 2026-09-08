@@ -32,6 +32,8 @@ export async function loadMaterialState(leadId: string): Promise<{
   materialSent: boolean;
   materialRequested: boolean;
   materialRequestedAt: string | null;
+  /** Instante da disponibilização formal (CONTENT_SENT), quando houver. */
+  materialSentAt: string | null;
 }> {
   const { data } = await supabaseAdmin
     .from("relationship_events")
