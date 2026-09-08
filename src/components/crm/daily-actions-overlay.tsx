@@ -13,6 +13,7 @@ import {
   CalendarDays,
   Check,
   ExternalLink,
+  Lock,
   MessageCircle,
   MessageSquare,
   Phone,
@@ -21,7 +22,11 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
-import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
+import type {
+  DailyActionsAdapter,
+  SkippedPendingView,
+  StepMessageView,
+} from "@/lib/crm/daily-actions.adapter";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   resolveOperationalWindow,
