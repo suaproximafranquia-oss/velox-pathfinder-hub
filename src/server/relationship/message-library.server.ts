@@ -386,30 +386,33 @@ export async function renameLibraryStep(params: {
   label: string;
 }): Promise<LibraryMessage[]> {
   await ensureLibrarySeed();
+  const stepKey = params.stepKey.trim().toUpperCase();
   const label = params.label.trim();
-  const title = label || DEFAULT_STEP_LABELS[params.stepKey] || params.stepKey;
+  const title = label || DEFAULT_STEP_LABELS[stepKey] || stepKey;
 
   /**
-   * Etapas AGUARDANDO TEXTO OFICIAL (E27, resposta automática, E20 e
-   * finalização antes da ativação) não têm versão ativa. O rótulo delas
-   * também precisa ser editável, então a gravação recai sobre a versão
+   * O rótulo é da ETAPA: em E7/E8 ele é gravado na versão vigente de
+   * cada contexto. Slots ainda sem versão ativa (aguardando texto) também
+   * precisam de rótulo editável, então a gravação recai sobre a versão
    * mais recente quando não existe versão ativa.
    */
-  const { data: rows } = await supabaseAdmin
-    .from("relationship_message_library")
-    .select("id,active,version")
-    .eq("scope", "production")
-    .eq("step_key", params.stepKey)
-    .order("version", { ascending: false });
-  const target =
-    (rows ?? []).find((r: any) => r.active) ?? (rows ?? [])[0] ?? null;
-  if (!target) return listLibraryMessages();
-
-  const { error } = await supabaseAdmin
-    .from("relationship_message_library")
-    .update({ title } as any)
-    .eq("id", (target as any).id);
-  if (error) throw new Error(error.message);
+  for (const context of stepCombinations(stepKey)) {
+    let query = supabaseAdmin
+      .from("relationship_message_library")
+      .select("id,active,version")
+      .eq("scope", "production")
+      .eq("step_key", stepKey);
+    query = context ? query.eq("step_context", context) : query.is("step_context", null);
+    const { data: rows } = await query.order("version", { ascending: false });
+    const target =
+      (rows ?? []).find((r: any) => r.active) ?? (rows ?? [])[0] ?? null;
+    if (!target) continue;
+    const { error } = await supabaseAdmin
+      .from("relationship_message_library")
+      .update({ title } as any)
+      .eq("id", (target as any).id);
+    if (error) throw new Error(error.message);
+  }
   return listLibraryMessages();
 }
 
