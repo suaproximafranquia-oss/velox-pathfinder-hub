@@ -23,7 +23,6 @@ import {
   resolveFollowUpReviewFn,
   skipDailyActionFn,
 } from "@/lib/crm/daily-actions.functions";
-import { executeFirstContactAction } from "@/lib/crm/first-contact-mode.functions";
 import type { DailyAction } from "@/lib/crm/daily-actions";
 import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
 
@@ -43,7 +42,6 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
   const fetchActions = useServerFn(listDailyActions);
   const completeTask = useServerFn(completeCadenceTaskFn);
   const registerWhatsapp = useServerFn(registerWhatsappCallAttemptFn);
-  const executeFirstContact = useServerFn(executeFirstContactAction);
   const skipAction = useServerFn(skipDailyActionFn);
   const noteAction = useServerFn(noteDailyActionFn);
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
@@ -297,7 +295,6 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
       fetchActions,
       completeTask,
       registerWhatsapp,
-      executeFirstContact,
       skipAction,
       noteAction,
       loadStepMessage,
