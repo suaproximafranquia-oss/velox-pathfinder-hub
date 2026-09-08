@@ -23,10 +23,8 @@ import {
 } from "@/lib/crm/daily-actions-overdue";
 import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import { listClosureDuties } from "@/server/relationship/closure.server";
-import {
-  filterE0WithFirstContact,
-  listPendingE0Actions,
-} from "@/server/crm/e0-actions.server";
+import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
+
 import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
@@ -95,12 +93,13 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   /**
    * E0 MANUAL → RÉGUA V2 (idempotente). Garante que todo lead NOVO de
    * executivo em modo manual tenha a E0 na fila do motor ANTES da
-   * leitura abaixo. Devolve os cards governados pela régua — para esses,
-   * o card legado "primeiro contato" não é exibido.
+   * leitura abaixo. Uma falha aqui NÃO reabre o caminho legado: o card
+   * antigo de primeiro contato deixou de existir como ação operacional.
    */
-  const governedE0 = await import("@/server/relationship/e0-manual.server")
+  await import("@/server/relationship/e0-manual.server")
     .then((m) => m.ensureManualE0Cadences())
     .catch(() => new Set<string>());
+
 
 
   const [meetingsRes, agendaRes, queueRes, cadenceQueue, closureDuties, firstContacts] =
