@@ -82,8 +82,14 @@ export type DailyAction = {
   title: string;
   responsibleName: string | null;
   cadence?: CadenceRef;
-  /** Ação de Primeiro Contato (E0) pendente de execução manual. */
+  /** Ação de Primeiro Contato (E0) pendente de execução manual (legado). */
   firstContactActionId?: string;
+  /** Item da fila da régua V2 (`relationship_queue.id`), quando for da fila. */
+  queueItemId?: string;
+  /** Ordem da ação interna dentro da etapa (1 = ligação 1, 2 = 2ª ligação, 3 = mensagem). */
+  queueActionOrder?: number;
+  /** Ação reivindicada pelo executivo (PROCESSING) — posição 1 protegida. */
+  claimed?: boolean;
   /** Reunião de origem (`portal_meetings.id`), quando for uma reunião. */
   meetingId?: string;
   /**
@@ -173,7 +179,14 @@ export function resolveBucket(input: {
  *   5. demais ações.
  */
 export function actionRank(action: DailyAction): number {
+  /**
+   * POSIÇÃO 1 PROTEGIDA: a ação já reivindicada pelo executivo (em
+   * atendimento) não é deslocada por novas liberações da régua.
+   */
+  if (action.claimed) return 0;
+  // LEAD NOVO — E0 legada ou E0 da régua V2 (ligação/mensagem).
   if (action.source === "first_contact") return 2;
+  if (action.source === "queue" && action.stepLabel === "E0") return 2;
   if (action.priorityMax) {
     if (action.bucket === "agora" || action.bucket === "atrasada") return 0;
     return 1;
