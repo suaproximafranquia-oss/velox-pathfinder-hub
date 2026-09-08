@@ -70,6 +70,10 @@ export async function materialActiveMsAfter(
 }
 
 /** Já existe decisão gravada do caminho V para este lead/ciclo? */
+export async function readVisualPath(leadId: string): Promise<boolean | null> {
+  return readDecision(leadId);
+}
+
 async function readDecision(leadId: string): Promise<boolean | null> {
   const { data } = await supabaseAdmin
     .from("relationship_events")
