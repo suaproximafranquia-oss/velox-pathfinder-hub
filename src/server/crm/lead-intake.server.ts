@@ -55,6 +55,12 @@ export type IntakeContext = {
    * dele que o executivo responsável é resolvido no servidor.
    */
   connectionUserId?: string | null;
+  /**
+   * Reprocessamento pontual de lead NOVO atrasado que já está no
+   * espelho (gravado indevidamente como histórico): trata a entrada
+   * como se estivesse acontecendo agora, sem alterar as datas reais.
+   */
+  forceEntry?: boolean;
 };
 
 export type IntakeOutcome = {
@@ -201,7 +207,8 @@ export async function intakeLead(
     },
     settings.cadenceActivationDate,
   );
-  const enteredNow = outcome.created ? Boolean(stage?.isEntry) : outcome.enteredEntryStage;
+  const enteredNow =
+    outcome.created || context.forceEntry ? Boolean(stage?.isEntry) : outcome.enteredEntryStage;
 
   if (enteredNow && !eligibility.eligible) {
     await recordEvent(outcome.lead.id, "e0_ignorada", eligibility.reason);

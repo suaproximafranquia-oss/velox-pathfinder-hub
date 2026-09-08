@@ -259,11 +259,30 @@ async function runLeadSyncInner(
     ((lead as Record<string, unknown>)["register"] as string) ??
     lead.created_at ??
     null;
-  const stageKeyOf = (lead: ScannedLead): string | null => {
+  const stageOf = (lead: ScannedLead) => {
     const tagIds = Array.isArray(lead.tags)
       ? (lead.tags as { id: number | string }[]).map((t) => String(t.id))
       : [];
-    return resolveBoardStage(pipeline, tagIds).stage?.key ?? null;
+    return resolveBoardStage(pipeline, tagIds).stage ?? null;
+  };
+  const stageKeyOf = (lead: ScannedLead): string | null => stageOf(lead)?.key ?? null;
+  /**
+   * Lead ausente do espelho: NOVOS na origem + entrada real a partir do
+   * corte operacional ⇒ lead novo (A), mesmo entregue com dias de
+   * atraso pela origem. Fora disso vale a regra da janela.
+   */
+  const classifyAbsent = (listed: ScannedLead, inWindowFlag: boolean) => {
+    const stage = stageOf(listed);
+    return classifyScannedLead({
+      inWindow: inWindowFlag,
+      inMirror: false,
+      mirrorStage: null,
+      resolvedStage: stage?.key ?? null,
+      resolvedIsEntry: Boolean(stage?.isEntry),
+      cutoverDate: settings.cadenceActivationDate ?? null,
+      entryAt: entryAtOf(listed),
+      since,
+    });
   };
 
   const toProcess: { listed: ScannedLead; cls: "A" | "B" | "C" }[] = [];
@@ -275,14 +294,7 @@ async function runLeadSyncInner(
       toProcess.push({ listed, cls: "A" });
       continue;
     }
-    const cls = classifyScannedLead({
-      inWindow: true,
-      inMirror: false,
-      mirrorStage: null,
-      resolvedStage: stageKeyOf(listed),
-      entryAt: entryAtOf(listed),
-      since,
-    });
+    const cls = classifyAbsent(listed, true);
     // Fora do espelho a classificação só produz A ou B; a guarda é só
     // para o tipo. Um "D" aqui seria contradição — não processar.
     if (cls === "D") continue;
@@ -305,8 +317,11 @@ async function runLeadSyncInner(
     const externalId = String(listed.id);
     if (inWindow.has(externalId)) continue;
     if (!storedStage.has(externalId)) {
-      // Histórico ausente do espelho — recuperação (CASO B), nunca E0.
-      toProcess.push({ listed, cls: "B" });
+      // Ausente do espelho fora da janela: NOVOS pós-corte é lead novo
+      // atrasado (A); qualquer outro caso é recuperação histórica (B).
+      const cls = classifyAbsent(listed, false);
+      if (cls === "D") continue;
+      toProcess.push({ listed, cls });
       continue;
     }
     const resolved = stageKeyOf(listed);
@@ -689,4 +704,74 @@ export async function runGreenSalesBackfill(
   }
 
   return finish("OK");
+}
+
+/**
+ * REPROCESSAMENTO PONTUAL — LEADS NOVOS ATRASADOS.
+ *
+ * Leads que a origem devolveu dias após a entrada e que foram gravados
+ * indevidamente como histórico (sem Portal, sem card, sem E0). Não é
+ * backfill genérico: só os IDs informados, e apenas quando o lead ainda
+ * está na etapa de entrada da origem e continua sem espelho no Portal.
+ * Percorre o caminho único `intakeLead` (Portal → card → E0 manual →
+ * fila), preservando as datas reais de entrada.
+ */
+export async function reprocessDelayedNewLeads(
+  externalIds: string[],
+): Promise<{ externalId: string; status: string; detail?: string }[]> {
+  const out: { externalId: string; status: string; detail?: string }[] = [];
+  const pipeline = await loadPipeline(DEFAULT_PIPELINE_EXTERNAL_ID);
+  if (!pipeline) throw new Error("Funil não configurado no CRM.");
+  const settings = await loadSettings();
+  const { greenSalesLogin, fetchLeadDetail } = await import("@/server/greensales.server");
+  const { resolveConnectionContext } = await import("@/server/crm/connections.server");
+  const connection = await resolveConnectionContext(null);
+  const token = await greenSalesLogin(connection?.credentials ?? null);
+  const connectionUserId = connection?.ownerUserId ?? null;
+
+  for (const externalId of externalIds) {
+    try {
+      const { data: mirror } = await supabaseAdmin
+        .from("portal_leads")
+        .select("id")
+        .eq("id", `gs_${externalId}`)
+        .maybeSingle();
+      if (mirror) {
+        out.push({ externalId, status: "ja_espelhado" });
+        continue;
+      }
+      const detail = await fetchLeadDetail(token, externalId);
+      if (!detail) {
+        out.push({ externalId, status: "nao_encontrado_na_origem" });
+        continue;
+      }
+      const raw = { ...detail, id: externalId } as Record<string, unknown>;
+      const tagIds = Array.isArray(raw["tags"])
+        ? (raw["tags"] as { id: number | string }[]).map((t) => String(t.id))
+        : [];
+      const { stage } = resolveBoardStage(pipeline, tagIds);
+      if (!stage?.isEntry) {
+        out.push({ externalId, status: "fora_de_novos", detail: stage?.key ?? "sem_coluna" });
+        continue;
+      }
+      const outcome = await intakeLead(raw, {
+        pipeline,
+        settings,
+        connectionUserId,
+        forceEntry: true,
+      });
+      out.push({
+        externalId,
+        status: outcome.failed ? "falhou" : `intake:${outcome.e0}`,
+        detail: outcome.error ?? outcome.e0Reason ?? outcome.cardId ?? undefined,
+      });
+    } catch (error) {
+      out.push({
+        externalId,
+        status: "erro",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return out;
 }
