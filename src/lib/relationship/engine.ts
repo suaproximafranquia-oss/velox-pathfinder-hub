@@ -496,7 +496,13 @@ export function createEngine(options: EngineOptions): Engine {
         result: null,
         reason: action.reason,
         flowVersionId: record.flowVersionId ?? null,
+        actionOrder: action.kind === "schedule_step" ? (action.actionOrder ?? null) : null,
+        actionKind: action.kind === "schedule_step" ? (action.actionKind ?? null) : null,
+        theoreticalDate:
+          action.kind === "schedule_step" ? (action.theoreticalDate ?? null) : null,
+        originDate: action.kind === "schedule_step" ? (action.originDate ?? null) : null,
       });
+
       return action.step;
     } catch {
       // Programar a próxima etapa é complementar: a etapa já executada
