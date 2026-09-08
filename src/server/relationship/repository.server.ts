@@ -71,6 +71,11 @@ function toQueueItem(row: Row): QueueItem {
     result: row.result ?? null,
     reason: row.reason ?? null,
     flowVersionId: row.flow_version_id ?? null,
+    actionOrder: row.action_order ?? null,
+    actionKind: (row.action_kind ?? null) as "call" | "message" | null,
+    theoreticalDate: row.theoretical_date ?? null,
+    originDate: row.origin_date ?? null,
+    cancelReason: row.cancel_reason ?? null,
   };
 }
 
@@ -214,6 +219,11 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         reason: item.reason,
         // Versão herdada do ciclo: a ação pendente continua explicável.
         flow_version_id: item.flowVersionId ?? null,
+        // RÉGUA V2: ação interna, data teórica e origem do ciclo.
+        action_order: item.actionOrder ?? 1,
+        action_kind: item.actionKind ?? null,
+        theoretical_date: item.theoreticalDate ?? null,
+        origin_date: item.originDate ?? null,
         updated_at: new Date().toISOString(),
       };
       const { data, error } = await supabaseAdmin
