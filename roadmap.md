@@ -86,3 +86,10 @@
 - [x] Importação assíncrona: fila server-side (name_central_imports + blocos), digestão em segundo plano com retomada, progresso persistente
 - [x] Upload Word (.docx) usando o mesmo pipeline da colagem
 - [x] Listagem paginada + contador real no banco (fim do limite de 20.000)
+
+## Biblioteca — régua editorial (07/09)
+- [x] Comparação histórico x atual: nenhum texto oficial desapareceu (E3 e R1 preservados como versões inativas)
+- [ ] Camada editorial E0–E8 / R1–R4 / RE0–RE3 / RF0–RF1 sobre as chaves técnicas (sem renomear step_key)
+- [ ] Reativar/republicar E3 (chave E3 v1) e R1 (chave R1 v1) após decisão do administrador
+- [ ] Renumeração de display_position na ordem editorial (construção separada)
+- [ ] Janela temporária de domingo em resolveOperationalWindow (se aprovada)
