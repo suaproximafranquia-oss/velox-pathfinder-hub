@@ -1,51 +1,90 @@
-# Diagnóstico — Resolver pendência dentro da Central de Operações (/f)
+# DIAGNÓSTICO — follow_up do GreenSales x coluna VÍDEO (somente Financeira /f)
 
-Somente leitura. Nada foi alterado.
+Nenhum código, banco, migration ou teste foi alterado. Diagnóstico de leitura.
 
-## Respostas
+## Achado central (muda o enunciado da pergunta)
 
-**1. A pendência guarda informação suficiente?**
-No histórico, SIM. O registro do pulo (`acao_do_dia_pulada` em `relationship_engine_log`) grava `actionKey`, `leadId`, `kind`, `step`, `title`, `motivo`, executivo e data operacional.
-O que a Central recebe hoje é MENOS que isso: `SkipRecord` (operations-center.server.ts) expõe apenas dia, hora, executivo, investidor, etapa, motivo e "recuperada" — **não** expõe `actionKey` nem `kind`. Sem esses dois campos a Central não sabe qual ação abrir.
+No GreenSales, "agendamento" e "vídeo chamada" **não são duas colunas de dados do lead**: são duas **colunas do quadro (etapas)**. O campo de horário é **um só**: `follow_up`.
 
-**2. O card da Ação do Dia pode ser reaproveitado?**
-SIM, conceitualmente — é o mesmo contrato (`DailyActionsAdapter`) e as mesmas funções de servidor. Porém o card hoje vive dentro de `daily-actions-overlay.tsx` (arquivo único de ~1.270 linhas, com fila, seleção, trava de posição 1 e pendências juntos). Para usar na Central é preciso extrair o card em um componente próprio que receba UMA ação e o adaptador, sem duplicar regra.
+Confirmado no banco (`crm_pipeline_stages`):
 
-**3. A recuperação já funciona quando a pendência é concluída depois?**
-SIM. `recordSkipRecovery` grava `acao_do_dia_pulo_recuperado` uma única vez, só se houver pulo anterior, e a Central deixa de contar aquele item como pulo (marca "Recuperada").
+```text
+position 4  key=agendamentos  label=AGENDAMENTOS  external_tag=28
+position 6  key=video         label=VÍDEO         external_tag=27
+```
 
-**4. Por tipo de ação hoje:**
-- Mensagem: **SIM** — `registerDailyActionMessage` chama `recordSkipRecovery` quando a etapa é concluída.
-- Reunião: **SIM** — `resolveMeetingOutcome`, apenas quando "compareceu".
-- Ligação: **NÃO** — o caminho da ligação da régua V2 (`registerQueueCallOutcomeFn` / adaptador `completeCall`) não chama `recordSkipRecovery` em lugar nenhum.
+E existem hoje leads reais parados na coluna VÍDEO **com follow_up preenchido e ignorados**:
 
-**5. Ligação pulada e depois resolvida é registrada como recuperada?**
-NÃO. É exatamente a lacuna do item 4.
+```text
+59056  Marcelo Lira   stage_key=video  follow_up=2026-09-10 15:00:00
+57239  Yuri Araújo    stage_key=video  follow_up=2026-08-27 20:00:00
+```
 
-**6. Histórico do pulo preservado?**
-SIM. Nada é apagado ou reescrito: pulo, retomada (`acao_do_dia_pulo_retomado`) e recuperação são três registros distintos.
+## A) O QUE O SISTEMA FAZ HOJE
 
-**7. Os indicadores refletem a recuperação?**
-PARCIALMENTE. Mensagem e reunião: sim — sai de "Pulos", entra em "Mensagens"/"Reuniões" e também em "Pendências recuperadas". Ligação: não — permanece como pulo e a ligação recuperada não aparece nas ligações do período, porque as ligações são contadas por `relationship_queue` mas a baixa do pulo depende do registro de recuperação, que não existe para ligação.
+A cada rodada de sincronização, ao final de `runLeadSync`, o Portal varre os leads GreenSales cujo `stage_key = 'agendamentos'`, lê o campo `follow_up`, interpreta o horário em America/Sao_Paulo e espelha um único registro em `portal_meetings` (criar / atualizar / cancelar / nada). Fora de AGENDAMENTOS, nada é criado; e se o lead sai de AGENDAMENTOS com espelho pendente, o compromisso é **cancelado** (`CANCELADO_SAIDA_AGENDAMENTOS`).
 
-**8. Trocar o link do Workspace por "Resolver pendência" na própria Central?**
-SIM, é viável reaproveitando a estrutura existente: mesma `actionKey`, mesmas funções de servidor, mesmo adaptador. Nenhuma segunda fila, tabela ou motor é necessário.
+## B) ONDE O CÓDIGO CONSULTA O FOLLOW_UP
 
-## Resumo
+- `src/server/crm/lead-sync.server.ts` (~linhas 496-511): coleta `follow_up` da listagem da origem e chama `syncGreenSalesFollowUps(overrides)`.
+- `src/server/crm/greensales-followup.server.ts`: `syncGreenSalesFollowUps` (busca `crm_leads` com `.eq("stage_key", AGENDAMENTOS_STAGE)`), `syncOneFollowUp`, `loadMirror`, gravação em `portal_meetings`.
+- `src/lib/crm/greensales-followup.ts`: `planFollowUpSync` (regra pura), `parseFollowUp`, `followUpExternalRef`, `followUpMeetingId`.
 
-**Já existe:** registro completo do pulo; retomada da mesma ação; recuperação para mensagem e reunião; contadores "Pulos" e "Pendências recuperadas"; funções de servidor de todas as ações (ligação, mensagem, reunião) já protegidas por autenticação.
+## C) QUAL CAMPO É CONSULTADO HOJE
 
-**Está faltando:**
-1. `actionKey` e `kind` no que a Central entrega para a tela.
-2. Registro de recuperação no desfecho de ligação.
-3. Um card operacional isolado, hoje preso dentro da tela da Ação do Dia.
-4. Na Central, a coluna do investidor abre o Workspace em vez de resolver a pendência.
+Um único campo: `raw_payload->>'follow_up'` (ou o override vindo da listagem). A elegibilidade vem de `stage_key === 'agendamentos'` — comparação literal em `planFollowUpSync`.
 
-## Menor ajuste necessário (quando autorizado)
+## D) COMO "VÍDEO CHAMADA" É TRATADA HOJE
 
-1. Acrescentar `actionKey` e `kind` ao `SkipRecord` (só leitura, sem migration).
-2. Chamar `recordSkipRecovery` também no desfecho da ligação da fila V2 (uma chamada, idempotente).
-3. Extrair o card da ação do overlay para um componente reutilizável e abri-lo em uma janela sobre a Central, alimentado pela mesma ação da fila.
-4. Substituir o link externo por um botão "Resolver pendência", mantendo o acesso à ficha como ação secundária.
+Não é tratada. A etapa `video` existe no quadro e é espelhada em `crm_leads.stage_key`, mas nenhum ponto do código de follow-up, agenda ou Ação do Dia menciona essa etapa. O lead em VÍDEO cai no ramo `ignore` ("Lead fora de AGENDAMENTOS").
 
-Nada disso exige migration, nova tabela, nova fila ou alteração em cadência, Biblioteca ou outros ambientes.
+## E) O CAMPO JÁ CHEGA NA SINCRONIZAÇÃO?
+
+Sim, integralmente. O `follow_up` já chega e já é armazenado para os leads em VÍDEO (evidência acima). Não falta dado, falta leitura.
+
+## F) portal_meetings JÁ SUPORTA OS DOIS TIPOS?
+
+Estruturalmente sim, sem migration obrigatória. A tabela tem `topic`, `origin`, `external_source`, `external_ref`, `meeting_provider`, `meet_url`, `notes (jsonb)`. Não existe campo dedicado de **modalidade**. Hoje o tipo é implícito em `topic = "Agendamento (GreenSales)"`. Identificar videochamada pode ser feito por `topic` (ex.: "Videochamada (GreenSales)") — zero alteração estrutural — ou, se quiser filtro estruturado, uma coluna `meeting_kind` seria a extensão mínima e aditiva.
+
+## G) RISCO DE DUPLICIDADE
+
+Nenhum. A identidade é por lead, não por coluna: `external_ref = f:greensales:lead:<externalId>:follow_up` e `id = gsfu_<externalId>`, com índice único `portal_meetings_external_ref_uidx (external_source, external_ref)` e upsert `ignoreDuplicates`. Como o horário vem de um único `follow_up`, é impossível gerar dois compromissos para o mesmo lead — o registro é o mesmo, mude o lead de AGENDAMENTOS para VÍDEO ou vice-versa.
+
+## H) CASO "AGENDAMENTO + VÍDEO CHAMADA"
+
+Não existe esse caso no modelo real: o lead ocupa **uma** coluna por vez e possui **um** `follow_up`. Portanto não há dois compromissos a fundir. Se o lead migrar de AGENDAMENTOS para VÍDEO mantendo o mesmo horário, o mesmo registro seria reaproveitado.
+
+## I) CASO "SOMENTE VÍDEO CHAMADA"
+
+Hoje: nada acontece (ramo `ignore`). Pior: se o lead estava em AGENDAMENTOS com espelho pendente e é movido para VÍDEO, o compromisso existente é **cancelado** como se tivesse saído do fluxo — este é o efeito colateral mais relevante do estado atual.
+
+## J) MENOR ALTERAÇÃO NECESSÁRIA
+
+Tratar VÍDEO como uma segunda etapa elegível do mesmo mecanismo:
+
+1. `greensales-followup.ts`: constante `VIDEO_STAGE = "video"` e um conjunto de etapas elegíveis; `planFollowUpSync` passa a aceitar as duas, devolvendo também a modalidade (`AGENDAMENTO` | `VIDEOCHAMADA`) derivada do `stage_key`.
+2. `greensales-followup.server.ts`: consulta com `.in("stage_key", [...])` em vez de `.eq(...)`; `topic` conforme a modalidade; troca de coluna entre as duas etapas vira **atualização de modalidade**, não cancelamento.
+3. Sem nova fila, motor, tabela ou agenda. O mesmo `portal_meetings` alimenta a mesma Ação do Dia e a mesma prioridade/foco.
+
+## K) ARQUIVOS/FUNÇÕES REALMENTE ENVOLVIDOS
+
+- `src/lib/crm/greensales-followup.ts` — `planFollowUpSync`, constantes de etapa.
+- `src/server/crm/greensales-followup.server.ts` — `syncGreenSalesFollowUps`, `syncOneFollowUp`, `MIRROR_TOPIC`.
+- (opcional, só apresentação) rótulo do card em `src/server/crm/daily-actions.server.ts` / `daily-action-card.tsx`.
+
+## L) O QUE NÃO PRECISA SER ALTERADO
+
+Ação do Dia, `relationship_queue`, motor V2, Biblioteca, E0/E4/E7/E8, R1–R4, Central de Operações, Central dos Nomes, GreenSales (leitura), estrutura de `portal_meetings`, Safety Lock, `/s`, `/s/portal`, `/seg`.
+
+## Itens 22-25
+
+- **22. Sincronização:** a atualização é amarrada ao par (lead, `follow_up`), não à coluna. Passa a funcionar igual para VÍDEO assim que a etapa for elegível.
+- **23. Cancelamento:** hoje some o `follow_up` → `CANCELADO_ORIGEM`. Mesma estrutura serve para VÍDEO sem nada novo.
+- **24. Reagendamento:** já é genérico (compara `scheduled_at` e o texto bruto do `follow_up`); só o filtro de etapa é específico.
+- **25. T-5:** a constante `FOLLOW_UP_FOCUS_MINUTES = 5` e o foco da Ação do Dia atuam sobre o registro de `portal_meetings`, sem olhar a etapa de origem — videochamada usaria exatamente a mesma prioridade.
+
+## RESPOSTAS FINAIS
+
+1. **Hoje o Portal olha somente a coluna agendamento?** Sim. A elegibilidade é `stage_key = 'agendamentos'`, literal, em um único ponto.
+2. **A coluna vídeo chamada já chega ao Portal?** Sim. A etapa VÍDEO já está mapeada e o `follow_up` desses leads já está gravado — só não é lido.
+3. **Dá para reaproveitar a mesma lógica sem segundo motor?** Sim. É trocar uma comparação de etapa por um conjunto de etapas elegíveis e carregar a modalidade; tudo desemboca no mesmo `portal_meetings` e na mesma Ação do Dia.
