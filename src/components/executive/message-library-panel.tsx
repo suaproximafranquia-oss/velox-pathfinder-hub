@@ -258,42 +258,36 @@ export function MessageLibraryPanel() {
             <ul className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
               {visibleSteps.map((key) => {
                 const list = steps.get(key) ?? [];
+                const contextual = key === "E7" || key === "E8";
                 const current = list.find((m) => m.active) ?? list[0];
-                /* Sem versão ativa = o motor NÃO envia esta etapa. O
-                   rótulo continua editável; o texto é que falta. */
-                const awaiting = !list.some((m) => m.active && m.body.trim());
-                return (
-                  <li
-                    key={key}
-                    draggable
-                    onDragStart={() => setDragKey(key)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      void dropOn(key);
-                    }}
-                    onDragEnd={() => setDragKey(null)}
-                    className={dragKey === key ? "opacity-50" : ""}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => openStep(key)}
-                      className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${
-                        step === key
-                          ? "border-[color:var(--gold)] text-[color:var(--gold)]"
-                          : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
-                      }`}
-                    >
-                      <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab opacity-50" />
-                      <span className="min-w-0 flex-1 truncate">
-                        {current?.displayLabel ?? key}
-                        <span className="ml-1 text-[10px] opacity-60">({key})</span>
+                /* Sem versão ativa = o motor NÃO envia esta etapa. Em E7/E8
+                   cada contexto precisa da própria versão ativa; uma linha
+                   sem contexto não conta para elas. O rótulo continua
+                   editável; o texto é que falta. */
+                const hasText = (c: LibraryMessage["stepContext"]) =>
+                  list.some((m) => m.stepContext === c && m.active && m.body.trim());
+                const pendingContexts = contextual
+                  ? (["SEM_CONTATO", "MATERIAL_ENVIADO"] as const).filter((c) => !hasText(c))
+                  : [];
+                const awaiting = contextual ? pendingContexts.length > 0 : !hasText(null);
+                const labelText = (current?.displayLabel ?? key).replace(
+                  new RegExp(`^${key}\\s*[—–-]\\s*`),
+                  "",
+                );
+...
+                      <span className="shrink-0 rounded-md border border-current/30 px-1.5 py-0.5 font-mono text-[10px]">
+                        {key}
                       </span>
+                      <span className="min-w-0 flex-1 truncate">{labelText}</span>
                       <span className="shrink-0 text-[10px]">
                         {awaiting ? (
                           <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-amber-400">
-                            aguardando texto oficial
+                            {contextual && pendingContexts.length === 1
+                              ? `${pendingContexts[0]} aguardando texto`
+                              : "aguardando texto oficial"}
                           </span>
+                        ) : contextual ? (
+                          "2 contextos ativos"
                         ) : (
                           `v${current?.version}`
                         )}
@@ -320,8 +314,9 @@ export function MessageLibraryPanel() {
                 {needsContext ? (
                   <div className="rounded-xl border border-[color:var(--border)] p-3">
                     <p className="mb-2 text-[11px] text-[color:var(--muted-foreground)]">
-                      Contexto do conteúdo — cada um tem texto próprio, sem
-                      aproveitar o do outro.
+                      {step} tem dois contextos independentes, cada um com texto COM
+                      NOME e SEM NOME (quatro conteúdos). Nenhum contexto aproveita o
+                      texto do outro; contexto sem versão ativa fica bloqueado.
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {(
@@ -340,7 +335,7 @@ export function MessageLibraryPanel() {
                               : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
                           }`}
                         >
-                          {text}
+                          <span className="font-mono">{value}</span> · {text}
                         </button>
                       ))}
                     </div>
@@ -371,6 +366,10 @@ export function MessageLibraryPanel() {
                     Chave técnica {step} — imutável.
                   </span>
                 </div>
+                <p className="text-[11px] text-[color:var(--muted-foreground)]">
+                  <span className="font-mono">COM_NOME</span> — usada quando o primeiro nome
+                  do investidor foi validado (Central dos Nomes).
+                </p>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -380,8 +379,9 @@ export function MessageLibraryPanel() {
                 />
                 <div>
                   <p className="mb-1 text-[11px] text-[color:var(--muted-foreground)]">
-                    Versão SEM nome — usada quando o nome do investidor não foi validado.
-                    Deixe em branco para usar sempre o texto acima.
+                    <span className="font-mono">SEM_NOME</span> — usada quando o nome do
+                    investidor não foi validado. Deixe em branco para usar sempre o texto
+                    acima.
                   </p>
                   <textarea
                     value={draftWithoutName}
