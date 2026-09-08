@@ -97,11 +97,16 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       .limit(500),
     supabaseAdmin
       .from("relationship_queue")
-      .select("id,lead_id,flow,step,due_at,priority,status,scope")
+      .select("id,lead_id,flow,step,due_at,priority,status,scope,action_order,action_kind")
       .eq("status", "PENDING")
       .lt("due_at", horizonEnd)
       .limit(1000),
-    buildCadenceQueue("call").catch(() => []),
+    /**
+     * L1–L4 APOSENTADAS: a fila legada de ligações não gera mais
+     * obrigação nova. As ligações passaram a nascer na régua V2, dentro
+     * da própria etapa. O histórico continua gravado e visível no lead.
+     */
+    Promise.resolve([] as Awaited<ReturnType<typeof buildCadenceQueue>>),
       listClosureDuties(nowIso).catch(() => []),
       listPendingE0Actions(input.executiveId).catch(() => []),
     ]);
@@ -281,10 +286,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     const identity = identities.get(leadId);
     const dueDate = operationalDate(item.due_at);
     if (dueDate > today) continue;
+    const isCall = (item as { action_kind?: string | null }).action_kind === "call";
+    const order = Number((item as { action_order?: number | null }).action_order ?? 1);
     actions.push({
-      actionKey: `queue:${leadId}:${item.flow}-${item.step}:${item.id}`,
+      actionKey: `queue:${leadId}:${item.flow}-${item.step}-${order}:${item.id}`,
       source: "queue",
-      kind: "mensagem",
+      kind: isCall ? "ligacao" : "mensagem",
       leadId,
       name: identity?.name ?? "Investidor",
       phone: identity?.phone ?? "",
@@ -298,15 +305,21 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       bucket: isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso)
         ? "atrasada"
         : "hoje",
-      // A ação humana é COPIAR o texto oficial e colar no WhatsApp.
-      title: `Etapa ${item.step} — Copiar mensagem`,
+      // Ligação é ligação; mensagem é COPIAR o texto oficial da Biblioteca.
+      title: isCall
+        ? `Etapa ${item.step} — Ligação${order > 1 ? ` (${order}ª)` : ""}`
+        : `Etapa ${item.step} — Copiar mensagem`,
       responsibleName: null,
       attempts: [],
-      messageRef: {
-        step: String(item.step ?? ""),
-        flow: (item.flow as string) ?? null,
-        origin: "queue",
-      },
+      ...(isCall
+        ? {}
+        : {
+            messageRef: {
+              step: String(item.step ?? ""),
+              flow: (item.flow as string) ?? null,
+              origin: "queue" as const,
+            },
+          }),
     });
   }
 
