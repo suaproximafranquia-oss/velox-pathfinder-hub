@@ -444,3 +444,48 @@ export const postponeNewLeadFn = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+
+/**
+ * PENDÊNCIAS PULADAS DO EXECUTIVO — somente leitura do histórico.
+ * Não é uma segunda fila: apenas mostra o que foi pulado e ainda não
+ * foi concluído, para que a MESMA ação possa ser retomada.
+ */
+export const listSkippedPendingsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { listSkippedPendings } = await import("@/server/crm/daily-actions-log.server");
+    return listSkippedPendings({ executiveId });
+  });
+
+/**
+ * RESOLVER PENDÊNCIA — devolve a MESMA obrigação para a fila de hoje.
+ * Nenhuma ação nova é criada e o pulo original permanece no histórico.
+ */
+export const resumeSkippedActionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { actionKey: string }) =>
+    z.object({ actionKey: z.string().min(1) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { listSkippedPendings, resumeSkippedAction } = await import(
+      "@/server/crm/daily-actions-log.server"
+    );
+    /** Só o dono da pendência pode retomá-la. */
+    const pendings = await listSkippedPendings({ executiveId });
+    const target = pendings.find((p) => p.actionKey === data.actionKey);
+    if (!target) throw new Error("Pendência não encontrada para este Executivo.");
+    await resumeSkippedAction({
+      actionKey: target.actionKey,
+      leadId: target.leadId,
+      kind: target.kind,
+      step: target.step,
+      title: target.title,
+      userId: context.userId,
+      executiveId,
+    });
+    return { ok: true as const };
+  });
