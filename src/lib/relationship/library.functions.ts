@@ -55,8 +55,8 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
   });
 
 /**
- * RÓTULO VISÍVEL DA ETAPA. Só apresentação: a chave técnica (E0–E8,
- * R1–R4, RE0–RE3) permanece intocada no banco, na fila e no histórico.
+ * IDENTIDADE DA ETAPA ("CÓDIGO — Título"). Trocar o código sincroniza a
+ * chave técnica com o novo código; só o título não altera a chave.
  */
 export const renomearRotuloEtapa = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
