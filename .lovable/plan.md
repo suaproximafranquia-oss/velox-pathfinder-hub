@@ -1,54 +1,29 @@
-# Financeira /f — Última construção do Motor, Biblioteca e Agendamento
+# Financeira /f — Leads NOVOS que não chegam ao Workspace
 
-Escopo exclusivo: Corporate Workspace / Financeira `/f`. Nada em `/`, `/s`, `/s/portal`, `/seg`, Solar ou Seguros.
-Régua: E0–E8, R1–R4, RE0–RE3. ER não existe. RF permanece só conceito futuro.
+## Resposta (somente leitura — nada foi alterado)
 
-## 1. Camada editorial da Biblioteca
+GREENSALES: 36 na origem (35 já espelhados em `crm_leads` na etapa NOVOS; 1 ainda não ingerido)
 
-O texto de quase toda etapa existe, mas está guardado sob a chave de uma geração anterior. Nenhuma chave técnica é renomeada e nenhum texto é reescrito: cria-se um mapa oficial entre o nome de negócio e a chave onde o texto realmente está.
+PORTAL: 21 dos 35 (todos ativos, todos com responsável `usr_thiago`)
 
-- Mapa: E2→`E3`, E3→`E12`, E4→`E2`, E5→`RE0`, E6→`E20`, E7→`E27`, E8→`RE1`, R2→`E4`, R3→`E5`, R4→`RE2`, RE0→`E6`, RE1→`E7`, RE2→`FINALIZACAO`, RE3→`R1`. E0 e E1 já estão corretos.
-- A Biblioteca passa a exibir e ordenar pelo nome de negócio; o motor busca o conteúdo pelo mapa.
-- R1 volta a ter versão ativa a partir da versão histórica existente, publicada como nova versão (sem apagar histórico).
-- Legado (ER*, RF0, RF1, V3, V4, TESTE, E0_V1, E30, RESPOSTA_AUTOMATICA) sai da visão operacional e permanece consultável como histórico.
+WORKSPACE: 21 (card operacional existe exatamente para os mesmos 21)
 
-## 2. E7 e E8 com os quatro conteúdos
+AÇÃO DO DIA E0: 21 (todos com Ligação 1 — Etapa E0 pendente na fila V2)
 
-Hoje a tela só oferece "com nome" e "sem nome". Passa a oferecer, para E7 e E8, quatro espaços:
-sem contato + com nome, sem contato + sem nome, material enviado + com nome, material enviado + sem nome.
-Espaços sem texto ficam pendentes e visíveis; nenhum texto é inventado. As demais etapas seguem com dois espaços.
+LEADS QUE ESTÃO NO PORTAL MAS NÃO NO WORKSPACE: 0 — a perda não é entre Portal e Workspace; é ANTES do Portal. 14 leads NOVOS existem só em `crm_leads` e nunca ganharam espelho no Portal, card nem E0 (59034, 59044, 59050, 59056, 59066, 59076, 59081, 59092, 59096, 59108, 59114, 59148, 59168, 59196).
 
-## 3. E0 dentro da régua V2
+CAUSA EXATA DO BLOQUEIO:
+Os 14 entraram no GreenSales entre 05/09 e 07/09, mas a sincronização só os devolveu hoje, 08/09, às 10:49 e 10:55 UTC (duas execuções do cron: 8 e 15 encontrados, 7 + 7 criados). Ao chegar, o classificador `classifyScannedLead` (`src/lib/crm/sync-classification.ts`, linha 43-49) comparou a data de entrada do lead (`last_register_at` / `register` / `created_at`, dias atrás) com a janela `since` da execução (~10:37 UTC de hoje). Como a data de entrada é anterior à janela, o lead foi classificado como **CASO B — histórico nunca ingerido**, e o `lead-sync.server.ts` (linhas 376-412) o gravou via `upsertLead({ historical: true })`: sem espelho no Portal, sem card, sem E0, `welcome_status = NOT_APPLICABLE` (os 14 têm exatamente essa marca). O caminho único de entrada (`intakeLead`, que cria espelho → card → E0 manual) nunca foi chamado para eles.
 
-E0 passa a ser: ligação → 10 minutos → ligação → mensagem, dentro da janela do executivo.
-O modo manual/automático continua vindo exclusivamente da configuração do executivo, sem exceção por lead. Ligação atendida encerra o E0 e aguarda encaminhamento.
+Em resumo: um lead NOVO real que a origem entrega com atraso é tratado como carga histórica. O modo MANUAL do E0 não tem participação nenhuma — os 21 que passaram pelo intake ganharam card e E0 manual normalmente.
 
-## 4. Fechamento do motor
-
-- Cancelamento por ligação atendida passa a atingir só as ações que perderam finalidade, não o lead inteiro.
-- A espera por encaminhamento ganha encerramento real quando o executivo registra o desfecho.
-- O estágio anterior do lead passa a ser gravado, para a regra de reengajamento funcionar de fato.
-- O ramo de material (E4→E5) ganha os dois registros que faltam: material solicitado e material efetivamente enviado, gravados quando o executivo confirma.
-- L1–L4 continuam apenas como histórico.
-
-## 5. Agendamento e follow-up
-
-- O campo de follow-up que já chega do GreenSales passa a ser lido e transformado em compromisso, só para lead em Agendamentos, com vínculo ao lead e identidade de origem.
-- Reagendamento na origem atualiza o mesmo compromisso; remoção na origem cancela com histórico.
-- Depois do horário do compromisso: pergunta se houve contato, estado "vencido sem contato" e obrigação de retomada em 24 horas.
-- Compromisso de retorno combinado numa ligação ("te ligo quarta") vira compromisso formal.
-- Transição de Agendamentos para Frios feita por decisão humana libera a cadência de reengajamento.
-
-## 6. Atraso e nomes
-
-- Estado NOVO passa a existir e o corte de atraso deixa de usar 18:00, respeitando a janela e o dia útil (sexta 17:31 não vira atrasado na segunda).
-- A decisão com nome / sem nome passa a consultar a Central dos Nomes (100.787 nomes) no momento do COPIAR, usando apenas o primeiro nome e comparação sem acento. Nada é aprendido, adicionado ou alterado na Central.
+CORREÇÃO NECESSÁRIA:
+1. Regra de classificação: lead ausente do espelho e que está na etapa NOVOS da origem (ou com entrada dentro do corte operacional de 01/09) deve ser CASO A (intake), não B. "Histórico" só quando a entrada for anterior ao corte operacional ou o lead já estiver fora de NOVOS.
+2. Reprocessar os 14 pelo caminho único de entrada (`intakeLead`), preservando as datas reais de entrada (05–07/09) — o que cria espelho no Portal, card no Workspace e a E0 manual (Ligação 1 → 10 min → Ligação 2 → Copiar mensagem) na Ação do Dia, atrás do que já está em posição 1.
+3. Verificar o 36º lead da origem que ainda não foi ingerido e o erro recorrente do cron ("Follow-up 58992: ON CONFLICT sem constraint"), que hoje não bloqueia NOVOS mas está falhando em toda execução.
 
 ## Detalhes técnicos
 
-- Camada editorial em `src/lib/relationship/step-registry.server.ts` + `message-library.server.ts`; `renderFromLibrary` resolve pelo mapa. `message-library-panel.tsx` ganha rótulo de negócio, seletor de contexto para E7/E8 e recorte de legado.
-- E0: migração de `e0.server.ts` para ações da V2 em `cadence-v2.ts`/`cadence-v2-decide.ts`, com `action_kind` de ligação e intervalo de 10 minutos.
-- Cancelamento por escopo de etapa/ordem em `call-outcome.server.ts`; chamada de `clearAwaitingHandoff`; persistência de estágio anterior para `canStartReengagement`; eventos `MATERIAL_REQUESTED`/`CONTENT_SENT`.
-- Follow-up: sincronização a partir de `crm_leads.raw_payload`, com identidade externa e vínculo em `portal_meetings` (colunas aditivas + novo valor de `origin`); obrigações pós-compromisso em `relationship_queue`.
-- Atraso em `daily-actions-overdue.ts` (fim do `WORKDAY_END_HOUR = 18`); resolução de nome assíncrona contra `name_central`, substituindo a lista fixa de `name-base.ts` e restringindo `compoundTreatment` ao primeiro nome.
-- Migrations aditivas apenas; nenhuma tabela nova, nenhum dado apagado, Safety Lock e WhatsApp real intocados.
+- Arquivos envolvidos: `src/lib/crm/sync-classification.ts` (classificação A/B), `src/server/crm/lead-sync.server.ts` (ramo B → `upsertLead({historical:true})` vs A/C → `intakeLead`), `src/server/crm/lead-service.server.ts` (linha 325: `historical` ⇒ `NOT_APPLICABLE`).
+- Evidência: os 21 com card têm `ingested_at` = `stage_entered_at` (chegaram em tempo real); os 14 sem card têm `stage_entered_at` 05–07/09 e `ingested_at` 08/09 10:49–10:55.
+- Nenhuma alteração foi feita nesta análise.
