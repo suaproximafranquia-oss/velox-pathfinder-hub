@@ -137,6 +137,30 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
   const originIso =
     record.startedAt ?? (cycleRow as Row | null)?.started_at ?? (cycleRow as Row | null)?.created_at;
 
+  /**
+   * CAMINHO V — decisão do MOTOR, tomada uma única vez antes de existir
+   * a primeira etapa pós-E0 e congelada como fato. A Ação do Dia nunca
+   * decide isto; ela apenas consome o que o motor gravou.
+   */
+  const { ensureVisualPathDecision, reachedE4Historically } = await import("./visual-path.server");
+  const firstStepStarted =
+    actions.some((action) => action.step === "E1") ||
+    (record.executedSteps ?? []).map(String).includes("E1");
+
+  const [visualPath, reachedE4] = await Promise.all([
+    flow === "E"
+      ? ensureVisualPathDecision({
+          leadId: record.leadId,
+          firstStepStarted,
+          e0Executed,
+          materialSentAt: material.materialSentAt,
+        })
+      : Promise.resolve(false),
+    flow === "R"
+      ? reachedE4Historically(record.leadId, record.scope)
+      : Promise.resolve(false),
+  ]);
+
   return {
     nowIso: new Date().toISOString(),
     flow,
