@@ -103,6 +103,10 @@ export function DailyActionsOverlay({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** Janela operacional de execução manual (06–22 seg–sex, 06–17 sáb). */
+  const [operationalWindow, setOperationalWindow] = useState<OperationalWindow>(() =>
+    resolveOperationalWindow(),
+  );
   /** Último resultado de ligação da régua V2 — reversível até a próxima ação irreversível. */
   const [undoable, setUndoable] = useState<DailyAction | null>(null);
 
