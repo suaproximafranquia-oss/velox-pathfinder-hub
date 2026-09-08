@@ -32,6 +32,21 @@ import {
 const SCOPE = "production";
 const MIRROR_TOPIC = FOLLOW_UP_TOPIC.AGENDAMENTO;
 
+/** Data legível no fuso operacional, para o histórico do lead. */
+function formatBr(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const f = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(d);
+  const get = (t: string) => f.find((p) => p.type === t)?.value ?? "";
+  return `${get("day")}/${get("month")} às ${get("hour")}:${get("minute")}`;
+}
+
 type MirrorRow = {
   id: string;
   investor_id: string;
