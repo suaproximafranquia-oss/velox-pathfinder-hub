@@ -190,6 +190,8 @@ const SOURCE_PRECEDENCE: Record<DailyActionSource, number> = {
    * comercial — é a única etapa cujo atraso custa a entrada do lead.
    */
   first_contact: 0,
+  /** Encaminhamento pendente vem antes de qualquer nova tentativa. */
+  handoff: 1,
   meeting: 1,
   agenda: 2,
   /**
