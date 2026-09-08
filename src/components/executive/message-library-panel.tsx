@@ -274,7 +274,29 @@ export function MessageLibraryPanel() {
                   new RegExp(`^${key}\\s*[—–-]\\s*`),
                   "",
                 );
-...
+                return (
+                  <li
+                    key={key}
+                    draggable
+                    onDragStart={() => setDragKey(key)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      void dropOn(key);
+                    }}
+                    onDragEnd={() => setDragKey(null)}
+                    className={dragKey === key ? "opacity-50" : ""}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openStep(key)}
+                      className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${
+                        step === key
+                          ? "border-[color:var(--gold)] text-[color:var(--gold)]"
+                          : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--gold)]/40"
+                      }`}
+                    >
+                      <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab opacity-50" />
                       <span className="shrink-0 rounded-md border border-current/30 px-1.5 py-0.5 font-mono text-[10px]">
                         {key}
                       </span>
