@@ -310,11 +310,16 @@ export async function syncOneFollowUp(
         detail: `follow_up "${rawFollowUp}" recebido do GreenSales.`,
       }),
     };
-    // Duas sincronizações simultâneas: o índice único decide; a segunda
-    // vira no-op pelo `ignoreDuplicates`.
+    /**
+     * Identidade determinística do espelho (`gsfu_<id>`) é a CHAVE
+     * PRIMÁRIA real da tabela — o índice parcial de origem/referência
+     * externa não pode ser usado aqui. Duas sincronizações simultâneas:
+     * a segunda vira no-op pelo `ignoreDuplicates`.
+     */
     const { error } = await supabaseAdmin
       .from("portal_meetings")
-      .upsert(row as never, { onConflict: "external_source,external_ref", ignoreDuplicates: true });
+      .upsert(row as never, { onConflict: "id", ignoreDuplicates: true });
+
     if (error) throw new Error(error.message);
     await appendTimeline({
       leadId,
