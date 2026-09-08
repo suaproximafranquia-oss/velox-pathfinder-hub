@@ -1,57 +1,82 @@
-# Follow-up do GreenSales como origem do agendamento — diagnóstico de arquitetura
+# Follow-up do GreenSales como origem do agendamento — fechamento da arquitetura
 
 Somente leitura. Nada foi alterado: nem código, nem banco, nem cadência, nem Ação do Dia.
 
-## Respostas às 11 perguntas
+## 1. O que já existe e pode ser reutilizado
 
-**1. O objeto interno já existente representa um agendamento vindo do follow_up?**
-Sim. `portal_meetings` já guarda lead, data/hora, duração, executivo responsável, situação, motivo de cancelamento, observações e origem (campo `origin`, hoje "executivo"). Um compromisso nascido do GreenSales caberia nesse mesmo objeto com origem própria — não é preciso criar outra tabela de compromisso.
+- **Compromisso interno**: `portal_meetings` já guarda lead, data/hora, duração, executivo responsável, situação, motivo de cancelamento, observações, tópico e um campo `origin` (hoje só "portal" ou "executivo").
+- **Coluna do funil**: as colunas reais do funil são NOVOS, ZERO CONTATO, FRIOS, AGENDAMENTOS, OPORTUNIDADES, VÍDEO, 4COF/CONTRATO, PAGAMENTO, REMARKETING, VENCEMOS, FINALIZADO e NÃO LOCALIZADOS. A coluna vigente do lead fica em `crm_leads.stage_key`, espelhada do GreenSales — o Portal não decide coluna.
+- **Bloqueio da cadência**: o motor já tem o estado "agendado", que bloqueia integralmente qualquer etapa automática.
+- **Elegibilidade do relacionamento**: a fila de cadência só considera leads nas colunas ZERO CONTATO e FRIOS. Lead em AGENDAMENTOS já é, por construção, inelegível.
+- **Ação do Dia**: já lê reuniões de `portal_meetings`, marca reunião como prioridade máxima, entra em foco poucos minutos antes do horário e usa o card padrão com nome, telefone e Ver ficha.
+- **Desfecho e histórico**: já existem registro de compareceu / não compareceu e de reagendamento, ambos gravados em livro append-only + histórico do lead.
+- **Responsável do lead**: `portal_leads.responsible_executive_id` (+ slug), com regra de congelamento — uma vez definido, não é sobrescrito.
 
-**2. Onde está cada informação hoje**
-- Estado "Agendamento" (coluna do funil): `crm_leads.stage_key`, espelho do GreenSales; a movimentação de coluna é sincronizada, não decidida pelo Portal.
-- Estado interno de cadência: registro do motor com o sinalizador `scheduled` / estado `SCHEDULED`, que bloqueia toda etapa automática.
-- follow_up do GreenSales: apenas dentro da cópia bruta `crm_leads.raw_payload`; nenhum código do Portal lê esse campo.
-- Data/hora do compromisso interno: `portal_meetings.scheduled_at` (e, para compromissos livres do executivo, `workspace_agenda_events.starts_at`).
-- Responsável: `portal_meetings.executive_id` / `executive_name`.
-- Situação/desfecho: `portal_meetings.status` + registro em livro de eventos da Ação do Dia (compareceu / não compareceu / reagendada).
-- Histórico: livro append-only de eventos da Ação do Dia e histórico do lead; `portal_meetings` guarda só o estado atual.
+## 2. O que falta para o fluxo pretendido
 
-**3. Dá para ligar follow_up → lead → compromisso sem segunda fonte de verdade?**
-Sim. A chave já existe e é estável: lead `59193` no CRM, `gs_59193` no Portal. Basta o compromisso interno carregar a marca de origem externa (fonte + id do lead na origem) e ser tratado como espelho: o Portal nunca cria nem altera data por conta própria para compromissos dessa origem, apenas reflete o que veio do GreenSales.
+1. Leitura do `follow_up` na sincronização (hoje nenhum código lê esse campo; ele só existe dentro da cópia bruta do lead).
+2. Identidade externa no compromisso (origem + id do lead na origem).
+3. Regra de espelho: compromisso de origem GreenSales não tem data editada no Portal.
+4. Desfecho novo "sem contato e sem reagendamento", que não encerra o compromisso.
+5. Obrigação persistente de verificação em 24 horas.
+6. Gatilho de liberação do R somente na transição de coluna AGENDAMENTOS → FRIOS percebida pela sincronização.
 
-**4. Comportamento correto quando o follow_up muda 10/09 → 11/09 → 12/09**
-Atualizar o MESMO compromisso (identidade = lead + origem externa), nunca criar um novo por valor. E registrar cada mudança percebida como um evento de reagendamento no histórico. Assim o compromisso é sempre um só, e a trilha de mudanças fica no histórico — que é exatamente o que já se faz hoje com reuniões internas reagendadas.
+## 3. follow_up + reunião manual no mesmo lead
 
-**5. Como não perder alterações intermediárias**
-Não é necessário capturar cada valor intermediário. A sincronização compara o valor atual da origem com o valor do compromisso interno; se mudou, atualiza e grava um evento "reagendado de X para Y, percebido em Z". Valores que apareceram e sumiram entre duas sincronizações simplesmente não existiram para a operação — o que importa é o compromisso vigente e a trilha das mudanças percebidas.
+Hoje as duas coisas coexistiriam e apareceriam como duas ações distintas, porque a Ação do Dia só deduplica reunião × evento de agenda quando o horário é idêntico — não há nada que reconheça "mesmo compromisso" entre origens.
 
-**6. O horário pode alimentar a prioridade T-5?**
-Sim, sem nada novo. A Ação do Dia já trata reunião como prioridade máxima e já entra em foco poucos minutos antes do horário. Um compromisso espelhado do GreenSales gravado em `portal_meetings` herda esse comportamento automaticamente.
+Menor regra, sem tabela nova: por lead, **um único compromisso ativo de origem GreenSales**, identificado por origem + id externo; quando ele existe, ele tem precedência e a reunião manual do mesmo lead no mesmo período é absorvida (fundida no espelho) ou impedida na criação. Não é preciso apagar reuniões manuais antigas — basta a precedência.
 
-**7. A arquitetura guarda o estado "vencido sem contato e sem reagendamento"?**
-Hoje não existe esse estado. Ao registrar "não compareceu", a reunião é encerrada (Cancelada) e nada fica pendente para o dia seguinte. É a principal lacuna.
+## 4. follow_up apagado na origem
 
-**8. Dá para fazer a pergunta de 24 horas sem iniciar R?**
-Sim, desde que exista o estado do item 7. A Ação do Dia é um agregador de leitura: se houver uma obrigação persistida de "verificação em 24h", ela aparece sem que o motor decida nada. O motor continua bloqueado enquanto o lead estiver em agendamento — nenhum R nasce sozinho.
+A sincronização atual não percebe nada, porque não lê o campo. Passando a lê-lo, a comparação valor-atual × valor-espelhado cobre os três casos sem estrutura nova:
 
-**9. Dá para exigir a movimentação humana Agendamento → Frio antes do R1?**
-Sim, e é o comportamento atual: enquanto o lead está marcado como agendado, toda etapa automática fica bloqueada. O R só pode começar depois de um evento explícito de liberação — que passaria a ser condicionado à mudança de coluna vinda do GreenSales.
+- existe → compromisso ativo;
+- mudou → o mesmo compromisso é atualizado e um evento de reagendamento é gravado;
+- sumiu → o compromisso espelhado é cancelado (situação Cancelada + motivo "follow-up removido na origem").
 
-**10. Risco de duplicar o sistema de agendamento?**
-Só existe risco se for criada uma nova tabela ou um novo fluxo paralelo. Reutilizando `portal_meetings` com marca de origem externa e regra de somente-espelho, não há duplicação. O ponto de atenção é o executivo criar manualmente no Portal uma reunião para um lead que também tem follow_up — isso precisa ser impedido ou fundido.
+Nenhuma reunião nova é criada em nenhum dos casos.
 
-**11. Menor alteração arquitetural necessária depois**
-Cinco peças, nenhuma delas nova estrutura de agendamento:
-1. Leitura do `follow_up` na sincronização e espelhamento em `portal_meetings` com origem externa e identidade por lead+origem.
-2. Regra de somente-espelho: compromisso de origem GreenSales não é criado nem tem data editada pelo Portal; reagendar orienta a alterar na origem.
-3. Evento de reagendamento no histórico a cada mudança percebida.
-4. Novo desfecho "sem contato, sem reagendamento", que em vez de encerrar a reunião cria uma obrigação de verificação para 24 horas depois.
-5. Na verificação de 24h: "encerrar" fecha a cadência; "não encerrar" apenas instrui a mover para Frios na origem — e o R só começa quando essa mudança de coluna chegar pela sincronização.
+## 5. follow_up sem estado AGENDAMENTO
 
-Nada disso exige mudar o Safety Lock, disparar WhatsApp, iniciar R por horário vencido ou alterar o GreenSales.
+Compatível e recomendável. A coluna vigente já está em `crm_leads.stage_key`, então a condição é direta: só vira compromisso quando `stage_key = agendamentos`. Lead em NOVOS ou FRIOS com follow_up preenchido é ignorado. Isso também protege a cadência: nas colunas elegíveis (ZERO CONTATO/FRIOS) o relacionamento continua rodando normalmente.
 
-## Pontos que precisam de decisão sua antes de construir
+## 6. Identidade do compromisso GreenSales
 
-- O que fazer quando o mesmo lead tiver follow_up na origem E uma reunião criada manualmente no Portal.
-- Se um follow_up apagado na origem deve cancelar o compromisso interno.
-- Se o lead precisa estar na coluna Agendamento para o follow_up virar compromisso, ou se o follow_up sozinho já basta.
+Usar `portal_meetings`, sem tabela nova, com dois atributos de identidade: origem = "greensales" e id do lead na origem (59193). A chave de unicidade é o par (origem, id externo) — mudança de horário atualiza o mesmo registro, nunca cria outro. Hoje `origin` existe mas só aceita dois valores e não há campo para o id externo: é aí que entra a alteração mínima.
+
+## 7. Ligação com T-5 / Ação do Dia
+
+Automática. Gravado o compromisso em `portal_meetings`, ele herda tudo: card padrão com nome, telefone e Ver ficha, prioridade máxima, foco cinco minutos antes e ação principal no horário. A pergunta "Houve contato no agendamento?" já existe como desfecho compareceu/não compareceu com nota. A única mudança na tela é, no "não", oferecer as duas saídas: instrução para reagendar na origem (o Portal não grava horário novo) ou o estado de vencido sem contato.
+
+## 8. Guardar "vencido sem contato e sem reagendamento"
+
+Hoje não existe: "não compareceu" encerra o compromisso como Cancelada e nada sobra para o dia seguinte. É a maior lacuna. A forma mais barata é uma situação própria do compromisso (ex.: "vencido sem contato") que o mantém vivo, mais uma obrigação de verificação com vencimento em 24 horas — usando a fila de obrigações que a Ação do Dia já lê.
+
+## 9. Verificação de 24 horas
+
+Suportada assim que existir a obrigação persistida do item 8: a Ação do Dia é agregador de leitura e exibe o card padrão com o texto de decisão. "Sim" encerra a cadência (o motor já tem encerramento). "Não" apenas mostra a instrução de mover para FRIOS na origem — o Portal não move o lead e não inicia nada.
+
+## 10. Liberar R somente após AGENDAMENTOS → FRIOS
+
+Já é o comportamento estrutural: lead em AGENDAMENTOS está fora das colunas elegíveis e, com o estado agendado, toda etapa automática fica bloqueada. Quando a sincronização perceber a coluna FRIOS, o lead volta a ser elegível. Falta apenas ligar essa transição ao desbloqueio explícito do estado agendado no motor.
+
+## 11. Responsável quando o vendedor vem vazio
+
+Regra existente: o responsável é o do lead no Portal (`portal_leads.responsible_executive_id`), atribuído no Portal e congelado depois de definido; o GreenSales não é fonte desse dado. O compromisso deve herdar esse responsável. Risco real: no lead 59193 o responsável está vazio — nesse caso o compromisso nasceria sem dono e não apareceria na Ação do Dia de ninguém. **Decisão necessária antes de construir**: bloquear a criação do espelho sem responsável, ou criar e listar como pendência de atribuição.
+
+## 12. Menor construção necessária
+
+1. Sincronização passa a ler o `follow_up` apenas quando o lead está em AGENDAMENTOS.
+2. `portal_meetings` ganha identidade externa (origem "greensales" + id do lead na origem) — nenhuma tabela nova.
+3. Espelhamento idempotente: criar, atualizar horário ou cancelar; sempre o mesmo registro; evento de reagendamento no histórico a cada mudança percebida.
+4. Precedência do espelho sobre reunião manual do mesmo lead.
+5. Desfecho "vencido sem contato" + obrigação de verificação em 24 horas.
+6. Decisão de 24 horas: encerrar cadência, ou instruir a mover para FRIOS.
+7. Desbloqueio do R condicionado à transição de coluna percebida pela sincronização.
+
+Nada disso toca GreenSales, Safety Lock, envio de WhatsApp, ou as réguas E, R, RE e RF.
+
+## Único ponto em aberto
+
+O tratamento do compromisso quando o lead ainda não tem responsável no Portal (item 11).
