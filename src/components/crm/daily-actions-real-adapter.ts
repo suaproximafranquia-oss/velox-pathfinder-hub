@@ -324,6 +324,7 @@ export function useRealDailyActionsAdapter(
       },
     }),
     [
+      pendingRecovery,
       fetchActions,
       listPendingsFn,
       resumePendingFn,
