@@ -91,4 +91,76 @@ describe("classificação explícita da entrada (A/B/C/D)", () => {
       }),
     ).toBe("D");
   });
+
+  describe("lead NOVO atrasado (origem devolve dias depois da entrada)", () => {
+    const cutoverDate = "2026-09-03";
+    it("A — em NOVOS, sem espelho, entrada após o corte: novo mesmo fora da janela", () => {
+      expect(
+        classifyScannedLead({
+          inWindow: true,
+          inMirror: false,
+          mirrorStage: null,
+          resolvedStage: "novos",
+          resolvedIsEntry: true,
+          cutoverDate,
+          entryAt: "2026-09-05T00:22:39Z",
+          since: new Date("2026-09-08T10:37:00Z"),
+        }),
+      ).toBe("A");
+      expect(
+        classifyScannedLead({
+          inWindow: false,
+          inMirror: false,
+          mirrorStage: null,
+          resolvedStage: "novos",
+          resolvedIsEntry: true,
+          cutoverDate,
+          entryAt: "2026-09-05T00:22:39Z",
+          since: new Date("2026-09-08T10:37:00Z"),
+        }),
+      ).toBe("A");
+    });
+    it("B — em NOVOS mas entrada anterior ao corte operacional", () => {
+      expect(
+        classifyScannedLead({
+          inWindow: true,
+          inMirror: false,
+          mirrorStage: null,
+          resolvedStage: "novos",
+          resolvedIsEntry: true,
+          cutoverDate,
+          entryAt: "2026-08-30T10:00:00Z",
+          since: new Date("2026-09-08T10:37:00Z"),
+        }),
+      ).toBe("B");
+    });
+    it("B — fora de NOVOS continua valendo a regra da janela", () => {
+      expect(
+        classifyScannedLead({
+          inWindow: true,
+          inMirror: false,
+          mirrorStage: null,
+          resolvedStage: "zero_contato",
+          resolvedIsEntry: false,
+          cutoverDate,
+          entryAt: "2026-09-05T00:22:39Z",
+          since: new Date("2026-09-08T10:37:00Z"),
+        }),
+      ).toBe("B");
+    });
+    it("B — sem data de corte definida, na dúvida nunca é novo", () => {
+      expect(
+        classifyScannedLead({
+          inWindow: false,
+          inMirror: false,
+          mirrorStage: null,
+          resolvedStage: "novos",
+          resolvedIsEntry: true,
+          cutoverDate: null,
+          entryAt: "2026-09-05T00:22:39Z",
+          since: new Date("2026-09-08T10:37:00Z"),
+        }),
+      ).toBe("B");
+    });
+  });
 });

@@ -15,6 +15,7 @@
  * (last_register_at/register/created_at) — nunca a data de
  * sincronização. Regra pura, sem banco e sem canal.
  */
+import { isHistoricalLead } from "@/lib/crm/cutover";
 
 export type ScanLeadClass = "A" | "B" | "C" | "D";
 
@@ -31,6 +32,13 @@ export type ClassificationInput = {
   entryAt: string | null | undefined;
   /** Início da janela temporal da sincronização. */
   since: Date;
+  /** A coluna resolvida na origem é a etapa de ENTRADA (NOVOS). */
+  resolvedIsEntry?: boolean;
+  /**
+   * Corte operacional (data de ativação da cadência, AAAA-MM-DD).
+   * Entrada real anterior ao corte é sempre histórico.
+   */
+  cutoverDate?: string | null;
 };
 
 export function classifyScannedLead(input: ClassificationInput): ScanLeadClass {
@@ -39,6 +47,16 @@ export function classifyScannedLead(input: ClassificationInput): ScanLeadClass {
     // jamais rebaixamos um lead por ausência de informação.
     if (input.resolvedStage && input.resolvedStage !== input.mirrorStage) return "C";
     return "D";
+  }
+  /**
+   * LEAD NOVO ATRASADO: existe na origem, continua em NOVOS e ainda não
+   * tem espelho. É lead operacional novo (A) independentemente de
+   * quantos dias a origem demorou para devolvê-lo ao sincronizador.
+   * Única exceção: entrada real anterior ao corte operacional.
+   */
+  if (input.resolvedIsEntry && input.cutoverDate) {
+    if (!isHistoricalLead({ lastEntryAt: input.entryAt ?? null }, input.cutoverDate)) return "A";
+    return "B";
   }
   if (input.inWindow) {
     const stamp = input.entryAt ? Date.parse(input.entryAt) : Number.NaN;
