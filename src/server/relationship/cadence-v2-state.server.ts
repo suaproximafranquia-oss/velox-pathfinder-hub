@@ -175,6 +175,8 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
       materialSent: material.materialSent,
       materialRequested: material.materialRequested,
       needsNewPresentation: false,
+      visualPath,
+      reachedE4Historically: reachedE4,
     },
     stageKey,
     awaitingHandoff: Boolean((cycleRow as Row | null)?.awaiting_handoff),
