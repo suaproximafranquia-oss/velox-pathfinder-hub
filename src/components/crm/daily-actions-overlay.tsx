@@ -103,35 +103,6 @@ export function DailyActionsOverlay({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  /** Ligação sem atendimento aguardando a resposta "chamou?". */
-  const [callAwaitingRing, setCallAwaitingRing] = useState<string | null>(null);
-  /**
-   * Resultado da ligação já escolhido, aguardando a confirmação final.
-   * "Não atendeu" é resultado da tentativa; só "Concluído" encerra.
-   */
-  const [callPending, setCallPending] = useState<{
-    key: string;
-    outcome: "SIM" | "NAO";
-    rang: boolean | null;
-  } | null>(null);
-  const [callNote, setCallNote] = useState("");
-  /** Janela operacional de execução manual (06–22 seg–sex, 06–17 sáb). */
-  const [operationalWindow, setOperationalWindow] = useState<OperationalWindow>(() =>
-    resolveOperationalWindow(),
-  );
-
-  const [skipOpen, setSkipOpen] = useState(false);
-  const [skipReason, setSkipReason] = useState("");
-  const [note, setNote] = useState("");
-  const [meetingNote, setMeetingNote] = useState("");
-  /** Agendamento GreenSales: "NÃO" houve contato → pergunta "Deseja reagendar?". */
-  const [followUpNoContact, setFollowUpNoContact] = useState<string | null>(null);
-  const [rescheduleAt, setRescheduleAt] = useState("");
-  const [message, setMessage] = useState<StepMessageView | null>(null);
-  const [messageOpen, setMessageOpen] = useState(false);
-  const [messageNote, setMessageNote] = useState("");
-  /** Confirmação explícita: copiou → enviou? Só SIM conclui o item. */
-  const [copied, setCopied] = useState(false);
   /** Último resultado de ligação da régua V2 — reversível até a próxima ação irreversível. */
   const [undoable, setUndoable] = useState<DailyAction | null>(null);
 
@@ -191,20 +162,6 @@ export function DailyActionsOverlay({
     return () => window.clearInterval(timer);
   }, [open]);
 
-  /** Trocar de ação limpa os rascunhos da ação anterior. */
-  useEffect(() => {
-    setCallAwaitingRing(null);
-    setCallPending(null);
-    setCallNote("");
-    setSkipOpen(false);
-    setSkipReason("");
-    setNote("");
-    setMeetingNote("");
-    setRescheduleAt("");
-    setMessage(null);
-    setMessageOpen(false);
-    setMessageNote("");
-  }, [selectedKey]);
 
 
 
