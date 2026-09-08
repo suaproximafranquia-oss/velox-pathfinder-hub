@@ -47,6 +47,8 @@ type LeadIdentity = {
   scope: string | null;
   /** Card fora da operação atual (arquivado no ponto zero). */
   archived: boolean;
+  /** Executivo responsável pelo card (titularidade vigente). */
+  responsibleExecutiveId: string | null;
 };
 
 async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdentity>> {
@@ -55,7 +57,7 @@ async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdenti
   if (unique.length === 0) return map;
   const { data } = await supabaseAdmin
     .from("portal_leads")
-    .select("id,name,whatsapp,scope,archived_at")
+    .select("id,name,whatsapp,scope,archived_at,responsible_executive_id")
     .in("id", unique);
   for (const row of data ?? []) {
     map.set(row.id, {
@@ -63,9 +65,17 @@ async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdenti
       phone: row.whatsapp ?? "",
       scope: row.scope ?? null,
       archived: Boolean((row as { archived_at?: string | null }).archived_at),
+      responsibleExecutiveId:
+        ((row as { responsible_executive_id?: string | null }).responsible_executive_id ?? null),
     });
   }
   return map;
+}
+
+/** Título oficial do item da fila da régua V2 — vocabulário E0–E8/R/RE. */
+function queueActionTitle(step: string, isCall: boolean, order: number): string {
+  if (isCall) return order > 1 ? `Segunda ligação — Etapa ${step}` : `Ligação — Etapa ${step}`;
+  return `Copiar mensagem — Etapa ${step}`;
 }
 
 
@@ -81,6 +91,17 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   const today = operationalDate(nowIso);
   const horizonStart = new Date(new Date(nowIso).getTime() - 45 * 24 * 3600 * 1000).toISOString();
   const horizonEnd = new Date(new Date(nowIso).getTime() + 2 * 24 * 3600 * 1000).toISOString();
+
+  /**
+   * E0 MANUAL → RÉGUA V2 (idempotente). Garante que todo lead NOVO de
+   * executivo em modo manual tenha a E0 na fila do motor ANTES da
+   * leitura abaixo. Devolve os cards governados pela régua — para esses,
+   * o card legado "primeiro contato" não é exibido.
+   */
+  const governedE0 = await import("@/server/relationship/e0-manual.server")
+    .then((m) => m.ensureManualE0Cadences())
+    .catch(() => new Set<string>());
+
 
   const [meetingsRes, agendaRes, queueRes, cadenceQueue, closureDuties, firstContacts] =
     await Promise.all([
@@ -100,8 +121,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       .limit(500),
     supabaseAdmin
       .from("relationship_queue")
-      .select("id,lead_id,flow,step,due_at,priority,status,scope,action_order,action_kind")
-      .eq("status", "PENDING")
+      .select("id,lead_id,flow,step,due_at,priority,status,scope,action_order,action_kind,claimed_by")
+      // PROCESSING = ação reivindicada pelo executivo (posição 1 protegida).
+      .in("status", ["PENDING", "PROCESSING"])
       .lt("due_at", horizonEnd)
       .limit(1000),
     /**
@@ -195,6 +217,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   for (const pending of firstContacts) {
     if (firstContactDone.has(pending.card_id)) continue;
     if (e0InQueue.has(pending.card_id)) continue;
+    // Governada pela régua V2: a obrigação vive na fila do motor.
+    if (governedE0.has(pending.card_id)) continue;
     const identity = identities.get(pending.card_id);
     /**
      * O primeiro contato fica disponível no primeiro DIA ÚTIL após a
@@ -356,36 +380,59 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     const identity = identities.get(leadId);
     const dueDate = operationalDate(item.due_at);
     if (dueDate > today) continue;
+    const step = String(item.step ?? "");
     const isCall = (item as { action_kind?: string | null }).action_kind === "call";
     const order = Number((item as { action_order?: number | null }).action_order ?? 1);
+    const claimed = item.status === "PROCESSING";
+    /**
+     * AÇÃO INTERNA COM ESPERA (2ª ligação em +10 min, mensagem após a
+     * 2ª ligação): só aparece quando o horário de liberação chegou. A
+     * ordem dentro da etapa é do motor, não da tela.
+     */
+    if (order > 1 && String(item.due_at) > nowIso) continue;
+    /**
+     * E0 é a etapa do lead NOVO: pertence ao executivo responsável pelo
+     * card (mesma regra da ação legada). Sem responsável, continua
+     * visível — nada se perde.
+     */
+    if (
+      step === "E0" &&
+      input.executiveId &&
+      identity?.responsibleExecutiveId &&
+      identity.responsibleExecutiveId !== input.executiveId
+    ) {
+      continue;
+    }
+    // LEAD NOVO NÃO NASCE ATRASADO: E0 pendente é classe NOVO, no topo.
+    const isE0 = step === "E0";
+    const overdue = isE0 ? false : isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso);
     actions.push({
-      actionKey: `queue:${leadId}:${item.flow}-${item.step}-${order}:${item.id}`,
+      actionKey: `queue:${leadId}:${item.flow}-${step}-${order}:${item.id}`,
       source: "queue",
       kind: isCall ? "ligacao" : "mensagem",
       leadId,
       name: identity?.name ?? "Investidor",
       phone: identity?.phone ?? "",
       scope: identity?.scope ?? null,
-      stepLabel: String(item.step ?? ""),
+      stepLabel: step,
       dueDate,
       startsAt: null,
       endsAt: null,
-      overdue: isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso),
-      priorityMax: false,
-      bucket: isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso)
-        ? "atrasada"
-        : "hoje",
+      overdue,
+      priorityMax: isE0,
+      bucket: overdue ? "atrasada" : "hoje",
       // Ligação é ligação; mensagem é COPIAR o texto oficial da Biblioteca.
-      title: isCall
-        ? `Etapa ${item.step} — Ligação${order > 1 ? ` (${order}ª)` : ""}`
-        : `Etapa ${item.step} — Copiar mensagem`,
-      responsibleName: null,
+      title: queueActionTitle(step, isCall, order),
+      responsibleName: identity?.responsibleExecutiveId ?? null,
       attempts: [],
+      claimed,
+      queueItemId: String(item.id),
+      queueActionOrder: order,
       ...(isCall
         ? {}
         : {
             messageRef: {
-              step: String(item.step ?? ""),
+              step,
               flow: (item.flow as string) ?? null,
               origin: "queue" as const,
             },
