@@ -279,7 +279,7 @@ export async function registerDailyActionMessage(
     await recordDailyActionHistory({
       leadId: input.leadId,
       sourceKey: `acao_do_dia:${queueItemId ?? input.actionKey}:mensagem`,
-      headline: historyHeadline("Mensagem enviada", input.step, nowIso),
+      headline: historyHeadline("Mensagem copiada e registrada", input.step, nowIso),
       sections: [
         { label: "Biblioteca", value: snapshot.libraryCode },
         { label: "Versão", value: snapshot.libraryVersion?.toString() ?? null },
@@ -297,7 +297,7 @@ export async function registerDailyActionMessage(
       ...input,
       nowIso,
       reason: input.reason.trim() || "Mensagem tratada pelo Executivo na Ação do Dia.",
-      outcome: input.outcome ?? (outcome.concluded ? "enviada" : "registrada"),
+      outcome: input.outcome ?? (outcome.concluded ? "copiada" : "registrada"),
     },
     { queueItemId, motorResultado: outcome.reason },
   );
