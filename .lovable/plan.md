@@ -1,52 +1,54 @@
-# Financeira /f — Construção única: Biblioteca, Agendamento e Central dos Nomes
+# Financeira /f — Última construção do Motor, Biblioteca e Agendamento
 
-Escopo exclusivo: Corporate Workspace / Financeira `/f`. Não altera `/`, `/s`, `/s/portal`, `/seg`, Solar, Seguros nem estruturas compartilhadas. Nada é apagado: histórico, versões e auditoria permanecem.
+Escopo exclusivo: Corporate Workspace / Financeira `/f`. Nada em `/`, `/s`, `/s/portal`, `/seg`, Solar ou Seguros.
+Régua: E0–E8, R1–R4, RE0–RE3. ER não existe. RF permanece só conceito futuro.
 
-## Bloco 1 — Biblioteca: reencontro entre etapa de negócio e texto
+## 1. Camada editorial da Biblioteca
 
-Os textos existem; estão hospedados em chaves técnicas de outra geração, e o motor pede pela chave. Correção sem renomear nada e sem reescrever texto.
+O texto de quase toda etapa existe, mas está guardado sob a chave de uma geração anterior. Nenhuma chave técnica é renomeada e nenhum texto é reescrito: cria-se um mapa oficial entre o nome de negócio e a chave onde o texto realmente está.
 
-- Criar um mapa oficial etapa de negócio → chave técnica real (E2→`E3`, E3→`E12`, E4→`E2`, E5→`RE0`, E6→`E20`, E7→`E27`, E8→`RE1`, R2→`E4`, R3→`E5`, R4→`RE2`, RE0→`E6`, RE1→`E7`, RE2→`FINALIZACAO`, RE3→`R1`; E0 e E1 já coincidem).
-- Motor e Biblioteca passam a resolver o texto por esse mapa. A chave técnica gravada continua intacta.
-- Camada editorial exibe apenas a nomenclatura atual: E0–E8, R1–R4, RE0–RE3.
-- R1 volta a ter versão ativa a partir das versões históricas hoje inativas.
-- Resíduos (`TESTE`, `V3`, `V4`, `RF0`, `RF1`, `RESPOSTA_AUTOMATICA`, `E0_V1`, `E30`, títulos ER) ficam marcados como legado, fora da lista oficial, sem exclusão.
-- E7 e E8 passam a ter quatro espaços reais cada: SEM_CONTATO e MATERIAL_ENVIADO, cada um com versão com nome e sem nome. Espaço sem texto permanece pendente e bloqueia o envio com motivo — nenhum texto é inventado.
+- Mapa: E2→`E3`, E3→`E12`, E4→`E2`, E5→`RE0`, E6→`E20`, E7→`E27`, E8→`RE1`, R2→`E4`, R3→`E5`, R4→`RE2`, RE0→`E6`, RE1→`E7`, RE2→`FINALIZACAO`, RE3→`R1`. E0 e E1 já estão corretos.
+- A Biblioteca passa a exibir e ordenar pelo nome de negócio; o motor busca o conteúdo pelo mapa.
+- R1 volta a ter versão ativa a partir da versão histórica existente, publicada como nova versão (sem apagar histórico).
+- Legado (ER*, RF0, RF1, V3, V4, TESTE, E0_V1, E30, RESPOSTA_AUTOMATICA) sai da visão operacional e permanece consultável como histórico.
 
-## Bloco 2 — Follow-up do GreenSales como compromisso
+## 2. E7 e E8 com os quatro conteúdos
 
-O campo chega em 655 leads e hoje ninguém o lê.
+Hoje a tela só oferece "com nome" e "sem nome". Passa a oferecer, para E7 e E8, quatro espaços:
+sem contato + com nome, sem contato + sem nome, material enviado + com nome, material enviado + sem nome.
+Espaços sem texto ficam pendentes e visíveis; nenhum texto é inventado. As demais etapas seguem com dois espaços.
 
-- Ler e normalizar o follow-up na sincronização.
-- Dar identidade externa ao compromisso (origem GreenSales + identificador do lead) e vincular lead ao compromisso.
-- Criar compromisso somente quando o lead estiver em AGENDAMENTOS; nos demais estágios o follow-up é ignorado operacionalmente.
-- Reagendamento é sempre o mesmo compromisso atualizado, com histórico de cada mudança de horário. Nunca três reuniões.
-- Follow-up removido na origem cancela o compromisso espelhado com o motivo "removido na origem".
-- Com o compromisso persistido, o T-5 e a prioridade máxima já existentes passam a funcionar também para o follow-up.
+## 3. E0 dentro da régua V2
 
-## Bloco 3 — Pós-agendamento e liberação do R
+E0 passa a ser: ligação → 10 minutos → ligação → mensagem, dentro da janela do executivo.
+O modo manual/automático continua vindo exclusivamente da configuração do executivo, sem exceção por lead. Ligação atendida encerra o E0 e aguarda encaminhamento.
 
-- Chegado o horário: "Houve contato no agendamento?" Sim → nota opcional e concluído. Não → "Deseja reagendar?".
-- Reagendar sim → orientação para refazer no GreenSales, com atualização automática no Portal. O Portal não cria horário novo.
-- Reagendar não → estado persistente "vencido sem contato e sem reagendamento".
-- 24h depois, obrigação persistente: encerrar o fluxo sem gerar R, ou orientar a mover o lead para Frios.
-- Gravar o estágio anterior do lead, detectar a transição humana AGENDAMENTOS→FRIOS e só então acionar a liberação do reengajamento, criando R1. O tempo passar não libera R.
-- Congelamento em AGENDAMENTOS permanece como está: já funciona.
-- Ligação atendida com promessa de retorno vira compromisso interno formal, congelando a cadência e aparecendo na Ação do Dia. Nada é criado no GreenSales.
+## 4. Fechamento do motor
 
-## Bloco 4 — Central dos Nomes ligada ao motor
+- Cancelamento por ligação atendida passa a atingir só as ações que perderam finalidade, não o lead inteiro.
+- A espera por encaminhamento ganha encerramento real quando o executivo registra o desfecho.
+- O estágio anterior do lead passa a ser gravado, para a regra de reengajamento funcionar de fato.
+- O ramo de material (E4→E5) ganha os dois registros que faltam: material solicitado e material efetivamente enviado, gravados quando o executivo confirma.
+- L1–L4 continuam apenas como histórico.
 
-- A pergunta "este primeiro nome é confiável?" passa a ser respondida pelos 100.787 nomes já cadastrados, no lugar da lista fixa em código.
-- Consulta no servidor, no momento em que a mensagem é montada, por chave normalizada indexada. Sem cópia de dados, sem tabela nova, sem reimportação.
-- Somente o primeiro nome é considerado; nome composto deixa de ser montado.
-- Comparação ignora maiúsculas, espaços, pontuação e acento; a exibição preserva o acento enviado pelo lead e usa inicial maiúscula.
-- Sem correspondência confiável → SEM_NOME. A Central nunca altera o nome do lead, nunca aprende sozinha e nunca recebe nomes automaticamente.
-- Decisão de nome e contexto de E7/E8 continuam independentes.
+## 5. Agendamento e follow-up
+
+- O campo de follow-up que já chega do GreenSales passa a ser lido e transformado em compromisso, só para lead em Agendamentos, com vínculo ao lead e identidade de origem.
+- Reagendamento na origem atualiza o mesmo compromisso; remoção na origem cancela com histórico.
+- Depois do horário do compromisso: pergunta se houve contato, estado "vencido sem contato" e obrigação de retomada em 24 horas.
+- Compromisso de retorno combinado numa ligação ("te ligo quarta") vira compromisso formal.
+- Transição de Agendamentos para Frios feita por decisão humana libera a cadência de reengajamento.
+
+## 6. Atraso e nomes
+
+- Estado NOVO passa a existir e o corte de atraso deixa de usar 18:00, respeitando a janela e o dia útil (sexta 17:31 não vira atrasado na segunda).
+- A decisão com nome / sem nome passa a consultar a Central dos Nomes (100.787 nomes) no momento do COPIAR, usando apenas o primeiro nome e comparação sem acento. Nada é aprendido, adicionado ou alterado na Central.
 
 ## Detalhes técnicos
 
-- Migrations aditivas apenas: `step_context` já existe em `relationship_message_library` e passa a ser preenchido para E7/E8; `portal_meetings` ganha identidade externa (origem/ID do lead) e o check de `origin` é ampliado; `crm_leads` ganha registro de estágio anterior; estado "vencido sem contato" e a pendência de 24h são persistidos em tabela já existente de obrigações.
-- Arquivos centrais: `message-library.server.ts`, `step-message.server.ts`, `step-registry.ts`, `cadence-v2-state.server.ts`, `call-outcome.server.ts`, `daily-actions.server.ts`, `names.ts` / `name-base.ts`, sincronização GreenSales.
-- `canStartReengagement` (`cadence-v2.ts:521`) já está correto e testado; só passa a ser chamado no ciclo produtivo com o estágio anterior real.
-- Não são criadas etapas novas, ER nem RF; Safety Lock, ownership, KPI, alertas, backups, permissões e Portal não são tocados; WhatsApp real continua desligado.
-- Testes: mapa editorial, quatro contextos de E7/E8, criação/reagendamento/cancelamento idempotentes do follow-up, transição AGENDAMENTOS→FRIOS liberando R1, congelamento, e resolução de nome contra a Central.
+- Camada editorial em `src/lib/relationship/step-registry.server.ts` + `message-library.server.ts`; `renderFromLibrary` resolve pelo mapa. `message-library-panel.tsx` ganha rótulo de negócio, seletor de contexto para E7/E8 e recorte de legado.
+- E0: migração de `e0.server.ts` para ações da V2 em `cadence-v2.ts`/`cadence-v2-decide.ts`, com `action_kind` de ligação e intervalo de 10 minutos.
+- Cancelamento por escopo de etapa/ordem em `call-outcome.server.ts`; chamada de `clearAwaitingHandoff`; persistência de estágio anterior para `canStartReengagement`; eventos `MATERIAL_REQUESTED`/`CONTENT_SENT`.
+- Follow-up: sincronização a partir de `crm_leads.raw_payload`, com identidade externa e vínculo em `portal_meetings` (colunas aditivas + novo valor de `origin`); obrigações pós-compromisso em `relationship_queue`.
+- Atraso em `daily-actions-overdue.ts` (fim do `WORKDAY_END_HOUR = 18`); resolução de nome assíncrona contra `name_central`, substituindo a lista fixa de `name-base.ts` e restringindo `compoundTreatment` ao primeiro nome.
+- Migrations aditivas apenas; nenhuma tabela nova, nenhum dado apagado, Safety Lock e WhatsApp real intocados.
