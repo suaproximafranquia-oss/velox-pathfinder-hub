@@ -1,50 +1,119 @@
-# Construção do motor de cadência + Ação do Dia (Financeira /f)
+# Financeira /f — Diagnóstico forense antes da segunda construção
 
-Escopo exclusivo da Financeira `/f`. Nada de `/`, `/s`, `/s/portal`, `/seg`, Solar ou Seguros. Nenhum dado, histórico, versão de Biblioteca, auditoria ou registro é apagado. Safety Lock intocado, nenhum envio real.
+Somente leitura. Nada foi alterado em código, banco, Biblioteca ou Ação do Dia.
 
-## O que passa a existir
+## A. Motor atual
 
-**Etapas oficiais** — E0, E1, E2, E3, E4, E5, E6, E7, E8, R1–R4, RE0–RE3. Nenhuma outra. E12, E20, E27, E30, RF e ER ficam fora da régua comercial (registros antigos são preservados, apenas não geram obrigação nova).
+Cadeia real, com nomes exatos:
 
-**Régua E (sem resposta)**: E0 = D0 · E1 +1 · E2 +2 · E3 +2 · E4 +2 · E7 +4 · E8 +3.
-**Ramo com material**: E4 → E5 imediato · E6 +7 · E7 +2 · E8 +3.
-**R**: R1 · +2 R2 · +2 R3 · +4 R4; com material R2 · +4 R4 (R3 pulada).
-**RE**: RE0 imediato · RE1 +1 · com nova apresentação RE2 +2 e RE3 +5; sem ela RE3 +3.
+```text
+cron/sync  → src/server/crm/sync-scheduler.server.ts (linha 72)
+           → runRelationshipTick()            src/server/relationship/scheduler.server.ts
+             ├─ eligibleLeadIds()             (cadências abertas + fila vencida + E0 já enviada)
+             ├─ bootstrapMissingCadences()    (cria ciclo para E0 órfã)
+             └─ engine.tick(leadId)           productionEngine() em engine.server.ts
+                → createEngine().evaluate()   src/lib/relationship/engine.ts
+                   → decideNextAction()       src/lib/relationship/decide.ts   [DECISÃO]
+                      → dueMomentAfterBusinessDays()  src/lib/relationship/calendar.ts
+                      → FLOW_SEQUENCE / STEPS         src/lib/relationship/config.ts
+                   → repository.upsertQueueItem()     repository.server.ts → relationship_queue
+                   → repository.saveRecord()          repository.server.ts → relationship_cadences
+                   → repository.registerEvent()       repository.server.ts → relationship_events
+                   → scheduleFollowUp()               engine.ts (programa a etapa seguinte)
+Ação do Dia: src/server/crm/daily-actions.server.ts lê relationship_queue (mensagem),
+buildCadenceQueue() (ligação), reuniões/agenda/closure → normalizeDailyActions().
+```
 
-**Âncora**: data teórica contada a partir da origem do ciclo, com a execução da etapa anterior como piso. Atraso desloca, nunca comprime nem empilha.
+Ainda usam a régua antiga: `decide.ts`, `config.ts`, `calendar.ts`, `flow-plan.ts`, `machine.ts`, `engine.ts`. Nenhum arquivo importa `cadence-v2.ts` hoje — a busca não retorna nenhum consumidor.
 
-**Calendário**: dias de calendário; vencimento teórico no sábado vai para segunda, no domingo para terça, feriado para o próximo dia operacional. Duas etapas do mesmo lead nunca no mesmo dia — a segunda desloca.
+## B. Cadence-v2
 
-**Janelas da cadência**: seg–sex 09:00–17:30, sábado 08:00–16:00, domingo fechado. E0 mantém a configuração própria por executivo (manual/automático e janela), sem mistura.
+Puro e determinístico (sem banco/rede/relógio implícito). Já resolve: próxima etapa E0–E8 / R1–R4 / RE0–RE3, ramo E5/E6, salto R3, salto RE2, data teórica pela origem, piso de execução anterior, sábado→segunda, domingo→terça, feriado, colisão no mesmo dia, janelas 09:00–17:30 e sábado 08:00–16:00, ações internas de E1 (ligação 1 → +3h → ligação 2 → mensagem) e E2/E3/E4 (ligação → mensagem), contexto SEM_CONTATO/MATERIAL_ENVIADO, congelamento por AGENDAMENTOS e liberação de R só por movimentação humana para FRIO.
 
-**Ações internas**: E1 = ligação 1 → 3h → ligação 2 → mensagem. E2, E3, E4 = ligação → mensagem. Tudo dentro da mesma etapa; nunca E1.1/E2.1. A Ação do Dia mostra só a próxima ação liberada, e ligação sempre antes de mensagem. Se a ligação mudar o fluxo (atendeu, virou agendamento, mudou de estágio, ciclo encerrado), as ações seguintes da etapa saem da fila e o histórico é preservado.
+Precisa receber: data de origem do ciclo, etapa atual, execuções anteriores, datas já ocupadas, `CycleContext` (materialSent / materialRequested / needsNewPresentation), estágio atual do lead e o estado das ações internas.
 
-**Contexto de E7/E8**: um par de etapas, dois textos. Com registro estruturado de apresentação enviada → MATERIAL_ENVIADO; sem ele → SEM_CONTATO. Nunca por leitura de texto.
+## C. Ponto exato que ainda usa a régua antiga
 
-**Material fora do E5**: ação explícita "apresentação digital enviada" registrada no histórico do ciclo, equivalente à conclusão de E5. Sem etapa nova, sem etiqueta, sem mudar estágio.
+`decideNextAction()` em `src/lib/relationship/decide.ts`, linhas 190–216: escolhe a etapa por `FLOW_SEQUENCE` e calcula o vencimento com `dueMomentAfterBusinessDays(reference, businessDays)` em dias úteis. É o único ponto de cálculo — trocar aqui troca todo o motor.
 
-**Agendamento**: mover para AGENDAMENTO congela E/R/RE imediatamente; nada novo é gerado enquanto o lead estiver lá. R só é liberado pela movimentação humana AGENDAMENTO → FRIOS. O espelhamento do follow-up e a prioridade do compromisso permanecem como estão.
+## D. Risco de duplicidade
 
-**L1–L4**: param de gerar novas obrigações. Histórico, auditoria e tarefas já registradas continuam existindo e podem ser concluídas normalmente.
+Hoje o risco é zero: nada chama `cadence-v2`. O risco nasce na segunda construção se o V2 virar um segundo gerador. A regra: `decide.ts` delega ao V2 e continua sendo o único a chamar `upsertQueueItem`. Nunca criar um segundo tick.
 
-## Como será feito (técnico)
+Estado real do banco agora: `relationship_queue` = 0 linhas, `relationship_cadences` = 0 linhas, `relationship_events` = 111 (96 FIRST_CONTACT_SENT, 15 MESSAGE_SENT), `crm_cadence_tasks` = 13 (0 pendentes). Ou seja, a virada acontece praticamente em base limpa de obrigações.
 
-Checkpoint de segurança antes de qualquer alteração.
+## E. relationship_queue
 
-1. **Configuração do fluxo** (`src/lib/relationship/config.ts`, `types.ts`): novas definições de etapa com intervalos em dias de calendário, sequências `sem_resposta`, ramo material, `reengajamento` (R1–R4) e `reentrada` (RE0–RE3), mais o plano de ações internas por etapa. E12/E20/E27/E30 saem das sequências ativas sem serem removidos como chave histórica.
-2. **Calendário e janelas** (`src/lib/relationship/calendar.ts`): unidade de dias de calendário, deslocamento sábado→segunda / domingo→terça / feriado→próximo dia operacional (usando a fonte central de feriados já existente), janela única 09:00–17:30 e sábado 08:00–16:00, e a regra de não repetir etapa do mesmo lead no mesmo dia. A janela do E0 permanece separada.
-3. **Decisão e máquina** (`decide.ts`, `machine.ts`, `flow-plan.ts`): âncora teórica + piso de execução; bifurcações por contexto de material; congelamento por AGENDAMENTO; liberação de R por transição humana para FRIOS.
-4. **Ações internas persistidas**: cada etapa passa a materializar suas ações ordenadas com estado próprio (pendente/concluída/cancelada) e liberação sequencial; a etapa só conclui quando a última ação aplicável termina.
-5. **Ação do Dia** (`src/server/crm/daily-actions.server.ts`): passa a expor apenas a ação liberada, com ligação antes de mensagem, e a descartar ações obsoletas após mudança de fluxo. Continua apenas lendo obrigações.
-6. **Fila L1–L4** (`src/server/crm/cadence.server.ts`): geração de novas tarefas L2/L3/L4 desativada; leitura e conclusão das existentes mantidas.
-7. **Biblioteca** (`message-library.server.ts`, `step-message.server.ts`): as etapas oficiais passam a ser E0–E8, R1–R4 e RE0–RE3; E7 e E8 ganham eixo de contexto (SEM_CONTATO / MATERIAL_ENVIADO) além de COM NOME / SEM NOME, que continua consultando a Central dos Nomes. Nenhuma versão existente é alterada ou apagada.
+Colunas: `id, scope, run_id, lead_id, flow, step, due_at, priority, status, attempts, executed_at, result, reason, created_at, updated_at, canonical_investor_id, flow_version_id, responsible_executive_id`.
 
-**Banco**: será necessária uma migration mínima para (a) ações internas da etapa com ordem, estado e horário de liberação, (b) referência teórica separada da operacional na fila, e (c) o registro estruturado de apresentação enviada no ciclo. Antes de escrevê-la, verifico se `relationship_queue`, `relationship_events` e `relationship_cadences` já comportam parte disso, para reaproveitar colunas em vez de criar tabelas paralelas. Nenhum dado existente é migrado ou removido; ciclos em andamento seguem com as obrigações que já possuem.
+Vencimento = `due_at`. Execução = `executed_at` + `result`. Etapa = `step`. Status existe. Ordem = `priority`. Não existe referência de AÇÃO INTERNA (ligação 1 / ligação 2 / mensagem) nem campo de DATA TEÓRICA. `priority` (inteiro) pode carregar a ordem interna, mas não distingue o tipo da ação.
 
-## Testes direcionados
+## F. relationship_cadences
 
-Simulações de entrada em segunda, sexta, sábado e domingo; E1 com ligação às 14:00 e às 16:00 (atravessando a janela); ordem ligação→mensagem em E2, E3 e E4; mudança para AGENDAMENTO durante a etapa; ramo E5/E6; contextos de E7/E8; R com e sem material; RE com e sem nova apresentação; ausência de novas obrigações L2/L3/L4; nenhuma etapa dupla no mesmo dia; atraso deslocando sem comprimir. Mais TypeScript e build limpos.
+É o CICLO, não a obrigação: estado, fluxo, etapa atual, `executed_steps`, contadores de leitura/resposta, janela de 24h, `scheduled`, `content_history`, `instance_seq`, versão de fluxo, fechamento. Relação com a fila: 1 ciclo → N linhas de `relationship_queue` por `lead_id`+`scope`. A fila é a obrigação; a cadência é o estado.
 
-## Ponto que exige sua ciência
+## G. relationship_events
 
-O motor de relacionamento e a Ação do Dia são compartilhados com outros ambientes. A implementação será feita de modo que apenas a Financeira `/f` use a nova régua, mantendo o comportamento atual para os demais. Se durante a construção algum ponto não puder ser isolado, eu paro e informo antes de alterar.
+Histórico append-only com `type`, `step`, `event_key` (idempotência), `data` jsonb. Tipos existentes: LEAD_CREATED, FIRST_CONTACT_SENT, MESSAGE_SENT, MESSAGE_DELIVERED, MESSAGE_READ, MESSAGE_RECEIVED, EXECUTIVE_MESSAGE_SENT, WINDOW_*, SCHEDULE_CREATED/CANCELLED, MANUAL_*, NAME_CONFIRMED, CONTENT_SENT, CADENCE_*.
+
+Ligação NÃO é registrada aqui: o desfecho vive em `crm_cadence_tasks.outcome` (SIM/NAO) + `completed_at`. Mudança de estágio também não é evento do motor.
+
+"Apresentação digital enviada": não existe evento próprio. O que existe é `relationship_e20_occurrences` (emissão do link, status, token) e `relationship_e20_events` com `event = 'mensagem_enviada' | 'link_copiado' | 'aberta'`. Lugar tecnicamente mais seguro: derivar `materialSent` de `relationship_e20_occurrences` (emissão) + `relationship_e20_events.mensagem_enviada`, e gravar em paralelo um evento próprio no motor para o registro manual.
+
+## H. Ações internas
+
+O V2 já representa a lógica inteira, inclusive o cancelamento por mudança de fluxo (`nextReleasedAction({ flowChanged })` devolve `null`, e `isStepComplete` aceita CANCELLED). Falta apenas PERSISTIR: hoje não há onde guardar ordem, tipo, status e execução de cada ação interna.
+
+## I. Agendamento e resultado da ligação
+
+`crm_cadence_tasks.outcome = 'SIM'` já é a prova estruturada de atendimento (`human-contact.ts` a usa). `SCHEDULE_CREATED` já cancela pendências no `engine.ts` (CANCELLING_EVENTS). Reuniões já existem em `portal_meetings`. A arquitetura suporta a regra sem conflito; o que falta é ligar "outcome SIM" ao cancelamento das ações internas seguintes da mesma etapa.
+
+## J. E7/E8 + material
+
+Fonte do contexto: E20 (ocorrência emitida / mensagem enviada) — nunca texto. `resolveStepContext()` já converte em SEM_CONTATO / MATERIAL_ENVIADO.
+
+## K. Biblioteca (estado real)
+
+- E7: v1 (word, inativa) e v2 ativa, ambas com COM NOME e SEM NOME. Não há eixo de contexto — existe UM texto só, sem MATERIAL_ENVIADO / SEM_CONTATO.
+- E8: NÃO existe nenhuma linha. Hoje o fim do ciclo é coberto por E20/E27/FINALIZACAO (todas com v3/v2 ativas, com e sem nome).
+
+Falta: eixo de contexto para E7 e E8, e os textos de E8.
+
+## L. L1–L4
+
+L2/L3/L4 já não geram obrigação nova (`cadence.server.ts`, filtro `next.step >= 2 && !existingObligations`). L1 continua nascendo normalmente. Caminho indireto restante: `persistPlannedCalls()` grava as linhas PENDING da fila calculada — como L2+ nunca entra na fila, ele não recria. Não há outro gerador.
+
+## M. Migration mínima
+
+- (A) Reutilizar: `relationship_cadences` (ciclo/contexto em `content_history`/colunas existentes), `relationship_events` (histórico), `crm_cadence_tasks.outcome` (desfecho da ligação), `relationship_e20_*` (material).
+- (B) Novas colunas em `relationship_queue`: `action_order` int, `action_kind` text ('call'|'message'), `theoretical_date` date, `origin_date` date, `cancel_reason` text. Status precisa aceitar `CANCELLED`.
+- (C) Nova tabela: nenhuma. Uma linha por AÇÃO em `relationship_queue` cobre o caso; o par (step, action_order) já dá a chave.
+- (D) Só código: transições, contexto, cancelamento, ordem da Ação do Dia, desligamento da régua antiga.
+
+Biblioteca: E7/E8 por contexto cabe em `step_key` + `purpose` existentes (ex.: purpose `e7_material` / `e7_sem_contato`) — sem migration, apenas conteúdo cadastrado pela gestão.
+
+## N. Ordem recomendada da segunda construção
+
+Quase igual à sua, com uma inversão: o contexto de material precisa vir ANTES das ações condicionais, porque E4→E5 e E7/E8 dependem dele.
+
+1. Migration mínima (colunas da fila + status CANCELLED).
+2. Leitor de contexto do ciclo (material, estágio, desfecho de ligação).
+3. `decide.ts` passa a delegar ao `cadence-v2` (única autoridade de etapa e data).
+4. Persistência das ações internas na fila (uma linha por ação).
+5. Cancelamento automático por atendimento / agendamento / mudança de fluxo.
+6. Ação do Dia consome ação liberada, na ordem certa.
+7. Biblioteca: eixo de contexto E7/E8 + cadastro do E8.
+8. Testes e desligamento definitivo do caminho antigo.
+
+## O. Testes da segunda construção
+
+Exatamente os 16 que você listou, mais: idempotência do tick (rodar duas vezes não duplica obrigação) e ciclo histórico continua sem gerar obrigação.
+
+## P. Decisões de negócio pendentes
+
+Duas, e ambas bloqueiam parte da construção:
+
+1. Os TEXTOS de E8 não existem na Biblioteca, e E7 não tem versão por contexto. O motor pode ficar pronto, mas E7/E8 não terão o texto certo até a gestão cadastrar.
+2. Confirmar se "ligação atendida" sem agendamento e sem mudança de estágio deve encerrar a etapa e seguir para a próxima no prazo normal, ou congelar aguardando decisão humana.
+
+Fora isso, a arquitetura da segunda parte está pronta para construção.
