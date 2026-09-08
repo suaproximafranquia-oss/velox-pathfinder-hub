@@ -134,19 +134,17 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
   if (input.closed) {
     return { kind: "none", reason: "Ciclo encerrado — nenhuma obrigação nova é criada." };
   }
-  if (isCadenceFrozen({ stageKey: input.stageKey })) {
+  if (isCadenceFrozen({ stageKey: input.stageKey, hasCommitment: input.hasCommitment })) {
     return {
       kind: "none",
-      reason: "Lead em AGENDAMENTO — a cadência fica congelada até a decisão humana.",
+      reason: "Compromisso real (AGENDAMENTOS/VÍDEO com follow_up) — a cadência fica congelada até a decisão humana.",
     };
   }
-  if (input.awaitingHandoff) {
-    return {
-      kind: "none",
-      reason:
-        "Ligação atendida sem encaminhamento registrado — a cadência aguarda a decisão do Executivo.",
-    };
-  }
+  /**
+   * `awaitingHandoff` NÃO congela mais: atender uma ligação não é
+   * compromisso. O campo permanece apenas como histórico dos ciclos
+   * anteriores.
+   */
 
   const byStep = new Map<string, V2QueueAction[]>();
   for (const action of input.actions) {
