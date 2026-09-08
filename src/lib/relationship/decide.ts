@@ -93,6 +93,13 @@ export type DecisionContext = {
    * com que prazo. Ausente (ciclo legado) ⇒ comportamento anterior.
    */
   flowPlan?: FlowPlan | null;
+  /**
+   * RÉGUA V2 (Financeira /f) — estado persistido do ciclo. Quando
+   * presente, a decisão de etapa/data/ação é DELEGADA integralmente à
+   * `cadence-v2`. Nenhum cálculo antigo por dias úteis participa.
+   */
+  v2?: V2DecisionInput | null;
+
 };
 
 /**
