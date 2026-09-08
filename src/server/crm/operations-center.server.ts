@@ -417,9 +417,17 @@ export async function buildProductionReport(
   const byDay = new Map<string, ProductionCounts>();
   for (const day of days) byDay.set(day, emptyCounts());
 
+  /**
+   * TOTAL = AÇÕES CONCLUÍDAS. Pulo não é conclusão da ação original;
+   * "enviadas" é subconjunto de "mensagens" e recuperação é leitura de
+   * histórico — nenhum dos três entra no total para não contar duas
+   * vezes o mesmo acontecimento.
+   */
   const bump = (bucket: ProductionCounts, metric: Event["metric"]) => {
     bucket[metric] += 1;
-    bucket.total += 1;
+    if (metric === "ligacoes" || metric === "mensagens" || metric === "reunioes") {
+      bucket.total += 1;
+    }
   };
 
   for (const event of visible) {
