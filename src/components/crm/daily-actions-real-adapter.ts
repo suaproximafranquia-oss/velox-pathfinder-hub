@@ -15,6 +15,7 @@ import {
   noteDailyActionFn,
   recordDailyActionHistoryFn,
   registerDailyActionMessageFn,
+  registerQueueCallOutcomeFn,
   rescheduleMeetingFn,
   resolveMeetingOutcomeFn,
   skipDailyActionFn,
@@ -44,6 +45,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
   const noteAction = useServerFn(noteDailyActionFn);
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
   const registerMessage = useServerFn(registerDailyActionMessageFn);
+  const registerQueueCall = useServerFn(registerQueueCallOutcomeFn);
   const recordHistory = useServerFn(recordDailyActionHistoryFn);
   const resolveMeeting = useServerFn(resolveMeetingOutcomeFn);
   const rescheduleMeeting = useServerFn(rescheduleMeetingFn);
@@ -76,6 +78,37 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
           : { ok: false, message: result.reason ?? undefined };
       },
       completeCall: async (item, outcome, rang) => {
+        /**
+         * LIGAÇÃO DA RÉGUA V2 — a ação interna vive na fila do motor.
+         * Atendeu ⇒ as ações restantes da etapa são canceladas e o ciclo
+         * aguarda o encaminhamento; não atendeu ⇒ a régua segue.
+         */
+        if (!item.cadence && item.actionKey.startsWith("queue:")) {
+          const queueItemId = item.actionKey.split(":").pop() ?? "";
+          if (!queueItemId) return { ok: false };
+          const result = (await registerQueueCall({
+            data: { queueItemId, outcome, rang: outcome === "NAO" ? (rang ?? null) : null },
+          })) as { awaitingHandoff?: boolean };
+          try {
+            await recordHistory({
+              data: {
+                actionKey: item.actionKey,
+                leadId: item.leadId,
+                step: item.stepLabel,
+                event: "ligacao",
+                outcome: outcome === "SIM" ? "Atendeu" : "Não atendeu",
+              },
+            });
+          } catch {
+            /* histórico é complementar */
+          }
+          return {
+            ok: true,
+            message: result?.awaitingHandoff
+              ? "Ligação atendida — a cadência aguarda o encaminhamento."
+              : "Tentativa registrada.",
+          };
+        }
         if (!item.cadence) return { ok: false };
         await completeTask({
           data: {
@@ -194,6 +227,7 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
       noteAction,
       loadStepMessage,
       registerMessage,
+      registerQueueCall,
       recordHistory,
       resolveMeeting,
       rescheduleMeeting,

@@ -3,6 +3,7 @@
  * Somente gestão autenticada; o navegador nunca fala com a origem.
  */
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { DailyAction, DailyActionsSummary } from "@/lib/crm/daily-actions";
 
