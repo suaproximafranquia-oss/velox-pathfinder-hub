@@ -87,6 +87,7 @@ export async function openManualE0Cadence(cardId: string, ownershipSeq = 0): Pro
   const { productionEngine } = await import("./engine.server");
   await productionEngine().handleEvent({
     id: manualE0EventKey(cardId, ownershipSeq),
+    scope: "production",
     leadId: cardId,
     type: "LEAD_CREATED",
     at: new Date().toISOString(),

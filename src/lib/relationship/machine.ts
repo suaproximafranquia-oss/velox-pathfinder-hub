@@ -160,7 +160,7 @@ export function applyEvent(
        * régua V2 (ligação 1 → 10 min → ligação 2 → mensagem para copiar).
        * A cadência abre já ativa, em E0, sem nenhum envio.
        */
-      if (event.data?.["manualE0"] === true && current.state === "CADENCE_NOT_STARTED") {
+      if (event.data?.["manualE0"] === true && record.state === "CADENCE_NOT_STARTED") {
         next.startedAt = next.startedAt ?? event.at;
         next.startedBy = "manual";
         next.currentStep = "E0";
