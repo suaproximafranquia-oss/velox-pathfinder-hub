@@ -90,13 +90,21 @@ export type ProductionReport = {
 };
 
 function emptyCounts(): ProductionCounts {
-  return { ligacoes: 0, mensagens: 0, reunioes: 0, pulos: 0, total: 0 };
+  return {
+    ligacoes: 0,
+    mensagens: 0,
+    enviadas: 0,
+    reunioes: 0,
+    pulos: 0,
+    recuperadas: 0,
+    total: 0,
+  };
 }
 
 /** Um acontecimento já concluído, normalizado para contagem. */
 type Event = {
   key: string;
-  metric: "ligacoes" | "mensagens" | "reunioes" | "pulos";
+  metric: "ligacoes" | "mensagens" | "enviadas" | "reunioes" | "pulos" | "recuperadas";
   date: string;
   executiveId: string;
 };
