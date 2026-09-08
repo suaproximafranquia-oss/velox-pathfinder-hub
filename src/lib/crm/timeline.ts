@@ -30,7 +30,10 @@ export type CrmTimelineEvent =
   | "retorno_identificado"
   | "template_automatico"
   | "janela_reaberta"
-  | "portal_liberado";
+  | "portal_liberado"
+  | "agendamento_greensales_espelhado"
+  | "agendamento_greensales_atualizado"
+  | "agendamento_greensales_cancelado";
 
 export const CRM_TIMELINE_LABEL: Record<CrmTimelineEvent, string> = {
   relacionamento_oficial: "Relacionamento oficial definido",
