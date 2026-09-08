@@ -131,25 +131,43 @@ export function DailyActionsOverlay({
   const [undoable, setUndoable] = useState<DailyAction | null>(null);
 
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  /**
+   * ORDEM DO DIA — a lista oficial vem sempre do servidor e a ação
+   * ativa é SEMPRE a primeira. `silent` recarrega em segundo plano,
+   * sem cortina de carregamento: o próximo card já assumiu a posição 1
+   * na tela e a releitura apenas confirma com o servidor.
+   */
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const rows = await adapter.load();
+        setActions(rows);
+        setSelectedKey(rows[0]?.actionKey ?? null);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [adapter],
+  );
+
+  /** Pendências puladas do próprio Executivo (histórico, não fila). */
+  const [pendings, setPendings] = useState<SkippedPendingView[]>([]);
+  const [pendingsOpen, setPendingsOpen] = useState(false);
+  const loadPendings = useCallback(async () => {
+    if (!adapter.listPendings) return;
     try {
-      const rows = await adapter.load();
-      setActions(rows);
-      setSelectedKey((current) =>
-        current && rows.some((r) => r.actionKey === current)
-          ? current
-          : (rows[0]?.actionKey ?? null),
-      );
-    } finally {
-      setLoading(false);
+      setPendings(await adapter.listPendings());
+    } catch {
+      /* a área de pendências nunca bloqueia a Ação do Dia */
     }
   }, [adapter]);
 
   useEffect(() => {
     if (!open) return;
     void load();
-  }, [open, load]);
+    void loadPendings();
+  }, [open, load, loadPendings]);
 
   useEffect(() => {
     if (!open) return;
@@ -212,7 +230,8 @@ export function DailyActionsOverlay({
     setActions((prev) => {
       const index = prev.findIndex((r) => r.actionKey === key);
       const rest = prev.filter((r) => r.actionKey !== key);
-      setSelectedKey(rest[Math.min(index, rest.length - 1)]?.actionKey ?? null);
+      void index;
+      setSelectedKey(rest[0]?.actionKey ?? null);
       return rest;
     });
   }
@@ -228,7 +247,7 @@ export function DailyActionsOverlay({
       if (index < 0) return prev;
       const item = prev[index];
       const rest = prev.filter((r) => r.actionKey !== key);
-      setSelectedKey(rest[Math.min(index, rest.length - 1)]?.actionKey ?? item.actionKey);
+      setSelectedKey(rest[0]?.actionKey ?? item.actionKey);
       return [...rest, item];
     });
   }
@@ -261,7 +280,7 @@ export function DailyActionsOverlay({
         setUndoable(item.source === "queue" && adapter.undoCallOutcome ? item : null);
         applyResult(item.actionKey, result);
         // A régua pode ter liberado a próxima ação (ex.: mensagem E0): relê a lista oficial.
-        if (item.source === "queue") void load();
+        if (item.source === "queue") void load(true);
       } else {
         setFeedback(result.message ?? "Não foi possível registrar a ligação.");
         // Fora de ordem / já resolvida: a lista oficial é a verdade.
@@ -999,7 +1018,7 @@ export function DailyActionsOverlay({
                           key={item.actionKey}
                           item={item}
                           selected={item.actionKey === selectedKey}
-                          onSelect={() => setSelectedKey(item.actionKey)}
+                          locked={item.actionKey !== selectedKey}
                         />
                       ))}
                     </ul>
@@ -1115,22 +1134,23 @@ export function DailyActionsOverlay({
 function ActionRow({
   item,
   selected,
-  onSelect,
+  locked,
 }: {
   item: DailyAction;
   selected: boolean;
-  onSelect: () => void;
+  /** Visível, porém bloqueado: só a posição 1 é executável. */
+  locked: boolean;
 }) {
   const Icon = KIND_ICON[item.kind];
   return (
     <li>
-      <button
-        type="button"
-        onClick={onSelect}
+      <div
+        aria-disabled={locked}
+        title={locked ? "Disponível quando chegar à posição 1 da fila." : undefined}
         className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition ${
           selected
             ? "border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10"
-            : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+            : "border-white/10 bg-white/[0.03] opacity-60"
         }`}
       >
         <span
@@ -1157,7 +1177,8 @@ function ActionRow({
             atrasada
           </span>
         )}
-      </button>
+        {locked && <Lock className="h-3.5 w-3.5 shrink-0 text-white/30" />}
+      </div>
     </li>
   );
 }
