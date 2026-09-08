@@ -238,13 +238,20 @@ export async function buildProductionReport(
   const toIso = new Date(windowTo).toISOString();
 
   const [callsRes, ledgerRes] = await Promise.all([
+    /**
+     * LIGAÇÕES DA OPERAÇÃO ATUAL: a ligação é ação interna da etapa, na
+     * própria fila do motor V2. Nada é gravado em duplicidade só para
+     * alimentar a Central — lê-se exatamente a linha que a Ação do Dia
+     * concluiu.
+     */
     supabaseAdmin
-      .from("crm_cadence_tasks")
-      .select("id,lead_id,channel,status,completed_at,completed_by")
-      .eq("channel", "call")
-      .eq("status", "DONE")
-      .gte("completed_at", fromIso)
-      .lt("completed_at", toIso)
+      .from("relationship_queue")
+      .select("id,lead_id,action_kind,status,executed_at,responsible_executive_id")
+      .eq("scope", "production")
+      .eq("action_kind", "call")
+      .eq("status", "EXECUTED")
+      .gte("executed_at", fromIso)
+      .lt("executed_at", toIso)
       .limit(5000),
     supabaseAdmin
       .from("relationship_engine_log")
@@ -261,12 +268,17 @@ export async function buildProductionReport(
       .limit(5000),
   ]);
 
-  const callRows = (callsRes.data ?? []) as Array<{
+  const callRows = ((callsRes.data ?? []) as Array<{
     id: string;
     lead_id: string | null;
-    completed_at: string | null;
-    completed_by: string | null;
-  }>;
+    executed_at: string | null;
+    responsible_executive_id: string | null;
+  }>).map((row) => ({
+    id: row.id,
+    lead_id: row.lead_id,
+    completed_at: row.executed_at,
+    completed_by: row.responsible_executive_id,
+  }));
 
   /** HOMOLOGAÇÃO/TESTE FORA: leads de teste não são produção real. */
   const leadIds = [...new Set(callRows.map((r) => r.lead_id).filter(Boolean))] as string[];
