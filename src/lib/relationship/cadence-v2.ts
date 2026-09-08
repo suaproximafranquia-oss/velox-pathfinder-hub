@@ -508,7 +508,10 @@ export function nextReleasedAction(input: {
       releaseAt = previousState.executedAt;
     }
 
-    // Fora da janela a ação não se perde: vai para a próxima abertura.
+    // E0 não usa a janela da régua: sua janela é a própria do executivo
+    // (aplicada pela Ação do Dia). As demais etapas vão para a próxima
+    // abertura sem se perder.
+    if (input.step === "E0") return { action, releaseAt };
     return { action, releaseAt: nextOpenMoment(releaseAt) };
   }
   return null;
