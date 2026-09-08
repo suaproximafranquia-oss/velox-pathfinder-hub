@@ -7,17 +7,24 @@
  * verdade: a produção é reconstruída dos registros oficiais que a
  * própria Ação do Dia já grava.
  *
- * QUATRO INDICADORES — nada além disto é contado:
- *   ligações efetuadas  → crm_cadence_tasks (canal ligação, DONE)
- *                         executor: completed_by · momento: completed_at
- *   mensagens enviadas  → relationship_engine_log
- *                         acao_do_dia_mensagem_registrada, resultado
- *                         "enviada" (repetição de confirmação grava
- *                         "registrada" e NÃO conta)
+ * INDICADORES — nada além disto é contado:
+ *   ligações efetuadas  → relationship_queue (ação interna de ligação da
+ *                         régua V2, status EXECUTED). Esta é a operação
+ *                         ATUAL; a tabela legada `crm_cadence_tasks` não
+ *                         recebe mais ligações e não é consultada.
+ *   mensagens copiadas  → relationship_engine_log
+ *                         acao_do_dia_mensagem_registrada com resultado
+ *                         "copiada" (conclusão real) ou "enviada".
+ *                         "registrada" é repetição de confirmação e NÃO
+ *                         conta.
+ *   mensagens enviadas  → subconjunto com resultado "enviada". Copiar
+ *                         NUNCA é convertido em envio.
  *   reuniões realizadas → relationship_engine_log
  *                         acao_do_dia_reuniao_resolvida, resultado
- *                         "compareceu"
+ *                         "compareceu" (não comparecimento não conta)
  *   pulos               → relationship_engine_log acao_do_dia_pulada
+ *   recuperadas         → relationship_engine_log
+ *                         acao_do_dia_pulo_recuperado, contadas à parte
  *
  * E0 fica FORA: o primeiro contato nunca gera estes registros e o tipo
  * `primeiro_contato` é descartado explicitamente como segunda barreira.
