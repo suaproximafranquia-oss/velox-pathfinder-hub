@@ -15,8 +15,17 @@ import { CADENCE_V2_STEPS } from "./cadence-v2";
 /** Etapa própria da orientação automática dentro da janela de 24h. */
 export const AUTO_REPLY_STEP_KEY = "RESPOSTA_AUTOMATICA";
 
+/**
+ * RF — RELACIONAMENTO ESFRIADO. Última camada de reaproximação, acionada
+ * só depois que uma jornada normal terminou. Não pertence à régua V2
+ * (não entra em E/R/RE), mas TEM identidade editorial atual: a Gestão
+ * edita o texto de RF0/RF1 na Biblioteca como qualquer outra etapa.
+ */
+export const COLD_STEP_KEYS: readonly string[] = ["RF0", "RF1"];
+
 export const OPERATIONAL_STEP_KEYS: readonly string[] = [
   ...CADENCE_V2_STEPS,
+  ...COLD_STEP_KEYS,
   AUTO_REPLY_STEP_KEY,
 ];
 
