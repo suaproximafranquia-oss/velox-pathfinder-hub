@@ -45,9 +45,14 @@ export const UNIDENTIFIED_LABEL = "Não identificado";
 
 export type ProductionCounts = {
   ligacoes: number;
+  /** Mensagens preparadas/copiadas na Ação do Dia (conclusão real). */
   mensagens: number;
+  /** Subconjunto com envio explicitamente registrado. */
+  enviadas: number;
   reunioes: number;
   pulos: number;
+  /** Pendências puladas e depois efetivamente concluídas. */
+  recuperadas: number;
   total: number;
 };
 
