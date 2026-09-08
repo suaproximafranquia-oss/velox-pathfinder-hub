@@ -35,6 +35,7 @@ import {
   AUTO_REPLY_STEP_KEY,
   OPERATIONAL_STEP_KEYS,
   isContextualStep,
+  requiresStepContext,
   isCurrentEditorialStep,
   isHistoricalStep,
   isOperationalStep,
@@ -52,7 +53,7 @@ export type LibraryMessage = {
    * Contexto do conteúdo (E7/E8): SEM_CONTATO ou MATERIAL_ENVIADO.
    * Null nas etapas de contexto único.
    */
-  stepContext: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
+  stepContext: StepContext | null;
   title: string;
   /** Rótulo visível da etapa. Apresentação — nunca a chave técnica. */
   displayLabel: string;
@@ -481,7 +482,7 @@ export async function getActiveLibraryMessage(
 ): Promise<LibraryMessage | null> {
   const key = stepKey.trim().toUpperCase();
   const context = stepContext ?? null;
-  if (isContextualStep(key) && !context) return null;
+  if (requiresStepContext(key) && !context) return null;
 
   let query = supabaseAdmin
     .from("relationship_message_library")
@@ -505,7 +506,7 @@ export async function publishLibraryVersion(params: {
    * PRÓPRIOS: publicar em SEM_CONTATO nunca desativa MATERIAL_ENVIADO e
    * nunca empresta texto de um contexto para o outro.
    */
-  stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
+  stepContext?: StepContext | null;
   body: string;
   bodyWithoutName?: string | null;
   title?: string | null;
@@ -609,7 +610,7 @@ export async function publishLibraryVersion(params: {
 export async function renderFromLibrary(
   stepKey: string,
   input: RenderInput,
-  stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null,
+  stepContext?: StepContext | null,
 ): Promise<{ result: RenderResult; message: LibraryMessage | null }> {
   /**
    * ETAPA DESCONHECIDA NÃO RENDERIZA. Nenhum texto é montado para uma
@@ -621,11 +622,17 @@ export async function renderFromLibrary(
     return { result: { ok: false, reason: unknownStepReason(stepKey) }, message: null };
   }
 
-  if (isContextualStep(stepKey) && !stepContext) {
+  /**
+   * Contexto OBRIGATÓRIO (E7/E8 e R3): sem contexto não existe texto
+   * elegível — e nunca há aproveitamento do texto de outro contexto.
+   * E1/E2/E3 continuam com contexto normal (linha sem contexto) quando
+   * o motor não abriu o caminho V.
+   */
+  if (requiresStepContext(stepKey) && !stepContext) {
     return {
       result: {
         ok: false,
-        reason: `Etapa ${stepKey} exige contexto (SEM_CONTATO ou MATERIAL_ENVIADO) e nenhum foi informado. Nada foi enviado.`,
+        reason: `Etapa ${stepKey} exige contexto e nenhum foi informado. Nada foi enviado.`,
       },
       message: null,
     };
