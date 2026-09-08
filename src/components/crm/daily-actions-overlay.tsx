@@ -5,29 +5,23 @@
  * compromissos da Agenda, mensagens previstas e ligações. Nada é criado
  * aqui — o painel só apresenta as obrigações que já existem nas fontes
  * oficiais, sem repetir a mesma ação duas vezes e sem transformar
- * atraso em tarefa de hoje.
+ * atraso em tarefa de hoje. A execução em si acontece no card
+ * operacional (`DailyActionCard`), a mesma peça reaproveitada pela
+ * Central de Operações.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
   CalendarDays,
-  Check,
-  ExternalLink,
   Lock,
   MessageCircle,
   MessageSquare,
   Phone,
   RefreshCw,
-  SkipForward,
-  StickyNote,
   X,
 } from "lucide-react";
-import type {
-  DailyActionsAdapter,
-  SkippedPendingView,
-  StepMessageView,
-} from "@/lib/crm/daily-actions.adapter";
-import { copyToClipboard } from "@/lib/clipboard";
+import type { DailyActionsAdapter, SkippedPendingView } from "@/lib/crm/daily-actions.adapter";
+import { DailyActionCard } from "@/components/crm/daily-action-card";
 import {
   resolveOperationalWindow,
   type OperationalWindow,
@@ -39,32 +33,6 @@ import {
   type DailyActionBucket,
   type DailyActionKind,
 } from "@/lib/crm/daily-actions";
-
-
-
-/**
- * LIGAÇÃO OFICIAL: item da fila legada (com `cadence`) OU ação interna
- * de ligação da régua V2 (fonte `queue`). As duas usam os mesmos botões
- * Atendeu / Não atendeu; a diferença fica no adaptador.
- */
-function isCallAction(item: DailyAction | null | undefined): boolean {
-  return Boolean(item) && item!.kind === "ligacao" && (Boolean(item!.cadence) || item!.source === "queue");
-}
-
-/** Cabeçalho oficial: "LIGAÇÃO — ETAPA E0", "MENSAGEM — ETAPA E0"… */
-function actionHeadline(item: DailyAction): string {
-  if (item.source === "queue" && item.stepLabel) {
-    const base = item.kind === "ligacao" ? "Ligação" : "Mensagem";
-    const second = (item.queueActionOrder ?? 1) > 1 && item.kind === "ligacao" ? "Segunda ligação" : base;
-    return `${second} — Etapa ${item.stepLabel}`;
-  }
-  return `${KIND_LABEL[item.kind]}${item.stepLabel ? ` · ${item.stepLabel}` : ""}`;
-}
-
-function formatDay(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return d && m && y ? `${d}/${m}` : iso;
-}
 
 const KIND_ICON: Record<DailyActionKind, typeof Phone> = {
   primeiro_contato: MessageCircle,
