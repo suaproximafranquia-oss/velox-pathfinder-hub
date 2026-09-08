@@ -23,10 +23,8 @@ import {
 } from "@/lib/crm/daily-actions-overdue";
 import { stepDisplayLabel } from "@/lib/relationship/step-labels";
 import { listClosureDuties } from "@/server/relationship/closure.server";
-import {
-  filterE0WithFirstContact,
-  listPendingE0Actions,
-} from "@/server/crm/e0-actions.server";
+import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
+
 import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
@@ -95,12 +93,13 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   /**
    * E0 MANUAL → RÉGUA V2 (idempotente). Garante que todo lead NOVO de
    * executivo em modo manual tenha a E0 na fila do motor ANTES da
-   * leitura abaixo. Devolve os cards governados pela régua — para esses,
-   * o card legado "primeiro contato" não é exibido.
+   * leitura abaixo. Uma falha aqui NÃO reabre o caminho legado: o card
+   * antigo de primeiro contato deixou de existir como ação operacional.
    */
-  const governedE0 = await import("@/server/relationship/e0-manual.server")
+  await import("@/server/relationship/e0-manual.server")
     .then((m) => m.ensureManualE0Cadences())
     .catch(() => new Set<string>());
+
 
 
   const [meetingsRes, agendaRes, queueRes, cadenceQueue, closureDuties, firstContacts] =
@@ -188,68 +187,18 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   const actions: DailyAction[] = [];
 
   /**
-   * PROTEÇÃO DEFENSIVA: card cujo primeiro contato JÁ está registrado
-   * nunca aparece como E0 pendente, mesmo que a pendência tenha
-   * sobrado por qualquer motivo. Nada é apagado aqui — apenas não é
-   * exibido como tarefa humana.
+   * PRIMEIRO CONTATO (E0) — CAMINHO LEGADO ENCERRADO.
+   *
+   * A E0 é etapa REAL da régua V2 (ligação 1 → 10 min → ligação 2 →
+   * mensagem para COPIAR) e vive exclusivamente em `relationship_queue`.
+   * O card legado "Executar primeiro contato (E0)" NÃO é mais oferecido
+   * como ação operacional — nem quando a reconciliação acima falha
+   * (fail-closed: falha nunca reexpõe o caminho antigo).
+   *
+   * Os registros de `workspace_e0_actions` permanecem intactos como
+   * histórico; nada é apagado nem migrado aqui.
    */
-  const firstContactDone = await filterE0WithFirstContact(
-    firstContacts.map((a) => a.card_id),
-  ).catch(() => new Set<string>());
 
-  /**
-   * A E0 passou a ser etapa real da régua V2 (ligação → 10 min →
-   * ligação → mensagem). Quando o motor já colocou as ações da E0 na
-   * fila, o card antigo de primeiro contato não é exibido: a obrigação
-   * é uma só. O registro anterior permanece intacto no histórico.
-   */
-  const e0InQueue = new Set(
-    queue
-      .filter((q) => String((q as Record<string, unknown>).step ?? "") === "E0")
-      .map((q) => q.lead_id as string),
-  );
-
-  /**
-   * PRIMEIRO CONTATO (E0) EM MODO MANUAL — prioridade máxima.
-   * A ação já foi decidida pelo motor de entrada; aqui ela apenas
-   * aparece para ser executada pelo executivo.
-   */
-  for (const pending of firstContacts) {
-    if (firstContactDone.has(pending.card_id)) continue;
-    if (e0InQueue.has(pending.card_id)) continue;
-    // Governada pela régua V2: a obrigação vive na fila do motor.
-    if (governedE0.has(pending.card_id)) continue;
-    const identity = identities.get(pending.card_id);
-    /**
-     * O primeiro contato fica disponível no primeiro DIA ÚTIL após a
-     * chegada. LEAD NOVO NÃO NASCE ATRASADO: enquanto a E0 não for
-     * executada ele permanece na classe NOVO, no topo da fila, sem ser
-     * contado como atraso operacional.
-     */
-    const dueDate = availabilityDate(pending.created_at);
-    const overdue = false;
-    actions.push({
-      actionKey: `first_contact:${pending.card_id}:e0`,
-      source: "first_contact",
-      kind: "primeiro_contato",
-      leadId: pending.card_id,
-      name: identity?.name ?? pending.lead_name ?? "Investidor",
-      phone: identity?.phone ?? pending.lead_whatsapp ?? "",
-      scope: identity?.scope ?? null,
-      stepLabel: "E0",
-      dueDate,
-      startsAt: null,
-      endsAt: null,
-      overdue,
-      priorityMax: true,
-      bucket: "hoje",
-
-      title: "Primeiro contato com lead novo",
-      responsibleName: pending.responsible_executive_id ?? null,
-      attempts: [],
-      firstContactActionId: pending.id,
-    });
-  }
 
   for (const meeting of meetings) {
     const startsAt = new Date(meeting.scheduled_at).toISOString();

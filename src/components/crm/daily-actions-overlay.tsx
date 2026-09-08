@@ -290,29 +290,11 @@ export function DailyActionsOverlay({
 
 
   /**
-   * PRIMEIRO CONTATO (E0) em modo manual: a execução usa o MESMO
-   * caminho oficial do modo automático; aqui só registramos que o
-   * executivo executou. Nenhum envio real é liberado por esta tela.
+   * PRIMEIRO CONTATO (E0): não existe mais execução por esta tela. A E0
+   * é etapa da régua V2 — ligação 1 → 10 min → ligação 2 → mensagem
+   * apenas para COPIAR. Nenhum botão desta interface envia a mensagem.
    */
-  async function handleFirstContact(item: DailyAction) {
-    if (!operationalWindow.open) return;
-    if (!item.firstContactActionId) return;
-    setBusy(true);
-    setFeedback(null);
-    try {
-      const result = await adapter.executeFirstContact(item);
-      if (result.ok) {
-        applyResult(item.actionKey, {
-          requeue: result.requeue,
-          message: result.message ?? "Primeiro contato registrado.",
-        });
-      } else {
-        setFeedback(result.message ?? "Não foi possível executar o primeiro contato.");
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
+
 
   /** PULAR — a justificativa é obrigatória e vira histórico oficial. */
   async function handleSkip(item: DailyAction) {
@@ -621,16 +603,7 @@ export function DailyActionsOverlay({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  {selected.kind === "primeiro_contato" && (
-                    <button
-                      type="button"
-                      onClick={() => void handleFirstContact(selected)}
-                      disabled={busy || locked}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
-                    >
-                      <Check className="h-4 w-4" /> Executar primeiro contato (E0)
-                    </button>
-                  )}
+
                   {/* LIGAÇÃO — resultado da tentativa. Nenhuma resposta
                       encerra a ação: só o botão Concluído encerra. */}
                   {isCallAction(selected) &&
@@ -984,7 +957,8 @@ export function DailyActionsOverlay({
                 )}
                 <p className="text-[11px] text-white/35">
                   {selected.kind === "primeiro_contato"
-                    ? "O primeiro contato é executado pelo mesmo caminho oficial do modo automático, com registro de autor, horário e resultado. A trava global de envio real permanece ativa."
+                    ? "O primeiro contato acontece pela régua: ligação 1, 10 minutos, ligação 2 e, só então, a mensagem para copiar. Esta tela nunca envia a mensagem."
+
                     : selected.source === "queue" && selected.kind === "ligacao"
                     ? "Atendeu: as ações restantes desta etapa são canceladas, nenhuma mensagem é enviada e o lead aguarda o seu encaminhamento. Não atendeu: a régua libera a próxima ação da etapa (2ª ligação em 10 minutos; depois a mensagem para copiar)."
                     : selected.source === "queue" && selected.kind === "mensagem"

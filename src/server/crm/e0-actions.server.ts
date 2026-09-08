@@ -15,8 +15,7 @@
  * executor oficial e pela Global WhatsApp Safety Lock, intocada.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { executionMode } from "@/server/relationship/execution-mode.server";
-import { recordEvent } from "@/server/crm/lead-service.server";
+
 
 export type E0ActionState = "PENDENTE" | "EXECUTADA" | "CANCELADA";
 
@@ -121,117 +120,29 @@ export async function listPendingE0Actions(executiveId?: string | null): Promise
 }
 
 /**
- * Execução manual da E0 pelo executivo. O caminho de entrega é o MESMO
- * do modo automático (`registerFirstContact`), com a mesma trava de
- * duplicidade e a mesma Safety Lock.
+ * EXECUTOR LEGADO DA E0 — DESATIVADO (FAIL-CLOSED).
+ *
+ * A E0 do fluxo operacional atual é etapa da régua V2 e vive na fila do
+ * motor: ligação 1 → 10 min → ligação 2 → mensagem apenas para COPIAR.
+ * Este executor NÃO envia nada: não cria `crm_messages`, não chama
+ * `registerFirstContact`/`dispatchFirstContact` e não aciona a Meta.
+ * Qualquer chamada é recusada — falha ou dúvida jamais vira permissão.
+ *
+ * A função permanece exportada apenas para compatibilidade/histórico.
  */
-export async function executeE0Action(input: {
+export async function executeE0Action(_input: {
   actionId: string;
   executedBy: string;
   executedByUserId?: string | null;
 }): Promise<{ ok: boolean; state: E0ActionState; reason?: string }> {
-  const { data } = await supabaseAdmin
-    .from("workspace_e0_actions")
-    .select(COLUMNS)
-    .eq("id", input.actionId)
-    .maybeSingle();
-  const action = data as unknown as E0ActionRow | null;
-  if (!action) return { ok: false, state: "PENDENTE", reason: "Ação não encontrada." };
-  if (action.state !== "PENDENTE") {
-    return { ok: false, state: action.state, reason: "Esta E0 já foi encerrada." };
-  }
-  /**
-   * E0 GOVERNADA PELA RÉGUA V2: o executor legado não pode mais disparar
-   * a mensagem — a E0 manual é ligação 1 → ligação 2 → mensagem para
-   * copiar, na Ação do Dia. Sem esta trava haveria duas E0 concorrentes.
-   */
-  {
-    const { governedByV2 } = await import("@/server/relationship/e0-manual.server");
-    if ((await governedByV2([action.card_id])).has(action.card_id)) {
-      return {
-        ok: false,
-        state: "PENDENTE",
-        reason: "E0 governada pela régua V2 — execute pela Ação do Dia (ligação/mensagem para copiar).",
-      };
-    }
-  }
-
-  const { data: card } = await supabaseAdmin
-    .from("portal_leads")
-    .select("id,name,whatsapp,is_test")
-    .eq("id", action.card_id)
-    .maybeSingle();
-
-  const mode = executionMode({ isTestLead: Boolean(card?.is_test) });
-  const { registerFirstContact } = await import("@/server/crm/first-contact.server");
-  const originMap: Record<string, { origin: string; entryOrigin: "GREENSALES" | "PORTAL" | "TRAFEGO_PAGO" }> = {
-    greensales: { origin: "GreenSales", entryOrigin: "GREENSALES" },
-    portal: { origin: "Portal do Investidor", entryOrigin: "PORTAL" },
-    tiktok: { origin: "TikTok", entryOrigin: "TRAFEGO_PAGO" },
-    meta: { origin: "Meta", entryOrigin: "TRAFEGO_PAGO" },
+  return {
+    ok: false,
+    state: "PENDENTE",
+    reason:
+      "E0 é executada pela Ação do Dia na régua V2 (ligação 1 → 10 min → ligação 2 → mensagem para copiar). O caminho antigo de primeiro contato está desativado.",
   };
-  const mapped = originMap[action.origin ?? ""] ?? { origin: "GreenSales", entryOrigin: "GREENSALES" };
-
-  const e0 = await registerFirstContact({
-    leadId: action.card_id,
-    name: card?.name ?? action.lead_name ?? "",
-    phone: card?.whatsapp ?? action.lead_whatsapp ?? "",
-    origin: mapped.origin,
-    entryOrigin: mapped.entryOrigin,
-    ownerId: null,
-    entryAt: action.entry_at,
-    enteredEntryStageAt: action.entered_entry_stage_at,
-    reactivation: Boolean(action.reactivation),
-    simulated: mode.simulated,
-    /**
-     * BLOCO 2 — E0 de uma NOVA entrada operacional (redistribuição real)
-     * não pode ser barrada pela E0 anterior do mesmo card, nem apagá-la.
-     */
-    cycleKey:
-      (action.ownership_seq ?? 0) > 0
-        ? (action.ownership_key ?? `own${action.ownership_seq}`)
-        : null,
-  });
-
-  const executedAt = new Date().toISOString();
-  const result = e0.registered
-    ? mode.simulated
-      ? "EXECUTADA_SIMULADA"
-      : "EXECUTADA"
-    : `BLOQUEADA: ${e0.reason ?? "sem motivo informado"}`;
-
-  if (!e0.registered) {
-    await supabaseAdmin
-      .from("workspace_e0_actions")
-      .update({ result } as never)
-      .eq("id", action.id);
-    if (action.crm_lead_id) {
-      await recordEvent(action.crm_lead_id, "e0_manual_bloqueada", e0.reason ?? result);
-    }
-    return { ok: false, state: "PENDENTE", reason: e0.reason ?? "E0 não pôde ser executada." };
-  }
-
-  await supabaseAdmin
-    .from("workspace_e0_actions")
-    .update({
-      state: "EXECUTADA",
-      executed_at: executedAt,
-      executed_by: input.executedBy,
-      executed_by_user_id: input.executedByUserId ?? null,
-      result,
-    } as never)
-    .eq("id", action.id);
-
-  if (action.crm_lead_id) {
-    await recordEvent(
-      action.crm_lead_id,
-      mode.simulated ? "e0_manual_simulada" : "e0_manual_executada",
-      `Primeiro contato executado manualmente por ${input.executedBy} no card ${action.card_id}.`,
-    );
-  }
-
-  return { ok: true, state: "EXECUTADA" };
 }
+
 
 /**
  * NEUTRALIZAÇÃO DA PENDÊNCIA DE E0 (correção pontual).
