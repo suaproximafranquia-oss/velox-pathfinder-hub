@@ -86,6 +86,21 @@ export async function createPendingE0Action(input: {
     ownership_key: input.ownershipKey ?? null,
   } as never);
   if (error) return { ok: false, created: false, reason: error.message };
+
+  /**
+   * MODO MANUAL → RÉGUA V2. A ação legada fica só como histórico; quem
+   * cobra a E0 (ligação 1 → 10 min → ligação 2 → mensagem para copiar)
+   * é a régua, na `relationship_queue`. Idempotente; falha aqui não
+   * invalida a entrada — a reconciliação do ciclo reabre.
+   */
+  if (ownershipSeq === 0) {
+    try {
+      const { openManualE0Cadence } = await import("@/server/relationship/e0-manual.server");
+      await openManualE0Cadence(input.cardId, 0);
+    } catch {
+      /* reconciliado no próximo ciclo/abertura da Ação do Dia */
+    }
+  }
   return { ok: true, created: true };
 }
 
@@ -124,6 +139,21 @@ export async function executeE0Action(input: {
   if (!action) return { ok: false, state: "PENDENTE", reason: "Ação não encontrada." };
   if (action.state !== "PENDENTE") {
     return { ok: false, state: action.state, reason: "Esta E0 já foi encerrada." };
+  }
+  /**
+   * E0 GOVERNADA PELA RÉGUA V2: o executor legado não pode mais disparar
+   * a mensagem — a E0 manual é ligação 1 → ligação 2 → mensagem para
+   * copiar, na Ação do Dia. Sem esta trava haveria duas E0 concorrentes.
+   */
+  {
+    const { governedByV2 } = await import("@/server/relationship/e0-manual.server");
+    if ((await governedByV2([action.card_id])).has(action.card_id)) {
+      return {
+        ok: false,
+        state: "PENDENTE",
+        reason: "E0 governada pela régua V2 — execute pela Ação do Dia (ligação/mensagem para copiar).",
+      };
+    }
   }
 
   const { data: card } = await supabaseAdmin
@@ -252,7 +282,9 @@ export async function filterE0WithFirstContact(cardIds: string[]): Promise<Set<s
     .from("crm_messages")
     .select("investor_id,id")
     .in("investor_id", unique)
-    .like("id", "msg_e0_%");
+    .like("id", "msg_e0_%")
+    // Registro ANULADO (teste do fluxo legado) é histórico, não primeiro contato.
+    .is("voided_at", null);
   const done = new Set<string>();
   for (const row of data ?? []) {
     const investorId = (row as { investor_id?: string }).investor_id;
