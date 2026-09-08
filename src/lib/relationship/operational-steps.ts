@@ -3,8 +3,8 @@
  *
  * Fonte única do que é "etapa atual" para a Biblioteca de Mensagens do
  * Motor: a régua V2 (`CADENCE_V2_STEPS`) mais a resposta automática da
- * janela de 24h. Chaves históricas (E12, E20, E27, FINALIZACAO, RF0,
- * RF1, V3, V4, E0_V1, E30…) continuam gravadas no banco, na fila e nos
+ * janela de 24h. Chaves históricas (E12, E20, E27, FINALIZACAO,
+ * V3, V4, E0_V1, E30…) continuam gravadas no banco, na fila e nos
  * snapshots para auditoria, mas NÃO são identidade editorial de nenhuma
  * etapa atual e não aparecem na lista operacional.
  *

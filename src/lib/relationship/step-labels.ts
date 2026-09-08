@@ -7,7 +7,7 @@
  * quando o rótulo salvo carregar o código de OUTRA etapa (resíduo
  * histórico) — vale o padrão editorial abaixo.
  *
- * Chaves históricas (E12, E20, E27, FINALIZACAO, RF0, RF1, V3, V4…)
+ * Chaves históricas (E12, E20, E27, FINALIZACAO, V3, V4…)
  * continuam gravadas no banco e são rotuladas como histórico; nunca como
  * identidade de uma etapa atual.
  */
