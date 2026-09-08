@@ -262,6 +262,16 @@ export async function runColdRelationshipTick(
     errors: [],
   };
 
+  /* Conteúdo oficial do RF precisa existir antes de qualquer obrigação. */
+  try {
+    const { ensureColdRelationshipLibrary } = await import("./message-library.server");
+    await ensureColdRelationshipLibrary();
+  } catch (error) {
+    summary.errors.push(
+      `Biblioteca RF: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+    );
+  }
+
   const leadIds = await candidateLeadIds(at);
   for (const leadId of leadIds) {
     try {

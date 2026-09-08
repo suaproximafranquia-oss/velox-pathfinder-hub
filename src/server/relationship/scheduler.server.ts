@@ -210,6 +210,27 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
   }
 
   /**
+   * RF — RELACIONAMENTO ESFRIADO. Varredura própria dentro do MESMO
+   * tique: leads cuja jornada já terminou não aparecem em
+   * `eligibleLeadIds()`, e é exatamente esse o público do RF. Falha
+   * aqui nunca derruba o restante do ciclo.
+   */
+  try {
+    const { runColdRelationshipTick } = await import("./cold-relationship.server");
+    const cold = await runColdRelationshipTick(startedAt);
+    summary.scheduled += cold.scheduled;
+    for (const message of cold.errors.slice(0, 5)) {
+      if (summary.errors.length < 20) summary.errors.push(`RF ${message}`);
+    }
+  } catch (error) {
+    if (summary.errors.length < 20) {
+      summary.errors.push(
+        `RF: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+      );
+    }
+  }
+
+  /**
    * OBSERVABILIDADE DO CICLO: cada execução do executor deixa rastro
    * próprio. Sem isso é impossível responder "o motor rodou e não fez
    * nada" x "o motor não rodou". Falha de log nunca invalida o ciclo.
