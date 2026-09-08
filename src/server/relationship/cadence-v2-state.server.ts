@@ -28,7 +28,7 @@ async function loadStageKey(leadId: string): Promise<string | null> {
  * Falar, prometer ou demonstrar interesse não conta, e nenhum texto de
  * conversa é interpretado.
  */
-async function loadMaterialState(leadId: string): Promise<{
+export async function loadMaterialState(leadId: string): Promise<{
   materialSent: boolean;
   materialRequested: boolean;
   materialRequestedAt: string | null;

@@ -472,12 +472,30 @@ export async function renameLibraryStep(params: {
 /** Versão ATIVA de uma etapa (a única elegível para novos envios). */
 export async function getActiveLibraryMessage(
   stepKey: string,
+  /**
+   * EIXO DE CONTEXTO (E7/E8): SEM_CONTATO ou MATERIAL_ENVIADO. Quando
+   * informado, a versão ativa daquele contexto é a única elegível —
+   * nenhum texto é improvisado nem reaproveitado do outro contexto.
+   */
+  stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null,
 ): Promise<LibraryMessage | null> {
+  if (stepContext) {
+    const { data: contextual } = await supabaseAdmin
+      .from("relationship_message_library")
+      .select("*")
+      .eq("scope", "production")
+      .eq("step_key", stepKey)
+      .eq("step_context", stepContext)
+      .eq("active", true)
+      .maybeSingle();
+    return contextual ? toMessage(contextual) : null;
+  }
   const { data } = await supabaseAdmin
     .from("relationship_message_library")
     .select("*")
     .eq("scope", "production")
     .eq("step_key", stepKey)
+    .is("step_context", null)
     .eq("active", true)
     .maybeSingle();
   if (data) return toMessage(data);
@@ -596,6 +614,7 @@ export async function publishLibraryVersion(params: {
 export async function renderFromLibrary(
   stepKey: string,
   input: RenderInput,
+  stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null,
 ): Promise<{ result: RenderResult; message: LibraryMessage | null }> {
   /**
    * ETAPA DESCONHECIDA NÃO RENDERIZA. Nenhum texto é montado para uma
@@ -607,12 +626,14 @@ export async function renderFromLibrary(
     return { result: { ok: false, reason: unknownStepReason(stepKey) }, message: null };
   }
 
-  const message = await getActiveLibraryMessage(stepKey);
+  const message = await getActiveLibraryMessage(stepKey, stepContext ?? null);
   if (!message || !message.body.trim()) {
     return {
       result: {
         ok: false,
-        reason: `Etapa ${stepKey} sem versão ativa na Biblioteca de Mensagens — envio bloqueado.`,
+        reason: stepContext
+          ? `Etapa ${stepKey} (${stepContext}) sem texto oficial cadastrado na Biblioteca — envio bloqueado.`
+          : `Etapa ${stepKey} sem versão ativa na Biblioteca de Mensagens — envio bloqueado.`,
       },
       message,
     };
