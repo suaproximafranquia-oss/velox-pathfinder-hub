@@ -320,6 +320,26 @@ export function DailyActionsOverlay({
    */
 
 
+  /**
+   * RESOLVER PENDÊNCIA — a MESMA ação pulada volta para a fila de hoje.
+   * A trava do servidor continua valendo: ela só fica executável quando
+   * chegar à posição 1.
+   */
+  async function handleResumePending(actionKey: string) {
+    if (!adapter.resumePending) return;
+    setBusy(true);
+    try {
+      const result = await adapter.resumePending(actionKey);
+      setFeedback(result.message ?? null);
+      if (result.ok) {
+        await load(true);
+        await loadPendings();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /** PULAR — a justificativa é obrigatória e vira histórico oficial. */
   async function handleSkip(item: DailyAction) {
     if (skipReason.trim().length < 3) {
