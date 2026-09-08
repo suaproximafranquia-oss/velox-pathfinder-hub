@@ -471,6 +471,7 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
     executiveProvidedName: input.executiveProvidedName ?? null,
     rawName: input.rawInvestorName ?? null,
     manuallyRejected: input.nameRejected ?? false,
+    centralFirstName: input.centralFirstName ?? null,
   });
   const treatment = message.usesInvestorName ? resolution.treatment : NEUTRAL_TREATMENT;
 

@@ -639,11 +639,24 @@ export async function renderFromLibrary(
     };
   }
 
+  /**
+   * CENTRAL DOS NOMES: a base oficial já existente é consultada aqui,
+   * antes de qualquer renderização, e devolve SOMENTE o primeiro nome.
+   */
+  const { resolveCentralFirstName } = await import(
+    "@/server/relationship/name-central-lookup.server"
+  );
+  const centralFirstName = input.nameRejected
+    ? null
+    : await resolveCentralFirstName(input.rawInvestorName ?? null);
+  const renderInput: RenderInput = { ...input, centralFirstName };
+
   const treatment = resolveTreatment({
     confirmedName: input.confirmedInvestorName ?? null,
     executiveProvidedName: input.executiveProvidedName ?? null,
     rawName: input.rawInvestorName ?? null,
     manuallyRejected: input.nameRejected ?? false,
+    centralFirstName,
   });
   const useWithoutName =
     !treatment.personalized && Boolean(message.bodyWithoutName?.trim());
@@ -658,7 +671,7 @@ export async function renderFromLibrary(
     contentUrl: message.contentUrl,
     contentLabel: message.contentLabel,
   };
-  return { result: renderMessageSpec(spec, input), message };
+  return { result: renderMessageSpec(spec, renderInput), message };
 }
 
 
