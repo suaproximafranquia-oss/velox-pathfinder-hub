@@ -119,9 +119,11 @@ function formatTime(iso: string): string {
 
 const CARDS = [
   { key: "ligacoes" as const, label: "Ligações efetuadas", icon: Phone },
-  { key: "mensagens" as const, label: "Mensagens enviadas", icon: MessageSquare },
+  { key: "mensagens" as const, label: "Mensagens copiadas", icon: MessageSquare },
+  { key: "enviadas" as const, label: "Mensagens enviadas", icon: MessageSquare },
   { key: "reunioes" as const, label: "Reuniões realizadas", icon: CalendarRange },
   { key: "pulos" as const, label: "Pulos", icon: SkipForward },
+  { key: "recuperadas" as const, label: "Pendências recuperadas", icon: RotateCcw },
 ];
 
 export function CentralOperacoesHome() {
