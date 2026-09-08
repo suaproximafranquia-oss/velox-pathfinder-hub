@@ -19,10 +19,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { renderFromLibrary } from "./message-library.server";
 import { resolveLeadExecutive } from "./executive-identity.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
-import { loadMaterialState } from "./cadence-v2-state.server";
-
-/** Etapas cujo texto depende do contexto estruturado do ciclo. */
-const CONTEXTUAL_STEPS = new Set(["E7", "E8"]);
+import { resolveStepContextForLead } from "./cadence-v2-state.server";
+import { isContextualStep } from "@/lib/relationship/operational-steps";
 
 export type PreparedStepMessage = {
   step: string;
