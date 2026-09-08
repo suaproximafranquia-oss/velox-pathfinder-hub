@@ -264,7 +264,8 @@ export function createEngine(options: EngineOptions): Engine {
         step: action.step,
         dueAt: action.dueAt,
         priority: 5,
-        status: "PENDING",
+        // Ação já reivindicada pelo executivo (PROCESSING) não perde a posição.
+        status: already?.status === "PROCESSING" ? "PROCESSING" : "PENDING",
         attempts: already?.attempts ?? 0,
         executedAt: null,
         result: null,

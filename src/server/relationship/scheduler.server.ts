@@ -154,8 +154,24 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
   };
   const engine = productionEngine();
   const startedAt = new Date().toISOString();
+
+  /**
+   * E0 MANUAL → RÉGUA V2. Leads NOVOS de executivo em modo manual entram
+   * na régua aqui (idempotente), para que a fila exista mesmo sem
+   * ninguém abrir a Ação do Dia. Falha nunca derruba o ciclo.
+   */
+  try {
+    const { ensureManualE0Cadences } = await import("./e0-manual.server");
+    await ensureManualE0Cadences();
+  } catch (error) {
+    summary.errors.push(
+      `E0 manual: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+    );
+  }
+
   const leadIds = await eligibleLeadIds(startedAt);
   const recovered = await bootstrapMissingCadences(leadIds);
+
 
 
   for (const leadId of leadIds) {
