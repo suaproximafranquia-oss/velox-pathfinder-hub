@@ -1031,7 +1031,64 @@ export function DailyActionsOverlay({
                 ))
               )}
             </div>
+
+            {/*
+              PENDÊNCIAS PULADAS — histórico das ações que você pulou e
+              que ainda não foram concluídas. "Resolver pendência"
+              devolve a MESMA ação para a fila de hoje: nada novo é
+              criado e o motivo original continua registrado.
+            */}
+            {adapter.listPendings && (
+              <div className="border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setPendingsOpen((v) => !v)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-white/40 transition hover:text-white/70"
+                >
+                  <span>Pendências puladas</span>
+                  <span className="text-white/60">{pendings.length}</span>
+                </button>
+                {pendingsOpen && (
+                  <div className="max-h-56 overflow-y-auto px-2 pb-3">
+                    {pendings.length === 0 ? (
+                      <p className="px-2 py-2 text-[11px] text-white/35">
+                        Nenhuma pendência pulada em aberto.
+                      </p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {pendings.map((pending) => (
+                          <li
+                            key={pending.actionKey}
+                            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+                          >
+                            <p className="truncate text-[13px] text-white/85">
+                              {pending.title ?? "Ação pulada"}
+                            </p>
+                            <p className="truncate text-[11px] text-white/45">
+                              {pending.step ? `${pending.step} · ` : ""}
+                              {pending.skippedDate}
+                              {pending.motivo ? ` · ${pending.motivo}` : ""}
+                            </p>
+                            <button
+                              type="button"
+                              disabled={busy || pending.retomadaHoje}
+                              onClick={() => void handleResumePending(pending.actionKey)}
+                              className="mt-2 w-full rounded-lg border border-white/20 px-2 py-1 text-[11px] text-white/75 transition hover:bg-white/10 disabled:opacity-50"
+                            >
+                              {pending.retomadaHoje
+                                ? "Já retomada — está na fila de hoje"
+                                : "Resolver pendência"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </aside>
+
         </div>
 
         {/*
