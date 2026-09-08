@@ -348,9 +348,11 @@ export function CentralOperacoesHome() {
                     <tr>
                       <th className="px-4 py-2 text-left">Dia</th>
                       <th className="px-4 py-2 text-right">Ligações</th>
-                      <th className="px-4 py-2 text-right">Mensagens</th>
+                      <th className="px-4 py-2 text-right">Msg. copiadas</th>
+                      <th className="px-4 py-2 text-right">Msg. enviadas</th>
                       <th className="px-4 py-2 text-right">Reuniões</th>
                       <th className="px-4 py-2 text-right">Pulos</th>
+                      <th className="px-4 py-2 text-right">Recuperadas</th>
                       <th className="px-4 py-2 text-right">Total</th>
                     </tr>
                   </thead>
@@ -360,13 +362,16 @@ export function CentralOperacoesHome() {
                         <td className="px-4 py-2 text-foreground">{formatDay(day.date)}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{day.ligacoes}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{day.mensagens}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{day.enviadas}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{day.reunioes}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{day.pulos}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{day.recuperadas}</td>
                         <td className="px-4 py-2 text-right font-semibold tabular-nums">
                           {day.total}
                         </td>
                       </tr>
                     ))}
+
                   </tbody>
                 </table>
               </div>
