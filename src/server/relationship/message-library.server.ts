@@ -418,7 +418,7 @@ export async function renameLibraryStep(params: {
     }
     if (isContextualStep(fromKey) || isContextualStep(toKey)) {
       throw new Error(
-        `${isContextualStep(fromKey) ? fromKey : toKey} possui estrutura de contextos (SEM_CONTATO / MATERIAL_ENVIADO) e não troca de código nesta operação.`,
+        `${isContextualStep(fromKey) ? fromKey : toKey} possui estrutura de contextos próprios e não troca de código nesta operação.`,
       );
     }
   }
