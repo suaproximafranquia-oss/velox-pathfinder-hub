@@ -349,10 +349,19 @@ export async function buildProductionReport(
     const actionKey = detailString(details, "actionKey") ?? String(row.id);
 
     if (action === "acao_do_dia_mensagem_registrada") {
-      // Somente conclusão real: repetição grava "registrada".
-      if (detailString(details, "resultado") !== "enviada") continue;
+      /**
+       * CONCLUSÃO REAL: "copiada" é a mensagem preparada e concluída na
+       * Ação do Dia; "enviada" é envio explicitamente registrado.
+       * "registrada" é repetição de confirmação e não conta. Copiar
+       * jamais é convertido em envio.
+       */
+      const resultado = detailString(details, "resultado");
+      if (resultado !== "copiada" && resultado !== "enviada") continue;
       const queueItemId = detailString(details, "queueItemId") ?? actionKey;
       push({ key: `mensagem:${queueItemId}`, metric: "mensagens", date, executiveId });
+      if (resultado === "enviada") {
+        push({ key: `enviada:${queueItemId}`, metric: "enviadas", date, executiveId });
+      }
       continue;
     }
 
@@ -363,11 +372,17 @@ export async function buildProductionReport(
       continue;
     }
 
+    /** Recuperação contada à parte — nunca anula o pulo original. */
+    if (action === "acao_do_dia_pulo_recuperado") {
+      push({ key: `recuperada:${actionKey}:${date}`, metric: "recuperadas", date, executiveId });
+      continue;
+    }
+
     if (action === "acao_do_dia_pulada") {
       const recuperada = recoveredKeys.has(actionKey);
       const key = `pulo:${actionKey}:${date}`;
       if (seen.has(key)) continue;
-      if (!recuperada) push({ key, metric: "pulos", date, executiveId });
+      push({ key, metric: "pulos", date, executiveId });
       skips.push({
         id: String(row.id),
         at: detailString(details, "at") ?? row.created_at,
