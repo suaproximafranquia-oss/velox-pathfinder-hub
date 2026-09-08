@@ -957,7 +957,8 @@ export function DailyActionsOverlay({
                 )}
                 <p className="text-[11px] text-white/35">
                   {selected.kind === "primeiro_contato"
-                    ? "O primeiro contato é executado pelo mesmo caminho oficial do modo automático, com registro de autor, horário e resultado. A trava global de envio real permanece ativa."
+                    ? "O primeiro contato acontece pela régua: ligação 1, 10 minutos, ligação 2 e, só então, a mensagem para copiar. Esta tela nunca envia a mensagem."
+
                     : selected.source === "queue" && selected.kind === "ligacao"
                     ? "Atendeu: as ações restantes desta etapa são canceladas, nenhuma mensagem é enviada e o lead aguarda o seu encaminhamento. Não atendeu: a régua libera a próxima ação da etapa (2ª ligação em 10 minutos; depois a mensagem para copiar)."
                     : selected.source === "queue" && selected.kind === "mensagem"

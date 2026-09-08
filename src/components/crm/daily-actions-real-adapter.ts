@@ -59,30 +59,17 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
   return useMemo<DailyActionsAdapter>(
     () => ({
       load: () => fetchActions(),
-      executeFirstContact: async (item) => {
-        if (!item.firstContactActionId) return { ok: false };
-        const result = await executeFirstContact({
-          data: { actionId: item.firstContactActionId },
-        });
-        if (result.ok) {
-          // Histórico complementar: nunca bloqueia a execução da E0.
-          try {
-            await recordHistory({
-              data: {
-                actionKey: item.actionKey,
-                leadId: item.leadId,
-                step: item.stepLabel,
-                event: "primeiro_contato",
-              },
-            });
-          } catch {
-            /* histórico é complementar */
-          }
-        }
-        return result.ok
-          ? { ok: true, message: "Primeiro contato registrado." }
-          : { ok: false, message: result.reason ?? undefined };
-      },
+      /**
+       * PRIMEIRO CONTATO LEGADO — DESATIVADO. A E0 é etapa da régua V2
+       * (ligação 1 → 10 min → ligação 2 → mensagem para copiar). Nenhum
+       * caminho desta tela envia a mensagem E0.
+       */
+      executeFirstContact: async () => ({
+        ok: false,
+        message:
+          "A E0 é executada pela régua: ligação 1, 10 minutos, ligação 2 e depois a mensagem para copiar.",
+      }),
+
       completeCall: async (item, outcome, rang) => {
         /**
          * LIGAÇÃO DA RÉGUA V2 — a ação interna vive na fila do motor.
