@@ -23,7 +23,7 @@ import {
   followUpExternalRef,
   followUpMeetingId,
   followUpModality,
-  isAgendamentosToFrios,
+  isCommitmentStageToFrios,
   planFollowUpSync,
   reviewDueAt,
   type FollowUpSyncDecision,
@@ -45,6 +45,55 @@ function formatBr(iso: string): string {
   }).formatToParts(d);
   const get = (t: string) => f.find((p) => p.type === t)?.value ?? "";
   return `${get("day")}/${get("month")} às ${get("hour")}:${get("minute")}`;
+}
+
+/** Data completa e legível (DD/MM/AAAA às HH:MM) para a nota. */
+function formatBrFull(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const f = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(d);
+  const get = (t: string) => f.find((p) => p.type === t)?.value ?? "";
+  return `${get("day")}/${get("month")}/${get("year")} às ${get("hour")}:${get("minute")}`;
+}
+
+/** Rótulo do compromisso na Nota do Executivo, por modalidade. */
+function noteSubject(modality: FollowUpModality | null): { noun: string; created: string; cancelled: string } {
+  return modality === "VIDEOCHAMADA"
+    ? { noun: "Videochamada", created: "Videochamada criada", cancelled: "Videochamada cancelada" }
+    : { noun: "Agendamento", created: "Agendamento criado", cancelled: "Agendamento cancelado" };
+}
+
+/**
+ * NOTA DO EXECUTIVO do compromisso — mesmo mecanismo oficial já usado
+ * pela Ação do Dia (`addInvestorNote`). Idempotente pelo `source_key`;
+ * falhar aqui NUNCA desfaz o espelhamento do compromisso.
+ */
+async function appendFollowUpNote(input: {
+  leadId: string;
+  externalId: string;
+  kind: "criado" | "reagendado" | "cancelado";
+  at: string;
+  body: string;
+}): Promise<void> {
+  try {
+    const { addInvestorNote } = await import("@/server/crm/investor-notes.server");
+    await addInvestorNote({
+      leadId: input.leadId,
+      body: input.body,
+      executiveId: null,
+      authorName: "Sincronização GreenSales",
+      sourceKey: `greensales:follow_up:${input.externalId}:${input.kind}:${input.at}`,
+    });
+  } catch {
+    // Nota é registro complementar: nunca invalida a sincronização.
+  }
 }
 
 type MirrorRow = {
