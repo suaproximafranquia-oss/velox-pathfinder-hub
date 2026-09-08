@@ -7,17 +7,24 @@
  * verdade: a produção é reconstruída dos registros oficiais que a
  * própria Ação do Dia já grava.
  *
- * QUATRO INDICADORES — nada além disto é contado:
- *   ligações efetuadas  → crm_cadence_tasks (canal ligação, DONE)
- *                         executor: completed_by · momento: completed_at
- *   mensagens enviadas  → relationship_engine_log
- *                         acao_do_dia_mensagem_registrada, resultado
- *                         "enviada" (repetição de confirmação grava
- *                         "registrada" e NÃO conta)
+ * INDICADORES — nada além disto é contado:
+ *   ligações efetuadas  → relationship_queue (ação interna de ligação da
+ *                         régua V2, status EXECUTED). Esta é a operação
+ *                         ATUAL; a tabela legada `crm_cadence_tasks` não
+ *                         recebe mais ligações e não é consultada.
+ *   mensagens copiadas  → relationship_engine_log
+ *                         acao_do_dia_mensagem_registrada com resultado
+ *                         "copiada" (conclusão real) ou "enviada".
+ *                         "registrada" é repetição de confirmação e NÃO
+ *                         conta.
+ *   mensagens enviadas  → subconjunto com resultado "enviada". Copiar
+ *                         NUNCA é convertido em envio.
  *   reuniões realizadas → relationship_engine_log
  *                         acao_do_dia_reuniao_resolvida, resultado
- *                         "compareceu"
+ *                         "compareceu" (não comparecimento não conta)
  *   pulos               → relationship_engine_log acao_do_dia_pulada
+ *   recuperadas         → relationship_engine_log
+ *                         acao_do_dia_pulo_recuperado, contadas à parte
  *
  * E0 fica FORA: o primeiro contato nunca gera estes registros e o tipo
  * `primeiro_contato` é descartado explicitamente como segunda barreira.
@@ -38,9 +45,14 @@ export const UNIDENTIFIED_LABEL = "Não identificado";
 
 export type ProductionCounts = {
   ligacoes: number;
+  /** Mensagens preparadas/copiadas na Ação do Dia (conclusão real). */
   mensagens: number;
+  /** Subconjunto com envio explicitamente registrado. */
+  enviadas: number;
   reunioes: number;
   pulos: number;
+  /** Pendências puladas e depois efetivamente concluídas. */
+  recuperadas: number;
   total: number;
 };
 
@@ -78,13 +90,21 @@ export type ProductionReport = {
 };
 
 function emptyCounts(): ProductionCounts {
-  return { ligacoes: 0, mensagens: 0, reunioes: 0, pulos: 0, total: 0 };
+  return {
+    ligacoes: 0,
+    mensagens: 0,
+    enviadas: 0,
+    reunioes: 0,
+    pulos: 0,
+    recuperadas: 0,
+    total: 0,
+  };
 }
 
 /** Um acontecimento já concluído, normalizado para contagem. */
 type Event = {
   key: string;
-  metric: "ligacoes" | "mensagens" | "reunioes" | "pulos";
+  metric: "ligacoes" | "mensagens" | "enviadas" | "reunioes" | "pulos" | "recuperadas";
   date: string;
   executiveId: string;
 };
@@ -218,13 +238,20 @@ export async function buildProductionReport(
   const toIso = new Date(windowTo).toISOString();
 
   const [callsRes, ledgerRes] = await Promise.all([
+    /**
+     * LIGAÇÕES DA OPERAÇÃO ATUAL: a ligação é ação interna da etapa, na
+     * própria fila do motor V2. Nada é gravado em duplicidade só para
+     * alimentar a Central — lê-se exatamente a linha que a Ação do Dia
+     * concluiu.
+     */
     supabaseAdmin
-      .from("crm_cadence_tasks")
-      .select("id,lead_id,channel,status,completed_at,completed_by")
-      .eq("channel", "call")
-      .eq("status", "DONE")
-      .gte("completed_at", fromIso)
-      .lt("completed_at", toIso)
+      .from("relationship_queue")
+      .select("id,lead_id,action_kind,status,executed_at,responsible_executive_id")
+      .eq("scope", "production")
+      .eq("action_kind", "call")
+      .eq("status", "EXECUTED")
+      .gte("executed_at", fromIso)
+      .lt("executed_at", toIso)
       .limit(5000),
     supabaseAdmin
       .from("relationship_engine_log")
@@ -241,12 +268,17 @@ export async function buildProductionReport(
       .limit(5000),
   ]);
 
-  const callRows = (callsRes.data ?? []) as Array<{
+  const callRows = ((callsRes.data ?? []) as Array<{
     id: string;
     lead_id: string | null;
-    completed_at: string | null;
-    completed_by: string | null;
-  }>;
+    executed_at: string | null;
+    responsible_executive_id: string | null;
+  }>).map((row) => ({
+    id: row.id,
+    lead_id: row.lead_id,
+    completed_at: row.executed_at,
+    completed_by: row.responsible_executive_id,
+  }));
 
   /** HOMOLOGAÇÃO/TESTE FORA: leads de teste não são produção real. */
   const leadIds = [...new Set(callRows.map((r) => r.lead_id).filter(Boolean))] as string[];
@@ -317,10 +349,19 @@ export async function buildProductionReport(
     const actionKey = detailString(details, "actionKey") ?? String(row.id);
 
     if (action === "acao_do_dia_mensagem_registrada") {
-      // Somente conclusão real: repetição grava "registrada".
-      if (detailString(details, "resultado") !== "enviada") continue;
+      /**
+       * CONCLUSÃO REAL: "copiada" é a mensagem preparada e concluída na
+       * Ação do Dia; "enviada" é envio explicitamente registrado.
+       * "registrada" é repetição de confirmação e não conta. Copiar
+       * jamais é convertido em envio.
+       */
+      const resultado = detailString(details, "resultado");
+      if (resultado !== "copiada" && resultado !== "enviada") continue;
       const queueItemId = detailString(details, "queueItemId") ?? actionKey;
       push({ key: `mensagem:${queueItemId}`, metric: "mensagens", date, executiveId });
+      if (resultado === "enviada") {
+        push({ key: `enviada:${queueItemId}`, metric: "enviadas", date, executiveId });
+      }
       continue;
     }
 
@@ -331,11 +372,17 @@ export async function buildProductionReport(
       continue;
     }
 
+    /** Recuperação contada à parte — nunca anula o pulo original. */
+    if (action === "acao_do_dia_pulo_recuperado") {
+      push({ key: `recuperada:${actionKey}:${date}`, metric: "recuperadas", date, executiveId });
+      continue;
+    }
+
     if (action === "acao_do_dia_pulada") {
       const recuperada = recoveredKeys.has(actionKey);
       const key = `pulo:${actionKey}:${date}`;
       if (seen.has(key)) continue;
-      if (!recuperada) push({ key, metric: "pulos", date, executiveId });
+      push({ key, metric: "pulos", date, executiveId });
       skips.push({
         id: String(row.id),
         at: detailString(details, "at") ?? row.created_at,
@@ -370,9 +417,17 @@ export async function buildProductionReport(
   const byDay = new Map<string, ProductionCounts>();
   for (const day of days) byDay.set(day, emptyCounts());
 
+  /**
+   * TOTAL = AÇÕES CONCLUÍDAS. Pulo não é conclusão da ação original;
+   * "enviadas" é subconjunto de "mensagens" e recuperação é leitura de
+   * histórico — nenhum dos três entra no total para não contar duas
+   * vezes o mesmo acontecimento.
+   */
   const bump = (bucket: ProductionCounts, metric: Event["metric"]) => {
     bucket[metric] += 1;
-    bucket.total += 1;
+    if (metric === "ligacoes" || metric === "mensagens" || metric === "reunioes") {
+      bucket.total += 1;
+    }
   };
 
   for (const event of visible) {

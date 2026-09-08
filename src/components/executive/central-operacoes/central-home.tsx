@@ -16,6 +16,7 @@ import {
   Loader2,
   MessageSquare,
   Phone,
+  RotateCcw,
   SkipForward,
 } from "lucide-react";
 import { relatorioOperacoes } from "@/lib/crm/operations-center.functions";
@@ -25,8 +26,10 @@ import { operationalDate } from "@/lib/crm/daily-actions";
 type Counts = {
   ligacoes: number;
   mensagens: number;
+  enviadas: number;
   reunioes: number;
   pulos: number;
+  recuperadas: number;
   total: number;
 };
 
@@ -117,9 +120,11 @@ function formatTime(iso: string): string {
 
 const CARDS = [
   { key: "ligacoes" as const, label: "Ligações efetuadas", icon: Phone },
-  { key: "mensagens" as const, label: "Mensagens enviadas", icon: MessageSquare },
+  { key: "mensagens" as const, label: "Mensagens copiadas", icon: MessageSquare },
+  { key: "enviadas" as const, label: "Mensagens enviadas", icon: MessageSquare },
   { key: "reunioes" as const, label: "Reuniões realizadas", icon: CalendarRange },
   { key: "pulos" as const, label: "Pulos", icon: SkipForward },
+  { key: "recuperadas" as const, label: "Pendências recuperadas", icon: RotateCcw },
 ];
 
 export function CentralOperacoesHome() {
@@ -292,9 +297,11 @@ export function CentralOperacoesHome() {
                     <tr>
                       <th className="px-4 py-2 text-left">Executivo</th>
                       <th className="px-4 py-2 text-right">Ligações</th>
-                      <th className="px-4 py-2 text-right">Mensagens</th>
+                      <th className="px-4 py-2 text-right">Msg. copiadas</th>
+                      <th className="px-4 py-2 text-right">Msg. enviadas</th>
                       <th className="px-4 py-2 text-right">Reuniões</th>
                       <th className="px-4 py-2 text-right">Pulos</th>
+                      <th className="px-4 py-2 text-right">Recuperadas</th>
                       <th className="px-4 py-2 text-right">Total</th>
                     </tr>
                   </thead>
@@ -304,8 +311,10 @@ export function CentralOperacoesHome() {
                         <td className="px-4 py-2 text-foreground">{row.executiveName}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{row.ligacoes}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{row.mensagens}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{row.enviadas}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{row.reunioes}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{row.pulos}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{row.recuperadas}</td>
                         <td className="px-4 py-2 text-right font-semibold tabular-nums">
                           {row.total}
                         </td>
@@ -315,11 +324,14 @@ export function CentralOperacoesHome() {
                       <td className="px-4 py-2">Total</td>
                       <td className="px-4 py-2 text-right tabular-nums">{report.totals.ligacoes}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{report.totals.mensagens}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{report.totals.enviadas}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{report.totals.reunioes}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{report.totals.pulos}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{report.totals.recuperadas}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{report.totals.total}</td>
                     </tr>
                   </tbody>
+
                 </table>
               </div>
             </section>
@@ -336,9 +348,11 @@ export function CentralOperacoesHome() {
                     <tr>
                       <th className="px-4 py-2 text-left">Dia</th>
                       <th className="px-4 py-2 text-right">Ligações</th>
-                      <th className="px-4 py-2 text-right">Mensagens</th>
+                      <th className="px-4 py-2 text-right">Msg. copiadas</th>
+                      <th className="px-4 py-2 text-right">Msg. enviadas</th>
                       <th className="px-4 py-2 text-right">Reuniões</th>
                       <th className="px-4 py-2 text-right">Pulos</th>
+                      <th className="px-4 py-2 text-right">Recuperadas</th>
                       <th className="px-4 py-2 text-right">Total</th>
                     </tr>
                   </thead>
@@ -348,13 +362,16 @@ export function CentralOperacoesHome() {
                         <td className="px-4 py-2 text-foreground">{formatDay(day.date)}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{day.ligacoes}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{day.mensagens}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{day.enviadas}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{day.reunioes}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{day.pulos}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{day.recuperadas}</td>
                         <td className="px-4 py-2 text-right font-semibold tabular-nums">
                           {day.total}
                         </td>
                       </tr>
                     ))}
+
                   </tbody>
                 </table>
               </div>

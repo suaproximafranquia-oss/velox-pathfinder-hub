@@ -22,6 +22,8 @@ import {
   resolveFollowUpContactFn,
   resolveFollowUpReviewFn,
   skipDailyActionFn,
+  listSkippedPendingsFn,
+  resumeSkippedActionFn,
 } from "@/lib/crm/daily-actions.functions";
 import type { DailyAction } from "@/lib/crm/daily-actions";
 import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
@@ -53,6 +55,8 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
   const rescheduleMeeting = useServerFn(rescheduleMeetingFn);
   const resolveFollowUpContact = useServerFn(resolveFollowUpContactFn);
   const resolveFollowUpReview = useServerFn(resolveFollowUpReviewFn);
+  const listPendingsFn = useServerFn(listSkippedPendingsFn);
+  const resumePendingFn = useServerFn(resumeSkippedActionFn);
 
   return useMemo<DailyActionsAdapter>(
     () => ({
@@ -290,9 +294,24 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
             : "Então retire esse lead de Agendamento e mova para Frios no GreenSales para retomarmos o relacionamento.",
         };
       },
+      /** Pendências puladas do próprio Executivo — decidido no servidor. */
+      listPendings: async () => (await listPendingsFn()) as never,
+      resumePending: async (actionKey) => {
+        try {
+          await resumePendingFn({ data: { actionKey } });
+        } catch (error) {
+          return {
+            ok: false,
+            message: error instanceof Error ? error.message : "Falha ao retomar a pendência.",
+          };
+        }
+        return { ok: true, message: "Pendência devolvida à fila de hoje." };
+      },
     }),
     [
       fetchActions,
+      listPendingsFn,
+      resumePendingFn,
       completeTask,
       registerWhatsapp,
       skipAction,

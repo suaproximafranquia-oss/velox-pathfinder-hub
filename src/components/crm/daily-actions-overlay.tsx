@@ -13,6 +13,7 @@ import {
   CalendarDays,
   Check,
   ExternalLink,
+  Lock,
   MessageCircle,
   MessageSquare,
   Phone,
@@ -21,7 +22,11 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
-import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
+import type {
+  DailyActionsAdapter,
+  SkippedPendingView,
+  StepMessageView,
+} from "@/lib/crm/daily-actions.adapter";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   resolveOperationalWindow,
@@ -131,25 +136,43 @@ export function DailyActionsOverlay({
   const [undoable, setUndoable] = useState<DailyAction | null>(null);
 
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  /**
+   * ORDEM DO DIA — a lista oficial vem sempre do servidor e a ação
+   * ativa é SEMPRE a primeira. `silent` recarrega em segundo plano,
+   * sem cortina de carregamento: o próximo card já assumiu a posição 1
+   * na tela e a releitura apenas confirma com o servidor.
+   */
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const rows = await adapter.load();
+        setActions(rows);
+        setSelectedKey(rows[0]?.actionKey ?? null);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [adapter],
+  );
+
+  /** Pendências puladas do próprio Executivo (histórico, não fila). */
+  const [pendings, setPendings] = useState<SkippedPendingView[]>([]);
+  const [pendingsOpen, setPendingsOpen] = useState(false);
+  const loadPendings = useCallback(async () => {
+    if (!adapter.listPendings) return;
     try {
-      const rows = await adapter.load();
-      setActions(rows);
-      setSelectedKey((current) =>
-        current && rows.some((r) => r.actionKey === current)
-          ? current
-          : (rows[0]?.actionKey ?? null),
-      );
-    } finally {
-      setLoading(false);
+      setPendings(await adapter.listPendings());
+    } catch {
+      /* a área de pendências nunca bloqueia a Ação do Dia */
     }
   }, [adapter]);
 
   useEffect(() => {
     if (!open) return;
     void load();
-  }, [open, load]);
+    void loadPendings();
+  }, [open, load, loadPendings]);
 
   useEffect(() => {
     if (!open) return;
@@ -212,7 +235,8 @@ export function DailyActionsOverlay({
     setActions((prev) => {
       const index = prev.findIndex((r) => r.actionKey === key);
       const rest = prev.filter((r) => r.actionKey !== key);
-      setSelectedKey(rest[Math.min(index, rest.length - 1)]?.actionKey ?? null);
+      void index;
+      setSelectedKey(rest[0]?.actionKey ?? null);
       return rest;
     });
   }
@@ -228,7 +252,7 @@ export function DailyActionsOverlay({
       if (index < 0) return prev;
       const item = prev[index];
       const rest = prev.filter((r) => r.actionKey !== key);
-      setSelectedKey(rest[Math.min(index, rest.length - 1)]?.actionKey ?? item.actionKey);
+      setSelectedKey(rest[0]?.actionKey ?? item.actionKey);
       return [...rest, item];
     });
   }
@@ -261,7 +285,7 @@ export function DailyActionsOverlay({
         setUndoable(item.source === "queue" && adapter.undoCallOutcome ? item : null);
         applyResult(item.actionKey, result);
         // A régua pode ter liberado a próxima ação (ex.: mensagem E0): relê a lista oficial.
-        if (item.source === "queue") void load();
+        if (item.source === "queue") void load(true);
       } else {
         setFeedback(result.message ?? "Não foi possível registrar a ligação.");
         // Fora de ordem / já resolvida: a lista oficial é a verdade.
@@ -296,6 +320,26 @@ export function DailyActionsOverlay({
    */
 
 
+  /**
+   * RESOLVER PENDÊNCIA — a MESMA ação pulada volta para a fila de hoje.
+   * A trava do servidor continua valendo: ela só fica executável quando
+   * chegar à posição 1.
+   */
+  async function handleResumePending(actionKey: string) {
+    if (!adapter.resumePending) return;
+    setBusy(true);
+    try {
+      const result = await adapter.resumePending(actionKey);
+      setFeedback(result.message ?? null);
+      if (result.ok) {
+        await load(true);
+        await loadPendings();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /** PULAR — a justificativa é obrigatória e vira histórico oficial. */
   async function handleSkip(item: DailyAction) {
     if (skipReason.trim().length < 3) {
@@ -309,6 +353,7 @@ export function DailyActionsOverlay({
         setSkipReason("");
         setSkipOpen(false);
         applyResult(item.actionKey, result);
+        void loadPendings();
       } else setFeedback(result.message ?? "Não foi possível pular a ação.");
     } finally {
       setBusy(false);
@@ -999,7 +1044,7 @@ export function DailyActionsOverlay({
                           key={item.actionKey}
                           item={item}
                           selected={item.actionKey === selectedKey}
-                          onSelect={() => setSelectedKey(item.actionKey)}
+                          locked={item.actionKey !== selectedKey}
                         />
                       ))}
                     </ul>
@@ -1007,7 +1052,64 @@ export function DailyActionsOverlay({
                 ))
               )}
             </div>
+
+            {/*
+              PENDÊNCIAS PULADAS — histórico das ações que você pulou e
+              que ainda não foram concluídas. "Resolver pendência"
+              devolve a MESMA ação para a fila de hoje: nada novo é
+              criado e o motivo original continua registrado.
+            */}
+            {adapter.listPendings && (
+              <div className="border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setPendingsOpen((v) => !v)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-white/40 transition hover:text-white/70"
+                >
+                  <span>Pendências puladas</span>
+                  <span className="text-white/60">{pendings.length}</span>
+                </button>
+                {pendingsOpen && (
+                  <div className="max-h-56 overflow-y-auto px-2 pb-3">
+                    {pendings.length === 0 ? (
+                      <p className="px-2 py-2 text-[11px] text-white/35">
+                        Nenhuma pendência pulada em aberto.
+                      </p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {pendings.map((pending) => (
+                          <li
+                            key={pending.actionKey}
+                            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+                          >
+                            <p className="truncate text-[13px] text-white/85">
+                              {pending.title ?? "Ação pulada"}
+                            </p>
+                            <p className="truncate text-[11px] text-white/45">
+                              {pending.step ? `${pending.step} · ` : ""}
+                              {pending.skippedDate}
+                              {pending.motivo ? ` · ${pending.motivo}` : ""}
+                            </p>
+                            <button
+                              type="button"
+                              disabled={busy || pending.retomadaHoje}
+                              onClick={() => void handleResumePending(pending.actionKey)}
+                              className="mt-2 w-full rounded-lg border border-white/20 px-2 py-1 text-[11px] text-white/75 transition hover:bg-white/10 disabled:opacity-50"
+                            >
+                              {pending.retomadaHoje
+                                ? "Já retomada — está na fila de hoje"
+                                : "Resolver pendência"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </aside>
+
         </div>
 
         {/*
@@ -1115,22 +1217,23 @@ export function DailyActionsOverlay({
 function ActionRow({
   item,
   selected,
-  onSelect,
+  locked,
 }: {
   item: DailyAction;
   selected: boolean;
-  onSelect: () => void;
+  /** Visível, porém bloqueado: só a posição 1 é executável. */
+  locked: boolean;
 }) {
   const Icon = KIND_ICON[item.kind];
   return (
     <li>
-      <button
-        type="button"
-        onClick={onSelect}
+      <div
+        aria-disabled={locked}
+        title={locked ? "Disponível quando chegar à posição 1 da fila." : undefined}
         className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition ${
           selected
             ? "border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10"
-            : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+            : "border-white/10 bg-white/[0.03] opacity-60"
         }`}
       >
         <span
@@ -1157,7 +1260,8 @@ function ActionRow({
             atrasada
           </span>
         )}
-      </button>
+        {locked && <Lock className="h-3.5 w-3.5 shrink-0 text-white/30" />}
+      </div>
     </li>
   );
 }

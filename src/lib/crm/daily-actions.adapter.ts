@@ -81,6 +81,26 @@ export type DailyActionsAdapter = {
     item: DailyAction,
     decision: { close: boolean; note: string },
   ) => Promise<AdapterResult>;
+  /**
+   * PENDÊNCIAS PULADAS — leitura opcional (o modo demonstração não tem).
+   * Não é uma segunda fila: é o histórico dos pulos ainda em aberto.
+   */
+  listPendings?: () => Promise<SkippedPendingView[]>;
+  /** Devolve a MESMA ação pulada para a fila de hoje. */
+  resumePending?: (actionKey: string) => Promise<AdapterResult>;
 };
+
+/** Pendência pulada ainda em aberto, como a interface precisa exibir. */
+export type SkippedPendingView = {
+  actionKey: string;
+  leadId: string | null;
+  title: string | null;
+  step: string | null;
+  motivo: string | null;
+  skippedAt: string;
+  skippedDate: string;
+  retomadaHoje: boolean;
+};
+
 
 
