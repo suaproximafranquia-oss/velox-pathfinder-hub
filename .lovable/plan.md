@@ -1,66 +1,111 @@
-# Financeira /f — Diagnóstico operacional (somente leitura)
+# Financeira /f — Construção final em uma única rodada
 
-Nada foi alterado: nenhum código, banco, migration, Biblioteca, Ação do Dia, GreenSales ou Portal.
+Escopo exclusivo: Corporate Workspace / Financeira `/f`. Não altera `/`, `/s`, `/s/portal`, `/seg`, Solar, Seguros. Nenhuma etapa nova, nenhum `step_key` técnico renomeado, nenhum reset, nenhum histórico apagado, nenhum envio real de WhatsApp habilitado. Humanização, RF, ER, domingo de homologação, Backup, KPI, ownership, permissões e Safety Lock ficam intocados.
 
-## A. E7 / E8 — estado atual
+## 1. E0 completo (primeiro contato)
 
-- O eixo de contexto **já existe tecnicamente**: a coluna `step_context` da Biblioteca aceita `SEM_CONTATO` ou `MATERIAL_ENVIADO`, e a leitura da mensagem já escolhe o contexto (`step-message.server.ts:25,83-100` + `message-library.server.ts:476`).
-- O contexto é decidido pelo **histórico estruturado** (`loadMaterialState` só considera o evento `CONTENT_SENT`), nunca por título ou conversa. Isso está correto conforme a regra.
-- **Conteúdo cadastrado hoje**: `E7` tem 2 versões (v1 inativa, v2 ativa), ambas com `step_context = NULL`; `E8` **não tem nenhum registro**. Nenhuma das 79 linhas da Biblioteca tem contexto preenchido.
-- As duas variantes COM_NOME / SEM_NOME já existem como colunas (`body` / `body_without_name`) e as versões atuais de E7 preenchem as duas.
-- **Lacuna 1 (editorial)**: faltam os 4 quadrados de E7 com contexto e os 4 de E8 — hoje são 1 texto sem contexto para E7 e zero para E8.
-- **Lacuna 2 (configuração)**: a lista oficial da Biblioteca (`OFFICIAL_STEP_KEYS`) ainda deriva do arquivo antigo `config.ts`, que só declara E0, E1, E3, E4, E12, E30, V3, V4, R1–R3, RE0–RE3, RF0–RF1. Por isso E2, E5, E6, E7 aparecem como "alias histórico" e E8 nem existe para a interface, mesmo com a nova régua já executando E0–E8.
-- O motor **já sabe** decidir o contexto (a régua V2 distingue o ramo E4→E7 do ramo E4→E5→E6→E7). Portanto o problema é **editorial + lista oficial de etapas**, não lógica de decisão.
+Hoje o E0 é apenas uma mensagem. Passa a ser uma etapa com três ações internas, na mesma fila do motor:
 
-## B. Follow-up do GreenSales — estado atual
+```text
+E0  ligação 1  →  (não atendeu) +10 min  →  ligação 2  →  (não atendeu) mensagem do E0  →  E0 concluído  →  libera E1
+```
 
-- O `follow_up` **não é lido por nada**: não existe uma única referência a esse campo no código. O normalizador do GreenSales extrai apenas nome, e-mail, WhatsApp, cidade, campanha e material.
-- Ele **existe no banco** apenas como conteúdo bruto: 443 dos 657 leads têm `follow_up` dentro de `raw_payload` em `crm_leads`, guardado como auditoria.
-- Não existe vínculo entre `crm_leads` e `portal_meetings`: a tabela de compromissos não tem coluna de lead do CRM nem identidade externa (origem + ID GreenSales).
-- Consequências diretas: só se enxerga o último valor; não há histórico das trocas de horário; remover o follow_up no GreenSales não cancela nada; não há regra ligando follow_up a AGENDAMENTOS; não há obrigação na Ação do Dia nem T-5 vindo desse campo.
-- O T-5 existe, mas só para reuniões já criadas em `portal_meetings` (hoje há 1 registro, cancelado).
+- Atendeu na 1ª ou na 2ª: as ações seguintes do E0 são canceladas, nada avança sozinho, o lead entra em "aguardando encaminhamento".
+- A mensagem só aparece depois da 2ª tentativa registrada como não atendida.
+- Duas ações do mesmo E0 nunca ficam disponíveis ao mesmo tempo.
+- Janela própria do E0 e o modo manual/automático por executivo permanecem exatamente como estão.
+- O nome "D0" não existe em lugar nenhum.
 
-## C. Pós-agendamento — estado atual
+## 2. Régua V2 realmente alimentada (E1–E8)
 
-Já existe:
-- Compromisso persistido em `portal_meetings`, com status e reagendamento.
-- Entrada em foco 5 minutos antes e prioridade máxima na Ação do Dia.
-- Pergunta de resultado e reagendamento (`resolveMeetingOutcome`, `rescheduleMeeting`), com registro em histórico.
-- Congelamento da cadência enquanto o lead está em AGENDAMENTOS.
+- A conclusão do E0 passa a criar a primeira obrigação do E1 na fila do motor; hoje a régua fica parada esperando um E0 que nunca chega nela.
+- E1: ligação 1 → 3 h → ligação 2 → mensagem, tudo dentro de E1. Ligação às 16h que não cabe na janela fica pendente e executa na próxima abertura, ainda como E1.
+- E2, E3 e E4: ligação antes da mensagem; atendeu cancela a mensagem daquela etapa e suspende o avanço.
+- Correção do escopo do cancelamento: hoje uma ligação atendida cancela pendências do lead inteiro; passa a cancelar apenas as ações da etapa atendida.
+- Saída do estado "aguardando encaminhamento": agendamento criado, mudança de estágio ou material efetivamente enviado liberam a cadência (hoje nada libera).
+- Prazos E5→E6 (7), E6→E7 (2), E7→E8 (3) e o calendário já estão corretos e não serão mexidos.
 
-Ainda não existe:
-- Estado "vencido sem contato e sem reagendamento".
-- Obrigação persistente de 24 horas com a pergunta de encerramento.
-- Orientação para reagendar no GreenSales em vez de criar horário no Portal.
-- Detecção estruturada da movimentação humana AGENDAMENTOS → FRIOS: a regra `canStartReengagement` existe e está testada, mas nunca é chamada em produção — nada grava o estágio anterior nem marca que a mudança foi humana. Hoje o fluxo R não é liberado por essa transição.
+## 3. Material — E4 → E5
 
-## D. Classificação de atraso — causa exata
+- Passa a existir registro estruturado quando o executivo confirma que a apresentação foi efetivamente disponibilizada. Só esse registro ativa MATERIAL_ENVIADO e o ramo E5 → E6.
+- Falar sobre o material, prometer ou oferecer não ativa nada.
 
-- Quem classifica: `isOverdueByBusinessDays` (`daily-actions-overdue.ts:53`), aplicada ao primeiro contato em `daily-actions.server.ts:171-172`.
-- Data usada: `created_at` da ação de E0 (`workspace_e0_actions`), ou seja, praticamente a entrada do lead — não um vencimento de cadência.
-- Cadeia: `availabilityDate(created_at)` decide o "dia disponível". O corte usado é **18:00**, não 17:30. Um lead que entra sexta 17:31 recebe **sexta** como dia disponível.
-- Na segunda-feira, o dia útil corrente passa a ser segunda e a comparação "sexta < segunda" marca o lead como atrasado **já na primeira hora da segunda**, sem lhe dar a segunda como dia de trabalho. Essa é a causa exata do sintoma relatado.
-- Sábado e domingo **não** geram vencimento por si sós, e não há criação de obrigação antes da abertura operacional. Também não existe classe própria "NOVO": o primeiro contato só tem dois estados possíveis, "hoje" ou "atrasada" — não há distinção entre "lead novo aguardando primeiro contato" e "ação que estava disponível e não foi feita".
+## 4. Lead NOVO, atraso e ordem da segunda-feira
 
-Respostas diretas:
-- Entrou sexta 17:31 → hoje aparece **atrasado** na segunda (deveria aparecer como novo).
-- Entrou sábado ou domingo → aparece **novo** na segunda (correto hoje).
-- Entrou segunda 09:01 e não foi atendido → **atrasado** na terça (coerente com a regra).
+- Corte de expediente passa de 18:00 para 17:30.
+- Sexta após 17:30, sábado, domingo e segunda antes das 09:00 não contam como dia trabalhado.
+- Novo estado NOVO: o lead ganha sua primeira oportunidade operacional na abertura seguinte e nunca nasce atrasado.
+- Ordem da fila: 1) Agendamentos · 2) Novos, por ordem original de entrada · 3) Cadência atrasada · 4) Cadência devida no dia.
 
-## E. Regra de autoridade — confirmada
+## 5. Sábado
 
-O modo do E0 vem exclusivamente da configuração do executivo (`workspace_module_permissions`, chave `e0_automatico`, lida por `resolveExecutiveE0Mode`). Ausência de configuração significa manual. Não há exceção por lead em nenhum ponto lido.
+- Botão "Pular para o próximo dia útil", disponível apenas para lead NOVO, sem justificativa, sem nota de abandono: não encerra o lead, não muda etapa, joga para segunda.
+- Sábado continua executando o que já é devido e continua sem antecipar tarefas de segunda.
 
-## F. O que precisa ser construído depois (nada disso foi feito)
+## 6. Biblioteca
 
-1. Corrigir a classificação de atraso do primeiro contato: alinhar o corte ao expediente real (17:30), tratar "lead novo com primeiro contato pendente" como classe própria e garantir pelo menos um dia útil inteiro de janela antes de virar atraso; ordenar segunda-feira como Agendamentos → Novos (ordem de entrada) → Cadência atrasada → Cadência do dia.
-2. Abrir os quadrados contextuais E7 e E8 na Biblioteca (4 combinações cada, COM_NOME e SEM_NOME), incluindo E7/E8 na lista oficial de etapas. Os textos serão cadastrados pela gestão — nada será inventado.
-3. Espelhar o follow_up do GreenSales como compromisso: identidade externa (origem + ID do lead), atualização do mesmo compromisso a cada troca de horário, histórico das alterações, cancelamento quando removido na origem e criação apenas quando o lead está em AGENDAMENTOS.
-4. Fechar o pós-agendamento: estado "vencido sem contato e sem reagendamento", pendência de 24 horas com a pergunta de encerramento, orientação para reagendar na origem e detecção estruturada da movimentação AGENDAMENTOS → FRIOS que libera o fluxo R.
+- Nomenclatura editorial exibida como E0–E8, R1–R4, RE0–RE3, mapeada sobre as chaves técnicas atuais — nenhuma chave é renomeada.
+- Correção do desalinhamento entre nome editorial e chave técnica já diagnosticado.
+- Conteúdos que existem mas ficaram inativos ou mal associados são reativados/reassociados. Só é recuperado o que comprovadamente existia.
+- Word/ZIP nunca volta como fonte operacional.
+- O motor sempre lê a mensagem ativa da Biblioteca no momento da execução.
 
-## Arquivos e funções envolvidos
+## 7. E7 e E8 — quatro espaços cada
 
-- Atraso: `src/lib/crm/daily-actions-overdue.ts`, `src/server/crm/daily-actions.server.ts`, `src/lib/crm/daily-actions.ts`, `src/server/crm/e0-actions.server.ts`.
-- E7/E8: `src/server/relationship/message-library.server.ts`, `src/server/relationship/step-message.server.ts`, `src/lib/relationship/step-registry.ts`, `src/lib/relationship/config.ts`, `src/server/relationship/cadence-v2-state.server.ts`.
-- Follow-up e agendamento: `src/lib/greensales/normalize.ts`, `src/server/crm/lead-service.server.ts`, `src/server/crm/daily-actions-log.server.ts`, `src/lib/meetings.functions.ts`, `src/lib/relationship/cadence-v2.ts` (`isCadenceFrozen`, `canStartReengagement`).
-- Autoridade do E0: `src/server/crm/first-contact-mode.server.ts`.
+Cada uma das duas etapas passa a exibir quatro campos:
+
+```text
+SEM_CONTATO      + COM_NOME
+SEM_CONTATO      + SEM_NOME
+MATERIAL_ENVIADO + COM_NOME
+MATERIAL_ENVIADO + SEM_NOME
+```
+
+Nenhum texto é inventado. Espaço sem conteúdo fica visivelmente pendente e bloqueia o envio daquela variante até a gestão cadastrar.
+
+## 8. Central dos Nomes como camada de interpretação
+
+- A Central não é reconstruída nem reimportada; os ~100 mil nomes permanecem como estão.
+- O motor passa a extrair o primeiro nome do lead e consultar a Central: encontrado → COM_NOME; não encontrado → SEM_NOME.
+- Não altera o nome original do lead e não aprende nomes novos automaticamente.
+- Vale para todas as origens e todas as etapas.
+
+## 9. Follow-up do GreenSales
+
+- GreenSales é a origem; o follow-up é interpretado somente quando o lead está em AGENDAMENTOS.
+- Espelhamento no `portal_meetings` existente, mantendo o mesmo compromisso quando a data muda.
+- Histórico de reagendamento preservado.
+- Remoção na origem cancela o compromisso espelhado.
+- T-5 aparece na Ação do Dia, como já acontece com as reuniões atuais.
+
+## 10. Pós-agendamento
+
+- Ao vencer o compromisso: resultado, "houve contato?" e "deseja reagendar?".
+- Orientação fixa: o reagendamento é feito no GreenSales.
+- Novo estado persistente "vencido sem contato e sem reagendamento" e obrigação de verificação após 24 h.
+- O fluxo R só é liberado quando houver movimentação humana AGENDAMENTOS → FRIOS.
+
+## 11. Trava real da Ação do Dia
+
+- O executivo não escolhe livremente outro lead: precisa concluir ou pular a ação atual.
+- Ligação antes da mensagem. Pular a ligação leva à próxima ação do mesmo lead; pular também a mensagem exige novo Pular com justificativa.
+- Só depois disso o próximo lead é liberado.
+- A trava é validada no servidor, não apenas escondida na tela.
+
+## Detalhes técnicos
+
+- Motor: `src/lib/relationship/cadence-v2.ts` ganha o plano de ações do E0 (call/10min/call/message); `cadence-v2-decide.ts` deixa de tratar E0 como externo. `cadence-v2-state.server.ts` passa a expor o estado do E0.
+- Ponte de entrada: `src/server/relationship/e0.server.ts` e `src/server/crm/e0-actions.server.ts` passam a materializar as três ações do E0 em `relationship_queue` respeitando `e0-window.ts` e `first-contact-mode.server.ts`.
+- `call-outcome.server.ts`: cancelamento filtrado por `step`; `clearAwaitingHandoff` passa a ser chamado por agendamento, mudança de estágio e evento de material.
+- Material: novo evento estruturado `CONTENT_SENT`/`MATERIAL_REQUESTED` gravado em `relationship_events` a partir da confirmação do executivo.
+- Atraso/NOVO: `daily-actions-overdue.ts` (`WORKDAY_END_HOUR` 18 → 17.5), novo bucket `novo` em `daily-actions.ts` e nova ordenação em `actionRank`; `daily-actions.server.ts` passa a marcar o lead novo.
+- Sábado: nova ação de adiamento sem justificativa em `daily-actions-log.server.ts`, restrita a lead NOVO e ao sábado.
+- Trava: verificação server-side em `daily-actions.server.ts` antes de aceitar conclusão/pulo de um lead que não é o corrente.
+- Nomes: `name-central.server.ts` ganha consulta por `normalized_key`, usada por `step-message.server.ts` para escolher `body` ou `body_without_name`.
+- Biblioteca: `message-library.server.ts` e `step-registry.server.ts` passam a usar rótulos editoriais e `step_context`; migration mínima apenas para preencher `step_context` e criar os quatro slots de E7/E8, sem apagar linhas.
+- GreenSales/agendamento: normalizador de payload + `meetings.functions.ts` para espelhar, versionar e cancelar compromissos; novo estado pós-vencimento em `portal_meetings`.
+- Migrations somente aditivas (colunas/estados novos). Nenhuma tabela nova, nenhum DELETE.
+
+## Testes antes de entregar
+
+E0 nos seis desfechos; E1 com ligação fora da janela; E2/E3/E4 atendido e não atendido; E4→E5 com e sem registro de material; prazos E5→E8; sexta 17:31 não vira atraso na segunda; ordem da segunda-feira; botão de sábado; COM_NOME/SEM_NOME pela Central; espelhamento e cancelamento de follow-up; verificação 24 h; trava server-side.
