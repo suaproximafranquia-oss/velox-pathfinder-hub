@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import {
   listarMensagensBiblioteca,
-  diagnosticoDaBiblioteca,
+  
   publicarVersaoMensagem,
   renomearRotuloEtapa,
   reordenarBiblioteca,
@@ -35,11 +35,6 @@ type LibraryMessage = {
   official: boolean;
 };
 
-type Diagnostics = {
-  stepsWithoutContent: { stepKey: string; contentGroup: string }[];
-  stepsWithoutText: string[];
-  contentsWithoutStep: { id: string; name: string }[];
-};
 
 const card = "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5";
 const gold =
@@ -62,7 +57,7 @@ export function MessageLibraryPanel() {
   const [renaming, setRenaming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
+  
   const [contentUrl, setContentUrl] = useState("");
   const [contentLabel, setContentLabel] = useState("");
   /* BLOCO 3 — criação e ordenação visual. */
