@@ -85,23 +85,50 @@ export async function releaseQueueClaim(queueItemId: string | null): Promise<voi
 }
 
 /**
+ * EXCEÇÃO ÚNICA DA TRAVA — PENDÊNCIA PULADA DO PRÓPRIO EXECUTIVO.
+ *
+ * A ordem do dia continua intocada: esta exceção só alcança uma ação
+ * que JÁ foi pulada por este Executivo e ainda está em aberto (a mesma
+ * `actionKey` registrada no histórico). Nenhuma obrigação nova é criada
+ * e a posição 1 da Ação do Dia não muda.
+ */
+export async function findPendingRecoveryAction(input: {
+  executiveId: string | null;
+  match: (action: DailyAction) => boolean;
+}): Promise<DailyAction | null> {
+  const { listSkippedPendings } = await import("@/server/crm/daily-actions-log.server");
+  const pendings = await listSkippedPendings({ executiveId: input.executiveId });
+  if (pendings.length === 0) return null;
+  const keys = new Set(pendings.map((p) => p.actionKey));
+  const list = normalizeDailyActions(await buildDailyActions({ executiveId: input.executiveId }));
+  return list.find((action) => keys.has(action.actionKey) && input.match(action)) ?? null;
+}
+
+/**
  * Autoriza (ou rejeita) a execução de uma ação. Devolve a ação oficial
  * do servidor — nunca os dados enviados pelo navegador.
  */
 export async function assertCurrentAction(input: {
   executiveId: string | null;
   actionKey: string;
+  /** Resolução de pendência pulada, aberta pela Central de Operações. */
+  allowPendingRecovery?: boolean;
 }): Promise<DailyAction> {
   const { current } = await currentDailyAction(input.executiveId);
+  if (current && current.actionKey === input.actionKey) return current;
+  if (input.allowPendingRecovery) {
+    const pending = await findPendingRecoveryAction({
+      executiveId: input.executiveId,
+      match: (action) => action.actionKey === input.actionKey,
+    });
+    if (pending) return pending;
+  }
   if (!current) {
     throw new OutOfTurnError("Não há ação corrente na fila do dia.");
   }
-  if (current.actionKey !== input.actionKey) {
-    throw new OutOfTurnError(
-      `Fora da ordem: resolva primeiro a ação corrente (${current.name}).`,
-    );
-  }
-  return current;
+  throw new OutOfTurnError(
+    `Fora da ordem: resolva primeiro a ação corrente (${current.name}).`,
+  );
 }
 
 /**
@@ -112,15 +139,21 @@ export async function assertCurrentAction(input: {
 export async function assertCurrentLead(input: {
   executiveId: string | null;
   leadId: string | null;
+  allowPendingRecovery?: boolean;
 }): Promise<DailyAction> {
   const { current } = await currentDailyAction(input.executiveId);
-  if (!current) throw new OutOfTurnError("Não há ação corrente na fila do dia.");
-  if (!input.leadId || current.leadId !== input.leadId) {
-    throw new OutOfTurnError(
-      `Fora da ordem: resolva primeiro a ação corrente (${current.name}).`,
-    );
+  if (current && input.leadId && current.leadId === input.leadId) return current;
+  if (input.allowPendingRecovery && input.leadId) {
+    const pending = await findPendingRecoveryAction({
+      executiveId: input.executiveId,
+      match: (action) => action.leadId === input.leadId,
+    });
+    if (pending) return pending;
   }
-  return current;
+  if (!current) throw new OutOfTurnError("Não há ação corrente na fila do dia.");
+  throw new OutOfTurnError(
+    `Fora da ordem: resolva primeiro a ação corrente (${current.name}).`,
+  );
 }
 
 /**
@@ -131,14 +164,23 @@ export async function assertCurrentLead(input: {
 export async function assertCurrentQueueItem(input: {
   executiveId: string | null;
   queueItemId: string;
+  allowPendingRecovery?: boolean;
 }): Promise<{ current: DailyAction; queueItemId: string }> {
   const { current } = await currentDailyAction(input.executiveId);
-  if (!current) throw new OutOfTurnError("Não há ação corrente na fila do dia.");
   const officialId = queueItemIdOf(current);
-  if (!officialId || officialId !== input.queueItemId) {
-    throw new OutOfTurnError(
-      `Fora da ordem: resolva primeiro a ação corrente (${current.name}).`,
-    );
+  if (current && officialId && officialId === input.queueItemId) {
+    return { current, queueItemId: officialId };
   }
-  return { current, queueItemId: officialId };
+  if (input.allowPendingRecovery) {
+    const pending = await findPendingRecoveryAction({
+      executiveId: input.executiveId,
+      match: (action) => queueItemIdOf(action) === input.queueItemId,
+    });
+    const pendingId = queueItemIdOf(pending);
+    if (pending && pendingId) return { current: pending, queueItemId: pendingId };
+  }
+  if (!current) throw new OutOfTurnError("Não há ação corrente na fila do dia.");
+  throw new OutOfTurnError(
+    `Fora da ordem: resolva primeiro a ação corrente (${current.name}).`,
+  );
 }
