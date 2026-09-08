@@ -1,5 +1,21 @@
 # Financeira /f — Leads NOVOS que não chegam ao Workspace
 
+## Confirmação da regra (pergunta estratégica)
+
+**SIM.** Lead que existe na origem, continua em NOVOS e não tem espelho no Portal passa a ser SEMPRE lead operacional novo (CASO A), independentemente de quando o sincronizador o encontrou. Único limite mantido: entrada real na origem anterior ao corte operacional de 01/09 continua histórico (proteção do reset). MANUAL segue significando apenas "E0 não é enviado automaticamente".
+
+O que será alterado — e só isso:
+1. `src/lib/crm/sync-classification.ts`: a regra A/B recebe o critério "estágio resolvido = NOVOS (etapa de entrada) e sem espelho ⇒ A", em vez de depender da janela `since`. A data só decide B quando for anterior ao corte operacional.
+2. `src/server/crm/lead-sync.server.ts`: passa a informar à classificação se a etapa resolvida é a de entrada (`stage.isEntry`) — nenhuma outra mudança de fluxo; caso A continua indo ao `intakeLead` já existente.
+3. Reprocessamento único dos 14: como eles já estão em `crm_leads` (marcados `NOT_APPLICABLE`), a próxima sincronização os veria como "já espelhados" e NÃO os corrigiria sozinha. Será executada uma passagem pontual, restrita a esses 14 IDs, chamando o mesmo `intakeLead` (caminho único: Portal → card → E0 manual → fila), preservando as datas reais de entrada 05–07/09. Nenhuma linha existente é apagada.
+4. Testes da classificação (`sync-classification`) ajustados ao novo critério.
+
+NÃO será alterado: motor E0/V2, `decide.ts`, `relationship_queue`, Ação do Dia, overlay, Biblioteca, R/RE, follow_up, Agenda, Safety Lock, outros ambientes.
+
+**36º lead NOVO ainda não ingerido: SIM**, será capturado pelo mesmo caminho — ao aparecer na varredura sem espelho e em NOVOS, cai no CASO A e passa pelo `intakeLead` automaticamente, sem passagem manual. Ressalva: se a origem não o devolver na listagem (não apareceu em nenhuma execução até agora), o problema é de listagem na origem, não de classificação; isso será verificado na execução.
+
+---
+
 ## Resposta (somente leitura — nada foi alterado)
 
 GREENSALES: 36 na origem (35 já espelhados em `crm_leads` na etapa NOVOS; 1 ainda não ingerido)
