@@ -58,13 +58,26 @@ export async function buildCadenceQueue(
 
   const { data: tasks } = await supabaseAdmin
     .from("crm_cadence_tasks")
-    .select("lead_id,step_day,cycle_date,completed_at,due_date,outcome")
+    .select("lead_id,step_day,cycle_date,completed_at,due_date,outcome,status")
     .eq("channel", channel)
-    .eq("status", "DONE")
+    .in("status", ["DONE", "PENDING"])
     .in(
       "lead_id",
       rows.map((r) => r.id),
     );
+
+  /**
+   * APOSENTADORIA DA GERAÇÃO L2/L3/L4.
+   *
+   * O motor de cadência (E1–E4) passa a ser a autoridade das ligações de
+   * relacionamento. Esta fila NÃO cria mais obrigação nova a partir da
+   * segunda tentativa — mas nada é apagado: as tarefas já registradas
+   * continuam na fila e podem ser concluídas normalmente.
+   */
+  const existingObligations = new Set(
+    (tasks ?? []).map((t) => `${t.lead_id}::${t.cycle_date}::${t.step_day}`),
+  );
+
 
   /**
    * Mensagens já PREVISTAS (fila do Motor de Relacionamento). Servem
