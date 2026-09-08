@@ -83,8 +83,30 @@ Ação do Dia, `relationship_queue`, motor V2, Biblioteca, E0/E4/E7/E8, R1–R4,
 - **24. Reagendamento:** já é genérico (compara `scheduled_at` e o texto bruto do `follow_up`); só o filtro de etapa é específico.
 - **25. T-5:** a constante `FOLLOW_UP_FOCUS_MINUTES = 5` e o foco da Ação do Dia atuam sobre o registro de `portal_meetings`, sem olhar a etapa de origem — videochamada usaria exatamente a mesma prioridade.
 
+## GATILHO DO COMPROMISSO (pergunta complementar)
+
+Verificado no código: `syncOneFollowUp` só consulta o estágio do lead, o `follow_up` da origem e o espelho existente. Não consulta a Ação do Dia, `relationship_queue`, ligações, desfechos nem qualquer histórico de execução.
+
+1. **Depende só de etapa + follow_up?** Sim. Única condição adicional: o lead precisa existir em `portal_leads` e ter **executivo responsável** (sem responsável o espelho é ignorado, porque o compromisso não teria dono na agenda).
+2. **Dependências de execução?** Nenhuma: nem ação aberta, nem ligação realizada/concluída, nem "atendeu", nem item em `relationship_queue`, nem registro na Ação do Dia.
+3. **Lead em AGENDAMENTOS sem ser aberto na Ação do Dia:** o compromisso é criado pela sincronização, sozinho. É o comportamento atual.
+4. **Lead em VÍDEO, após a alteração planejada:** sim, o mesmo mecanismo criaria automaticamente, sem nada de novo.
+5. **Abrir a Ação do Dia sem trabalhar o lead:** irrelevante para a existência do compromisso.
+6. **Pular a ação:** o compromisso continua existindo — o pulo é histórico de execução, não altera o espelho.
+7. **Lead já trabalhado e depois movido para AGENDAMENTOS/VÍDEO com follow_up:** criado da mesma forma.
+8. **Confirmação:** sim, o compromisso é informação de ORIGEM/AGENDA do GreenSales. A Ação do Dia executa, não cria.
+
+**Caso do Marcelo (VÍDEO, follow_up para amanhã, nunca aberto):** a resposta correta é **(A)** — criar o compromisso e deixá-lo aguardando a data. É exatamente o que a arquitetura atual faz para AGENDAMENTOS; hoje ele não é criado apenas porque a etapa VÍDEO não é consultada.
+
+### Três camadas distintas
+
+- **EXISTÊNCIA:** nasce da origem (etapa elegível + `follow_up`), gravada em `portal_meetings`, estado `PENDENTE`. Só a origem cria, reagenda ou cancela.
+- **EXECUÇÃO:** a Ação do Dia apresenta o compromisso no dia/horário, com foco T-5. Executar, pular ou nem abrir não muda a existência.
+- **DESFECHO:** o resultado humano (contato realizado, aguardando reagendamento, vencido sem contato, encerrado, retomar em Frios) grava estado e histórico no mesmo registro — nunca apaga o passado.
+
 ## RESPOSTAS FINAIS
 
 1. **Hoje o Portal olha somente a coluna agendamento?** Sim. A elegibilidade é `stage_key = 'agendamentos'`, literal, em um único ponto.
 2. **A coluna vídeo chamada já chega ao Portal?** Sim. A etapa VÍDEO já está mapeada e o `follow_up` desses leads já está gravado — só não é lido.
 3. **Dá para reaproveitar a mesma lógica sem segundo motor?** Sim. É trocar uma comparação de etapa por um conjunto de etapas elegíveis e carregar a modalidade; tudo desemboca no mesmo `portal_meetings` e na mesma Ação do Dia.
+
