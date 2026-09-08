@@ -325,7 +325,7 @@ export function MessageLibraryPanel() {
                         {awaiting ? (
                           <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-amber-400">
                             {contextual && pendingContexts.length === 1
-                              ? `${pendingContexts[0]} aguardando texto`
+                              ? `${pendingContexts[0] ?? "NORMAL"} aguardando texto`
                               : "aguardando texto oficial"}
                           </span>
                         ) : contextual ? (
