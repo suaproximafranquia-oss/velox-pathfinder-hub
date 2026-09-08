@@ -112,7 +112,7 @@ async function loadMirror(externalId: string): Promise<MirrorRow | null> {
   const { data } = await supabaseAdmin
     .from("portal_meetings")
     .select(
-      "id,investor_id,executive_id,scheduled_at,status,external_follow_up,follow_up_state,follow_up_review_due_at,follow_up_history",
+      "id,investor_id,executive_id,scheduled_at,status,topic,external_follow_up,follow_up_state,follow_up_review_due_at,follow_up_history",
     )
     .eq("external_source", GREENSALES_SOURCE)
     .eq("external_ref", followUpExternalRef(externalId))
@@ -188,6 +188,29 @@ export async function syncOneFollowUp(
     nowIso,
   });
   const rawFollowUp = item.followUp === null || item.followUp === undefined ? null : String(item.followUp).trim();
+  const modality = followUpModality(item.stageKey);
+  const topic = modality ? FOLLOW_UP_TOPIC[modality] : MIRROR_TOPIC;
+
+  /**
+   * MESMO compromisso, outra modalidade (AGENDAMENTOS ↔ VÍDEO): não
+   * cancela nem recria — apenas atualiza o tópico do mesmo registro.
+   */
+  if (existing && modality && (existing.topic ?? "") !== topic) {
+    await supabaseAdmin
+      .from("portal_meetings")
+      .update({
+        topic,
+        updated_at: nowIso,
+        follow_up_history: history(existing, {
+          at: nowIso,
+          event: "modalidade_atualizada",
+          state: existing.follow_up_state ?? FOLLOW_UP_STATES.pending,
+          detail: `Modalidade do compromisso atualizada para ${modality}.`,
+        }),
+      } as never)
+      .eq("id", existing.id);
+    existing.topic = topic;
+  }
 
   if (decision.kind === "create") {
     const identity = await loadLeadIdentity(leadId);
