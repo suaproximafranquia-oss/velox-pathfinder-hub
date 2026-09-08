@@ -68,7 +68,9 @@ export type V2DecisionInput = {
   executedSteps: string[];
   cycle: CycleContext;
   stageKey: string | null;
-  /** Ligação atendida sem encaminhamento registrado. */
+  /** Compromisso real (`follow_up`) presente no estágio estruturado. */
+  hasCommitment?: boolean;
+  /** Histórico: ligação atendida sem encaminhamento. Não congela mais nada. */
   awaitingHandoff: boolean;
   /** Ciclo encerrado/interrompido — nenhuma obrigação nova. */
   closed?: boolean;

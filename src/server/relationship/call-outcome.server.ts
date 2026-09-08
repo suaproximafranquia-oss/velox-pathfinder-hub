@@ -5,10 +5,10 @@
  * Aqui apenas registramos o desfecho e aplicamos a regra fechada com a
  * gestão:
  *
- *   ATENDEU = SIM → as ações restantes daquela etapa perdem a finalidade
- *   e são CANCELADAS (inclusive a mensagem da tentativa). A cadência NÃO
- *   avança sozinha: o ciclo passa a AGUARDAR ENCAMINHAMENTO (agendamento,
- *   mudança de estágio ou material efetivamente enviado).
+ *   ATENDEU = SIM → as ações restantes DAQUELA ETAPA perdem a finalidade
+ *   e são CANCELADAS (inclusive a mensagem da tentativa). A cadência
+ *   CONTINUA: a próxima etapa da régua é gerada normalmente. Atender não
+ *   é compromisso — só AGENDAMENTOS/VÍDEO com `follow_up` congela.
  *
  *   ATENDEU = NÃO → a ação é concluída e o motor segue a régua normalmente.
  *
@@ -104,21 +104,18 @@ export async function registerQueueCallOutcome(input: {
     .in("status", ["PENDING", "PROCESSING"]);
 
 
-  await supabaseAdmin
-    .from("relationship_cadences")
-    .update({
-      awaiting_handoff: true,
-      awaiting_handoff_since: nowIso,
-      awaiting_handoff_reason: "Ligação atendida — aguardando encaminhamento do Executivo.",
-      updated_at: nowIso,
-    } as never)
-    .eq("scope", row.scope)
-    .eq("lead_id", row.lead_id);
+  /**
+   * ATENDER NÃO CONGELA. A cadência segue a régua normalmente: só um
+   * compromisso real (AGENDAMENTOS/VÍDEO com `follow_up`) congela.
+   * Por isso nada é gravado em `awaiting_handoff` aqui — o campo fica
+   * apenas como histórico dos ciclos anteriores.
+   */
+  await tickLead(row.lead_id);
 
   // E0 atendida: a pendência legada de E0 (se existir) deixa de fazer sentido.
   if (row.step === "E0") await closeLegacyE0(row.lead_id, "ENCERRADA: E0 atendida pela régua V2 (Ação do Dia).");
 
-  return { concluded: true, awaitingHandoff: true };
+  return { concluded: true, awaitingHandoff: false };
 }
 
 async function tickLead(leadId: string): Promise<void> {
