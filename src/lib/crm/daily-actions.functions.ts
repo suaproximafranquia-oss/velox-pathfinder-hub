@@ -180,7 +180,7 @@ export const registerDailyActionMessageFn = createServerFn({ method: "POST" })
       userId: context.userId,
       executiveId,
     });
-    return { ok: true as const, ...outcome };
+    return { ok: true as const, ...outcome, queue: await queueAfterOutcome(executiveId) };
   });
 
 /** Desfecho da reunião, resolvido na fonte oficial `portal_meetings`. */
@@ -422,7 +422,12 @@ export const registerQueueCallOutcomeFn = createServerFn({ method: "POST" })
         nowIso: new Date().toISOString(),
       });
     }
-    return result;
+    /**
+     * A fila oficial é recalculada AQUI, depois de gravado o desfecho:
+     * se a régua liberou outra ação do MESMO investidor (por exemplo a
+     * mensagem E0 após a 2ª ligação), ela já volta na posição 1.
+     */
+    return { ...(result as object), queue: await queueAfterOutcome(executiveId) };
   });
 
 /**
