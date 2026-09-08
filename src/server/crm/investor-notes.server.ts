@@ -124,7 +124,7 @@ export async function addInvestorNote(input: {
     lead_id: input.leadId,
     body,
     scope: input.scope ?? null,
-    author_user_id: input.userId,
+    author_user_id: input.userId ?? null,
     author_executive_id: input.executiveId,
     author_name: authorName,
     source_key: input.sourceKey ?? null,

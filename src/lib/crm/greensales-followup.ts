@@ -196,10 +196,25 @@ export function planFollowUpSync(input: {
   return { kind: "update", from: existing.scheduledAt, to: scheduledAt };
 }
 
-/** Transição estruturada AGENDAMENTOS → FRIOS — a ÚNICA que libera o R. */
+/** Transição estruturada AGENDAMENTOS → FRIOS. */
 export function isAgendamentosToFrios(previousStageKey: string | null, currentStageKey: string | null): boolean {
   return (
     (previousStageKey ?? "").toLowerCase() === AGENDAMENTOS_STAGE &&
+    (currentStageKey ?? "").toLowerCase() === FRIOS_STAGE
+  );
+}
+
+/**
+ * Transição estruturada de uma etapa de COMPROMISSO (AGENDAMENTOS ou
+ * VÍDEO) para FRIOS — a ÚNICA que libera o reengajamento R. Sempre por
+ * `stage_key`, nunca por tag ou texto.
+ */
+export function isCommitmentStageToFrios(
+  previousStageKey: string | null,
+  currentStageKey: string | null,
+): boolean {
+  return (
+    isFollowUpEligibleStage(previousStageKey) &&
     (currentStageKey ?? "").toLowerCase() === FRIOS_STAGE
   );
 }
