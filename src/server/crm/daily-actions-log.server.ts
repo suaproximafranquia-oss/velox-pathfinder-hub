@@ -314,6 +314,11 @@ export async function registerDailyActionMessage(
       via: "mensagem",
       nowIso,
     });
+    // E0 concluída pela régua V2: a pendência legada de E0 é só histórico.
+    if (input.step === "E0" && input.leadId) {
+      const { closeLegacyE0 } = await import("@/server/relationship/call-outcome.server");
+      await closeLegacyE0(input.leadId, "ENCERRADA: mensagem E0 copiada/concluída pela régua V2 (Ação do Dia).");
+    }
   }
 
   return outcome;
