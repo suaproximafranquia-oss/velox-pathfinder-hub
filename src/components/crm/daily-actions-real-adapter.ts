@@ -223,9 +223,11 @@ export function useRealDailyActionsAdapter(
       registerMessage: async (item, note) => {
         const result = (await registerMessage({ data: actionRef(item, note, pendingRecovery) })) as {
           concluded?: boolean;
+          queue?: DailyAction[];
         };
         return {
           ok: true,
+          queue: result?.queue,
           message: result?.concluded
             ? "Etapa concluída — o motor segue para a próxima."
             : "Mensagem registrada no histórico.",
