@@ -1,111 +1,52 @@
-# Financeira /f — Construção final em uma única rodada
+# Financeira /f — Construção única: Biblioteca, Agendamento e Central dos Nomes
 
-Escopo exclusivo: Corporate Workspace / Financeira `/f`. Não altera `/`, `/s`, `/s/portal`, `/seg`, Solar, Seguros. Nenhuma etapa nova, nenhum `step_key` técnico renomeado, nenhum reset, nenhum histórico apagado, nenhum envio real de WhatsApp habilitado. Humanização, RF, ER, domingo de homologação, Backup, KPI, ownership, permissões e Safety Lock ficam intocados.
+Escopo exclusivo: Corporate Workspace / Financeira `/f`. Não altera `/`, `/s`, `/s/portal`, `/seg`, Solar, Seguros nem estruturas compartilhadas. Nada é apagado: histórico, versões e auditoria permanecem.
 
-## 1. E0 completo (primeiro contato)
+## Bloco 1 — Biblioteca: reencontro entre etapa de negócio e texto
 
-Hoje o E0 é apenas uma mensagem. Passa a ser uma etapa com três ações internas, na mesma fila do motor:
+Os textos existem; estão hospedados em chaves técnicas de outra geração, e o motor pede pela chave. Correção sem renomear nada e sem reescrever texto.
 
-```text
-E0  ligação 1  →  (não atendeu) +10 min  →  ligação 2  →  (não atendeu) mensagem do E0  →  E0 concluído  →  libera E1
-```
+- Criar um mapa oficial etapa de negócio → chave técnica real (E2→`E3`, E3→`E12`, E4→`E2`, E5→`RE0`, E6→`E20`, E7→`E27`, E8→`RE1`, R2→`E4`, R3→`E5`, R4→`RE2`, RE0→`E6`, RE1→`E7`, RE2→`FINALIZACAO`, RE3→`R1`; E0 e E1 já coincidem).
+- Motor e Biblioteca passam a resolver o texto por esse mapa. A chave técnica gravada continua intacta.
+- Camada editorial exibe apenas a nomenclatura atual: E0–E8, R1–R4, RE0–RE3.
+- R1 volta a ter versão ativa a partir das versões históricas hoje inativas.
+- Resíduos (`TESTE`, `V3`, `V4`, `RF0`, `RF1`, `RESPOSTA_AUTOMATICA`, `E0_V1`, `E30`, títulos ER) ficam marcados como legado, fora da lista oficial, sem exclusão.
+- E7 e E8 passam a ter quatro espaços reais cada: SEM_CONTATO e MATERIAL_ENVIADO, cada um com versão com nome e sem nome. Espaço sem texto permanece pendente e bloqueia o envio com motivo — nenhum texto é inventado.
 
-- Atendeu na 1ª ou na 2ª: as ações seguintes do E0 são canceladas, nada avança sozinho, o lead entra em "aguardando encaminhamento".
-- A mensagem só aparece depois da 2ª tentativa registrada como não atendida.
-- Duas ações do mesmo E0 nunca ficam disponíveis ao mesmo tempo.
-- Janela própria do E0 e o modo manual/automático por executivo permanecem exatamente como estão.
-- O nome "D0" não existe em lugar nenhum.
+## Bloco 2 — Follow-up do GreenSales como compromisso
 
-## 2. Régua V2 realmente alimentada (E1–E8)
+O campo chega em 655 leads e hoje ninguém o lê.
 
-- A conclusão do E0 passa a criar a primeira obrigação do E1 na fila do motor; hoje a régua fica parada esperando um E0 que nunca chega nela.
-- E1: ligação 1 → 3 h → ligação 2 → mensagem, tudo dentro de E1. Ligação às 16h que não cabe na janela fica pendente e executa na próxima abertura, ainda como E1.
-- E2, E3 e E4: ligação antes da mensagem; atendeu cancela a mensagem daquela etapa e suspende o avanço.
-- Correção do escopo do cancelamento: hoje uma ligação atendida cancela pendências do lead inteiro; passa a cancelar apenas as ações da etapa atendida.
-- Saída do estado "aguardando encaminhamento": agendamento criado, mudança de estágio ou material efetivamente enviado liberam a cadência (hoje nada libera).
-- Prazos E5→E6 (7), E6→E7 (2), E7→E8 (3) e o calendário já estão corretos e não serão mexidos.
+- Ler e normalizar o follow-up na sincronização.
+- Dar identidade externa ao compromisso (origem GreenSales + identificador do lead) e vincular lead ao compromisso.
+- Criar compromisso somente quando o lead estiver em AGENDAMENTOS; nos demais estágios o follow-up é ignorado operacionalmente.
+- Reagendamento é sempre o mesmo compromisso atualizado, com histórico de cada mudança de horário. Nunca três reuniões.
+- Follow-up removido na origem cancela o compromisso espelhado com o motivo "removido na origem".
+- Com o compromisso persistido, o T-5 e a prioridade máxima já existentes passam a funcionar também para o follow-up.
 
-## 3. Material — E4 → E5
+## Bloco 3 — Pós-agendamento e liberação do R
 
-- Passa a existir registro estruturado quando o executivo confirma que a apresentação foi efetivamente disponibilizada. Só esse registro ativa MATERIAL_ENVIADO e o ramo E5 → E6.
-- Falar sobre o material, prometer ou oferecer não ativa nada.
+- Chegado o horário: "Houve contato no agendamento?" Sim → nota opcional e concluído. Não → "Deseja reagendar?".
+- Reagendar sim → orientação para refazer no GreenSales, com atualização automática no Portal. O Portal não cria horário novo.
+- Reagendar não → estado persistente "vencido sem contato e sem reagendamento".
+- 24h depois, obrigação persistente: encerrar o fluxo sem gerar R, ou orientar a mover o lead para Frios.
+- Gravar o estágio anterior do lead, detectar a transição humana AGENDAMENTOS→FRIOS e só então acionar a liberação do reengajamento, criando R1. O tempo passar não libera R.
+- Congelamento em AGENDAMENTOS permanece como está: já funciona.
+- Ligação atendida com promessa de retorno vira compromisso interno formal, congelando a cadência e aparecendo na Ação do Dia. Nada é criado no GreenSales.
 
-## 4. Lead NOVO, atraso e ordem da segunda-feira
+## Bloco 4 — Central dos Nomes ligada ao motor
 
-- Corte de expediente passa de 18:00 para 17:30.
-- Sexta após 17:30, sábado, domingo e segunda antes das 09:00 não contam como dia trabalhado.
-- Novo estado NOVO: o lead ganha sua primeira oportunidade operacional na abertura seguinte e nunca nasce atrasado.
-- Ordem da fila: 1) Agendamentos · 2) Novos, por ordem original de entrada · 3) Cadência atrasada · 4) Cadência devida no dia.
-
-## 5. Sábado
-
-- Botão "Pular para o próximo dia útil", disponível apenas para lead NOVO, sem justificativa, sem nota de abandono: não encerra o lead, não muda etapa, joga para segunda.
-- Sábado continua executando o que já é devido e continua sem antecipar tarefas de segunda.
-
-## 6. Biblioteca
-
-- Nomenclatura editorial exibida como E0–E8, R1–R4, RE0–RE3, mapeada sobre as chaves técnicas atuais — nenhuma chave é renomeada.
-- Correção do desalinhamento entre nome editorial e chave técnica já diagnosticado.
-- Conteúdos que existem mas ficaram inativos ou mal associados são reativados/reassociados. Só é recuperado o que comprovadamente existia.
-- Word/ZIP nunca volta como fonte operacional.
-- O motor sempre lê a mensagem ativa da Biblioteca no momento da execução.
-
-## 7. E7 e E8 — quatro espaços cada
-
-Cada uma das duas etapas passa a exibir quatro campos:
-
-```text
-SEM_CONTATO      + COM_NOME
-SEM_CONTATO      + SEM_NOME
-MATERIAL_ENVIADO + COM_NOME
-MATERIAL_ENVIADO + SEM_NOME
-```
-
-Nenhum texto é inventado. Espaço sem conteúdo fica visivelmente pendente e bloqueia o envio daquela variante até a gestão cadastrar.
-
-## 8. Central dos Nomes como camada de interpretação
-
-- A Central não é reconstruída nem reimportada; os ~100 mil nomes permanecem como estão.
-- O motor passa a extrair o primeiro nome do lead e consultar a Central: encontrado → COM_NOME; não encontrado → SEM_NOME.
-- Não altera o nome original do lead e não aprende nomes novos automaticamente.
-- Vale para todas as origens e todas as etapas.
-
-## 9. Follow-up do GreenSales
-
-- GreenSales é a origem; o follow-up é interpretado somente quando o lead está em AGENDAMENTOS.
-- Espelhamento no `portal_meetings` existente, mantendo o mesmo compromisso quando a data muda.
-- Histórico de reagendamento preservado.
-- Remoção na origem cancela o compromisso espelhado.
-- T-5 aparece na Ação do Dia, como já acontece com as reuniões atuais.
-
-## 10. Pós-agendamento
-
-- Ao vencer o compromisso: resultado, "houve contato?" e "deseja reagendar?".
-- Orientação fixa: o reagendamento é feito no GreenSales.
-- Novo estado persistente "vencido sem contato e sem reagendamento" e obrigação de verificação após 24 h.
-- O fluxo R só é liberado quando houver movimentação humana AGENDAMENTOS → FRIOS.
-
-## 11. Trava real da Ação do Dia
-
-- O executivo não escolhe livremente outro lead: precisa concluir ou pular a ação atual.
-- Ligação antes da mensagem. Pular a ligação leva à próxima ação do mesmo lead; pular também a mensagem exige novo Pular com justificativa.
-- Só depois disso o próximo lead é liberado.
-- A trava é validada no servidor, não apenas escondida na tela.
+- A pergunta "este primeiro nome é confiável?" passa a ser respondida pelos 100.787 nomes já cadastrados, no lugar da lista fixa em código.
+- Consulta no servidor, no momento em que a mensagem é montada, por chave normalizada indexada. Sem cópia de dados, sem tabela nova, sem reimportação.
+- Somente o primeiro nome é considerado; nome composto deixa de ser montado.
+- Comparação ignora maiúsculas, espaços, pontuação e acento; a exibição preserva o acento enviado pelo lead e usa inicial maiúscula.
+- Sem correspondência confiável → SEM_NOME. A Central nunca altera o nome do lead, nunca aprende sozinha e nunca recebe nomes automaticamente.
+- Decisão de nome e contexto de E7/E8 continuam independentes.
 
 ## Detalhes técnicos
 
-- Motor: `src/lib/relationship/cadence-v2.ts` ganha o plano de ações do E0 (call/10min/call/message); `cadence-v2-decide.ts` deixa de tratar E0 como externo. `cadence-v2-state.server.ts` passa a expor o estado do E0.
-- Ponte de entrada: `src/server/relationship/e0.server.ts` e `src/server/crm/e0-actions.server.ts` passam a materializar as três ações do E0 em `relationship_queue` respeitando `e0-window.ts` e `first-contact-mode.server.ts`.
-- `call-outcome.server.ts`: cancelamento filtrado por `step`; `clearAwaitingHandoff` passa a ser chamado por agendamento, mudança de estágio e evento de material.
-- Material: novo evento estruturado `CONTENT_SENT`/`MATERIAL_REQUESTED` gravado em `relationship_events` a partir da confirmação do executivo.
-- Atraso/NOVO: `daily-actions-overdue.ts` (`WORKDAY_END_HOUR` 18 → 17.5), novo bucket `novo` em `daily-actions.ts` e nova ordenação em `actionRank`; `daily-actions.server.ts` passa a marcar o lead novo.
-- Sábado: nova ação de adiamento sem justificativa em `daily-actions-log.server.ts`, restrita a lead NOVO e ao sábado.
-- Trava: verificação server-side em `daily-actions.server.ts` antes de aceitar conclusão/pulo de um lead que não é o corrente.
-- Nomes: `name-central.server.ts` ganha consulta por `normalized_key`, usada por `step-message.server.ts` para escolher `body` ou `body_without_name`.
-- Biblioteca: `message-library.server.ts` e `step-registry.server.ts` passam a usar rótulos editoriais e `step_context`; migration mínima apenas para preencher `step_context` e criar os quatro slots de E7/E8, sem apagar linhas.
-- GreenSales/agendamento: normalizador de payload + `meetings.functions.ts` para espelhar, versionar e cancelar compromissos; novo estado pós-vencimento em `portal_meetings`.
-- Migrations somente aditivas (colunas/estados novos). Nenhuma tabela nova, nenhum DELETE.
-
-## Testes antes de entregar
-
-E0 nos seis desfechos; E1 com ligação fora da janela; E2/E3/E4 atendido e não atendido; E4→E5 com e sem registro de material; prazos E5→E8; sexta 17:31 não vira atraso na segunda; ordem da segunda-feira; botão de sábado; COM_NOME/SEM_NOME pela Central; espelhamento e cancelamento de follow-up; verificação 24 h; trava server-side.
+- Migrations aditivas apenas: `step_context` já existe em `relationship_message_library` e passa a ser preenchido para E7/E8; `portal_meetings` ganha identidade externa (origem/ID do lead) e o check de `origin` é ampliado; `crm_leads` ganha registro de estágio anterior; estado "vencido sem contato" e a pendência de 24h são persistidos em tabela já existente de obrigações.
+- Arquivos centrais: `message-library.server.ts`, `step-message.server.ts`, `step-registry.ts`, `cadence-v2-state.server.ts`, `call-outcome.server.ts`, `daily-actions.server.ts`, `names.ts` / `name-base.ts`, sincronização GreenSales.
+- `canStartReengagement` (`cadence-v2.ts:521`) já está correto e testado; só passa a ser chamado no ciclo produtivo com o estágio anterior real.
+- Não são criadas etapas novas, ER nem RF; Safety Lock, ownership, KPI, alertas, backups, permissões e Portal não são tocados; WhatsApp real continua desligado.
+- Testes: mapa editorial, quatro contextos de E7/E8, criação/reagendamento/cancelamento idempotentes do follow-up, transição AGENDAMENTOS→FRIOS liberando R1, congelamento, e resolução de nome contra a Central.
