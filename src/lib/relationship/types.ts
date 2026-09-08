@@ -178,6 +178,16 @@ export type QueueItem = {
   reason: string | null;
   /** BLOCO 4 — versão de fluxo herdada do ciclo que originou a ação. */
   flowVersionId?: string | null;
+  /** RÉGUA V2 — posição da ação interna dentro da etapa (1 = primeira). */
+  actionOrder?: number | null;
+  /** RÉGUA V2 — tipo da ação interna: ligação ou mensagem. */
+  actionKind?: "call" | "message" | null;
+  /** RÉGUA V2 — data teórica pura, antes de qualquer deslocamento. */
+  theoreticalDate?: string | null;
+  /** RÉGUA V2 — D0 do ciclo que originou a obrigação. */
+  originDate?: string | null;
+  /** RÉGUA V2 — por que a ação perdeu a finalidade, quando cancelada. */
+  cancelReason?: string | null;
 };
 
 /** Ação que o motor autoriza — nunca um texto inventado. */
@@ -192,8 +202,21 @@ export type EngineAction =
       contentGroup: string | null;
       reason: string;
     }
-  | { kind: "schedule_step"; step: CadenceStep; flow: CadenceFlow; dueAt: string; reason: string }
+  | {
+      kind: "schedule_step";
+      step: CadenceStep;
+      flow: CadenceFlow;
+      dueAt: string;
+      reason: string;
+      /** Presentes quando a decisão veio da régua V2. */
+      actionOrder?: number;
+      actionKind?: "call" | "message";
+      actionLabel?: string;
+      theoreticalDate?: string;
+      originDate?: string;
+    }
   | { kind: "none"; reason: string };
+
 
 /** Toda decisão do motor é explicável. */
 export type EngineDecision = {
