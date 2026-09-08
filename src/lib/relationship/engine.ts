@@ -87,6 +87,13 @@ export type EngineOptions = {
    * exatamente como antes.
    */
   flowPlan?: (record: CadenceRecord) => Promise<FlowPlan | null>;
+  /**
+   * RÉGUA V2 (Financeira /f) — estado persistido do ciclo entregue à
+   * `cadence-v2`. Quando informado, é ele que decide etapa, data e ação
+   * interna. Omitido (demo/testes legados) ⇒ comportamento anterior.
+   */
+  v2State?: (record: CadenceRecord) => Promise<V2DecisionInput | null>;
+
 };
 
 /** Eventos que invalidam etapas já programadas (§96, §97, §98). */
