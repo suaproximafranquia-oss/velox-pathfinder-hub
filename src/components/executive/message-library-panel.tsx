@@ -229,29 +229,8 @@ export function MessageLibraryPanel() {
       </header>
 
 
-      {/* DIAGNÓSTICO: o que impediria o motor de enviar, visível aqui. */}
-      {diagnostics &&
-      (diagnostics.stepsWithoutContent.length > 0 ||
-        diagnostics.stepsWithoutText.length > 0) ? (
-        <ul className="mb-4 space-y-1 rounded-xl border border-[color:var(--border)] bg-[color:var(--muted)]/20 p-3 text-[11px] text-[color:var(--muted-foreground)]">
-          {diagnostics.stepsWithoutText.length > 0 ? (
-            <li>
-              Sem texto oficial (não envia):{" "}
-              <strong>{diagnostics.stepsWithoutText.join(", ")}</strong>
-            </li>
-          ) : null}
-          {diagnostics.stepsWithoutContent.length > 0 ? (
-            <li>
-              Etapa que exige link e está sem link configurado:{" "}
-              <strong>
-                {diagnostics.stepsWithoutContent
-                  .map((s) => `${s.stepKey} (grupo ${s.contentGroup})`)
-                  .join(", ")}
-              </strong>
-            </li>
-          ) : null}
-        </ul>
-      ) : null}
+
+
 
       {loading ? (
         <p className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
