@@ -205,3 +205,30 @@ export const recordDailyActionHistoryFn = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+
+/**
+ * DESFECHO DA LIGAÇÃO DA RÉGUA V2. A ligação é ação interna da etapa,
+ * na própria fila do motor — nenhuma fila paralela é criada aqui.
+ */
+export const registerQueueCallOutcomeFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        queueItemId: z.string().uuid(),
+        outcome: z.enum(["SIM", "NAO"]),
+        rang: z.union([z.number(), z.boolean()]).nullish(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { registerQueueCallOutcome } = await import(
+      "@/server/relationship/call-outcome.server"
+    );
+    return registerQueueCallOutcome({
+      queueItemId: data.queueItemId,
+      outcome: data.outcome,
+      rang: data.rang ?? null,
+      actorId: context.userId,
+    });
+  });
