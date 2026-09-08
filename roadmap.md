@@ -93,3 +93,12 @@
 - [ ] Reativar/republicar E3 (chave E3 v1) e R1 (chave R1 v1) após decisão do administrador
 - [ ] Renumeração de display_position na ordem editorial (construção separada)
 - [ ] Janela temporária de domingo em resolveOperationalWindow (se aprovada)
+
+## Motor de cadência final /f (08/09)
+- [x] Régua final como módulo puro e isolado (`src/lib/relationship/cadence-v2.ts`): E0–E8, R1–R4, RE0–RE3, âncora teórica + piso de execução, calendário sáb→seg / dom→ter / feriado, janelas 09:00–17:30 e sáb 08:00–16:00, ações internas, contexto E7/E8, congelamento de Agendamento
+- [x] Testes direcionados (28) cobrindo A–W
+- [x] L2/L3/L4 deixam de gerar obrigação nova (histórico e tarefas existentes preservados)
+- [x] Ação do Dia: ligação tem precedência sobre mensagem no mesmo lead
+- [ ] Persistência das ações internas + separação data teórica/operacional na fila (exige migration)
+- [ ] Scheduler/closure passarem a consumir a régua nova (hoje ainda usam `config.ts`)
+- [ ] Eixo de contexto SEM_CONTATO/MATERIAL_ENVIADO na Biblioteca (E7/E8) + registro manual de "apresentação enviada"

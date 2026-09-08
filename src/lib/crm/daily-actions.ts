@@ -196,8 +196,15 @@ const SOURCE_PRECEDENCE: Record<DailyActionSource, number> = {
    * investidor a partir de um convite emitido.
    */
   closure: 3,
-  queue: 4,
-  cadence: 5,
+  /**
+   * ORDEM INTERNA DA ETAPA: a LIGAÇÃO sempre vem antes da MENSAGEM.
+   * Uma mensagem nunca aparece para execução antes da ligação prevista
+   * da mesma etapa — por isso a ligação tem precedência sobre a fila de
+   * mensagens quando as duas estão pendentes no mesmo lead.
+   */
+  cadence: 4,
+  queue: 5,
+
 };
 
 /** Colapsa ações repetidas pela chave determinística. */

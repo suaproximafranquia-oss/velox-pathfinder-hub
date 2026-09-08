@@ -58,13 +58,26 @@ export async function buildCadenceQueue(
 
   const { data: tasks } = await supabaseAdmin
     .from("crm_cadence_tasks")
-    .select("lead_id,step_day,cycle_date,completed_at,due_date,outcome")
+    .select("lead_id,step_day,cycle_date,completed_at,due_date,outcome,status")
     .eq("channel", channel)
-    .eq("status", "DONE")
+    .in("status", ["DONE", "PENDING"])
     .in(
       "lead_id",
       rows.map((r) => r.id),
     );
+
+  /**
+   * APOSENTADORIA DA GERAÇÃO L2/L3/L4.
+   *
+   * O motor de cadência (E1–E4) passa a ser a autoridade das ligações de
+   * relacionamento. Esta fila NÃO cria mais obrigação nova a partir da
+   * segunda tentativa — mas nada é apagado: as tarefas já registradas
+   * continuam na fila e podem ser concluídas normalmente.
+   */
+  const existingObligations = new Set(
+    (tasks ?? []).map((t) => `${t.lead_id}::${t.cycle_date}::${t.step_day}`),
+  );
+
 
   /**
    * Mensagens já PREVISTAS (fila do Motor de Relacionamento). Servem
@@ -87,7 +100,7 @@ export async function buildCadenceQueue(
   // a ligação aconteceu de verdade e o desfecho informado pelo
   // Executivo — é daí que parte (ou não) o próximo passo.
   const done = new Map<string, CadenceAttempt[]>();
-  for (const task of tasks ?? []) {
+  for (const task of (tasks ?? []).filter((t) => t.status === "DONE")) {
     const key = `${task.lead_id}::${task.cycle_date}`;
     const list = done.get(key) ?? [];
     list.push({
@@ -136,6 +149,13 @@ export async function buildCadenceQueue(
           );
     if (!next) continue;
     if (next.dueDate > today) continue;
+    /**
+     * L2/L3/L4 não geram mais obrigação nova: a partir da segunda
+     * tentativa só permanece na fila o que JÁ estava registrado.
+     */
+    if (next.step >= 2 && !existingObligations.has(`${row.id}::${cycleDate}::${next.step}`)) {
+      continue;
+    }
     queue.push({
       leadId: row.id,
       externalId: row.external_id,
