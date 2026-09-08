@@ -15,8 +15,7 @@
  * executor oficial e pela Global WhatsApp Safety Lock, intocada.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { executionMode } from "@/server/relationship/execution-mode.server";
-import { recordEvent } from "@/server/crm/lead-service.server";
+
 
 export type E0ActionState = "PENDENTE" | "EXECUTADA" | "CANCELADA";
 
