@@ -141,6 +141,9 @@ export function CentralOperacoesHome() {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Pendência aberta para resolução dentro da própria Central. */
+  const [resolving, setResolving] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const range = useMemo(
     () => periodRange(period, customFrom, customTo),
@@ -168,7 +171,7 @@ export function CentralOperacoesHome() {
     return () => {
       cancelled = true;
     };
-  }, [fetchReport, range.from, range.to, scope]);
+  }, [fetchReport, range.from, range.to, scope, reloadKey]);
 
   /** Caminho oficial já usado pelo Portal dos Leads / Ação do Dia. */
   function investorHref(skip: Skip): string | null {
@@ -472,6 +475,15 @@ export function CentralOperacoesHome() {
           </section>
         </>
       ) : null}
+
+      {/* A pendência é resolvida aqui mesmo, com o card original. */}
+      {resolving && (
+        <PendingResolverModal
+          actionKey={resolving}
+          onClose={() => setResolving(null)}
+          onResolved={() => setReloadKey((v) => v + 1)}
+        />
+      )}
     </div>
   );
 }
