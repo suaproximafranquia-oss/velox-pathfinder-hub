@@ -155,19 +155,22 @@ export function resolveBucket(input: {
  * Ordem determinística (nunca a ordem de criação do registro):
  *   0. reunião/compromisso de prioridade máxima em foco ou atrasado;
  *   1. reunião/compromisso próximo do horário;
- *   2. ação atrasada;
- *   3. ação que vence hoje;
- *   4. demais ações.
+ *   2. LEAD NOVO (primeiro contato / E0);
+ *   3. ação atrasada;
+ *   4. ação que vence hoje;
+ *   5. demais ações.
  */
 export function actionRank(action: DailyAction): number {
+  if (action.source === "first_contact") return 2;
   if (action.priorityMax) {
     if (action.bucket === "agora" || action.bucket === "atrasada") return 0;
     return 1;
   }
-  if (action.bucket === "atrasada") return 2;
-  if (action.bucket === "agora" || action.bucket === "hoje") return 3;
-  return 4;
+  if (action.bucket === "atrasada") return 3;
+  if (action.bucket === "agora" || action.bucket === "hoje") return 4;
+  return 5;
 }
+
 
 export function sortDailyActions(actions: DailyAction[]): DailyAction[] {
   return [...actions].sort((a, b) => {

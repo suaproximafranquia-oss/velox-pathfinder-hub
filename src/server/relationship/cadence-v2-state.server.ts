@@ -35,20 +35,21 @@ export async function loadMaterialState(leadId: string): Promise<{
 }> {
   const { data } = await supabaseAdmin
     .from("relationship_events")
-    .select("type,at,data")
+    .select("type,occurred_at,data")
     .eq("scope", "production")
     .eq("lead_id", leadId)
     .in("type", ["CONTENT_SENT", "MATERIAL_REQUESTED"])
-    .order("at", { ascending: true });
+    .order("occurred_at", { ascending: true });
 
   let materialSent = false;
   let materialRequestedAt: string | null = null;
   for (const row of (data ?? []) as Row[]) {
     if (row.type === "CONTENT_SENT") materialSent = true;
     if (row.type === "MATERIAL_REQUESTED" && !materialRequestedAt) {
-      materialRequestedAt = row.at ?? null;
+      materialRequestedAt = row.occurred_at ?? null;
     }
   }
+
   return {
     materialSent,
     materialRequested: Boolean(materialRequestedAt) || materialSent,
@@ -61,26 +62,46 @@ export async function loadMaterialState(leadId: string): Promise<{
  * governado pela V2 (visualização e relacionamento frio seguem como
  * estão) — nesse caso o motor mantém o comportamento anterior.
  */
+/**
+ * PRIMEIRO CONTATO JÁ EXECUTADO POR FORA DA FILA.
+ *
+ * A E0 passou a ser etapa real da régua V2, mas os leads que já tiveram
+ * o primeiro contato registrado pelo caminho anterior não podem receber
+ * uma nova E0. Nada é apagado: o histórico existente é apenas lido.
+ */
+async function loadE0Executed(leadId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("workspace_e0_actions")
+    .select("state")
+    .eq("card_id", leadId)
+    .eq("state", "EXECUTADA")
+    .limit(1);
+  return ((data ?? []) as Row[]).length > 0;
+}
+
 export async function loadCadenceV2State(record: CadenceRecord): Promise<V2DecisionInput | null> {
   const flow = v2FlowOf(record.flow);
   if (!flow) return null;
 
-  const [{ data: queueRows }, { data: cycleRow }, stageKey, material] = await Promise.all([
-    supabaseAdmin
-      .from("relationship_queue")
-      .select("step,action_order,action_kind,status,due_at,executed_at,result")
-      .eq("scope", record.scope)
-      .eq("lead_id", record.leadId)
-      .order("due_at", { ascending: true }),
-    supabaseAdmin
-      .from("relationship_cadences")
-      .select("awaiting_handoff,started_at,created_at")
-      .eq("scope", record.scope)
-      .eq("lead_id", record.leadId)
-      .maybeSingle(),
-    loadStageKey(record.leadId),
-    loadMaterialState(record.leadId),
-  ]);
+  const [{ data: queueRows }, { data: cycleRow }, stageKey, material, e0Executed] =
+    await Promise.all([
+      supabaseAdmin
+        .from("relationship_queue")
+        .select("step,action_order,action_kind,status,due_at,executed_at,result")
+        .eq("scope", record.scope)
+        .eq("lead_id", record.leadId)
+        .order("due_at", { ascending: true }),
+      supabaseAdmin
+        .from("relationship_cadences")
+        .select("awaiting_handoff,started_at,created_at")
+        .eq("scope", record.scope)
+        .eq("lead_id", record.leadId)
+        .maybeSingle(),
+      loadStageKey(record.leadId),
+      loadMaterialState(record.leadId),
+      loadE0Executed(record.leadId),
+    ]);
+
 
   const actions: V2QueueAction[] = ((queueRows ?? []) as Row[]).map((row) => ({
     step: row.step,
@@ -100,7 +121,11 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
     flow,
     originDate: localDateOf(originIso ?? new Date().toISOString()),
     actions,
-    executedSteps: (record.executedSteps ?? []).map(String),
+    executedSteps: [
+      ...(record.executedSteps ?? []).map(String),
+      ...(e0Executed ? ["E0"] : []),
+    ],
+
     cycle: {
       materialSent: material.materialSent,
       materialRequested: material.materialRequested,

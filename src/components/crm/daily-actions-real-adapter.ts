@@ -87,8 +87,14 @@ export function useRealDailyActionsAdapter(): DailyActionsAdapter {
           const queueItemId = item.actionKey.split(":").pop() ?? "";
           if (!queueItemId) return { ok: false };
           const result = (await registerQueueCall({
-            data: { queueItemId, outcome, rang: outcome === "NAO" ? (rang ?? null) : null },
+            data: {
+              queueItemId,
+              actionKey: item.actionKey,
+              outcome,
+              rang: outcome === "NAO" ? (rang ?? null) : null,
+            },
           })) as { awaitingHandoff?: boolean };
+
           try {
             await recordHistory({
               data: {

@@ -195,15 +195,13 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
     }
 
     /**
-     * A E0 ainda não aconteceu: quem cuida do primeiro contato é a
-     * entrada (configuração por executivo), nunca esta régua.
+     * E0 É ETAPA REAL DA RÉGUA. Quando ainda não existe fila e o
+     * primeiro contato não foi executado por fora, a própria V2 cria a
+     * primeira ligação da E0 — não existe motor de entrada paralelo
+     * gerando obrigação de cadência.
      */
-    if (isEntry && input.flow === "E" && rows.length === 0) {
-      return {
-        kind: "none",
-        reason: "Primeiro contato (E0) ainda pendente — a cadência de acompanhamento não começa.",
-      };
-    }
+    void isEntry;
+
 
     // Vencimento da etapa: estável quando já existe fila; calculado quando não.
     const existingDue = rows.length ? rows.map((r) => r.dueAt).sort()[0]! : null;

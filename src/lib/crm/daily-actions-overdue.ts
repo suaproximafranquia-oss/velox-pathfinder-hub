@@ -6,7 +6,7 @@
  * operacional e o período fora do expediente não produzem atraso.
  *
  * Expediente considerado: dias úteis a partir das 09:00; obrigação que
- * chega depois das 18:00 fica disponível no próximo dia útil.
+ * chega depois das 17:30 fica disponível no próximo dia útil.
  *
  * Isto NÃO altera janela de envio nem cadência — apenas a classificação
  * exibida na Ação do Dia.
@@ -14,7 +14,8 @@
 import { addDays, isBusinessDay, operationalDate, operationalMinutes } from "@/lib/relationship/calendar";
 
 export const WORKDAY_START_HOUR = 9;
-export const WORKDAY_END_HOUR = 18;
+/** Fim do expediente operacional: 17:30 (em minutos desde a meia-noite). */
+export const WORKDAY_END_MINUTES = 17 * 60 + 30;
 
 /** Próximo dia útil, incluindo a própria data quando ela já é útil. */
 export function businessDayOnOrAfter(isoDate: string): string {
@@ -37,9 +38,10 @@ export function businessDayOnOrBefore(isoDate: string): string {
 export function availabilityDate(arrivalIso: string): string {
   const date = operationalDate(arrivalIso);
   const minutes = operationalMinutes(arrivalIso);
-  if (isBusinessDay(date) && minutes < WORKDAY_END_HOUR * 60) return date;
+  if (isBusinessDay(date) && minutes < WORKDAY_END_MINUTES) return date;
   return businessDayOnOrAfter(addDays(date, 1));
 }
+
 
 /** Disponibilidade de obrigações que só têm data (sem horário de origem). */
 export function availabilityFromDate(dueDate: string): string {

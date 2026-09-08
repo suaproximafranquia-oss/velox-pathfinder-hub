@@ -157,19 +157,34 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   ).catch(() => new Set<string>());
 
   /**
+   * A E0 passou a ser etapa real da régua V2 (ligação → 10 min →
+   * ligação → mensagem). Quando o motor já colocou as ações da E0 na
+   * fila, o card antigo de primeiro contato não é exibido: a obrigação
+   * é uma só. O registro anterior permanece intacto no histórico.
+   */
+  const e0InQueue = new Set(
+    queue
+      .filter((q) => String((q as Record<string, unknown>).step ?? "") === "E0")
+      .map((q) => q.lead_id as string),
+  );
+
+  /**
    * PRIMEIRO CONTATO (E0) EM MODO MANUAL — prioridade máxima.
    * A ação já foi decidida pelo motor de entrada; aqui ela apenas
    * aparece para ser executada pelo executivo.
    */
   for (const pending of firstContacts) {
     if (firstContactDone.has(pending.card_id)) continue;
+    if (e0InQueue.has(pending.card_id)) continue;
     const identity = identities.get(pending.card_id);
     /**
      * O primeiro contato fica disponível no primeiro DIA ÚTIL após a
-     * chegada; só vira atraso quando esse dia útil termina sem conclusão.
+     * chegada. LEAD NOVO NÃO NASCE ATRASADO: enquanto a E0 não for
+     * executada ele permanece na classe NOVO, no topo da fila, sem ser
+     * contado como atraso operacional.
      */
     const dueDate = availabilityDate(pending.created_at);
-    const overdue = isOverdueByBusinessDays(dueDate, nowIso);
+    const overdue = false;
     actions.push({
       actionKey: `first_contact:${pending.card_id}:e0`,
       source: "first_contact",
@@ -184,7 +199,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       endsAt: null,
       overdue,
       priorityMax: true,
-      bucket: overdue ? "atrasada" : "hoje",
+      bucket: "hoje",
+
       title: "Primeiro contato com lead novo",
       responsibleName: pending.responsible_executive_id ?? null,
       attempts: [],

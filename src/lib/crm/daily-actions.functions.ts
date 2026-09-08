@@ -60,6 +60,10 @@ type ActionRefInput = {
 /**
  * PULAR COM JUSTIFICATIVA. A obrigação não desaparece do histórico:
  * fica registrada com autor, horário, investidor, etapa e motivo.
+ *
+ * A trava sequencial vale também para o Pular: só a ação corrente pode
+ * ser pulada. Pular a ligação libera a MENSAGEM do mesmo investidor —
+ * nunca o próximo investidor da fila.
  */
 export const skipDailyActionFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -67,9 +71,12 @@ export const skipDailyActionFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
     const { skipDailyAction } = await import("@/server/crm/daily-actions-log.server");
     await skipDailyAction({ ...data, userId: context.userId, executiveId });
     return { ok: true as const };
+
   });
 
 /** OBSERVAÇÃO operacional, no mesmo histórico oficial. */
@@ -108,9 +115,12 @@ export const registerDailyActionMessageFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
     const { registerDailyActionMessage } = await import(
       "@/server/crm/daily-actions-log.server"
     );
+
     const outcome = await registerDailyActionMessage({
       ...data,
       userId: context.userId,
@@ -135,8 +145,11 @@ export const resolveMeetingOutcomeFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
     const { resolveMeetingOutcome } = await import("@/server/crm/daily-actions-log.server");
     await resolveMeetingOutcome({ ...data, userId: context.userId, executiveId });
+
     return { ok: true as const };
   });
 
@@ -217,15 +230,21 @@ export const registerQueueCallOutcomeFn = createServerFn({ method: "POST" })
     z
       .object({
         queueItemId: z.string().uuid(),
+        actionKey: z.string().min(1),
         outcome: z.enum(["SIM", "NAO"]),
         rang: z.union([z.number(), z.boolean()]).nullish(),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({ executiveId, actionKey: data.actionKey });
     const { registerQueueCallOutcome } = await import(
       "@/server/relationship/call-outcome.server"
     );
+
     return registerQueueCallOutcome({
       queueItemId: data.queueItemId,
       outcome: data.outcome,
@@ -233,3 +252,100 @@ export const registerQueueCallOutcomeFn = createServerFn({ method: "POST" })
       actorId: context.userId,
     });
   });
+
+/**
+ * MATERIAL / APRESENTAÇÃO — registro estruturado do fato.
+ *
+ * O ramo E5 → E6 → E7 → E8 só nasce quando o material é efetivamente
+ * pedido e disponibilizado. Nada é enviado aqui.
+ */
+export const registerMaterialEventFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        leadId: z.string().min(1),
+        type: z.enum(["MATERIAL_REQUESTED", "CONTENT_SENT"]),
+        step: z.string().nullish(),
+        note: z.string().max(500).nullish(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const { registerMaterialEvent } = await import("@/server/relationship/material.server");
+    return registerMaterialEvent({
+      leadId: data.leadId,
+      type: data.type,
+      step: data.step ?? null,
+      note: data.note ?? null,
+      actorId: context.userId,
+    });
+  });
+
+/**
+ * ENCAMINHAMENTO DA LIGAÇÃO ATENDIDA.
+ *
+ * Quando o investidor atende, a régua PARA e aguarda decisão humana.
+ * Esta é a saída estruturada dessa espera: o executivo declara o que
+ * ficou combinado e a cadência volta a andar (ou permanece congelada,
+ * no caso de agendamento).
+ */
+export const resolveHandoffFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        leadId: z.string().min(1),
+        decision: z.enum([
+          "MATERIAL_SOLICITADO",
+          "MATERIAL_ENVIADO",
+          "AGENDAMENTO",
+          "SEM_INTERESSE",
+          "RETOMAR_CADENCIA",
+        ]),
+        note: z.string().max(500).nullish(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { resolveHandoff } = await import("@/server/relationship/handoff.server");
+    return resolveHandoff({
+      leadId: data.leadId,
+      decision: data.decision,
+      note: data.note ?? null,
+      actorId: context.userId,
+      executiveId,
+    });
+  });
+
+/**
+ * SÁBADO — ADIAR LEAD NOVO PARA O PRÓXIMO DIA ÚTIL.
+ *
+ * Só vale para a classe NOVO (primeiro contato) e só no sábado. Não
+ * exige justificativa: é uma regra operacional, não um pulo.
+ */
+export const postponeNewLeadFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: ActionRefInput) => data)
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    const current = await assertCurrentAction({ executiveId, actionKey: data.actionKey });
+    if (current.source !== "first_contact") {
+      throw new Error("Adiar para o próximo dia útil vale apenas para lead novo.");
+    }
+    const { postponeNewLeadToNextBusinessDay } = await import(
+      "@/server/crm/daily-actions-log.server"
+    );
+    await postponeNewLeadToNextBusinessDay({
+      ...data,
+      userId: context.userId,
+      executiveId,
+    });
+    return { ok: true as const };
+  });
+

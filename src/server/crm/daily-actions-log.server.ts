@@ -107,6 +107,36 @@ export async function skipDailyAction(input: DailyActionLogInput): Promise<void>
 }
 
 /**
+ * SÁBADO — LEAD NOVO ADIADO PARA O PRÓXIMO DIA ÚTIL.
+ *
+ * Não é um pulo com justificativa: é regra operacional. O lead sai da
+ * lista de HOJE e volta no próximo dia útil, sem contar como atraso e
+ * sem perder o histórico (o adiamento fica registrado com autor e hora).
+ */
+export async function postponeNewLeadToNextBusinessDay(
+  input: Omit<DailyActionLogInput, "reason"> & { reason?: string },
+): Promise<void> {
+  const nowIso = input.nowIso ?? new Date().toISOString();
+  const isSaturday = new Date(`${operationalDate(nowIso)}T12:00:00Z`).getUTCDay() === 6;
+  if (!isSaturday) {
+    throw new Error("Adiar para o próximo dia útil só é permitido no sábado.");
+  }
+  const reason = "Sábado — lead novo adiado para o próximo dia útil.";
+  await writeLedger(DAILY_ACTION_EVENTS.skip, { ...input, reason, nowIso }, {
+    postponed: true,
+  });
+  await recordDailyActionHistory({
+    leadId: input.leadId,
+    sourceKey: `acao_do_dia:${input.actionKey}:adiada:${operationalDate(nowIso)}`,
+    headline: historyHeadline("Lead novo adiado", input.step, nowIso),
+    sections: [{ label: "Motivo", value: reason }],
+    userId: input.userId,
+    executiveId: input.executiveId,
+  });
+}
+
+
+/**
  * RECUPERAÇÃO DE AÇÃO PULADA — nada é apagado. O pulo original continua
  * gravado e imutável; este registro apenas declara que a MESMA ação foi
  * concluída depois. A Central de Operações usa isso para deixar de
