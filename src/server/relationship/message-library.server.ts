@@ -37,6 +37,11 @@ export type LibraryMessage = {
   id: string;
   stepKey: string;
   code: string | null;
+  /**
+   * Contexto do conteúdo (E7/E8): SEM_CONTATO ou MATERIAL_ENVIADO.
+   * Null nas etapas de contexto único.
+   */
+  stepContext: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
   title: string;
   /** Rótulo visível da etapa. Apresentação — nunca a chave técnica. */
   displayLabel: string;
@@ -161,6 +166,7 @@ function toMessage(row: Record<string, any>): LibraryMessage {
     id: row["id"],
     stepKey: row["step_key"] ?? String(row["purpose"] ?? "").toUpperCase(),
     code: row["code"] ?? null,
+    stepContext: (row["step_context"] ?? null) as LibraryMessage["stepContext"],
     title: row["title"],
     displayLabel: stepDisplayLabel(
       row["step_key"] ?? String(row["purpose"] ?? "").toUpperCase(),
