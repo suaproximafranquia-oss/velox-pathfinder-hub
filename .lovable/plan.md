@@ -1,100 +1,110 @@
-# Financeira /f — Mapa operacional da jornada E0–E8 (diagnóstico e recomendação)
+# Financeira /f — Recuperação das mensagens históricas (somente leitura)
 
-Somente leitura. Nada foi alterado: código, banco, configuração, fila, mensagens e Ação do Dia permanecem intactos. Documentos históricos foram usados apenas como referência de entendimento, nunca como fonte do sistema.
+Nada foi alterado: nenhuma versão criada, apagada, ativada, renomeada ou movida. Nenhuma migration. Fonte usada: a própria Biblioteca persistida (79 versões, todas no escopo produção) e o código do projeto. Word não foi usado.
 
-## 1. Calendário da jornada E
+## Descoberta central
 
-Legenda de origem do prazo:
-- **CONFIG** = valor que hoje existe de fato na configuração do motor.
-- **NÃO DEFINIDO NO MATERIAL** = a régua de negócio descreve a etapa, mas nenhum documento ou configuração fixa o número de dias.
+Nada se perdeu. O que existe é um **descolamento entre o título editorial e a chave técnica**: a etapa que você chama de "E4" está guardada sob a chave técnica `E2`, a "E5" está sob `RE0`, e assim por diante. Todos os textos, em versão COM NOME e SEM NOME, estão preservados.
 
-Observação importante: as etapas técnicas atuais (E0, E1, E3, E4, E12) **não são** as etapas da sua régua. Só E0 e E1 coincidem em posição. Por isso os prazos abaixo não podem ser herdados por semelhança de nome.
+Mapa completo hoje (versão ativa de cada chave):
 
-| Etapa | Função | Prazo | Quando aparece na Ação do Dia | Condição para entrar | Próxima |
-|---|---|---|---|---|---|
-| E0 | Primeiro contato | 0 — imediato (CONFIG) | No cadastro, dentro da janela 07:00–22:30 (Dom não) | Lead novo | E1 |
-| E1 | 1ª tentativa | 1 dia útil (CONFIG) | 1 dia útil após E0, 09:00–21:00 | E0 executada e lead fora de NOVOS | E2 |
-| E2 | 2ª tentativa | NÃO DEFINIDO NO MATERIAL | — | E1 executada, sem resposta | E3 |
-| E3 | 3ª tentativa | NÃO DEFINIDO NO MATERIAL | — | E2 executada, sem resposta | E4 |
-| E4 | 4ª tentativa + oferta do material | NÃO DEFINIDO NO MATERIAL | — | E3 executada, sem resposta | E5 se aceitar; E7 se não evoluir |
-| E5 | Entrega/liberação do material digital | Prazo do ambiente = 7 dias (histórico); prazo de criação da própria etapa NÃO DEFINIDO | — | Evento explícito "aceitou receber material" | E6 |
-| E6 | Acompanhamento/cobrança do material | NÃO DEFINIDO NO MATERIAL | — | E5 executada | E7, ou encerra se for retorno pós-E8 |
-| E7 | Última sequência antes da finalização | NÃO DEFINIDO NO MATERIAL | — | E4 sem evolução, ou E6 concluída | E8 |
-| E8 | Finalização | NÃO DEFINIDO NO MATERIAL | — | E7 executada | Encerra |
+| Etapa do negócio | Chave técnica onde está guardada | Versão ativa |
+|---|---|---|
+| E0 — Primeiro contato | `E0` | v6 |
+| E1 — Primeiro acompanhamento | `E1` | v5 |
+| E2 — Segundo acompanhamento | `E3` | v4 |
+| E3 — Terceiro acompanhamento | `E12` | v4 |
+| E4 — Oferta da apresentação digital | `E2` | v2 |
+| E5 — Apresentação digital | `RE0` | v5 |
+| E6 — Acompanhamento do material | `E20` | v3 |
+| E7 — Última tentativa de contato | `E27` | v3 |
+| E8 — Finalização | `RE1` | v3 |
+| R1 — Reengajamento | `E3` (v1 e v2, inativas) | histórico |
+| R2 — Segundo reengajamento | `E4` | v2 |
+| R3 — Oferta de apresentação digital | `E5` | v3 |
+| R4 — Finalização do reengajamento | `RE2` | v3 |
+| RE0 — Reentrada | `E6` | v3 |
+| RE1 — Reentrada / conteúdo | `E7` | v2 |
+| RE2 — Reentrada / suporte | `FINALIZACAO` | v2 |
+| RE3 — Finalização / oferta digital | `R1` | v2 |
+| RF0 / RF1 | `R2` / `R3` | v2 |
+| ER0 / ER1 / ER2 | `RE3` / `TESTE` / `V4` | conteúdo de teste |
 
-Único prazo comprovado além de E0/E1: os 7 dias do ambiente do material digital. Todos os demais precisam de decisão sua.
+## 1. Recuperação pedida
 
-Falta decidir, em dias úteis: E1→E2, E2→E3, E3→E4, E4→E7, E5 (a partir do aceite), E5→E6, E6→E7, E7→E8. E também: E5/E6 são contados em dias úteis como as demais, ou em dias corridos por causa do prazo de 7 dias do ambiente?
+### E4 — oferta da apresentação digital
+- **Onde:** chave `E2`, versão 2, ativa. Origem: Biblioteca persistida. É a mensagem histórica original, não uma aproximação.
+- **COM NOME:** "Olá, [Nome]. Quero te oferecer uma alternativa para conhecer melhor a Velox sem precisar agendar uma conversa neste momento. Tenho uma apresentação digital que permite conhecer a estrutura, o modelo de negócio e a oportunidade no seu próprio tempo. Se você quiser receber esse material, me responda por aqui e eu disponibilizo o acesso."
+- **SEM NOME:** o mesmo texto começando em "Olá."
+- Existe versão anterior (`E2` v1, inativa), com título "E5 — Oferta de apresentação digital" e texto diferente, sobre compartilhar mais um conteúdo. Também preservada.
+- Observação: o texto usa o marcador literal `[Nome]` em vez da variável do sistema.
 
-## 2. Dia a dia — exemplo com lead entrando na segunda
+### R1 — primeiro contato pós-falta
+- **Onde:** chave `E3`, versões 1 e 2, ambas inativas. Origem: Biblioteca persistida.
+- **v2 (a mais recente), COM NOME:** "[Nome], vi que conseguimos iniciar nossa conversa, mas acabamos não conseguindo evoluir para o próximo passo. Sei que os dias são corridos e nem sempre conseguimos falar no momento ideal. Por isso, quero alinhar novamente sua disponibilidade para que possamos conversar. Minha disponibilidade é ampla. Me diga qual período fica bom para você e seguimos a partir daí. Enquanto isso, também quero compartilhar um conteúdo que pode contribuir para você conhecer melhor a Velox: [CONTEÚDO R1]"
+- **SEM NOME:** existe, idêntica sem o nome.
+- **v1** é outro texto ("Os dias passam rapidamente…"), sem versão SEM NOME.
+- **Ressalva honesta:** este texto é de *reengajamento após conversa iniciada*, não fala em falta a reunião. É a mensagem histórica real de R1, mas **não** é uma mensagem de "pós-falta". Se R1 passar a significar pós-falta, o texto precisa de decisão editorial sua.
 
-Como só E0 e E1 têm prazo comprovado, os dias seguintes ficam marcados como dependentes de decisão.
+### R3 — oferta do material digital
+- **Onde:** chave `E5`. Duas funções diferentes ao longo do tempo, ambas preservadas:
+  - **v3 (ativa), "R3 — Oferta de apresentação digital", COM NOME:** "[Nome], percebi que a nossa conversa acabou ficando sem continuidade, mesmo depois de você ter me respondido. […] quero te oferecer uma alternativa. Posso disponibilizar uma apresentação digital para você conhecer toda a estrutura, o modelo de negócio e a oportunidade da Velox, no seu próprio tempo, sem precisar agendar uma conversa comigo agora. Esse formato faz sentido para você? Se fizer, me responde por aqui que eu te envio." SEM NOME existe.
+  - **v2 (inativa), "R3 — Finalização do reengajamento":** encerra as tentativas e, antes de encerrar, oferece a apresentação digital. COM e SEM NOME.
+  - **v1 (inativa):** oferta pura do material, praticamente idêntica ao E4.
+- Todas históricas originais.
 
-**A) Nunca responde**
-- Segunda: E0 (primeiro contato)
-- Terça: E1 (1ª tentativa)
-- Quarta em diante: E2 → E3 → E4 → E7 → E8, na cadência que você definir. Com 1 dia útil entre etapas, seria Quarta E2, Quinta E3, Sexta E4, Segunda E7, Terça E8.
+### RE1 — tentativa de recontato / reentrada
+- **Onde:** chave `E7`, versão 2, ativa. Histórica original.
+- **COM NOME:** "[Nome], como você voltou a se interessar pelo tema, quero contribuir com algo prático. Alguns critérios realmente importam para avaliar uma franquia: entender rentabilidade, suporte, maturação e perfil do franqueado costuma evitar decisões precipitadas em qualquer marca. Separei um conteúdo sobre esse assunto: [CONTEÚDO RE1] Se preferir, podemos conversar e analisar esses pontos juntos. Minha disponibilidade é ampla."
+- **SEM NOME:** existe.
+- `E7` v1 (inativa) tem outro texto, de encerramento após material enviado. Também preservado.
 
-**B) Responde e aceita o material**
-- Segunda: E0
-- Terça: E1
-- Terça (resposta aceitando): a cadência de tentativas para; o caminho vira material
-- Quarta: E5 (liberação do material, ambiente válido por 7 dias)
-- Após o prazo de acompanhamento: E6 (cobrança do material)
-- Depois: E7 e E8 conforme a régua
+### ER1 — etapa de RMK 1
+- **Onde:** chave `TESTE`, v1 (corpo vazio) e v2 ativa com o corpo "TESET". Sem versão SEM NOME.
+- **Não existe mensagem histórica real de ER1.** Só conteúdo de teste. O mesmo vale para ER0 (chave `RE3`, corpo "TESTE") e ER2 (chave `V4`, corpo "TESTE").
+- Nada foi inventado para preencher essa lacuna.
 
-**C) Já finalizado em E8 e volta a responder**
-- Segunda (resposta do investidor já finalizado): reabre no caminho do material
-- Terça: E5
-- Após o acompanhamento: E6
-- Em seguida: encerra. **Não repete E7 nem E8.**
+## 2. E4 — confirmação
 
-## 3. Eventos que mudam o caminho
+A mensagem histórica do E4 atual é a de `E2` v2, transcrita acima, e **já possuía as duas variantes**, COM NOME e SEM NOME. Ressalva: o texto é de **oferta do material**, não de "quarta tentativa de ligação". Se, na régua nova, E4 for a 4ª tentativa de ligação *e* a oferta, o texto atual cobre só a segunda parte.
 
-| Evento | Transição esperada |
-|---|---|
-| Não respondeu | Continua a linha de tentativas: E1→E2→E3→E4, e depois E7→E8 |
-| Respondeu (sem aceitar material) | Automação pausa; o Executivo conduz; retoma na etapa seguinte se voltar a silenciar |
-| Aceitou receber material | Sai da linha de tentativas e entra em E5 |
-| Recebeu material (E5 executada) | Habilita E6 e marca a memória "já recebeu material" |
-| Visualizou material | Sinal de engajamento; pode antecipar ou dispensar a cobrança do E6 — **precisa de decisão sua** |
-| Agendou | Bloqueia toda a cadência automática (já é o comportamento atual) |
-| Compareceu | Sai do fluxo automático; condução do Executivo, com reagendamento se houver |
-| Não compareceu | Entra no fluxo R: R1→R2→R3→R4; se já recebeu material, pula R3 → R1→R2→R4 |
-| Voltou depois do E8 | Reabre em E5→E6 e encerra; nunca E7/E8 de novo |
-| Já recebeu material anteriormente | Nunca reofertar: pula E5 no caminho E e pula R3 no fluxo R |
-| Já estava em R e não compareceu de novo | Continua de onde parou, sem reiniciar o R |
+## 3. R1 e R3 — confirmação
 
-Hoje, dos eventos acima, o motor só trata: não respondeu, respondeu e agendou. Aceite de material, entrega, visualização de material, comparecimento, não comparecimento e retorno pós-finalização não existem como eventos que mudem o caminho.
+- **R1 histórico** = retomada de conversa iniciada que não evoluiu, com conteúdo anexo (chave `E3`, v1 e v2). Não é, no texto, um contato pós-falta.
+- **R3 histórico** = teve duas identidades: encerramento do reengajamento (v2) e oferta da apresentação digital (v3, a vigente). A versão vigente é claramente a oferta de material, coerente com a sua régua.
+- Nenhum dos dois foi confundido com outra chave: a identificação foi feita pelo título gravado no registro e confirmada pelo corpo do texto.
 
-## 4. Ação do Dia
+## 4. RE1 e ER1 — confirmação
 
-Confirmado: a cadeia permanece exatamente essa —
+- **RE1:** existe mensagem histórica real, completa, COM e SEM NOME.
+- **ER1:** não existe. E mais importante: **nunca existiu arquitetura de remarketing por executivo na Biblioteca.** A Biblioteca tem um único escopo (produção) e nenhuma coluna de executivo; a tabela de campanhas de remarketing também não tem vínculo com executivo. Portanto não havia — e não há — variantes COM NOME/SEM NOME por executivo para ER0/ER1/ER2. O que existe são três chaves ocupadas por rótulos "ER" com conteúdo de teste.
 
-motor decide → fila cria a obrigação → Ação do Dia mostra → executivo copia/executa → concluído → snapshot/histórico → motor decide a próxima.
+## 5. Modelo para os dois contextos de E7 e E8, sem criar etapas
 
-A Ação do Dia hoje já é apenas leitura da fila: ela não escolhe etapa, não calcula prazo e não cria obrigação. Isso não muda com a nova régua. A única evolução necessária do lado dela é que o desfecho de reunião ("não compareceu") passe a **emitir um evento** para o motor — quem decide a transição continua sendo o motor.
+A ideia é: **a etapa continua sendo uma só; o que muda é a variante escolhida no momento do envio.** Hoje cada etapa já escolhe entre duas variantes (COM NOME / SEM NOME) a partir de um dado estruturado — o nome confirmado. O mesmo mecanismo pode passar a considerar um segundo eixo, o contexto:
 
-## 5. Biblioteca
+```text
+E7 ─ contexto SEM_CONTATO      ─ COM NOME / SEM NOME
+   └ contexto MATERIAL_ENVIADO ─ COM NOME / SEM NOME
+E8 ─ contexto SEM_CONTATO      ─ COM NOME / SEM NOME
+   └ contexto MATERIAL_ENVIADO ─ COM NOME / SEM NOME
+```
 
-Confirmado: cada etapa E0–E8 deve buscar o texto diretamente da Biblioteca, respeitando versão ativa, variante COM NOME / SEM NOME conforme a Central dos Nomes, e gravando snapshot no instante da execução. Nenhum texto paralelo em código. Sem versão ativa válida, a ação aparece com o motivo e o COPIAR fica bloqueado — sem inventar conteúdo. Esse comportamento já existe hoje e deve ser preservado.
+Nenhuma chave nova, nenhuma renomeação: a chave técnica continua a mesma e ganha um atributo de contexto na versão publicada, do mesmo jeito que já tem título, link e as duas variantes de nome.
 
-## 6. Fechamento
+**Como o contexto é determinado de forma determinística, sem adivinhar pelo texto:** o motor já guarda, em cada ciclo, a lista de etapas efetivamente executadas. A regra fica objetiva:
 
-**a) Comprovado pelos documentos e pelo sistema:** a sequência de nove etapas E0–E8; os dois caminhos (sem evolução e com material); a existência do ambiente de material com 7 dias; o retorno pós-E8 indo para E5→E6 e encerrando; o fluxo R de não comparecimento com salto de R3 quando o material já foi entregue.
+- a lista de etapas executadas contém E5 (ou E5 e E6) → **MATERIAL_ENVIADO**;
+- a lista não contém E5 → **SEM_CONTATO**.
 
-**b) Precisa de decisão sua:** todos os intervalos entre E1 e E8; se E5/E6 contam em dias úteis ou corridos; o que exatamente caracteriza "aceitou o material" (resposta afirmativa, clique no link, ambos); se a visualização do material altera o E6; quantos dias após o fim dos 7 dias entra o E6; se o retorno pós-E8 pode ocorrer mais de uma vez; e como o R interage com a memória de material.
+Esse mesmo registro resolve as outras memórias que você descreveu: "já recebeu material" (pula R3, virando R1 → R2 → R4), "já foi finalizado" (retorno vai para E5 → E6 e encerra, sem repetir E7/E8) e "já esteve no R" (continua de onde parou em vez de reiniciar). Tudo lido do histórico estruturado do ciclo, nunca do conteúdo da mensagem.
 
-**c) Prazos comprovados:** E0 imediato; E1 um dia útil; ambiente do material 7 dias.
+## Resumo do que ficou pendente da sua decisão
 
-**d) Prazos não comprovados:** E2, E3, E4, E5, E6, E7, E8 — nenhum documento fixa esses números.
+1. Texto oficial de ER0/ER1/ER2 — não existe histórico, precisa ser escrito por vocês.
+2. Se R1 passa a ser "pós-falta", o texto histórico não serve como está.
+3. Se E4 acumula "4ª tentativa" e "oferta", o texto histórico cobre só a oferta.
+4. Os textos de E7 e E8 no contexto MATERIAL_ENVIADO ainda não existem — o `E7` v1 inativo ("espero que você tenha conseguido visualizar o material que enviei…") é o único candidato natural, e a decisão de usá-lo é sua.
+5. Vários textos usam o marcador literal `[Nome]` e `[CONTEÚDO Rx]` em vez das variáveis do sistema — algo a padronizar na construção futura.
 
-**e) Estrutura mínima para virar a régua sem destruir histórico:**
-1. Nova versão de fluxo, versionada, com as nove etapas e seus prazos. Ciclos em andamento continuam na versão antiga — o versionamento de fluxo já existe.
-2. Um registro de memória da jornada por lead: já recebeu material, já foi finalizado, já passou pelo R.
-3. Novos eventos no motor: aceite de material, entrega de material, comparecimento, não comparecimento, retorno pós-finalização.
-4. Decisão condicional no motor: a próxima etapa deixa de ser "a próxima da lista" e passa a considerar o caminho e a memória.
-5. Textos oficiais das etapas novas publicados na Biblioteca antes de qualquer ativação.
-6. Nenhuma renomeação de chave técnica existente e nenhuma remoção de versão histórica: a régua nova nasce ao lado da atual.
-
-Recomendação: **mudança estrutural**, feita em uma construção única e versionada, e só depois que os prazos do item (b) estiverem decididos.
+Próximo passo sugerido: vocês revisam os textos acima, definem o oficial de cada etapa, e só então fazemos uma única construção no motor.
