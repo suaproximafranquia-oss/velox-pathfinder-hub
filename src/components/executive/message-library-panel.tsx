@@ -109,16 +109,8 @@ export function MessageLibraryPanel() {
     return map;
   }, [messages]);
 
-  const legacySteps = useMemo(() => {
-    const map = new Map<string, LibraryMessage[]>();
-    for (const message of messages) {
-      if (message.official) continue;
-      const list = map.get(message.stepKey) ?? [];
-      list.push(message);
-      map.set(message.stepKey, list);
-    }
-    return [...map.entries()];
-  }, [messages]);
+
+
 
   /* A ordem vem do servidor (posição salva) e é espelhada localmente
      apenas para o arrastar fluir sem esperar a gravação. */
