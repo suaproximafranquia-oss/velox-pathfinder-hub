@@ -37,6 +37,25 @@ import {
 
 
 
+/**
+ * LIGAÇÃO OFICIAL: item da fila legada (com `cadence`) OU ação interna
+ * de ligação da régua V2 (fonte `queue`). As duas usam os mesmos botões
+ * Atendeu / Não atendeu; a diferença fica no adaptador.
+ */
+function isCallAction(item: DailyAction | null | undefined): boolean {
+  return Boolean(item) && item!.kind === "ligacao" && (Boolean(item!.cadence) || item!.source === "queue");
+}
+
+/** Cabeçalho oficial: "LIGAÇÃO — ETAPA E0", "MENSAGEM — ETAPA E0"… */
+function actionHeadline(item: DailyAction): string {
+  if (item.source === "queue" && item.stepLabel) {
+    const base = item.kind === "ligacao" ? "Ligação" : "Mensagem";
+    const second = (item.queueActionOrder ?? 1) > 1 && item.kind === "ligacao" ? "Segunda ligação" : base;
+    return `${second} — Etapa ${item.stepLabel}`;
+  }
+  return `${KIND_LABEL[item.kind]}${item.stepLabel ? ` · ${item.stepLabel}` : ""}`;
+}
+
 function formatDay(iso: string): string {
   const [y, m, d] = iso.split("-");
   return d && m && y ? `${d}/${m}` : iso;
@@ -108,6 +127,8 @@ export function DailyActionsOverlay({
   const [messageNote, setMessageNote] = useState("");
   /** Confirmação explícita: copiou → enviou? Só SIM conclui o item. */
   const [copied, setCopied] = useState(false);
+  /** Último resultado de ligação da régua V2 — reversível até a próxima ação irreversível. */
+  const [undoable, setUndoable] = useState<DailyAction | null>(null);
 
 
   const load = useCallback(async () => {
@@ -226,7 +247,7 @@ export function DailyActionsOverlay({
    * quantidade de tentativas é decidida aqui: quem define é a cadência.
    */
   async function completeCall(item: DailyAction, outcome: "SIM" | "NAO", rang?: boolean | null) {
-    if (!item.cadence) return;
+    if (!isCallAction(item)) return;
     if (!operationalWindow.open) return;
     setBusy(true);
     try {
@@ -237,8 +258,31 @@ export function DailyActionsOverlay({
         setCallAwaitingRing(null);
         setCallPending(null);
         setCallNote("");
+        setUndoable(item.source === "queue" && adapter.undoCallOutcome ? item : null);
         applyResult(item.actionKey, result);
-      } else setFeedback(result.message ?? "Não foi possível registrar a ligação.");
+        // A régua pode ter liberado a próxima ação (ex.: mensagem E0): relê a lista oficial.
+        if (item.source === "queue") void load();
+      } else {
+        setFeedback(result.message ?? "Não foi possível registrar a ligação.");
+        // Fora de ordem / já resolvida: a lista oficial é a verdade.
+        void load();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** DESFAZER o resultado da ligação — o servidor decide se ainda é reversível. */
+  async function handleUndoCall() {
+    if (!undoable || !adapter.undoCallOutcome) return;
+    setBusy(true);
+    try {
+      const result = await adapter.undoCallOutcome(undoable);
+      setFeedback(result.message ?? null);
+      if (result.ok) {
+        setUndoable(null);
+        await load();
+      }
     } finally {
       setBusy(false);
     }
@@ -268,12 +312,6 @@ export function DailyActionsOverlay({
     } finally {
       setBusy(false);
     }
-  }
-
-  async function handleWhatsapp(item: DailyAction) {
-    if (!operationalWindow.open) return;
-    const result = await adapter.openWhatsapp(item);
-    if (result.message) setFeedback(result.message);
   }
 
   /** PULAR — a justificativa é obrigatória e vira histórico oficial. */
@@ -541,8 +579,7 @@ export function DailyActionsOverlay({
               <>
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-white/40">
-                    {KIND_LABEL[selected.kind]}
-                    {selected.stepLabel ? ` · ${selected.stepLabel}` : ""}
+                    {actionHeadline(selected)}
                     {selected.startsAt ? ` · ${operationalTime(selected.startsAt)}` : ""}
                     {selected.bucket === "atrasada"
                       ? ` · atrasada desde ${formatDay(selected.dueDate)}`
@@ -596,7 +633,7 @@ export function DailyActionsOverlay({
                   )}
                   {/* LIGAÇÃO — resultado da tentativa. Nenhuma resposta
                       encerra a ação: só o botão Concluído encerra. */}
-                  {selected.cadence &&
+                  {isCallAction(selected) &&
                     callAwaitingRing !== selected.actionKey &&
                     callPending?.key !== selected.actionKey && (
                       <>
@@ -623,7 +660,7 @@ export function DailyActionsOverlay({
                         </button>
                       </>
                     )}
-                  {selected.cadence && callAwaitingRing === selected.actionKey && (
+                  {isCallAction(selected) && callAwaitingRing === selected.actionKey && (
                     <>
                       <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
                         Chamou?
@@ -773,24 +810,13 @@ export function DailyActionsOverlay({
                       className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
                     >
                       <MessageSquare className="h-4 w-4" />
-                      {selected.stepLabel ? `Copiar ${selected.stepLabel}` : "Copiar mensagem"}
+                      {selected.stepLabel ? `Copiar mensagem — Etapa ${selected.stepLabel}` : "Copiar mensagem"}
                     </button>
                   )}
 
-                  {/* Ações de MENSAGEM não abrem conversa: o texto é copiado
-                      e o Executivo conduz a conversa por fora. LIGAÇÃO é
-                      canal de ligação: não existe atalho de WhatsApp aqui. */}
-                  {selected.phone && selected.kind !== "mensagem" && !selected.cadence && (
-                    <button
-                      type="button"
-                      onClick={() => void handleWhatsapp(selected)}
-                      disabled={locked}
-                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      Abrir conversa
-                    </button>
-                  )}
+                  {/* Não existe "Abrir conversa" na Ação do Dia oficial: mensagem
+                      é COPIAR o texto da Biblioteca; ligação é ligação. A ficha
+                      completa continua disponível. */}
 
                   {selected.leadId && (
                     <button
@@ -815,7 +841,7 @@ export function DailyActionsOverlay({
                   escolhido; a observação é opcional e, quando existe,
                   vira Nota do Executivo antes de a ação ser concluída.
                 */}
-                {selected.cadence && callPending?.key === selected.actionKey && (
+                {isCallAction(selected) && callPending?.key === selected.actionKey && (
                   <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                     <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">
                       Resultado: {callPending.outcome === "SIM" ? "Atendeu" : "Não atendeu"}
@@ -946,9 +972,23 @@ export function DailyActionsOverlay({
                 </div>
 
                 {feedback && <p className="text-[11px] text-[color:var(--gold)]">{feedback}</p>}
+                {undoable && adapter.undoCallOutcome && (
+                  <button
+                    type="button"
+                    onClick={() => void handleUndoCall()}
+                    disabled={busy}
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-[11px] text-white/70 transition hover:bg-white/[0.08] disabled:opacity-40"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Desfazer resultado da ligação ({undoable.name})
+                  </button>
+                )}
                 <p className="text-[11px] text-white/35">
                   {selected.kind === "primeiro_contato"
                     ? "O primeiro contato é executado pelo mesmo caminho oficial do modo automático, com registro de autor, horário e resultado. A trava global de envio real permanece ativa."
+                    : selected.source === "queue" && selected.kind === "ligacao"
+                    ? "Atendeu: as ações restantes desta etapa são canceladas, nenhuma mensagem é enviada e o lead aguarda o seu encaminhamento. Não atendeu: a régua libera a próxima ação da etapa (2ª ligação em 10 minutos; depois a mensagem para copiar)."
+                    : selected.source === "queue" && selected.kind === "mensagem"
+                    ? "Copiar busca a versão ativa da Biblioteca, com o tratamento da Central dos Nomes. Nada é enviado pelo sistema: você cola a mensagem e só então marca Concluído, que grava o registro histórico."
                     : selected.cadence
                     ? "O desfecho registra apenas a tentativa de hoje. Atendeu encerra a sequência de ligações do ciclo; não atendeu mantém o lead na cadência para a próxima data prevista pela configuração."
                     : selected.kind === "reuniao"
