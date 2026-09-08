@@ -119,8 +119,6 @@ export const HISTORICAL_STEP_KEYS: readonly string[] = [
   "E30",
   "V3",
   "V4",
-  "RF0",
-  "RF1",
   "FINALIZACAO",
   "TESTE",
 ];

@@ -34,6 +34,9 @@ export const DEFAULT_STEP_LABELS: Record<string, string> = {
   RE1: "RE1 — Reentrada: como avaliar uma franquia",
   RE2: "RE2 — Reentrada: estrutura e suporte",
   RE3: "RE3 — Reentrada: encerramento",
+  /* Fluxo RF — relacionamento esfriado (última camada de reaproximação) */
+  RF0: "RF0 — Relacionamento esfriado: retomada",
+  RF1: "RF1 — Relacionamento esfriado: encerramento",
   RESPOSTA_AUTOMATICA: "Resposta automática — janela de 24h",
 
   /* CHAVES HISTÓRICAS — apenas para leitura de registros antigos. */
@@ -44,8 +47,6 @@ export const DEFAULT_STEP_LABELS: Record<string, string> = {
   E30: "E30 (histórico) — Recontato tardio",
   V3: "V3 (histórico) — Visualizou e não respondeu",
   V4: "V4 (histórico) — Encerramento da interação visualizada",
-  RF0: "RF0 (histórico) — Relacionamento esfriado: retomada",
-  RF1: "RF1 (histórico) — Relacionamento esfriado: encerramento",
   FINALIZACAO: "FINALIZACAO (histórico) — Finalização do ciclo",
 };
 
