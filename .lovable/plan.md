@@ -1,67 +1,91 @@
-# Diagnóstico — Regra RE (Reentrada) x R (Reengajamento) — Financeira /f
+# Diagnóstico RF — Relacionamento Esfriado (somente Financeira /f)
 
-Somente leitura. Nenhum arquivo operacional, banco, migration ou teste foi alterado.
+Levantamento técnico, sem alteração de código, banco ou conteúdo. Nada de RF foi criado.
 
-## A) O que o código faz hoje
+## 1. Como o sistema reconhece hoje o fim de E, R e RE
 
-**1. Identificação de nova entrada como RE**
-- `src/lib/relationship/entry.ts` → `resolveEntryFlow({ entryCount, hasPreviousRelationship, newCommercialEntry })` devolve `flow: "reentrada"` quando existe relacionamento anterior + nova entrada comercial.
-- Chamado em `src/server/crm/lead-intake.server.ts` (linha ~283). O resultado hoje **só gera um evento de auditoria** (`e0_reentrada`). O `flow` retornado **não é propagado** para a abertura do ciclo.
-- A abertura real do ciclo manual acontece em `createPendingE0Action` → `openManualE0Cadence(cardId, 0)` (`src/server/relationship/e0-manual.server.ts`), que emite `LEAD_CREATED` com `data: { manualE0: true }` — **sem `reentry: true`**.
-- A máquina (`src/lib/relationship/machine.ts:156`) só entra em `reentrada` quando o evento traz `data.reentry === true` (caminho usado por `src/server/crm/first-contact.server.ts:132`, do fluxo antigo/reativação).
+Cada passagem do lead pela jornada é uma **instância** em `relationship_cadences` (`src/server/relationship/instances.server.ts`):
 
-**2. Histórico de "já passou pela E"**
-- Existe estrutura suficiente: `relationship_cadences` guarda **instâncias** por lead (`instance_seq`, `flow`, `active`, `close_reason`, `executed_steps`) — `src/server/relationship/instances.server.ts`. E `relationship_queue` guarda cada etapa executada.
-- Mas o estado da V2 (`src/server/relationship/cadence-v2-state.server.ts`) é montado **apenas a partir da instância ativa** (`record.flow`, `record.executedSteps` e as linhas da fila daquele ciclo). Nenhuma consulta agrega instâncias anteriores.
+- `active = false` + `ended_at` + `close_reason` = passagem encerrada; o histórico nunca é reescrito.
+- `flow` diz qual jornada foi percorrida (`sem_resposta`, `visualizacao`, `reengajamento`, `reentrada`).
+- `executed_steps` guarda as etapas efetivamente cumpridas.
+- A régua operacional (`src/lib/relationship/cadence-v2.ts`) considera a jornada terminada quando `nextTransition()` devolve `null`: E8, R4 e RE3 são os fins naturais de E, R e RE.
 
-**3. Histórico de "já passou/concluiu R"**
-- Não existe nenhuma leitura de "R já consumido". O único marcador é o evento `REENGAGEMENT_RELEASED` (chave `r_release_<leadId>_<at>`), que é idempotente **por transição**, não por lead.
+Ou seja: **existe encerramento explícito**, mas ele hoje só é lido para decidir R (`reengagement-history.ts`). Não existe nenhuma noção de "jornada terminou e o lead sumiu há X dias".
 
-**4. AGENDAMENTOS/VÍDEO → FRIOS**
-- Detectado em `src/server/crm/lead-sync.server.ts` (~linha 460) comparando `stage_key` anterior x atual, e decidido em `releaseReengagementOnFrios` (`src/server/crm/greensales-followup.server.ts:681`), que usa `isCommitmentStageToFrios` (`src/lib/crm/greensales-followup.ts:212`).
-- A regra hoje é puramente **transicional**: se a transição é compromisso → frio e o evento daquele instante ainda não existe, abre nova instância `flow: "reengajamento"` via `openInstance`, cancela pendências não-R e o motor programa R1.
-- A única trava histórica dentro de `openInstance` é o estágio terminal OPORTUNIDADE.
+## 2. Onde está a última tentativa efetiva
 
-## B) O que está errado ou faltando
+Na fila `relationship_queue`: a coluna `executed_at` das linhas com `status = 'EXECUTED'`, filtrando por `lead_id` e `scope = 'production'`. É a fonte mais fiel de "tentativa que realmente aconteceu" (uma linha por ação executada, com `step` e `action_order`).
 
-1. **RE não nasce como RE.** Uma nova entrada de lead conhecido volta para E0 pela régua V2 (`openManualE0Cadence`), porque o `flow: "reentrada"` resolvido no intake não chega ao evento de abertura. O caso 4 do cenário **não funciona hoje**.
-2. **Risco real de R duplicado.** Um lead que já concluiu E + R, se voltar a compromisso e depois a FRIOS, abre **outra** instância de reengajamento: nada consulta o histórico de instâncias `reengajamento` anteriores.
-3. **Risco de R não criado**: baixo pela regra atual (a transição sempre abre R), mas o inverso é verdadeiro após a correção do item 2 — se a trava for feita só por "já existiu instância R", o caso legítimo "fez E, entrou em RE, agendou, voltou a FRIOS e nunca fez R" continua correto **desde que** a trava seja por R consumido, não por E concluída.
-4. Não há campo/consulta que responda "este lead já consumiu o R desta rodada de relacionamento".
+Fontes secundárias, úteis como conferência, não como base de cálculo: `relationship_cadences.last_outbound_at` / `ended_at` e `relationship_events.occurred_at`.
 
-## C) Ponto exato de construção
+Conclusão: a data de referência do RF deve ser `max(executed_at)` da fila do lead — não a entrada em FRIOS, exatamente como a regra exige.
 
-Dois pontos, ambos dentro do que já existe — sem nova tabela, fila ou motor:
+## 3. Como calcular D+20 e D+50
 
-1. **Nascer em RE:** propagar o `flow` de `resolveEntryFlow` até a abertura do ciclo.
-   - `src/server/crm/lead-intake.server.ts` (onde `entry` já é calculado) → passar `reentry` para `createPendingE0Action` → `openManualE0Cadence(cardId, 0, { reentry: true })` → evento `LEAD_CREATED` com `data.reentry = true` (a máquina em `machine.ts:156` já sabe tratar isso e abre em RE0).
-2. **Decidir se a transição abre R:** dentro de `releaseReengagementOnFrios` (`src/server/crm/greensales-followup.server.ts:681`), imediatamente antes de `openInstance`, consultando o histórico de instâncias via `listInstances` (`src/server/relationship/instances.server.ts`). A regra pura pode viver ao lado de `entry.ts` (ex.: `canOpenReengagementInstance(history)`), mantendo o servidor apenas como leitor.
+Todo o cálculo de datas já existe e é reutilizável:
 
-## D) Regra técnica: "RE → R permitido" x "RE → R já consumido"
+- `daysBetween()`, `shiftTheoreticalDate()`, `nextOpenDay()`, `atWindowStart()` e `planDue()` em `cadence-v2.ts` — inclusive calendário operacional, fim de semana e datas administradas.
+- Regra: `RF0_devido = maxExecutedAt + 20 dias corridos`, depois `RF1_devido = RF0_executado + 30 dias corridos`, ambos deslocados para o próximo dia/janela válida pelas funções acima.
+- RF1 conta a partir da **execução real** da RF0 (linha da fila), não da data prevista — assim um atraso operacional não encurta o intervalo.
 
-Fonte de verdade: as instâncias em `relationship_cadences` (mais os passos executados em `relationship_queue`), sem tabela nova.
+## 4. Como detectar que o lead voltou a evoluir
 
-```text
-R_CONSUMIDO(lead) =
-  existe instância com flow = "reengajamento" que
-    (a) esteja encerrada (active = false) OU
-    (b) tenha ao menos uma etapa R executada (R1/R2/R3 em relationship_queue com executed_at)
-  E que tenha nascido DEPOIS do início da rodada de relacionamento vigente
+Sem inventar sinal novo, a elegibilidade cai quando qualquer um destes existir depois da data de referência:
 
-RODADA VIGENTE = instância aberta pela entrada atual
-  (E inicial, ou a instância "reentrada" mais recente)
+- instância ativa em `relationship_cadences` (`active = true`) — nova E, R ou RE aberta;
+- linha `EXECUTED` na fila posterior à referência;
+- compromisso em `portal_meetings` (agendamento/vídeo) criado ou remarcado depois da referência;
+- etapa comercial do lead em `portal_leads.commercial_state` fora de FRIO (AGENDAMENTOS, VÍDEO, OPORTUNIDADE — esta última já é terminal em todo o motor);
+- evento novo em `relationship_events` (resposta, reentrada, liberação de R).
 
-Permitir abrir R quando:
-  transição estruturada compromisso → FRIOS
-  E NÃO existe instância R ativa
-  E NÃO R_CONSUMIDO dentro da rodada vigente
-```
+Se o RF já estiver na fila como `PENDING` e um desses sinais aparecer, a linha é **cancelada** (`status = 'CANCELLED'` com motivo), como já acontece hoje em outros cancelamentos por etapa — nada é apagado.
 
-Consequências desejadas, todas cobertas:
-- E completa sem R → RE → agendamento → FRIOS: nenhuma instância R nasceu **dentro da rodada RE** ⇒ **abre R**.
-- E + R concluídos → nova RE → agendamento → FRIOS: a rodada RE atual ainda não tem R... por isso a ancoragem correta é a **rodada de relacionamento**, e não a instância RE isolada: se o par E+R já se completou antes, a nova RE **encerra sem R**. Tecnicamente: marcar, no fechamento do R, o consumo (via `close_reason` da instância R, já existente) e considerar uma RE posterior como continuação da mesma rodada até que um novo ciclo E nasça.
-- Duas transições compromisso → FRIOS na mesma rodada: já bloqueadas pelo evento idempotente + instância R ativa.
+## 5. Ponto exato de construção
 
-Decisão pendente para a construção: se "concluir R" deve ser reconhecido por **R3 executado** ou por **qualquer encerramento da instância R** (inclusive resposta do investidor / encerramento humano).
+Dois arquivos, nenhum motor novo:
 
-Nada de RF, E, Library, V1/V2/V3, `/s` ou `/seg` é tocado por esta regra.
+1. **Novo módulo puro** `src/lib/relationship/cold-relationship.ts` — decide, a partir de fatos já lidos (instâncias, fila, compromissos, etapa atual, "agora"), se RF0/RF1 é devido, em que data e por qual motivo. Espelha o formato de `reengagement-history.ts`.
+2. **Novo módulo servidor** `src/server/relationship/cold-relationship.server.ts` — lê os fatos, aplica a regra e grava/cancela na fila existente, chamado **uma vez dentro de `runRelationshipTick()`** (`src/server/relationship/scheduler.server.ts`), no mesmo padrão do fechamento (`closure.server.ts`), com falha isolada.
+
+Ponto de atenção obrigatório: `eligibleLeadIds()` no scheduler só reavalia leads com cadência aberta, tarefa vencida ou E0 recente. Um lead com jornada **encerrada** nunca é reavaliado hoje — por isso o RF precisa da própria varredura (leads com última execução entre 20 e ~90 dias atrás, sem instância ativa), e não pode depender da lista atual.
+
+## 6. Persistência nova é necessária?
+
+Não. As estruturas existentes bastam:
+
+- `relationship_queue.flow` e `.step` são texto livre → `flow = 'relacionamento_frio'`, `step = 'RF0'/'RF1'` (chaves já reservadas em `config.ts` e `current-steps.ts`, com `FLOW_SEQUENCE.relacionamento_frio = ['RF0','RF1']`);
+- `relationship_events` registra a decisão com `event_key` determinístico;
+- `relationship_decisions` guarda o motivo legível.
+
+Sem tabela nova, sem migration, sem coluna nova.
+
+Ressalva a confirmar antes de construir: o índice único da fila é `(scope, run_id, lead_id, step, action_order)`, e em produção `run_id` é nulo. Isso garante RF0/RF1 uma única vez por lead **para sempre** — o que atende à regra atual ("não existe RF2", RF é a última camada). Se no futuro se quiser um segundo RF depois de uma nova jornada, aí sim seria preciso um discriminador.
+
+## 7. Como impedir RF duplicado
+
+Três travas, todas já usadas pelo motor:
+
+1. índice único da fila (item 6) — uma segunda inserção do mesmo passo simplesmente não entra;
+2. `event_key` determinístico (`rf0_<leadId>`, `rf1_<leadId>`) em `relationship_events`, o mesmo mecanismo de `appendRelationshipEvent` que hoje evita liberação de R repetida;
+3. releitura do histórico antes de gerar: se já existe linha RF0/RF1 em qualquer status, nada é criado.
+
+Sincronização repetida, cron duplicado ou reprocessamento não produzem RF extra.
+
+## 8. RF cabe na Ação do Dia e na fila atuais?
+
+Sim, sem segundo motor. A Ação do Dia consome `relationship_queue` por `due_at`/`status`; uma linha RF0 aparece como qualquer outra obrigação. O que a construção precisará prever, apenas:
+
+- rótulos de RF0/RF1 já existem em `step-labels.ts`;
+- o texto vem da Biblioteca (finalidades `relacionamento_frio_retomada` e `relacionamento_frio_encerramento`); **sem texto oficial publicado, a etapa fica pendente e não é enviada**, como já vale para as demais;
+- RF1 é terminal: `RF1` encerra a instância e nada nasce depois.
+
+## O que este diagnóstico NÃO tocou
+
+Nenhuma alteração em E, R, RE, Biblioteca, V1/V2/V3, agenda, notas, Timeline, métricas, `/s` ou `/seg`. Nenhuma migration, tabela, RF0/RF1 criado ou suíte de testes executada.
+
+## Decisões pendentes antes de construir
+
+1. RF é único por lead para sempre (índice atual) ou deve poder repetir após uma nova jornada completa?
+2. Existe janela máxima para o RF? Um lead parado há 2 anos deve receber RF0 hoje ao ligar a regra, ou só leads encerrados a partir de uma data de corte?
+3. Se a RF0 não puder ser executada no dia previsto (sem texto, fora de janela), ela permanece pendente até ser cumprida — e o D+30 da RF1 conta da execução real. Confirmar.
