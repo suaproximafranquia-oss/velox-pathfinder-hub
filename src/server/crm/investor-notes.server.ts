@@ -116,7 +116,9 @@ export async function addInvestorNote(input: {
 
   const authorName =
     input.authorName ??
-    (await resolveAuthorName({ executiveId: input.executiveId, userId: input.userId }));
+    (input.userId
+      ? await resolveAuthorName({ executiveId: input.executiveId, userId: input.userId })
+      : null);
 
   const { error } = await supabaseAdmin.from("investor_notes").insert({
     lead_id: input.leadId,
