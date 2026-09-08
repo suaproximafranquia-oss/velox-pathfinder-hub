@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RELATIONSHIP_CONFIG, setExtraNonBusinessDays } from "./config";
-import { stepDisplayLabel } from "./step-labels";
+import { stepDisplayLabel, stepShortCode } from "./step-labels";
 
 describe("Comando 3 — calendário administrável", () => {
   it("soma as datas extras ao calendário oficial sem apagar feriados", () => {
@@ -21,10 +21,25 @@ describe("Comando 3 — calendário administrável", () => {
   });
 });
 
-describe("Comando 3 — rótulos de exibição", () => {
-  it("mostra E6 para a chave técnica E20 e respeita o rótulo salvo", () => {
-    expect(stepDisplayLabel("E20")).toBe("E6 — Apresentação Digital");
+describe("Consolidação — rótulos de exibição (chave técnica = identidade)", () => {
+  it("E20 é histórico; E6 é etapa atual própria; rótulo salvo é respeitado", () => {
+    expect(stepDisplayLabel("E20")).toBe("E20 (histórico) — Apresentação Digital");
+    expect(stepDisplayLabel("E6")).toBe("E6 — Acompanhamento da apresentação digital");
     expect(stepDisplayLabel("E20", "Apresentação")).toBe("Apresentação");
     expect(stepDisplayLabel("E1")).toBe("E1 — Primeiro acompanhamento");
+  });
+
+  it("título gravado com código de OUTRA etapa não contamina a identidade", () => {
+    expect(stepDisplayLabel("E3", "E2 — Segundo acompanhamento")).toBe(
+      "E3 — Terceiro acompanhamento",
+    );
+    expect(stepDisplayLabel("E7", "RE1 — Reentrada / conteúdo")).toBe(
+      "E7 — Última tentativa de contato / definição sobre continuidade",
+    );
+    expect(stepDisplayLabel("E3", "E3 — Terceiro acompanhamento")).toBe(
+      "E3 — Terceiro acompanhamento",
+    );
+    expect(stepShortCode("E27")).toBe("E7");
+    expect(stepShortCode("E8")).toBe("E8");
   });
 });

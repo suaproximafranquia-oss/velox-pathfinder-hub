@@ -64,25 +64,17 @@ export function isCurrentSnapshotStep(step: string | null | undefined): boolean 
 }
 
 /**
- * CONFLITOS PRESERVADOS (registro, não correção).
- *
- * Códigos da fotografia que não existem como etapa executável do motor
- * hoje. Ficam documentados para tratamento posterior na futura Central
- * de Cadência — nenhum deles é criado, renomeado ou removido agora.
+ * CONSOLIDAÇÃO: E0–E8, R1–R4 e RE0–RE3 são etapas executáveis da régua
+ * V2 (`cadence-v2`). Não há mais código da fotografia sem etapa no
+ * motor — a lista permanece exportada, vazia, por compatibilidade.
  */
-export const SNAPSHOT_STEPS_WITHOUT_ENGINE_STEP: readonly string[] = [
-  "E2",
-  "E5",
-  "E6",
-  "E7",
-  "E8",
-  "R4",
-];
+export const SNAPSHOT_STEPS_WITHOUT_ENGINE_STEP: readonly string[] = [];
 
 /**
- * Etapas técnicas que o motor executa e que NÃO aparecem na fotografia
- * atual. Continuam funcionando exatamente como hoje: a fotografia não
- * apaga nem desliga nada.
+ * CHAVES HISTÓRICAS: existem em registros antigos (envios, filas,
+ * snapshots, Biblioteca) e continuam legíveis para auditoria. Não são
+ * identidade de nenhuma etapa atual e não recebem conteúdo novo.
+ * RF0/RF1 permanecem na fotografia como fluxo futuro, sem execução hoje.
  */
 export const ENGINE_STEPS_OUTSIDE_SNAPSHOT: readonly string[] = [
   "E0_V1",

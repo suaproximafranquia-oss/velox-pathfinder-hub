@@ -1,30 +1,29 @@
 /**
  * BIBLIOTECA DE MENSAGENS — FONTE OFICIAL VERSIONADA (SERVER ONLY).
  *
- * BLOCO 2 do Motor de Relacionamento. A partir daqui o texto de cada
- * etapa (E0, E1, E3, E12, E20, RE0…) deixa de depender de constantes
- * espalhadas pelo código e passa a viver na tabela
- * `relationship_message_library`, que JÁ existia — nada de segunda
- * biblioteca paralela.
+ * ÚNICA FONTE OPERACIONAL de texto do motor: a tabela
+ * `relationship_message_library`. Word, Git, constantes do código e IA
+ * NÃO são fontes de mensagem — apenas referência histórica.
+ *
+ * IDENTIDADE OPERACIONAL ATUAL (Financeira /f): E0–E8, R1–R4, RE0–RE3
+ * (régua V2) + RESPOSTA_AUTOMATICA. Vem de `operational-steps.ts`.
+ * Chaves históricas (E12, E20, E27, FINALIZACAO, RF0/RF1, V3/V4,
+ * E0_V1, TESTE…) continuam gravadas e legíveis para auditoria, mas não
+ * são identidade de nenhuma etapa atual e não recebem semente nova.
  *
  * REGRAS FECHADAS:
- *  • Uma única versão ativa por etapa (índice único no banco).
+ *  • Uma única versão ativa por COMBINAÇÃO etapa + contexto (índice
+ *    único no banco). E7/E8 têm dois contextos independentes
+ *    (SEM_CONTATO, MATERIAL_ENVIADO); as demais etapas, contexto único.
  *  • Editar NÃO altera a versão publicada: cria a versão seguinte e
  *    desativa a anterior, que permanece no histórico.
- *  • O texto fixo do projeto (`HOMOLOGATION_MESSAGES`) é usado apenas
- *    UMA vez, como semente da versão 1. Depois disso a Biblioteca manda.
- *  • Etapas sem texto oficial aprovado (E20, E27, FINALIZAÇÃO) nascem
- *    como slot VAZIO e INATIVO: o motor bloqueia o envio com motivo
- *    legível em vez de inventar mensagem.
+ *  • Slot sem texto nasce VAZIO e INATIVO. O motor bloqueia o envio com
+ *    motivo legível — nenhuma mensagem é inventada, copiada ou
+ *    reaproveitada de outro contexto/etapa (sem fallback).
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isKnownStep, unknownStepReason } from "@/lib/relationship/step-registry";
 import {
-  BASE_STEP_KEYS,
-  isKnownStep,
-  unknownStepReason,
-} from "@/lib/relationship/step-registry";
-import {
-  HOMOLOGATION_MESSAGES,
   renderMessageSpec,
   type MessageSpec,
   type RenderInput,
@@ -32,6 +31,14 @@ import {
 } from "@/lib/relationship/messages";
 import { resolveTreatment } from "@/lib/relationship/names";
 import { DEFAULT_STEP_LABELS, stepDisplayLabel } from "@/lib/relationship/step-labels";
+import {
+  AUTO_REPLY_STEP_KEY,
+  OPERATIONAL_STEP_KEYS,
+  isContextualStep,
+  isOperationalStep,
+  stepCombinations,
+  type StepContext,
+} from "@/lib/relationship/operational-steps";
 
 export type LibraryMessage = {
   id: string;
@@ -80,85 +87,26 @@ export type LibraryMessage = {
 };
 
 /**
- * ETAPA PRÓPRIA DA RESPOSTA AUTOMÁTICA.
+ * ETAPA PRÓPRIA DA RESPOSTA AUTOMÁTICA (janela de 24h). Enquanto não
+ * houver texto publicado, o motor NÃO responde e informa o motivo.
+ */
+export const AUTO_REPLY_STEP = AUTO_REPLY_STEP_KEY;
+
+/**
+ * ETAPAS OFICIAIS DA BIBLIOTECA = IDENTIDADE OPERACIONAL ATUAL.
  *
- * A orientação automática dentro da janela de 24h deixou de tomar
- * emprestado o texto de uma etapa de cadência (R1): ela tem entrada
- * própria na Biblioteca. Enquanto não houver texto oficial publicado,
- * o motor NÃO responde e informa o motivo — nenhum texto é inventado.
+ * Derivadas da régua V2 (`cadence-v2`) + resposta automática. A
+ * Biblioteca NÃO cria etapa: ela guarda mensagem e versionamento das
+ * etapas que a operação reconhece. Registros de outras chaves continuam
+ * gravados (histórico), mas não são tratados como etapa operacional.
  */
-export const AUTO_REPLY_STEP = "RESPOSTA_AUTOMATICA";
-
-/**
- * Etapas SEM texto oficial. O Word da Jornada do Investidor NÃO contém
- * E27 nem a resposta automática — a ausência é intencional e é
- * preservada: elas continuam como slot vazio e inativo, e o motor
- * bloqueia o envio com motivo legível em vez de inventar mensagem.
- */
-export const PENDING_TEXT_STEPS = ["E27", AUTO_REPLY_STEP] as const;
-
-/**
- * Etapas oficiais do Word, já traduzidas para a CHAVE TÉCNICA do motor,
- * na ordem em que o documento as apresenta. O nome editorial do Word
- * (E2, E5, E6, E7) vive no rótulo; a chave é a do motor.
- */
-export const WORD_STEP_ORDER: string[] = [
-  "E0",
-  "E1",
-  "E3",
-  "E4",
-  "E12",
-  "E20",
-  "FINALIZACAO",
-  "R1",
-  "R2",
-  "R3",
-  "RE0",
-  "RE1",
-  "RE2",
-  "RE3",
-  "RF0",
-  "RF1",
-];
-
-/**
- * Etapas que existiam antes e permanecem no banco por causa do
- * HISTÓRICO (envios, filas e snapshots já gravados). Elas não fazem
- * parte da nomenclatura oficial e não recebem conteúdo novo.
- */
-export const LEGACY_STEPS: string[] = ["E0_V1", "V3", "V4"];
-
-/** Chaves antigas mantidas apenas por histórico; não são executáveis. */
-export const WORD_ALIAS_STEPS: string[] = ["E2", "E5", "E6", "E7"];
-
-export const LIBRARY_STEP_ORDER: string[] = [
-  ...WORD_STEP_ORDER,
-  ...LEGACY_STEPS,
-  ...PENDING_TEXT_STEPS,
-];
-
-/**
- * FONTE ÚNICA DA EXISTÊNCIA DAS ETAPAS = CONFIGURAÇÃO DO MOTOR.
- *
- * `BASE_STEP_KEYS` é derivado de `STEPS` (cadência) + as etapas oficiais
- * fora da cadência. A Biblioteca NÃO cria etapa: ela guarda a mensagem
- * e o versionamento das etapas que a configuração já reconhece.
- * Registros de chaves que não estão aqui continuam gravados, mas deixam
- * de ser tratados como etapa operacional.
- */
-export const OFFICIAL_STEP_KEYS: string[] = [...new Set(BASE_STEP_KEYS)];
+export const OFFICIAL_STEP_KEYS: string[] = [...OPERATIONAL_STEP_KEYS];
 
 export function isOfficialStep(stepKey: string | null | undefined): boolean {
-  if (!stepKey) return false;
-  return OFFICIAL_STEP_KEYS.includes(String(stepKey).trim().toUpperCase());
+  return isOperationalStep(stepKey);
 }
 
-
-/**
- * Rótulos padrão. A chave técnica (E20, E27…) permanece intocada no
- * banco, na fila e nos snapshots — isto é apresentação. A Gestão pode
- * sobrescrever o rótulo pela Biblioteca sem gerar versão nova de texto.
- */
+/** Rótulos padrão — apresentação; a chave técnica nunca muda. */
 const STEP_LABEL = DEFAULT_STEP_LABELS;
 
 function toMessage(row: Record<string, any>): LibraryMessage {
@@ -257,54 +205,44 @@ async function assignMissingPositions(): Promise<void> {
 
 
 /**
- * Semeadura: garante que TODA etapa oficial da configuração possua ao
- * menos a versão 1 (slot vazio quando não há texto). Idempotente — só
- * insere o que ainda não existe e nunca apaga registro antigo.
- *
- * A lista percorrida é a CONFIGURAÇÃO (`OFFICIAL_STEP_KEYS`). Etapa nova
- * na configuração aparece sozinha na Biblioteca, sem cadastro manual.
+ * Semeadura ESTRUTURAL: garante que toda COMBINAÇÃO operacional
+ * (etapa + contexto) possua ao menos um slot. O slot nasce VAZIO e
+ * INATIVO — nenhum texto é copiado de constantes, Word, Git ou de outra
+ * etapa/contexto. Idempotente: só insere o que ainda não existe e nunca
+ * apaga nem altera registro antigo. E7/E8 recebem um slot por contexto
+ * (SEM_CONTATO e MATERIAL_ENVIADO); as demais, um slot sem contexto.
  */
 export async function ensureLibrarySeed(): Promise<void> {
   const { data } = await supabaseAdmin
     .from("relationship_message_library")
-    .select("step_key")
+    .select("step_key, step_context")
     .eq("scope", "production");
-  const known = new Set((data ?? []).map((r: any) => r.step_key).filter(Boolean));
+  const known = new Set(
+    (data ?? [])
+      .filter((r: any) => r.step_key)
+      .map((r: any) => `${r.step_key}|${r.step_context ?? ""}`),
+  );
 
   const rows: Record<string, unknown>[] = [];
   for (const step of OFFICIAL_STEP_KEYS) {
-    if (known.has(step)) continue;
-    const fixed = (HOMOLOGATION_MESSAGES as Record<string, any>)[step];
-    if (fixed) {
+    for (const context of stepCombinations(step)) {
+      if (known.has(`${step}|${context ?? ""}`)) continue;
       rows.push({
         scope: "production",
         step_key: step,
-        code: fixed.code,
-        title: `${step} — ${String(fixed.purpose).replaceAll("_", " ")}`,
-        purpose: fixed.purpose,
-        body: fixed.text,
-        version: 1,
-        active: true,
-        content_group: fixed.contentGroup,
-        button_kind: fixed.button,
-        created_by_name: "Motor de Relacionamento",
-        notes: "Versão 1 importada do texto oficial já validado no projeto.",
-      });
-    } else {
-      rows.push({
-        scope: "production",
-        step_key: step,
+        step_context: context,
         code: `LIB-${step}`,
         title: STEP_LABEL[step] ?? step,
         purpose: step.toLowerCase(),
         body: "",
         version: 1,
         active: false,
-        content_group: step === "FINALIZACAO" ? "FINALIZACAO" : null,
-        button_kind: step === "E20" ? "portal" : null,
+        content_group: null,
+        button_kind: null,
         created_by_name: "Motor de Relacionamento",
-        notes:
-          "Slot aguardando texto oficial. Nenhuma mensagem é inventada pelo sistema.",
+        notes: context
+          ? `Slot estrutural ${step} / ${context} aguardando texto oficial. Nenhuma mensagem é inventada pelo sistema.`
+          : "Slot aguardando texto oficial. Nenhuma mensagem é inventada pelo sistema.",
       });
     }
   }
@@ -448,72 +386,59 @@ export async function renameLibraryStep(params: {
   label: string;
 }): Promise<LibraryMessage[]> {
   await ensureLibrarySeed();
+  const stepKey = params.stepKey.trim().toUpperCase();
   const label = params.label.trim();
-  const title = label || DEFAULT_STEP_LABELS[params.stepKey] || params.stepKey;
+  const title = label || DEFAULT_STEP_LABELS[stepKey] || stepKey;
 
   /**
-   * Etapas AGUARDANDO TEXTO OFICIAL (E27, resposta automática, E20 e
-   * finalização antes da ativação) não têm versão ativa. O rótulo delas
-   * também precisa ser editável, então a gravação recai sobre a versão
+   * O rótulo é da ETAPA: em E7/E8 ele é gravado na versão vigente de
+   * cada contexto. Slots ainda sem versão ativa (aguardando texto) também
+   * precisam de rótulo editável, então a gravação recai sobre a versão
    * mais recente quando não existe versão ativa.
    */
-  const { data: rows } = await supabaseAdmin
-    .from("relationship_message_library")
-    .select("id,active,version")
-    .eq("scope", "production")
-    .eq("step_key", params.stepKey)
-    .order("version", { ascending: false });
-  const target =
-    (rows ?? []).find((r: any) => r.active) ?? (rows ?? [])[0] ?? null;
-  if (!target) return listLibraryMessages();
-
-  const { error } = await supabaseAdmin
-    .from("relationship_message_library")
-    .update({ title } as any)
-    .eq("id", (target as any).id);
-  if (error) throw new Error(error.message);
+  for (const context of stepCombinations(stepKey)) {
+    let query = supabaseAdmin
+      .from("relationship_message_library")
+      .select("id,active,version")
+      .eq("scope", "production")
+      .eq("step_key", stepKey);
+    query = context ? query.eq("step_context", context) : query.is("step_context", null);
+    const { data: rows } = await query.order("version", { ascending: false });
+    const target =
+      (rows ?? []).find((r: any) => r.active) ?? (rows ?? [])[0] ?? null;
+    if (!target) continue;
+    const { error } = await supabaseAdmin
+      .from("relationship_message_library")
+      .update({ title } as any)
+      .eq("id", (target as any).id);
+    if (error) throw new Error(error.message);
+  }
   return listLibraryMessages();
 }
 
-/** Versão ATIVA de uma etapa (a única elegível para novos envios). */
+/**
+ * Versão ATIVA de uma combinação etapa + contexto — a única elegível
+ * para novos envios/cópias. SEM FALLBACK: E7/E8 exigem o contexto e
+ * nunca reaproveitam texto do outro contexto nem de uma linha sem
+ * contexto; etapas de contexto único só leem a linha sem contexto.
+ */
 export async function getActiveLibraryMessage(
   stepKey: string,
-  /**
-   * EIXO DE CONTEXTO (E7/E8): SEM_CONTATO ou MATERIAL_ENVIADO. Quando
-   * informado, a versão ativa daquele contexto é a única elegível —
-   * nenhum texto é improvisado nem reaproveitado do outro contexto.
-   */
-  stepContext?: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null,
+  stepContext?: StepContext | null,
 ): Promise<LibraryMessage | null> {
-  if (stepContext) {
-    const { data: contextual } = await supabaseAdmin
-      .from("relationship_message_library")
-      .select("*")
-      .eq("scope", "production")
-      .eq("step_key", stepKey)
-      .eq("step_context", stepContext)
-      .eq("active", true)
-      .maybeSingle();
-    return contextual ? toMessage(contextual) : null;
-  }
-  const { data } = await supabaseAdmin
+  const key = stepKey.trim().toUpperCase();
+  const context = stepContext ?? null;
+  if (isContextualStep(key) && !context) return null;
+
+  let query = supabaseAdmin
     .from("relationship_message_library")
     .select("*")
     .eq("scope", "production")
-    .eq("step_key", stepKey)
-    .is("step_context", null)
-    .eq("active", true)
-    .maybeSingle();
-  if (data) return toMessage(data);
-  await ensureLibrarySeed();
-  const { data: seeded } = await supabaseAdmin
-    .from("relationship_message_library")
-    .select("*")
-    .eq("scope", "production")
-    .eq("step_key", stepKey)
-    .eq("active", true)
-    .maybeSingle();
-  return seeded ? toMessage(seeded) : null;
+    .eq("step_key", key)
+    .eq("active", true);
+  query = context ? query.eq("step_context", context) : query.is("step_context", null);
+  const { data } = await query.maybeSingle();
+  return data ? toMessage(data) : null;
 }
 
 /**
@@ -643,14 +568,24 @@ export async function renderFromLibrary(
     return { result: { ok: false, reason: unknownStepReason(stepKey) }, message: null };
   }
 
+  if (isContextualStep(stepKey) && !stepContext) {
+    return {
+      result: {
+        ok: false,
+        reason: `Etapa ${stepKey} exige contexto (SEM_CONTATO ou MATERIAL_ENVIADO) e nenhum foi informado. Nada foi enviado.`,
+      },
+      message: null,
+    };
+  }
+
   const message = await getActiveLibraryMessage(stepKey, stepContext ?? null);
   if (!message || !message.body.trim()) {
     return {
       result: {
         ok: false,
         reason: stepContext
-          ? `Etapa ${stepKey} (${stepContext}) sem texto oficial cadastrado na Biblioteca — envio bloqueado.`
-          : `Etapa ${stepKey} sem versão ativa na Biblioteca de Mensagens — envio bloqueado.`,
+          ? `Sem mensagem oficial cadastrada para esta etapa e contexto (${stepKey} / ${stepContext}). Nada foi enviado.`
+          : `Sem mensagem oficial ativa cadastrada para a etapa ${stepKey}. Nada foi enviado.`,
       },
       message,
     };

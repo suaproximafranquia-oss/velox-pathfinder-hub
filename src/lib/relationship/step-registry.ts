@@ -11,6 +11,7 @@
  * checkpoint, finalização e resposta automática) são declaradas aqui.
  */
 import { STEPS } from "./config";
+import { CADENCE_V2_STEPS } from "./cadence-v2";
 
 /** Etapas oficiais que não pertencem à máquina de cadência. */
 export const NON_CADENCE_STEPS = [
@@ -20,10 +21,18 @@ export const NON_CADENCE_STEPS = [
   "RESPOSTA_AUTOMATICA",
 ] as const;
 
-/** Etapas declaradas em código — base mínima, nunca a única fonte. */
+/**
+ * Etapas declaradas em código — base mínima, nunca a única fonte.
+ * A régua V2 (E0–E8, R1–R4, RE0–RE3) é a operação atual da Financeira;
+ * as chaves do `config.ts` legado e as não-cadência permanecem
+ * reconhecidas para que o histórico continue interpretável.
+ */
 export const BASE_STEP_KEYS: readonly string[] = [
-  ...Object.keys(STEPS),
-  ...NON_CADENCE_STEPS,
+  ...new Set<string>([
+    ...CADENCE_V2_STEPS,
+    ...Object.keys(STEPS),
+    ...NON_CADENCE_STEPS,
+  ]),
 ];
 
 /**
