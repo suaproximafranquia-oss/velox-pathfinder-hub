@@ -84,6 +84,11 @@ export type LibraryMessage = {
    */
   official: boolean;
   /**
+   * A chave é identidade ATUAL (régua V2 ou código editorial definido
+   * pela Gestão) — e não uma chave histórica. É o que a Biblioteca lista.
+   */
+  currentIdentity: boolean;
+  /**
    * A etapa ainda não pode ser enviada pelo motor: ou não há texto
    * oficial, ou o texto existe mas aguarda ativação pela Gestão.
    */
