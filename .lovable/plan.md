@@ -1,132 +1,132 @@
-# Arquitetura — Follow-up do GreenSales e Motor de Datas da Cadência
+# Calendário e prazos da cadência — diagnóstico definitivo antes da construção
 
-Somente leitura. Nada foi alterado: nem código, nem banco, nem cadência, nem mensagens, nem Ação do Dia.
+Somente leitura. Nada foi alterado: nem código, nem banco, nem mensagens, nem Biblioteca, nem Ação do Dia, nem agendamento.
 
----
+## 1. Regra atual do motor
 
-# PARTE A — Follow-up do GreenSales como origem do agendamento
+- Cada etapa tem um número de dias e uma finalidade de conteúdo; tudo em um único arquivo de configuração (`src/lib/relationship/config.ts`).
+- O cálculo é feito por uma função única do calendário (`src/lib/relationship/calendar.ts`): soma o intervalo à referência e empurra o resultado para o próximo momento com janela aberta.
+- A unidade hoje é **dia útil**, não dia corrido, em todos os fluxos.
+- O vencimento fica gravado na fila do motor. A Ação do Dia só lê.
+- Janelas atuais: mensagens 09:00–21:00 de segunda a sexta, sábado 09:00–12:00, domingo e feriado sem janela; E0 tem janela própria 07:00–22:30. Os horários que você propõe (09:00–17:30 e sábado 08:00–16:00) **não** são os configurados hoje.
 
-## A1. O que já existe e pode ser reutilizado
+## 2. Intervalos E atuais (números reais, sem invenção)
 
-- **Compromisso interno**: `portal_meetings` já guarda lead, data/hora, duração, executivo responsável, situação, motivo de cancelamento, observações, tópico e um campo de origem (hoje só "portal" ou "executivo").
-- **Colunas reais do funil**: NOVOS, ZERO CONTATO, FRIOS, AGENDAMENTOS, OPORTUNIDADES, VÍDEO, 4COF/CONTRATO, PAGAMENTO, REMARKETING, VENCEMOS, FINALIZADO, NÃO LOCALIZADOS. A coluna vigente fica em `crm_leads.stage_key`, espelhada do GreenSales.
-- **Bloqueio da cadência**: o motor já tem o estado "agendado", que bloqueia integralmente qualquer etapa automática.
-- **Elegibilidade do relacionamento**: a fila de cadência só considera ZERO CONTATO e FRIOS. Lead em AGENDAMENTOS já é inelegível por construção.
-- **Ação do Dia**: já lê `portal_meetings`, trata reunião como prioridade máxima, entra em foco poucos minutos antes do horário, com card padrão (nome, telefone, Ver ficha).
-- **Desfecho e histórico**: já existem compareceu / não compareceu / reagendada, gravados em livro append-only e no histórico do lead.
-- **Responsável**: `portal_leads.responsible_executive_id`, atribuído no Portal e congelado depois de definido.
+O fluxo executável hoje é `E0 → E1 → E3 → E4 → E12`. As etapas **E2, E5, E6, E7 e E8 não existem no motor** — são chaves editoriais/históricas.
 
-## A2. O que falta
+| Pedido | Situação real |
+|---|---|
+| E0 → E1 | +1 dia útil |
+| E1 → E2 | NÃO DEFINIDO (E2 não existe no motor) |
+| E2 → E3 | NÃO DEFINIDO |
+| E3 → E4 | +3 dias úteis (E3 é +2 a partir de E1) |
+| E4 → E7 | NÃO DEFINIDO (E7 não existe) |
+| E7 → E8 | NÃO DEFINIDO |
+| E4 → E5 | NÃO DEFINIDO (E5 não existe) |
+| E5 → E6 | NÃO DEFINIDO |
+| E6 → E7 | NÃO DEFINIDO |
 
-1. Ler o `follow_up` na sincronização (hoje nenhum código lê; ele só existe na cópia bruta do lead).
-2. Identidade externa no compromisso (origem + id do lead na origem).
-3. Regra de espelho: data não editável no Portal.
-4. Desfecho "sem contato e sem reagendamento", que não encerra o compromisso.
-5. Obrigação persistente de verificação em 24 horas.
-6. Liberação do R somente na transição AGENDAMENTOS → FRIOS percebida pela sincronização.
+O que existe além disso: E12 (+5 dias úteis, encerramento) e E30 (recontato tardio, desativada por chave).
 
-## A3. follow_up + reunião manual
+## 3. Fluxo E — horizonte atual
 
-Hoje as duas coexistiriam como ações separadas: a deduplicação só ocorre quando o horário é idêntico. Menor regra, sem tabela nova: um único compromisso ativo de origem GreenSales por lead, com precedência sobre reunião manual do mesmo lead no mesmo período (fusão ou bloqueio na criação).
+Caminho executável, contando a partir da referência de cada etapa anterior: E0 (0) → E1 (+1) → E3 (+2) → E4 (+3) → E12 (+5) = **11 dias úteis**, que em semana sem feriado dão aproximadamente **15 dias corridos**. Primeiro contato: E0, no dia da entrada. Última tentativa: E12.
 
-## A4. follow_up apagado
+- Impacto de sábado/domingo hoje: como a contagem é em dias úteis, fim de semana simplesmente não conta — o horizonte em dias corridos estica.
+- Impacto de feriado: idem, feriado não conta como dia útil e estica mais.
+- Comparação com sua intenção: o horizonte atual já fica próximo dos 15 dias corridos, mas por um caminho de 5 etapas, não das 7 que você quer. A diferença não é de prazo — é de quantidade de etapas.
 
-A sincronização hoje não percebe nada, porque não lê o campo. Lendo-o, a comparação valor-atual × valor-espelhado cobre tudo: existe → ativo; mudou → mesmo compromisso reagendado com evento no histórico; sumiu → compromisso cancelado com motivo "removido na origem". Nunca se cria reunião nova.
+## 4. Ramo E5/E6
 
-## A5. follow_up sem estado AGENDAMENTO
+Não existe. Não há bifurcação por apresentação digital no fluxo E, não há memória de "recebeu material" usada para decidir etapa, e não há etapas E5/E6 no motor. Isso é construção nova (sem criar etapas fora da sua régua: E5/E6/E7/E8 passariam a existir de fato no motor).
 
-Compatível. A condição é direta: só vira compromisso quando a coluna for AGENDAMENTOS. Em NOVOS ou FRIOS o follow_up é ignorado, e a cadência segue normal nas colunas elegíveis.
+## 5. E1 e suas subações
 
-## A6. Identidade do compromisso
+Não é representável hoje: cada etapa é um disparo único, os intervalos são em dias, nunca em horas, e não existe conceito de subação. O que existe é uma **segunda fila, independente**, para ligações (L1 manual, L2 +2 dias úteis, L3 +1, L4 +3).
 
-Par (origem = "greensales", id do lead na origem). Mudança de horário atualiza o mesmo registro. Cabe em `portal_meetings`; falta apenas o campo de id externo e um valor de origem novo.
+Menor alteração: introduzir "passos internos" de etapa, com intervalo em horas, mantendo a etapa única. Assim:
+- histórico e Biblioteca continuam vendo **E1**, uma etapa só;
+- a Ação do Dia mostra cada passo pendente como um card (ligação 1, ligação 2, mensagem), todos rotulados como E1;
+- a conclusão de um passo libera o seguinte.
 
-## A7. Ligação com T-5 / Ação do Dia
+## 6. Regra sábado → segunda / domingo → terça
 
-Automática: gravado em `portal_meetings`, o compromisso herda card padrão, prioridade máxima e foco antes do horário. A pergunta de contato já existe como desfecho com nota. A mudança é, no "não", oferecer reagendar na origem (sem gravar horário no Portal) ou marcar vencido sem contato.
+Hoje **não é assim**: sábado tem janela (09:00–12:00) e domingo empurra para segunda. A regra que você quer é compatível e concentrada em um único ponto do calendário, mas exige duas mudanças: contar em dias corridos e aplicar o deslocamento por dia da semana.
 
-## A8. Guardar "vencido sem contato"
+Sobre a dúvida da Parte 6: sim — se a etapa teórica caía no sábado, foi deslocada para segunda e o executivo concluiu na segunda, a etapa seguinte conta **a partir da segunda** (execução real). Isso já é o comportamento do motor hoje.
 
-Não existe hoje: "não compareceu" encerra a reunião e nada sobra. Solução mínima: situação própria que mantém o compromisso vivo + obrigação de verificação com vencimento em 24 horas, na fila que a Ação do Dia já lê.
+## 7. Atraso
 
-## A9. Verificação de 24 horas
+Já garantido. A referência é sempre a última execução real, nunca a data teórica. Uma etapa concluída com atraso empurra toda a sequência para frente; o motor não compensa nem empilha duas etapas no mesmo dia. Nada se perde: enquanto não concluída, a obrigação continua pendente e aparece como atrasada.
 
-Suportada assim que existir a obrigação do A8. "Sim" encerra a cadência (o motor já tem encerramento). "Não" apenas instrui a mover para FRIOS na origem — o Portal não move nada e não inicia R.
+## 8. R
 
-## A10. Liberar R apenas após AGENDAMENTOS → FRIOS
+Existe como fluxo de reengajamento com R1 → R2 → R3 apenas. **R4 não existe.**
 
-Já é estrutural: em AGENDAMENTOS o lead está fora das colunas elegíveis e o estado agendado bloqueia tudo. Falta ligar a transição percebida ao desbloqueio explícito desse estado.
+- Intervalo real: o fluxo de reengajamento ignora o número por etapa e usa um valor único de configuração — **2 dias úteis entre qualquer tentativa**. Ou seja, R1→R2 = 2 e R2→R3 = 2.
+- R3 é terminal.
+- "Pular R3 quando já recebeu material": NÃO DEFINIDO — não existe essa condição no motor.
+- R4 e sua relação temporal com R3: NÃO DEFINIDO.
+- "R começa após AGENDAMENTOS → FRIOS": estruturalmente coerente (em AGENDAMENTOS o lead é inelegível), mas o gatilho explícito ainda não existe.
 
-## A11. Responsável quando o vendedor vem vazio
+## 9. RE
 
-Regra existente: o responsável é o do Portal, congelado após definido; o GreenSales não é fonte disso. O compromisso herda esse responsável. No lead 59193 ele está vazio — o compromisso nasceria sem dono e não apareceria para ninguém. **Decisão necessária**: bloquear a criação sem responsável, ou criar e listar como pendência de atribuição.
+Existe: RE0 → RE1 → RE2 → RE3, com intervalos configurados em dias úteis:
 
-## A12. Menor construção (Parte A)
+- RE0: 0 (imediato)
+- RE0 → RE1: +2
+- RE1 → RE2: +3
+- RE2 → RE3: +5 (terminal)
 
-Ler follow_up só em AGENDAMENTOS; identidade externa em `portal_meetings`; espelhamento idempotente (criar/atualizar/cancelar) com evento de reagendamento; precedência sobre reunião manual; desfecho "vencido sem contato" + verificação em 24h; desbloqueio do R pela transição de coluna. Nenhuma tabela nova, nenhuma agenda paralela.
+Divergências com sua premissa: você quer RE1 no dia seguinte (hoje +2) e RE2 cerca de dois dias depois (hoje +3). O salto condicional RE1 → RE3 quando a apresentação já foi feita: NÃO DEFINIDO. E o motor **não tem** hoje um sinal estruturado de "apresentação já realizada" para decidir isso. A identificação de reentrada também não é por etiqueta: ela depende do contexto/histórico do lead reconhecido.
 
----
+## 10. Dias corridos × dias úteis — impacto das três opções
 
-# PARTE B — Motor de datas da cadência
+- **A) só E**: menor risco, mas cria dois calendários convivendo no mesmo motor (E em corridos, R/RE/RF em úteis) — confuso de manter e de explicar.
+- **B) E + R**: intermediária; R hoje usa um valor global de reengajamento, então mudar R também exige tirar esse atalho. RF continua em úteis.
+- **C) E + R + RE**: uma única regra de calendário para tudo. É tecnicamente a mais simples, porque o deslocamento vive em um único ponto e todos os fluxos passam por ele; o custo é revisar os números de RE e RF de uma vez.
 
-## B1. Como o motor calcula datas hoje
+**Mais coerente com o motor atual: C**, deixando RF de fora só se você quiser mantê-lo congelado — mas nesse caso RF vira a exceção a documentar.
 
-Cada etapa tem um número de dias, e a data de vencimento sai de uma função única que soma esses dias a partir de um instante de referência e, em seguida, empurra o resultado para o próximo momento operacional válido. O vencimento fica gravado na fila; a Ação do Dia só lê.
+## 11. Feriados
 
-## B2. Onde a regra está configurada
+Calendário centralizado: nacionais + estaduais de São Paulo, calculados automaticamente, mais datas extras administradas pela gestão. Feriado não tem janela e não conta como dia útil.
 
-Centralizada em dois arquivos: a configuração das etapas e das janelas (`src/lib/relationship/config.ts`) e o calendário (`src/lib/relationship/calendar.ts`). A decisão de qual etapa e para quando fica em `decide.ts`. Não está espalhada. Existe, porém, um segundo motor menor e independente para a fila de ligações (`src/lib/crm/cadence.ts`, L1–L4), que tem seus próprios intervalos.
+Com a nova regra, o encadeamento resolve naturalmente: sexta + 2 corridos = domingo → terça; se a terça for feriado, o deslocamento continua para o próximo dia com operação (quarta). O caso que você citou (domingo → terça, com segunda feriado) não muda o resultado, porque o alvo já é terça; se a **terça** fosse o feriado, iria para quarta.
 
-## B3. Corridos ou úteis?
+## 12. Ação do Dia
 
-**Dias úteis** — em todo o motor de mensagens e também na fila de ligações. O conceito de dias corridos não existe hoje em nenhum prazo de cadência.
+Confirmado e já é assim: o motor calcula etapa, data e cria a obrigação; a Ação do Dia lê, normaliza, deduplica, prioriza e apresenta. Ela não recalcula cadência nem inventa etapa.
 
-## B4. Sábado e domingo hoje
+## 13. Segunda-feira
 
-Sábado é dia útil parcial: há janela de envio das 09:00 às 12:00. Domingo não tem janela nenhuma. Feriados também não. Uma etapa que caia em dia sem janela não é perdida nem substituída: é empurrada para a próxima abertura, que é sempre o próximo dia com janela — ou seja, hoje sábado empurra para segunda, e domingo também empurra para segunda. **A regra "domingo → terça" não existe.**
+Funciona naturalmente e em qualquer volume: o deslocamento é por data, não por cota. Com 100 ações teóricas no sábado, 100 no domingo e 100 na segunda, o resultado é 200 na segunda e 200 na terça — sem nenhuma regra artificial de limite diário.
 
-## B5. Atraso
+## 14. Lacunas
 
-Não há recálculo nem perda. Se o vencimento já passou e o momento atual é operacional, a etapa fica devida agora e aparece como pendente/atrasada. Se o momento atual está fora da janela, ela é empurrada para a próxima abertura, sempre para frente. A Ação do Dia tem, além disso, um cálculo próprio de "atrasado" em dias úteis, apenas para exibição.
+1. Etapas E2, E5, E6, E7, E8 não existem no motor.
+2. Não há bifurcação por apresentação/material, nem memória estruturada disso.
+3. Não há subações dentro de etapa, nem intervalo em horas, nem transbordo de janela.
+4. Contagem é em dias úteis; sábado tem janela; domingo cai em segunda.
+5. Não há separação entre data teórica e data operacional — só o vencimento final é guardado.
+6. Janelas divergentes convivem (mensagens, E0, execução manual) e nenhuma bate com 09:00–17:30 / sábado 08:00–16:00.
+7. R4 e o salto de R3 não existem; R usa intervalo global.
+8. RE não tem o salto RE1 → RE3 nem sinal de apresentação realizada.
+9. Há duas cadências paralelas: mensagens e a fila de ligações L1–L4.
 
-## B6. Como calcula a próxima etapa
+## 15. Menor construção necessária (depois)
 
-A partir da **execução real da etapa anterior** (a última saída registrada), não da data teórica original do ciclo. Para o fluxo de acompanhamento há ainda um piso: a contagem só começa depois que o lead sai da coluna NOVOS. Consequência prática: um atraso desloca toda a sequência para frente — não acumula várias etapas no mesmo dia.
+1. **Calendário**: contar em dias corridos e aplicar, num único ponto, sábado → segunda, domingo → terça, feriado → próximo dia com operação. Guardar na fila as duas datas: teórica e operacional.
+2. **Janelas**: unificar em uma configuração só, com os horários definitivos (09:00–17:30; sábado 08:00–16:00 quando houver operação; domingo fechado).
+3. **Fluxo E**: nova versão do fluxo com E0→E1→E2→E3→E4→E7→E8 e ramo E4→E5→E6→E7→E8, com os intervalos que você definir. Ciclos em andamento continuam na versão antiga.
+4. **Memória do ciclo**: registrar de forma estruturada "material solicitado/enviado" para decidir o ramo e o contexto de E7/E8.
+5. **Passos internos**: E1 com ligação → +3h → ligação → mensagem, com transbordo para a próxima abertura quando a janela fechar (16:00 + 3h → próximo período; 14:00 + 3h → 17:00 no mesmo dia, permitido).
+6. **R e RE**: registrar R4, a condição de pular R3, e os intervalos revisados de RE, substituindo o valor global de reengajamento por intervalos por etapa.
+7. **Sem mexer**: Biblioteca, Ação do Dia como leitora, agendamento (data real, nunca deslocada), Safety Lock, GreenSales, usuários e permissões.
 
-## B7. Múltiplas ações dentro de uma etapa
+## Decisões suas que faltam antes de construir
 
-Não existe. Cada etapa é um disparo único. O que existe hoje é uma segunda fila, a de ligações (L1 manual, L2 +2 dias úteis, L3 +1, L4 +3), independente das etapas de mensagem. Não há nenhum conceito de subpasso dentro de uma etapa.
-
-## B8. E1 com duas ligações e intervalo de 3 horas
-
-Não é representável hoje. Os intervalos são em dias úteis, nunca em horas; não há segundo passo dentro da etapa; e não há regra de transbordo do tipo "passou das 17h, a segunda ligação vai para o próximo período". Isso exige passos internos com intervalo em horas e uma regra explícita de transbordo — é a lacuna maior da Parte B.
-
-## B9. Feriados
-
-Existem e são centralizados: nacionais + estaduais de São Paulo, calculados automaticamente, mais datas extras administráveis pela gestão, somadas ao calendário oficial. Feriado não tem janela e não conta como dia útil; a etapa é deslocada para o próximo dia com janela.
-
-## B10. Calendário × janela de execução
-
-Hoje estão **acoplados**: a mesma função calcula o dia e já devolve um instante dentro da janela de envio. Não existe registro separado de "data teórica" e "data operacional" — só o vencimento final. Além disso, convivem janelas diferentes: mensagens 09:00–21:00 (sábado 09:00–12:00), E0 07:00–22:30, e a janela da execução manual da Ação do Dia (06:00–22:00, sábado até 17:00). Os horários que você citou (09:00–17:30 e sábado 08:00–16:00) **não** são os configurados hoje.
-
-## B11. Como a Ação do Dia recebe as obrigações
-
-Exatamente como você quer: ela é agregadora de leitura. Lê reuniões, agenda, fila do motor, fila de ligações e primeiros contatos, normaliza, deduplica e ordena por prioridade. Não decide etapa nem recalcula data. A separação que você pede já está garantida.
-
-## B12. A regra sábado → segunda / domingo → terça é compatível?
-
-Compatível, e é uma alteração pequena — mas **não é o comportamento atual em dois aspectos**: hoje a contagem é em dias úteis (não corridos) e domingo cai em segunda (não em terça). Como o deslocamento acontece num único ponto do calendário, dá para trocar a contagem para dias corridos e aplicar o deslocamento por dia da semana sem transformar nada em "dias úteis". A distribuição que você descreve (A+C na segunda, B+D na terça) sai naturalmente do calendário, sem cota artificial por dia.
-
-## B13. Menor alteração necessária depois (Parte B)
-
-1. Separar, no cálculo, **data teórica** (referência + intervalo em dias corridos) de **data operacional** (deslocamento sábado → segunda, domingo → terça, feriado → próximo dia com janela) e guardar as duas na fila.
-2. Trocar a unidade de intervalo das etapas de "dias úteis" para "dias corridos", mantendo a tabela de intervalos configurável por etapa.
-3. Ajustar as janelas de execução para os horários que você definir, unificando as janelas divergentes que existem hoje.
-4. Introduzir passos internos de etapa com intervalo em horas (caso E1: ligação, +3h, ligação, mensagem) e regra explícita de transbordo quando a janela fechar.
-5. Manter intocado: a Ação do Dia como leitora, o cálculo a partir da execução real, o calendário de feriados centralizado, e o agendamento — compromisso de agenda é data real e **nunca** é deslocado pela regra de cadência.
-
-## Pontos que precisam da sua decisão antes de construir
-
-- Confirmar os horários operacionais definitivos (os atuais são outros).
-- Confirmar se a mudança para dias corridos vale também para R e RE, ou só para o fluxo E nesta etapa.
-- Como tratar o compromisso quando o lead ainda não tem responsável no Portal (Parte A, item 11).
+- Os intervalos numéricos de cada etapa E (E0→E1, E1→E2, E2→E3, E3→E4, E4→E7, E7→E8 e do ramo E5/E6).
+- Escopo da mudança de calendário: A, B ou C (recomendação: C).
+- Intervalos definitivos de R4 e a relação R3 ↔ R4, e os novos intervalos de RE.
+- O que caracteriza objetivamente "pediu/recebeu material".
