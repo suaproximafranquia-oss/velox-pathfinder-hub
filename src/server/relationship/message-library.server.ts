@@ -774,3 +774,101 @@ export async function listMessageSnapshots(leadId: string) {
     .order("sent_at", { ascending: true });
   return data ?? [];
 }
+
+/**
+ * CONTEÚDO OFICIAL DO RF (relacionamento esfriado).
+ *
+ * RF0 e RF1 nascem com texto oficial — não são slots vazios. As quatro
+ * combinações exigidas existem: cada etapa tem a redação COM NOME
+ * (`body`) e SEM NOME (`body_without_name`), exatamente como as demais
+ * etapas da Biblioteca.
+ *
+ * A identidade técnica (RF0 / RF1) é estável: editar o texto no futuro
+ * publica uma nova VERSÃO, sem trocar a chave da etapa e sem alterar
+ * nenhum conteúdo histórico.
+ */
+const COLD_LIBRARY_CONTENT: Record<
+  string,
+  {
+    purpose: string;
+    title: string;
+    body: string;
+    bodyWithoutName: string;
+    contentGroup: string | null;
+    buttonKind: "portal" | "content" | null;
+  }
+> = {
+  RF0: {
+    purpose: "relacionamento_frio_retomada",
+    title: "RF0 — Relacionamento esfriado: retomada",
+    contentGroup: null,
+    buttonKind: null,
+    body: `Olá, {{nome_investidor}}, tudo bem?
+
+Nós tínhamos combinado um horário para conversarmos, mas acabou que não conseguimos evoluir com este bate-papo.
+
+Eu entendo que a correria do dia a dia muitas vezes atrapalha e está tudo bem.
+
+Quando fizer sentido para você, me envie duas opções de horário que funcionem melhor e eu organizo um novo horário para conversarmos.
+
+Fico à disposição.`,
+    bodyWithoutName: `Olá, tudo bem?
+
+Nós tínhamos combinado um horário para conversarmos, mas acabou que não conseguimos evoluir com este bate-papo.
+
+Eu entendo que a correria do dia a dia muitas vezes atrapalha e está tudo bem.
+
+Quando fizer sentido para você, me envie duas opções de horário que funcionem melhor e eu organizo um novo horário para conversarmos.
+
+Fico à disposição.`,
+  },
+  RF1: {
+    purpose: "relacionamento_frio_encerramento",
+    title: "RF1 — Relacionamento esfriado: encerramento",
+    contentGroup: "FINALIZACAO",
+    buttonKind: "content",
+    body: `Olá, {{nome_investidor}}.
+
+Como não conseguimos retomar nossa conversa, não quero ser insistente e vou encerrar minhas tentativas de contato por aqui.
+
+Antes de encerrar, quero deixar com você uma última reflexão que acredito que faça sentido neste momento.
+
+Afinal, você prefere continuar acompanhando a história de quem está crescendo ou começar a construir a sua própria história?`,
+    bodyWithoutName: `Olá, tudo bem?
+
+Como não conseguimos retomar nossa conversa, não quero ser insistente e vou encerrar minhas tentativas de contato por aqui.
+
+Antes de encerrar, quero deixar com você uma última reflexão que acredito que faça sentido neste momento.
+
+Afinal, você prefere continuar acompanhando a história de quem está crescendo ou começar a construir a sua própria história?`,
+  },
+};
+
+/**
+ * Garante o conteúdo oficial de RF0/RF1. Idempotente: se já existe
+ * versão ATIVA com texto, nada é publicado e nenhum texto editado pela
+ * Gestão é sobrescrito.
+ */
+export async function ensureColdRelationshipLibrary(): Promise<void> {
+  for (const [stepKey, spec] of Object.entries(COLD_LIBRARY_CONTENT)) {
+    const active = await getActiveLibraryMessage(stepKey, null);
+    if (active && (active.body ?? "").trim().length > 0) continue;
+    const published = await publishLibraryVersion({
+      stepKey,
+      body: spec.body,
+      bodyWithoutName: spec.bodyWithoutName,
+      title: spec.title,
+      contentGroup: spec.contentGroup,
+      buttonKind: spec.buttonKind,
+      notes: "Conteúdo oficial inicial do relacionamento esfriado (RF).",
+      actorName: "Motor de Relacionamento",
+      sourceKind: "motor",
+      sourceReference: "RF",
+    });
+    /* A finalidade oficial do RF não é derivada da chave da etapa. */
+    await supabaseAdmin
+      .from("relationship_message_library")
+      .update({ purpose: spec.purpose } as any)
+      .eq("id", published.id);
+  }
+}

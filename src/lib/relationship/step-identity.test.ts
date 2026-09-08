@@ -31,8 +31,15 @@ describe("identidade da etapa = chave técnica", () => {
   });
 
   it("chaves históricas nunca são identidade atual", () => {
-    for (const key of ["E12", "E20", "E27", "RF0", "RF1", "FINALIZACAO", "V3", "TESTE"]) {
+    for (const key of ["E12", "E20", "E27", "FINALIZACAO", "V3", "TESTE"]) {
       expect(isCurrentEditorialStep(key)).toBe(false);
+    }
+  });
+
+  /* RF passou a ser etapa operacional atual (relacionamento esfriado). */
+  it("RF0 e RF1 são identidade editorial atual", () => {
+    for (const key of ["RF0", "RF1"]) {
+      expect(isCurrentEditorialStep(key)).toBe(true);
     }
   });
 });

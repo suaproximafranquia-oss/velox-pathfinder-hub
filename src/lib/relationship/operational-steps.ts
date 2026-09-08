@@ -3,8 +3,8 @@
  *
  * Fonte única do que é "etapa atual" para a Biblioteca de Mensagens do
  * Motor: a régua V2 (`CADENCE_V2_STEPS`) mais a resposta automática da
- * janela de 24h. Chaves históricas (E12, E20, E27, FINALIZACAO, RF0,
- * RF1, V3, V4, E0_V1, E30…) continuam gravadas no banco, na fila e nos
+ * janela de 24h. Chaves históricas (E12, E20, E27, FINALIZACAO,
+ * V3, V4, E0_V1, E30…) continuam gravadas no banco, na fila e nos
  * snapshots para auditoria, mas NÃO são identidade editorial de nenhuma
  * etapa atual e não aparecem na lista operacional.
  *
@@ -15,8 +15,17 @@ import { CADENCE_V2_STEPS } from "./cadence-v2";
 /** Etapa própria da orientação automática dentro da janela de 24h. */
 export const AUTO_REPLY_STEP_KEY = "RESPOSTA_AUTOMATICA";
 
+/**
+ * RF — RELACIONAMENTO ESFRIADO. Última camada de reaproximação, acionada
+ * só depois que uma jornada normal terminou. Não pertence à régua V2
+ * (não entra em E/R/RE), mas TEM identidade editorial atual: a Gestão
+ * edita o texto de RF0/RF1 na Biblioteca como qualquer outra etapa.
+ */
+export const COLD_STEP_KEYS: readonly string[] = ["RF0", "RF1"];
+
 export const OPERATIONAL_STEP_KEYS: readonly string[] = [
   ...CADENCE_V2_STEPS,
+  ...COLD_STEP_KEYS,
   AUTO_REPLY_STEP_KEY,
 ];
 
@@ -110,8 +119,6 @@ export const HISTORICAL_STEP_KEYS: readonly string[] = [
   "E30",
   "V3",
   "V4",
-  "RF0",
-  "RF1",
   "FINALIZACAO",
   "TESTE",
 ];
