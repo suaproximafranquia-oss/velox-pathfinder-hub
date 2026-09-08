@@ -35,6 +35,8 @@ type LibraryMessage = {
   stepContext: "SEM_CONTATO" | "MATERIAL_ENVIADO" | null;
   /** A etapa existe na configuração do motor (é operacional). */
   official: boolean;
+  /** A chave é a identidade atual (não histórica) — é o que se lista. */
+  currentIdentity: boolean;
 };
 
 
@@ -101,7 +103,7 @@ export function MessageLibraryPanel() {
   const steps = useMemo(() => {
     const map = new Map<string, LibraryMessage[]>();
     for (const message of messages) {
-      if (!message.official) continue;
+      if (!message.currentIdentity) continue;
       const list = map.get(message.stepKey) ?? [];
       list.push(message);
       map.set(message.stepKey, list);
@@ -183,7 +185,9 @@ export function MessageLibraryPanel() {
   }
 
   /**
-   * Renomear é APENAS rótulo: não publica versão nem toca no histórico.
+   * IDENTIDADE DA ETAPA: "CÓDIGO — Título". Mudar só o título mantém a
+   * chave; mudar o código faz a chave técnica acompanhar (todas as
+   * versões seguem juntas, nada é apagado). Não publica versão.
    */
   async function renameStep() {
     if (!step || renaming) return;
@@ -191,8 +195,9 @@ export function MessageLibraryPanel() {
     try {
       const next = (await renomearRotuloEtapa({
         data: { stepKey: step, label },
-      })) as LibraryMessage[];
-      setMessages(next);
+      })) as { stepKey: string; messages: LibraryMessage[] };
+      setMessages(next.messages);
+      setStep(next.stepKey);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao renomear a etapa.");
@@ -330,9 +335,9 @@ export function MessageLibraryPanel() {
 
             {step ? (
               <>
-                {/* RÓTULO VISÍVEL — apresentação apenas. A chave técnica
-                    ({step}) nunca muda: fila, snapshots e histórico
-                    continuam gravados nela. */}
+                {/* IDENTIDADE DA ETAPA — o código digitado antes do "—"
+                    é a chave técnica. Trocar o código move a etapa (e
+                    todas as suas versões) para a nova chave. */}
                 {needsContext ? (
                   <div className="rounded-xl border border-[color:var(--border)] p-3">
                     <p className="mb-2 text-[11px] text-[color:var(--muted-foreground)]">
@@ -369,7 +374,7 @@ export function MessageLibraryPanel() {
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
                     className="min-w-56 flex-1 rounded-xl border border-[color:var(--border)] bg-[color:var(--background)]/40 px-3 py-2 text-xs outline-none focus:border-[color:var(--gold)]/50"
-                    placeholder={`Rótulo exibido para ${step}`}
+                    placeholder={`${step} — Título da etapa`}
                   />
                   <button
                     type="button"
@@ -382,10 +387,10 @@ export function MessageLibraryPanel() {
                     ) : (
                       <Tag className="h-3.5 w-3.5" />
                     )}
-                    Salvar rótulo
+                    Salvar identidade
                   </button>
                   <span className="text-[11px] text-[color:var(--muted-foreground)]">
-                    Chave técnica {step} — imutável.
+                    Chave técnica {step}
                   </span>
                 </div>
                 <p className="text-[11px] text-[color:var(--muted-foreground)]">

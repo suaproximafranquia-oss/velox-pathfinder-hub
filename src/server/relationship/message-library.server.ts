@@ -35,7 +35,11 @@ import {
   AUTO_REPLY_STEP_KEY,
   OPERATIONAL_STEP_KEYS,
   isContextualStep,
+  isCurrentEditorialStep,
+  isHistoricalStep,
   isOperationalStep,
+  isValidStepCode,
+  parseStepIdentity,
   stepCombinations,
   type StepContext,
 } from "@/lib/relationship/operational-steps";
@@ -79,6 +83,11 @@ export type LibraryMessage = {
    * operacional; as demais permanecem apenas como histórico/legado.
    */
   official: boolean;
+  /**
+   * A chave é identidade ATUAL (régua V2 ou código editorial definido
+   * pela Gestão) — e não uma chave histórica. É o que a Biblioteca lista.
+   */
+  currentIdentity: boolean;
   /**
    * A etapa ainda não pode ser enviada pelo motor: ou não há texto
    * oficial, ou o texto existe mas aguarda ativação pela Gestão.
@@ -140,6 +149,7 @@ function toMessage(row: Record<string, any>): LibraryMessage {
         ? null
         : Number(row["display_position"]),
     official: isOfficialStep(row["step_key"]),
+    currentIdentity: isCurrentEditorialStep(row["step_key"]),
     awaitingOfficialText:
       !row["active"] || String(row["body"] ?? "").trim().length === 0,
   };
@@ -375,33 +385,76 @@ export async function reorderLibrarySteps(
 }
 
 /**
- * RENOMEIA APENAS O RÓTULO VISÍVEL da etapa.
+ * IDENTIDADE DA ETAPA = CÓDIGO ATUAL = CHAVE TÉCNICA.
  *
- * Não cria versão, não altera texto, não toca em fila, snapshot ou
- * histórico: grava o título da versão ativa. A chave técnica é imutável.
- * Rótulo vazio devolve a etapa ao padrão do sistema.
+ * A Gestão edita um único campo ("E5 — Apresentação Digital"). Ele é
+ * separado em CÓDIGO (E5) + TÍTULO (Apresentação Digital):
+ *  • código igual ao atual (ou ausente) → só o título muda; a chave não;
+ *  • código diferente → a chave técnica ACOMPANHA: todas as versões da
+ *    etapa (histórico incluído) passam para o novo código, em uma única
+ *    transação (`library_rename_step_key`). Nada é apagado nem reescrito.
+ *  • código já usado por outra etapa com mensagem → recusa com aviso;
+ *    nada é sobrescrito nem misturado.
+ * O código é exatamente o digitado: ER0 não vira E0, R3 não vira E3.
+ * E7/E8 mantêm a estrutura de contextos: não trocam de código nem
+ * recebem outra etapa nesta construção.
  */
 export async function renameLibraryStep(params: {
   stepKey: string;
   label: string;
-}): Promise<LibraryMessage[]> {
+}): Promise<{ stepKey: string; messages: LibraryMessage[] }> {
   await ensureLibrarySeed();
-  const stepKey = params.stepKey.trim().toUpperCase();
-  const label = params.label.trim();
-  const title = label || DEFAULT_STEP_LABELS[stepKey] || stepKey;
+  const fromKey = params.stepKey.trim().toUpperCase();
+  const { code, title: parsedTitle } = parseStepIdentity(params.label);
+  const toKey = code && code !== fromKey ? code : fromKey;
+
+  if (toKey !== fromKey) {
+    if (!isValidStepCode(toKey)) {
+      throw new Error(`Código de etapa inválido: ${toKey}. Use o código editorial da régua (ex.: E5, R3, RE0).`);
+    }
+    if (isHistoricalStep(toKey)) {
+      throw new Error(`${toKey} é uma chave histórica e não pode ser usada como identidade atual.`);
+    }
+    if (isContextualStep(fromKey) || isContextualStep(toKey)) {
+      throw new Error(
+        `${isContextualStep(fromKey) ? fromKey : toKey} possui estrutura de contextos (SEM_CONTATO / MATERIAL_ENVIADO) e não troca de código nesta operação.`,
+      );
+    }
+  }
+
+  /* Título gravado SEMPRE com o prefixo do código atual, para que rótulo e
+     chave técnica nunca divirjam. Vazio devolve o padrão do sistema. */
+  const fullTitle = parsedTitle
+    ? `${toKey} — ${parsedTitle}`
+    : DEFAULT_STEP_LABELS[toKey] || toKey;
+
+  if (toKey !== fromKey) {
+    const { error } = await supabaseAdmin.rpc("library_rename_step_key" as any, {
+      p_scope: "production",
+      p_from: fromKey,
+      p_to: toKey,
+      p_title: fullTitle,
+    } as any);
+    if (error) {
+      throw new Error(
+        error.code === "23505" || /já está sendo utilizado/.test(error.message)
+          ? `O código ${toKey} já está sendo utilizado por outra etapa. Escolha outro código — nada foi alterado.`
+          : error.message,
+      );
+    }
+    return { stepKey: toKey, messages: await listLibraryMessages() };
+  }
 
   /**
-   * O rótulo é da ETAPA: em E7/E8 ele é gravado na versão vigente de
-   * cada contexto. Slots ainda sem versão ativa (aguardando texto) também
-   * precisam de rótulo editável, então a gravação recai sobre a versão
-   * mais recente quando não existe versão ativa.
+   * SÓ TÍTULO: gravado na versão vigente de cada contexto da etapa (slots
+   * sem versão ativa recebem na mais recente). Chave técnica intacta.
    */
-  for (const context of stepCombinations(stepKey)) {
+  for (const context of stepCombinations(fromKey)) {
     let query = supabaseAdmin
       .from("relationship_message_library")
       .select("id,active,version")
       .eq("scope", "production")
-      .eq("step_key", stepKey);
+      .eq("step_key", fromKey);
     query = context ? query.eq("step_context", context) : query.is("step_context", null);
     const { data: rows } = await query.order("version", { ascending: false });
     const target =
@@ -409,11 +462,11 @@ export async function renameLibraryStep(params: {
     if (!target) continue;
     const { error } = await supabaseAdmin
       .from("relationship_message_library")
-      .update({ title } as any)
+      .update({ title: fullTitle } as any)
       .eq("id", (target as any).id);
     if (error) throw new Error(error.message);
   }
-  return listLibraryMessages();
+  return { stepKey: fromKey, messages: await listLibraryMessages() };
 }
 
 /**

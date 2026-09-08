@@ -3992,6 +3992,10 @@ export type Database = {
         Returns: boolean
       }
       is_portal_member: { Args: never; Returns: boolean }
+      library_rename_step_key: {
+        Args: { p_from: string; p_scope: string; p_title: string; p_to: string }
+        Returns: number
+      }
       name_central_import_sleep: { Args: never; Returns: undefined }
       name_central_import_wake: { Args: never; Returns: undefined }
       portal_email_key: { Args: { _email: string }; Returns: string }
