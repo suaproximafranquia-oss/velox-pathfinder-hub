@@ -228,7 +228,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       };
       const { data, error } = await supabaseAdmin
         .from("relationship_queue")
-        .upsert(payload as any, { onConflict: "scope,run_id,lead_id,step" })
+        .upsert(payload as any, { onConflict: "scope,run_id,lead_id,step,action_order" })
         .select("*")
         .single();
       if (error) throw new Error(error.message);
@@ -257,6 +257,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       if (patch.executedAt !== undefined) update["executed_at"] = patch.executedAt;
       if (patch.result !== undefined) update["result"] = patch.result;
       if (patch.reason !== undefined) update["reason"] = patch.reason;
+      if (patch.cancelReason !== undefined) update["cancel_reason"] = patch.cancelReason;
       await supabaseAdmin
         .from("relationship_queue")
         .update(update as any)
@@ -269,7 +270,12 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       const { data } = await scoped(
         supabaseAdmin
           .from("relationship_queue")
-          .update({ status: "CANCELLED", reason, updated_at: new Date().toISOString() } as any)
+          .update({
+            status: "CANCELLED",
+            reason,
+            cancel_reason: reason,
+            updated_at: new Date().toISOString(),
+          } as any)
           .in("status", ["PENDING", "PROCESSING"])
           .select("id") as any,
       ).eq("lead_id", leadId);
