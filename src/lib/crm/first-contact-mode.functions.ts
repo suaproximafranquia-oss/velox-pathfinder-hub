@@ -1,21 +1,22 @@
 /**
- * PRIMEIRO CONTATO (E0) — execução manual pelo executivo.
+ * PRIMEIRO CONTATO (E0) — CAMINHO LEGADO DESATIVADO.
  *
- * O MODO (manual/automático) não vive mais aqui: é uma permissão
- * individual do executivo responsável pelo lead, em
- * Usuários → Permissões do Workspace. Este módulo trata apenas da
- * EXECUÇÃO da ação pendente, registrada com autor, horário e resultado.
- *
- * Nada aqui altera a Global WhatsApp Safety Lock nem libera envio real.
+ * A E0 do fluxo operacional atual pertence à régua V2 e é cobrada pela
+ * Ação do Dia como ligação 1 → 10 min → ligação 2 → mensagem apenas
+ * para COPIAR. Esta função permanece somente por compatibilidade: o
+ * executor por trás dela recusa qualquer execução (fail-closed) e não
+ * envia mensagem, não cria registro de mensagem nem aciona a Meta.
+ * Nenhuma tela da Ação do Dia a utiliza.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-/** Execução manual da E0 pendente — mesmo executor oficial do modo automático. */
+/** Recusa fail-closed — mantida apenas para compatibilidade histórica. */
 export const executeFirstContactAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ actionId: z.string().uuid() }).parse(data))
+
   .handler(async ({ data, context }) => {
     const { data: profile } = await context.supabase
       .from("executive_profiles")
