@@ -1,56 +1,88 @@
-# Financeira /f — Recuperação cirúrgica do conteúdo histórico ausente
+# Financeira /f — Diagnóstico da jornada de relacionamento x regra de negócio
 
-## O que a comparação mostrou
+Somente leitura. Nada foi alterado: nem código, nem banco, nem configuração, nem fila, nem mensagens.
 
-Antes de propor qualquer coisa, fiz a comparação completa: documento oficial "Biblioteca de Mensagens — Jornada do Investidor V2" (que está no projeto e é a origem dos textos), textos históricos que ainda vivem no próprio código do projeto, e todas as versões gravadas na Biblioteca hoje.
+## 1. Fluxo REAL que o motor executa hoje
 
-Resultado importante: **os textos históricos não foram perdidos**. Todos continuam no projeto e/ou na Biblioteca. O que existe são exatamente **duas lacunas** — duas etapas da régua atual cuja mensagem oficial não está ativa em lugar nenhum.
+A autoridade é `src/lib/relationship/config.ts` (`STEPS` + `FLOW_SEQUENCE`) e `src/lib/relationship/decide.ts`.
 
-### Classificação de cada conteúdo histórico
+- Sem resposta: E0 (ou E0_V1 pelo Portal) → E1 → E3 → E4 → E12 → E30
+  (E30 travada por `E30_ENABLED`; com ela desligada, **E12 encerra o fluxo**)
+- Visualização (2 leituras sem resposta): E0 → E1 → V3 → V4 (fim)
+- Reengajamento (o investidor respondeu): R1 → R2 → R3 (fim)
+- Reentrada (lead conhecido que se cadastra de novo): RE0 → RE1 → RE2 → RE3
+- Relacionamento frio: RF0 → RF1
 
-| Conteúdo histórico | Situação | Ação |
+Não existem no motor: **E2, E5, E6, E7, E8, R4**. Também **não existe** nenhuma condição de "entrou no caminho do material" nem qualquer tratamento automático de não comparecimento em reunião. Ou seja: a régua de negócio E0→E1→E2→E3→E4→(E5/E6 | E7/E8) **não está implementada** — o motor tem uma régua mais curta, de 5 etapas, com um único caminho.
+
+Como o motor decide: `nextStep` pega a primeira etapa da sequência do fluxo que ainda não foi executada; se a data de vencimento ainda não chegou, agenda; se chegou fora da janela, reagenda para a próxima abertura; se o lead está agendado, interrompido ou encerrado, nada é criado.
+
+## 2. Prazos reais hoje
+
+Cada prazo é contado em **dias úteis a partir da última saída** (última mensagem enviada) ou, quando maior, a partir do momento em que o lead saiu da coluna NOVOS. Não são dias acumulados desde o cadastro.
+
+| Etapa | Prazo (dias úteis após a referência) | Próxima etapa |
 |---|---|---|
-| E0 primeiro contato | já existe atualmente, versão humanizada | não mexer |
-| E1 primeiro acompanhamento | já existe atualmente | não mexer |
-| E2 segundo acompanhamento ("continuar contribuindo… mais um conteúdo") | já existe atualmente | não mexer |
-| **E3 terceiro acompanhamento ("os dias passam rapidamente…")** | **desapareceu da Biblioteca** — a posição está ocupada por uma cópia do texto de E2 | **recuperar** |
-| E4 oferta da apresentação digital | existe, na chave técnica E2 | não mexer, só registrar a correspondência |
-| E5 liberação da apresentação (7 dias) | existe, na chave técnica RE0 | não mexer |
-| E6 acompanhamento da apresentação | existe atualmente, versão posterior humanizada | não mexer |
-| E7 última tentativa | existe atualmente | não mexer |
-| E8 finalização | existe, na chave técnica RE1 | não mexer |
-| **R1 primeira tentativa ("vi que conseguimos iniciar nossa conversa…")** | **desapareceu da Biblioteca** | **recuperar** |
-| R2 segundo reengajamento | existe, na chave técnica E4 | não mexer |
-| R3 encerramento do reengajamento | existe, na chave técnica E5 | não mexer |
-| R4 | existe só como texto atual na chave RE2 | preservar, não inventar |
-| RE0, RE1, RE2, RE3 | todos existem | não mexer |
-| RF0, RF1 | ambos existem, nas chaves R2 e R3 | não mexer |
-| TESTE, ER0–ER3 | teste/legado | permanecem só no histórico |
+| E0 / E0_V1 | 0 (imediato) | E1 |
+| E1 | 1 | E3 |
+| E3 | 2 | E4 |
+| E4 | 3 | E12 |
+| E12 | 5 | fim (E30 desligada) |
+| E30 | 22 a partir do início da jornada | fim (desligada) |
+| V3 | 2 | V4 |
+| V4 | 3 | fim |
+| R1 / R2 / R3 | 2 cada (valor global de reengajamento) | R2 / R3 / fim |
+| RE0 / RE1 / RE2 / RE3 | 0 / 2 / 3 / 5 | fim |
+| RF0 / RF1 | 1 / 3 | fim |
 
-## O que a construção vai fazer
+Etapas E2, E5, E6, E7, E8 e R4 **não têm prazo** porque não existem na configuração.
 
-Só duas coisas, ambas aditivas:
+Janelas: E1+ envia Seg–Sex 09:00–21:00 e Sábado 09:00–12:00; E0 tem janela própria 07:00–22:30 (Sáb até 12:00, domingo não). Feriados nacionais e de SP não contam como dia útil, mais as datas extras cadastradas pela gestão.
 
-1. **Recuperar o texto oficial da E3** (terceiro acompanhamento) como **nova versão** da etapa que hoje representa a E3 editorial. O texto vem do documento oficial do projeto, palavra por palavra — nada inventado. A versão atual continua gravada como histórico.
-2. **Recuperar o texto oficial da R1** (primeira tentativa após o investidor sumir) como **nova versão** da etapa R1. Mesmo critério.
+## 3. Casos de retorno do investidor — hoje x regra desejada
 
-Nada mais é tocado. Nenhuma mensagem atual é substituída, nenhuma versão é apagada, nenhuma chave técnica muda, nenhuma posição é renumerada.
+| Caso | Hoje | Regra desejada | Coincide? |
+|---|---|---|---|
+| a) Responde em E1/E2/E3/E4 | Fluxo vira reengajamento, estado RESPONDED, automação para; volta só após 2 dias úteis de silêncio, em R1→R2→R3 | Deveria seguir para o caminho do material (E5/E6) quando aceita | Não |
+| b) Responde depois do encerramento | Cadência encerrada bloqueia tudo; nenhuma etapa nova é criada | Deveria reabrir em E5 → E6 e encerrar sem repetir a finalização | Não |
+| c) Já recebeu material e responde | Nenhuma memória de "já recebeu material" existe; cai no mesmo R1→R2→R3 | Não reofertar material | Não |
+| d) Agendou e não compareceu | Agendamento coloca em SCHEDULED e bloqueia tudo; o não comparecimento é apenas registrado no histórico da Ação do Dia, sem nenhuma transição automática | Deveria iniciar R1→R2→R3→R4 | Não |
+| e) Já estava em R e não comparece de novo | Nada acontece automaticamente | Continuar de onde parou, sem reiniciar | Não |
 
-## Antes de eu executar, preciso de uma confirmação sua
+Ponto importante: hoje o "R" do sistema é o fluxo de **reengajamento por resposta**, não o fluxo de **não comparecimento**. São duas coisas diferentes usando as mesmas letras.
 
-A régua editorial atual (E0–E8, R1–R4, RE0–RE3, RF0–RF1) está gravada hoje apenas nos **títulos digitados** de cada mensagem, e esses títulos estão sobre chaves técnicas trocadas. Isso significa que a E3 editorial e a R1 editorial estão fisicamente guardadas em chaves com outro nome.
+## 4. A Ação do Dia está preparada?
 
-Duas formas de gravar as recuperações:
+Já funciona corretamente:
+- é apenas leitura da fila persistida; não inventa etapa nem decide jornada;
+- mostra a etapa que veio da fila;
+- o botão COPIAR busca, no clique, a versão ativa vigente da Biblioteca — não há texto paralelo nem cópia congelada;
+- se não existir versão ativa, a ação aparece com o motivo e o COPIAR fica bloqueado, sem inventar conteúdo;
+- CONCLUÍDO grava snapshot imutável (texto, id e versão da mensagem, autor, origem), com chave determinística — reconcluir não duplica;
+- prazos, dias úteis, feriados e janelas são respeitados pelo motor antes de a obrigação virar item da fila;
+- ligação e reunião registram desfecho e observação no histórico.
 
-- **Opção A (recomendada, conservadora):** gravar a nova versão exatamente na chave onde o título editorial já está hoje. A E3 do negócio continua onde está, só ganha o texto certo. Zero risco, zero movimentação, e o motor segue idêntico.
-- **Opção B:** gravar na chave que o motor executa para aquela finalidade. Isso alinharia texto e execução, mas mexe em onde a mensagem aparece na tela e exige tratar a régua editorial na mesma construção.
+Ainda não existe:
+- criação de obrigação para etapas que não existem no motor (E2, E5, E6, E7, E8, R4);
+- ramificação condicional (aceitou material x não evoluiu);
+- memória de jornada do tipo "já recebeu o material", "já foi finalizado uma vez";
+- transição automática a partir de "não compareceu à reunião";
+- retomada pós-encerramento em E5/E6.
 
-Minha recomendação é a **A** agora, e a organização editorial (nomes e ordem E0–E8 numa camada própria) numa construção separada, como você mesmo pediu no item 17.
+## Resumo
 
-## Detalhe técnico
+1. **Correto hoje:** a arquitetura. Motor decide → fila registra → Ação do Dia executa → Biblioteca fornece o texto vigente → conclusão grava snapshot. Prazos em dias úteis, janelas e calendário funcionam.
+2. **Divergente:** a régua. O motor tem 5 etapas lineares (E0, E1, E3, E4, E12) e nenhuma bifurcação; a regra de negócio tem 9 etapas com dois caminhos, retomada pós-finalização e fluxo de não comparecimento com salto condicional.
+3. **Falta:** criar as etapas ausentes com prazos próprios, criar as condições de entrada em cada caminho, criar a memória de jornada do lead, criar a transição de não comparecimento e a regra de reabertura pós-encerramento — além dos textos oficiais de cada etapa nova na Biblioteca.
+4. **Tamanho:** é **mudança estrutural**, não correção pequena. Muda a definição de fluxo (de lista fixa para caminho condicional) e exige um novo registro do que o lead já recebeu.
+5. **Arquivos envolvidos numa futura construção:**
+   - `src/lib/relationship/config.ts` (STEPS, FLOW_SEQUENCE, prazos)
+   - `src/lib/relationship/decide.ts` (bifurcação e condições de entrada)
+   - `src/lib/relationship/machine.ts` e `types.ts` (memória da jornada, eventos de material e de não comparecimento)
+   - `src/lib/relationship/flow-plan.ts` e `src/server/relationship/flow-versions.server.ts` (versionamento do novo fluxo)
+   - `src/server/relationship/closure.server.ts` e `scheduler.server.ts` (encerramento e reabertura)
+   - `src/server/crm/daily-actions*.ts` (desfecho da reunião passando a gerar transição)
+   - Biblioteca de Mensagens: textos oficiais das novas etapas
+   - Uma migration apenas para a memória da jornada e o versionamento do novo fluxo — sem tocar em histórico existente
 
-- Fonte dos dois textos: `src/lib/relationship/messages.ts` (E3 e R1), que preserva literalmente o conteúdo do documento oficial. Nenhum texto é redigido por mim.
-- Gravação pelo mecanismo de publicação já existente da Biblioteca: cria versão nova, desativa a anterior sem apagá-la, preserva autor e data das versões antigas.
-- Sem migração, sem UPDATE destrutivo, sem DELETE.
-- Nada em `STEPS`, `FLOW_SEQUENCE`, decisão de etapa, E0, fila, Ação do Dia, CRM, Portal, Meta, Safety Lock, `/`, `/s`, `/seg`.
-- Ao final: verificação de tipos e build, e relatório com etapa, chave técnica interna, versão criada e confirmação de que R0 não foi criado, R4 não foi inventado, ER0–ER3 não foram criados e nenhum histórico foi apagado.
+Nenhuma dessas mudanças foi feita. Este documento é só o diagnóstico e a recomendação.
