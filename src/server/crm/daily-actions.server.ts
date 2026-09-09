@@ -231,10 +231,10 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
         dueDate: operationalDate(anchor),
         startsAt: anchor,
         endsAt: review ? null : new Date(new Date(startsAt).getTime() + duration * 60000).toISOString(),
-        overdue: operationalDate(anchor) < today,
+        overdue: false,
         priorityMax: true,
         bucket: review
-          ? (operationalDate(anchor) < today ? "atrasada" : "agora")
+          ? "pendente"
           : resolveBucket({ dueDate: operationalDate(startsAt), startsAt, nowIso }),
         title: review ? "Verificar agendamento sem contato (24h)" : "Agendamento (GreenSales)",
         responsibleName: meeting.executive_name ?? null,
@@ -261,7 +261,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       dueDate: operationalDate(startsAt),
       startsAt,
       endsAt: new Date(new Date(startsAt).getTime() + duration * 60000).toISOString(),
-      overdue: operationalDate(startsAt) < today,
+      overdue: false,
       priorityMax: true,
       bucket: resolveBucket({ dueDate: operationalDate(startsAt), startsAt, nowIso }),
       title: meeting.topic || "Reunião com o investidor",
@@ -287,7 +287,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       dueDate: operationalDate(startsAt),
       startsAt,
       endsAt: event.ends_at ? new Date(event.ends_at).toISOString() : null,
-      overdue: operationalDate(startsAt) < today,
+      overdue: false,
       priorityMax,
       bucket: resolveBucket({ dueDate: operationalDate(startsAt), startsAt, nowIso }),
       title: event.title ?? "Compromisso",

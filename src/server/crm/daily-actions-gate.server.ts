@@ -25,7 +25,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildDailyActions } from "@/server/crm/daily-actions.server";
-import { normalizeDailyActions, type DailyAction } from "@/lib/crm/daily-actions";
+import { normalizeDailyActions, isAutomaticDailyAction, type DailyAction } from "@/lib/crm/daily-actions";
 
 export class OutOfTurnError extends Error {
   constructor(message: string) {
@@ -50,7 +50,7 @@ export async function currentDailyAction(
   let list = normalizeDailyActions(
     await buildDailyActions({ executiveId, skipReconcile: options.skipReconcile === true }),
   );
-  const first = list[0] ?? null;
+  const first = list.find(isAutomaticDailyAction) ?? null;
 
   const queueItemId = queueItemIdOf(first);
 
@@ -77,7 +77,7 @@ export async function currentDailyAction(
       );
     }
   }
-  return { current: list[0] ?? null, list };
+  return { current: list.find(isAutomaticDailyAction) ?? null, list };
 }
 
 /** Libera a reivindicação (PROCESSING → PENDING) — usado ao pular. */
@@ -189,4 +189,22 @@ export async function assertCurrentQueueItem(input: {
   throw new OutOfTurnError(
     `Fora da ordem: resolva primeiro a ação corrente (${current.name}).`,
   );
+}
+
+/** Desfecho de compromisso aberto: exceção restrita, não autoriza ações da cadência. */
+export async function assertCommitmentAction(input: {
+  executiveId: string | null;
+  actionKey: string;
+  meetingId: string;
+  allowPendingRecovery?: boolean;
+}): Promise<DailyAction> {
+  if (!input.executiveId) throw new OutOfTurnError("Executivo não identificado.");
+  const list = await buildDailyActions({ executiveId: input.executiveId, skipReconcile: true });
+  const action = list.find((a) => a.actionKey === input.actionKey && a.source === "meeting" && a.meetingId === input.meetingId);
+  if (action?.bucket === "pendente") return action;
+  const current = await assertCurrentAction(input);
+  if (current.source !== "meeting" || current.meetingId !== input.meetingId) {
+    throw new OutOfTurnError("Compromisso não corresponde à ação autorizada.");
+  }
+  return current;
 }

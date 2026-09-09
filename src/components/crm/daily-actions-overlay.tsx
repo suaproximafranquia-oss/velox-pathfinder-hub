@@ -30,6 +30,7 @@ import {
 } from "@/lib/crm/daily-actions-window";
 import {
   KIND_LABEL,
+  isAutomaticDailyAction,
   operationalTime,
   sortDailyActions,
   reclassifyDailyActions,
@@ -55,6 +56,7 @@ const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
    * mas não é trabalho de hoje — nunca ocupa a posição 1 nem abre como
    * card principal.
    */
+  { key: "pendente", label: "Pendências abertas", tone: "text-muted-foreground" },
   { key: "futura", label: "Próximos compromissos", tone: "text-sky-300/70" },
 ];
 
@@ -63,7 +65,7 @@ const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
  * executada hoje. Compromissos futuros são pulados nesta escolha.
  */
 function firstExecutableKey(rows: DailyAction[]): string | null {
-  return rows.find((row) => row.bucket !== "futura")?.actionKey ?? null;
+  return rows.find(isAutomaticDailyAction)?.actionKey ?? null;
 }
 
 
@@ -145,7 +147,7 @@ export function DailyActionsOverlay({
      * executável — o fluxo volta naturalmente para a fila normal.
      */
     const lead = continuityLeadRef.current;
-    if (lead && !filtered.some((row) => row.leadId === lead && row.bucket !== "futura")) {
+    if (lead && !filtered.some((row) => row.leadId === lead && isAutomaticDailyAction(row))) {
       continuityLeadRef.current = null;
     }
     const official = reclassifyDailyActions(filtered, new Date().toISOString(), continuityLeadRef.current);
@@ -268,7 +270,7 @@ export function DailyActionsOverlay({
        if (transitioningRef.current) return;
       setActions((previous) => {
         const next = reclassifyDailyActions(previous, new Date().toISOString(), continuityLeadRef.current);
-        setSelectedKey(firstExecutableKey(next));
+        setSelectedKey((key) => next.some((a) => a.actionKey === key && a.bucket === "pendente") && previous.some((a) => a.actionKey === key && a.bucket === "pendente") ? key : firstExecutableKey(next));
         return next;
       });
     }, 30000);
@@ -595,7 +597,8 @@ export function DailyActionsOverlay({
                           key={item.actionKey}
                           item={item}
                           selected={item.actionKey === selectedKey}
-                          locked={item.actionKey !== selectedKey}
+                          locked={item.actionKey !== selectedKey && item.bucket !== "pendente"}
+                          onOpen={item.bucket === "pendente" ? () => { if (!transitioningRef.current && !busy) setSelectedKey(item.actionKey); } : undefined}
                         />
                       ))}
                     </ul>
@@ -675,11 +678,13 @@ function ActionRow({
   item,
   selected,
   locked,
+  onOpen,
 }: {
   item: DailyAction;
   selected: boolean;
   /** Visível, porém bloqueado: só a posição 1 é executável. */
   locked: boolean;
+  onOpen?: () => void;
 }) {
   const Icon = KIND_ICON[item.kind];
   return (
@@ -717,6 +722,7 @@ function ActionRow({
             atrasada
           </span>
         )}
+        {onOpen && <Button variant="ghost" size="sm" onClick={onOpen}>Abrir</Button>}
         {locked && <Lock className="h-3.5 w-3.5 shrink-0 text-white/30" />}
       </div>
     </li>
