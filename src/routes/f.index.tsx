@@ -28,6 +28,11 @@ type HomeSearch = {
   ch?: string;
   /** FASE 1 §6 — visitante chegou pelo Portal Institucional do Grupo. */
   g?: string;
+  /**
+   * `editor` SOLICITA o modo de edição das imagens do Portal. A permissão
+   * é sempre decidida no servidor — este parâmetro nunca autoriza nada.
+   */
+  modo?: string;
 };
 
 /**
