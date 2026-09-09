@@ -12,14 +12,14 @@
  * Seguradora.
  */
 import { useEffect, useState } from "react";
-import { assetUrl } from "@/lib/assets/registry";
+import { assetUrl, type AssetKey } from "@/lib/assets/registry";
 
 /**
  * MATERIAL INSTITUCIONAL (`/universo`) — imagens editoriais da página.
  * Cada imagem tem chave estável própria (`universo-<asset>`), lê a
  * substituição da unidade e mantém o arquivo original como retorno.
  */
-export const UNIVERSO_ASSETS: { asset: string; label: string }[] = [
+export const UNIVERSO_ASSETS: { asset: AssetKey; label: string }[] = [
   { asset: "sede-velox", label: "Sede Velox (capa)" },
   { asset: "fundador-mario-sergio", label: "Fundador — Mário Sérgio" },
   { asset: "unidade-fachada", label: "Unidade — fachada" },
@@ -47,7 +47,7 @@ export function universoSlotKey(asset: string): string {
 }
 
 /** Espaços de imagem do Portal que podem ser substituídos. */
-export const PORTAL_ASSET_SLOTS: { key: string; label: string; asset?: string }[] = [
+export const PORTAL_ASSET_SLOTS: { key: string; label: string; asset?: AssetKey }[] = [
   { key: "home-capa", label: "Capa da Home" },
   { key: "modulo-manual", label: "Módulo — Manual do Investidor" },
   { key: "modulo-universo", label: "Módulo — Material institucional" },
@@ -71,7 +71,7 @@ export type PortalAssetSlot = (typeof PORTAL_ASSET_SLOTS)[number]["key"];
 /** Imagem original (de fábrica) de um espaço, quando conhecida. */
 export function portalSlotOriginal(key: string): string {
   const slot = PORTAL_ASSET_SLOTS.find((s) => s.key === key) as
-    | { asset?: string }
+    | { asset?: AssetKey }
     | undefined;
   return slot?.asset ? assetUrl(slot.asset) : "";
 }

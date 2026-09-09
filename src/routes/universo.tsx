@@ -29,7 +29,7 @@ import {
 // Mídias do material institucional — resolvidas pelo registro central de
 // assets (src/lib/assets/registry.ts). Cada posição depende de uma chave
 // semântica; trocar a foto = trocar o ponteiro no registro, sem mexer aqui.
-import { assetUrl } from "@/lib/assets/registry";
+import { assetUrl, type AssetKey } from "@/lib/assets/registry";
 import {
   portalAssetUrl,
   setSavedPortalAssets,
@@ -43,7 +43,7 @@ import { fetchPortalAssetOverrides } from "@/lib/portal/asset-overrides.function
  * unidade tem uma imagem trocada no editor do Portal, ela aparece aqui;
  * sem substituição, continua valendo a foto original do registro.
  */
-const editorial = (asset: string) => ({
+const editorial = (asset: AssetKey) => ({
   get url() {
     return portalAssetUrl(universoSlotKey(asset), assetUrl(asset));
   },
