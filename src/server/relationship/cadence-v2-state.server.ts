@@ -165,21 +165,27 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
     record.startedAt ?? (cycleRow as Row | null)?.started_at ?? (cycleRow as Row | null)?.created_at;
 
   /**
-   * CAMINHO V — decisão do MOTOR, tomada uma única vez antes de existir
-   * a primeira etapa pós-E0 e congelada como fato. A Ação do Dia nunca
-   * decide isto; ela apenas consome o que o motor gravou.
+   * CAMINHO V — decisão do MOTOR, tomada uma única vez e congelada como
+   * fato. A janela da decisão passou a ser a CHEGADA DA E2: a E1 sempre
+   * acontece como etapa normal, dando ao investidor mais um intervalo
+   * para acessar o material. A lógica de medição (V0) é a mesma.
+   * A Ação do Dia nunca decide isto; apenas consome o que foi gravado.
    */
   const { ensureVisualPathDecision, reachedE4Historically } = await import("./visual-path.server");
-  const firstStepStarted =
-    actions.some((action) => action.step === "E1") ||
-    (record.executedSteps ?? []).map(String).includes("E1");
+  const executed = (record.executedSteps ?? []).map(String);
+  const e1Done =
+    executed.includes("E1") ||
+    actions.some((action) => action.step === "E1" && action.status === "EXECUTED");
+  /** A janela fecha quando a E2 já existe (criada ou executada). */
+  const nextStepStarted =
+    actions.some((action) => action.step === "E2") || executed.includes("E2");
 
   const [visualPath, reachedE4] = await Promise.all([
     flow === "E"
       ? ensureVisualPathDecision({
           leadId: record.leadId,
-          firstStepStarted,
-          e0Executed,
+          firstStepStarted: nextStepStarted,
+          e0Executed: e0Executed && e1Done,
           materialSentAt: material.materialSentAt,
         })
       : Promise.resolve(false),
@@ -219,8 +225,8 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
  * não grava nada). É a mesma fonte estruturada usada pelo motor:
  *
  *  • E7/E8 → material efetivamente disponibilizado (CONTENT_SENT);
- *  • E1/E2/E3 → caminho V já decidido e congelado (V1/V2/V3) ou
- *    contexto normal (sem contexto);
+ *  • E2/E3 → caminho V já decidido e congelado (V2/V3) ou contexto
+ *    normal (sem contexto). A E1 saiu do eixo V e é sempre normal;
  *  • R3 → passagem histórica válida por E4 no histórico REAL do lead.
  */
 export async function resolveStepContextForLead(
@@ -235,11 +241,11 @@ export async function resolveStepContextForLead(
     return material.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
   }
 
-  if (key === "E1" || key === "E2" || key === "E3") {
+  if (key === "E2" || key === "E3") {
     const { readVisualPath } = await import("./visual-path.server");
     const visual = await readVisualPath(leadId);
     if (!visual) return null;
-    return key === "E1" ? "V1" : key === "E2" ? "V2" : "V3";
+    return key === "E2" ? "V2" : "V3";
   }
 
   if (key === "R3") {
