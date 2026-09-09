@@ -236,6 +236,7 @@ function Section({
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <span className="text-[10px] tabular-nums text-[color:var(--muted-foreground)]">
                     {new Date(a.date).toLocaleString("pt-BR", {
+                      timeZone: "America/Sao_Paulo",
                       day: "2-digit",
                       month: "2-digit",
                       hour: "2-digit",

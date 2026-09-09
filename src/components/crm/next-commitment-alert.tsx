@@ -22,15 +22,17 @@ function quando(startsAt: string): string {
   return `${d}/${m} às ${hora}`;
 }
 
-export function NextCommitmentAlert() {
+export function NextCommitmentAlert({ refreshKey = 0 }: { refreshKey?: number }) {
   const [items, setItems] = useState<Commitment[]>([]);
 
   useEffect(() => {
     let alive = true;
+    let request = 0;
     const load = () => {
+      const version = ++request;
       void listNextCommitments()
         .then((rows) => {
-          if (alive) setItems(rows);
+          if (alive && version === request) setItems([...rows].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)));
         })
         .catch(() => {
           /* aviso é opcional: nunca atrapalha a operação */
@@ -42,7 +44,7 @@ export function NextCommitmentAlert() {
       alive = false;
       window.clearInterval(timer);
     };
-  }, []);
+   }, [refreshKey]);
 
   const next = items[0];
   if (!next) return null;

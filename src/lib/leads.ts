@@ -323,10 +323,10 @@ export function adoptServerLead(input: {
   const all = loadLeads();
   const existing = all.find((l) => l.id === input.id);
   if (existing) {
-    const merged: LeadRecord = { ...existing, ...input.identity };
+    const merged: LeadRecord = { ...existing, ...input.identity, name: existing.name };
     all[all.indexOf(existing)] = merged;
     safeWrite(LEADS_KEY, all);
-    saveVisitorIdentity(input.identity);
+    saveVisitorIdentity({ ...input.identity, name: existing.name });
     return merged;
   }
   const responsible = getResponsibleExecutive();
@@ -386,7 +386,7 @@ export function registerLead(input: {
   // (WhatsApp ou e-mail), NUNCA cria novo Card; restaura o existente.
   const existing = findExistingLead(input.identity);
   if (existing) {
-    const restored = updateLead(existing.id, input.identity) ?? existing;
+    const restored = updateLead(existing.id, { ...input.identity, name: existing.name }) ?? existing;
     restoreExistingRelationship(restored);
     return {
       lead: restored,

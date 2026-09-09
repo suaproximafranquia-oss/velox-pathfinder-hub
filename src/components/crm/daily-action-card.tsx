@@ -30,6 +30,7 @@ import {
   takeStepMessage,
 } from "@/lib/crm/daily-actions-prefetch";
 import { KIND_LABEL, operationalTime, type DailyAction } from "@/lib/crm/daily-actions";
+import { Button } from "@/components/ui/button";
 
 /**
  * LIGAÇÃO OFICIAL: item da fila legada (com `cadence`) OU ação interna
@@ -45,9 +46,7 @@ export function isCallAction(item: DailyAction | null | undefined): boolean {
 export function actionHeadline(item: DailyAction): string {
   if (item.source === "queue" && item.stepLabel) {
     const base = item.kind === "ligacao" ? "Ligação" : "Mensagem";
-    const second =
-      (item.queueActionOrder ?? 1) > 1 && item.kind === "ligacao" ? "Segunda ligação" : base;
-    return `${second} — Etapa ${item.stepLabel}`;
+    return `${base} — Etapa ${item.stepLabel}`;
   }
   return `${KIND_LABEL[item.kind]}${item.stepLabel ? ` · ${item.stepLabel}` : ""}`;
 }
@@ -100,6 +99,7 @@ export function DailyActionCard({
   const [note, setNote] = useState("");
   const [meetingNote, setMeetingNote] = useState("");
   const [followUpNoContact, setFollowUpNoContact] = useState(false);
+  const [followUpPending, setFollowUpPending] = useState<{ contacted: boolean; willReschedule?: boolean } | null>(null);
   const [rescheduleAt, setRescheduleAt] = useState("");
   const [message, setMessage] = useState<StepMessageView | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
@@ -116,6 +116,7 @@ export function DailyActionCard({
     setNote("");
     setMeetingNote("");
     setFollowUpNoContact(false);
+    setFollowUpPending(null);
     setRescheduleAt("");
     setMessage(null);
     setMessageOpen(false);
@@ -402,7 +403,7 @@ export function DailyActionCard({
             {item.phone || "Sem telefone"}
           </a>
         )}
-        <p className="mt-2 text-sm text-white/55">{item.title}</p>
+        <p className="mt-2 text-sm text-white/55">{item.source === "queue" && item.kind === "ligacao" ? `Ligação ${(item.queueActionOrder ?? 1) > 1 ? "02" : "01"}` : item.title}</p>
         {item.attempts.length > 0 && (
           <p className="mt-3 text-[11px] text-white/45">
             Histórico:{" "}
@@ -503,11 +504,11 @@ export function DailyActionCard({
             </button>
           </>
         )}
-        {item.kind === "reuniao" && item.followUp?.mode === "contato" && !followUpNoContact && (
+        {item.kind === "reuniao" && item.followUp?.mode === "contato" && !followUpNoContact && !followUpPending && (
           <>
             <button
               type="button"
-              onClick={() => void handleFollowUpContact({ contacted: true })}
+              onClick={() => setFollowUpPending({ contacted: true })}
               disabled={busy || locked}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
             >
@@ -523,14 +524,14 @@ export function DailyActionCard({
             </button>
           </>
         )}
-        {item.kind === "reuniao" && item.followUp?.mode === "contato" && followUpNoContact && (
+        {item.kind === "reuniao" && item.followUp?.mode === "contato" && followUpNoContact && !followUpPending && (
           <>
             <span className="text-[11px] uppercase tracking-[0.16em] text-white/50">
               Deseja reagendar?
             </span>
             <button
               type="button"
-              onClick={() => void handleFollowUpContact({ contacted: false, willReschedule: true })}
+              onClick={() => setFollowUpPending({ contacted: false, willReschedule: true })}
               disabled={busy || locked}
               className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
             >
@@ -538,7 +539,7 @@ export function DailyActionCard({
             </button>
             <button
               type="button"
-              onClick={() => void handleFollowUpContact({ contacted: false, willReschedule: false })}
+              onClick={() => setFollowUpPending({ contacted: false, willReschedule: false })}
               disabled={busy || locked}
               className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
             >
@@ -647,15 +648,20 @@ export function DailyActionCard({
               ? "Ontem houve um agendamento em que não houve contato e você optou por não reagendar. Deseja encerrar esse fluxo?"
               : "Houve contato de agendamento?"}
           </span>
-          <span className="text-[11px] text-white/40">
+          {followUpPending?.willReschedule && <span className="text-[11px] text-white/40">
             Reagendamentos são feitos no GreenSales — o Portal atualiza automaticamente.
-          </span>
+          </span>}
           <input
             value={meetingNote}
             onChange={(e) => setMeetingNote(e.target.value)}
             placeholder="Observação (opcional)"
             className="min-w-[220px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
           />
+          {followUpPending && <div className="flex w-full flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">{followUpPending.contacted ? "Houve contato" : "Não houve contato"}</span>
+            <Button disabled={busy || locked} onClick={() => handleFollowUpContact(followUpPending)}><Check className="h-4 w-4" /> Concluído</Button>
+            <Button variant="ghost" onClick={() => { setFollowUpPending(null); setFollowUpNoContact(false); }}>Alterar resultado</Button>
+          </div>}
         </div>
       )}
 
@@ -707,7 +713,7 @@ export function DailyActionCard({
       )}
 
       {/* OBSERVAÇÃO — a ação continua pendente. */}
-      <div className="flex flex-wrap items-center gap-2">
+      {!item.followUp && <div className="flex flex-wrap items-center gap-2">
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -722,7 +728,7 @@ export function DailyActionCard({
         >
           <StickyNote className="mr-1 inline h-3.5 w-3.5" /> Salvar observação
         </button>
-      </div>
+      </div>}
 
       {feedback && <p className="text-[11px] text-[color:var(--gold)]">{feedback}</p>}
 

@@ -31,6 +31,7 @@ import {
   KIND_LABEL,
   operationalTime,
   sortDailyActions,
+  reclassifyDailyActions,
   type DailyAction,
   type DailyActionBucket,
   type DailyActionKind,
@@ -88,6 +89,7 @@ export function DailyActionsOverlay({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [commitmentRefresh, setCommitmentRefresh] = useState(0);
   /** Janela operacional de execução manual (06–22 seg–sex, 06–17 sáb). */
   const [operationalWindow, setOperationalWindow] = useState<OperationalWindow>(() =>
     resolveOperationalWindow(),
@@ -146,9 +148,10 @@ export function DailyActionsOverlay({
     if (lead && !filtered.some((row) => row.leadId === lead && row.bucket !== "futura")) {
       continuityLeadRef.current = null;
     }
-    const official = sortDailyActions(filtered, continuityLeadRef.current);
+    const official = reclassifyDailyActions(filtered, new Date().toISOString(), continuityLeadRef.current);
     setActions(official);
     setSelectedKey(firstExecutableKey(official));
+    setCommitmentRefresh((value) => value + 1);
   }, []);
 
   /**
@@ -217,7 +220,14 @@ export function DailyActionsOverlay({
   useEffect(() => {
     if (!open) return;
     setOperationalWindow(resolveOperationalWindow());
-    const timer = window.setInterval(() => setOperationalWindow(resolveOperationalWindow()), 30000);
+    const timer = window.setInterval(() => {
+      setOperationalWindow(resolveOperationalWindow());
+      setActions((previous) => {
+        const next = reclassifyDailyActions(previous, new Date().toISOString(), continuityLeadRef.current);
+        setSelectedKey(firstExecutableKey(next));
+        return next;
+      });
+    }, 30000);
     return () => window.clearInterval(timer);
   }, [open]);
 
@@ -448,7 +458,7 @@ export function DailyActionsOverlay({
         <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_340px]">
           <section className="flex min-h-0 flex-col justify-center gap-5 overflow-y-auto border-b border-white/10 p-6 md:border-b-0 md:border-r">
             {/* Aviso informativo — não cria ação nem altera a fila. */}
-            <NextCommitmentAlert />
+            <NextCommitmentAlert refreshKey={commitmentRefresh} />
             {locked && (
               <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.07] p-3">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-amber-200/90">
