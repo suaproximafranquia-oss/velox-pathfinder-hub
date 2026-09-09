@@ -1,3 +1,4 @@
+import { composeMessageBody } from "@/lib/relationship/messages";
 /**
  * DESPACHANTE DE PRODUÇÃO DO MOTOR — SERVER ONLY.
  *
@@ -154,7 +155,7 @@ async function send(request: DispatchRequest): Promise<DispatchResult> {
    * barreira: nenhum lote de teste consegue produzir entrega externa.
    */
   const simulated = executionMode({ isTestLead: recipient.isTest }).simulated;
-  const body = rendered.button ? `${rendered.body}\n\n${rendered.button.url}` : rendered.body;
+  const body = composeMessageBody(rendered.body, rendered.button);
   const messageId = `msg_${step.toLowerCase()}_${request.leadId}`;
   const at = new Date().toISOString();
 

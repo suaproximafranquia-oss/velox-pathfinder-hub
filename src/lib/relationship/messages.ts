@@ -522,3 +522,21 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
     button,
   };
 }
+
+/**
+ * COMPOSIÇÃO FINAL DA MENSAGEM (corpo + link do botão).
+ *
+ * O texto oficial da Biblioteca é intocado. O link do botão só é
+ * ANEXADO quando ainda não estiver presente no corpo — é isso que
+ * impede que o mesmo link do Portal apareça duas vezes na mensagem
+ * final quando a versão ativa já traz `{{link_portal}}` no texto.
+ */
+export function composeMessageBody(
+  body: string,
+  button: { url: string } | null | undefined,
+): string {
+  const url = (button?.url ?? "").trim();
+  if (!url) return body;
+  if (body.includes(url)) return body;
+  return `${body}\n\n${url}`;
+}

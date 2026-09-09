@@ -1,3 +1,4 @@
+import { composeMessageBody } from "@/lib/relationship/messages";
 /**
  * FECHAMENTO DO CICLO — E27 (checkpoint) e FINALIZAÇÃO — SERVER ONLY.
  *
@@ -162,7 +163,7 @@ export async function executeClosureDuty(duty: ClosureDuty): Promise<ClosureOutc
   }
 
   const simulated = executionMode({ isTestLead: Boolean(lead?.is_test) }).simulated;
-  const body = result.button ? `${result.body}\n\n${result.button.url}` : result.body;
+  const body = composeMessageBody(result.body, result.button);
   const messageId = `msg_${duty.step.toLowerCase()}_${duty.occurrenceId}`;
   const at = new Date().toISOString();
 

@@ -1,3 +1,4 @@
+import { composeMessageBody } from "@/lib/relationship/messages";
 /**
  * E20 — GERADOR DE OCORRÊNCIA E LINK DE 7 DIAS (SERVER ONLY).
  *
@@ -249,7 +250,7 @@ export async function issueE20(params: {
     };
   }
 
-  const body = result.button ? `${result.body}\n\n${result.button.url}` : result.body;
+  const body = composeMessageBody(result.body, result.button);
   await recordMessageSnapshot({
     leadId: params.leadId,
     step: "E20",
