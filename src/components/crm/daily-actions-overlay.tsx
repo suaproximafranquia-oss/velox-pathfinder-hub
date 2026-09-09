@@ -93,6 +93,75 @@ export function DailyActionsOverlay({
   /** Último resultado de ligação da régua V2 — reversível até a próxima ação irreversível. */
   const [undoable, setUndoable] = useState<DailyAction | null>(null);
 
+  /**
+   * JANELA DE ACOMODAÇÃO (~4s).
+   *
+   * Concluir uma ação pode fazer o servidor criar, poucos instantes
+   * depois, a PRÓXIMA ação do MESMO investidor (por exemplo a mensagem
+   * E0 logo após a 2ª ligação). Sem cuidado, essa ação nasce durante a
+   * troca de card e o investidor "volta" na tela sem aviso.
+   *
+   * A janela não atrasa nada: o card sai no clique e o próximo assume na
+   * hora. Ela apenas segura, por alguns segundos, a ENTRADA VISUAL das
+   * ações recém-nascidas do investidor que acabou de ser concluído — e
+   * então as acomoda na fila oficial, na posição que o servidor mandar.
+   */
+  const SETTLE_MS = 4000;
+  /** Ações já resolvidas nesta tela — respostas atrasadas não as ressuscitam. */
+  const resolvedKeysRef = useRef<Map<string, number>>(new Map());
+  /** Investidores concluídos há pouco: novas ações deles ficam em acomodação. */
+  const settlingLeadsRef = useRef<Map<string, number>>(new Map());
+  /** Última fila oficial recebida — reaplicada quando a janela fecha. */
+  const pendingQueueRef = useRef<DailyAction[] | null>(null);
+  const flushTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (flushTimerRef.current) window.clearTimeout(flushTimerRef.current);
+    },
+    [],
+  );
+
+  /**
+   * A FILA OFICIAL DO SERVIDOR CONTINUA SENDO A AUTORIDADE. Aqui só se
+   * remove o que já foi resolvido nesta tela e se adia a entrada visual
+   * das ações nascidas dentro da janela de acomodação.
+   */
+  const commitQueue = useCallback((rows: DailyAction[]) => {
+    const now = Date.now();
+    for (const [key, expires] of resolvedKeysRef.current)
+      if (expires <= now) resolvedKeysRef.current.delete(key);
+    for (const [lead, expires] of settlingLeadsRef.current)
+      if (expires <= now) settlingLeadsRef.current.delete(lead);
+
+    const official = rows.filter((row) => !resolvedKeysRef.current.has(row.actionKey));
+    pendingQueueRef.current = official;
+
+    setActions((prev) => {
+      const known = new Set(prev.map((row) => row.actionKey));
+      let nextFlush = 0;
+      const visible = official.filter((row) => {
+        if (known.has(row.actionKey) || !row.leadId) return true;
+        const until = settlingLeadsRef.current.get(row.leadId);
+        if (!until || until <= now) return true;
+        nextFlush = Math.max(nextFlush, until);
+        return false;
+      });
+      if (nextFlush > 0) {
+        if (flushTimerRef.current) window.clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = window.setTimeout(
+          () => {
+            flushTimerRef.current = null;
+            const queued = pendingQueueRef.current;
+            if (queued) commitQueue(queued);
+          },
+          Math.max(200, nextFlush - now + 50),
+        );
+      }
+      setSelectedKey(firstExecutableKey(visible));
+      return visible;
+    });
+  }, []);
 
   /**
    * ORDEM DO DIA — a lista oficial vem sempre do servidor e a ação
@@ -104,14 +173,12 @@ export function DailyActionsOverlay({
     async (silent = false) => {
       if (!silent) setLoading(true);
       try {
-        const rows = await adapter.load();
-        setActions(rows);
-        setSelectedKey(firstExecutableKey(rows));
+        commitQueue(await adapter.load());
       } finally {
         if (!silent) setLoading(false);
       }
     },
-    [adapter],
+    [adapter, commitQueue],
   );
 
   /** Pendências puladas do próprio Executivo (histórico, não fila). */
@@ -199,6 +266,14 @@ export function DailyActionsOverlay({
     });
   }
 
+  /** Abre a janela de acomodação do investidor cuja ação acabou de sair. */
+  function openSettleWindow(key: string, requeue: boolean) {
+    const now = Date.now();
+    const action = actions.find((row) => row.actionKey === key);
+    if (!requeue) resolvedKeysRef.current.set(key, now + 60000);
+    if (action?.leadId) settlingLeadsRef.current.set(action.leadId, now + SETTLE_MS);
+  }
+
   function applyResult(
     key: string,
     result: {
@@ -208,6 +283,7 @@ export function DailyActionsOverlay({
       reload?: boolean;
     },
   ) {
+    openSettleWindow(key, result.requeue === true);
     /**
      * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,
      * é ela que define a próxima ação. Se o MESMO investidor tiver outra
@@ -215,8 +291,7 @@ export function DailyActionsOverlay({
      * assume a posição 1, sem passar por outro lead nem esperar recarga.
      */
     if (result.queue) {
-      setActions(result.queue);
-      setSelectedKey(firstExecutableKey(result.queue));
+      commitQueue(result.queue);
       if (result.message) setFeedback(result.message);
       return;
     }
@@ -230,6 +305,7 @@ export function DailyActionsOverlay({
      */
     if (result.reload) void load(true);
   }
+
 
 
 
