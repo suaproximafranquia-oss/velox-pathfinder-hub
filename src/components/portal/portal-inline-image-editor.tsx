@@ -83,6 +83,17 @@ export function PortalInlineImageEditor({
       const rect = el.getBoundingClientRect();
       if (rect.width < 60 || rect.height < 40) continue;
       if (rect.bottom < -200 || rect.top > window.innerHeight + 200) continue;
+      /**
+       * Ao abrir um módulo (overlay/iframe) por cima da página, as imagens
+       * da tela anterior continuam no DOM embaixo da camada nova. Sem este
+       * corte, os controles da página anterior ficavam "vazando" por cima
+       * do módulo aberto. O controle só existe se a própria imagem é o
+       * elemento visível no centro dela.
+       */
+      const cx = Math.min(Math.max(rect.left + rect.width / 2, 1), window.innerWidth - 1);
+      const cy = Math.min(Math.max(rect.top + rect.height / 2, 1), window.innerHeight - 1);
+      const top = document.elementFromPoint(cx, cy);
+      if (!top || (top !== el && !el.contains(top))) continue;
       found.push({ key: item.key, label: item.label, rect });
     }
     setSpots(found);
