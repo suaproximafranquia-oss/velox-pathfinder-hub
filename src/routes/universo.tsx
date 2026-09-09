@@ -596,6 +596,28 @@ function Hero() {
 /* ================================================================ */
 function Index() {
   const active = useScrollSpy(SECTIONS.map((s) => s.id));
+  /**
+   * Substituições de imagem da UNIDADE que abriu este material. A
+   * unidade vem do Portal (`?u=`); sem unidade, nada é substituído.
+   */
+  const [, redraw] = useState(0);
+  useEffect(() => {
+    const unit = new URLSearchParams(window.location.search).get("u");
+    if (!unit) return;
+    let alive = true;
+    void fetchPortalAssetOverrides({ data: { unit } })
+      .then((map) => {
+        if (alive) setSavedPortalAssets(map);
+      })
+      .catch(() => {
+        /* sem substituição, a imagem original continua valendo */
+      });
+    const off = subscribePortalAssets(() => redraw((v) => v + 1));
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
 
   return (
     <ModuleChrome
