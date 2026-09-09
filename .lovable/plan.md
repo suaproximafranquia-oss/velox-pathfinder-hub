@@ -64,3 +64,44 @@ Arquivos envolvidos numa construção futura:
 - `src/routes/f.executivo.dashboard.tsx` (faixa no Portal dos Leads, opcional).
 
 Nada mais seria tocado; `/s`, `/s/portal` e `/seg` ficam fora.
+
+---
+
+# Diagnóstico 2 — Modo Editor de imagens do Portal `/f` (somente leitura)
+
+Nada foi alterado: sem código, sem tabela, sem migration, sem mexer no Portal.
+
+## 1. Universo real de imagens do Portal `/f`
+
+| # | Onde aparece | Arquivo | Chave estável hoje | Origem | Classe |
+|---|---|---|---|---|---|
+| 1 | Capa da Home (hero) | `investor-portal-home.tsx` | `home-capa` (já editável) | registro de assets/CDN | A |
+| 2 | Capas dos 6 cards de módulo (Manual, Material institucional, Simulador, Nossa Estrutura, Revista, Princípios) | `investor-portal-home.tsx` | `modulo-*` (já editáveis) | registro de assets/CDN | A |
+| 3 | Galeria Nossa Estrutura (matriz, recepção, unidade) | `estrutura-overlay.tsx` | `estrutura-*` (já editáveis) | registro/CDN | A |
+| 4 | Capa Princípios Velox | `principios-overlay.tsx` | `principios-capa` (já editável) | registro/CDN | A |
+| 5 | Material Institucional (`/universo`) — cerca de 19 fotografias editoriais (sede, fundador, unidades, treinamento, embaixador, equipe, parceiros, home office etc.) | `src/routes/universo.tsx` | têm chave no registro, mas **não** têm slot de substituição | registro/CDN | B |
+| 6 | Revista Velox — capa da edição e páginas de mídia (imagem/vídeo) | `magazine-overlay.tsx`, `magazine-reader.tsx` | por edição/página, no banco | armazenamento privado com link assinado | já administrável (Central da Revista) |
+| 7 | Manual do Investidor (13 capítulos) | `src/routes/manual/*`, `src/components/journey/*` | — | **não usa imagens**: é texto editorial + espaços de vídeo | — |
+| 8 | Vídeos da Nossa Estrutura / Manual | `video-slot.tsx`, `estrutura-overlay.tsx` | — | vídeo, não imagem | fora do escopo |
+| 9 | Tela de homologação, ícones desenhados em código, degradês, marca no cabeçalho | `homologation-gate.tsx` e outros | — | decorativo/técnico | D |
+| 10 | Cards da versão Solar | `investor-portal-home.tsx` | por unidade | arquivos próprios do Solar | fora do escopo `/f` |
+
+## 2. Respostas objetivas
+
+1. **Grupos de imagens:** 6 grupos de conteúdo real (capa da Home, capas de módulo, galeria da Estrutura, capa de Princípios, fotografias do Material Institucional, mídia da Revista) + 1 grupo decorativo/técnico.
+2. **Locais editáveis em potencial:** Home, cards, Nossa Estrutura, Princípios, Material Institucional e Revista.
+3. **Já com chave estável e substituíveis hoje:** 11 imagens (itens 1–4).
+4. **Sem chave de substituição:** as ~19 fotografias do Material Institucional (têm nome no registro, faltam apenas os slots).
+5. **Em PDF:** **nenhuma.** O Manual do Investidor é página web, não PDF; não há imagens presas dentro de arquivo. A capa do Manual é uma imagem separada e já editável.
+6. **Editáveis por simples substituição:** itens 1–4 (já funcionam) e, com o mesmo mecanismo, as fotografias do Material Institucional.
+7. **Exigem adaptação:** o Material Institucional — cada foto precisa ganhar um nome de slot e passar a ler a camada de substituição (uma linha por imagem, sem mudar layout).
+8. **Uma única camada para todo o Portal:** **SIM.** A camada criada (`unidade + chave da imagem + arquivo + autor/data`) já é genérica; ampliar é só declarar novos slots.
+9. **Armazenamento/upload existente pode ser reutilizado:** SIM — o mesmo usado pela Revista, com link assinado e acesso protegido.
+10. **Menor arquitetura necessária:** manter a camada atual e (a) ampliar a lista de slots com as fotos do Material Institucional; (b) trocar a leitura direta do registro pela leitura com substituição nesses pontos; (c) manter o painel do editor agrupado por seção. Sem nova tabela, sem migration, sem novo motor.
+11. **Não deve ser editável:** ícones e degradês desenhados em código, tela de homologação, marca institucional, páginas da Revista (já têm central própria) e qualquer imagem de outra unidade.
+12. **Arquivos de uma construção futura:** `src/lib/portal/asset-overrides.ts` (novos slots), `src/routes/universo.tsx` (leitura com substituição), `src/components/portal/portal-asset-editor.tsx` (agrupamento e miniatura da imagem original), e nada além disso.
+13. **Esforço adicional:** **pouco a moderado** — é repetição do padrão já pronto, concentrada no Material Institucional; a arquitetura não muda.
+
+## 3. Permissão
+
+A autorização já existente serve: o servidor confirma a permissão administrativa antes de listar controles, aceitar envio, substituir, restaurar ou salvar. `?modo=editor` apenas sinaliza intenção; sem permissão do servidor, nada aparece e nada é aceito. A substituição é sempre por unidade — `/f` não afeta Solar nem Seguradora — e a imagem original nunca é apagada: remover a substituição faz o Portal voltar ao original.
