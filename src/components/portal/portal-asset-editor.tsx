@@ -15,6 +15,7 @@ import {
   hasPendingPortalAssetChanges,
   pendingPortalAssetChanges,
   portalAssetUrl,
+  portalSlotOriginal,
   setSavedPortalAssets,
   stagePortalAsset,
   stagePortalAssetRemoval,
@@ -113,7 +114,7 @@ export function PortalAssetEditor({ unit }: { unit: string }) {
             className="flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-2"
           >
             <img
-              src={portalAssetUrl(slot.key, "")}
+              src={portalAssetUrl(slot.key, portalSlotOriginal(slot.key))}
               alt=""
               className="h-10 w-14 rounded-md object-cover bg-black/20"
             />
