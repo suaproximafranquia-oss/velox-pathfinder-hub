@@ -81,6 +81,13 @@ export type DailyActionsInput = {
   executiveId: string | null;
   /** Instante de referência; o navegador nunca define a regra. */
   nowIso?: string;
+  /**
+   * RELEITURA IMEDIATA APÓS UMA CONCLUSÃO. A reconciliação de E0 manual
+   * já foi feita na leitura que autorizou a ação, alguns milissegundos
+   * antes: repeti-la só atrasa a troca do card. Nenhuma regra muda —
+   * a leitura continua vindo das mesmas fontes oficiais.
+   */
+  skipReconcile?: boolean;
 };
 
 export async function buildDailyActions(input: DailyActionsInput): Promise<DailyAction[]> {
@@ -95,9 +102,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
    * leitura abaixo. Uma falha aqui NÃO reabre o caminho legado: o card
    * antigo de primeiro contato deixou de existir como ação operacional.
    */
-  await import("@/server/relationship/e0-manual.server")
-    .then((m) => m.ensureManualE0Cadences())
-    .catch(() => new Set<string>());
+  if (!input.skipReconcile) {
+    await import("@/server/relationship/e0-manual.server")
+      .then((m) => m.ensureManualE0Cadences())
+      .catch(() => new Set<string>());
+  }
+
 
 
 
