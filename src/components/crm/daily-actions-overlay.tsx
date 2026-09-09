@@ -46,7 +46,22 @@ const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
   { key: "agora", label: "Agora", tone: "text-[color:var(--gold)]" },
   { key: "atrasada", label: "Atrasadas", tone: "text-red-300/80" },
   { key: "hoje", label: "Para hoje", tone: "text-white/40" },
+  /**
+   * COMPROMISSO DE OUTRO DIA: fica visível para o Executivo se preparar,
+   * mas não é trabalho de hoje — nunca ocupa a posição 1 nem abre como
+   * card principal.
+   */
+  { key: "futura", label: "Próximos compromissos", tone: "text-sky-300/70" },
 ];
+
+/**
+ * A ação ativa é sempre a PRIMEIRA da fila oficial que pode ser
+ * executada hoje. Compromissos futuros são pulados nesta escolha.
+ */
+function firstExecutableKey(rows: DailyAction[]): string | null {
+  return rows.find((row) => row.bucket !== "futura")?.actionKey ?? null;
+}
+
 
 export function DailyActionsOverlay({
   open,
