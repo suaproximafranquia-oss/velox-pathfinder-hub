@@ -288,6 +288,14 @@ export function DailyActionsOverlay({
     if (result.requeue !== true) resolvedKeysRef.current.set(key, Date.now() + 15000);
 
     /**
+     * CONTINUIDADE DO INVESTIDOR: quem acabou de ser trabalhado segue em
+     * curso. Se a conclusão liberar outra ação dele, ela vem antes das
+     * ações de outras leads — só depois o fluxo passa ao próximo.
+     */
+    const resolvedLead = actions.find((item) => item.actionKey === key)?.leadId ?? null;
+    if (result.requeue !== true) continuityLeadRef.current = resolvedLead;
+
+    /**
      * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,
      * é ela que define a próxima ação. Se o MESMO investidor tiver outra
      * ação liberada (por exemplo a mensagem E0 após a 2ª ligação), ela já
