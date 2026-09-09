@@ -17,7 +17,11 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
-import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
+import type {
+  AdapterResult,
+  DailyActionsAdapter,
+  StepMessageView,
+} from "@/lib/crm/daily-actions.adapter";
 import { copyToClipboard } from "@/lib/clipboard";
 import { KIND_LABEL, operationalTime, type DailyAction } from "@/lib/crm/daily-actions";
 
