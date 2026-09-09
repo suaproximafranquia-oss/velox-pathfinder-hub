@@ -7,6 +7,7 @@ import {
   operationalDate,
   resolveBucket,
   summarizeDailyActions,
+  reclassifyDailyActions,
   type DailyAction,
 } from "@/lib/crm/daily-actions";
 
@@ -34,6 +35,26 @@ function action(partial: Partial<DailyAction> & { actionKey: string }): DailyAct
 
 describe("Ações do Dia — regras puras", () => {
   const now = "2026-02-10T14:00:00.000Z"; // 11:00 em America/Sao_Paulo
+
+  it("reclassifica reunião futura, em foco e atrasada com os mesmos limites", () => {
+    const row = action({ actionKey: "meeting:TEST-0001", source: "meeting", kind: "reuniao", startsAt: "2026-02-10T14:00:00.000Z", bucket: "futura", priorityMax: true });
+    expect(reclassifyDailyActions([row], "2026-02-10T13:54:00.000Z")[0]?.bucket).toBe("futura");
+    expect(reclassifyDailyActions([row], "2026-02-10T13:55:00.000Z")[0]?.bucket).toBe("agora");
+    expect(reclassifyDailyActions([row], "2026-02-10T14:05:00.000Z")[0]?.bucket).toBe("agora");
+    expect(reclassifyDailyActions([row], "2026-02-10T14:06:00.000Z")[0]?.bucket).toBe("atrasada");
+  });
+
+  it("E0 segue o calendário existente, sem atraso durante fim de semana", () => {
+    const row = action({ actionKey: "queue:TEST-0001:E0", stepLabel: "E0", dueDate: "2026-02-13" });
+    expect(reclassifyDailyActions([row], "2026-02-14T15:00:00.000Z")[0]?.bucket).toBe("hoje");
+    expect(reclassifyDailyActions([row], "2026-02-18T15:00:00.000Z")[0]?.bucket).toBe("atrasada");
+  });
+
+  it("tentativa adicional expirada sai da lista sem virar atraso", () => {
+    const row = action({ actionKey: "queue:TEST-0001:E1:2", expiresAt: "2026-02-10T20:30:00.000Z" });
+    expect(reclassifyDailyActions([row], "2026-02-10T20:29:00.000Z")).toHaveLength(1);
+    expect(reclassifyDailyActions([row], "2026-02-10T20:30:00.000Z")).toEqual([]);
+  });
 
   it("12) usa America/Sao_Paulo nas decisões operacionais", () => {
     expect(operationalDate("2026-02-11T02:00:00.000Z")).toBe("2026-02-10");

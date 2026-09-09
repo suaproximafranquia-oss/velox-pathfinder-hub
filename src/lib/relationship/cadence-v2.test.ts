@@ -158,11 +158,11 @@ describe("fluxo RE", () => {
 });
 
 describe("ações internas da etapa", () => {
-  it("E1 tem ligação 1, ligação 2 (+3h) e mensagem, nessa ordem", () => {
+  it("E1 libera mensagem após ligação 1 e mantém ligação adicional +2h", () => {
     expect(stepActions("E1").map((a) => `${a.kind}:${a.order}`)).toEqual([
-      "call:1", "call:2", "message:3",
+      "call:1", "message:3", "call:2",
     ]);
-    expect(stepActions("E1")[1]?.waitHoursAfterPrevious).toBe(3);
+    expect(stepActions("E1")[2]?.waitHoursAfterPrevious).toBe(2);
   });
 
   it("E2, E3 e E4 são ligação seguida de mensagem", () => {
@@ -171,24 +171,27 @@ describe("ações internas da etapa", () => {
     }
   });
 
-  it("ligação 1 às 14:00 libera a ligação 2 às 17:00 do mesmo dia", () => {
+  it("ligação 1 às 14:00 libera a mensagem imediatamente", () => {
     const released = nextReleasedAction({
       step: "E1",
       stepDueAt: "2026-08-03T12:00:00.000Z",
       states: [{ order: 1, status: "DONE", executedAt: "2026-08-03T17:00:00.000Z" }],
     });
-    expect(released?.action.order).toBe(2);
-    expect(released?.releaseAt).toBe("2026-08-03T20:00:00.000Z"); // 17:00 local
+    expect(released?.action.order).toBe(3);
+    expect(released?.releaseAt).toBe("2026-08-03T17:00:00.000Z");
   });
 
-  it("ligação 1 às 16:00 empurra a ligação 2 para a próxima abertura", () => {
+  it("ligação adicional usa +2h da primeira, nunca a próxima abertura", () => {
     const released = nextReleasedAction({
       step: "E1",
       stepDueAt: "2026-08-03T12:00:00.000Z",
-      states: [{ order: 1, status: "DONE", executedAt: "2026-08-03T19:00:00.000Z" }],
+      states: [
+        { order: 1, status: "DONE", executedAt: "2026-08-03T19:00:00.000Z" },
+        { order: 3, status: "DONE", executedAt: "2026-08-03T19:01:00.000Z" },
+      ],
     });
     expect(released?.action.order).toBe(2);
-    expect(released?.releaseAt).toBe("2026-08-04T12:00:00.000Z"); // 09:00 do dia seguinte
+    expect(released?.releaseAt).toBe("2026-08-03T21:00:00.000Z"); // expira às 17:30 antes de liberar
   });
 
   it("a mensagem não é liberada antes da ligação da mesma etapa", () => {
