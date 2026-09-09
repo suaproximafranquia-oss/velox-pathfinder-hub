@@ -177,10 +177,8 @@ export function DailyActionsOverlay({
 
   function dropAction(key: string) {
     setActions((prev) => {
-      const index = prev.findIndex((r) => r.actionKey === key);
       const rest = prev.filter((r) => r.actionKey !== key);
-      void index;
-      setSelectedKey(rest[0]?.actionKey ?? null);
+      setSelectedKey(firstExecutableKey(rest));
       return rest;
     });
   }
@@ -203,7 +201,12 @@ export function DailyActionsOverlay({
 
   function applyResult(
     key: string,
-    result: { requeue?: boolean; message?: string; queue?: DailyAction[] },
+    result: {
+      requeue?: boolean;
+      message?: string;
+      queue?: DailyAction[];
+      reload?: boolean;
+    },
   ) {
     /**
      * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,
@@ -213,14 +216,21 @@ export function DailyActionsOverlay({
      */
     if (result.queue) {
       setActions(result.queue);
-      setSelectedKey(result.queue[0]?.actionKey ?? null);
+      setSelectedKey(firstExecutableKey(result.queue));
       if (result.message) setFeedback(result.message);
       return;
     }
     if (result.requeue) requeueAction(key);
     else dropAction(key);
     if (result.message) setFeedback(result.message);
+    /**
+     * CONFIRMAÇÃO EM SEGUNDO PLANO: o servidor não devolveu a fila (ou
+     * recusou a execução). A releitura silenciosa devolve a lista
+     * oficial sem cortina de carregamento.
+     */
+    if (result.reload) void load(true);
   }
+
 
 
   /** DESFAZER o resultado da ligação — o servidor decide se ainda é reversível. */
