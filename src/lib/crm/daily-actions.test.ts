@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   collapseByLead,
   dedupeDailyActions,
+  isUpcomingAction,
   normalizeDailyActions,
   operationalDate,
   resolveBucket,
@@ -195,5 +196,33 @@ describe("Ações do Dia — regras puras", () => {
       ]),
     );
     expect(summary).toEqual({ overdue: 1, today: 2, meetings: 1, total: 3 });
+  });
+});
+
+describe("Compromisso futuro não é trabalho de hoje", () => {
+  it("nunca ocupa a posição 1, mesmo com prioridade máxima", () => {
+    const rows = normalizeDailyActions([
+      action({
+        actionKey: "meet_amanha",
+        kind: "reuniao",
+        leadId: "gs_futuro",
+        bucket: "futura",
+        priorityMax: true,
+        dueDate: "2026-02-11",
+      }),
+      action({
+        actionKey: "e0_hoje",
+        leadId: "gs_hoje",
+        bucket: "hoje",
+        stepLabel: "E0",
+      }),
+    ]);
+    expect(rows[0]?.actionKey).toBe("e0_hoje");
+    expect(rows.some((r) => r.actionKey === "meet_amanha")).toBe(true);
+  });
+
+  it("continua visível como próximo compromisso", () => {
+    expect(isUpcomingAction(action({ actionKey: "a", bucket: "futura" }))).toBe(true);
+    expect(isUpcomingAction(action({ actionKey: "b", bucket: "hoje" }))).toBe(false);
   });
 });
