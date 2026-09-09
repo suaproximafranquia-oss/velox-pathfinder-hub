@@ -107,6 +107,13 @@ export function DailyActionsOverlay({
   const SETTLE_STEPS_MS = [900, 2200, 4000, 7000];
   /** Ações já resolvidas nesta tela — respostas atrasadas não as ressuscitam. */
   const resolvedKeysRef = useRef<Map<string, number>>(new Map());
+  /**
+   * CONTINUIDADE: investidor cuja ação acabou de ser concluída nesta
+   * sessão. Enquanto ele tiver outra ação já liberada, ela vem antes das
+   * ações de outras leads de mesmo rank. Some sozinha quando o fluxo
+   * dele termina — nunca vira prioridade permanente.
+   */
+  const continuityLeadRef = useRef<string | null>(null);
   /** Ordem das respostas: uma leitura antiga nunca sobrescreve uma mais nova. */
   const queueVersionRef = useRef(0);
   const settleTimersRef = useRef<number[]>([]);
