@@ -43,9 +43,15 @@ export function queueItemIdOf(action: DailyAction | null | undefined): string | 
   return id.length > 0 ? id : null;
 }
 
-export async function currentDailyAction(executiveId: string | null): Promise<CurrentAction> {
-  let list = normalizeDailyActions(await buildDailyActions({ executiveId }));
+export async function currentDailyAction(
+  executiveId: string | null,
+  options: { skipReconcile?: boolean } = {},
+): Promise<CurrentAction> {
+  let list = normalizeDailyActions(
+    await buildDailyActions({ executiveId, skipReconcile: options.skipReconcile === true }),
+  );
   const first = list[0] ?? null;
+
   const queueItemId = queueItemIdOf(first);
 
   if (first && queueItemId && !first.claimed) {
