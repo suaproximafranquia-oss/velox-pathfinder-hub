@@ -7,7 +7,7 @@
  * `actionKey`, mesma etapa, mesmo tipo) e a execução usa exatamente as
  * mesmas funções oficiais.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState useRef,} from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, X } from "lucide-react";
 import { DailyActionCard } from "@/components/crm/daily-action-card";
@@ -35,6 +35,15 @@ export function PendingResolverModal({
   const [action, setAction] = useState<DailyAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  /**
+   * Os callbacks vêm inline da Central e mudam de identidade a cada
+   * render. Guardá-los em ref impede que a pendência seja reaberta a
+   * cada atualização do relatório.
+   */
+  const onResolvedRef = useRef(onResolved);
+  const onCloseRef = useRef(onClose);
+  onResolvedRef.current = onResolved;
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     let alive = true;
@@ -49,8 +58,8 @@ export function PendingResolverModal({
         if (!alive) return;
         if (result.status === "recuperada") {
           /** Já concluída: a Central apenas reflete o estado atual. */
-          onResolved();
-          onClose();
+          onResolvedRef.current();
+          onCloseRef.current();
           return;
         }
         if (!result.action) {
@@ -65,7 +74,7 @@ export function PendingResolverModal({
     return () => {
       alive = false;
     };
-  }, [actionKey, openPending, onResolved, onClose]);
+  }, [actionKey, openPending]);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 md:p-6">
@@ -128,8 +137,8 @@ export function PendingResolverModal({
                       break;
                     }
                   }
-                  onResolved();
-                  onClose();
+                  onResolvedRef.current();
+                  onCloseRef.current();
                 })();
               }}
             />
