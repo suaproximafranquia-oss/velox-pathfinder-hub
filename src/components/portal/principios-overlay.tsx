@@ -62,6 +62,10 @@ export function PrincipiosOverlay({
 }) {
   const [blocks, setBlocks] = useState<InstitutionalBlock[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const principiosCover = usePortalAsset(
+    "principios-capa",
+    assetUrl("portal-capa-principios"),
+  );
 
   useEffect(() => {
     if (!open || blocks) return;
