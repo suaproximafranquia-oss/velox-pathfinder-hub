@@ -317,8 +317,11 @@ export function collapseByLead(actions: DailyAction[]): DailyAction[] {
 }
 
 /** Pipeline completo de apresentação: deduplicar, colapsar por lead e ordenar. */
-export function normalizeDailyActions(actions: DailyAction[]): DailyAction[] {
-  return sortDailyActions(collapseByLead(dedupeDailyActions(actions)));
+export function normalizeDailyActions(
+  actions: DailyAction[],
+  continuityLeadId?: string | null,
+): DailyAction[] {
+  return sortDailyActions(collapseByLead(dedupeDailyActions(actions)), continuityLeadId);
 }
 
 export type DailyActionsSummary = {
