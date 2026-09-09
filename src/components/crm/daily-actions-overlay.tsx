@@ -30,6 +30,7 @@ import {
 import {
   KIND_LABEL,
   operationalTime,
+  sortDailyActions,
   type DailyAction,
   type DailyActionBucket,
   type DailyActionKind,
@@ -107,6 +108,13 @@ export function DailyActionsOverlay({
   const SETTLE_STEPS_MS = [900, 2200, 4000, 7000];
   /** Ações já resolvidas nesta tela — respostas atrasadas não as ressuscitam. */
   const resolvedKeysRef = useRef<Map<string, number>>(new Map());
+  /**
+   * CONTINUIDADE: investidor cuja ação acabou de ser concluída nesta
+   * sessão. Enquanto ele tiver outra ação já liberada, ela vem antes das
+   * ações de outras leads de mesmo rank. Some sozinha quando o fluxo
+   * dele termina — nunca vira prioridade permanente.
+   */
+  const continuityLeadRef = useRef<string | null>(null);
   /** Ordem das respostas: uma leitura antiga nunca sobrescreve uma mais nova. */
   const queueVersionRef = useRef(0);
   const settleTimersRef = useRef<number[]>([]);
@@ -129,7 +137,16 @@ export function DailyActionsOverlay({
     for (const [key, expires] of resolvedKeysRef.current)
       if (expires <= now) resolvedKeysRef.current.delete(key);
 
-    const official = rows.filter((row) => !resolvedKeysRef.current.has(row.actionKey));
+    const filtered = rows.filter((row) => !resolvedKeysRef.current.has(row.actionKey));
+    /**
+     * A lead em curso perde a preferência assim que não tem mais nada
+     * executável — o fluxo volta naturalmente para a fila normal.
+     */
+    const lead = continuityLeadRef.current;
+    if (lead && !filtered.some((row) => row.leadId === lead && row.bucket !== "futura")) {
+      continuityLeadRef.current = null;
+    }
+    const official = sortDailyActions(filtered, continuityLeadRef.current);
     setActions(official);
     setSelectedKey(firstExecutableKey(official));
   }, []);
@@ -232,7 +249,10 @@ export function DailyActionsOverlay({
 
   function dropAction(key: string) {
     setActions((prev) => {
-      const rest = prev.filter((r) => r.actionKey !== key);
+      const rest = sortDailyActions(
+        prev.filter((r) => r.actionKey !== key),
+        continuityLeadRef.current,
+      );
       setSelectedKey(firstExecutableKey(rest));
       return rest;
     });
@@ -269,6 +289,14 @@ export function DailyActionsOverlay({
      * ação nova criada pelo motor.
      */
     if (result.requeue !== true) resolvedKeysRef.current.set(key, Date.now() + 15000);
+
+    /**
+     * CONTINUIDADE DO INVESTIDOR: quem acabou de ser trabalhado segue em
+     * curso. Se a conclusão liberar outra ação dele, ela vem antes das
+     * ações de outras leads — só depois o fluxo passa ao próximo.
+     */
+    const resolvedLead = actions.find((item) => item.actionKey === key)?.leadId ?? null;
+    if (result.requeue !== true) continuityLeadRef.current = resolvedLead;
 
     /**
      * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,

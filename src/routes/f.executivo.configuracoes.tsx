@@ -1,7 +1,7 @@
 import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock } from "lucide-react";
+import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock, ImageIcon } from "lucide-react";
 import {
   loadHomologationConfig,
   saveHomologationConfig,
@@ -118,6 +118,7 @@ function ConfiguracoesPage() {
           <WhatsappSafetyLockCard />
           <GreenSalesConnectionSection />
           <NonBusinessDaysCard />
+          <PortalEditorSection />
           {sections.map((s) => {
             const Icon = s.icon;
             return (
@@ -754,6 +755,42 @@ function VideoconferenciaSectionInner({ session }: { session: ExecutiveSession }
         Google Meet gera o link automaticamente quando a integração Google
         Workspace estiver conectada. Enquanto isso, o link pode ser informado
         manualmente na própria reunião.
+      </p>
+    </section>
+  );
+}
+/**
+ * EDITOR DO PORTAL DO INVESTIDOR — entrada administrativa.
+ *
+ * Abre o MESMO Portal `/f` pedindo o modo de edição. O link apenas
+ * SOLICITA: quem pode editar é decidido no servidor. Sem autorização, o
+ * Portal continua somente leitura, sem upload, exclusão ou gravação.
+ */
+function PortalEditorSection() {
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
+          <ImageIcon className="h-4 w-4" strokeWidth={1.6} />
+        </span>
+        <h2 className="font-display text-base">Editor do Portal do Investidor</h2>
+      </div>
+      <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
+        Substitua as imagens do Portal do Investidor — capa, capas dos módulos,
+        Nossa Estrutura, Princípios e o Material Institucional. A Revista continua
+        sendo editada na própria área da Revista.
+      </p>
+      <a
+        href="/f?modo=editor"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)] px-4 py-2 text-xs font-medium text-[color:var(--gold)] transition hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)]"
+      >
+        <ImageIcon className="h-3.5 w-3.5" /> Abrir Editor do Portal
+      </a>
+      <p className="mt-3 text-[11px] text-[color:var(--muted-foreground)]/70">
+        A permissão é conferida no servidor. Sem autorização, o Portal abre
+        normalmente, apenas para leitura.
       </p>
     </section>
   );
