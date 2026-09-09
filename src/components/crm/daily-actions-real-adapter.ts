@@ -231,7 +231,7 @@ export function useRealDailyActionsAdapter(
       },
       resolveMeeting: async (item, attended, note) => {
         if (!item.meetingId) return { ok: false, message: "Reunião sem origem oficial." };
-        await resolveMeeting({
+        const result = (await resolveMeeting({
           data: {
             meetingId: item.meetingId,
             attended,
@@ -241,15 +241,16 @@ export function useRealDailyActionsAdapter(
             title: item.title,
             pendingRecovery,
           },
-        });
+        })) as { queue?: DailyAction[] };
         return {
           ok: true,
+          queue: result?.queue,
           message: attended ? "Reunião concluída." : "Não comparecimento registrado.",
         };
       },
       rescheduleMeeting: async (item, scheduledAt, note) => {
         if (!item.meetingId) return { ok: false, message: "Reunião sem origem oficial." };
-        await rescheduleMeeting({
+        const result = (await rescheduleMeeting({
           data: {
             meetingId: item.meetingId,
             scheduledAt,
@@ -259,13 +260,14 @@ export function useRealDailyActionsAdapter(
             title: item.title,
             pendingRecovery,
           },
-        });
-        return { ok: true, message: "Reunião reagendada." };
+        })) as { queue?: DailyAction[] };
+        return { ok: true, queue: result?.queue, message: "Reunião reagendada." };
       },
       resolveFollowUpContact: async (item, decision) => {
         if (!item.meetingId) return { ok: false, message: "Agendamento sem origem oficial." };
+        let result: { queue?: DailyAction[] };
         try {
-          await resolveFollowUpContact({
+          result = (await resolveFollowUpContact({
             data: {
               meetingId: item.meetingId,
               contacted: decision.contacted,
@@ -274,12 +276,13 @@ export function useRealDailyActionsAdapter(
               actionKey: item.actionKey,
               pendingRecovery,
             },
-          });
+          })) as { queue?: DailyAction[] };
         } catch (error) {
           return { ok: false, message: error instanceof Error ? error.message : "Falha ao registrar." };
         }
         return {
           ok: true,
+          queue: result?.queue,
           message: decision.contacted
             ? "Contato de agendamento registrado."
             : decision.willReschedule
@@ -289,8 +292,9 @@ export function useRealDailyActionsAdapter(
       },
       resolveFollowUpReview: async (item, decision) => {
         if (!item.meetingId) return { ok: false, message: "Agendamento sem origem oficial." };
+        let result: { queue?: DailyAction[] };
         try {
-          await resolveFollowUpReview({
+          result = (await resolveFollowUpReview({
             data: {
               meetingId: item.meetingId,
               close: decision.close,
@@ -298,17 +302,19 @@ export function useRealDailyActionsAdapter(
               actionKey: item.actionKey,
               pendingRecovery,
             },
-          });
+          })) as { queue?: DailyAction[] };
         } catch (error) {
           return { ok: false, message: error instanceof Error ? error.message : "Falha ao registrar." };
         }
         return {
           ok: true,
+          queue: result?.queue,
           message: decision.close
             ? "Fluxo de agendamento encerrado."
             : "Então retire esse lead de Agendamento e mova para Frios no GreenSales para retomarmos o relacionamento.",
         };
       },
+
       /** Pendências puladas do próprio Executivo — decidido no servidor. */
       listPendings: async () => (await listPendingsFn()) as never,
       resumePending: async (actionKey) => {
