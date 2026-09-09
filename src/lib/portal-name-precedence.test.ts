@@ -1,0 +1,67 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const db = vi.hoisted(() => ({ rows: [] as Record<string, any>[], writes: [] as Record<string, any>[], race: false }));
+vi.mock("@tanstack/react-start", () => ({ createServerFn: () => {
+  const chain: any = { inputValidator: () => chain, middleware: () => chain, handler: (fn: any) => fn };
+  return chain;
+} }));
+vi.mock("@/integrations/supabase/auth-middleware", () => ({ requireSupabaseAuth: {} }));
+vi.mock("@/server/crm/manager-guard.server", () => ({ isManagementExecutive: async () => false }));
+vi.mock("@/server/crm/portal-first-contact.server", () => ({ kickoffPortalFirstContact: vi.fn() }));
+vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from(table: string) {
+  let mode = "select"; let payload: Record<string, any> = {}; let single = false;
+  const filters: Array<(row: Record<string, any>) => boolean> = [];
+  const query: any = {
+    select: () => query, eq: (k: string, v: unknown) => { filters.push((r) => r[k] === v); return query; },
+    limit: () => query, maybeSingle: () => { single = true; return query; },
+    insert: (p: Record<string, any>) => { mode = "insert"; payload = p; return query; },
+    update: (p: Record<string, any>) => { mode = "update"; payload = p; return query; },
+    then(resolve: (v: unknown) => unknown) {
+      if (table !== "portal_leads") return Promise.resolve({ data: null, error: null }).then(resolve);
+      const found = db.rows.filter((r) => filters.every((f) => f(r)));
+      if (mode === "select") return Promise.resolve({ data: single ? found[0] ?? null : found, error: null }).then(resolve);
+      db.writes.push({ mode, ...payload });
+      if (mode === "update") found.forEach((r) => Object.assign(r, payload));
+      else {
+        if (db.race) { db.race = false; db.rows.push({ ...payload, name: "Nome principal concorrente" }); return Promise.resolve({ data: null, error: { code: "23505" } }).then(resolve); }
+        db.rows.push({ ...payload });
+      }
+      return Promise.resolve({ data: null, error: null }).then(resolve);
+    },
+  }; return query;
+} } }));
+
+import { syncPortalLead } from "./portal-leads.functions";
+const incoming = { id: "TEST-0001", name: "Nome digitado no Portal", email: "test@example.invalid", whatsapp: "", scope: "portal" as const };
+const run = (data = incoming) => (syncPortalLead as unknown as (args: { data: typeof incoming }) => Promise<unknown>)({ data });
+beforeEach(() => { db.rows = []; db.writes = []; db.race = false; });
+
+describe("Portal /f — precedência exclusiva do nome", () => {
+  it.each(["portal", "green_sales", "redistribuicao"])("preserva nome sem lock no escopo %s em submissão e reload", async (scope) => {
+    db.rows = [{ ...incoming, scope, name: "Nome principal", manual_overrides: {} }];
+    await run(); await run();
+    expect(db.rows[0]?.name).toBe("Nome principal");
+    expect(db.writes.every((w) => !("name" in w))).toBe(true);
+  });
+  it("deduplica usando matching existente sem substituir o nome ou id", async () => {
+    db.rows = [{ ...incoming, id: "TEST-EXISTENTE", name: "Nome CRM" }];
+    await run();
+    expect(db.rows).toHaveLength(1);
+    expect(db.rows[0]).toMatchObject({ id: "TEST-EXISTENTE", name: "Nome CRM" });
+  });
+  it("novo cadastro aceita o nome informado normalmente", async () => {
+    await run();
+    expect(db.rows[0]?.name).toBe(incoming.name);
+  });
+  it("criação concorrente não permite sobrescrever nome principal", async () => {
+    db.race = true; await run();
+    expect(db.rows[0]?.name).toBe("Nome principal concorrente");
+    expect(db.writes.filter((w) => w.mode === "update").every((w) => !("name" in w))).toBe(true);
+  });
+  it("outros campos continuam obedecendo às travas existentes", async () => {
+    db.rows = [{ ...incoming, name: "Nome CRM", city: "Cidade CRM", manual_overrides: { city: { locked: true } } }];
+    await run({ ...incoming, city: "Cidade Portal" } as typeof incoming);
+    expect(db.rows[0]?.city).toBe("Cidade CRM");
+    expect(db.rows[0]?.name).toBe("Nome CRM");
+  });
+});
