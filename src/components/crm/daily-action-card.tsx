@@ -114,41 +114,78 @@ export function DailyActionCard({
     setFeedback(null);
   }, [item.actionKey]);
 
-  function applyResult(result: { requeue?: boolean; message?: string; queue?: DailyAction[] }) {
+  function applyResult(result: {
+    requeue?: boolean;
+    message?: string;
+    queue?: DailyAction[];
+    reload?: boolean;
+  }) {
     onResolved(item.actionKey, result);
     if (result.message) setFeedback(result.message);
+  }
+
+  /**
+   * TROCA IMEDIATA DO CARD.
+   *
+   * A ação sai da tela no clique e a próxima assume na hora. A gravação
+   * segue em segundo plano e, quando o servidor responde, é a FILA
+   * OFICIAL dele que passa a comandar a lista — inclusive quando o MESMO
+   * investidor tem outra ação liberada. O servidor continua sendo a
+   * autoridade: se ele recusar (fora de ordem, já resolvida), a lista é
+   * relida e o motivo aparece na tela.
+   *
+   * O modo demonstração (fila contínua, `requeue`) não usa este caminho.
+   */
+  function resolveNow(run: () => Promise<AdapterResult>, fallback: string) {
+    if (adapter.demoLabel) {
+      void (async () => {
+        const result = await run().catch(() => ({ ok: false }) as AdapterResult);
+        if (result.ok) applyResult(result);
+        else setFeedback(result.message ?? fallback);
+      })();
+      return;
+    }
+    const key = item.actionKey;
+    onResolved(key, {});
+    void (async () => {
+      try {
+        const result = await run();
+        if (result.ok) {
+          onResolved(key, {
+            queue: result.queue,
+            message: result.message,
+            reload: !result.queue,
+          });
+        } else {
+          onResolved(key, { message: result.message ?? fallback, reload: true });
+        }
+      } catch (error) {
+        onResolved(key, {
+          message: error instanceof Error ? error.message : fallback,
+          reload: true,
+        });
+      }
+    })();
   }
 
   /**
    * LIGAÇÃO. "Atendeu?" é apenas o RESULTADO da tentativa; só o botão
    * "Concluído" encerra a ação.
    */
-  async function completeCall(outcome: "SIM" | "NAO", rang?: boolean | null) {
+  function completeCall(outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!isCallAction(item) || locked) return;
-    setBusy(true);
-    try {
-      const observation = callNote.trim();
-      if (observation.length >= 3) await adapter.addNote(item, observation);
-      const result = await adapter.completeCall(item, outcome, rang);
-      if (result.ok) {
-        setCallAwaitingRing(false);
-        setCallPending(null);
-        setCallNote("");
-        onUndoableChange?.(item.source === "queue" && adapter.undoCallOutcome ? item : null);
-        applyResult(result);
-        /**
-         * A fila oficial já veio na resposta: a transição visual é dela.
-         * Só recarregamos quando o servidor não devolveu a fila.
-         */
-        if (item.source === "queue" && !result.queue) onReload?.(true);
-      } else {
-        setFeedback(result.message ?? "Não foi possível registrar a ligação.");
-        onReload?.(false);
-      }
-    } finally {
-      setBusy(false);
-    }
+    const observation = callNote.trim();
+    setCallAwaitingRing(false);
+    setCallPending(null);
+    setCallNote("");
+    onUndoableChange?.(item.source === "queue" && adapter.undoCallOutcome ? item : null);
+    resolveNow(async () => {
+      // A observação é histórico: nunca atrasa a troca do card.
+      if (observation.length >= 3) await adapter.addNote(item, observation).catch(() => undefined);
+      return adapter.completeCall(item, outcome, rang);
+    }, "Não foi possível registrar a ligação.");
   }
+
 
   /** PULAR — a justificativa é obrigatória e vira histórico oficial. */
   async function handleSkip() {
