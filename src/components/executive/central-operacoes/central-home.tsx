@@ -481,7 +481,30 @@ export function CentralOperacoesHome() {
         <PendingResolverModal
           actionKey={resolving}
           onClose={() => setResolving(null)}
-          onResolved={() => setReloadKey((v) => v + 1)}
+          onResolved={() => {
+            /**
+             * Estado imediato (sem F5): a pendência confirmada some do
+             * "em aberto" e o contador de pulos deixa de contá-la. O
+             * relatório oficial do servidor é relido logo em seguida.
+             */
+            const resolved = resolving;
+            setReport((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    totals: {
+                      ...prev.totals,
+                      pulos: Math.max(0, prev.totals.pulos - 1),
+                      recuperadas: prev.totals.recuperadas + 1,
+                    },
+                    skips: prev.skips.map((s) =>
+                      s.actionKey === resolved ? { ...s, recuperada: true } : s,
+                    ),
+                  }
+                : prev,
+            );
+            setReloadKey((v) => v + 1);
+          }}
         />
       )}
     </div>
