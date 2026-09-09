@@ -14,7 +14,7 @@ import { listMeetings } from "@/lib/meetings";
 import { onEvent } from "@/lib/events/bus";
 import { InvestorCard, type InvestorCardData } from "@/components/executive/workspace/investor-card";
 import { InvestorProfileView } from "@/components/executive/workspace/investor-profile-view";
-import { resolveLeadState } from "@/lib/lead-state";
+import { markLeadViewed, resolveLeadState } from "@/lib/lead-state";
 import { pullLeads, subscribeLeads } from "@/lib/portal-leads-sync";
 import { archiveRelationship } from "@/lib/crm/commercial";
 import {
@@ -248,6 +248,15 @@ function WorkspacePage() {
   }, [session, query, nextMeetingByInvestor, scope, tick]);
 
   /**
+   * Leads visíveis que ainda não foram lidos. É exatamente o conjunto
+   * que a ação em lote afeta — nada além do que está na tela.
+   */
+  const unreadCards = useMemo(
+    () => cards.filter((c) => resolveLeadState({ ...c, lastActivity: undefined }) === "novo"),
+    [cards],
+  );
+
+  /**
    * Contadores oficiais por Workspace: cada aba de carteira mostra o
    * total real de Leads daquele escopo, com a mesma regra de
    * visibilidade da listagem. Engajamento não é carteira — nunca
@@ -404,6 +413,27 @@ function WorkspacePage() {
             onQuery={setQuery}
             personalLink={personalLink}
           />
+
+          {unreadCards.length > 0 && (
+            <div className="mb-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  /**
+                   * MESMO MECANISMO DA LEITURA INDIVIDUAL: apenas
+                   * `markLeadViewed` por lead visível ainda não lido.
+                   * Nenhum efeito comercial, nenhuma cadência, nenhum
+                   * envio — só a leitura do card.
+                   */
+                  for (const c of unreadCards) markLeadViewed(c.id, session.userId);
+                  setTick((v) => v + 1);
+                }}
+                className="rounded-full border border-[color:var(--border)] px-4 py-2 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+              >
+                Marcar todos como lidos ({unreadCards.length})
+              </button>
+            </div>
+          )}
 
           {cards.length === 0 ? (
             <EmptyState query={query} personalLink={personalLink} />
