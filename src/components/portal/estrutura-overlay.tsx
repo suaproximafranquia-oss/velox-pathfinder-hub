@@ -12,20 +12,30 @@ import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { fetchInstitutionalModule } from "@/lib/magazine.functions";
 import type { InstitutionalBlock } from "@/server/magazine.server";
 import { assetUrl } from "@/lib/assets/registry";
+import { usePortalAsset } from "@/lib/portal/asset-overrides";
 
-const GALLERY: { key: Parameters<typeof assetUrl>[0]; label: string; alt: string }[] = [
+const GALLERY: {
+  key: Parameters<typeof assetUrl>[0];
+  /** Espaço editável correspondente no Portal. */
+  slot: string;
+  label: string;
+  alt: string;
+}[] = [
   {
     key: "sede-velox",
+    slot: "estrutura-matriz",
     label: "Matriz",
     alt: "Fachada da sede Velox Soluções Financeiras",
   },
   {
     key: "sede-recepcao",
+    slot: "estrutura-recepcao",
     label: "Recepção",
     alt: "Recepção da sede Velox",
   },
   {
     key: "unidade-fachada",
+    slot: "estrutura-unidade",
     label: "Unidades da rede",
     alt: "Fachada de unidade franqueada Velox",
   },
@@ -86,7 +96,11 @@ export function EstruturaOverlay({
           className="mx-auto grid max-w-5xl gap-5 px-8 pb-10 sm:grid-cols-3 md:px-12"
         >
           {GALLERY.map((photo) => (
-            <figure
+            <GalleryPhoto key={photo.key} photo={photo} />
+          ))}
+        </section>
+        {false && (
+          <figure
               key={photo.key}
               className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/60"
             >
