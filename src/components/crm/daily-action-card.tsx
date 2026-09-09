@@ -324,7 +324,14 @@ export function DailyActionCard({
     setBusy(true);
     setMessage(null);
     try {
-      const view = await adapter.loadMessage(item);
+      /**
+       * Se o pré-gatilho da ligação anterior já leu esta mesma mensagem
+       * oficial, ela é reaproveitada; caso contrário, leitura normal.
+       */
+      const prepared = takeStepMessage(
+        stepMessageKey(item.leadId, item.messageRef?.step ?? item.stepLabel),
+      );
+      const view = (await (prepared ?? adapter.loadMessage(item))) ?? null;
       setMessage(view);
       setCopied(false);
       setMessageOpen(true);
