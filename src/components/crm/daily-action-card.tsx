@@ -315,25 +315,22 @@ export function DailyActionCard({
     return ok;
   }
 
-  async function handleRegisterMessage() {
+  function handleRegisterMessage() {
     if (locked) return;
     if (!copied) {
       setFeedback("Copie a mensagem oficial antes de concluir.");
       return;
     }
-    setBusy(true);
-    try {
-      const result = await adapter.registerMessage(item, messageNote.trim());
-      if (result.ok) {
-        setMessageNote("");
-        setCopied(false);
-        setMessageOpen(false);
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível registrar a mensagem.");
-    } finally {
-      setBusy(false);
-    }
+    const observation = messageNote.trim();
+    setMessageNote("");
+    setCopied(false);
+    setMessageOpen(false);
+    resolveNow(
+      () => adapter.registerMessage(item, observation),
+      "Não foi possível registrar a mensagem.",
+    );
   }
+
 
   return (
     <>
