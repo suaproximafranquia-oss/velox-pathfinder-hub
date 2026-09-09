@@ -275,11 +275,12 @@ export function DailyActionsOverlay({
   }
 
   /** Abre a janela de acomodação do investidor cuja ação acabou de sair. */
-  function openSettleWindow(key: string, requeue: boolean) {
+  function openSettleWindow(key: string, requeue: boolean): string | null {
     const now = Date.now();
     const action = actions.find((row) => row.actionKey === key);
     if (!requeue) resolvedKeysRef.current.set(key, now + 60000);
     if (action?.leadId) settlingLeadsRef.current.set(action.leadId, now + SETTLE_MS);
+    return action?.leadId ?? null;
   }
 
   function applyResult(
@@ -291,7 +292,7 @@ export function DailyActionsOverlay({
       reload?: boolean;
     },
   ) {
-    openSettleWindow(key, result.requeue === true);
+    const leadId = openSettleWindow(key, result.requeue === true);
     /**
      * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,
      * é ela que define a próxima ação. Se o MESMO investidor tiver outra
@@ -299,7 +300,7 @@ export function DailyActionsOverlay({
      * assume a posição 1, sem passar por outro lead nem esperar recarga.
      */
     if (result.queue) {
-      commitQueue(result.queue);
+      commitQueue(result.queue, leadId);
       if (result.message) setFeedback(result.message);
       return;
     }
