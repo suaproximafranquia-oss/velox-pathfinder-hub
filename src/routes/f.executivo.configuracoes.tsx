@@ -118,6 +118,7 @@ function ConfiguracoesPage() {
           <WhatsappSafetyLockCard />
           <GreenSalesConnectionSection />
           <NonBusinessDaysCard />
+          <PortalEditorSection />
           {sections.map((s) => {
             const Icon = s.icon;
             return (
