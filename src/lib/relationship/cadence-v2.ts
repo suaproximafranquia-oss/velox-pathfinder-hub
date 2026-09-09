@@ -69,9 +69,13 @@ export type StepContext =
   | "NAO_CHEGOU_E4"
   | "JA_PASSOU_E4";
 
-/** Contexto do caminho V correspondente a cada etapa E1/E2/E3. */
+/**
+ * Contexto do caminho V correspondente a cada etapa. A E1 SAIU do eixo
+ * V: ela acontece sempre como etapa normal, dando ao investidor mais um
+ * intervalo para acessar o material antes do contexto V. "V1" continua
+ * existindo apenas como chave histórica na Biblioteca.
+ */
 const VISUAL_CONTEXT_BY_STEP: Readonly<Record<string, StepContext>> = {
-  E1: "V1",
   E2: "V2",
   E3: "V3",
 };
@@ -88,8 +92,8 @@ export function flowOfStep(step: CadenceV2Step): CadenceV2Flow {
  * estruturado, nunca de texto de conversa ou de interpretação.
  *
  *  • E7/E8 → material efetivamente enviado ou não;
- *  • E1/E2/E3 → caminho V já decidido pelo motor (V1/V2/V3) ou contexto
- *    normal (sem contexto);
+ *  • E2/E3 → caminho V já decidido pelo motor (V2/V3) ou contexto
+ *    normal (sem contexto); E1 é sempre normal;
  *  • R3 → passagem histórica válida por E4.
  *
  * Sem a etapa informada, mantém o comportamento anterior (E7/E8).

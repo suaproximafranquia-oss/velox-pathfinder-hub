@@ -3,11 +3,11 @@ import { resolveStepContext } from "./cadence-v2";
 import { requiresStepContext, stepCombinations } from "./operational-steps";
 
 describe("contextos das etapas", () => {
-  it("E1/E2/E3 usam o caminho V somente quando o motor o abriu", () => {
+  it("E2/E3 usam o caminho V somente quando o motor o abriu; E1 é sempre normal", () => {
     const base = { materialSent: false, visualPath: false };
     expect(resolveStepContext(base, "E1")).toBeNull();
     expect(resolveStepContext(base, "E2")).toBeNull();
-    expect(resolveStepContext({ ...base, visualPath: true }, "E1")).toBe("V1");
+    expect(resolveStepContext({ ...base, visualPath: true }, "E1")).toBeNull();
     expect(resolveStepContext({ ...base, visualPath: true }, "E2")).toBe("V2");
     expect(resolveStepContext({ ...base, visualPath: true }, "E3")).toBe("V3");
   });
@@ -28,7 +28,8 @@ describe("contextos das etapas", () => {
     expect(requiresStepContext("R3")).toBe(true);
     expect(requiresStepContext("E7")).toBe(true);
     expect(requiresStepContext("E1")).toBe(false);
-    expect(stepCombinations("E1")).toEqual([null, "V1"]);
+    expect(stepCombinations("E1")).toEqual([null]);
+    expect(stepCombinations("E2")).toEqual([null, "V2"]);
     expect(stepCombinations("R3")).toEqual(["NAO_CHEGOU_E4", "JA_PASSOU_E4"]);
     expect(stepCombinations("E5")).toEqual([null]);
   });
