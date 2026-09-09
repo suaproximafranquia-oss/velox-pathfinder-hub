@@ -1,44 +1,66 @@
-# Construção consolidada — Financeira /f
+# Diagnóstico — Ação do Dia, compromissos futuros, alerta e fuso (somente `/f`)
 
-Escopo exclusivo de `/f`. Sem tabela nova de motor, sem segunda fila, sem alterar `/s`, `/s/portal` ou `/seg`, sem apagar histórico.
+Nada foi alterado: nenhuma ação executada, nenhum lead tocado, nenhuma migration, nenhum dado modificado.
 
-## 1. Central de Operações — Resolver pendência
+## 1. Dados reais de Michel e Marco Antônio
 
-- Registrar a recuperação também quando o desfecho é de ligação (hoje só mensagem concluída e reunião atendida registram).
-- A resolução passa a devolver a confirmação do servidor; com ela a Central relê o relatório oficial.
-- Efeito: pulo aberto diminui, contador de recuperadas sobe, a pendência some da lista e o botão "Resolver pendência" desaparece sem F5.
-- O histórico continua append-only; nada é apagado ou reescrito.
+| | Michel | Marco Antônio |
+|---|---|---|
+| Lead (GreenSales) | 59115 | 59142 |
+| `stage_key` | `agendamentos` | `agendamentos` |
+| `follow_up` na origem | `2026-09-09 11:00:00` (horário da operação) | `2026-09-09 16:00:00` |
+| Registro espelhado | `gsfu_59115` | `gsfu_59142` |
+| Guardado no banco (UTC) | `2026-09-09 14:00:00+00` | `2026-09-09 19:00:00+00` |
+| Convertido para o horário local | 11:00 | 16:00 |
+| Origem | `greensales` | `greensales` |
 
-## 2. Leads — "Marcar todos como lidos"
+Conversão: o `follow_up` é lido como horário de São Paulo e gravado em UTC (`parseFollowUp`, com deslocamento real do fuso). 11:00 local = 14:00 UTC e 16:00 local = 19:00 UTC — exatamente o que está gravado. A exibição volta a converter para São Paulo.
 
-- Ação em lote que aplica exatamente a mesma marcação de visualização já usada ao abrir um lead, apenas nos leads listados e ainda não visualizados.
-- Mantém o comportamento global por lead (não se inventa leitura por usuário).
-- Não altera estágio, cadência, Ação do Dia, histórico, atividade comercial, ordem operacional; não sincroniza com a origem nem envia mensagem.
+**Fuso não é a causa.** Não há conversão dupla, nem divergência entre horário exibido, guardado e usado para priorizar.
 
-## 3. Portal do Investidor /f — imagens editáveis
+## 2. Causa real
 
-- Modo navegador (padrão): somente leitura, igual a hoje.
-- Modo editor: administrador autorizado substitui ou restaura imagens e salva de uma vez.
-- Reaproveita o upload e o armazenamento já existentes da Revista/Institucional; nenhuma mídia nova é criada.
-- Alvo: as imagens de chave estável do Portal (capa da home, capas dos seis módulos, galeria de Nossa Estrutura e capa de Princípios).
-- "Excluir imagem" remove apenas a substituição — a imagem original volta intacta.
-- A substituição é por unidade, para não afetar outras marcas.
+A função que classifica um compromisso está em `src/lib/crm/daily-actions.ts`, em `resolveBucket`. A regra atual é:
 
-## 4. Cadência-base — ajuste para 12 dias
+- começou há mais de 5 minutos → "atrasada";
+- já começou ou começa em até 5 minutos → "agora";
+- começa depois disso, **mas no mesmo dia** → "hoje";
+- só cai em "futura" quando é de **outro dia**.
 
-- Alterar apenas dois intervalos: E4 → E7 passa de 4 para 3 dias e E7 → E8 passa de 3 para 2 dias.
-- Resultado: E0→E1 = 1, E1→E2 = 2, E2→E3 = 2, E3→E4 = 2, E4→E7 = 3, E7→E8 = 2 — total de 12 dias.
-- E5/E6 permanecem como caminho condicional do material, sem recalcular a cadência-base.
-- Nada muda em: fila operacional, trava da posição 1, pré-gatilho, compromisso futuro fora da posição 1, V1 fora da sequência, V0 e contextos V2/V3.
+Ou seja: "futuro" hoje significa "outro dia", não "ainda não chegou a hora". Um compromisso de hoje às 11:00 ou às 16:00, às 08:18, já entra como "Para hoje".
 
-## Detalhes técnicos
+Em seguida, a ordenação (`actionRank`, mesmo arquivo) dá a compromissos de prioridade máxima o posto 1 — acima do primeiro contato (E0) e de qualquer ligação/mensagem. Resultado: Michel assume a posição 1 às 08:18 e Marco Antônio vem logo atrás, ambos horas antes da hora.
 
-- Central: `src/server/crm/daily-actions-log.server.ts` (`recordSkipRecovery` também no caminho de desfecho de ligação), `pending-resolver-modal.tsx` e `central-home.tsx` (releitura de `relatorioOperacoes` após confirmação).
-- Leads: reutilizar `markLeadViewed` / `updateWorkspaceOperational` → `set_lead_operational` (`portal_leads.viewed_at`), em lote.
-- Portal: nova tabela mínima de substituição por chave de asset + unidade, lida por `assetUrl`; upload via `uploadMagazineFile`; permissão administrativa validada no servidor.
-- Cadência: `src/lib/relationship/cadence-v2.ts` (`nextTransition`, casos `E4` e `E7`) e ajuste dos testes correspondentes.
+Respostas diretas:
+1. Michel aparece antes da hora porque um compromisso do próprio dia nunca é classificado como futuro.
+2. Marco Antônio, pelo mesmo motivo — e por prioridade máxima ele sobe acima das ações reais do dia.
+3. Erro de fuso: **NÃO**.
+4. A classificação "futuro" funciona apenas para outro dia; para hoje, **não**.
+5. A prioridade ignora a hora do compromisso: **SIM** (ela só olha se é prioridade máxima e se é de hoje).
+6. Lista lateral e card principal usam a mesma lista oficial; a tela escolhe como card ativo o primeiro item que não seja "futura" — como Michel está em "Para hoje", ele é escolhido. Nenhuma segunda fila existe.
+7. Existe mecanismo de alerta de reunião: `evaluateMeetingReminders` em `src/lib/workspace-alerts.ts`, que gera lembrete das reuniões nas próximas 24h.
+8. Ele não apareceu hoje porque lê a lista de reuniões guardada no próprio navegador (`listMeetings`, `src/lib/meetings.ts`), e os compromissos do GreenSales vivem no banco (`portal_meetings`) — o alerta simplesmente não os enxerga.
 
-## Verificação
+## 3. Caminho confirmado
 
-- Typecheck, testes direcionados de cadência, Ação do Dia/Central e build.
-- Nenhuma migration destrutiva; nenhum backfill de histórico.
+GreenSales (`stage_key = agendamentos` + `follow_up`) → sincronização (`src/server/crm/greensales-followup.server.ts`) → `portal_meetings` (`gsfu_<id>`, origem `greensales`) → Ação do Dia (`src/server/crm/daily-actions.server.ts`) → classificação (`resolveBucket`) → ordem (`actionRank`) → tela. Nenhuma tag foi usada como substituto de `stage_key`.
+
+## 4. Menor correção necessária (para decisão futura, não executada)
+
+Uma única mudança de regra, em `src/lib/crm/daily-actions.ts`:
+
+- em `resolveBucket`, um compromisso com hora marcada que ainda está a mais de 5 minutos de distância passa a ser "futura", mesmo sendo hoje (a regra T-5 continua idêntica: dentro de 5 minutos vira "agora"; passou da hora vira "atrasada");
+- consequência automática: ele sai da disputa da posição 1 e passa a aparecer em "Próximos compromissos", sem tocar em `actionRank`, fila, motor, GreenSales, posição 1 ou T-5.
+
+Testes existentes de classificação/ordem precisariam apenas de conferência.
+
+## 5. Alerta de próximo compromisso
+
+Pode ser aproveitado o que já existe: a leitura oficial dos compromissos do dia já traz Michel e Marco com hora. O aviso visual seria uma faixa lendo o primeiro compromisso de hoje ainda não iniciado — sem novo motor, sem nova consulta, sem novo armazenamento. O mecanismo antigo (`workspace-alerts.ts`) não serve como está, porque lê apenas o armazenamento local do navegador.
+
+Arquivos envolvidos numa construção futura:
+- `src/lib/crm/daily-actions.ts` (regra de classificação);
+- `src/components/crm/daily-actions-overlay.tsx` (faixa de aviso, opcional);
+- `src/routes/f.executivo.dashboard.tsx` (faixa no Portal dos Leads, opcional).
+
+Nada mais seria tocado; `/s`, `/s/portal` e `/seg` ficam fora.
