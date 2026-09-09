@@ -31,25 +31,36 @@ import {
 // semântica; trocar a foto = trocar o ponteiro no registro, sem mexer aqui.
 import { assetUrl } from "@/lib/assets/registry";
 
-const heroImg = { url: assetUrl("sede-velox") };
-const founderImg = { url: assetUrl("fundador-mario-sergio") };
-const lojaFachadaImg = { url: assetUrl("unidade-fachada") };
-const lojaFachada2Img = { url: assetUrl("unidade-fachada-alternativa") };
-const lojaInauguracaoImg = { url: assetUrl("unidade-inauguracao") };
-const treinamentoImg = { url: assetUrl("treinamento-rede") };
-const ciroImg = { url: assetUrl("embaixador-ciro-bottini") };
-const decisaoImg = { url: assetUrl("decisao-investidor") };
-const relationshipImg = { url: assetUrl("atendimento-consultivo") };
-const marketImg = { url: assetUrl("mercado-distrito-financeiro") };
-const consumerImg = { url: assetUrl("consumidor-financeiro") };
-const collabImg = { url: assetUrl("reuniao-colaborativa") };
-const techImg = { url: assetUrl("plataforma-tecnologica") };
-const closingImg = { url: assetUrl("encerramento-edificio") };
-const executivosImg = { url: assetUrl("equipe-expansao") };
-const larissaImg = { url: assetUrl("diretora-expansao-larissa") };
-const parceirosImg = { url: assetUrl("marketplace-parceiros") };
-const marioConsultoresImg = { url: assetUrl("fundador-com-consultores") };
-const homeOfficeImg = { url: assetUrl("modelo-home-office") };
+/**
+ * Cada imagem editorial tem espaço próprio de SUBSTITUIÇÃO. Quando a
+ * unidade tem uma imagem trocada no editor do Portal, ela aparece aqui;
+ * sem substituição, continua valendo a foto original do registro.
+ */
+const editorial = (asset: string) => ({
+  get url() {
+    return portalAssetUrl(universoSlotKey(asset), assetUrl(asset));
+  },
+});
+
+const heroImg = editorial("sede-velox");
+const founderImg = editorial("fundador-mario-sergio");
+const lojaFachadaImg = editorial("unidade-fachada");
+const lojaFachada2Img = editorial("unidade-fachada-alternativa");
+const lojaInauguracaoImg = editorial("unidade-inauguracao");
+const treinamentoImg = editorial("treinamento-rede");
+const ciroImg = editorial("embaixador-ciro-bottini");
+const decisaoImg = editorial("decisao-investidor");
+const relationshipImg = editorial("atendimento-consultivo");
+const marketImg = editorial("mercado-distrito-financeiro");
+const consumerImg = editorial("consumidor-financeiro");
+const collabImg = editorial("reuniao-colaborativa");
+const techImg = editorial("plataforma-tecnologica");
+const closingImg = editorial("encerramento-edificio");
+const executivosImg = editorial("equipe-expansao");
+const larissaImg = editorial("diretora-expansao-larissa");
+const parceirosImg = editorial("marketplace-parceiros");
+const marioConsultoresImg = editorial("fundador-com-consultores");
+const homeOfficeImg = editorial("modelo-home-office");
 
 export const Route = createFileRoute("/universo")({
   head: () => ({
