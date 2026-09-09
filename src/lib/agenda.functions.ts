@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
 import {
   type AgendaItem,
   type AgendaPriority,
@@ -234,12 +235,14 @@ export const listNextCommitments = createServerFn({ method: "POST" })
     const to = new Date(Date.now() + 7 * 24 * 3600000).toISOString();
     const { data } = await supabase
       .from("portal_meetings")
-      .select("id,investor_name,scheduled_at,status")
+      .select("id,investor_name,scheduled_at,status,external_source,follow_up_state")
       .eq("executive_id", selfId)
       .gte("scheduled_at", from)
       .lte("scheduled_at", to)
+      .not("status", "in", '("Cancelada","cancelada","Realizada","realizada","Concluída","concluída","Concluida","concluida","Não compareceu","não compareceu")')
+      .or(`external_source.is.null,external_source.neq.greensales,follow_up_state.eq.${FOLLOW_UP_STATES.pending}`)
       .order("scheduled_at", { ascending: true })
-      .limit(10);
+      .limit(5);
     return (data ?? [])
       .filter((m) => m.status !== "Cancelada")
       .slice(0, 5)

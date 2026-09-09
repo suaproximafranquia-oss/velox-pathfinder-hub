@@ -27,6 +27,7 @@ import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
 import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
+import { additionalCallDeadline } from "@/lib/relationship/cadence-v2-decide";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -348,6 +349,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
      * ordem dentro da etapa é do motor, não da tela.
      */
     if (order > 1 && String(item.due_at) > nowIso) continue;
+    const additionalCall = isCall && ((step === "E1" && order === 2) || (step === "E2" && order === 3));
+    // due_at = primeira tentativa +2h. Não requer nova leitura nem altera a fila.
+    const expiresAt = additionalCall
+      ? additionalCallDeadline(new Date(Date.parse(item.due_at) - 2 * 3_600_000).toISOString())
+      : undefined;
+    if (expiresAt && Date.parse(nowIso) >= Date.parse(expiresAt)) continue;
     /**
      * E0 é a etapa do lead NOVO: pertence ao executivo responsável pelo
      * card (mesma regra da ação legada). Sem responsável, continua
@@ -361,9 +368,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     ) {
       continue;
     }
-    // LEAD NOVO NÃO NASCE ATRASADO: E0 pendente é classe NOVO, no topo.
+    // E0 usa a mesma classificação operacional de atraso das demais etapas.
     const isE0 = step === "E0";
-    const overdue = isE0 ? false : isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso);
+    const overdue = isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso);
     actions.push({
       actionKey: `queue:${leadId}:${item.flow}-${step}-${order}:${item.id}`,
       source: "queue",
@@ -386,6 +393,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       claimed,
       queueItemId: String(item.id),
       queueActionOrder: order,
+      expiresAt,
       ...(isCall
         ? {}
         : {

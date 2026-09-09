@@ -159,6 +159,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
       dueAt: row.due_at,
       executedAt: row.executed_at ?? null,
       result: row.result ?? null,
+      cancelReason: row.cancel_reason ?? null,
     }));
 
   const originIso =

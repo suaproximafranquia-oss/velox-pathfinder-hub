@@ -228,12 +228,18 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         cancel_reason: item.cancelReason ?? null,
         updated_at: new Date().toISOString(),
       };
+      const additionalCall = (item.step === "E1" && item.actionOrder === 2 || item.step === "E2" && item.actionOrder === 3) && item.actionKind === "call";
       const { data, error } = await supabaseAdmin
         .from("relationship_queue")
-        .upsert(payload as any, { onConflict: "scope,run_id,lead_id,step,action_order" })
+        .upsert(payload as any, { onConflict: "scope,run_id,lead_id,step,action_order", ignoreDuplicates: additionalCall && !item.id })
         .select("*")
-        .single();
+        .maybeSingle();
       if (error) throw new Error(error.message);
+      if (!data) {
+        const existing = (await this.loadQueue(item.leadId)).find((q) => q.step === item.step && q.actionOrder === item.actionOrder);
+        if (existing) return existing;
+        throw new Error("Tentativa adicional não encontrada após gravação.");
+      }
       return toQueueItem(data as Row);
     },
 
@@ -260,11 +266,17 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       if (patch.result !== undefined) update["result"] = patch.result;
       if (patch.reason !== undefined) update["reason"] = patch.reason;
       if (patch.cancelReason !== undefined) update["cancel_reason"] = patch.cancelReason;
-      await supabaseAdmin
+      const query = supabaseAdmin
         .from("relationship_queue")
         .update(update as any)
         .eq("id", id)
         .eq("scope", scope);
+      // Expiração nunca sobrescreve execução concorrente nem outro desfecho.
+      if (patch.cancelReason === "additional_call_day_expired") {
+        await query.in("status", ["PENDING", "PROCESSING"]);
+      } else {
+        await query;
+      }
     },
 
     /** Resposta, agendamento e encerramento sempre vencem o timer. */

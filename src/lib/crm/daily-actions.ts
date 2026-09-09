@@ -21,6 +21,8 @@
  * servidor.
  */
 
+import { availabilityFromDate, isOverdueByBusinessDays } from "./daily-actions-overdue";
+
 export const OPERATIONAL_TIME_ZONE = "America/Sao_Paulo";
 
 /**
@@ -88,6 +90,8 @@ export type DailyAction = {
   queueItemId?: string;
   /** Ordem da ação interna dentro da etapa (1 = ligação 1, 2 = 2ª ligação, 3 = mensagem). */
   queueActionOrder?: number;
+  /** Limite da tentativa adicional E1/E2, calculado pelo calendário vigente. */
+  expiresAt?: string;
   /** Ação reivindicada pelo executivo (PROCESSING) — posição 1 protegida. */
   claimed?: boolean;
   /** Reunião de origem (`portal_meetings.id`), quando for uma reunião. */
@@ -246,6 +250,17 @@ export function sortDailyActions(
     if (aKey !== bKey) return aKey < bKey ? -1 : 1;
     return a.actionKey < b.actionKey ? -1 : a.actionKey > b.actionKey ? 1 : 0;
   });
+}
+
+/** Reclassificação somente visual; não consulta, cria ou executa obrigações. */
+export function reclassifyDailyActions(actions: DailyAction[], nowIso: string, continuityLeadId?: string | null): DailyAction[] {
+  const rows = actions.filter((a) => !a.expiresAt || Date.parse(a.expiresAt) > Date.parse(nowIso)).map((a) => {
+    const bucket = a.source === "queue"
+      ? (isOverdueByBusinessDays(availabilityFromDate(a.dueDate), nowIso) ? "atrasada" : a.dueDate > operationalDate(nowIso) ? "futura" : "hoje")
+      : a.startsAt ? resolveBucket({ dueDate: a.dueDate, startsAt: a.startsAt, nowIso }) : a.bucket;
+    return { ...a, bucket, overdue: bucket === "atrasada" };
+  });
+  return sortDailyActions(rows, continuityLeadId);
 }
 
 /**

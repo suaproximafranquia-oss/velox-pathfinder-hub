@@ -7,7 +7,7 @@
  * muda apenas o repositório, o despachante e o relógio.
  */
 import { decideNextAction } from "./decide";
-import type { V2DecisionInput } from "./cadence-v2-decide";
+import { additionalCalls, ADDITIONAL_CALL_EXPIRED, type V2DecisionInput } from "./cadence-v2-decide";
 import { RELATIONSHIP_CONFIG, STEPS, type RelationshipConfig } from "./config";
 import { applyEvent, blocksAutomation, initialRecord } from "./machine";
 import { classifyCycle, type ActivationMark } from "./cycle";
@@ -123,9 +123,43 @@ export function createEngine(options: EngineOptions): Engine {
   async function v2For(record: CadenceRecord): Promise<V2DecisionInput | null> {
     if (!v2StateResolver) return null;
     try {
-      return await v2StateResolver(record);
-    } catch {
-      return null;
+      const state = await v2StateResolver(record);
+      if (!state || !enabled) return state;
+      // A tentativa adicional independe da conclusão da mensagem. Mesma fila,
+      // mesma porta de persistência e relógio, sem novo executor.
+      const candidates = additionalCalls(state);
+      if (candidates.length === 0) return state;
+      if (!(await dispatcher.assertRecipientAllowed(record.leadId)).ok) return state;
+      const queue = await repository.loadQueue(record.leadId);
+      let changed = false;
+      for (const call of candidates) {
+        const existing = queue.find((q) => q.step === call.step && q.actionOrder === call.order);
+        const expired = Date.parse(clock.nowIso()) >= Date.parse(call.expiresAt);
+        if (existing && !["PENDING", "PROCESSING"].includes(existing.status)) continue;
+        if (existing) {
+          if (!expired) continue;
+          await repository.updateQueueItem(existing.id, {
+            status: "CANCELLED", cancelReason: ADDITIONAL_CALL_EXPIRED,
+            reason: "Tentativa adicional não realizada no dia — sem dívida para a próxima etapa.",
+          });
+        } else {
+          await repository.upsertQueueItem({
+            scope: repository.scope, runId: repository.runId, leadId: record.leadId,
+            flow: record.flow, step: call.step, dueAt: call.dueAt, priority: 5,
+            status: expired ? "CANCELLED" : "PENDING", attempts: 0,
+            executedAt: null, result: null,
+            reason: expired ? "Tentativa adicional não realizada no dia — sem dívida para a próxima etapa." : "Tentativa adicional duas horas após a primeira ligação.",
+            cancelReason: expired ? ADDITIONAL_CALL_EXPIRED : null,
+            actionOrder: call.order, actionKind: "call", originDate: state.originDate,
+            flowVersionId: record.flowVersionId ?? null,
+          });
+        }
+        changed = true;
+      }
+      return changed ? await v2StateResolver(record) : state;
+    } catch (error) {
+      // Falha ao persistir a tentativa não pode ativar o planejador legado.
+      throw error;
     }
   }
 

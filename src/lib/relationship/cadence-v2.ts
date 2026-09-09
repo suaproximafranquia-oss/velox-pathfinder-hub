@@ -477,7 +477,7 @@ export function waitMinutesOf(action: StepActionPlan): number {
  * E0 é etapa real da régua: ligação 1 → 10 minutos → ligação 2 →
  * mensagem (somente se as duas ligações não forem atendidas).
  */
-export function stepActions(step: CadenceV2Step): StepActionPlan[] {
+export function stepActions(step: CadenceV2Step, compensateE2 = false): StepActionPlan[] {
   switch (step) {
     case "E0":
       return [
@@ -494,10 +494,15 @@ export function stepActions(step: CadenceV2Step): StepActionPlan[] {
     case "E1":
       return [
         { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação 1" },
-        { order: 2, kind: "call", waitHoursAfterPrevious: 3, label: "Ligação 2" },
         { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
+        { order: 2, kind: "call", waitHoursAfterPrevious: 2, label: "Ligação 2" },
       ];
     case "E2":
+      return [
+        { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação 1" },
+        { order: 2, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
+        ...(compensateE2 ? [{ order: 3, kind: "call" as const, waitHoursAfterPrevious: 2, label: "Ligação 2" }] : []),
+      ];
     case "E3":
     case "E4":
       return [
@@ -526,6 +531,7 @@ export function nextReleasedAction(input: {
   step: CadenceV2Step;
   stepDueAt: string;
   states: ActionState[];
+  compensateE2?: boolean;
   /**
    * Mudança válida de fluxo durante a etapa (lead atendeu, foi para
    * AGENDAMENTO, mudou de estágio, ciclo encerrado…). As ações
@@ -534,7 +540,7 @@ export function nextReleasedAction(input: {
   flowChanged?: boolean;
 }): { action: StepActionPlan; releaseAt: string } | null {
   if (input.flowChanged) return null;
-  const plan = stepActions(input.step);
+  const plan = stepActions(input.step, input.compensateE2);
   const byOrder = new Map(input.states.map((s) => [s.order, s]));
 
   for (const action of plan) {
@@ -542,7 +548,9 @@ export function nextReleasedAction(input: {
     if (state?.status === "DONE") continue;
     if (state?.status === "CANCELLED") continue;
 
-    const previous = plan.find((p) => p.order === action.order - 1);
+    // E1/E2: mensagem e tentativa adicional dependem da PRIMEIRA ligação.
+    const firstCallDependent = (input.step === "E1" || input.step === "E2") && action.order !== 1;
+    const previous = plan.find((p) => p.order === (firstCallDependent ? 1 : action.order - 1));
     const previousState = previous ? byOrder.get(previous.order) : undefined;
     // Ordem obrigatória: a ação só existe depois da anterior concluída.
     if (previous && previousState?.status !== "DONE") return null;
@@ -561,15 +569,15 @@ export function nextReleasedAction(input: {
     // E0 não usa a janela da régua: sua janela é a própria do executivo
     // (aplicada pela Ação do Dia). As demais etapas vão para a próxima
     // abertura sem se perder.
-    if (input.step === "E0") return { action, releaseAt };
+    if (input.step === "E0" || firstCallDependent) return { action, releaseAt };
     return { action, releaseAt: nextOpenMoment(releaseAt) };
   }
   return null;
 }
 
 /** A etapa só conclui quando a última ação aplicável termina. */
-export function isStepComplete(step: CadenceV2Step, states: ActionState[]): boolean {
-  const plan = stepActions(step);
+export function isStepComplete(step: CadenceV2Step, states: ActionState[], compensateE2 = false): boolean {
+  const plan = stepActions(step, compensateE2);
   const byOrder = new Map(states.map((s) => [s.order, s]));
   return plan.every((a) => {
     const state = byOrder.get(a.order);

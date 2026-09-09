@@ -52,7 +52,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         .select("name,email,whatsapp,city,manual_overrides,identity_alternates")
         .eq("id", leadId)
         .maybeSingle();
-      if (!row) return { name: data.name, email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
+      if (!row) return { email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
       const overrides = (row.manual_overrides ?? {}) as Record<string, { locked?: boolean }>;
       const incoming: Record<string, string> = {
         name: data.name,
@@ -71,6 +71,9 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       let changedAlternates = false;
       const patch: Record<string, string> = {};
       for (const field of ["name", "email", "whatsapp", "city"] as const) {
+        // Cadastro principal soberano: omitir a coluna também protege uma
+        // edição do executivo que ocorra entre esta leitura e a gravação.
+        if (field === "name") continue;
         const locked = Boolean(overrides[field]?.locked);
         if (!locked) {
           patch[field] = incoming[field];
@@ -237,13 +240,11 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       ? await applyIdentityGuard(targetId)
       : { name: data.name, email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
     const guardedIdentity = {
-      name: guardedRaw["name"] ?? data.name,
       email: guardedRaw["email"] ?? email,
       whatsapp: guardedRaw["whatsapp"] ?? data.whatsapp ?? "",
       city: guardedRaw["city"] ?? data.city ?? "",
     };
-    const { error } = await supabaseAdmin.from("portal_leads").upsert(
-      {
+    const payload = {
         id: targetId,
         ...guardedIdentity,
         origin: data.origin ?? "Portal Velox",
@@ -261,9 +262,20 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         // A coluna é NOT NULL: o fallback só cobre registros legados.
         last_activity_at: effectiveActivity ?? nowIso,
         journey: (data.journey ?? {}) as never,
-      },
-      { onConflict: "id" },
-    );
+      };
+    let created = false;
+    let error;
+    if (current) {
+      ({ error } = await supabaseAdmin.from("portal_leads").update(payload).eq("id", targetId));
+    } else {
+      // Não usar upsert com nome: um cadastro criado concorrentemente
+      // também deve conservar seu nome, sem mudar o matching existente.
+      ({ error } = await supabaseAdmin.from("portal_leads").insert({ ...payload, name: data.name }));
+      created = !error;
+      if (error?.code === "23505") {
+        ({ error } = await supabaseAdmin.from("portal_leads").update(payload).eq("id", targetId));
+      }
+    }
     if (error) throw new Error(error.message);
     /**
      * COMANDO 3A §4 — PRIMEIRO CONTATO TAMBÉM NASCE NO PORTAL.
@@ -276,7 +288,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
      * SIMULADA — nenhuma chamada real à Meta. Falha aqui nunca quebra a
      * jornada do investidor.
      */
-    if (!current) {
+    if (created) {
       try {
         const { kickoffPortalFirstContact } = await import(
           "@/server/crm/portal-first-contact.server"
