@@ -30,6 +30,7 @@ import {
 import {
   KIND_LABEL,
   operationalTime,
+  sortDailyActions,
   type DailyAction,
   type DailyActionBucket,
   type DailyActionKind,
