@@ -601,11 +601,25 @@ function Index() {
    * unidade vem do Portal (`?u=`); sem unidade, nada é substituído.
    */
   const [, redraw] = useState(0);
+  const [unit, setUnit] = useState<string | null>(null);
+  /**
+   * MODO EDITOR — a URL apenas PEDE. Quem autoriza é sempre o servidor,
+   * pela mesma verificação usada no Portal.
+   */
+  const [editorAllowed, setEditorAllowed] = useState(false);
+
   useEffect(() => {
-    const unit = new URLSearchParams(window.location.search).get("u");
-    if (!unit) return;
+    const params = new URLSearchParams(window.location.search);
+    const current = params.get("u");
+    setUnit(current);
+    if (params.get("modo") === "editor") {
+      void canEditPortalAssets()
+        .then((r) => setEditorAllowed(r.allowed === true))
+        .catch(() => setEditorAllowed(false));
+    }
+    if (!current) return;
     let alive = true;
-    void fetchPortalAssetOverrides({ data: { unit } })
+    void fetchPortalAssetOverrides({ data: { unit: current } })
       .then((map) => {
         if (alive) setSavedPortalAssets(map);
       })
