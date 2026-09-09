@@ -50,9 +50,16 @@ import {
   usePortalAsset,
 } from "@/lib/portal/asset-overrides";
 import { canEditPortalAssets, fetchPortalAssetOverrides } from "@/lib/portal/asset-overrides.functions";
-const PortalAssetEditor = lazy(() =>
-  import("@/components/portal/portal-asset-editor").then((m) => ({ default: m.PortalAssetEditor })),
+/**
+ * Controles de edição sobre a própria foto (sem menu lateral). O
+ * Material Institucional tem os seus dentro do próprio módulo.
+ */
+const PortalInlineImageEditor = lazy(() =>
+  import("@/components/portal/portal-inline-image-editor").then((m) => ({
+    default: m.PortalInlineImageEditor,
+  })),
 );
+const isUniversoSlot = (key: string) => key.startsWith("universo-");
 
 /**
  * Espaço editável correspondente a cada módulo da Home. A chave é
@@ -502,7 +509,10 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
       <PortalFooter />
       {editorAllowed && (
         <Suspense fallback={null}>
-          <PortalAssetEditor unit={brandKey} />
+          <PortalInlineImageEditor
+            unit={brandKey}
+            slotFilter={(key) => !isUniversoSlot(key)}
+          />
         </Suspense>
       )}
       <ModulePanel
@@ -512,7 +522,9 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
                 /* O material institucional abre na unidade que o exibe. */
                 src:
                   active.src === "/universo"
-                    ? `/universo?u=${encodeURIComponent(brandKey)}`
+                    ? `/universo?u=${encodeURIComponent(brandKey)}${
+                        editorAllowed ? "&modo=editor" : ""
+                      }`
                     : active.src,
                 title: active.title,
               }

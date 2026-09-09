@@ -274,4 +274,17 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
     const rows = normalizeDailyActions([futura, outraLead], "ronaldo");
     expect(rows[0]?.leadId).toBe("aaa");
   });
+
+  it("a continuidade vence a proteção de posição 1 de outra lead", () => {
+    const kellyEmAtendimento = action({
+      actionKey: "queue:kelly:E0:1",
+      leadId: "kelly",
+      stepLabel: "E0",
+      name: "Kelly",
+      claimed: true,
+    });
+    const rows = normalizeDailyActions([kellyEmAtendimento, ronaldoMsg], "ronaldo");
+    expect(rows[0]?.leadId).toBe("ronaldo");
+    expect(rows[1]?.leadId).toBe("kelly");
+  });
 });

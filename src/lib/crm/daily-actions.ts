@@ -228,13 +228,19 @@ export function sortDailyActions(
   continuityLeadId?: string | null,
 ): DailyAction[] {
   return [...actions].sort((a, b) => {
-    const rank = actionRank(a) - actionRank(b);
-    if (rank !== 0) return rank;
+    /**
+     * EXCEÇÃO À PROTEÇÃO DA POSIÇÃO 1: a continuação do trabalho da MESMA
+     * lead não é uma ação nova disputando a vez — ela permanece na
+     * posição 1, inclusive à frente de ações já reivindicadas de outras
+     * leads. Compromissos de outro dia nunca são promovidos.
+     */
     if (continuityLeadId) {
       const aLead = a.leadId === continuityLeadId && a.bucket !== "futura" ? 0 : 1;
       const bLead = b.leadId === continuityLeadId && b.bucket !== "futura" ? 0 : 1;
       if (aLead !== bLead) return aLead - bLead;
     }
+    const rank = actionRank(a) - actionRank(b);
+    if (rank !== 0) return rank;
     const aKey = a.startsAt ?? `${a.dueDate}T23:59:59.999Z`;
     const bKey = b.startsAt ?? `${b.dueDate}T23:59:59.999Z`;
     if (aKey !== bKey) return aKey < bKey ? -1 : 1;
