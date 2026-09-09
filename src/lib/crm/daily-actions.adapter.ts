@@ -60,6 +60,11 @@ export type DailyActionsAdapter = {
   addNote: (item: DailyAction, note: string) => Promise<AdapterResult>;
   /** Leitura da mensagem oficial da etapa (nunca envia). */
   loadMessage: (item: DailyAction) => Promise<StepMessageView | null>;
+  /**
+   * PRÉ-GATILHO: aquece o caminho do "Concluído" no servidor. Somente
+   * leitura — não efetiva, não grava e não avança nada.
+   */
+  prewarmOutcome?: () => void;
   /** Registra que a mensagem foi tratada pela interface. */
   registerMessage: (item: DailyAction, note: string) => Promise<AdapterResult>;
   /** Desfecho da reunião: compareceu ou não compareceu. */
