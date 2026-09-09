@@ -36,6 +36,16 @@ describe("E1/E2 — tentativas independentes no motor existente", () => {
     expect(decideCadenceV2(e2)).toMatchObject({ step: "E2", actionOrder: 2, actionKind: "message", dueAt: e2first.executedAt });
     expect(additionalCalls(e2)).toMatchObject([{ step: "E2", order: 3, dueAt: "2026-09-11T14:00:00.000Z" }]);
     expect(additionalCalls(input([...complete.actions, e2first]))).toEqual([]);
+    const e2message: V2QueueAction = { ...e2first, actionOrder: 2, actionKind: "message", executedAt: "2026-09-11T12:01:00.000Z", result: "enviado_manual" };
+    const e2expired: V2QueueAction = { ...e2first, actionOrder: 3, status: "CANCELLED", executedAt: null, cancelReason: ADDITIONAL_CALL_EXPIRED };
+    const e2done: V2QueueAction = { ...e2expired, status: "EXECUTED", executedAt: "2026-09-11T14:00:00.000Z", cancelReason: null };
+    const missed = input([...incomplete.actions, e2first, e2message, e2expired]);
+    const performed = input([...incomplete.actions, e2first, e2message, e2done]);
+    expect(additionalCalls(missed)).toEqual([]);
+    const nextMissed = decideCadenceV2(missed);
+    const nextPerformed = decideCadenceV2(performed);
+    expect(nextMissed).toMatchObject({ step: "E3", actionOrder: 1 });
+    expect(nextMissed.kind === "obligation" && nextMissed.dueAt).toBe(nextPerformed.kind === "obligation" && nextPerformed.dueAt);
     expect(stepActions("E3", true).filter((a) => a.kind === "call")).toHaveLength(1);
     expect(nextTransition("E1", { materialSent: false })).toEqual({ to: "E2", days: 2 });
   });
