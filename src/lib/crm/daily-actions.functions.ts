@@ -159,6 +159,28 @@ export const getDailyActionMessageFn = createServerFn({ method: "POST" })
     });
   });
 
+/**
+ * PRÉ-GATILHO — AQUECIMENTO DO CAMINHO DE CONCLUSÃO (somente leitura).
+ *
+ * Chamado quando o Executivo escolhe o resultado da ligação, ANTES do
+ * "Concluído". Não grava nada, não cria fila, não avança o motor e não
+ * registra histórico: apenas deixa carregados os módulos que a conclusão
+ * usaria em seguida, para que o "Concluído" não comece do zero.
+ */
+export const prewarmOutcomeFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertManager(context as never);
+    await Promise.all([
+      import("@/server/relationship/call-outcome.server"),
+      import("@/server/relationship/engine.server"),
+      import("@/server/relationship/step-message.server"),
+      import("@/server/crm/daily-actions-gate.server"),
+      import("@/server/crm/daily-actions.server"),
+    ]).catch(() => undefined);
+    return { ok: true as const };
+  });
+
 /** Registro de que a mensagem foi tratada pela interface (sem envio real). */
 export const registerDailyActionMessageFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
