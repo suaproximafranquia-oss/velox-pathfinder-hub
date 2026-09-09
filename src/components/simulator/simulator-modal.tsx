@@ -173,9 +173,7 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
             ? audienceMap[interestsProfile.audience]
             : null,
           interests: interestsProfile?.interests ?? [],
-        };
-        if (sharedReport) { pendingReport.current = record; await persistReport(record); }
-        else addSimulation(record);
+        });
       } catch {
         /* mantém confirmação mesmo se PDF falhar */
       }
@@ -212,6 +210,7 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
         /* histórico é best-effort */
       }
     }
+      if (sharedReport && (!pdf || !investorId)) setReportState("error");
       trackJourney({
         type: "simulator.completed",
         investorId,
