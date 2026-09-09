@@ -111,19 +111,20 @@ export function useRealDailyActionsAdapter(
             return { ok: false, message: "Esta ligação já foi resolvida — a lista foi atualizada." };
           }
 
-          try {
-            await recordHistory({
-              data: {
-                actionKey: item.actionKey,
-                leadId: item.leadId,
-                step: item.stepLabel,
-                event: "ligacao",
-                outcome: outcome === "SIM" ? "Atendeu" : "Não atendeu",
-              },
-            });
-          } catch {
-            /* histórico é complementar */
-          }
+          /**
+           * HISTÓRICO EM SEGUNDO PLANO: a troca do card não espera por
+           * ele. A conclusão em si já foi confirmada pelo servidor.
+           */
+          void recordHistory({
+            data: {
+              actionKey: item.actionKey,
+              leadId: item.leadId,
+              step: item.stepLabel,
+              event: "ligacao",
+              outcome: outcome === "SIM" ? "Atendeu" : "Não atendeu",
+            },
+          }).catch(() => undefined);
+
           const isE0 = item.stepLabel === "E0";
           const order = item.queueActionOrder ?? 1;
           return {
