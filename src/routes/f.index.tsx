@@ -54,6 +54,8 @@ export const Route = createFileRoute("/f/")({
     b: str(search.b),
     ch: str(search.ch),
     g: str(search.g),
+    modo: str(search.modo),
+
 
   }),
   head: () => ({
