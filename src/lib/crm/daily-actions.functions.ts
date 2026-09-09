@@ -629,16 +629,29 @@ export const resolvePendingActionFn = createServerFn({ method: "POST" })
   .inputValidator((data: { actionKey: string }) =>
     z.object({ actionKey: z.string().min(1) }).parse(data),
   )
-  .handler(async ({ data, context }): Promise<DailyAction | null> => {
+  .handler(async ({ data, context }): Promise<{
+    status: "aberta" | "recuperada" | "indisponivel";
+    action: DailyAction | null;
+  }> => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
-    const { listSkippedPendings, resumeSkippedAction } = await import(
+    const { listSkippedPendings, resumeSkippedAction, hasSkipRecovery } = await import(
       "@/server/crm/daily-actions-log.server"
     );
     /** Só o dono da pendência pode resolvê-la. */
     const pendings = await listSkippedPendings({ executiveId });
     const target = pendings.find((p) => p.actionKey === data.actionKey);
-    if (!target) throw new Error("Pendência não encontrada para este Executivo.");
+    if (!target) {
+      /**
+       * A pendência saiu da lista de abertas: se a recuperação já está
+       * registrada, isso NÃO é erro — é a confirmação de que ela foi
+       * resolvida. A Central atualiza o estado sem F5.
+       */
+      if (await hasSkipRecovery(data.actionKey)) {
+        return { status: "recuperada" as const, action: null };
+      }
+      throw new Error("Pendência não encontrada para este Executivo.");
+    }
 
     if (!target.retomadaHoje) {
       await resumeSkippedAction({
@@ -655,5 +668,25 @@ export const resolvePendingActionFn = createServerFn({ method: "POST" })
     const { buildDailyActions } = await import("@/server/crm/daily-actions.server");
     const { normalizeDailyActions } = await import("@/lib/crm/daily-actions");
     const list = normalizeDailyActions(await buildDailyActions({ executiveId }));
-    return list.find((action) => action.actionKey === data.actionKey) ?? null;
+    const action = list.find((item) => item.actionKey === data.actionKey) ?? null;
+    if (action) return { status: "aberta" as const, action };
+    if (await hasSkipRecovery(data.actionKey)) {
+      return { status: "recuperada" as const, action: null };
+    }
+    return { status: "indisponivel" as const, action: null };
+  });
+
+/**
+ * CONFIRMAÇÃO DA RECUPERAÇÃO — leitura do histórico oficial. A Central
+ * só considera a pendência resolvida depois desta confirmação.
+ */
+export const confirmPendingRecoveryFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { actionKey: string }) =>
+    z.object({ actionKey: z.string().min(1) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const { hasSkipRecovery } = await import("@/server/crm/daily-actions-log.server");
+    return { recovered: await hasSkipRecovery(data.actionKey) };
   });

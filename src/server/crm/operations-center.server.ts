@@ -389,7 +389,12 @@ export async function buildProductionReport(
       const recuperada = recoveredKeys.has(actionKey);
       const key = `pulo:${actionKey}:${date}`;
       if (seen.has(key)) continue;
-      push({ key, metric: "pulos", date, executiveId });
+      /**
+       * CONTADOR DE PULOS = PULOS AINDA EM ABERTO. A pendência já
+       * recuperada sai do contador (e passa a contar em "recuperadas"),
+       * mas o registro histórico do pulo permanece intacto na tabela.
+       */
+      if (!recuperada) push({ key, metric: "pulos", date, executiveId });
       skips.push({
         id: String(row.id),
         at: detailString(details, "at") ?? row.created_at,

@@ -7,12 +7,15 @@
  * `actionKey`, mesma etapa, mesmo tipo) e a execução usa exatamente as
  * mesmas funções oficiais.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, X } from "lucide-react";
 import { DailyActionCard } from "@/components/crm/daily-action-card";
 import { useRealDailyActionsAdapter } from "@/components/crm/daily-actions-real-adapter";
-import { resolvePendingActionFn } from "@/lib/crm/daily-actions.functions";
+import {
+  confirmPendingRecoveryFn,
+  resolvePendingActionFn,
+} from "@/lib/crm/daily-actions.functions";
 import type { DailyAction } from "@/lib/crm/daily-actions";
 
 export function PendingResolverModal({
@@ -28,9 +31,19 @@ export function PendingResolverModal({
   /** Adaptador em modo recuperação: a ação autorizada é a pendência. */
   const adapter = useRealDailyActionsAdapter({ pendingRecovery: true });
   const openPending = useServerFn(resolvePendingActionFn);
+  const confirmRecovery = useServerFn(confirmPendingRecoveryFn);
   const [action, setAction] = useState<DailyAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  /**
+   * Os callbacks vêm inline da Central e mudam de identidade a cada
+   * render. Guardá-los em ref impede que a pendência seja reaberta a
+   * cada atualização do relatório.
+   */
+  const onResolvedRef = useRef(onResolved);
+  const onCloseRef = useRef(onClose);
+  onResolvedRef.current = onResolved;
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     let alive = true;
@@ -38,11 +51,20 @@ export function PendingResolverModal({
     setError(null);
     void (async () => {
       try {
-        const result = (await openPending({ data: { actionKey } })) as DailyAction | null;
+        const result = (await openPending({ data: { actionKey } })) as {
+          status: "aberta" | "recuperada" | "indisponivel";
+          action: DailyAction | null;
+        };
         if (!alive) return;
-        if (!result) {
+        if (result.status === "recuperada") {
+          /** Já concluída: a Central apenas reflete o estado atual. */
+          onResolvedRef.current();
+          onCloseRef.current();
+          return;
+        }
+        if (!result.action) {
           setError("Esta pendência não está mais disponível para execução.");
-        } else setAction(result);
+        } else setAction(result.action);
       } catch (err) {
         if (alive) setError(err instanceof Error ? err.message : "Não foi possível abrir a pendência.");
       } finally {
@@ -98,8 +120,26 @@ export function PendingResolverModal({
               adapter={adapter}
               locked={false}
               onResolved={() => {
-                onResolved();
-                onClose();
+                /**
+                 * CONFIRMAÇÃO DO SERVIDOR: a Central só considera a
+                 * pendência resolvida depois que a recuperação está
+                 * registrada no histórico oficial.
+                 */
+                void (async () => {
+                  for (const wait of [0, 700, 1600]) {
+                    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+                    try {
+                      const res = (await confirmRecovery({ data: { actionKey } })) as {
+                        recovered: boolean;
+                      };
+                      if (res.recovered) break;
+                    } catch {
+                      break;
+                    }
+                  }
+                  onResolvedRef.current();
+                  onCloseRef.current();
+                })();
               }}
             />
           ) : null}

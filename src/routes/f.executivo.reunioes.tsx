@@ -39,6 +39,7 @@ import {
   listMeetings,
   updateMeetingStatus,
   updateMeeting,
+  isGreenSalesCommitment,
   type Meeting,
   type MeetingStatus,
   type GoogleSyncState,
@@ -423,7 +424,11 @@ function MeetingsPage() {
                        </button>
                      </div>
                      <div className="mt-1">
-                       {resolveMeetingUrl(m) ? (
+                       {isGreenSalesCommitment(m) ? (
+                         <span className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+                           Compromisso do GreenSales — não utiliza Google Meet
+                         </span>
+                       ) : resolveMeetingUrl(m) ? (
                          <a
                            href={resolveMeetingUrl(m)}
                            target="_blank"
@@ -475,14 +480,20 @@ function MeetingsPage() {
                   {/* Coluna 3 — Ações */}
                   <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
                     <ActionButton icon={Eye} label="Ver detalhes" onClick={() => setDetailsFor(m)} />
-                    {resolveMeetingUrl(m) && (
+                    {!isGreenSalesCommitment(m) && resolveMeetingUrl(m) && (
                       <ActionButton icon={Link2} label="Copiar link" onClick={() => void copyMeetingLink(m)} />
                     )}
-                    <ActionButton
-                      icon={Send}
-                      label={inviteBusy === m.id ? "Enviando..." : "Reenviar convite"}
-                      onClick={() => void resendInvite(m)}
-                    />
+                    {/*
+                      GreenSales: compromisso operacional, sem convite
+                      Google para reenviar. Nenhuma ação Google aqui.
+                    */}
+                    {!isGreenSalesCommitment(m) && (
+                      <ActionButton
+                        icon={Send}
+                        label={inviteBusy === m.id ? "Enviando..." : "Reenviar convite"}
+                        onClick={() => void resendInvite(m)}
+                      />
+                    )}
                   </div>
                 </div>
               </li>
@@ -940,7 +951,21 @@ function DetailsDialog({ meeting, onClose }: { meeting: Meeting; onClose: () => 
             <div><dt className="uppercase tracking-[0.2em] text-[10px]">Data</dt><dd className="text-[color:var(--foreground)]">{when.toLocaleDateString("pt-BR")}</dd></div>
             <div><dt className="uppercase tracking-[0.2em] text-[10px]">Hora</dt><dd className="text-[color:var(--foreground)]">{when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</dd></div>
             <div className="col-span-2"><dt className="uppercase tracking-[0.2em] text-[10px]">Executivo responsável</dt><dd className="text-[color:var(--foreground)]">{meeting.executiveName}</dd></div>
-            {meeting.meetUrl && (
+            {isGreenSalesCommitment(meeting) && (
+              <div className="col-span-2">
+                <dt className="uppercase tracking-[0.2em] text-[10px]">Origem</dt>
+                <dd className="text-[color:var(--foreground)]">
+                  Compromisso do GreenSales — este compromisso não utiliza Google Meet.
+                </dd>
+              </div>
+            )}
+            {meeting.cancelReason && (
+              <div className="col-span-2">
+                <dt className="uppercase tracking-[0.2em] text-[10px]">Motivo do cancelamento</dt>
+                <dd className="text-[color:var(--foreground)]">{meeting.cancelReason}</dd>
+              </div>
+            )}
+            {!isGreenSalesCommitment(meeting) && meeting.meetUrl && (
               <div className="col-span-2">
                 <dt className="uppercase tracking-[0.2em] text-[10px]">Link</dt>
                 <dd>

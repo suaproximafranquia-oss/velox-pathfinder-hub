@@ -12,20 +12,30 @@ import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { fetchInstitutionalModule } from "@/lib/magazine.functions";
 import type { InstitutionalBlock } from "@/server/magazine.server";
 import { assetUrl } from "@/lib/assets/registry";
+import { usePortalAsset } from "@/lib/portal/asset-overrides";
 
-const GALLERY: { key: Parameters<typeof assetUrl>[0]; label: string; alt: string }[] = [
+const GALLERY: {
+  key: Parameters<typeof assetUrl>[0];
+  /** Espaço editável correspondente no Portal. */
+  slot: string;
+  label: string;
+  alt: string;
+}[] = [
   {
     key: "sede-velox",
+    slot: "estrutura-matriz",
     label: "Matriz",
     alt: "Fachada da sede Velox Soluções Financeiras",
   },
   {
     key: "sede-recepcao",
+    slot: "estrutura-recepcao",
     label: "Recepção",
     alt: "Recepção da sede Velox",
   },
   {
     key: "unidade-fachada",
+    slot: "estrutura-unidade",
     label: "Unidades da rede",
     alt: "Fachada de unidade franqueada Velox",
   },
@@ -86,20 +96,7 @@ export function EstruturaOverlay({
           className="mx-auto grid max-w-5xl gap-5 px-8 pb-10 sm:grid-cols-3 md:px-12"
         >
           {GALLERY.map((photo) => (
-            <figure
-              key={photo.key}
-              className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/60"
-            >
-              <img
-                src={assetUrl(photo.key)}
-                alt={photo.alt}
-                loading="lazy"
-                className="aspect-[4/3] w-full object-cover"
-              />
-              <figcaption className="px-4 py-3 text-xs uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
-                {photo.label}
-              </figcaption>
-            </figure>
+            <GalleryPhoto key={photo.key} photo={photo} />
           ))}
         </section>
 
@@ -133,5 +130,26 @@ export function EstruturaOverlay({
         )}
       </div>
     </PortalOverlayShell>
+  );
+}
+
+/**
+ * Fotografia da galeria: mostra a substituição vigente do Portal e, na
+ * ausência dela, a fotografia original — sempre a mesma imagem para
+ * qualquer visitante.
+ */
+function GalleryPhoto({
+  photo,
+}: {
+  photo: { key: Parameters<typeof assetUrl>[0]; slot: string; label: string; alt: string };
+}) {
+  const src = usePortalAsset(photo.slot, assetUrl(photo.key));
+  return (
+    <figure className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/60">
+      <img src={src} alt={photo.alt} loading="lazy" className="aspect-[4/3] w-full object-cover" />
+      <figcaption className="px-4 py-3 text-xs uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
+        {photo.label}
+      </figcaption>
+    </figure>
   );
 }

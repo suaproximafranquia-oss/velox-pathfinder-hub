@@ -1714,6 +1714,36 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_asset_overrides: {
+        Row: {
+          asset_key: string
+          created_at: string
+          id: string
+          reference: string
+          unit: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          asset_key: string
+          created_at?: string
+          id?: string
+          reference: string
+          unit: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          asset_key?: string
+          created_at?: string
+          id?: string
+          reference?: string
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       portal_backup_blobs: {
         Row: {
           created_at: string

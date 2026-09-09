@@ -1,3 +1,4 @@
+import { composeMessageBody } from "@/lib/relationship/messages";
 /**
  * MENSAGEM OFICIAL DE UMA ETAPA, PRONTA PARA O EXECUTIVO — SERVER ONLY.
  *
@@ -112,7 +113,7 @@ export async function prepareStepMessage(params: {
     };
   }
 
-  const body = result.button ? `${result.body}\n\n${result.button.url}` : result.body;
+  const body = composeMessageBody(result.body, result.button);
   return {
     step: params.step,
     body,

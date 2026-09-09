@@ -30,6 +30,18 @@ export type MeetingNote = {
 
 export type GoogleSyncState = "none" | "synced" | "pending" | "failed";
 
+/**
+ * COMPROMISSO DO GREENSALES. Nasce de `stage_key` (agendamentos/vídeo)
+ * com `follow_up` preenchido e espelha o GreenSales. É compromisso
+ * operacional — nunca reunião Google, nunca Google Meet, sem convite.
+ */
+export function isGreenSalesCommitment(m: {
+  externalSource?: string | null;
+  origin?: string | null;
+}): boolean {
+  return m.externalSource === "greensales" || m.origin === "greensales";
+}
+
 import type { MeetingProviderId, MeetingProviderStatus } from "@/lib/meeting-providers";
 
 export type Meeting = {
@@ -53,7 +65,13 @@ export type Meeting = {
   /** Assunto/tema declarado pelo investidor na solicitação. */
   topic?: string;
   /** Origem do registro — preparado para o CRM Inteligente. */
-  origin?: "portal" | "executivo";
+  origin?: "portal" | "executivo" | "greensales";
+  /**
+   * Sistema externo que originou o compromisso (`greensales`). Compromisso
+   * do GreenSales NÃO é reunião Google: não tem convite nem Meet.
+   */
+  externalSource?: string;
+  externalRef?: string;
   googleEventId?: string;
   googleSync?: GoogleSyncState;
   googleSyncError?: string;
@@ -116,7 +134,10 @@ export async function hydrateMeetingsFromServer(): Promise<number> {
     cancelReason: row.cancel_reason ?? undefined,
     requestedSlots: (row.requested_slots as string[]) ?? [],
     topic: row.topic ?? undefined,
-    origin: row.origin as "portal" | "executivo",
+    origin: row.origin as "portal" | "executivo" | "greensales",
+    externalSource:
+      (row as { external_source?: string | null }).external_source ?? undefined,
+    externalRef: (row as { external_ref?: string | null }).external_ref ?? undefined,
     googleEventId: row.google_event_id ?? undefined,
     googleSync: row.google_sync as GoogleSyncState,
     googleSyncError: row.google_sync_error ?? undefined,

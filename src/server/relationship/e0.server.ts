@@ -1,3 +1,4 @@
+import { composeMessageBody } from "@/lib/relationship/messages";
 /**
  * E0 — PRIMEIRO CONTATO NO CAMINHO OFICIAL DO MOTOR (SERVER ONLY).
  *
@@ -128,7 +129,7 @@ export async function dispatchFirstContact(input: {
   });
   if (!rendered.ok) return { registered: false, reason: rendered.reason };
 
-  const body = rendered.button ? `${rendered.body}\n\n${rendered.button.url}` : rendered.body;
+  const body = composeMessageBody(rendered.body, rendered.button);
   const messageId = input.cycleKey
     ? `${e0MessageId(input.leadId)}__${input.cycleKey}`
     : e0MessageId(input.leadId);

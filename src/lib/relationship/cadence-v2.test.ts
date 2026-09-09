@@ -61,7 +61,8 @@ describe("fluxo E — caminho sem resposta", () => {
 
   it("entrada na sexta absorve o fim de semana sem alongar o ciclo", () => {
     const cycle = run("2026-08-07");
-    expect(cycle.at(-1)?.offsetDays).toBe(14);
+    /** Base de 12 dias (E4→E7 = 3, E7→E8 = 2). */
+    expect(cycle.at(-1)?.offsetDays).toBe(12);
   });
 
   it("entrada no sábado desloca a régua para segunda", () => {
@@ -104,7 +105,7 @@ describe("ramificação com material", () => {
     });
     expect(nextTransition("E5", SEM_MATERIAL)).toEqual({ to: "E6", days: 7 });
     expect(nextTransition("E6", SEM_MATERIAL)).toEqual({ to: "E7", days: 2 });
-    expect(nextTransition("E7", SEM_MATERIAL)).toEqual({ to: "E8", days: 3 });
+    expect(nextTransition("E7", SEM_MATERIAL)).toEqual({ to: "E8", days: 2 });
   });
 
   it("sem resposta, E4 vai direto para E7", () => {
