@@ -236,3 +236,42 @@ describe("Compromisso futuro não é trabalho de hoje", () => {
     expect(isUpcomingAction(action({ actionKey: "b", bucket: "hoje" }))).toBe(false);
   });
 });
+
+describe("Ações do Dia — continuidade da mesma lead", () => {
+  const ronaldoMsg = action({
+    actionKey: "queue:ronaldo:E0:2",
+    leadId: "ronaldo",
+    stepLabel: "E0",
+    name: "Ronaldo",
+  });
+  const outraLead = action({
+    actionKey: "queue:aaa:E0:1",
+    leadId: "aaa",
+    stepLabel: "E0",
+    name: "Ana",
+  });
+
+  it("sem continuidade, o desempate alfabético mantém a outra lead na frente", () => {
+    const rows = normalizeDailyActions([ronaldoMsg, outraLead]);
+    expect(rows[0]?.leadId).toBe("aaa");
+  });
+
+  it("a próxima ação liberada da lead em curso assume a posição 1", () => {
+    const rows = normalizeDailyActions([ronaldoMsg, outraLead], "ronaldo");
+    expect(rows[0]?.leadId).toBe("ronaldo");
+    expect(rows[1]?.leadId).toBe("aaa");
+  });
+
+  it("a continuidade não promove compromisso futuro nem altera o rank geral", () => {
+    const futura = action({
+      actionKey: "meeting:ronaldo:1",
+      leadId: "ronaldo",
+      bucket: "futura",
+      kind: "reuniao",
+      source: "meeting",
+      priorityMax: true,
+    });
+    const rows = normalizeDailyActions([futura, outraLead], "ronaldo");
+    expect(rows[0]?.leadId).toBe("aaa");
+  });
+});
