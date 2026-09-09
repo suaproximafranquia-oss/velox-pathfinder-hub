@@ -45,6 +45,27 @@ const PrincipiosOverlay = lazy(() =>
   import("@/components/portal/principios-overlay").then((m) => ({ default: m.PrincipiosOverlay })),
 );
 import { assetUrl } from "@/lib/assets/registry";
+import {
+  setSavedPortalAssets,
+  usePortalAsset,
+} from "@/lib/portal/asset-overrides";
+import { canEditPortalAssets, fetchPortalAssetOverrides } from "@/lib/portal/asset-overrides.functions";
+const PortalAssetEditor = lazy(() =>
+  import("@/components/portal/portal-asset-editor").then((m) => ({ default: m.PortalAssetEditor })),
+);
+
+/**
+ * Espaço editável correspondente a cada módulo da Home. A chave é
+ * estável: trocar a imagem nunca muda o módulo nem o conteúdo.
+ */
+const MODULE_SLOTS: Record<string, string> = {
+  manual: "modulo-manual",
+  universo: "modulo-universo",
+  "modulo-vi": "modulo-simulador",
+  sede: "modulo-sede",
+  revista: "modulo-revista",
+  cultura: "modulo-experiencias",
+};
 
 const heroImg = { url: assetUrl("portal-hero-sede") };
 const manualCoverImg = { url: assetUrl("portal-capa-manual") };
@@ -128,6 +149,8 @@ type HomeSearch = {
   ch?: string;
   /** FASE 1 §6 — visitante chegou pelo Portal Institucional do Grupo. */
   g?: string;
+  /** `editor` abre o modo de edição das imagens (autorizado pelo servidor). */
+  modo?: string;
 };
 
 
@@ -255,6 +278,37 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
    */
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+
+  /**
+   * MODO EDITOR — quem decide é o servidor. A URL apenas pede; sem
+   * autorização o Portal segue exatamente como o investidor o vê.
+   */
+  const [editorAllowed, setEditorAllowed] = useState(false);
+  const editorRequested = str(search.modo) === "editor";
+
+  useEffect(() => {
+    let alive = true;
+    void fetchPortalAssetOverrides({ data: { unit: brandKey } })
+      .then((map) => alive && setSavedPortalAssets(map))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [brandKey]);
+
+  useEffect(() => {
+    if (!editorRequested) {
+      setEditorAllowed(false);
+      return;
+    }
+    let alive = true;
+    void canEditPortalAssets()
+      .then((r) => alive && setEditorAllowed(Boolean(r?.allowed)))
+      .catch(() => alive && setEditorAllowed(false));
+    return () => {
+      alive = false;
+    };
+  }, [editorRequested]);
 
   const refreshUnlocked = useCallback(() => {
     setUnlocked(isPortalUnlocked(getPortalSession()?.investorId ?? null));
@@ -446,6 +500,11 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
         <InvestorNewsFeed />
       </main>
       <PortalFooter />
+      {editorAllowed && (
+        <Suspense fallback={null}>
+          <PortalAssetEditor unit={brandKey} />
+        </Suspense>
+      )}
       <ModulePanel
         panel={active?.src ? { src: active.src, title: active.title } : null}
         onClose={closeActive}
@@ -589,12 +648,14 @@ function Hero({ brandKey }: { brandKey: string }) {
       ? `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 26%, transparent) 45%, color-mix(in oklab, ${overlayBase} 52%, transparent) 82%, color-mix(in oklab, ${overlayBase} 72%, transparent) 100%)`
       : `linear-gradient(180deg, transparent 0%, color-mix(in oklab, ${overlayBase} 45%, transparent) 45%, color-mix(in oklab, ${overlayBase} 88%, transparent) 82%, ${overlayBase} 100%)`;
 
+  const heroCover = usePortalAsset("home-capa", heroImg.url);
+
   return (
     <section className="relative isolate overflow-hidden -mt-[88px]">
       {/* Fotografia institucional como cenário integral */}
       <div aria-hidden className="absolute inset-0">
         <img
-          src={heroImg.url}
+          src={heroCover}
           alt=""
           fetchPriority="high"
           decoding="sync"
@@ -758,6 +819,7 @@ function ModuleTile({
   locked?: boolean;
 }) {
   const Icon = m.icon;
+  const cover = usePortalAsset(MODULE_SLOTS[m.key] ?? `modulo-${m.key}`, m.cover);
   const badge = locked
     ? "Confirme seu WhatsApp"
     : m.status === "em-preparacao"
@@ -769,7 +831,7 @@ function ModuleTile({
     <article className="portal-card group flex h-full flex-col">
       <div className="relative aspect-[16/10] overflow-hidden">
         <img
-          src={m.cover}
+          src={cover}
           alt=""
           aria-hidden
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
