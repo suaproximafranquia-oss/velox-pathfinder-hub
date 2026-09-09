@@ -107,6 +107,8 @@ export function resolveStepContext(
   if (key && VISUAL_CONTEXT_BY_STEP[key]) {
     return cycle.visualPath ? VISUAL_CONTEXT_BY_STEP[key]! : null;
   }
+  // E1 saiu do eixo V: é sempre a etapa normal, sem contexto.
+  if (key === "E1") return null;
   if (key === "R3") {
     return cycle.reachedE4Historically ? "JA_PASSOU_E4" : "NAO_CHEGOU_E4";
   }
