@@ -136,7 +136,16 @@ export function DailyActionsOverlay({
     for (const [key, expires] of resolvedKeysRef.current)
       if (expires <= now) resolvedKeysRef.current.delete(key);
 
-    const official = rows.filter((row) => !resolvedKeysRef.current.has(row.actionKey));
+    const filtered = rows.filter((row) => !resolvedKeysRef.current.has(row.actionKey));
+    /**
+     * A lead em curso perde a preferência assim que não tem mais nada
+     * executável — o fluxo volta naturalmente para a fila normal.
+     */
+    const lead = continuityLeadRef.current;
+    if (lead && !filtered.some((row) => row.leadId === lead && row.bucket !== "futura")) {
+      continuityLeadRef.current = null;
+    }
+    const official = sortDailyActions(filtered, continuityLeadRef.current);
     setActions(official);
     setSelectedKey(firstExecutableKey(official));
   }, []);
