@@ -1,121 +1,167 @@
-# Diagnóstico — Yuri sem card operacional na Financeira /f
+# Diagnóstico direcionado — E1 → E2 da Financeira /f
 
-Somente leitura de código e registros. Nenhum código, dado, card, tabela ou compromisso foi criado ou alterado. Não foi executada sincronização manual nem teste sobre Yuri. As conclusões usam o dado recebido pelo Portal, não uma consulta direta à API GreenSales.
+Somente leitura do código e da estrutura de `relationship_queue`. Nenhum código ou dado alterado, nenhuma sincronização, teste ou simulação executada. Este documento apresenta o diagnóstico, não uma construção a executar.
 
-## A) Onde Yuri existe hoje
+## Conclusão
 
-O registro encontrado é **Yuri Araújo, external_id `57239`**.
+**A regra definitiva ainda não está implementada.** Hoje:
 
-| Representação | Resultado confirmado |
+- E1 prevê **duas ligações com intervalo de 3 horas**, seguidas de uma mensagem — não 2 horas.
+- A segunda ligação **não expira ao encerrar o expediente**. Se a liberação cair fora da janela, é deslocada para a próxima abertura; se já estava liberada e não foi realizada, continua pendente e pode aparecer atrasada.
+- E2 prevê **uma ligação e uma mensagem**, independentemente da quantidade de ligações feitas na E1.
+- Não existe compensação E1 → E2 nem contador de compensações acumuladas. Existe risco de **pendência antiga persistir e segurar o avanço**, não uma regra que gere três ligações em E3.
+
+## Respostas 1–18
+
+### 1. Como são representadas as duas ligações da E1?
+
+Como ações internas da mesma etapa na fila existente:
+
+| Etapa | `action_order` | `action_kind` | Ação |
+|---|---:|---|---|
+| E1 | 1 | `call` | Ligação 01 |
+| E1 | 2 | `call` | Ligação 02 |
+| E1 | 3 | `message` | Mensagem |
+
+O plano não cria três etapas: todas continuam E1. As ações seguintes são programadas progressivamente pelo motor conforme o resultado da anterior.
+
+**Importante:** cumprir as duas ligações não equivale, hoje, a concluir toda a E1 quando ambas resultam em “Não atendeu”: ainda existe a mensagem prevista.
+
+### 2. Onde é definida a ordem?
+
+Em `stepActions("E1")`, em `cadence-v2.ts`. `nextReleasedAction()` exige que a ação anterior esteja concluída antes de liberar a seguinte. O motor grava a ordem em `relationship_queue.action_order`.
+
+### 3. Qual é o intervalo atual?
+
+**3 horas a partir de `executed_at` da primeira ligação**, pela propriedade `waitHoursAfterPrevious: 3`. Não é contado da abertura do card nem do horário originalmente previsto.
+
+`nextReleasedAction()` soma o intervalo e passa o resultado para `nextOpenMoment()`.
+
+A janela da cadência está definida como **segunda a sexta, 09:00–17:30; sábado, 08:00–16:00; domingo/feriado, fechado**. O limite final é exclusivo.
+
+### 4. O código consegue saber se uma ou duas ligações foram realizadas?
+
+**Os registros permitem saber; a decisão de compensação não existe.** Cada ação guarda etapa, ordem, tipo, estado, horário de execução e resultado. É possível identificar as ligações 1 e 2 efetivamente `EXECUTED`, sem confundir a mensagem com uma ligação.
+
+`loadCadenceV2State()` já carrega esses dados para `decideCadenceV2()`. Entretanto, `stepFinished()` verifica conclusão da etapa, não “duas tentativas realizadas dentro do mesmo dia”.
+
+### 5. O que acontece se a segunda ligação não ocorrer dentro da janela?
+
+Há dois casos:
+
+- **O intervalo termina fora da janela:** `nextOpenMoment()` desloca a liberação para a próxima abertura. Não descarta a tentativa.
+- **A ligação já estava liberada, mas não foi realizada até o fechamento:** continua na fila com seu vencimento. Não há, nesse caminho, expiração diária específica da segunda ligação E1.
+
+Pela regra atual, uma primeira ligação às 15:00 produziria liberação às 18:00 e, portanto, deslocamento para a próxima abertura — não às 17:00 como na regra solicitada.
+
+### 6. Ela permanece pendente?
+
+**Sim**, como `PENDING`, ou `PROCESSING` enquanto reivindicada. A reavaliação do motor reconhece a mesma etapa/ordem pendente, sem tratá-la como tentativa expirada pelo fim do expediente.
+
+### 7. Ela vira atraso no dia seguinte?
+
+**Pode virar, com uma distinção:**
+
+- Se venceu em dia útil anterior e não foi executada, a Ação do Dia pode classificá-la como atrasada no próximo dia útil, mantidas as demais condições de elegibilidade.
+- Se sua liberação foi deslocada para o próximo dia operacional, chega nesse dia como obrigação daquele dia, não atrasada por causa do dia anterior. Se continuar sem execução, também poderá atrasar depois.
+
+A classificação usa dias úteis e `due_at`; não existe isenção específica para a segunda ligação E1. Não é correto afirmar que qualquer virada de meia-noite produz atraso.
+
+### 8. É encerrada ou removida ao fechar a janela?
+
+**Não por esse motivo.** Os caminhos examinados não encerram a tentativa por fim da janela. Cancelamentos por resultado ou mudança de fluxo são motivos diferentes e não implementam a regra solicitada.
+
+### 9. Existe registro de E1 incompleta?
+
+**Existe histórico suficiente para identificar uma ligação executada e outra não executada**, mas não um resultado específico “E1 incompleta por encerramento da janela” usado para compensar E2.
+
+Também não basta verificar se a etapa consta como executada: o comportamento atual considera a etapa terminada quando uma ligação foi atendida, mesmo sem duas tentativas.
+
+### 10. De onde vem a quantidade de ligações de E2?
+
+Do plano fixo `stepActions("E2")`: **ordem 1 = ligação; ordem 2 = mensagem**. `decideCadenceV2()` usa esse plano para reconhecer conclusão e liberar a próxima ação.
+
+### 11. Existe E2 com duas ligações por E1 incompleta?
+
+**Não.** O plano atual não recebe a completude da E1 para determinar a quantidade de ligações da E2.
+
+### 12. Qual é o ponto exato para introduzir essa decisão?
+
+No **planejamento das ações internas de E2**, alimentado pelo histórico E1 já recebido por `decideCadenceV2()`.
+
+A decisão precisa ser compartilhada por:
+
+- `stepActions()` — plano aplicável àquela E2;
+- `nextReleasedAction()` — ordem e intervalo das ações;
+- `stepFinished()` — reconhecimento de conclusão no decisor;
+- `isStepComplete()` — manter o mesmo contrato de conclusão onde utilizado.
+
+**Não basta acrescentar uma ligação na tela nem apenas alterar a lista fixa:** atualmente a ordem 2 de E2 pertence à mensagem. A E2 compensada precisa distinguir ligação 2 e mensagem, sem reinterpretar registros existentes.
+
+### 13. Se E1 fez as duas ligações, E2 tem somente uma?
+
+**Sim quanto ao plano atual de E2**, mas não por reconhecer E1 completa: E2 tem uma ligação em todos os casos. A metade “E1 incompleta → E2 com duas” não existe.
+
+### 14. Se E2 compensada também ficar incompleta, existe proteção contra atraso/acúmulo?
+
+**Não existe proteção específica**, e E2 compensada ainda não existe. Se uma segunda ligação fosse apenas acrescentada ao plano, as regras atuais a manteriam pendente ou deslocariam sua liberação; não expiraria automaticamente.
+
+Não há transferência numérica para E3 hoje. O risco imediato dessa alteração isolada seria conservar a pendência e impedir o encerramento da E2.
+
+### 15. Existe mecanismo de acúmulo entre etapas?
+
+**Não existe contador de dívida que some tentativas à etapa seguinte.** O que existe é retenção de ações não realizadas na própria etapa.
+
+`decideCadenceV2()` percorre as etapas e para na primeira ainda não terminada. Uma segunda ligação E1 pendente pode impedir que a E2 seja programada pelo caminho normal. Portanto, existe acúmulo temporal de trabalho pendente, não compensação cumulativa de quantidade.
+
+### 16. A quantidade depende só da etapa ou também do histórico anterior?
+
+**Hoje depende apenas da etapa**, em `stepActions(step)`. O histórico já é usado para resultados, ordem e conclusão, mas não para escolher uma ou duas ligações na E2.
+
+A arquitetura permite introduzir essa escolha por lead sem outra fila ou motor, utilizando os dados já carregados.
+
+### 17. Qual é a menor alteração necessária, futuramente?
+
+Não seria uma mudança apenas visual nem somente trocar `3` por `2`. O menor conjunto funcional seria:
+
+1. Alterar o intervalo interno E1 para **2 horas**.
+2. Reconhecer o fim da oportunidade diária da segunda ligação E1 e da segunda ligação compensatória E2, sem deslocá-las para outro dia.
+3. Registrar a tentativa não realizada como encerrada na **mesma fila**, preservando a linha e um motivo específico; nunca marcá-la como executada.
+4. Usar somente a incompletude pertinente da E1 para escolher o plano de E2: uma ou duas ligações, com 2 horas entre elas. A incompletude da E2 não alimentaria outra compensação.
+5. Aplicar o mesmo plano na liberação e na conclusão, impedindo que a segunda ligação expirada reapareça ou seja aceita numa conclusão tardia. A Ação do Dia não deve considerar executável uma tentativa já expirada enquanto aguarda a próxima passagem do agendador.
+6. Preservar `nextTransition()` e `planDue()`: a compensação não antecipa E2 nem redefine a distância entre etapas.
+
+**Duas particularidades precisam ser respeitadas para uma implementação exata:**
+
+- A E1 atual também tem mensagem. Cancelar somente a ligação 2 não basta: `nextReleasedAction()` exige a anterior `DONE` para liberar a mensagem, enquanto `stepFinished()` espera todas as ações aplicáveis. É necessário definir o tratamento dessa dependência, sem inventar envio, cancelar mensagem silenciosamente ou dar a etapa inteira como executada.
+- Hoje “Atendeu” encerra as ações restantes da etapa. Isso não é equivalente a perder a segunda tentativa por falta de janela. O diagnóstico não presume que esse caso deva gerar compensação nem propõe mudar a regra de atendimento.
+
+A escolha do plano deve permanecer estável após o início da E2 e usar o histórico pertinente ao ciclo do lead, não uma contagem indiscriminada de ligações antigas.
+
+### 18. É possível reutilizar fila, ordem, histórico e motor?
+
+**Sim.** A estrutura consultada já possui `action_order`, `action_kind`, `status`, `executed_at`, `result`, `cancel_reason`, `origin_date` e `theoretical_date`.
+
+Pode-se preservar a tentativa não realizada usando o estado de cancelamento existente com motivo próprio e derivar a compensação desse histórico, sem tabela, fila ou motor novos. Hoje o carregador lê `cancel_reason`, mas não o repassa em `V2QueueAction`; esse motivo precisaria chegar à decisão para distinguir expiração de outros cancelamentos.
+
+## Distância E1 → E2
+
+`nextTransition("E1")` retorna **`{ to: "E2", days: 2 }`**. O cálculo é pela origem do ciclo e deslocamentos teóricos, com execução anterior como piso e proteção contra duas etapas no mesmo dia.
+
+Isso **não significa simplesmente 48 horas após a última ligação**. A contagem de tentativas é independente dessa regra de datas e deve continuar assim.
+
+## Arquivos e funções diretamente envolvidos
+
+| Arquivo | Ponto confirmado |
 |---|---|
-| `crm_leads` | Existe: `fb97b894-51e1-412f-8f67-afe8b969ffd6`, origem `greensales` |
-| Estágio sincronizado | `agendamentos` |
-| `raw_payload.follow_up` | `2026-09-10 09:10:00`: **10/09/2026 às 09:10, Brasília** |
-| Última sincronização registrada do lead | 09/09/2026 às 11:13:08, Brasília; `sync_status=OK`, sem erro |
-| `investors` | Existe identidade canônica `d9296fb0-0348-460a-822b-2479fedeeb02` |
-| `investor_identifiers` | Existe vínculo `greensales` → `57239` para essa identidade |
+| `src/lib/relationship/cadence-v2.ts:136–146, 204–224, 308–315, 351–387, 480–578` | `nextTransition`, `cadenceWindow`, `nextOpenMoment`, `planDue`, `stepActions`, `nextReleasedAction`, `isStepComplete` |
+| `src/lib/relationship/cadence-v2-decide.ts:49–58, 95–121, 135–241` | `V2QueueAction`, `toActionState`, `stepFinished`, `decideCadenceV2`: histórico, conclusão e escolha da obrigação |
+| `src/server/relationship/cadence-v2-state.server.ts:120–162, 197–219` | `loadCadenceV2State`: lê a fila e fornece o estado ao decisor |
+| `src/server/relationship/call-outcome.server.ts:21–118` | `registerQueueCallOutcome`: grava resultado e solicita reavaliação da mesma cadência |
+| `src/lib/relationship/engine.ts:198–280, 647–656` | `evaluate`, `tick`: persistência da obrigação e reconhecimento de pendência existente |
+| `src/server/relationship/repository.server.ts:203–267` | `upsertQueueItem`, `updateQueueItem`: gravação por etapa/ordem e atualização do estado/motivo |
+| `src/server/relationship/scheduler.server.ts:136–190` | `runRelationshipTick`: acionamento regular do mesmo motor |
+| `src/server/crm/daily-actions.server.ts:334–388` | `buildDailyActions`: inclui ações pendentes e calcula apresentação/atraso |
+| `src/lib/crm/daily-actions-overdue.ts:47–57` | `availabilityFromDate`, `isOverdueByBusinessDays`: classificação por dias úteis |
 
-**O evento não é apenas hipotético: estágio e follow_up válidos já chegaram ao Portal.**
-
-Uma ressalva sobre a origem da ausência: o histórico registra Yuri como **lead histórico importado sem primeiro contato em 22/08**. A criação na origem é de **29/07/2026**. Portanto, os dados não sustentam descrevê-lo como lead criado depois da regra; confirmam uma importação histórica sem entrada operacional. Não é necessário presumir a data de corte para explicar o bloqueio atual.
-
-## B) Existe portal_lead/card correspondente?
-
-**Não.** A pesquisa por nome, `external_id=57239`, ID esperado `gs_57239` e identidade canônica não encontrou registro em `portal_leads` — nem arquivado.
-
-Também foram encontrados **zero** registros ligados a `gs_57239` em `workspace_e0_actions`, `relationship_cadences` e `relationship_queue`.
-
-A identidade em `investors` não substitui o card operacional: o espelhamento de compromissos procura especificamente `portal_leads.id=gs_57239`.
-
-## C) O que acontece quando chega o follow_up válido?
-
-O caminho atual é:
-
-```text
-GreenSales → crm_leads, reconhecido por external_id 57239
-          → estágio agendamentos + follow_up válido
-          → syncGreenSalesFollowUps seleciona o lead
-          → syncOneFollowUp calcula decisão de criar compromisso
-          → loadLeadIdentity procura portal_leads.id = gs_57239
-          → não encontra
-          → retorna ignore: "Lead sem card operacional no Portal."
-          → não chega à gravação de portal_meetings
-```
-
-A seleção dos compromissos não exige que o lead tenha passado pela E0, nem aplica o corte de entrada da cadência. Entretanto, **a criação efetiva exige o card e um executivo responsável**.
-
-No estado consultado, Yuri tem horário futuro, portanto não cai na regra que ignora compromissos descobertos pela primeira vez já vencidos há mais de 24 horas. Há 31 leads nos estágios elegíveis, abaixo do limite de leitura de 2.000; esse limite não explica a ausência.
-
-Este é o comportamento determinado pelo código e pelos registros atuais; não foi reproduzido chamando a função, pois ela poderia gravar dados reais.
-
-## D) portal_meetings pode existir sem o card?
-
-**Estruturalmente, sim; pelo caminho atual de criação GreenSales, não.**
-
-- O banco não tem chave estrangeira de `portal_meetings.investor_id` para `portal_leads`. Uma linha poderia existir sem esse card, desde que satisfeitos os demais campos, restrições e permissões.
-- `syncOneFollowUp`, porém, bloqueia a criação antes da escrita quando o card não existe.
-- Para Yuri, **não há compromisso em `portal_meetings`**, nem pelo ID esperado, nem pelos identificadores consultados.
-- Caso o fluxo chegasse à criação, usaria `id=gsfu_57239`, `investor_id=gs_57239` e `external_ref=f:greensales:lead:57239:follow_up`. O vínculo operacional não usa o UUID de `crm_leads` nem o UUID canônico de `investors`.
-
-## E) Onde o fluxo para e quais telas são afetadas?
-
-O bloqueio exato está em **`src/server/crm/greensales-followup.server.ts:281–286`**, dentro de `syncOneFollowUp`, ao consultar `loadLeadIdentity`.
-
-| Superfície | Situação atual de Yuri | Se existisse uma reunião sem card |
-|---|---|---|
-| Portal dos Leads | O espelho em `crm_leads` é pesquisável por Gestão/Admin autorizados; no recorte de colaborador, a ausência de titularidade em `portal_leads` impede incluí-lo como lead próprio | Não depende da reunião para listar o espelho |
-| Workspace operacional | Sem card: falta `portal_leads` | A reunião não cria automaticamente o card |
-| Central de Reuniões | Não recebe compromisso de Yuri, pois não existe linha em `portal_meetings` | Pode listar a reunião pelos dados próprios dela, respeitando permissões e filtros; isso não fornece a ficha operacional ausente |
-| Aviso “Próximo compromisso” | Não encontra compromisso de Yuri | Pode encontrá-lo por executivo, horário e situação, sem consultar o card; o aviso prioriza os próximos horários |
-| Ação do Dia | Não recebe compromisso nem ações de cadência de Yuri | Pode montar item `source=meeting`, `kind=reuniao` usando o nome da reunião, mesmo sem identidade do card; telefone ficaria vazio, respeitados responsável, estado e janela temporal |
-
-Portanto, **a falha principal acontece antes das telas, não na renderização delas**. O horário de Yuri estaria dentro das janelas atuais de leitura do aviso e da Ação do Dia se a reunião existisse, sem dispensar os demais filtros e a classificação de compromisso futuro.
-
-**Existe detecção, mas não recuperação:** a condição “sem card” tem uma mensagem técnica e incrementa `summary.ignored`. Não há, nesse caminho, criação da representação faltante ou pendência individual persistida. `runLeadSync` incorpora apenas `followUps.errors`; o motivo de ignore não vira erro de sincronização. Isso explica como o lead pode estar com sincronização `OK` e continuar sem compromisso espelhado.
-
-## F) A hipótese está correta?
-
-**Parcialmente, com uma diferença decisiva.**
-
-- Confirmado: Yuri existe no espelho GreenSales, tem compromisso informado e não tem representação operacional.
-- Confirmado: essa ausência interrompe o fluxo de espelhamento.
-- Não confirmado — e contrário ao estado atual: “o compromisso pode até ter sido criado e apenas não aparece”. **No caso de Yuri, ele não foi criado.**
-- Não seria correto afirmar que todas as telas precisam do card para listar uma reunião já existente: Central, aviso e Ação do Dia conseguem ler a própria reunião.
-
-## G) Menor correção possível — somente análise
-
-Para cumprir a regra proposta, a alternativa mais localizada é **garantir a representação mínima no próprio caminho de criação do compromisso**, reutilizando `ensureWorkspaceCard`, antes da consulta de identidade impedir a escrita.
-
-Condições da eventual alteração:
-
-1. Restringir à Financeira e à origem GreenSales, preservando o isolamento de testes.
-2. Agir somente quando a regra existente decidir `create`: AGENDAMENTOS/VÍDEO, follow_up válido e não descartado pela regra de histórico vencido.
-3. Resolver o executivo responsável com identidade oficial antes de prosseguir; nunca atribuir ao dono do cron ou inventar responsável.
-4. Se o card estiver realmente ausente, reutilizar `ensureWorkspaceCard` com os dados sincronizados e o ID determinístico existente. Não restaurar, substituir nem alterar cards já existentes.
-5. Reutilizar o vínculo canônico já existente por `linkCanonicalInvestor`, sem criar outro investidor.
-6. Seguir para a criação idempotente do mesmo `portal_meetings`, pelas regras atuais.
-7. Não passar pelo fluxo completo de `intakeLead`, nem criar E0, cadência, mensagem ou obrigação de ligação apenas para representar a reunião.
-
-**Bloqueador adicional confirmado para Yuri:** o payload armazenado não contém `vendedor_id` nem `vendedor.id`, campos usados por `resolveResponsibleByVendorId`. Existe `user_id=37193`, mas o resolvedor atual não trata esse campo como vendedor; não há base para presumir equivalência.
-
-Assim, **criar um card vazio não basta**: sem responsável oficial, a condição seguinte também retorna ignore (“Lead sem executivo responsável — compromisso não espelhado”). A menor solução completa precisa esclarecer a origem oficial desse responsável, sem alterar a atribuição por suposição.
-
-Essa abordagem reutiliza sincronização, card, identidade e agenda existentes: **não exige tabela, segundo motor, segunda fila, segunda agenda ou nova fonte de verdade**. Também não cria cards indiscriminadamente para leads antigos. É análise de viabilidade, não autorização ou execução da mudança.
-
-## H) Arquivos e funções envolvidos — detalhes técnicos
-
-| Arquivo | Função/ponto relevante |
-|---|---|
-| `src/server/crm/lead-sync.server.ts:494–510` | `runLeadSync`: chama espelhamento após sincronizar leads; incorpora erros, não motivos de ignore |
-| `src/server/crm/lead-intake.server.ts:200–265` | `intakeLead`: criação normal de card condicionada à entrada elegível |
-| `src/server/crm/workspace-card.server.ts:45–96` | `ensureWorkspaceCard`: representação `gs_<external_id>`, reutilizável sem chamar a cadência |
-| `src/lib/crm/greensales-followup.ts:137–197` | `planFollowUpSync`: elegibilidade, horário, criação/atualização/cancelamento |
-| `src/server/crm/greensales-followup.server.ts:189–217, 238–338, 427–498` | `loadLeadIdentity`, `syncOneFollowUp`, `syncGreenSalesFollowUps`: bloqueio por ausência do card, gravação e agregado de ignores |
-| `src/server/crm/responsible.server.ts:42–69` | `resolveResponsibleByVendorId`, `greenSalesVendorId`: resolução oficial do responsável |
-| `src/server/crm/identity.server.ts:212–236` | `linkCanonicalInvestor`: vínculo com identidade existente |
-| `src/lib/crm/leads.functions.ts:175–230` | `ownExternalIds`, `listCrmLeads`: Portal dos Leads e recorte por titularidade |
-| `src/lib/meetings.functions.ts:35–45`; `src/lib/meetings.ts:119–154`; `src/routes/f.executivo.reunioes.tsx` | Leitura, hidratação e apresentação da Central de Reuniões |
-| `src/lib/agenda.functions.ts:225–251`; `src/components/crm/next-commitment-alert.tsx` | `listNextCommitments` e aviso de próximo compromisso |
-| `src/server/crm/daily-actions.server.ts:116–165, 212–245` | `buildDailyActions`: leitura e representação independente dos compromissos |
-
-Nenhuma correção foi implementada; nenhum outro ambiente ou comportamento foi alterado.
+**Resultado:** diagnóstico concluído; nenhuma correção implementada ou autorizada por este documento.
