@@ -223,10 +223,11 @@ export const resolveMeetingOutcomeFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
-    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({
+    const { assertCommitmentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCommitmentAction({
       executiveId,
       actionKey: data.actionKey,
+      meetingId: data.meetingId,
       allowPendingRecovery: data.pendingRecovery === true,
     });
     const { resolveMeetingOutcome } = await import("@/server/crm/daily-actions-log.server");
@@ -252,10 +253,11 @@ export const rescheduleMeetingFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
-    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({
+    const { assertCommitmentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCommitmentAction({
       executiveId,
       actionKey: data.actionKey,
+      meetingId: data.meetingId,
       allowPendingRecovery: data.pendingRecovery === true,
     });
     const { isGreenSalesMirror } = await import("@/server/crm/daily-actions-log.server");
@@ -289,10 +291,11 @@ export const resolveFollowUpContactFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
-    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({
+    const { assertCommitmentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCommitmentAction({
       executiveId,
       actionKey: data.actionKey,
+      meetingId: data.meetingId,
       allowPendingRecovery: data.pendingRecovery === true,
     });
     const { registerFollowUpContact, registerFollowUpNoContact } = await import(
@@ -325,10 +328,11 @@ export const resolveFollowUpReviewFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
-    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCurrentAction({
+    const { assertCommitmentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCommitmentAction({
       executiveId,
       actionKey: data.actionKey,
+      meetingId: data.meetingId,
       allowPendingRecovery: data.pendingRecovery === true,
     });
     const { resolveFollowUpReview } = await import("@/server/crm/greensales-followup.server");

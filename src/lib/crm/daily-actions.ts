@@ -28,7 +28,7 @@ export const OPERATIONAL_TIME_ZONE = "America/Sao_Paulo";
 /**
  * Antecedência em que uma reunião passa a ocupar o topo da lista.
  * Regra operacional: a reunião entra em foco ~5 minutos antes do
- * horário e PERMANECE na lista (como atrasada) até ser resolvida.
+ * horário; após a janela permanece aberta, sem bloquear a operação.
  */
 export const MEETING_FOCUS_WINDOW_MS = 5 * 60 * 1000;
 
@@ -47,7 +47,7 @@ export type DailyActionKind =
   | "compromisso"
   | "mensagem"
   | "ligacao";
-export type DailyActionBucket = "agora" | "atrasada" | "hoje" | "futura";
+export type DailyActionBucket = "agora" | "atrasada" | "hoje" | "futura" | "pendente";
 
 export type CadenceAttemptView = { step: number; date: string; outcome: "SIM" | "NAO" };
 
@@ -161,7 +161,7 @@ export function resolveBucket(input: {
   if (input.startsAt) {
     const startMs = new Date(input.startsAt).getTime();
     if (Number.isFinite(startMs)) {
-      if (startMs <= nowMs) return startMs < nowMs - window ? "atrasada" : "agora";
+      if (startMs <= nowMs) return startMs < nowMs - window ? "pendente" : "agora";
       if (startMs - nowMs <= window) return "agora";
       /**
        * COMPROMISSO COM HORÁRIO AINDA POR VIR NÃO É TRABALHO DE AGORA —
@@ -192,6 +192,7 @@ export function actionRank(action: DailyAction): number {
    * POSIÇÃO 1 PROTEGIDA: a ação já reivindicada pelo executivo (em
    * atendimento) não é deslocada por novas liberações da régua.
    */
+  if (action.bucket === "pendente") return 7;
   if (action.claimed) return 0;
   /**
    * COMPROMISSO DE OUTRO DIA NÃO É TRABALHO DE HOJE. Ele continua
@@ -209,6 +210,11 @@ export function actionRank(action: DailyAction): number {
   if (action.bucket === "atrasada") return 3;
   if (action.bucket === "agora" || action.bucket === "hoje") return 4;
   return 5;
+}
+
+/** Pendências abertas são acessíveis sob demanda, nunca escolhidas automaticamente. */
+export function isAutomaticDailyAction(action: DailyAction): boolean {
+  return action.bucket !== "futura" && action.bucket !== "pendente";
 }
 
 /** Compromisso de outro dia: visível, porém não executável hoje. */
@@ -239,8 +245,8 @@ export function sortDailyActions(
      * leads. Compromissos de outro dia nunca são promovidos.
      */
     if (continuityLeadId) {
-      const aLead = a.leadId === continuityLeadId && a.bucket !== "futura" ? 0 : 1;
-      const bLead = b.leadId === continuityLeadId && b.bucket !== "futura" ? 0 : 1;
+      const aLead = a.leadId === continuityLeadId && isAutomaticDailyAction(a) ? 0 : 1;
+      const bLead = b.leadId === continuityLeadId && isAutomaticDailyAction(b) ? 0 : 1;
       if (aLead !== bLead) return aLead - bLead;
     }
     const rank = actionRank(a) - actionRank(b);
@@ -257,7 +263,7 @@ export function reclassifyDailyActions(actions: DailyAction[], nowIso: string, c
   const flatten = (rows: DailyAction[]): DailyAction[] => rows.flatMap((a) => [{ ...a, secondary: undefined }, ...flatten(a.secondary ?? [])]);
   const rows = flatten(actions).filter((a) => !a.expiresAt || Date.parse(a.expiresAt) > Date.parse(nowIso)).map((a) => {
     const bucket = a.followUp?.mode === "revisao_24h"
-      ? (a.dueDate < operationalDate(nowIso) ? "atrasada" : "agora")
+      ? "pendente"
       : a.source === "queue" || a.source === "closure"
       ? (isOverdueByBusinessDays(availabilityFromDate(a.dueDate), nowIso) ? "atrasada" : a.dueDate > operationalDate(nowIso) ? "futura" : "hoje")
       : a.startsAt ? resolveBucket({ dueDate: a.dueDate, startsAt: a.startsAt, nowIso }) : a.bucket;
@@ -320,7 +326,7 @@ export function collapseByLead(actions: DailyAction[]): DailyAction[] {
   const byLead = new Map<string, DailyAction>();
   const loose: DailyAction[] = [];
   for (const action of actions) {
-    if (!action.leadId) {
+    if (!action.leadId || action.bucket === "pendente") {
       loose.push(action);
       continue;
     }

@@ -1,3 +1,7 @@
+import { saveSimulationReport } from "@/lib/simulation-reports.functions";
+import { ensurePortalToken } from "@/lib/portal-token";
+import { Button } from "@/components/ui/button";
+import type { SimulationRecord } from "@/lib/simulator-history";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X, ArrowRight, ArrowLeft, Check, Calculator, RotateCcw, FileCheck2 } from "lucide-react";
 import {
@@ -118,10 +122,23 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
   // A conclusão emite o evento e gera o PDF UMA única vez por sessão de
   // simulação (evita reprocessar em re-renderizações do step 3).
   const completedRef = useRef(false);
+  const pendingReport = useRef<SimulationRecord | null>(null);
+  const [reportState, setReportState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  async function persistReport(record: SimulationRecord) {
+    setReportState("saving");
+    try {
+      const token = await ensurePortalToken(record.investorId);
+      if (!token) throw new Error("Identificação não disponível");
+      await saveSimulationReport({ data: { token, record } });
+      setReportState("saved");
+    } catch { setReportState("error"); }
+  }
   const [pdfInfo, setPdfInfo] = useState<{ filename: string } | null>(null);
   useEffect(() => {
     if (step !== 3) {
       completedRef.current = false;
+      pendingReport.current = null;
+      setReportState("idle");
       setPdfInfo(null);
       return;
     }
@@ -129,6 +146,8 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
     completedRef.current = true;
     const investorId = getCurrentInvestorId();
     const session = getPortalSession();
+    const sharedReport = /^\/f(?:\/|$)/.test(window.location.pathname);
+    if (sharedReport) setReportState("saving");
     const responsible = getResponsibleExecutive();
     const exec = responsible.executive;
     const interestsProfile = getInterestsProfile(investorId ?? undefined);
@@ -164,7 +183,9 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
     // baixado no dispositivo do investidor).
     if (pdf && investorId) {
       try {
-        addSimulation({
+        const record: SimulationRecord = {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
           investorId,
           filename: pdf.filename,
           pdfDataUri: pdf.dataUri,
@@ -182,11 +203,14 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
           executiveName: exec?.name ?? null,
           audienceLabel: interestsProfile?.audience ? audienceMap[interestsProfile.audience] : null,
           interests: interestsProfile?.interests ?? [],
-        });
+        };
+        if (sharedReport) { pendingReport.current = record; await persistReport(record); }
+        else addSimulation(record);
       } catch {
         /* histórico é best-effort */
       }
     }
+      if (sharedReport && (!pdf || !investorId)) setReportState("error");
       trackJourney({
         type: "simulator.completed",
         investorId,
@@ -249,11 +273,15 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
             />
           )}
           {step === 3 && (
+            <>
             <StepConfirmation
               pdfFilename={pdfInfo?.filename ?? null}
+              reportState={reportState}
               onRestart={reset}
               onClose={onClose}
             />
+            {reportState === "error" && pendingReport.current && <div className="pb-6 text-center"><Button variant="outline" onClick={() => { const record = pendingReport.current; if (record) void persistReport(record); }}>Tentar salvar novamente</Button></div>}
+            </>
           )}
         </div>
 
@@ -530,10 +558,12 @@ type ResultRow = { product: SimulatorProduct; input: number; volume: number; rev
 
 function StepConfirmation({
   pdfFilename,
+  reportState,
   onRestart,
   onClose,
 }: {
   pdfFilename: string | null;
+  reportState: "idle" | "saving" | "saved" | "error";
   onRestart: () => void;
   onClose: () => void;
 }) {
@@ -558,8 +588,7 @@ function StepConfirmation({
         Sua simulação foi concluída com sucesso.
       </h2>
       <p className="mt-5 text-sm md:text-base leading-relaxed text-[color:var(--muted-foreground)]">
-        Seu relatório já foi gerado automaticamente e está disponível para o Executivo responsável
-        pelo seu atendimento.
+        {reportState === "saving" ? "Salvando seu relatório…" : reportState === "error" ? "A simulação foi calculada, mas não foi possível salvar o relatório." : "Seu relatório já foi gerado automaticamente e está disponível para o Executivo responsável pelo seu atendimento."}
       </p>
 
       <div className="mt-10">

@@ -7,6 +7,9 @@ import { decideNextAction } from "./decide";
 import { HOMOLOGATION_MESSAGES } from "./messages";
 
 describe("resolveEntryFlow", () => {
+  it("histórico de várias entradas não substitui uma nova submissão", () => {
+    expect(resolveEntryFlow({ entryCount: 8, hasPreviousRelationship: true, newCommercialEntry: false }).reentry).toBe(false);
+  });
   it("lead novo segue o fluxo de primeiro contato", () => {
     const r = resolveEntryFlow({
       entryCount: 1,

@@ -28,7 +28,7 @@ export function resolveEntryFlow(history: EntryHistory): EntryResolution {
       reason: "Sem relacionamento anterior — primeira entrada, fluxo de primeiro contato.",
     };
   }
-  if (!history.newCommercialEntry && history.entryCount <= 1) {
+  if (!history.newCommercialEntry) {
     return {
       flow: "sem_resposta",
       reentry: false,
