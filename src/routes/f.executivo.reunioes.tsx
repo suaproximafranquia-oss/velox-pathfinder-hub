@@ -951,7 +951,21 @@ function DetailsDialog({ meeting, onClose }: { meeting: Meeting; onClose: () => 
             <div><dt className="uppercase tracking-[0.2em] text-[10px]">Data</dt><dd className="text-[color:var(--foreground)]">{when.toLocaleDateString("pt-BR")}</dd></div>
             <div><dt className="uppercase tracking-[0.2em] text-[10px]">Hora</dt><dd className="text-[color:var(--foreground)]">{when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</dd></div>
             <div className="col-span-2"><dt className="uppercase tracking-[0.2em] text-[10px]">Executivo responsável</dt><dd className="text-[color:var(--foreground)]">{meeting.executiveName}</dd></div>
-            {meeting.meetUrl && (
+            {isGreenSalesCommitment(meeting) && (
+              <div className="col-span-2">
+                <dt className="uppercase tracking-[0.2em] text-[10px]">Origem</dt>
+                <dd className="text-[color:var(--foreground)]">
+                  Compromisso do GreenSales — este compromisso não utiliza Google Meet.
+                </dd>
+              </div>
+            )}
+            {meeting.cancelReason && (
+              <div className="col-span-2">
+                <dt className="uppercase tracking-[0.2em] text-[10px]">Motivo do cancelamento</dt>
+                <dd className="text-[color:var(--foreground)]">{meeting.cancelReason}</dd>
+              </div>
+            )}
+            {!isGreenSalesCommitment(meeting) && meeting.meetUrl && (
               <div className="col-span-2">
                 <dt className="uppercase tracking-[0.2em] text-[10px]">Link</dt>
                 <dd>
