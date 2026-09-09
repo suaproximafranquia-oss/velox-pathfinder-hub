@@ -214,10 +214,27 @@ export function isUpcomingAction(action: DailyAction): boolean {
 
 
 
-export function sortDailyActions(actions: DailyAction[]): DailyAction[] {
+/**
+ * CONTINUIDADE DA MESMA LEAD (contexto da sessão, nunca persistido).
+ *
+ * Quando o Executivo acaba de concluir uma ação de um investidor e essa
+ * conclusão libera a PRÓXIMA ação do MESMO investidor (por exemplo a
+ * Mensagem E0 logo após a 2ª ligação), essa próxima ação passa à frente
+ * das ações de OUTRAS leads de mesmo rank. Não altera rank, cadência,
+ * histórico nem prioridade permanente: é apenas desempate momentâneo.
+ */
+export function sortDailyActions(
+  actions: DailyAction[],
+  continuityLeadId?: string | null,
+): DailyAction[] {
   return [...actions].sort((a, b) => {
     const rank = actionRank(a) - actionRank(b);
     if (rank !== 0) return rank;
+    if (continuityLeadId) {
+      const aLead = a.leadId === continuityLeadId && a.bucket !== "futura" ? 0 : 1;
+      const bLead = b.leadId === continuityLeadId && b.bucket !== "futura" ? 0 : 1;
+      if (aLead !== bLead) return aLead - bLead;
+    }
     const aKey = a.startsAt ?? `${a.dueDate}T23:59:59.999Z`;
     const bKey = b.startsAt ?? `${b.dueDate}T23:59:59.999Z`;
     if (aKey !== bKey) return aKey < bKey ? -1 : 1;
