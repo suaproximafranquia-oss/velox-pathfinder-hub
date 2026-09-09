@@ -94,82 +94,44 @@ export function DailyActionsOverlay({
   const [undoable, setUndoable] = useState<DailyAction | null>(null);
 
   /**
-   * JANELA DE ACOMODAÇÃO (~4s).
+   * RECONCILIAÇÃO APÓS CONCLUIR.
    *
    * Concluir uma ação pode fazer o servidor criar, poucos instantes
    * depois, a PRÓXIMA ação do MESMO investidor (por exemplo a mensagem
-   * E0 logo após a 2ª ligação). Sem cuidado, essa ação nasce durante a
-   * troca de card e o investidor "volta" na tela sem aviso.
-   *
-   * A janela não atrasa nada: o card sai no clique e o próximo assume na
-   * hora. Ela apenas segura, por alguns segundos, a ENTRADA VISUAL das
-   * ações recém-nascidas do investidor que acabou de ser concluído — e
-   * então as acomoda na fila oficial, na posição que o servidor mandar.
+   * E0 logo após a 2ª ligação). Nada é escondido: o card sai no clique,
+   * o próximo assume na hora e, em segundo plano, a fila oficial é
+   * reconferida algumas vezes em sequência curta até que a ação nova
+   * apareça sozinha — sem F5, sem espera e sem varredura contínua.
    */
-  const SETTLE_MS = 4000;
+  const SETTLE_STEPS_MS = [900, 2200, 4000, 7000];
   /** Ações já resolvidas nesta tela — respostas atrasadas não as ressuscitam. */
   const resolvedKeysRef = useRef<Map<string, number>>(new Map());
-  /** Investidores concluídos há pouco: novas ações deles ficam em acomodação. */
-  const settlingLeadsRef = useRef<Map<string, number>>(new Map());
-  /** Última fila oficial recebida — reaplicada quando a janela fecha. */
-  const pendingQueueRef = useRef<DailyAction[] | null>(null);
-  const flushTimerRef = useRef<number | null>(null);
+  /** Ordem das respostas: uma leitura antiga nunca sobrescreve uma mais nova. */
+  const queueVersionRef = useRef(0);
+  const settleTimersRef = useRef<number[]>([]);
 
-  useEffect(
-    () => () => {
-      if (flushTimerRef.current) window.clearTimeout(flushTimerRef.current);
-    },
-    [],
-  );
+  const clearSettleTimers = useCallback(() => {
+    for (const id of settleTimersRef.current) window.clearTimeout(id);
+    settleTimersRef.current = [];
+  }, []);
+
+  useEffect(() => () => clearSettleTimers(), [clearSettleTimers]);
 
   /**
-   * A FILA OFICIAL DO SERVIDOR CONTINUA SENDO A AUTORIDADE. Aqui só se
-   * remove o que já foi resolvido nesta tela e se adia a entrada visual
-   * das ações nascidas dentro da janela de acomodação.
+   * A FILA OFICIAL DO SERVIDOR É A AUTORIDADE. Aqui só se descarta o que
+   * já foi resolvido nesta tela e o que vier de uma resposta atrasada.
    */
-  const commitQueueRef = useRef<(rows: DailyAction[], confirmedLeadId?: string | null) => void>(
-    () => {},
-  );
-  const commitQueue = useCallback((rows: DailyAction[], confirmedLeadId?: string | null) => {
+  const commitQueue = useCallback((rows: DailyAction[], version: number) => {
+    if (version < queueVersionRef.current) return;
+    queueVersionRef.current = version;
     const now = Date.now();
     for (const [key, expires] of resolvedKeysRef.current)
       if (expires <= now) resolvedKeysRef.current.delete(key);
-    for (const [lead, expires] of settlingLeadsRef.current)
-      if (expires <= now) settlingLeadsRef.current.delete(lead);
 
     const official = rows.filter((row) => !resolvedKeysRef.current.has(row.actionKey));
-    pendingQueueRef.current = official;
-
-    setActions((prev) => {
-      const known = new Set(prev.map((row) => row.actionKey));
-      let nextFlush = 0;
-      const visible = official.filter((row) => {
-        /**
-         * A ação que veio JUNTO com a conclusão já está confirmada: se
-         * for do MESMO investidor, entra na hora e mantém a precedência.
-         */
-        if (known.has(row.actionKey) || !row.leadId || row.leadId === confirmedLeadId) return true;
-        const until = settlingLeadsRef.current.get(row.leadId);
-        if (!until || until <= now) return true;
-        nextFlush = Math.max(nextFlush, until);
-        return false;
-      });
-      if (nextFlush > 0) {
-        if (flushTimerRef.current) window.clearTimeout(flushTimerRef.current);
-        flushTimerRef.current = window.setTimeout(
-          () => {
-            flushTimerRef.current = null;
-            const queued = pendingQueueRef.current;
-            if (queued) commitQueueRef.current(queued);
-          },
-          Math.max(200, nextFlush - now + 50),
-        );
-      }
-      setSelectedKey(firstExecutableKey(visible));
-      return visible;
-    });
+    setActions(official);
+    setSelectedKey(firstExecutableKey(official));
   }, []);
-  commitQueueRef.current = commitQueue;
 
   /**
    * ORDEM DO DIA — a lista oficial vem sempre do servidor e a ação
@@ -180,14 +142,31 @@ export function DailyActionsOverlay({
   const load = useCallback(
     async (silent = false) => {
       if (!silent) setLoading(true);
+      const version = ++queueVersionRef.current;
       try {
-        commitQueue(await adapter.load());
+        commitQueue(await adapter.load(), version);
+      } catch {
+        /* uma leitura falha nunca derruba a fila que já está na tela */
       } finally {
         if (!silent) setLoading(false);
       }
     },
     [adapter, commitQueue],
   );
+
+  /**
+   * SEQUÊNCIA CURTA DE RECONFERÊNCIA — não é polling: são poucas
+   * releituras agendadas logo após uma conclusão, exatamente o tempo em
+   * que o motor cria a próxima ação. Elas se encerram sozinhas.
+   */
+  const scheduleSettle = useCallback(() => {
+    clearSettleTimers();
+    for (const delay of SETTLE_STEPS_MS) {
+      const id = window.setTimeout(() => void load(true), delay);
+      settleTimersRef.current.push(id);
+    }
+  }, [clearSettleTimers, load]);
+
 
   /** Pendências puladas do próprio Executivo (histórico, não fila). */
   const [pendings, setPendings] = useState<SkippedPendingView[]>([]);
@@ -274,15 +253,6 @@ export function DailyActionsOverlay({
     });
   }
 
-  /** Abre a janela de acomodação do investidor cuja ação acabou de sair. */
-  function openSettleWindow(key: string, requeue: boolean): string | null {
-    const now = Date.now();
-    const action = actions.find((row) => row.actionKey === key);
-    if (!requeue) resolvedKeysRef.current.set(key, now + 60000);
-    if (action?.leadId) settlingLeadsRef.current.set(action.leadId, now + SETTLE_MS);
-    return action?.leadId ?? null;
-  }
-
   function applyResult(
     key: string,
     result: {
@@ -292,7 +262,13 @@ export function DailyActionsOverlay({
       reload?: boolean;
     },
   ) {
-    const leadId = openSettleWindow(key, result.requeue === true);
+    /**
+     * A ação concluída não volta por resposta atrasada. A trava é curta:
+     * o suficiente para as respostas em voo, nunca para esconder uma
+     * ação nova criada pelo motor.
+     */
+    if (result.requeue !== true) resolvedKeysRef.current.set(key, Date.now() + 15000);
+
     /**
      * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,
      * é ela que define a próxima ação. Se o MESMO investidor tiver outra
@@ -300,8 +276,13 @@ export function DailyActionsOverlay({
      * assume a posição 1, sem passar por outro lead nem esperar recarga.
      */
     if (result.queue) {
-      commitQueue(result.queue, leadId);
+      commitQueue(result.queue, ++queueVersionRef.current);
       if (result.message) setFeedback(result.message);
+      /**
+       * A próxima ação pode ainda não existir nesta primeira resposta:
+       * a reconferência curta a incorpora assim que o motor a criar.
+       */
+      scheduleSettle();
       return;
     }
     if (result.requeue) requeueAction(key);
@@ -312,8 +293,12 @@ export function DailyActionsOverlay({
      * recusou a execução). A releitura silenciosa devolve a lista
      * oficial sem cortina de carregamento.
      */
-    if (result.reload) void load(true);
+    if (result.reload) {
+      void load(true);
+      scheduleSettle();
+    }
   }
+
 
 
 

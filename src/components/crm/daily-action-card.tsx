@@ -675,23 +675,12 @@ export function DailyActionCard({
 
       {feedback && <p className="text-[11px] text-[color:var(--gold)]">{feedback}</p>}
 
-      <p className="text-[11px] text-white/35">
-        {item.kind === "primeiro_contato"
-          ? "O primeiro contato acontece pela régua: ligação 1, 10 minutos, ligação 2 e, só então, a mensagem para copiar. Esta tela nunca envia a mensagem."
-          : item.source === "queue" && item.kind === "ligacao"
-            ? "Atendeu: as ações restantes desta etapa são canceladas, nenhuma mensagem é enviada e o lead aguarda o seu encaminhamento. Não atendeu: a régua libera a próxima ação da etapa (2ª ligação em 10 minutos; depois a mensagem para copiar)."
-            : item.source === "queue" && item.kind === "mensagem"
-              ? "Copiar busca a versão ativa da Biblioteca, com o tratamento da Central dos Nomes. Nada é enviado pelo sistema: você cola a mensagem e só então marca Concluído, que grava o registro histórico."
-              : item.cadence
-                ? "O desfecho registra apenas a tentativa de hoje. Atendeu encerra a sequência de ligações do ciclo; não atendeu mantém o lead na cadência para a próxima data prevista pela configuração."
-                : item.kind === "reuniao"
-                  ? "A reunião permanece nesta lista até ser resolvida: comparecimento, não comparecimento, reagendamento ou pulo com justificativa — sempre na reunião oficial."
-                  : "Esta ação pertence à sua origem (Agenda, reunião ou fila de mensagens) e é encerrada por lá — aqui ela apenas aparece no lugar certo da sua ordem do dia."}
-      </p>
-      <p className="text-[11px] text-white/25">
-        Pular registra autor, horário, investidor, etapa e justificativa. A ação sai apenas do dia
-        de hoje e volta enquanto a origem continuar pendente.
-      </p>
+      {/*
+        As regras internas da régua (o que "Atendeu" cancela, quando a
+        próxima ação nasce, o que o pulo registra) não ficam mais na
+        tela: são comportamento do sistema, não instrução de execução.
+      */}
+
 
       {/*
         MENSAGEM OFICIAL DA ETAPA — leitura da Biblioteca ativa. Esta
