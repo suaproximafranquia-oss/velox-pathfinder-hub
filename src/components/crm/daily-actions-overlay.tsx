@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { DailyActionsAdapter, SkippedPendingView } from "@/lib/crm/daily-actions.adapter";
 import { DailyActionCard } from "@/components/crm/daily-action-card";
+import { NextCommitmentAlert } from "@/components/crm/next-commitment-alert";
 import {
   resolveOperationalWindow,
   type OperationalWindow,
