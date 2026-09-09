@@ -9,7 +9,7 @@
  * operacional (`DailyActionCard`), a mesma peça reaproveitada pela
  * Central de Operações.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarClock,
   CalendarDays,
