@@ -60,7 +60,8 @@ export const getDailyActionsSummary = createServerFn({ method: "POST" })
 async function queueAfterOutcome(executiveId: string | null): Promise<DailyAction[]> {
   try {
     const { currentDailyAction } = await import("@/server/crm/daily-actions-gate.server");
-    return (await currentDailyAction(executiveId)).list;
+    // A reconciliação de E0 já foi feita pela leitura que autorizou a ação.
+    return (await currentDailyAction(executiveId, { skipReconcile: true })).list;
   } catch {
     return [];
   }
@@ -209,7 +210,7 @@ export const resolveMeetingOutcomeFn = createServerFn({ method: "POST" })
     const { resolveMeetingOutcome } = await import("@/server/crm/daily-actions-log.server");
     await resolveMeetingOutcome({ ...data, userId: context.userId, executiveId });
 
-    return { ok: true as const };
+    return { ok: true as const, queue: await queueAfterOutcome(executiveId) };
   });
 
 /** Reagendamento da reunião — mesma reunião, nova data. */
@@ -243,7 +244,7 @@ export const rescheduleMeetingFn = createServerFn({ method: "POST" })
     }
     const { rescheduleMeeting } = await import("@/server/crm/daily-actions-log.server");
     await rescheduleMeeting({ ...data, userId: context.userId, executiveId });
-    return { ok: true as const };
+    return { ok: true as const, queue: await queueAfterOutcome(executiveId) };
   });
 
 /**
@@ -284,7 +285,7 @@ export const resolveFollowUpContactFn = createServerFn({ method: "POST" })
           note: data.note ?? null,
         });
     if (!result.ok) throw new Error(result.reason ?? "Não foi possível registrar o desfecho.");
-    return { ok: true as const };
+    return { ok: true as const, queue: await queueAfterOutcome(executiveId) };
   });
 
 /** Obrigação de 24h — "Deseja encerrar esse fluxo?" SIM encerra; NÃO orienta mover para Frios. */
@@ -316,7 +317,7 @@ export const resolveFollowUpReviewFn = createServerFn({ method: "POST" })
       note: data.note ?? null,
     });
     if (!result.ok) throw new Error(result.reason ?? "Não foi possível registrar a decisão.");
-    return { ok: true as const };
+    return { ok: true as const, queue: await queueAfterOutcome(executiveId) };
   });
 
 /**

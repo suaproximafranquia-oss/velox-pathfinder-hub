@@ -46,7 +46,22 @@ const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
   { key: "agora", label: "Agora", tone: "text-[color:var(--gold)]" },
   { key: "atrasada", label: "Atrasadas", tone: "text-red-300/80" },
   { key: "hoje", label: "Para hoje", tone: "text-white/40" },
+  /**
+   * COMPROMISSO DE OUTRO DIA: fica visível para o Executivo se preparar,
+   * mas não é trabalho de hoje — nunca ocupa a posição 1 nem abre como
+   * card principal.
+   */
+  { key: "futura", label: "Próximos compromissos", tone: "text-sky-300/70" },
 ];
+
+/**
+ * A ação ativa é sempre a PRIMEIRA da fila oficial que pode ser
+ * executada hoje. Compromissos futuros são pulados nesta escolha.
+ */
+function firstExecutableKey(rows: DailyAction[]): string | null {
+  return rows.find((row) => row.bucket !== "futura")?.actionKey ?? null;
+}
+
 
 export function DailyActionsOverlay({
   open,
@@ -91,7 +106,7 @@ export function DailyActionsOverlay({
       try {
         const rows = await adapter.load();
         setActions(rows);
-        setSelectedKey(rows[0]?.actionKey ?? null);
+        setSelectedKey(firstExecutableKey(rows));
       } finally {
         if (!silent) setLoading(false);
       }
@@ -162,10 +177,8 @@ export function DailyActionsOverlay({
 
   function dropAction(key: string) {
     setActions((prev) => {
-      const index = prev.findIndex((r) => r.actionKey === key);
       const rest = prev.filter((r) => r.actionKey !== key);
-      void index;
-      setSelectedKey(rest[0]?.actionKey ?? null);
+      setSelectedKey(firstExecutableKey(rest));
       return rest;
     });
   }
@@ -188,7 +201,12 @@ export function DailyActionsOverlay({
 
   function applyResult(
     key: string,
-    result: { requeue?: boolean; message?: string; queue?: DailyAction[] },
+    result: {
+      requeue?: boolean;
+      message?: string;
+      queue?: DailyAction[];
+      reload?: boolean;
+    },
   ) {
     /**
      * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,
@@ -198,14 +216,21 @@ export function DailyActionsOverlay({
      */
     if (result.queue) {
       setActions(result.queue);
-      setSelectedKey(result.queue[0]?.actionKey ?? null);
+      setSelectedKey(firstExecutableKey(result.queue));
       if (result.message) setFeedback(result.message);
       return;
     }
     if (result.requeue) requeueAction(key);
     else dropAction(key);
     if (result.message) setFeedback(result.message);
+    /**
+     * CONFIRMAÇÃO EM SEGUNDO PLANO: o servidor não devolveu a fila (ou
+     * recusou a execução). A releitura silenciosa devolve a lista
+     * oficial sem cortina de carregamento.
+     */
+    if (result.reload) void load(true);
   }
+
 
 
   /** DESFAZER o resultado da ligação — o servidor decide se ainda é reversível. */

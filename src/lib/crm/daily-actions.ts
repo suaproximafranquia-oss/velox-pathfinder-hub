@@ -172,11 +172,11 @@ export function resolveBucket(input: {
 /**
  * Ordem determinística (nunca a ordem de criação do registro):
  *   0. reunião/compromisso de prioridade máxima em foco ou atrasado;
- *   1. reunião/compromisso próximo do horário;
- *   2. LEAD NOVO (primeiro contato / E0);
- *   3. ação atrasada;
- *   4. ação que vence hoje;
- *   5. demais ações.
+ *   1. LEAD NOVO (primeiro contato / E0);
+ *   2. ação atrasada;
+ *   3. ação que vence hoje;
+ *   4. demais ações;
+ *   6. COMPROMISSO FUTURO — nunca disputa a fila de hoje.
  */
 export function actionRank(action: DailyAction): number {
   /**
@@ -184,6 +184,12 @@ export function actionRank(action: DailyAction): number {
    * atendimento) não é deslocada por novas liberações da régua.
    */
   if (action.claimed) return 0;
+  /**
+   * COMPROMISSO DE OUTRO DIA NÃO É TRABALHO DE HOJE. Ele continua
+   * visível como "próximo compromisso", mas nunca ocupa a posição 1 nem
+   * compete com E0/E1/E2 — prioridade máxima só vale no dia ou em atraso.
+   */
+  if (action.bucket === "futura") return 6;
   // LEAD NOVO — E0 legada ou E0 da régua V2 (ligação/mensagem).
   if (action.source === "first_contact") return 2;
   if (action.source === "queue" && action.stepLabel === "E0") return 2;
@@ -195,6 +201,12 @@ export function actionRank(action: DailyAction): number {
   if (action.bucket === "agora" || action.bucket === "hoje") return 4;
   return 5;
 }
+
+/** Compromisso de outro dia: visível, porém não executável hoje. */
+export function isUpcomingAction(action: DailyAction): boolean {
+  return action.bucket === "futura";
+}
+
 
 
 export function sortDailyActions(actions: DailyAction[]): DailyAction[] {

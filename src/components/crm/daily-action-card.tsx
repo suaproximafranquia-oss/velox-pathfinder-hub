@@ -17,7 +17,11 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
-import type { DailyActionsAdapter, StepMessageView } from "@/lib/crm/daily-actions.adapter";
+import type {
+  AdapterResult,
+  DailyActionsAdapter,
+  StepMessageView,
+} from "@/lib/crm/daily-actions.adapter";
 import { copyToClipboard } from "@/lib/clipboard";
 import { KIND_LABEL, operationalTime, type DailyAction } from "@/lib/crm/daily-actions";
 
@@ -64,7 +68,13 @@ export function DailyActionCard({
   /** A ação saiu da lista (concluída, pulada ou recolocada na fila). */
   onResolved: (
     actionKey: string,
-    result: { requeue?: boolean; message?: string; queue?: DailyAction[] },
+    result: {
+      requeue?: boolean;
+      message?: string;
+      queue?: DailyAction[];
+      /** Peça a releitura oficial ao painel (confirmação em segundo plano). */
+      reload?: boolean;
+    },
   ) => void;
   /** Releitura da lista oficial após uma execução. */
   onReload?: (silent?: boolean) => void;
@@ -108,41 +118,78 @@ export function DailyActionCard({
     setFeedback(null);
   }, [item.actionKey]);
 
-  function applyResult(result: { requeue?: boolean; message?: string; queue?: DailyAction[] }) {
+  function applyResult(result: {
+    requeue?: boolean;
+    message?: string;
+    queue?: DailyAction[];
+    reload?: boolean;
+  }) {
     onResolved(item.actionKey, result);
     if (result.message) setFeedback(result.message);
+  }
+
+  /**
+   * TROCA IMEDIATA DO CARD.
+   *
+   * A ação sai da tela no clique e a próxima assume na hora. A gravação
+   * segue em segundo plano e, quando o servidor responde, é a FILA
+   * OFICIAL dele que passa a comandar a lista — inclusive quando o MESMO
+   * investidor tem outra ação liberada. O servidor continua sendo a
+   * autoridade: se ele recusar (fora de ordem, já resolvida), a lista é
+   * relida e o motivo aparece na tela.
+   *
+   * O modo demonstração (fila contínua, `requeue`) não usa este caminho.
+   */
+  function resolveNow(run: () => Promise<AdapterResult>, fallback: string) {
+    if (adapter.demoLabel) {
+      void (async () => {
+        const result = await run().catch(() => ({ ok: false }) as AdapterResult);
+        if (result.ok) applyResult(result);
+        else setFeedback(result.message ?? fallback);
+      })();
+      return;
+    }
+    const key = item.actionKey;
+    onResolved(key, {});
+    void (async () => {
+      try {
+        const result = await run();
+        if (result.ok) {
+          onResolved(key, {
+            queue: result.queue,
+            message: result.message,
+            reload: !result.queue,
+          });
+        } else {
+          onResolved(key, { message: result.message ?? fallback, reload: true });
+        }
+      } catch (error) {
+        onResolved(key, {
+          message: error instanceof Error ? error.message : fallback,
+          reload: true,
+        });
+      }
+    })();
   }
 
   /**
    * LIGAÇÃO. "Atendeu?" é apenas o RESULTADO da tentativa; só o botão
    * "Concluído" encerra a ação.
    */
-  async function completeCall(outcome: "SIM" | "NAO", rang?: boolean | null) {
+  function completeCall(outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!isCallAction(item) || locked) return;
-    setBusy(true);
-    try {
-      const observation = callNote.trim();
-      if (observation.length >= 3) await adapter.addNote(item, observation);
-      const result = await adapter.completeCall(item, outcome, rang);
-      if (result.ok) {
-        setCallAwaitingRing(false);
-        setCallPending(null);
-        setCallNote("");
-        onUndoableChange?.(item.source === "queue" && adapter.undoCallOutcome ? item : null);
-        applyResult(result);
-        /**
-         * A fila oficial já veio na resposta: a transição visual é dela.
-         * Só recarregamos quando o servidor não devolveu a fila.
-         */
-        if (item.source === "queue" && !result.queue) onReload?.(true);
-      } else {
-        setFeedback(result.message ?? "Não foi possível registrar a ligação.");
-        onReload?.(false);
-      }
-    } finally {
-      setBusy(false);
-    }
+    const observation = callNote.trim();
+    setCallAwaitingRing(false);
+    setCallPending(null);
+    setCallNote("");
+    onUndoableChange?.(item.source === "queue" && adapter.undoCallOutcome ? item : null);
+    resolveNow(async () => {
+      // A observação é histórico: nunca atrasa a troca do card.
+      if (observation.length >= 3) await adapter.addNote(item, observation).catch(() => undefined);
+      return adapter.completeCall(item, outcome, rang);
+    }, "Não foi possível registrar a ligação.");
   }
+
 
   /** PULAR — a justificativa é obrigatória e vira histórico oficial. */
   async function handleSkip() {
@@ -180,76 +227,55 @@ export function DailyActionCard({
   }
 
   /** REUNIÃO — desfecho registrado na própria reunião. */
-  async function handleMeetingOutcome(attended: boolean) {
+  function handleMeetingOutcome(attended: boolean) {
     if (locked) return;
-    setBusy(true);
-    try {
-      const result = await adapter.resolveMeeting(item, attended, meetingNote.trim());
-      if (result.ok) {
-        setMeetingNote("");
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível registrar o desfecho.");
-    } finally {
-      setBusy(false);
-    }
+    const observation = meetingNote.trim();
+    setMeetingNote("");
+    resolveNow(
+      () => adapter.resolveMeeting(item, attended, observation),
+      "Não foi possível registrar o desfecho.",
+    );
   }
 
   /** AGENDAMENTO GREENSALES — "Houve contato de agendamento?" */
-  async function handleFollowUpContact(decision: { contacted: boolean; willReschedule?: boolean }) {
+  function handleFollowUpContact(decision: { contacted: boolean; willReschedule?: boolean }) {
     if (locked) return;
-    setBusy(true);
-    try {
-      const result = await adapter.resolveFollowUpContact(item, {
-        ...decision,
-        note: meetingNote.trim(),
-      });
-      if (result.ok) {
-        setMeetingNote("");
-        setFollowUpNoContact(false);
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível registrar o desfecho.");
-    } finally {
-      setBusy(false);
-    }
+    const observation = meetingNote.trim();
+    setMeetingNote("");
+    setFollowUpNoContact(false);
+    resolveNow(
+      () => adapter.resolveFollowUpContact(item, { ...decision, note: observation }),
+      "Não foi possível registrar o desfecho.",
+    );
   }
 
   /** OBRIGAÇÃO DE 24h — "Deseja encerrar esse fluxo?" */
-  async function handleFollowUpReview(close: boolean) {
+  function handleFollowUpReview(close: boolean) {
     if (locked) return;
-    setBusy(true);
-    try {
-      const result = await adapter.resolveFollowUpReview(item, { close, note: meetingNote.trim() });
-      if (result.ok) {
-        setMeetingNote("");
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível registrar a decisão.");
-    } finally {
-      setBusy(false);
-    }
+    const observation = meetingNote.trim();
+    setMeetingNote("");
+    resolveNow(
+      () => adapter.resolveFollowUpReview(item, { close, note: observation }),
+      "Não foi possível registrar a decisão.",
+    );
   }
 
-  async function handleReschedule() {
+  function handleReschedule() {
     if (locked) return;
     if (!rescheduleAt) {
       setFeedback("Informe a nova data e hora da reunião.");
       return;
     }
-    setBusy(true);
-    try {
-      const result = await adapter.rescheduleMeeting(
-        item,
-        new Date(rescheduleAt).toISOString(),
-        meetingNote.trim(),
-      );
-      if (result.ok) {
-        setRescheduleAt("");
-        setMeetingNote("");
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível reagendar.");
-    } finally {
-      setBusy(false);
-    }
+    const when = new Date(rescheduleAt).toISOString();
+    const observation = meetingNote.trim();
+    setRescheduleAt("");
+    setMeetingNote("");
+    resolveNow(
+      () => adapter.rescheduleMeeting(item, when, observation),
+      "Não foi possível reagendar.",
+    );
   }
+
 
   /**
    * MENSAGEM — leitura do texto oficial e cópia imediata. Esta tela
@@ -289,25 +315,22 @@ export function DailyActionCard({
     return ok;
   }
 
-  async function handleRegisterMessage() {
+  function handleRegisterMessage() {
     if (locked) return;
     if (!copied) {
       setFeedback("Copie a mensagem oficial antes de concluir.");
       return;
     }
-    setBusy(true);
-    try {
-      const result = await adapter.registerMessage(item, messageNote.trim());
-      if (result.ok) {
-        setMessageNote("");
-        setCopied(false);
-        setMessageOpen(false);
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível registrar a mensagem.");
-    } finally {
-      setBusy(false);
-    }
+    const observation = messageNote.trim();
+    setMessageNote("");
+    setCopied(false);
+    setMessageOpen(false);
+    resolveNow(
+      () => adapter.registerMessage(item, observation),
+      "Não foi possível registrar a mensagem.",
+    );
   }
+
 
   return (
     <>
