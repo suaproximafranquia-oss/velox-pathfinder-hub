@@ -26,7 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Archive, Download } from "lucide-react";
-import { unitPath } from "@/lib/business-unit";
+import { unitPath, unitPathFor } from "@/lib/business-unit";
 
 export type PlatformModule = {
   id: string;
@@ -57,7 +57,7 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "Home do Portal do Investidor. O Manual é apenas o primeiro conteúdo da jornada.",
     icon: BookOpen,
     /** Portal do Investidor da própria unidade (Financeira = /f). */
-    href: unitPath(""),
+    href: unitPathFor("financeira", "/"),
     external: true,
     status: "ativo",
   },

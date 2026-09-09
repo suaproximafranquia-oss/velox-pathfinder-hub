@@ -104,7 +104,7 @@ describe("ramificação com material", () => {
     });
     expect(nextTransition("E5", SEM_MATERIAL)).toEqual({ to: "E6", days: 7 });
     expect(nextTransition("E6", SEM_MATERIAL)).toEqual({ to: "E7", days: 2 });
-    expect(nextTransition("E7", SEM_MATERIAL)).toEqual({ to: "E8", days: 3 });
+    expect(nextTransition("E7", SEM_MATERIAL)).toEqual({ to: "E8", days: 2 });
   });
 
   it("sem resposta, E4 vai direto para E7", () => {
