@@ -1,5 +1,10 @@
 # Roadmap
 
+- [ ] Financeira /f: compromissos após foco como pendências abertas, sem atraso ou bloqueio, com desfecho acessível.
+- [ ] Financeira /f: nova submissão válida determina RE0; sem submissão não abre RE; repetição idempotente.
+- [ ] Financeira /f: persistir PDF e metadados no servidor e recuperar no perfil executivo sem cache local.
+- [ ] Validar somente cenários fictícios direcionados, preservando 4s, cadência, demais ambientes e dados reais.
+
 - [x] Financeira /f: bloquear a conclusão por cerca de 4 segundos, aguardar resposta e revalidar antes de selecionar a próxima ação, preservando continuidade da mesma lead.
 - [x] Validar transição com ligação e mensagem do mesmo lead fictício, sem dados reais ou sincronização (6 cenários visuais: continuidade, gravação lenta, falha de leitura, recusa, fim da continuidade e resposta antiga; clique duplo bloqueado).
 
