@@ -106,7 +106,7 @@ export function DailyActionsOverlay({
       try {
         const rows = await adapter.load();
         setActions(rows);
-        setSelectedKey(rows[0]?.actionKey ?? null);
+        setSelectedKey(firstExecutableKey(rows));
       } finally {
         if (!silent) setLoading(false);
       }
