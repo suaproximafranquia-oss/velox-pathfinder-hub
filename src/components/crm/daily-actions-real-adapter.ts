@@ -16,6 +16,7 @@ import {
   recordDailyActionHistoryFn,
   registerDailyActionMessageFn,
   registerQueueCallOutcomeFn,
+  prewarmOutcomeFn,
   undoQueueCallOutcomeFn,
   rescheduleMeetingFn,
   resolveMeetingOutcomeFn,
@@ -59,6 +60,7 @@ export function useRealDailyActionsAdapter(
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
   const registerMessage = useServerFn(registerDailyActionMessageFn);
   const registerQueueCall = useServerFn(registerQueueCallOutcomeFn);
+  const prewarmOutcome = useServerFn(prewarmOutcomeFn);
   const undoQueueCall = useServerFn(undoQueueCallOutcomeFn);
   const recordHistory = useServerFn(recordDailyActionHistoryFn);
   const resolveMeeting = useServerFn(resolveMeetingOutcomeFn);
