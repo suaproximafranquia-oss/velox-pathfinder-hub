@@ -506,7 +506,11 @@ async function runLeadSyncInner(
         overrides.set(String(listed.id), rec["follow_up"]);
       }
     }
-    const followUps = await syncGreenSalesFollowUps(overrides);
+    const followUps = await syncGreenSalesFollowUps(overrides, undefined, {
+      // A sessão que acionou o sync não prova posse da carteira.
+      ownerUserId: connection?.ownerUserId ?? null,
+      leadExternalIds: new Set([...scanned, ...leads].map((lead) => String(lead.id))),
+    });
     summary.errors.push(...followUps.errors);
   } catch (error) {
     summary.errors.push(
