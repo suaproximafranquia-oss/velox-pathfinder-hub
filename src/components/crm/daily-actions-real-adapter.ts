@@ -125,20 +125,12 @@ export function useRealDailyActionsAdapter(
             },
           }).catch(() => undefined);
 
-          const isE0 = item.stepLabel === "E0";
-          const order = item.queueActionOrder ?? 1;
           return {
             ok: true,
             /** Fila oficial já recalculada pelo servidor. */
             queue: result?.queue,
-            message: outcome === "SIM"
-              ? "Ligação atendida — nenhuma mensagem é enviada; a cadência segue a régua normalmente."
-              : isE0 && order === 1
-                ? "Não atendeu — a 2ª ligação da E0 será liberada em 10 minutos."
-                : isE0
-                  ? "Não atendeu — a mensagem E0 para copiar foi liberada."
-                  : "Tentativa registrada.",
           };
+
         }
         if (!item.cadence) return { ok: false };
         await completeTask({
