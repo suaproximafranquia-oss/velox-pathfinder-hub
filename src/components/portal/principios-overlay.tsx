@@ -13,6 +13,7 @@ import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { fetchInstitutionalModule } from "@/lib/magazine.functions";
 import type { InstitutionalBlock } from "@/server/magazine.server";
 import { assetUrl } from "@/lib/assets/registry";
+import { usePortalAsset } from "@/lib/portal/asset-overrides";
 
 /**
  * PRINCÍPIOS VELOX — três quadros oficiais: Missão, Visão e Valores.
@@ -87,7 +88,7 @@ export function PrincipiosOverlay({
           </p>
           <figure className="mt-10 overflow-hidden rounded-3xl border border-[color:var(--border)] shadow-[0_24px_60px_-30px_rgba(10,20,40,0.45)]">
             <img
-              src={assetUrl("portal-capa-principios")}
+              src={principiosCover}
               alt="Sala institucional Velox em tons de azul-marinho e dourado, com livro aberto sobre mesa de madeira"
               width={1536}
               height={864}

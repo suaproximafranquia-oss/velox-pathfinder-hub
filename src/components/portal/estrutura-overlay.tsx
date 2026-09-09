@@ -99,23 +99,6 @@ export function EstruturaOverlay({
             <GalleryPhoto key={photo.key} photo={photo} />
           ))}
         </section>
-        {false && (
-          <figure
-              key={photo.key}
-              className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/60"
-            >
-              <img
-                src={assetUrl(photo.key)}
-                alt={photo.alt}
-                loading="lazy"
-                className="aspect-[4/3] w-full object-cover"
-              />
-              <figcaption className="px-4 py-3 text-xs uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
-                {photo.label}
-              </figcaption>
-            </figure>
-          ))}
-        </section>
 
         {!blocks && !error && (
           <div className="flex items-center justify-center gap-3 pb-20 text-sm text-[color:var(--muted-foreground)]">
@@ -147,5 +130,26 @@ export function EstruturaOverlay({
         )}
       </div>
     </PortalOverlayShell>
+  );
+}
+
+/**
+ * Fotografia da galeria: mostra a substituição vigente do Portal e, na
+ * ausência dela, a fotografia original — sempre a mesma imagem para
+ * qualquer visitante.
+ */
+function GalleryPhoto({
+  photo,
+}: {
+  photo: { key: Parameters<typeof assetUrl>[0]; slot: string; label: string; alt: string };
+}) {
+  const src = usePortalAsset(photo.slot, assetUrl(photo.key));
+  return (
+    <figure className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/60">
+      <img src={src} alt={photo.alt} loading="lazy" className="aspect-[4/3] w-full object-cover" />
+      <figcaption className="px-4 py-3 text-xs uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
+        {photo.label}
+      </figcaption>
+    </figure>
   );
 }
