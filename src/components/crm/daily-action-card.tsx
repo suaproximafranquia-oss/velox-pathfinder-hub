@@ -64,7 +64,13 @@ export function DailyActionCard({
   /** A ação saiu da lista (concluída, pulada ou recolocada na fila). */
   onResolved: (
     actionKey: string,
-    result: { requeue?: boolean; message?: string; queue?: DailyAction[] },
+    result: {
+      requeue?: boolean;
+      message?: string;
+      queue?: DailyAction[];
+      /** Peça a releitura oficial ao painel (confirmação em segundo plano). */
+      reload?: boolean;
+    },
   ) => void;
   /** Releitura da lista oficial após uma execução. */
   onReload?: (silent?: boolean) => void;
