@@ -1,7 +1,7 @@
 import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock } from "lucide-react";
+import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock, ImageIcon } from "lucide-react";
 import {
   loadHomologationConfig,
   saveHomologationConfig,
