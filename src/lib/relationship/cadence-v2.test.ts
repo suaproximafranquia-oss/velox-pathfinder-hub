@@ -61,7 +61,8 @@ describe("fluxo E — caminho sem resposta", () => {
 
   it("entrada na sexta absorve o fim de semana sem alongar o ciclo", () => {
     const cycle = run("2026-08-07");
-    expect(cycle.at(-1)?.offsetDays).toBe(14);
+    /** Base de 12 dias (E4→E7 = 3, E7→E8 = 2). */
+    expect(cycle.at(-1)?.offsetDays).toBe(12);
   });
 
   it("entrada no sábado desloca a régua para segunda", () => {
