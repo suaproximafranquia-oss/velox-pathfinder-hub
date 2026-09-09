@@ -10,7 +10,7 @@ Nada foi alterado: nenhuma ação executada, nenhum lead tocado, nenhuma migrati
 | `stage_key` | `agendamentos` | `agendamentos` |
 | `follow_up` na origem | `2026-09-09 11:00:00` (horário da operação) | `2026-09-09 16:00:00` |
 | Registro espelhado | `gsfu_59115` | `gsfu_59142` |
-| Guardado no banco (UTC) | `2026-09-09 19:00:00+00`... corrigindo: `14:00:00+00` | `19:00:00+00` |
+| Guardado no banco (UTC) | `2026-09-09 14:00:00+00` | `2026-09-09 19:00:00+00` |
 | Convertido para o horário local | 11:00 | 16:00 |
 | Origem | `greensales` | `greensales` |
 
