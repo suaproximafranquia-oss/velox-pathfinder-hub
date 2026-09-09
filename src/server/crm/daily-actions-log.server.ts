@@ -205,6 +205,25 @@ export async function recordSkipRecovery(input: {
   }
 }
 
+/**
+ * CONFIRMAÇÃO SERVER-SIDE DA RECUPERAÇÃO. Leitura pura do histórico
+ * oficial: a Central só considera uma pendência resolvida depois que
+ * este registro existe. Nada é criado nem alterado aqui.
+ */
+export async function hasSkipRecovery(actionKey: string): Promise<boolean> {
+  const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+  const { data } = await supabaseAdmin
+    .from("relationship_engine_log")
+    .select("details")
+    .eq("action", DAILY_ACTION_EVENTS.recovery)
+    .gte("created_at", since)
+    .limit(4000);
+  for (const row of (data ?? []) as Array<{ details?: Record<string, unknown> | null }>) {
+    if ((row.details ?? {})["actionKey"] === actionKey) return true;
+  }
+  return false;
+}
+
 /** OBSERVAÇÃO operacional vinculada à ação e ao investidor. */
 export async function noteDailyAction(input: DailyActionLogInput): Promise<void> {
   const reason = input.reason.trim();
