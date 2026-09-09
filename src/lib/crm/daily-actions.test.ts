@@ -56,6 +56,21 @@ describe("Ações do Dia — regras puras", () => {
     expect(reclassifyDailyActions([row], "2026-02-10T20:30:00.000Z")).toEqual([]);
   });
 
+  it("expirar tentativa adicional preserva mensagem pendente da mesma lead", () => {
+    const message = action({ actionKey: "queue:TEST-0001:E1:3", stepLabel: "E1" });
+    const call = action({ actionKey: "queue:TEST-0001:E1:2", kind: "ligacao", expiresAt: "2026-02-10T20:30:00.000Z", secondary: [message] });
+    const rows = reclassifyDailyActions([call], "2026-02-10T20:30:00.000Z");
+    expect(rows.map((r) => r.actionKey)).toEqual([message.actionKey]);
+    expect(rows[0]?.secondary ?? []).toEqual([]);
+  });
+
+  it("verificação 24h mantém foco e reclassificação repetida não duplica ações", () => {
+    const review = action({ actionKey: "meeting:TEST-0001:review", source: "meeting", kind: "reuniao", startsAt: "2026-02-10T16:00:00.000Z", followUp: { mode: "revisao_24h", state: "EXPIRADO_SEM_CONTATO", scheduledAt: "2026-02-09T16:00:00.000Z", reviewDueAt: "2026-02-10T16:00:00.000Z" } });
+    const once = reclassifyDailyActions([review], now);
+    expect(once[0]?.bucket).toBe("agora");
+    expect(reclassifyDailyActions(once, now)).toEqual(once);
+  });
+
   it("12) usa America/Sao_Paulo nas decisões operacionais", () => {
     expect(operationalDate("2026-02-11T02:00:00.000Z")).toBe("2026-02-10");
   });
