@@ -342,6 +342,7 @@ export function useRealDailyActionsAdapter(
       loadStepMessage,
       registerMessage,
       registerQueueCall,
+      prewarmOutcome,
       recordHistory,
       resolveMeeting,
       rescheduleMeeting,

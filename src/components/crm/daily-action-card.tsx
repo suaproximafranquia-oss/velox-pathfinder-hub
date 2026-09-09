@@ -8,7 +8,7 @@
  * `actionKey`. A fila e a posição 1 continuam sendo responsabilidade da
  * Ação do Dia e do servidor.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check,
   ExternalLink,
@@ -23,6 +23,12 @@ import type {
   StepMessageView,
 } from "@/lib/crm/daily-actions.adapter";
 import { copyToClipboard } from "@/lib/clipboard";
+import {
+  clearStepMessagePrefetch,
+  primeStepMessage,
+  stepMessageKey,
+  takeStepMessage,
+} from "@/lib/crm/daily-actions-prefetch";
 import { KIND_LABEL, operationalTime, type DailyAction } from "@/lib/crm/daily-actions";
 
 /**
