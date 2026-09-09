@@ -1,106 +1,121 @@
-# Diagnóstico — Michel: ação de cadência x compromisso GreenSales (/f)
+# Diagnóstico — Yuri sem card operacional na Financeira /f
 
-Somente leitura. Nenhum código, migration ou dado foi alterado.
+Somente leitura de código e registros. Nenhum código, dado, card, tabela ou compromisso foi criado ou alterado. Não foi executada sincronização manual nem teste sobre Yuri. As conclusões usam o dado recebido pelo Portal, não uma consulta direta à API GreenSales.
 
-## A) Onde está o compromisso do Michel
+## A) Onde Yuri existe hoje
 
-Ele existe e está íntegro no espelho oficial (`portal_meetings`):
+O registro encontrado é **Yuri Araújo, external_id `57239`**.
 
-- registro `gsfu_59115`, investidor `gs_59115` (Michel), executivo Thiago Rodrigues;
-- estado do follow_up: PENDENTE, situação "Agendada";
-- horário atual: **11/09 às 18:00 (horário de Brasília)**.
+| Representação | Resultado confirmado |
+|---|---|
+| `crm_leads` | Existe: `fb97b894-51e1-412f-8f67-afe8b969ffd6`, origem `greensales` |
+| Estágio sincronizado | `agendamentos` |
+| `raw_payload.follow_up` | `2026-09-10 09:10:00`: **10/09/2026 às 09:10, Brasília** |
+| Última sincronização registrada do lead | 09/09/2026 às 11:13:08, Brasília; `sync_status=OK`, sem erro |
+| `investors` | Existe identidade canônica `d9296fb0-0348-460a-822b-2479fedeeb02` |
+| `investor_identifiers` | Existe vínculo `greensales` → `57239` para essa identidade |
 
-O histórico do próprio registro mostra o que aconteceu:
+**O evento não é apenas hipotético: estágio e follow_up válidos já chegaram ao Portal.**
+
+Uma ressalva sobre a origem da ausência: o histórico registra Yuri como **lead histórico importado sem primeiro contato em 22/08**. A criação na origem é de **29/07/2026**. Portanto, os dados não sustentam descrevê-lo como lead criado depois da regra; confirmam uma importação histórica sem entrada operacional. Não é necessário presumir a data de corte para explicar o bloqueio atual.
+
+## B) Existe portal_lead/card correspondente?
+
+**Não.** A pesquisa por nome, `external_id=57239`, ID esperado `gs_57239` e identidade canônica não encontrou registro em `portal_leads` — nem arquivado.
+
+Também foram encontrados **zero** registros ligados a `gs_57239` em `workspace_e0_actions`, `relationship_cadences` e `relationship_queue`.
+
+A identidade em `investors` não substitui o card operacional: o espelhamento de compromissos procura especificamente `portal_leads.id=gs_57239`.
+
+## C) O que acontece quando chega o follow_up válido?
+
+O caminho atual é:
 
 ```text
-08/09 20:17  espelhado    follow_up "2026-09-09 11:00:00"  -> 09/09 11:00
-09/09 10:56  reagendado   follow_up "2026-09-11 18:00:00"  -> 11/09 18:00
+GreenSales → crm_leads, reconhecido por external_id 57239
+          → estágio agendamentos + follow_up válido
+          → syncGreenSalesFollowUps seleciona o lead
+          → syncOneFollowUp calcula decisão de criar compromisso
+          → loadLeadIdentity procura portal_leads.id = gs_57239
+          → não encontra
+          → retorna ignore: "Lead sem card operacional no Portal."
+          → não chega à gravação de portal_meetings
 ```
 
-Ou seja: o compromisso de **hoje às 11:00 deixou de existir** — ele foi
-reagendado na origem (GreenSales) hoje de manhã para 11/09 às 18:00, e o
-sistema espelhou essa mudança corretamente, no mesmo registro, sem
-duplicar.
+A seleção dos compromissos não exige que o lead tenha passado pela E0, nem aplica o corte de entrada da cadência. Entretanto, **a criação efetiva exige o card e um executivo responsável**.
 
-## B) O compromisso continua correto?
+No estado consultado, Yuri tem horário futuro, portanto não cai na regra que ignora compromissos descobertos pela primeira vez já vencidos há mais de 24 horas. Há 31 leads nos estágios elegíveis, abaixo do limite de leitura de 2.000; esse limite não explica a ausência.
 
-Sim. `crm_leads` (external_id 59115) traz `follow_up = 2026-09-11 18:00:00`,
-etapa `agendamentos`, e o espelho está exatamente nesse horário. Não há
-erro de fuso nem duplicidade.
+Este é o comportamento determinado pelo código e pelos registros atuais; não foi reproduzido chamando a função, pois ela poderia gravar dados reais.
 
-## C) Onde o compromisso vira item da Ação do Dia
+## D) portal_meetings pode existir sem o card?
 
-`src/server/crm/daily-actions.server.ts` — leitura de `portal_meetings`,
-com ramo próprio para `external_source = "greensales"`. Esse ramo produz
-sempre `kind: "reuniao"`, `source: "meeting"`, título "Agendamento
-(GreenSales)" e horário. Ele **nunca** empresta rótulo de cadência.
+**Estruturalmente, sim; pelo caminho atual de criação GreenSales, não.**
 
-O rótulo do card é decidido em `src/components/crm/daily-action-card.tsx`:
-"Ligação/Mensagem — Etapa X" só é escrito quando `source === "queue"`.
+- O banco não tem chave estrangeira de `portal_meetings.investor_id` para `portal_leads`. Uma linha poderia existir sem esse card, desde que satisfeitos os demais campos, restrições e permissões.
+- `syncOneFollowUp`, porém, bloqueia a criação antes da escrita quando o card não existe.
+- Para Yuri, **não há compromisso em `portal_meetings`**, nem pelo ID esperado, nem pelos identificadores consultados.
+- Caso o fluxo chegasse à criação, usaria `id=gsfu_57239`, `investor_id=gs_57239` e `external_ref=f:greensales:lead:57239:follow_up`. O vínculo operacional não usa o UUID de `crm_leads` nem o UUID canônico de `investors`.
 
-## D) Por que aparece "Ligação — Etapa E0"
+## E) Onde o fluxo para e quais telas são afetadas?
 
-Porque, hoje, **esse card não é o compromisso**. São duas entidades
-distintas e apenas uma está na lista:
+O bloqueio exato está em **`src/server/crm/greensales-followup.server.ts:281–286`**, dentro de `syncOneFollowUp`, ao consultar `loadLeadIdentity`.
 
-1. compromisso: 11/09 18:00 — fora da janela de leitura do dia (a Ação do
-   Dia lê compromissos até ~2 dias à frente a partir do instante atual;
-   11/09 18:00 fica um pouco além) e, mesmo dentro, seria "futura";
-2. ação de cadência: existe uma ligação E0 pendente de Michel na fila
-   (criada em 08/09, em atendimento), que continua liberada.
+| Superfície | Situação atual de Yuri | Se existisse uma reunião sem card |
+|---|---|---|
+| Portal dos Leads | O espelho em `crm_leads` é pesquisável por Gestão/Admin autorizados; no recorte de colaborador, a ausência de titularidade em `portal_leads` impede incluí-lo como lead próprio | Não depende da reunião para listar o espelho |
+| Workspace operacional | Sem card: falta `portal_leads` | A reunião não cria automaticamente o card |
+| Central de Reuniões | Não recebe compromisso de Yuri, pois não existe linha em `portal_meetings` | Pode listar a reunião pelos dados próprios dela, respeitando permissões e filtros; isso não fornece a ficha operacional ausente |
+| Aviso “Próximo compromisso” | Não encontra compromisso de Yuri | Pode encontrá-lo por executivo, horário e situação, sem consultar o card; o aviso prioriza os próximos horários |
+| Ação do Dia | Não recebe compromisso nem ações de cadência de Yuri | Pode montar item `source=meeting`, `kind=reuniao` usando o nome da reunião, mesmo sem identidade do card; telefone ficaria vazio, respeitados responsável, estado e janela temporal |
 
-Portanto não há mistura nem conversão de entidade: o card mostrado é
-legitimamente a ligação E0. O que está errado é **a E0 ainda estar
-liberada** para um lead que já tem compromisso real em AGENDAMENTOS.
+Portanto, **a falha principal acontece antes das telas, não na renderização delas**. O horário de Yuri estaria dentro das janelas atuais de leitura do aviso e da Ação do Dia se a reunião existisse, sem dispensar os demais filtros e a classificação de compromisso futuro.
 
-A regra de congelamento (`isCadenceFrozen`, em
-`src/lib/relationship/cadence-v2.ts`, usada por `cadence-v2-decide.ts`)
-impede **criar** obrigação nova enquanto há compromisso, mas não retira da
-lista uma obrigação que já estava pendente antes do compromisso surgir.
-A leitura em `daily-actions.server.ts` não aplica nenhum filtro
-equivalente ao montar os itens de fila.
+**Existe detecção, mas não recuperação:** a condição “sem card” tem uma mensagem técnica e incrementa `summary.ignored`. Não há, nesse caminho, criação da representação faltante ou pendência individual persistida. `runLeadSync` incorpora apenas `followUps.errors`; o motivo de ignore não vira erro de sincronização. Isso explica como o lead pode estar com sincronização `OK` e continuar sem compromisso espelhado.
 
-## E) Por que o aviso mostra Marco Antonio
+## F) A hipótese está correta?
 
-O aviso (`listNextCommitments`, em `src/lib/agenda.functions.ts`) lê os
-compromissos do executivo e escolhe o mais próximo no futuro. Com os dados
-atuais: Marco Antonio hoje 16:00, depois Michel 11/09 18:00. O aviso está
-**correto** — ele não pulou Michel por causa da E0; Michel simplesmente
-não tem mais compromisso hoje.
+**Parcialmente, com uma diferença decisiva.**
 
-## F) Menor correção necessária
+- Confirmado: Yuri existe no espelho GreenSales, tem compromisso informado e não tem representação operacional.
+- Confirmado: essa ausência interrompe o fluxo de espelhamento.
+- Não confirmado — e contrário ao estado atual: “o compromisso pode até ter sido criado e apenas não aparece”. **No caso de Yuri, ele não foi criado.**
+- Não seria correto afirmar que todas as telas precisam do card para listar uma reunião já existente: Central, aviso e Ação do Dia conseguem ler a própria reunião.
 
-Uma só, e é de regra, não de rótulo:
+## G) Menor correção possível — somente análise
 
-**Compromisso real em AGENDAMENTOS/VÍDEO deve suspender a exibição das
-ações de cadência já pendentes daquele lead**, e não apenas impedir a
-criação de novas. Na leitura do dia, ao montar os itens vindos da fila,
-o lead com compromisso vigente (follow_up PENDENTE em AGENDAMENTOS ou
-VÍDEO) deixa de oferecer ligação/mensagem, exatamente como já acontece na
-porta de decisão. Nada é apagado: a obrigação continua na fila e volta se
-o compromisso for cancelado ou o lead sair do estágio.
+Para cumprir a regra proposta, a alternativa mais localizada é **garantir a representação mínima no próprio caminho de criação do compromisso**, reutilizando `ensureWorkspaceCard`, antes da consulta de identidade impedir a escrita.
 
-Nada precisa mudar em rótulos, no aviso de próximo compromisso, na regra
-de T-5/futuro, na velocidade ou no GreenSales.
+Condições da eventual alteração:
 
-## G) Arquivos e funções que a correção tocaria
+1. Restringir à Financeira e à origem GreenSales, preservando o isolamento de testes.
+2. Agir somente quando a regra existente decidir `create`: AGENDAMENTOS/VÍDEO, follow_up válido e não descartado pela regra de histórico vencido.
+3. Resolver o executivo responsável com identidade oficial antes de prosseguir; nunca atribuir ao dono do cron ou inventar responsável.
+4. Se o card estiver realmente ausente, reutilizar `ensureWorkspaceCard` com os dados sincronizados e o ID determinístico existente. Não restaurar, substituir nem alterar cards já existentes.
+5. Reutilizar o vínculo canônico já existente por `linkCanonicalInvestor`, sem criar outro investidor.
+6. Seguir para a criação idempotente do mesmo `portal_meetings`, pelas regras atuais.
+7. Não passar pelo fluxo completo de `intakeLead`, nem criar E0, cadência, mensagem ou obrigação de ligação apenas para representar a reunião.
 
-- `src/server/crm/daily-actions.server.ts` — `buildDailyActions`, laço da
-  fila `relationship_queue`: aplicar a suspensão por compromisso vigente
-  usando os compromissos já carregados nessa mesma leitura.
-- Reuso, sem alteração: `isCadenceFrozen` / `isCommitmentStage`
-  (`src/lib/relationship/cadence-v2.ts`) e `FOLLOW_UP_STATES`.
-- Teste dirigido em `src/lib/crm/daily-actions.test.ts` (ou equivalente do
-  servidor) cobrindo: lead com compromisso vigente não exibe E0; lead sem
-  compromisso continua exibindo; compromisso cancelado devolve a ação.
+**Bloqueador adicional confirmado para Yuri:** o payload armazenado não contém `vendedor_id` nem `vendedor.id`, campos usados por `resolveResponsibleByVendorId`. Existe `user_id=37193`, mas o resolvedor atual não trata esse campo como vendedor; não há base para presumir equivalência.
 
-Sem migration, sem tabela nova, sem fila nova, sem alterar `/s`, `/s/portal`
-ou `/seg`.
+Assim, **criar um card vazio não basta**: sem responsável oficial, a condição seguinte também retorna ignore (“Lead sem executivo responsável — compromisso não espelhado”). A menor solução completa precisa esclarecer a origem oficial desse responsável, sem alterar a atribuição por suposição.
 
-## Observação de checagem
+Essa abordagem reutiliza sincronização, card, identidade e agenda existentes: **não exige tabela, segundo motor, segunda fila, segunda agenda ou nova fonte de verdade**. Também não cria cards indiscriminadamente para leads antigos. É análise de viabilidade, não autorização ou execução da mudança.
 
-O compromisso "hoje 11:00" que você viu no GreenSales pode estar em outro
-lead ou ser a tela antiga em cache: no dado sincronizado, o de Michel foi
-movido hoje às 10:56 para 11/09 18:00. Se no GreenSales ele ainda constar
-hoje às 11:00, o próximo passo é olhar a sincronização daquele lead — não
-a Ação do Dia.
+## H) Arquivos e funções envolvidos — detalhes técnicos
+
+| Arquivo | Função/ponto relevante |
+|---|---|
+| `src/server/crm/lead-sync.server.ts:494–510` | `runLeadSync`: chama espelhamento após sincronizar leads; incorpora erros, não motivos de ignore |
+| `src/server/crm/lead-intake.server.ts:200–265` | `intakeLead`: criação normal de card condicionada à entrada elegível |
+| `src/server/crm/workspace-card.server.ts:45–96` | `ensureWorkspaceCard`: representação `gs_<external_id>`, reutilizável sem chamar a cadência |
+| `src/lib/crm/greensales-followup.ts:137–197` | `planFollowUpSync`: elegibilidade, horário, criação/atualização/cancelamento |
+| `src/server/crm/greensales-followup.server.ts:189–217, 238–338, 427–498` | `loadLeadIdentity`, `syncOneFollowUp`, `syncGreenSalesFollowUps`: bloqueio por ausência do card, gravação e agregado de ignores |
+| `src/server/crm/responsible.server.ts:42–69` | `resolveResponsibleByVendorId`, `greenSalesVendorId`: resolução oficial do responsável |
+| `src/server/crm/identity.server.ts:212–236` | `linkCanonicalInvestor`: vínculo com identidade existente |
+| `src/lib/crm/leads.functions.ts:175–230` | `ownExternalIds`, `listCrmLeads`: Portal dos Leads e recorte por titularidade |
+| `src/lib/meetings.functions.ts:35–45`; `src/lib/meetings.ts:119–154`; `src/routes/f.executivo.reunioes.tsx` | Leitura, hidratação e apresentação da Central de Reuniões |
+| `src/lib/agenda.functions.ts:225–251`; `src/components/crm/next-commitment-alert.tsx` | `listNextCommitments` e aviso de próximo compromisso |
+| `src/server/crm/daily-actions.server.ts:116–165, 212–245` | `buildDailyActions`: leitura e representação independente dos compromissos |
+
+Nenhuma correção foi implementada; nenhum outro ambiente ou comportamento foi alterado.
