@@ -23,6 +23,8 @@ export type SimulationRecord = {
   createdAt: string;
   filename: string;
   pdfDataUri: string;
+  /** URL temporária de relatório recuperado do servidor. */
+  pdfUrl?: string;
   total: number;
   annual: number;
   products: SimulationProductRow[];
@@ -75,6 +77,10 @@ export function getLastSimulation(investorId: string | null | undefined): Simula
 
 export function openSimulationPdf(record: SimulationRecord): void {
   if (typeof window === "undefined") return;
+  if (record.pdfUrl) {
+    window.open(record.pdfUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
   const win = window.open("", "_blank");
   if (!win) return;
   win.document.write(

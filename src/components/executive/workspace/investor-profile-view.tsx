@@ -1,3 +1,5 @@
+import { listSimulationReports } from "@/lib/simulation-reports.functions";
+import { toast } from "sonner";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BEHAVIOR_LABEL, journeySummary } from "@/lib/journey/insights";
 import {
@@ -604,7 +606,16 @@ function TabJornada({ investor }: { investor: Investor }) {
   const [sims, setSims] = useState<SimulationRecord[]>([]);
 
   useEffect(() => {
-    setSims(listSimulations(investor.id));
+    if (!/^\/f(?:\/|$)/.test(window.location.pathname)) {
+      setSims(listSimulations(investor.id));
+      return;
+    }
+    let alive = true;
+    setSims([]);
+    void listSimulationReports({ data: { investorId: investor.id } })
+      .then((rows) => { if (alive) setSims(rows); })
+      .catch(() => { if (alive) toast.error("Não foi possível carregar os relatórios."); });
+    return () => { alive = false; };
   }, [investor.id, simOpen]);
 
   useEffect(() => {
@@ -777,7 +788,16 @@ function SimulationsHistoryDialog({
                     </div>
                     <button
                       type="button"
-                      onClick={() => openSimulationPdf(s)}
+                      onClick={() => {
+                         if (!s.pdfUrl) { openSimulationPdf(s); return; }
+                         const tab = window.open("", "_blank");
+                         if (tab) tab.opener = null;
+                         void listSimulationReports({ data: { investorId: s.investorId } }).then((rows) => {
+                           const fresh = rows.find((r) => r.id === s.id);
+                           if (!fresh?.pdfUrl) throw new Error("PDF indisponível");
+                           if (tab) tab.location.replace(fresh.pdfUrl);
+                         }).catch(() => { tab?.close(); toast.error("Não foi possível abrir o relatório."); });
+                       }}
                       className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-3.5 py-2 text-xs hover:border-[color:var(--gold)] transition"
                     >
                       <FileText className="h-3.5 w-3.5" /> Abrir Relatório
