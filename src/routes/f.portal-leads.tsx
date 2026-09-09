@@ -9,6 +9,7 @@ import { WorkspaceResourceGuard } from "@/components/executive/workspace-resourc
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { PortalLeadsBoard } from "@/components/crm/portal-leads-board";
+import { NextCommitmentAlert } from "@/components/crm/next-commitment-alert";
 import { OperationalGuard } from "@/components/auth/operational-guard";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { ModuleAccessDenied } from "@/components/executive/module-access-guard";
@@ -74,5 +75,13 @@ function PortalLeadsPage() {
   if (!portalAllowed) {
     return <ModuleAccessDenied moduleKey="portal_leads" />;
   }
-  return <PortalLeadsBoard standalone />;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {/* Aviso informativo do próximo compromisso — não cria ação. */}
+      <div className="px-4 pt-3">
+        <NextCommitmentAlert />
+      </div>
+      <PortalLeadsBoard standalone />
+    </div>
+  );
 }
