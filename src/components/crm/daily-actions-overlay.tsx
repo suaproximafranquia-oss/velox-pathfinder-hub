@@ -20,7 +20,8 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import type { DailyActionsAdapter, SkippedPendingView } from "@/lib/crm/daily-actions.adapter";
+import type { AdapterResult, DailyActionsAdapter, SkippedPendingView } from "@/lib/crm/daily-actions.adapter";
+import { Button } from "@/components/ui/button";
 import { DailyActionCard } from "@/components/crm/daily-action-card";
 import { NextCommitmentAlert } from "@/components/crm/next-commitment-alert";
 import {
@@ -89,6 +90,8 @@ export function DailyActionsOverlay({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [transition, setTransition] = useState<"idle" | "waiting" | "retry">("idle");
+  const transitioningRef = useRef(false);
   const [commitmentRefresh, setCommitmentRefresh] = useState(0);
   /** Janela operacional de execução manual (06–22 seg–sex, 06–17 sáb). */
   const [operationalWindow, setOperationalWindow] = useState<OperationalWindow>(() =>
@@ -100,12 +103,9 @@ export function DailyActionsOverlay({
   /**
    * RECONCILIAÇÃO APÓS CONCLUIR.
    *
-   * Concluir uma ação pode fazer o servidor criar, poucos instantes
-   * depois, a PRÓXIMA ação do MESMO investidor (por exemplo a mensagem
-   * E0 logo após a 2ª ligação). Nada é escondido: o card sai no clique,
-   * o próximo assume na hora e, em segundo plano, a fila oficial é
-   * reconferida algumas vezes em sequência curta até que a ação nova
-   * apareça sozinha — sem F5, sem espera e sem varredura contínua.
+    * A conclusão real usa uma barreira única de 4s e releitura oficial.
+    * A reconferência curta abaixo permanece apenas nos demais caminhos
+    * já existentes; seus timers são cancelados ao iniciar a conclusão.
    */
   const SETTLE_STEPS_MS = [900, 2200, 4000, 7000];
   /** Ações já resolvidas nesta tela — respostas atrasadas não as ressuscitam. */
@@ -161,13 +161,16 @@ export function DailyActionsOverlay({
    * na tela e a releitura apenas confirma com o servidor.
    */
   const load = useCallback(
-    async (silent = false) => {
+     async (silent = false, afterCompletion = false) => {
+       if (transitioningRef.current && !afterCompletion) return false;
       if (!silent) setLoading(true);
       const version = ++queueVersionRef.current;
       try {
         commitQueue(await adapter.load(), version);
+         return version === queueVersionRef.current;
       } catch {
         /* uma leitura falha nunca derruba a fila que já está na tela */
+         return false;
       } finally {
         if (!silent) setLoading(false);
       }
@@ -201,6 +204,46 @@ export function DailyActionsOverlay({
     }
   }, [adapter]);
 
+  /** Uma única releitura, também usada pelo botão de recuperação de falha. */
+  async function revalidateCompletion() {
+    setTransition("waiting");
+    if (!(await load(true, true))) {
+      setTransition("retry");
+      return; // Nunca libera uma lista local que não foi revalidada.
+    }
+    transitioningRef.current = false;
+    setTransition("idle");
+    void loadPendings();
+  }
+
+  async function completeWithStability(
+    item: DailyAction,
+    run: () => Promise<AdapterResult>,
+    fallback: string,
+  ) {
+    if (transitioningRef.current) return;
+    transitioningRef.current = true; // Trava síncrona inclusive contra clique duplo.
+    setTransition("waiting");
+    setFeedback(null);
+    clearSettleTimers();
+    ++queueVersionRef.current; // Invalida leituras iniciadas antes do clique.
+    continuityLeadRef.current = item.leadId;
+    resolvedKeysRef.current.delete(item.actionKey);
+
+    // A gravação pode durar mais que 4s: só revalidar depois de AMBAS.
+    // A lista devolvida pela gravação não seleciona nenhum card.
+    const [result] = await Promise.all([
+      Promise.resolve().then(run).catch((error): AdapterResult => ({
+        ok: false,
+        message: error instanceof Error ? error.message : fallback,
+      })),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 4000)),
+    ]);
+    setFeedback(result.message ?? (result.ok ? null : fallback));
+    if (!result.ok) setUndoable(null);
+    await revalidateCompletion();
+  }
+
   useEffect(() => {
     if (!open) return;
     void load();
@@ -210,7 +253,7 @@ export function DailyActionsOverlay({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+       if (e.key === "Escape" && !transitioningRef.current) onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -222,6 +265,7 @@ export function DailyActionsOverlay({
     setOperationalWindow(resolveOperationalWindow());
     const timer = window.setInterval(() => {
       setOperationalWindow(resolveOperationalWindow());
+       if (transitioningRef.current) return;
       setActions((previous) => {
         const next = reclassifyDailyActions(previous, new Date().toISOString(), continuityLeadRef.current);
         setSelectedKey(firstExecutableKey(next));
@@ -402,7 +446,8 @@ export function DailyActionsOverlay({
       <button
         type="button"
         aria-label="Fechar Ações do Dia"
-        onClick={onClose}
+        onClick={() => { if (!transitioningRef.current) onClose(); }}
+        disabled={transition !== "idle"}
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
       <div
@@ -411,7 +456,7 @@ export function DailyActionsOverlay({
         aria-label="Ações do Dia"
         className="relative flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[color:var(--navy-deep)] text-white/85 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
       >
-        <header className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+        <header inert={transition !== "idle"} className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 text-[color:var(--gold)]">
               <CalendarClock className="h-4 w-4" />
@@ -455,7 +500,21 @@ export function DailyActionsOverlay({
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_340px]">
+        {transition !== "idle" && (
+          <div role="status" aria-live="polite" className="flex items-center justify-center gap-3 border-b border-border px-5 py-3 text-sm text-muted-foreground">
+            {transition === "waiting" ? (
+              <><RefreshCw className="h-4 w-4 motion-safe:animate-spin" />Consolidando ação…</>
+            ) : (
+              <>
+                Não foi possível atualizar as ações.
+                <Button variant="outline" size="sm" onClick={() => { if (transition === "retry") void revalidateCompletion(); }}>
+                  <RefreshCw className="h-4 w-4" /> Tentar novamente
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+        <div inert={transition !== "idle"} aria-busy={transition !== "idle"} className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_340px]">
           <section className="flex min-h-0 flex-col justify-center gap-5 overflow-y-auto border-b border-white/10 p-6 md:border-b-0 md:border-r">
             {/* Aviso informativo — não cria ação nem altera a fila. */}
             <NextCommitmentAlert refreshKey={commitmentRefresh} />
@@ -498,6 +557,7 @@ export function DailyActionsOverlay({
                   }}
                   onReload={(silent) => void load(silent)}
                   onUndoableChange={setUndoable}
+                  onComplete={adapter.demoLabel ? undefined : completeWithStability}
                 />
                 {feedback && <p className="text-[11px] text-[color:var(--gold)]">{feedback}</p>}
                 {undoable && adapter.undoCallOutcome && (

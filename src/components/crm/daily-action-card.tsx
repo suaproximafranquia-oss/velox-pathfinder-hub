@@ -64,6 +64,7 @@ export function DailyActionCard({
   onResolved,
   onReload,
   onUndoableChange,
+  onComplete,
 }: {
   item: DailyAction;
   adapter: DailyActionsAdapter;
@@ -85,6 +86,8 @@ export function DailyActionCard({
   onReload?: (silent?: boolean) => void;
   /** Último resultado de ligação, reversível pelo painel que hospeda o card. */
   onUndoableChange?: (item: DailyAction | null) => void;
+  /** Barreira de conclusão da Ação do Dia /f; não usada na recuperação ou demo. */
+  onComplete?: (item: DailyAction, run: () => Promise<AdapterResult>, fallback: string) => Promise<void>;
 }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -181,6 +184,10 @@ export function DailyActionCard({
    * O modo demonstração (fila contínua, `requeue`) não usa este caminho.
    */
   function resolveNow(run: () => Promise<AdapterResult>, fallback: string) {
+    if (onComplete) {
+      void onComplete(item, run, fallback);
+      return;
+    }
     if (adapter.demoLabel) {
       void (async () => {
         const result = await run().catch(() => ({ ok: false }) as AdapterResult);
