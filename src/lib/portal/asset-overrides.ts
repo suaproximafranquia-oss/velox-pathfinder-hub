@@ -48,17 +48,25 @@ export function universoSlotKey(asset: string): string {
 
 /** Espaços de imagem do Portal que podem ser substituídos. */
 export const PORTAL_ASSET_SLOTS: { key: string; label: string; asset?: AssetKey }[] = [
-  { key: "home-capa", label: "Capa da Home" },
-  { key: "modulo-manual", label: "Módulo — Manual do Investidor" },
-  { key: "modulo-universo", label: "Módulo — Material institucional" },
-  { key: "modulo-simulador", label: "Módulo — Simulador" },
-  { key: "modulo-sede", label: "Módulo — Nossa Estrutura" },
-  { key: "modulo-revista", label: "Módulo — Revista Velox" },
-  { key: "modulo-experiencias", label: "Módulo — Experiências" },
-  { key: "estrutura-matriz", label: "Nossa Estrutura — Matriz" },
-  { key: "estrutura-recepcao", label: "Nossa Estrutura — Recepção" },
-  { key: "estrutura-unidade", label: "Nossa Estrutura — Unidades da rede" },
-  { key: "principios-capa", label: "Capa — Princípios Velox" },
+  { key: "home-capa", label: "Capa da Home", asset: "portal-hero-sede" },
+  { key: "modulo-manual", label: "Módulo — Manual do Investidor", asset: "portal-capa-manual" },
+  {
+    key: "modulo-universo",
+    label: "Módulo — Material institucional",
+    asset: "portal-capa-material-institucional",
+  },
+  { key: "modulo-simulador", label: "Módulo — Simulador", asset: "portal-capa-simulador" },
+  { key: "modulo-sede", label: "Módulo — Nossa Estrutura", asset: "portal-capa-sede" },
+  { key: "modulo-revista", label: "Módulo — Revista Velox", asset: "portal-capa-revista" },
+  {
+    key: "modulo-experiencias",
+    label: "Módulo — Experiências",
+    asset: "portal-capa-experiencias",
+  },
+  { key: "estrutura-matriz", label: "Nossa Estrutura — Matriz", asset: "sede-velox" },
+  { key: "estrutura-recepcao", label: "Nossa Estrutura — Recepção", asset: "sede-recepcao" },
+  { key: "estrutura-unidade", label: "Nossa Estrutura — Unidades da rede", asset: "unidade-fachada" },
+  { key: "principios-capa", label: "Capa — Princípios Velox", asset: "portal-capa-principios" },
   ...UNIVERSO_ASSETS.map((i) => ({
     key: universoSlotKey(i.asset),
     label: `Material institucional — ${i.label}`,
