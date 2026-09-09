@@ -152,24 +152,19 @@ export function useRealDailyActionsAdapter(
             rang: outcome === "NAO" ? (rang ?? null) : null,
           },
         });
-        try {
-          await recordHistory({
-            data: {
-              actionKey: item.actionKey,
-              leadId: item.leadId,
-              step: item.stepLabel ?? String(item.cadence.step),
-
-              event: "ligacao",
-              outcome: outcome === "SIM"
-                  ? "Atendeu"
-                  : rang
-                    ? `Chamou ${rang}x e não atendeu`
-                    : "Não atendeu",
-            },
-          });
-        } catch {
-          /* histórico é complementar */
-        }
+        void recordHistory({
+          data: {
+            actionKey: item.actionKey,
+            leadId: item.leadId,
+            step: item.stepLabel ?? String(item.cadence.step),
+            event: "ligacao",
+            outcome: outcome === "SIM"
+                ? "Atendeu"
+                : rang
+                  ? `Chamou ${rang}x e não atendeu`
+                  : "Não atendeu",
+          },
+        }).catch(() => undefined);
         return { ok: true, message: "Tentativa registrada." };
       },
       undoCallOutcome: async (item) => {
