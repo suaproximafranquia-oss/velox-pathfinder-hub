@@ -45,16 +45,26 @@ describe("Ações do Dia — regras puras", () => {
     expect(resolveBucket({ dueDate: "2026-02-12", startsAt: null, nowIso: now })).toBe("futura");
   });
 
-  it("5) reunião 20 minutos no futuro não entra em foco", () => {
+  it("5) reunião 20 minutos no futuro não entra em foco — é compromisso futuro", () => {
     expect(
       resolveBucket({ dueDate: "2026-02-10", startsAt: "2026-02-10T14:20:00.000Z", nowIso: now }),
-    ).toBe("hoje");
+    ).toBe("futura");
   });
 
   it("6) reunião 10 minutos no futuro ainda não entra em foco (janela de 5 min)", () => {
     expect(
       resolveBucket({ dueDate: "2026-02-10", startsAt: "2026-02-10T14:10:00.000Z", nowIso: now }),
-    ).toBe("hoje");
+    ).toBe("futura");
+  });
+
+  it("9) compromisso de hoje às 11:00 não é trabalho das 08:18", () => {
+    const manha = "2026-02-10T11:18:00.000Z"; // 08:18 em São Paulo
+    expect(
+      resolveBucket({ dueDate: "2026-02-10", startsAt: "2026-02-10T14:00:00.000Z", nowIso: manha }),
+    ).toBe("futura");
+    expect(
+      resolveBucket({ dueDate: "2026-02-10", startsAt: "2026-02-10T19:00:00.000Z", nowIso: manha }),
+    ).toBe("futura");
   });
 
   it("6b) reunião 4 minutos no futuro entra em foco", () => {
