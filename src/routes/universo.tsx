@@ -36,7 +36,11 @@ import {
   subscribePortalAssets,
   universoSlotKey,
 } from "@/lib/portal/asset-overrides";
-import { fetchPortalAssetOverrides } from "@/lib/portal/asset-overrides.functions";
+import {
+  canEditPortalAssets,
+  fetchPortalAssetOverrides,
+} from "@/lib/portal/asset-overrides.functions";
+import { PortalInlineImageEditor } from "@/components/portal/portal-inline-image-editor";
 
 /**
  * Cada imagem editorial tem espaço próprio de SUBSTITUIÇÃO. Quando a
@@ -640,6 +644,12 @@ function Index() {
       activeId={active}
     >
       <div id="conteudo">
+        {editorAllowed && unit && (
+          <PortalInlineImageEditor
+            unit={unit}
+            slotFilter={(key) => key.startsWith("universo-")}
+          />
+        )}
         <Hero />
 
         {/* ==================================================== */}
