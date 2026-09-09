@@ -127,7 +127,10 @@ export function DailyActionsOverlay({
    * remove o que já foi resolvido nesta tela e se adia a entrada visual
    * das ações nascidas dentro da janela de acomodação.
    */
-  const commitQueue = useCallback((rows: DailyAction[]) => {
+  const commitQueueRef = useRef<(rows: DailyAction[], confirmedLeadId?: string | null) => void>(
+    () => {},
+  );
+  const commitQueue = useCallback((rows: DailyAction[], confirmedLeadId?: string | null) => {
     const now = Date.now();
     for (const [key, expires] of resolvedKeysRef.current)
       if (expires <= now) resolvedKeysRef.current.delete(key);
@@ -141,7 +144,11 @@ export function DailyActionsOverlay({
       const known = new Set(prev.map((row) => row.actionKey));
       let nextFlush = 0;
       const visible = official.filter((row) => {
-        if (known.has(row.actionKey) || !row.leadId) return true;
+        /**
+         * A ação que veio JUNTO com a conclusão já está confirmada: se
+         * for do MESMO investidor, entra na hora e mantém a precedência.
+         */
+        if (known.has(row.actionKey) || !row.leadId || row.leadId === confirmedLeadId) return true;
         const until = settlingLeadsRef.current.get(row.leadId);
         if (!until || until <= now) return true;
         nextFlush = Math.max(nextFlush, until);
@@ -153,7 +160,7 @@ export function DailyActionsOverlay({
           () => {
             flushTimerRef.current = null;
             const queued = pendingQueueRef.current;
-            if (queued) commitQueue(queued);
+            if (queued) commitQueueRef.current(queued);
           },
           Math.max(200, nextFlush - now + 50),
         );
@@ -162,6 +169,7 @@ export function DailyActionsOverlay({
       return visible;
     });
   }, []);
+  commitQueueRef.current = commitQueue;
 
   /**
    * ORDEM DO DIA — a lista oficial vem sempre do servidor e a ação
