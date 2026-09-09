@@ -227,76 +227,55 @@ export function DailyActionCard({
   }
 
   /** REUNIÃO — desfecho registrado na própria reunião. */
-  async function handleMeetingOutcome(attended: boolean) {
+  function handleMeetingOutcome(attended: boolean) {
     if (locked) return;
-    setBusy(true);
-    try {
-      const result = await adapter.resolveMeeting(item, attended, meetingNote.trim());
-      if (result.ok) {
-        setMeetingNote("");
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível registrar o desfecho.");
-    } finally {
-      setBusy(false);
-    }
+    const observation = meetingNote.trim();
+    setMeetingNote("");
+    resolveNow(
+      () => adapter.resolveMeeting(item, attended, observation),
+      "Não foi possível registrar o desfecho.",
+    );
   }
 
   /** AGENDAMENTO GREENSALES — "Houve contato de agendamento?" */
-  async function handleFollowUpContact(decision: { contacted: boolean; willReschedule?: boolean }) {
+  function handleFollowUpContact(decision: { contacted: boolean; willReschedule?: boolean }) {
     if (locked) return;
-    setBusy(true);
-    try {
-      const result = await adapter.resolveFollowUpContact(item, {
-        ...decision,
-        note: meetingNote.trim(),
-      });
-      if (result.ok) {
-        setMeetingNote("");
-        setFollowUpNoContact(false);
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível registrar o desfecho.");
-    } finally {
-      setBusy(false);
-    }
+    const observation = meetingNote.trim();
+    setMeetingNote("");
+    setFollowUpNoContact(false);
+    resolveNow(
+      () => adapter.resolveFollowUpContact(item, { ...decision, note: observation }),
+      "Não foi possível registrar o desfecho.",
+    );
   }
 
   /** OBRIGAÇÃO DE 24h — "Deseja encerrar esse fluxo?" */
-  async function handleFollowUpReview(close: boolean) {
+  function handleFollowUpReview(close: boolean) {
     if (locked) return;
-    setBusy(true);
-    try {
-      const result = await adapter.resolveFollowUpReview(item, { close, note: meetingNote.trim() });
-      if (result.ok) {
-        setMeetingNote("");
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível registrar a decisão.");
-    } finally {
-      setBusy(false);
-    }
+    const observation = meetingNote.trim();
+    setMeetingNote("");
+    resolveNow(
+      () => adapter.resolveFollowUpReview(item, { close, note: observation }),
+      "Não foi possível registrar a decisão.",
+    );
   }
 
-  async function handleReschedule() {
+  function handleReschedule() {
     if (locked) return;
     if (!rescheduleAt) {
       setFeedback("Informe a nova data e hora da reunião.");
       return;
     }
-    setBusy(true);
-    try {
-      const result = await adapter.rescheduleMeeting(
-        item,
-        new Date(rescheduleAt).toISOString(),
-        meetingNote.trim(),
-      );
-      if (result.ok) {
-        setRescheduleAt("");
-        setMeetingNote("");
-        applyResult(result);
-      } else setFeedback(result.message ?? "Não foi possível reagendar.");
-    } finally {
-      setBusy(false);
-    }
+    const when = new Date(rescheduleAt).toISOString();
+    const observation = meetingNote.trim();
+    setRescheduleAt("");
+    setMeetingNote("");
+    resolveNow(
+      () => adapter.rescheduleMeeting(item, when, observation),
+      "Não foi possível reagendar.",
+    );
   }
+
 
   /**
    * MENSAGEM — leitura do texto oficial e cópia imediata. Esta tela
