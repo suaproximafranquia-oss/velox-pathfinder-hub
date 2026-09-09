@@ -30,6 +30,13 @@ import {
 // assets (src/lib/assets/registry.ts). Cada posição depende de uma chave
 // semântica; trocar a foto = trocar o ponteiro no registro, sem mexer aqui.
 import { assetUrl } from "@/lib/assets/registry";
+import {
+  portalAssetUrl,
+  setSavedPortalAssets,
+  subscribePortalAssets,
+  universoSlotKey,
+} from "@/lib/portal/asset-overrides";
+import { fetchPortalAssetOverrides } from "@/lib/portal/asset-overrides.functions";
 
 /**
  * Cada imagem editorial tem espaço próprio de SUBSTITUIÇÃO. Quando a
@@ -432,7 +439,7 @@ const MANUAL_TOPICS: string[] = [
 ];
 
 
-const UNIDADES: GalleryItem[] = [
+const unidades = (): GalleryItem[] => [
   { src: lojaFachadaImg.url, alt: "Fachada de unidade Velox", caption: "Unidade da rede · Fachada institucional", span: 2 },
   { src: lojaFachada2Img.url, alt: "Fachada de unidade Velox — identidade institucional", caption: "Unidade da rede", span: 1 },
   { src: lojaInauguracaoImg.url, alt: "Inauguração de unidade Velox", caption: "Inauguração · Rede em expansão", span: 1 },
@@ -1548,7 +1555,7 @@ function Index() {
           lead="Da fachada ao ambiente de atendimento, cada operação reflete a mesma linguagem visual — a marca reconhecível que aproxima clientes e sustenta a credibilidade da rede."
           surface="paper"
         >
-          <Gallery items={UNIDADES} />
+          <Gallery items={unidades()} />
         </EditorialSection>
 
         {/* 19 · Modelos de franquia */}
