@@ -3,6 +3,7 @@ import {
   collapseByLead,
   dedupeDailyActions,
   isUpcomingAction,
+  isAutomaticDailyAction,
   normalizeDailyActions,
   operationalDate,
   resolveBucket,
@@ -36,12 +37,17 @@ function action(partial: Partial<DailyAction> & { actionKey: string }): DailyAct
 describe("Ações do Dia — regras puras", () => {
   const now = "2026-02-10T14:00:00.000Z"; // 11:00 em America/Sao_Paulo
 
-  it("reclassifica reunião futura, em foco e atrasada com os mesmos limites", () => {
+  it("reclassifica reunião futura, em foco e pendente com os mesmos limites", () => {
     const row = action({ actionKey: "meeting:TEST-0001", source: "meeting", kind: "reuniao", startsAt: "2026-02-10T14:00:00.000Z", bucket: "futura", priorityMax: true });
     expect(reclassifyDailyActions([row], "2026-02-10T13:54:00.000Z")[0]?.bucket).toBe("futura");
     expect(reclassifyDailyActions([row], "2026-02-10T13:55:00.000Z")[0]?.bucket).toBe("agora");
     expect(reclassifyDailyActions([row], "2026-02-10T14:05:00.000Z")[0]?.bucket).toBe("agora");
-    expect(reclassifyDailyActions([row], "2026-02-10T14:06:00.000Z")[0]?.bucket).toBe("atrasada");
+    expect(reclassifyDailyActions([row], "2026-02-10T14:06:00.000Z")[0]?.bucket).toBe("pendente");
+    const tomorrow = reclassifyDailyActions([row, action({ actionKey: "queue:TEST-2:E0", leadId: "TEST-2" })], "2026-02-11T14:00:00.000Z");
+    const meeting = tomorrow.find((a) => a.source === "meeting")!;
+    expect(meeting.overdue).toBe(false);
+    expect(isAutomaticDailyAction(meeting)).toBe(false);
+    expect(tomorrow[0].source).toBe("queue");
   });
 
   it("E0 segue o calendário existente, sem atraso durante fim de semana", () => {
@@ -64,10 +70,10 @@ describe("Ações do Dia — regras puras", () => {
     expect(rows[0]?.secondary ?? []).toEqual([]);
   });
 
-  it("verificação 24h mantém foco e reclassificação repetida não duplica ações", () => {
+  it("verificação 24h fica pendente e reclassificação repetida não duplica ações", () => {
     const review = action({ actionKey: "meeting:TEST-0001:review", source: "meeting", kind: "reuniao", startsAt: "2026-02-10T16:00:00.000Z", followUp: { mode: "revisao_24h", state: "EXPIRADO_SEM_CONTATO", scheduledAt: "2026-02-09T16:00:00.000Z", reviewDueAt: "2026-02-10T16:00:00.000Z" } });
     const once = reclassifyDailyActions([review], now);
-    expect(once[0]?.bucket).toBe("agora");
+    expect(once[0]?.bucket).toBe("pendente");
     expect(reclassifyDailyActions(once, now)).toEqual(once);
   });
 
@@ -159,7 +165,7 @@ describe("Ações do Dia — regras puras", () => {
     expect(rows[0]?.secondary?.map((s) => s.kind).sort()).toEqual(["ligacao", "mensagem"]);
   });
 
-  it("7) reunião atrasada permanece no topo", () => {
+  it("7) reunião passada permanece aberta sem bloquear cadência", () => {
     const rows = normalizeDailyActions([
       action({ actionKey: "queue:f:E1:1", leadId: "f", bucket: "atrasada" }),
       action({
@@ -168,11 +174,11 @@ describe("Ações do Dia — regras puras", () => {
         kind: "reuniao",
         leadId: "g",
         priorityMax: true,
-        bucket: "atrasada",
+        bucket: "pendente",
         startsAt: "2026-02-10T12:00:00.000Z",
       }),
     ]);
-    expect(rows[0]?.kind).toBe("reuniao");
+    expect(rows[0]?.source).toBe("queue");
   });
 
   it("8) concluir na fonte oficial remove o item na releitura", () => {
