@@ -509,7 +509,10 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
       <PortalFooter />
       {editorAllowed && (
         <Suspense fallback={null}>
-          <PortalAssetEditor unit={brandKey} />
+          <PortalInlineImageEditor
+            unit={brandKey}
+            slotFilter={(key) => !isUniversoSlot(key)}
+          />
         </Suspense>
       )}
       <ModulePanel
@@ -519,7 +522,9 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
                 /* O material institucional abre na unidade que o exibe. */
                 src:
                   active.src === "/universo"
-                    ? `/universo?u=${encodeURIComponent(brandKey)}`
+                    ? `/universo?u=${encodeURIComponent(brandKey)}${
+                        editorAllowed ? "&modo=editor" : ""
+                      }`
                     : active.src,
                 title: active.title,
               }
