@@ -124,6 +124,39 @@ export function DailyActionCard({
     setFeedback(null);
   }, [item.actionKey]);
 
+  /**
+   * PRÉ-GATILHO — SOMENTE ANTECIPAÇÃO DE PROCESSAMENTO.
+   *
+   * "Não atendeu" tem consequência determinística: a régua segue dentro
+   * da MESMA etapa (2ª ligação e, depois, a mensagem oficial). Enquanto
+   * o Executivo não clica em "Concluído", a mensagem dessa etapa já é
+   * lida em segundo plano e o caminho do servidor é aquecido.
+   *
+   * "Atendeu" não gera mensagem: nada é preparado.
+   *
+   * Nada aqui efetiva, cria fila, avança o motor, grava histórico ou
+   * marca execução. Trocar a decisão ou abandonar o card descarta o
+   * preparo, e a autoridade continua sendo a fila oficial do servidor.
+   */
+  const primedRef = useRef<{ actionKey: string; key: string } | null>(null);
+  useEffect(() => {
+    if (!isCallAction(item) || locked) return;
+    const key = stepMessageKey(item.leadId, item.stepLabel);
+    if (callPending?.outcome === "NAO") {
+      if (!key) return;
+      adapter.prewarmOutcome?.();
+      primeStepMessage(key, () => adapter.loadMessage(item).catch(() => null));
+      primedRef.current = { actionKey: item.actionKey, key };
+      return;
+    }
+    // Decisão trocada (ou desfeita) dentro do MESMO card: descarta.
+    if (primedRef.current?.actionKey === item.actionKey) {
+      clearStepMessagePrefetch();
+      primedRef.current = null;
+    }
+  }, [item, locked, adapter, callPending?.outcome]);
+
+
   function applyResult(result: {
     requeue?: boolean;
     message?: string;
