@@ -249,7 +249,10 @@ export function DailyActionsOverlay({
 
   function dropAction(key: string) {
     setActions((prev) => {
-      const rest = prev.filter((r) => r.actionKey !== key);
+      const rest = sortDailyActions(
+        prev.filter((r) => r.actionKey !== key),
+        continuityLeadRef.current,
+      );
       setSelectedKey(firstExecutableKey(rest));
       return rest;
     });
