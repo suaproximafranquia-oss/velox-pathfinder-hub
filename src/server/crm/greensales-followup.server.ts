@@ -192,11 +192,12 @@ async function loadLeadIdentity(leadId: string): Promise<{
   executiveId: string | null;
   executiveName: string;
 } | null> {
-  const { data: lead } = await supabaseAdmin
+  const { data: lead, error } = await supabaseAdmin
     .from("portal_leads")
     .select("name,email,responsible_executive_id")
     .eq("id", leadId)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   if (!lead) return null;
   const executiveId = (lead as { responsible_executive_id: string | null }).responsible_executive_id;
   let executiveName = "Executivo responsável";
@@ -222,6 +223,74 @@ export type FollowUpSyncItem = {
   followUp: unknown;
 };
 
+/** Carteira comprovada pela leitura feita com ESTA conexão, inclusive no cron. */
+export type FollowUpConnectionContext = {
+  ownerUserId: string | null;
+  leadExternalIds: ReadonlySet<string>;
+};
+
+/** Só é chamada depois da decisão oficial de criar um follow_up elegível. */
+async function ensureFollowUpCard(
+  externalId: string,
+  connection: FollowUpConnectionContext | undefined,
+): Promise<void> {
+  // O lote também lê espelhos de outras carteiras: nunca atribuí-los à conexão atual.
+  if (!connection?.leadExternalIds.has(externalId)) return;
+
+  const { data: lead, error } = await supabaseAdmin
+    .from("crm_leads")
+    .select("id,name,phone,email,canonical_investor_id,raw_payload,external_created_at")
+    .eq("external_source", GREENSALES_SOURCE)
+    .eq("external_id", externalId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!lead) return;
+
+  const raw = (lead.raw_payload ?? {}) as Record<string, unknown>;
+  const { greenSalesVendorId, resolveResponsibleByVendorId, resolveResponsibleByUserId } =
+    await import("@/server/crm/responsible.server");
+  const vendorId = greenSalesVendorId(raw);
+  // user_id do payload NÃO é vendedor. Sem vendedor, usar só o dono real da conexão.
+  const responsible = vendorId
+    ? await resolveResponsibleByVendorId(vendorId)
+    : await resolveResponsibleByUserId(connection.ownerUserId);
+  if (!responsible) return;
+
+  let investorId = lead.canonical_investor_id;
+  if (!investorId) {
+    const { data: identifier, error: identifierError } = await supabaseAdmin
+      .from("investor_identifiers")
+      .select("investor_id")
+      .eq("source", GREENSALES_SOURCE)
+      .eq("external_id", externalId)
+      .maybeSingle();
+    if (identifierError) throw new Error(identifierError.message);
+    investorId = identifier?.investor_id ?? null;
+  }
+
+  const { normalizeGreenSalesLead } = await import("@/lib/greensales/normalize");
+  const normalized = normalizeGreenSalesLead(raw as never);
+  const { ensureWorkspaceCard } = await import("@/server/crm/workspace-card.server");
+  const card = await ensureWorkspaceCard({
+    externalId,
+    name: lead.name,
+    email: lead.email ?? "",
+    whatsapp: lead.phone ?? "",
+    city: normalized.city,
+    material: normalized.material,
+    campaign: normalized.campaign,
+    externalCreatedAt: lead.external_created_at,
+    externalUpdatedAt: typeof raw["updated_at"] === "string" ? raw["updated_at"] : null,
+    rawPayload: raw,
+    responsibleExecutiveId: responsible.executiveId,
+    responsibleExecutiveSlug: responsible.slug,
+  });
+  // Concorrência: outra execução pode ter inserido o mesmo gs_<id> entre as leituras.
+  if (!card.ok && !(await loadLeadIdentity(card.cardId))) throw new Error(card.error);
+  const { linkCanonicalInvestor } = await import("@/server/crm/identity.server");
+  await linkCanonicalInvestor({ investorId, cardId: card.cardId, crmLeadId: lead.id });
+}
+
 export type FollowUpSyncSummary = {
   created: number;
   updated: number;
@@ -238,6 +307,7 @@ export type FollowUpSyncSummary = {
 export async function syncOneFollowUp(
   item: FollowUpSyncItem,
   nowIso = new Date().toISOString(),
+  connection?: FollowUpConnectionContext,
 ): Promise<FollowUpSyncDecision> {
   const leadId = `gs_${item.externalId}`;
   const existing = await loadMirror(item.externalId);
@@ -279,7 +349,11 @@ export async function syncOneFollowUp(
   }
 
   if (decision.kind === "create") {
-    const identity = await loadLeadIdentity(leadId);
+    let identity = await loadLeadIdentity(leadId);
+    if (!identity) {
+      await ensureFollowUpCard(item.externalId, connection);
+      identity = await loadLeadIdentity(leadId);
+    }
     if (!identity) return { kind: "ignore", reason: "Lead sem card operacional no Portal." };
     if (!identity.executiveId) {
       return { kind: "ignore", reason: "Lead sem executivo responsável — compromisso não espelhado." };
@@ -427,6 +501,7 @@ export async function syncOneFollowUp(
 export async function syncGreenSalesFollowUps(
   overrides: Map<string, unknown>,
   nowIso = new Date().toISOString(),
+  connection?: FollowUpConnectionContext,
 ): Promise<FollowUpSyncSummary> {
   const summary: FollowUpSyncSummary = {
     created: 0,
@@ -483,7 +558,7 @@ export async function syncGreenSalesFollowUps(
 
   for (const item of items.values()) {
     try {
-      const decision = await syncOneFollowUp(item, nowIso);
+      const decision = await syncOneFollowUp(item, nowIso, connection);
       if (decision.kind === "create") summary.created += 1;
       else if (decision.kind === "update") summary.updated += 1;
       else if (decision.kind === "cancel") summary.cancelled += 1;
