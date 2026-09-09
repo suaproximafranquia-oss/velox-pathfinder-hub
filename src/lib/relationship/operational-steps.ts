@@ -37,8 +37,9 @@ export const OPERATIONAL_STEP_KEYS: readonly string[] = [
  * com as duas redações já existentes (COM NOME / SEM NOME).
  *
  *  • E7/E8 → SEM_CONTATO | MATERIAL_ENVIADO (estrutura de referência);
- *  • E1/E2/E3 → contexto normal (sem contexto) ou o caminho V
- *    (V1/V2/V3), decidido UMA ÚNICA VEZ pelo motor antes da E1;
+ *  • E2/E3 → contexto normal (sem contexto) ou o caminho V (V2/V3),
+ *    decidido UMA ÚNICA VEZ pelo motor na chegada da E2. A E1 é sempre
+ *    normal; "V1" permanece como contexto histórico da Biblioteca;
  *  • R3 → NÃO_CHEGOU_E4 | JÁ_PASSOU_E4, pelo histórico real do lead.
  */
 export const STEP_CONTEXTS = [
@@ -54,7 +55,6 @@ export type StepContext = (typeof STEP_CONTEXTS)[number];
 
 /** Combinações oficiais por etapa. `null` = contexto normal da etapa. */
 export const STEP_CONTEXT_MAP: Readonly<Record<string, Array<StepContext | null>>> = {
-  E1: [null, "V1"],
   E2: [null, "V2"],
   E3: [null, "V3"],
   E7: ["SEM_CONTATO", "MATERIAL_ENVIADO"],

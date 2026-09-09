@@ -16,6 +16,7 @@ import {
   recordDailyActionHistoryFn,
   registerDailyActionMessageFn,
   registerQueueCallOutcomeFn,
+  prewarmOutcomeFn,
   undoQueueCallOutcomeFn,
   rescheduleMeetingFn,
   resolveMeetingOutcomeFn,
@@ -59,6 +60,7 @@ export function useRealDailyActionsAdapter(
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
   const registerMessage = useServerFn(registerDailyActionMessageFn);
   const registerQueueCall = useServerFn(registerQueueCallOutcomeFn);
+  const prewarmOutcome = useServerFn(prewarmOutcomeFn);
   const undoQueueCall = useServerFn(undoQueueCallOutcomeFn);
   const recordHistory = useServerFn(recordDailyActionHistoryFn);
   const resolveMeeting = useServerFn(resolveMeetingOutcomeFn);
@@ -201,6 +203,13 @@ export function useRealDailyActionsAdapter(
         await noteAction({ data: actionRef(item, note, pendingRecovery) });
         return { ok: true, message: "Observação registrada." };
       },
+      /**
+       * PRÉ-GATILHO — apenas aquece o caminho oficial no servidor. Nada
+       * é gravado, criado ou concluído aqui.
+       */
+      prewarmOutcome: () => {
+        void prewarmOutcome({}).catch(() => undefined);
+      },
       loadMessage: async (item) => {
         const step = item.messageRef?.step ?? item.stepLabel;
         if (!item.leadId || !step) return null;
@@ -333,6 +342,7 @@ export function useRealDailyActionsAdapter(
       loadStepMessage,
       registerMessage,
       registerQueueCall,
+      prewarmOutcome,
       recordHistory,
       resolveMeeting,
       rescheduleMeeting,
