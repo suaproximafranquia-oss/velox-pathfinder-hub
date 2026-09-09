@@ -56,7 +56,8 @@ export const PLATFORM_MODULES: PlatformModule[] = [
     description:
       "Home do Portal do Investidor. O Manual é apenas o primeiro conteúdo da jornada.",
     icon: BookOpen,
-    href: "/",
+    /** Portal do Investidor da própria unidade (Financeira = /f). */
+    href: unitPath(""),
     external: true,
     status: "ativo",
   },

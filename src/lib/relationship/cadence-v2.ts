@@ -149,13 +149,13 @@ export function nextTransition(
     case "E4":
       return cycle.materialRequested
         ? { to: "E5", days: 0, immediate: true }
-        : { to: "E7", days: 4 };
+        : { to: "E7", days: 3 };
     case "E5":
       return { to: "E6", days: 7 };
     case "E6":
       return { to: "E7", days: 2 };
     case "E7":
-      return { to: "E8", days: 3 };
+      return { to: "E8", days: 2 };
     case "E8":
       return null;
 
