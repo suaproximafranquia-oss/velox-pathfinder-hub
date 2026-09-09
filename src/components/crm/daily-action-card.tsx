@@ -217,6 +217,11 @@ export function DailyActionCard({
    */
   function completeCall(outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!isCallAction(item) || locked) return;
+    // Atendeu: a mensagem da etapa perde a finalidade — preparo descartado.
+    if (outcome === "SIM") {
+      clearStepMessagePrefetch();
+      primedRef.current = null;
+    }
     const observation = callNote.trim();
     setCallAwaitingRing(false);
     setCallPending(null);
