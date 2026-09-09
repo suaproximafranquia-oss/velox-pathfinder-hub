@@ -12,9 +12,42 @@
  * Seguradora.
  */
 import { useEffect, useState } from "react";
+import { assetUrl, type AssetKey } from "@/lib/assets/registry";
+
+/**
+ * MATERIAL INSTITUCIONAL (`/universo`) — imagens editoriais da página.
+ * Cada imagem tem chave estável própria (`universo-<asset>`), lê a
+ * substituição da unidade e mantém o arquivo original como retorno.
+ */
+export const UNIVERSO_ASSETS: { asset: AssetKey; label: string }[] = [
+  { asset: "sede-velox", label: "Sede Velox (capa)" },
+  { asset: "fundador-mario-sergio", label: "Fundador — Mário Sérgio" },
+  { asset: "unidade-fachada", label: "Unidade — fachada" },
+  { asset: "unidade-fachada-alternativa", label: "Unidade — fachada alternativa" },
+  { asset: "unidade-inauguracao", label: "Unidade — inauguração" },
+  { asset: "treinamento-rede", label: "Treinamento da rede" },
+  { asset: "embaixador-ciro-bottini", label: "Embaixador — Ciro Bottini" },
+  { asset: "decisao-investidor", label: "Decisão do investidor" },
+  { asset: "atendimento-consultivo", label: "Atendimento consultivo" },
+  { asset: "mercado-distrito-financeiro", label: "Mercado — distrito financeiro" },
+  { asset: "consumidor-financeiro", label: "Consumidor financeiro" },
+  { asset: "reuniao-colaborativa", label: "Reunião colaborativa" },
+  { asset: "plataforma-tecnologica", label: "Plataforma tecnológica" },
+  { asset: "encerramento-edificio", label: "Encerramento — edifício" },
+  { asset: "equipe-expansao", label: "Equipe de expansão" },
+  { asset: "diretora-expansao-larissa", label: "Diretora de Expansão — Larissa" },
+  { asset: "marketplace-parceiros", label: "Parceiros e instituições" },
+  { asset: "fundador-com-consultores", label: "Fundador com consultores" },
+  { asset: "modelo-home-office", label: "Modelo home office" },
+];
+
+/** Chave do espaço de substituição de uma imagem do Material Institucional. */
+export function universoSlotKey(asset: string): string {
+  return `universo-${asset}`;
+}
 
 /** Espaços de imagem do Portal que podem ser substituídos. */
-export const PORTAL_ASSET_SLOTS = [
+export const PORTAL_ASSET_SLOTS: { key: string; label: string; asset?: AssetKey }[] = [
   { key: "home-capa", label: "Capa da Home" },
   { key: "modulo-manual", label: "Módulo — Manual do Investidor" },
   { key: "modulo-universo", label: "Módulo — Material institucional" },
@@ -26,9 +59,22 @@ export const PORTAL_ASSET_SLOTS = [
   { key: "estrutura-recepcao", label: "Nossa Estrutura — Recepção" },
   { key: "estrutura-unidade", label: "Nossa Estrutura — Unidades da rede" },
   { key: "principios-capa", label: "Capa — Princípios Velox" },
-] as const;
+  ...UNIVERSO_ASSETS.map((i) => ({
+    key: universoSlotKey(i.asset),
+    label: `Material institucional — ${i.label}`,
+    asset: i.asset,
+  })),
+];
 
 export type PortalAssetSlot = (typeof PORTAL_ASSET_SLOTS)[number]["key"];
+
+/** Imagem original (de fábrica) de um espaço, quando conhecida. */
+export function portalSlotOriginal(key: string): string {
+  const slot = PORTAL_ASSET_SLOTS.find((s) => s.key === key) as
+    | { asset?: AssetKey }
+    | undefined;
+  return slot?.asset ? assetUrl(slot.asset) : "";
+}
 
 export function portalSlotLabel(key: string): string {
   return PORTAL_ASSET_SLOTS.find((s) => s.key === key)?.label ?? key;

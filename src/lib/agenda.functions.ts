@@ -213,3 +213,39 @@ export const deleteAgendaEvent = createServerFn({ method: "POST" })
       .eq("executive_id", selfId);
     return { ok: !error, error: error?.message ?? null };
   });
+
+/**
+ * PRÓXIMO COMPROMISSO DO EXECUTIVO — apenas leitura, sem nova agenda.
+ *
+ * A fonte é a MESMA já existente (`portal_meetings`), o que inclui os
+ * compromissos vindos do GreenSales (`gsfu_<externalId>`). Isto é um
+ * aviso informativo: não cria ação, não entra na fila e não muda a
+ * classificação de compromisso futuro.
+ */
+export const listNextCommitments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<
+    Array<{ id: string; name: string; startsAt: string }>
+  > => {
+    const supabase = context.supabase;
+    const { data: selfId } = await supabase.rpc("current_executive_id");
+    if (!selfId) return [];
+    const from = new Date(Date.now() - 5 * 60000).toISOString();
+    const to = new Date(Date.now() + 7 * 24 * 3600000).toISOString();
+    const { data } = await supabase
+      .from("portal_meetings")
+      .select("id,investor_name,scheduled_at,status")
+      .eq("executive_id", selfId)
+      .gte("scheduled_at", from)
+      .lte("scheduled_at", to)
+      .order("scheduled_at", { ascending: true })
+      .limit(10);
+    return (data ?? [])
+      .filter((m) => m.status !== "Cancelada")
+      .slice(0, 5)
+      .map((m) => ({
+        id: String(m.id),
+        name: m.investor_name ?? "Investidor",
+        startsAt: m.scheduled_at as string,
+      }));
+  });

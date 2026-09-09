@@ -506,7 +506,18 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
         </Suspense>
       )}
       <ModulePanel
-        panel={active?.src ? { src: active.src, title: active.title } : null}
+        panel={
+          active?.src
+            ? {
+                /* O material institucional abre na unidade que o exibe. */
+                src:
+                  active.src === "/universo"
+                    ? `/universo?u=${encodeURIComponent(brandKey)}`
+                    : active.src,
+                title: active.title,
+              }
+            : null
+        }
         onClose={closeActive}
       />
       <Suspense fallback={null}>

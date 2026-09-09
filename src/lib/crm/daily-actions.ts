@@ -159,7 +159,12 @@ export function resolveBucket(input: {
     if (Number.isFinite(startMs)) {
       if (startMs <= nowMs) return startMs < nowMs - window ? "atrasada" : "agora";
       if (startMs - nowMs <= window) return "agora";
-      return operationalDate(input.startsAt) === today ? "hoje" : "futura";
+      /**
+       * COMPROMISSO COM HORÁRIO AINDA POR VIR NÃO É TRABALHO DE AGORA —
+       * mesmo sendo hoje. Ele fica em "próximos compromissos" até entrar
+       * na janela de foco (T-5) e nunca disputa a posição 1.
+       */
+      return "futura";
     }
   }
 
