@@ -31,6 +31,8 @@ export type IdentityInput = {
   campaign?: string | null;
   device?: string | null;
   city?: string | null;
+  /** Só formulário submetido; reconhecer/continuar sessão não é nova entrada. */
+  commercialSubmission?: { id: string; unit: "f" };
 };
 
 export type IdentityResult =
@@ -144,7 +146,30 @@ export const resolvePortalIdentity = createServerFn({ method: "POST" })
      * Primeiro contato oficial só é avaliado quando o cadastro NASCE
      * aqui — a regra e a idempotência continuam sendo do motor.
      */
-    if (payload.created) {
+    let submissionCreated: boolean | null = null;
+    let submissionAt: string | null = null;
+    if (data.commercialSubmission?.unit === "f" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.commercialSubmission.id)
+      && (data.name ?? "").trim().length >= 2 && phoneKey && emailKey) {
+      // PK já existente da jornada: duas tentativas conservam o primeiro fato (novo/conhecido).
+      const id = data.commercialSubmission.id;
+      const { error: entryError } = await supabaseAdmin.from("portal_journey_events").upsert({
+        id, investor_id: payload.leadId, event: "commercial.submitted", module: "portal",
+        detail: payload.created ? "first_entry" : "reentry",
+      }, { onConflict: "id", ignoreDuplicates: true });
+      if (entryError) return { ok: false, reason: "server_error" };
+      const { data: entry, error: readError } = await supabaseAdmin.from("portal_journey_events")
+        .select("investor_id,event,detail,created_at").eq("id", id).maybeSingle();
+      if (readError || entry?.investor_id !== payload.leadId || entry.event !== "commercial.submitted") return { ok: false, reason: "server_error" };
+      submissionCreated = entry.detail === "first_entry";
+      submissionAt = entry.created_at;
+      if (!submissionCreated) {
+        try {
+          const { openCommercialReentry } = await import("@/server/relationship/reentry-open.server");
+          await openCommercialReentry({ leadId: payload.leadId, submissionKey: `portal:${id}`, at: submissionAt });
+        } catch { return { ok: false, reason: "server_error" }; }
+      }
+    }
+    if (submissionCreated === true || (submissionCreated === null && payload.created)) {
       try {
         const { kickoffPortalFirstContact } = await import(
           "@/server/crm/portal-first-contact.server"
@@ -155,7 +180,7 @@ export const resolvePortalIdentity = createServerFn({ method: "POST" })
           phone: (data.phone ?? "").trim(),
           scope: (data.scope ?? "portal") as "green_sales" | "portal" | "tiktok" | "meta",
           ownerId: data.executiveId ?? null,
-          entryAt: new Date().toISOString(),
+          entryAt: submissionAt ?? new Date().toISOString(),
         });
       } catch (kickoffError) {
         console.error(

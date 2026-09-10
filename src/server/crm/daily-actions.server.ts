@@ -28,6 +28,7 @@ import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
 import { additionalCallDeadline } from "@/lib/relationship/cadence-v2-decide";
+import { reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -341,7 +342,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     if (dueDate > today) continue;
     const step = String(item.step ?? "");
     const isCall = (item as { action_kind?: string | null }).action_kind === "call";
-    const order = Number((item as { action_order?: number | null }).action_order ?? 1);
+    const order = reentryInternalOrder(step, Number((item as { action_order?: number | null }).action_order ?? 1));
     const claimed = item.status === "PROCESSING";
     /**
      * AÇÃO INTERNA COM ESPERA (2ª ligação em +10 min, mensagem após a

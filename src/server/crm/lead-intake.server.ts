@@ -207,8 +207,8 @@ export async function intakeLead(
     },
     settings.cadenceActivationDate,
   );
-  const enteredNow =
-    outcome.created || context.forceEntry ? Boolean(stage?.isEntry) : outcome.enteredEntryStage;
+  const entry = resolveEntryFlow({ entryCount: known.entryCount, hasPreviousRelationship: known.exists, newCommercialEntry });
+  const enteredNow = entry.reentry || (outcome.created || context.forceEntry ? Boolean(stage?.isEntry) : outcome.enteredEntryStage);
 
   if (enteredNow && !eligibility.eligible) {
     await recordEvent(outcome.lead.id, "e0_ignorada", eligibility.reason);
@@ -280,12 +280,7 @@ export async function intakeLead(
     );
 
     /** Retorno de remarketing para NOVOS — regra oficial já existente. */
-    const entry = resolveEntryFlow({
-      entryCount: known.entryCount,
-      hasPreviousRelationship: known.exists,
-      newCommercialEntry,
-    });
-    const returning = remarketing || entry.reentry;
+    const returning = entry.reentry;
     if (returning) {
       await recordEvent(
         outcome.lead.id,
@@ -301,6 +296,13 @@ export async function intakeLead(
      * explícita do Administrador; qualquer outra combinação é manual.
      */
     const e0Mode = await resolveExecutiveE0Mode(responsible?.executiveId ?? null);
+    if (entry.reentry && lastEntryAt) {
+      const { openCommercialReentry } = await import("@/server/relationship/reentry-open.server");
+      await openCommercialReentry({ leadId: card.cardId, submissionKey: `entry:${lastEntryAt}`, at: lastEntryAt });
+      result.e0 = "manual";
+      result.e0Reason = "Nova entrada comercial: RE0 no motor existente, sem repetir E0.";
+      return result;
+    }
 
     /**
      * JANELA OPERACIONAL DA E0 (§16): fora de Seg–Sex 07:00–22:30 e
