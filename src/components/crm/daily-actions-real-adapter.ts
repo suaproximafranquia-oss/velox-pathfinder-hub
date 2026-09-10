@@ -25,6 +25,7 @@ import {
   skipDailyActionFn,
   listSkippedPendingsFn,
   resumeSkippedActionFn,
+  concludePortalAlertFn,
 } from "@/lib/crm/daily-actions.functions";
 import type { DailyAction } from "@/lib/crm/daily-actions";
 import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
