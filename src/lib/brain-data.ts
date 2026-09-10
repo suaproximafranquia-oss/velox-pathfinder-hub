@@ -1,5 +1,5 @@
 /**
- * Brain Analytics — camada de dados simulados.
+ * Brain Analytics — projeção dos lançamentos oficiais do KPI.
  * Os componentes consomem apenas os tipos e funcoes deste arquivo.
  * A substituicao futura por dados reais nao exige alteracao visual.
  * Nenhuma regra pode depender de um workspace especifico.
@@ -7,7 +7,6 @@
 import type { ScopeSelection } from "./brain/scopes";
 import type { ExecutiveSession } from "./executive-auth";
 import {
-  loadDataset,
   summarize,
   sumRow,
   type KpiDataset,
@@ -83,13 +82,8 @@ export function buildOperationalSnapshot(
   session: ExecutiveSession,
   scope: ScopeSelection,
   monthKey: string,
+  datasets: KpiDataset[],
 ): BrainSnapshot {
-  const collaborators = visibleCollaborators(session);
-  const selectedUsers =
-    scope.mode === "executive"
-      ? collaborators.filter((u) => u.id === (scope.executiveId ?? session.userId))
-      : collaborators;
-  const datasets = selectedUsers.map((u) => loadDataset(u.id, monthKey));
   const totals = summarizeMany(datasets);
   const videosDone = totals.videosDone;
 

@@ -14,11 +14,10 @@ import type { ExecutiveSession } from "./executive-auth";
 import {
   AVAILABLE_MONTHS,
   findMonth,
-  loadDataset,
+  type KpiDataset,
   summarize,
   sumRow,
 } from "./kpi-manager";
-import { visibleCollaborators } from "./teams";
 
 export type ConversionRate = {
   id: string;
@@ -73,15 +72,6 @@ export type BrainAnalytics = {
   closing: string;
 };
 
-function scopeUserIds(session: ExecutiveSession, scope: ScopeSelection): string[] {
-  const collaborators = visibleCollaborators(session);
-  if (scope.mode === "executive") {
-    const id = scope.executiveId ?? session.userId;
-    return collaborators.filter((u) => u.id === id).map((u) => u.id);
-  }
-  return collaborators.map((u) => u.id);
-}
-
 function emptyTotals(): Totals {
   return {
     leads: 0,
@@ -93,9 +83,8 @@ function emptyTotals(): Totals {
   };
 }
 
-function totalsFor(userIds: string[], monthKey: string): Totals {
-  return userIds.reduce((acc, id) => {
-    const ds = loadDataset(id, monthKey);
+function totalsFor(datasets: KpiDataset[]): Totals {
+  return datasets.reduce((acc, ds) => {
     const s = summarize(ds);
     acc.leads += s.leads;
     acc.presentations += s.presentations;
@@ -159,25 +148,25 @@ export function buildBrainAnalytics(
   session: ExecutiveSession,
   scope: ScopeSelection,
   monthKey: string,
+  months: Record<string, KpiDataset[]>,
+  collaborators: { id: string; name: string }[],
 ): BrainAnalytics {
-  const userIds = scopeUserIds(session, scope);
   const month = findMonth(monthKey);
-  const collaborators = visibleCollaborators(session);
   const subjectLabel =
     scope.mode === "executive"
       ? (collaborators.find((u) => u.id === (scope.executiveId ?? session.userId))?.name ??
         session.name)
       : "Equipe consolidada";
 
-  const totals = totalsFor(userIds, monthKey);
+  const totals = totalsFor(months[monthKey] ?? []);
 
   const idx = AVAILABLE_MONTHS.findIndex((m) => m.key === monthKey);
   const prevMonth = idx > 0 ? AVAILABLE_MONTHS[idx - 1] : null;
-  const prevTotals = prevMonth ? totalsFor(userIds, prevMonth.key) : emptyTotals();
+  const prevTotals = prevMonth ? totalsFor(months[prevMonth.key] ?? []) : emptyTotals();
 
   const yearMonths = AVAILABLE_MONTHS.filter((m) => m.year === month.year);
   const yearAcc = yearMonths.reduce((acc, m) => {
-    const t = totalsFor(userIds, m.key);
+    const t = totalsFor(months[m.key] ?? []);
     acc.leads += t.leads;
     acc.presentations += t.presentations;
     acc.videosDone += t.videosDone;

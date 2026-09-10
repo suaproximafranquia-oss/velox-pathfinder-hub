@@ -1,7 +1,7 @@
 /**
  * Painel de Campanhas — ranking oficial da Campanha Velox.
  *
- * Consome exclusivamente o KPI Manager (loadDataset) — sem inventar
+ * Consome exclusivamente o KPI Manager (kpi_entries) — sem inventar
  * dados. Exibe posição, unidades vendidas, valor entregue e faltas
  * para cada nível (Mestre, Doutor, PhD, Supreme Closer). Todos os
  * usuários podem visualizar; a ordenação é apenas a posição ATUAL
@@ -13,7 +13,7 @@ import {
   CAMPAIGN_LEVELS,
   campaignStatus,
   formatCurrency,
-  loadDataset,
+  type KpiDataset,
   sumRow,
 } from "@/lib/kpi-manager";
 import { cn } from "@/lib/utils";
@@ -57,12 +57,12 @@ export type CampaignRow = {
 
 export function buildCampaignRows(
   users: ExecutiveUser[],
-  monthKey: string,
+  datasets: Record<string, KpiDataset>,
 ): CampaignRow[] {
   const rows = users.map((user) => {
-    const ds = loadDataset(user.id, monthKey);
-    const units = sumRow(ds.matrix, "contractsSigned");
-    const value = sumRow(ds.matrix, "salesValue");
+    const ds = datasets[user.id];
+    const units = sumRow(ds?.matrix ?? {}, "contractsSigned");
+    const value = sumRow(ds?.matrix ?? {}, "salesValue");
     return { user, units, value };
   });
   rows.sort((a, b) => b.value - a.value || b.units - a.units);
@@ -72,13 +72,15 @@ export function buildCampaignRows(
 export function PainelCampanhas({
   users,
   monthKey,
+  datasets,
   onDownload,
 }: {
   users: ExecutiveUser[];
   monthKey: string;
+  datasets: Record<string, KpiDataset>;
   onDownload?: (userId: string) => void;
 }) {
-  const rows = buildCampaignRows(users, monthKey);
+  const rows = buildCampaignRows(users, datasets);
   return (
     <section className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/55 p-4 sm:p-5">
       <header className="flex flex-wrap items-center justify-between gap-2 mb-4">

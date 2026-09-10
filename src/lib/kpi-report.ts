@@ -13,7 +13,7 @@ import {
   findMonth,
   formatCurrency,
   formatNumber,
-  loadDataset,
+  type KpiDataset,
   summarize,
   sumRow,
 } from "./kpi-manager";
@@ -48,12 +48,11 @@ function section(doc: jsPDF, title: string, y: number): number {
   return y + 10;
 }
 
-export function generateKpiIndividualReport(user: ExecutiveUser, monthKey: string): void {
+export function generateKpiIndividualReport(user: ExecutiveUser, monthKey: string, ds: KpiDataset): void {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   const month = findMonth(monthKey);
-  const ds = loadDataset(user.id, monthKey);
   const summary = summarize(ds);
   const status = campaignStatus(summary.salesValue);
 
