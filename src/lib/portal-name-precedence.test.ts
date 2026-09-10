@@ -83,4 +83,10 @@ describe("Portal /f — precedência exclusiva do nome", () => {
     await run({ ...incoming, personalized: true, responsibleExecutiveId: "TEST-other", scope: "green_sales" } as typeof incoming);
     expect(db.rows[0]).toMatchObject({ name: "Oficial", scope: "portal", responsible_executive_id: "TEST-owner", origin: "Original" });
   });
+  it("não aplica nova precedência de contatos fora de /f", async () => {
+    db.rows = [{ ...incoming, email: "anterior@example.invalid", name: "Oficial", manual_overrides: {} }];
+    await run({ ...incoming, unit: undefined } as unknown as typeof incoming);
+    expect(db.rows[0].email).toBe(incoming.email);
+    expect(db.rows[0].name).toBe("Oficial");
+  });
 });

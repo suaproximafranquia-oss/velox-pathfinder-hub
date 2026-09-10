@@ -253,7 +253,7 @@ export async function intakeLead(
       externalId,
       responsibleExecutiveId: responsible?.executiveId ?? null,
       responsibleExecutiveSlug: responsible?.slug ?? null,
-      name: normalized.name,
+      name: outcome.lead.name,
       email: normalized.email,
       whatsapp: normalized.whatsapp,
       city: normalized.city,
