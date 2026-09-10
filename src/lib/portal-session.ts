@@ -74,6 +74,8 @@ export type PortalSession = {
   investorId: string;
   name: string;
   email: string;
+  /** WhatsApp informado/oficial — usado apenas para emitir a credencial. */
+  phone?: string;
   responsibleExecutiveId: string | null;
   responsibleExecutiveSlug: string | null;
   unit: string | null;
@@ -200,6 +202,20 @@ export function startPortalSession(input: {
   phone?: string;
   origin?: string;
   nextPath?: string;
+  /**
+   * Mínimo oficial devolvido pelo servidor quando o investidor já existe.
+   * É a autoridade da sessão reconhecida: nome, responsável, origem e
+   * credencial vêm do cadastro, nunca do cache do navegador.
+   */
+  session?: {
+    name: string;
+    email: string;
+    responsibleExecutiveId: string | null;
+    responsibleExecutiveSlug: string | null;
+    origin: string | null;
+    personalized: boolean;
+    token: string | null;
+  } | null;
 }): PortalSession {
   const entry = readEntryContext();
   const responsible = getResponsibleExecutive();
