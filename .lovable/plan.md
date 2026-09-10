@@ -1,205 +1,155 @@
-# Diagnóstico técnico (somente leitura) — Portal Velox
+# Diagnóstico técnico — 2ª rodada (fechamento de regras)
 
-Nada foi alterado. Tudo abaixo vem da leitura do código real.
+Somente leitura. Nada foi alterado.
 
-## 1. Ambientes e isolamento
+## 1. Regra-mestra da Ação do Dia (posição 1 protegida)
 
-| Rota | Ambiente | Arquivo |
-|---|---|---|
-| `/` | Grupo institucional | `src/routes/index.tsx` → `GroupLandingPage` |
-| `/financeira` `/solar` `/seguradora` | Institucional por marca | `financeira.tsx` / `solar.tsx` / `seguradora.tsx` → `BrandPage` + `BRANDS` |
-| `/f`, `/f/{executivo}`, `/f/executivo/*`, `/f/crm*` | Financeira (Portal + operação) | `f.tsx`, `f.index.tsx`, `f.$slug.tsx`, demais `f.*` |
-| `/s` | Solar institucional (formulário) | `s.index.tsx` |
-| `/s/portal` | Portal Solar (demonstração visual) | `s.portal.tsx` |
-| `/seg`, `/seg/{executivo}` | Seguros institucional | `seg.index.tsx`, `seg.$slug.tsx` (redireciona para `/seg`) |
-| `/universo` | Material Institucional (unidade vem de `?u=`) | `universo.tsx` |
+Comportamento atual: `currentDailyAction()` (`daily-actions-gate.server.ts:84`) recalcula a lista, pega o primeiro item automático e, se for item de fila ainda não reivindicado, faz `UPDATE ... status PENDING → PROCESSING` condicionado a `status='PENDING'` (atômico). `actionRank()` devolve 0 para `claimed`, então o item reivindicado fica no topo em qualquer reordenação.
 
-Não existe Portal de Seguros (`/seg/portal` não existe).
+- O claim é suficiente contra concorrência de duas abas, mas **não é o que garante a posição 1** — quem garante é `actionRank(claimed)=0`. Só itens de `relationship_queue` são reivindicáveis; reunião, agenda, encerramento e aviso **nunca** recebem `claimed`.
+- Quem pode reordenar depois: `sortDailyActions` via `continuityLeadId` — a continuidade da MESMA lead passa até na frente de um item reivindicado de outra lead (é regra intencional, `daily-actions.ts:266-276`). Nenhum outro caminho remove o item corrente.
+- Rank 0 de compromisso (`priorityMax` + `agora`/`atrasada`) **empata** com o item reivindicado; o desempate seguinte é `startsAt`/`dueDate`. Divergência real: **um compromisso com horário anterior pode ficar à frente de um item PROCESSING**. É o único cenário em que a posição 1 pode ser tomada.
+- Rank 0,5 (aviso) nunca substitui: `isAutomaticDailyAction` exclui `alerta`.
+- Timers: o intervalo de 30 s do overlay (`daily-actions-overlay.tsx:274-290`) reclassifica e recalcula `selectedKey`; ele respeita `transitioningRef` e segura pendência/aviso abertos, mas **pode trocar o card selecionado** se a ordenação mudar. Não há realtime.
 
-Compartilhados com risco de impacto cruzado:
-- `src/components/portal/investor-portal-home.tsx` — mesmo componente para `/f` e `/s/portal`. Maior risco.
-- `src/components/portal/*` (overlays: gateway, estrutura, princípios, revista, telefone, CTA final).
-- `src/components/group/brand/brand-page.tsx` + `brand-content.ts` — afeta as 3 páginas institucionais.
-- `src/lib/assets/registry.ts` — muda o original de qualquer chave em todos os ambientes.
-- `src/lib/portal/asset-overrides.ts` + `.functions.ts` + `src/server/portal/asset-overrides.server.ts`.
-- `src/components/journey/*`, `src/lib/journey/engine.ts` (Manual, todas as marcas).
+Menor alteração: no desempate de `sortDailyActions`, colocar `claimed` antes de qualquer outro rank 0 (comparar `claimed` como critério anterior ao rank). Isolada em `src/lib/crm/daily-actions.ts`. Risco baixo; afeta só `/f`.
 
-Risco: mexer nesses arquivos atinge `/f` e `/s` juntos; `/seg` só é atingido por `brand-page`/`registry`.
+## 2. Hierarquia após a posição 1
 
-## 2. Portal do Investidor
+- Hoje **não existe** distinção entre "prioridade" e "posição protegida": `actionRank` é usado ao mesmo tempo como ordem de fila e como seleção do corrente (`list.find(isAutomaticDailyAction)`).
+- Rank 0 é, na prática, "tomar posição 1", porque a seleção é sempre o primeiro automático da lista ordenada.
+- A seleção **não** espera o item sair de PROCESSING; ela é recalculada a cada chamada, e só continua correta porque `claimed` também vale 0.
+- Função responsável por escolher o próximo: `currentDailyAction()` — é onde a decisão deve morar.
+- A hierarquia desejada (compromisso > lead novo > atrasada > hoje > demais) **não bate** com o rank atual: lead novo (E0) é 2 e atrasada é 3, o que já está correto; o problema é só compromisso em `pendente` (7).
+- Mudança necessária: **seleção + bucket**, não rank. Isolada em `daily-actions.ts` + `daily-actions-gate.server.ts`.
 
-- Raiz: `InvestorPortalHome` (prop `brandKey` + `homePath`). Home, hero e cards dos 6 módulos estão dentro dele; overlays montam na mesma árvore.
-- Material Institucional é rota separada (`/universo`), unidade lida de `?u=`.
-- Simulador: `src/components/simulator/simulator-modal.tsx` (lazy). Contato: `portal-final-cta.tsx` + `executive-contact-dialog.tsx`.
-- Imagens: arquivos em `src/assets/**`, manifesto `src/lib/assets/registry.ts` (`AssetKey` → `assetUrl`).
-- Vínculo imagem↔ponto: `PORTAL_ASSET_SLOTS` (chave estável → `AssetKey` original) e chamada `usePortalAsset(slotKey, original)` no ponto de render.
-- Fonte de verdade exibida: `portalAssetUrl()` = edição local pendente → override salvo → original.
-- Override no backend: tabela `portal_asset_overrides` (`unit`, `asset_key`, `reference`, único por `unit+asset_key`, RLS só `service_role`; leitura/escrita por server functions com `unit` obrigatório). Fallback = original do registry.
-- Já existe arquitetura para editar no próprio local, sem estrutura paralela.
+## 3. Agendamento — T-5, T=0, T+5
 
-## 3. Editor do Portal
+Atual (`resolveBucket`, `daily-actions.ts:176-188`): `startsAt > agora + 5min` → `futura`; dentro de ±5 min → `agora`; passou de 5 min → `pendente` (rank 7, fora da seleção automática).
 
-- Componente: `src/components/portal/portal-inline-image-editor.tsx`. Varre o DOM e mostra controle sobre `<img>` cujo `src` bate com um slot conhecido.
-- Montado em dois pontos: dentro de `InvestorPortalHome` (filtro: exclui `universo-*`) e em `/universo` (filtro: só `universo-*`). É por isso que ele "só aparece em algumas áreas".
-- Abre por `/f?modo=editor` (link em Configurações). `?modo=editor` é reconhecido, mas é apenas pedido.
-- Autorização é server-side real: `canEditPortalAssets` (`requireSupabaseAuth` + acesso ao recurso `revista`); gravar/remover chama `assertWorkspaceAccess(context,"revista")`.
-- Usuário não autorizado em `/f?modo=editor`: Portal normal, sem nenhum controle.
-- Menor alteração para virar modo transversal: montar o mesmo `PortalInlineImageEditor` (sem `slotFilter` restritivo) nos demais pontos de render e acrescentar `usePortalAsset` + entrada em `PORTAL_ASSET_SLOTS` nas imagens ainda fixas. Não exige novo Portal, nova tabela nem nova biblioteca.
+- Diferença semântica: `agora` = trabalho executável; `pendente` = consulta sob demanda, fora da seleção.
+- **Não é preciso bucket novo.** Basta o compromisso sem desfecho não cair para `pendente`; ele deve virar `atrasada` (ou permanecer `agora`), mantendo `priorityMax` → rank 0.
+- Consumidores que dependem de `pendente` para compromisso: `assertCommitmentAction` (`daily-actions-gate.server.ts:236-250`) aceita explicitamente `bucket==="pendente"` como exceção; `collapseByLead` manda `pendente` para `loose`; `reclassifyDailyActions` força `pendente` quando `followUp.mode === "revisao_24h"`. **Conflito real**: se o compromisso deixar de ser `pendente`, `assertCommitmentAction` deixa de encontrá-lo por esse caminho e passa a depender de ser a ação corrente. Decisão necessária: manter a exceção de `assertCommitmentAction` também para `atrasada`, ou aceitar que o desfecho só ocorra quando o compromisso for o corrente.
+- "Atrasado" pode ser apenas propriedade visual: já existe `action.overdue`.
+- Reclassificação deveria ser disparada por: abertura da Ação do Dia + conclusão da posição 1 + timer. O timer de 30 s continua útil como rede, mas hoje é o único gatilho entre leituras — daí a sensação de demora.
+- Menor alteração: em `resolveBucket`, compromisso com `startsAt` passado e sem desfecho → `atrasada` em vez de `pendente`; e disparar uma reclassificação logo após concluir a posição 1. Arquivos: `src/lib/crm/daily-actions.ts`, `src/components/crm/daily-actions-overlay.tsx`, possivelmente `daily-actions-gate.server.ts` (exceção acima). Compartilhado apenas dentro de `/f`.
+- Risco de regressão: itens com `followUp.mode === "revisao_24h"` e a Central de Operações, que lista pendências.
 
-## 4. Áreas com imagem — classificação
+## 4. Aviso do Portal — regra definitiva
 
-- A (já editável): Home/capa; 6 capas de módulo; Nossa Estrutura (matriz, recepção, unidade); Princípios; 19 imagens do Material Institucional; capas Solar (usam os mesmos slots com original próprio).
-- B (override possível, sem controle visível): nenhum caso confirmado estaticamente; só ocorreria se o `<img>` não estiver no DOM no momento da varredura.
-- C (imagem fixa, sem override): fotos institucionais das marcas (`src/assets/brands/*`) usadas por `BrandPage` em `/financeira`, `/solar`, `/seguradora`; imagens internas do Simulador.
-- D (outro editor): capa/páginas da Revista (`magazine-overlay.tsx`), que têm pipeline próprio.
-- Seguros: não há Portal, então não há área a classificar além da página institucional (C).
+Atual (`portal-activity-alerts.server.ts`): `RETURN_GAP_MS = 7d` (intervalo entre acessos que gera novo aviso) e `VISIBLE_WINDOW_MS = 7d` (linha 124: aviso mais velho que 7 dias é descartado).
 
-Tudo em C pode entrar na infraestrutura atual sem refatoração: basta slot + `usePortalAsset`.
+- O código **já diferencia** as duas coisas, mas aplica as duas. A regra de negócio só quer a primeira.
+- Remover `VISIBLE_WINDOW_MS` não afeta a detecção de novos acessos (são constantes independentes). É uma linha.
+- Duplicação: não há, a chave `portal_alert:<leadId>:<isoDoEvento>` é determinística e a dedup por `actionKey` já existe.
+- Conclusão é idempotente na leitura (conjunto de `actionKey` concluídos), mas **não no banco**: clique duplo insere duas linhas em `relationship_engine_log`. Efeito prático: nenhum, só ruído de log. Aviso concluído não volta após recarregar.
+- Não é preciso tabela nova; o identificador estável já existe.
+- Rank 0,5 já corresponde exatamente à regra ("atrás da posição 1, acima do resto"). Não precisa mudar.
+- Ponto de atenção ao remover a janela: avisos antigos nunca concluídos aparecerão de uma vez. Decisão necessária: aceitar o acúmulo, ou considerar concluídos os anteriores a uma data de corte.
 
-## 5. Editor e navegação multimarcas
+## 5. Aviso do Portal — seleção automática
 
-- Ambiente é identificado pelo literal que cada rota passa (`brandKey="financeira"` em `f.index.tsx`, `"solar"` em `s.portal.tsx`); `/universo` usa `?u=`.
-- Existem três enums paralelos com os mesmos valores: `brandKey` (prop), `PortalBrandKey` (`src/lib/portal-brands.ts`), `BrandKey` (`brand-content.ts`).
-- O Editor sabe o ambiente: recebe `unit={brandKey}` e o envia em toda leitura/escrita.
-- Isolamento já é real: consulta e gravação sempre filtram por `unit`, com único `(unit, asset_key)`. Um override da Financeira não aparece na Solar.
-- Menor alteração arquitetural: unificar os três enums em um só tipo e passar `unit` também nas áreas institucionais — nada além disso.
+- Ele fica na seção lateral porque `isAutomaticDailyAction()` exclui `bucket === "alerta"` (`daily-actions.ts:237-243`) — `buildDailyActions` inclui, `currentDailyAction` filtra.
+- Razão de negócio original: garantir que um sinal informativo nunca vire obrigação comercial nem seja reivindicado.
+- É seguro deixá-lo participar da seleção **desde que** ele nunca seja reivindicado e nunca desloque `claimed`. Como não tem `queueItemId`, o claim não é acionado; o risco é só de ordenação.
+- Mudança mínima: permitir `alerta` em `isAutomaticDailyAction` **apenas quando não houver item reivindicado**, ou manter a exclusão e selecionar o aviso na interface quando a posição 1 estiver vazia. A segunda é mais segura (isolada no overlay).
+- "Concluído" já retira só aquele aviso (chave por evento).
+- Conflito a decidir: se o aviso virar automático, `assertCurrentAction` passa a exigir que ele seja resolvido antes das ações comerciais — o que contraria "não é executável". Recomenda-se resolver na apresentação, não no gate.
 
-## 6. Link cru — identidade
+## 6. Ligação 2 → Mensagem E0
 
-- Matching: server function `resolvePortalIdentity` → RPC SQL `resolve_portal_identity`.
-- Campos: telefone normalizado (11 dígitos) e e-mail normalizado, buscados **separadamente**; prioridade telefone, depois e-mail. Divergência entre os dois é marcada como conflito, sem fusão.
-- Nome nunca entra no matching; nome diferente vira "alternativa" e não impede reconhecimento.
-- Duplicata: bloqueada por advisory lock + unicidade de `identity_key`.
-- `investorId` oficial = `portal_leads.id`. Responsável oficial = `portal_leads.responsible_executive_id/slug`.
-- Link cru e link personalizado usam o **mesmo** resolver; só mudam parâmetros.
-- Dependência de navegador: sessão em `localStorage` (`velox:portal:session:v1`) e slug em `atlas:manual:responsibleExecutiveSlug`.
-- `ensurePortalToken()` **ainda depende** de `loadLeads()` (cache local) mesmo com `investorId` já reconhecido; só cai na sessão se o cache não tiver o lead.
-- Menor correção: inverter a ordem em `src/lib/portal-token.ts` — usar a sessão oficial primeiro, `loadLeads()` só como último recurso.
+- O servidor roda `tickLead` **antes** de responder e `queueAfterOutcome` devolve a fila já atualizada: a Mensagem E0 está persistida quando `result.queue` chega.
+- `completeWithStability` (`daily-actions-overlay.tsx:230-256`) descarta `result.queue`, espera 4 000 ms fixos e chama `revalidateCompletion()` (leitura completa). Há ainda `scheduleSettle` com releituras agendadas.
+- `result.queue` vem de `currentDailyAction(skipReconcile:true)`, isto é, a lista oficial normalizada — contém a próxima ação do mesmo lead, com continuidade já aplicada no servidor. Cenário de fila incompleta: `skipReconcile` pula a reconciliação de E0 manual, então uma ação que dependa dessa reconciliação pode faltar; e falha de gravação retorna sem `queue`.
+- Não há necessidade técnica dos 4 s nem de 1 s. A releitura pode ficar como fallback (quando `result.queue` estiver ausente ou `result.ok === false`).
+- O caminho que já consome a fila (`resolveNow` → `onResolved` → `applyResult` → `commitQueue`) pode ser reutilizado tal como está.
+- Menor alteração: dentro de `completeWithStability`, se `result.ok && result.queue`, chamar `commitQueue` imediatamente e só então agendar `scheduleSettle`; manter `revalidateCompletion()` apenas no caso contrário. Arquivo único: `src/components/crm/daily-actions-overlay.tsx`. Risco: perder a garantia de "nunca liberar lista não revalidada" — mitigado porque a lista vem do próprio servidor.
 
-## 7. CTA "Fale com o especialista"
+## 7. Formulário institucional — Opção B (responsável = Thiago)
 
-- Resolve por `getSessionResponsibleExecutive()` (`src/lib/portal/session-responsible.ts`).
-- Ordem atual: primeiro `getResponsibleExecutive()` (slug do `localStorage`/URL); só depois o responsável oficial da sessão. Ou seja, dado do navegador pode vencer o responsável oficial.
-- Genérico: `whatsapp-floating.tsx` cai em modal com `getDefaultExecutive()` quando não há personalização.
-- "Cadastre-se novamente" corresponde aos retornos `identity_unresolved`/`identity_invalid` — telefone e e-mail que não normalizam, ou erro transitório; não é causado por nome divergente.
-- Menor correção: inverter a precedência para o responsável oficial da sessão vir antes do slug do navegador.
+Atual: `unit-interest-form.tsx` → `registrarInteresseUnidade` → `group_unit_leads` (+ `group_unit_lead_events`), campo `unit` com a marca, `origin`/`campaign`/`from_group` com a origem, sem responsável, `first_contact_status = pendente`. Solar (`/s`) e Seguros (`/seg`) usam exatamente o mesmo componente e a mesma tabela — só muda o valor de `unit`.
 
-## 8. Jornada e percentual
+- Mecanismo já existente para entrar no fluxo operacional: `intakeLead()` (`src/server/crm/lead-intake.server.ts`), que já aceita `entryOrigin` (inclusive `PORTAL`), grava origem legível, resolve responsável e dispara E0/RE0 de forma idempotente.
+- Comparação das opções: (A) gravar direto em `portal_leads` ignora `intakeLead` e perde cadência/origem padronizada; (B) manter `group_unit_leads` como registro institucional e chamar `intakeLead` na mesma transação lógica é a que **mais reutiliza infraestrutura**, preserva marca e origem e evita duplicidade (a chave de origem do `intakeLead` é idempotente); (C) só criar visão operacional não coloca o lead na cadência; (D) não há outro mecanismo.
+- Recomendação técnica: **B**. Marca fica em `group_unit_leads.unit` e pode ser repetida na origem do card; responsável inicial fixo = executivo do Thiago (`usr_thiago`), sem rotação.
+- Decisão pendente: o lead deve **iniciar E0 automaticamente** ou apenas nascer como lead novo para o Thiago? O `intakeLead` hoje abre E0; manter isso significa cadência automática para lead institucional. Precisa da sua decisão.
+- Segunda decisão: um `entryOrigin` novo (ex.: `INSTITUCIONAL`) ou reaproveitar `PORTAL`. Reaproveitar mistura relatórios; criar um novo toca `src/lib/relationship/origin.ts`, compartilhado.
+- Risco em `/f`, `/s`, `/seg`: o formulário é o mesmo componente para as três marcas, então a mudança atinge as três simultaneamente. Leads atuais não são afetados (só novas submissões).
 
-- Percentual é calculado no cliente em `src/lib/journey/engine.ts` (`velox:journey:v1` no `localStorage`); há ainda um segundo store local só do Manual (`velox:manual:v1`).
-- Servidor recebe espelho via `pushPortalProgress` → `portal_journey_events` / `portal_engagement`; o Workspace lê a fonte server-side.
-- Outro navegador **não** mantém o mesmo percentual: sem registro local, o engine recalcula a partir do evento atual em vez de ler o acumulado do servidor.
-- Eventos ficam vinculados ao `investorId` oficial (evento sem `investorId` não persiste).
-- Menor correção: ler o progresso já persistido no servidor antes do recálculo local.
+## 8. Link cru — precedência definitiva
 
-## 9. Formulário institucional (`/`)
+- A precedência proposta (identidade oficial da sessão > responsável oficial > slug do link > navegador > genérico) é implementável e **é o inverso da atual** em `getSessionResponsibleExecutive` (`src/lib/portal/session-responsible.ts:18-19`), que consulta primeiro o slug de `localStorage`.
+- Fluxo legítimo do slug: investidor **ainda não reconhecido** entrando por link personalizado — aí o slug é a única informação disponível e deve valer. Por isso a precedência não deve ser removida, apenas rebaixada para depois do responsável oficial.
+- `ensurePortalToken()` (`src/lib/portal-token.ts:57-69`) já tenta a sessão, mas só depois de `loadLeads()`; inverter a ordem é seguro porque a validação é server-side (`portal-token.server.ts`).
+- Dependência legítima do cache local que permanece: visitantes **sem** identidade reconhecida (pré-conversão) — aí `loadLeads()`/sessão local são as únicas fontes.
+- Arquivos: `session-responsible.ts` e `portal-token.ts`. Compartilhado com `/s/portal` (mesmo componente), logo a mudança atinge Solar também — mas o efeito é o mesmo desejado.
 
-- `src/components/group/unit-interest-form.tsx` → server fn `registrarInteresseUnidade`.
-- Grava em `group_unit_leads` (+ `group_unit_lead_events`); marca no campo `unit` (`financeira|solar|seguros`), origem em `origin`/`campaign`/`from_group`.
-- Financeira/Solar/Seguros são diferenciadas apenas pelo valor de `unit`.
-- Responsável inicial **não é definido**: nasce sem responsável, `first_contact_status = pendente`; atribuição é manual via `atribuirResponsavelUnidade`.
-- Por que "não chega ao Workspace": é por desenho. O Workspace/CRM lê `portal_leads`/`crm_leads`; `group_unit_leads` só é lido pela tela de carteira de unidades (`listarInteressadosUnidade`, com `assertUnitPortfolioAccess`). Não é falha de gravação nem de RLS.
-- Menor correção: decidir entre (a) exibir `group_unit_leads` também na visão do Workspace, ou (b) atribuir responsável automaticamente na criação. É decisão de negócio, não correção de bug.
+## 9. Editor transversal
 
-## 10. Thiago — colaborador híbrido
+- Faltam slots para as imagens institucionais das marcas em `src/assets/brands/*` usadas por `BrandPage`: hero e card de Financeira, Solar e Seguros — **cerca de 5 a 6 slots** (`financeira-hero`, `solar-hero`, `solar-card`, `seguros-hero`, `seguros-card`), a confirmar contra `brand-content.ts` no momento da construção.
+- Essas imagens podem usar a infraestrutura atual diretamente: basta entrada em `PORTAL_ASSET_SLOTS` + `usePortalAsset` no ponto de render.
+- Não devem ser editáveis: logotipos das marcas e imagens da Revista (pipeline próprio).
+- A autorização (`recurso "revista"`) serve para todas as marcas sem alteração; `unit` é suficiente para isolamento (único `(unit, asset_key)`), e não há risco de override da Financeira aparecer na Solar ou Seguros, desde que cada página passe seu `unit`.
+- Montagem: montar no shell global exigiria que o shell conhecesse o `unit`, o que não existe em `/financeira` `/solar` `/seguradora`. **Menor risco: montar por área**, passando `unit` explicitamente, como já é feito em `/f` e `/universo`.
 
-- Permissão vem de: `ROLE_MATRIX` (`src/lib/workspace-authorization.ts`), módulos em `workspace_module_permissions` (`crm`, `portal_leads`, `e0_automatico`) e a lista `HYBRID_WORKSPACE_USER_IDS = ["usr_thiago"]` (`src/lib/portal-workspace.ts`).
-- Escopos dele: `green_sales`, `redistribuicao`, `portal`, `tiktok`, `meta` — mesmo conjunto do `super_admin`, sem ser admin.
-- Solar/Seguros: `assertUnitPortfolioAccess` já libera o híbrido; basta atribuir `group_unit_leads.responsible_executive_id` a ele.
-- Limitação encontrada: lead de unidade nasce sem responsável (nada roteia para o Thiago automaticamente); e `getPortalAdministratorId()` decide o dono do Portal lendo cache do navegador (`atlas:users:v3`), caindo em `usr_thiago` só como fallback.
-- A estrutura atual é suficiente; não é preciso matriz nova nem tornar Thiago administrador.
+## 10. Simulador
 
-## 11–13. Ação do Dia, compromissos e próxima ação
+- O padrão de ocultar já existe: `whatsapp-floating.tsx` faz `if (insideOverlay) return null;` e `if (reading) return null;` (linhas 79-81).
+- Reutilizável: sinalizar "simulador aberto" pelo mesmo mecanismo já usado para revista/iframe.
+- Menor alteração: acrescentar essa condição; nada da lógica do Simulador é tocado.
+- Risco no comportamento global do WhatsApp: baixo, desde que a supressão seja apenas enquanto o modal estiver aberto. O componente é compartilhado com `/s/portal`.
 
-- `buildDailyActions()` (`src/server/crm/daily-actions.server.ts`) só agrega: `portal_meetings`, `workspace_agenda_events`, `relationship_queue` (V2, fonte real de ligações/mensagens), deveres de encerramento e avisos do Portal. A fila legada `crm_cadence_tasks` está aposentada (retorna vazio) e `workspace_e0_actions` só serve de histórico.
-- Prioridade: `actionRank()` em `src/lib/crm/daily-actions.ts` — reivindicado 0; aviso 0,5; compromisso prioritário em `agora`/`atrasada` 0; primeiro contato/E0 2; atrasada 3; hoje/agora 4; futura 6; pendente 7. Ordenação final por `sortDailyActions()`.
-- Posição 1 e claim: `currentDailyAction()` (`daily-actions-gate.server.ts`) reivindica de forma atômica (`PENDING → PROCESSING`); toda mutação revalida a ação corrente no servidor.
-- Compromissos: `resolveBucket()` marca `agora` na janela de 5 minutos e, passada essa janela sem desfecho, cai para `pendente` — que tem rank 7 e sai da seleção automática. É exatamente o sintoma "vira pendência com só Abrir".
-  - Menor correção: promover a virada `futura → agora` no momento certo (reclassificar logo após concluir a posição 1, além do timer de 30 s do overlay). O rank já é 0 quando entra em `agora`, e um item reivindicado nunca é interrompido — a regra de negócio é preservada sem mexer no rank.
-- "Próximo compromisso" (`next-commitment-alert.tsx`) é informativo, lê outra fonte (`listNextCommitments`) e não é a mesma coisa que a ação operacional.
-- Próxima ação do mesmo lead: o servidor **já** cria e devolve a Mensagem E0 na mesma resposta (`registerQueueCallOutcome` roda `tickLead` antes de responder e `queueAfterOutcome` devolve a fila atualizada). O atraso é do frontend: `completeWithStability` em `daily-actions-overlay.tsx` descarta `result.queue`, espera 4 s fixos e refaz a leitura completa.
-  - Menor correção: consumir `result.queue` imediatamente (como já faz o outro caminho de conclusão) e usar a releitura só como fallback.
+## 11. Central de Homologação
 
-## 14. Avisos do Portal
+- O item é `PortalEditorSection()` em `src/routes/f.executivo.configuracoes.tsx`: bloco estático com um link para `/f?modo=editor`. Sem estado e sem permissão própria — a autorização acontece ao abrir `/f`.
+- Pode ser movido sem qualquer alteração de lógica; basta reutilizar o mesmo bloco na Central de Homologação.
 
-- Calculados na hora a partir de `portal_journey_events` (`portal-activity-alerts.server.ts`); não há tabela de aviso.
-- Primeiro acesso sempre gera aviso; retorno conta só com intervalo ≥ 7 dias; dedup pela chave `portal_alert:<leadId>:<timestamp>`.
-- "Concluído" grava em `relationship_engine_log` — idempotência é só de aplicação (conjunto em memória), sem restrição única no banco.
-- Janela de visibilidade: 7 dias. Sim, o aviso pode sumir sem ser concluído.
-- Entra com `bucket: alerta`, rank 0,5, nunca é agrupado com o lead nem vira ação corrente — não interfere na ação comercial.
+## 12. Itens que não devem ser mexidos
 
-## 15. Simulador (layout)
+Confirmado: matching de identidade, nome não bloqueante, prevenção de duplicidade, autorização server-side do Editor, isolamento por `unit`, claim atômico, criação server-side da Mensagem E0, motor de cadência, GreenSales, Revista, CRM em funcionamento, Central de Operações, Central de Reuniões, Central de Alertas e Backup.
 
-- Barra inferior e "Calcular potencial": `SimulatorFooter` dentro de `simulator-modal.tsx` (modal em `z-[75]`).
-- Botão flutuante "Solicitar Atendimento": `src/components/shared/whatsapp-floating.tsx`, `fixed bottom-6 right-6 z-[85]` — fica acima do modal e não sabe que o Simulador está aberto.
-- Não há reserva de área segura inferior. A sobreposição aparece principalmente abaixo de 768 px.
-- Menor alteração: esconder o flutuante enquanto o Simulador estiver aberto (mesmo padrão já usado para revista/iframe) ou adicionar espaçamento inferior no rodapé do modal em telas pequenas. Só CSS/renderização condicional.
+Dependências diretas a registrar: a correção do compromisso toca `assertCommitmentAction` (proteção da posição 1 / gate); a Opção B do formulário depende de `intakeLead` (motor de cadência) e de permissões do Thiago (leitura, sem alteração de matriz).
 
-## 16. Configurações × Central de Homologação
+## 13. Resposta final
 
-- O item "Editor do Portal do Investidor" é `PortalEditorSection()` em `src/routes/f.executivo.configuracoes.tsx`; é apenas um link para `/f?modo=editor`.
-- A Central de Homologação (`/f/executivo/homologacao`) é outra coisa: retrato somente leitura do motor, sem edição.
-- Mover o item de lugar não afeta lógica alguma (a permissão é decidida no servidor ao abrir `/f`). Menor alteração: recortar o bloco JSX para a outra tela.
+**1. Regras confirmadas** — posição 1 protegida por `claimed`; aviso nunca vira ação comercial; conclusão de aviso já é definitiva; identidade oficial vence o nome digitado; isolamento por `unit`; Mensagem E0 já existe no servidor ao responder.
 
-## 17. Fontes de verdade
+**2. Regras que precisam de decisão**
+- Compromisso fora de `pendente`: manter a exceção de desfecho em `assertCommitmentAction`?
+- Remover a janela de 7 dias: aceitar o acúmulo de avisos antigos ou aplicar corte inicial?
+- Aviso participar da seleção: pela apresentação (recomendado) ou pelo gate?
+- Formulário institucional: iniciar E0 automaticamente ou nascer como lead novo?
+- Formulário institucional: origem nova (`INSTITUCIONAL`) ou reaproveitar `PORTAL`?
 
-| Informação | Fonte | Escrita | Consumidores |
-|---|---|---|---|
-| Identidade do investidor | `resolve_portal_identity` / `portal_leads` | server fn | Portal, CRM, Jornada |
-| Responsável | `portal_leads.responsible_executive_id` **e** `group_unit_leads.responsible_executive_id` | ownership / atribuição de unidade | CRM, E0, CTA |
-| Lead | `portal_leads`, `crm_leads`; unidades em `group_unit_leads` | intake/sync | Workspace, cadência |
-| Compromisso | `portal_meetings`, `workspace_agenda_events` | sync GreenSales / agenda | Ação do Dia, alertas |
-| Follow-up | `portal_meetings.follow_up_state` | sync GreenSales | Timeline, Ação do Dia |
-| Cadência | `relationship_cadences` + `relationship_queue` | motor | Ação do Dia |
-| Mensagem E0 | `relationship_queue` (pendente) + `crm_messages`/`relationship_message_sends` (enviada) | motor | Ação do Dia, Jornada |
-| Jornada / percentual | servidor: `portal_journey_events`, `portal_engagement`; cliente: `velox:journey:v1` | ambos | Workspace (servidor), Portal (local) |
-| Evento do Portal | `portal_journey_events` | Portal | Jornada, avisos |
-| Aviso | derivado de eventos; conclusão em `relationship_engine_log` | conclusão | Ação do Dia |
-| Origem | campo textual por tabela, **não centralizado** | intake | relatórios |
-| Marca | `src/config/workspace.ts` + enums de marca | código | UI |
-| Permissões | `user_roles`, `workspace_module_permissions`, `HYBRID_WORKSPACE_USER_IDS` | admin | rotas e server fns |
-| Imagens / overrides | `src/lib/assets/registry.ts` + `portal_asset_overrides` | Editor | Portal, `/universo` |
+**3. Divergências entre regra e código** — (a) compromisso vira `pendente` após T+5 e sai da fila; (b) compromisso rank 0 pode empatar/ultrapassar item reivindicado; (c) aviso nunca é selecionado automaticamente; (d) janela de 7 dias esconde aviso aberto; (e) frontend descarta `result.queue` e espera 4 s; (f) CTA prioriza navegador sobre responsável oficial; (g) token consulta cache antes da sessão; (h) lead institucional não entra no fluxo operacional; (i) imagens institucionais sem slot; (j) botão flutuante sobre o Simulador.
 
-Divergências reais: responsável em duas tabelas sem visão comum; jornada com fonte local e server-side; dono do Portal decidido por cache do navegador; três enums de marca paralelos; CTA usando navegador em vez do responsável oficial.
+**4. Menor alteração por divergência** — descrita ao final de cada seção acima.
 
-## 18. Configuração antiga × V2
+**5. Arquivos** — `src/lib/crm/daily-actions.ts`; `src/server/crm/daily-actions-gate.server.ts`; `src/server/crm/portal-activity-alerts.server.ts`; `src/components/crm/daily-actions-overlay.tsx`; `src/lib/portal/session-responsible.ts`; `src/lib/portal-token.ts`; `src/lib/group/unit-leads.functions.ts` + `src/server/crm/lead-intake.server.ts`; `src/lib/portal/asset-overrides.ts` + `src/components/group/brand/brand-page.tsx`; `src/components/shared/whatsapp-floating.tsx`; `src/routes/f.executivo.configuracoes.tsx`.
 
-- `config.ts` — catálogo único de etapas e prazos (E0…E30). `decide.ts` decide **qual etapa macro** vence, usando dias úteis.
-- `cadence-v2.ts` / `cadence-v2-decide.ts` — decidem a **ordem interna** da etapa (ligação 1 → 10 min → ligação 2 → mensagem) e janelas.
-- `flow-plan.ts` + `flow-versions.server.ts` — congelam a sequência por ciclo.
-- `step-registry.ts` — une as chaves das duas fontes para validar execução.
-- Em produção rodam **as duas camadas juntas**, compostas em `engine.ts`; não são alternativas. Código morto: `buildCadenceQueue` (retorna vazio) e o cartão de `workspace_e0_actions`.
-- Risco: mexer em `config.ts` afeta decisão, validação e ciclos históricos ao mesmo tempo; mexer só em `cadence-v2-decide.ts` é isolado e seguro.
+**6. Funções** — `resolveBucket`, `actionRank`, `sortDailyActions`, `isAutomaticDailyAction`, `normalizeDailyActions`, `currentDailyAction`, `assertCommitmentAction`, `listPortalActivityAlerts`, `concludePortalActivityAlert`, `completeWithStability`, `revalidateCompletion`, `getSessionResponsibleExecutive`, `ensurePortalToken`, `registrarInteresseUnidade`, `intakeLead`, `usePortalAsset`.
 
-## 19. Resultado final
+**7. Tabelas/estruturas** — `relationship_queue`, `portal_meetings`, `workspace_agenda_events`, `portal_journey_events`, `relationship_engine_log`, `portal_leads`, `group_unit_leads`, `portal_asset_overrides`.
 
-**A) Problemas confirmados**
-1. CTA do especialista prioriza dado do navegador sobre o responsável oficial.
-2. `ensurePortalToken()` depende de `loadLeads()` mesmo com investidor reconhecido.
-3. Percentual da Jornada não é recuperado do servidor em outro aparelho.
-4. Compromisso passa a `pendente` (rank 7) 5 min depois do início e sai da seleção automática.
-5. Atraso de 10–15 s na próxima ação do mesmo lead: o frontend descarta a fila já devolvida.
-6. Botão flutuante sobrepõe o rodapé do Simulador em telas estreitas.
-7. Aviso do Portal some após 7 dias sem conclusão; idempotência só de aplicação.
-8. Imagens institucionais das marcas não têm slot de override.
-9. Editor só monta em dois pontos, por isso não é transversal.
-10. Dono do Portal decidido por cache de navegador.
+**8. Risco de impacto cruzado** — Ação do Dia, compromissos e avisos: só `/f`. CTA, token e Simulador: `/f` e `/s/portal` (componentes comuns). Formulário institucional e slots de marca: `/`, `/financeira`, `/solar`, `/seguradora`, `/s`, `/seg`.
 
-**B) Corrigido — não mexer:** matching de identidade (telefone → e-mail, nome nunca bloqueia, sem duplicata); autorização server-side do Editor; isolamento por `unit` nos overrides; claims atômicos e posição 1; aviso do Portal fora da fila comercial; criação da Mensagem E0 no servidor.
+**9. Dependências** — compromisso ↔ gate de posição 1; aviso automático ↔ `isAutomaticDailyAction` (usada também pela continuidade); formulário ↔ `intakeLead` e permissões do Thiago; Editor ↔ `PORTAL_ASSET_SLOTS` e `unit`.
 
-**C) Não comprovado:** duração exata da janela de 10–15 s (inferida do código); linha real de permissões do Thiago no banco; classificação "B" de imagens (depende do DOM em execução); origem de `raw_payload.follow_up`.
+**10. Ordem recomendada**
 
-**D–F) Arquivos, funções e tabelas:** listados em cada seção acima.
+ETAPA 1 — Ação do Dia e operação imediata
+1. Consumo imediato de `result.queue` (remover a espera de 4 s).
+2. Compromisso sem desfecho deixa de virar `pendente`; reclassificação ao concluir a posição 1.
+3. `claimed` vence qualquer empate de rank 0.
+4. Aviso do Portal: remover a janela de 7 dias e apresentá-lo automaticamente quando a posição 1 estiver livre.
 
-**G) Dependências entre módulos:** `investor-portal-home` serve `/f` e `/s/portal`; `registry.ts` serve todos; `config.ts` serve decisão, registro de etapas e planos congelados; Ação do Dia depende de `relationship_queue`, `portal_meetings` e `portal_journey_events`.
+ETAPA 2 — Identidade, captação e jornada
+5. Precedência do responsável oficial no CTA.
+6. `ensurePortalToken` usando a identidade oficial antes do cache.
+7. Formulário institucional → fluxo operacional com responsável fixo Thiago (após as decisões do item 2).
+8. Percentual da Jornada lido do servidor em outro aparelho.
 
-**H) Menor correção por problema:** descrita ao final de cada seção.
-
-**I) Risco em `/f`, `/s`, `/seg`:**
-- Editor/imagens e Portal: atinge `/f` e `/s`; `/seg` só se `brand-page`/`registry` forem tocados.
-- Identidade, CTA, Jornada, Ação do Dia, compromissos, Simulador: hoje só afetam `/f` (e `/s/portal` no caso de CTA e Simulador, por serem componentes comuns).
-- Formulário institucional e permissões: afetam os três, pois usam `group_unit_leads`.
-
-**J) Ordem recomendada:** 1) fila imediata da próxima ação (item 5); 2) promoção do compromisso na janela (4); 3) CTA do especialista (1); 4) token sem `loadLeads()` (2); 5) sobreposição do Simulador (6); 6) percentual server-side (3); 7) Editor transversal + slots faltantes (8, 9); 8) roteamento/atribuição do formulário institucional (seção 9); 9) retenção e idempotência do aviso (7); 10) dono do Portal e unificação de enums (10).
-
-**K) Testes após construir:** conclusão de ligação 2 devolvendo a Mensagem E0 sem releitura; compromisso entrando em janela após a posição 1; link cru com e-mail/WhatsApp oficiais e nome diferente preservando responsável; token emitido sem cache local; jornada em segundo aparelho; Editor autorizado e não autorizado em `/f?modo=editor`; override da Financeira invisível em `/s/portal`; Simulador em 360/768/1280 px; aviso concluído não reaparecendo; lead institucional por marca chegando à carteira certa; e a suíte já existente de cadência/Ação do Dia sem regressão.
+ETAPA 3 — Editor, Simulador e ajustes visuais
+9. Slots das imagens institucionais das marcas e montagem do Editor por área.
+10. Ocultar o botão flutuante enquanto o Simulador estiver aberto.
+11. Mover o acesso ao Editor para a Central de Homologação.
