@@ -70,6 +70,7 @@ export function useRealDailyActionsAdapter(
   const resolveFollowUpReview = useServerFn(resolveFollowUpReviewFn);
   const listPendingsFn = useServerFn(listSkippedPendingsFn);
   const resumePendingFn = useServerFn(resumeSkippedActionFn);
+  const concludeAlertFn = useServerFn(concludePortalAlertFn);
 
   return useMemo<DailyActionsAdapter>(
     () => ({
