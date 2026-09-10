@@ -331,12 +331,35 @@ export function useRealDailyActionsAdapter(
         }
         return { ok: true, message: "Pendência devolvida à fila de hoje." };
       },
+
+      /**
+       * ALERTA DE ATIVIDADE DO PORTAL — "Concluído" encerra apenas o
+       * sinal. Nenhuma obrigação, cadência ou envio é afetado.
+       */
+      concludeAlert: async (item) => {
+        try {
+          const result = (await concludeAlertFn({
+            data: { actionKey: item.actionKey, leadId: item.leadId },
+          })) as { queue?: DailyAction[] };
+          return {
+            ok: true,
+            message: "Alerta concluído.",
+            ...(result?.queue ? { queue: result.queue } : {}),
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            message: error instanceof Error ? error.message : "Falha ao concluir o alerta.",
+          };
+        }
+      },
     }),
     [
       pendingRecovery,
       fetchActions,
       listPendingsFn,
       resumePendingFn,
+      concludeAlertFn,
       completeTask,
       registerWhatsapp,
       skipAction,
