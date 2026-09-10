@@ -210,8 +210,8 @@ export function actionRank(action: DailyAction): number {
   if (action.claimed) return -1;
   /**
    * AVISO DO PORTAL: entra logo DEPOIS da ação em atendimento e antes
-   * dos demais itens. Continua sendo apenas sinal informativo — não é
-   * executável, não é escolhido automaticamente e nunca vira etapa.
+   * dos demais itens. Continua sendo apenas sinal informativo e nunca
+   * vira etapa ou item da fila comercial.
    */
   if (action.bucket === "alerta") return 0.5;
   if (action.bucket === "pendente") return 7;
@@ -237,8 +237,7 @@ export function actionRank(action: DailyAction): number {
 export function isAutomaticDailyAction(action: DailyAction): boolean {
   return (
     action.bucket !== "futura" &&
-    action.bucket !== "pendente" &&
-    action.bucket !== "alerta"
+    action.bucket !== "pendente"
   );
 }
 
@@ -263,11 +262,13 @@ export function sortDailyActions(
   continuityLeadId?: string | null,
 ): DailyAction[] {
   return [...actions].sort((a, b) => {
+    /** Um atendimento já reivindicado nunca é interrompido. */
+    const claimed = Number(Boolean(b.claimed)) - Number(Boolean(a.claimed));
+    if (claimed !== 0) return claimed;
     /**
-     * EXCEÇÃO À PROTEÇÃO DA POSIÇÃO 1: a continuação do trabalho da MESMA
-     * lead não é uma ação nova disputando a vez — ela permanece na
-     * posição 1, inclusive à frente de ações já reivindicadas de outras
-     * leads. Compromissos de outro dia nunca são promovidos.
+     * A continuação do trabalho da MESMA lead não é uma ação nova
+     * disputando a vez. Ela permanece na posição 1 depois que a ação
+     * anterior foi concluída. Compromissos futuros nunca são promovidos.
      */
     if (continuityLeadId) {
       const aLead = a.leadId === continuityLeadId && isAutomaticDailyAction(a) ? 0 : 1;

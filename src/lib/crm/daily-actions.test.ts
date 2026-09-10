@@ -318,7 +318,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
     expect(rows[0]?.leadId).toBe("aaa");
   });
 
-  it("a continuidade vence a proteção de posição 1 de outra lead", () => {
+  it("a continuidade não interrompe uma ação claimed de outra lead", () => {
     const kellyEmAtendimento = action({
       actionKey: "queue:kelly:E0:1",
       leadId: "kelly",
@@ -327,8 +327,8 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
       claimed: true,
     });
     const rows = normalizeDailyActions([kellyEmAtendimento, ronaldoMsg], "ronaldo");
-    expect(rows[0]?.leadId).toBe("ronaldo");
-    expect(rows[1]?.leadId).toBe("kelly");
+    expect(rows[0]?.leadId).toBe("kelly");
+    expect(rows[1]?.leadId).toBe("ronaldo");
   });
 
   it("ação claimed vence compromisso de prioridade máxima no empate", () => {

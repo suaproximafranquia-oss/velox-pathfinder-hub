@@ -60,7 +60,7 @@ const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
    */
   { key: "pendente", label: "Pendências abertas", tone: "text-muted-foreground" },
   { key: "futura", label: "Próximos compromissos", tone: "text-sky-300/70" },
-  /** Sinal informativo: não é tarefa e nunca entra na ordem de execução. */
+    /** Sinal informativo: entra após qualquer atendimento já reivindicado. */
   { key: "alerta", label: "Avisos do Portal", tone: "text-emerald-300/70" },
 ];
 
@@ -72,7 +72,7 @@ function firstExecutableKey(rows: DailyAction[]): string | null {
   return rows.find(isAutomaticDailyAction)?.actionKey ?? null;
 }
 
-/** Card aberto apenas para consulta: pendência ou aviso do Portal. */
+  /** Card aberto apenas para consulta. */
 function consultable(item: DailyAction | null | undefined): boolean {
   return item?.bucket === "pendente" || item?.bucket === "alerta";
 }

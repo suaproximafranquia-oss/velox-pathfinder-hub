@@ -189,7 +189,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
 
   /**
    * AVISO DE ATIVIDADE DO PORTAL — leitura pura dos eventos reais já
-   * gravados. Não é etapa, não é obrigação e nunca disputa a posição 1.
+   * gravados. Não é etapa nem obrigação comercial; assume o próximo foco
+   * somente quando nenhum atendimento já está reivindicado.
    */
   const portalAlerts = await import("@/server/crm/portal-activity-alerts.server")
     .then((m) => m.listPortalActivityAlerts(input.executiveId, nowIso))
@@ -468,7 +469,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
    */
   /**
    * AVISOS DE ATIVIDADE DO PORTAL. Entram como sinal informativo, no
-   * balde próprio (`alerta`): nunca são escolhidos automaticamente,
+   * balde próprio (`alerta`): ficam atrás de atendimento reivindicado,
    * nunca colapsam a ação comercial do mesmo investidor e nunca
    * carregam etapa, ligação, mensagem ou envio.
    */
