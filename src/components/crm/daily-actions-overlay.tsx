@@ -45,6 +45,7 @@ const KIND_ICON: Record<DailyActionKind, typeof Phone> = {
   compromisso: CalendarDays,
   mensagem: MessageSquare,
   ligacao: Phone,
+  alerta_portal: Bell,
 };
 
 const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
