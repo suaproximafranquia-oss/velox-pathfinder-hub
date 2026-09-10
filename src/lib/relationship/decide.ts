@@ -123,8 +123,10 @@ export function decideNextAction(record: CadenceRecord, ctx: DecisionContext): E
    */
   const v2Decision = ctx.v2 && v2FlowOf(record.flow) ? decideCadenceV2(ctx.v2) : null;
   const e0Obligation = v2Decision?.kind === "obligation" && v2Decision.step === "E0";
+  // Abertura da reentrada comprovada: RE0 não depende de tags/coluna NOVOS.
+  const reentryOpening = record.flow === "reentrada" && v2Decision?.kind === "obligation" && v2Decision.step === "RE0";
 
-  if (ctx.stageAtClosing !== undefined && !e0Obligation) {
+  if (ctx.stageAtClosing !== undefined && !e0Obligation && !reentryOpening) {
     if (isTerminalStage(ctx.stageAtClosing)) {
       return {
         kind: "none",
