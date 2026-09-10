@@ -99,6 +99,11 @@ export type DailyActionsAdapter = {
   listPendings?: () => Promise<SkippedPendingView[]>;
   /** Devolve a MESMA ação pulada para a fila de hoje. */
   resumePending?: (actionKey: string) => Promise<AdapterResult>;
+  /**
+   * ALERTA DE ATIVIDADE DO PORTAL — encerra apenas o aviso. Não conclui
+   * obrigação, não move cadência e não envia nada ao investidor.
+   */
+  concludeAlert?: (item: DailyAction) => Promise<AdapterResult>;
 };
 
 /** Pendência pulada ainda em aberto, como a interface precisa exibir. */

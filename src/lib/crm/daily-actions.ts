@@ -399,4 +399,5 @@ export const KIND_LABEL: Record<DailyActionKind, string> = {
   compromisso: "Compromisso",
   mensagem: "Mensagem",
   ligacao: "Ligação",
+  alerta_portal: "Atividade no Portal",
 };
