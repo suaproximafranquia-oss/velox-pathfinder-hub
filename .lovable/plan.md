@@ -1,71 +1,68 @@
-# Estudo de viabilidade — Homologação integrada temporária da régua /f
+# Estudo de esforço e consumo — Laboratório de Homologação Permanente da régua /f
 
-Somente análise. Nada foi alterado, executado ou criado.
+Somente estimativa. Nada foi alterado, criado ou executado.
 
-## Respostas diretas
+## 1. É viável?
 
-**1. É tecnicamente possível?** Sim, com uma estrutura temporária pequena. A base já existe: o Laboratório de lotes (`src/server/testing/test-lab.server.ts`) cria personagens fictícios que entram pelo caminho real de entrada, percorrem o motor real e podem ser apagados por lote.
+Sim. A base necessária já existe e é justamente o que torna a versão adaptativa possível: a régua é declarativa (`src/lib/relationship/config.ts` com `STEPS` e `FLOW_SEQUENCE`, mais `flow-plan.ts`, `cadence-v2.ts`, `step-registry.ts`). Como as etapas, sequências e prazos são dados e não código espalhado, o laboratório pode ler a régua vigente a cada execução em vez de guardar uma cópia.
 
-**2. Como identificar os personagens?** Já existe marcação técnica: cada lead nasce com `is_test` e um `test_batch_id` (ex.: lote `TB-07`). Toda consulta e toda limpeza usam esse par. Personagens do teste também podem receber prefixo próprio no identificador externo.
+## 2. O que já dá para reaproveitar
 
-**3. Isolamento em relação aos leads reais?** Sim no nascimento, na saída de mensagem e na limpeza. O ponto que hoje NÃO é isolado é o processamento: o ciclo do motor varre todos os leads elegíveis de produção de uma vez. Para o teste acelerado é obrigatório um ciclo restrito a uma lista de personagens (mesma função, com filtro), senão acelerar o teste significaria também processar leads reais.
+- Laboratório de lotes atual (`src/server/testing/test-lab.server.ts`, `src/lib/testing/test-lab.ts`): personagens fictícios, `is_test` + `test_batch_id`, entrada pelo caminho real, limpeza por lote.
+- Régua declarativa e o plano de ciclo já calculado por `flow-plan.ts` / `cadence-v2.ts` — é daqui que sai a matriz de cenários.
+- Relógio abstrato `src/lib/relationship/clock.ts` (virtual já previsto, só nunca ligado à régua da Financeira).
+- Modo de execução simulado (`execution-mode`) e a trava global de WhatsApp: mensagem real já é bloqueada em três camadas.
+- Ação do Dia, Portal/Jornada, identidade e reentrada: são as estruturas oficiais, o laboratório apenas observa.
 
-**4. Relógio acelerado só para eles?** Sim, mas não com um relógio global falso. A régua atual (`cadence-v2.ts`) calcula vencimento por DATA de calendário a partir da origem do ciclo, comparando com a hora real do servidor. Existe uma abstração de relógio virtual no projeto, porém ela nunca foi ligada à régua da Financeira. A forma segura e barata é o **deslocamento de datas dos próprios personagens**: a cada "dia virtual" o executor recua as datas de origem e vencimento apenas das linhas marcadas como teste. Nada global muda, e leads reais nunca são tocados.
+## 3. O que precisa ser construído
 
-**5. Menor intervalo seguro por dia virtual.** O limite não é o relógio, é a duração de um ciclo do motor. Cada "dia" exige: deslocar as datas do lote, rodar o ciclo restrito, deixar a Ação do Dia recalcular e gravar o resultado. Recomendação: **começar em 20 segundos por dia virtual**, com o ciclo executado em série (um dia só começa quando o anterior terminou) e trava de execução única. 10 segundos só é aceitável se medido em ambiente real com o lote pequeno; abaixo disso o risco é sobreposição de ciclos, disputa pelas mesmas tarefas e leitura da tela no meio de uma transição. A regra de ouro: **nunca por temporizador fixo, sempre "próximo dia só após o anterior concluir"** — assim a velocidade se ajusta sozinha e nunca gera corrida.
+1. **Leitor da régua vigente**: percorre `STEPS`/`FLOW_SEQUENCE`/contextos e devolve a lista real de etapas, transições, bifurcações e tempos daquele momento.
+2. **Gerador de matriz de cobertura**: a partir dessa leitura, deriva os cenários mínimos e quantos personagens são necessários.
+3. **Ciclo do motor restrito a um lote**: hoje o tick é global; precisa aceitar uma lista de personagens.
+4. **Executor de dias virtuais em série**: desloca as datas apenas do lote, roda o ciclo, espera concluir, avança. Intervalo configurável e medido, nunca por temporizador fixo.
+5. **Validador**: compara o que aconteceu com o que a régua vigente previa, etapa por etapa.
+6. **Relatório aprovado/reprovado** por personagem e por transição.
+7. **Rollback ampliado**: hoje só leads e cards carregam a marcação; jornada, engajamento, compromissos, notas, tarefas, envios e log do motor precisam entrar na limpeza por lote.
+8. **Blindagens**: marcação de teste preservada quando o card é recriado por sincronização, identificadores fictícios que não colidem, e a garantia de que o relógio virtual e o processamento acelerado jamais alcancem lead real.
 
-**6. Concluir em poucos minutos?** Sim. O caminho mais longo da régua (entrada → E8, com material) gira em torno de 20 dias de calendário; com 20 segundos por dia isso é cerca de 7 minutos, e os personagens correm em paralelo dentro do mesmo dia virtual. Sem o caso de longa espera, a homologação completa fica na faixa de 5 a 10 minutos.
+## 4. Régua vigente a cada execução — sim
 
-**7. Bifurcações reais da régua atual.**
-- Entrada: origem GreenSales (espelho) x origem Portal/formulário x link cru sem executivo.
-- Identidade: pessoa nova x pessoa já existente reconhecida por e-mail/WhatsApp com nome divergente.
-- E0: modo manual x automático; Ligação 1 → 10 min → Ligação 2 → Mensagem; atendeu x não atendeu.
-- Caminho normal E0 → E1 → E2 → E3 → E4.
-- Caminho V: quando o investidor visualiza sem responder, E2 e E3 mudam de contexto (V2/V3).
-- E4: pediu material → E5 imediato → E6 → E7 → E8; não pediu → E7 → E8.
-- Compromisso real (AGENDAMENTOS ou VÍDEO com data): congela a cadência; sem compromisso, "atendeu" sozinho não congela.
-- Saída do compromisso para FRIOS: abre a série R.
-- R: R1 → R2 → R3 → R4; com material já enviado, R2 salta direto para R4; a R3 tem dois textos conforme o lead já tenha passado por E4.
-- RE (reentrada): nova data comercial na mesma pessoa abre RE0 → RE1 → RE2 → RE3; sem necessidade de nova apresentação, RE1 vai direto a RE3.
-- Fim de jornada: encerramento normal x reaproximação tardia (item 10).
-- Portal: acesso, Manual, Material, Simulador, retorno após ausência → aviso na Ação do Dia.
+Sem segunda fonte de verdade. O laboratório não descreve a cadência; ele lê a oficial e monta o teste em cima dela. Se amanhã uma etapa mudar de nome, prazo ou posição, o teste de amanhã já nasce diferente. O limite honesto: o laboratório consegue derivar automaticamente **etapas, ordem e tempos**; as bifurcações que dependem de comportamento humano (atendeu, pediu material, agendou, voltou a frios, reentrou) precisam de um catálogo de comportamentos mantido à mão — pequeno, mas não automático. Uma bifurcação genuinamente nova só é coberta depois que alguém a declara nesse catálogo; o laboratório pode, porém, **acusar** que existe uma transição sem cobertura.
 
-**8. Quantidade mínima de personagens: 8.**
-1. E completo sem resposta (E0 não atendido → E1…E4 → E7 → E8).
-2. E com material (E4 pede material → E5 → E6 → E7 → E8).
-3. Caminho V (visualiza e não responde → E2/E3 em contexto V).
-4. E0 atendido sem compromisso (prova que atender não congela).
-5. Compromisso real → congelamento → volta a FRIOS → série R completa.
-6. Compromisso com material já enviado → R2 saltando para R4.
-7. Reentrada: encerra o ciclo, nova data comercial, RE0 → RE1 → RE3, com identidade, responsável e histórico preservados.
-8. Portal/Jornada: entra pelo link, é reconhecido, abre Manual, Material e Simulador, retorna depois e gera o aviso na Ação do Dia.
-Personagem 5 cobre também RE2 se receber nova apresentação, o que dispensaria um nono personagem.
+## 5. Esforço
 
-**9. Cadência + Portal + Jornada + Ação do Dia juntos?** Sim. São as mesmas estruturas oficiais; os personagens têm card, ficha, jornada e obrigações como qualquer lead. A Ação do Dia precisa ser observada com o executivo responsável do lote.
+**Grande.** Não pela complexidade de cada peça, e sim pela quantidade de superfícies tocadas: motor, fila, Ação do Dia, Portal, identidade, limpeza e uma tela de acompanhamento. É trabalho de vários blocos, não de uma sessão.
 
-**10. Mensagens 100% fictícias?** Sim, com três travas já existentes e independentes: envio real de WhatsApp bloqueado até 2029 e ainda dependente de autorização explícita; o despachante força simulação para qualquer lead marcado como teste; e o destinatário é verificado antes da saída. O texto exibido continuará vindo da Biblioteca — se quiser literalmente "TESTE E1", isso precisa ser um rótulo de tela do modo teste, não um texto novo na Biblioteca.
+## 6. Consumo de créditos
 
-**11. Origem GreenSales sem efeito externo?** Parcialmente. A entrada é reproduzida internamente com um pacote de dados equivalente, sem nenhuma chamada ao sistema externo — isso é seguro. **Limitação declarada:** movimentações que só existem lá fora (mudança de coluna/etiqueta feita no GreenSales, agendamento criado por lá) não podem ser homologadas de ponta a ponta; só é possível homologar o que acontece depois que o dado chega. Os personagens precisam de identificadores externos fictícios que jamais colidam com os reais.
+Faixas para a construção completa, no estado atual do projeto:
 
-**12. Rollback completo?** Quase. A limpeza por lote hoje remove lead, card, ciclo, fila, eventos do motor, decisões, mensagens e linha do tempo. **Lacunas encontradas:** apenas duas tabelas carregam a marcação de teste (leads e cards); registros derivados como jornada e engajamento do Portal, compromissos, notas do executivo, tarefas de cadência, envios registrados e o log do motor não são apagados pela rotina atual. São todos rastreáveis pelo identificador do personagem, então a limpeza pode ser estendida — mas isso é trabalho a fazer, não algo pronto.
+- **Otimista:** ~250–400 créditos — construção em etapas, escopo fechado, poucas idas e voltas, validação por lote pequeno.
+- **Provável:** ~450–750 créditos — inclui ajustes de rollback, correções de comportamento observado no primeiro lote real e refinamento do relatório.
+- **Conservador:** ~900–1.400 créditos — se o ciclo restrito exigir mexer no scheduler global, se aparecerem tabelas derivadas não mapeadas, ou se cada rodada de teste precisar de várias execuções para estabilizar.
 
-**13. Algo impede "nasceram → executaram → morreram → desapareceram"?** Nada impede em definitivo. Três pendências: estender a limpeza às tabelas acima; garantir que o ciclo acelerado seja restrito ao lote; e evitar que a marcação de teste seja perdida quando um card é recriado por sincronização.
+Fatores que fazem variar: quantidade de tabelas derivadas a mapear na limpeza; se o tick global aceita filtro com pouca cirurgia ou não; quantos ciclos de "rodar → observar → corrigir" o teste temporal exigir; e o quanto o relatório precisa ser detalhado.
 
-**14. Menor estrutura temporária necessária.**
-- Um ciclo do motor que aceite uma lista de personagens (mesma lógica, escopo restrito).
-- Um executor de dias virtuais: deslocar datas do lote → rodar o ciclo → registrar → repetir, em série.
-- Um roteiro de personagens com os desfechos de cada um (atendeu, pediu material, agendou, voltou a frios, reentrou).
-- Extensão da limpeza por lote.
-- Uma tela simples de acompanhamento por dia virtual (pode ser a listagem de lote já existente).
-Nada disso exige tabela nova, motor novo, fila nova nem alteração da régua.
+## 7. Onde o crédito corre mais risco
 
-**15. O que a arquitetura atual NÃO garante hoje.**
-- Aceleração de tempo dentro da régua da Financeira: não existe; hoje seria por deslocamento de datas dos personagens.
-- Ciclo do motor restrito a um lote: hoje o ciclo é global.
-- Limpeza total dos registros derivados: incompleta.
-- Homologação do lado externo do GreenSales: impossível sem tocar no sistema externo.
-- Preservação garantida da marcação de teste em recriações de card por sincronização: não confirmada.
+O **executor de dias virtuais** e o **rollback completo**. Ambos só se provam rodando, e cada rodada consome. É a parte que pode entrar em ciclo de tentativa e erro. O leitor da régua e o gerador de matriz, ao contrário, são baratos e previsíveis.
 
-## Item 10 — o caso de longa espera
+## 8. Divisão em etapas (recomendada)
 
-É o **RF (relacionamento esfriado)**: 20 dias corridos após a última tentativa efetiva de uma jornada encerrada gera o RF0, e 30 dias após a execução real do RF0 gera o RF1, que é terminal. Ele não é continuação de E, R ou RE e não altera nenhuma dessas transições. **Pode ficar de fora da homologação integrada principal** sem prejuízo, e ser validado depois em teste isolado de dois personagens, já que sozinho acrescentaria cerca de 50 dias virtuais ao roteiro.
+1. Leitor da régua + relatório de cobertura, **sem executar nada**. Barato e já revela lacunas.
+2. Rollback ampliado e blindagem da marcação de teste. Isolado e verificável.
+3. Ciclo restrito ao lote.
+4. Executor de dias virtuais com intervalo configurável.
+5. Validador e relatório aprovado/reprovado.
+6. Tela de acompanhamento.
+
+Cada etapa entrega valor sozinha; dá para parar em qualquer ponto sem desperdício.
+
+## 9. Menor versão realmente útil
+
+Etapas 1 a 4 acima: cria lote, isola personagens, lê a régua atual, executa em dias virtuais e limpa tudo — com a validação feita a olho pelo relatório de cobertura. Isso já homologa. O validador automático e a matriz inteligente vêm depois.
+
+## 10. Maiores riscos
+
+- **Técnico:** o ciclo do motor hoje é global. Se acelerar o lote significar acelerar produção, o laboratório é inviável até esse ponto estar resolvido. É o primeiro item a provar.
+- **De desatualização:** o catálogo de comportamentos humanos. Etapas e tempos o laboratório lê sozinho; um caminho novo criado no futuro pode passar despercebido. Mitigação: o relatório deve listar explicitamente toda transição da régua vigente **sem personagem que a cubra**, transformando a lacuna em alerta visível em vez de silêncio.
