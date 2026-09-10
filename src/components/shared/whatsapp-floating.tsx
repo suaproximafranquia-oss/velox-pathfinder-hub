@@ -109,6 +109,17 @@ export function WhatsAppFloating() {
   };
 
   const handleClick = () => {
+    /**
+     * No Manual do Investidor o atendimento passa pela Financeira: o
+     * botão leva para `/f`, preservando o contexto já existente do
+     * executivo/investidor quando houver.
+     */
+    if (typeof window !== "undefined" && /^\/manual(?:\/|$)/.test(window.location.pathname)) {
+      const slug =
+        resolved.executive?.slug ?? getPortalSession()?.responsibleExecutiveSlug ?? null;
+      window.location.assign(slug ? `/f?e=${encodeURIComponent(slug)}` : "/f");
+      return;
+    }
     if (resolved.personalized && resolved.executive) openDirect();
     else setModalOpen(true);
   };
