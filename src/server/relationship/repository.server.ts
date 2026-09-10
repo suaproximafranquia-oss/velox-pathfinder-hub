@@ -88,10 +88,10 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     if (scope !== "production" || runId) return null;
     const loaded = loadedCycles.get(leadId);
     if (loaded) return loaded.sequence;
-    const { data, error } = await scoped(supabaseAdmin.from("relationship_cadences").select("instance_seq,opened_reason") as any)
+    const { data, error } = await scoped(supabaseAdmin.from("relationship_cadences").select("instance_seq,opened_reason,flow") as any)
       .eq("lead_id", leadId).eq("active", true).maybeSingle();
     if (error) throw new Error(error.message);
-    return data?.opened_reason?.startsWith("reentry:") ? data.instance_seq : null;
+    return data?.flow === "reentrada" && data?.opened_reason?.startsWith("reentry:") ? data.instance_seq : null;
   };
 
   return {
@@ -112,7 +112,8 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         .order("instance_seq", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (data) loadedCycles.set(leadId, { id: data.id, sequence: data.opened_reason?.startsWith("reentry:") ? data.instance_seq : null });
+      if (data) loadedCycles.set(leadId, { id: data.id, sequence: data.flow === "reentrada" && data.opened_reason?.startsWith("reentry:") ? data.instance_seq : null });
+      else loadedCycles.delete(leadId);
       return data ? toRecord(data) : null;
     },
 
@@ -223,7 +224,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       }
       const sequence = /^RE[0-3]$/.test(item.step) ? await activeReentrySequence(item.leadId) : null;
       const loaded = loadedCycles.get(item.leadId);
-      if (loaded) {
+      if (loaded?.sequence != null) {
         const { data: active } = await scoped(supabaseAdmin.from("relationship_cadences").select("id") as any)
           .eq("lead_id", item.leadId).eq("active", true).maybeSingle();
         if (active?.id !== loaded.id) throw new Error("Ciclo substituído por nova entrada comercial.");

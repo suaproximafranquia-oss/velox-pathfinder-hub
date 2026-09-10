@@ -59,7 +59,7 @@ export async function openCommercialReentry(input: { leadId: string; submissionK
 
 async function finishOpening(leadId: string, key: string, at: string) {
   const { data: current, error } = await supabaseAdmin.from("relationship_cadences")
-    .select("instance_seq,opened_reason").eq("scope", "production").is("run_id", null)
+    .select("instance_seq,opened_reason,created_at").eq("scope", "production").is("run_id", null)
     .eq("lead_id", leadId).eq("active", true).maybeSingle();
   if (error) throw new Error(error.message);
   if (current?.opened_reason !== key) return;
@@ -67,7 +67,8 @@ async function finishOpening(leadId: string, key: string, at: string) {
   const { error: queueError } = await supabaseAdmin.from("relationship_queue")
     .update({ status: "CANCELLED", cancel_reason: "nova_submissao_comercial", reason: "Ciclo anterior preservado; nova entrada comercial.", updated_at: new Date().toISOString() })
     .eq("scope", "production").is("run_id", null).eq("lead_id", leadId)
-    .in("status", ["PENDING", "PROCESSING"]).lt("action_order", current.instance_seq * 100);
+    .in("status", ["PENDING", "PROCESSING"]).lt("action_order", current.instance_seq * 100)
+    .lte("created_at", current.created_at);
   if (queueError) throw new Error(queueError.message);
   const { error: eventError } = await supabaseAdmin.from("relationship_events").upsert({
     scope: "production", lead_id: leadId, event_key: key, type: "LEAD_CREATED", occurred_at: at,

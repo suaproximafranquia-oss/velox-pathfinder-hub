@@ -147,7 +147,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
 
 
   const actions: V2QueueAction[] = ((queueRows ?? []) as Row[])
-    .filter((row) => !(cycleRow as Row | null)?.opened_reason?.startsWith("reentry:") || belongsToReentryCycle(row.step, row.action_order ?? 1, (cycleRow as Row).instance_seq))
+    .filter((row) => flow !== "RE" || !(cycleRow as Row | null)?.opened_reason?.startsWith("reentry:") || belongsToReentryCycle(row.step, row.action_order ?? 1, (cycleRow as Row).instance_seq))
     // Linha neutralizada por "desfazer resultado" não é decisão da régua.
     .filter(
       (row) =>
