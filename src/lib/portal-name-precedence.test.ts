@@ -32,7 +32,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from(
 } } }));
 
 import { syncPortalLead } from "./portal-leads.functions";
-const incoming = { id: "TEST-0001", name: "Nome digitado no Portal", email: "test@example.invalid", whatsapp: "", scope: "portal" as const };
+const incoming = { unit: "f" as const, id: "TEST-0001", name: "Nome digitado no Portal", email: "test@example.invalid", whatsapp: "", scope: "portal" as const };
 const run = (data = incoming) => (syncPortalLead as unknown as (args: { data: typeof incoming }) => Promise<unknown>)({ data });
 beforeEach(() => { db.rows = []; db.writes = []; db.race = false; });
 

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type PortalLeadPayload = {
+  unit?: "f" | "s" | "seg";
   id: string;
   name: string;
   email: string;
@@ -32,6 +33,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
   .inputValidator((data: PortalLeadPayload) => data)
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const financial = data.unit === "f";
     const executiveId = data.responsibleExecutiveId ?? null;
     const email = data.email.trim().toLowerCase();
     const digits = (data.whatsapp ?? "").replace(/\D+/g, "");
@@ -73,15 +75,17 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       for (const field of ["name", "email", "whatsapp", "city"] as const) {
         // Cadastro principal soberano: omitir a coluna também protege uma
         // edição do executivo que ocorra entre esta leitura e a gravação.
+        if (!financial && field === "name") continue;
         const locked = Boolean(overrides[field]?.locked);
-        const official = field !== "city" && Boolean(current[field]);
+        const official = financial && field !== "city" && Boolean(current[field]);
         if (!locked && !official) {
           patch[field] = incoming[field];
           continue;
         }
+        if (!financial) patch[field] = current[field];
         if (incoming[field] && incoming[field] !== current[field]) {
           const bucket = Array.isArray(alternates[field]) ? alternates[field] : [];
-          if (bucket.some((item) => (item as { value?: unknown })?.value === incoming[field])) continue;
+          if (financial && bucket.some((item) => (item as { value?: unknown })?.value === incoming[field])) continue;
           alternates[field] = [
             ...bucket,
             { value: incoming[field], at, source: "portal", blockedBy: locked ? "manual_override" : "official_identity" },
@@ -163,7 +167,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         })
         .eq("id", targetId);
       if (dedupeError) throw new Error(dedupeError.message);
-      if (data.personalized) await registerEntry(
+      if (!financial || data.personalized) await registerEntry(
         data.personalized && data.responsibleExecutiveSlug
           ? `Nova entrada pelo link personalizado de ${data.responsibleExecutiveSlug} — lead já existente, sem duplicação.`
           : "Nova entrada pelo Portal institucional — lead já existente, sem duplicação.",
@@ -182,7 +186,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     }
 
     // Cadastro existente: identidade, vínculo, origem e histórico são soberanos.
-    if (current) {
+    if (current && (financial || current.scope === "redistribuicao")) {
       const guarded = await applyIdentityGuard(targetId);
       const { error: keepError } = await supabaseAdmin
         .from("portal_leads")
@@ -210,10 +214,10 @@ export const syncPortalLead = createServerFn({ method: "POST" })
           ? data.scope
           : ("portal" as const);
     const { isManagementExecutive } = await import("@/server/crm/manager-guard.server");
-    const candidateOwner = scope === "green_sales" ? executiveId : null;
-    const preservedOwner = (await isManagementExecutive(candidateOwner)) ? null : candidateOwner;
+    const candidateOwner = current?.responsible_executive_id ?? (scope === "green_sales" ? executiveId : null);
+    const preservedOwner = current?.responsible_executive_id ?? ((await isManagementExecutive(candidateOwner)) ? null : candidateOwner);
     const nowIso = new Date().toISOString();
-    const guardedIdentity = { email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
+    const guardedIdentity = current ? await applyIdentityGuard(targetId) : { email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
     const payload = {
         id: targetId,
         ...guardedIdentity,
@@ -224,22 +228,26 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         responsible_executive_id: preservedOwner,
         responsible_executive_slug:
           scope === "green_sales"
-            ? (data.responsibleExecutiveSlug ?? null)
+            ? (current?.responsible_executive_slug ?? data.responsibleExecutiveSlug ?? null)
             : null,
         campaign: data.campaign ?? null,
         device: data.device ?? null,
         created_at: data.createdAt ?? nowIso,
         // A coluna é NOT NULL: o fallback só cobre registros legados.
-        last_activity_at: providedActivity ?? data.createdAt ?? nowIso,
+        last_activity_at: providedActivity ?? current?.last_activity_at ?? data.createdAt ?? nowIso,
         journey: (data.journey ?? {}) as never,
       };
     let created = false;
     let error;
     // Inserção concorrente não autoriza substituir identidade nem contexto.
-    ({ error } = await supabaseAdmin.from("portal_leads").insert({ ...payload, name: data.name }));
-    created = !error;
+    if (current) {
+      ({ error } = await supabaseAdmin.from("portal_leads").update(payload).eq("id", targetId));
+    } else {
+      ({ error } = await supabaseAdmin.from("portal_leads").insert({ ...payload, name: data.name }));
+      created = !error;
+    }
     if (error?.code === "23505") {
-      const guarded = await applyIdentityGuard(targetId);
+      const guarded = financial ? await applyIdentityGuard(targetId) : payload;
       ({ error } = await supabaseAdmin.from("portal_leads").update(guarded).eq("id", targetId));
     }
     if (error) throw new Error(error.message);
