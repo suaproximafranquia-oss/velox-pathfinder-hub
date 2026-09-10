@@ -40,14 +40,24 @@ export type DailyActionSource =
   | "queue"
   | "cadence"
   /** Ligação atendida sem encaminhamento registrado — decisão humana. */
-  | "handoff";
+  | "handoff"
+  /** Sinal informativo de atividade real do investidor no Portal. */
+  | "portal_alert";
 export type DailyActionKind =
   | "primeiro_contato"
   | "reuniao"
   | "compromisso"
   | "mensagem"
-  | "ligacao";
-export type DailyActionBucket = "agora" | "atrasada" | "hoje" | "futura" | "pendente";
+  | "ligacao"
+  | "alerta_portal";
+export type DailyActionBucket =
+  | "agora"
+  | "atrasada"
+  | "hoje"
+  | "futura"
+  | "pendente"
+  /** Aviso: visível, nunca executável, nunca disputa a posição 1. */
+  | "alerta";
 
 export type CadenceAttemptView = { step: number; date: string; outcome: "SIM" | "NAO" };
 
