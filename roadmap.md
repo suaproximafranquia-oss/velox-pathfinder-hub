@@ -34,7 +34,7 @@
 - [x] /f: progresso do Manual na Jornada usa a régua existente de capítulos.
 - [ ] Formulários públicos Financeira e Solar: entrada comercial na operação correta; rótulo/validação de Cidade coerentes.
 
-- [ ] /f: aplicar `result.queue` imediatamente, remover espera fixa e proteger a posição 1 até a resposta oficial.
-- [ ] /f: continuidade genérica somente para ligação `NAO` com próxima ação real do mesmo lead/etapa.
-- [ ] /f: manter compromissos passados prioritários, alertas do Portal persistentes e cópia de mensagem sem sobreposição.
-- [ ] Executar os 14 cenários focados sem tocar dados reais ou outros ambientes.
+- [x] /f: aplicar `result.queue` imediatamente, remover espera fixa e proteger a posição 1 até a resposta oficial.
+- [x] /f: continuidade genérica somente para ligação `NAO` com próxima ação real do mesmo lead/etapa.
+- [x] /f: manter compromissos passados prioritários, alertas do Portal persistentes e cópia de mensagem sem sobreposição.
+- [x] Executar os 14 cenários focados sem tocar dados reais ou outros ambientes (37 testes direcionados passaram; tipos e build OK).
