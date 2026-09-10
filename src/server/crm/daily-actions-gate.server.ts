@@ -43,12 +43,40 @@ export function queueItemIdOf(action: DailyAction | null | undefined): string | 
   return id.length > 0 ? id : null;
 }
 
+/** Janela em que a próxima ação do MESMO lead ainda é continuidade. */
+const CONTINUITY_WINDOW_MS = 20 * 60 * 1000;
+
+/**
+ * CONTINUIDADE DO MESMO LEAD — DECIDIDA PELO SERVIDOR.
+ *
+ * Quando a conclusão de uma ação da régua (por exemplo a 2ª ligação da
+ * E0) acabou de liberar a próxima ação do MESMO investidor, essa próxima
+ * ação continua o mesmo atendimento e não vai para o fim da fila apenas
+ * porque venceu "hoje". Lê a MESMA fila do motor: nenhuma segunda fila,
+ * nenhum `due_at` alterado e nenhum item marcado como atrasado.
+ */
+async function recentContinuityLead(executiveId: string | null): Promise<string | null> {
+  if (!executiveId) return null;
+  const since = new Date(Date.now() - CONTINUITY_WINDOW_MS).toISOString();
+  const { data } = await supabaseAdmin
+    .from("relationship_queue")
+    .select("lead_id,executed_at")
+    .eq("claimed_by", executiveId)
+    .eq("status", "DONE")
+    .gte("executed_at", since)
+    .order("executed_at", { ascending: false })
+    .limit(1);
+  return (data ?? [])[0]?.lead_id ?? null;
+}
+
 export async function currentDailyAction(
   executiveId: string | null,
   options: { skipReconcile?: boolean } = {},
 ): Promise<CurrentAction> {
+  const continuityLeadId = await recentContinuityLead(executiveId);
   let list = normalizeDailyActions(
     await buildDailyActions({ executiveId, skipReconcile: options.skipReconcile === true }),
+    continuityLeadId,
   );
   const first = list.find(isAutomaticDailyAction) ?? null;
 
