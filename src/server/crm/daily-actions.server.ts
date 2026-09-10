@@ -187,12 +187,21 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     queue.map((q) => q.lead_id as string),
   );
 
+  /**
+   * AVISO DE ATIVIDADE DO PORTAL — leitura pura dos eventos reais já
+   * gravados. Não é etapa, não é obrigação e nunca disputa a posição 1.
+   */
+  const portalAlerts = await import("@/server/crm/portal-activity-alerts.server")
+    .then((m) => m.listPortalActivityAlerts(input.executiveId, nowIso))
+    .catch(() => []);
+
   const identities = await loadLeadIdentities([
     ...meetings.map((m) => m.investor_id as string),
     ...queue.map((q) => q.lead_id as string),
     ...cadenceQueue.map((c) => `gs_${c.externalId}`),
     ...closureDuties.map((d) => d.leadId),
     ...firstContacts.map((a) => a.card_id),
+    ...portalAlerts.map((a) => a.leadId),
   ]);
 
   const actions: DailyAction[] = [];
