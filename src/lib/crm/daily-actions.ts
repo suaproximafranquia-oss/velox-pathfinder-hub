@@ -123,6 +123,11 @@ export type DailyAction = {
    * possa LER o texto na Biblioteca. Nenhuma cópia é feita aqui.
    */
   messageRef?: { step: string; flow: string | null; origin: "queue" | "closure" };
+  /**
+   * AVISO DO PORTAL: instante REAL do acesso registrado pelo servidor.
+   * Apresentação apenas — não é obrigação, prazo nem compromisso.
+   */
+  alertAt?: string;
   attempts: CadenceAttemptView[];
   /**
    * Pendências de menor precedência do MESMO lead. Continuam disponíveis
