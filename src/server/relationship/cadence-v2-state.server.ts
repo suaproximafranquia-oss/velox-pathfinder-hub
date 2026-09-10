@@ -9,6 +9,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { v2FlowOf, type V2DecisionInput, type V2QueueAction } from "@/lib/relationship/cadence-v2-decide";
 import type { CadenceRecord } from "@/lib/relationship/types";
 import { localDateOf } from "@/lib/relationship/cadence-v2";
+import { belongsToReentryCycle, reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
 
 /** Estágios que congelam a cadência / liberam o fluxo R. */
 type Row = Record<string, any>;
@@ -131,7 +132,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
         .order("due_at", { ascending: true }),
       supabaseAdmin
         .from("relationship_cadences")
-        .select("awaiting_handoff,started_at,created_at")
+        .select("awaiting_handoff,started_at,created_at,instance_seq,opened_reason")
         .eq("scope", record.scope)
         .eq("lead_id", record.leadId)
         .eq("active", true)
@@ -146,6 +147,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
 
 
   const actions: V2QueueAction[] = ((queueRows ?? []) as Row[])
+    .filter((row) => !(cycleRow as Row | null)?.opened_reason?.startsWith("reentry:") || belongsToReentryCycle(row.step, row.action_order ?? 1, (cycleRow as Row).instance_seq))
     // Linha neutralizada por "desfazer resultado" não é decisão da régua.
     .filter(
       (row) =>
@@ -153,7 +155,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
     )
     .map((row) => ({
       step: row.step,
-      actionOrder: row.action_order ?? 1,
+      actionOrder: reentryInternalOrder(row.step, row.action_order ?? 1),
       actionKind: row.action_kind === "call" ? "call" : "message",
       status: row.status,
       dueAt: row.due_at,
