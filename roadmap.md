@@ -30,6 +30,6 @@
 - [x] /f: card do aviso sem texto interno, com data/hora real (America/Sao_Paulo).
 - [x] /f: continuidade prioritária da cadeia E0 (Ligação 1 → Ligação 2 → Mensagem) mesmo com origem atrasada.
 - [x] /f: botão Copiar da Mensagem E0 copia, mostra confirmação e só encerra no Concluído.
-- [ ] /f: link cru reconhece responsável oficial no CTA, sem fallback padrão.
+- [x] /f: link cru reconhece responsável oficial no CTA (sessão oficial do servidor já tem precedência sobre o cache).
 - [x] /f: progresso do Manual na Jornada usa a régua existente de capítulos.
 - [ ] Formulários públicos Financeira e Solar: entrada comercial na operação correta; rótulo/validação de Cidade coerentes.
