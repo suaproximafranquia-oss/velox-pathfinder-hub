@@ -73,18 +73,18 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       for (const field of ["name", "email", "whatsapp", "city"] as const) {
         // Cadastro principal soberano: omitir a coluna também protege uma
         // edição do executivo que ocorra entre esta leitura e a gravação.
-        if (field === "name") continue;
         const locked = Boolean(overrides[field]?.locked);
-        if (!locked) {
+        const official = field !== "city" && Boolean(current[field]);
+        if (!locked && !official) {
           patch[field] = incoming[field];
           continue;
         }
-        patch[field] = current[field];
         if (incoming[field] && incoming[field] !== current[field]) {
           const bucket = Array.isArray(alternates[field]) ? alternates[field] : [];
+          if (bucket.some((item) => (item as { value?: unknown })?.value === incoming[field])) continue;
           alternates[field] = [
             ...bucket,
-            { value: incoming[field], at, source: "portal", blockedBy: "manual_override" },
+            { value: incoming[field], at, source: "portal", blockedBy: locked ? "manual_override" : "official_identity" },
           ];
           changedAlternates = true;
         }
@@ -99,7 +99,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
           event: "identity.divergence.blocked",
           module: "portal",
           detail:
-            "Valor informado pelo investidor divergiu de campo corrigido manualmente — preservado como dado alternativo.",
+            "Valor informado pelo investidor divergiu da identidade oficial — preservado como dado alternativo.",
         } as never);
       }
       return patch;
@@ -178,7 +178,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
 
     // ETAPA 02.1 §Doc02 — um Lead redistribuído nunca é rebaixado por uma
     // sincronização posterior do Portal: escopo e proprietário permanecem.
-    if (current?.scope === "redistribuicao") {
+    if (current) {
       const guarded = await applyIdentityGuard(targetId);
       const { error: keepError } = await supabaseAdmin
         .from("portal_leads")
@@ -190,7 +190,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       if (keepError) throw new Error(keepError.message);
       return {
         ok: true as const,
-        scope: "redistribuicao" as const,
+        scope: current.scope,
         leadId: targetId,
         deduped: false as const,
       };
@@ -273,7 +273,8 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       ({ error } = await supabaseAdmin.from("portal_leads").insert({ ...payload, name: data.name }));
       created = !error;
       if (error?.code === "23505") {
-        ({ error } = await supabaseAdmin.from("portal_leads").update(payload).eq("id", targetId));
+        const guarded = await applyIdentityGuard(targetId);
+        ({ error } = await supabaseAdmin.from("portal_leads").update(guarded).eq("id", targetId));
       }
     }
     if (error) throw new Error(error.message);

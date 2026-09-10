@@ -3,7 +3,7 @@
  * comerciais. Todos os indicadores de campanha saíram do KPI Manager,
  * que passa a responder apenas pelos indicadores operacionais.
  *
- * A fonte de dados continua sendo o KPI Manager (loadDataset/summarize).
+ * A fonte de dados continua sendo o KPI Manager (kpi_entries/summarize).
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -12,11 +12,13 @@ import { Trophy } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import type { ExecutiveUser } from "@/lib/executive-auth";
-import { listarEquipeCampanhas } from "@/lib/executive-directory.functions";
+import { lerVendasCampanhas, lerKpiMes } from "@/lib/kpi-data.functions";
+import { datasetFromCells } from "@/lib/kpi-dataset";
+import { toast } from "sonner";
 import {
   AVAILABLE_MONTHS,
   DEFAULT_MONTH_KEY,
-  loadDataset,
+  type KpiDataset,
   summarize,
 } from "@/lib/kpi-manager";
 import { CampanhaVeloxCard } from "@/components/executive/kpi/campanha-velox";
@@ -67,44 +69,30 @@ function CampaignsPage() {
   // A situação ativo/inativo vem SEMPRE do servidor (diretório oficial),
   // nunca do cadastro guardado no navegador — assim todos os perfis veem
   // exatamente os mesmos integrantes ativos.
-  const readTeam = useServerFn(listarEquipeCampanhas);
-  const [activeTeam, setActiveTeam] = useState<
-    { executiveId: string; name: string }[] | null
-  >(null);
-
+  const readSales = useServerFn(lerVendasCampanhas);
+  const readMonth = useServerFn(lerKpiMes);
+  const [official, setOfficial] = useState<{
+    monthKey: string; team: ExecutiveUser[]; datasets: Record<string, KpiDataset>; readableReportIds: string[];
+  } | null>(null);
+  const [loadError, setLoadError] = useState(false);
   useEffect(() => {
+    if (!session) return;
     let alive = true;
-    void (async () => {
-      try {
-        const rows = await readTeam({ data: undefined as never });
-        if (!alive) return;
-        setActiveTeam(rows as { executiveId: string; name: string }[]);
-      } catch {
-        if (alive) setActiveTeam([]);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [readTeam]);
-
-  const collaborators = useMemo(() => {
-    if (!session || activeTeam === null) return [];
-    // O Painel de Campanhas é corporativo: TODOS os perfis (colaborador,
-    // gestora e administrador) enxergam os mesmos executivos ativos,
-    // dinamicamente, sem lista fixa no código. O painel consome apenas
-    // id + nome; o relatório PDF usa exclusivamente esses dois campos.
-    return activeTeam.map(
-      (entry) =>
-        ({ id: entry.executiveId, name: entry.name }) as ExecutiveUser,
-    );
-  }, [session, activeTeam]);
-
-
+    setLoadError(false);
+    void readSales({ data: { monthKey } }).then((payload) => {
+      if (!alive) return;
+      setOfficial({ monthKey, team: payload.team as ExecutiveUser[],
+        datasets: Object.fromEntries(Object.entries(payload.datasets).map(([id, cells]) =>
+          [id, datasetFromCells(id, monthKey, cells)])), readableReportIds: payload.readableReportIds });
+    }).catch(() => { if (alive) { setOfficial(null); setLoadError(true); } });
+    return () => { alive = false; };
+  }, [readSales, monthKey, session]);
+  const ready = official?.monthKey === monthKey;
+  const collaborators = ready ? official.team : [];
   const personalSales = useMemo(() => {
-    if (!session) return 0;
-    return summarize(loadDataset(session.userId, monthKey)).salesValue;
-  }, [session, monthKey]);
+    const ds = session && ready ? official.datasets[session.userId] : null;
+    return ds ? summarize(ds).salesValue : 0;
+  }, [session, official, ready]);
 
   if (!session) return null;
 
@@ -142,22 +130,29 @@ function CampaignsPage() {
         </div>
       </div>
 
+      {!ready ? <p role="status">{loadError ? "Não foi possível carregar os lançamentos oficiais." : "Carregando lançamentos oficiais…"}</p> : <>
       <CampanhaVeloxCard salesValue={personalSales} />
 
       <div className="mt-8">
         <PainelCampanhas
           users={collaborators}
           monthKey={monthKey}
+          datasets={official.datasets}
           onDownload={(userId) => {
             const user = collaborators.find((c) => c.id === userId);
             if (!user) return;
-            // Motor de PDF carregado apenas no clique.
-            void import("@/lib/kpi-report").then(({ generateKpiIndividualReport }) =>
-              generateKpiIndividualReport(user, monthKey),
-            );
+            if (!official.readableReportIds.includes(userId)) {
+              toast.error("Relatório individual fora do seu escopo autorizado.");
+              return;
+            }
+            void Promise.all([import("@/lib/kpi-report"), readMonth({ data: { executiveId: userId, monthKey } })])
+              .then(([{ generateKpiIndividualReport }, payload]) =>
+                generateKpiIndividualReport(user, monthKey, datasetFromCells(userId, monthKey, payload)))
+              .catch(() => toast.error("Não foi possível carregar o relatório oficial."));
           }}
         />
       </div>
+      </>}
     </ExecutiveShell>
   );
 }

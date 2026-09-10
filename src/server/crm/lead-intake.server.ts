@@ -25,7 +25,7 @@ import {
   recordEvent,
   upsertLead,
 } from "@/server/crm/lead-service.server";
-import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
+import { ensureWorkspaceCard, refreshWorkspaceCardName } from "@/server/crm/workspace-card.server";
 import { createPendingE0Action } from "@/server/crm/e0-actions.server";
 import { resolveExecutiveE0Mode } from "@/server/crm/first-contact-mode.server";
 import {
@@ -163,6 +163,7 @@ export async function intakeLead(
     : null;
 
   if (isGreenSalesEntry) {
+    await refreshWorkspaceCardName(externalId, outcome.lead.name);
     const identity = await resolveOrCreateInvestor({
       source: "greensales",
       externalId,
@@ -201,7 +202,7 @@ export async function intakeLead(
 
   const eligibility = cadenceEligibility(
     {
-      enteredEntryStageAt: (outcome.lead as unknown as {
+      enteredEntryStageAt: entry.reentry ? null : (outcome.lead as unknown as {
         entered_entry_stage_at?: string | null;
       }).entered_entry_stage_at,
       lastEntryAt,
