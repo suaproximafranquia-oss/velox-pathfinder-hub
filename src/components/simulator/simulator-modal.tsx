@@ -15,7 +15,7 @@ import {
 } from "@/lib/simulator-products";
 import { trackJourney } from "@/lib/journey/engine";
 import { getCurrentInvestorId, getPortalSession } from "@/lib/portal-session";
-import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { getSessionResponsibleExecutive } from "@/lib/portal/session-responsible";
 import { addSimulation } from "@/lib/simulator-history";
 import { getInterestsProfile } from "@/lib/interests-profile";
 import { PortalFinalCta } from "@/components/portal/portal-final-cta";
@@ -148,7 +148,7 @@ export function SimulatorModal({ open, onClose }: { open: boolean; onClose: () =
     const session = getPortalSession();
     const sharedReport = /^\/f(?:\/|$)/.test(window.location.pathname);
     if (sharedReport) setReportState("saving");
-    const responsible = getResponsibleExecutive();
+    const responsible = getSessionResponsibleExecutive();
     const exec = responsible.executive;
     const interestsProfile = getInterestsProfile(investorId ?? undefined);
     const audienceMap: Record<string, string> = {

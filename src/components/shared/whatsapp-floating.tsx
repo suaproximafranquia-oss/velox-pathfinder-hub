@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { isReaderFocused, subscribeReaderFocus } from "@/lib/portal-reader-focus";
 import { MessageCircle, X, ArrowRight } from "lucide-react";
-import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { getSessionResponsibleExecutive } from "@/lib/portal/session-responsible";
 import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
 import { getPortalSession, promotePortalSession } from "@/lib/portal-session";
 import { registerLead, updateLead, loadLeads, type VisitorIdentity } from "@/lib/leads";
@@ -65,7 +65,7 @@ export function WhatsAppFloating() {
   const [reading, setReading] = useState(false);
 
   useEffect(() => {
-    setResolved(getResponsibleExecutive());
+    setResolved(getSessionResponsibleExecutive());
     setInsideOverlay(typeof window !== "undefined" && window.self !== window.top);
   }, []);
 
