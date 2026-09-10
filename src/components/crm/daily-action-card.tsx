@@ -447,7 +447,7 @@ export function DailyActionCard({
 
   return (
     <>
-      <div>
+      <div className="relative">
         <p className="text-[11px] uppercase tracking-[0.18em] text-white/40">
           {actionHeadline(item)}
           {item.startsAt ? ` · ${operationalTime(item.startsAt)}` : ""}
