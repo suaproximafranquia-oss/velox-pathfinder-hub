@@ -192,11 +192,15 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       if (event.scope !== scope) {
         throw new Error("Evento de outro ambiente não pode ser registrado por este repositório.");
       }
+      // Chaves legadas de conclusão RE eram por lead/etapa, não por nova submissão.
+      // Somente esses eventos ganham vínculo ao ciclo; o histórico anterior é intocado.
+      const reentryCompletion = /:RE[0-3]:(sent|completed)$/.test(event.id);
+      const sequence = reentryCompletion ? await activeReentrySequence(event.leadId) : null;
       const { error } = await supabaseAdmin.from("relationship_events").insert({
         scope,
         run_id: runId,
         lead_id: event.leadId,
-        event_key: event.id,
+        event_key: sequence === null ? event.id : `${event.id}:cycle:${sequence}`,
         type: event.type,
         step: event.step ?? null,
         template_id: event.templateId ?? null,

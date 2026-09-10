@@ -52,9 +52,9 @@ describe("fluxo de reentrada", () => {
       stageKey: "novos", hasCommitment: false, awaitingHandoff: false,
     };
     for (const stage of ["novos", "frio", "zero_contato", null]) {
-      expect(decideNextAction(record, { nowIso: at, enabled: true, stageAtClosing: stage, v2: { ...v2, stageKey: stage } })).toMatchObject({ kind: "schedule_step", step: "RE0" });
+      expect(decideNextAction(record, { nowIso: at, enabled: true, hasTemplateForPurpose: () => true, stageAtClosing: stage, v2: { ...v2, stageKey: stage } })).toMatchObject({ kind: "schedule_step", step: "RE0" });
     }
-    expect(decideNextAction(record, { nowIso: at, enabled: true, v2: { ...v2, stageKey: "agendamentos", hasCommitment: true } }).kind).toBe("none");
+    expect(decideNextAction(record, { nowIso: at, enabled: true, hasTemplateForPurpose: () => true, v2: { ...v2, stageKey: "agendamentos", hasCommitment: true } }).kind).toBe("none");
   });
 
   it("sequência oficial é RE0 → RE3", () => {
