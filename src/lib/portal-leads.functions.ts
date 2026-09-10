@@ -135,6 +135,10 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       .eq("id", targetId)
       .maybeSingle();
 
+    const providedActivity = data.lastActivityAt && Number.isFinite(Date.parse(data.lastActivityAt))
+      && (!current?.last_activity_at || Date.parse(data.lastActivityAt) > Date.parse(current.last_activity_at))
+      ? data.lastActivityAt : null;
+
     const registerEntry = async (reason: string) => {
       await supabaseAdmin.from("portal_journey_events").insert({
         investor_id: targetId,
@@ -152,13 +156,14 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         .from("portal_leads")
         .update({
           ...guarded,
+          ...(data.journey && Object.keys(data.journey).length ? { journey: data.journey as never } : {}),
           // Atividade só avança com atividade REAL informada pelo navegador
           // do investidor; nunca `now()` por sincronização.
-          ...(data.lastActivityAt ? { last_activity_at: data.lastActivityAt } : {}),
+          ...(providedActivity ? { last_activity_at: providedActivity } : {}),
         })
         .eq("id", targetId);
       if (dedupeError) throw new Error(dedupeError.message);
-      await registerEntry(
+      if (data.personalized) await registerEntry(
         data.personalized && data.responsibleExecutiveSlug
           ? `Nova entrada pelo link personalizado de ${data.responsibleExecutiveSlug} — lead já existente, sem duplicação.`
           : "Nova entrada pelo Portal institucional — lead já existente, sem duplicação.",
@@ -176,15 +181,15 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       };
     }
 
-    // ETAPA 02.1 §Doc02 — um Lead redistribuído nunca é rebaixado por uma
-    // sincronização posterior do Portal: escopo e proprietário permanecem.
+    // Cadastro existente: identidade, vínculo, origem e histórico são soberanos.
     if (current) {
       const guarded = await applyIdentityGuard(targetId);
       const { error: keepError } = await supabaseAdmin
         .from("portal_leads")
         .update({
           ...guarded,
-          ...(data.lastActivityAt ? { last_activity_at: data.lastActivityAt } : {}),
+          ...(data.journey && Object.keys(data.journey).length ? { journey: data.journey as never } : {}),
+          ...(providedActivity ? { last_activity_at: providedActivity } : {}),
         })
         .eq("id", targetId);
       if (keepError) throw new Error(keepError.message);
@@ -204,46 +209,11 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         : data.scope === "tiktok" || data.scope === "meta"
           ? data.scope
           : ("portal" as const);
-    // O proprietário definido por uma transferência oficial nunca é
-    // apagado por uma sincronização posterior da jornada.
     const { isManagementExecutive } = await import("@/server/crm/manager-guard.server");
-    const candidateOwner =
-      current?.responsible_executive_id ??
-      (scope === "green_sales" ? executiveId : null);
-    // Gestão nunca nasce como responsável de lead novo (posse já
-    // existente na base permanece intocada).
-    const preservedOwner =
-      current?.responsible_executive_id ??
-      ((await isManagementExecutive(candidateOwner)) ? null : candidateOwner);
-    /**
-     * COMANDO 3A §3 — ATIVIDADE SÓ AVANÇA COM ATIVIDADE REAL.
-     *
-     * `last_activity_at` alimenta o estado "Novo" do Workspace. Antes,
-     * qualquer sincronização operacional (nota do executivo, hidratação
-     * de cache, push sem atividade) gravava `now()` e o lead voltava
-     * indevidamente para "Novo". Agora o campo só avança quando o
-     * navegador informa uma atividade real do investidor — e nunca
-     * retrocede o valor oficial já registrado.
-     */
+    const candidateOwner = scope === "green_sales" ? executiveId : null;
+    const preservedOwner = (await isManagementExecutive(candidateOwner)) ? null : candidateOwner;
     const nowIso = new Date().toISOString();
-    const providedActivity =
-      data.lastActivityAt && !Number.isNaN(Date.parse(data.lastActivityAt))
-        ? data.lastActivityAt
-        : null;
-    const existingActivity = current?.last_activity_at ?? null;
-    const effectiveActivity = !current
-      ? (providedActivity ?? data.createdAt ?? nowIso)
-      : providedActivity && (!existingActivity || providedActivity > existingActivity)
-        ? providedActivity
-        : existingActivity;
-    const guardedRaw = current
-      ? await applyIdentityGuard(targetId)
-      : { name: data.name, email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
-    const guardedIdentity = {
-      email: guardedRaw["email"] ?? email,
-      whatsapp: guardedRaw["whatsapp"] ?? data.whatsapp ?? "",
-      city: guardedRaw["city"] ?? data.city ?? "",
-    };
+    const guardedIdentity = { email, whatsapp: data.whatsapp ?? "", city: data.city ?? "" };
     const payload = {
         id: targetId,
         ...guardedIdentity,
@@ -254,28 +224,23 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         responsible_executive_id: preservedOwner,
         responsible_executive_slug:
           scope === "green_sales"
-            ? (current?.responsible_executive_slug ?? data.responsibleExecutiveSlug ?? null)
+            ? (data.responsibleExecutiveSlug ?? null)
             : null,
         campaign: data.campaign ?? null,
         device: data.device ?? null,
         created_at: data.createdAt ?? nowIso,
         // A coluna é NOT NULL: o fallback só cobre registros legados.
-        last_activity_at: effectiveActivity ?? nowIso,
+        last_activity_at: providedActivity ?? data.createdAt ?? nowIso,
         journey: (data.journey ?? {}) as never,
       };
     let created = false;
     let error;
-    if (current) {
-      ({ error } = await supabaseAdmin.from("portal_leads").update(payload).eq("id", targetId));
-    } else {
-      // Não usar upsert com nome: um cadastro criado concorrentemente
-      // também deve conservar seu nome, sem mudar o matching existente.
-      ({ error } = await supabaseAdmin.from("portal_leads").insert({ ...payload, name: data.name }));
-      created = !error;
-      if (error?.code === "23505") {
-        const guarded = await applyIdentityGuard(targetId);
-        ({ error } = await supabaseAdmin.from("portal_leads").update(guarded).eq("id", targetId));
-      }
+    // Inserção concorrente não autoriza substituir identidade nem contexto.
+    ({ error } = await supabaseAdmin.from("portal_leads").insert({ ...payload, name: data.name }));
+    created = !error;
+    if (error?.code === "23505") {
+      const guarded = await applyIdentityGuard(targetId);
+      ({ error } = await supabaseAdmin.from("portal_leads").update(guarded).eq("id", targetId));
     }
     if (error) throw new Error(error.message);
     /**
