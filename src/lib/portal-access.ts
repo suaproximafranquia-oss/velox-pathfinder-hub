@@ -15,7 +15,7 @@ import {
 } from "@/lib/portal-access.functions";
 import { applyRemoteRelease } from "@/lib/crm/portal-release";
 import { applyRemoteConfirmation } from "@/lib/portal-verification";
-import { ensurePortalToken } from "@/lib/portal-token";
+import { clearPortalToken, ensurePortalToken } from "@/lib/portal-token";
 
 /** Sincronização periódica: a liberação aparece sozinha para o visitante. */
 export const PORTAL_ACCESS_POLL_MS = 20_000;
