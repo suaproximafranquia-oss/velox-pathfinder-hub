@@ -1,43 +1,35 @@
-# Diagnóstico — registro da Jornada do investidor em /f
+# Diagnóstico — reconhecimento de investidor existente pelo link cru em /f
 
-## Ponto exato onde o fluxo quebra
+## Qual é a regra atual
 
-**Entre `pushPortalProgress()` e a obtenção do token, antes da chamada a `trackPortalProgress()`.**
+A decisão está inteiramente no servidor, na função de identidade do banco chamada por `resolvePortalIdentity` (`src/lib/portal-identity.functions.ts:90–232`):
 
-No caminho de lead reconhecido em `/f`, a sessão recebe corretamente o `investorId` devolvido pelo servidor, mas não preenche o cache de leads. A emissão do token ainda depende desse cache. Sem o lead nele, `ensurePortalToken()` retorna `null` antes de chamar `issuePortalToken()`, e `pushPortalProgress()` não envia o evento.
+1. Normaliza WhatsApp (últimos 11 dígitos) e e-mail (minúsculo, sem espaços). Sem nenhum dos dois válidos, a entrada é recusada.
+2. Procura cadastro existente **primeiro pelo WhatsApp**, depois pelo e-mail. Entre candidatos, prefere quem já tem relacionamento iniciado, depois a atividade mais recente.
+3. **O nome não participa da busca.** Se o cadastro é encontrado com nome diferente, o nome digitado é guardado apenas como alternativa; o nome oficial não é substituído.
+4. Encontrando cadastro, devolve o identificador oficial com `recognized: true` e **não altera responsável comercial, escopo, origem nem histórico** — a atualização se limita a alternativas, marcação de divergência e horário de atividade.
+5. Só cria cadastro novo quando nenhuma das duas buscas encontra nada.
 
-**Dados reais consultados de Rafael (`gs_59275`):** existem somente `commercial.submitted` e `identity.recognized`, em 10/09/2026 às 09:31:52 e 09:31:58 de São Paulo. Não existem eventos de Manual, Material ou Simulador, nem registro em `portal_engagement`; `journey_percent` está em 0 e os horários de primeiro/último acesso estão vazios. Também não foram encontrados eventos sob o ID externo ou o identificador canônico consultados.
+**Confirmação nos dados reais de Rafael (`gs_59275`), sem alterá-los:** o registro contém uma entrada de nome alternativo e um evento `identity.recognized` de 10/09/2026 às 09:31:58 (São Paulo). Ou seja, no teste com nome divergente o servidor reconheceu o Rafael existente e não criou card novo.
 
-O defeito desse caminho está comprovado no código e é compatível com esses dados. **Não foi capturada a requisição da sessão original de Rafael:** a prévia consultada estava sem sessão de investidor. Portanto, não é possível afirmar retrospectivamente qual resposta de token ocorreu naquele navegador.
+## Ela está correta?
 
-## Arquivo/função
+**Para a identidade, sim; para o que o investidor vê, não.**
 
-| Ponto | Arquivo / função |
-|---|---|
-| Associação correta do ID | `src/components/portal/gateway-overlay.tsx:188–195` passa `result.investorId` para `startPortalSession()`; `src/lib/portal-session.ts:213–230` conserva esse ID na sessão. `getCurrentInvestorId()`, linhas 141–143, lê esse mesmo vínculo. |
-| Dependência que interrompe a emissão | `src/lib/portal-token.ts:33–58` — `ensurePortalToken()` consulta `loadLeads()` e retorna `null` na linha 43 se não encontrar e-mail/WhatsApp. |
-| Evento deixa de sair do navegador | `src/lib/portal-access.ts:121–130` — `pushPortalProgress()` esvazia o agrupamento e só chama `trackPortalProgress()` se receber token. |
-| Validação adicional do token | `src/lib/portal-token.functions.ts:20–31` — `issuePortalToken()` exige que e-mail **e** telefone coincidam com o cadastro oficial. Reconhecimento, isoladamente, não garante essa condição. |
-| Gravação e leitura oficiais | `src/lib/portal-access.functions.ts:138–200` — `trackPortalProgress()` valida token/ID e grava progresso, eventos e engajamento. `getInvestorJourneyState()`, linhas 266–290, lê essas mesmas três fontes pelo mesmo `investorId`; a Jornada em `src/components/executive/workspace/investor-profile-view.tsx:625` chama essa função. |
+A regra de identidade atende exatamente ao pedido: identificadores oficiais mandam, nome divergente não bloqueia, cadastro e responsável são preservados. Isso explica a parte positiva do teste — nenhum card "Pedro" foi criado.
 
-## Causa
+A falha está na etapa seguinte, no navegador:
 
-A proteção que impede uma visita reconhecida de recriar/mover o card em `/f` retorna cedo em `startPortalSession()`. Isso está correto para preservar o cadastro, mas deixou exposta uma dependência antiga: **o transporte dos eventos exige um lead no armazenamento local, mesmo após reconhecimento válido no servidor.**
+- **Tela de boas-vindas:** o Gateway só oferece "continuar como reconhecido" quando já existe identificação guardada no próprio navegador (`src/components/portal/gateway-overlay.tsx:106–134`). Pelo link cru em navegador sem esse histórico, o formulário aparece sempre, mesmo que o cadastro exista. A consulta de reconhecimento é usada apenas para confirmar o palpite local, nunca para descobri-lo.
+- **Sessão após identificar:** no caminho reconhecido de `/f` (`src/lib/portal-session.ts:213–230`), a sessão é montada a partir do mesmo armazenamento local. Sem ele, a sessão fica com o nome digitado ("Pedro") e sem o executivo responsável, porque o servidor devolve apenas o identificador, sem nome nem responsável.
+- Consequência já observada: sem esses dados locais, o Portal também não consegue obter a credencial que autoriza o registro da jornada, então Manual, Material e Calculadora continuam aparecendo como não iniciados.
 
-`trackJourney()` já encaminha eventos mesmo sem jornada local (`src/lib/journey/engine.ts:440–458`); o bloqueio vem depois, na obtenção da credencial. Sem ela, `trackPortalProgress()` não recebe nenhum `investorId` — não se trata, nesse caminho, de receber o ID errado.
+Portanto: **o reconhecimento acontece e é correto; ele simplesmente não é comunicado ao investidor nem à sessão quando o navegador não tem histórico próprio.**
 
-Há dois agravantes no mesmo transporte:
-- O retorno por falta de contatos ocorre antes do `try/finally`, deixando a promessa resolvida com `null` em `pending`. Novos eventos podem continuar recebendo esse resultado durante a mesma execução da página.
-- O evento é retirado do agrupamento antes da confirmação e não é recolocado quando falta token ou o envio falha. O comentário sobre reenvio não corresponde a uma tentativa real daquele evento.
+## Menor correção necessária
 
-**Não há troca de fonte entre gravação e Jornada:** a leitura usa `portal_leads`, `portal_journey_events` e `portal_engagement`, exatamente os destinos do registro server-side. Os dois eventos de identificação encontrados são gravados por outro trecho da identificação; sua existência não comprova que o tracking dos conteúdos tenha funcionado.
+**Fazer o retorno reconhecido do servidor abastecer a sessão, em vez do armazenamento do navegador.** No caminho `/f`, quando a identidade é reconhecida, devolver junto o mínimo necessário para continuidade — nome oficial de exibição, executivo responsável e a credencial da jornada — e montar a sessão com isso.
 
-## Correção mínima necessária
+Isso já respeita as travas existentes: a devolução ocorre apenas para quem comprovou e-mail e WhatsApp do próprio cadastro, e continua sem expor histórico, mensagens, escopo comercial ou dados de terceiros.
 
-**Desacoplar a autorização do tracking do cache de leads, somente no fluxo `/f`.** Obter e entregar a credencial assinada no fluxo de identificação validado no servidor, vinculada ao `investorId` oficial, antes de liberar o envio dos eventos. Não recriar/adotar um card nem usar `localStorage` como autoridade para viabilizar isso.
-
-Preservar a verificação da credencial: conhecer um ID ou receber `recognized: true` por correspondência parcial não deve, sozinho, autorizar gravação. Eventuais contatos alternativos não devem substituir os oficiais.
-
-No transporte existente, liberar `pending` também nos retornos sem token e não descartar silenciosamente o evento antes de uma confirmação de gravação, sem criar tabela ou fonte paralela.
-
-Nenhuma alteração de código ou dados foi realizada. PDF, identidade oficial, responsável, cadência e demais ambientes ficaram fora da investigação e da correção sugerida; este documento é somente diagnóstico, não autorização de implementação.
+Não é necessário mudar a regra de identidade, tornar o nome autoridade, criar tabela, fila, motor ou arquitetura, nem recriar/mover card, responsável ou origem. Nenhum código ou dado foi alterado; este documento é somente diagnóstico.
