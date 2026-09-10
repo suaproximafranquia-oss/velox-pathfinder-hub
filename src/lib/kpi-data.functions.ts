@@ -12,6 +12,39 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export type KpiCellDTO = { indicatorId: string; day: number; value: number };
 export type KpiMonthDTO = { cells: KpiCellDTO[]; updatedAt: number };
 
+/** Ranking corporativo: equipe oficial, com projeção limitada aos dois indicadores públicos da campanha. */
+export const lerVendasCampanhas = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ monthKey: z.string().regex(/^\d{4}-\d{2}$/) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { resolveKpiScope } = await import("@/server/kpi/kpi-scope.server");
+    const scope = await resolveKpiScope(context.userId, context.supabase as never);
+    const { listActiveOperationalExecutives } = await import("@/server/operational-team.server");
+    const team = await listActiveOperationalExecutives();
+    const { readCampaignSales } = await import("@/server/kpi/kpi-store.server");
+    const datasets = await readCampaignSales(team.map((entry) => entry.id), data.monthKey);
+    return { team: team.map(({ id, name }) => ({ id, name })), datasets,
+      readableReportIds: scope.collaborators.map((entry) => entry.id) };
+  });
+
+/** Brain usa o mesmo recorte do KPI, inclusive nas competências de comparação. */
+export const lerKpiBrain = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    monthKeys: z.array(z.string().regex(/^\d{4}-\d{2}$/)).min(1).max(12),
+    executiveId: z.string().min(1).nullable(),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { resolveKpiScope, readableExecutiveIds } = await import("@/server/kpi/kpi-scope.server");
+    const scope = await resolveKpiScope(context.userId, context.supabase as never);
+    const ids = readableExecutiveIds(scope, data.executiveId);
+    if (data.executiveId && !ids.length) throw new Error("Executivo fora do seu escopo autorizado.");
+    const { readKpiMonthForMany } = await import("@/server/kpi/kpi-store.server");
+    const months = await Promise.all([...new Set(data.monthKeys)].map(async (key) =>
+      [key, await readKpiMonthForMany(ids, key)] as const));
+    return { scope, months: Object.fromEntries(months) };
+  });
+
 const monthSchema = z.object({
   monthKey: z.string().min(4),
   /** `null` = consolidado do recorte autorizado. */

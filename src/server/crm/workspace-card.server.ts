@@ -42,6 +42,21 @@ export type WorkspaceCardResult =
   | { ok: true; cardId: string; created: boolean }
   | { ok: false; cardId: string; created: false; error: string };
 
+/** Origem GreenSales: atualiza SOMENTE o nome de um card já existente. */
+export async function refreshWorkspaceCardName(externalId: string, name: string): Promise<void> {
+  const cleanName = name.replace(/\u0000/g, "").trim();
+  if (!cleanName) return;
+  const { data: card, error } = await supabaseAdmin.from("portal_leads")
+    .select("id,name,manual_overrides").eq("id", `gs_${externalId}`).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!card || card.name === cleanName || (card.manual_overrides as Record<string, unknown> | null)?.name) return;
+  // Compare-and-set: não pisa numa correção manual concorrente.
+  const { error: updateError } = await supabaseAdmin.from("portal_leads")
+    .update({ name: cleanName }).eq("id", card.id).eq("name", card.name)
+    .is("manual_overrides->name", null);
+  if (updateError) throw new Error(updateError.message);
+}
+
 export async function ensureWorkspaceCard(
   input: WorkspaceCardInput,
 ): Promise<WorkspaceCardResult> {
@@ -51,7 +66,10 @@ export async function ensureWorkspaceCard(
     .select("id")
     .eq("id", cardId)
     .maybeSingle();
-  if (existing) return { ok: true, cardId, created: false };
+  if (existing) {
+    await refreshWorkspaceCardName(input.externalId, input.name);
+    return { ok: true, cardId, created: false };
+  }
 
   const now = new Date().toISOString();
     /**

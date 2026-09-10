@@ -13,7 +13,9 @@ import {
   type ScopeSelection,
 } from "@/lib/brain/scopes";
 import { AVAILABLE_MONTHS, DEFAULT_MONTH_KEY } from "@/lib/kpi-manager";
-import { visibleCollaborators } from "@/lib/teams";
+import { useServerFn } from "@tanstack/react-start";
+import { lerKpiBrain } from "@/lib/kpi-data.functions";
+import { datasetFromCells } from "@/lib/kpi-dataset";
 import { KpiCard } from "@/components/executive/brain/kpi-card";
 import { FunnelCard } from "@/components/executive/brain/funnel-card";
 import {
@@ -65,20 +67,37 @@ function BrainPage() {
     setScope(defaultScope(s.activeRole, s.userId));
   }, [navigate]);
 
+  const readBrain = useServerFn(lerKpiBrain);
+  const [official, setOfficial] = useState<Awaited<ReturnType<typeof readBrain>> | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  useEffect(() => {
+    if (!session || !scope) return;
+    let alive = true;
+    setOfficial(null);
+    setLoadError(false);
+    void readBrain({ data: {
+      monthKeys: AVAILABLE_MONTHS.map((m) => m.key),
+      executiveId: scope.mode === "executive" ? scope.executiveId ?? session.userId : null,
+    } }).then((payload) => { if (alive) setOfficial(payload); })
+      .catch(() => { if (alive) setLoadError(true); });
+    return () => { alive = false; };
+  }, [readBrain, session, scope]);
+  const months = useMemo(() => Object.fromEntries(Object.entries(official?.months ?? {}).map(([key, payload]) =>
+    [key, [datasetFromCells("authorized", key, payload)]])), [official]);
   const snapshot = useMemo(
-    () => (session && scope ? buildOperationalSnapshot(session, scope, monthKey) : null),
-    [session, scope, monthKey],
+    () => (session && scope && official ? buildOperationalSnapshot(session, scope, monthKey, months[monthKey] ?? []) : null),
+    [session, scope, monthKey, months, official],
   );
-
   const analytics = useMemo(
-    () => (session && scope ? buildBrainAnalytics(session, scope, monthKey) : null),
-    [session, scope, monthKey],
+    () => (session && scope && official ? buildBrainAnalytics(session, scope, monthKey, months, official.scope.collaborators) : null),
+    [session, scope, monthKey, months, official],
   );
-
-  if (!session || !scope || !snapshot || !analytics) return null;
-
-  const scopes = availableScopes(session.activeRole);
-  const executives = visibleCollaborators(session);
+  if (!session || !scope) return null;
+  if (!snapshot || !analytics || !official) return <ExecutiveShell session={session} title="Brain Analytics">
+    <p role="status">{loadError ? "Não foi possível carregar os lançamentos oficiais." : "Carregando lançamentos oficiais…"}</p>
+  </ExecutiveShell>;
+  const scopes = availableScopes(official.scope.role === "admin" ? "super_admin" : official.scope.role === "manager" ? "diretora" : "executivo");
+  const executives = official.scope.collaborators;
   /**
    * O PONTO DE ENTRADA DE IA FOI REMOVIDO do Brain Analytics. Os
    * relatórios tradicionais continuam intactos.

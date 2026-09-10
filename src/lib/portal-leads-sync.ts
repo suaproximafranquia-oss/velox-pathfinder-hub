@@ -37,6 +37,7 @@ export function pushLead(lead: LeadRecord, extra?: {
   const remoteScope = scope === "central_unica" ? "green_sales" : scope;
   void syncPortalLead({
     data: {
+      unit: /^\/f(?:\/|$)/.test(window.location.pathname) ? "f" : undefined,
       id: lead.id,
       name: lead.name,
       email: lead.email,

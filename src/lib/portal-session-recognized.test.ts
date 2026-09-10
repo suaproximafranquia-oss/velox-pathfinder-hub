@@ -1,0 +1,22 @@
+import { afterEach, expect, it, vi } from "vitest";
+const fake = vi.hoisted(() => ({ adopt: vi.fn(), update: vi.fn(), journey: vi.fn(), personalized: false }));
+vi.mock("./leads", () => ({ loadLeads: () => [], adoptServerLead: fake.adopt, updateLead: fake.update }));
+vi.mock("./portal-entry", () => ({ readEntryContext: () => ({ unit: null, brand: "financeira", executiveSlug: fake.personalized ? "teste" : null, campaign: "TEST-campaign" }) }));
+vi.mock("./responsible-executive", () => ({ getResponsibleExecutive: () => ({ personalized: fake.personalized, executive: fake.personalized ? { id: "TEST-owner", slug: "teste" } : null }) }));
+vi.mock("./portal-identity", () => ({ resolveIdentity: () => ({ id: "TEST-identity" }), deviceFingerprint: () => "TEST-device" }));
+vi.mock("./journey/engine", () => ({ registerJourney: fake.journey }));
+import { startPortalSession } from "./portal-session";
+afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
+it.each([false, true])("/f reconhecido sem cache retoma sessão sem criar/mover card; personalizado=%s", (personalized) => {
+  fake.personalized = personalized;
+  const setItem = vi.fn();
+  vi.stubGlobal("window", { location: { pathname: "/f" }, localStorage: { setItem, getItem: () => null } });
+  const session = startPortalSession({ investorId: "TEST-existing", recognized: true, name: "Teste", email: "test@example.invalid" });
+  expect(session.investorId).toBe("TEST-existing");
+  expect(session.responsibleExecutiveSlug).toBe(personalized ? "teste" : null);
+  expect(session.campaign).toBe("TEST-campaign");
+  expect(fake.adopt).not.toHaveBeenCalled();
+  expect(fake.update).not.toHaveBeenCalled();
+  expect(fake.journey).not.toHaveBeenCalled();
+  expect(setItem).toHaveBeenCalledTimes(1);
+});

@@ -31,6 +31,7 @@ export type IdentityInput = {
   campaign?: string | null;
   device?: string | null;
   city?: string | null;
+  unit?: "f";
   /** Só formulário submetido; reconhecer/continuar sessão não é nova entrada. */
   commercialSubmission?: { id: string; unit: "f" };
 };
@@ -140,6 +141,25 @@ export const resolvePortalIdentity = createServerFn({ method: "POST" })
         ok: false,
         reason: payload.reason === "identity_invalid" ? "identity_invalid" : "identity_unresolved",
       };
+    }
+
+    // A RPC já preserva os contatos principais; /f também conserva o nome
+    // digitado como alternativa, sem promover esse valor ao cadastro oficial.
+    if ((data.unit === "f" || data.commercialSubmission?.unit === "f") && !payload.created) {
+      const { data: official, error: readError } = await supabaseAdmin.from("portal_leads")
+        .select("name,identity_alternates").eq("id", payload.leadId).maybeSingle();
+      if (readError) return { ok: false, reason: "server_error" };
+      const name = (data.name ?? "").trim();
+      if (official && name && name !== official.name) {
+        const alternates = (official.identity_alternates ?? {}) as Record<string, unknown[]>;
+        const names = Array.isArray(alternates.name) ? alternates.name : [];
+        if (!names.some((item) => (item as { value?: unknown })?.value === name)) {
+          const { error: alternateError } = await supabaseAdmin.from("portal_leads")
+            .update({ identity_alternates: { ...alternates, name: [...names, { value: name, source: "portal", at: new Date().toISOString() }] } as never })
+            .eq("id", payload.leadId);
+          if (alternateError) return { ok: false, reason: "server_error" };
+        }
+      }
     }
 
     /**

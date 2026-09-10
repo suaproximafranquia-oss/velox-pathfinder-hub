@@ -3,6 +3,7 @@ const fake = vi.hoisted(() => ({
   created: false,
   entries: new Map<string, any>(),
   first: vi.fn(), reentry: vi.fn(),
+  official: null as any, patches: [] as any[],
 }));
 vi.mock("@tanstack/react-start", () => ({ createServerFn: () => {
   const c = { inputValidator: () => c, middleware: () => c, handler: (fn: unknown) => fn }; return c;
@@ -12,7 +13,7 @@ vi.mock("@/server/crm/portal-first-contact.server", () => ({ kickoffPortalFirstC
 vi.mock("@/server/relationship/reentry-open.server", () => ({ openCommercialReentry: fake.reentry }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   rpc: async () => ({ data: { ok: true, investorId: "TEST-identity", recognized: !fake.created }, error: null }),
-  from: () => {
+   from: (table: string) => {
     let id = "";
     const q = {
       upsert: async (row: any) => {
@@ -20,7 +21,8 @@ vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
         return { error: null };
       },
       select: () => q, eq: (_key: string, value: string) => { id = value; return q; },
-      maybeSingle: async () => ({ data: fake.entries.get(id), error: null }),
+       maybeSingle: async () => ({ data: table === "portal_leads" ? fake.official : fake.entries.get(id), error: null }),
+       update: (patch: any) => { fake.patches.push(patch); Object.assign(fake.official, patch); return q; },
       insert: async () => ({ error: null }),
     }; return q;
   },
@@ -28,7 +30,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
 import { resolvePortalIdentity } from "./portal-identity.functions";
 const data = { name: "TEST pessoa", email: "test@example.test", phone: "11999990000" };
 const commercialSubmission = { id: "11111111-1111-4111-8111-111111111111", unit: "f" };
-beforeEach(() => { fake.entries.clear(); fake.created = false; fake.first.mockReset(); fake.reentry.mockReset(); });
+beforeEach(() => { fake.entries.clear(); fake.created = false; fake.first.mockReset(); fake.reentry.mockReset(); fake.official = null; fake.patches = []; });
 it("novo cadastro chama apenas E0; retry reconhecido não transforma primeira submissão em RE", async () => {
   fake.created = true;
   await (resolvePortalIdentity as any)({ data: { ...data, commercialSubmission } });
@@ -55,5 +57,15 @@ it("conhecido sem submissão: continuar sessão não abre RE nem E0", async () =
 it("marcador inválido ou outra unidade não abre RE", async () => {
   await (resolvePortalIdentity as any)({ data: { ...data, commercialSubmission: { id: "invalid", unit: "f" } } });
   await (resolvePortalIdentity as any)({ data: { ...data, commercialSubmission: { ...commercialSubmission, unit: "s" } } });
+  expect(fake.reentry).not.toHaveBeenCalled();
+});
+it("Gateway /f mantém nome oficial e registra nome divergente como alternativa sem duplicar", async () => {
+  fake.official = { name: "Nome oficial", identity_alternates: { emails: [{ value: "outro@example.invalid" }] } };
+  await (resolvePortalIdentity as any)({ data: { ...data, unit: "f" } });
+  await (resolvePortalIdentity as any)({ data: { ...data, unit: "f" } });
+  expect(fake.official.name).toBe("Nome oficial");
+  expect(fake.official.identity_alternates.name).toHaveLength(1);
+  expect(fake.official.identity_alternates.emails).toHaveLength(1);
+  expect(fake.patches).toHaveLength(1);
   expect(fake.reentry).not.toHaveBeenCalled();
 });

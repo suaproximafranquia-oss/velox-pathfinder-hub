@@ -32,7 +32,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from(
 } } }));
 
 import { syncPortalLead } from "./portal-leads.functions";
-const incoming = { id: "TEST-0001", name: "Nome digitado no Portal", email: "test@example.invalid", whatsapp: "", scope: "portal" as const };
+const incoming = { unit: "f" as const, id: "TEST-0001", name: "Nome digitado no Portal", email: "test@example.invalid", whatsapp: "", scope: "portal" as const };
 const run = (data = incoming) => (syncPortalLead as unknown as (args: { data: typeof incoming }) => Promise<unknown>)({ data });
 beforeEach(() => { db.rows = []; db.writes = []; db.race = false; });
 
@@ -63,5 +63,30 @@ describe("Portal /f — precedência exclusiva do nome", () => {
     await run({ ...incoming, city: "Cidade Portal" } as typeof incoming);
     expect(db.rows[0]?.city).toBe("Cidade CRM");
     expect(db.rows[0]?.name).toBe("Nome CRM");
+  });
+  it("preserva contatos e contexto oficial em link cru e mantém alternativas sem repetição", async () => {
+    const official = { ...incoming, name: "Nome CRM", email: "official@example.invalid", whatsapp: "11999990000",
+      scope: "green_sales", origin: "GreenSales", responsible_executive_id: "TEST-owner", personalized: true,
+      journey: { progress: 70 }, created_at: "2026-08-01", manual_overrides: {} };
+    db.rows = [{ ...official }];
+    await run({ ...incoming, whatsapp: "11888880000" });
+    await run({ ...incoming, whatsapp: "11888880000" });
+    expect(db.rows).toHaveLength(1);
+    expect(db.rows[0]).toMatchObject(official);
+    for (const field of ["name", "email", "whatsapp"]) {
+      expect(db.rows[0].identity_alternates[field]).toHaveLength(1);
+      expect(db.writes.every((w) => !(field in w))).toBe(true);
+    }
+  });
+  it("link personalizado não troca responsável, origem ou workspace de cadastro reconhecido", async () => {
+    db.rows = [{ ...incoming, name: "Oficial", scope: "portal", responsible_executive_id: "TEST-owner", origin: "Original" }];
+    await run({ ...incoming, personalized: true, responsibleExecutiveId: "TEST-other", scope: "green_sales" } as typeof incoming);
+    expect(db.rows[0]).toMatchObject({ name: "Oficial", scope: "portal", responsible_executive_id: "TEST-owner", origin: "Original" });
+  });
+  it("não aplica nova precedência de contatos fora de /f", async () => {
+    db.rows = [{ ...incoming, email: "anterior@example.invalid", name: "Oficial", manual_overrides: {} }];
+    await run({ ...incoming, unit: undefined } as unknown as typeof incoming);
+    expect(db.rows[0].email).toBe(incoming.email);
+    expect(db.rows[0].name).toBe("Oficial");
   });
 });
