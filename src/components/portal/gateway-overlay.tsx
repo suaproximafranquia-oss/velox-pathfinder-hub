@@ -5,7 +5,7 @@
  * entrada. O Gateway identifica o visitante, cria a sessão oficial e
  * devolve o controle para a Home abrir o módulo solicitado.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ShieldCheck, X } from "lucide-react";
 import { getExecutiveBySlug } from "@/lib/executive-auth";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
@@ -37,6 +37,7 @@ async function resolveIdentityOnServer(payload: {
   campaign: string | null;
   /** COMANDO 3 §8 — canal oficial de entrada (/origem/tiktok|meta). */
   channel: "tiktok" | "meta" | null;
+  commercialSubmission?: { id: string; unit: "f" };
 }): Promise<IdentityResult> {
   /**
    * O link personalizado de Executivo continua VENCENDO o canal: quando
@@ -89,6 +90,7 @@ export function GatewayOverlay({
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+  const submissionId = useRef<string | null>(null);
 
   const executive = useMemo(() => {
     if (!open) return null;
@@ -144,7 +146,10 @@ export function GatewayOverlay({
   }, [open, executive, onClose]);
 
   /** Caminho único: servidor decide identidade, cria ou reaproveita. */
-  const enter = async (identity: { name: string; email: string; phone: string }) => {
+  const enter = async (identity: { name: string; email: string; phone: string }, submitted = false) => {
+    if (checking) return;
+    const financialSubmission = submitted && /^\/f(?:\/|$)/.test(window.location.pathname);
+    if (financialSubmission && !submissionId.current) submissionId.current = crypto.randomUUID();
     const entry = readEntryContext();
     if (executive) setResponsibleExecutiveSlug(executive.slug);
     setError("");
@@ -167,6 +172,7 @@ export function GatewayOverlay({
       personalized: Boolean(executive),
       campaign: entry.campaign ?? null,
       channel: entry.channel === "tiktok" || entry.channel === "meta" ? entry.channel : null,
+      ...(financialSubmission && submissionId.current ? { commercialSubmission: { id: submissionId.current, unit: "f" as const } } : {}),
     });
     setChecking(false);
     if (!result.ok) {
@@ -185,6 +191,7 @@ export function GatewayOverlay({
       phone: identity.phone,
       origin,
     });
+    submissionId.current = null;
     onDone();
   };
 
@@ -204,7 +211,7 @@ export function GatewayOverlay({
       setError("Informe um WhatsApp válido para identificar sua jornada.");
       return;
     }
-    await enter({ name: trimmedName, email: trimmedEmail, phone: phone.trim() });
+    await enter({ name: trimmedName, email: trimmedEmail, phone: phone.trim() }, true);
   };
 
   /** Retorno reconhecido pelo servidor: continuidade imediata. */

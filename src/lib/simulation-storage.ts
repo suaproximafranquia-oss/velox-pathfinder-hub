@@ -14,9 +14,12 @@ export function simulationDirectory(investorId: string): string {
 }
 
 export function decodeSimulationPdf(uri: string): Uint8Array {
+  if (uri.length > 14_000_000) throw new Error("PDF muito grande.");
   const match = /^data:application\/pdf(?:;[^,]*)?;base64,([A-Za-z0-9+/=\r\n]+)$/.exec(uri);
   if (!match?.[1]) throw new Error("PDF inválido.");
-  const bytes = Uint8Array.from(atob(match[1]), (c) => c.charCodeAt(0));
+  let decoded: string;
+  try { decoded = atob(match[1]); } catch { throw new Error("PDF inválido."); }
+  const bytes = Uint8Array.from(decoded, (c) => c.charCodeAt(0));
   if (bytes.length > 10_000_000 || new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") throw new Error("PDF inválido ou muito grande.");
   return bytes;
 }

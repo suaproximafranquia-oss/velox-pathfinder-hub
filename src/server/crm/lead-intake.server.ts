@@ -113,6 +113,7 @@ export async function intakeLead(
     null;
   const known = await getLeadEntryState(externalId);
   const newCommercialEntry = isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
+  const entry = resolveEntryFlow({ entryCount: known.entryCount, hasPreviousRelationship: known.exists, newCommercialEntry });
   // A COLUNA/BOARD atual é a fonte da verdade.
   const { stage, remarketing } = resolveBoardStage(pipeline, tagIds);
   const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
@@ -189,6 +190,7 @@ export async function intakeLead(
         entered_entry_stage_at?: string | null;
       }).entered_entry_stage_at,
       isTestLead: isTest,
+      commercialReentry: entry.reentry,
     });
     if (redistribution.redistributed) {
       result.e0Reason = redistribution.reason;
@@ -207,8 +209,7 @@ export async function intakeLead(
     },
     settings.cadenceActivationDate,
   );
-  const enteredNow =
-    outcome.created || context.forceEntry ? Boolean(stage?.isEntry) : outcome.enteredEntryStage;
+  const enteredNow = entry.reentry || (outcome.created || context.forceEntry ? Boolean(stage?.isEntry) : outcome.enteredEntryStage);
 
   if (enteredNow && !eligibility.eligible) {
     await recordEvent(outcome.lead.id, "e0_ignorada", eligibility.reason);
@@ -279,18 +280,13 @@ export async function intakeLead(
         : `Card operacional já existente no Workspace GreenSales (${card.cardId}).`,
     );
 
-    /** Retorno de remarketing para NOVOS — regra oficial já existente. */
-    const entry = resolveEntryFlow({
-      entryCount: known.entryCount,
-      hasPreviousRelationship: known.exists,
-      newCommercialEntry,
-    });
-    const returning = remarketing || entry.reentry;
+    /** Somente nova submissão comercial determina reentrada. */
+    const returning = entry.reentry;
     if (returning) {
       await recordEvent(
         outcome.lead.id,
         "e0_reentrada",
-        `Retorno para NOVOS de lead já conhecido${remarketing ? " (etiqueta REMARKETING preservada)" : ""} — ${entry.reason}`,
+        `Nova entrada comercial de lead conhecido — ${entry.reason}`,
         { flow: entry.flow, remarketing, entryCount: known.entryCount },
       );
     }
@@ -301,6 +297,13 @@ export async function intakeLead(
      * explícita do Administrador; qualquer outra combinação é manual.
      */
     const e0Mode = await resolveExecutiveE0Mode(responsible?.executiveId ?? null);
+    if (entry.reentry && lastEntryAt) {
+      const { openCommercialReentry } = await import("@/server/relationship/reentry-open.server");
+      await openCommercialReentry({ leadId: card.cardId, submissionKey: `entry:${lastEntryAt}`, at: lastEntryAt });
+      result.e0 = "manual";
+      result.e0Reason = "Nova entrada comercial: RE0 no motor existente, sem repetir E0.";
+      return result;
+    }
 
     /**
      * JANELA OPERACIONAL DA E0 (§16): fora de Seg–Sex 07:00–22:30 e

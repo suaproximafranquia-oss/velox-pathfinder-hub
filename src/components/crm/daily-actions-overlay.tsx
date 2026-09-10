@@ -536,9 +536,9 @@ export function DailyActionsOverlay({
               <p className="text-sm text-white/50">Reunindo as ações do dia…</p>
             ) : !selected ? (
               <div className="text-center">
-                <p className="font-display text-lg text-white">Nada pendente</p>
+                <p className="font-display text-lg text-white">Nenhuma ação em foco</p>
                 <p className="mt-1 text-sm text-white/50">
-                  Nenhuma ação prevista para hoje. A lista é recalculada automaticamente.
+                  {actions.some((a) => a.bucket === "pendente") ? "Há compromissos abertos aguardando desfecho." : "Nenhuma ação prevista para agora."}
                 </p>
               </div>
             ) : (
@@ -597,8 +597,8 @@ export function DailyActionsOverlay({
                           key={item.actionKey}
                           item={item}
                           selected={item.actionKey === selectedKey}
-                          locked={item.actionKey !== selectedKey && item.bucket !== "pendente"}
-                          onOpen={item.bucket === "pendente" ? () => { if (!transitioningRef.current && !busy) setSelectedKey(item.actionKey); } : undefined}
+                          locked={item.actionKey !== selectedKey && item.bucket !== "pendente" && !(selected?.bucket === "pendente" && item.actionKey === firstExecutableKey(actions))}
+                          onOpen={item.bucket === "pendente" || (selected?.bucket === "pendente" && item.actionKey === firstExecutableKey(actions)) ? () => { if (!transitioningRef.current && !busy) setSelectedKey(item.actionKey); } : undefined}
                         />
                       ))}
                     </ul>

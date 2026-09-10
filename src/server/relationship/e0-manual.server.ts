@@ -61,6 +61,8 @@ export async function openManualE0Cadence(
   // Redistribuição real (seq > 0) fica no caminho legado por ora: um
   // ciclo já existente não pode ser reiniciado por aqui.
   if (ownershipSeq > 0) return false;
+  // Abertura de RE exige a submissão estável; não passa pelo reconciliador de E0.
+  if (options?.reentry) return false;
 
   const already = await governedByV2([cardId]);
   if (already.has(cardId)) return true;

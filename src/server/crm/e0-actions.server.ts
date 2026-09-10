@@ -59,6 +59,7 @@ export async function createPendingE0Action(input: {
    * nunca em E0.
    */
   reentry?: boolean;
+  submissionKey?: string;
   /**
    * Sequência de titularidade (BLOCO 2). 0 = primeira entrada
    * operacional do card (comportamento histórico). N>0 = nova entrada
@@ -67,6 +68,13 @@ export async function createPendingE0Action(input: {
   ownershipSeq?: number;
   ownershipKey?: string | null;
 }): Promise<{ ok: boolean; created: boolean; reason?: string }> {
+  if (input.reentry) {
+    const { openCommercialReentry } = await import("@/server/relationship/reentry-open.server");
+    const at = input.entryAt;
+    if (!at) return { ok: false, created: false, reason: "Nova submissão sem data válida." };
+    const ok = await openCommercialReentry({ leadId: input.cardId, submissionKey: input.submissionKey ?? `entry:${at}`, at });
+    return { ok, created: false };
+  }
   const ownershipSeq = input.ownershipSeq ?? 0;
   const { data: existing } = await supabaseAdmin
     .from("workspace_e0_actions")

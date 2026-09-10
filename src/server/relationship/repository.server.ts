@@ -11,6 +11,7 @@ import type { EngineRepository } from "@/lib/relationship/ports";
 import type { TemplateResolver } from "@/lib/relationship/templates";
 import { initialRecord } from "@/lib/relationship/machine";
 import { getPublishedVersion } from "./flow-versions.server";
+import { belongsToReentryCycle, reentryInternalOrder, reentryQueueOrder } from "@/lib/relationship/reentry-cycle";
 import type {
   CadenceRecord,
   CadenceStep,
@@ -71,7 +72,7 @@ function toQueueItem(row: Row): QueueItem {
     result: row.result ?? null,
     reason: row.reason ?? null,
     flowVersionId: row.flow_version_id ?? null,
-    actionOrder: row.action_order ?? null,
+    actionOrder: row.action_order == null ? null : reentryInternalOrder(row.step, row.action_order),
     actionKind: (row.action_kind ?? null) as "call" | "message" | null,
     theoreticalDate: row.theoretical_date ?? null,
     originDate: row.origin_date ?? null,
@@ -82,6 +83,16 @@ function toQueueItem(row: Row): QueueItem {
 export function createRepository(scope: EngineScope, runId: string | null = null): EngineRepository {
   const scoped = <T extends { eq: (c: string, v: any) => T; is: (c: string, v: any) => T }>(q: T) =>
     (runId ? q.eq("scope", scope).eq("run_id", runId) : q.eq("scope", scope).is("run_id", null)) as T;
+  const loadedCycles = new Map<string, { id: string; sequence: number | null }>();
+  const activeReentrySequence = async (leadId: string): Promise<number | null> => {
+    if (scope !== "production" || runId) return null;
+    const loaded = loadedCycles.get(leadId);
+    if (loaded) return loaded.sequence;
+    const { data, error } = await scoped(supabaseAdmin.from("relationship_cadences").select("instance_seq,opened_reason,flow") as any)
+      .eq("lead_id", leadId).eq("active", true).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data?.flow === "reentrada" && data?.opened_reason?.startsWith("reentry:") ? data.instance_seq : null;
+  };
 
   return {
     scope,
@@ -101,6 +112,8 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         .order("instance_seq", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (data) loadedCycles.set(leadId, { id: data.id, sequence: data.flow === "reentrada" && data.opened_reason?.startsWith("reentry:") ? data.instance_seq : null });
+      else loadedCycles.delete(leadId);
       return data ? toRecord(data) : null;
     },
 
@@ -148,10 +161,14 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         .limit(1)
         .maybeSingle();
       if (current?.id) {
-        await supabaseAdmin
+        const loaded = loadedCycles.get(record.leadId);
+        if (loaded && loaded.id !== current.id) throw new Error("Ciclo substituído por nova entrada comercial.");
+        const { data: saved, error } = await supabaseAdmin
           .from("relationship_cadences")
           .update(payload as any)
-          .eq("id", current.id);
+          .eq("id", current.id).eq("active", true).select("id");
+        if (error) throw new Error(error.message);
+        if (!saved?.length) throw new Error("Ciclo substituído por nova entrada comercial.");
         return;
       }
       /**
@@ -175,11 +192,15 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       if (event.scope !== scope) {
         throw new Error("Evento de outro ambiente não pode ser registrado por este repositório.");
       }
+      // Chaves legadas de conclusão RE eram por lead/etapa, não por nova submissão.
+      // Somente esses eventos ganham vínculo ao ciclo; o histórico anterior é intocado.
+      const reentryCompletion = /:RE[0-3]:(sent|completed)$/.test(event.id);
+      const sequence = reentryCompletion ? await activeReentrySequence(event.leadId) : null;
       const { error } = await supabaseAdmin.from("relationship_events").insert({
         scope,
         run_id: runId,
         lead_id: event.leadId,
-        event_key: event.id,
+        event_key: sequence === null ? event.id : `${event.id}:cycle:${sequence}`,
         type: event.type,
         step: event.step ?? null,
         template_id: event.templateId ?? null,
@@ -194,15 +215,23 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     },
 
     async loadQueue(leadId) {
+      const sequence = await activeReentrySequence(leadId);
       const { data } = await scoped(supabaseAdmin.from("relationship_queue").select("*") as any)
         .eq("lead_id", leadId)
         .order("due_at", { ascending: true });
-      return (data ?? []).map(toQueueItem);
+      return (data ?? []).filter((row: Row) => sequence === null || belongsToReentryCycle(row.step, row.action_order ?? 1, sequence)).map(toQueueItem);
     },
 
     async upsertQueueItem(item) {
       if (item.scope !== scope || (item.runId ?? null) !== runId) {
         throw new Error("Tarefa de outro ambiente/rodada não pode entrar nesta fila.");
+      }
+      const sequence = /^RE[0-3]$/.test(item.step) ? await activeReentrySequence(item.leadId) : null;
+      const loaded = loadedCycles.get(item.leadId);
+      if (loaded?.sequence != null) {
+        const { data: active } = await scoped(supabaseAdmin.from("relationship_cadences").select("id") as any)
+          .eq("lead_id", item.leadId).eq("active", true).maybeSingle();
+        if (active?.id !== loaded.id) throw new Error("Ciclo substituído por nova entrada comercial.");
       }
       const payload = {
         scope,
@@ -220,7 +249,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         // Versão herdada do ciclo: a ação pendente continua explicável.
         flow_version_id: item.flowVersionId ?? null,
         // RÉGUA V2: ação interna, data teórica e origem do ciclo.
-        action_order: item.actionOrder ?? 1,
+        action_order: sequence === null ? (item.actionOrder ?? 1) : reentryQueueOrder(sequence, item.actionOrder ?? 1),
         action_kind: item.actionKind ?? null,
         theoretical_date: item.theoreticalDate ?? null,
         origin_date: item.originDate ?? null,

@@ -5,6 +5,7 @@ import { FLOW_SEQUENCE, STEPS } from "./config";
 import { applyEvent, initialRecord } from "./machine";
 import { decideNextAction } from "./decide";
 import { HOMOLOGATION_MESSAGES } from "./messages";
+import type { V2DecisionInput } from "./cadence-v2-decide";
 
 describe("resolveEntryFlow", () => {
   it("histórico de várias entradas não substitui uma nova submissão", () => {
@@ -39,6 +40,23 @@ describe("resolveEntryFlow", () => {
 });
 
 describe("fluxo de reentrada", () => {
+  it("nova submissão abre RE0 independente de NOVOS/FRIOS, preservando compromisso real", () => {
+    const at = "2026-09-09T12:00:00Z";
+    const record = applyEvent(initialRecord({ scope: "homologation", leadId: "TEST-entry", at }), {
+      id: "TEST-entry", scope: "homologation", leadId: "TEST-entry", type: "LEAD_CREATED", at,
+      data: { manualE0: true, reentry: true },
+    }).record;
+    const v2: V2DecisionInput = {
+      nowIso: at, flow: "RE", originDate: "2026-09-09", actions: [], executedSteps: [],
+      cycle: { materialSent: false, materialRequested: false, visualPath: false },
+      stageKey: "novos", hasCommitment: false, awaitingHandoff: false,
+    };
+    for (const stage of ["novos", "frio", "zero_contato", null]) {
+      expect(decideNextAction(record, { nowIso: at, enabled: true, hasTemplateForPurpose: () => true, stageAtClosing: stage, v2: { ...v2, stageKey: stage } })).toMatchObject({ kind: "schedule_step", step: "RE0" });
+    }
+    expect(decideNextAction(record, { nowIso: at, enabled: true, hasTemplateForPurpose: () => true, v2: { ...v2, stageKey: "agendamentos", hasCommitment: true } }).kind).toBe("none");
+  });
+
   it("sequência oficial é RE0 → RE3", () => {
     expect(FLOW_SEQUENCE.reentrada).toEqual(["RE0", "RE1", "RE2", "RE3"]);
     expect(STEPS.RE3.terminal).toBe(true);
