@@ -58,15 +58,19 @@ const CONTINUITY_WINDOW_MS = 20 * 60 * 1000;
 async function recentContinuityLead(executiveId: string | null): Promise<string | null> {
   if (!executiveId) return null;
   const since = new Date(Date.now() - CONTINUITY_WINDOW_MS).toISOString();
-  const { data } = await supabaseAdmin
-    .from("relationship_queue")
-    .select("lead_id,executed_at")
-    .eq("claimed_by", executiveId)
-    .eq("status", "DONE")
-    .gte("executed_at", since)
-    .order("executed_at", { ascending: false })
-    .limit(1);
-  return (data ?? [])[0]?.lead_id ?? null;
+  try {
+    const { data } = await supabaseAdmin
+      .from("relationship_queue")
+      .select("lead_id,executed_at")
+      .eq("claimed_by", executiveId)
+      .eq("status", "DONE")
+      .gte("executed_at", since)
+      .order("executed_at", { ascending: false })
+      .limit(1);
+    return (data ?? [])[0]?.lead_id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function currentDailyAction(
