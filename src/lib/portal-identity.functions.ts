@@ -198,12 +198,14 @@ export const resolvePortalIdentity = createServerFn({ method: "POST" })
       if (readError || entry?.investor_id !== payload.leadId || entry.event !== "commercial.submitted") return { ok: false, reason: "server_error" };
       submissionCreated = entry.detail === "first_entry";
       submissionAt = entry.created_at;
-      if (!submissionCreated) {
-        try {
-          const { openCommercialReentry } = await import("@/server/relationship/reentry-open.server");
-          await openCommercialReentry({ leadId: payload.leadId, submissionKey: `portal:${id}`, at: submissionAt });
-        } catch { return { ok: false, reason: "server_error" }; }
-      }
+      /**
+       * REENTRADA (RE) — REGRA FECHADA: o ciclo RE nasce EXCLUSIVAMENTE
+       * de uma NOVA ENTRADA COMERCIAL recebida da GreenSales (caminho
+       * `intakeLead` → `createPendingE0Action({ reentry: true })`).
+       * Nenhum evento do Portal — formulário, retorno, Manual, Material,
+       * Calculadora, link cru ou personalizado — abre ou infere RE.
+       * Aqui o Portal apenas registra a submissão e a identidade.
+       */
     }
     if (submissionCreated === true || (submissionCreated === null && payload.created)) {
       try {
