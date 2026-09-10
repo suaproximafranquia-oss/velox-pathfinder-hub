@@ -405,10 +405,11 @@ export function DailyActionCard({
           Aviso · Atividade no Portal
         </p>
         <h3 className="font-display text-2xl leading-tight text-white">{item.title}</h3>
-        <p className="text-sm text-white/55">
-          Sinal comercial informativo. Nenhuma etapa foi criada e nada foi enviado ao
-          investidor.
-        </p>
+        {item.alertAt && (
+          <p className="text-sm text-white/55">
+            Acessou em {formatFullDay(item.alertAt)} às {operationalTime(item.alertAt)}.
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
