@@ -694,3 +694,30 @@ export const confirmPendingRecoveryFn = createServerFn({ method: "POST" })
     const { hasSkipRecovery } = await import("@/server/crm/daily-actions-log.server");
     return { recovered: await hasSkipRecovery(data.actionKey) };
   });
+
+/**
+ * ALERTA DE ATIVIDADE DO PORTAL — "Concluído" encerra SOMENTE o sinal.
+ * Nenhuma obrigação é concluída, nenhuma cadência avança e nada é
+ * enviado ao investidor.
+ */
+export const concludePortalAlertFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { actionKey: string; leadId: string | null }) =>
+    z
+      .object({ actionKey: z.string().min(1), leadId: z.string().nullable() })
+      .parse(data),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true; queue: DailyAction[] }> => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { concludePortalActivityAlert } = await import(
+      "@/server/crm/portal-activity-alerts.server"
+    );
+    await concludePortalActivityAlert({
+      actionKey: data.actionKey,
+      leadId: data.leadId,
+      userId: context.userId,
+      executiveId,
+    });
+    return { ok: true, queue: await queueAfterOutcome(executiveId) };
+  });
