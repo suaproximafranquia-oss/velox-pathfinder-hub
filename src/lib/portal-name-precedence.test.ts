@@ -31,9 +31,9 @@ vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from(
   }; return query;
 } } }));
 
-import { syncPortalLead } from "./portal-leads.functions";
+import { syncPortalLead, type PortalLeadPayload } from "./portal-leads.functions";
 const incoming = { unit: "f" as const, id: "TEST-0001", name: "Nome digitado no Portal", email: "test@example.invalid", whatsapp: "", scope: "portal" as const };
-const run = (data = incoming) => (syncPortalLead as unknown as (args: { data: typeof incoming }) => Promise<unknown>)({ data });
+const run = (data: PortalLeadPayload = incoming) => (syncPortalLead as unknown as (args: { data: PortalLeadPayload }) => Promise<unknown>)({ data });
 beforeEach(() => { db.rows = []; db.writes = []; db.race = false; });
 
 describe("Portal /f — precedência exclusiva do nome", () => {
@@ -80,12 +80,12 @@ describe("Portal /f — precedência exclusiva do nome", () => {
   });
   it("link personalizado não troca responsável, origem ou workspace de cadastro reconhecido", async () => {
     db.rows = [{ ...incoming, name: "Oficial", scope: "portal", responsible_executive_id: "TEST-owner", origin: "Original" }];
-    await run({ ...incoming, personalized: true, responsibleExecutiveId: "TEST-other", scope: "green_sales" } as typeof incoming);
+    await run({ ...incoming, personalized: true, responsibleExecutiveId: "TEST-other", scope: "green_sales" });
     expect(db.rows[0]).toMatchObject({ name: "Oficial", scope: "portal", responsible_executive_id: "TEST-owner", origin: "Original" });
   });
   it("não aplica nova precedência de contatos fora de /f", async () => {
     db.rows = [{ ...incoming, email: "anterior@example.invalid", name: "Oficial", manual_overrides: {} }];
-    await run({ ...incoming, unit: undefined } as unknown as typeof incoming);
+    await run({ ...incoming, unit: undefined });
     expect(db.rows[0].email).toBe(incoming.email);
     expect(db.rows[0].name).toBe("Oficial");
   });
