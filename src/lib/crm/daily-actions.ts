@@ -40,14 +40,24 @@ export type DailyActionSource =
   | "queue"
   | "cadence"
   /** Ligação atendida sem encaminhamento registrado — decisão humana. */
-  | "handoff";
+  | "handoff"
+  /** Sinal informativo de atividade real do investidor no Portal. */
+  | "portal_alert";
 export type DailyActionKind =
   | "primeiro_contato"
   | "reuniao"
   | "compromisso"
   | "mensagem"
-  | "ligacao";
-export type DailyActionBucket = "agora" | "atrasada" | "hoje" | "futura" | "pendente";
+  | "ligacao"
+  | "alerta_portal";
+export type DailyActionBucket =
+  | "agora"
+  | "atrasada"
+  | "hoje"
+  | "futura"
+  | "pendente"
+  /** Aviso: visível, nunca executável, nunca disputa a posição 1. */
+  | "alerta";
 
 export type CadenceAttemptView = { step: number; date: string; outcome: "SIM" | "NAO" };
 
@@ -192,6 +202,8 @@ export function actionRank(action: DailyAction): number {
    * POSIÇÃO 1 PROTEGIDA: a ação já reivindicada pelo executivo (em
    * atendimento) não é deslocada por novas liberações da régua.
    */
+  /** Aviso do Portal: sempre por último, nunca ocupa a vez de ninguém. */
+  if (action.bucket === "alerta") return 8;
   if (action.bucket === "pendente") return 7;
   if (action.claimed) return 0;
   /**
@@ -214,7 +226,11 @@ export function actionRank(action: DailyAction): number {
 
 /** Pendências abertas são acessíveis sob demanda, nunca escolhidas automaticamente. */
 export function isAutomaticDailyAction(action: DailyAction): boolean {
-  return action.bucket !== "futura" && action.bucket !== "pendente";
+  return (
+    action.bucket !== "futura" &&
+    action.bucket !== "pendente" &&
+    action.bucket !== "alerta"
+  );
 }
 
 /** Compromisso de outro dia: visível, porém não executável hoje. */
@@ -300,6 +316,8 @@ const SOURCE_PRECEDENCE: Record<DailyActionSource, number> = {
    */
   cadence: 4,
   queue: 5,
+  /** Aviso nunca substitui obrigação comercial: menor precedência. */
+  portal_alert: 9,
 
 };
 
@@ -326,7 +344,8 @@ export function collapseByLead(actions: DailyAction[]): DailyAction[] {
   const byLead = new Map<string, DailyAction>();
   const loose: DailyAction[] = [];
   for (const action of actions) {
-    if (!action.leadId || action.bucket === "pendente") {
+    // O aviso do Portal convive com a ação comercial do mesmo lead.
+    if (!action.leadId || action.bucket === "pendente" || action.bucket === "alerta") {
       loose.push(action);
       continue;
     }
@@ -380,4 +399,5 @@ export const KIND_LABEL: Record<DailyActionKind, string> = {
   compromisso: "Compromisso",
   mensagem: "Mensagem",
   ligacao: "Ligação",
+  alerta_portal: "Atividade no Portal",
 };

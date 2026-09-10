@@ -187,12 +187,21 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     queue.map((q) => q.lead_id as string),
   );
 
+  /**
+   * AVISO DE ATIVIDADE DO PORTAL — leitura pura dos eventos reais já
+   * gravados. Não é etapa, não é obrigação e nunca disputa a posição 1.
+   */
+  const portalAlerts = await import("@/server/crm/portal-activity-alerts.server")
+    .then((m) => m.listPortalActivityAlerts(input.executiveId, nowIso))
+    .catch(() => []);
+
   const identities = await loadLeadIdentities([
     ...meetings.map((m) => m.investor_id as string),
     ...queue.map((q) => q.lead_id as string),
     ...cadenceQueue.map((c) => `gs_${c.externalId}`),
     ...closureDuties.map((d) => d.leadId),
     ...firstContacts.map((a) => a.card_id),
+    ...portalAlerts.map((a) => a.leadId),
   ]);
 
   const actions: DailyAction[] = [];
@@ -457,6 +466,36 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
    * PULADAS HOJE — a ação sai da lista do dia, mas continua registrada
    * no histórico e volta amanhã se a fonte oficial seguir pendente.
    */
+  /**
+   * AVISOS DE ATIVIDADE DO PORTAL. Entram como sinal informativo, no
+   * balde próprio (`alerta`): nunca são escolhidos automaticamente,
+   * nunca colapsam a ação comercial do mesmo investidor e nunca
+   * carregam etapa, ligação, mensagem ou envio.
+   */
+  for (const alert of portalAlerts) {
+    const identity = identities.get(alert.leadId);
+    if (!identity || identity.archived) continue;
+    actions.push({
+      actionKey: alert.actionKey,
+      source: "portal_alert",
+      kind: "alerta_portal",
+      leadId: alert.leadId,
+      name: identity.name,
+      phone: identity.phone,
+      scope: identity.scope,
+      stepLabel: null,
+      dueDate: operationalDate(alert.at),
+      startsAt: null,
+      endsAt: null,
+      overdue: false,
+      priorityMax: false,
+      bucket: "alerta",
+      title: `${identity.name} acessou o Portal do Investidor.`,
+      responsibleName: null,
+      attempts: [],
+    });
+  }
+
   const skipped = await listSkippedActionKeys(nowIso).catch(() => new Set<string>());
   const visible = skipped.size ? actions.filter((a) => !skipped.has(a.actionKey)) : actions;
 

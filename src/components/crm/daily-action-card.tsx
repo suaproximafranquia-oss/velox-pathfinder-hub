@@ -391,6 +391,58 @@ export function DailyActionCard({
   }
 
 
+  /**
+   * AVISO DE ATIVIDADE DO PORTAL — informação, não tarefa.
+   *
+   * Não é etapa, não é ligação, não é mensagem e não envia nada ao
+   * investidor. "Concluído" encerra apenas o aviso; "Ver ficha completa"
+   * abre o investidor oficial.
+   */
+  if (item.kind === "alerta_portal") {
+    return (
+      <div className="space-y-4">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-300/70">
+          Aviso · Atividade no Portal
+        </p>
+        <h3 className="font-display text-2xl leading-tight text-white">{item.title}</h3>
+        <p className="text-sm text-white/55">
+          Sinal comercial informativo. Nenhuma etapa foi criada e nada foi enviado ao
+          investidor.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (!adapter.concludeAlert) return;
+              setBusy(true);
+              void adapter
+                .concludeAlert(item)
+                .then((result) => {
+                  if (result.ok) applyResult(result);
+                  else setFeedback(result.message ?? "Não foi possível concluir o aviso.");
+                })
+                .finally(() => setBusy(false));
+            }}
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
+          >
+            <Check className="h-4 w-4" /> Concluído
+          </button>
+          {item.leadId && onOpenLead && (
+            <button
+              type="button"
+              onClick={() => onOpenLead(item.leadId as string, item.scope ?? null)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition hover:bg-white/[0.08]"
+            >
+              <ExternalLink className="h-4 w-4" /> Ver ficha completa
+            </button>
+          )}
+        </div>
+        {feedback && <p className="text-[11px] text-[color:var(--gold)]">{feedback}</p>}
+      </div>
+    );
+  }
+
   return (
     <>
       <div>

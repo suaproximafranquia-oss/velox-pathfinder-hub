@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bell,
   CalendarClock,
   CalendarDays,
   Lock,
@@ -45,6 +46,7 @@ const KIND_ICON: Record<DailyActionKind, typeof Phone> = {
   compromisso: CalendarDays,
   mensagem: MessageSquare,
   ligacao: Phone,
+  alerta_portal: Bell,
 };
 
 const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
@@ -58,6 +60,8 @@ const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
    */
   { key: "pendente", label: "Pendências abertas", tone: "text-muted-foreground" },
   { key: "futura", label: "Próximos compromissos", tone: "text-sky-300/70" },
+  /** Sinal informativo: não é tarefa e nunca entra na ordem de execução. */
+  { key: "alerta", label: "Avisos do Portal", tone: "text-emerald-300/70" },
 ];
 
 /**
@@ -66,6 +70,11 @@ const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
  */
 function firstExecutableKey(rows: DailyAction[]): string | null {
   return rows.find(isAutomaticDailyAction)?.actionKey ?? null;
+}
+
+/** Card aberto apenas para consulta: pendência ou aviso do Portal. */
+function consultable(item: DailyAction | null | undefined): boolean {
+  return item?.bucket === "pendente" || item?.bucket === "alerta";
 }
 
 
@@ -270,7 +279,10 @@ export function DailyActionsOverlay({
        if (transitioningRef.current) return;
       setActions((previous) => {
         const next = reclassifyDailyActions(previous, new Date().toISOString(), continuityLeadRef.current);
-        setSelectedKey((key) => next.some((a) => a.actionKey === key && a.bucket === "pendente") && previous.some((a) => a.actionKey === key && a.bucket === "pendente") ? key : firstExecutableKey(next));
+        // Consulta aberta (pendência ou aviso do Portal) não é trocada sozinha.
+        const held = (rows: DailyAction[], key: string | null) =>
+          rows.some((a) => a.actionKey === key && (a.bucket === "pendente" || a.bucket === "alerta"));
+        setSelectedKey((key) => (held(next, key) && held(previous, key) ? key : firstExecutableKey(next)));
         return next;
       });
     }, 30000);
@@ -597,8 +609,8 @@ export function DailyActionsOverlay({
                           key={item.actionKey}
                           item={item}
                           selected={item.actionKey === selectedKey}
-                          locked={item.actionKey !== selectedKey && item.bucket !== "pendente" && !(selected?.bucket === "pendente" && item.actionKey === firstExecutableKey(actions))}
-                          onOpen={item.bucket === "pendente" || (selected?.bucket === "pendente" && item.actionKey === firstExecutableKey(actions)) ? () => { if (!transitioningRef.current && !busy) setSelectedKey(item.actionKey); } : undefined}
+                          locked={item.actionKey !== selectedKey && item.bucket !== "pendente" && item.bucket !== "alerta" && !(consultable(selected) && item.actionKey === firstExecutableKey(actions))}
+                          onOpen={item.bucket === "pendente" || item.bucket === "alerta" || (consultable(selected) && item.actionKey === firstExecutableKey(actions)) ? () => { if (!transitioningRef.current && !busy) setSelectedKey(item.actionKey); } : undefined}
                         />
                       ))}
                     </ul>
