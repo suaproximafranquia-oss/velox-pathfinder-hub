@@ -72,6 +72,11 @@ function firstExecutableKey(rows: DailyAction[]): string | null {
   return rows.find(isAutomaticDailyAction)?.actionKey ?? null;
 }
 
+/** Card aberto apenas para consulta: pendência ou aviso do Portal. */
+function consultable(item: DailyAction | null | undefined): boolean {
+  return item?.bucket === "pendente" || item?.bucket === "alerta";
+}
+
 
 export function DailyActionsOverlay({
   open,
