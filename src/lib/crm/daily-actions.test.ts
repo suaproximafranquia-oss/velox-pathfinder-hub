@@ -37,18 +37,18 @@ function action(partial: Partial<DailyAction> & { actionKey: string }): DailyAct
 describe("Ações do Dia — regras puras", () => {
   const now = "2026-02-10T14:00:00.000Z"; // 11:00 em America/Sao_Paulo
 
-  it("reclassifica reunião futura, em foco e pendente com os mesmos limites", () => {
+  it("reclassifica reunião futura, em foco e atrasada com os mesmos limites", () => {
     const row = action({ actionKey: "meeting:TEST-0001", source: "meeting", kind: "reuniao", startsAt: "2026-02-10T14:00:00.000Z", bucket: "futura", priorityMax: true });
     expect(reclassifyDailyActions([row], "2026-02-10T13:54:00.000Z")[0]?.bucket).toBe("futura");
     expect(reclassifyDailyActions([row], "2026-02-10T13:55:00.000Z")[0]?.bucket).toBe("agora");
     expect(reclassifyDailyActions([row], "2026-02-10T14:05:00.000Z")[0]?.bucket).toBe("agora");
-    expect(reclassifyDailyActions([row], "2026-02-10T14:06:00.000Z")[0]?.bucket).toBe("pendente");
+    expect(reclassifyDailyActions([row], "2026-02-10T14:06:00.000Z")[0]?.bucket).toBe("atrasada");
     const tomorrow = reclassifyDailyActions([row, action({ actionKey: "queue:TEST-2:E0", leadId: "TEST-2" })], "2026-02-11T14:00:00.000Z");
     const meeting = tomorrow.find((a) => a.source === "meeting");
     if (!meeting) throw new Error("Compromisso deve continuar visível");
-    expect(meeting.overdue).toBe(false);
-    expect(isAutomaticDailyAction(meeting)).toBe(false);
-    expect(tomorrow[0].source).toBe("queue");
+    expect(meeting.overdue).toBe(true);
+    expect(isAutomaticDailyAction(meeting)).toBe(true);
+    expect(tomorrow[0].source).toBe("meeting");
   });
 
   it("E0 segue o calendário existente, sem atraso durante fim de semana", () => {
@@ -166,7 +166,7 @@ describe("Ações do Dia — regras puras", () => {
     expect(rows[0]?.secondary?.map((s) => s.kind).sort()).toEqual(["ligacao", "mensagem"]);
   });
 
-  it("7) reunião passada permanece aberta sem bloquear cadência", () => {
+  it("7) reunião passada permanece aberta e prioritária", () => {
     const rows = normalizeDailyActions([
       action({ actionKey: "queue:f:E1:1", leadId: "f", bucket: "atrasada" }),
       action({
@@ -175,11 +175,11 @@ describe("Ações do Dia — regras puras", () => {
         kind: "reuniao",
         leadId: "g",
         priorityMax: true,
-        bucket: "pendente",
+        bucket: "atrasada",
         startsAt: "2026-02-10T12:00:00.000Z",
       }),
     ]);
-    expect(rows[0]?.source).toBe("queue");
+    expect(rows[0]?.source).toBe("meeting");
   });
 
   it("8) concluir na fonte oficial remove o item na releitura", () => {
@@ -329,5 +329,19 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
     const rows = normalizeDailyActions([kellyEmAtendimento, ronaldoMsg], "ronaldo");
     expect(rows[0]?.leadId).toBe("ronaldo");
     expect(rows[1]?.leadId).toBe("kelly");
+  });
+
+  it("ação claimed vence compromisso de prioridade máxima no empate", () => {
+    const claimed = action({ actionKey: "queue:claimed:E1:1", leadId: "claimed", claimed: true });
+    const meeting = action({
+      actionKey: "meeting:priority",
+      source: "meeting",
+      kind: "reuniao",
+      leadId: "meeting",
+      priorityMax: true,
+      bucket: "agora",
+      startsAt: "2026-02-10T13:59:00.000Z",
+    });
+    expect(normalizeDailyActions([meeting, claimed])[0]?.actionKey).toBe(claimed.actionKey);
   });
 });

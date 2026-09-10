@@ -113,10 +113,8 @@ export function DailyActionsOverlay({
 
   /**
    * RECONCILIAÇÃO APÓS CONCLUIR.
-   *
-    * A conclusão real usa uma barreira única de 4s e releitura oficial.
-    * A reconferência curta abaixo permanece apenas nos demais caminhos
-    * já existentes; seus timers são cancelados ao iniciar a conclusão.
+   * As reconferências curtas são fallback apenas quando a operação não
+   * devolve sua fila oficial.
    */
   const SETTLE_STEPS_MS = [900, 2200, 4000, 7000];
   /** Ações já resolvidas nesta tela — respostas atrasadas não as ressuscitam. */
@@ -238,20 +236,30 @@ export function DailyActionsOverlay({
     setFeedback(null);
     clearSettleTimers();
     ++queueVersionRef.current; // Invalida leituras iniciadas antes do clique.
-    continuityLeadRef.current = item.leadId;
     resolvedKeysRef.current.delete(item.actionKey);
 
-    // A gravação pode durar mais que 4s: só revalidar depois de AMBAS.
-    // A lista devolvida pela gravação não seleciona nenhum card.
-    const [result] = await Promise.all([
-      Promise.resolve().then(run).catch((error): AdapterResult => ({
+    const result = await Promise.resolve().then(run).catch((error): AdapterResult => ({
         ok: false,
         message: error instanceof Error ? error.message : fallback,
-      })),
-      new Promise<void>((resolve) => window.setTimeout(resolve, 4000)),
-    ]);
+      }));
     setFeedback(result.message ?? (result.ok ? null : fallback));
-    if (!result.ok) setUndoable(null);
+    if (!result.ok) {
+      continuityLeadRef.current = null;
+      setUndoable(null);
+      await revalidateCompletion();
+      return;
+    }
+
+    resolvedKeysRef.current.set(item.actionKey, Date.now() + 15000);
+    continuityLeadRef.current = item.bucket === "alerta" ? null : item.leadId;
+    if (result.queue) {
+      commitQueue(result.queue, ++queueVersionRef.current);
+      transitioningRef.current = false;
+      setTransition("idle");
+      void loadPendings();
+      return;
+    }
+
     await revalidateCompletion();
   }
 

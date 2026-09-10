@@ -176,7 +176,7 @@ export function resolveBucket(input: {
   if (input.startsAt) {
     const startMs = new Date(input.startsAt).getTime();
     if (Number.isFinite(startMs)) {
-      if (startMs <= nowMs) return startMs < nowMs - window ? "pendente" : "agora";
+      if (startMs <= nowMs) return startMs < nowMs - window ? "atrasada" : "agora";
       if (startMs - nowMs <= window) return "agora";
       /**
        * COMPROMISSO COM HORÁRIO AINDA POR VIR NÃO É TRABALHO DE AGORA —
@@ -207,7 +207,7 @@ export function actionRank(action: DailyAction): number {
    * POSIÇÃO 1 PROTEGIDA: a ação já reivindicada pelo executivo (em
    * atendimento) não é deslocada por novas liberações da régua.
    */
-  if (action.claimed) return 0;
+  if (action.claimed) return -1;
   /**
    * AVISO DO PORTAL: entra logo DEPOIS da ação em atendimento e antes
    * dos demais itens. Continua sendo apenas sinal informativo — não é

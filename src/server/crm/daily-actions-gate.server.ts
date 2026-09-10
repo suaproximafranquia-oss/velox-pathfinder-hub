@@ -47,13 +47,11 @@ export function queueItemIdOf(action: DailyAction | null | undefined): string | 
 const CONTINUITY_WINDOW_MS = 20 * 60 * 1000;
 
 /**
- * CONTINUIDADE DA CADEIA E0 — DECIDIDA PELO SERVIDOR.
+ * CONTINUIDADE DA CADEIA — DECIDIDA PELO SERVIDOR.
  *
- * A E0 é uma sequência única: ligação 1 → 10 minutos → ligação 2 →
- * mensagem. Quando a ação recém-executada pertence à E0 desse lead, a
- * próxima ação da MESMA cadeia continua o atendimento e não vai para
- * trás das demais atrasadas. Vale exclusivamente para a E0: nenhuma
- * outra etapa é promovida por este caminho.
+ * Uma ligação sem atendimento só mantém o lead em curso quando o motor
+ * já criou uma próxima ação pendente da MESMA etapa. A decisão usa o
+ * resultado e a fila reais; não presume continuidade pelo nome da etapa.
  *
  * Lê a MESMA fila do motor: nenhuma segunda fila, nenhum `due_at`
  * alterado e nenhum item marcado artificialmente como atrasado.
@@ -67,15 +65,38 @@ async function recentContinuityLead(executiveId: string | null): Promise<string 
   try {
     const { data } = await supabaseAdmin
       .from("relationship_queue")
-      .select("lead_id,executed_at,step")
+      .select("lead_id,executed_at,step,scope,action_order,result,action_kind")
       .eq("claimed_by", executiveId)
       .eq("status", "EXECUTED")
       .gte("executed_at", since)
       .order("executed_at", { ascending: false })
       .limit(1);
-    const last = (data ?? [])[0] as { lead_id?: string; step?: string } | undefined;
-    if (!last?.lead_id) return null;
-    return String(last.step ?? "").toUpperCase() === "E0" ? last.lead_id : null;
+    const last = (data ?? [])[0] as {
+      lead_id?: string;
+      step?: string;
+      scope?: string;
+      action_order?: number;
+      result?: string;
+      action_kind?: string;
+    } | undefined;
+    if (
+      !last?.lead_id ||
+      last.result !== "NAO" ||
+      last.action_kind !== "call" ||
+      !last.step ||
+      !last.scope
+    ) return null;
+
+    const { data: next } = await supabaseAdmin
+      .from("relationship_queue")
+      .select("id")
+      .eq("scope", last.scope)
+      .eq("lead_id", last.lead_id)
+      .eq("step", last.step)
+      .in("status", ["PENDING", "PROCESSING"])
+      .gt("action_order", Number(last.action_order ?? 0))
+      .limit(1);
+    return (next ?? []).length > 0 ? last.lead_id : null;
   } catch {
     return null;
   }

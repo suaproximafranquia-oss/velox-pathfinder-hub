@@ -34,8 +34,6 @@ const REAL_EVENTS = [
 
 /** Nova visita relevante: 7 dias completos sem nenhum acesso real. */
 const RETURN_GAP_MS = 7 * 24 * 3600 * 1000;
-/** Um alerta só é trabalho de agora enquanto for recente. */
-const VISIBLE_WINDOW_MS = 7 * 24 * 3600 * 1000;
 
 export const PORTAL_ALERT_DONE_ACTION = "acao_do_dia_alerta_portal_concluido";
 
@@ -114,14 +112,13 @@ export async function listPortalActivityAlerts(
   const alerts: PortalActivityAlert[] = [];
 
   for (const [leadId, moments] of byLead) {
-    let previous: number | null = null;
+    let previousQualified: number | null = null;
     for (const iso of moments) {
       const at = Date.parse(iso);
       if (!Number.isFinite(at)) continue;
-      const isNewVisit = previous === null || at - previous >= RETURN_GAP_MS;
-      previous = at;
+      const isNewVisit = previousQualified === null || at - previousQualified >= RETURN_GAP_MS;
       if (!isNewVisit) continue;
-      if (now - at > VISIBLE_WINDOW_MS) continue;
+      previousQualified = at;
       const key = alertKey(leadId, iso);
       if (concluded.has(key)) continue;
       alerts.push({ actionKey: key, leadId, at: iso });
