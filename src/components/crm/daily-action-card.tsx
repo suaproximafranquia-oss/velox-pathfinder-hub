@@ -447,7 +447,7 @@ export function DailyActionCard({
 
   return (
     <>
-      <div>
+      <div className="relative">
         <p className="text-[11px] uppercase tracking-[0.18em] text-white/40">
           {actionHeadline(item)}
           {item.startsAt ? ` · ${operationalTime(item.startsAt)}` : ""}
@@ -806,7 +806,8 @@ export function DailyActionCard({
         conversa por fora. O botão apenas registra o histórico.
       */}
       {messageOpen && (
-        <div className="mt-4 flex max-h-[28rem] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-4">
+          <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">
@@ -889,6 +890,7 @@ export function DailyActionCard({
                 <Check className="mr-1 inline h-4 w-4" /> Concluído
               </button>
             </div>
+          </div>
         </div>
       )}
     </>
