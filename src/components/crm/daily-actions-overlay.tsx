@@ -597,7 +597,7 @@ export function DailyActionsOverlay({
                           key={item.actionKey}
                           item={item}
                           selected={item.actionKey === selectedKey}
-                          locked={item.actionKey !== selectedKey && item.bucket !== "pendente"}
+                          locked={item.actionKey !== selectedKey && item.bucket !== "pendente" && !(selected?.bucket === "pendente" && item.actionKey === firstExecutableKey(actions))}
                           onOpen={item.bucket === "pendente" || (selected?.bucket === "pendente" && item.actionKey === firstExecutableKey(actions)) ? () => { if (!transitioningRef.current && !busy) setSelectedKey(item.actionKey); } : undefined}
                         />
                       ))}

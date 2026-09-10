@@ -87,6 +87,8 @@ export async function applyOriginResponsibleChange(input: {
   entryAt?: string | null;
   enteredEntryStageAt?: string | null;
   isTestLead?: boolean;
+  /** Nova submissão abre RE no intake; redistribuição não pode criar E0 junto. */
+  commercialReentry?: boolean;
 }): Promise<RedistributionOutcome> {
   if (!input.originResponsible?.executiveId) {
     return {
@@ -192,15 +194,15 @@ export async function applyOriginResponsibleChange(input: {
    * §10 — CONTATO HUMANO REAL DECIDE. Com relacionamento já iniciado o
    * novo responsável apenas ASSUME o lead: nenhuma nova E0 é gerada.
    */
-  if (contact.hasContact) {
+  if (contact.hasContact || input.commercialReentry) {
     return {
       redistributed: true,
       previousExecutiveId: previous,
       newExecutiveId: next,
       ownershipSeq: seq,
-      hadRealContact: true,
+      hadRealContact: contact.hasContact,
       newEntry: "nenhuma",
-      reason: `Relacionamento já existente preservado — ${contact.reason}`,
+      reason: input.commercialReentry ? "Nova submissão comercial: abertura exclusiva de RE pelo intake." : `Relacionamento já existente preservado — ${contact.reason}`,
     };
   }
 

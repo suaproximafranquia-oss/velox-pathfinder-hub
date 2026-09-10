@@ -113,6 +113,7 @@ export async function intakeLead(
     null;
   const known = await getLeadEntryState(externalId);
   const newCommercialEntry = isNewCommercialEntry(known.lastEntryAt, lastEntryAt);
+  const entry = resolveEntryFlow({ entryCount: known.entryCount, hasPreviousRelationship: known.exists, newCommercialEntry });
   // A COLUNA/BOARD atual é a fonte da verdade.
   const { stage, remarketing } = resolveBoardStage(pipeline, tagIds);
   const forms = Array.isArray(raw["forms"]) ? (raw["forms"] as { title?: string }[]) : [];
@@ -189,6 +190,7 @@ export async function intakeLead(
         entered_entry_stage_at?: string | null;
       }).entered_entry_stage_at,
       isTestLead: isTest,
+      commercialReentry: entry.reentry,
     });
     if (redistribution.redistributed) {
       result.e0Reason = redistribution.reason;
@@ -207,7 +209,6 @@ export async function intakeLead(
     },
     settings.cadenceActivationDate,
   );
-  const entry = resolveEntryFlow({ entryCount: known.entryCount, hasPreviousRelationship: known.exists, newCommercialEntry });
   const enteredNow = entry.reentry || (outcome.created || context.forceEntry ? Boolean(stage?.isEntry) : outcome.enteredEntryStage);
 
   if (enteredNow && !eligibility.eligible) {
@@ -279,13 +280,13 @@ export async function intakeLead(
         : `Card operacional já existente no Workspace GreenSales (${card.cardId}).`,
     );
 
-    /** Retorno de remarketing para NOVOS — regra oficial já existente. */
+    /** Somente nova submissão comercial determina reentrada. */
     const returning = entry.reentry;
     if (returning) {
       await recordEvent(
         outcome.lead.id,
         "e0_reentrada",
-        `Retorno para NOVOS de lead já conhecido${remarketing ? " (etiqueta REMARKETING preservada)" : ""} — ${entry.reason}`,
+        `Nova entrada comercial de lead conhecido — ${entry.reason}`,
         { flow: entry.flow, remarketing, entryCount: known.entryCount },
       );
     }
