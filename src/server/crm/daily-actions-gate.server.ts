@@ -102,6 +102,7 @@ export async function currentDailyAction(
     if (data && data.length > 0) {
       list = normalizeDailyActions(
         list.map((item) => (item.actionKey === first.actionKey ? { ...item, claimed: true } : item)),
+        continuityLeadId,
       );
     }
   }
