@@ -34,8 +34,6 @@ const REAL_EVENTS = [
 
 /** Nova visita relevante: 7 dias completos sem nenhum acesso real. */
 const RETURN_GAP_MS = 7 * 24 * 3600 * 1000;
-/** Um alerta só é trabalho de agora enquanto for recente. */
-const VISIBLE_WINDOW_MS = 7 * 24 * 3600 * 1000;
 
 export const PORTAL_ALERT_DONE_ACTION = "acao_do_dia_alerta_portal_concluido";
 
@@ -52,14 +50,12 @@ function alertKey(leadId: string, at: string): string {
 
 /** Alertas já concluídos pelo Executivo — nunca voltam após recarregar. */
 async function loadConcluded(): Promise<Set<string>> {
-  const since = new Date(Date.now() - 180 * 24 * 3600 * 1000).toISOString();
   const done = new Set<string>();
   try {
     const { data } = await supabaseAdmin
       .from("relationship_engine_log")
       .select("details")
       .eq("action", PORTAL_ALERT_DONE_ACTION)
-      .gte("created_at", since)
       .limit(4000);
     for (const row of (data ?? []) as Array<{ details?: Record<string, unknown> | null }>) {
       const key = (row.details ?? {})["actionKey"];
@@ -93,13 +89,11 @@ export async function listPortalActivityAlerts(
     .map((l) => l.id);
   if (leadIds.length === 0) return [];
 
-  const since = new Date(now - 400 * 24 * 3600 * 1000).toISOString();
   const { data: eventRows } = await supabaseAdmin
     .from("portal_journey_events")
     .select("investor_id,event,created_at")
     .in("investor_id", leadIds)
     .in("event", REAL_EVENTS)
-    .gte("created_at", since)
     .order("created_at", { ascending: true })
     .limit(5000);
 
@@ -114,14 +108,13 @@ export async function listPortalActivityAlerts(
   const alerts: PortalActivityAlert[] = [];
 
   for (const [leadId, moments] of byLead) {
-    let previous: number | null = null;
+    let previousQualified: number | null = null;
     for (const iso of moments) {
       const at = Date.parse(iso);
       if (!Number.isFinite(at)) continue;
-      const isNewVisit = previous === null || at - previous >= RETURN_GAP_MS;
-      previous = at;
+      const isNewVisit = previousQualified === null || at - previousQualified >= RETURN_GAP_MS;
       if (!isNewVisit) continue;
-      if (now - at > VISIBLE_WINDOW_MS) continue;
+      previousQualified = at;
       const key = alertKey(leadId, iso);
       if (concluded.has(key)) continue;
       alerts.push({ actionKey: key, leadId, at: iso });

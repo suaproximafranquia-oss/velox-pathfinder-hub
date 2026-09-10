@@ -195,33 +195,13 @@ export function DailyActionCard({
       void onComplete(item, run, fallback);
       return;
     }
-    if (adapter.demoLabel) {
-      void (async () => {
-        const result = await run().catch(() => ({ ok: false }) as AdapterResult);
-        if (result.ok) applyResult(result);
-        else setFeedback(result.message ?? fallback);
-      })();
-      return;
-    }
-    const key = item.actionKey;
-    onResolved(key, {});
     void (async () => {
       try {
         const result = await run();
-        if (result.ok) {
-          onResolved(key, {
-            queue: result.queue,
-            message: result.message,
-            reload: !result.queue,
-          });
-        } else {
-          onResolved(key, { message: result.message ?? fallback, reload: true });
-        }
+        if (result.ok) applyResult(result);
+        else setFeedback(result.message ?? fallback);
       } catch (error) {
-        onResolved(key, {
-          message: error instanceof Error ? error.message : fallback,
-          reload: true,
-        });
+        setFeedback(error instanceof Error ? error.message : fallback);
       }
     })();
   }
@@ -368,12 +348,12 @@ export function DailyActionCard({
       }
       setMessage(view);
       setCopied(false);
-      setMessageOpen(true);
       if (!view) {
         setFeedback("Esta ação não tem mensagem oficial vinculada.");
         return;
       }
-      await copyMessageBody(view.body);
+      const copiedNow = await copyMessageBody(view.body);
+      setMessageOpen(copiedNow);
     } finally {
       setBusy(false);
     }
@@ -826,8 +806,7 @@ export function DailyActionCard({
         conversa por fora. O botão apenas registra o histórico.
       */}
       {messageOpen && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-4">
-          <div className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[color:var(--navy-deep)]">
+        <div className="mt-4 flex max-h-[28rem] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">
@@ -910,7 +889,6 @@ export function DailyActionCard({
                 <Check className="mr-1 inline h-4 w-4" /> Concluído
               </button>
             </div>
-          </div>
         </div>
       )}
     </>
