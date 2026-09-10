@@ -56,6 +56,13 @@ export function formatDay(iso: string): string {
   return d && m && y ? `${d}/${m}` : iso;
 }
 
+/** Data completa (dd/mm/aaaa) de um instante, em America/Sao_Paulo. */
+export function formatFullDay(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 export function DailyActionCard({
   item,
   adapter,
@@ -340,11 +347,25 @@ export function DailyActionCard({
       /**
        * Se o pré-gatilho da ligação anterior já leu esta mesma mensagem
        * oficial, ela é reaproveitada; caso contrário, leitura normal.
+       *
+       * LEITURA QUE FALHA NÃO PODE SUMIR COM A AÇÃO: a exceção é tratada
+       * aqui, o card permanece na tela e o motivo aparece para o
+       * Executivo. Copiar continua não concluindo nada.
        */
-      const prepared = takeStepMessage(
-        stepMessageKey(item.leadId, item.messageRef?.step ?? item.stepLabel),
-      );
-      const view = (await (prepared ?? adapter.loadMessage(item))) ?? null;
+      let view: StepMessageView | null = null;
+      try {
+        const prepared = takeStepMessage(
+          stepMessageKey(item.leadId, item.messageRef?.step ?? item.stepLabel),
+        );
+        view = (await (prepared ?? adapter.loadMessage(item))) ?? null;
+      } catch (error) {
+        setFeedback(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível ler a mensagem oficial. Tente novamente.",
+        );
+        return;
+      }
       setMessage(view);
       setCopied(false);
       setMessageOpen(true);
@@ -405,10 +426,11 @@ export function DailyActionCard({
           Aviso · Atividade no Portal
         </p>
         <h3 className="font-display text-2xl leading-tight text-white">{item.title}</h3>
-        <p className="text-sm text-white/55">
-          Sinal comercial informativo. Nenhuma etapa foi criada e nada foi enviado ao
-          investidor.
-        </p>
+        {item.alertAt && (
+          <p className="text-sm text-white/55">
+            Acessou em {formatFullDay(item.alertAt)} às {operationalTime(item.alertAt)}.
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"

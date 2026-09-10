@@ -492,6 +492,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       bucket: "alerta",
       title: `${identity.name} acessou o Portal do Investidor.`,
       responsibleName: null,
+      alertAt: alert.at,
       attempts: [],
     });
   }

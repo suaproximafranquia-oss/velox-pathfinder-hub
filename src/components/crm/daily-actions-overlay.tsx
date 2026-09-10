@@ -362,9 +362,14 @@ export function DailyActionsOverlay({
      * CONTINUIDADE DO INVESTIDOR: quem acabou de ser trabalhado segue em
      * curso. Se a conclusão liberar outra ação dele, ela vem antes das
      * ações de outras leads — só depois o fluxo passa ao próximo.
+     *
+     * AVISO DO PORTAL NUNCA GERA CONTINUIDADE: ele é sinal informativo,
+     * não atendimento. Concluir um aviso não coloca esse investidor à
+     * frente da fila nem interfere na ordem comercial.
      */
-    const resolvedLead = actions.find((item) => item.actionKey === key)?.leadId ?? null;
-    if (result.requeue !== true) continuityLeadRef.current = resolvedLead;
+    const resolved = actions.find((item) => item.actionKey === key) ?? null;
+    const isAlert = resolved?.bucket === "alerta";
+    if (result.requeue !== true && !isAlert) continuityLeadRef.current = resolved?.leadId ?? null;
 
     /**
      * FILA OFICIAL DO SERVIDOR — quando ela vem junto com a conclusão,

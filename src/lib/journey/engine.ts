@@ -454,7 +454,20 @@ export function trackJourney(input: TrackInput) {
     const map = read();
     const record = map[investorId];
     if (!record) {
-      mirror({});
+      /**
+       * SEM REGISTRO LOCAL (outro dispositivo, cache limpo, aba anônima):
+       * o percentual continua sendo o da MESMA régua já existente
+       * (capítulo / total), calculada aqui a partir do próprio evento —
+       * nenhuma fórmula nova e nenhuma segunda fonte de verdade.
+       */
+      const payload = (input.payload ?? {}) as { index?: number; total?: number; chapterTitle?: string };
+      const extra: { percent?: number; chapter?: string } = {};
+      if (input.type === "manual.completed") extra.percent = 100;
+      else if (payload.index && payload.total) {
+        extra.percent = Math.min(100, Math.round((payload.index / payload.total) * 100));
+      }
+      if (payload.chapterTitle) extra.chapter = payload.chapterTitle;
+      mirror(extra);
       return;
     }
     const nowMs = Date.now();
