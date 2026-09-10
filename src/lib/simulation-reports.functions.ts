@@ -28,8 +28,11 @@ export const listSimulationReports = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ investorId: z.string().min(3).max(150) }).parse(data))
   .handler(async ({ data, context }): Promise<SimulationRecord[]> => {
-    const { data: lead, error } = await context.supabase.from("portal_leads").select("id,scope,origin").eq("id", data.investorId).maybeSingle();
-    if (error || !lead || /velox (solar|seguros)/i.test(lead.origin)) throw new Error("Acesso não autorizado ao investidor.");
+    const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
+    const identity = await assertWorkspaceAccess(context, "portal_leads");
+    const { data: lead, error } = await context.supabase.from("portal_leads").select("id,scope,origin,responsible_executive_id").eq("id", data.investorId).maybeSingle();
+    if (error || !lead || !["portal", "green_sales", "tiktok", "meta", "redistribuicao"].includes(lead.scope) || /velox (solar|seguros)/i.test(lead.origin)) throw new Error("Acesso não autorizado ao investidor.");
+    if (identity.role === "executivo" && (!identity.executiveId || lead.responsible_executive_id !== identity.executiveId)) throw new Error("Acesso não autorizado ao investidor.");
     // O acesso ao lead já foi validado como o usuário; apenas o acervo privado usa privilégio.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const store = supabaseAdmin.storage.from("revista");
