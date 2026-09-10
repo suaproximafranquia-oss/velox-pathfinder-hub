@@ -210,7 +210,7 @@ export function startPortalSession(input: {
   });
   // /f: reconhecimento retoma apenas a sessão. Cache vazio não autoriza
   // recriar card, reatribuir proprietário, restaurar arquivo ou escrever histórico.
-  if (entry.unit === "f" && input.recognized) {
+  if (typeof window !== "undefined" && /^\/f(?:\/|$)/.test(window.location.pathname) && input.recognized) {
     const cached = loadLeads().find((lead) => lead.id === input.investorId);
     const now = new Date().toISOString();
     const session: PortalSession = {
