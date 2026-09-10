@@ -48,7 +48,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
      */
     const applyIdentityGuard = async (
       leadId: string,
-    ): Promise<Record<string, string>> => {
+    ): Promise<Partial<Record<"name" | "email" | "whatsapp" | "city", string>>> => {
       const { data: row } = await supabaseAdmin
         .from("portal_leads")
         .select("name,email,whatsapp,city,manual_overrides,identity_alternates")
@@ -71,7 +71,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       const alternates = (row.identity_alternates ?? {}) as Record<string, unknown[]>;
       const at = new Date().toISOString();
       let changedAlternates = false;
-      const patch: Record<string, string> = {};
+      const patch: Partial<Record<"name" | "email" | "whatsapp" | "city", string>> = {};
       for (const field of ["name", "email", "whatsapp", "city"] as const) {
         // Cadastro principal soberano: omitir a coluna também protege uma
         // edição do executivo que ocorra entre esta leitura e a gravação.
@@ -243,7 +243,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     if (current) {
       ({ error } = await supabaseAdmin.from("portal_leads").update(payload).eq("id", targetId));
     } else {
-      ({ error } = await supabaseAdmin.from("portal_leads").insert({ ...payload, name: data.name }));
+      ({ error } = await supabaseAdmin.from("portal_leads").insert({ ...payload, name: data.name, email }));
       created = !error;
     }
     if (error?.code === "23505") {
