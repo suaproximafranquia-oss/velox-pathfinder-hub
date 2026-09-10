@@ -195,33 +195,13 @@ export function DailyActionCard({
       void onComplete(item, run, fallback);
       return;
     }
-    if (adapter.demoLabel) {
-      void (async () => {
-        const result = await run().catch(() => ({ ok: false }) as AdapterResult);
-        if (result.ok) applyResult(result);
-        else setFeedback(result.message ?? fallback);
-      })();
-      return;
-    }
-    const key = item.actionKey;
-    onResolved(key, {});
     void (async () => {
       try {
         const result = await run();
-        if (result.ok) {
-          onResolved(key, {
-            queue: result.queue,
-            message: result.message,
-            reload: !result.queue,
-          });
-        } else {
-          onResolved(key, { message: result.message ?? fallback, reload: true });
-        }
+        if (result.ok) applyResult(result);
+        else setFeedback(result.message ?? fallback);
       } catch (error) {
-        onResolved(key, {
-          message: error instanceof Error ? error.message : fallback,
-          reload: true,
-        });
+        setFeedback(error instanceof Error ? error.message : fallback);
       }
     })();
   }

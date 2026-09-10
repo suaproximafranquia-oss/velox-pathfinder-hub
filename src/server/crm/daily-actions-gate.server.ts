@@ -263,7 +263,6 @@ export async function assertCommitmentAction(input: {
   if (!input.executiveId) throw new OutOfTurnError("Executivo não identificado.");
   const list = await buildDailyActions({ executiveId: input.executiveId, skipReconcile: true });
   const action = list.find((a) => a.actionKey === input.actionKey && a.source === "meeting" && a.meetingId === input.meetingId);
-  if (action?.bucket === "pendente") return action;
   const current = await assertCurrentAction(input);
   if (current.source !== "meeting" || current.meetingId !== input.meetingId) {
     throw new OutOfTurnError("Compromisso não corresponde à ação autorizada.");

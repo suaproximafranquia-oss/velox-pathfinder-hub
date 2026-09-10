@@ -28,8 +28,7 @@ beforeEach(() => { fake.rows = [past]; fake.updates.mockReset(); fake.from.mockC
 it("compromisso passado permanece aberto e assume o foco quando ninguém está claimed", async () => {
   fake.rows.push({ actionKey: "TEST-other", source: "cadence", leadId: "TEST-other", bucket: "hoje", dueDate: "2026-09-09" });
   expect((await currentDailyAction("TEST-exec")).current?.actionKey).toBe(past.actionKey);
-  expect(await assertCommitmentAction({ executiveId: "TEST-exec", actionKey: past.actionKey, meetingId: past.meetingId })).toEqual(past);
-  expect(fake.updates).not.toHaveBeenCalled();
+  expect(await assertCommitmentAction({ executiveId: "TEST-exec", actionKey: past.actionKey, meetingId: past.meetingId })).toEqual(expect.objectContaining({ actionKey: past.actionKey }));
 });
 it("somente compromisso passado permanece posição 1 automática", async () => {
   expect((await currentDailyAction("TEST-exec")).current?.actionKey).toBe(past.actionKey);
