@@ -202,10 +202,14 @@ export function actionRank(action: DailyAction): number {
    * POSIÇÃO 1 PROTEGIDA: a ação já reivindicada pelo executivo (em
    * atendimento) não é deslocada por novas liberações da régua.
    */
-  /** Aviso do Portal: sempre por último, nunca ocupa a vez de ninguém. */
-  if (action.bucket === "alerta") return 8;
-  if (action.bucket === "pendente") return 7;
   if (action.claimed) return 0;
+  /**
+   * AVISO DO PORTAL: entra logo DEPOIS da ação em atendimento e antes
+   * dos demais itens. Continua sendo apenas sinal informativo — não é
+   * executável, não é escolhido automaticamente e nunca vira etapa.
+   */
+  if (action.bucket === "alerta") return 0.5;
+  if (action.bucket === "pendente") return 7;
   /**
    * COMPROMISSO DE OUTRO DIA NÃO É TRABALHO DE HOJE. Ele continua
    * visível como "próximo compromisso", mas nunca ocupa a posição 1 nem
