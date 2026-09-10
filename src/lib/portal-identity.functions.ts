@@ -36,8 +36,24 @@ export type IdentityInput = {
   commercialSubmission?: { id: string; unit: "f" };
 };
 
+/**
+ * Mínimo oficial devolvido a um investidor JÁ RECONHECIDO para que a
+ * sessão do Portal seja montada a partir do cadastro, e não do cache do
+ * navegador. Não contém histórico, mensagens nem escopo comercial.
+ */
+export type RecognizedSession = {
+  name: string;
+  email: string;
+  responsibleExecutiveId: string | null;
+  responsibleExecutiveSlug: string | null;
+  origin: string | null;
+  personalized: boolean;
+  /** Credencial assinada do tracking — só quando o identificador confere. */
+  token: string | null;
+};
+
 export type IdentityResult =
-  | { ok: true; investorId: string; recognized: boolean }
+  | { ok: true; investorId: string; recognized: boolean; session?: RecognizedSession }
   | { ok: false; reason: "identity_invalid" | "identity_unresolved" | "server_error" };
 
 /** Chave oficial de telefone do caminho de identidade do Portal. */
