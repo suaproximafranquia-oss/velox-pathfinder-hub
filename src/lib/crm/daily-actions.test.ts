@@ -44,7 +44,8 @@ describe("Ações do Dia — regras puras", () => {
     expect(reclassifyDailyActions([row], "2026-02-10T14:05:00.000Z")[0]?.bucket).toBe("agora");
     expect(reclassifyDailyActions([row], "2026-02-10T14:06:00.000Z")[0]?.bucket).toBe("pendente");
     const tomorrow = reclassifyDailyActions([row, action({ actionKey: "queue:TEST-2:E0", leadId: "TEST-2" })], "2026-02-11T14:00:00.000Z");
-    const meeting = tomorrow.find((a) => a.source === "meeting")!;
+    const meeting = tomorrow.find((a) => a.source === "meeting");
+    if (!meeting) throw new Error("Compromisso deve continuar visível");
     expect(meeting.overdue).toBe(false);
     expect(isAutomaticDailyAction(meeting)).toBe(false);
     expect(tomorrow[0].source).toBe("queue");
