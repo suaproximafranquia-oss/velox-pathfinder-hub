@@ -24,3 +24,12 @@
 - [x] Retirar V1 da sequência operacional: E0 → E1 → E2/V2 → E3/V3 → E4, com a decisão da V0 avaliada na chegada da E2.
 - [x] Financeira /f: garantir representação mínima para follow_up elegível sem card, usando o proprietário oficial da conexão e vínculo canônico existente, sem iniciar cadência.
 - [x] Validar com testes direcionados a elegibilidade, responsabilidade, idempotência e ausência de obrigações adicionais (32 testes passaram, sem acesso a dados reais).
+
+- [ ] /f: RE só nasce de nova entrada comercial GreenSales; atividade/aviso do Portal nunca cria RE.
+- [ ] /f: Aviso do Portal não alimenta continuidade nem fila; prioridade logo após a ação em atendimento.
+- [ ] /f: card do aviso sem texto interno, com data/hora real (America/Sao_Paulo).
+- [ ] /f: continuidade prioritária da cadeia E0 (Ligação 1 → Ligação 2 → Mensagem) mesmo com origem atrasada.
+- [ ] /f: botão Copiar da Mensagem E0 copia, mostra confirmação e só encerra no Concluído.
+- [ ] /f: link cru reconhece responsável oficial no CTA, sem fallback padrão.
+- [ ] /f: progresso do Manual na Jornada usa a régua existente de capítulos.
+- [ ] Formulários públicos Financeira e Solar: entrada comercial na operação correta; rótulo/validação de Cidade coerentes.
