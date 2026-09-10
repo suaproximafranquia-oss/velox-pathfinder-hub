@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bell,
   CalendarClock,
   CalendarDays,
   Lock,
@@ -59,6 +60,8 @@ const BLOCKS: { key: DailyActionBucket; label: string; tone: string }[] = [
    */
   { key: "pendente", label: "Pendências abertas", tone: "text-muted-foreground" },
   { key: "futura", label: "Próximos compromissos", tone: "text-sky-300/70" },
+  /** Sinal informativo: não é tarefa e nunca entra na ordem de execução. */
+  { key: "alerta", label: "Avisos do Portal", tone: "text-emerald-300/70" },
 ];
 
 /**
