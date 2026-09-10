@@ -1,5 +1,10 @@
 # Roadmap
 
+- [ ] Financeira /f: KPI, Painel de Campanhas e Brain Analytics com a mesma fonte oficial server-side, sem mudar cálculos ou layout.
+- [ ] Financeira /f: preservar identidade oficial e vínculo em link cru; atualizar nome de card existente pela origem GreenSales respeitando proteção manual.
+- [ ] Financeira /f: nova data comercial reconhecida como RE0 idempotente apesar de tags antigas, sem inventar coluna ausente.
+- [ ] Validar somente os três pontos com testes direcionados; não sincronizar nem alterar dados reais.
+
 - [x] Financeira /f: compromissos após foco como pendências abertas, sem atraso ou bloqueio, com desfecho acessível.
 - [x] Financeira /f: nova submissão válida determina RE0; sem submissão não abre RE; repetição idempotente.
 - [x] Exceção autorizada: ajustar somente abertura/idempotência da reentrada e vínculo com a fila existente, preservando histórico e RE0–RE3.
