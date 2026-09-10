@@ -36,8 +36,24 @@ export type IdentityInput = {
   commercialSubmission?: { id: string; unit: "f" };
 };
 
+/**
+ * Mínimo oficial devolvido a um investidor JÁ RECONHECIDO para que a
+ * sessão do Portal seja montada a partir do cadastro, e não do cache do
+ * navegador. Não contém histórico, mensagens nem escopo comercial.
+ */
+export type RecognizedSession = {
+  name: string;
+  email: string;
+  responsibleExecutiveId: string | null;
+  responsibleExecutiveSlug: string | null;
+  origin: string | null;
+  personalized: boolean;
+  /** Credencial assinada do tracking — só quando o identificador confere. */
+  token: string | null;
+};
+
 export type IdentityResult =
-  | { ok: true; investorId: string; recognized: boolean }
+  | { ok: true; investorId: string; recognized: boolean; session?: RecognizedSession }
   | { ok: false; reason: "identity_invalid" | "identity_unresolved" | "server_error" };
 
 /** Chave oficial de telefone do caminho de identidade do Portal. */
@@ -224,10 +240,55 @@ export const resolvePortalIdentity = createServerFn({ method: "POST" })
       /* auditoria nunca bloqueia a jornada */
     }
 
+    /**
+     * SESSÃO DO RECONHECIDO (/f) — o servidor devolve o mínimo oficial
+     * para montar a sessão sem depender do cache do navegador. O nome
+     * digitado NUNCA substitui o cadastro; responsável, origem e
+     * histórico permanecem exatamente como já estavam.
+     */
+    let session: RecognizedSession | undefined;
+    if (data.unit === "f" && !payload.created) {
+      const { data: official } = await supabaseAdmin
+        .from("portal_leads")
+        .select("id,name,email,whatsapp,origin,personalized,responsible_executive_id,responsible_executive_slug")
+        .eq("id", payload.leadId)
+        .maybeSingle();
+      if (official) {
+        /**
+         * Reconhecer não autoriza por si só: a credencial só é emitida
+         * quando um identificador FORTE informado confere com o cadastro
+         * oficial (mesma verificação usada na emissão do token).
+         */
+        const emailMatches =
+          Boolean(emailKey) && (official.email ?? "").trim().toLowerCase() === emailKey;
+        const phoneMatches =
+          Boolean(phoneKey) && portalPhoneKey(official.whatsapp) === phoneKey;
+        let token: string | null = null;
+        if (emailMatches || phoneMatches) {
+          try {
+            const { issueToken } = await import("@/server/portal-token.server");
+            token = await issueToken(official.id);
+          } catch {
+            token = null;
+          }
+        }
+        session = {
+          name: official.name,
+          email: official.email ?? "",
+          responsibleExecutiveId: official.responsible_executive_id ?? null,
+          responsibleExecutiveSlug: official.responsible_executive_slug ?? null,
+          origin: official.origin ?? null,
+          personalized: Boolean(official.personalized),
+          token,
+        };
+      }
+    }
+
     return {
       ok: true,
       investorId: payload.leadId,
       recognized: !payload.created,
+      ...(session ? { session } : {}),
     };
   });
 

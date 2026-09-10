@@ -74,6 +74,8 @@ export type PortalSession = {
   investorId: string;
   name: string;
   email: string;
+  /** WhatsApp informado/oficial — usado apenas para emitir a credencial. */
+  phone?: string;
   responsibleExecutiveId: string | null;
   responsibleExecutiveSlug: string | null;
   unit: string | null;
@@ -200,6 +202,20 @@ export function startPortalSession(input: {
   phone?: string;
   origin?: string;
   nextPath?: string;
+  /**
+   * Mínimo oficial devolvido pelo servidor quando o investidor já existe.
+   * É a autoridade da sessão reconhecida: nome, responsável, origem e
+   * credencial vêm do cadastro, nunca do cache do navegador.
+   */
+  session?: {
+    name: string;
+    email: string;
+    responsibleExecutiveId: string | null;
+    responsibleExecutiveSlug: string | null;
+    origin: string | null;
+    personalized: boolean;
+    token: string | null;
+  } | null;
 }): PortalSession {
   const entry = readEntryContext();
   const responsible = getResponsibleExecutive();
@@ -212,21 +228,34 @@ export function startPortalSession(input: {
   // recriar card, reatribuir proprietário, restaurar arquivo ou escrever histórico.
   if (typeof window !== "undefined" && /^\/f(?:\/|$)/.test(window.location.pathname) && input.recognized) {
     const cached = loadLeads().find((lead) => lead.id === input.investorId);
+    // Autoridade da sessão reconhecida: cadastro oficial > cache > digitado.
+    const official = input.session ?? null;
     const now = new Date().toISOString();
     const session: PortalSession = {
       sessionId: `ses_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       identityId: identity.id, investorId: input.investorId,
-      name: cached?.name ?? input.name, email: cached?.email ?? input.email,
-      responsibleExecutiveId: cached?.responsibleExecutiveId ??
+      name: official?.name || cached?.name || input.name,
+      email: official?.email || cached?.email || input.email,
+      phone: input.phone ?? cached?.whatsapp ?? "",
+      responsibleExecutiveId: official?.responsibleExecutiveId ?? cached?.responsibleExecutiveId ??
         (responsible.personalized ? responsible.executive?.id ?? null : null),
-      responsibleExecutiveSlug: responsible.personalized ? responsible.executive?.slug ?? entry.executiveSlug ?? null : null,
-      unit: entry.unit, origin: cached?.origin ?? input.origin ?? entry.origin ?? "Portal Velox",
+      responsibleExecutiveSlug: official?.responsibleExecutiveSlug ??
+        (responsible.personalized ? responsible.executive?.slug ?? entry.executiveSlug ?? null : null),
+      unit: entry.unit,
+      origin: official?.origin ?? cached?.origin ?? input.origin ?? entry.origin ?? "Portal Velox",
       campaign: entry.campaign, brand: getBrand(entry.brand).key, device: deviceFingerprint(),
-      personalized: responsible.personalized || Boolean(cached?.personalized),
+      personalized: official?.personalized || responsible.personalized || Boolean(cached?.personalized),
       startedAt: now, lastSeenAt: now, journeyStatus: "identificado",
       history: [{ at: now, module: "gateway", detail: "Sessão retomada" }], restored: true,
     };
     persist(session);
+    // Credencial já emitida pelo servidor: o tracking deixa de depender
+    // da existência do lead no cache local do navegador.
+    if (official?.token) {
+      void import("@/lib/portal-token").then((m) =>
+        m.storePortalToken(input.investorId, official.token as string),
+      );
+    }
     return session;
   }
   /**

@@ -192,6 +192,9 @@ export function GatewayOverlay({
       email: identity.email,
       phone: identity.phone,
       origin,
+      // Reconhecimento oficial: nome, responsável e credencial vêm do
+      // cadastro devolvido pelo servidor, não do cache do navegador.
+      session: result.session ?? null,
     });
     submissionId.current = null;
     onDone();

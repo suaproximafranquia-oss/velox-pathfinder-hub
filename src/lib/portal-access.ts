@@ -15,7 +15,7 @@ import {
 } from "@/lib/portal-access.functions";
 import { applyRemoteRelease } from "@/lib/crm/portal-release";
 import { applyRemoteConfirmation } from "@/lib/portal-verification";
-import { ensurePortalToken } from "@/lib/portal-token";
+import { clearPortalToken, ensurePortalToken } from "@/lib/portal-token";
 
 /** Sincronização periódica: a liberação aparece sozinha para o visitante. */
 export const PORTAL_ACCESS_POLL_MS = 20_000;
@@ -117,17 +117,59 @@ export function pushPortalProgress(input: ProgressPush): void {
         }
       : input,
   );
+  schedule();
+}
+
+/**
+ * O evento só sai da fila quando o servidor CONFIRMA a gravação. Sem
+ * credencial no momento, ou com falha de envio, ele volta para a fila e
+ * é reenviado — nada é descartado silenciosamente.
+ */
+function schedule(delay = 1_200): void {
   if (timer !== null) return;
   timer = window.setTimeout(() => {
-    const payloads = [...queue.values()];
+    const entries = [...queue.entries()];
     queue.clear();
     timer = null;
-    for (const payload of payloads) {
-      void ensurePortalToken(payload.investorId)
-        .then((token) => (token ? trackPortalProgress({ data: { ...payload, token } }) : null))
-        .catch(() => {
-          /* reenviado no próximo evento da jornada */
-        });
-    }
-  }, 1_200);
+    let requeued = false;
+    const requeue = (key: string, payload: ProgressPush) => {
+      requeued = true;
+      const current = queue.get(key);
+      queue.set(
+        key,
+        current
+          ? {
+              ...payload,
+              ...current,
+              percent: Math.max(current.percent ?? 0, payload.percent ?? 0),
+              completed: current.completed || payload.completed,
+            }
+          : payload,
+      );
+    };
+    void Promise.all(
+      entries.map(async ([key, payload]) => {
+        try {
+          const token = await ensurePortalToken(payload.investorId);
+          if (!token) {
+            requeue(key, payload);
+            return;
+          }
+          const result = (await trackPortalProgress({ data: { ...payload, token } })) as
+            | { ok?: boolean; reason?: string }
+            | null;
+          if (result?.ok) return;
+          // Credencial recusada: descarta e força nova emissão no retry.
+          if (result?.reason === "nao_autorizado") clearPortalToken(payload.investorId);
+          // Lead inexistente no servidor não se resolve com reenvio.
+          if (result?.reason === "lead_inexistente") return;
+          requeue(key, payload);
+        } catch {
+          requeue(key, payload);
+        }
+      }),
+    ).then(() => {
+      if (requeued && queue.size > 0) schedule(15_000);
+    });
+  }, delay);
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { isReaderFocused, subscribeReaderFocus } from "@/lib/portal-reader-focus";
 import { MessageCircle, X, ArrowRight } from "lucide-react";
-import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { getSessionResponsibleExecutive } from "@/lib/portal/session-responsible";
 import { getDefaultExecutive, type ExecutiveUser } from "@/lib/executive-auth";
 import { getPortalSession, promotePortalSession } from "@/lib/portal-session";
 import { registerLead, updateLead, loadLeads, type VisitorIdentity } from "@/lib/leads";
@@ -65,7 +65,7 @@ export function WhatsAppFloating() {
   const [reading, setReading] = useState(false);
 
   useEffect(() => {
-    setResolved(getResponsibleExecutive());
+    setResolved(getSessionResponsibleExecutive());
     setInsideOverlay(typeof window !== "undefined" && window.self !== window.top);
   }, []);
 
@@ -109,6 +109,17 @@ export function WhatsAppFloating() {
   };
 
   const handleClick = () => {
+    /**
+     * No Manual do Investidor o atendimento passa pela Financeira: o
+     * botão leva para `/f`, preservando o contexto já existente do
+     * executivo/investidor quando houver.
+     */
+    if (typeof window !== "undefined" && /^\/manual(?:\/|$)/.test(window.location.pathname)) {
+      const slug =
+        resolved.executive?.slug ?? getPortalSession()?.responsibleExecutiveSlug ?? null;
+      window.location.assign(slug ? `/f?e=${encodeURIComponent(slug)}` : "/f");
+      return;
+    }
     if (resolved.personalized && resolved.executive) openDirect();
     else setModalOpen(true);
   };
