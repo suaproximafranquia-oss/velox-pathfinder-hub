@@ -17,6 +17,28 @@ export type KpiCell = {
   value: number;
 };
 
+/** Campanha corporativa: somente valor financeiro e unidades, nunca outras células privadas. */
+export async function readCampaignSales(executiveIds: string[], monthKey: string) {
+  const result: Record<string, { cells: KpiCell[]; updatedAt: number }> = {};
+  for (const id of executiveIds) result[id] = { cells: [], updatedAt: 0 };
+  if (!executiveIds.length) return result;
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await supabaseAdmin.from("kpi_entries")
+      .select("executive_id,indicator_id,day,value,updated_at")
+      .in("executive_id", executiveIds).eq("month_key", monthKey)
+      .in("indicator_id", ["salesValue", "contractsSigned"])
+      .order("executive_id").order("indicator_id").order("day").range(offset, offset + 999);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) {
+      const target = result[row.executive_id];
+      if (!target) continue;
+      target.cells.push({ indicatorId: row.indicator_id, day: row.day, value: Number(row.value) });
+      target.updatedAt = Math.max(target.updatedAt, Date.parse(row.updated_at) || 0);
+    }
+    if ((data?.length ?? 0) < 1000) return result;
+  }
+}
+
 /** Todas as células de um executivo em uma competência. */
 export async function readKpiMonth(
   executiveId: string,
