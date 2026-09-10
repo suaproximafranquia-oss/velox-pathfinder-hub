@@ -208,6 +208,27 @@ export function startPortalSession(input: {
     email: input.email,
     phone: input.phone,
   });
+  // /f: reconhecimento retoma apenas a sessão. Cache vazio não autoriza
+  // recriar card, reatribuir proprietário, restaurar arquivo ou escrever histórico.
+  if (entry.unit === "f" && input.recognized) {
+    const cached = loadLeads().find((lead) => lead.id === input.investorId);
+    const now = new Date().toISOString();
+    const session: PortalSession = {
+      sessionId: `ses_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      identityId: identity.id, investorId: input.investorId,
+      name: cached?.name ?? input.name, email: cached?.email ?? input.email,
+      responsibleExecutiveId: cached?.responsibleExecutiveId ??
+        (responsible.personalized ? responsible.executive?.id ?? null : null),
+      responsibleExecutiveSlug: responsible.personalized ? responsible.executive?.slug ?? entry.executiveSlug ?? null : null,
+      unit: entry.unit, origin: cached?.origin ?? input.origin ?? entry.origin ?? "Portal Velox",
+      campaign: entry.campaign, brand: getBrand(entry.brand).key, device: deviceFingerprint(),
+      personalized: responsible.personalized || Boolean(cached?.personalized),
+      startedAt: now, lastSeenAt: now, journeyStatus: "identificado",
+      history: [{ at: now, module: "gateway", detail: "Sessão retomada" }], restored: true,
+    };
+    persist(session);
+    return session;
+  }
   /**
    * O cache local é apenas cache: se ele apontar para outro
    * identificador, a sessão antiga é descartada e reidratada a partir do

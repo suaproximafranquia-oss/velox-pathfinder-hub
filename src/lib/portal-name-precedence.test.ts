@@ -64,4 +64,23 @@ describe("Portal /f — precedência exclusiva do nome", () => {
     expect(db.rows[0]?.city).toBe("Cidade CRM");
     expect(db.rows[0]?.name).toBe("Nome CRM");
   });
+  it("preserva contatos e contexto oficial em link cru e mantém alternativas sem repetição", async () => {
+    const official = { ...incoming, name: "Nome CRM", email: "official@example.invalid", whatsapp: "11999990000",
+      scope: "green_sales", origin: "GreenSales", responsible_executive_id: "TEST-owner", personalized: true,
+      journey: { progress: 70 }, created_at: "2026-08-01", manual_overrides: {} };
+    db.rows = [{ ...official }];
+    await run({ ...incoming, whatsapp: "11888880000" });
+    await run({ ...incoming, whatsapp: "11888880000" });
+    expect(db.rows).toHaveLength(1);
+    expect(db.rows[0]).toMatchObject(official);
+    for (const field of ["name", "email", "whatsapp"]) {
+      expect(db.rows[0].identity_alternates[field]).toHaveLength(1);
+      expect(db.writes.every((w) => !(field in w))).toBe(true);
+    }
+  });
+  it("link personalizado não troca responsável, origem ou workspace de cadastro reconhecido", async () => {
+    db.rows = [{ ...incoming, name: "Oficial", scope: "portal", responsible_executive_id: "TEST-owner", origin: "Original" }];
+    await run({ ...incoming, personalized: true, responsibleExecutiveId: "TEST-other", scope: "green_sales" } as typeof incoming);
+    expect(db.rows[0]).toMatchObject({ name: "Oficial", scope: "portal", responsible_executive_id: "TEST-owner", origin: "Original" });
+  });
 });

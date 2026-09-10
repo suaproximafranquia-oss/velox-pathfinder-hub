@@ -38,6 +38,7 @@ async function resolveIdentityOnServer(payload: {
   /** COMANDO 3 §8 — canal oficial de entrada (/origem/tiktok|meta). */
   channel: "tiktok" | "meta" | null;
   commercialSubmission?: { id: string; unit: "f" };
+  unit?: "f";
 }): Promise<IdentityResult> {
   /**
    * O link personalizado de Executivo continua VENCENDO o canal: quando
@@ -172,6 +173,7 @@ export function GatewayOverlay({
       personalized: Boolean(executive),
       campaign: entry.campaign ?? null,
       channel: entry.channel === "tiktok" || entry.channel === "meta" ? entry.channel : null,
+      ...(/^\/f(?:\/|$)/.test(window.location.pathname) ? { unit: "f" as const } : {}),
       ...(financialSubmission && submissionId.current ? { commercialSubmission: { id: submissionId.current, unit: "f" as const } } : {}),
     });
     setChecking(false);

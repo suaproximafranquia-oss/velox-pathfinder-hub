@@ -249,9 +249,10 @@ async function runLeadSyncInner(
   const inWindow = new Set(leads.map((l) => String(l.id)));
   const { data: mirror } = await supabaseAdmin
     .from("crm_leads")
-    .select("external_id,stage_key")
+    .select("external_id,stage_key,last_entry_at")
     .eq("external_source", "greensales");
   const storedStage = new Map((mirror ?? []).map((r) => [r.external_id, r.stage_key]));
+  const storedEntry = new Map((mirror ?? []).map((r) => [r.external_id, r.last_entry_at]));
 
   type ScannedLead = (typeof scanned)[number];
   const entryAtOf = (lead: ScannedLead): string | null =>
@@ -324,6 +325,11 @@ async function runLeadSyncInner(
       toProcess.push({ listed, cls });
       continue;
     }
+    // Nova data comercial independe de mudança de etiqueta/etapa e da janela técnica.
+    if (isNewCommercialEntry(storedEntry.get(externalId) ?? null, entryAtOf(listed))) {
+      toProcess.push({ listed, cls: "A" });
+      continue;
+    }
     const resolved = stageKeyOf(listed);
     if (!resolved) {
       needsDetailCheck.push(listed);
@@ -347,7 +353,8 @@ async function runLeadSyncInner(
       const resolved = stageKeyOf(merged);
       // Sem etiqueta de coluna resolvida NÃO há evidência de mudança —
       // jamais rebaixamos um lead por ausência de informação.
-      if (resolved && resolved !== storedStage.get(externalId)) {
+      if (isNewCommercialEntry(storedEntry.get(externalId) ?? null, entryAtOf(merged)) ||
+          (resolved && resolved !== storedStage.get(externalId))) {
         divergentCount += 1;
         toProcess.push({ listed: merged, cls: "C" });
       }
