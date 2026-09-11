@@ -15,6 +15,7 @@
  * Nada é apagado e nenhuma mensagem é enviada por aqui.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Engine } from "@/lib/relationship/engine";
 
 export type QueueCallOutcome = "SIM" | "NAO";
 
@@ -25,6 +26,8 @@ export async function registerQueueCallOutcome(input: {
   rang?: number | boolean | null;
   actorId: string;
   nowIso?: string;
+  /** Motor da rodada isolada; ausente mantém exatamente o caminho produtivo. */
+  engine?: Engine;
 }): Promise<{ concluded: boolean; awaitingHandoff: boolean }> {
   const nowIso = input.nowIso ?? new Date().toISOString();
 
@@ -61,21 +64,24 @@ export async function registerQueueCallOutcome(input: {
   }
 
 
-  await supabaseAdmin.from("crm_lead_events").insert({
-    lead_id: row.lead_id,
-    type: "CADENCE_CALL_OUTCOME",
-    message:
-      input.outcome === "SIM"
-        ? `Ligação da etapa ${row.step} — investidor atendeu.`
-        : `Ligação da etapa ${row.step} — investidor não atendeu.`,
-    data: {
-      step: row.step,
-      outcome: input.outcome,
-      rang: input.outcome === "NAO" ? (input.rang ?? null) : null,
-      queueItemId: input.queueItemId,
-      actorId: input.actorId,
-    },
-  } as never);
+  // Homologação nunca escreve no histórico CRM produtivo.
+  if (!input.engine) {
+    await supabaseAdmin.from("crm_lead_events").insert({
+      lead_id: row.lead_id,
+      type: "CADENCE_CALL_OUTCOME",
+      message:
+        input.outcome === "SIM"
+          ? `Ligação da etapa ${row.step} — investidor atendeu.`
+          : `Ligação da etapa ${row.step} — investidor não atendeu.`,
+      data: {
+        step: row.step,
+        outcome: input.outcome,
+        rang: input.outcome === "NAO" ? (input.rang ?? null) : null,
+        queueItemId: input.queueItemId,
+        actorId: input.actorId,
+      },
+    } as never);
+  }
 
   if (input.outcome !== "SIM") {
     /**
@@ -84,7 +90,7 @@ export async function registerQueueCallOutcome(input: {
      * não depender do próximo ciclo do agendador. Falha aqui não desfaz
      * o desfecho — o tique regular reprograma.
      */
-    await tickLead(row.lead_id);
+    await tickLead(row.lead_id, input.engine);
     return { concluded: true, awaitingHandoff: false };
   }
 
@@ -110,16 +116,20 @@ export async function registerQueueCallOutcome(input: {
    * Por isso nada é gravado em `awaiting_handoff` aqui — o campo fica
    * apenas como histórico dos ciclos anteriores.
    */
-  await tickLead(row.lead_id);
+  await tickLead(row.lead_id, input.engine);
 
   // E0 atendida: a pendência legada de E0 (se existir) deixa de fazer sentido.
-  if (row.step === "E0") await closeLegacyE0(row.lead_id, "ENCERRADA: E0 atendida pela régua V2 (Ação do Dia).");
+  if (row.step === "E0" && !input.engine) await closeLegacyE0(row.lead_id, "ENCERRADA: E0 atendida pela régua V2 (Ação do Dia).");
 
   return { concluded: true, awaitingHandoff: false };
 }
 
-async function tickLead(leadId: string): Promise<void> {
+async function tickLead(leadId: string, supplied?: Engine): Promise<void> {
   try {
+    if (supplied) {
+      await supplied.tick(leadId);
+      return;
+    }
     const { productionEngine } = await import("./engine.server");
     await productionEngine().tick(leadId);
   } catch {

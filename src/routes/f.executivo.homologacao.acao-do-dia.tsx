@@ -1,8 +1,5 @@
 /**
- * CENTRAL DE HOMOLOGAÇÃO → AÇÃO DO DIA (DEMONSTRAÇÃO).
- *
- * Reaproveita integralmente o overlay real e o adaptador de
- * demonstração já existentes. Nenhuma função de produção é chamada.
+ * CENTRAL DE HOMOLOGAÇÃO → VALIDAÇÃO TEMPORAL CONTROLADA.
  */
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -14,16 +11,16 @@ import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 export const Route = createFileRoute("/f/executivo/homologacao/acao-do-dia")({
   head: () => ({
     meta: [
-      { title: "Ação do Dia — Demonstração | Central de Homologação" },
+      { title: "Ação do Dia — Teste Controlado | Velox" },
       {
         name: "description",
         content:
-          "Demonstração isolada da Ação do Dia do Workspace Velox, com dados fictícios e execução simulada.",
+          "Validação temporal isolada da Ação do Dia com quatro leads selecionados e relógio lógico acelerado.",
       },
-      { property: "og:title", content: "Ação do Dia — Demonstração | Central de Homologação" },
+      { property: "og:title", content: "Ação do Dia — Teste Controlado | Velox" },
       {
         property: "og:description",
-        content: "Demonstração da fila operacional da Ação do Dia, sem qualquer efeito real.",
+        content: "Validação temporal isolada, sem alterar a fila produtiva ou enviar mensagens.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -48,7 +45,7 @@ function DemoTab() {
       <div className="space-y-6">
         <HomologationTabs />
         <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
-          <h1 className="text-lg text-[color:var(--foreground)]">Ação do Dia — Demonstração</h1>
+          <h1 className="text-lg text-[color:var(--foreground)]">Ação do Dia — Teste controlado</h1>
           <div className="mt-4">
             <HomologationDailyActionsDemo />
           </div>
