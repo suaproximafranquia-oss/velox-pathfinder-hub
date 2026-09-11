@@ -226,7 +226,7 @@ export async function activateEnvironmentClock(
         startedAtReal: nowIso,
         // O tempo lógico continua de onde o tempo real está agora.
         startedAtVirtual: nowIso,
-         frozenAtVirtual: null,
+        frozenAtVirtual: null,
       } as never,
     } as never,
     { onConflict: "id" },
@@ -279,6 +279,7 @@ export async function pauseEnvironmentClock(): Promise<EnvironmentClockStatus> {
     .maybeSingle();
   if (error) throw new Error(error.message);
   invalidateClockCache();
+  // Uma chamada concorrente pode ter vencido a transição condicional.
   if (!data) return environmentClockStatus();
   return environmentClockStatus();
 }
@@ -316,6 +317,7 @@ export async function resumeEnvironmentClock(): Promise<EnvironmentClockStatus> 
     .maybeSingle();
   if (error) throw new Error(error.message);
   invalidateClockCache();
+  // Uma chamada concorrente pode ter vencido a transição condicional.
   if (!data) return environmentClockStatus();
   return environmentClockStatus();
 }

@@ -79,13 +79,13 @@ export function EnvironmentClockCard() {
             <div>
               <dt className="text-[color:var(--muted-foreground)]">Situação</dt>
               <dd className="text-[color:var(--foreground)]">
-                 {view
-                   ? view.mode === "paused"
-                     ? "Relógio pausado"
-                     : view.mode === "running"
-                       ? `Relógio em execução (${view.factor}x)`
-                       : "Desligado (tempo real)"
-                   : "…"}
+                {view
+                  ? view.mode === "paused"
+                    ? "Relógio pausado"
+                    : view.mode === "running"
+                      ? `Relógio em execução (${view.factor}x)`
+                      : "Desligado (tempo real)"
+                  : "…"}
               </dd>
             </div>
             <div>
@@ -109,31 +109,31 @@ export function EnvironmentClockCard() {
             >
               Ligar relógio acelerado
             </Button>
-             {view?.mode === "running" ? (
-               <Button
-                 type="button"
-                 disabled={busy}
-                 onClick={() => void run(() => pause({} as never))}
-                 variant="outline"
-               >
-                 <Pause className="h-4 w-4" />
-                 Pausar relógio
-               </Button>
-             ) : null}
-             {view?.mode === "paused" ? (
-               <Button
-                 type="button"
-                 disabled={busy}
-                 onClick={() => void run(() => resume({} as never))}
-                 variant="outline"
-               >
-                 <Play className="h-4 w-4" />
-                 Continuar relógio
-               </Button>
-             ) : null}
+            {view?.mode === "running" ? (
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => void run(() => pause({} as never))}
+                variant="outline"
+              >
+                <Pause className="h-4 w-4" />
+                Pausar relógio
+              </Button>
+            ) : null}
+            {view?.mode === "paused" ? (
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => void run(() => resume({} as never))}
+                variant="outline"
+              >
+                <Play className="h-4 w-4" />
+                Continuar relógio
+              </Button>
+            ) : null}
             <Button
               type="button"
-               disabled={busy || view?.mode === "real" || !view}
+              disabled={busy || view?.mode === "real" || !view}
               onClick={() => void run(() => deactivate({} as never))}
               variant="outline"
             >
