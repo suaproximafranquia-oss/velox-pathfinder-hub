@@ -180,18 +180,25 @@ export async function activateControlledTest(actorId: string, actorName: string)
     ends_at: null,
   } as never);
   if (error) throw new Error(error.message);
-
-  const repository = createRepository("homologation", runId);
-  for (const lead of CONTROLLED_LEADS) {
-    const record = initialRecord({ scope: "homologation", leadId: lead.leadId, runId, at: logicalStart.toISOString() });
-    record.startedAt = logicalStart.toISOString();
-    record.startedBy = "manual";
-    record.state = "CADENCE_ACTIVE";
-    record.currentStep = "E0";
-    await repository.saveRecord(record);
+  try {
+    const repository = createRepository("homologation", runId);
+    for (const lead of CONTROLLED_LEADS) {
+      const record = initialRecord({ scope: "homologation", leadId: lead.leadId, runId, at: logicalStart.toISOString() });
+      record.startedAt = logicalStart.toISOString();
+      record.startedBy = "manual";
+      record.state = "CADENCE_ACTIVE";
+      record.currentStep = "E0";
+      await repository.saveRecord(record);
+    }
+    await runControlledTestTick();
+    return controlledTestStatus();
+  } catch (error) {
+    // Ativação é transacional do ponto de vista operacional: nenhuma
+    // rodada parcialmente criada permanece ativa após uma falha.
+    await deleteRunRows(runId).catch(() => undefined);
+    await supabaseAdmin.from("test_batches").delete().eq("id", runId);
+    throw error;
   }
-  await runControlledTestTick();
-  return controlledTestStatus();
 }
 
 export async function runControlledTestTick(): Promise<ControlledTestStatus> {
