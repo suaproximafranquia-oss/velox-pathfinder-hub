@@ -30,6 +30,7 @@ import {
   takeStepMessage,
 } from "@/lib/crm/daily-actions-prefetch";
 import { KIND_LABEL, operationalTime, type DailyAction } from "@/lib/crm/daily-actions";
+import { loadMessageForModal } from "@/lib/crm/daily-action-message";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -114,6 +115,7 @@ export function DailyActionCard({
   const [message, setMessage] = useState<StepMessageView | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageNote, setMessageNote] = useState("");
+  const [manualNote, setManualNote] = useState("");
   const [copied, setCopied] = useState(false);
 
   /** Trocar de ação limpa os rascunhos da ação anterior. */
@@ -337,7 +339,14 @@ export function DailyActionCard({
         const prepared = takeStepMessage(
           stepMessageKey(item.leadId, item.messageRef?.step ?? item.stepLabel),
         );
-        view = (await (prepared ?? adapter.loadMessage(item))) ?? null;
+        const state = await loadMessageForModal(
+          async () => (await (prepared ?? adapter.loadMessage(item))) ?? null,
+          copyMessageBody,
+        );
+        view = state.message;
+        setMessage(view);
+        setCopied(state.copied);
+        setMessageOpen(state.open);
       } catch (error) {
         setFeedback(
           error instanceof Error
@@ -346,14 +355,10 @@ export function DailyActionCard({
         );
         return;
       }
-      setMessage(view);
-      setCopied(false);
       if (!view) {
         setFeedback("Esta ação não tem mensagem oficial vinculada.");
         return;
       }
-      const copiedNow = await copyMessageBody(view.body);
-      setMessageOpen(copiedNow);
     } finally {
       setBusy(false);
     }
@@ -377,10 +382,6 @@ export function DailyActionCard({
 
   function handleRegisterMessage() {
     if (locked) return;
-    if (!copied) {
-      setFeedback("Copie a mensagem oficial antes de concluir.");
-      return;
-    }
     const observation = messageNote.trim();
     setMessageNote("");
     setCopied(false);
@@ -388,6 +389,16 @@ export function DailyActionCard({
     resolveNow(
       () => adapter.registerMessage(item, observation),
       "Não foi possível registrar a mensagem.",
+    );
+  }
+
+  function handleCompleteManual() {
+    if (locked) return;
+    const observation = manualNote.trim();
+    setManualNote("");
+    resolveNow(
+      () => adapter.completeManual(item, observation),
+      "Não foi possível concluir a ação manual.",
     );
   }
 
@@ -646,6 +657,16 @@ export function DailyActionCard({
             {item.stepLabel ? `Copiar mensagem — Etapa ${item.stepLabel}` : "Copiar mensagem"}
           </button>
         )}
+        {item.kind === "manual" && (
+          <button
+            type="button"
+            onClick={() => void handleCompleteManual()}
+            disabled={busy || locked}
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
+          >
+            <Check className="h-4 w-4" /> Concluído
+          </button>
+        )}
 
         {item.leadId && onOpenLead && (
           <button
@@ -776,19 +797,19 @@ export function DailyActionCard({
       {/* OBSERVAÇÃO — a ação continua pendente. */}
       {!item.followUp && <div className="flex flex-wrap items-center gap-2">
         <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
+          value={item.kind === "manual" ? manualNote : note}
+          onChange={(e) => item.kind === "manual" ? setManualNote(e.target.value) : setNote(e.target.value)}
           placeholder="Observação operacional"
           className="min-w-[240px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
         />
-        <button
+        {item.kind !== "manual" && <button
           type="button"
           onClick={() => void handleNote()}
           disabled={busy}
           className="rounded-lg border border-white/20 bg-white/[0.05] px-3 py-1.5 text-sm text-white/75 transition hover:bg-white/[0.1] disabled:opacity-50"
         >
           <StickyNote className="mr-1 inline h-3.5 w-3.5" /> Salvar observação
-        </button>
+        </button>}
       </div>}
 
       {feedback && <p className="text-[11px] text-[color:var(--gold)]">{feedback}</p>}
@@ -807,7 +828,7 @@ export function DailyActionCard({
       */}
       {messageOpen && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-4">
-          <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Mensagem oficial" className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">
@@ -848,7 +869,7 @@ export function DailyActionCard({
               <p className={`text-[11px] ${copied ? "text-emerald-200/80" : "text-amber-200/80"}`}>
                 {copied
                   ? "Mensagem copiada. Copiar não conclui a ação."
-                  : "Copie a mensagem oficial para liberar o botão Concluído."}
+                  : "A cópia automática falhou. Selecione o texto acima ou tente copiar novamente."}
               </p>
               <input
                 value={messageNote}
@@ -880,11 +901,9 @@ export function DailyActionCard({
               <button
                 type="button"
                 onClick={() => void handleRegisterMessage()}
-                disabled={busy || !message?.body || !copied}
+                disabled={busy || !message?.body}
                 className={`w-full rounded-lg border px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  copied
-                    ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"
-                    : "border-white/15 bg-white/[0.04] text-white/40"
+                  "border-emerald-400/50 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"
                 }`}
               >
                 <Check className="mr-1 inline h-4 w-4" /> Concluído
