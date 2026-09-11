@@ -206,6 +206,30 @@ export const registerDailyActionMessageFn = createServerFn({ method: "POST" })
     return { ok: true as const, ...outcome, queue: await queueAfterOutcome(executiveId) };
   });
 
+/** Conclusão de apresentação/material manual na mesma fila oficial. */
+export const completeDailyActionManualFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: ActionRefInput) => data)
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
+    const { completeDailyActionManual } = await import(
+      "@/server/crm/daily-actions-log.server"
+    );
+    const outcome = await completeDailyActionManual({
+      ...data,
+      userId: context.userId,
+      executiveId,
+    });
+    return { ok: true as const, ...outcome, queue: await queueAfterOutcome(executiveId) };
+  });
+
 /** Desfecho da reunião, resolvido na fonte oficial `portal_meetings`. */
 export const resolveMeetingOutcomeFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

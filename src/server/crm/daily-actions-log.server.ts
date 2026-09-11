@@ -29,6 +29,7 @@ export const DAILY_ACTION_EVENTS = {
   skip: "acao_do_dia_pulada",
   note: "acao_do_dia_observacao",
   message: "acao_do_dia_mensagem_registrada",
+  manual: "acao_do_dia_acao_manual_concluida",
   meeting: "acao_do_dia_reuniao_resolvida",
   reschedule: "acao_do_dia_reuniao_reagendada",
   /** Ação antes pulada e depois efetivamente concluída. */
@@ -348,6 +349,58 @@ export async function registerDailyActionMessage(
     }
   }
 
+  return outcome;
+}
+
+/**
+ * APRESENTAÇÃO/MATERIAL MANUAL. Conclui exatamente a mesma linha da fila
+ * e deixa o motor calcular a próxima etapa. Não lê nem registra mensagem.
+ */
+export async function completeDailyActionManual(
+  input: DailyActionLogInput,
+): Promise<{ concluded: boolean; reason: string | null }> {
+  const nowIso = input.nowIso ?? envNow().toISOString();
+  const queueItemId = queueItemIdFromActionKey(input.actionKey);
+  const outcome = await concludeQueueStep({
+    leadId: input.leadId,
+    step: input.step,
+    queueItemId,
+  });
+
+  await writeLedger(
+    DAILY_ACTION_EVENTS.manual,
+    {
+      ...input,
+      nowIso,
+      reason: input.reason.trim() || "Ação manual concluída pelo Executivo.",
+      outcome: outcome.concluded ? "concluida" : "registrada",
+    },
+    { queueItemId, motorResultado: outcome.reason },
+  );
+
+  if (outcome.concluded) {
+    await recordDailyActionHistory({
+      leadId: input.leadId,
+      sourceKey: `acao_do_dia:${queueItemId ?? input.actionKey}:manual`,
+      headline: historyHeadline("Ação manual concluída", input.step, nowIso),
+      sections: input.reason.trim()
+        ? [{ label: "Observação", value: input.reason.trim() }]
+        : [],
+      userId: input.userId,
+      executiveId: input.executiveId,
+    });
+    await recordSkipRecovery({
+      actionKey: input.actionKey,
+      leadId: input.leadId,
+      kind: input.kind,
+      step: input.step,
+      title: input.title,
+      userId: input.userId,
+      executiveId: input.executiveId,
+      via: "manual",
+      nowIso,
+    });
+  }
   return outcome;
 }
 

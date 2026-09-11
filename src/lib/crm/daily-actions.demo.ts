@@ -202,6 +202,7 @@ export function createDemoDailyActionsAdapter(): DailyActionsAdapter {
       requeue: true,
       message: `Simulação: mensagem de ${item.name} marcada como tratada. Nada foi enviado ou gravado.`,
     }),
+    completeManual: async (): Promise<AdapterResult> => ({ ok: true }),
     resolveMeeting: async (item, attended): Promise<AdapterResult> => ({
       ok: true,
       requeue: true,

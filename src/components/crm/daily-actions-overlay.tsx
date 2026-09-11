@@ -46,6 +46,7 @@ const KIND_ICON: Record<DailyActionKind, typeof Phone> = {
   compromisso: CalendarDays,
   mensagem: MessageSquare,
   ligacao: Phone,
+  manual: Check,
   alerta_portal: Bell,
 };
 
