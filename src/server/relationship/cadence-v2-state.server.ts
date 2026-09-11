@@ -118,31 +118,35 @@ async function loadE0Executed(leadId: string): Promise<boolean> {
 /** Cancelamentos que NÃO representam decisão da régua (desfazer de resultado). */
 const NEUTRALIZED_CANCEL_REASONS = new Set(["undo_call_outcome"]);
 
-export async function loadCadenceV2State(record: CadenceRecord): Promise<V2DecisionInput | null> {
+export async function loadCadenceV2State(
+  record: CadenceRecord,
+  options: { nowIso?: string; runId?: string | null } = {},
+): Promise<V2DecisionInput | null> {
   const flow = v2FlowOf(record.flow);
   if (!flow) return null;
 
+  const queueQuery = supabaseAdmin
+    .from("relationship_queue")
+    .select("step,action_order,action_kind,status,due_at,executed_at,result,cancel_reason")
+    .eq("scope", record.scope)
+    .eq("lead_id", record.leadId);
+  const cycleQuery = supabaseAdmin
+    .from("relationship_cadences")
+    .select("awaiting_handoff,started_at,created_at,instance_seq,opened_reason")
+    .eq("scope", record.scope)
+    .eq("lead_id", record.leadId)
+    .eq("active", true);
+  const scopedQueue = options.runId ? queueQuery.eq("run_id", options.runId) : queueQuery.is("run_id", null);
+  const scopedCycle = options.runId ? cycleQuery.eq("run_id", options.runId) : cycleQuery.is("run_id", null);
+  const homologation = record.scope === "homologation";
   const [{ data: queueRows }, { data: cycleRow }, stageKey, hasCommitment, material, e0Executed] =
     await Promise.all([
-      supabaseAdmin
-        .from("relationship_queue")
-        .select("step,action_order,action_kind,status,due_at,executed_at,result,cancel_reason")
-        .eq("scope", record.scope)
-        .eq("lead_id", record.leadId)
-        .order("due_at", { ascending: true }),
-      supabaseAdmin
-        .from("relationship_cadences")
-        .select("awaiting_handoff,started_at,created_at,instance_seq,opened_reason")
-        .eq("scope", record.scope)
-        .eq("lead_id", record.leadId)
-        .eq("active", true)
-        .order("instance_seq", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+      scopedQueue.order("due_at", { ascending: true }),
+      scopedCycle.order("instance_seq", { ascending: false }).limit(1).maybeSingle(),
       loadStageKey(record.leadId),
-      loadHasCommitment(record.leadId),
-      loadMaterialState(record.leadId),
-      loadE0Executed(record.leadId),
+      homologation ? Promise.resolve(false) : loadHasCommitment(record.leadId),
+      homologation ? Promise.resolve({ materialSent: false, materialRequested: false, materialRequestedAt: null, materialSentAt: null }) : loadMaterialState(record.leadId),
+      homologation ? Promise.resolve(false) : loadE0Executed(record.leadId),
     ]);
 
 
@@ -184,6 +188,7 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
     actions.some((action) => action.step === "E2") || executed.includes("E2");
 
   const [visualPath, reachedE4] = await Promise.all([
+    homologation ? Promise.resolve(false) :
     flow === "E"
       ? ensureVisualPathDecision({
           leadId: record.leadId,
@@ -192,15 +197,15 @@ export async function loadCadenceV2State(record: CadenceRecord): Promise<V2Decis
           materialSentAt: material.materialSentAt,
         })
       : Promise.resolve(false),
-    flow === "R"
+    homologation ? Promise.resolve(false) : flow === "R"
       ? reachedE4Historically(record.leadId, record.scope)
       : Promise.resolve(false),
   ]);
 
   return {
-    nowIso: new Date().toISOString(),
+    nowIso: options.nowIso ?? new Date().toISOString(),
     flow,
-    originDate: localDateOf(originIso ?? new Date().toISOString()),
+    originDate: localDateOf(originIso ?? options.nowIso ?? new Date().toISOString()),
     actions,
     executedSteps: [
       ...(record.executedSteps ?? []).map(String),
