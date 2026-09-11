@@ -46,3 +46,7 @@
 - [x] /f: suspender temporariamente somente a criação/recriação local de cards pelo GreenSales, mantendo a integração e o espelho ativos.
 - [x] /f: remover cards e derivados operacionais locais fora de Ricardo/59034, Eduardo/59037, Francisco/59081 e João/59279.
 - [x] Confirmar exatamente quatro cards, preservar seus dados temporais e não alterar relógio, GreenSales externo ou outros ambientes.
+
+- [ ] /f: adicionar Pausar/Continuar ao relógio ambiental 720x usando a linha `environment-clock-f`, com estado persistente e transições condicionais.
+- [ ] /f: manter allowlist dos quatro leads, Voltar ao tempo real e integrações operando durante a pausa.
+- [ ] Validar avanço, congelamento, retomada sem salto, idempotência/concorrência, tipos, testes relacionados e build.
