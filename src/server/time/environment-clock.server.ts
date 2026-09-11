@@ -145,12 +145,20 @@ export async function environmentClockStatus(): Promise<EnvironmentClockStatus> 
  * nunca alcança um ambiente com leads reais em operação.
  */
 async function assertOnlyValidationLeads(): Promise<void> {
-  const allowed = new Set((await validationLeads()).map((lead) => lead.crmId));
-  const { data, error } = await supabaseAdmin.from("crm_leads").select("id").limit(200);
+  const allowed = new Set(["59034", "59037", "59081", "59279"]);
+  const { data, error } = await supabaseAdmin
+    .from("portal_leads")
+    .select("external_id")
+    .eq("scope", "green_sales")
+    .eq("external_source", "greensales")
+    .is("archived_at", null);
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as Array<{ id: string }>;
-  const outside = rows.filter((row) => !allowed.has(String(row.id)));
-  if (rows.length !== allowed.size || outside.length > 0) {
+  const rows = (data ?? []) as Array<{ external_id: string | null }>;
+  const found = new Set(rows.map((row) => String(row.external_id ?? "")));
+  const exactMatch = rows.length === allowed.size
+    && found.size === allowed.size
+    && [...found].every((externalId) => allowed.has(externalId));
+  if (!exactMatch) {
     throw new Error(
       `Relógio acelerado bloqueado: o Workspace contém ${rows.length} cadastros; esperados apenas os 4 de validação.`,
     );
