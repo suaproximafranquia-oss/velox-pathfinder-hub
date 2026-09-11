@@ -64,3 +64,7 @@
 - [x] Financeira /f: tornar o corpo publicado a única fonte da mensagem, sem exigir ou inserir link separado.
 - [x] Biblioteca de Mensagens: remover da interface os campos de link e rótulo, preservando colunas e histórico existentes.
 - [x] Validar E1 com/sem URL no corpo, ausência de inserção automática, versão vigente no clique, URL idempotente e modal após falha do clipboard.
+
+- [ ] /f: desconectar consumidores produtivos do relógio ambiental e restaurar exclusivamente o tempo real.
+- [ ] /f: desconectar gate/allowlist temporários da materialização normal e remover seus cartões da Central de Homologação.
+- [ ] Preservar correções reais, migrations e todos os dados; validar tipos, testes focados, build e existência dos quatro leads sem escrita no banco.
