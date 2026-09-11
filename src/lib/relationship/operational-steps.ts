@@ -36,7 +36,7 @@ export const OPERATIONAL_STEP_KEYS: readonly string[] = [
  * combinação etapa + contexto tem versionamento e ativação próprios,
  * com as duas redações já existentes (COM NOME / SEM NOME).
  *
- *  • E7/E8 → SEM_CONTATO | MATERIAL_ENVIADO (estrutura de referência);
+ *  • E6/E7/E8 → SEM_CONTATO | MATERIAL_ENVIADO (estrutura de referência);
  *  • E2/E3 → contexto normal (sem contexto) ou o caminho V (V2/V3),
  *    decidido UMA ÚNICA VEZ pelo motor na chegada da E2. A E1 é sempre
  *    normal; "V1" permanece como contexto histórico da Biblioteca;
@@ -57,6 +57,7 @@ export type StepContext = (typeof STEP_CONTEXTS)[number];
 export const STEP_CONTEXT_MAP: Readonly<Record<string, Array<StepContext | null>>> = {
   E2: [null, "V2"],
   E3: [null, "V3"],
+  E6: ["SEM_CONTATO", "MATERIAL_ENVIADO"],
   E7: ["SEM_CONTATO", "MATERIAL_ENVIADO"],
   E8: ["SEM_CONTATO", "MATERIAL_ENVIADO"],
   R3: ["NAO_CHEGOU_E4", "JA_PASSOU_E4"],
@@ -70,7 +71,7 @@ export const CONTEXTUAL_STEP_KEYS: readonly string[] = Object.keys(STEP_CONTEXT_
  * contexto elegível para envio (E7/E8 e R3). Em E1/E2/E3 o contexto
  * normal continua sendo a linha sem contexto.
  */
-export const CONTEXT_REQUIRED_STEP_KEYS: readonly string[] = ["E7", "E8", "R3"];
+export const CONTEXT_REQUIRED_STEP_KEYS: readonly string[] = ["E6", "E7", "E8", "R3"];
 
 export function isOperationalStep(step: string | null | undefined): boolean {
   if (!step) return false;

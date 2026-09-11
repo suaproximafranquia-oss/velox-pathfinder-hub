@@ -171,6 +171,21 @@ describe("ações internas da etapa", () => {
     }
   });
 
+  it("materializa o mapa definitivo sem transformar contextos V em etapas", () => {
+    const expected = {
+      E0: ["call", "call", "message"], E1: ["call", "message", "call"],
+      E2: ["call", "message"], E3: ["call", "message"], E4: ["call", "message"],
+      E5: ["manual"], E6: ["message"], E7: ["call", "message"], E8: ["message"],
+      R1: ["call", "message"], R2: ["call", "message"], R3: ["message"], R4: ["message"],
+      RE0: ["call"], RE1: ["call", "message"], RE2: ["manual"], RE3: ["message"],
+    } as const;
+    for (const [step, kinds] of Object.entries(expected)) {
+      expect(stepActions(step as Parameters<typeof stepActions>[0]).map((action) => action.kind)).toEqual(kinds);
+    }
+    expect(resolveStepContext({ materialSent: false, visualPath: true }, "E2")).toBe("V2");
+    expect(resolveStepContext({ materialSent: false, visualPath: true }, "E3")).toBe("V3");
+  });
+
   it("ligação 1 às 14:00 libera a mensagem imediatamente", () => {
     const released = nextReleasedAction({
       step: "E1",

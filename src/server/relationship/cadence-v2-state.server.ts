@@ -250,7 +250,7 @@ export async function resolveStepContextForLead(
 ): Promise<import("@/lib/relationship/cadence-v2").StepContext | null> {
   const key = String(step ?? "").trim().toUpperCase();
 
-  if (key === "E7" || key === "E8") {
+  if (key === "E6" || key === "E7" || key === "E8") {
     const material = await loadMaterialState(leadId);
     return material.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
   }
