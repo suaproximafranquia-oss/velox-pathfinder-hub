@@ -17,8 +17,8 @@ import { createVirtualClock, realClock, type EngineClock } from "@/lib/relations
 
 export const ENVIRONMENT_CLOCK_KIND = "environment_clock";
 export const ENVIRONMENT_CLOCK_ID = "environment-clock-f";
-/** 5 minutos reais = 1 dia lógico. */
-export const ENVIRONMENT_CLOCK_FACTOR = 288;
+/** 2 minutos reais = 1 dia lógico. */
+export const ENVIRONMENT_CLOCK_FACTOR = 720;
 
 type ClockState = {
   active: boolean;
