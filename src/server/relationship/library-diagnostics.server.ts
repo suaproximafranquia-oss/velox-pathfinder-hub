@@ -32,7 +32,7 @@ export async function diagnoseLibrary(): Promise<LibraryDiagnostics> {
   const stepsWithoutContent: { stepKey: string; contentGroup: string }[] = [];
   const stepsWithoutText: string[] = [];
 
-  for (const [stepKey, definition] of Object.entries(STEPS)) {
+  for (const stepKey of Object.keys(STEPS)) {
     const row = byStep.get(stepKey);
     const text = String(row?.body ?? "").trim();
     if (!text) {
