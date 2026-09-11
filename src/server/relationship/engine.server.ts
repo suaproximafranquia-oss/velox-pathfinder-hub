@@ -8,7 +8,7 @@
  */
 import { RELATIONSHIP_CONFIG } from "@/lib/relationship/config";
 import { createEngine, type Engine } from "@/lib/relationship/engine";
-import { environmentClock } from "@/server/time/environment-clock.server";
+import { realClock } from "@/lib/relationship/clock";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isSimulatedExecution } from "./execution-mode.server";
 import { createRepository } from "./repository.server";
@@ -34,7 +34,7 @@ export function productionEngine(): Engine {
     activationMark,
     repository: createRepository("production", null),
     dispatcher: productionDispatcher,
-    clock: environmentClock(),
+    clock: realClock,
     config: RELATIONSHIP_CONFIG,
     /**
      * ATIVAÇÃO CONTROLADA — TEMPLATE VIRTUAL ENQUANTO A SIMULAÇÃO ESTIVER

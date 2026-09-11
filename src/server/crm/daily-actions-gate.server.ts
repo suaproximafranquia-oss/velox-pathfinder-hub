@@ -26,7 +26,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildDailyActions } from "@/server/crm/daily-actions.server";
 import { normalizeDailyActions, isAutomaticDailyAction, type DailyAction } from "@/lib/crm/daily-actions";
-import { envNow } from "@/server/time/environment-clock.server";
 
 export class OutOfTurnError extends Error {
   constructor(message: string) {
@@ -62,7 +61,7 @@ const CONTINUITY_WINDOW_MS = 20 * 60 * 1000;
  */
 async function recentContinuityLead(executiveId: string | null): Promise<string | null> {
   if (!executiveId) return null;
-  const since = new Date(envNow().getTime() - CONTINUITY_WINDOW_MS).toISOString();
+  const since = new Date(new Date().getTime() - CONTINUITY_WINDOW_MS).toISOString();
   try {
     const { data } = await supabaseAdmin
       .from("relationship_queue")
@@ -121,7 +120,7 @@ export async function currentDailyAction(
      * Reivindicação atômica: só PENDING vira PROCESSING. Duas abas que
      * chegam juntas reivindicam a MESMA linha uma única vez.
      */
-    const nowIso = envNow().toISOString();
+    const nowIso = new Date().toISOString();
     const { data } = await supabaseAdmin
       .from("relationship_queue")
       .update({
@@ -148,7 +147,7 @@ export async function releaseQueueClaim(queueItemId: string | null): Promise<voi
   if (!queueItemId) return;
   await supabaseAdmin
     .from("relationship_queue")
-    .update({ status: "PENDING", claimed_by: null, claimed_at: null, updated_at: envNow().toISOString() } as never)
+    .update({ status: "PENDING", claimed_by: null, claimed_at: null, updated_at: new Date().toISOString() } as never)
     .eq("id", queueItemId)
     .eq("status", "PROCESSING");
 }

@@ -14,7 +14,6 @@
 import { loadSettings } from "@/server/crm/automation.server";
 import { cadenceEligibility } from "@/lib/crm/cutover";
 import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
-import { envNow } from "@/server/time/environment-clock.server";
 
 export type FirstContactInput = {
   leadId: string;
@@ -90,7 +89,7 @@ export async function registerFirstContact(
     cycleKey: input.cycleKey ?? null,
   });
   if (!dispatch.registered) return { registered: false, reason: dispatch.reason };
-  const at = envNow().toISOString();
+  const at = new Date().toISOString();
 
   /**
    * PRIMEIRO CONTATO JÁ ACONTECEU: uma eventual ação manual de E0 ainda

@@ -19,7 +19,6 @@ import {
   type CallOutcome,
 } from "@/lib/crm/cadence";
 import { loadCadenceActivationDate } from "@/server/crm/automation.server";
-import { envNow } from "@/server/time/environment-clock.server";
 
 export type CadenceQueueItem = {
   leadId: string;
@@ -281,7 +280,7 @@ export async function completeCadenceTask(input: {
       due_date: input.dueDate,
       status: "DONE",
       outcome,
-      completed_at: envNow().toISOString(),
+      completed_at: new Date().toISOString(),
       completed_by: input.userId,
     },
     { onConflict: "lead_id,channel,cycle_date,step_day" },

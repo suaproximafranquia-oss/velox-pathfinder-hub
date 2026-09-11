@@ -20,7 +20,6 @@ import type {
   EngineScope,
   QueueItem,
 } from "@/lib/relationship/types";
-import { envNow } from "@/server/time/environment-clock.server";
 
 type Row = Record<string, any>;
 
@@ -53,7 +52,7 @@ function toRecord(row: Row): CadenceRecord {
     openingTemplateHistory: (row.opening_template_history ?? []) as string[],
     closedAt: row.closed_at ?? null,
     closeReason: row.close_reason ?? null,
-    updatedAt: row.updated_at ?? envNow().toISOString(),
+    updatedAt: row.updated_at ?? new Date().toISOString(),
   };
 }
 
@@ -259,7 +258,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         origin_date: item.originDate ?? null,
         // Reagendar uma linha antes neutralizada limpa o motivo antigo.
         cancel_reason: item.cancelReason ?? null,
-        updated_at: envNow().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       const additionalCall = (item.step === "E1" && item.actionOrder === 2 || item.step === "E2" && item.actionOrder === 3) && item.actionKind === "call";
       const { data, error } = await supabaseAdmin
@@ -283,7 +282,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     async claimQueueItem(id) {
       const { data } = await supabaseAdmin
         .from("relationship_queue")
-        .update({ status: "PROCESSING", updated_at: envNow().toISOString() } as any)
+        .update({ status: "PROCESSING", updated_at: new Date().toISOString() } as any)
         .eq("id", id)
         .eq("scope", scope)
         .eq("status", "PENDING")
@@ -292,7 +291,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     },
 
     async updateQueueItem(id, patch) {
-      const update: Row = { updated_at: envNow().toISOString() };
+      const update: Row = { updated_at: new Date().toISOString() };
       if (patch.status !== undefined) update["status"] = patch.status;
       if (patch.attempts !== undefined) update["attempts"] = patch.attempts;
       if (patch.executedAt !== undefined) update["executed_at"] = patch.executedAt;
@@ -321,7 +320,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
             status: "CANCELLED",
             reason,
             cancel_reason: reason,
-            updated_at: envNow().toISOString(),
+            updated_at: new Date().toISOString(),
           } as any)
           .in("status", ["PENDING", "PROCESSING"])
           .select("id") as any,
@@ -370,5 +369,5 @@ export function createRepository(scope: EngineScope, runId: string | null = null
 
 /** Registro inicial em memória — usado por leituras que ainda não persistiram. */
 export function emptyRecord(scope: EngineScope, leadId: string, runId: string | null) {
-  return initialRecord({ scope, leadId, runId, at: envNow().toISOString() });
+  return initialRecord({ scope, leadId, runId, at: new Date().toISOString() });
 }

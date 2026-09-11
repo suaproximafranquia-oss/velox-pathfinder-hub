@@ -22,7 +22,6 @@ import {
   historyHeadline,
   recordDailyActionHistory,
 } from "@/server/crm/daily-actions-history.server";
-import { envNow } from "@/server/time/environment-clock.server";
 
 /** Ações registradas por esta tela. Vocabulário fechado. */
 export const DAILY_ACTION_EVENTS = {
@@ -63,7 +62,7 @@ async function writeLedger(
   input: DailyActionLogInput,
   extra: Record<string, unknown> = {},
 ): Promise<void> {
-  const nowIso = input.nowIso ?? envNow().toISOString();
+  const nowIso = input.nowIso ?? new Date().toISOString();
   await supabaseAdmin.from("relationship_engine_log").insert({
     scope: "production",
     action: event,
@@ -103,7 +102,7 @@ export async function skipDailyAction(input: DailyActionLogInput): Promise<void>
   if (reason.length < 3) {
     throw new Error("Justificativa obrigatória para pular uma ação do dia.");
   }
-  const nowIso = input.nowIso ?? envNow().toISOString();
+  const nowIso = input.nowIso ?? new Date().toISOString();
   await writeLedger(DAILY_ACTION_EVENTS.skip, { ...input, reason, nowIso });
   await recordDailyActionHistory({
     leadId: input.leadId,
@@ -125,7 +124,7 @@ export async function skipDailyAction(input: DailyActionLogInput): Promise<void>
 export async function postponeNewLeadToNextBusinessDay(
   input: Omit<DailyActionLogInput, "reason"> & { reason?: string },
 ): Promise<void> {
-  const nowIso = input.nowIso ?? envNow().toISOString();
+  const nowIso = input.nowIso ?? new Date().toISOString();
   const isSaturday = new Date(`${operationalDate(nowIso)}T12:00:00Z`).getUTCDay() === 6;
   if (!isSaturday) {
     throw new Error("Adiar para o próximo dia útil só é permitido no sábado.");
@@ -213,7 +212,7 @@ export async function recordSkipRecovery(input: {
  * este registro existe. Nada é criado nem alterado aqui.
  */
 export async function hasSkipRecovery(actionKey: string): Promise<boolean> {
-  const since = new Date(envNow().getTime() - 90 * 24 * 3600 * 1000).toISOString();
+  const since = new Date(new Date().getTime() - 90 * 24 * 3600 * 1000).toISOString();
   const { data } = await supabaseAdmin
     .from("relationship_engine_log")
     .select("details")
@@ -230,7 +229,7 @@ export async function hasSkipRecovery(actionKey: string): Promise<boolean> {
 export async function noteDailyAction(input: DailyActionLogInput): Promise<void> {
   const reason = input.reason.trim();
   if (reason.length < 3) throw new Error("Escreva a observação antes de salvar.");
-  const nowIso = input.nowIso ?? envNow().toISOString();
+  const nowIso = input.nowIso ?? new Date().toISOString();
   await writeLedger(DAILY_ACTION_EVENTS.note, { ...input, reason, nowIso });
   await recordDailyActionHistory({
     leadId: input.leadId,
@@ -251,7 +250,7 @@ export async function noteDailyAction(input: DailyActionLogInput): Promise<void>
 export async function registerDailyActionMessage(
   input: DailyActionLogInput,
 ): Promise<{ concluded: boolean; reason: string | null }> {
-  const nowIso = input.nowIso ?? envNow().toISOString();
+  const nowIso = input.nowIso ?? new Date().toISOString();
   const queueItemId = queueItemIdFromActionKey(input.actionKey);
   const outcome = await concludeQueueStep({
     leadId: input.leadId,
@@ -359,7 +358,7 @@ export async function registerDailyActionMessage(
 export async function completeDailyActionManual(
   input: DailyActionLogInput,
 ): Promise<{ concluded: boolean; reason: string | null }> {
-  const nowIso = input.nowIso ?? envNow().toISOString();
+  const nowIso = input.nowIso ?? new Date().toISOString();
   const queueItemId = queueItemIdFromActionKey(input.actionKey);
   const outcome = await concludeQueueStep({
     leadId: input.leadId,
@@ -579,7 +578,7 @@ export async function listSkippedPendings(input: {
   executiveId: string | null;
   nowIso?: string;
 }): Promise<SkippedPending[]> {
-  const nowIso = input.nowIso ?? envNow().toISOString();
+  const nowIso = input.nowIso ?? new Date().toISOString();
   const today = operationalDate(nowIso);
   const since = new Date(new Date(nowIso).getTime() - 30 * 24 * 3600 * 1000).toISOString();
   const { data } = await supabaseAdmin
@@ -665,7 +664,7 @@ export async function resumeSkippedAction(input: {
   executiveId: string | null;
   nowIso?: string;
 }): Promise<{ ok: true }> {
-  const nowIso = input.nowIso ?? envNow().toISOString();
+  const nowIso = input.nowIso ?? new Date().toISOString();
   await writeLedger(DAILY_ACTION_EVENTS.resume, {
     actionKey: input.actionKey,
     leadId: input.leadId,
@@ -706,7 +705,7 @@ export async function resolveMeetingOutcome(input: {
   actionKey: string;
   title: string;
 }): Promise<void> {
-  const nowIso = envNow().toISOString();
+  const nowIso = new Date().toISOString();
   const patch: Record<string, unknown> = {
     status: input.attended ? "Concluída" : "Cancelada",
     updated_at: nowIso,
@@ -780,7 +779,7 @@ export async function rescheduleMeeting(input: {
 }): Promise<void> {
   const when = new Date(input.scheduledAt);
   if (Number.isNaN(when.getTime())) throw new Error("Nova data inválida.");
-  const nowIso = envNow().toISOString();
+  const nowIso = new Date().toISOString();
   const { error } = await supabaseAdmin
     .from("portal_meetings")
     .update({

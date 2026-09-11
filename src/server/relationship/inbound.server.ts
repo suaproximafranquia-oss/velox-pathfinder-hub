@@ -35,7 +35,6 @@ import { sendWhatsappText } from "@/server/crm/messaging.server";
  * motor não responde — e diz por quê.
  */
 import { AUTO_REPLY_STEP } from "./message-library.server";
-import { envNow } from "@/server/time/environment-clock.server";
 
 export type InboundMessage = {
   /** `wamid` da Meta — chave de idempotência do registro. */
@@ -60,7 +59,7 @@ export function parseInboundMessage(payload: unknown): InboundMessage | null {
       externalId: message.id ? String(message.id) : null,
       phone: onlyDigits(String(message.from)),
       body: String(text),
-      at: Number.isFinite(ts) ? new Date(ts * 1000).toISOString() : envNow().toISOString(),
+      at: Number.isFinite(ts) ? new Date(ts * 1000).toISOString() : new Date().toISOString(),
     };
   } catch {
     return null;
@@ -198,7 +197,7 @@ export async function handleInboundMessage(message: InboundMessage): Promise<Inb
   }
 
   const simulated = executionMode({ isTestLead: lead.isTest }).simulated;
-  const at = envNow().toISOString();
+  const at = new Date().toISOString();
   const replyId = `msg_auto_${messageId}`;
   const { error: replyError } = await supabaseAdmin.from("crm_messages").insert({
     id: replyId,
