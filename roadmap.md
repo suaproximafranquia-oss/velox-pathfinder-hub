@@ -42,3 +42,7 @@
 - [x] /f: preparar validação temporal isolada 288x para Ricardo/59034, Eduardo/59037, Francisco/59081 e João/59279, sem tocar a produção.
 - [x] Central de Homologação: ativação/desativação persistente, relógio lógico 288x, fila isolada e limpeza por rodada.
 - [x] Validar typecheck, build e testes focados sem executar reset geral ou tocar dados produtivos.
+
+- [x] /f: suspender temporariamente somente a criação/recriação local de cards pelo GreenSales, mantendo a integração e o espelho ativos.
+- [x] /f: remover cards e derivados operacionais locais fora de Ricardo/59034, Eduardo/59037, Francisco/59081 e João/59279.
+- [x] Confirmar exatamente quatro cards, preservar seus dados temporais e não alterar relógio, GreenSales externo ou outros ambientes.
