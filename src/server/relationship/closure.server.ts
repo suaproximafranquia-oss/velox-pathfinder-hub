@@ -28,10 +28,10 @@ import { resolveRecipientPhone } from "./guard.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { operationalDate } from "@/lib/crm/daily-actions";
 import {
-import { envNow } from "@/server/time/environment-clock.server";
   reconcileOpportunityClosures,
   terminalStageLeadIds,
 } from "./opportunity.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 export const CHECKPOINT_STEP = "E27";
 export const FINALIZATION_STEP = "FINALIZACAO";
