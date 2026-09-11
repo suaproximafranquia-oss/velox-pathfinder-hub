@@ -59,3 +59,4 @@
 - [ ] Financeira /f: manter mensagens dinâmicas por etapa e contexto vigente na Biblioteca, preservando E5/RE2 manuais e RE0/RF conforme o mapa.
 - [ ] Financeira /f: desacoplar abertura e conclusão do modal do clipboard, tornar o painel opaco e validar etapas, contextos, tipos, testes e build.
 - [ ] Financeira /f: garantir ligação antes da mensagem na mesma etapa e concluir E5/RE2 manuais pela fila existente, preservando compensações e posição 1.
+- [ ] Financeira /f: validar Biblioteca vigente no clique, contextos V2/V3/E7/E8, URL idempotente e modal aberto mesmo com falha do clipboard.
