@@ -12,6 +12,7 @@
  * Mensagens simuladas (homologação) não produzem presença real.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 export const PRESENCE_WINDOW_MINUTES = 15;
 
@@ -37,7 +38,7 @@ export async function resolveInvestorPresence(leadId: string): Promise<InvestorP
   }
 
   const at = String(row["at"]);
-  const elapsedMinutes = (Date.now() - new Date(at).getTime()) / 60000;
+  const elapsedMinutes = (envNow().getTime() - new Date(at).getTime()) / 60000;
   if (elapsedMinutes <= PRESENCE_WINDOW_MINUTES) {
     return { online: true, lastInboundAt: at, label: "Conversa ativa agora" };
   }
@@ -49,7 +50,7 @@ export async function resolveInvestorPresence(leadId: string): Promise<InvestorP
     timeZone: "America/Sao_Paulo",
   });
   const day = date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  const today = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const today = envNow().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
   return {
     online: false,
     lastInboundAt: at,

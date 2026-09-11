@@ -17,6 +17,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { TERMINAL_STAGES } from "@/lib/relationship/closing";
+import { envNow } from "@/server/time/environment-clock.server";
 
 export const OPPORTUNITY_CLOSE_REASON = "oportunidade";
 
@@ -30,7 +31,7 @@ export async function closeCycleForOpportunity(
   leadId: string,
   nowIso?: string,
 ): Promise<OpportunityClosure[]> {
-  const at = nowIso ?? new Date().toISOString();
+  const at = nowIso ?? envNow().toISOString();
 
   const { data } = await supabaseAdmin
     .from("relationship_e20_occurrences")

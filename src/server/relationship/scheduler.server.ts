@@ -18,6 +18,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { productionEngine } from "./engine.server";
 import { listHistoricalCycleLeadIds } from "./cycle.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 export type RelationshipTickSummary = {
   evaluated: number;
@@ -135,6 +136,12 @@ async function bootstrapMissingCadences(leadIds: string[]): Promise<number> {
 
 export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
   /**
+   * FONTE DE TEMPO: o estado do relógio do ambiente é relido antes do
+   * tique. Em produção ele está desligado e `envNow()` é o tempo real.
+   */
+  const { refreshEnvironmentClock } = await import("@/server/time/environment-clock.server");
+  await refreshEnvironmentClock();
+  /**
    * CALENDÁRIO: as datas extras administradas pela gestão entram no
    * cálculo antes de qualquer decisão deste tique.
    */
@@ -153,7 +160,7 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
     errors: [],
   };
   const engine = productionEngine();
-  const startedAt = new Date().toISOString();
+  const startedAt = envNow().toISOString();
 
   /**
    * E0 MANUAL → RÉGUA V2. Leads NOVOS de executivo em modo manual entram
@@ -241,7 +248,7 @@ export async function runRelationshipTick(): Promise<RelationshipTickSummary> {
       action: "ciclo_motor",
       details: {
         startedAt,
-        finishedAt: new Date().toISOString(),
+        finishedAt: envNow().toISOString(),
         cadenciasResgatadas: recovered,
         fechamentosExecutados: closed,
         ...summary,

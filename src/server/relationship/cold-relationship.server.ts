@@ -32,6 +32,7 @@ import {
   type RfInstanceFact,
   type RfQueueFact,
 } from "@/lib/relationship/cold-relationship";
+import { envNow } from "@/server/time/environment-clock.server";
 
 const SCOPE = "production";
 /** Teto de leads avaliados por tique — protege o tempo do ciclo. */
@@ -253,7 +254,7 @@ async function applyDecision(
 export async function runColdRelationshipTick(
   nowIso?: string,
 ): Promise<ColdRelationshipSummary> {
-  const at = nowIso ?? new Date().toISOString();
+  const at = nowIso ?? envNow().toISOString();
   const summary: ColdRelationshipSummary = {
     evaluated: 0,
     scheduled: 0,

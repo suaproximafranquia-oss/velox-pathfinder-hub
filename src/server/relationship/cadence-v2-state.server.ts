@@ -10,6 +10,7 @@ import { v2FlowOf, type V2DecisionInput, type V2QueueAction } from "@/lib/relati
 import type { CadenceRecord } from "@/lib/relationship/types";
 import { localDateOf } from "@/lib/relationship/cadence-v2";
 import { belongsToReentryCycle, reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
+import { envNow } from "@/server/time/environment-clock.server";
 
 /** Estágios que congelam a cadência / liberam o fluxo R. */
 type Row = Record<string, any>;
@@ -203,9 +204,9 @@ export async function loadCadenceV2State(
   ]);
 
   return {
-    nowIso: options.nowIso ?? new Date().toISOString(),
+    nowIso: options.nowIso ?? envNow().toISOString(),
     flow,
-    originDate: localDateOf(originIso ?? options.nowIso ?? new Date().toISOString()),
+    originDate: localDateOf(originIso ?? options.nowIso ?? envNow().toISOString()),
     actions,
     executedSteps: [
       ...(record.executedSteps ?? []).map(String),

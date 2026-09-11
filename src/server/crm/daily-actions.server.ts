@@ -29,6 +29,7 @@ import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
 import { additionalCallDeadline } from "@/lib/relationship/cadence-v2-decide";
 import { reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
+import { envNow } from "@/server/time/environment-clock.server";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -93,7 +94,9 @@ export type DailyActionsInput = {
 };
 
 export async function buildDailyActions(input: DailyActionsInput): Promise<DailyAction[]> {
-  const nowIso = input.nowIso ?? new Date().toISOString();
+  // Relógio do ambiente (real em produção) relido antes de montar a fila.
+  await import("@/server/time/environment-clock.server").then((m) => m.refreshEnvironmentClock());
+  const nowIso = input.nowIso ?? envNow().toISOString();
   const today = operationalDate(nowIso);
   const horizonStart = new Date(new Date(nowIso).getTime() - 45 * 24 * 3600 * 1000).toISOString();
   const horizonEnd = new Date(new Date(nowIso).getTime() + 2 * 24 * 3600 * 1000).toISOString();

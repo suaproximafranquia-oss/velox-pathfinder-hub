@@ -21,6 +21,7 @@ import {
   renderFromLibrary,
   recordMessageSnapshot,
 } from "./message-library.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -109,7 +110,7 @@ export async function currentE20(leadId: string): Promise<E20Occurrence | null> 
     .select("*")
     .eq("lead_id", leadId)
     .is("closed_at", null)
-    .gt("expires_at", new Date().toISOString())
+    .gt("expires_at", envNow().toISOString())
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -149,7 +150,7 @@ export async function issueE20(params: {
 
   // Encerra a ocorrência anterior que ainda estiver de pé — o histórico
   // permanece visível, apenas deixa de ser a vigente.
-  const now = new Date();
+  const now = envNow();
   const at = now.toISOString();
   const { data: previousRows } = await supabaseAdmin
     .from("relationship_e20_occurrences")
@@ -306,7 +307,7 @@ export async function logE20Event(params: {
     actor_id: params.actorId ?? null,
     actor_name: params.actorName ?? null,
     metadata: (params.metadata ?? {}) as any,
-    at: new Date().toISOString(),
+    at: envNow().toISOString(),
   } as any);
 }
 
@@ -340,7 +341,7 @@ export async function markE20Sent(params: {
   actorId?: string | null;
   actorName: string;
 }): Promise<{ marked: boolean; reason?: string }> {
-  const at = new Date().toISOString();
+  const at = envNow().toISOString();
   const { data, error } = await supabaseAdmin
     .from("relationship_e20_occurrences")
     .update({
@@ -379,7 +380,7 @@ export async function closeE20Manually(params: {
   const motivo = params.reason.trim();
   if (!motivo) return { closed: false, reason: "Motivo obrigatório." };
 
-  const at = new Date().toISOString();
+  const at = envNow().toISOString();
   const { data, error } = await supabaseAdmin
     .from("relationship_e20_occurrences")
     .update({
@@ -433,8 +434,8 @@ export async function redeemE20(token: string, userAgent?: string | null): Promi
   if (!data) return { valid: false, reason: "Convite não encontrado." };
 
   const row = data as Record<string, any>;
-  const at = new Date().toISOString();
-  const expired = new Date(row["expires_at"]).getTime() < Date.now();
+  const at = envNow().toISOString();
+  const expired = new Date(row["expires_at"]).getTime() < envNow().getTime();
   const closed = Boolean(row["closed_at"]);
 
   await supabaseAdmin.from("relationship_e20_accesses").insert({
