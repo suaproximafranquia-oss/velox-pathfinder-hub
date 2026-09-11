@@ -190,6 +190,10 @@ export async function activateControlledTest(actorId: string, actorName: string)
       record.currentStep = "E0";
       await repository.saveRecord(record);
     }
+    const seeded = await counts(runId);
+    if (seeded.cadences !== CONTROLLED_LEADS.length) {
+      throw new Error("A rodada não conseguiu isolar os quatro ciclos; ativação cancelada.");
+    }
     await runControlledTestTick();
     return controlledTestStatus();
   } catch (error) {
@@ -277,7 +281,7 @@ export async function concludeControlledAction(input: { queueItemId: string; out
   if (item.action_kind === "call") {
     const { registerQueueCallOutcome } = await import("./call-outcome.server");
     const result = await registerQueueCallOutcome({
-      queueItemId: String(item.id), outcome: input.outcome ?? "NAO", actorId: "homologation", nowIso: clock.nowIso(), engine,
+      queueItemId: String(item.id), outcome: input.outcome ?? "NAO", actorId: "homologation", nowIso: clock.nowIso(), engine, runId,
     });
     if (!result.concluded) return { ok: false, ...(await controlledTestActions()) };
   } else {
