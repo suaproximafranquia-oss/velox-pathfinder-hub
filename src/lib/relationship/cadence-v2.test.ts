@@ -165,8 +165,8 @@ describe("ações internas da etapa", () => {
     expect(stepActions("E1")[2]?.waitHoursAfterPrevious).toBe(2);
   });
 
-  it("E2, E3 e E4 são ligação seguida de mensagem", () => {
-    for (const step of ["E2", "E3", "E4"] as const) {
+  it("etapas compostas são ligação seguida de mensagem", () => {
+    for (const step of ["E2", "E3", "E4", "E7", "R1", "R2", "RE1"] as const) {
       expect(stepActions(step).map((a) => a.kind)).toEqual(["call", "message"]);
     }
   });
@@ -210,12 +210,10 @@ describe("ações internas da etapa", () => {
   });
 
   it("a mensagem não é liberada antes da ligação da mesma etapa", () => {
-    const released = nextReleasedAction({
-      step: "E2",
-      stepDueAt: "2026-08-03T12:00:00.000Z",
-      states: [],
-    });
-    expect(released?.action.kind).toBe("call");
+    for (const step of ["E0", "E1", "E2", "E3", "E4", "E7", "R1", "R2", "RE1"] as const) {
+      const released = nextReleasedAction({ step, stepDueAt: "2026-08-03T12:00:00.000Z", states: [] });
+      expect(released?.action.kind).toBe("call");
+    }
   });
 
   it("a etapa só conclui depois da última ação aplicável", () => {

@@ -14,6 +14,7 @@ import {
   Bell,
   CalendarClock,
   CalendarDays,
+  Check,
   Lock,
   MessageCircle,
   MessageSquare,

@@ -639,11 +639,12 @@ export function createEngine(options: EngineOptions): Engine {
       });
 
       const stateBefore = record.state;
+      const isMaterialAction = item.actionKind === "manual" && (step === "E5" || step === "RE2");
       const sentEvent: EngineEvent = {
         id: `${repository.scope}:${leadId}:${step}:sent`,
         scope: repository.scope,
         leadId,
-        type: step === "E0" ? "FIRST_CONTACT_SENT" : "MESSAGE_SENT",
+        type: step === "E0" ? "FIRST_CONTACT_SENT" : isMaterialAction ? "CONTENT_SENT" : "MESSAGE_SENT",
         at: clock.nowIso(),
         step,
       };
