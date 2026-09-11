@@ -37,6 +37,7 @@ import {
 import { linkCanonicalInvestor, resolveOrCreateInvestor } from "@/server/crm/identity.server";
 import { applyOriginResponsibleChange } from "@/server/crm/ownership.server";
 import { resolveBoardStage, type PipelineMap } from "@/server/crm/pipeline-service.server";
+import { mayCreateGreenSalesWorkspaceCard } from "@/lib/crm/workspace-card-policy";
 
 export type IntakeSettings = Awaited<ReturnType<typeof loadSettings>>;
 
@@ -150,11 +151,21 @@ export async function intakeLead(
   if (outcome.deduplicated) return result;
 
   /**
+   * Suspensão temporária da materialização operacional do GreenSales.
+   * O espelho `crm_leads` acima continua atualizado, mas IDs fora da
+   * lista autorizada não criam card, identidade, E0 ou cadência local.
+   */
+  const isGreenSalesEntry = !context.entryOrigin || context.entryOrigin === "GREENSALES";
+  if (isGreenSalesEntry && !mayCreateGreenSalesWorkspaceCard(externalId)) {
+    result.e0Reason = "Criação local de cards GreenSales temporariamente suspensa.";
+    return result;
+  }
+
+  /**
    * BLOCO 2 — IDENTIDADE CANÔNICA (vínculo, nunca fusão) e
    * REDISTRIBUIÇÃO INFORMADA PELA ORIGEM. Exclusivo do GreenSales:
    * Portal, TikTok e Meta seguem exatamente como antes.
    */
-  const isGreenSalesEntry = !context.entryOrigin || context.entryOrigin === "GREENSALES";
   const cardId = `gs_${externalId}`;
   let canonicalInvestorId: string | null = null;
   /** Responsável informado pela PRÓPRIA origem (nunca o dono do cron). */
