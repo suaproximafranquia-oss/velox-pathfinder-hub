@@ -1,174 +1,103 @@
-# Diagnóstico — laboratório temporário da Ação do Dia | /f
+# Validação controlada com 4 leads reais e relógio 288x | Financeira /f
 
-Nenhuma alteração foi feita no código ou nos dados.
+## Objetivo
 
-## Conclusão executiva
+Preparar a Central de Homologação já existente para validar a passagem acelerada do tempo com estes quatro cadastros reais confirmados:
 
-A estratégia é **tecnicamente viável**, mas não deve ser feita limpando ou manipulando a operação real para deixar apenas cinco leads. A arquitetura segura é uma rodada isolada de homologação, com poucos leads fictícios ou cópias não identificáveis dos cenários escolhidos, `scope = homologation`, `run_id` próprio, envio sempre simulado e relógio virtual persistido por rodada.
+| Lead | ID GreenSales | ID operacional | Telefone final |
+|---|---:|---|---:|
+| Ricardo Gonçalves | 59034 | `gs_59034` | 6548 |
+| Eduardo Franco | 59037 | `gs_59037` | 2350 |
+| Francisco | 59081 | `gs_59081` | 1074 |
+| João Figueiredo | 59279 | `gs_59279` | 7062 |
 
-A base já existe parcialmente:
+Os quatro permanecem cadastros reais. O teste criará somente estado operacional de homologação para esses mesmos IDs; não criará cópias fictícias e não alterará as linhas operacionais de produção.
 
-- marcação explícita `is_test` + `test_batch_id`;
-- limpeza seletiva por lote;
-- separação do motor por `scope` e `run_id`;
-- um `EngineClock` virtual parametrizável;
-- bloqueio de saídas reais para leads de teste.
+## Limites obrigatórios
 
-O que **ainda não existe de ponta a ponta** é a ligação desse relógio virtual à Ação do Dia, ao scheduler, à continuidade, à E0 manual e à apresentação da fila.
+- Usar somente a Central de Homologação existente em `/f`.
+- Não criar tabela, migration, fila, laboratório, motor ou regra de negócio nova.
+- Não marcar os quatro leads como `is_test` e não mudar seus dados no GreenSales ou Portal dos Leads.
+- Não alterar cadência, etapas, prioridades, continuidade, posição 1, compromissos ou conteúdo da Biblioteca.
+- Não executar agora o reset geral definitivo.
+- Não tocar `/s`, `/s/portal`, `/seg` ou qualquer ambiente fora da Financeira.
+- Manter WhatsApp e integrações externas desativados durante toda a rodada.
 
-## Respostas objetivas
+## Implementação
 
-### A) É possível deixar somente IDs específicos?
+### 1. Confirmação e trava da seleção
 
-**Sim, na visão isolada de homologação. Não, com segurança, apagando os demais registros reais de produção.**
+- Registrar na configuração da rodada somente os quatro IDs operacionais acima, usando as estruturas persistentes de homologação já existentes.
+- Antes de iniciar ou limpar, conferir no servidor nome, telefone final e origem GreenSales dos quatro registros.
+- Bloquear a operação se faltar um cadastro, houver duplicidade ou qualquer identidade divergir.
+- Usar lista fechada; nenhum quinto lead poderá entrar por sincronização, reconciliação ou leitura ampla.
 
-Há duas abordagens distintas:
+### 2. Reset inicial exclusivamente da homologação
 
-1. **Insegura e rejeitada:** excluir, cancelar ou alterar ações reais de todos os demais leads em `scope = production`.
-2. **Segura e recomendada:** criar uma rodada isolada que só leia os cinco cenários escolhidos e não enxergue a fila real.
+- Limpar somente filas, cadências, eventos e decisões com `scope = homologation` pertencentes à rodada controlada anterior.
+- Preservar integralmente os registros `crm_leads` e `portal_leads` dos quatro leads, além de mensagens, timeline, compromissos e histórico de produção.
+- Não reutilizar o reset global nem o limpador que apaga leads fictícios.
+- Exibir uma prévia das contagens e exigir a confirmação administrativa já no fluxo da Central antes da limpeza restrita.
 
-Se os IDs informados forem reais, o laboratório não deve operar diretamente sobre suas linhas reais. Deve criar representações fictícias vinculadas apenas ao cenário de teste, sem copiar dados pessoais desnecessários e sem escrever no Portal dos Leads.
+### 3. Estado controlado dos quatro leads
 
-### B) Estruturas afetadas
+- Criar, no repositório já existente, uma rodada com `scope = homologation` e `run_id` exclusivo.
+- Referenciar diretamente `gs_59034`, `gs_59037`, `gs_59081` e `gs_59279`.
+- Inicializar a cadência de homologação a partir de uma fotografia somente leitura do estado atual de cada lead, sem modificar a cadência `production` nem os dados de origem.
+- Persistir a configuração e o estado do relógio usando o registro de rodada já existente; nenhuma estrutura nova será criada.
 
-Na solução segura, somente registros marcados da rodada de homologação:
+### 4. Relógio acelerado temporário
 
-| Estrutura | Uso no teste | Limpeza ao final |
-|---|---|---|
-| `test_batches` | identidade e estado do lote | marcar como limpo/encerrado |
-| `crm_leads` | espelho fictício com `is_test` e `test_batch_id` | somente linhas do lote |
-| `portal_leads` | card fictício do lote | somente linhas do lote |
-| `relationship_cadences` | estado da cadência | `scope=homologation` + `run_id` |
-| `relationship_queue` | ações e `due_at` | `scope=homologation` + `run_id` |
-| `relationship_events` | eventos do motor | `scope=homologation` + `run_id` |
-| `relationship_decisions` | decisões auditáveis | `scope=homologation` + `run_id` |
-| `crm_messages` | mensagens simuladas, se necessárias | somente IDs fictícios do lote |
-| `crm_timeline` | histórico visual fictício | somente IDs fictícios do lote |
-| `crm_lead_events` | eventos do espelho fictício | somente linhas do lote |
+- Reutilizar `EngineClock` e `createVirtualClock()` com fator **288**, equivalente a 5 minutos reais por 1 dia lógico.
+- O relógio será resolvido exclusivamente pelo `run_id` ativo da homologação.
+- Motor, cálculo de `due_at`, elegibilidade, atraso, calendário e montagem da fila de teste receberão o mesmo `nowIso` lógico.
+- Horários de auditoria, autenticação, rede, proteção contra clique duplo e a produção continuarão usando o relógio real.
+- Ao desativar, congelar primeiro a rodada e impedir novos ticks; a produção continuará em `realClock` sem qualquer chave global.
 
-O limpador existente já segue esse princípio em `src/server/testing/test-lab.server.ts`, mas hoje o laboratório usa relógio real e grava o motor em `scope=production`; isso precisaria ser corrigido antes de um teste acelerado permanente.
+### 5. Ação do Dia na Central de Homologação
 
-### C) O Portal dos Leads pode ficar intacto?
+- Reutilizar o overlay e os controles atuais da Ação do Dia.
+- Substituir somente os dados fictícios em memória dessa tela pela leitura da rodada ativa.
+- A fila de teste consultará apenas `scope = homologation`, o `run_id` ativo e a lista fechada dos quatro IDs.
+- A Ação do Dia normal continuará consultando somente `scope = production` e `run_id IS NULL`, impedindo mistura visual ou operacional.
+- Conclusões, “Atendeu/Não atendeu”, copiar mensagem, continuidade e recomposição usarão os handlers existentes, executados contra o repositório da rodada.
+- Toda saída externa permanecerá simulada/bloqueada; a interface mostrará claramente “Relógio acelerado 288x” e o horário lógico atual.
 
-**Sim, 100%.** É condição obrigatória.
+### 6. Execução temporal
 
-Não devem ser alterados os leads reais, os cards reais, a sincronização GreenSales, as etapas reais ou os históricos reais. Também ficam fora do reset:
+- Reutilizar o mesmo tick do motor, parametrizado por escopo, rodada, lista de leads e relógio.
+- O tick controlado avaliará exclusivamente os quatro IDs; não haverá varredura global nem reconciliação GreenSales.
+- A página poderá solicitar o tick da rodada para acompanhar a evolução; nenhum cron de produção será alterado.
+- Os intervalos de 10 minutos da E0 e 20 minutos de continuidade serão medidos pelo mesmo relógio lógico durante a rodada, sem mudar seus valores de negócio.
+- Compromissos reais e alertas reais não terão seus timestamps regravados; quando exibidos na rodada, serão apenas referências de leitura.
 
-- `crm_pipelines`, `crm_pipeline_stages`, `crm_connections` e `crm_sync_runs`;
-- configurações, usuários, papéis e perfis executivos;
-- Biblioteca, templates e conteúdos;
-- Portal público e dados reais de investidores;
-- permissões, produtos, backups e relatórios permanentes.
+### 7. Encerramento e limpeza posterior
 
-A proteção atual já considera registros `gs_*`, origem GreenSales ou `external_source` preenchido como dados protegidos.
+- Disponibilizar “Encerrar e limpar teste” somente para administrador.
+- A ação deverá: congelar o relógio, bloquear novos ticks, limpar apenas as linhas `homologation + run_id` e encerrar o registro da rodada.
+- Confirmar por contagem que não restaram filas/cadências/eventos/decisões da rodada.
+- Não apagar nem restaurar dados dos quatro leads, pois sua operação real nunca terá sido modificada.
+- O reset geral definitivo continuará ausente e bloqueado até uma solicitação posterior explícita com “OK”.
 
-### D) É possível usar 5 minutos reais = 1 dia lógico?
+## Validação direcionada
 
-**Sim.** O código já possui `createVirtualClock()` em `src/lib/relationship/clock.ts`.
+1. Confirmar novamente os quatro pares ID/nome/telefone antes de qualquer escrita.
+2. Provar que a fila normal de produção mantém as mesmas contagens e IDs antes/depois da ativação.
+3. Provar que a rodada enxerga somente os quatro leads.
+4. Validar 5 minutos reais ≈ 1 dia lógico e exibir ambos os horários.
+5. Validar E0, segunda ligação em 10 minutos lógicos, E1/E2, atraso, continuidade e recomposição sem alterar as regras.
+6. Confirmar que nenhuma tentativa alcança WhatsApp, GreenSales, calendário externo ou Portal público.
+7. Encerrar e limpar uma rodada de ensaio técnico, confirmando zero resíduo por `run_id`.
+8. Manter o reset geral definitivo não executado.
 
-O fator necessário é:
+## Arquivos principais
 
-```text
-1 dia lógico / 5 minutos reais = 1.440 / 5 = 288x
-```
-
-O relógio atual aceita fator parametrizado, mas o padrão existente é 12x. Em produção, `productionEngine()` injeta exclusivamente `realClock`; o virtual ainda não está conectado ao fluxo operacional.
-
-### E) Dependências atuais de tempo real
-
-| Área | Fonte atual do tempo | Situação para laboratório |
-|---|---|---|
-| Motor puro | `EngineClock` injetado | pronto para relógio virtual |
-| V2 e calendário | recebem datas/instantes como entrada | podem acompanhar o relógio virtual |
-| Scheduler | `new Date()` do servidor | precisa receber o relógio da rodada |
-| Montagem da Ação do Dia | `new Date()` por padrão | aceita `nowIso`, mas não recebe o virtual hoje |
-| Continuidade de 20 min | `Date.now()` no servidor | precisa de decisão específica e relógio controlado |
-| E0 manual | `new Date()` direto | precisa usar o relógio da rodada |
-| Reclassificação visual | `new Date()`/`Date.now()` no navegador | precisa receber o “agora lógico” do servidor |
-| Compromissos/follow-up | timestamps reais do banco | só podem ser virtuais em compromissos fictícios isolados |
-| Alertas do Portal | timestamp real | devem ficar fora do laboratório ou ser simulados |
-| `created_at`/`updated_at` | horário real do banco | devem permanecer reais como auditoria técnica |
-
-Importante: `created_at` e `updated_at` não precisam ser virtualizados. O horário lógico deve governar `due_at`, elegibilidade e classificação; o horário real deve continuar registrando quando o sistema realmente gravou cada linha.
-
-### F) Aplicação segura por regra
-
-| Regra | Pode usar 288x? | Condição |
-|---|---:|---|
-| `due_at` | Sim | calculado pelo relógio da rodada |
-| atraso/dia útil | Sim | `nowIso` lógico em toda classificação |
-| criação de E0 | Sim | E0 fictícia no escopo da rodada |
-| E1/E2 e demais etapas | Sim | motor e scheduler usando o mesmo relógio |
-| segunda ligação E0 de 10 min | Sim, com decisão | definir se os 10 min são **lógicos** ou **reais** |
-| continuidade de 20 min | Sim, com decisão | definir se a janela é lógica ou operacional real |
-| recomposição/ordenação | Sim | fila exclusiva da rodada e “agora lógico” comum |
-| compromissos | Parcialmente | somente compromissos fictícios; nunca agenda real |
-
-A escolha mais coerente para testar toda a régua é tratar 10 e 20 minutos como **tempo lógico**. Em 288x, 10 minutos lógicos passam em cerca de 2,1 segundos reais e 20 minutos em cerca de 4,2 segundos. Isso pode ficar rápido demais para operação manual; por isso o laboratório precisa oferecer pausa e avanço controlado, não apenas aceleração contínua.
-
-### G) O que não deve acompanhar o relógio acelerado
-
-- envio real de WhatsApp;
-- Google Calendar ou agenda humana real;
-- sincronização GreenSales real;
-- horários de auditoria (`created_at`, `updated_at`);
-- sessões de autenticação e segurança;
-- bloqueios contra clique duplo e respostas antigas da interface;
-- timeout de rede e processamento;
-- dados, alertas e compromissos reais do Portal.
-
-Esses elementos devem continuar no relógio real. Apenas a lógica comercial simulada usa o relógio virtual.
-
-### H) Ativação/desativação sem contaminar produção
-
-Forma mais segura:
-
-```text
-Rodada de homologação
-  ├─ scope = homologation
-  ├─ run_id exclusivo
-  ├─ leads TEST-* / is_test=true / test_batch_id
-  ├─ clock persistido: início real, início lógico, fator 288, pausa/fim
-  ├─ scheduler exclusivo do run_id
-  ├─ dispatcher sempre simulado
-  └─ Ação do Dia com adaptador exclusivo da rodada
-```
-
-A ativação deve ser por rodada explícita, nunca por variável global que mude o comportamento de `/f` inteiro. O host de preview sozinho também não basta, porque preview e publicado compartilham a mesma base; a fronteira precisa estar nos registros (`scope`, `run_id`, `is_test`, `test_batch_id`).
-
-### I) Risco de timestamps artificiais permanecerem misturados
-
-**Existe risco se o teste usar `scope=production`, IDs reais ou tabelas sem filtro de lote.** Nesse caso, `due_at`, eventos e cadências futuras poderiam continuar afetando a operação após desligar o relógio.
-
-Com `scope=homologation` + `run_id`, o risco fica controlado: os timestamps lógicos permanecem apenas como histórico da rodada e não são lidos pela produção. Ao encerrar, congela-se o relógio, desativa-se o scheduler da rodada e limpa-se somente o lote.
-
-### J) Estratégia recomendada
-
-1. Não tocar nem ocultar a fila real.
-2. Criar uma rodada exclusiva de homologação com cinco leads fictícios representando os cenários desejados.
-3. Persistir o relógio da rodada com fator 288x, suporte a pausar e avançar.
-4. Executar o mesmo motor e a mesma regra V2, mas com repositório `homologation/run_id` e dispatcher simulado.
-5. Montar uma Ação do Dia própria da rodada, lendo somente esse `run_id` e usando o mesmo “agora lógico”.
-6. Manter agenda, GreenSales, WhatsApp e Portal reais completamente desconectados.
-7. Ao terminar: congelar a rodada, gerar relatório, apagar somente registros do lote e confirmar por contagem que nenhum registro `production` foi tocado.
-8. Retomar a operação oficial sem nenhuma mudança, porque o caminho normal continuou usando `realClock` e `scope=production` durante todo o teste.
-
-## Ponto técnico mais importante
-
-O laboratório já tem peças úteis, mas o relógio virtual atual cobre apenas o motor puro. Aplicá-lo diretamente à produção não seria seguro nem suficiente: Ação do Dia, scheduler, continuidade, E0 manual, reuniões e interface ainda usam tempo real em pontos diferentes.
-
-Portanto, a resposta final é: **viável com isolamento por rodada; inviável com segurança se a proposta for limpar a produção e acelerar o relógio global do `/f`.**
-
-## Arquivos responsáveis
-
-- `src/lib/relationship/clock.ts` — relógio real/virtual.
-- `src/server/relationship/engine.server.ts` — produção fixa em `realClock`.
-- `src/server/relationship/repository.server.ts` — isolamento por `scope` e `run_id`.
-- `src/server/testing/test-lab.server.ts` — lotes fictícios, proteção e limpeza seletiva existentes.
-- `src/server/relationship/workspace-reset.server.ts` — estruturas e leads reais protegidos.
-- `src/server/relationship/scheduler.server.ts` — tick atual em tempo real e `scope=production`.
-- `src/server/crm/daily-actions.server.ts` — montagem da fila e `nowIso` real por padrão.
-- `src/server/crm/daily-actions-gate.server.ts` — claim e continuidade de 20 minutos em tempo real.
-- `src/server/relationship/e0-manual.server.ts` — abertura da E0 com horário real.
-- `src/components/crm/daily-actions-overlay.tsx` — reclassificação visual e controles técnicos em tempo real.
-- `src/lib/crm/daily-actions-overdue.ts` — cálculo puro de atraso a partir do `nowIso` recebido.
+- `src/lib/relationship/clock.ts` — relógio virtual já existente.
+- `src/server/relationship/engine.server.ts` — montagem parametrizada sem alterar o motor puro.
+- `src/server/relationship/repository.server.ts` — isolamento existente por `scope` e `run_id`.
+- `src/server/relationship/scheduler.server.ts` — reutilização do tick com lista fechada e relógio da rodada.
+- `src/server/testing/test-lab.server.ts` — controle administrativo da rodada e limpeza restrita.
+- `src/lib/testing/test-lab.functions.ts` — funções autenticadas e autorização administrativa.
+- `src/routes/f.executivo.homologacao.acao-do-dia.tsx` — tela existente da validação.
+- `src/components/executive/homologation-daily-actions-demo.tsx` — troca do adaptador em memória pelo adaptador da rodada.
+- `src/server/crm/daily-actions.server.ts` e `daily-actions-gate.server.ts` — leitura/claim parametrizados, mantendo produção explicitamente isolada.
