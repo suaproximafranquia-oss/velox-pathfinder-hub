@@ -22,32 +22,52 @@ export const ENVIRONMENT_CLOCK_FACTOR = 720;
 
 type ClockState = {
   active: boolean;
+  mode: "real" | "running" | "paused";
   factor: number;
   startedAtReal: string;
   startedAtVirtual: string;
+  frozenAtVirtual: string | null;
 };
 
 const INACTIVE: ClockState = {
   active: false,
+  mode: "real",
   factor: 1,
   startedAtReal: new Date(0).toISOString(),
   startedAtVirtual: new Date(0).toISOString(),
+  frozenAtVirtual: null,
 };
 
 let cache: { state: ClockState; loadedAt: number } | null = null;
 let inflight: Promise<ClockState> | null = null;
+let cacheGeneration = 0;
 /** Enquanto o estado não muda, a hora continua correndo sozinha. */
 const TTL_MS = 10_000;
 
 function parseState(row: Record<string, any> | null): ClockState {
-  if (!row || String(row.status) !== "ATIVO") return INACTIVE;
+  const status = String(row?.status ?? "");
+  if (!row || (status !== "ATIVO" && status !== "PAUSADO")) return INACTIVE;
   const raw = (row.scenarios ?? {}) as Record<string, unknown>;
   const startedAtReal = String(raw["startedAtReal"] ?? row.started_at ?? "");
   const startedAtVirtual = String(raw["startedAtVirtual"] ?? startedAtReal);
+  const frozenAtVirtual = raw["frozenAtVirtual"] == null
+    ? null
+    : String(raw["frozenAtVirtual"]);
   const factor = Number(raw["factor"] ?? ENVIRONMENT_CLOCK_FACTOR);
   if (!startedAtReal || Number.isNaN(new Date(startedAtReal).getTime())) return INACTIVE;
+  if (!startedAtVirtual || Number.isNaN(new Date(startedAtVirtual).getTime())) return INACTIVE;
   if (!Number.isFinite(factor) || factor <= 1) return INACTIVE;
-  return { active: true, factor, startedAtReal, startedAtVirtual };
+  if (status === "PAUSADO" && (!frozenAtVirtual || Number.isNaN(new Date(frozenAtVirtual).getTime()))) {
+    return INACTIVE;
+  }
+  return {
+    active: true,
+    mode: status === "PAUSADO" ? "paused" : "running",
+    factor,
+    startedAtReal,
+    startedAtVirtual,
+    frozenAtVirtual,
+  };
 }
 
 async function readState(): Promise<ClockState> {
@@ -66,15 +86,32 @@ async function readState(): Promise<ClockState> {
 
 /** Recarrega o estado do relógio (chamado nas entradas server-side). */
 export async function refreshEnvironmentClock(): Promise<ClockState> {
-  inflight ??= readState()
+  if (inflight) return inflight;
+  const generation = cacheGeneration;
+  const request = readState()
     .then((state) => {
-      cache = { state, loadedAt: Date.now() };
+      if (generation === cacheGeneration) cache = { state, loadedAt: Date.now() };
       return state;
     })
     .finally(() => {
-      inflight = null;
+      if (inflight === request) inflight = null;
     });
-  return inflight;
+  inflight = request;
+  return request;
+}
+
+function invalidateClockCache(): void {
+  cacheGeneration += 1;
+  cache = null;
+  inflight = null;
+}
+
+function logicalNowForState(state: ClockState, realNowMs = Date.now()): Date {
+  if (state.mode === "paused" && state.frozenAtVirtual) {
+    return new Date(state.frozenAtVirtual);
+  }
+  const elapsed = realNowMs - new Date(state.startedAtReal).getTime();
+  return new Date(new Date(state.startedAtVirtual).getTime() + Math.max(0, elapsed) * state.factor);
 }
 
 function currentState(): ClockState {
@@ -90,8 +127,7 @@ function currentState(): ClockState {
 export function envNow(): Date {
   const state = currentState();
   if (!state.active) return new Date();
-  const elapsed = Date.now() - new Date(state.startedAtReal).getTime();
-  return new Date(new Date(state.startedAtVirtual).getTime() + Math.max(0, elapsed) * state.factor);
+  return logicalNowForState(state);
 }
 
 export function envNowIso(): string {
@@ -105,6 +141,7 @@ export function environmentClock(): EngineClock {
   return createVirtualClock({
     startedAtReal: state.startedAtReal,
     startedAtVirtual: state.startedAtVirtual,
+    frozenAtVirtual: state.frozenAtVirtual,
     factor: state.factor,
   });
 }
@@ -117,11 +154,13 @@ async function validationLeads(): Promise<ReadonlyArray<{ crmId: string; leadId:
 
 export type EnvironmentClockStatus = {
   active: boolean;
+  mode: "real" | "running" | "paused";
   factor: number;
   realNowIso: string;
   logicalNowIso: string;
   startedAtReal: string | null;
   startedAtVirtual: string | null;
+  frozenAtVirtual: string | null;
   leads: Array<{ leadId: string; name: string }>;
 };
 
@@ -130,11 +169,13 @@ export async function environmentClockStatus(): Promise<EnvironmentClockStatus> 
   const leads = await validationLeads();
   return {
     active: state.active,
+    mode: state.mode,
     factor: state.active ? state.factor : 1,
     realNowIso: new Date().toISOString(),
     logicalNowIso: envNowIso(),
     startedAtReal: state.active ? state.startedAtReal : null,
     startedAtVirtual: state.active ? state.startedAtVirtual : null,
+    frozenAtVirtual: state.frozenAtVirtual,
     leads: leads.map((lead) => ({ leadId: lead.leadId, name: lead.name })),
   };
 }
@@ -187,12 +228,99 @@ export async function activateEnvironmentClock(
         startedAtReal: nowIso,
         // O tempo lógico continua de onde o tempo real está agora.
         startedAtVirtual: nowIso,
+        frozenAtVirtual: null,
       } as never,
     } as never,
     { onConflict: "id" },
   );
   if (error) throw new Error(error.message);
-  cache = null;
+  invalidateClockCache();
+  return environmentClockStatus();
+}
+
+async function readPersistedClockRow(): Promise<Record<string, any> | null> {
+  const { data, error } = await supabaseAdmin
+    .from("test_batches")
+    .select("id,status,scenarios,started_at")
+    .eq("id", ENVIRONMENT_CLOCK_ID)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data ?? null) as Record<string, any> | null;
+}
+
+export async function pauseEnvironmentClock(): Promise<EnvironmentClockStatus> {
+  await assertOnlyValidationLeads();
+  const row = await readPersistedClockRow();
+  if (String(row?.status ?? "") === "PAUSADO") {
+    invalidateClockCache();
+    return environmentClockStatus();
+  }
+  const state = parseState(row);
+  if (state.mode !== "running") {
+    invalidateClockCache();
+    return environmentClockStatus();
+  }
+
+  const frozenAtVirtual = logicalNowForState(state).toISOString();
+  const raw = (row?.scenarios ?? {}) as Record<string, unknown>;
+  const { data, error } = await supabaseAdmin
+    .from("test_batches")
+    .update({
+      status: "PAUSADO",
+      scenarios: {
+        ...raw,
+        factor: ENVIRONMENT_CLOCK_FACTOR,
+        startedAtReal: state.startedAtReal,
+        startedAtVirtual: state.startedAtVirtual,
+        frozenAtVirtual,
+      },
+    } as never)
+    .eq("id", ENVIRONMENT_CLOCK_ID)
+    .eq("status", "ATIVO")
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  invalidateClockCache();
+  // Uma chamada concorrente pode ter vencido a transição condicional.
+  if (!data) return environmentClockStatus();
+  return environmentClockStatus();
+}
+
+export async function resumeEnvironmentClock(): Promise<EnvironmentClockStatus> {
+  await assertOnlyValidationLeads();
+  const row = await readPersistedClockRow();
+  if (String(row?.status ?? "") === "ATIVO") {
+    invalidateClockCache();
+    return environmentClockStatus();
+  }
+  const state = parseState(row);
+  if (state.mode !== "paused" || !state.frozenAtVirtual) {
+    invalidateClockCache();
+    return environmentClockStatus();
+  }
+
+  const resumedAtReal = new Date().toISOString();
+  const raw = (row?.scenarios ?? {}) as Record<string, unknown>;
+  const { data, error } = await supabaseAdmin
+    .from("test_batches")
+    .update({
+      status: "ATIVO",
+      scenarios: {
+        ...raw,
+        factor: ENVIRONMENT_CLOCK_FACTOR,
+        startedAtReal: resumedAtReal,
+        startedAtVirtual: state.frozenAtVirtual,
+        frozenAtVirtual: null,
+      },
+    } as never)
+    .eq("id", ENVIRONMENT_CLOCK_ID)
+    .eq("status", "PAUSADO")
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  invalidateClockCache();
+  // Uma chamada concorrente pode ter vencido a transição condicional.
+  if (!data) return environmentClockStatus();
   return environmentClockStatus();
 }
 
@@ -202,6 +330,6 @@ export async function deactivateEnvironmentClock(): Promise<EnvironmentClockStat
     .update({ status: "ENCERRADO", ends_at: new Date().toISOString() } as never)
     .eq("id", ENVIRONMENT_CLOCK_ID);
   if (error) throw new Error(error.message);
-  cache = null;
+  invalidateClockCache();
   return environmentClockStatus();
 }
