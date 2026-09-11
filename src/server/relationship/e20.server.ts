@@ -18,10 +18,10 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { addDays, nextBusinessDay, operationalDate } from "@/lib/relationship/calendar";
 import { openInstance } from "./instances.server";
 import {
-import { envNow } from "@/server/time/environment-clock.server";
   renderFromLibrary,
   recordMessageSnapshot,
 } from "./message-library.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 

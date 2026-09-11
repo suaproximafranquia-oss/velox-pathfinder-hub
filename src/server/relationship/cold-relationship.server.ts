@@ -20,7 +20,6 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
-import { envNow } from "@/server/time/environment-clock.server";
   RF_ACTIVATION_AT,
   RF_FLOW,
   RF0_DELAY_DAYS,
@@ -33,6 +32,7 @@ import { envNow } from "@/server/time/environment-clock.server";
   type RfInstanceFact,
   type RfQueueFact,
 } from "@/lib/relationship/cold-relationship";
+import { envNow } from "@/server/time/environment-clock.server";
 
 const SCOPE = "production";
 /** Teto de leads avaliados por tique — protege o tempo do ciclo. */

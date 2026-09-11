@@ -21,10 +21,10 @@ import { renderFromLibrary, recordMessageSnapshot } from "./message-library.serv
 import { resolveLeadDestinations } from "./destinations.server";
 import { E0_TEMPLATE_MISSING_REASON, loadE0MetaTemplate } from "./e0-template.server";
 import {
-import { envNow } from "@/server/time/environment-clock.server";
   sendTemplateWithDestinations,
   type TemplateButtonParameter,
 } from "@/server/whatsapp.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 export const E0_STEP = "E0";
 

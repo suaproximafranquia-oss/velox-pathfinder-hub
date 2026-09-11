@@ -13,7 +13,6 @@ import { initialRecord } from "@/lib/relationship/machine";
 import { getPublishedVersion } from "./flow-versions.server";
 import { belongsToReentryCycle, reentryInternalOrder, reentryQueueOrder } from "@/lib/relationship/reentry-cycle";
 import type {
-import { envNow } from "@/server/time/environment-clock.server";
   CadenceRecord,
   CadenceStep,
   EngineDecision,
@@ -21,6 +20,7 @@ import { envNow } from "@/server/time/environment-clock.server";
   EngineScope,
   QueueItem,
 } from "@/lib/relationship/types";
+import { envNow } from "@/server/time/environment-clock.server";
 
 type Row = Record<string, any>;
 

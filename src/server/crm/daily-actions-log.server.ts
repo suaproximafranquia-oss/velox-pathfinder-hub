@@ -18,11 +18,11 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { operationalDate } from "@/lib/crm/daily-actions";
 import {
-import { envNow } from "@/server/time/environment-clock.server";
   formatOperationalMoment,
   historyHeadline,
   recordDailyActionHistory,
 } from "@/server/crm/daily-actions-history.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 /** Ações registradas por esta tela. Vocabulário fechado. */
 export const DAILY_ACTION_EVENTS = {
