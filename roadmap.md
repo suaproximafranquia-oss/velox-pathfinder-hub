@@ -38,3 +38,5 @@
 - [x] /f: continuidade genérica somente para ligação `NAO` com próxima ação real do mesmo lead/etapa.
 - [x] /f: manter compromissos passados prioritários, alertas do Portal persistentes e cópia de mensagem sem sobreposição.
 - [x] Executar os 14 cenários focados sem tocar dados reais ou outros ambientes (37 testes direcionados passaram; tipos e build OK).
+
+- [ ] /f: preparar validação temporal isolada 288x para Ricardo/59034, Eduardo/59037, Francisco/59081 e João/59279, sem tocar a produção.
