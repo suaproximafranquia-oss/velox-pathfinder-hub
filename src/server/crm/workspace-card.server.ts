@@ -14,6 +14,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isManagementExecutive } from "@/server/crm/manager-guard.server";
 import { sanitizeRawPayload } from "@/server/crm/lead-service.server";
+import { mayMaterializeFinancialWorkspaceCard } from "@/server/crm/workspace-portal-gate.server";
 
 export type WorkspaceCardInput = {
   externalId: string;
@@ -69,6 +70,15 @@ export async function ensureWorkspaceCard(
   if (existing) {
     await refreshWorkspaceCardName(input.externalId, input.name);
     return { ok: true, cardId, created: false };
+  }
+
+  if (!(await mayMaterializeFinancialWorkspaceCard(input.externalId))) {
+    return {
+      ok: false,
+      cardId,
+      created: false,
+      error: "Portal dos Leads bloqueado para homologação.",
+    };
   }
 
   const now = new Date().toISOString();

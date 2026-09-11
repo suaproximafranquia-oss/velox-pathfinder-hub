@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Timer } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { Button } from "@/components/ui/button";
 import {
   activateEnvironmentClockFn,
   deactivateEnvironmentClockFn,
@@ -90,22 +91,22 @@ export function EnvironmentClockCard() {
           {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
 
           <div className="mt-4 flex flex-wrap gap-3">
-            <button
+            <Button
               type="button"
               disabled={busy || view?.active === true}
               onClick={() => void run(() => activate({} as never))}
-              className="rounded-xl border border-[color:var(--gold)]/50 px-4 py-2 text-sm text-[color:var(--foreground)] disabled:opacity-40"
+              variant="outline"
             >
               Ligar relógio acelerado
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               disabled={busy || view?.active !== true}
               onClick={() => void run(() => deactivate({} as never))}
-              className="rounded-xl border border-[color:var(--border)] px-4 py-2 text-sm text-[color:var(--muted-foreground)] disabled:opacity-40"
+              variant="outline"
             >
               Voltar ao tempo real
-            </button>
+            </Button>
           </div>
         </div>
       </div>

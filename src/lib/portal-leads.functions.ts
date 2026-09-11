@@ -139,6 +139,22 @@ export const syncPortalLead = createServerFn({ method: "POST" })
       .eq("id", targetId)
       .maybeSingle();
 
+    if (!current && financial) {
+      const { mayMaterializeFinancialWorkspaceCard } = await import(
+        "@/server/crm/workspace-portal-gate.server"
+      );
+      const externalId = targetId.startsWith("gs_") ? targetId.slice(3) : null;
+      if (!(await mayMaterializeFinancialWorkspaceCard(externalId))) {
+        return {
+          ok: true as const,
+          scope: data.scope,
+          leadId: targetId,
+          deduped: false as const,
+          blocked: true as const,
+        };
+      }
+    }
+
     const providedActivity = data.lastActivityAt && Number.isFinite(Date.parse(data.lastActivityAt))
       && (!current?.last_activity_at || Date.parse(data.lastActivityAt) > Date.parse(current.last_activity_at))
       ? data.lastActivityAt : null;
