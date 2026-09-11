@@ -94,6 +94,8 @@ export type DailyActionsInput = {
 };
 
 export async function buildDailyActions(input: DailyActionsInput): Promise<DailyAction[]> {
+  // Relógio do ambiente (real em produção) relido antes de montar a fila.
+  await import("@/server/time/environment-clock.server").then((m) => m.refreshEnvironmentClock());
   const nowIso = input.nowIso ?? envNow().toISOString();
   const today = operationalDate(nowIso);
   const horizonStart = new Date(new Date(nowIso).getTime() - 45 * 24 * 3600 * 1000).toISOString();

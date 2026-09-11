@@ -14,7 +14,6 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createVirtualClock, realClock, type EngineClock } from "@/lib/relationship/clock";
-import { CONTROLLED_LEADS } from "@/server/relationship/controlled-test.server";
 
 export const ENVIRONMENT_CLOCK_KIND = "environment_clock";
 export const ENVIRONMENT_CLOCK_ID = "environment-clock-f";
@@ -110,6 +109,12 @@ export function environmentClock(): EngineClock {
   });
 }
 
+/** Carregado sob demanda para não criar ciclo de importação. */
+async function validationLeads(): Promise<ReadonlyArray<{ crmId: string; leadId: string; name: string }>> {
+  const { CONTROLLED_LEADS } = await import("@/server/relationship/controlled-test.server");
+  return CONTROLLED_LEADS as unknown as ReadonlyArray<{ crmId: string; leadId: string; name: string }>;
+}
+
 export type EnvironmentClockStatus = {
   active: boolean;
   factor: number;
@@ -122,6 +127,7 @@ export type EnvironmentClockStatus = {
 
 export async function environmentClockStatus(): Promise<EnvironmentClockStatus> {
   const state = await refreshEnvironmentClock();
+  const leads = await validationLeads();
   return {
     active: state.active,
     factor: state.active ? state.factor : 1,
@@ -129,7 +135,7 @@ export async function environmentClockStatus(): Promise<EnvironmentClockStatus> 
     logicalNowIso: envNowIso(),
     startedAtReal: state.active ? state.startedAtReal : null,
     startedAtVirtual: state.active ? state.startedAtVirtual : null,
-    leads: CONTROLLED_LEADS.map((lead) => ({ leadId: lead.leadId, name: lead.name })),
+    leads: leads.map((lead) => ({ leadId: lead.leadId, name: lead.name })),
   };
 }
 
@@ -139,7 +145,7 @@ export async function environmentClockStatus(): Promise<EnvironmentClockStatus> 
  * nunca alcança um ambiente com leads reais em operação.
  */
 async function assertOnlyValidationLeads(): Promise<void> {
-  const allowed = new Set(CONTROLLED_LEADS.map((lead) => lead.crmId));
+  const allowed = new Set((await validationLeads()).map((lead) => lead.crmId));
   const { data, error } = await supabaseAdmin.from("crm_leads").select("id").limit(200);
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as Array<{ id: string }>;
@@ -163,7 +169,7 @@ export async function activateEnvironmentClock(
       kind: ENVIRONMENT_CLOCK_KIND,
       label: "Relógio acelerado — homologação /f",
       status: "ATIVO",
-      lead_count: CONTROLLED_LEADS.length,
+      lead_count: (await validationLeads()).length,
       created_by: actorId,
       created_by_name: actorName,
       started_at: nowIso,
