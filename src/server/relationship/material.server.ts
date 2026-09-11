@@ -12,7 +12,6 @@
  * autoriza o motor a seguir.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { envNow } from "@/server/time/environment-clock.server";
 
 export type MaterialEventType = "MATERIAL_REQUESTED" | "CONTENT_SENT";
 
@@ -40,7 +39,7 @@ export async function registerMaterialEvent(input: {
     event_key: eventKey,
     type: input.type,
     step: input.step ?? null,
-    occurred_at: envNow().toISOString(),
+    occurred_at: new Date().toISOString(),
     historical: false,
     data: {
       actor_id: input.actorId ?? null,

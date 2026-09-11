@@ -16,7 +16,6 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { registerMaterialEvent } from "@/server/relationship/material.server";
-import { envNow } from "@/server/time/environment-clock.server";
 
 export type HandoffDecision =
   | "MATERIAL_SOLICITADO"
@@ -34,7 +33,7 @@ export async function resolveHandoff(input: {
   actorId: string;
   executiveId?: string | null;
 }): Promise<{ ok: boolean; resumed: boolean }> {
-  const nowIso = envNow().toISOString();
+  const nowIso = new Date().toISOString();
 
   if (input.decision === "MATERIAL_SOLICITADO") {
     await registerMaterialEvent({

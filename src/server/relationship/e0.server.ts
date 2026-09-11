@@ -24,7 +24,6 @@ import {
   sendTemplateWithDestinations,
   type TemplateButtonParameter,
 } from "@/server/whatsapp.server";
-import { envNow } from "@/server/time/environment-clock.server";
 
 export const E0_STEP = "E0";
 
@@ -134,7 +133,7 @@ export async function dispatchFirstContact(input: {
   const messageId = input.cycleKey
     ? `${e0MessageId(input.leadId)}__${input.cycleKey}`
     : e0MessageId(input.leadId);
-  const at = envNow().toISOString();
+  const at = new Date().toISOString();
 
   /**
    * IDEMPOTÊNCIA ATÔMICA: a chave primária determinística da mensagem é

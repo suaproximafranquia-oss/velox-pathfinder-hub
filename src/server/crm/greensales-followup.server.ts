@@ -30,7 +30,6 @@ import {
   type FollowUpModality,
   type FollowUpSyncDecision,
 } from "@/lib/crm/greensales-followup";
-import { mayMaterializeFinancialWorkspaceCard } from "@/server/crm/workspace-portal-gate.server";
 
 const SCOPE = "production";
 const MIRROR_TOPIC = FOLLOW_UP_TOPIC.AGENDAMENTO;
@@ -235,7 +234,6 @@ async function ensureFollowUpCard(
   externalId: string,
   connection: FollowUpConnectionContext | undefined,
 ): Promise<void> {
-  if (!(await mayMaterializeFinancialWorkspaceCard(externalId))) return;
   // O lote também lê espelhos de outras carteiras: nunca atribuí-los à conexão atual.
   if (!connection?.leadExternalIds.has(externalId)) return;
 
