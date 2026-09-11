@@ -1,10 +1,8 @@
 /**
  * BIBLIOTECA DE MENSAGENS.
  *
- * NOVO MODELO: a mensagem é autossuficiente. O texto oficial e o link do
- * conteúdo pertencem à MESMA versão publicada. O cadastro separado de
- * "conteúdo" deixou de existir — não há mais vínculo etapa ↔ conteúdo,
- * pool nem rotação. Nada nesta tela dispara mensagem.
+ * A mensagem é autossuficiente: o corpo publicado contém todo o texto,
+ * inclusive links escritos pela Gestão. Nada nesta tela dispara mensagem.
  */
 import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute } from "@tanstack/react-router";
@@ -21,12 +19,12 @@ export const Route = createFileRoute("/f/executivo/biblioteca")({
       {
         name: "description",
         content:
-          "Texto oficial e link de cada etapa do Motor de Relacionamento, versionados na mesma mensagem.",
+          "Texto oficial de cada etapa do Motor de Relacionamento, publicado e versionado pela Gestão.",
       },
       { property: "og:title", content: "Biblioteca de Mensagens — Atlas Platform" },
       {
         property: "og:description",
-        content: "Cada etapa tem uma mensagem autossuficiente: texto e link publicados juntos.",
+        content: "Cada etapa tem uma mensagem oficial autossuficiente e versionada.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -61,8 +59,8 @@ function BibliotecaPage() {
           <div>
             <h1 className="text-lg font-medium">Biblioteca de Mensagens</h1>
             <p className="text-[11px] text-[color:var(--muted-foreground)]">
-              Cada etapa tem uma mensagem: texto e link na mesma versão. Publicar cria a
-              versão seguinte; o histórico enviado nunca é reescrito.
+              Cada etapa tem uma mensagem completa. Publicar cria a versão seguinte; o
+              histórico enviado nunca é reescrito.
             </p>
           </div>
         </header>
