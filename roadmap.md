@@ -58,3 +58,4 @@
 - [ ] Financeira /f: alinhar o plano compartilhado de ações da Ação do Dia ao mapa definitivo E/V/R/RE/RF, sem alterar cadência ou transições.
 - [ ] Financeira /f: manter mensagens dinâmicas por etapa e contexto vigente na Biblioteca, preservando E5/RE2 manuais e RE0/RF conforme o mapa.
 - [ ] Financeira /f: desacoplar abertura e conclusão do modal do clipboard, tornar o painel opaco e validar etapas, contextos, tipos, testes e build.
+- [ ] Financeira /f: garantir ligação antes da mensagem na mesma etapa e concluir E5/RE2 manuais pela fila existente, preservando compensações e posição 1.

@@ -8,9 +8,13 @@
 
 ## Implementação
 1. Tornar explícito, em uma única função de plano, o mapa de ligação, mensagem e material manual para E0–E8, R1–R4 e RE0–RE3, preservando a segunda ligação/compensação já existente de E1/E2.
+   - Em toda etapa com ligação + mensagem, somente a ligação nasce primeiro; a mensagem é liberada pelo mecanismo atual depois da conclusão da ligação da mesma etapa.
+   - As duas ações não serão obrigações independentes simultâneas.
 2. Manter V2 e V3 somente como contextos de E2/E3; manter os dois contextos de E7/E8 e R3 resolvidos pelos fatos persistidos atuais.
 3. Estender o vocabulário fechado de `action_kind` da mesma `relationship_queue` para aceitar `manual`, sem tabela, fila ou motor paralelo. RF0/RF1 continuam na mesma fila e somente como mensagem.
-4. Exibir ações `manual` com comando próprio de conclusão, reutilizando a trava, posição 1, histórico e avanço já existentes, sem consultar ou registrar mensagem da Biblioteca.
+4. Exibir ações `manual` com comando próprio de conclusão, reutilizando exatamente a conclusão da fila, a trava, posição 1, histórico e avanço já existentes, sem consultar ou registrar mensagem da Biblioteca.
+   - E5 concluída avança para E6 pela transição já definida.
+   - RE2 concluída avança para RE3 pela transição já definida.
 5. Separar no modal: carregar → abrir → tentar copiar. A falha do clipboard ficará como aviso e não impedirá abrir nem concluir após o conteúdo oficial estar visível.
 6. Preservar `renderFromLibrary`, `prepareStepMessage`, `composeMessageBody`, proteção contra URL duplicada e ausência de fallback/hardcode.
 
