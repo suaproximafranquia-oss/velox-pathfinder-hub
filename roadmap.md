@@ -51,6 +51,6 @@
 - [x] /f: manter allowlist dos quatro leads, Voltar ao tempo real e integrações operando durante a pausa.
 - [x] Validar avanço, congelamento, retomada sem salto, idempotência/concorrência, tipos, testes relacionados e build (6 testes focados e tipos passaram; build automático OK).
 
-- [ ] Biblioteca de Mensagens: atualizar exclusivamente o CHECK de `step_context` para a lista fechada oficial.
-- [ ] Aplicar a migration e validar os sete valores permitidos mais um valor arbitrário rejeitado, sem deixar registros artificiais.
-- [ ] Executar typecheck e confirmar que nenhuma outra área foi modificada.
+- [x] Biblioteca de Mensagens: atualizar exclusivamente o CHECK de `step_context` para a lista fechada oficial.
+- [x] Aplicar a migration e validar os sete valores permitidos mais um valor arbitrário rejeitado, sem deixar registros artificiais.
+- [x] Executar typecheck e confirmar que nenhuma outra área foi modificada.
