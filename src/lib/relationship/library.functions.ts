@@ -26,8 +26,6 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
       bodyWithoutName?: string | null;
       title?: string | null;
       notes?: string | null;
-      contentUrl?: string | null;
-      contentLabel?: string | null;
     }) => {
       if (!input?.stepKey) throw new Error("Etapa obrigatória.");
       if (!input?.body?.trim()) throw new Error("O texto da mensagem não pode ficar vazio.");
@@ -53,8 +51,6 @@ export const publicarVersaoMensagem = createServerFn({ method: "POST" })
       bodyWithoutName: data.bodyWithoutName ?? null,
       title: data.title ?? null,
       notes: data.notes ?? null,
-      contentUrl: data.contentUrl ?? null,
-      contentLabel: data.contentLabel ?? null,
       actorId: context.userId,
       actorName: String(name),
     });

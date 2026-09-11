@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadMessageForModal } from "./daily-action-message";
-import { composeMessageBody } from "@/lib/relationship/messages";
+import { composeMessageBody, renderMessageSpec } from "@/lib/relationship/messages";
 
 const official = {
   step: "E3",
@@ -41,5 +41,66 @@ describe("modal compartilhado de mensagem", () => {
     const url = "https://portal.velox.test/investidor";
     expect(composeMessageBody(`Leia: ${url}`, { url })).toBe(`Leia: ${url}`);
     expect(composeMessageBody("Leia o material", { url })).toBe(`Leia o material\n\n${url}`);
+  });
+
+  it("trata o body publicado como conteúdo completo sem exigir content_url", () => {
+    const body = "Olá, João!\n\nhttps://exemplo.com/material";
+    const result = renderMessageSpec(
+      {
+        step: "E1",
+        text: body,
+        usesInvestorName: false,
+        button: "content",
+        contentGroup: "E1",
+        contentUrl: null,
+        contentLabel: null,
+        bodyIsSourceOfTruth: true,
+      },
+      { executiveName: "Executivo", portalLink: "" },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body).toBe(body);
+    expect(result.button).toBeNull();
+  });
+
+  it("aceita body sem URL e não injeta metadados antigos", () => {
+    const result = renderMessageSpec(
+      {
+        step: "E1",
+        text: "Mensagem somente em texto",
+        usesInvestorName: false,
+        button: "content",
+        contentGroup: "E1",
+        contentUrl: "https://legado.example/material",
+        contentLabel: "Link legado",
+        bodyIsSourceOfTruth: true,
+      },
+      { executiveName: "Executivo", portalLink: "" },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body).toBe("Mensagem somente em texto");
+    expect(result.button).toBeNull();
+  });
+
+  it("não interpreta marcador legado de conteúdo na Biblioteca", () => {
+    const body = "Confira o material:\n\n{{conteudo_e1}}";
+    const result = renderMessageSpec(
+      {
+        step: "E1",
+        text: body,
+        usesInvestorName: false,
+        button: "content",
+        contentGroup: "E1",
+        contentUrl: null,
+        bodyIsSourceOfTruth: true,
+      },
+      { executiveName: "Executivo", portalLink: "" },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body).toBe(body);
+    expect(result.button).toBeNull();
   });
 });

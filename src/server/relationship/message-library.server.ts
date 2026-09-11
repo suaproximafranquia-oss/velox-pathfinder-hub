@@ -64,9 +64,9 @@ export type LibraryMessage = {
   version: number;
   active: boolean;
   contentGroup: string | null;
-  /** Link do conteúdo — pertence a ESTA versão da mensagem. */
+  /** Metadado histórico, mantido apenas por compatibilidade. */
   contentUrl: string | null;
-  /** Rótulo visível do link desta versão. */
+  /** Metadado histórico, mantido apenas por compatibilidade. */
   contentLabel: string | null;
   buttonKind: "portal" | "content" | null;
 
@@ -678,10 +678,9 @@ export async function renderFromLibrary(
     step: stepKey,
     text,
     usesInvestorName: text.includes("{{nome_investidor}}"),
-    button: message.buttonKind,
+    button: null,
     contentGroup: message.contentGroup,
-    contentUrl: message.contentUrl,
-    contentLabel: message.contentLabel,
+    bodyIsSourceOfTruth: true,
   };
   return { result: renderMessageSpec(spec, renderInput), message };
 }

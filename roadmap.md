@@ -61,6 +61,6 @@
 - [x] Financeira /f: garantir ligação antes da mensagem na mesma etapa e concluir E5/RE2 manuais pela fila existente, preservando compensações e posição 1.
 - [x] Financeira /f: validar Biblioteca vigente no clique, contextos V2/V3/E6/E7/E8, URL idempotente e modal aberto mesmo com falha do clipboard (73 testes direcionados e build automático OK).
 
-- [ ] Financeira /f: tornar o corpo publicado a única fonte da mensagem, sem exigir ou inserir link separado.
-- [ ] Biblioteca de Mensagens: remover da interface os campos de link e rótulo, preservando colunas e histórico existentes.
+- [x] Financeira /f: tornar o corpo publicado a única fonte da mensagem, sem exigir ou inserir link separado.
+- [x] Biblioteca de Mensagens: remover da interface os campos de link e rótulo, preservando colunas e histórico existentes.
 - [ ] Validar E1 com/sem URL no corpo, ausência de inserção automática, versão vigente no clique, URL idempotente e modal após falha do clipboard.

@@ -432,6 +432,8 @@ export type MessageSpec = {
   contentUrl?: string | null;
   /** Rótulo visível do link configurado na própria mensagem. */
   contentLabel?: string | null;
+  /** Biblioteca produtiva: o corpo publicado é a mensagem completa. */
+  bodyIsSourceOfTruth?: boolean;
 };
 
 
@@ -488,7 +490,7 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
   const contentUrl = (message.contentUrl ?? input.fallbackContentUrl ?? "").trim();
   const contentLabel = (message.contentLabel ?? input.fallbackContentLabel ?? "").trim();
 
-  if (CONTENT_PLACEHOLDER.test(body)) {
+  if (!message.bodyIsSourceOfTruth && CONTENT_PLACEHOLDER.test(body)) {
     if (!contentUrl) {
       return {
         ok: false,
@@ -501,7 +503,7 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
       label: contentLabel ? `▶ ${contentLabel}` : "▶ Acessar conteúdo",
       url: contentUrl,
     };
-  } else if (contentUrl && message.button === "content") {
+  } else if (!message.bodyIsSourceOfTruth && contentUrl && message.button === "content") {
     button = {
       label: contentLabel ? `▶ ${contentLabel}` : "▶ Acessar conteúdo",
       url: contentUrl,
@@ -509,7 +511,10 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
   }
 
 
-  if (/\{\{\s*[\w.]+\s*\}\}/.test(body)) {
+  const unresolved = message.bodyIsSourceOfTruth
+    ? body.replace(/\{\{conteudo_[a-z0-9]+\}\}/g, "")
+    : body;
+  if (/\{\{\s*[\w.]+\s*\}\}/.test(unresolved)) {
     return { ok: false, reason: "Mensagem contém variável não resolvida — envio bloqueado." };
   }
 
