@@ -17,6 +17,7 @@ import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { HomologationTabs } from "@/components/executive/homologation-tabs";
 import { CurrentStepSnapshotCard } from "@/components/executive/current-step-snapshot-card";
+import { EnvironmentClockCard } from "@/components/executive/environment-clock-card";
 
 export const Route = createFileRoute("/f/executivo/homologacao/")({
   head: () => ({
@@ -73,6 +74,8 @@ function HomologacaoPage() {
             </div>
           </div>
         </section>
+
+        <EnvironmentClockCard />
 
         <CurrentStepSnapshotCard />
 

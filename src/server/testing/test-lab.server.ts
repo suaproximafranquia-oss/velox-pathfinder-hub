@@ -176,6 +176,8 @@ export async function listTestBatches(): Promise<BatchSummary[]> {
   const { data } = await supabaseAdmin
     .from("test_batches")
     .select("*")
+    // O relógio do ambiente vive nesta tabela e não é um lote de teste.
+    .neq("kind", "environment_clock")
     .order("created_at", { ascending: false });
   return (data ?? []).map((b: Record<string, unknown>) => ({
     id: String(b["id"]),
