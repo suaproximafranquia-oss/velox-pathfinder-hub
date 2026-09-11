@@ -15,6 +15,7 @@
  * executor oficial e pela Global WhatsApp Safety Lock, intocada.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 
 export type E0ActionState = "PENDENTE" | "EXECUTADA" | "CANCELADA";
@@ -187,7 +188,7 @@ export async function closePendingE0Actions(input: {
     .from("workspace_e0_actions")
     .update({
       state: "CANCELADA",
-      executed_at: new Date().toISOString(),
+      executed_at: envNow().toISOString(),
       result: input.reason ?? "ENCERRADA: primeiro contato já registrado pelo motor.",
     } as never)
     .in("id", ids);

@@ -21,6 +21,7 @@ import { renderFromLibrary, recordMessageSnapshot } from "./message-library.serv
 import { resolveLeadDestinations } from "./destinations.server";
 import { E0_TEMPLATE_MISSING_REASON, loadE0MetaTemplate } from "./e0-template.server";
 import {
+import { envNow } from "@/server/time/environment-clock.server";
   sendTemplateWithDestinations,
   type TemplateButtonParameter,
 } from "@/server/whatsapp.server";
@@ -133,7 +134,7 @@ export async function dispatchFirstContact(input: {
   const messageId = input.cycleKey
     ? `${e0MessageId(input.leadId)}__${input.cycleKey}`
     : e0MessageId(input.leadId);
-  const at = new Date().toISOString();
+  const at = envNow().toISOString();
 
   /**
    * IDEMPOTÊNCIA ATÔMICA: a chave primária determinística da mensagem é

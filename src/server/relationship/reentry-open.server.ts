@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { initialRecord, applyEvent } from "@/lib/relationship/machine";
 import { RELATIONSHIP_CONFIG } from "@/lib/relationship/config";
 import { getPublishedVersion } from "./flow-versions.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 /** Uma submissão explícita = uma instância; retry usa a mesma chave/UUID. */
 export async function openCommercialReentry(input: { leadId: string; submissionKey: string; at: string }): Promise<boolean> {
@@ -25,7 +26,7 @@ export async function openCommercialReentry(input: { leadId: string; submissionK
     .eq("lead_id", input.leadId).order("instance_seq", { ascending: false }).limit(1).maybeSingle();
   if (latestError) throw new Error(latestError.message);
   if (latest?.started_at && Date.parse(latest.started_at) >= Date.parse(input.at)) return false;
-  const now = new Date().toISOString();
+  const now = envNow().toISOString();
   // O fechamento mira SOMENTE o ciclo lido: nunca fecha o vencedor de uma corrida.
   if (latest?.active) {
     const { error } = await supabaseAdmin.from("relationship_cadences")
@@ -65,7 +66,7 @@ async function finishOpening(leadId: string, key: string, at: string) {
   if (current?.opened_reason !== key) return;
   // Preserva linhas/resultado históricos. Só neutraliza obrigações abertas anteriores.
   const { error: queueError } = await supabaseAdmin.from("relationship_queue")
-    .update({ status: "CANCELLED", cancel_reason: "nova_submissao_comercial", reason: "Ciclo anterior preservado; nova entrada comercial.", updated_at: new Date().toISOString() })
+    .update({ status: "CANCELLED", cancel_reason: "nova_submissao_comercial", reason: "Ciclo anterior preservado; nova entrada comercial.", updated_at: envNow().toISOString() })
     .eq("scope", "production").is("run_id", null).eq("lead_id", leadId)
     .in("status", ["PENDING", "PROCESSING"]).lt("action_order", current.instance_seq * 100)
     .lte("created_at", current.created_at);

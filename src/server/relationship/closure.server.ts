@@ -28,6 +28,7 @@ import { resolveRecipientPhone } from "./guard.server";
 import { sendWhatsappText } from "@/server/crm/messaging.server";
 import { operationalDate } from "@/lib/crm/daily-actions";
 import {
+import { envNow } from "@/server/time/environment-clock.server";
   reconcileOpportunityClosures,
   terminalStageLeadIds,
 } from "./opportunity.server";
@@ -62,7 +63,7 @@ export type ClosureOutcome = {
  * exatamente a mesma lista.
  */
 export async function listClosureDuties(nowIso?: string): Promise<ClosureDuty[]> {
-  const at = nowIso ?? new Date().toISOString();
+  const at = nowIso ?? envNow().toISOString();
   const today = operationalDate(at);
 
   const { data } = await supabaseAdmin
@@ -165,7 +166,7 @@ export async function executeClosureDuty(duty: ClosureDuty): Promise<ClosureOutc
   const simulated = executionMode({ isTestLead: Boolean(lead?.is_test) }).simulated;
   const body = composeMessageBody(result.body, result.button);
   const messageId = `msg_${duty.step.toLowerCase()}_${duty.occurrenceId}`;
-  const at = new Date().toISOString();
+  const at = envNow().toISOString();
 
   const { error: insertError } = await supabaseAdmin.from("crm_messages").insert({
     id: messageId,

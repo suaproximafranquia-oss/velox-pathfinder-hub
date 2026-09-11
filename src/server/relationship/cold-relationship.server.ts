@@ -20,6 +20,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+import { envNow } from "@/server/time/environment-clock.server";
   RF_ACTIVATION_AT,
   RF_FLOW,
   RF0_DELAY_DAYS,
@@ -253,7 +254,7 @@ async function applyDecision(
 export async function runColdRelationshipTick(
   nowIso?: string,
 ): Promise<ColdRelationshipSummary> {
-  const at = nowIso ?? new Date().toISOString();
+  const at = nowIso ?? envNow().toISOString();
   const summary: ColdRelationshipSummary = {
     evaluated: 0,
     scheduled: 0,

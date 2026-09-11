@@ -16,6 +16,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Engine } from "@/lib/relationship/engine";
+import { envNow } from "@/server/time/environment-clock.server";
 
 export type QueueCallOutcome = "SIM" | "NAO";
 
@@ -31,7 +32,7 @@ export async function registerQueueCallOutcome(input: {
   /** Rodada isolada; ausente preserva a consulta produtiva original. */
   runId?: string | null;
 }): Promise<{ concluded: boolean; awaitingHandoff: boolean }> {
-  const nowIso = input.nowIso ?? new Date().toISOString();
+  const nowIso = input.nowIso ?? envNow().toISOString();
 
   const { data: item } = await supabaseAdmin
     .from("relationship_queue")
@@ -162,7 +163,7 @@ export async function undoQueueCallOutcome(input: {
   actorId: string;
   nowIso?: string;
 }): Promise<{ undone: boolean; reason: string | null }> {
-  const nowIso = input.nowIso ?? new Date().toISOString();
+  const nowIso = input.nowIso ?? envNow().toISOString();
   const { data: item } = await supabaseAdmin
     .from("relationship_queue")
     .select("id,lead_id,step,scope,status,action_kind,action_order,result,executed_at")
@@ -254,7 +255,7 @@ export async function clearAwaitingHandoff(input: {
     .update({
       awaiting_handoff: false,
       awaiting_handoff_reason: null,
-      updated_at: new Date().toISOString(),
+      updated_at: envNow().toISOString(),
     } as never)
     .eq("scope", input.scope ?? "production")
     .eq("lead_id", input.leadId)

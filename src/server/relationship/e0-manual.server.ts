@@ -17,6 +17,7 @@
  * (`e0_manual_open_<card>`); repetir a chamada não abre segundo ciclo.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 type PendingRow = {
   card_id: string;
@@ -96,7 +97,7 @@ export async function openManualE0Cadence(
     scope: "production",
     leadId: cardId,
     type: "LEAD_CREATED",
-    at: new Date().toISOString(),
+    at: envNow().toISOString(),
     data: {
       manualE0: true,
       origin: "acao_do_dia",

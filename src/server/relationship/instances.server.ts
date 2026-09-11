@@ -14,6 +14,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isTerminalStage } from "@/lib/relationship/closing";
 import type { EngineScope } from "@/lib/relationship/types";
+import { envNow } from "@/server/time/environment-clock.server";
 
 export type InstanceRow = {
   id: string;
@@ -81,7 +82,7 @@ export async function closeActiveInstance(
 ): Promise<InstanceRow | null> {
   const current = await activeInstance(leadId, scope);
   if (!current) return null;
-  const at = new Date().toISOString();
+  const at = envNow().toISOString();
   await supabaseAdmin
     .from("relationship_cadences")
     .update({
@@ -136,7 +137,7 @@ export async function openInstance(params: {
     await closeActiveInstance(params.leadId, params.closeReason ?? "encerrada_por_nova", scope);
   }
 
-  const at = new Date().toISOString();
+  const at = envNow().toISOString();
   const seq = (current?.instanceSeq ?? 0) + 1;
   const { data, error } = await supabaseAdmin
     .from("relationship_cadences")

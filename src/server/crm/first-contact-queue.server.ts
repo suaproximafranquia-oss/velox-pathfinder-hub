@@ -12,11 +12,12 @@ import { isE0NightWindow, nightDeferralReason } from "@/lib/crm/e0-window";
 import { isSimulatedExecution, SIMULATION_LABEL } from "@/server/relationship/execution-mode.server";
 import { recordEvent } from "@/server/crm/lead-service.server";
 import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
+import { envNow } from "@/server/time/environment-clock.server";
 
 export type DeferredSummary = { processed: number; sent: number; errors: string[] };
 
 /** Registra o adiamento noturno da E0 — a etapa é preservada, nunca perdida. */
-export async function deferFirstContact(leadId: string, at: Date = new Date()): Promise<void> {
+export async function deferFirstContact(leadId: string, at: Date = envNow()): Promise<void> {
   await recordEvent(leadId, "e0_adiada", nightDeferralReason(at), {
     resumeAt: nightDeferralReason(at),
   });
@@ -30,7 +31,7 @@ export async function processDeferredFirstContacts(): Promise<DeferredSummary> {
   const summary: DeferredSummary = { processed: 0, sent: 0, errors: [] };
   if (isE0NightWindow()) return summary;
 
-  const since = new Date(Date.now() - 3 * 86_400_000).toISOString();
+  const since = new Date(envNow().getTime() - 3 * 86_400_000).toISOString();
   const { data: deferred } = await supabaseAdmin
     .from("crm_lead_events")
     .select("lead_id")
