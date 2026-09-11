@@ -40,3 +40,5 @@
 - [x] Executar os 14 cenários focados sem tocar dados reais ou outros ambientes (37 testes direcionados passaram; tipos e build OK).
 
 - [ ] /f: preparar validação temporal isolada 288x para Ricardo/59034, Eduardo/59037, Francisco/59081 e João/59279, sem tocar a produção.
+- [ ] Central de Homologação: ativação/desativação persistente, relógio lógico 288x, fila isolada e limpeza por rodada.
+- [ ] Validar typecheck, build e testes focados sem executar reset geral ou tocar dados produtivos.
