@@ -64,21 +64,24 @@ export async function registerQueueCallOutcome(input: {
   }
 
 
-  await supabaseAdmin.from("crm_lead_events").insert({
-    lead_id: row.lead_id,
-    type: "CADENCE_CALL_OUTCOME",
-    message:
-      input.outcome === "SIM"
-        ? `Ligação da etapa ${row.step} — investidor atendeu.`
-        : `Ligação da etapa ${row.step} — investidor não atendeu.`,
-    data: {
-      step: row.step,
-      outcome: input.outcome,
-      rang: input.outcome === "NAO" ? (input.rang ?? null) : null,
-      queueItemId: input.queueItemId,
-      actorId: input.actorId,
-    },
-  } as never);
+  // Homologação nunca escreve no histórico CRM produtivo.
+  if (!input.engine) {
+    await supabaseAdmin.from("crm_lead_events").insert({
+      lead_id: row.lead_id,
+      type: "CADENCE_CALL_OUTCOME",
+      message:
+        input.outcome === "SIM"
+          ? `Ligação da etapa ${row.step} — investidor atendeu.`
+          : `Ligação da etapa ${row.step} — investidor não atendeu.`,
+      data: {
+        step: row.step,
+        outcome: input.outcome,
+        rang: input.outcome === "NAO" ? (input.rang ?? null) : null,
+        queueItemId: input.queueItemId,
+        actorId: input.actorId,
+      },
+    } as never);
+  }
 
   if (input.outcome !== "SIM") {
     /**
@@ -116,7 +119,7 @@ export async function registerQueueCallOutcome(input: {
   await tickLead(row.lead_id, input.engine);
 
   // E0 atendida: a pendência legada de E0 (se existir) deixa de fazer sentido.
-  if (row.step === "E0") await closeLegacyE0(row.lead_id, "ENCERRADA: E0 atendida pela régua V2 (Ação do Dia).");
+  if (row.step === "E0" && !input.engine) await closeLegacyE0(row.lead_id, "ENCERRADA: E0 atendida pela régua V2 (Ação do Dia).");
 
   return { concluded: true, awaitingHandoff: false };
 }

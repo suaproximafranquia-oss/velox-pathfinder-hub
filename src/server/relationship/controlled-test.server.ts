@@ -220,7 +220,9 @@ export async function controlledTestActions(): Promise<{ status: ControlledTestS
     .lte("due_at", status.logicalNowIso)
     .order("due_at", { ascending: true });
   if (error) throw new Error(error.message);
-  const identities = new Map(CONTROLLED_LEADS.map((lead) => [lead.leadId, lead]));
+  const identities = new Map<string, (typeof CONTROLLED_LEADS)[number]>(
+    CONTROLLED_LEADS.map((lead) => [lead.leadId, lead]),
+  );
   const actions = ((data ?? []) as Row[]).map((row) => {
     assertAllowedLead(String(row.lead_id));
     const lead = identities.get(String(row.lead_id));
