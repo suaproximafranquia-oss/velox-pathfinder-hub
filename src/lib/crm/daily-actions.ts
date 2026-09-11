@@ -49,6 +49,7 @@ export type DailyActionKind =
   | "compromisso"
   | "mensagem"
   | "ligacao"
+  | "manual"
   | "alerta_portal";
 export type DailyActionBucket =
   | "agora"
@@ -409,5 +410,6 @@ export const KIND_LABEL: Record<DailyActionKind, string> = {
   compromisso: "Compromisso",
   mensagem: "Mensagem",
   ligacao: "Ligação",
+  manual: "Ação manual",
   alerta_portal: "Atividade no Portal",
 };

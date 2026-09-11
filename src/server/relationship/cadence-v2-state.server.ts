@@ -161,7 +161,12 @@ export async function loadCadenceV2State(
     .map((row) => ({
       step: row.step,
       actionOrder: reentryInternalOrder(row.step, row.action_order ?? 1),
-      actionKind: row.action_kind === "call" ? "call" : "message",
+      actionKind:
+        row.action_kind === "call"
+          ? "call"
+          : row.action_kind === "manual"
+            ? "manual"
+            : "message",
       status: row.status,
       dueAt: row.due_at,
       executedAt: row.executed_at ?? null,

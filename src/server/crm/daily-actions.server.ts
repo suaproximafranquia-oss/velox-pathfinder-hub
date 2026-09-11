@@ -73,8 +73,14 @@ async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdenti
 }
 
 /** Título oficial do item da fila da régua V2 — vocabulário E0–E8/R/RE. */
-function queueActionTitle(step: string, isCall: boolean, order: number): string {
+function queueActionTitle(step: string, actionKind: string, order: number): string {
+  const isCall = actionKind === "call";
   if (isCall) return order > 1 ? `Segunda ligação — Etapa ${step}` : `Ligação — Etapa ${step}`;
+  if (actionKind === "manual") {
+    return step === "RE2"
+      ? "Ofertar/apresentar novamente o material — Etapa RE2"
+      : "Apresentar/enviar material — Etapa E5";
+  }
   return `Copiar mensagem — Etapa ${step}`;
 }
 
@@ -354,7 +360,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     const dueDate = operationalDate(item.due_at);
     if (dueDate > today) continue;
     const step = String(item.step ?? "");
-    const isCall = (item as { action_kind?: string | null }).action_kind === "call";
+    const actionKind = (item as { action_kind?: string | null }).action_kind ?? "message";
+    const isCall = actionKind === "call";
+    const isManual = actionKind === "manual";
     const order = reentryInternalOrder(step, Number((item as { action_order?: number | null }).action_order ?? 1));
     const claimed = item.status === "PROCESSING";
     /**
@@ -388,7 +396,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     actions.push({
       actionKey: `queue:${leadId}:${item.flow}-${step}-${order}:${item.id}`,
       source: "queue",
-      kind: isCall ? "ligacao" : "mensagem",
+      kind: isCall ? "ligacao" : isManual ? "manual" : "mensagem",
       leadId,
       name: identity?.name ?? "Investidor",
       phone: identity?.phone ?? "",
@@ -401,14 +409,14 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       priorityMax: isE0,
       bucket: overdue ? "atrasada" : "hoje",
       // Ligação é ligação; mensagem é COPIAR o texto oficial da Biblioteca.
-      title: queueActionTitle(step, isCall, order),
+      title: queueActionTitle(step, actionKind, order),
       responsibleName: identity?.responsibleExecutiveId ?? null,
       attempts: [],
       claimed,
       queueItemId: String(item.id),
       queueActionOrder: order,
       expiresAt,
-      ...(isCall
+      ...(isCall || isManual
         ? {}
         : {
             messageRef: {
