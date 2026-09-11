@@ -37,7 +37,7 @@ import {
 import { linkCanonicalInvestor, resolveOrCreateInvestor } from "@/server/crm/identity.server";
 import { applyOriginResponsibleChange } from "@/server/crm/ownership.server";
 import { resolveBoardStage, type PipelineMap } from "@/server/crm/pipeline-service.server";
-import { mayCreateGreenSalesWorkspaceCard } from "@/lib/crm/workspace-card-policy";
+import { mayMaterializeFinancialWorkspaceCard } from "@/server/crm/workspace-portal-gate.server";
 
 export type IntakeSettings = Awaited<ReturnType<typeof loadSettings>>;
 
@@ -156,7 +156,7 @@ export async function intakeLead(
    * lista autorizada não criam card, identidade, E0 ou cadência local.
    */
   const isGreenSalesEntry = !context.entryOrigin || context.entryOrigin === "GREENSALES";
-  if (isGreenSalesEntry && !mayCreateGreenSalesWorkspaceCard(externalId)) {
+  if (isGreenSalesEntry && !(await mayMaterializeFinancialWorkspaceCard(externalId))) {
     result.e0Reason = "Criação local de cards GreenSales temporariamente suspensa.";
     return result;
   }
