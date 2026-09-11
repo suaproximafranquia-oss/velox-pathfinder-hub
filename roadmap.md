@@ -54,3 +54,7 @@
 - [x] Biblioteca de Mensagens: atualizar exclusivamente o CHECK de `step_context` para a lista fechada oficial.
 - [x] Aplicar a migration e validar os sete valores permitidos mais um valor arbitrário rejeitado, sem deixar registros artificiais.
 - [x] Executar typecheck e confirmar que nenhuma outra área foi modificada.
+
+- [ ] Financeira /f: alinhar o plano compartilhado de ações da Ação do Dia ao mapa definitivo E/V/R/RE/RF, sem alterar cadência ou transições.
+- [ ] Financeira /f: manter mensagens dinâmicas por etapa e contexto vigente na Biblioteca, preservando E5/RE2 manuais e RE0/RF conforme o mapa.
+- [ ] Financeira /f: desacoplar abertura e conclusão do modal do clipboard, tornar o painel opaco e validar etapas, contextos, tipos, testes e build.
