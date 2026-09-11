@@ -428,9 +428,9 @@ export type MessageSpec = {
   usesInvestorName: boolean;
   button: "portal" | "content" | null;
   contentGroup: string | null;
-  /** Link configurado na própria versão da mensagem. */
+  /** Metadado legado usado somente por fluxos anteriores à Biblioteca textual. */
   contentUrl?: string | null;
-  /** Rótulo visível do link configurado na própria mensagem. */
+  /** Metadado legado usado somente por fluxos anteriores à Biblioteca textual. */
   contentLabel?: string | null;
   /** Biblioteca produtiva: o corpo publicado é a mensagem completa. */
   bodyIsSourceOfTruth?: boolean;

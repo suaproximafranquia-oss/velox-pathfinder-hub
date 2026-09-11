@@ -63,4 +63,4 @@
 
 - [x] Financeira /f: tornar o corpo publicado a única fonte da mensagem, sem exigir ou inserir link separado.
 - [x] Biblioteca de Mensagens: remover da interface os campos de link e rótulo, preservando colunas e histórico existentes.
-- [ ] Validar E1 com/sem URL no corpo, ausência de inserção automática, versão vigente no clique, URL idempotente e modal após falha do clipboard.
+- [x] Validar E1 com/sem URL no corpo, ausência de inserção automática, versão vigente no clique, URL idempotente e modal após falha do clipboard.

@@ -8,8 +8,7 @@ import { composeMessageBody } from "@/lib/relationship/messages";
  *
  *   • texto: versão ATIVA da Biblioteca (`relationship_message_library`);
  *   • assinatura: EXECUTIVO RESPONSÁVEL pelo lead (nunca um padrão);
- *   • link/conteúdo: campo PRÓPRIO da versão ativa da mensagem
- *     (`content_url` / `content_label`) — não existe conteúdo separado;
+ *   • links: escritos diretamente no corpo publicado, sem metadado obrigatório;
  *   • nome do investidor: aplicado somente quando o cadastro tem nome
  *     utilizável — sem nome compatível, sai a versão sem personalização.
  *
@@ -108,8 +107,8 @@ export async function prepareStepMessage(params: {
       templateBody: message?.body ?? null,
       investorNameUsed: null,
       executiveName: executive.name,
-      contentName: message?.contentLabel ?? null,
-      contentUrl: message?.contentUrl ?? null,
+      contentName: null,
+      contentUrl: null,
     };
   }
 
@@ -124,8 +123,8 @@ export async function prepareStepMessage(params: {
     templateBody: message?.body ?? null,
     investorNameUsed: result.treatment ?? null,
     executiveName: executive.name,
-    contentName: message?.contentLabel ?? null,
-    contentUrl: message?.contentUrl ?? null,
+    contentName: null,
+    contentUrl: null,
   };
 
 }
