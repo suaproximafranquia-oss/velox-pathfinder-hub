@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadMessageForModal } from "./daily-action-message";
+import { composeMessageBody } from "@/lib/relationship/messages";
 
 const official = {
   step: "E3",
@@ -34,5 +35,11 @@ describe("modal compartilhado de mensagem", () => {
     expect((await loadMessageForModal(load, copy)).message?.libraryVersion).toBe(7);
     expect((await loadMessageForModal(load, copy)).message?.libraryVersion).toBe(8);
     expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("mantém a composição da URL idempotente", () => {
+    const url = "https://portal.velox.test/investidor";
+    expect(composeMessageBody(`Leia: ${url}`, { url })).toBe(`Leia: ${url}`);
+    expect(composeMessageBody("Leia o material", { url })).toBe(`Leia o material\n\n${url}`);
   });
 });
