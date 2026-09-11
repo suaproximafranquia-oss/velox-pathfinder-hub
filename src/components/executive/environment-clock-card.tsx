@@ -65,7 +65,7 @@ export function EnvironmentClockCard() {
             Relógio acelerado do ambiente
           </h2>
           <p className="mt-1 max-w-3xl text-sm text-[color:var(--muted-foreground)]">
-            5 minutos reais equivalem a 1 dia. A régua, as etapas e a Ação do Dia
+            2 minutos reais equivalem a 1 dia. A régua, as etapas e a Ação do Dia
             continuam exatamente as mesmas — muda apenas a percepção de tempo deste
             ambiente. Só liga quando o Workspace contém somente os 4 cadastros de
             validação.
