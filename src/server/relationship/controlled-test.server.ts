@@ -164,7 +164,6 @@ export async function activateControlledTest(actorId: string, actorName: string)
   const realNow = new Date();
   const runId = `CONTROLLED-4-${realNow.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`;
   const logicalStart = new Date(realNow);
-  logicalStart.setUTCHours(12, 0, 0, 0);
   const { error } = await supabaseAdmin.from("test_batches").insert({
     id: runId,
     label: "Validação temporal — 4 leads reais",
@@ -236,7 +235,7 @@ export async function controlledTestActions(): Promise<{ status: ControlledTestS
       kind: isCall ? "ligacao" : "mensagem",
       leadId: String(row.lead_id),
       name: lead?.name ?? "Investidor",
-      phone: "",
+      phone: `•••• ${lead?.suffix ?? ""}`,
       scope: "homologation",
       stepLabel: stepDisplayLabel(String(row.step)),
       dueDate,
