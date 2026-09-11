@@ -86,16 +86,18 @@ async function readState(): Promise<ClockState> {
 
 /** Recarrega o estado do relógio (chamado nas entradas server-side). */
 export async function refreshEnvironmentClock(): Promise<ClockState> {
+  if (inflight) return inflight;
   const generation = cacheGeneration;
-  inflight ??= readState()
+  const request = readState()
     .then((state) => {
       if (generation === cacheGeneration) cache = { state, loadedAt: Date.now() };
       return state;
     })
     .finally(() => {
-      inflight = null;
+      if (inflight === request) inflight = null;
     });
-  return inflight;
+  inflight = request;
+  return request;
 }
 
 function invalidateClockCache(): void {
