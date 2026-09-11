@@ -9,11 +9,8 @@ import {
   controlledTestStatusFn,
   deactivateControlledTestFn,
   tickControlledTestFn,
+  type ControlledTestSnapshot,
 } from "@/lib/testing/controlled-test.functions";
-import type { DailyAction } from "@/lib/crm/daily-actions";
-import type { ControlledTestStatus } from "@/server/relationship/controlled-test.server";
-
-type Snapshot = { status: ControlledTestStatus; actions: DailyAction[] };
 
 export function HomologationDailyActionsDemo() {
   const read = useServerFn(controlledTestStatusFn);
@@ -21,13 +18,13 @@ export function HomologationDailyActionsDemo() {
   const tick = useServerFn(tickControlledTestFn);
   const conclude = useServerFn(concludeControlledActionFn);
   const deactivate = useServerFn(deactivateControlledTestFn);
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<ControlledTestSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => setSnapshot(await read()), [read]);
   useEffect(() => { void load(); }, [load]);
 
-  const perform = async (work: () => Promise<Snapshot>, message: string) => {
+  const perform = async (work: () => Promise<ControlledTestSnapshot>, message: string) => {
     setBusy(true);
     try {
       setSnapshot(await work());
@@ -77,11 +74,11 @@ export function HomologationDailyActionsDemo() {
               <div><p className="font-medium text-foreground">{action.name}</p><p className="text-sm text-muted-foreground">{action.title} · {action.stepLabel}</p></div>
               {action.kind === "ligacao" ? (
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform(() => conclude({ data: { queueItemId: action.queueItemId ?? "", outcome: "SIM" } }) as Promise<Snapshot>, "Ligação registrada.")}>Atendeu</Button>
-                  <Button size="sm" disabled={busy} onClick={() => void perform(() => conclude({ data: { queueItemId: action.queueItemId ?? "", outcome: "NAO" } }) as Promise<Snapshot>, "Continuação liberada.")}>Não atendeu</Button>
+                  <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform(() => conclude({ data: { queueItemId: action.queueItemId ?? "", outcome: "SIM" } }), "Ligação registrada.")}>Atendeu</Button>
+                  <Button size="sm" disabled={busy} onClick={() => void perform(() => conclude({ data: { queueItemId: action.queueItemId ?? "", outcome: "NAO" } }), "Continuação liberada.")}>Não atendeu</Button>
                 </div>
               ) : (
-                <Button size="sm" disabled={busy} onClick={() => void perform(() => conclude({ data: { queueItemId: action.queueItemId ?? "" } }) as Promise<Snapshot>, "Mensagem simulada como concluída.")}>Concluir simulação</Button>
+                <Button size="sm" disabled={busy} onClick={() => void perform(() => conclude({ data: { queueItemId: action.queueItemId ?? "" } }), "Mensagem simulada como concluída.")}>Concluir simulação</Button>
               )}
             </div>
           ))}

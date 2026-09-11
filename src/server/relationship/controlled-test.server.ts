@@ -164,7 +164,6 @@ export async function activateControlledTest(actorId: string, actorName: string)
   const realNow = new Date();
   const runId = `CONTROLLED-4-${realNow.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`;
   const logicalStart = new Date(realNow);
-  logicalStart.setUTCHours(12, 0, 0, 0);
   const { error } = await supabaseAdmin.from("test_batches").insert({
     id: runId,
     label: "Validação temporal — 4 leads reais",
@@ -181,18 +180,29 @@ export async function activateControlledTest(actorId: string, actorName: string)
     ends_at: null,
   } as never);
   if (error) throw new Error(error.message);
-
-  const repository = createRepository("homologation", runId);
-  for (const lead of CONTROLLED_LEADS) {
-    const record = initialRecord({ scope: "homologation", leadId: lead.leadId, runId, at: logicalStart.toISOString() });
-    record.startedAt = logicalStart.toISOString();
-    record.startedBy = "manual";
-    record.state = "CADENCE_ACTIVE";
-    record.currentStep = "E0";
-    await repository.saveRecord(record);
+  try {
+    const repository = createRepository("homologation", runId);
+    for (const lead of CONTROLLED_LEADS) {
+      const record = initialRecord({ scope: "homologation", leadId: lead.leadId, runId, at: logicalStart.toISOString() });
+      record.startedAt = logicalStart.toISOString();
+      record.startedBy = "manual";
+      record.state = "CADENCE_ACTIVE";
+      record.currentStep = "E0";
+      await repository.saveRecord(record);
+    }
+    const seeded = await counts(runId);
+    if (seeded.cadences !== CONTROLLED_LEADS.length) {
+      throw new Error("A rodada não conseguiu isolar os quatro ciclos; ativação cancelada.");
+    }
+    await runControlledTestTick();
+    return controlledTestStatus();
+  } catch (error) {
+    // Ativação é transacional do ponto de vista operacional: nenhuma
+    // rodada parcialmente criada permanece ativa após uma falha.
+    await deleteRunRows(runId).catch(() => undefined);
+    await supabaseAdmin.from("test_batches").delete().eq("id", runId);
+    throw error;
   }
-  await runControlledTestTick();
-  return controlledTestStatus();
 }
 
 export async function runControlledTestTick(): Promise<ControlledTestStatus> {
@@ -236,7 +246,7 @@ export async function controlledTestActions(): Promise<{ status: ControlledTestS
       kind: isCall ? "ligacao" : "mensagem",
       leadId: String(row.lead_id),
       name: lead?.name ?? "Investidor",
-      phone: "",
+      phone: `•••• ${lead?.suffix ?? ""}`,
       scope: "homologation",
       stepLabel: stepDisplayLabel(String(row.step)),
       dueDate,
@@ -271,7 +281,7 @@ export async function concludeControlledAction(input: { queueItemId: string; out
   if (item.action_kind === "call") {
     const { registerQueueCallOutcome } = await import("./call-outcome.server");
     const result = await registerQueueCallOutcome({
-      queueItemId: String(item.id), outcome: input.outcome ?? "NAO", actorId: "homologation", nowIso: clock.nowIso(), engine,
+      queueItemId: String(item.id), outcome: input.outcome ?? "NAO", actorId: "homologation", nowIso: clock.nowIso(), engine, runId,
     });
     if (!result.concluded) return { ok: false, ...(await controlledTestActions()) };
   } else {

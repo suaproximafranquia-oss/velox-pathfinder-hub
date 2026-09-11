@@ -28,6 +28,8 @@ export async function registerQueueCallOutcome(input: {
   nowIso?: string;
   /** Motor da rodada isolada; ausente mantém exatamente o caminho produtivo. */
   engine?: Engine;
+  /** Rodada isolada; ausente preserva a consulta produtiva original. */
+  runId?: string | null;
 }): Promise<{ concluded: boolean; awaitingHandoff: boolean }> {
   const nowIso = input.nowIso ?? new Date().toISOString();
 
@@ -96,7 +98,7 @@ export async function registerQueueCallOutcome(input: {
 
   // Atendeu: as ações seguintes DA MESMA ETAPA perderam a finalidade.
   // As obrigações das demais etapas do lead permanecem intactas.
-  await supabaseAdmin
+  let cancelQuery = supabaseAdmin
     .from("relationship_queue")
     .update({
       status: "CANCELLED",
@@ -106,8 +108,9 @@ export async function registerQueueCallOutcome(input: {
     } as never)
     .eq("scope", row.scope)
     .eq("lead_id", row.lead_id)
-    .eq("step", row.step)
-    .in("status", ["PENDING", "PROCESSING"]);
+    .eq("step", row.step);
+  cancelQuery = input.runId ? cancelQuery.eq("run_id", input.runId) : cancelQuery.is("run_id", null);
+  await cancelQuery.in("status", ["PENDING", "PROCESSING"]);
 
 
   /**

@@ -150,7 +150,10 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         opening_template_history: record.openingTemplateHistory,
         closed_at: record.closedAt,
         close_reason: record.closeReason,
-        updated_at: new Date().toISOString(),
+        // O relógio do motor já está materializado no snapshot. Em
+        // homologação acelerada ele precisa prevalecer sobre o relógio
+        // físico do servidor; produção continua usando o instante real.
+        updated_at: record.updatedAt,
       };
       // Atualiza a instância ativa; se não houver, abre a instância 1.
       const { data: current } = await scoped(

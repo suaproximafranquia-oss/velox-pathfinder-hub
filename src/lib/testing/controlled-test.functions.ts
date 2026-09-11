@@ -1,6 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { DailyAction } from "@/lib/crm/daily-actions";
+
+export type ControlledTestSnapshot = {
+  status: {
+    active: boolean;
+    runId: string | null;
+    realNowIso: string;
+    logicalNowIso: string;
+    factor: number;
+    leads: Array<{ leadId: string; name: string; phoneSuffix: string }>;
+    counts: { cadences: number; queue: number; events: number; decisions: number };
+  };
+  actions: DailyAction[];
+};
 
 async function assertAdmin(context: {
   supabase: { rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
