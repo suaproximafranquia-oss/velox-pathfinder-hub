@@ -447,7 +447,7 @@ export function daysBetween(from: string, to: string): number {
 
 // ------------------------------------------------------- ações internas
 
-export type StepActionKind = "call" | "message";
+export type StepActionKind = "call" | "message" | "manual";
 
 export type StepActionPlan = {
   /** Posição obrigatória dentro da etapa (1 = primeira). */
@@ -505,10 +505,26 @@ export function stepActions(step: CadenceV2Step, compensateE2 = false): StepActi
       ];
     case "E3":
     case "E4":
+    case "E7":
+    case "R1":
+    case "R2":
+    case "RE1":
       return [
         { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" },
         { order: 2, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
       ];
+    case "E5":
+      return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Apresentação / envio de material" }];
+    case "RE0":
+      return [{ order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" }];
+    case "RE2":
+      return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Oferta / apresentação de material" }];
+    case "E6":
+    case "E8":
+    case "R3":
+    case "R4":
+    case "RE3":
+      return [{ order: 1, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" }];
     default:
       return [{ order: 1, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" }];
   }
@@ -590,7 +606,7 @@ export function isStepComplete(step: CadenceV2Step, states: ActionState[], compe
  * antes de mensagem, e a ordem interna da etapa é respeitada.
  */
 export function actionSortWeight(kind: StepActionKind, order: number): number {
-  return (kind === "call" ? 0 : 1_000) + order;
+  return (kind === "call" ? 0 : kind === "manual" ? 500 : 1_000) + order;
 }
 
 // ------------------------------------------------------------ congelamento

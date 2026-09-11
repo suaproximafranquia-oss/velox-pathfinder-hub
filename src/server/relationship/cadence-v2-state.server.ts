@@ -161,7 +161,12 @@ export async function loadCadenceV2State(
     .map((row) => ({
       step: row.step,
       actionOrder: reentryInternalOrder(row.step, row.action_order ?? 1),
-      actionKind: row.action_kind === "call" ? "call" : "message",
+      actionKind:
+        row.action_kind === "call"
+          ? "call"
+          : row.action_kind === "manual"
+            ? "manual"
+            : "message",
       status: row.status,
       dueAt: row.due_at,
       executedAt: row.executed_at ?? null,
@@ -245,7 +250,7 @@ export async function resolveStepContextForLead(
 ): Promise<import("@/lib/relationship/cadence-v2").StepContext | null> {
   const key = String(step ?? "").trim().toUpperCase();
 
-  if (key === "E7" || key === "E8") {
+  if (key === "E6" || key === "E7" || key === "E8") {
     const material = await loadMaterialState(leadId);
     return material.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
   }

@@ -74,7 +74,7 @@ function toQueueItem(row: Row): QueueItem {
     reason: row.reason ?? null,
     flowVersionId: row.flow_version_id ?? null,
     actionOrder: row.action_order == null ? null : reentryInternalOrder(row.step, row.action_order),
-    actionKind: (row.action_kind ?? null) as "call" | "message" | null,
+    actionKind: (row.action_kind ?? null) as "call" | "message" | "manual" | null,
     theoreticalDate: row.theoretical_date ?? null,
     originDate: row.origin_date ?? null,
     cancelReason: row.cancel_reason ?? null,

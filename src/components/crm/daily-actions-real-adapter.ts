@@ -15,6 +15,7 @@ import {
   noteDailyActionFn,
   recordDailyActionHistoryFn,
   registerDailyActionMessageFn,
+  completeDailyActionManualFn,
   registerQueueCallOutcomeFn,
   prewarmOutcomeFn,
   undoQueueCallOutcomeFn,
@@ -60,6 +61,7 @@ export function useRealDailyActionsAdapter(
   const noteAction = useServerFn(noteDailyActionFn);
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
   const registerMessage = useServerFn(registerDailyActionMessageFn);
+  const completeManual = useServerFn(completeDailyActionManualFn);
   const registerQueueCall = useServerFn(registerQueueCallOutcomeFn);
   const prewarmOutcome = useServerFn(prewarmOutcomeFn);
   const undoQueueCall = useServerFn(undoQueueCallOutcomeFn);
@@ -230,6 +232,19 @@ export function useRealDailyActionsAdapter(
           message: result?.concluded
             ? "Etapa concluída — o motor segue para a próxima."
             : "Mensagem registrada no histórico.",
+        };
+      },
+      completeManual: async (item, note) => {
+        const result = (await completeManual({ data: actionRef(item, note, pendingRecovery) })) as {
+          concluded?: boolean;
+          queue?: DailyAction[];
+        };
+        return {
+          ok: true,
+          queue: result?.queue,
+          message: result?.concluded
+            ? "Ação manual concluída — o motor segue para a próxima etapa."
+            : "Ação manual já estava resolvida.",
         };
       },
       resolveMeeting: async (item, attended, note) => {

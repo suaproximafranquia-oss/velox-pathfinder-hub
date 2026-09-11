@@ -67,6 +67,8 @@ export type DailyActionsAdapter = {
   prewarmOutcome?: () => void;
   /** Registra que a mensagem foi tratada pela interface. */
   registerMessage: (item: DailyAction, note: string) => Promise<AdapterResult>;
+  /** Conclui apresentação/material manual na mesma fila, sem Biblioteca. */
+  completeManual: (item: DailyAction, note: string) => Promise<AdapterResult>;
   /** Desfecho da reunião: compareceu ou não compareceu. */
   resolveMeeting: (
     item: DailyAction,

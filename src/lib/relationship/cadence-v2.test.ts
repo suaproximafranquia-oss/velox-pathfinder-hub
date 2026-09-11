@@ -165,10 +165,25 @@ describe("ações internas da etapa", () => {
     expect(stepActions("E1")[2]?.waitHoursAfterPrevious).toBe(2);
   });
 
-  it("E2, E3 e E4 são ligação seguida de mensagem", () => {
-    for (const step of ["E2", "E3", "E4"] as const) {
+  it("etapas compostas são ligação seguida de mensagem", () => {
+    for (const step of ["E2", "E3", "E4", "E7", "R1", "R2", "RE1"] as const) {
       expect(stepActions(step).map((a) => a.kind)).toEqual(["call", "message"]);
     }
+  });
+
+  it("materializa o mapa definitivo sem transformar contextos V em etapas", () => {
+    const expected = {
+      E0: ["call", "call", "message"], E1: ["call", "message", "call"],
+      E2: ["call", "message"], E3: ["call", "message"], E4: ["call", "message"],
+      E5: ["manual"], E6: ["message"], E7: ["call", "message"], E8: ["message"],
+      R1: ["call", "message"], R2: ["call", "message"], R3: ["message"], R4: ["message"],
+      RE0: ["call"], RE1: ["call", "message"], RE2: ["manual"], RE3: ["message"],
+    } as const;
+    for (const [step, kinds] of Object.entries(expected)) {
+      expect(stepActions(step as Parameters<typeof stepActions>[0]).map((action) => action.kind)).toEqual(kinds);
+    }
+    expect(resolveStepContext({ materialSent: false, visualPath: true }, "E2")).toBe("V2");
+    expect(resolveStepContext({ materialSent: false, visualPath: true }, "E3")).toBe("V3");
   });
 
   it("ligação 1 às 14:00 libera a mensagem imediatamente", () => {
@@ -195,12 +210,10 @@ describe("ações internas da etapa", () => {
   });
 
   it("a mensagem não é liberada antes da ligação da mesma etapa", () => {
-    const released = nextReleasedAction({
-      step: "E2",
-      stepDueAt: "2026-08-03T12:00:00.000Z",
-      states: [],
-    });
-    expect(released?.action.kind).toBe("call");
+    for (const step of ["E0", "E1", "E2", "E3", "E4", "E7", "R1", "R2", "RE1"] as const) {
+      const released = nextReleasedAction({ step, stepDueAt: "2026-08-03T12:00:00.000Z", states: [] });
+      expect(released?.action.kind).toBe("call");
+    }
   });
 
   it("a etapa só conclui depois da última ação aplicável", () => {

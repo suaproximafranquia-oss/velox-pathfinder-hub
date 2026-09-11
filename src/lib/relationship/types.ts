@@ -181,7 +181,7 @@ export type QueueItem = {
   /** RÉGUA V2 — posição da ação interna dentro da etapa (1 = primeira). */
   actionOrder?: number | null;
   /** RÉGUA V2 — tipo da ação interna: ligação ou mensagem. */
-  actionKind?: "call" | "message" | null;
+  actionKind?: "call" | "message" | "manual" | null;
   /** RÉGUA V2 — data teórica pura, antes de qualquer deslocamento. */
   theoreticalDate?: string | null;
   /** RÉGUA V2 — D0 do ciclo que originou a obrigação. */
@@ -210,7 +210,7 @@ export type EngineAction =
       reason: string;
       /** Presentes quando a decisão veio da régua V2. */
       actionOrder?: number;
-      actionKind?: "call" | "message";
+      actionKind?: "call" | "message" | "manual";
       actionLabel?: string;
       theoreticalDate?: string;
       originDate?: string;
