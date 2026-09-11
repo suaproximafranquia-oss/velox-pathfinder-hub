@@ -6,11 +6,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type EnvironmentClockView = {
   active: boolean;
+  mode: "real" | "running" | "paused";
   factor: number;
   realNowIso: string;
   logicalNowIso: string;
   startedAtReal: string | null;
   startedAtVirtual: string | null;
+  frozenAtVirtual: string | null;
   leads: Array<{ leadId: string; name: string }>;
 };
 
@@ -50,4 +52,20 @@ export const deactivateEnvironmentClockFn = createServerFn({ method: "POST" })
     await assertAdmin(context as never);
     const { deactivateEnvironmentClock } = await import("@/server/time/environment-clock.server");
     return deactivateEnvironmentClock();
+  });
+
+export const pauseEnvironmentClockFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<EnvironmentClockView> => {
+    await assertAdmin(context as never);
+    const { pauseEnvironmentClock } = await import("@/server/time/environment-clock.server");
+    return pauseEnvironmentClock();
+  });
+
+export const resumeEnvironmentClockFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<EnvironmentClockView> => {
+    await assertAdmin(context as never);
+    const { resumeEnvironmentClock } = await import("@/server/time/environment-clock.server");
+    return resumeEnvironmentClock();
   });

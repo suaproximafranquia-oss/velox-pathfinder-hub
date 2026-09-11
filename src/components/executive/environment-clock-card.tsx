@@ -2,16 +2,18 @@
  * RELÓGIO ACELERADO DO AMBIENTE — controle Admin da homologação /f.
  *
  * Não existe motor paralelo: o botão apenas troca a fonte de tempo lida
- * pelo motor, pelas cadências e pela Ação do Dia (5 min reais = 1 dia).
+ * pelo motor, pelas cadências e pela Ação do Dia (2 min reais = 1 dia).
  */
 import { useCallback, useEffect, useState } from "react";
-import { Timer } from "lucide-react";
+import { Pause, Play, Timer } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import {
   activateEnvironmentClockFn,
   deactivateEnvironmentClockFn,
   environmentClockStatusFn,
+  pauseEnvironmentClockFn,
+  resumeEnvironmentClockFn,
   type EnvironmentClockView,
 } from "@/lib/testing/environment-clock.functions";
 
@@ -26,6 +28,8 @@ export function EnvironmentClockCard() {
   const status = useServerFn(environmentClockStatusFn);
   const activate = useServerFn(activateEnvironmentClockFn);
   const deactivate = useServerFn(deactivateEnvironmentClockFn);
+  const pause = useServerFn(pauseEnvironmentClockFn);
+  const resume = useServerFn(resumeEnvironmentClockFn);
   const [view, setView] = useState<EnvironmentClockView | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +79,13 @@ export function EnvironmentClockCard() {
             <div>
               <dt className="text-[color:var(--muted-foreground)]">Situação</dt>
               <dd className="text-[color:var(--foreground)]">
-                {view ? (view.active ? `Ativo (${view.factor}x)` : "Desligado (tempo real)") : "…"}
+                 {view
+                   ? view.mode === "paused"
+                     ? "Relógio pausado"
+                     : view.mode === "running"
+                       ? `Relógio em execução (${view.factor}x)`
+                       : "Desligado (tempo real)"
+                   : "…"}
               </dd>
             </div>
             <div>
@@ -99,9 +109,31 @@ export function EnvironmentClockCard() {
             >
               Ligar relógio acelerado
             </Button>
+             {view?.mode === "running" ? (
+               <Button
+                 type="button"
+                 disabled={busy}
+                 onClick={() => void run(() => pause({} as never))}
+                 variant="outline"
+               >
+                 <Pause className="h-4 w-4" />
+                 Pausar relógio
+               </Button>
+             ) : null}
+             {view?.mode === "paused" ? (
+               <Button
+                 type="button"
+                 disabled={busy}
+                 onClick={() => void run(() => resume({} as never))}
+                 variant="outline"
+               >
+                 <Play className="h-4 w-4" />
+                 Continuar relógio
+               </Button>
+             ) : null}
             <Button
               type="button"
-              disabled={busy || view?.active !== true}
+               disabled={busy || view?.mode === "real" || !view}
               onClick={() => void run(() => deactivate({} as never))}
               variant="outline"
             >
