@@ -1,26 +1,30 @@
-# Diagnóstico cirúrgico — mensagens da Ação do Dia `/f`
+# Diagnóstico cirúrgico — `step_context` na publicação da Biblioteca
 
 ## Objetivo
-Entregar uma auditoria somente leitura do caminho das mensagens E0, E1, E2, E3, E4, E6, E7 e E8, sem alterar código, banco, Biblioteca ou publicação.
+Explicar exatamente por que a publicação de “AAA” foi recusada, sem alterar código, banco, Biblioteca ou publicação.
+
+## Investigação
+1. Confirmar a definição vigente do constraint `relationship_message_library_step_context_check` no banco e a migration que o criou.
+2. Mapear as combinações etapa + contexto aceitas atualmente pela interface e pela validação server-side.
+3. Rastrear o payload desde a etapa/contexto selecionados no formulário até `publicarVersaoMensagem`, `publishLibraryVersion` e o `INSERT` em `relationship_message_library`.
+4. Comparar os contextos aceitos pelo código com os contextos aceitos pelo constraint, identificando a incompatibilidade exata.
+5. Verificar registros e logs disponíveis para identificar a etapa escolhida na tentativa de publicar “AAA”; se a tentativa rejeitada não tiver deixado evidência persistida, marcar etapa e payload daquela requisição como **NÃO CONFIRMADO** e separar isso do comportamento determinístico comprovado no código.
+6. Distinguir os caminhos de criar etapa, publicar nova versão e editar identidade/versão existente.
 
 ## Entrega
-1. Documentar o fluxo real desde a ação persistida em `relationship_queue` até o segundo card de mensagem.
-2. Montar a matriz por etapa com origem, `kind`, `stepLabel`, `messageRef`, etapa enviada ao carregamento, resolução no servidor, registro/contexto procurado e possibilidade de abertura.
-3. Separar claramente:
-   - mensagem válida que não abre por falha de clipboard;
-   - mensagem bloqueada por conteúdo/link/contexto;
-   - mensagem ausente na combinação ativa da Biblioteca.
-4. Explicar a diferença efetiva entre E0 e as demais etapas, inclusive prioridade e dados atuais da Biblioteca.
-5. Registrar a menor correção futura e os arquivos envolvidos, sem implementá-la.
-6. Listar explicitamente tudo que deve permanecer intocado, incluindo E5 como fluxo manual de material.
+- A — etapa que estava sendo publicada.
+- B — `step_context` enviado.
+- C — valores permitidos pelo constraint.
+- D — função que monta o payload.
+- E — payload que chega ao banco.
+- F — causa exata do erro.
+- G — menor correção necessária, sem implementar.
 
-## Evidências já verificadas
-- A abertura do segundo card está condicionada ao retorno positivo da cópia automática.
-- As ações E0–E8 analisadas chegam à tela pelo mesmo formato de mensagem da fila; E0 possui filtros e prioridade próprios, mas não um modal separado.
-- A Biblioteca procura uma única versão ativa por etapa e contexto, sem fallback.
-- E7/E8 exigem `SEM_CONTATO` ou `MATERIAL_ENVIADO`; COM_NOME/SEM_NOME são variantes de corpo da mesma versão, não contextos de fila.
-- O estado atual da Biblioteca foi consultado somente para leitura, permitindo distinguir registros válidos, bloqueados e ausentes.
+## Evidência já confirmada
+- O constraint vigente aceita somente `NULL`, `SEM_CONTATO` ou `MATERIAL_ENVIADO`.
+- O código atual também modela `V2`, `V3`, `NAO_CHEGOU_E4` e `JA_PASSOU_E4` para combinações específicas; esses valores não cabem no constraint vigente.
+- A tentativa com “AAA” não criou linha no banco, e os logs disponíveis não registram o payload rejeitado.
 
 ## Restrições
-- Nenhuma implementação, migration, escrita de dados, edição da Biblioteca, teste destrutivo ou deploy.
-- Nenhuma investigação fora de `/f`, Ação do Dia, resolução de mensagens e Biblioteca.
+- Nenhuma alteração de código, migration, banco, Biblioteca, contexto, etapa, cadência, motor, fila, Ação do Dia ou deploy.
+- Nenhuma auditoria fora do fluxo de publicação e do constraint informado.
