@@ -44,11 +44,12 @@ Os quatro permanecem cadastros reais. O teste criará somente estado operacional
 - Criar, no repositório já existente, uma rodada com `scope = homologation` e `run_id` exclusivo.
 - Referenciar diretamente `gs_59034`, `gs_59037`, `gs_59081` e `gs_59279`.
 - Inicializar a cadência de homologação a partir de uma fotografia somente leitura do estado atual de cada lead, sem modificar a cadência `production` nem os dados de origem.
-- Persistir a configuração e o estado do relógio usando o registro de rodada já existente; nenhuma estrutura nova será criada.
+- Persistir a rodada em `test_batches`, sem alterar o schema: `kind` identifica a validação controlada, `scenarios` guarda a lista fechada dos quatro IDs, `created_at` é a âncora real, `started_at` é a âncora lógica e `ends_at` congela o horário lógico no encerramento.
 
 ### 4. Relógio acelerado temporário
 
 - Reutilizar `EngineClock` e `createVirtualClock()` com fator **288**, equivalente a 5 minutos reais por 1 dia lógico.
+- O fator 288 será fixo para `kind = controlled_real_clock`; não haverá chave global nem configuração aplicável à produção.
 - O relógio será resolvido exclusivamente pelo `run_id` ativo da homologação.
 - Motor, cálculo de `due_at`, elegibilidade, atraso, calendário e montagem da fila de teste receberão o mesmo `nowIso` lógico.
 - Horários de auditoria, autenticação, rede, proteção contra clique duplo e a produção continuarão usando o relógio real.
