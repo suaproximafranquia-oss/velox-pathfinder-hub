@@ -1,5 +1,11 @@
 # Roadmap
 
+- [ ] /f: remover imediatamente apenas o NOVO do alerta concluído e sincronizar fila + card principal da Ação do Dia sem F5.
+- [ ] /f: garantir RE0 por nova entrada comercial no motor/fila existentes, por ID canônico, sem coluna NOVOS, duplicação ou reinício de E0.
+- [ ] /f: aplicar somente os microajustes do Material Institucional e as respostas indicadas do Capítulo 12.
+- [ ] /f: executar reset operacional transacional, preservando leads atuais, compromissos reais, gs_57906 e gs_56503; manter ambiguidades.
+- [ ] Validar correções, contagens do reset, tipos, testes direcionados e compilação.
+
 - [x] Financeira /f: KPI, Painel de Campanhas e Brain Analytics com a mesma fonte oficial server-side, sem mudar cálculos ou layout.
 - [x] Financeira /f: preservar identidade oficial e vínculo em link cru; atualizar nome de card existente pela origem GreenSales respeitando proteção manual.
 - [x] Financeira /f: nova data comercial reconhecida como RE0 idempotente apesar de tags antigas, sem inventar coluna ausente.
