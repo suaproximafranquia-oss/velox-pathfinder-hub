@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fake = vi.hoisted(() => ({
-  events: [] as Array<{ investor_id: string; event: string; created_at: string }>,
+  events: [] as Array<{ investor_id: string; event: string; module?: string | null; created_at: string }>,
   concluded: [] as Array<{ details: { actionKey: string } }>,
   viewedAt: "2026-07-01T12:00:00.000Z" as string | null,
   updatedViewedAt: null as string | null,
@@ -75,6 +75,16 @@ describe("alertas reais do Portal", () => {
     fake.concluded = [{ details: { actionKey: `portal_alert:TEST-lead:${at}` } }];
     const rows = await listPortalActivityAlerts("TEST-exec", "2026-09-10T12:00:00.000Z");
     expect(rows).toEqual([]);
+  });
+
+  it("identifica o conteúdo acessado sem alterar a chave idempotente", async () => {
+    const at = "2026-08-01T12:00:00.000Z";
+    fake.events = [{ investor_id: "TEST-lead", event: "module.opened", module: "universo", created_at: at }];
+    const rows = await listPortalActivityAlerts("TEST-exec", "2026-09-10T12:00:00.000Z");
+    expect(rows[0]).toMatchObject({
+      actionKey: `portal_alert:TEST-lead:${at}`,
+      contentLabel: "Material Institucional",
+    });
   });
 
   it("concluir valida a atividade e avança viewed_at somente até o alerta", async () => {

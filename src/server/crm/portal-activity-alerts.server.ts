@@ -42,6 +42,8 @@ export type PortalActivityAlert = {
   leadId: string;
   /** Instante do acesso que originou o alerta. */
   at: string;
+  /** Conteúdo acessado, quando o evento fornece um módulo reconhecido. */
+  contentLabel: string | null;
 };
 
 function alertKey(leadId: string, at: string): string {
@@ -91,25 +93,31 @@ export async function listPortalActivityAlerts(
 
   const { data: eventRows } = await supabaseAdmin
     .from("portal_journey_events")
-    .select("investor_id,event,created_at")
+    .select("investor_id,event,module,created_at")
     .in("investor_id", leadIds)
     .in("event", REAL_EVENTS)
     .order("created_at", { ascending: true })
     .limit(5000);
 
-  const byLead = new Map<string, string[]>();
-  for (const row of (eventRows ?? []) as Array<{ investor_id: string; created_at: string }>) {
+  const byLead = new Map<string, Array<{ at: string; module: string | null }>>();
+  for (const row of (eventRows ?? []) as Array<{
+    investor_id: string;
+    created_at: string;
+    module?: string | null;
+  }>) {
     const list = byLead.get(row.investor_id) ?? [];
-    list.push(row.created_at);
+    list.push({ at: row.created_at, module: row.module ?? null });
     byLead.set(row.investor_id, list);
   }
 
   const concluded = await loadConcluded();
   const alerts: PortalActivityAlert[] = [];
 
+  const { canonicalModule, CANONICAL_MODULE_LABEL } = await import("@/lib/portal-module-keys");
   for (const [leadId, moments] of byLead) {
     let previousQualified: number | null = null;
-    for (const iso of moments) {
+    for (const moment of moments) {
+      const iso = moment.at;
       const at = Date.parse(iso);
       if (!Number.isFinite(at)) continue;
       const isNewVisit = previousQualified === null || at - previousQualified >= RETURN_GAP_MS;
@@ -117,7 +125,13 @@ export async function listPortalActivityAlerts(
       previousQualified = at;
       const key = alertKey(leadId, iso);
       if (concluded.has(key)) continue;
-      alerts.push({ actionKey: key, leadId, at: iso });
+      const module = canonicalModule(moment.module);
+      alerts.push({
+        actionKey: key,
+        leadId,
+        at: iso,
+        contentLabel: module ? CANONICAL_MODULE_LABEL[module] : null,
+      });
     }
   }
 
@@ -167,28 +181,39 @@ export async function concludePortalActivityAlert(input: {
     .eq("action", PORTAL_ALERT_DONE_ACTION)
     .contains("details", { actionKey: input.actionKey })
     .limit(1);
-  if ((existing ?? []).length === 0) {
-    const { error: logError } = await supabaseAdmin.from("relationship_engine_log").insert({
-    scope: "production",
-    action: PORTAL_ALERT_DONE_ACTION,
-    actor: input.executiveId ?? input.userId,
-    details: {
-      actionKey: input.actionKey,
-      leadId: input.leadId,
-      executadoPor: input.userId,
-      executivo: input.executiveId,
-      at: new Date().toISOString(),
-    } as never,
-    } as never);
-    if (logError) throw new Error(logError.message);
-  }
-
   const currentViewed = lead.viewed_at ? Date.parse(lead.viewed_at) : Number.NEGATIVE_INFINITY;
+  let advancedViewedAt = false;
   if (Date.parse(alertAt) > currentViewed) {
     const { error: viewedError } = await supabaseAdmin
       .from("portal_leads")
       .update({ viewed_at: alertAt } as never)
       .eq("id", leadId);
     if (viewedError) throw new Error(viewedError.message);
+    advancedViewedAt = true;
+  }
+
+  if ((existing ?? []).length === 0) {
+    const { error: logError } = await supabaseAdmin.from("relationship_engine_log").insert({
+      scope: "production",
+      action: PORTAL_ALERT_DONE_ACTION,
+      actor: input.executiveId ?? input.userId,
+      details: {
+        actionKey: input.actionKey,
+        leadId,
+        executadoPor: input.userId,
+        executivo: input.executiveId,
+        at: new Date().toISOString(),
+      } as never,
+    } as never);
+    if (logError) {
+      if (advancedViewedAt) {
+        await supabaseAdmin
+          .from("portal_leads")
+          .update({ viewed_at: lead.viewed_at ?? null } as never)
+          .eq("id", leadId)
+          .eq("viewed_at", alertAt);
+      }
+      throw new Error(logError.message);
+    }
   }
 }

@@ -499,7 +499,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       overdue: false,
       priorityMax: false,
       bucket: "alerta",
-      title: `${identity.name} acessou o Portal do Investidor.`,
+      title: alert.contentLabel
+        ? `${identity.name} acessou ${alert.contentLabel}.`
+        : `${identity.name} acessou o Portal do Investidor.`,
       responsibleName: null,
       alertAt: alert.at,
       attempts: [],
