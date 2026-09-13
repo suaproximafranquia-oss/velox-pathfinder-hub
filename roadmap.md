@@ -81,3 +81,10 @@
 - [x] /f: reler o nome atual do lead em cada preparação de mensagem pelo resolvedor existente, sem alterar snapshots.
 - [x] /f: tratar o agendamento original como pendência de desfecho comparecimento + novo agendamento, sem revisão automática de 24h.
 - [x] Validar prioridades, domingo, E7/E8 e testes/compilação sem tocar os ambientes e fluxos protegidos (67 testes focados e tipos aprovados).
+
+## Lapidação final das jornadas R e RE — Financeira /f
+
+- [ ] Ampliar R para R1 → R2 → R3 → R4 → R5, com R3/R5 contextuais, R4 somente após envio manual e R5 terminal.
+- [ ] Ampliar RE para RE0 → RE1 → RE2 → RE3 → RE4 → RE5, usando histórico CONTENT_SENT e o motor/fila existentes.
+- [ ] Organizar e publicar os conteúdos aprovados de R/RE na ordem operacional, preservando versões e histórico.
+- [ ] Validar transições, contextos, reentrada, Biblioteca, tipos, testes e compilação sem tocar dados reais.
