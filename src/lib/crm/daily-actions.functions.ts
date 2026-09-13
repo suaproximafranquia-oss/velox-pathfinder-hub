@@ -731,7 +731,12 @@ export const concludePortalAlertFn = createServerFn({ method: "POST" })
       .object({ actionKey: z.string().min(1), leadId: z.string().nullable() })
       .parse(data),
   )
-  .handler(async ({ data, context }): Promise<{ ok: true; queue: DailyAction[] }> => {
+  .handler(async ({ data, context }): Promise<{
+    ok: true;
+    leadId: string | null;
+    viewedAt: string;
+    queue: DailyAction[];
+  }> => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { concludePortalActivityAlert } = await import(
@@ -743,5 +748,10 @@ export const concludePortalAlertFn = createServerFn({ method: "POST" })
       userId: context.userId,
       executiveId,
     });
-    return { ok: true, queue: await queueAfterOutcome(executiveId) };
+    return {
+      ok: true,
+      leadId: data.leadId,
+      viewedAt: data.actionKey.slice(`portal_alert:${data.leadId}:`.length),
+      queue: await queueAfterOutcome(executiveId),
+    };
   });

@@ -30,6 +30,8 @@ import {
 } from "@/lib/crm/daily-actions.functions";
 import type { DailyAction } from "@/lib/crm/daily-actions";
 import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
+import { patchCachedLead } from "@/lib/leads";
+import { notifySync } from "@/lib/sync-bus";
 
 /** Identificação mínima da ação enviada ao histórico oficial. */
 function actionRef(item: DailyAction, reason: string, pendingRecovery = false) {
@@ -355,7 +357,11 @@ export function useRealDailyActionsAdapter(
         try {
           const result = (await concludeAlertFn({
             data: { actionKey: item.actionKey, leadId: item.leadId },
-          })) as { queue?: DailyAction[] };
+          })) as { queue?: DailyAction[]; viewedAt?: string; leadId?: string | null };
+          if (result.viewedAt && result.leadId) {
+            patchCachedLead(result.leadId, { viewedAt: result.viewedAt });
+            notifySync("status");
+          }
           return {
             ok: true,
             message: "Alerta concluído.",

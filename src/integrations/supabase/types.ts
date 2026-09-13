@@ -221,6 +221,7 @@ export type Database = {
           first_contact_mode: string
           id: boolean
           material_url: string | null
+          portal_modules: Json
           sync_interval_minutes: number
           updated_at: string
           welcome_body: string | null
@@ -232,6 +233,7 @@ export type Database = {
           first_contact_mode?: string
           id?: boolean
           material_url?: string | null
+          portal_modules?: Json
           sync_interval_minutes?: number
           updated_at?: string
           welcome_body?: string | null
@@ -243,6 +245,7 @@ export type Database = {
           first_contact_mode?: string
           id?: boolean
           material_url?: string | null
+          portal_modules?: Json
           sync_interval_minutes?: number
           updated_at?: string
           welcome_body?: string | null

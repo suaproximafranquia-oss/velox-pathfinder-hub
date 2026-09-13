@@ -1,0 +1,1 @@
+DROP VIEW IF EXISTS public.portal_module_visibility;

@@ -26,6 +26,29 @@ export type PortalModuleDef = {
   guardedPaths: string[];
 };
 
+export type PortalModuleVisibility = Record<PortalModuleKey, boolean>;
+
+export const DEFAULT_PORTAL_MODULE_VISIBILITY: PortalModuleVisibility = {
+  manual: true,
+  universo: true,
+  simulador: true,
+  estrutura: false,
+  revista: false,
+  principios: false,
+};
+
+export function normalizePortalModuleVisibility(
+  value: unknown,
+): PortalModuleVisibility {
+  const stored = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return Object.fromEntries(
+    Object.entries(DEFAULT_PORTAL_MODULE_VISIBILITY).map(([key, fallback]) => [
+      key,
+      typeof stored[key] === "boolean" ? stored[key] : fallback,
+    ]),
+  ) as PortalModuleVisibility;
+}
+
 export const PORTAL_MODULES: PortalModuleDef[] = [
   { key: "manual", title: "Manual do Investidor", panelSrc: "/manual", guardedPaths: ["/manual"] },
   {

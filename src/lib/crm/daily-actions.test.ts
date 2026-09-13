@@ -344,4 +344,29 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
     });
     expect(normalizeDailyActions([meeting, claimed])[0]?.actionKey).toBe(claimed.actionKey);
   });
+
+  it("preserva claim, emergência, alerta, E0, atrasada e ação normal nesta ordem", () => {
+    const rows = normalizeDailyActions([
+      action({ actionKey: "normal", leadId: "normal" }),
+      action({ actionKey: "late", leadId: "late", bucket: "atrasada" }),
+      action({ actionKey: "e0", leadId: "e0", stepLabel: "E0" }),
+      action({ actionKey: "alert", leadId: "alert", source: "portal_alert", kind: "alerta_portal", bucket: "alerta" }),
+      action({ actionKey: "urgent", leadId: "urgent", source: "meeting", kind: "reuniao", bucket: "agora", priorityMax: true }),
+      action({ actionKey: "claimed", leadId: "claimed", claimed: true }),
+    ]);
+    expect(rows.map((row) => row.actionKey)).toEqual([
+      "claimed", "urgent", "alert", "e0", "late", "normal",
+    ]);
+    expect(isAutomaticDailyAction(rows[2])).toBe(true);
+  });
+
+  it("mantém agendamento urgente do mesmo lead logo após a ação claimada", () => {
+    const rows = normalizeDailyActions([
+      action({ actionKey: "claimed", leadId: "same", claimed: true }),
+      action({ actionKey: "meeting", leadId: "same", source: "meeting", kind: "reuniao", bucket: "agora", priorityMax: true }),
+      action({ actionKey: "duplicate", leadId: "same", source: "queue" }),
+    ]);
+    expect(rows.slice(0, 2).map((row) => row.actionKey)).toEqual(["claimed", "meeting"]);
+    expect(rows).toHaveLength(2);
+  });
 });
