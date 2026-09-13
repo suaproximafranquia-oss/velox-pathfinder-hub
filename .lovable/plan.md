@@ -89,6 +89,10 @@ Para cada seta: função, arquivo, server function, tabela/campo, estado e confi
 
 ## Método de validação
 - Busca e leitura integral dos arquivos envolvidos.
+- Para cada fluxo crítico, seguir obrigatoriamente `chamador → função intermediária → dependências → persistência → resposta ao cliente`, sem encerrar no primeiro componente encontrado.
+- Quando houver implementações paralelas, legadas ou demonstrativas, comparar todas e comprovar qual caminho `/f` utiliza atualmente.
+- Separar explicitamente componente visual, estado local, dado calculado, dado persistido, obrigação criada, fila calculada, claim, ação em andamento, ação concluída e resolução do evento original.
+- Para NOVO/João e Ação do Dia, registrar a linha temporal completa: `evento → registro → processamento → exibição → resolução → estado final`.
 - Consultas SQL exclusivamente `SELECT` para schema, registros necessários, políticas e relações.
 - Leitura de logs disponíveis e testes existentes, sem disparar operações produtivas.
 - Comparação entre código, banco, configuração, comentários e testes.
