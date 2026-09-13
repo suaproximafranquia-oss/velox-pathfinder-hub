@@ -8,11 +8,15 @@
 
 ## Implementação
 
-### 1. Biblioteca da jornada R
+### 1. Jornada R e Biblioteca
 
-- Manter a transição atual `R1 → R2 → R3 → R4` e apenas organizar a apresentação nessa ordem.
-- Configurar R3 e R4 com os contextos existentes `SEM_CONTATO` e `MATERIAL_ENVIADO`, cada um preservando as variantes `COM_NOME` e `SEM_NOME`.
-- Reaproveitar somente mensagens R já existentes; qualquer combinação sem texto aprovado ficará como slot inativo, sem conteúdo inventado.
+- Ampliar o fluxo para `R1 → R2 → R3 → R4 → R5`, tornando somente R5 terminal.
+- Manter R1 como primeira tentativa após o não comparecimento e R2 como segunda tentativa para definir continuidade, reagendamento ou encerramento.
+- Configurar R3 com `SEM_CONTATO` e `MATERIAL_ENVIADO`: no primeiro contexto, oferecer a apresentação; no segundo, reconhecer o envio anterior e definir o interesse.
+- Não criar envio automático após R3. Quando a oferta for aceita, o executivo fará o envio manual, registrando-o na fonte estruturada existente.
+- Liberar R4 somente no caminho em que houve envio a partir de R3, após sete dias corridos, para solicitar feedback.
+- Configurar R5 como encerramento definitivo com `SEM_CONTATO` e `MATERIAL_ENVIADO`, preservando `COM_NOME` e `SEM_NOME`.
+- Organizar a Biblioteca em R1, R2, R3, R4, R5 e publicar as mensagens humanizadas já preparadas, sem deixar as novas combinações inativas.
 
 ### 2. Ampliação da jornada RE no motor V2
 
@@ -34,6 +38,6 @@
 
 ## Validação
 
-- Cobrir transições R/RE, terminal RE5, histórico com/sem material, contextos editoriais, ações internas e isolamento de ciclos RE.
+- Cobrir transições R/RE, terminais R5/RE5, envio manual no R, histórico com/sem material, contextos editoriais, ações internas e isolamento de ciclos RE.
 - Confirmar abertura de RE0 por entrada comercial sem dependência de coluna/tag e sem duplicar lead ou reiniciar E0.
 - Executar testes direcionados, verificação de tipos e conferir a compilação automática.
