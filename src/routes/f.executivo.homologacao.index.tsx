@@ -5,14 +5,12 @@
  * DEFINITIVAMENTE: ele apresentava etapas que não são mais as atuais e
  * nenhum outro simulador entra no lugar agora.
  *
- * O que permanece aqui: a fotografia literal das etapas vigentes (fonte
- * única do motor) e os atalhos para as áreas de homologação que
- * continuam válidas — Biblioteca de Conteúdos e Ação do Dia em modo
- * demonstração. Nada nesta tela envia mensagem real.
+ * O que permanece aqui é a fotografia literal das etapas vigentes
+ * (fonte única do motor). Nada nesta tela envia mensagem real.
  */
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Library, MessagesSquare, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import { getSession, type ExecutiveSession } from "@/lib/executive-auth";
 import { HomologationTabs } from "@/components/executive/homologation-tabs";
@@ -41,8 +39,6 @@ export const Route = createFileRoute("/f/executivo/homologacao/")({
 });
 
 const card = "rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5";
-const shortcut =
-  "flex items-start gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5 transition hover:border-[color:var(--gold)]/50";
 
 function HomologacaoPage() {
   const [session, setSession] = useState<ExecutiveSession | null>(null);
@@ -77,31 +73,6 @@ function HomologacaoPage() {
 
         <CurrentStepSnapshotCard />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Link to="/f/executivo/biblioteca" className={shortcut}>
-            <Library className="mt-0.5 h-5 w-5 text-[color:var(--gold)]" />
-            <span>
-              <span className="block font-display text-base text-[color:var(--foreground)]">
-                Biblioteca de Conteúdos
-              </span>
-              <span className="mt-1 block text-sm text-[color:var(--muted-foreground)]">
-                Conteúdos oficiais por finalidade, versionados e reutilizados pelo motor.
-              </span>
-            </span>
-          </Link>
-
-          <Link to="/f/executivo/homologacao/acao-do-dia" className={shortcut}>
-            <MessagesSquare className="mt-0.5 h-5 w-5 text-[color:var(--gold)]" />
-            <span>
-              <span className="block font-display text-base text-[color:var(--foreground)]">
-                Ação do Dia — Demonstração
-              </span>
-              <span className="mt-1 block text-sm text-[color:var(--muted-foreground)]">
-                Demonstração isolada da tela operacional, sem dados reais e sem envios.
-              </span>
-            </span>
-          </Link>
-        </div>
       </div>
     </ExecutiveShell>
   );

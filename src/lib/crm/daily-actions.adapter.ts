@@ -26,6 +26,9 @@ export type AdapterResult = {
    * investidor tiver outra ação liberada, ela já vem na posição 1.
    */
   queue?: DailyAction[];
+  /** Atualização visual confirmada ao concluir uma atividade do Portal. */
+  viewedAt?: string;
+  leadId?: string | null;
 };
 
 /** Mensagem oficial da etapa, lida da Biblioteca ativa. */

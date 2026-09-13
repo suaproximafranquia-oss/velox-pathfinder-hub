@@ -743,5 +743,10 @@ export const concludePortalAlertFn = createServerFn({ method: "POST" })
       userId: context.userId,
       executiveId,
     });
-    return { ok: true, queue: await queueAfterOutcome(executiveId) };
+    return {
+      ok: true,
+      leadId: data.leadId,
+      viewedAt: data.actionKey.slice(`portal_alert:${data.leadId}:`.length),
+      queue: await queueAfterOutcome(executiveId),
+    };
   });

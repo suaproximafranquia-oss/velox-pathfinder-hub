@@ -1,7 +1,7 @@
 import { WorkspaceResourceGuard } from "@/components/executive/workspace-resource-guard";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock, ImageIcon } from "lucide-react";
+import { Settings, Palette, Plug, Shield, Bell, Video, Lock, Trash2, CalendarClock, ImageIcon, LayoutGrid } from "lucide-react";
 import {
   loadHomologationConfig,
   saveHomologationConfig,
@@ -18,6 +18,17 @@ import {
   type ExecutiveSession,
 } from "@/lib/executive-auth";
 import { WORKSPACE } from "@/config/workspace";
+import { Switch } from "@/components/ui/switch";
+import {
+  PORTAL_MODULES,
+  DEFAULT_PORTAL_MODULE_VISIBILITY,
+  type PortalModuleKey,
+  type PortalModuleVisibility,
+} from "@/lib/portal-modules";
+import {
+  getPortalModuleVisibility,
+  savePortalModuleVisibility,
+} from "@/lib/portal-module-visibility.functions";
 import {
   MEETING_PROVIDERS,
   getDefaultProviderForExecutive,
@@ -111,6 +122,7 @@ function ConfiguracoesPage() {
           demais seções permanecem informativas nesta versão.
         </p>
         <div className="grid gap-4">
+          <PortalModulesSection />
           <CadenciaAtivacaoSection />
           <VideoconferenciaSection session={session} />
           <ProtecaoHomologacaoSection />
@@ -145,6 +157,86 @@ function ConfiguracoesPage() {
         </div>
       </div>
     </ExecutiveShell>
+  );
+}
+
+function PortalModulesSection() {
+  const [visibility, setVisibility] = useState<PortalModuleVisibility>(
+    DEFAULT_PORTAL_MODULE_VISIBILITY,
+  );
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void getPortalModuleVisibility()
+      .then((value) => alive && setVisibility(value))
+      .catch(() => alive && setStatus("Não foi possível carregar os módulos."))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  function toggle(key: PortalModuleKey, checked: boolean) {
+    setVisibility((current) => ({ ...current, [key]: checked }));
+    setStatus(null);
+  }
+
+  async function save() {
+    setSaving(true);
+    setStatus(null);
+    try {
+      const result = await savePortalModuleVisibility({ data: visibility });
+      setVisibility(result.visibility);
+      setStatus("Visibilidade do Portal atualizada.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Não foi possível salvar os módulos.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--background)]/40 text-[color:var(--gold)]">
+          <LayoutGrid className="h-4 w-4" strokeWidth={1.6} />
+        </span>
+        <div>
+          <h2 className="font-display text-base">Módulos do Portal do Investidor</h2>
+          <p className="text-xs text-[color:var(--muted-foreground)]">Controle individual dos cards exibidos na Financeira.</p>
+        </div>
+      </div>
+      <div className="divide-y divide-[color:var(--border)]">
+        {PORTAL_MODULES.map((module) => (
+          <label key={module.key} className="flex items-center justify-between gap-4 py-3 text-sm">
+            <span>{module.title}</span>
+            <span className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
+              {visibility[module.key] ? "ON" : "OFF"}
+              <Switch
+                checked={visibility[module.key]}
+                disabled={loading || saving}
+                onCheckedChange={(checked) => toggle(module.key, checked)}
+                aria-label={`${module.title}: ${visibility[module.key] ? "ativo" : "inativo"}`}
+              />
+            </span>
+          </label>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          type="button"
+          disabled={loading || saving}
+          onClick={() => void save()}
+          className="rounded-lg border border-[color:var(--gold)]/50 px-4 py-2 text-sm text-[color:var(--gold)] disabled:opacity-40"
+        >
+          {saving ? "Salvando…" : "Salvar módulos"}
+        </button>
+        {status && <span className="text-xs text-[color:var(--muted-foreground)]">{status}</span>}
+      </div>
+    </section>
   );
 }
 

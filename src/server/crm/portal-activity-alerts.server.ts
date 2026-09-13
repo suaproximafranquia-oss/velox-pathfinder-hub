@@ -134,10 +134,40 @@ export async function concludePortalActivityAlert(input: {
   userId: string;
   executiveId: string | null;
 }): Promise<void> {
-  if (!input.actionKey.startsWith("portal_alert:")) {
+  if (!input.leadId) throw new Error("Lead do alerta não identificado.");
+  const prefix = `portal_alert:${input.leadId}:`;
+  if (!input.actionKey.startsWith(prefix)) {
     throw new Error("Alerta inválido.");
   }
-  await supabaseAdmin.from("relationship_engine_log").insert({
+  const alertAt = input.actionKey.slice(prefix.length);
+  if (!Number.isFinite(Date.parse(alertAt))) throw new Error("Instante do alerta inválido.");
+
+  const { data: event } = await supabaseAdmin
+    .from("portal_journey_events")
+    .select("created_at")
+    .eq("investor_id", input.leadId)
+    .in("event", REAL_EVENTS)
+    .eq("created_at", alertAt)
+    .maybeSingle();
+  if (!event) throw new Error("A atividade original do alerta não foi encontrada.");
+
+  const { data: lead } = await supabaseAdmin
+    .from("portal_leads")
+    .select("viewed_at,responsible_executive_id")
+    .eq("id", input.leadId)
+    .maybeSingle();
+  if (!lead || (input.executiveId && lead.responsible_executive_id !== input.executiveId)) {
+    throw new Error("Alerta não pertence a este Executivo.");
+  }
+
+  const { data: existing } = await supabaseAdmin
+    .from("relationship_engine_log")
+    .select("id")
+    .eq("action", PORTAL_ALERT_DONE_ACTION)
+    .contains("details", { actionKey: input.actionKey })
+    .limit(1);
+  if ((existing ?? []).length === 0) {
+    const { error: logError } = await supabaseAdmin.from("relationship_engine_log").insert({
     scope: "production",
     action: PORTAL_ALERT_DONE_ACTION,
     actor: input.executiveId ?? input.userId,
@@ -148,5 +178,17 @@ export async function concludePortalActivityAlert(input: {
       executivo: input.executiveId,
       at: new Date().toISOString(),
     } as never,
-  } as never);
+    } as never);
+    if (logError) throw new Error(logError.message);
+  }
+
+  const currentViewed = lead.viewed_at ? Date.parse(lead.viewed_at) : Number.NEGATIVE_INFINITY;
+  if (Date.parse(alertAt) > currentViewed) {
+    const { error: viewedError } = await supabaseAdmin
+      .from("portal_leads")
+      .update({ viewed_at: alertAt } as never)
+      .eq("id", input.leadId)
+      .eq("responsible_executive_id", input.executiveId);
+    if (viewedError) throw new Error(viewedError.message);
+  }
 }

@@ -210,11 +210,10 @@ export function actionRank(action: DailyAction): number {
    */
   if (action.claimed) return -1;
   /**
-   * AVISO DO PORTAL: entra logo DEPOIS da ação em atendimento e antes
-   * dos demais itens. Continua sendo apenas sinal informativo e nunca
-   * vira etapa ou item da fila comercial.
+   * AVISO DO PORTAL: entra depois das emergências em foco e antes dos
+   * leads novos. Continua sendo apenas sinal informativo.
    */
-  if (action.bucket === "alerta") return 0.5;
+  if (action.bucket === "alerta") return 1;
   if (action.bucket === "pendente") return 7;
   /**
    * COMPROMISSO DE OUTRO DIA NÃO É TRABALHO DE HOJE. Ele continua
@@ -238,7 +237,8 @@ export function actionRank(action: DailyAction): number {
 export function isAutomaticDailyAction(action: DailyAction): boolean {
   return (
     action.bucket !== "futura" &&
-    action.bucket !== "pendente"
+    action.bucket !== "pendente" &&
+    action.bucket !== "alerta"
   );
 }
 
@@ -363,6 +363,18 @@ export function collapseByLead(actions: DailyAction[]): DailyAction[] {
     const current = byLead.get(action.leadId);
     if (!current) {
       byLead.set(action.leadId, action);
+      continue;
+    }
+    /**
+     * Exceção operacional estreita: um agendamento urgente do mesmo lead
+     * não pode desaparecer atrás da ação já em atendimento. Ambos seguem
+     * visíveis; nenhuma outra combinação deixa de ser colapsada.
+     */
+    const claimedAndUrgentMeeting =
+      (current.claimed && action.source === "meeting" && action.bucket === "agora") ||
+      (action.claimed && current.source === "meeting" && current.bucket === "agora");
+    if (claimedAndUrgentMeeting) {
+      loose.push(action.claimed ? current : action);
       continue;
     }
     const winner =

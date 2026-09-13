@@ -126,7 +126,13 @@ function sessionPhone(investorId: string | null | undefined): string {
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { InvestorNewsFeed } from "@/components/portal/investor-news-feed";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
-import { getPortalModule, type PortalModuleKey } from "@/lib/portal-modules";
+import {
+  DEFAULT_PORTAL_MODULE_VISIBILITY,
+  getPortalModule,
+  type PortalModuleKey,
+  type PortalModuleVisibility,
+} from "@/lib/portal-modules";
+import { getPortalModuleVisibility } from "@/lib/portal-module-visibility.functions";
 import { setActiveOverlay } from "@/lib/portal-overlay";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { clearResponsibleExecutive } from "@/lib/responsible-executive";
@@ -285,6 +291,9 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
    */
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+  const [moduleVisibility, setModuleVisibility] = useState<PortalModuleVisibility>(
+    DEFAULT_PORTAL_MODULE_VISIBILITY,
+  );
 
   /**
    * MODO EDITOR — quem decide é o servidor. A URL apenas pede; sem
@@ -297,6 +306,17 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
     let alive = true;
     void fetchPortalAssetOverrides({ data: { unit: brandKey } })
       .then((map) => alive && setSavedPortalAssets(map))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [brandKey]);
+
+  useEffect(() => {
+    if (brandKey !== "financeira") return;
+    let alive = true;
+    void getPortalModuleVisibility()
+      .then((visibility) => alive && setModuleVisibility(visibility))
       .catch(() => undefined);
     return () => {
       alive = false;
@@ -493,6 +513,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
         <ModulesGrid
           unlocked={unlocked}
           brandKey={brandKey}
+          visibility={brandKey === "financeira" ? moduleVisibility : undefined}
           onOpen={(m) => {
             const mod = getPortalModule(m.moduleKey);
             if (!mod) return;
@@ -785,19 +806,24 @@ function ModulesGrid({
   onOpen,
   unlocked,
   brandKey,
+  visibility,
 }: {
   onOpen: (m: ModuleCard) => void;
   unlocked: boolean;
   brandKey: string;
+  visibility?: PortalModuleVisibility;
 }) {
   /**
    * Solar usa capas temáticas de energia solar; Financeira mantém as capas
    * institucionais originais. Títulos, textos e lógica são inalterados.
    */
-  const modules =
+  const brandedModules =
     brandKey === "solar"
       ? MODULES.map((m) => ({ ...m, cover: SOLAR_COVERS[m.key] ?? m.cover }))
       : MODULES;
+  const modules = visibility
+    ? brandedModules.filter((module) => !module.moduleKey || visibility[module.moduleKey])
+    : brandedModules;
   return (
     <section
       id="modulos"
