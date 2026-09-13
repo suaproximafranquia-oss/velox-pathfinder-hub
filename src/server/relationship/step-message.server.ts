@@ -45,20 +45,20 @@ export type PreparedStepMessage = {
 export async function prepareStepMessage(params: {
   leadId: string;
   step: string;
-  /** Nome já conhecido pela camada chamadora; evita releitura do cadastro. */
-  leadName?: string | null;
 }): Promise<PreparedStepMessage> {
   const executive = await resolveLeadExecutive(params.leadId);
 
-  let name = params.leadName ?? null;
-  if (name === null) {
-    const { data } = await supabaseAdmin
-      .from("portal_leads")
-      .select("name,responsible_executive_slug")
-      .eq("id", params.leadId)
-      .maybeSingle();
-    name = (data as Record<string, any> | null)?.["name"] ?? null;
-  }
+  /**
+   * O nome é relido do cadastro oficial em TODA nova preparação. O valor
+   * transportado por uma fila/tela anterior nunca congela COM_NOME ou
+   * SEM_NOME para a etapa seguinte.
+   */
+  const { data } = await supabaseAdmin
+    .from("portal_leads")
+    .select("name")
+    .eq("id", params.leadId)
+    .maybeSingle();
+  const name = (data as { name?: string | null } | null)?.name ?? null;
 
   if (!executive.available) {
     return {
@@ -78,7 +78,7 @@ export async function prepareStepMessage(params: {
 
   const portalLink = executive.slug ? investorPortalUrl(executive.slug) : "";
   /**
-   * ETAPAS CONTEXTUAIS (E1/E2/E3, E7/E8 e R3). Quem decide é sempre o
+   * ETAPAS CONTEXTUAIS (E2/E3, E7/E8 e R3). Quem decide é sempre o
    * HISTÓRICO ESTRUTURADO — material efetivamente enviado, caminho V já
    * congelado pelo motor, passagem histórica por E4 — nunca o título, o
    * texto ou a interpretação de uma conversa.

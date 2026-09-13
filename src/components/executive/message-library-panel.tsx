@@ -269,7 +269,7 @@ export function MessageLibraryPanel() {
                 const contextual = isContextualStep(key);
                 const keyContexts = stepCombinations(key);
                 const current = list.find((m) => m.active) ?? list[0];
-                /* Sem versão ativa = o motor NÃO envia esta etapa. Em E7/E8
+                 /* Sem versão ativa = o motor NÃO envia esta etapa. Em E7/E8
                    cada contexto precisa da própria versão ativa; uma linha
                    sem contexto não conta para elas. O rótulo continua
                    editável; o texto é que falta. */

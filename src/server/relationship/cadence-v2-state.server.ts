@@ -237,6 +237,7 @@ export async function loadCadenceV2State(
  * CONTEXTO DE UMA ETAPA PARA UM LEAD — leitura pura (não decide nada,
  * não grava nada). É a mesma fonte estruturada usada pelo motor:
  *
+ *  • E6 → contexto único após a apresentação da E5;
  *  • E7/E8 → material efetivamente disponibilizado (CONTENT_SENT);
  *  • E2/E3 → caminho V já decidido e congelado (V2/V3) ou contexto
  *    normal (sem contexto). A E1 saiu do eixo V e é sempre normal;
@@ -249,7 +250,7 @@ export async function resolveStepContextForLead(
 ): Promise<import("@/lib/relationship/cadence-v2").StepContext | null> {
   const key = String(step ?? "").trim().toUpperCase();
 
-  if (key === "E6" || key === "E7" || key === "E8") {
+  if (key === "E7" || key === "E8") {
     const material = await loadMaterialState(leadId);
     return material.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
   }

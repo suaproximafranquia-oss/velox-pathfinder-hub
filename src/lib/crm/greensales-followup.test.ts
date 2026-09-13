@@ -5,7 +5,6 @@ import {
   isAgendamentosToFrios,
   parseFollowUp,
   planFollowUpSync,
-  reviewDueAt,
 } from "./greensales-followup";
 
 const NOW = "2026-09-10T12:00:00.000Z";
@@ -109,11 +108,7 @@ describe("follow_up GreenSales → compromisso espelhado (Financeira /f)", () =>
     expect(d.kind).toBe("noop");
   });
 
-  it("10. obrigação de 24h vence exatamente 24h após o registro sem contato", () => {
-    expect(reviewDueAt("2026-09-12T18:10:00.000Z")).toBe("2026-09-13T18:10:00.000Z");
-  });
-
-  it("11. só AGENDAMENTOS → FRIOS libera o reengajamento", () => {
+  it("10. só AGENDAMENTOS → FRIOS libera o reengajamento", () => {
     expect(isAgendamentosToFrios("agendamentos", "frio")).toBe(true);
     expect(isAgendamentosToFrios("agendamentos", "oportunidades")).toBe(false);
     expect(isAgendamentosToFrios("novos", "frio")).toBe(false);

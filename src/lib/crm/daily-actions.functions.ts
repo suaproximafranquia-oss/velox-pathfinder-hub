@@ -138,7 +138,6 @@ export const getDailyActionMessageFn = createServerFn({ method: "POST" })
     (data: {
       leadId: string;
       step: string;
-      leadName?: string | null;
       pendingRecovery?: boolean;
     }) => data,
   )
@@ -155,7 +154,6 @@ export const getDailyActionMessageFn = createServerFn({ method: "POST" })
     return prepareStepMessage({
       leadId: data.leadId,
       step: data.step,
-      leadName: data.leadName ?? null,
     });
   });
 
@@ -297,7 +295,7 @@ export const rescheduleMeetingFn = createServerFn({ method: "POST" })
 
 /**
  * FINANCEIRA /f — AGENDAMENTO ESPELHADO DO GREENSALES.
- * "Houve contato de agendamento?" SIM/NÃO; no NÃO, "Deseja reagendar?".
+ * "Compareceu?" SIM/NÃO; nos dois casos, "Deseja novo agendamento?".
  * Nunca move o lead de estágio; nunca reagenda pelo Portal.
  */
 export const resolveFollowUpContactFn = createServerFn({ method: "POST" })
@@ -305,8 +303,8 @@ export const resolveFollowUpContactFn = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
       meetingId: string;
-      contacted: boolean;
-      willReschedule?: boolean;
+      attended: boolean;
+      willReschedule: boolean;
       note?: string;
       actionKey: string;
       pendingRecovery?: boolean;
@@ -322,51 +320,17 @@ export const resolveFollowUpContactFn = createServerFn({ method: "POST" })
       meetingId: data.meetingId,
       allowPendingRecovery: data.pendingRecovery === true,
     });
-    const { registerFollowUpContact, registerFollowUpNoContact } = await import(
+    const { registerFollowUpOutcome } = await import(
       "@/server/crm/greensales-followup.server"
     );
-    const result = data.contacted
-      ? await registerFollowUpContact({ meetingId: data.meetingId, actorId: executiveId, note: data.note ?? null })
-      : await registerFollowUpNoContact({
-          meetingId: data.meetingId,
-          willReschedule: Boolean(data.willReschedule),
-          actorId: executiveId,
-          note: data.note ?? null,
-        });
-    if (!result.ok) throw new Error(result.reason ?? "Não foi possível registrar o desfecho.");
-    return { ok: true as const, queue: await queueAfterOutcome(executiveId) };
-  });
-
-/** Obrigação de 24h — "Deseja encerrar esse fluxo?" SIM encerra; NÃO orienta mover para Frios. */
-export const resolveFollowUpReviewFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (data: {
-      meetingId: string;
-      close: boolean;
-      note?: string;
-      actionKey: string;
-      pendingRecovery?: boolean;
-    }) => data,
-  )
-  .handler(async ({ data, context }) => {
-    await assertManager(context as never);
-    const executiveId = await currentExecutiveId(context as never);
-    const { assertCommitmentAction } = await import("@/server/crm/daily-actions-gate.server");
-    await assertCommitmentAction({
-      executiveId,
-      actionKey: data.actionKey,
+    const result = await registerFollowUpOutcome({
       meetingId: data.meetingId,
-      allowPendingRecovery: data.pendingRecovery === true,
-    });
-    const { resolveFollowUpReview } = await import("@/server/crm/greensales-followup.server");
-    const result = await resolveFollowUpReview({
-      meetingId: data.meetingId,
-      close: data.close,
+      attended: data.attended,
+      willReschedule: data.willReschedule,
       actorId: executiveId,
       note: data.note ?? null,
     });
-    if (!result.ok) throw new Error(result.reason ?? "Não foi possível registrar a decisão.");
+    if (!result.ok) throw new Error(result.reason ?? "Não foi possível registrar o desfecho.");
     return { ok: true as const, queue: await queueAfterOutcome(executiveId) };
   });
 

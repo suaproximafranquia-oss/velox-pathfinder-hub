@@ -156,16 +156,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     if (!input.executiveId || m.executive_id === input.executiveId) {
       /**
        * FINANCEIRA /f — compromisso ESPELHADO do GreenSales: a obrigação
-       * existe enquanto PENDENTE (contato) ou quando a verificação de
-       * 24h venceu (VENCIDO_SEM_CONTATO). Demais estados não são ação.
+        * existe enquanto PENDENTE de desfecho. Fechar a tela não cria
+        * outra obrigação: o próprio compromisso continua aberto.
        */
       if (m.external_source === "greensales") {
         const state = String(m.follow_up_state ?? "");
         if (state === FOLLOW_UP_STATES.pending) return true;
-        if (state === FOLLOW_UP_STATES.expiredNoContact) {
-          const due = m.follow_up_review_due_at ? Date.parse(m.follow_up_review_due_at) : NaN;
-          return Number.isFinite(due) && due <= Date.parse(nowIso);
-        }
         return false;
       }
       return !CLOSED_MEETING_STATUS.has(String(m.status ?? "").toLowerCase());
@@ -232,36 +228,29 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     const identity = identities.get(meeting.investor_id as string);
     const duration = Number(meeting.duration_min ?? 60);
     if (meeting.external_source === "greensales") {
-      const review = String(meeting.follow_up_state ?? "") === FOLLOW_UP_STATES.expiredNoContact;
-      const anchor = review && meeting.follow_up_review_due_at
-        ? new Date(meeting.follow_up_review_due_at).toISOString()
-        : startsAt;
+      const anchor = startsAt;
       actions.push({
-        actionKey: `meeting:${meeting.investor_id}:${review ? "revisao24h" : "agendamento"}:${anchor}`,
+        actionKey: `meeting:${meeting.investor_id}:agendamento:${anchor}`,
         source: "meeting",
         kind: "reuniao",
         leadId: meeting.investor_id as string,
         name: identity?.name ?? meeting.investor_name ?? "Investidor",
         phone: identity?.phone ?? "",
         scope: identity?.scope ?? null,
-        stepLabel: review ? "Verificação 24h" : "Agendamento",
+        stepLabel: "Agendamento",
         dueDate: operationalDate(anchor),
         startsAt: anchor,
-        endsAt: review ? null : new Date(new Date(startsAt).getTime() + duration * 60000).toISOString(),
+        endsAt: new Date(new Date(startsAt).getTime() + duration * 60000).toISOString(),
         overdue: false,
         priorityMax: true,
-        bucket: review
-          ? "pendente"
-          : resolveBucket({ dueDate: operationalDate(startsAt), startsAt, nowIso }),
-        title: review ? "Verificar agendamento sem contato (24h)" : "Agendamento (GreenSales)",
+        bucket: resolveBucket({ dueDate: operationalDate(startsAt), startsAt, nowIso }),
+        title: "Agendamento (GreenSales)",
         responsibleName: meeting.executive_name ?? null,
         attempts: [],
         meetingId: meeting.id as string,
         followUp: {
-          mode: review ? "revisao_24h" : "contato",
           state: meeting.follow_up_state ?? null,
           scheduledAt: startsAt,
-          reviewDueAt: meeting.follow_up_review_due_at ?? null,
         },
       });
       continue;

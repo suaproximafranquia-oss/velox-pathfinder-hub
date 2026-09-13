@@ -181,7 +181,6 @@ export async function handleInboundMessage(message: InboundMessage): Promise<Inb
   const prepared = await prepareStepMessage({
     leadId: lead.id,
     step: AUTO_REPLY_STEP,
-    leadName: lead.name,
   });
   if (!prepared.body) {
     return {
