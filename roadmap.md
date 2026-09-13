@@ -73,3 +73,6 @@
 - [x] /f: remover apenas os dois atalhos obsoletos da Central de Homologação.
 - [x] /f: concluir alerta do Portal atualizando somente a novidade correspondente e ordenar claim, emergência, alerta, E0, atrasados e ações do dia.
 - [x] Validar os fluxos direcionados, domingo, isolamento dos demais ambientes e compilação (47 testes focados e tipos passaram; build automático OK; inspeção autenticada não disponível por ausência de sessão).
+
+- [ ] /f: liberar temporariamente apenas o bloqueio manual da Ação do Dia em 13/09/2026, até antes de 14/09/2026 00:00:00 (America/Sao_Paulo).
+- [ ] Validar expiração automática e preservação integral da regra permanente de domingo, fila e ações futuras.
