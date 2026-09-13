@@ -30,6 +30,7 @@ import {
   resolveOperationalWindow,
   type OperationalWindow,
 } from "@/lib/crm/daily-actions-window";
+import { isTemporaryDailyActionsReleaseActive } from "@/lib/crm/daily-actions-temporary-release";
 import {
   KIND_LABEL,
   isAutomaticDailyAction,
@@ -322,7 +323,7 @@ export function DailyActionsOverlay({
    * Fora da janela operacional nada é executado — a pendência continua
    * na lista, apenas indisponível até a próxima abertura.
    */
-  const locked = !operationalWindow.open;
+  const locked = !operationalWindow.open && !isTemporaryDailyActionsReleaseActive();
 
 
   function dropAction(key: string) {
