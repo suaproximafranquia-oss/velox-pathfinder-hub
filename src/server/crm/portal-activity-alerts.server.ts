@@ -159,6 +159,7 @@ export async function concludePortalActivityAlert(input: {
   if (!lead || (input.executiveId && lead.responsible_executive_id !== input.executiveId)) {
     throw new Error("Alerta não pertence a este Executivo.");
   }
+  const leadId = input.leadId;
 
   const { data: existing } = await supabaseAdmin
     .from("relationship_engine_log")
@@ -187,8 +188,7 @@ export async function concludePortalActivityAlert(input: {
     const { error: viewedError } = await supabaseAdmin
       .from("portal_leads")
       .update({ viewed_at: alertAt } as never)
-      .eq("id", input.leadId)
-      .eq("responsible_executive_id", input.executiveId);
+      .eq("id", leadId);
     if (viewedError) throw new Error(viewedError.message);
   }
 }

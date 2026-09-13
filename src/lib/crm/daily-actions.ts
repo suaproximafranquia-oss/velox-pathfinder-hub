@@ -237,8 +237,7 @@ export function actionRank(action: DailyAction): number {
 export function isAutomaticDailyAction(action: DailyAction): boolean {
   return (
     action.bucket !== "futura" &&
-    action.bucket !== "pendente" &&
-    action.bucket !== "alerta"
+    action.bucket !== "pendente"
   );
 }
 
@@ -374,7 +373,10 @@ export function collapseByLead(actions: DailyAction[]): DailyAction[] {
       (current.claimed && action.source === "meeting" && action.bucket === "agora") ||
       (action.claimed && current.source === "meeting" && current.bucket === "agora");
     if (claimedAndUrgentMeeting) {
-      loose.push(action.claimed ? current : action);
+      const claimedAction = action.claimed ? action : current;
+      const meetingAction = action.claimed ? current : action;
+      byLead.set(action.leadId, claimedAction);
+      loose.push(meetingAction);
       continue;
     }
     const winner =

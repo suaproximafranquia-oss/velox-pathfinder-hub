@@ -357,7 +357,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
     expect(rows.map((row) => row.actionKey)).toEqual([
       "claimed", "urgent", "alert", "e0", "late", "normal",
     ]);
-    expect(isAutomaticDailyAction(rows[2])).toBe(false);
+    expect(isAutomaticDailyAction(rows[2])).toBe(true);
   });
 
   it("mantém agendamento urgente do mesmo lead logo após a ação claimada", () => {

@@ -296,11 +296,7 @@ export function useRealDailyActionsAdapter(
               actionKey: item.actionKey,
               pendingRecovery,
             },
-          })) as { queue?: DailyAction[]; viewedAt?: string; leadId?: string | null };
-          if (result.viewedAt && result.leadId) {
-            patchCachedLead(result.leadId, { viewedAt: result.viewedAt });
-            notifySync("status");
-          }
+          })) as { queue?: DailyAction[] };
         } catch (error) {
           return { ok: false, message: error instanceof Error ? error.message : "Falha ao registrar." };
         }
@@ -361,7 +357,11 @@ export function useRealDailyActionsAdapter(
         try {
           const result = (await concludeAlertFn({
             data: { actionKey: item.actionKey, leadId: item.leadId },
-          })) as { queue?: DailyAction[] };
+          })) as { queue?: DailyAction[]; viewedAt?: string; leadId?: string | null };
+          if (result.viewedAt && result.leadId) {
+            patchCachedLead(result.leadId, { viewedAt: result.viewedAt });
+            notifySync("status");
+          }
           return {
             ok: true,
             message: "Alerta concluído.",
