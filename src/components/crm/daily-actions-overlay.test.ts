@@ -20,6 +20,7 @@ function action(actionKey: string, bucket: DailyAction["bucket"]): DailyAction {
     bucket,
     title: actionKey,
     responsibleName: null,
+    attempts: [],
   };
 }
 
