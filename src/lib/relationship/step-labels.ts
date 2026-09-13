@@ -2,7 +2,7 @@
  * CAMADA DE RÓTULOS DAS ETAPAS (apresentação apenas).
  *
  * A CHAVE TÉCNICA É A IDENTIDADE: na operação atual da Financeira /f ela
- * é E0–E8, R1–R4, RE0–RE3. O rótulo é editável pela Gestão na Biblioteca
+ * é E0–E8, R1–R5, RE0–RE5. O rótulo é editável pela Gestão na Biblioteca
  * (campo `title` da versão ativa) e, quando não houver rótulo salvo — ou
  * quando o rótulo salvo carregar o código de OUTRA etapa (resíduo
  * histórico) — vale o padrão editorial abaixo.
@@ -27,13 +27,16 @@ export const DEFAULT_STEP_LABELS: Record<string, string> = {
   /* Fluxo R */
   R1: "R1 — Primeira tentativa após desaparecimento",
   R2: "R2 — Segunda tentativa após desaparecimento",
-  R3: "R3 — Interrupção das tentativas",
-  R4: "R4 — Finalização do reengajamento",
+  R3: "R3 — Oferta da apresentação digital",
+  R4: "R4 — Feedback da apresentação digital",
+  R5: "R5 — Finalização do reengajamento",
   /* Fluxo RE */
   RE0: "RE0 — Reentrada: retomada do contato",
   RE1: "RE1 — Reentrada: como avaliar uma franquia",
-  RE2: "RE2 — Reentrada: estrutura e suporte",
-  RE3: "RE3 — Reentrada: encerramento",
+  RE2: "RE2 — Reentrada: oferta da apresentação digital",
+  RE3: "RE3 — Reentrada: envio da apresentação digital",
+  RE4: "RE4 — Reentrada: feedback da apresentação digital",
+  RE5: "RE5 — Reentrada: encerramento",
   /* Fluxo RF — relacionamento esfriado (última camada de reaproximação) */
   RF0: "RF0 — Relacionamento esfriado: retomada",
   RF1: "RF1 — Relacionamento esfriado: encerramento",

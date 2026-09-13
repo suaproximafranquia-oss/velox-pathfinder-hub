@@ -39,10 +39,14 @@ export type KnownCadenceStep =
   | "R1" // primeira tentativa de reengajamento
   | "R2" // segunda tentativa de reengajamento
   | "R3" // interrupção das tentativas
+  | "R4" // feedback após apresentação enviada no reengajamento
+  | "R5" // encerramento do reengajamento
   | "RE0" // reentrada — retomada do contato
   | "RE1" // reentrada — como avaliar uma franquia
   | "RE2" // reentrada — estrutura e suporte
-  | "RE3" // reentrada — encerramento
+  | "RE3" // reentrada — envio da apresentação
+  | "RE4" // reentrada — feedback da apresentação
+  | "RE5" // reentrada — encerramento
   | "RF0" // relacionamento esfriado — retomada
   | "RF1" // relacionamento esfriado — encerramento
   // COMANDO 4A §8 — recontato tardio do fluxo sem resposta (integrado,

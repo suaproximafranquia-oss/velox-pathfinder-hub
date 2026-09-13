@@ -639,7 +639,7 @@ export function createEngine(options: EngineOptions): Engine {
       });
 
       const stateBefore = record.state;
-      const isMaterialAction = item.actionKind === "manual" && (step === "E5" || step === "RE2");
+      const isMaterialAction = item.actionKind === "manual" && (step === "E5" || step === "RE3");
       const sentEvent: EngineEvent = {
         id: `${repository.scope}:${leadId}:${step}:sent`,
         scope: repository.scope,

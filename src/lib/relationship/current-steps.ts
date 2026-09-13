@@ -26,10 +26,10 @@
 export const CURRENT_FLOW_E = ["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8"] as const;
 
 /** Fluxo R — reengajamento, conforme a fotografia atual. */
-export const CURRENT_FLOW_R = ["R1", "R2", "R3", "R4"] as const;
+export const CURRENT_FLOW_R = ["R1", "R2", "R3", "R4", "R5"] as const;
 
 /** Fluxo RE — reentrada, conforme a fotografia atual. */
-export const CURRENT_FLOW_RE = ["RE0", "RE1", "RE2", "RE3"] as const;
+export const CURRENT_FLOW_RE = ["RE0", "RE1", "RE2", "RE3", "RE4", "RE5"] as const;
 
 /** Fluxo RF — relacionamento esfriado, conforme a fotografia atual. */
 export const CURRENT_FLOW_RF = ["RF0", "RF1"] as const;

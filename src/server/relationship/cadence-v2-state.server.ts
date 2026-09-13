@@ -61,6 +61,8 @@ export async function loadMaterialState(leadId: string): Promise<{
   materialRequestedAt: string | null;
   /** Instante da disponibilização formal (CONTENT_SENT), quando houver. */
   materialSentAt: string | null;
+  lastMaterialSentAt: string | null;
+  lastMaterialRequestedAt: string | null;
 }> {
   const { data } = await supabaseAdmin
     .from("relationship_events")
@@ -73,14 +75,18 @@ export async function loadMaterialState(leadId: string): Promise<{
   let materialSent = false;
   let materialSentAt: string | null = null;
   let materialRequestedAt: string | null = null;
+  let lastMaterialRequestedAt: string | null = null;
+  let lastMaterialSentAt: string | null = null;
   for (const row of (data ?? []) as Row[]) {
     if (row.type === "CONTENT_SENT") {
       materialSent = true;
       if (!materialSentAt) materialSentAt = row.occurred_at ?? null;
+      lastMaterialSentAt = row.occurred_at ?? lastMaterialSentAt;
     }
     if (row.type === "MATERIAL_REQUESTED" && !materialRequestedAt) {
       materialRequestedAt = row.occurred_at ?? null;
     }
+    if (row.type === "MATERIAL_REQUESTED") lastMaterialRequestedAt = row.occurred_at ?? lastMaterialRequestedAt;
   }
 
   return {
@@ -88,6 +94,8 @@ export async function loadMaterialState(leadId: string): Promise<{
     materialRequested: Boolean(materialRequestedAt) || materialSent,
     materialRequestedAt,
     materialSentAt,
+    lastMaterialSentAt,
+    lastMaterialRequestedAt,
   };
 }
 
@@ -145,7 +153,7 @@ export async function loadCadenceV2State(
       scopedCycle.order("instance_seq", { ascending: false }).limit(1).maybeSingle(),
       loadStageKey(record.leadId),
       homologation ? Promise.resolve(false) : loadHasCommitment(record.leadId),
-      homologation ? Promise.resolve({ materialSent: false, materialRequested: false, materialRequestedAt: null, materialSentAt: null }) : loadMaterialState(record.leadId),
+      homologation ? Promise.resolve({ materialSent: false, materialRequested: false, materialRequestedAt: null, materialSentAt: null, lastMaterialSentAt: null, lastMaterialRequestedAt: null }) : loadMaterialState(record.leadId),
       homologation ? Promise.resolve(false) : loadE0Executed(record.leadId),
     ]);
 
@@ -175,6 +183,9 @@ export async function loadCadenceV2State(
 
   const originIso =
     record.startedAt ?? (cycleRow as Row | null)?.started_at ?? (cycleRow as Row | null)?.created_at;
+  const cycleStartedMs = Date.parse(originIso ?? "");
+  const occurredInCycle = (at: string | null) =>
+    Boolean(at && Number.isFinite(cycleStartedMs) && Date.parse(at) >= cycleStartedMs);
 
   /**
    * CAMINHO V — decisão do MOTOR, tomada uma única vez e congelada como
@@ -220,7 +231,9 @@ export async function loadCadenceV2State(
     cycle: {
       materialSent: material.materialSent,
       materialRequested: material.materialRequested,
-      needsNewPresentation: false,
+      needsNewPresentation: flow === "RE" ? !material.materialSent : false,
+      materialRequestedInCycle: occurredInCycle(material.lastMaterialRequestedAt),
+      materialSentInCycle: occurredInCycle(material.lastMaterialSentAt),
       visualPath,
       reachedE4Historically: reachedE4,
     },
@@ -262,9 +275,9 @@ export async function resolveStepContextForLead(
     return key === "E2" ? "V2" : "V3";
   }
 
-  if (key === "R3") {
-    const { reachedE4Historically } = await import("./visual-path.server");
-    return (await reachedE4Historically(leadId, scope)) ? "JA_PASSOU_E4" : "NAO_CHEGOU_E4";
+  if (key === "R3" || key === "R5" || key === "RE2") {
+    const material = await loadMaterialState(leadId);
+    return material.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
   }
 
   return null;
