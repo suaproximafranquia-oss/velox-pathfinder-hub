@@ -220,7 +220,7 @@ export function useRealDailyActionsAdapter(
         const step = item.messageRef?.step ?? item.stepLabel;
         if (!item.leadId || !step) return null;
         return loadStepMessage({
-          data: { leadId: item.leadId, step, leadName: item.name, pendingRecovery },
+          data: { leadId: item.leadId, step, pendingRecovery },
         });
       },
       registerMessage: async (item, note) => {

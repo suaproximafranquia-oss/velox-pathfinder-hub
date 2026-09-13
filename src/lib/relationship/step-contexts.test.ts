@@ -20,6 +20,7 @@ describe("contextos das etapas", () => {
   });
 
   it("E7/E8 continuam decididas pelo material efetivamente enviado", () => {
+    expect(resolveStepContext({ materialSent: true }, "E6")).toBeNull();
     expect(resolveStepContext({ materialSent: true }, "E7")).toBe("MATERIAL_ENVIADO");
     expect(resolveStepContext({ materialSent: false }, "E8")).toBe("SEM_CONTATO");
   });
@@ -27,10 +28,12 @@ describe("contextos das etapas", () => {
   it("contexto é obrigatório só onde não existe linha sem contexto", () => {
     expect(requiresStepContext("R3")).toBe(true);
     expect(requiresStepContext("E7")).toBe(true);
+    expect(requiresStepContext("E6")).toBe(false);
     expect(requiresStepContext("E1")).toBe(false);
     expect(stepCombinations("E1")).toEqual([null]);
     expect(stepCombinations("E2")).toEqual([null, "V2"]);
     expect(stepCombinations("R3")).toEqual(["NAO_CHEGOU_E4", "JA_PASSOU_E4"]);
     expect(stepCombinations("E5")).toEqual([null]);
+    expect(stepCombinations("E6")).toEqual([null]);
   });
 });

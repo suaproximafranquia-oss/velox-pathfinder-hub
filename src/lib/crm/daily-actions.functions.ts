@@ -138,7 +138,6 @@ export const getDailyActionMessageFn = createServerFn({ method: "POST" })
     (data: {
       leadId: string;
       step: string;
-      leadName?: string | null;
       pendingRecovery?: boolean;
     }) => data,
   )
@@ -155,7 +154,6 @@ export const getDailyActionMessageFn = createServerFn({ method: "POST" })
     return prepareStepMessage({
       leadId: data.leadId,
       step: data.step,
-      leadName: data.leadName ?? null,
     });
   });
 

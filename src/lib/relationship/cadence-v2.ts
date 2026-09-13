@@ -8,7 +8,7 @@
  *   1. qual é a próxima ETAPA do ciclo;
  *   2. em que DIA/HORA ela vence;
  *   3. quais AÇÕES INTERNAS a etapa possui e qual delas está liberada;
- *   4. em qual CONTEXTO (SEM_CONTATO / MATERIAL_ENVIADO) o texto é lido.
+ *   4. em qual CONTEXTO editorial o texto é lido, quando a etapa o exige.
  *
  * REGRAS FIXAS (arquitetura aprovada):
  * - Etapas oficiais: E0–E8, R1–R4, RE0–RE3. Nada além disso.
@@ -91,6 +91,7 @@ export function flowOfStep(step: CadenceV2Step): CadenceV2Flow {
  * próprios por contexto — a escolha vem sempre do histórico
  * estruturado, nunca de texto de conversa ou de interpretação.
  *
+ *  • E6 → contexto único após a apresentação da E5;
  *  • E7/E8 → material efetivamente enviado ou não;
  *  • E2/E3 → caminho V já decidido pelo motor (V2/V3) ou contexto
  *    normal (sem contexto); E1 é sempre normal;
@@ -109,6 +110,7 @@ export function resolveStepContext(
   }
   // E1 saiu do eixo V: é sempre a etapa normal, sem contexto.
   if (key === "E1") return null;
+  if (key === "E6") return null;
   if (key === "R3") {
     return cycle.reachedE4Historically ? "JA_PASSOU_E4" : "NAO_CHEGOU_E4";
   }
