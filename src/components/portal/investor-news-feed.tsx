@@ -8,10 +8,14 @@
 import { useEffect, useState } from "react";
 import { listInvestorNews, type NewsPost } from "@/lib/comms.functions";
 
-export function InvestorNewsFeed() {
-  const [posts, setPosts] = useState<NewsPost[]>([]);
+export function InvestorNewsFeed({ initialPosts }: { initialPosts?: NewsPost[] }) {
+  const [posts, setPosts] = useState<NewsPost[]>(initialPosts ?? []);
 
   useEffect(() => {
+    if (initialPosts) {
+      setPosts(initialPosts);
+      return;
+    }
     let alive = true;
     void listInvestorNews()
       .then((res) => {
@@ -21,7 +25,7 @@ export function InvestorNewsFeed() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [initialPosts]);
 
   if (posts.length === 0) return null;
 

@@ -125,6 +125,7 @@ function sessionPhone(investorId: string | null | undefined): string {
 }
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { InvestorNewsFeed } from "@/components/portal/investor-news-feed";
+import { listInvestorNews, type NewsPost } from "@/lib/comms.functions";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import {
   DEFAULT_PORTAL_MODULE_VISIBILITY,
@@ -298,6 +299,8 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
   const [assetsReady, setAssetsReady] = useState(false);
   const [visibilityReady, setVisibilityReady] = useState(brandKey !== "financeira");
   const [portalStateReady, setPortalStateReady] = useState(brandKey !== "financeira");
+  const [newsReady, setNewsReady] = useState(brandKey !== "financeira");
+  const [initialNews, setInitialNews] = useState<NewsPost[] | undefined>(undefined);
   const [homeLoadError, setHomeLoadError] = useState(false);
 
   /**
@@ -341,6 +344,24 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
       alive = false;
       unsubscribe();
       window.removeEventListener("focus", onFocus);
+    };
+  }, [brandKey]);
+
+  useEffect(() => {
+    if (brandKey !== "financeira") return;
+    let alive = true;
+    void listInvestorNews()
+      .then((result) => {
+        if (alive) setInitialNews(result.posts);
+      })
+      .catch(() => {
+        if (alive) setInitialNews([]);
+      })
+      .finally(() => {
+        if (alive) setNewsReady(true);
+      });
+    return () => {
+      alive = false;
     };
   }, [brandKey]);
 
@@ -517,7 +538,10 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
   // Ao desmontar a Home, nenhum overlay pode permanecer registrado.
   useEffect(() => () => setActiveOverlay(null), []);
 
-  if (brandKey === "financeira" && (!assetsReady || !visibilityReady || !portalStateReady)) {
+  if (
+    brandKey === "financeira" &&
+    (!assetsReady || !visibilityReady || !portalStateReady || !newsReady)
+  ) {
     return <PortalHomeLoading />;
   }
 
@@ -558,7 +582,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
             openModule(mod.key);
           }}
         />
-        <InvestorNewsFeed />
+        <InvestorNewsFeed initialPosts={brandKey === "financeira" ? initialNews : undefined} />
       </main>
       <PortalFooter />
       {editorAllowed && (
