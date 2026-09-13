@@ -29,6 +29,7 @@ import {
   getPortalModuleVisibility,
   savePortalModuleVisibility,
 } from "@/lib/portal-module-visibility.functions";
+import { announcePortalModuleVisibilityUpdate } from "@/lib/portal-module-visibility-events";
 import {
   MEETING_PROVIDERS,
   getDefaultProviderForExecutive,
@@ -188,8 +189,10 @@ function PortalModulesSection() {
     setSaving(true);
     setStatus(null);
     try {
-      const result = await savePortalModuleVisibility({ data: visibility });
-      setVisibility(result.visibility);
+      await savePortalModuleVisibility({ data: visibility });
+      const officialVisibility = await getPortalModuleVisibility();
+      setVisibility(officialVisibility);
+      announcePortalModuleVisibilityUpdate();
       setStatus("Visibilidade do Portal atualizada.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Não foi possível salvar os módulos.");

@@ -754,7 +754,7 @@ function FaqBody() {
     },
     {
       q: "Existe exclusividade de território?",
-      a: "Regras específicas sobre território e exclusividade dependem do formato de franquia e da praça em análise, e são apresentadas com transparência antes de qualquer decisão. Nada é definido no verbal.",
+      a: "A exclusividade de território pode existir de acordo com o formato da franquia e as condições da operação. No modelo loja, existem regras específicas para a praça e o território.\n\nMesmo nesses casos, o franqueado pode atuar comercialmente em nível Brasil, conforme as regras da rede.\n\nO executivo de expansão apresenta todos os detalhes comerciais e operacionais de cada modelo antes da decisão, incluindo as condições aplicáveis à praça analisada.",
     },
     {
       q: "Como acontece minha evolução dentro da rede ao longo do tempo?",
@@ -772,7 +772,7 @@ function FaqBody() {
           <AccordionTrigger className="text-left font-medium hover:text-[color:var(--gold)] hover:no-underline">
             {it.q}
           </AccordionTrigger>
-          <AccordionContent className="text-[color:var(--muted-foreground)] leading-relaxed">
+          <AccordionContent className="whitespace-pre-line text-[color:var(--muted-foreground)] leading-relaxed">
             {it.a}
           </AccordionContent>
         </AccordionItem>
