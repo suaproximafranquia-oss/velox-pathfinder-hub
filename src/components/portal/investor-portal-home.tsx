@@ -125,6 +125,7 @@ function sessionPhone(investorId: string | null | undefined): string {
 }
 import { PortalOverlayShell } from "@/components/portal/portal-overlay-shell";
 import { InvestorNewsFeed } from "@/components/portal/investor-news-feed";
+import { listInvestorNews, type NewsPost } from "@/lib/comms.functions";
 import { readEntryContext, writeEntryContext } from "@/lib/portal-entry";
 import {
   DEFAULT_PORTAL_MODULE_VISIBILITY,
@@ -133,6 +134,7 @@ import {
   type PortalModuleVisibility,
 } from "@/lib/portal-modules";
 import { getPortalModuleVisibility } from "@/lib/portal-module-visibility.functions";
+import { subscribePortalModuleVisibilityUpdates } from "@/lib/portal-module-visibility-events";
 import { setActiveOverlay } from "@/lib/portal-overlay";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
 import { clearResponsibleExecutive } from "@/lib/responsible-executive";
@@ -294,6 +296,12 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
   const [moduleVisibility, setModuleVisibility] = useState<PortalModuleVisibility>(
     DEFAULT_PORTAL_MODULE_VISIBILITY,
   );
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [visibilityReady, setVisibilityReady] = useState(brandKey !== "financeira");
+  const [portalStateReady, setPortalStateReady] = useState(brandKey !== "financeira");
+  const [newsReady, setNewsReady] = useState(brandKey !== "financeira");
+  const [initialNews, setInitialNews] = useState<NewsPost[] | undefined>(undefined);
+  const [homeLoadError, setHomeLoadError] = useState(false);
 
   /**
    * MODO EDITOR — quem decide é o servidor. A URL apenas pede; sem
@@ -306,7 +314,8 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
     let alive = true;
     void fetchPortalAssetOverrides({ data: { unit: brandKey } })
       .then((map) => alive && setSavedPortalAssets(map))
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => alive && setAssetsReady(true));
     return () => {
       alive = false;
     };
@@ -315,9 +324,42 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
   useEffect(() => {
     if (brandKey !== "financeira") return;
     let alive = true;
-    void getPortalModuleVisibility()
-      .then((visibility) => alive && setModuleVisibility(visibility))
-      .catch(() => undefined);
+    const refresh = async (initial = false) => {
+      try {
+        const visibility = await getPortalModuleVisibility();
+        if (!alive) return;
+        setModuleVisibility(visibility);
+        setHomeLoadError(false);
+      } catch {
+        if (alive && initial) setHomeLoadError(true);
+      } finally {
+        if (alive && initial) setVisibilityReady(true);
+      }
+    };
+    void refresh(true);
+    const unsubscribe = subscribePortalModuleVisibilityUpdates(() => void refresh());
+    const onFocus = () => void refresh();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      alive = false;
+      unsubscribe();
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [brandKey]);
+
+  useEffect(() => {
+    if (brandKey !== "financeira") return;
+    let alive = true;
+    void listInvestorNews()
+      .then((result) => {
+        if (alive) setInitialNews(result.posts);
+      })
+      .catch(() => {
+        if (alive) setInitialNews([]);
+      })
+      .finally(() => {
+        if (alive) setNewsReady(true);
+      });
     return () => {
       alive = false;
     };
@@ -343,6 +385,12 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
 
   useEffect(() => {
     refreshUnlocked();
+    if (hasPortalSession()) {
+      const point = getResumePoint();
+      const mod = getPortalModule(point?.module);
+      if (mod) setResume({ module: mod.key, title: mod.title });
+    }
+    setPortalStateReady(true);
   }, [refreshUnlocked]);
 
   /**
@@ -487,16 +535,25 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
     }
   }, [brandKey, homePath, navigate, openGateway, openModule, search]);
 
-  /** Continuidade: retoma o contexto da jornada anterior. */
-  useEffect(() => {
-    if (!hasPortalSession()) return;
-    const point = getResumePoint();
-    const mod = getPortalModule(point?.module);
-    if (mod) setResume({ module: mod.key, title: mod.title });
-  }, []);
-
   // Ao desmontar a Home, nenhum overlay pode permanecer registrado.
   useEffect(() => () => setActiveOverlay(null), []);
+
+  if (
+    brandKey === "financeira" &&
+    (!assetsReady || !visibilityReady || !portalStateReady || !newsReady)
+  ) {
+    return <PortalHomeLoading />;
+  }
+
+  if (brandKey === "financeira" && homeLoadError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[color:var(--background)] px-6">
+        <p className="text-center text-sm text-[color:var(--muted-foreground)]">
+          Não foi possível carregar o Portal. Tente novamente em instantes.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -525,7 +582,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
             openModule(mod.key);
           }}
         />
-        <InvestorNewsFeed />
+        <InvestorNewsFeed initialPosts={brandKey === "financeira" ? initialNews : undefined} />
       </main>
       <PortalFooter />
       {editorAllowed && (
@@ -606,6 +663,18 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
           />
         )}
       </Suspense>
+    </div>
+  );
+}
+
+function PortalHomeLoading() {
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center bg-[color:var(--background)]"
+      role="status"
+      aria-label="Carregando Portal Velox"
+    >
+      <Loader2 className="h-7 w-7 animate-spin text-[color:var(--gold)]" aria-hidden />
     </div>
   );
 }

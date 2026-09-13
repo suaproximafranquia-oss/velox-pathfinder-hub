@@ -24,7 +24,7 @@ export const getPortalModuleVisibility = createServerFn({ method: "GET" }).handl
       .select("portal_modules")
       .eq("id", true)
       .maybeSingle();
-    if (error) return DEFAULT_PORTAL_MODULE_VISIBILITY;
+    if (error) throw new Error(error.message);
     return normalizePortalModuleVisibility(data?.portal_modules);
   },
 );
@@ -45,5 +45,15 @@ export const savePortalModuleVisibility = createServerFn({ method: "POST" })
       .update({ portal_modules: data })
       .eq("id", true);
     if (error) throw new Error(error.message);
-    return { ok: true as const, visibility: data };
+
+    const { data: saved, error: readError } = await supabaseAdmin
+      .from("crm_automation_settings")
+      .select("portal_modules")
+      .eq("id", true)
+      .single();
+    if (readError) throw new Error(readError.message);
+    return {
+      ok: true as const,
+      visibility: normalizePortalModuleVisibility(saved.portal_modules),
+    };
   });
