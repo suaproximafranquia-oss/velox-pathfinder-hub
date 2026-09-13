@@ -48,3 +48,14 @@ it.each([null, "inválida", "2026-08-01T12:00:00Z", "2026-07-01T12:00:00Z"])("da
   expect(fake.reentry).not.toHaveBeenCalled();
   expect(fake.pending).not.toHaveBeenCalled();
 });
+
+it("não informa RE0 aberto quando o motor recusa a nova instância", async () => {
+  fake.reentry.mockResolvedValueOnce(false);
+  const result = await intakeLead(
+    { id: "TEST", name: "Oficial", last_register_at: "2026-09-09T12:00:00Z", tags: [{ id: 59 }] },
+    context,
+  );
+  expect(result.e0).toBe("ignorada");
+  expect(result.e0Reason).toContain("não abriu RE0");
+  expect(fake.pending).not.toHaveBeenCalled();
+});

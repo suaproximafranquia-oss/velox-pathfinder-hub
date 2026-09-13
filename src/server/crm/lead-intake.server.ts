@@ -311,7 +311,7 @@ export async function intakeLead(
         result.e0Reason = "A nova entrada comercial não abriu RE0; será reconciliada na próxima sincronização.";
         await recordEvent(
           outcome.lead.id,
-          "e0_reentrada_ignorada",
+          "e0_ignorada",
           result.e0Reason,
           { cardId: card.cardId, lastEntryAt },
         );
