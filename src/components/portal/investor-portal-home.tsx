@@ -297,6 +297,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
   );
   const [assetsReady, setAssetsReady] = useState(false);
   const [visibilityReady, setVisibilityReady] = useState(brandKey !== "financeira");
+  const [portalStateReady, setPortalStateReady] = useState(brandKey !== "financeira");
   const [homeLoadError, setHomeLoadError] = useState(false);
 
   /**
@@ -363,6 +364,12 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
 
   useEffect(() => {
     refreshUnlocked();
+    if (hasPortalSession()) {
+      const point = getResumePoint();
+      const mod = getPortalModule(point?.module);
+      if (mod) setResume({ module: mod.key, title: mod.title });
+    }
+    setPortalStateReady(true);
   }, [refreshUnlocked]);
 
   /**
@@ -507,18 +514,10 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
     }
   }, [brandKey, homePath, navigate, openGateway, openModule, search]);
 
-  /** Continuidade: retoma o contexto da jornada anterior. */
-  useEffect(() => {
-    if (!hasPortalSession()) return;
-    const point = getResumePoint();
-    const mod = getPortalModule(point?.module);
-    if (mod) setResume({ module: mod.key, title: mod.title });
-  }, []);
-
   // Ao desmontar a Home, nenhum overlay pode permanecer registrado.
   useEffect(() => () => setActiveOverlay(null), []);
 
-  if (brandKey === "financeira" && (!assetsReady || !visibilityReady)) {
+  if (brandKey === "financeira" && (!assetsReady || !visibilityReady || !portalStateReady)) {
     return <PortalHomeLoading />;
   }
 

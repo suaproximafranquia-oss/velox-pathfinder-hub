@@ -24,7 +24,7 @@ export const getPortalModuleVisibility = createServerFn({ method: "GET" }).handl
       .select("portal_modules")
       .eq("id", true)
       .maybeSingle();
-    if (error) return DEFAULT_PORTAL_MODULE_VISIBILITY;
+    if (error) throw new Error(error.message);
     return normalizePortalModuleVisibility(data?.portal_modules);
   },
 );
