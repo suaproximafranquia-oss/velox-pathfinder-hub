@@ -31,6 +31,10 @@ import {
   type OperationalWindow,
 } from "@/lib/crm/daily-actions-window";
 import {
+  isTemporaryDailyActionsReleaseActive,
+  TEMPORARY_DAILY_ACTIONS_RELEASE_EXPIRES_AT,
+} from "@/lib/crm/daily-actions-temporary-release";
+import {
   KIND_LABEL,
   isAutomaticDailyAction,
   operationalTime,
@@ -109,6 +113,9 @@ export function DailyActionsOverlay({
   /** Janela operacional de execução manual (06–22 seg–sex, 06–17 sáb). */
   const [operationalWindow, setOperationalWindow] = useState<OperationalWindow>(() =>
     resolveOperationalWindow(),
+  );
+  const [temporaryReleaseActive, setTemporaryReleaseActive] = useState(() =>
+    isTemporaryDailyActionsReleaseActive(),
   );
   /** Último resultado de ligação da régua V2 — reversível até a próxima ação irreversível. */
   const [undoable, setUndoable] = useState<DailyAction | null>(null);
@@ -284,6 +291,7 @@ export function DailyActionsOverlay({
   useEffect(() => {
     if (!open) return;
     setOperationalWindow(resolveOperationalWindow());
+    setTemporaryReleaseActive(isTemporaryDailyActionsReleaseActive());
     const timer = window.setInterval(() => {
       setOperationalWindow(resolveOperationalWindow());
        if (transitioningRef.current) return;
@@ -296,7 +304,14 @@ export function DailyActionsOverlay({
         return next;
       });
     }, 30000);
-    return () => window.clearInterval(timer);
+    const expirationDelay = TEMPORARY_DAILY_ACTIONS_RELEASE_EXPIRES_AT - Date.now();
+    const expirationTimer = expirationDelay > 0
+      ? window.setTimeout(() => setTemporaryReleaseActive(false), expirationDelay)
+      : null;
+    return () => {
+      window.clearInterval(timer);
+      if (expirationTimer !== null) window.clearTimeout(expirationTimer);
+    };
   }, [open]);
 
 
@@ -322,7 +337,7 @@ export function DailyActionsOverlay({
    * Fora da janela operacional nada é executado — a pendência continua
    * na lista, apenas indisponível até a próxima abertura.
    */
-  const locked = !operationalWindow.open;
+  const locked = !operationalWindow.open && !temporaryReleaseActive;
 
 
   function dropAction(key: string) {
