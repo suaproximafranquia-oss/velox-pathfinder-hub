@@ -1,15 +1,22 @@
-# Lapidação pontual da Home Financeira `/f`
+# Correções finais e reset controlado da Financeira `/f`
 
-## Implementação
+## Correções
 
-- Manter os seis módulos do Portal do Investidor na configuração existente do servidor, com gravação exclusiva do Administrador.
-- Após salvar, propagar uma notificação local e fazer a Home Financeira reler o estado oficial, sem transformar o navegador em fonte de verdade.
-- Na Home `/f`, aguardar a visibilidade oficial e os demais dados iniciais já carregados antes de exibir a página completa; durante a espera, mostrar um estado de carregamento estável.
-- Aplicar essa espera e essa visibilidade somente à Financeira. O Portal Solar continuará independente.
-- Substituir exclusivamente a resposta de “Existe exclusividade de território?” pelo texto fornecido, sem alterar outras perguntas ou respostas.
+- Após concluir um alerta do Portal, propagar a atualização específica do lead ao Workspace e remover somente o NOVO correspondente, preservando atividades posteriores.
+- Recalcular a seleção principal da Ação do Dia sempre que a fila oficial for recomposta, inclusive pelo botão interno de atualizar, sem alterar prioridades.
+- Garantir que uma nova entrada comercial abra RE0 na fila existente, pelo ID canônico do lead e sem depender de coluna, duplicar lead ou reiniciar E0.
+- Remover o espaço de vídeo do Capítulo I, ampliar apenas a imagem de “Nossa forma de construir parcerias” e substituir exclusivamente as respostas indicadas no Capítulo 12.
+- Preservar integralmente calendário, exceção temporária já datada, ON/OFF, demais jornadas, integrações e ambientes.
+
+## Reset controlado
+
+- Materializar, dentro de uma única transação, os IDs de todos os leads atuais, compromissos reais válidos, leads desses compromissos e os IDs `gs_57906` e `gs_56503`.
+- Classificar como removíveis apenas dados operacionais inequivocamente de teste/legado e sem vínculo necessário com o conjunto preservado.
+- Não alterar o GreenSales, não excluir por nome e não remover histórico comercial necessário à reentrada ou aos compromissos.
+- Manter qualquer registro ambíguo e contabilizá-lo como não classificado.
 
 ## Validação
 
-- Confirmar salvamento e releitura dos seis controles, atualização sem F5 e isolamento do Portal Solar.
-- Confirmar que a Home não exibe módulos parciais durante a carga.
-- Executar testes direcionados, verificação de tipos e conferir a compilação automática.
+- Cobrir NOVO, sincronismo do card principal, RE0 por nova entrada, ausência de duplicação/E0 e prioridades com testes direcionados.
+- Conferir os microajustes editoriais, tipos e compilação.
+- Informar contagens exatas do reset, principais IDs preservados, removidos por categoria e registros não classificados.
