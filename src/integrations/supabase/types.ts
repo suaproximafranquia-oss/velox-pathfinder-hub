@@ -3989,7 +3989,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      portal_module_visibility: {
+        Row: {
+          portal_modules: Json | null
+        }
+        Insert: {
+          portal_modules?: Json | null
+        }
+        Update: {
+          portal_modules?: Json | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       agenda_cadence_tasks: {
