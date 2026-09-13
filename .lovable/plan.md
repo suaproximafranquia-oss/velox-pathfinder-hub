@@ -5,7 +5,7 @@
 - Após concluir um alerta do Portal, propagar a atualização específica do lead ao Workspace e remover somente o NOVO correspondente, preservando atividades posteriores.
 - Recalcular a seleção principal da Ação do Dia sempre que a fila oficial for recomposta, inclusive pelo botão interno de atualizar, sem alterar prioridades.
 - Garantir que uma nova entrada comercial abra RE0 na fila existente, pelo ID canônico do lead e sem depender de coluna, duplicar lead ou reiniciar E0.
-- Remover o espaço de vídeo do Capítulo I, ampliar apenas a imagem de “Nossa forma de construir parcerias” e substituir exclusivamente as respostas indicadas no Capítulo 12.
+- Remover o espaço de vídeo do Capítulo I e ampliar apenas a imagem de “Nossa forma de construir parcerias” no Material Institucional; substituir exclusivamente as respostas indicadas no Capítulo 12 do Manual do Investidor da Financeira `/f`, sem alterar qualquer outro Capítulo 12, pergunta, resposta ou texto do Material Institucional.
 - Preservar integralmente calendário, exceção temporária já datada, ON/OFF, demais jornadas, integrações e ambientes.
 
 ## Reset controlado

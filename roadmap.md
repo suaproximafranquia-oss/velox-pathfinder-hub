@@ -2,7 +2,7 @@
 
 - [ ] /f: remover imediatamente apenas o NOVO do alerta concluído e sincronizar fila + card principal da Ação do Dia sem F5.
 - [ ] /f: garantir RE0 por nova entrada comercial no motor/fila existentes, por ID canônico, sem coluna NOVOS, duplicação ou reinício de E0.
-- [ ] /f: aplicar somente os microajustes do Material Institucional e as respostas indicadas do Capítulo 12.
+- [ ] /f: aplicar somente os microajustes do Material Institucional e as respostas indicadas exclusivamente no Capítulo 12 do Manual do Investidor Financeira.
 - [ ] /f: executar reset operacional transacional, preservando leads atuais, compromissos reais, gs_57906 e gs_56503; manter ambiguidades.
 - [ ] Validar correções, contagens do reset, tipos, testes direcionados e compilação.
 
