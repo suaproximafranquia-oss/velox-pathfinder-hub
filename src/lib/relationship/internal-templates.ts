@@ -82,7 +82,6 @@ export const INTERNAL_CADENCE_TEMPLATES = (
     ],
     usesInvestorName: message.usesInvestorName,
     body: message.text,
-  };
   } satisfies InternalTemplate;
 });
 
