@@ -84,7 +84,7 @@
 
 ## Lapidação final das jornadas R e RE — Financeira /f
 
-- [ ] Ampliar R para R1 → R2 → R3 → R4 → R5, com R3/R5 contextuais, R4 somente após envio manual e R5 terminal.
-- [ ] Ampliar RE para RE0 → RE1 → RE2 → RE3 → RE4 → RE5, usando histórico CONTENT_SENT e o motor/fila existentes.
-- [ ] Organizar e publicar os conteúdos aprovados de R/RE na ordem operacional, preservando versões e histórico.
-- [ ] Validar transições, contextos, reentrada, Biblioteca, tipos, testes e compilação sem tocar dados reais.
+- [x] Ampliar R para R1 → R2 → R3 → R4 → R5, com R3/R5 contextuais, R4 somente após envio manual e R5 terminal.
+- [x] Ampliar RE para RE0 → RE1 → RE2 → RE3 → RE4 → RE5, usando histórico CONTENT_SENT e o motor/fila existentes.
+- [ ] Organizar e publicar os conteúdos aprovados de R/RE na ordem operacional, preservando versões e histórico. Bloqueio: os registros encontrados estão incompletos ou trocados; faltam textos oficiais confiáveis para R5, RE4 e RE5.
+- [x] Validar transições, contextos, reentrada, Biblioteca, tipos, testes e compilação sem tocar dados reais.
