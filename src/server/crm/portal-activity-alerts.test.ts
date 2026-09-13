@@ -24,7 +24,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
           if (table === "relationship_engine_log" && value.details?.actionKey) fake.concluded.push({ details: { actionKey: value.details.actionKey } });
           return Promise.resolve({ data: null, error: null });
         },
-        update: (value: { viewed_at?: string }) => {
+        update: (value: { viewed_at?: string | null }) => {
           if (table === "portal_leads") fake.updatedViewedAt = value.viewed_at ?? null;
           return chain;
         },
