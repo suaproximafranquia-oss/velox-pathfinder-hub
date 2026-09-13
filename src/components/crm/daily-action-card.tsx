@@ -109,8 +109,8 @@ export function DailyActionCard({
   const [skipReason, setSkipReason] = useState("");
   const [note, setNote] = useState("");
   const [meetingNote, setMeetingNote] = useState("");
-  const [followUpNoContact, setFollowUpNoContact] = useState(false);
-  const [followUpPending, setFollowUpPending] = useState<{ contacted: boolean; willReschedule?: boolean } | null>(null);
+  const [followUpAttendance, setFollowUpAttendance] = useState<boolean | null>(null);
+  const [followUpPending, setFollowUpPending] = useState<{ attended: boolean; willReschedule: boolean } | null>(null);
   const [rescheduleAt, setRescheduleAt] = useState("");
   const [message, setMessage] = useState<StepMessageView | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
@@ -127,7 +127,7 @@ export function DailyActionCard({
     setSkipReason("");
     setNote("");
     setMeetingNote("");
-    setFollowUpNoContact(false);
+    setFollowUpAttendance(null);
     setFollowUpPending(null);
     setRescheduleAt("");
     setMessage(null);
@@ -278,26 +278,15 @@ export function DailyActionCard({
     );
   }
 
-  /** AGENDAMENTO GREENSALES — "Houve contato de agendamento?" */
-  function handleFollowUpContact(decision: { contacted: boolean; willReschedule?: boolean }) {
+  /** AGENDAMENTO GREENSALES — comparecimento + intenção de novo agendamento. */
+  function handleFollowUpContact(decision: { attended: boolean; willReschedule: boolean }) {
     if (locked) return;
     const observation = meetingNote.trim();
     setMeetingNote("");
-    setFollowUpNoContact(false);
+    setFollowUpAttendance(null);
     resolveNow(
       () => adapter.resolveFollowUpContact(item, { ...decision, note: observation }),
       "Não foi possível registrar o desfecho.",
-    );
-  }
-
-  /** OBRIGAÇÃO DE 24h — "Deseja encerrar esse fluxo?" */
-  function handleFollowUpReview(close: boolean) {
-    if (locked) return;
-    const observation = meetingNote.trim();
-    setMeetingNote("");
-    resolveNow(
-      () => adapter.resolveFollowUpReview(item, { close, note: observation }),
-      "Não foi possível registrar a decisão.",
     );
   }
 
@@ -556,54 +545,34 @@ export function DailyActionCard({
             </button>
           </>
         )}
-        {item.kind === "reuniao" && item.followUp?.mode === "revisao_24h" && (
+        {item.kind === "reuniao" && item.followUp && followUpAttendance === null && !followUpPending && (
           <>
             <button
               type="button"
-              onClick={() => void handleFollowUpReview(true)}
-              disabled={busy || locked}
-              className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
-            >
-              <X className="h-4 w-4" /> Sim, encerrar
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleFollowUpReview(false)}
+              onClick={() => setFollowUpAttendance(true)}
               disabled={busy || locked}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
             >
-              <Check className="h-4 w-4" /> Não, retomar
-            </button>
-          </>
-        )}
-        {item.kind === "reuniao" && item.followUp?.mode === "contato" && !followUpNoContact && !followUpPending && (
-          <>
-            <button
-              type="button"
-              onClick={() => setFollowUpPending({ contacted: true })}
-              disabled={busy || locked}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-40"
-            >
-              <Check className="h-4 w-4" /> Sim, houve contato
+              <Check className="h-4 w-4" /> Sim, compareceu
             </button>
             <button
               type="button"
-              onClick={() => setFollowUpNoContact(true)}
+              onClick={() => setFollowUpAttendance(false)}
               disabled={busy || locked}
               className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
             >
-              <X className="h-4 w-4" /> Não houve contato
+              <X className="h-4 w-4" /> Não compareceu
             </button>
           </>
         )}
-        {item.kind === "reuniao" && item.followUp?.mode === "contato" && followUpNoContact && !followUpPending && (
+        {item.kind === "reuniao" && item.followUp && followUpAttendance !== null && !followUpPending && (
           <>
             <span className="text-[11px] uppercase tracking-[0.16em] text-white/50">
-              Deseja reagendar?
+              Deseja fazer um novo agendamento?
             </span>
             <button
               type="button"
-              onClick={() => setFollowUpPending({ contacted: false, willReschedule: true })}
+              onClick={() => setFollowUpPending({ attended: followUpAttendance, willReschedule: true })}
               disabled={busy || locked}
               className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
             >
@@ -611,7 +580,7 @@ export function DailyActionCard({
             </button>
             <button
               type="button"
-              onClick={() => setFollowUpPending({ contacted: false, willReschedule: false })}
+              onClick={() => setFollowUpPending({ attended: followUpAttendance, willReschedule: false })}
               disabled={busy || locked}
               className="inline-flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-sm text-rose-200 transition hover:bg-rose-400/20 disabled:opacity-40"
             >
@@ -619,7 +588,7 @@ export function DailyActionCard({
             </button>
             <button
               type="button"
-              onClick={() => setFollowUpNoContact(false)}
+              onClick={() => setFollowUpAttendance(null)}
               className="text-[11px] text-white/40 underline underline-offset-4"
             >
               voltar
@@ -726,9 +695,7 @@ export function DailyActionCard({
       {item.kind === "reuniao" && item.followUp && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
           <span className="text-[11px] uppercase tracking-[0.16em] text-[color:var(--gold)]/80">
-            {item.followUp.mode === "revisao_24h"
-              ? "Ontem houve um agendamento em que não houve contato e você optou por não reagendar. Deseja encerrar esse fluxo?"
-              : "Houve contato de agendamento?"}
+            A pessoa compareceu no horário agendado?
           </span>
           {followUpPending?.willReschedule && <span className="text-[11px] text-white/40">
             Reagendamentos são feitos no GreenSales — o Portal atualiza automaticamente.
@@ -740,9 +707,9 @@ export function DailyActionCard({
             className="min-w-[220px] flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
           />
           {followUpPending && <div className="flex w-full flex-wrap items-center gap-2">
-            <span className="text-sm text-muted-foreground">{followUpPending.contacted ? "Houve contato" : "Não houve contato"}</span>
+            <span className="text-sm text-muted-foreground">{followUpPending.attended ? "Compareceu" : "Não compareceu"}</span>
             <Button disabled={busy || locked} onClick={() => handleFollowUpContact(followUpPending)}><Check className="h-4 w-4" /> Concluído</Button>
-            <Button variant="ghost" onClick={() => { setFollowUpPending(null); setFollowUpNoContact(false); }}>Alterar resultado</Button>
+            <Button variant="ghost" onClick={() => { setFollowUpPending(null); setFollowUpAttendance(null); }}>Alterar resultado</Button>
           </div>}
         </div>
       )}

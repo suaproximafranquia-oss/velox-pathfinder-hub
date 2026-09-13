@@ -71,10 +71,11 @@ describe("Ações do Dia — regras puras", () => {
     expect(rows[0]?.secondary ?? []).toEqual([]);
   });
 
-  it("verificação 24h fica pendente e reclassificação repetida não duplica ações", () => {
-    const review = action({ actionKey: "meeting:TEST-0001:review", source: "meeting", kind: "reuniao", startsAt: "2026-02-10T16:00:00.000Z", followUp: { mode: "revisao_24h", state: "EXPIRADO_SEM_CONTATO", scheduledAt: "2026-02-09T16:00:00.000Z", reviewDueAt: "2026-02-10T16:00:00.000Z" } });
-    const once = reclassifyDailyActions([review], now);
-    expect(once[0]?.bucket).toBe("pendente");
+  it("o compromisso original permanece a mesma pendência sem ação derivada", () => {
+    const meeting = action({ actionKey: "meeting:TEST-0001:agendamento:2026-02-09", source: "meeting", kind: "reuniao", startsAt: "2026-02-09T16:00:00.000Z", followUp: { state: "PENDENTE", scheduledAt: "2026-02-09T16:00:00.000Z" } });
+    const once = reclassifyDailyActions([meeting], now);
+    expect(once).toHaveLength(1);
+    expect(once[0]?.actionKey).toBe(meeting.actionKey);
     expect(reclassifyDailyActions(once, now)).toEqual(once);
   });
 
