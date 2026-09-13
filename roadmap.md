@@ -5,6 +5,7 @@
 - [ ] /f: aplicar somente os microajustes do Material Institucional e as respostas indicadas exclusivamente no Capítulo 12 do Manual do Investidor Financeira.
 - [ ] /f: executar reset operacional transacional, preservando leads atuais, compromissos reais, gs_57906 e gs_56503; manter ambiguidades.
 - [ ] Validar correções, contagens do reset, tipos, testes direcionados e compilação.
+- [ ] Relatar contagens exatas por categoria, ambiguidades preservadas e confirmação dos compromissos reais após o reset.
 
 - [x] Financeira /f: KPI, Painel de Campanhas e Brain Analytics com a mesma fonte oficial server-side, sem mudar cálculos ou layout.
 - [x] Financeira /f: preservar identidade oficial e vínculo em link cru; atualizar nome de card existente pela origem GreenSales respeitando proteção manual.
