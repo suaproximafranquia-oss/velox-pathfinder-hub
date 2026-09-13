@@ -68,3 +68,8 @@
 - [x] /f: desconectar consumidores produtivos do relógio ambiental e restaurar exclusivamente o tempo real.
 - [x] /f: desconectar gate/allowlist temporários da materialização normal e remover seus cartões da Central de Homologação.
 - [x] Preservar correções reais, migrations e todos os dados; validar tipos, testes focados, build e existência dos quatro leads sem escrita no banco.
+
+- [ ] /f: controles administrativos ON/OFF dos seis cards do Portal, persistidos na configuração existente, sem afetar o Portal Solar.
+- [ ] /f: remover apenas os dois atalhos obsoletos da Central de Homologação.
+- [ ] /f: concluir alerta do Portal atualizando somente a novidade correspondente e ordenar claim, emergência, alerta, E0, atrasados e ações do dia.
+- [ ] Validar os fluxos direcionados, domingo, isolamento dos demais ambientes e compilação.
