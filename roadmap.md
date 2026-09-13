@@ -77,7 +77,7 @@
 - [x] /f: liberar temporariamente apenas o bloqueio manual da Ação do Dia em 13/09/2026, até antes de 14/09/2026 00:00:00 (America/Sao_Paulo).
 - [x] Validar expiração automática e preservação integral da regra permanente de domingo, fila e ações futuras.
 
-- [ ] /f: consolidar E6 em contexto editorial único COM_NOME/SEM_NOME, preservando versões contextuais antigas como histórico.
-- [ ] /f: reler o nome atual do lead em cada preparação de mensagem pelo resolvedor existente, sem alterar snapshots.
-- [ ] /f: tratar o agendamento original como pendência de desfecho comparecimento + novo agendamento, sem revisão automática de 24h.
-- [ ] Validar prioridades, domingo, E7/E8 e testes/compilação sem tocar os ambientes e fluxos protegidos.
+- [x] /f: consolidar E6 em contexto editorial único COM_NOME/SEM_NOME, preservando versões contextuais antigas como histórico.
+- [x] /f: reler o nome atual do lead em cada preparação de mensagem pelo resolvedor existente, sem alterar snapshots.
+- [x] /f: tratar o agendamento original como pendência de desfecho comparecimento + novo agendamento, sem revisão automática de 24h.
+- [x] Validar prioridades, domingo, E7/E8 e testes/compilação sem tocar os ambientes e fluxos protegidos (67 testes focados e tipos aprovados).
