@@ -12,11 +12,10 @@ describe("contextos das etapas", () => {
     expect(resolveStepContext({ ...base, visualPath: true }, "E3")).toBe("V3");
   });
 
-  it("R3 escolhe o contexto pela passagem histórica na E4", () => {
-    expect(resolveStepContext({ materialSent: false }, "R3")).toBe("NAO_CHEGOU_E4");
-    expect(
-      resolveStepContext({ materialSent: false, reachedE4Historically: true }, "R3"),
-    ).toBe("JA_PASSOU_E4");
+  it("R3/R5/RE2 escolhem o contexto pelo envio estruturado", () => {
+    expect(resolveStepContext({ materialSent: false }, "R3")).toBe("SEM_CONTATO");
+    expect(resolveStepContext({ materialSent: true }, "R5")).toBe("MATERIAL_ENVIADO");
+    expect(resolveStepContext({ materialSent: true }, "RE2")).toBe("MATERIAL_ENVIADO");
   });
 
   it("E7/E8 continuam decididas pelo material efetivamente enviado", () => {
@@ -32,7 +31,9 @@ describe("contextos das etapas", () => {
     expect(requiresStepContext("E1")).toBe(false);
     expect(stepCombinations("E1")).toEqual([null]);
     expect(stepCombinations("E2")).toEqual([null, "V2"]);
-    expect(stepCombinations("R3")).toEqual(["NAO_CHEGOU_E4", "JA_PASSOU_E4"]);
+    expect(stepCombinations("R3")).toEqual(["SEM_CONTATO", "MATERIAL_ENVIADO"]);
+    expect(stepCombinations("R5")).toEqual(["SEM_CONTATO", "MATERIAL_ENVIADO"]);
+    expect(stepCombinations("RE2")).toEqual(["SEM_CONTATO", "MATERIAL_ENVIADO"]);
     expect(stepCombinations("E5")).toEqual([null]);
     expect(stepCombinations("E6")).toEqual([null]);
   });

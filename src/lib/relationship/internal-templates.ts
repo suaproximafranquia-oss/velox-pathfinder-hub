@@ -43,10 +43,14 @@ const LABELS: Record<CadenceStep, { label: string; }> = {
   R1: { label: "R1 — Reengajamento 1" },
   R2: { label: "R2 — Reengajamento 2" },
   R3: { label: "R3 — Reengajamento (encerramento)" },
+  R4: { label: "R4 — Reengajamento (feedback da apresentação)" },
+  R5: { label: "R5 — Reengajamento (encerramento)" },
   RE0: { label: "RE0 — Reentrada (retomada do contato)" },
   RE1: { label: "RE1 — Reentrada (como avaliar uma franquia)" },
   RE2: { label: "RE2 — Reentrada (estrutura e suporte)" },
   RE3: { label: "RE3 — Reentrada (encerramento)" },
+  RE4: { label: "RE4 — Reentrada (feedback da apresentação)" },
+  RE5: { label: "RE5 — Reentrada (encerramento)" },
   RF0: { label: "RF0 — Relacionamento esfriado (retomada)" },
   RF1: { label: "RF1 — Relacionamento esfriado (encerramento)" },
   // COMANDO 4A §8 — integrada ao fluxo, sem texto oficial (desativada).
@@ -57,13 +61,13 @@ function extractVariables(body: string): string[] {
   return [...new Set([...body.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((m) => m[1]!))];
 }
 
-export const INTERNAL_CADENCE_TEMPLATES: InternalTemplate[] = (
+export const INTERNAL_CADENCE_TEMPLATES = (
   Object.keys(HOMOLOGATION_MESSAGES) as (keyof typeof HOMOLOGATION_MESSAGES)[]
 ).map((step) => {
   const message = HOMOLOGATION_MESSAGES[step];
   return {
     code: `INT-${step}`,
-    step,
+    step: step as CadenceStep,
     label: LABELS[step].label,
     purpose: message.purpose,
     status: "NAO_SUBMETIDO_META" as const,
@@ -78,7 +82,7 @@ export const INTERNAL_CADENCE_TEMPLATES: InternalTemplate[] = (
     ],
     usesInvestorName: message.usesInvestorName,
     body: message.text,
-  };
+  } satisfies InternalTemplate;
 });
 
 export function getInternalTemplate(step: CadenceStep): InternalTemplate | null {

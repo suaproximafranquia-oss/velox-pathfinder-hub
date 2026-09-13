@@ -11,7 +11,7 @@
  *   4. em qual CONTEXTO editorial o texto é lido, quando a etapa o exige.
  *
  * REGRAS FIXAS (arquitetura aprovada):
- * - Etapas oficiais: E0–E8, R1–R4, RE0–RE3. Nada além disso.
+ * - Etapas oficiais: E0–E8, R1–R5, RE0–RE5. Nada além disso.
  * - Âncora: data teórica a partir da ORIGEM DO CICLO, tendo a execução
  *   anterior como PISO. Atraso desloca; nunca comprime nem empilha.
  * - Calendário: dias corridos, com sábado → segunda, domingo → terça e
@@ -28,8 +28,8 @@ import { RELATIONSHIP_CONFIG } from "./config";
 
 export const CADENCE_V2_STEPS = [
   "E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8",
-  "R1", "R2", "R3", "R4",
-  "RE0", "RE1", "RE2", "RE3",
+  "R1", "R2", "R3", "R4", "R5",
+  "RE0", "RE1", "RE2", "RE3", "RE4", "RE5",
 ] as const;
 
 export type CadenceV2Step = (typeof CADENCE_V2_STEPS)[number];
@@ -47,6 +47,10 @@ export type CycleContext = {
   materialRequested?: boolean;
   /** Reentrada que exige nova apresentação. */
   needsNewPresentation?: boolean;
+  /** O material foi solicitado dentro da instância atual. */
+  materialRequestedInCycle?: boolean;
+  /** O material foi enviado dentro da instância atual. */
+  materialSentInCycle?: boolean;
   /**
    * CAMINHO V — decidido UMA ÚNICA VEZ antes da criação da E1 e
    * congelado no histórico do lead. Quando verdadeiro, E1/E2/E3 são
@@ -111,8 +115,8 @@ export function resolveStepContext(
   // E1 saiu do eixo V: é sempre a etapa normal, sem contexto.
   if (key === "E1") return null;
   if (key === "E6") return null;
-  if (key === "R3") {
-    return cycle.reachedE4Historically ? "JA_PASSOU_E4" : "NAO_CHEGOU_E4";
+  if (key === "R3" || key === "R5" || key === "RE2") {
+    return cycle.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
   }
   return cycle.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";
 }
@@ -132,8 +136,8 @@ export type Transition = {
  *
  * E: E0 → E1 → E2 → E3 → E4 → E7 → E8 (sem resposta)
  *    E4 → E5 (imediato, quando o lead aceita o material) → E6 → E7 → E8
- * R: R1 → R2 → R3 → R4; com material R2 → R4 (R3 pulada)
- * RE: RE0 → RE1 → RE2 → RE3; sem nova apresentação RE1 → RE3
+ * R: R1 → R2 → R3 → R5; quando há envio manual após R3, R3 → R4 → R5.
+ * RE: RE0 → RE1 → RE2 → RE3 → RE4 → RE5.
  */
 export function nextTransition(
   current: CadenceV2Step,
@@ -164,21 +168,25 @@ export function nextTransition(
     case "R1":
       return { to: "R2", days: 2 };
     case "R2":
-      return cycle.materialSent ? { to: "R4", days: 4 } : { to: "R3", days: 2 };
+      return { to: "R3", days: 2 };
     case "R3":
-      return { to: "R4", days: 4 };
+      return cycle.materialSentInCycle ? { to: "R4", days: 7 } : { to: "R5", days: 4 };
     case "R4":
+      return { to: "R5", days: 4 };
+    case "R5":
       return null;
 
     case "RE0":
       return { to: "RE1", days: 1 };
     case "RE1":
-      return cycle.needsNewPresentation
-        ? { to: "RE2", days: 2 }
-        : { to: "RE3", days: 3 };
+      return { to: "RE2", days: 2 };
     case "RE2":
       return { to: "RE3", days: 5 };
     case "RE3":
+      return { to: "RE4", days: 7 };
+    case "RE4":
+      return { to: "RE5", days: 5 };
+    case "RE5":
       return null;
     default:
       return null;
@@ -519,14 +527,17 @@ export function stepActions(step: CadenceV2Step, compensateE2 = false): StepActi
       return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Apresentação / envio de material" }];
     case "RE0":
       return [{ order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" }];
-    case "RE2":
-      return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Oferta / apresentação de material" }];
     case "E6":
     case "E8":
     case "R3":
     case "R4":
-    case "RE3":
+    case "R5":
+    case "RE2":
+    case "RE4":
+    case "RE5":
       return [{ order: 1, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" }];
+    case "RE3":
+      return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Apresentação / envio de material" }];
     default:
       return [{ order: 1, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" }];
   }

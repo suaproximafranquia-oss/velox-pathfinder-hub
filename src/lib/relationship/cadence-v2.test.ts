@@ -134,26 +134,21 @@ describe("contexto de E7/E8", () => {
 });
 
 describe("fluxo R", () => {
-  it("sem material: R1 → R2 → R3 → R4", () => {
-    expect(projectedPath("R1", SEM_MATERIAL).map((p) => p.step)).toEqual(["R1", "R2", "R3", "R4"]);
+  it("sem envio no ciclo: R1 → R2 → R3 → R5", () => {
+    expect(projectedPath("R1", SEM_MATERIAL).map((p) => p.step)).toEqual(["R1", "R2", "R3", "R5"]);
   });
-  it("com material: R3 é pulada", () => {
-    expect(projectedPath("R1", { materialSent: true }).map((p) => p.step)).toEqual([
-      "R1", "R2", "R4",
+  it("com envio no ciclo: R4 ocorre antes do encerramento R5", () => {
+    expect(projectedPath("R1", { materialSent: true, materialSentInCycle: true }).map((p) => p.step)).toEqual([
+      "R1", "R2", "R3", "R4", "R5",
     ]);
   });
 });
 
 describe("fluxo RE", () => {
-  it("com nova apresentação: RE0 → RE1 → RE2 → RE3", () => {
+  it("percorre RE0 → RE5 no motor existente", () => {
     expect(
       projectedPath("RE0", { materialSent: false, needsNewPresentation: true }).map((p) => p.step),
-    ).toEqual(["RE0", "RE1", "RE2", "RE3"]);
-  });
-  it("com material já enviado: RE0 → RE1 → RE3", () => {
-    expect(projectedPath("RE0", { materialSent: true }).map((p) => p.step)).toEqual([
-      "RE0", "RE1", "RE3",
-    ]);
+    ).toEqual(["RE0", "RE1", "RE2", "RE3", "RE4", "RE5"]);
   });
 });
 
@@ -176,8 +171,8 @@ describe("ações internas da etapa", () => {
       E0: ["call", "call", "message"], E1: ["call", "message", "call"],
       E2: ["call", "message"], E3: ["call", "message"], E4: ["call", "message"],
       E5: ["manual"], E6: ["message"], E7: ["call", "message"], E8: ["message"],
-      R1: ["call", "message"], R2: ["call", "message"], R3: ["message"], R4: ["message"],
-      RE0: ["call"], RE1: ["call", "message"], RE2: ["manual"], RE3: ["message"],
+      R1: ["call", "message"], R2: ["call", "message"], R3: ["message"], R4: ["message"], R5: ["message"],
+      RE0: ["call"], RE1: ["call", "message"], RE2: ["message"], RE3: ["manual"], RE4: ["message"], RE5: ["message"],
     } as const;
     for (const [step, kinds] of Object.entries(expected)) {
       expect(stepActions(step as Parameters<typeof stepActions>[0]).map((action) => action.kind)).toEqual(kinds);

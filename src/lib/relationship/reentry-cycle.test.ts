@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { belongsToReentryCycle, reentryInternalOrder, reentryQueueOrder } from "./reentry-cycle";
 
 it("RE mantém ordens internas e separa cada ciclo sem sobrescrever histórico", () => {
-  for (const step of ["RE0", "RE1", "RE2", "RE3"]) {
+  for (const step of ["RE0", "RE1", "RE2", "RE3", "RE4", "RE5"]) {
     for (const order of [1, 2, 3]) {
       const encoded = reentryQueueOrder(2, order);
       expect(reentryInternalOrder(step, encoded)).toBe(order);

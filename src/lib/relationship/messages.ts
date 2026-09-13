@@ -44,7 +44,7 @@ const CONTENT_PLACEHOLDER = /\n*\{\{conteudo_[a-z0-9]+\}\}\n*/;
  * `renderHomologationMessage` bloqueia com motivo legível em vez de
  * enviar qualquer coisa.
  */
-export const HOMOLOGATION_MESSAGES: Record<Exclude<CadenceStep, "E30">, HomologationMessage> = {
+export const HOMOLOGATION_MESSAGES = {
   E0: {
     code: "HOMOL-E0",
     step: "E0",
@@ -376,7 +376,7 @@ Afinal, você prefere continuar acompanhando a história de quem está crescendo
 
 {{conteudo_final}}`,
   },
-};
+} satisfies Partial<Record<Exclude<CadenceStep, "E30">, HomologationMessage>>;
 
 export type RenderInput = {
   executiveName: string;

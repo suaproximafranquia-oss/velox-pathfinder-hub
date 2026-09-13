@@ -99,22 +99,22 @@ describe("§21–§23 — conteúdo padrão de finalização", () => {
   it("as etapas de finalização compartilham o mesmo grupo declarado", () => {
     // O grupo continua existindo como classificação da etapa; o link,
     // porém, pertence à própria mensagem da Biblioteca.
-    const groups = new Set(["E12", "RE3", "RF1"].map((s) => STEPS[s as "E12"].contentGroup));
+    const groups = new Set(["E12", "RE5", "RF1"].map((s) => STEPS[s as "E12"].contentGroup));
     expect([...groups]).toEqual(["FINALIZACAO"]);
   });
 
-  it("E12, RE3 e RF1 usam o mesmo grupo e entregam o conteúdo em botão", () => {
-    for (const step of ["E12", "RE3", "RF1"] as const) {
+  it("E12 e RF1 usam o mesmo grupo e entregam o conteúdo em botão", () => {
+    for (const step of ["E12", "RF1"] as const) {
       expect(STEPS[step].contentGroup).toBe("FINALIZACAO");
-      expect(HOMOLOGATION_MESSAGES[step].button).toBe("content");
-      expect(HOMOLOGATION_MESSAGES[step].text).toContain("{{conteudo_final}}");
+      expect(HOMOLOGATION_MESSAGES[step]?.button).toBe("content");
+      expect(HOMOLOGATION_MESSAGES[step]?.text).toContain("{{conteudo_final}}");
     }
   });
 
   it("os encerramentos não repetem o mesmo texto", () => {
     const texts = new Set(
-      (["E12", "RE3", "RF1"] as const).map((s) => HOMOLOGATION_MESSAGES[s].text),
+      (["E12", "RF1"] as const).map((s) => HOMOLOGATION_MESSAGES[s]?.text),
     );
-    expect(texts.size).toBe(3);
+    expect(texts.size).toBe(2);
   });
 });

@@ -23,7 +23,7 @@ describe("identidade da etapa = chave técnica", () => {
   });
 
   it("aceita códigos editoriais exatamente como digitados", () => {
-    for (const code of ["E0", "E6", "E8", "R1", "R4", "RE0", "ER0", "ER3"]) {
+    for (const code of ["E0", "E6", "E8", "R1", "R5", "RE0", "RE5", "ER0", "ER3"]) {
       expect(isValidStepCode(code)).toBe(true);
       expect(isCurrentEditorialStep(code)).toBe(true);
     }

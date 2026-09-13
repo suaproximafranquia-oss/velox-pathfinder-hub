@@ -57,15 +57,16 @@ describe("fluxo de reentrada", () => {
     expect(decideNextAction(record, { nowIso: at, enabled: true, hasTemplateForPurpose: () => true, v2: { ...v2, stageKey: "agendamentos", hasCommitment: true } }).kind).toBe("none");
   });
 
-  it("sequência oficial é RE0 → RE3", () => {
-    expect(FLOW_SEQUENCE.reentrada).toEqual(["RE0", "RE1", "RE2", "RE3"]);
-    expect(STEPS.RE3.terminal).toBe(true);
+  it("sequência oficial é RE0 → RE5", () => {
+    expect(FLOW_SEQUENCE.reentrada).toEqual(["RE0", "RE1", "RE2", "RE3", "RE4", "RE5"]);
+    expect(STEPS.RE3.terminal).toBe(false);
+    expect(STEPS.RE5.terminal).toBe(true);
   });
 
-  it("RE1 e RE2 usam a Biblioteca de Conteúdos", () => {
+  it("RE1 usa conteúdo e RE2 é oferta contextual", () => {
     expect(STEPS.RE1.contentGroup).toBe("RE1");
-    expect(STEPS.RE2.contentGroup).toBe("RE2");
-    expect(HOMOLOGATION_MESSAGES.RE1.button).toBe("content");
+    expect(STEPS.RE2.contentGroup).toBeNull();
+    expect(HOMOLOGATION_MESSAGES.RE1?.button).toBe("content");
   });
 
   it("abre em RE0 e nunca em E0", () => {

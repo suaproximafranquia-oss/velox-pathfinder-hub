@@ -76,8 +76,8 @@ function queueActionTitle(step: string, actionKind: string, order: number): stri
   const isCall = actionKind === "call";
   if (isCall) return order > 1 ? `Segunda ligação — Etapa ${step}` : `Ligação — Etapa ${step}`;
   if (actionKind === "manual") {
-    return step === "RE2"
-      ? "Ofertar/apresentar novamente o material — Etapa RE2"
+    return step === "RE3"
+      ? "Apresentar/enviar material — Etapa RE3"
       : "Apresentar/enviar material — Etapa E5";
   }
   return `Copiar mensagem — Etapa ${step}`;

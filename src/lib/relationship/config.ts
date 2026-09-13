@@ -144,7 +144,15 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     businessDaysAfterReference: 2,
     templatePurpose: "reengajamento_encerramento",
     contentGroup: null,
-    terminal: true,
+    terminal: false,
+  },
+  R4: {
+    step: "R4", flow: "reengajamento", businessDaysAfterReference: 7,
+    templatePurpose: "reengajamento_feedback", contentGroup: null, terminal: false,
+  },
+  R5: {
+    step: "R5", flow: "reengajamento", businessDaysAfterReference: 4,
+    templatePurpose: "reengajamento_encerramento", contentGroup: null, terminal: true,
   },
   /**
    * FLUXO 4 — REENTRADA (COMANDO 2B §2, §7).
@@ -175,16 +183,24 @@ export const STEPS: Record<CadenceStep, StepDefinition> = {
     flow: "reentrada",
     businessDaysAfterReference: 3,
     templatePurpose: "reentrada_estrutura",
-    contentGroup: "RE2",
+    contentGroup: null,
     terminal: false,
   },
   RE3: {
     step: "RE3",
     flow: "reentrada",
     businessDaysAfterReference: 5,
-    templatePurpose: "reentrada_encerramento",
-    contentGroup: "FINALIZACAO",
-    terminal: true,
+    templatePurpose: "reentrada_apresentacao",
+    contentGroup: null,
+    terminal: false,
+  },
+  RE4: {
+    step: "RE4", flow: "reentrada", businessDaysAfterReference: 7,
+    templatePurpose: "reentrada_feedback", contentGroup: null, terminal: false,
+  },
+  RE5: {
+    step: "RE5", flow: "reentrada", businessDaysAfterReference: 5,
+    templatePurpose: "reentrada_encerramento", contentGroup: "FINALIZACAO", terminal: true,
   },
   /**
    * FLUXO 5 — RELACIONAMENTO ESFRIADO (COMANDO 3D §18–§20).
@@ -218,8 +234,8 @@ export const FLOW_SEQUENCE: Record<CadenceFlow, CadenceStep[]> = {
   // que ela só é considerada depois da E12.
   sem_resposta: ["E0", "E1", "E3", "E4", "E12", "E30"],
   visualizacao: ["E0", "E1", "V3", "V4"],
-  reengajamento: ["R1", "R2", "R3"],
-  reentrada: ["RE0", "RE1", "RE2", "RE3"],
+  reengajamento: ["R1", "R2", "R3", "R4", "R5"],
+  reentrada: ["RE0", "RE1", "RE2", "RE3", "RE4", "RE5"],
   relacionamento_frio: ["RF0", "RF1"],
 };
 
