@@ -91,7 +91,7 @@
 
 ## Lapidação pontual da Home Financeira /f
 
-- [ ] Persistir e refletir os seis controles do Portal pela configuração oficial do servidor, sem afetar o Solar.
-- [ ] Impedir a montagem parcial da Home Financeira enquanto os dados essenciais carregam.
-- [ ] Substituir somente a resposta sobre exclusividade de território.
-- [ ] Validar os três pontos com testes direcionados, tipos e compilação.
+- [x] Persistir e refletir os seis controles do Portal pela configuração oficial do servidor, sem afetar o Solar.
+- [x] Impedir a montagem parcial da Home Financeira enquanto os dados essenciais carregam.
+- [x] Substituir somente a resposta sobre exclusividade de território.
+- [x] Validar os três pontos com testes direcionados, tipos e compilação (2 testes passaram; tipos e build automático OK).
