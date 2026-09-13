@@ -165,7 +165,15 @@ function WorkspacePage() {
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
     };
-    const offSync = onSync(refresh);
+    const offSync = onSync((channel) => {
+      /**
+       * A conclusão de um alerta já atualizou o cache deste lead com o
+       * `viewed_at` confirmado pelo servidor. Refletimos esse estado na
+       * mesma pintura e, em seguida, reconciliamos a base oficial.
+       */
+      if (channel === "status") setTick((v) => v + 1);
+      refresh();
+    });
     // INTERVENÇÃO DE ESTABILIDADE — o ouvinte cru de "storage" foi
     // removido: ele disparava um download completo da base para QUALQUER
     // escrita em localStorage feita por outras abas (heartbeat do Portal

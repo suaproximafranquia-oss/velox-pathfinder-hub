@@ -78,6 +78,17 @@ function firstExecutableKey(rows: DailyAction[]): string | null {
   return rows.find(isAutomaticDailyAction)?.actionKey ?? null;
 }
 
+/** Mantém apenas consultas ainda existentes; a posição 1 sempre acompanha a fila oficial. */
+export function reconcileSelectedActionKey(
+  rows: DailyAction[],
+  current: string | null,
+): string | null {
+  const held = rows.some(
+    (item) => item.actionKey === current && (item.bucket === "pendente" || item.bucket === "alerta"),
+  );
+  return held ? current : firstExecutableKey(rows);
+}
+
   /** Card aberto apenas para consulta. */
 function consultable(item: DailyAction | null | undefined): boolean {
   return item?.bucket === "pendente" || item?.bucket === "alerta";
@@ -168,7 +179,7 @@ export function DailyActionsOverlay({
     }
     const official = reclassifyDailyActions(filtered, new Date().toISOString(), continuityLeadRef.current);
     setActions(official);
-    setSelectedKey(firstExecutableKey(official));
+    setSelectedKey((current) => reconcileSelectedActionKey(official, current));
     setCommitmentRefresh((value) => value + 1);
   }, []);
 
@@ -298,9 +309,7 @@ export function DailyActionsOverlay({
       setActions((previous) => {
         const next = reclassifyDailyActions(previous, new Date().toISOString(), continuityLeadRef.current);
         // Consulta aberta (pendência ou aviso do Portal) não é trocada sozinha.
-        const held = (rows: DailyAction[], key: string | null) =>
-          rows.some((a) => a.actionKey === key && (a.bucket === "pendente" || a.bucket === "alerta"));
-        setSelectedKey((key) => (held(next, key) && held(previous, key) ? key : firstExecutableKey(next)));
+        setSelectedKey((key) => reconcileSelectedActionKey(next, key));
         return next;
       });
     }, 30000);

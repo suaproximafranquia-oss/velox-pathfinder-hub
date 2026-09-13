@@ -920,14 +920,6 @@ function Index() {
                     a origem da receita, o portfólio e a estrutura de suporte.
                   </p>
                 </div>
-                <div className="mt-12">
-                  <MediaSlot
-                    kind="video"
-                    label="[ESPAÇO PARA VÍDEO INSTITUCIONAL]"
-                    note="Reservado para o vídeo institucional oficial da Velox, com apresentação da empresa e do modelo de negócio."
-                    ratio="16 / 9"
-                  />
-                </div>
               </Reveal>
             </div>
           </div>
@@ -943,6 +935,7 @@ function Index() {
           image={treinamentoImg.url}
           imageAlt="Treinamento da rede Velox por videoconferência"
           imageCaption="Treinamento da rede · Velox"
+          imageRatio="1 / 1"
           reverse
           surface="graphite"
         >

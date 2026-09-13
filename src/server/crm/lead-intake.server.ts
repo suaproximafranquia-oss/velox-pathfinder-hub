@@ -301,7 +301,22 @@ export async function intakeLead(
     const e0Mode = await resolveExecutiveE0Mode(responsible?.executiveId ?? null);
     if (entry.reentry && lastEntryAt) {
       const { openCommercialReentry } = await import("@/server/relationship/reentry-open.server");
-      await openCommercialReentry({ leadId: card.cardId, submissionKey: `entry:${lastEntryAt}`, at: lastEntryAt });
+      const opened = await openCommercialReentry({
+        leadId: card.cardId,
+        submissionKey: `entry:${lastEntryAt}`,
+        at: lastEntryAt,
+      });
+      if (!opened) {
+        result.e0 = "ignorada";
+        result.e0Reason = "A nova entrada comercial não abriu RE0; será reconciliada na próxima sincronização.";
+        await recordEvent(
+          outcome.lead.id,
+          "e0_reentrada_ignorada",
+          result.e0Reason,
+          { cardId: card.cardId, lastEntryAt },
+        );
+        return result;
+      }
       result.e0 = "manual";
       result.e0Reason = "Nova entrada comercial: RE0 no motor existente, sem repetir E0.";
       return result;
