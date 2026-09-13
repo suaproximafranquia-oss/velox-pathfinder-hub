@@ -5,7 +5,7 @@
  * `relationship_message_library`. Word, Git, constantes do código e IA
  * NÃO são fontes de mensagem — apenas referência histórica.
  *
- * IDENTIDADE OPERACIONAL ATUAL (Financeira /f): E0–E8, R1–R4, RE0–RE3
+ * IDENTIDADE OPERACIONAL ATUAL (Financeira /f): E0–E8, R1–R5, RE0–RE5
  * (régua V2) + RESPOSTA_AUTOMATICA. Vem de `operational-steps.ts`.
  * Chaves históricas (E12, E20, E27, FINALIZACAO, RF0/RF1, V3/V4,
  * E0_V1, TESTE…) continuam gravadas e legíveis para auditoria, mas não

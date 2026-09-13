@@ -360,6 +360,15 @@ export async function completeDailyActionManual(
 ): Promise<{ concluded: boolean; reason: string | null }> {
   const nowIso = input.nowIso ?? new Date().toISOString();
   const queueItemId = queueItemIdFromActionKey(input.actionKey);
+  if (input.step === "RE3" && input.leadId) {
+    const { registerMaterialEvent } = await import("@/server/relationship/material.server");
+    await registerMaterialEvent({
+      leadId: input.leadId,
+      type: "CONTENT_SENT",
+      actorId: input.executiveId ?? input.userId,
+      note: input.reason.trim() || null,
+    });
+  }
   const outcome = await concludeQueueStep({
     leadId: input.leadId,
     step: input.step,

@@ -38,7 +38,7 @@ export type KnownCadenceStep =
   | "V4" // acompanhamento firme do fluxo de visualização
   | "R1" // primeira tentativa de reengajamento
   | "R2" // segunda tentativa de reengajamento
-  | "R3" // interrupção das tentativas
+  | "R3" // oferta da apresentação digital
   | "R4" // feedback após apresentação enviada no reengajamento
   | "R5" // encerramento do reengajamento
   | "RE0" // reentrada — retomada do contato

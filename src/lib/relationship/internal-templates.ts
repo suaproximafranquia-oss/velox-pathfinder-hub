@@ -43,10 +43,14 @@ const LABELS: Record<CadenceStep, { label: string; }> = {
   R1: { label: "R1 — Reengajamento 1" },
   R2: { label: "R2 — Reengajamento 2" },
   R3: { label: "R3 — Reengajamento (encerramento)" },
+  R4: { label: "R4 — Reengajamento (feedback da apresentação)" },
+  R5: { label: "R5 — Reengajamento (encerramento)" },
   RE0: { label: "RE0 — Reentrada (retomada do contato)" },
   RE1: { label: "RE1 — Reentrada (como avaliar uma franquia)" },
   RE2: { label: "RE2 — Reentrada (estrutura e suporte)" },
   RE3: { label: "RE3 — Reentrada (encerramento)" },
+  RE4: { label: "RE4 — Reentrada (feedback da apresentação)" },
+  RE5: { label: "RE5 — Reentrada (encerramento)" },
   RF0: { label: "RF0 — Relacionamento esfriado (retomada)" },
   RF1: { label: "RF1 — Relacionamento esfriado (encerramento)" },
   // COMANDO 4A §8 — integrada ao fluxo, sem texto oficial (desativada).
@@ -61,6 +65,7 @@ export const INTERNAL_CADENCE_TEMPLATES: InternalTemplate[] = (
   Object.keys(HOMOLOGATION_MESSAGES) as (keyof typeof HOMOLOGATION_MESSAGES)[]
 ).map((step) => {
   const message = HOMOLOGATION_MESSAGES[step];
+  if (!message) return null;
   return {
     code: `INT-${step}`,
     step,
@@ -79,7 +84,7 @@ export const INTERNAL_CADENCE_TEMPLATES: InternalTemplate[] = (
     usesInvestorName: message.usesInvestorName,
     body: message.text,
   };
-});
+}).filter((template): template is InternalTemplate => template !== null);
 
 export function getInternalTemplate(step: CadenceStep): InternalTemplate | null {
   return INTERNAL_CADENCE_TEMPLATES.find((t) => t.step === step) ?? null;

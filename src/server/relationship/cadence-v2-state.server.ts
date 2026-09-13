@@ -254,7 +254,7 @@ export async function loadCadenceV2State(
  *  • E7/E8 → material efetivamente disponibilizado (CONTENT_SENT);
  *  • E2/E3 → caminho V já decidido e congelado (V2/V3) ou contexto
  *    normal (sem contexto). A E1 saiu do eixo V e é sempre normal;
- *  • R3 → passagem histórica válida por E4 no histórico REAL do lead.
+ *  • R3/R5/RE2 → histórico estruturado de CONTENT_SENT.
  */
 export async function resolveStepContextForLead(
   leadId: string,
