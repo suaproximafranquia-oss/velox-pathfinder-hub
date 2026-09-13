@@ -88,3 +88,10 @@
 - [x] Ampliar RE para RE0 → RE1 → RE2 → RE3 → RE4 → RE5, usando histórico CONTENT_SENT e o motor/fila existentes.
 - [ ] Organizar e publicar os conteúdos aprovados de R/RE na ordem operacional, preservando versões e histórico. Bloqueio: os registros encontrados estão incompletos ou trocados; faltam textos oficiais confiáveis para R5, RE4 e RE5.
 - [x] Validar transições, contextos, reentrada, Biblioteca, tipos, testes e compilação sem tocar dados reais.
+
+## Lapidação pontual da Home Financeira /f
+
+- [ ] Persistir e refletir os seis controles do Portal pela configuração oficial do servidor, sem afetar o Solar.
+- [ ] Impedir a montagem parcial da Home Financeira enquanto os dados essenciais carregam.
+- [ ] Substituir somente a resposta sobre exclusividade de território.
+- [ ] Validar os três pontos com testes direcionados, tipos e compilação.
