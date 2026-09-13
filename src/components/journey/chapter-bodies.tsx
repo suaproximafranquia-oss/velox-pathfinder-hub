@@ -706,27 +706,27 @@ function FaqBody() {
   const items = [
     {
       q: "Preciso ter experiência prévia no mercado financeiro?",
-      a: "Não. O treinamento obrigatório foi desenhado para preparar franqueados de diferentes origens, inclusive quem nunca teve contato com o setor. O que se espera é disposição para aprender e para seguir a metodologia da rede.",
+      a: "Não.\n\nO treinamento foi desenvolvido para preparar franqueados de diferentes realidades, inclusive quem nunca teve contato com o setor.\n\nO mais importante é a disposição para aprender e seguir a metodologia da rede.",
     },
     {
       q: "Posso começar em home office?",
-      a: "Sim. O formato home office existe justamente para permitir uma entrada com estrutura mais enxuta. Muitos franqueados iniciam assim e, com o tempo, avaliam a migração para um ponto físico conforme a evolução da operação.",
+      a: "Sim.\n\nO formato home office existe para permitir uma entrada com estrutura mais enxuta. Muitos franqueados iniciam assim e posteriormente avaliam a migração para um ponto físico conforme a evolução da operação.",
     },
     {
       q: "Posso manter meu emprego atual no início?",
-      a: "Em muitos casos, sim — desde que exista disponibilidade real para o treinamento e para o início da operação. Cada situação é conversada individualmente, para evitar que o franqueado assuma um compromisso maior do que consegue sustentar.",
+      a: "Em muitos casos, sim, desde que exista disponibilidade real para participar do treinamento e iniciar a operação. Cada situação é analisada individualmente.",
     },
     {
-      q: "Quanto tempo dura a implantação até eu começar a operar?",
-      a: "Depois da assinatura do contrato, acontece a implantação e, em seguida, o treinamento obrigatório de duas semanas. O prazo total varia conforme a agenda de implantação e a disponibilidade do franqueado, mas a sequência é sempre a mesma: primeiro se aprende, depois se atende.",
+      q: "Quanto tempo leva para começar a operar?",
+      a: "Após a assinatura do contrato ocorre a implantação e, na sequência, o treinamento de duas semanas. Em média, o processo completo leva de 25 a 40 dias, podendo variar conforme a agenda da implantação e a disponibilidade do franqueado.\n\nPrimeiro se aprende, depois se atende.",
     },
     {
       q: "Como funciona o treinamento?",
-      a: "São duas semanas de formação estruturada, cobrindo modelo de negócio, portfólio de soluções, atendimento consultivo, ferramentas e processos internos. É condição para o início da operação — não existe atendimento a clientes antes de sua conclusão.",
+      a: "São duas semanas de formação estruturada sobre modelo de negócio, portfólio de soluções, atendimento consultivo, ferramentas e processos internos. O atendimento ao cliente começa somente após a conclusão dessa preparação.",
     },
     {
-      q: "Quem acompanha meu desenvolvimento depois que eu começo?",
-      a: "Cada franqueado passa a contar com um consultor de negócios dedicado, que acompanha a evolução da unidade, apoia decisões comerciais e operacionais e serve de ponto de contato com as áreas da Velox ao longo do tempo.",
+      q: "Quem acompanha meu desenvolvimento?",
+      a: "O franqueado conta com um consultor de negócio, que acompanha a evolução da unidade, apoia decisões comerciais e operacionais e atua como ponto de contato com as áreas da Velox.",
     },
     {
       q: "Como o franqueado é remunerado?",
@@ -737,20 +737,20 @@ function FaqBody() {
       a: "Não é uma exigência para o início. Muitos franqueados começam a operação sozinhos, especialmente no formato home office, e passam a estruturar equipe conforme a operação evolui e a demanda justifica.",
     },
     {
-      q: "Que tipo de suporte a Velox oferece durante a operação?",
-      a: "Além do consultor de negócios, o franqueado tem acesso à Universidade Corporativa, à plataforma tecnológica de apoio e a comunicados, reuniões e materiais elaborados pelas áreas da Velox — todos com o objetivo de padronizar informação e reduzir erros no dia a dia.",
+      q: "Que tipo de suporte a Velox oferece?",
+      a: "Além do consultor de negócio, o franqueado conta com especialistas das diferentes áreas da Velox para suporte relacionado aos produtos, processos e operação.\n\nEsse suporte funciona de segunda a sexta-feira, das 8h às 21h.\n\nTambém há acesso à Universidade Corporativa, plataforma tecnológica, comunicados, reuniões e materiais desenvolvidos pelas áreas da Velox.",
     },
     {
-      q: "Como funciona o relacionamento com os parceiros homologados?",
-      a: "As instituições parceiras — bancos, financeiras, seguradoras, administradoras e outras — são homologadas centralmente pela Velox. Isso significa que o franqueado já inicia com um portfólio pronto para ser oferecido, sem precisar prospectar cada parceria por conta própria.",
+      q: "Como funciona o relacionamento com parceiros homologados?",
+      a: "Bancos, financeiras, seguradoras, administradoras e outras instituições são homologados diretamente pela Velox.\n\nO franqueado inicia com um portfólio estruturado para oferecer, sem precisar prospectar cada parceria individualmente.",
     },
     {
       q: "Existe garantia de faturamento?",
       a: "Não. Nenhuma franquia séria garante resultado. O que a Velox oferece é metodologia, treinamento, portfólio homologado e suporte contínuo. O desempenho de cada unidade depende da execução do próprio franqueado.",
     },
     {
-      q: "Posso atuar em qualquer cidade?",
-      a: "As condições de atuação por região são conversadas individualmente na apresentação comercial, considerando a realidade do mercado local e a estrutura da rede. Assim é possível avaliar juntos qual é o melhor cenário para você.",
+      q: "Posso atuar em qualquer cidade do Brasil?",
+      a: "Sim.\n\nOs franqueados Velox podem atuar em qualquer cidade, região ou estado do Brasil, tanto em home office quanto em loja física.\n\nO executivo de expansão apresenta os detalhes comerciais e operacionais de cada modelo.",
     },
     {
       q: "Existe exclusividade de território?",
@@ -761,8 +761,8 @@ function FaqBody() {
       a: "A evolução acontece pela combinação entre a formação continuada oferecida pela rede, o acompanhamento do consultor de negócios e a maturidade que a própria unidade conquista ao longo dos meses de operação.",
     },
     {
-      q: "Como acontecem os primeiros atendimentos depois que a operação começa?",
-      a: "Logo após o treinamento, o franqueado inicia a operação já com o portfólio homologado disponível e com o consultor de negócios acompanhando de perto. Os primeiros atendimentos costumam vir do próprio círculo de relacionamento, de ações comerciais orientadas pela rede e da prospecção local — sempre dentro da metodologia consultiva ensinada durante o treinamento.",
+      q: "Como acontecem os primeiros atendimentos?",
+      a: "Logo após a conclusão do treinamento, o franqueado inicia a operação com acesso ao portfólio homologado e acompanhamento próximo do consultor de negócio.\n\nOs primeiros atendimentos podem surgir do próprio círculo de relacionamento do franqueado, de ações comerciais orientadas pela rede e da prospecção local, sempre dentro da metodologia consultiva ensinada durante a formação.",
     },
   ];
   return (
