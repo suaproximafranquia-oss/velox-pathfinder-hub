@@ -22,7 +22,6 @@ import {
   rescheduleMeetingFn,
   resolveMeetingOutcomeFn,
   resolveFollowUpContactFn,
-  resolveFollowUpReviewFn,
   skipDailyActionFn,
   listSkippedPendingsFn,
   resumeSkippedActionFn,
@@ -71,7 +70,6 @@ export function useRealDailyActionsAdapter(
   const resolveMeeting = useServerFn(resolveMeetingOutcomeFn);
   const rescheduleMeeting = useServerFn(rescheduleMeetingFn);
   const resolveFollowUpContact = useServerFn(resolveFollowUpContactFn);
-  const resolveFollowUpReview = useServerFn(resolveFollowUpReviewFn);
   const listPendingsFn = useServerFn(listSkippedPendingsFn);
   const resumePendingFn = useServerFn(resumeSkippedActionFn);
   const concludeAlertFn = useServerFn(concludePortalAlertFn);
@@ -290,7 +288,7 @@ export function useRealDailyActionsAdapter(
           result = (await resolveFollowUpContact({
             data: {
               meetingId: item.meetingId,
-              contacted: decision.contacted,
+              attended: decision.attended,
               willReschedule: decision.willReschedule,
               note: decision.note,
               actionKey: item.actionKey,
@@ -303,35 +301,9 @@ export function useRealDailyActionsAdapter(
         return {
           ok: true,
           queue: result?.queue,
-          message: decision.contacted
-            ? "Contato de agendamento registrado."
-            : decision.willReschedule
+          message: decision.willReschedule
               ? "Faça o novo agendamento no GreenSales — o Portal atualiza automaticamente."
-              : "Registrado sem contato. Amanhã a Ação do Dia pedirá a decisão de encerrar ou retomar.",
-        };
-      },
-      resolveFollowUpReview: async (item, decision) => {
-        if (!item.meetingId) return { ok: false, message: "Agendamento sem origem oficial." };
-        let result: { queue?: DailyAction[] };
-        try {
-          result = (await resolveFollowUpReview({
-            data: {
-              meetingId: item.meetingId,
-              close: decision.close,
-              note: decision.note,
-              actionKey: item.actionKey,
-              pendingRecovery,
-            },
-          })) as { queue?: DailyAction[] };
-        } catch (error) {
-          return { ok: false, message: error instanceof Error ? error.message : "Falha ao registrar." };
-        }
-        return {
-          ok: true,
-          queue: result?.queue,
-          message: decision.close
-            ? "Fluxo de agendamento encerrado."
-            : "Então retire esse lead de Agendamento e mova para Frios no GreenSales para retomarmos o relacionamento.",
+              : "Desfecho registrado e compromisso concluído.",
         };
       },
 
@@ -393,7 +365,6 @@ export function useRealDailyActionsAdapter(
       resolveMeeting,
       rescheduleMeeting,
       resolveFollowUpContact,
-      resolveFollowUpReview,
     ],
   );
 }

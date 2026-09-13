@@ -48,6 +48,7 @@ export const FOLLOW_UP_STATES = {
   pending: "PENDENTE",
   contacted: "CONTATO_REALIZADO",
   awaitingReschedule: "AGUARDANDO_REAGENDAMENTO_GREENSALES",
+  /** Estados legados preservados somente para leitura histórica. */
   expiredNoContact: "VENCIDO_SEM_CONTATO_SEM_REAGENDAMENTO",
   closed: "ENCERRADO",
   resumeInFrios: "RETOMAR_EM_FRIOS",
@@ -59,8 +60,6 @@ export type FollowUpState = (typeof FOLLOW_UP_STATES)[keyof typeof FOLLOW_UP_STA
 
 /** Antecedência da prioridade máxima (T-5). */
 export const FOLLOW_UP_FOCUS_MINUTES = 5;
-/** Obrigação de verificação após o vencimento sem contato/sem reagendamento. */
-export const FOLLOW_UP_REVIEW_HOURS = 24;
 /**
  * Compromisso já vencido há mais tempo que isto NÃO nasce como obrigação
  * nova quando descoberto pela primeira vez (histórico da origem).
@@ -219,19 +218,10 @@ export function isCommitmentStageToFrios(
   );
 }
 
-/** Momento em que a obrigação de 24h passa a ser exigida. */
-export function reviewDueAt(scheduledAtIso: string): string {
-  return new Date(Date.parse(scheduledAtIso) + FOLLOW_UP_REVIEW_HOURS * 3_600_000).toISOString();
-}
-
 /** Textos oficiais da Ação do Dia para o acompanhamento. */
 export const FOLLOW_UP_COPY = {
-  question: "Houve contato de agendamento?",
-  rescheduleQuestion: "Deseja reagendar?",
+  question: "A pessoa compareceu no horário agendado?",
+  rescheduleQuestion: "Deseja fazer um novo agendamento?",
   rescheduleGuidance:
     "Faça um novo agendamento no GreenSales e atualize o horário por lá. O Portal será atualizado automaticamente.",
-  reviewQuestion:
-    "Ontem houve um agendamento em que não houve contato e você optou por não reagendar. Deseja encerrar esse fluxo?",
-  resumeGuidance:
-    "Então retire esse lead de Agendamento e mova para Frios para retomarmos o relacionamento.",
 } as const;

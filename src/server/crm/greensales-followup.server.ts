@@ -26,7 +26,6 @@ import {
   VIDEO_STAGE,
   isCommitmentStageToFrios,
   planFollowUpSync,
-  reviewDueAt,
   type FollowUpModality,
   type FollowUpSyncDecision,
 } from "@/lib/crm/greensales-followup";
@@ -623,123 +622,44 @@ async function transition(input: {
   return { ok: true };
 }
 
-/** "Houve contato de agendamento?" → SIM. Encerra a obrigação. */
-export async function registerFollowUpContact(input: {
-  meetingId: string;
-  actorId?: string | null;
-  note?: string | null;
-}): Promise<{ ok: boolean; reason?: string }> {
-  const meeting = await loadMirrorById(input.meetingId);
-  if (!meeting) return { ok: false, reason: "Compromisso do GreenSales não encontrado." };
-  const nowIso = new Date().toISOString();
-  const result = await transition({
-    meeting,
-    expected: [FOLLOW_UP_STATES.pending, FOLLOW_UP_STATES.expiredNoContact],
-    next: FOLLOW_UP_STATES.contacted,
-    status: "Concluída",
-    reviewDueAt: null,
-    entry: { at: nowIso, event: "contato_realizado", state: FOLLOW_UP_STATES.contacted, detail: input.note ?? null, actor_id: input.actorId ?? null },
-    nowIso,
-  });
-  if (result.ok) {
-    await appendTimeline({
-      leadId: meeting.investor_id,
-      event: "agendamento_contato_realizado",
-      reason: input.note?.trim() || "Contato de agendamento realizado.",
-      actorId: input.actorId ?? null,
-      at: nowIso,
-    });
-  }
-  return result;
-}
-
 /**
- * "Houve contato de agendamento?" → NÃO.
- *  - reagendar = SIM → aguarda atualização no GreenSales (Portal espelha);
- *  - reagendar = NÃO → vencido sem contato; obrigação de 24h programada.
+ * DESFECHO DO AGENDAMENTO ORIGINAL. Comparecimento e decisão de novo
+ * agendamento são registrados juntos; nenhuma revisão ou obrigação
+ * derivada é criada.
  */
-export async function registerFollowUpNoContact(input: {
+export async function registerFollowUpOutcome(input: {
   meetingId: string;
+  attended: boolean;
   willReschedule: boolean;
   actorId?: string | null;
   note?: string | null;
-}): Promise<{ ok: boolean; reason?: string; reviewDueAt?: string | null }> {
-  const meeting = await loadMirrorById(input.meetingId);
-  if (!meeting) return { ok: false, reason: "Compromisso do GreenSales não encontrado." };
-  const nowIso = new Date().toISOString();
-  if (input.willReschedule) {
-    const result = await transition({
-      meeting,
-      expected: [FOLLOW_UP_STATES.pending, FOLLOW_UP_STATES.expiredNoContact],
-      next: FOLLOW_UP_STATES.awaitingReschedule,
-      reviewDueAt: null,
-      entry: { at: nowIso, event: "sem_contato_vai_reagendar", state: FOLLOW_UP_STATES.awaitingReschedule, detail: input.note ?? null, actor_id: input.actorId ?? null },
-      nowIso,
-    });
-    if (result.ok) {
-      await appendTimeline({
-        leadId: meeting.investor_id,
-        event: "agendamento_sem_contato_reagendar",
-        reason: "Sem contato — executivo vai reagendar no GreenSales.",
-        actorId: input.actorId ?? null,
-        at: nowIso,
-      });
-    }
-    return result;
-  }
-  const dueAt = reviewDueAt(nowIso);
-  const result = await transition({
-    meeting,
-    expected: [FOLLOW_UP_STATES.pending],
-    next: FOLLOW_UP_STATES.expiredNoContact,
-    reviewDueAt: dueAt,
-    entry: { at: nowIso, event: "sem_contato_sem_reagendamento", state: FOLLOW_UP_STATES.expiredNoContact, detail: input.note ?? null, actor_id: input.actorId ?? null },
-    nowIso,
-  });
-  if (result.ok) {
-    await appendTimeline({
-      leadId: meeting.investor_id,
-      event: "agendamento_vencido_sem_contato",
-      reason: "Sem contato e sem reagendamento — verificação em 24h programada.",
-      actorId: input.actorId ?? null,
-      at: nowIso,
-    });
-  }
-  return { ...result, reviewDueAt: dueAt };
-}
-
-/**
- * Obrigação de 24h: "Deseja encerrar esse fluxo?"
- *  - encerrar = SIM → ENCERRADO (nenhuma nova ação);
- *  - encerrar = NÃO → RETOMAR_EM_FRIOS (orientação: mover para Frios no
- *    GreenSales; a liberação do R acontece só na transição estruturada).
- */
-export async function resolveFollowUpReview(input: {
-  meetingId: string;
-  close: boolean;
-  actorId?: string | null;
-  note?: string | null;
 }): Promise<{ ok: boolean; reason?: string }> {
   const meeting = await loadMirrorById(input.meetingId);
   if (!meeting) return { ok: false, reason: "Compromisso do GreenSales não encontrado." };
   const nowIso = new Date().toISOString();
-  const next = input.close ? FOLLOW_UP_STATES.closed : FOLLOW_UP_STATES.resumeInFrios;
+  const next = input.willReschedule
+    ? FOLLOW_UP_STATES.awaitingReschedule
+    : FOLLOW_UP_STATES.closed;
   const result = await transition({
     meeting,
-    expected: [FOLLOW_UP_STATES.expiredNoContact],
+    expected: [FOLLOW_UP_STATES.pending],
     next,
-    status: input.close ? "Concluída" : undefined,
-    reviewResolvedAt: nowIso,
-    entry: { at: nowIso, event: input.close ? "fluxo_encerrado" : "retomar_em_frios", state: next, detail: input.note ?? null, actor_id: input.actorId ?? null },
+    status: "Concluída",
+    reviewDueAt: null,
+    entry: {
+      at: nowIso,
+      event: input.willReschedule ? "desfecho_vai_reagendar" : "desfecho_encerrado",
+      state: next,
+      detail: `${input.attended ? "Compareceu" : "Não compareceu"}.${input.note?.trim() ? ` ${input.note.trim()}` : ""}`,
+      actor_id: input.actorId ?? null,
+    },
     nowIso,
   });
   if (result.ok) {
     await appendTimeline({
       leadId: meeting.investor_id,
-      event: input.close ? "agendamento_fluxo_encerrado" : "agendamento_retomar_em_frios",
-      reason: input.close
-        ? "Fluxo de agendamento encerrado pelo executivo."
-        : "Executivo optou por retomar o relacionamento — mover para Frios no GreenSales.",
+      event: input.willReschedule ? "agendamento_desfecho_reagendar" : "agendamento_desfecho_encerrado",
+      reason: `${input.attended ? "Compareceu" : "Não compareceu"} — ${input.willReschedule ? "novo agendamento será feito no GreenSales" : "sem novo agendamento"}.`,
       actorId: input.actorId ?? null,
       at: nowIso,
     });

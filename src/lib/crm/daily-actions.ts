@@ -109,15 +109,12 @@ export type DailyAction = {
   meetingId?: string;
   /**
    * Compromisso ESPELHADO do follow_up do GreenSales (Financeira /f).
-   * `mode = "contato"`: perguntar se houve contato de agendamento.
-   * `mode = "revisao_24h"`: obrigação de decidir encerrar ou retomar.
+   * Pergunta pelo comparecimento e pela intenção de novo agendamento.
    * Reagendamento acontece SOMENTE no GreenSales — nunca aqui.
    */
   followUp?: {
-    mode: "contato" | "revisao_24h";
     state: string | null;
     scheduledAt: string;
-    reviewDueAt: string | null;
   };
   /**
    * Mensagem oficial da jornada: identifica a etapa para que a tela
@@ -288,9 +285,7 @@ export function sortDailyActions(
 export function reclassifyDailyActions(actions: DailyAction[], nowIso: string, continuityLeadId?: string | null): DailyAction[] {
   const flatten = (rows: DailyAction[]): DailyAction[] => rows.flatMap((a) => [{ ...a, secondary: undefined }, ...flatten(a.secondary ?? [])]);
   const rows = flatten(actions).filter((a) => !a.expiresAt || Date.parse(a.expiresAt) > Date.parse(nowIso)).map((a) => {
-    const bucket = a.followUp?.mode === "revisao_24h"
-      ? "pendente"
-      : a.source === "queue" || a.source === "closure"
+    const bucket = a.source === "queue" || a.source === "closure"
       ? (isOverdueByBusinessDays(availabilityFromDate(a.dueDate), nowIso) ? "atrasada" : a.dueDate > operationalDate(nowIso) ? "futura" : "hoje")
       : a.startsAt ? resolveBucket({ dueDate: a.dueDate, startsAt: a.startsAt, nowIso }) : a.bucket;
     return { ...a, bucket, overdue: bucket === "atrasada" };
