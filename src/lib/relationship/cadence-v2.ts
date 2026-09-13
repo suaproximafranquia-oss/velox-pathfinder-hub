@@ -527,8 +527,6 @@ export function stepActions(step: CadenceV2Step, compensateE2 = false): StepActi
       return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Apresentação / envio de material" }];
     case "RE0":
       return [{ order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" }];
-    case "RE2":
-      return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Oferta / apresentação de material" }];
     case "E6":
     case "E8":
     case "R3":

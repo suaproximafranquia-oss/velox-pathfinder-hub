@@ -61,14 +61,13 @@ function extractVariables(body: string): string[] {
   return [...new Set([...body.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((m) => m[1]!))];
 }
 
-export const INTERNAL_CADENCE_TEMPLATES: InternalTemplate[] = (
+export const INTERNAL_CADENCE_TEMPLATES = (
   Object.keys(HOMOLOGATION_MESSAGES) as (keyof typeof HOMOLOGATION_MESSAGES)[]
 ).map((step) => {
   const message = HOMOLOGATION_MESSAGES[step];
-  if (!message) return null;
   return {
     code: `INT-${step}`,
-    step,
+    step: step as CadenceStep,
     label: LABELS[step].label,
     purpose: message.purpose,
     status: "NAO_SUBMETIDO_META" as const,
@@ -84,7 +83,8 @@ export const INTERNAL_CADENCE_TEMPLATES: InternalTemplate[] = (
     usesInvestorName: message.usesInvestorName,
     body: message.text,
   };
-}).filter((template): template is InternalTemplate => template !== null);
+  } satisfies InternalTemplate;
+});
 
 export function getInternalTemplate(step: CadenceStep): InternalTemplate | null {
   return INTERNAL_CADENCE_TEMPLATES.find((t) => t.step === step) ?? null;
