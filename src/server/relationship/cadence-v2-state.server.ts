@@ -186,6 +186,16 @@ export async function loadCadenceV2State(
   const cycleStartedMs = Date.parse(originIso ?? "");
   const occurredInCycle = (at: string | null) =>
     Boolean(at && Number.isFinite(cycleStartedMs) && Date.parse(at) >= cycleStartedMs);
+  const r3ExecutedAt = actions
+    .filter((action) => action.step === "R3" && action.status === "EXECUTED" && action.executedAt)
+    .map((action) => String(action.executedAt))
+    .sort()
+    .at(-1) ?? null;
+  const materialSentAfterR3 = Boolean(
+    r3ExecutedAt &&
+      material.lastMaterialSentAt &&
+      Date.parse(material.lastMaterialSentAt) >= Date.parse(r3ExecutedAt),
+  );
 
   /**
    * CAMINHO V — decisão do MOTOR, tomada uma única vez e congelada como
@@ -233,7 +243,8 @@ export async function loadCadenceV2State(
       materialRequested: material.materialRequested,
       needsNewPresentation: flow === "RE" ? !material.materialSent : false,
       materialRequestedInCycle: occurredInCycle(material.lastMaterialRequestedAt),
-      materialSentInCycle: occurredInCycle(material.lastMaterialSentAt),
+      materialSentInCycle:
+        flow === "R" ? materialSentAfterR3 : occurredInCycle(material.lastMaterialSentAt),
       visualPath,
       reachedE4Historically: reachedE4,
     },
