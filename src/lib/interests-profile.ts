@@ -8,7 +8,6 @@
  * dados novos consumidos pelos módulos já implementados.
  */
 import { emitEvent } from "@/lib/events/bus";
-import { addComment } from "@/lib/investor-comments";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
 import { getCurrentInvestorId } from "@/lib/portal-session";
 
@@ -132,15 +131,6 @@ export function saveInterestsProfile(input: {
       interests: input.interests,
       personalized: responsible.personalized,
     },
-  });
-
-  // Registra o resumo como comentário automático para alimentar a IA
-  // Corporativa e o Perfil Inteligente do executivo responsável.
-  addComment({
-    investorId,
-    authorId: "ai_corporate",
-    authorName: "IA Corporativa",
-    body: summary,
   });
 
   return profile;
