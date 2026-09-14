@@ -5,6 +5,7 @@ import { BEHAVIOR_LABEL, journeySummary } from "@/lib/journey/insights";
 import {
   ArrowLeft,
   Calendar,
+  FileText,
   MessageSquarePlus,
   Sparkles,
   MapPin,
