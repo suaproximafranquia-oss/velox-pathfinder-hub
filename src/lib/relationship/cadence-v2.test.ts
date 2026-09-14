@@ -153,11 +153,10 @@ describe("fluxo RE", () => {
 });
 
 describe("ações internas da etapa", () => {
-  it("E1 libera mensagem após ligação 1 e mantém ligação adicional +2h", () => {
+  it("E1 possui somente uma ligação seguida de mensagem", () => {
     expect(stepActions("E1").map((a) => `${a.kind}:${a.order}`)).toEqual([
-      "call:1", "message:3", "call:2",
+      "call:1", "message:3",
     ]);
-    expect(stepActions("E1")[2]?.waitHoursAfterPrevious).toBe(2);
   });
 
   it("etapas compostas são ligação seguida de mensagem", () => {
@@ -168,7 +167,7 @@ describe("ações internas da etapa", () => {
 
   it("materializa o mapa definitivo sem transformar contextos V em etapas", () => {
     const expected = {
-      E0: ["call", "call", "message"], E1: ["call", "message", "call"],
+      E0: ["call", "call", "message"], E1: ["call", "message"],
       E2: ["call", "message"], E3: ["call", "message"], E4: ["call", "message"],
       E5: ["manual"], E6: ["message"], E7: ["call", "message"], E8: ["message"],
       R1: ["call", "message"], R2: ["call", "message"], R3: ["message"], R4: ["message"], R5: ["message"],
@@ -189,19 +188,6 @@ describe("ações internas da etapa", () => {
     });
     expect(released?.action.order).toBe(3);
     expect(released?.releaseAt).toBe("2026-08-03T17:00:00.000Z");
-  });
-
-  it("ligação adicional usa +2h da primeira, nunca a próxima abertura", () => {
-    const released = nextReleasedAction({
-      step: "E1",
-      stepDueAt: "2026-08-03T12:00:00.000Z",
-      states: [
-        { order: 1, status: "DONE", executedAt: "2026-08-03T19:00:00.000Z" },
-        { order: 3, status: "DONE", executedAt: "2026-08-03T19:01:00.000Z" },
-      ],
-    });
-    expect(released?.action.order).toBe(2);
-    expect(released?.releaseAt).toBe("2026-08-03T21:00:00.000Z"); // expira às 17:30 antes de liberar
   });
 
   it("a mensagem não é liberada antes da ligação da mesma etapa", () => {

@@ -519,6 +519,11 @@ export function stepActions(
         { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
       ];
     case "E1":
+      return [
+        { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" },
+        // Mantém a ordem histórica da mensagem para não duplicar filas existentes.
+        { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
+      ];
     case "E2":
       return [
         { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" },
