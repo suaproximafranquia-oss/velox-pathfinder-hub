@@ -126,3 +126,9 @@
 - [x] Ajustar os geradores existentes do Portal personalizado, convite E5 e material padrão sem alterar caminhos ou tokens.
 - [x] Confirmar Manual, Material, Simulador e CTA público pela mesma fonte central, sem tocar assets ou outras marcas.
 - [x] Validar testes focados, tipos e compilação (11 testes e tipos aprovados; build automático OK).
+
+## Correção da execução pública de `can_access_e0_action`
+
+- [ ] Revogar `EXECUTE` de `PUBLIC` e `anon`, preservando `authenticated`.
+- [ ] Confirmar as permissões efetivas sem alterar função, RLS ou fluxo E0.
+- [ ] Validar E0, consulta da Ação do Dia, testes focados, tipos e compilação.
