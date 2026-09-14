@@ -26,7 +26,6 @@ import { moduleForPath } from "../lib/portal-modules";
 import { writeEntryContext } from "../lib/portal-entry";
 import { WhatsAppFloating } from "../components/shared/whatsapp-floating";
 import { JourneyTracker } from "../components/journey/journey-tracker";
-import { HomologationGate } from "../components/portal/homologation-gate";
 import { Toaster } from "../components/ui/sonner";
 import { AgendaDock } from "../components/agenda/agenda-dock";
 import { isOperationalPath } from "../lib/business-unit";
@@ -178,11 +177,7 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  return (
-    <HomologationGate>
-      <RootRoutes />
-    </HomologationGate>
-  );
+  return <RootRoutes />;
 }
 
 function RootRoutes() {
