@@ -1,11 +1,8 @@
 /**
  * Perfil Comercial do Investidor — captura de interesses no Manual (Cap. VI).
  *
- * Persiste as respostas do capítulo "Personalizando sua jornada" em
- * localStorage, gera um resumo dinâmico (IA Corporativa leve) e alimenta
- * o Perfil Inteligente através do barramento de eventos e dos comentários
- * internos do investidor. Não altera regras existentes: apenas produz
- * dados novos consumidos pelos módulos já implementados.
+ * Mantém um espelho local das respostas para compatibilidade e emite o
+ * evento real da jornada. A fonte persistente é o perfil server-side.
  */
 import { emitEvent } from "@/lib/events/bus";
 import { getResponsibleExecutive } from "@/lib/responsible-executive";
