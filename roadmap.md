@@ -122,7 +122,7 @@
 
 ## Domínio público oficial da Financeira /f
 
-- [ ] Centralizar `https://portalvelox.com.br` como origem pública da Financeira, preservando local e homologação.
-- [ ] Ajustar os geradores existentes do Portal personalizado, convite E5 e material padrão sem alterar caminhos ou tokens.
-- [ ] Confirmar Manual, Material, Simulador e CTA público pela mesma fonte central, sem tocar assets ou outras marcas.
-- [ ] Validar testes focados, tipos e compilação.
+- [x] Centralizar `https://portalvelox.com.br` como origem pública da Financeira, preservando local e homologação.
+- [x] Ajustar os geradores existentes do Portal personalizado, convite E5 e material padrão sem alterar caminhos ou tokens.
+- [x] Confirmar Manual, Material, Simulador e CTA público pela mesma fonte central, sem tocar assets ou outras marcas.
+- [x] Validar testes focados, tipos e compilação (11 testes e tipos aprovados; build automático OK).
