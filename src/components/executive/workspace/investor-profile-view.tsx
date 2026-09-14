@@ -278,6 +278,10 @@ function LeadStateBadge({
 }) {
   const [state, setState] = useState<LeadState>(() => resolveLeadState(investor));
   useEffect(() => {
+    // Lead recém-chegado mantém o comportamento vigente; atividade posterior
+    // já possui viewed_at e só é resolvida pela Ação do Dia.
+    markLeadViewed(investor.id, actorId);
+    setState(resolveLeadState({ id: investor.id }));
     return onLeadStateChange((id) => {
       if (!id || id === investor.id) setState(resolveLeadState({ id: investor.id }));
     });
