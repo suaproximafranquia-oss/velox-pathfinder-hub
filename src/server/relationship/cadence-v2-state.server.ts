@@ -282,6 +282,7 @@ export async function resolveStepContextForLead(
       .eq("lead_id", leadId)
       .eq("step", "E0")
       .eq("action_kind", "call")
+      .eq("action_order", 1)
       .eq("status", "EXECUTED")
       .eq("result", "SIM")
       .limit(1);

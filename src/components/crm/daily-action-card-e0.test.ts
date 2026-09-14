@@ -5,7 +5,7 @@ const source = readFileSync(new URL("./daily-action-card.tsx", import.meta.url),
 
 describe("Ação do Dia — primeira ligação E0 atendida", () => {
   it("exibe a decisão explícita e carrega CONTATO_REALIZADO", () => {
-    expect(source).toContain("Deseja copiar a mensagem desta etapa?");
+    expect(source).toContain("Deseja copiar a mensagem da etapa E0?");
     expect(source).toContain('handleOpenMessage("CONTATO_REALIZADO")');
   });
 

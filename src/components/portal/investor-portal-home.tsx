@@ -50,6 +50,7 @@ import {
   usePortalAsset,
 } from "@/lib/portal/asset-overrides";
 import { canEditPortalAssets, fetchPortalAssetOverrides } from "@/lib/portal/asset-overrides.functions";
+import { toast } from "sonner";
 /**
  * Controles de edição sobre a própria foto (sem menu lateral). O
  * Material Institucional tem os seus dentro do próprio módulo.
@@ -107,7 +108,6 @@ import {
   getPortalSession,
   promotePortalSession,
 } from "@/lib/portal-session";
-import { isPortalUnlocked } from "@/lib/portal-verification";
 import { loadLeads } from "@/lib/leads";
 import { getDigitalJourney } from "@/lib/portal-journey";
 
@@ -292,7 +292,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
    * número em entradas institucionais e nunca bloqueia o acesso.
    */
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
+  const [materialUnlocked, setMaterialUnlocked] = useState(false);
   const [moduleVisibility, setModuleVisibility] = useState<PortalModuleVisibility>(
     DEFAULT_PORTAL_MODULE_VISIBILITY,
   );
@@ -380,7 +380,8 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
   }, [editorRequested]);
 
   const refreshUnlocked = useCallback(() => {
-    setUnlocked(isPortalUnlocked(getPortalSession()?.investorId ?? null));
+    const id = getPortalSession()?.investorId ?? null;
+    if (!id) setMaterialUnlocked(false);
   }, []);
 
   useEffect(() => {
@@ -405,10 +406,9 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
       const id = getPortalSession()?.investorId ?? null;
       if (!id) return;
       const { refreshPortalAccess } = await import("@/lib/portal-access");
-      await refreshPortalAccess(id, { force: true });
+      const access = await refreshPortalAccess(id, { force: true });
       if (!alive) return;
-      refreshUnlocked();
-      if (isPortalUnlocked(id)) setConfirmOpen(false);
+      setMaterialUnlocked(Boolean(access?.journeyCompletedAt || access?.releasedAt));
     };
     void sync();
     const timer = window.setInterval(() => void sync(), 20_000);
@@ -449,27 +449,24 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
     const mod = getPortalModule(key);
     if (!mod) return;
     const investorId = getPortalSession()?.investorId ?? null;
-    // Bloqueio oficial: qualquer módulo diferente do Manual exige a
-    // confirmação do WhatsApp.
-    if (key !== "manual" && !isPortalUnlocked(investorId)) {
+    // O Material Institucional é o único módulo condicionado à conclusão
+    // oficial do Manual ou à liberação operacional persistida.
+    if (key === "universo" && !materialUnlocked) {
       // Antes de bloquear, confirmamos com o servidor: a liberação pode
       // ter sido concedida agora mesmo em outro dispositivo.
       void (async () => {
         const { refreshPortalAccess } = await import("@/lib/portal-access");
-        await refreshPortalAccess(investorId, { force: true });
-        if (isPortalUnlocked(investorId)) {
-          setUnlocked(true);
+        const access = await refreshPortalAccess(investorId, { force: true });
+        if (access?.journeyCompletedAt || access?.releasedAt) {
+          setMaterialUnlocked(true);
           writeEntryContext({ pendingModule: null });
           setActive({ key, title: mod.title, src: mod.panelSrc });
           setActiveOverlay(key);
-          setJourneyStatus(key === "simulador" ? "simulador" : "portal");
+          setJourneyStatus("portal");
           trackSessionNavigation(key, mod.title);
           return;
         }
-        writeEntryContext({ pendingModule: key });
-        setActive(null);
-        setActiveOverlay(null);
-        setConfirmOpen(true);
+        toast.info("Antes de acessar o Material Institucional de Apresentação, por favor conclua o Manual do Investidor.");
       })();
       return;
     }
@@ -479,7 +476,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
     setJourneyStatus(key === "simulador" ? "simulador" : key === "manual" ? "manual" : "portal");
     trackSessionNavigation(key, mod.title);
     trackModuleAccess(key, mod.title);
-  }, []);
+  }, [materialUnlocked]);
 
   /** Abre o Gateway encerrando qualquer outro overlay ativo. */
   const openGateway = useCallback((title: string | null) => {
@@ -568,7 +565,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
           />
         )}
         <ModulesGrid
-          unlocked={unlocked}
+          materialUnlocked={materialUnlocked}
           brandKey={brandKey}
           visibility={brandKey === "financeira" ? moduleVisibility : undefined}
           onOpen={(m) => {
@@ -656,7 +653,6 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
               setConfirmOpen(false);
               // O relacionamento comercial nasce com a identificação.
               promotePortalSession();
-              setUnlocked(true);
               const pending = readEntryContext().pendingModule;
               if (pending) openModule(pending);
             }}
@@ -873,12 +869,12 @@ function Hero({ brandKey }: { brandKey: string }) {
 
 function ModulesGrid({
   onOpen,
-  unlocked,
+  materialUnlocked,
   brandKey,
   visibility,
 }: {
   onOpen: (m: ModuleCard) => void;
-  unlocked: boolean;
+  materialUnlocked: boolean;
   brandKey: string;
   visibility?: PortalModuleVisibility;
 }) {
@@ -918,7 +914,7 @@ function ModulesGrid({
               key={m.key}
               module={m}
               onOpen={onOpen}
-              locked={Boolean(m.moduleKey) && m.moduleKey !== "manual" && !unlocked}
+              locked={m.moduleKey === "universo" && !materialUnlocked}
             />
           ))}
         </div>

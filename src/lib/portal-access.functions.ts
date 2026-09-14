@@ -312,6 +312,22 @@ export type InvestorJourneyState = {
   investorProfile: PersistedInvestorProfile | null;
 };
 
+/** Estado operacional mínimo do Material na ficha do Workspace. */
+export const getMaterialAccessState = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ investorId: z.string().min(3) }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: lead } = await context.supabase
+      .from("portal_leads")
+      .select("journey_completed_at,portal_released_at")
+      .eq("id", data.investorId)
+      .maybeSingle();
+    return {
+      completed: Boolean(lead?.journey_completed_at),
+      released: Boolean(lead?.portal_released_at),
+    };
+  });
+
 /**
  * Estado consolidado da jornada — lido por Ficha, aba Jornada,
  * Engajamento e Central do Executivo. Deriva EXCLUSIVAMENTE do que está
