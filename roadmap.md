@@ -1,5 +1,10 @@
 # Roadmap
 
+- [ ] /f marco zero: preservar os 40 leads oficiais, 10 compromissos válidos e as referências de reentrada gs_56503/gs_57906.
+- [ ] /f marco zero: remover ações, pendências, filas, ciclos e resíduos internos anteriores, sem tocar no GreenSales externo.
+- [ ] /f marco zero: alinhar Workspace e CRM interno à mesma base oficial e manter atualização automática sem F5.
+- [ ] Validar contagens finais, vínculos preservados, ausência de resíduos, tipos, testes e compilação.
+
 - [x] /f: remover imediatamente apenas o NOVO do alerta concluído e sincronizar fila + card principal da Ação do Dia sem F5.
 - [x] /f: garantir RE0 por nova entrada comercial no motor/fila existentes, por ID canônico, sem coluna NOVOS, duplicação ou reinício de E0.
 - [x] /f: aplicar somente os microajustes do Material Institucional e as respostas indicadas exclusivamente no Capítulo 12 do Manual do Investidor Financeira.

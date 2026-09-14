@@ -197,6 +197,31 @@ async function ownExternalIds(
     .filter((value) => value.length > 0);
 }
 
+/**
+ * MARCO ZERO /f — o Portal dos Leads é a base operacional oficial.
+ *
+ * `crm_leads` continua sendo o espelho técnico completo necessário para
+ * reconhecer sincronizações e reentradas, porém o CRM interno só apresenta
+ * IDs que possuem card oficial em `portal_leads`. Assim Workspace, Portal e
+ * CRM contam exatamente a mesma carteira, sem criar uma fonte paralela.
+ */
+async function officialExternalIds(context: { supabase: never }): Promise<string[]> {
+  const supabase = context.supabase as unknown as {
+    from: (t: string) => {
+      select: (c: string) => Promise<{ data: { external_id: string | null }[] | null; error: { message: string } | null }>;
+    };
+  };
+  const { data, error } = await supabase.from("portal_leads").select("external_id");
+  if (error) throw new Error(error.message);
+  return Array.from(
+    new Set(
+      (data ?? [])
+        .map((row) => (row.external_id ?? "").trim())
+        .filter((value) => value.length > 0),
+    ),
+  );
+}
+
 /** Lista os leads do nosso CRM, com filtros de operação. */
 export const listCrmLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -214,13 +239,18 @@ export const listCrmLeads = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<CrmLeadView[]> => {
     const identity = await assertManager(context as never);
     const scoped = await ownExternalIds(context as never, identity);
-    if (scoped && scoped.length === 0) return [];
+    const official = await officialExternalIds(context as never);
+    if (official.length === 0 || (scoped && scoped.length === 0)) return [];
+    const visibleExternalIds = scoped
+      ? official.filter((externalId) => scoped.includes(externalId))
+      : official;
+    if (visibleExternalIds.length === 0) return [];
     let query = context.supabase
       .from("crm_leads")
       .select(LEAD_FIELDS)
       .order("external_created_at", { ascending: false })
       .limit(500);
-    if (scoped) query = query.in("external_id", scoped);
+    query = query.in("external_id", visibleExternalIds);
     if (data.stageKey) query = query.eq("stage_key", data.stageKey);
     if (data.welcomeStatus) query = query.eq("welcome_status", data.welcomeStatus);
     if (data.search?.trim()) {
