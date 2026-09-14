@@ -25,11 +25,13 @@ describe("contextos das etapas", () => {
   });
 
   it("contexto é obrigatório só onde não existe linha sem contexto", () => {
+    expect(requiresStepContext("E0")).toBe(true);
     expect(requiresStepContext("R3")).toBe(true);
     expect(requiresStepContext("E7")).toBe(true);
     expect(requiresStepContext("E6")).toBe(false);
     expect(requiresStepContext("E1")).toBe(false);
     expect(stepCombinations("E1")).toEqual([null]);
+    expect(stepCombinations("E0")).toEqual(["SEM_CONTATO", "CONTATO_REALIZADO"]);
     expect(stepCombinations("E2")).toEqual([null, "V2"]);
     expect(stepCombinations("R3")).toEqual(["SEM_CONTATO", "MATERIAL_ENVIADO"]);
     expect(stepCombinations("R5")).toEqual(["SEM_CONTATO", "MATERIAL_ENVIADO"]);

@@ -214,11 +214,11 @@ export function useRealDailyActionsAdapter(
       prewarmOutcome: () => {
         void prewarmOutcome({}).catch(() => undefined);
       },
-      loadMessage: async (item) => {
+      loadMessage: async (item, context) => {
         const step = item.messageRef?.step ?? item.stepLabel;
         if (!item.leadId || !step) return null;
         return loadStepMessage({
-          data: { leadId: item.leadId, step, pendingRecovery },
+          data: { leadId: item.leadId, step, context, pendingRecovery },
         });
       },
       registerMessage: async (item, note) => {

@@ -66,6 +66,7 @@ export type CycleContext = {
 
 export type StepContext =
   | "SEM_CONTATO"
+  | "CONTATO_REALIZADO"
   | "MATERIAL_ENVIADO"
   | "V1"
   | "V2"
@@ -487,9 +488,24 @@ export function waitMinutesOf(action: StepActionPlan): number {
  * E0 é etapa real da régua: ligação 1 → 10 minutos → ligação 2 →
  * mensagem (somente se as duas ligações não forem atendidas).
  */
-export function stepActions(step: CadenceV2Step, compensateE2 = false): StepActionPlan[] {
+export function isOperationalMonday(isoDate: string | null | undefined): boolean {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return false;
+  return weekdayOf(isoDate) === 1;
+}
+
+export function stepActions(
+  step: CadenceV2Step,
+  compensateE2 = false,
+  operationalDate?: string | null,
+): StepActionPlan[] {
   switch (step) {
     case "E0":
+      if (isOperationalMonday(operationalDate)) {
+        return [
+          { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" },
+          { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
+        ];
+      }
       return [
         { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação 1" },
         {
@@ -549,6 +565,8 @@ export type ActionState = {
   status: "PENDING" | "DONE" | "CANCELLED";
   /** Execução real da ação (ISO). */
   executedAt?: string | null;
+  /** Resultado estruturado da ligação, quando esta ação é uma ligação. */
+  result?: string | null;
 };
 
 /**
@@ -561,6 +579,8 @@ export function nextReleasedAction(input: {
   stepDueAt: string;
   states: ActionState[];
   compensateE2?: boolean;
+  /** Data operacional que define exclusivamente o plano da E0. */
+  operationalDate?: string | null;
   /**
    * Mudança válida de fluxo durante a etapa (lead atendeu, foi para
    * AGENDAMENTO, mudou de estágio, ciclo encerrado…). As ações
@@ -569,20 +589,25 @@ export function nextReleasedAction(input: {
   flowChanged?: boolean;
 }): { action: StepActionPlan; releaseAt: string } | null {
   if (input.flowChanged) return null;
-  const plan = stepActions(input.step, input.compensateE2);
+  const plan = stepActions(input.step, input.compensateE2, input.operationalDate);
   const byOrder = new Map(input.states.map((s) => [s.order, s]));
 
-  for (const action of plan) {
+  for (let index = 0; index < plan.length; index += 1) {
+    const action = plan[index]!;
     const state = byOrder.get(action.order);
     if (state?.status === "DONE") continue;
     if (state?.status === "CANCELLED") continue;
 
     // E1/E2: mensagem e tentativa adicional dependem da PRIMEIRA ligação.
     const firstCallDependent = (input.step === "E1" || input.step === "E2") && action.order !== 1;
-    const previous = plan.find((p) => p.order === (firstCallDependent ? 1 : action.order - 1));
+    const previous = firstCallDependent ? plan.find((p) => p.order === 1) : plan[index - 1];
     const previousState = previous ? byOrder.get(previous.order) : undefined;
     // Ordem obrigatória: a ação só existe depois da anterior concluída.
-    if (previous && previousState?.status !== "DONE") return null;
+    const e0ContactMade =
+      input.step === "E0" &&
+      action.kind === "message" &&
+      input.states.some((candidate) => candidate.status === "DONE" && candidate.result === "SIM");
+    if (previous && previousState?.status !== "DONE" && !e0ContactMade) return null;
 
     let releaseAt = input.stepDueAt;
     const waitMinutes = waitMinutesOf(action);
@@ -605,8 +630,13 @@ export function nextReleasedAction(input: {
 }
 
 /** A etapa só conclui quando a última ação aplicável termina. */
-export function isStepComplete(step: CadenceV2Step, states: ActionState[], compensateE2 = false): boolean {
-  const plan = stepActions(step, compensateE2);
+export function isStepComplete(
+  step: CadenceV2Step,
+  states: ActionState[],
+  compensateE2 = false,
+  operationalDate?: string | null,
+): boolean {
+  const plan = stepActions(step, compensateE2, operationalDate);
   const byOrder = new Map(states.map((s) => [s.order, s]));
   return plan.every((a) => {
     const state = byOrder.get(a.order);

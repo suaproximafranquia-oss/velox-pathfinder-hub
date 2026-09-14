@@ -274,6 +274,20 @@ export async function resolveStepContextForLead(
 ): Promise<import("@/lib/relationship/cadence-v2").StepContext | null> {
   const key = String(step ?? "").trim().toUpperCase();
 
+  if (key === "E0") {
+    const { data } = await supabaseAdmin
+      .from("relationship_queue")
+      .select("result")
+      .eq("scope", scope)
+      .eq("lead_id", leadId)
+      .eq("step", "E0")
+      .eq("action_kind", "call")
+      .eq("status", "EXECUTED")
+      .eq("result", "SIM")
+      .limit(1);
+    return (data ?? []).length > 0 ? "CONTATO_REALIZADO" : "SEM_CONTATO";
+  }
+
   if (key === "E7" || key === "E8") {
     const material = await loadMaterialState(leadId);
     return material.materialSent ? "MATERIAL_ENVIADO" : "SEM_CONTATO";

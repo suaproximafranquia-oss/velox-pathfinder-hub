@@ -25,6 +25,23 @@ describe("E0 na régua V2", () => {
     expect(waitMinutesOf(plan[1]!)).toBe(10);
   });
 
+  it("na segunda-feira tem somente uma ligação seguida da mensagem", () => {
+    const plan = stepActions("E0", false, "2026-09-14");
+    expect(plan.map((a) => `${a.kind}:${a.order}`)).toEqual(["call:1", "message:3"]);
+  });
+
+  it("na segunda-feira libera a mensagem após a única ligação, com qualquer resultado", () => {
+    for (const result of ["NAO", "SIM"]) {
+      const released = nextReleasedAction({
+        step: "E0",
+        stepDueAt: "2026-09-14T12:00:00.000Z",
+        operationalDate: "2026-09-14",
+        states: [{ order: 1, status: "DONE", executedAt: "2026-09-14T12:00:00.000Z", result }],
+      });
+      expect(released?.action).toMatchObject({ order: 3, kind: "message" });
+    }
+  });
+
   it("libera a primeira ligação quando não existe nada na fila", () => {
     const decision = decideCadenceV2(base as never);
     expect(decision.kind).toBe("obligation");
@@ -49,7 +66,7 @@ describe("E0 na régua V2", () => {
       step: "E0",
       stepDueAt: "2026-03-03T12:00:00.000Z",
       states: [
-        { order: 1, status: "DONE", executedAt: "2026-03-03T12:00:00.000Z" },
+        { order: 1, status: "DONE", executedAt: "2026-03-03T12:00:00.000Z", result: "NAO" },
         { order: 2, status: "PENDING" },
       ],
     });
@@ -59,17 +76,30 @@ describe("E0 na régua V2", () => {
     );
   });
 
+  it("de terça a sexta, atendimento na primeira ligação pula a segunda e libera a mensagem", () => {
+    const released = nextReleasedAction({
+      step: "E0",
+      stepDueAt: "2026-09-15T12:00:00.000Z",
+      operationalDate: "2026-09-15",
+      states: [
+        { order: 1, status: "DONE", executedAt: "2026-09-15T12:00:00.000Z", result: "SIM" },
+        { order: 2, status: "CANCELLED" },
+      ],
+    });
+    expect(released?.action).toMatchObject({ order: 3, kind: "message" });
+  });
 
-  it("ligação atendida encerra o E0: a mensagem não é cobrada", () => {
+
+  it("mensagem concluída encerra o E0 sem recriar ações", () => {
     const released = nextReleasedAction({
       step: "E0",
       stepDueAt: "2026-03-03T12:00:00.000Z",
       states: [
         { order: 1, status: "DONE", executedAt: "2026-03-03T12:00:00.000Z" },
         { order: 2, status: "CANCELLED" },
-        { order: 3, status: "CANCELLED" },
+        { order: 3, status: "DONE" },
       ],
-      flowChanged: true,
+      operationalDate: "2026-09-15",
     });
     expect(released).toBeNull();
   });

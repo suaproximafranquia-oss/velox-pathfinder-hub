@@ -62,7 +62,10 @@ export type DailyActionsAdapter = {
   /** Observação operacional vinculada à ação. */
   addNote: (item: DailyAction, note: string) => Promise<AdapterResult>;
   /** Leitura da mensagem oficial da etapa (nunca envia). */
-  loadMessage: (item: DailyAction) => Promise<StepMessageView | null>;
+  loadMessage: (
+    item: DailyAction,
+    context?: "SEM_CONTATO" | "CONTATO_REALIZADO",
+  ) => Promise<StepMessageView | null>;
   /**
    * PRÉ-GATILHO: aquece o caminho do "Concluído" no servidor. Somente
    * leitura — não efetiva, não grava e não avança nada.
