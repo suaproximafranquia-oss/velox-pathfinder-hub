@@ -37,6 +37,7 @@ beforeEach(() => {
 });
 
 it("lead elegível já espelhado em NOVOS abre uma única E0 enquanto não operacionalizado", async () => {
+  fake.last = "2026-09-09T12:00:00Z";
   fake.operationalized = false;
   fake.pending.mockImplementationOnce(async () => {
     fake.operationalized = true;
