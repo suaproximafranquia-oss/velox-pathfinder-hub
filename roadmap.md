@@ -129,6 +129,6 @@
 
 ## Correção da execução pública de `can_access_e0_action`
 
-- [ ] Revogar `EXECUTE` de `PUBLIC` e `anon`, preservando `authenticated`.
-- [ ] Confirmar as permissões efetivas sem alterar função, RLS ou fluxo E0.
-- [ ] Validar E0, consulta da Ação do Dia, testes focados, tipos e compilação.
+- [x] Revogar `EXECUTE` de `PUBLIC` e `anon`, preservando `authenticated`.
+- [x] Confirmar as permissões efetivas sem alterar função, RLS ou fluxo E0.
+- [x] Validar E0, consulta da Ação do Dia, testes focados, tipos e compilação (43 testes focados e tipos aprovados; build automático OK). Um teste legado adicional mantém falha preexistente isolada em `actionRank`, sem relação com permissões ou consulta.
