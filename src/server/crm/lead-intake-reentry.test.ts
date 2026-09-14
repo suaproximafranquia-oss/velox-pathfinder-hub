@@ -43,7 +43,7 @@ it("lead elegível já espelhado em NOVOS abre uma única E0 enquanto não opera
     return { ok: true, created: true };
   });
   fake.upsert.mockResolvedValue({ lead: { id: "TEST-crm", name: "Oficial", entered_entry_stage_at: "2026-09-09T12:00:00Z" }, created: false, changed: false, deduplicated: false, enteredEntryStage: false });
-  const raw = { id: "TEST", name: "Oficial", last_register_at: "2026-09-09T12:00:00Z", tags: [{ id: 26 }] };
+  const raw = { id: "TEST", name: "Oficial", created_at: "2026-09-09T12:00:00Z", last_register_at: "2026-09-09T12:00:00Z", tags: [{ id: 26 }] };
   await intakeLead(raw, context);
   await intakeLead(raw, context);
   expect(fake.pending).toHaveBeenCalledTimes(1);
