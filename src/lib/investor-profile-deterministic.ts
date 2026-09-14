@@ -67,3 +67,21 @@ export function selfAssessmentIntention(profile?: PersistedInvestorProfile | nul
 export function audienceLabel(audience?: "pf" | "pj" | "ambos" | null): string {
   return audience === "pf" ? "Pessoa Física" : audience === "pj" ? "Pessoa Jurídica" : audience === "ambos" ? "Ambos" : "Não informado";
 }
+
+export function mergeInvestorProfileJourney(
+  journey: Record<string, unknown>,
+  patch: Pick<PersistedInvestorProfile, "commercial" | "selfAssessment">,
+): Record<string, unknown> {
+  const current = journey["investorProfile"];
+  const existing = current && typeof current === "object" && !Array.isArray(current)
+    ? (current as Record<string, unknown>) : {};
+  return {
+    ...journey,
+    investorProfile: {
+      ...existing,
+      version: 1,
+      ...(patch.commercial ? { commercial: patch.commercial } : {}),
+      ...(patch.selfAssessment ? { selfAssessment: patch.selfAssessment } : {}),
+    },
+  };
+}

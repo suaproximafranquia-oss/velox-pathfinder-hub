@@ -13,6 +13,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { PersistedInvestorProfile } from "@/lib/investor-profile-deterministic";
+import { mergeInvestorProfileJourney } from "@/lib/investor-profile-deterministic";
 
 export type PortalAccessState = {
   investorId: string;
@@ -245,17 +246,9 @@ export const saveInvestorProfile = createServerFn({ method: "POST" })
 
     const journey = lead.journey && typeof lead.journey === "object" && !Array.isArray(lead.journey)
       ? (lead.journey as Record<string, unknown>) : {};
-    const existing = journey["investorProfile"] && typeof journey["investorProfile"] === "object" && !Array.isArray(journey["investorProfile"])
-      ? (journey["investorProfile"] as Record<string, unknown>) : {};
-    const investorProfile = {
-      ...existing,
-      version: 1,
-      ...(data.patch.commercial ? { commercial: data.patch.commercial } : {}),
-      ...(data.patch.selfAssessment ? { selfAssessment: data.patch.selfAssessment } : {}),
-    };
     const { error } = await supabaseAdmin
       .from("portal_leads")
-      .update({ journey: { ...journey, investorProfile } as never })
+      .update({ journey: mergeInvestorProfileJourney(journey, data.patch) as never })
       .eq("id", data.investorId);
     if (error) throw new Error(error.message);
     return { ok: true as const };

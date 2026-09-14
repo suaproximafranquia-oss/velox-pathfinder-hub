@@ -144,7 +144,7 @@ export function InvestorProfileView({
             </span>
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                Perfil Inteligente
+                Ficha do Investidor
               </p>
               <h1 className="font-display text-2xl md:text-3xl leading-tight truncate">
                 {investor.name}
@@ -1104,6 +1104,9 @@ function TabRelatorio({ investor }: { investor: Investor }) {
   const assessment = profile?.selfAssessment;
   const commercial = profile?.commercial;
   const intention = selfAssessmentIntention(profile);
+  const declared = commercial
+    ? `Declarou interesse em ${audienceLabel(commercial.audience)}, com destaque para ${commercial.interests.length ? commercial.interests.slice(0, 3).join(", ") : "Não informado"}.`
+    : "Não informado.";
   return (
     <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
         <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
@@ -1119,12 +1122,8 @@ function TabRelatorio({ investor }: { investor: Investor }) {
             </p>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Perfil comercial</p>
-            <p className="mt-1">{audienceLabel(commercial?.audience)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Interesses declarados</p>
-            <p className="mt-1">{commercial?.interests.length ? commercial.interests.slice(0, 3).join(", ") : "Não informado."}</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Perfil comercial e interesses</p>
+            <p className="mt-1">{declared}</p>
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Intenção após a leitura</p>
