@@ -462,7 +462,7 @@ export function InvestorPortalHome({ brandKey, homePath }: InvestorPortalHomePro
           writeEntryContext({ pendingModule: null });
           setActive({ key, title: mod.title, src: mod.panelSrc });
           setActiveOverlay(key);
-          setJourneyStatus(key === "simulador" ? "simulador" : "portal");
+          setJourneyStatus("portal");
           trackSessionNavigation(key, mod.title);
           return;
         }
