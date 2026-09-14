@@ -1,21 +1,12 @@
-# Reconciliação dos 5 warnings da Security View
+# Separação de origem e telefone na Ação do Dia
 
-## Escopo
-Produzir um diagnóstico estritamente read-only da Financeira `/f`, sem alterar código, banco, permissões, políticas, storage ou dependências.
+## Implementação
+- Manter a origem atual da aplicação para navegação interna no editor, preview, localhost e homologação, sem redirecionamento global.
+- Fazer os geradores externos da Financeira usarem exclusivamente `https://portalvelox.com.br`, incluindo link personalizado, Manual, Material, Simulador, CTAs e convite E5, preservando caminhos e tokens.
+- Remover dos geradores públicos da Financeira a influência de `window.location.origin` ou da origem recebida pelo navegador, sem alterar as outras marcas.
+- Adicionar uma única formatação visual pequena para o telefone exibido no card da Ação do Dia, preservando os dígitos originais, `tel:`, `wa.me`, banco e validações.
 
-## Evidências já confirmadas
-- O warning público é gerado por `public.can_access_e0_action(text, text)`: é `SECURITY DEFINER`, `STABLE`, usa `search_path=public` e ainda tem `EXECUTE` para `PUBLIC` e `anon`.
-- As seis funções registradas na memória estão sem execução para `PUBLIC`/`anon`; `authenticated` mantém execução conforme o uso em RLS e Workspace.
-- O bucket `revista` é privado e não possui policies em `storage.objects`; o sistema acessa-o exclusivamente no servidor e entrega PDFs por URL assinada de 5 minutos.
-- `presentation_chapters` possui SELECT somente para admin; os fluxos da apresentação acessam a tabela no servidor com autorização privilegiada.
-- As capturas públicas de `portal_leads` e `group_unit_leads` gravam por funções do servidor, não por INSERT anônimo direto.
-
-## Entrega
-Para cada um dos cinco warnings atuais:
-1. nomear exatamente a função, tabela ou bucket envolvido;
-2. comparar o achado com a memória de segurança;
-3. distinguir exposição real de alerta preventivo ou gap funcional;
-4. declarar se exige correção antes da publicação;
-5. justificar objetivamente quando não exigir.
-
-A conclusão de cada item será rotulada apenas como **BLOQUEANTE**, **NÃO BLOQUEANTE** ou **ACEITO POR DESENHO**. O diagnóstico ficará limitado aos cinco warnings atuais, sem auditoria geral e sem aplicar correções.
+## Validação
+- Cobrir domínio público, origem da aplicação, convite E5 e preservação do token com testes focados.
+- Cobrir celulares brasileiros de 9 e 8 dígitos, ausência do nono dígito e entradas irregulares.
+- Verificar o preview Lovable, navegação interna, testes focados, tipos e compilação automática.
