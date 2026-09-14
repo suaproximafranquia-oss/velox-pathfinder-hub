@@ -8,7 +8,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getDefaultExecutive } from "@/lib/executive-auth";
-import { investorPortalUrl } from "@/lib/portal-brands";
+import { financeiraPublicUrl, investorPortalUrl } from "@/lib/portal-brands";
 import {
   CRM_TEMPLATES,
   getCrmTemplate,
@@ -42,7 +42,7 @@ export type AutomationSettings = {
 };
 
 /** Link padrão do material — sobrescrito pela configuração quando definida. */
-const DEFAULT_MATERIAL_URL = "https://velox-pathfinder-hub.lovable.app/manual";
+const DEFAULT_MATERIAL_URL = financeiraPublicUrl("/manual");
 const MAX_WELCOME_ATTEMPTS = 3;
 
 export async function loadSettings(): Promise<AutomationSettings> {

@@ -119,3 +119,10 @@
 - [x] Trocar os dois placeholders por imagens editoriais editáveis e ajustar somente as legendas indicadas.
 - [x] Fazer o CTA final usar o responsável da sessão reconhecida, mantendo o cadastro como fallback.
 - [x] Validar testes focados, sessão, slots, tipos e compilação sem alterar as áreas protegidas (21 testes e build aprovados).
+
+## Domínio público oficial da Financeira /f
+
+- [ ] Centralizar `https://portalvelox.com.br` como origem pública da Financeira, preservando local e homologação.
+- [ ] Ajustar os geradores existentes do Portal personalizado, convite E5 e material padrão sem alterar caminhos ou tokens.
+- [ ] Confirmar Manual, Material, Simulador e CTA público pela mesma fonte central, sem tocar assets ou outras marcas.
+- [ ] Validar testes focados, tipos e compilação.
