@@ -1,6 +1,6 @@
 import { Reveal } from "../Reveal";
 
-export type GalleryItem = { src: string; alt: string; caption?: string; span?: 1 | 2 };
+export type GalleryItem = { src: string; alt: string; caption?: string; span?: 1 | 2; slotKey?: string };
 
 /**
  * Gallery — grade assimétrica de fotos com molduras editoriais.
@@ -25,6 +25,7 @@ export function Gallery({ items }: { items: GalleryItem[] }) {
             >
               <img
                 src={it.src}
+                data-portal-asset-slot={it.slotKey}
                 alt={it.alt}
                 loading="lazy"
                 decoding="async"

@@ -46,6 +46,17 @@ export function universoSlotKey(asset: string): string {
   return `universo-${asset}`;
 }
 
+export const UNIVERSO_POSITIONAL_SLOTS = [
+  { key: "universo-ch2-panorama-mercado", label: "Material institucional — Capítulo II · Panorama do mercado", asset: "mercado-distrito-financeiro" },
+  { key: "universo-ch3-suporte-franqueado", label: "Material institucional — Capítulo III · Suporte ao Franqueado", asset: "reuniao-colaborativa" },
+  { key: "universo-ch3-universidade-corporativa", label: "Material institucional — Capítulo III · Universidade Corporativa", asset: "reuniao-colaborativa" },
+  { key: "universo-ch4-galeria-fachada", label: "Material institucional — Capítulo IV · Galeria fachada", asset: "unidade-fachada" },
+  { key: "universo-ch4-galeria-fachada-alternativa", label: "Material institucional — Capítulo IV · Galeria fachada alternativa", asset: "unidade-fachada-alternativa" },
+  { key: "universo-ch4-galeria-inauguracao", label: "Material institucional — Capítulo IV · Galeria inauguração", asset: "unidade-inauguracao" },
+  { key: "universo-ch4-galeria-executivos", label: "Material institucional — Capítulo IV · Galeria executivos", asset: "equipe-expansao" },
+  { key: "universo-ch5-proximos-passos", label: "Material institucional — Capítulo V · Atendimento consultivo", asset: "atendimento-consultivo" },
+] as const;
+
 /** Espaços de imagem do Portal que podem ser substituídos. */
 export const PORTAL_ASSET_SLOTS: { key: string; label: string; asset?: AssetKey }[] = [
   { key: "home-capa", label: "Capa da Home", asset: "portal-hero-sede" },
@@ -67,6 +78,7 @@ export const PORTAL_ASSET_SLOTS: { key: string; label: string; asset?: AssetKey 
   { key: "estrutura-recepcao", label: "Nossa Estrutura — Recepção", asset: "sede-recepcao" },
   { key: "estrutura-unidade", label: "Nossa Estrutura — Unidades da rede", asset: "unidade-fachada" },
   { key: "principios-capa", label: "Capa — Princípios Velox", asset: "portal-capa-principios" },
+  ...UNIVERSO_POSITIONAL_SLOTS,
   ...UNIVERSO_ASSETS.map((i) => ({
     key: universoSlotKey(i.asset),
     label: `Material institucional — ${i.label}`,
@@ -151,8 +163,10 @@ export function hasPendingPortalAssetChanges(): boolean {
 
 /** URL efetiva do espaço: alteração local → substituição salva → original. */
 export function portalAssetUrl(key: string, original: string): string {
-  if (removals.has(key)) return original;
-  return pending[key] ?? saved[key] ?? original;
+  const positional = UNIVERSO_POSITIONAL_SLOTS.find((slot) => slot.key === key);
+  const legacyKey = positional ? universoSlotKey(positional.asset) : null;
+  if (removals.has(key)) return legacyKey ? pending[legacyKey] ?? saved[legacyKey] ?? original : original;
+  return pending[key] ?? saved[key] ?? (legacyKey ? pending[legacyKey] ?? saved[legacyKey] : undefined) ?? original;
 }
 
 /** Assinatura React da imagem de um espaço do Portal. */

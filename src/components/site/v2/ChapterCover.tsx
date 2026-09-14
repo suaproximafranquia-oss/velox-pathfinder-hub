@@ -17,6 +17,7 @@ export function ChapterCover({
   lead,
   image,
   imageAlt,
+  assetSlot,
   surface = "ink",
 }: {
   id?: string;
@@ -26,6 +27,7 @@ export function ChapterCover({
   lead: string;
   image?: string;
   imageAlt?: string;
+  assetSlot?: string;
   surface?: "ink" | "graphite" | "blue";
 }) {
   const surfaceClass =
@@ -57,6 +59,7 @@ export function ChapterCover({
         <div className="pointer-events-none absolute inset-0 opacity-25">
           <img
             src={image}
+            data-portal-asset-slot={assetSlot}
             alt={imageAlt ?? ""}
             aria-hidden="true"
             className="h-full w-full object-cover"

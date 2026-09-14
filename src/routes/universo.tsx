@@ -53,6 +53,18 @@ const editorial = (asset: AssetKey) => ({
   },
 });
 
+const positionalEditorial = (key: string, asset: AssetKey) => ({
+  key,
+  get url() {
+    return portalAssetUrl(key, assetUrl(asset));
+  },
+});
+
+const panoramaSlot = positionalEditorial("universo-ch2-panorama-mercado", "mercado-distrito-financeiro");
+const suporteSlot = positionalEditorial("universo-ch3-suporte-franqueado", "reuniao-colaborativa");
+const universidadeSlot = positionalEditorial("universo-ch3-universidade-corporativa", "reuniao-colaborativa");
+const proximosSlot = positionalEditorial("universo-ch5-proximos-passos", "atendimento-consultivo");
+
 const heroImg = editorial("sede-velox");
 const founderImg = editorial("fundador-mario-sergio");
 const lojaFachadaImg = editorial("unidade-fachada");
@@ -444,10 +456,10 @@ const MANUAL_TOPICS: string[] = [
 
 
 const unidades = (): GalleryItem[] => [
-  { src: lojaFachadaImg.url, alt: "Fachada de unidade Velox", caption: "Unidade da rede · Fachada institucional", span: 2 },
-  { src: lojaFachada2Img.url, alt: "Fachada de unidade Velox — identidade institucional", caption: "Unidade da rede", span: 1 },
-  { src: lojaInauguracaoImg.url, alt: "Inauguração de unidade Velox", caption: "Inauguração · Rede em expansão", span: 1 },
-  { src: executivosImg.url, alt: "Executivos de expansão em unidade da rede", caption: "Executivos de Expansão · Velox", span: 2 },
+  { src: portalAssetUrl("universo-ch4-galeria-fachada", assetUrl("unidade-fachada")), slotKey: "universo-ch4-galeria-fachada", alt: "Fachada de unidade Velox", caption: "Unidade da rede · Fachada institucional", span: 2 },
+  { src: portalAssetUrl("universo-ch4-galeria-fachada-alternativa", assetUrl("unidade-fachada-alternativa")), slotKey: "universo-ch4-galeria-fachada-alternativa", alt: "Fachada de unidade Velox — identidade institucional", caption: "Unidade da rede", span: 1 },
+  { src: portalAssetUrl("universo-ch4-galeria-inauguracao", assetUrl("unidade-inauguracao")), slotKey: "universo-ch4-galeria-inauguracao", alt: "Inauguração de unidade Velox", caption: "Inauguração · Rede em expansão", span: 1 },
+  { src: portalAssetUrl("universo-ch4-galeria-executivos", assetUrl("equipe-expansao")), slotKey: "universo-ch4-galeria-executivos", alt: "Executivos de expansão em unidade da rede", caption: "Executivos de Expansão · Velox", span: 2 },
 ];
 
 function useScrollSpy(ids: string[]) {
@@ -1029,7 +1041,8 @@ function Index() {
           chapter="Capítulo II · O Mercado"
           eyebrow="Panorama do mercado financeiro"
           title="Um setor essencial, em constante transformação."
-          image={marketImg.url}
+          image={panoramaSlot.url}
+          assetSlot={panoramaSlot.key}
           imageAlt="Vista do distrito financeiro ao amanhecer"
           imageCaption="Distrito financeiro · Amanhecer"
           surface="paper"
@@ -1284,7 +1297,8 @@ function Index() {
           kicker="Suporte ao Franqueado"
           title="Nenhuma jornada sólida se constrói sozinha."
           lead="Estrutura, conhecimento e presença — o que sustenta uma operação madura."
-          image={collabImg.url}
+          image={suporteSlot.url}
+          assetSlot={suporteSlot.key}
           imageAlt=""
           surface="ink"
         />
@@ -1387,7 +1401,8 @@ function Index() {
           chapter="Capítulo III · Suporte ao Franqueado"
           eyebrow="Universidade Corporativa"
           title="Conhecimento como base da evolução da rede."
-          image={collabImg.url}
+          image={universidadeSlot.url}
+          assetSlot={universidadeSlot.key}
           imageAlt="Sala de formação corporativa com equipe em treinamento"
           imageCaption="Universidade Corporativa Velox"
           imageRatio="4 / 3"
@@ -1836,7 +1851,8 @@ function Index() {
           chapter="Capítulo V · Próximos Passos"
           eyebrow="Como funciona o processo"
           title="Uma conversa antes de qualquer decisão."
-          image={relationshipImg.url}
+          image={proximosSlot.url}
+          assetSlot={proximosSlot.key}
           imageAlt="Reunião de atendimento consultivo em ambiente institucional"
           imageCaption="Atendimento consultivo"
           surface="paper"

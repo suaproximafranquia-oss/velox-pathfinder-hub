@@ -11,9 +11,6 @@ import {
   MapPin,
   User as UserIcon,
   Clock,
-  BookOpen,
-  Play,
-  ClipboardList,
 } from "lucide-react";
 import type { Investor } from "@/lib/executive-data";
 import { STATUS_LABEL, formatRelative } from "@/lib/executive-data";
@@ -31,7 +28,12 @@ import {
   listInvestorNotesFn,
   type InvestorNoteView,
 } from "@/lib/crm/investor-notes.functions";
-import { openInvestorReport } from "@/lib/investor-report-lazy";
+import {
+  PROFILE_TEXT,
+  audienceLabel,
+  selfAssessmentIntention,
+  type PersistedInvestorProfile,
+} from "@/lib/investor-profile-deterministic";
 import { InvestorMeetingDialog } from "@/components/executive/meetings/investor-meeting-dialog";
 import {
   LEAD_STATE_META,
@@ -69,7 +71,6 @@ type TabKey =
   | "jornada"
   | "reunioes"
   | "comentarios"
-  | "ia"
   | "relatorio";
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -77,7 +78,6 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "jornada", label: "Jornada" },
   { key: "reunioes", label: "Reuniões" },
   { key: "comentarios", label: "Notas do Executivo" },
-  { key: "ia", label: "IA Corporativa" },
   { key: "relatorio", label: "Relatório" },
 ];
 
@@ -144,7 +144,7 @@ export function InvestorProfileView({
             </span>
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                Perfil Inteligente
+                Ficha do Investidor
               </p>
               <h1 className="font-display text-2xl md:text-3xl leading-tight truncate">
                 {investor.name}
@@ -172,11 +172,6 @@ export function InvestorProfileView({
           <div className="flex flex-wrap gap-2 md:justify-end">
             <LeadStateBadge investor={investor} actorId={session.userId} />
             <QuickBtn icon={Calendar} label="Nova reunião" onClick={openNewMeeting} primary />
-            <QuickBtn
-              icon={FileText}
-              label="Gerar PDF"
-              onClick={() => void openInvestorReport(investor)}
-            />
           </div>
         </div>
       </header>
@@ -226,8 +221,7 @@ export function InvestorProfileView({
           <TabReunioes profile={profile} onNewMeeting={openNewMeeting} tick={tick} />
         )}
         {tab === "comentarios" && <TabComentarios investor={investor} session={session} />}
-        {tab === "ia" && <TabIA profile={profile} investor={investor} />}
-        {tab === "relatorio" && <TabRelatorio investor={investor} profile={profile} />}
+        {tab === "relatorio" && <TabRelatorio investor={investor} />}
       </section>
 
       {meetingOpen && (
@@ -1097,125 +1091,45 @@ function TabComentarios({ investor }: { investor: Investor; session: ExecutiveSe
   );
 }
 
-/* ---------- Aba IA Corporativa ---------- */
-function TabIA({
-  profile,
-  investor,
-}: {
-  profile: InvestorProfile | null;
-  investor: Investor;
-}) {
-  const hasSignal =
-    (profile?.timeline.length ?? 0) > 0 || investor.aiInteractions > 0 || investor.readingPct > 0;
-  if (!hasSignal) {
-    return (
-      <EmptyState
-        icon={Sparkles}
-        text="A IA Corporativa ainda não coletou sinais suficientes deste investidor."
-      />
-    );
-  }
-  return (
-    <div className="grid gap-3 md:grid-cols-2">
-      <AICard
-        icon={BookOpen}
-        title="Resumo automático"
-        body={`Investidor com ${investor.readingPct}% do Manual do Investidor concluído. Atualmente no capítulo "${investor.currentChapter}", com ${investor.aiInteractions} interações registradas com a IA.`}
-      />
-      <AICard
-        icon={Sparkles}
-        title="Principais interesses"
-        body="Análise preliminar aponta interesse por modelos operacionais de baixa complexidade e cenários de receita consultiva."
-      />
-      <AICard
-        icon={Play}
-        title="Materiais consumidos"
-        body={
-          profile && profile.events.length > 0
-            ? `${profile.events.length} evento(s) registrados na jornada — priorize retomar pelo último ponto de contato.`
-            : "Nenhum material adicional consumido além do Manual."
-        }
-      />
-      <AICard
-        icon={ClipboardList}
-        title="Sugestão de abordagem"
-        body="Iniciar a conversa reconhecendo o progresso na jornada e conduzir para o diagnóstico consultivo antes de propor a reunião comercial."
-      />
-    </div>
-  );
-}
-
-function AICard({
-  icon: Icon,
-  title,
-  body,
-}: {
-  icon: typeof Sparkles;
-  title: string;
-  body: string;
-}) {
-  return (
-    <article className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-5">
-      <div className="flex items-center gap-2 text-[color:var(--gold)]">
-        <Icon className="h-4 w-4" />
-        <h3 className="font-display text-sm">{title}</h3>
-      </div>
-      <p className="mt-2 text-sm text-[color:var(--muted-foreground)] leading-relaxed">{body}</p>
-    </article>
-  );
-}
-
 /* ---------- Aba Relatório ---------- */
-function TabRelatorio({
-  investor,
-  profile,
-}: {
-  investor: Investor;
-  profile: InvestorProfile | null;
-}) {
-  const sections = [
-    { title: "Resumo do Investidor", value: `${investor.name} · ${investor.city}` },
-    { title: "Status atual", value: STATUS_LABEL[investor.status] },
-    {
-      title: "Jornada",
-      value: `Manual ${investor.readingPct}% · Capítulo: ${investor.currentChapter}`,
-    },
-    {
-      title: "Reuniões",
-      value: `${profile?.meetings.length ?? 0} reunião(ões) registradas`,
-    },
-    {
-      title: "Comentários",
-      value: `${listComments(investor.id).length} observação(ões) internas`,
-    },
-  ];
+function TabRelatorio({ investor }: { investor: Investor }) {
+  const [profile, setProfile] = useState<PersistedInvestorProfile | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void getInvestorJourneyState({ data: { investorId: investor.id } })
+      .then((state) => { if (alive) setProfile(state?.investorProfile ?? null); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [investor.id]);
+  const assessment = profile?.selfAssessment;
+  const commercial = profile?.commercial;
+  const intention = selfAssessmentIntention(profile);
+  const declared = commercial
+    ? `Declarou interesse em ${audienceLabel(commercial.audience)}, com destaque para ${commercial.interests.length ? commercial.interests.slice(0, 3).join(", ") : "Não informado"}.`
+    : "Não informado.";
   return (
-    <div className="space-y-5">
-      <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
+    <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/40 p-6">
         <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          Relatório Executivo
+          Leitura do Investidor
         </p>
         <h2 className="mt-1 font-display text-xl">{investor.name}</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {sections.map((s) => (
-            <div key={s.title}>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-                {s.title}
-              </p>
-              <p className="mt-0.5 text-sm">{s.value}</p>
-            </div>
-          ))}
+        <div className="mt-5 space-y-5 text-sm">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Perfil</p>
+            <p className="mt-1 font-medium">{assessment?.profileKey ?? "Não informado"}</p>
+            <p className="mt-2 leading-relaxed text-[color:var(--muted-foreground)]">
+              {assessment ? PROFILE_TEXT[assessment.profileKey] : "Não informado."}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Perfil comercial e interesses</p>
+            <p className="mt-1">{declared}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">Intenção após a leitura</p>
+            <p className="mt-1">{intention ?? "Não informado."}</p>
+          </div>
         </div>
-      </div>
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => void openInvestorReport(investor)}
-          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-4 py-2.5 text-xs hover:border-[color:var(--gold)] transition"
-        >
-          <FileText className="h-3.5 w-3.5" /> Gerar PDF
-        </button>
-      </div>
     </div>
   );
 }

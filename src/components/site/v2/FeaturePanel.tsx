@@ -13,6 +13,7 @@ export function FeaturePanel({
   title,
   image,
   imageAlt,
+  assetSlot,
   imageCaption,
   imageRatio = "4 / 5",
   expandImageRight = false,
@@ -26,6 +27,7 @@ export function FeaturePanel({
   title: string;
   image: string;
   imageAlt: string;
+  assetSlot?: string;
   imageCaption?: string;
   imageRatio?: string;
   expandImageRight?: boolean;
@@ -49,6 +51,7 @@ export function FeaturePanel({
             >
               <img
                 src={image}
+                data-portal-asset-slot={assetSlot}
                 alt={imageAlt}
                 loading="lazy"
                 decoding="async"

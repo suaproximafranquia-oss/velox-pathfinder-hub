@@ -12,6 +12,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { PersistedInvestorProfile } from "@/lib/investor-profile-deterministic";
+import { mergeInvestorProfileJourney } from "@/lib/investor-profile-deterministic";
 
 export type PortalAccessState = {
   investorId: string;
@@ -200,6 +202,58 @@ export const trackPortalProgress = createServerFn({ method: "POST" })
     return { ok: true as const, engagement };
   });
 
+const commercialProfileSchema = z.object({
+  audience: z.enum(["pf", "pj", "ambos"]).nullable(),
+  interests: z.array(z.string().min(1).max(120)).max(50),
+  capturedAt: z.string().datetime(),
+});
+const selfAssessmentSchema = z.object({
+  answers: z.array(z.object({
+    tag: z.string().min(1).max(40),
+    question: z.string().min(1).max(300),
+    answer: z.string().min(1).max(300),
+    optionIndex: z.number().int().min(0).max(2),
+    points: z.number().int().min(0).max(2),
+  })).length(7),
+  score: z.number().int().min(0).max(14),
+  profileKey: z.enum(["EXPLORADOR", "ANALITICO", "HIBRIDO", "PREPARADOR", "CONSTRUTOR"]),
+  capturedAt: z.string().datetime(),
+});
+
+/** Persiste somente o perfil declarado, preservando todo o restante de `journey`. */
+export const saveInvestorProfile = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({
+    investorId: z.string().min(3),
+    token: z.string().min(10),
+    patch: z.object({
+      commercial: commercialProfileSchema.optional(),
+      selfAssessment: selfAssessmentSchema.optional(),
+    }),
+  }).parse(data))
+  .handler(async ({ data }) => {
+    const { verifyToken } = await import("@/server/portal-token.server");
+    if (!(await verifyToken(data.token, data.investorId))) {
+      return { ok: false as const, reason: "nao_autorizado" as const };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: lead, error: readError } = await supabaseAdmin
+      .from("portal_leads")
+      .select("journey")
+      .eq("id", data.investorId)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!lead) return { ok: false as const, reason: "lead_inexistente" as const };
+
+    const journey = lead.journey && typeof lead.journey === "object" && !Array.isArray(lead.journey)
+      ? (lead.journey as Record<string, unknown>) : {};
+    const { error } = await supabaseAdmin
+      .from("portal_leads")
+      .update({ journey: mergeInvestorProfileJourney(journey, data.patch) as never })
+      .eq("id", data.investorId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
 /** Histórico auditável dos eventos — consumido pela Ficha do CRM. */
 export const listPortalJourneyEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -254,6 +308,7 @@ export type InvestorJourneyState = {
   estrutura: { status: ModuleAccessStatus; lastAt: string | null };
   revista: { status: ModuleAccessStatus; lastAt: string | null; detail: string | null };
   principios: { status: ModuleAccessStatus; lastAt: string | null };
+  investorProfile: PersistedInvestorProfile | null;
 };
 
 /**
@@ -270,7 +325,7 @@ export const getInvestorJourneyState = createServerFn({ method: "POST" })
     const { data: lead } = await context.supabase
       .from("portal_leads")
       .select(
-        "id,journey_percent,journey_chapter,journey_started_at,journey_completed_at,journey_first_access_at,journey_last_event_at",
+        "id,journey,journey_percent,journey_chapter,journey_started_at,journey_completed_at,journey_first_access_at,journey_last_event_at",
       )
       .eq("id", data.investorId)
       .maybeSingle();
@@ -354,5 +409,9 @@ export const getInvestorJourneyState = createServerFn({ method: "POST" })
         detail: revistaEvent?.detail ?? null,
       },
       principios: { status: access("principios"), lastAt: last["principios"] ?? null },
+      investorProfile:
+        row["journey"] && typeof row["journey"] === "object" && !Array.isArray(row["journey"])
+          ? (((row["journey"] as Record<string, unknown>)["investorProfile"] as PersistedInvestorProfile | undefined) ?? null)
+          : null,
     };
   });
