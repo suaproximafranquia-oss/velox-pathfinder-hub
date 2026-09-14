@@ -1,8 +1,7 @@
 /**
- * APRESENTAÇÃO DIGITAL (E20) NA FICHA DO INVESTIDOR.
+ * APRESENTAÇÃO DIGITAL (E5) NA FICHA DO INVESTIDOR.
  *
- * Rótulo oficial da operação: "E6 — Apresentação Digital". A chave
- * técnica E20 permanece intocada no banco e no histórico.
+ * A chave física E20 permanece intocada no banco e no histórico.
  *
  * Este é o ÚNICO lugar da plataforma onde a apresentação é gerada. A
  * tela não decide nada: o servidor responde qual é o convite vigente,
@@ -213,7 +212,7 @@ export function E20Panel({ investorId }: { investorId: string }) {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-[color:var(--foreground)]">
-            E6 — Apresentação Digital
+            E5 — Apresentação digital / entrega do material
           </h3>
           <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">
             Convite exclusivo ao Portal, válido por 7 dias a partir da emissão.

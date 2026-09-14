@@ -1,6 +1,6 @@
 import { composeMessageBody } from "@/lib/relationship/messages";
 /**
- * E20 — GERADOR DE OCORRÊNCIA E LINK DE 7 DIAS (SERVER ONLY).
+ * APRESENTAÇÃO E5 — GERADOR DE OCORRÊNCIA E LINK DE 7 DIAS (SERVER ONLY).
  *
  * A E20 é o convite formal ao Portal do Investidor. Cada emissão é uma
  * OCORRÊNCIA própria, com link exclusivo e validade contada a partir do
@@ -228,7 +228,8 @@ export async function issueE20(params: {
   });
 
   /**
-   * A mensagem da E20 vem da BIBLIOTECA (versão ativa) — nunca de texto
+    * A mensagem operacional da apresentação vem da E5 na BIBLIOTECA —
+    * nunca de texto fixo no código — e o que sair é congelado como snapshot
    * fixo no código — e o que sair é congelado como snapshot vinculado a
    * esta ocorrência. Alterar a Biblioteca depois não muda o histórico.
    */
@@ -237,7 +238,7 @@ export async function issueE20(params: {
     .select("name")
     .eq("id", params.leadId)
     .maybeSingle();
-  const { result, message: libraryMessage } = await renderFromLibrary("E20", {
+  const { result, message: libraryMessage } = await renderFromLibrary("E5", {
     executiveName: signatureName,
     portalLink: linkUrl,
     rawInvestorName: leadRow?.name ?? null,

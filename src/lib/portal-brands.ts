@@ -110,6 +110,16 @@ export function investorPortalPath(
 }
 
 /**
+ * Destino público padrão de todo link normal entregue ao investidor da
+ * Financeira. A rota personalizada continua única; `m=manual` apenas abre
+ * diretamente o Manual pelo mecanismo oficial do Portal.
+ */
+export function investorManualUrl(executiveSlug: string): string {
+  const path = investorPortalPath(executiveSlug, DEFAULT_BRAND_KEY);
+  return financeiraPublicUrl(`${path}?m=manual`);
+}
+
+/**
  * URL absoluta usada na variável `{{link_portal_investidor}}` das
  * mensagens automáticas.
  */
@@ -119,7 +129,7 @@ export function investorPortalUrl(
   baseUrl?: string,
 ): string {
   if (getBrand(brandKey).key === DEFAULT_BRAND_KEY) {
-    return financeiraPublicUrl(investorPortalPath(executiveSlug, brandKey));
+    return investorManualUrl(executiveSlug);
   }
 
   // As demais marcas não fazem parte desta troca de domínio e conservam

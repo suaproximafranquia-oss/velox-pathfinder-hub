@@ -480,6 +480,9 @@ export function renderMessageSpec(spec: MessageSpec, input: RenderInput): Render
   let body = message.text
     .replaceAll("{{nome_executivo}}", executive)
     .replaceAll("{{link_portal}}", portal)
+    .replaceAll("{{link_portal_investidor}}", portal)
+    .replaceAll("{{link_manual_investidor}}", portal)
+    .replaceAll("{{link_apresentacao}}", portal)
     .replaceAll("{{nome_investidor}}", treatment);
 
   let button: { label: string; url: string } | null =

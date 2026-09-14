@@ -22,8 +22,9 @@ describe("Comando 3 — calendário administrável", () => {
 });
 
 describe("Consolidação — rótulos de exibição (chave técnica = identidade)", () => {
-  it("E20 é histórico; E6 é etapa atual própria; rótulo salvo é respeitado", () => {
+  it("E20 é histórico; E5 é a apresentação atual; E6 é o acompanhamento", () => {
     expect(stepDisplayLabel("E20")).toBe("E20 (histórico) — Apresentação Digital");
+    expect(stepDisplayLabel("E5")).toBe("E5 — Apresentação digital / entrega manual do material");
     expect(stepDisplayLabel("E6")).toBe("E6 — Acompanhamento da apresentação digital");
     expect(stepDisplayLabel("E20", "Apresentação")).toBe("Apresentação");
     expect(stepDisplayLabel("E1")).toBe("E1 — Primeiro acompanhamento");
