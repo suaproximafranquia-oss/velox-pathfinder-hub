@@ -75,8 +75,11 @@ export function PortalInlineImageEditor({
     const found: Spot[] = [];
     const used = new Set<HTMLImageElement>();
     for (const item of wanted) {
-      const el = images.find(
-        (img) => !used.has(img) && sameImage(img.getAttribute("src"), item.url),
+      const direct = document.querySelector<HTMLImageElement>(
+        `[data-portal-asset-slot="${CSS.escape(item.key)}"]`,
+      );
+      const el = direct ?? images.find(
+        (img) => !used.has(img) && !img.dataset.portalAssetSlot && sameImage(img.getAttribute("src"), item.url),
       );
       if (!el) continue;
       used.add(el);
