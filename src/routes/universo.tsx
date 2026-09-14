@@ -1018,8 +1018,7 @@ function Index() {
           kicker="O Mercado"
           title="Onde há informação, nascem escolhas conscientes."
           lead="Um mercado maduro exige interlocutores preparados — e clientes bem orientados."
-          image={panoramaSlot.url}
-          assetSlot={panoramaSlot.key}
+          image={marketImg.url}
           imageAlt=""
           surface="ink"
         />
@@ -1042,7 +1041,8 @@ function Index() {
           chapter="Capítulo II · O Mercado"
           eyebrow="Panorama do mercado financeiro"
           title="Um setor essencial, em constante transformação."
-          image={marketImg.url}
+          image={panoramaSlot.url}
+          assetSlot={panoramaSlot.key}
           imageAlt="Vista do distrito financeiro ao amanhecer"
           imageCaption="Distrito financeiro · Amanhecer"
           surface="paper"
@@ -1840,8 +1840,7 @@ function Index() {
           kicker="Próximos Passos"
           title="O primeiro passo é uma conversa."
           lead="Do encontro à formalização, cada etapa acontece no tempo certo de cada investidor."
-          image={proximosSlot.url}
-          assetSlot={proximosSlot.key}
+          image={relationshipImg.url}
           imageAlt=""
           surface="ink"
         />
@@ -1852,7 +1851,8 @@ function Index() {
           chapter="Capítulo V · Próximos Passos"
           eyebrow="Como funciona o processo"
           title="Uma conversa antes de qualquer decisão."
-          image={relationshipImg.url}
+          image={proximosSlot.url}
+          assetSlot={proximosSlot.key}
           imageAlt="Reunião de atendimento consultivo em ambiente institucional"
           imageCaption="Atendimento consultivo"
           surface="paper"
