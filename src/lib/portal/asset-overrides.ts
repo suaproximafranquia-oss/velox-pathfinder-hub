@@ -48,12 +48,14 @@ export function universoSlotKey(asset: string): string {
 
 export const UNIVERSO_POSITIONAL_SLOTS = [
   { key: "universo-ch2-panorama-mercado", label: "Material institucional — Capítulo II · Panorama do mercado", asset: "mercado-distrito-financeiro" },
+  { key: "universo-ch2-como-franqueado-atua", label: "Material institucional — Capítulo II · Como o franqueado atua", asset: "atendimento-consultivo" },
   { key: "universo-ch3-suporte-franqueado", label: "Material institucional — Capítulo III · Suporte ao Franqueado", asset: "reuniao-colaborativa" },
   { key: "universo-ch3-universidade-corporativa", label: "Material institucional — Capítulo III · Universidade Corporativa", asset: "reuniao-colaborativa" },
   { key: "universo-ch4-galeria-fachada", label: "Material institucional — Capítulo IV · Galeria fachada", asset: "unidade-fachada" },
   { key: "universo-ch4-galeria-fachada-alternativa", label: "Material institucional — Capítulo IV · Galeria fachada alternativa", asset: "unidade-fachada-alternativa" },
   { key: "universo-ch4-galeria-inauguracao", label: "Material institucional — Capítulo IV · Galeria inauguração", asset: "unidade-inauguracao" },
   { key: "universo-ch4-galeria-executivos", label: "Material institucional — Capítulo IV · Galeria executivos", asset: "equipe-expansao" },
+  { key: "universo-ch4-perfil-investidor", label: "Material institucional — Capítulo IV · Perfil do investidor", asset: "decisao-investidor" },
   { key: "universo-ch5-proximos-passos", label: "Material institucional — Capítulo V · Atendimento consultivo", asset: "atendimento-consultivo" },
 ] as const;
 

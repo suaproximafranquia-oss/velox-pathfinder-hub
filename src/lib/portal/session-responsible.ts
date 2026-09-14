@@ -15,11 +15,11 @@ export function getSessionResponsibleExecutive(): {
   executive: ExecutiveUser | null;
   personalized: boolean;
 } {
-  const fallback = getResponsibleExecutive();
-  if (fallback.personalized && fallback.executive) return fallback;
   const session = getPortalSession();
   const ownerId = session?.responsibleExecutiveId ?? null;
-  if (!ownerId) return fallback;
-  const owner = loadUsers().find((user) => user.id === ownerId) ?? null;
-  return owner ? { executive: owner, personalized: true } : fallback;
+  if (ownerId) {
+    const owner = loadUsers().find((user) => user.id === ownerId) ?? null;
+    if (owner) return { executive: owner, personalized: true };
+  }
+  return getResponsibleExecutive();
 }

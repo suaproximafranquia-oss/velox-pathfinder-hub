@@ -39,6 +39,52 @@ export type E0ActionRow = {
   ownership_key: string | null;
 };
 
+/**
+ * Marcador operacional existente da PRIMEIRA entrada E0.
+ *
+ * A presença do lead no espelho (`crm_leads`) não prova que a entrada já
+ * virou operação. A prova é qualquer artefato oficial já criado pelo fluxo:
+ * ação E0 válida, abertura da régua V2 ou primeiro contato não anulado.
+ */
+export async function getInitialE0OperationalizedCardIds(cardIds: string[]): Promise<Set<string>> {
+  const unique = [...new Set(cardIds.filter(Boolean))];
+  if (unique.length === 0) return new Set();
+
+  const [{ data: actions }, { data: events }, { data: messages }] = await Promise.all([
+    supabaseAdmin
+      .from("workspace_e0_actions")
+      .select("card_id")
+      .in("card_id", unique)
+      .eq("ownership_seq", 0)
+      .is("voided_at", null),
+    supabaseAdmin
+      .from("relationship_events")
+      .select("lead_id,event_key")
+      .eq("scope", "production")
+      .in("lead_id", unique)
+      .like("event_key", "e0_manual_open_%"),
+    supabaseAdmin
+      .from("crm_messages")
+      .select("investor_id,id")
+      .in("investor_id", unique)
+      .like("id", "msg_e0_%")
+      .is("voided_at", null),
+  ]);
+
+  const operationalized = new Set<string>();
+  for (const row of actions ?? []) operationalized.add((row as { card_id: string }).card_id);
+  for (const row of events ?? []) {
+    const event = row as { lead_id: string; event_key: string | null };
+    if (event.event_key === `e0_manual_open_${event.lead_id}`) operationalized.add(event.lead_id);
+  }
+  for (const row of messages ?? []) operationalized.add((row as { investor_id: string }).investor_id);
+  return operationalized;
+}
+
+export async function hasInitialE0Operation(cardId: string): Promise<boolean> {
+  return (await getInitialE0OperationalizedCardIds([cardId])).has(cardId);
+}
+
 const COLUMNS =
   "id,card_id,crm_lead_id,origin,lead_name,lead_whatsapp,responsible_executive_id,entry_at,entered_entry_stage_at,reactivation,state,created_at,executed_at,executed_by,result,ownership_seq,ownership_key";
 
