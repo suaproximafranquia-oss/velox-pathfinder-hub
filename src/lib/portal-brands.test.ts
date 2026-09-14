@@ -8,24 +8,18 @@ import {
 } from "./portal-brands";
 
 describe("domínio público oficial da Financeira", () => {
-  it("usa o domínio oficial no servidor e para qualquer host de produção", () => {
+  it("usa o domínio oficial independentemente da origem da aplicação", () => {
     expect(financeiraPublicOrigin()).toBe(FINANCEIRA_PUBLIC_ORIGIN);
-    expect(financeiraPublicOrigin("https://velox-pathfinder-hub.lovable.app")).toBe(
-      FINANCEIRA_PUBLIC_ORIGIN,
+    expect(investorPortalUrl("ana", "financeira", "http://localhost:8080")).toBe(
+      "https://portalvelox.com.br/f/ana",
     );
-    expect(financeiraPublicOrigin("https://outro-dominio-de-producao.example")).toBe(
-      FINANCEIRA_PUBLIC_ORIGIN,
-    );
-  });
-
-  it("preserva a origem local e de homologação", () => {
-    expect(financeiraPublicOrigin("http://localhost:8080")).toBe("http://localhost:8080");
     expect(
-      financeiraPublicOrigin("https://id-preview--projeto.lovable.app/f/executivo"),
-    ).toBe("https://id-preview--projeto.lovable.app");
-    expect(financeiraPublicOrigin("https://projeto-dev.lovable.app")).toBe(
-      "https://projeto-dev.lovable.app",
-    );
+      investorPortalUrl(
+        "ana",
+        "financeira",
+        "https://id-preview--projeto.lovable.app/f/executivo",
+      ),
+    ).toBe("https://portalvelox.com.br/f/ana");
   });
 
   it("mantém caminhos e tokens de todas as URLs públicas", () => {
@@ -40,10 +34,10 @@ describe("domínio público oficial da Financeira", () => {
     );
   });
 
-  it("mantém o mesmo caminho na homologação", () => {
+  it("mantém caminho e token mesmo quando o gerador é chamado no preview", () => {
     expect(
-      financeiraPublicUrl("/portal/convite/codigo-sem-alteracao", "http://localhost:8080"),
-    ).toBe("http://localhost:8080/portal/convite/codigo-sem-alteracao");
+      financeiraPublicUrl("/portal/convite/codigo-sem-alteracao"),
+    ).toBe("https://portalvelox.com.br/portal/convite/codigo-sem-alteracao");
   });
 
   it("troca apenas a origem de links públicos antigos já persistidos", () => {

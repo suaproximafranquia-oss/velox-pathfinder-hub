@@ -174,7 +174,9 @@ export async function issueE20(params: {
 
   const token = newToken();
   const expiresAt = new Date(now.getTime() + SEVEN_DAYS_MS).toISOString();
-  const linkUrl = financeiraPublicUrl(`/portal/convite/${token}`, params.baseUrl);
+  // `baseUrl` identifica onde o painel está aberto; o convite externo usa
+  // sempre a origem pública oficial da Financeira.
+  const linkUrl = financeiraPublicUrl(`/portal/convite/${token}`);
 
   /**
    * SNAPSHOT DO ROTEIRO (§6): o que vale para esta emissão é o roteiro
