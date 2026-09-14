@@ -19,6 +19,7 @@ export const NON_CADENCE_STEPS = [
   "E27",
   "FINALIZACAO",
   "RESPOSTA_AUTOMATICA",
+  "ENVIO_MATERIAL_POS_CONTATO",
 ] as const;
 
 /**

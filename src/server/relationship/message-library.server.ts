@@ -45,6 +45,8 @@ import {
   type StepContext,
 } from "@/lib/relationship/operational-steps";
 
+export const MATERIAL_AFTER_CONTACT_STEP = "ENVIO_MATERIAL_POS_CONTATO";
+
 export type LibraryMessage = {
   id: string;
   stepKey: string;
@@ -150,7 +152,9 @@ function toMessage(row: Record<string, any>): LibraryMessage {
         ? null
         : Number(row["display_position"]),
     official: isOfficialStep(row["step_key"]),
-    currentIdentity: isCurrentEditorialStep(row["step_key"]),
+    currentIdentity:
+      row["step_key"] === MATERIAL_AFTER_CONTACT_STEP ||
+      isCurrentEditorialStep(row["step_key"]),
     awaitingOfficialText:
       !row["active"] || String(row["body"] ?? "").trim().length === 0,
   };

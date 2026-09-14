@@ -57,14 +57,23 @@ export async function savePortalAssetOverride(input: {
   mimeType: string;
   base64: string;
   userId: string;
-}): Promise<{ url: string }> {
-  const clean = input.base64.includes(",") ? input.base64.split(",")[1]! : input.base64;
+}): Promise<{ url: string; reference: string }> {
+  const encoded = input.base64.includes(",") ? input.base64.split(",")[1] : input.base64;
+  const clean = encoded ?? "";
   const bytes = Buffer.from(clean, "base64");
   if (bytes.byteLength === 0) throw new Error("Arquivo vazio.");
   const safe = input.fileName.replace(/[^\w.\-]+/g, "_").slice(-80);
   const path = `portal/${input.unit}/${input.assetKey}/${crypto.randomUUID()}-${safe}`;
 
   const supabase = await admin();
+  const { data: previous } = await supabase
+    .from("portal_asset_overrides")
+    .select("reference")
+    .eq("unit", input.unit)
+    .eq("asset_key", input.assetKey)
+    .maybeSingle();
+  const previousReference = (previous as { reference?: string } | null)?.reference ?? null;
+
   const { error: upErr } = await supabase.storage.from(MAGAZINE_BUCKET).upload(path, bytes, {
     contentType: input.mimeType || "application/octet-stream",
     upsert: false,
@@ -83,21 +92,70 @@ export async function savePortalAssetOverride(input: {
       } as never,
       { onConflict: "unit,asset_key" },
     );
-  if (error) throw new Error(error.message);
+  if (error) {
+    await supabase.storage.from(MAGAZINE_BUCKET).remove([path]);
+    throw new Error(error.message);
+  }
+
+  const reference = `storage://${path}`;
+  const { data: confirmed, error: confirmError } = await supabase
+    .from("portal_asset_overrides")
+    .select("reference")
+    .eq("unit", input.unit)
+    .eq("asset_key", input.assetKey)
+    .eq("reference", reference)
+    .maybeSingle();
+  if (confirmError || !confirmed) {
+    if (previousReference) {
+      await supabase
+        .from("portal_asset_overrides")
+        .upsert({
+          unit: input.unit,
+          asset_key: input.assetKey,
+          reference: previousReference,
+          updated_by: input.userId,
+          updated_at: new Date().toISOString(),
+        } as never, { onConflict: "unit,asset_key" });
+    } else {
+      await supabase
+        .from("portal_asset_overrides")
+        .delete()
+        .eq("unit", input.unit)
+        .eq("asset_key", input.assetKey)
+        .eq("reference", reference);
+    }
+    await supabase.storage.from(MAGAZINE_BUCKET).remove([path]);
+    throw new Error(confirmError?.message ?? "Não foi possível confirmar a nova imagem.");
+  }
 
   const { data } = await supabase.storage
     .from(MAGAZINE_BUCKET)
     .createSignedUrl(path, SIGNED_URL_TTL);
-  return { url: data?.signedUrl ?? "" };
+  if (previousReference?.startsWith("storage://") && previousReference !== reference) {
+    await supabase.storage
+      .from(MAGAZINE_BUCKET)
+      .remove([previousReference.replace("storage://", "")]);
+  }
+  return { url: data?.signedUrl ?? "", reference };
 }
 
 /** Remove a substituição — o Portal volta a exibir a imagem original. */
 export async function removePortalAssetOverride(unit: string, assetKey: string): Promise<void> {
   const supabase = await admin();
+  const { data: previous } = await supabase
+    .from("portal_asset_overrides")
+    .select("reference")
+    .eq("unit", unit)
+    .eq("asset_key", assetKey)
+    .maybeSingle();
   const { error } = await supabase
     .from("portal_asset_overrides")
     .delete()
     .eq("unit", unit)
     .eq("asset_key", assetKey);
   if (error) throw new Error(error.message);
+  const reference = (previous as { reference?: string } | null)?.reference;
+  if (reference?.startsWith("storage://")) {
+    await supabase.storage.from(MAGAZINE_BUCKET).remove([reference.replace("storage://", "")]);
+  }
 }

@@ -67,6 +67,7 @@ import {
 } from "@/components/ui/dialog";
 import { E20Panel } from "@/components/executive/workspace/e20-panel";
 import { E0Panel } from "@/components/executive/workspace/e0-panel";
+import { MaterialAfterContactPanel } from "@/components/executive/workspace/material-after-contact-panel";
 
 type TabKey =
   | "geral"
@@ -210,6 +211,7 @@ export function InvestorProfileView({
             <E0Panel investorId={investor.id} />
             {/* Evento paralelo à cadência: convite formal ao Portal. */}
             <E20Panel investorId={investor.id} />
+            <MaterialAfterContactPanel investorId={investor.id} />
             <TabJornada investor={investor} />
             <div>
               <p className="mb-3 text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">

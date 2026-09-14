@@ -237,11 +237,10 @@ export function MessageLibraryPanel() {
       <header className="mb-4 flex items-start gap-2">
         <MessageSquareText className="mt-0.5 h-4 w-4 text-[color:var(--gold)]" />
         <div className="flex-1">
-          <h2 className="text-sm font-medium">Mensagens do Motor</h2>
+          <h2 className="text-sm font-medium">Biblioteca de Mensagens</h2>
           <p className="text-[11px] text-[color:var(--muted-foreground)]">
-            Fonte oficial das cadências. A lista de etapas vem da configuração do
-            motor; aqui se escreve e versiona o texto de cada uma. Editar publica uma
-            nova versão — o histórico enviado nunca é reescrito.
+            Fonte oficial das etapas e finalidades manuais. Editar publica uma nova
+            versão — o histórico enviado nunca é reescrito.
           </p>
         </div>
       </header>

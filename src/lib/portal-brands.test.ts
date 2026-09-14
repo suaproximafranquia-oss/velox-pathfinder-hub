@@ -3,6 +3,7 @@ import {
   FINANCEIRA_PUBLIC_ORIGIN,
   financeiraPublicOrigin,
   financeiraPublicUrl,
+  investorManualUrl,
   investorPortalUrl,
   normalizeFinanceiraPublicUrl,
 } from "./portal-brands";
@@ -11,7 +12,7 @@ describe("domínio público oficial da Financeira", () => {
   it("usa o domínio oficial independentemente da origem da aplicação", () => {
     expect(financeiraPublicOrigin()).toBe(FINANCEIRA_PUBLIC_ORIGIN);
     expect(investorPortalUrl("ana", "financeira", "http://localhost:8080")).toBe(
-      "https://portalvelox.com.br/f/ana",
+      "https://portalvelox.com.br/f/ana?m=manual",
     );
     expect(
       investorPortalUrl(
@@ -19,11 +20,12 @@ describe("domínio público oficial da Financeira", () => {
         "financeira",
         "https://id-preview--projeto.lovable.app/f/executivo",
       ),
-    ).toBe("https://portalvelox.com.br/f/ana");
+    ).toBe("https://portalvelox.com.br/f/ana?m=manual");
   });
 
   it("mantém caminhos e tokens de todas as URLs públicas", () => {
-    expect(investorPortalUrl("ana")).toBe("https://portalvelox.com.br/f/ana");
+    expect(investorPortalUrl("ana")).toBe("https://portalvelox.com.br/f/ana?m=manual");
+    expect(investorManualUrl("ana")).toBe("https://portalvelox.com.br/f/ana?m=manual");
     expect(financeiraPublicUrl("/portal/convite/token-exato-123")).toBe(
       "https://portalvelox.com.br/portal/convite/token-exato-123",
     );

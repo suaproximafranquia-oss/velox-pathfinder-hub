@@ -150,7 +150,7 @@ export const auditoriaE20 = createServerFn({ method: "POST" })
     return { accesses, events };
   });
 
-/** Mensagem oficial já congelada da emissão vigente (Biblioteca). */
+/** Mensagem E5 já congelada na ocorrência física histórica E20. */
 export const mensagemDaE20 = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { leadId: string; occurrenceId: string }) => input)
@@ -170,7 +170,7 @@ export const mensagemDaE20 = createServerFn({ method: "POST" })
         body: null,
         version: null,
         reason:
-          "O texto oficial da E20 ainda não está publicado na Biblioteca. Nenhum texto alternativo é gerado.",
+          "O texto oficial da E5 ainda não está publicado na Biblioteca. Nenhum texto alternativo é gerado.",
       };
     }
     return {
@@ -178,6 +178,23 @@ export const mensagemDaE20 = createServerFn({ method: "POST" })
       version: ((row as any).library_version as number | null) ?? null,
       reason: null,
     };
+  });
+
+/**
+ * Prepara a finalidade manual universal com os dados atuais do servidor.
+ * Não registra cópia/envio nem produz qualquer efeito na jornada.
+ */
+export const mensagemEnvioMaterialPosContato = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { leadId: string }) => {
+    if (!input?.leadId) throw new Error("Lead obrigatório.");
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const { prepareMaterialAfterContactMessage } = await import(
+      "@/server/relationship/material-after-contact.server"
+    );
+    return prepareMaterialAfterContactMessage(data.leadId);
   });
 
 /**

@@ -51,7 +51,7 @@ export const savePortalAssetOverrideFn = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data, context }): Promise<{ url: string }> => {
+  .handler(async ({ data, context }): Promise<{ url: string; reference: string }> => {
     const { assertWorkspaceAccess } = await import("@/server/workspace-authorization.server");
     await assertWorkspaceAccess(context as never, "revista");
     const { savePortalAssetOverride } = await import("@/server/portal/asset-overrides.server");
