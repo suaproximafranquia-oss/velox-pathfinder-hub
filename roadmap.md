@@ -108,6 +108,6 @@
 - [x] Substituir somente a resposta sobre exclusividade de território.
 - [x] Validar os três pontos com testes direcionados, tipos e compilação (2 testes passaram; tipos e build automático OK).
 
-- [ ] /f Portal Leads: listar todo o universo oficial de `crm_leads` GreenSales, mesclando apenas o estado dos cards existentes.
-- [ ] /f Portal Leads: manter leads sem card sem ações operacionais, E0, cadência, fila ou criação de `portal_leads`.
-- [ ] Validar contagem do universo, 43 cards preservados, zero duplicidade/novas obrigações e compilação/testes.
+- [x] /f Portal Leads: listar todo o universo oficial de `crm_leads` GreenSales, mesclando apenas o estado dos cards existentes.
+- [x] /f Portal Leads: manter leads sem card sem ações operacionais, E0, cadência, fila ou criação de `portal_leads`.
+- [x] Validar contagem do universo, 43 cards preservados, zero duplicidade/novas obrigações e compilação/testes (570 no espelho, 43 cards, 0 filas, 0 cadências ativas, 0 IDs duplicados; 27 testes e tipos aprovados).
