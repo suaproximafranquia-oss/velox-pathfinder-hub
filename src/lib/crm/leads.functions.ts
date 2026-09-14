@@ -239,6 +239,7 @@ export const listCrmLeads = createServerFn({ method: "POST" })
         .select(LEAD_FIELDS)
         .eq("external_source", "greensales")
         .order("external_created_at", { ascending: false })
+        .order("id", { ascending: true })
         .range(from, from + pageSize - 1);
       if (scoped) query = query.in("external_id", scoped);
       if (data.stageKey) query = query.eq("stage_key", data.stageKey);
