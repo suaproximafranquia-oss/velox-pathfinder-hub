@@ -9,7 +9,7 @@ export async function reconcileMondayE0(nowIso: string = new Date().toISOString(
   const from = `${date}T03:00:00.000Z`;
   const to = `${addDays(date, 1)}T03:00:00.000Z`;
 
-  const { data: pending } = await supabaseAdmin
+  const { data: pending, error: pendingError } = await supabaseAdmin
     .from("relationship_queue")
     .select("id,lead_id")
     .eq("scope", "production")
@@ -20,10 +20,11 @@ export async function reconcileMondayE0(nowIso: string = new Date().toISOString(
     .in("status", ["PENDING", "PROCESSING"])
     .gte("due_at", from)
     .lt("due_at", to);
+  if (pendingError) throw new Error(pendingError.message);
   if (!pending?.length) return 0;
 
   const ids = pending.map((row) => row.id);
-  const { data: cancelled } = await supabaseAdmin
+  const { data: cancelled, error: cancelError } = await supabaseAdmin
     .from("relationship_queue")
     .update({
       status: "CANCELLED",
@@ -34,11 +35,12 @@ export async function reconcileMondayE0(nowIso: string = new Date().toISOString(
     .in("id", ids)
     .in("status", ["PENDING", "PROCESSING"])
     .select("lead_id");
+  if (cancelError) throw new Error(cancelError.message);
 
   const leadIds = [...new Set((cancelled ?? []).map((row) => row.lead_id))];
   if (leadIds.length > 0) {
     const { productionEngine } = await import("./engine.server");
-    for (const leadId of leadIds) await productionEngine().tick(leadId).catch(() => undefined);
+    for (const leadId of leadIds) await productionEngine().tick(leadId);
   }
   return leadIds.length;
 }

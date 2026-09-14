@@ -116,8 +116,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       .then((m) => m.ensureManualE0Cadences())
       .catch(() => new Set<string>());
     await import("@/server/relationship/e0-monday.server")
-      .then((m) => m.reconcileMondayE0(nowIso))
-      .catch(() => undefined);
+      .then((m) => m.reconcileMondayE0(nowIso));
   }
 
 
