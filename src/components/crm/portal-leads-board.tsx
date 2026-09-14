@@ -425,6 +425,35 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
     return () => window.clearInterval(timer);
   }, [allowed, fetchRuns, lastRunId, load]);
 
+  /**
+   * MARCO ZERO /f — o quadro acompanha o espelho interno assim que a
+   * sincronização oficial altera um lead. O polling acima permanece apenas
+   * como reconciliação defensiva; a atualização visual não depende de F5.
+   */
+  useEffect(() => {
+    if (!allowed) return;
+    let cancelled = false;
+    let dispose: (() => void) | null = null;
+    let debounceTimer: number | null = null;
+    void (async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      if (cancelled) return;
+      const channel = supabase
+        .channel("financeira-crm-leads")
+        .on("postgres_changes", { event: "*", schema: "public", table: "crm_leads" }, () => {
+          if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+          debounceTimer = window.setTimeout(() => void load(), 800);
+        })
+        .subscribe();
+      dispose = () => void supabase.removeChannel(channel);
+    })();
+    return () => {
+      cancelled = true;
+      if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+      dispose?.();
+    };
+  }, [allowed, load]);
+
   const selected = useMemo(
     () => leads.find((l) => l.id === selectedId) ?? null,
     [leads, selectedId],
