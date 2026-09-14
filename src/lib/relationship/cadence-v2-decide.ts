@@ -28,7 +28,8 @@ import {
   type CycleContext,
   type StepActionKind,
 } from "./cadence-v2";
-import { addDays, nextOpenDay } from "./calendar";
+import { addDays } from "./calendar";
+import { nextOpenDay } from "./cadence-v2";
 
 /** Primeira etapa de cada fluxo. E0 nasce na entrada, não aqui. */
 export const V2_FLOW_ENTRY: Record<CadenceV2Flow, CadenceV2Step> = {
