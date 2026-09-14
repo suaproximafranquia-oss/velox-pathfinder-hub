@@ -96,8 +96,8 @@ export async function registerQueueCallOutcome(input: {
     return { concluded: true, awaitingHandoff: false };
   }
 
-  // Atendeu: as ações seguintes DA MESMA ETAPA perderam a finalidade.
-  // As obrigações das demais etapas do lead permanecem intactas.
+  // Atendeu: as ligações seguintes DA MESMA ETAPA perdem a finalidade.
+  // Na E0, a mensagem CONTATO_REALIZADO permanece e será liberada pelo motor.
   let cancelQuery = supabaseAdmin
     .from("relationship_queue")
     .update({
@@ -110,6 +110,7 @@ export async function registerQueueCallOutcome(input: {
     .eq("lead_id", row.lead_id)
     .eq("step", row.step);
   cancelQuery = input.runId ? cancelQuery.eq("run_id", input.runId) : cancelQuery.is("run_id", null);
+  if (row.step === "E0") cancelQuery = cancelQuery.eq("action_kind", "call");
   await cancelQuery.in("status", ["PENDING", "PROCESSING"]);
 
 
@@ -120,9 +121,6 @@ export async function registerQueueCallOutcome(input: {
    * apenas como histórico dos ciclos anteriores.
    */
   await tickLead(row.lead_id, input.engine);
-
-  // E0 atendida: a pendência legada de E0 (se existir) deixa de fazer sentido.
-  if (row.step === "E0" && !input.engine) await closeLegacyE0(row.lead_id, "ENCERRADA: E0 atendida pela régua V2 (Ação do Dia).");
 
   return { concluded: true, awaitingHandoff: false };
 }

@@ -162,7 +162,8 @@ export function DailyActionCard({
    * o Executivo não clica em "Concluído", a mensagem dessa etapa já é
    * lida em segundo plano e o caminho do servidor é aquecido.
    *
-   * "Atendeu" não gera mensagem: nada é preparado.
+   * A primeira ligação E0 atendida em dia de duas tentativas prepara o
+   * contexto CONTATO_REALIZADO para a decisão explícita do Executivo.
    *
    * Nada aqui efetiva, cria fila, avança o motor, grava histórico ou
    * marca execução. Trocar a decisão ou abandonar o card descarta o
@@ -171,11 +172,18 @@ export function DailyActionCard({
   const primedRef = useRef<{ actionKey: string; key: string } | null>(null);
   useEffect(() => {
     if (!isCallAction(item) || locked) return;
-    const key = stepMessageKey(item.leadId, item.stepLabel);
-    if (callPending?.outcome === "NAO") {
+    const baseKey = stepMessageKey(item.leadId, item.stepLabel);
+    const key =
+      callPending?.outcome === "SIM" && item.e0AttendedChoice && baseKey
+        ? `${baseKey}::CONTATO_REALIZADO`
+        : baseKey;
+    if (callPending?.outcome === "NAO" || (callPending?.outcome === "SIM" && item.e0AttendedChoice)) {
       if (!key) return;
       adapter.prewarmOutcome?.();
-      primeStepMessage(key, () => adapter.loadMessage(item).catch(() => null));
+      primeStepMessage(key, () => adapter.loadMessage(
+        item,
+        callPending.outcome === "SIM" ? "CONTATO_REALIZADO" : undefined,
+      ).catch(() => null));
       primedRef.current = { actionKey: item.actionKey, key };
       return;
     }
@@ -232,7 +240,7 @@ export function DailyActionCard({
   function completeCall(outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!isCallAction(item) || locked) return;
     // Atendeu: a mensagem da etapa perde a finalidade — preparo descartado.
-    if (outcome === "SIM") {
+    if (outcome === "SIM" && !item.e0AttendedChoice) {
       clearStepMessagePrefetch();
       primedRef.current = null;
     }
@@ -328,7 +336,7 @@ export function DailyActionCard({
    * MENSAGEM — leitura do texto oficial e cópia imediata. Esta tela
    * nunca envia nada e COPIAR NÃO CONCLUI a ação.
    */
-  async function handleOpenMessage() {
+  async function handleOpenMessage(context?: "CONTATO_REALIZADO") {
     setBusy(true);
     setMessage(null);
     try {
@@ -342,11 +350,12 @@ export function DailyActionCard({
        */
       let view: StepMessageView | null = null;
       try {
+        const baseKey = stepMessageKey(item.leadId, item.messageRef?.step ?? item.stepLabel);
         const prepared = takeStepMessage(
-          stepMessageKey(item.leadId, item.messageRef?.step ?? item.stepLabel),
+          context && baseKey ? `${baseKey}::${context}` : baseKey,
         );
         const state = await loadMessageForModal(
-          async () => (await (prepared ?? adapter.loadMessage(item))) ?? null,
+          async () => (await (prepared ?? adapter.loadMessage(item, context))) ?? null,
           (loadedMessage) => {
             flushSync(() => {
               setMessage(loadedMessage);
@@ -401,6 +410,12 @@ export function DailyActionCard({
       () => adapter.registerMessage(item, observation),
       "Não foi possível registrar a mensagem.",
     );
+  }
+
+  function handleAttendedE0Conclusion() {
+    setMessageOpen(false);
+    setCopyStatus("idle");
+    completeCall("SIM", true);
   }
 
   function handleCompleteManual() {
@@ -684,6 +699,9 @@ export function DailyActionCard({
             Resultado: {callPending.outcome === "SIM" ? "Atendeu" : "Não atendeu"}
             {callPending.outcome === "NAO" ? (callPending.rang ? " · chamou" : " · não chamou") : ""}
           </p>
+          {callPending.outcome === "SIM" && item.e0AttendedChoice && (
+            <p className="text-sm text-white/80">Deseja copiar a mensagem desta etapa?</p>
+          )}
           <input
             value={callNote}
             onChange={(e) => setCallNote(e.target.value)}
@@ -691,6 +709,16 @@ export function DailyActionCard({
             className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
           />
           <div className="flex flex-wrap items-center gap-2">
+            {callPending.outcome === "SIM" && item.e0AttendedChoice && (
+              <button
+                type="button"
+                onClick={() => void handleOpenMessage("CONTATO_REALIZADO")}
+                disabled={busy || locked}
+                className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
+              >
+                <MessageSquare className="h-4 w-4" /> Copiar mensagem
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void completeCall(callPending.outcome, callPending.rang)}
@@ -891,7 +919,9 @@ export function DailyActionCard({
                   a ação, grava histórico, snapshot e a observação. */}
               <button
                 type="button"
-                onClick={() => void handleRegisterMessage()}
+                 onClick={() => void (callPending?.outcome === "SIM" && item.e0AttendedChoice
+                   ? handleAttendedE0Conclusion()
+                   : handleRegisterMessage())}
                 disabled={busy || !message?.body}
                 className={`w-full rounded-lg border px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   "border-emerald-400/50 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"

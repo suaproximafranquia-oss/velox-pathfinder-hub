@@ -45,6 +45,8 @@ export type PreparedStepMessage = {
 export async function prepareStepMessage(params: {
   leadId: string;
   step: string;
+  /** Somente a prévia explícita da E0 atendida, antes da conclusão da ligação. */
+  context?: "CONTATO_REALIZADO";
 }): Promise<PreparedStepMessage> {
   const executive = await resolveLeadExecutive(params.leadId);
 
@@ -83,9 +85,9 @@ export async function prepareStepMessage(params: {
    * congelado pelo motor, passagem histórica por E4 — nunca o título, o
    * texto ou a interpretação de uma conversa.
    */
-  const stepContext = isContextualStep(params.step)
+  const stepContext = params.context ?? (isContextualStep(params.step)
     ? await resolveStepContextForLead(params.leadId, params.step)
-    : null;
+    : null);
   const { result, message } = await renderFromLibrary(
     params.step,
     {

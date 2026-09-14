@@ -28,6 +28,7 @@ import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
 import { additionalCallDeadline } from "@/lib/relationship/cadence-v2-decide";
+import { isOperationalMonday } from "@/lib/relationship/cadence-v2";
 import { reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
@@ -114,6 +115,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     await import("@/server/relationship/e0-manual.server")
       .then((m) => m.ensureManualE0Cadences())
       .catch(() => new Set<string>());
+    await import("@/server/relationship/e0-monday.server")
+      .then((m) => m.reconcileMondayE0(nowIso));
   }
 
 
@@ -401,6 +404,8 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       claimed,
       queueItemId: String(item.id),
       queueActionOrder: order,
+      e0AttendedChoice:
+        step === "E0" && order === 1 && isCall && !isOperationalMonday(today),
       expiresAt,
       ...(isCall || isManual
         ? {}

@@ -135,19 +135,25 @@ function toActionState(rows: V2QueueAction[]): ActionState[] {
           ? "CANCELLED"
           : "PENDING",
     executedAt: row.executedAt ?? null,
+    result: row.result ?? null,
   }));
 }
 
 /** A etapa terminou (todas as ações concluídas ou canceladas)? */
-function stepFinished(step: CadenceV2Step, rows: V2QueueAction[], compensateE2 = false): boolean {
-  const plan = stepActions(step, compensateE2);
+function stepFinished(
+  step: CadenceV2Step,
+  rows: V2QueueAction[],
+  compensateE2 = false,
+  operationalDate?: string | null,
+): boolean {
+  const plan = stepActions(step, compensateE2, operationalDate);
   if (rows.length === 0) return false;
   const byOrder = new Map(rows.map((r) => [r.actionOrder, r]));
   // Ligação atendida encerra a etapa: as ações restantes perderam finalidade.
   const attended = rows.some(
     (r) => r.actionKind === "call" && r.status === "EXECUTED" && r.result === "SIM",
   );
-  if (attended) return true;
+  if (attended && step !== "E0") return true;
   return plan.every((a) => {
     const row = byOrder.get(a.order);
     return row?.status === "EXECUTED" || row?.status === "CANCELLED";
@@ -205,7 +211,10 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
      * ciclo (a E0 nasce na entrada do lead, não nesta fila).
      */
     const compensateE2 = step === "E2" && compensatesE1(input.actions);
-    const done = stepFinished(step, rows, compensateE2) || (rows.length === 0 && executedElsewhere.has(step));
+    const operationalDate = localDateOf(input.nowIso);
+    const done =
+      stepFinished(step, rows, compensateE2, operationalDate) ||
+      (rows.length === 0 && executedElsewhere.has(step));
     if (done) {
       const executedAt = lastExecution(rows);
       if (executedAt) {
@@ -255,6 +264,7 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
       stepDueAt,
       states: toActionState(rows),
       compensateE2,
+      operationalDate,
     });
     if (!released) {
       return {

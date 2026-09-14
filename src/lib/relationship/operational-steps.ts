@@ -45,6 +45,7 @@ export const OPERATIONAL_STEP_KEYS: readonly string[] = [
  */
 export const STEP_CONTEXTS = [
   "SEM_CONTATO",
+  "CONTATO_REALIZADO",
   "MATERIAL_ENVIADO",
   "V1",
   "V2",
@@ -56,6 +57,7 @@ export type StepContext = (typeof STEP_CONTEXTS)[number];
 
 /** Combinações oficiais por etapa. `null` = contexto normal da etapa. */
 export const STEP_CONTEXT_MAP: Readonly<Record<string, Array<StepContext | null>>> = {
+  E0: ["SEM_CONTATO", "CONTATO_REALIZADO"],
   E2: [null, "V2"],
   E3: [null, "V3"],
   E7: ["SEM_CONTATO", "MATERIAL_ENVIADO"],
@@ -73,7 +75,7 @@ export const CONTEXTUAL_STEP_KEYS: readonly string[] = Object.keys(STEP_CONTEXT_
  * contexto elegível para envio (E7/E8 e R3). Em E1/E2/E3 o contexto
  * normal continua sendo a linha sem contexto.
  */
-export const CONTEXT_REQUIRED_STEP_KEYS: readonly string[] = ["E7", "E8", "R3", "R5", "RE2"];
+export const CONTEXT_REQUIRED_STEP_KEYS: readonly string[] = ["E0", "E7", "E8", "R3", "R5", "RE2"];
 
 export function isOperationalStep(step: string | null | undefined): boolean {
   if (!step) return false;
@@ -100,7 +102,8 @@ export function stepCombinations(step: string): Array<StepContext | null> {
 
 /** Rótulo humano de cada contexto — apresentação, nunca chave técnica. */
 export const STEP_CONTEXT_LABELS: Readonly<Record<StepContext, string>> = {
-  SEM_CONTATO: "Investidor que nunca respondeu",
+  SEM_CONTATO: "Investidor sem contato",
+  CONTATO_REALIZADO: "Investidor com contato realizado",
   MATERIAL_ENVIADO: "Investidor que já recebeu o material",
   V1: "Caminho V — visualização confirmada do material",
   V2: "Caminho V — segunda mensagem",
