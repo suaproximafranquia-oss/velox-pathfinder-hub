@@ -32,7 +32,6 @@ import {
 } from "@/lib/crm/daily-actions-prefetch";
 import { KIND_LABEL, operationalTime, type DailyAction } from "@/lib/crm/daily-actions";
 import { loadMessageForModal } from "@/lib/crm/daily-action-message";
-import { CADENCE_V2_STEPS, stepActions, type CadenceV2Step } from "@/lib/relationship/cadence-v2";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -80,13 +79,6 @@ export function formatDailyActionPhone(phone: string): string {
     return `+55 ${national.slice(0, 2)} ${national.slice(2, 6)} ${national.slice(6)}`;
   }
   return raw;
-}
-
-/** Usa o plano oficial da etapa; não mantém uma segunda lista de mensagens. */
-export function callActionHasMessage(item: DailyAction): boolean {
-  const step = String(item.stepLabel ?? "").trim().toUpperCase();
-  if (!CADENCE_V2_STEPS.includes(step as CadenceV2Step)) return false;
-  return stepActions(step as CadenceV2Step).some((action) => action.kind === "message");
 }
 
 export function DailyActionCard({
@@ -139,7 +131,6 @@ export function DailyActionCard({
   const [rescheduleAt, setRescheduleAt] = useState("");
   const [message, setMessage] = useState<StepMessageView | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
-  const [messagePurpose, setMessagePurpose] = useState<"queue-message" | "attended-call">("queue-message");
   const [messageNote, setMessageNote] = useState("");
   const [manualNote, setManualNote] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied" | "failed">("idle");
@@ -158,7 +149,6 @@ export function DailyActionCard({
     setRescheduleAt("");
     setMessage(null);
     setMessageOpen(false);
-    setMessagePurpose("queue-message");
     setMessageNote("");
     setCopyStatus("idle");
     setFeedback(null);
@@ -172,8 +162,7 @@ export function DailyActionCard({
    * o Executivo não clica em "Concluído", a mensagem dessa etapa já é
    * lida em segundo plano e o caminho do servidor é aquecido.
    *
-   * "Atendeu" prepara a mensagem somente quando a etapa possui uma,
-   * para a decisão explícita de copiar antes da conclusão da ligação.
+   * "Atendeu" não gera mensagem: nada é preparado.
    *
    * Nada aqui efetiva, cria fila, avança o motor, grava histórico ou
    * marca execução. Trocar a decisão ou abandonar o card descarta o
@@ -183,7 +172,7 @@ export function DailyActionCard({
   useEffect(() => {
     if (!isCallAction(item) || locked) return;
     const key = stepMessageKey(item.leadId, item.stepLabel);
-    if (callPending?.outcome === "NAO" || (callPending?.outcome === "SIM" && callActionHasMessage(item))) {
+    if (callPending?.outcome === "NAO") {
       if (!key) return;
       adapter.prewarmOutcome?.();
       primeStepMessage(key, () => adapter.loadMessage(item).catch(() => null));
@@ -242,8 +231,11 @@ export function DailyActionCard({
    */
   function completeCall(outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!isCallAction(item) || locked) return;
-    clearStepMessagePrefetch();
-    primedRef.current = null;
+    // Atendeu: a mensagem da etapa perde a finalidade — preparo descartado.
+    if (outcome === "SIM") {
+      clearStepMessagePrefetch();
+      primedRef.current = null;
+    }
     const observation = callNote.trim();
     setCallAwaitingRing(false);
     setCallPending(null);
@@ -336,10 +328,9 @@ export function DailyActionCard({
    * MENSAGEM — leitura do texto oficial e cópia imediata. Esta tela
    * nunca envia nada e COPIAR NÃO CONCLUI a ação.
    */
-  async function handleOpenMessage(purpose: "queue-message" | "attended-call" = "queue-message") {
+  async function handleOpenMessage() {
     setBusy(true);
     setMessage(null);
-    setMessagePurpose(purpose);
     try {
       /**
        * Se o pré-gatilho da ligação anterior já leu esta mesma mensagem
@@ -649,7 +640,7 @@ export function DailyActionCard({
         {item.kind === "mensagem" && (
           <button
             type="button"
-              onClick={() => void handleOpenMessage("queue-message")}
+              onClick={() => void handleOpenMessage()}
             disabled={busy || locked}
             className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
           >
@@ -693,9 +684,6 @@ export function DailyActionCard({
             Resultado: {callPending.outcome === "SIM" ? "Atendeu" : "Não atendeu"}
             {callPending.outcome === "NAO" ? (callPending.rang ? " · chamou" : " · não chamou") : ""}
           </p>
-          {callPending.outcome === "SIM" && callActionHasMessage(item) && (
-            <p className="text-sm text-white/80">Deseja copiar a mensagem desta etapa?</p>
-          )}
           <input
             value={callNote}
             onChange={(e) => setCallNote(e.target.value)}
@@ -703,16 +691,6 @@ export function DailyActionCard({
             className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
           />
           <div className="flex flex-wrap items-center gap-2">
-            {callPending.outcome === "SIM" && callActionHasMessage(item) && (
-              <button
-                type="button"
-                onClick={() => void handleOpenMessage("attended-call")}
-                disabled={busy || locked}
-                className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
-              >
-                <MessageSquare className="h-4 w-4" /> Copiar mensagem
-              </button>
-            )}
             <button
               type="button"
               onClick={() => void completeCall(callPending.outcome, callPending.rang)}
@@ -913,14 +891,7 @@ export function DailyActionCard({
                   a ação, grava histórico, snapshot e a observação. */}
               <button
                 type="button"
-                onClick={() => {
-                  if (messagePurpose === "attended-call") {
-                    setMessageOpen(false);
-                    completeCall("SIM", true);
-                    return;
-                  }
-                  handleRegisterMessage();
-                }}
+                onClick={() => void handleRegisterMessage()}
                 disabled={busy || !message?.body}
                 className={`w-full rounded-lg border px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   "border-emerald-400/50 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"

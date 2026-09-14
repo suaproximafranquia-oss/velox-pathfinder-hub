@@ -549,28 +549,7 @@ export type ActionState = {
   status: "PENDING" | "DONE" | "CANCELLED";
   /** Execução real da ação (ISO). */
   executedAt?: string | null;
-  /** Resultado da ligação, quando a ação executada é uma tentativa. */
-  result?: string | null;
 };
-
-/**
- * Única exceção interna da E0: quando a primeira ligação foi encerrada
- * numa segunda-feira operacional, a etapa não possui segunda ligação.
- * A mensagem permanece como próxima ação quando não houve contato.
- */
-export function effectiveStepActions(
-  step: CadenceV2Step,
-  states: ActionState[],
-  compensateE2 = false,
-): StepActionPlan[] {
-  const plan = stepActions(step, compensateE2);
-  if (step !== "E0") return plan;
-  const firstCall = states.find((state) => state.order === 1);
-  const firstCallDate = firstCall?.executedAt ? localDateOf(firstCall.executedAt) : null;
-  const mondayWithoutContact =
-    firstCall?.status === "DONE" && firstCall.result === "NAO" && firstCallDate !== null && weekdayOf(firstCallDate) === 1;
-  return mondayWithoutContact ? plan.filter((action) => action.order !== 2) : plan;
-}
 
 /**
  * Próxima ação LIBERADA da etapa. Devolve `null` quando a etapa está
@@ -590,7 +569,7 @@ export function nextReleasedAction(input: {
   flowChanged?: boolean;
 }): { action: StepActionPlan; releaseAt: string } | null {
   if (input.flowChanged) return null;
-  const plan = effectiveStepActions(input.step, input.states, input.compensateE2);
+  const plan = stepActions(input.step, input.compensateE2);
   const byOrder = new Map(input.states.map((s) => [s.order, s]));
 
   for (const action of plan) {
@@ -600,12 +579,7 @@ export function nextReleasedAction(input: {
 
     // E1/E2: mensagem e tentativa adicional dependem da PRIMEIRA ligação.
     const firstCallDependent = (input.step === "E1" || input.step === "E2") && action.order !== 1;
-    const actionIndex = plan.indexOf(action);
-    const previous = firstCallDependent
-      ? plan.find((candidate) => candidate.order === 1)
-      : actionIndex > 0
-        ? plan[actionIndex - 1]
-        : undefined;
+    const previous = plan.find((p) => p.order === (firstCallDependent ? 1 : action.order - 1));
     const previousState = previous ? byOrder.get(previous.order) : undefined;
     // Ordem obrigatória: a ação só existe depois da anterior concluída.
     if (previous && previousState?.status !== "DONE") return null;
@@ -632,7 +606,7 @@ export function nextReleasedAction(input: {
 
 /** A etapa só conclui quando a última ação aplicável termina. */
 export function isStepComplete(step: CadenceV2Step, states: ActionState[], compensateE2 = false): boolean {
-  const plan = effectiveStepActions(step, states, compensateE2);
+  const plan = stepActions(step, compensateE2);
   const byOrder = new Map(states.map((s) => [s.order, s]));
   return plan.every((a) => {
     const state = byOrder.get(a.order);
