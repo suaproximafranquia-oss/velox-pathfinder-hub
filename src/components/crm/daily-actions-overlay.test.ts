@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { DailyAction } from "@/lib/crm/daily-actions";
-import { formatDailyActionPhone } from "./daily-action-card";
+import { callActionHasMessage, formatDailyActionPhone } from "./daily-action-card";
 import { reconcileSelectedActionKey } from "./daily-actions-overlay";
 
 function action(actionKey: string, bucket: DailyAction["bucket"]): DailyAction {
@@ -46,4 +46,10 @@ it("não inventa o nono dígito nem modifica telefone irregular", () => {
   expect(formatDailyActionPhone("+554888534230")).toBe("+55 48 8853 4230");
   expect(formatDailyActionPhone("+55 48 123")).toBe("+55 48 123");
   expect(formatDailyActionPhone("telefone indisponível")).toBe("telefone indisponível");
+});
+
+it("oferece a mensagem após Atendeu somente nas etapas cujo plano possui mensagem", () => {
+  expect(callActionHasMessage({ ...action("e0", "agora"), kind: "ligacao", stepLabel: "E0" })).toBe(true);
+  expect(callActionHasMessage({ ...action("e3", "agora"), kind: "ligacao", stepLabel: "E3" })).toBe(true);
+  expect(callActionHasMessage({ ...action("re0", "agora"), kind: "ligacao", stepLabel: "RE0" })).toBe(false);
 });

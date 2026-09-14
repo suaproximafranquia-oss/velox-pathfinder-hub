@@ -49,7 +49,7 @@ describe("E0 na régua V2", () => {
       step: "E0",
       stepDueAt: "2026-03-03T12:00:00.000Z",
       states: [
-        { order: 1, status: "DONE", executedAt: "2026-03-03T12:00:00.000Z" },
+        { order: 1, status: "DONE", executedAt: "2026-03-03T12:00:00.000Z", result: "NAO" },
         { order: 2, status: "PENDING" },
       ],
     });
@@ -57,6 +57,37 @@ describe("E0 na régua V2", () => {
     expect(new Date(released!.releaseAt).getTime()).toBeGreaterThanOrEqual(
       Date.parse("2026-03-03T12:10:00.000Z"),
     );
+  });
+
+  it("na segunda-feira, uma única ligação sem contato libera imediatamente a mensagem E0", () => {
+    const released = nextReleasedAction({
+      step: "E0",
+      stepDueAt: "2026-09-14T12:00:00.000Z",
+      states: [
+        { order: 1, status: "DONE", executedAt: "2026-09-14T12:00:00.000Z", result: "NAO" },
+      ],
+    });
+    expect(released?.action.kind).toBe("message");
+    expect(released?.action.order).toBe(3);
+    expect(released?.releaseAt).toBe("2026-09-14T12:00:00.000Z");
+  });
+
+  it("de terça a sexta, a primeira ligação sem contato nunca libera mensagem prematuramente", () => {
+    for (const executedAt of [
+      "2026-09-15T12:00:00.000Z",
+      "2026-09-16T12:00:00.000Z",
+      "2026-09-17T12:00:00.000Z",
+      "2026-09-18T12:00:00.000Z",
+    ]) {
+      const released = nextReleasedAction({
+        step: "E0",
+        stepDueAt: executedAt,
+        states: [{ order: 1, status: "DONE", executedAt, result: "NAO" }],
+      });
+      expect(released?.action.kind).toBe("call");
+      expect(released?.action.order).toBe(2);
+      expect(released?.releaseAt).toBe(new Date(Date.parse(executedAt) + 10 * 60_000).toISOString());
+    }
   });
 
   it("ligação atendida encerra o E0: a mensagem não é cobrada", () => {

@@ -87,7 +87,7 @@ describe("E0 manual — decisão em NOVOS", () => {
     const released = nextReleasedAction({
       step: "E0",
       stepDueAt: NOW,
-      states: [{ order: 1, status: "DONE", executedAt: NOW, result: "NAO" }] as never,
+      states: [{ order: 1, status: "DONE", executedAt: NOW, result: "NAO" }],
     });
     expect(released?.action.order).toBe(2);
     expect(released?.releaseAt).toBe("2026-09-08T12:40:00.000Z");
@@ -100,7 +100,7 @@ describe("E0 manual — decisão em NOVOS", () => {
       states: [
         { order: 1, status: "DONE", executedAt: NOW, result: "NAO" },
         { order: 2, status: "DONE", executedAt: "2026-09-08T12:45:00.000Z", result: "NAO" },
-      ] as never,
+      ],
     });
     expect(released?.action.order).toBe(3);
     expect(released?.action.kind).toBe("message");

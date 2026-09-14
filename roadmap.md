@@ -145,3 +145,10 @@
 - [x] Abrir a janela com a mensagem oficial antes da única tentativa automática de cópia.
 - [x] Manter o resultado visível e a segunda tentativa manual, sem concluir ou registrar a ação ao copiar.
 - [x] Validar preview, testes focados, tipos e compilação (8 testes e tipos aprovados; build OK; preview abriu normalmente, com a área autenticada indisponível sem sessão ativa).
+
+## Segunda-feira E0 e mensagem após atendimento — Financeira /f
+
+- [ ] Na segunda-feira operacional, liberar a mensagem E0 após a única ligação sem contato, sem criar a segunda ligação.
+- [ ] Preservar de terça a sexta a segunda ligação após 10 minutos e a mensagem somente após duas tentativas sem contato.
+- [ ] Após “Atendeu” em etapa com mensagem, oferecer “Copiar mensagem” ou “Concluído”, sem registrar envio ou conclusão ao copiar.
+- [ ] Validar testes focados, tipos, compilação e a Ação do Dia na prévia.
