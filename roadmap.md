@@ -111,3 +111,11 @@
 - [x] /f Portal Leads: listar todo o universo oficial de `crm_leads` GreenSales, mesclando apenas o estado dos cards existentes.
 - [x] /f Portal Leads: manter leads sem card sem ações operacionais, E0, cadência, fila ou criação de `portal_leads`.
 - [x] Validar contagem do universo, 43 cards preservados, zero duplicidade/novas obrigações e compilação/testes (570 no espelho, 43 cards, 0 filas, 0 cadências ativas, 0 IDs duplicados; 27 testes e tipos aprovados).
+
+## Correção cirúrgica E0 e Material Institucional — Financeira /f
+
+- [ ] Corrigir `enteredNow` com marcador operacional existente, preservando idempotência, históricos e reentrada.
+- [ ] Recuperar pelo fluxo oficial os leads NOVOS elegíveis sem E0 e confirmar ausência de duplicidades.
+- [ ] Trocar os dois placeholders por imagens editoriais editáveis e ajustar somente as legendas indicadas.
+- [ ] Fazer o CTA final usar o responsável da sessão reconhecida, mantendo o cadastro como fallback.
+- [ ] Validar testes focados, sessão, slots, tipos e compilação sem alterar as áreas protegidas.
