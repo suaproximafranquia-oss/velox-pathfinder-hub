@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
+  ssr: {
+    noExternal: ['react', 'react-dom', '@tanstack/react-start'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
