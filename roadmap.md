@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] /f: remover segundas ligações automáticas de E1/E2 e toda compensação E1→E2, mantendo ligação e mensagem em cards separados.
+- [ ] /f: reconciliar somente segundas ligações antigas abertas de E1/E2, preservando E0 e todo histórico executado/concluído.
+- [ ] /f: validar E0 intacta, E1/E2 com uma ligação, E3+ sem regressão, testes focados, tipos, build e Ação do Dia.
+
 - [x] /f: E0 de segunda-feira com uma ligação e mensagem contextual; terça a sexta preserva duas ligações e 10 minutos.
 - [x] /f: E0 atendida usa CONTATO_REALIZADO, sem contato usa SEM_CONTATO, com cópia sem envio ou conclusão automática.
 - [x] /f: reconciliar filas E0 abertas desta segunda-feira sem alterar histórico concluído nem criar duplicatas.
