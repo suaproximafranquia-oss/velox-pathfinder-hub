@@ -51,6 +51,61 @@ export const PORTAL_BRANDS: readonly PortalBrand[] = [
 /** Marca padrão de toda operação atual e dos links legados `/e/`. */
 export const DEFAULT_BRAND_KEY: PortalBrandKey = "financeira";
 
+/** Única origem pública oficial dos links de navegação da Financeira. */
+export const FINANCEIRA_PUBLIC_ORIGIN = "https://portalvelox.com.br";
+
+function runtimeOrigin(): string | null {
+  if (typeof window === "undefined" || !window.location?.origin) return null;
+  return window.location.origin;
+}
+
+function homologationOrigin(candidate?: string | null): string | null {
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate);
+    const host = url.host.toLowerCase();
+    const isHomologation =
+      host.startsWith("localhost") ||
+      host.startsWith("127.0.0.1") ||
+      host.startsWith("0.0.0.0") ||
+      host.startsWith("id-preview--") ||
+      host.includes("-dev.lovable.app") ||
+      host.endsWith(".lovableproject.com");
+    return isHomologation ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a origem de navegação pública da Financeira.
+ * Preview/local preservam a própria origem; qualquer host de produção,
+ * inclusive o endereço antigo, resolve para o domínio oficial.
+ */
+export function financeiraPublicOrigin(baseUrl?: string): string {
+  return homologationOrigin(baseUrl ?? runtimeOrigin()) ?? FINANCEIRA_PUBLIC_ORIGIN;
+}
+
+/** Constrói uma URL pública da Financeira sem alterar o caminho recebido. */
+export function financeiraPublicUrl(path: string, baseUrl?: string): string {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${financeiraPublicOrigin(baseUrl)}${cleanPath}`;
+}
+
+/**
+ * Migra somente uma URL pública de navegação já persistida no host antigo.
+ * URLs de assets e qualquer outro host permanecem intocadas pelos chamadores.
+ */
+export function normalizeFinanceiraPublicUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.origin !== "https://velox-pathfinder-hub.lovable.app") return url;
+    return `${FINANCEIRA_PUBLIC_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return url;
+  }
+}
+
 export function getBrand(key?: string | null): PortalBrand {
   return (
     PORTAL_BRANDS.find((b) => b.key === (key ?? "").trim().toLowerCase()) ??
@@ -83,6 +138,12 @@ export function investorPortalUrl(
   brandKey: string = DEFAULT_BRAND_KEY,
   baseUrl?: string,
 ): string {
+  if (getBrand(brandKey).key === DEFAULT_BRAND_KEY) {
+    return financeiraPublicUrl(investorPortalPath(executiveSlug, brandKey), baseUrl);
+  }
+
+  // As demais marcas não fazem parte desta troca de domínio e conservam
+  // integralmente a resolução anterior.
   const base =
     baseUrl ??
     (typeof window !== "undefined" && window.location?.origin

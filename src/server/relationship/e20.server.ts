@@ -15,6 +15,7 @@ import { composeMessageBody } from "@/lib/relationship/messages";
  *  - OPORTUNIDADE é terminal: nada é emitido depois dela.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { financeiraPublicUrl, normalizeFinanceiraPublicUrl } from "@/lib/portal-brands";
 import { addDays, nextBusinessDay, operationalDate } from "@/lib/relationship/calendar";
 import { openInstance } from "./instances.server";
 import {
@@ -72,7 +73,7 @@ function toOccurrence(row: Record<string, any>): E20Occurrence {
     leadId: row["lead_id"],
     instanceSeq: row["instance_seq"] ?? 1,
     token: row["token"],
-    linkUrl: row["link_url"],
+    linkUrl: normalizeFinanceiraPublicUrl(row["link_url"]),
     status: row["status"],
     generatedAt: row["generated_at"],
     expiresAt: row["expires_at"],
@@ -173,7 +174,7 @@ export async function issueE20(params: {
 
   const token = newToken();
   const expiresAt = new Date(now.getTime() + SEVEN_DAYS_MS).toISOString();
-  const linkUrl = `${params.baseUrl.replace(/\/+$/, "")}/portal/convite/${token}`;
+  const linkUrl = financeiraPublicUrl(`/portal/convite/${token}`, params.baseUrl);
 
   /**
    * SNAPSHOT DO ROTEIRO (§6): o que vale para esta emissão é o roteiro
