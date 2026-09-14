@@ -496,7 +496,7 @@ export function isOperationalMonday(isoDate: string | null | undefined): boolean
 
 export function stepActions(
   step: CadenceV2Step,
-  compensateE2 = false,
+  _compensateE2 = false,
   operationalDate?: string | null,
 ): StepActionPlan[] {
   switch (step) {
@@ -519,16 +519,10 @@ export function stepActions(
         { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
       ];
     case "E1":
-      return [
-        { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação 1" },
-        { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
-        { order: 2, kind: "call", waitHoursAfterPrevious: 2, label: "Ligação 2" },
-      ];
     case "E2":
       return [
-        { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação 1" },
+        { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" },
         { order: 2, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
-        ...(compensateE2 ? [{ order: 3, kind: "call" as const, waitHoursAfterPrevious: 2, label: "Ligação 2" }] : []),
       ];
     case "E3":
     case "E4":
@@ -599,7 +593,7 @@ export function nextReleasedAction(input: {
     if (state?.status === "DONE") continue;
     if (state?.status === "CANCELLED") continue;
 
-    // E1/E2: mensagem e tentativa adicional dependem da PRIMEIRA ligação.
+    // E1/E2: a mensagem depende da única ligação da etapa.
     const firstCallDependent = (input.step === "E1" || input.step === "E2") && action.order !== 1;
     const previous = firstCallDependent ? plan.find((p) => p.order === 1) : plan[index - 1];
     const previousState = previous ? byOrder.get(previous.order) : undefined;
