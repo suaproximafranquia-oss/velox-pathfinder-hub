@@ -618,9 +618,5 @@ function buildPersonalLink(session: ExecutiveSession): string {
   // usuário não pode quebrar o link personalizado.
   const user = loadUsers().find((u) => u.id === session.userId);
   const slug = user?.slug ?? session.userId;
-  const base =
-    typeof window !== "undefined" && window.location?.origin
-      ? window.location.origin
-      : "https://portal.velox.com.br";
-  return investorPortalUrl(slug, DEFAULT_BRAND_KEY, base);
+  return investorPortalUrl(slug, DEFAULT_BRAND_KEY);
 }

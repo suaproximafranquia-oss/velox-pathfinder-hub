@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import type { DailyAction } from "@/lib/crm/daily-actions";
+import { formatDailyActionPhone } from "./daily-action-card";
 import { reconcileSelectedActionKey } from "./daily-actions-overlay";
 
 function action(actionKey: string, bucket: DailyAction["bucket"]): DailyAction {
@@ -33,4 +34,16 @@ it("preserva apenas uma consulta de alerta ainda presente", () => {
     reconcileSelectedActionKey([action("principal", "agora"), action("aviso", "alerta")], "aviso"),
   ).toBe("aviso");
   expect(reconcileSelectedActionKey([action("principal", "agora")], "aviso")).toBe("principal");
+});
+
+it("formata visualmente celulares brasileiros sem alterar dígitos", () => {
+  expect(formatDailyActionPhone("+5548988534230")).toBe("+55 48 98853 4230");
+  expect(formatDailyActionPhone("+554888534230")).toBe("+55 48 8853 4230");
+  expect(formatDailyActionPhone("554888534230")).toBe("+55 48 8853 4230");
+});
+
+it("não inventa o nono dígito nem modifica telefone irregular", () => {
+  expect(formatDailyActionPhone("+554888534230")).toBe("+55 48 8853 4230");
+  expect(formatDailyActionPhone("+55 48 123")).toBe("+55 48 123");
+  expect(formatDailyActionPhone("telefone indisponível")).toBe("telefone indisponível");
 });

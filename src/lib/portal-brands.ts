@@ -51,45 +51,25 @@ export const PORTAL_BRANDS: readonly PortalBrand[] = [
 /** Marca padrão de toda operação atual e dos links legados `/e/`. */
 export const DEFAULT_BRAND_KEY: PortalBrandKey = "financeira";
 
-/** Única origem pública oficial dos links de navegação da Financeira. */
+/**
+ * Única origem pública oficial dos links EXTERNOS entregues ao investidor.
+ * Não representa nem altera a origem em que a aplicação está executando.
+ */
 export const FINANCEIRA_PUBLIC_ORIGIN = "https://portalvelox.com.br";
 
-function runtimeOrigin(): string | null {
-  if (typeof window === "undefined" || !window.location?.origin) return null;
-  return window.location.origin;
-}
-
-function homologationOrigin(candidate?: string | null): string | null {
-  if (!candidate) return null;
-  try {
-    const url = new URL(candidate);
-    const host = url.host.toLowerCase();
-    const isHomologation =
-      host.startsWith("localhost") ||
-      host.startsWith("127.0.0.1") ||
-      host.startsWith("0.0.0.0") ||
-      host.startsWith("id-preview--") ||
-      host.includes("-dev.lovable.app") ||
-      host.endsWith(".lovableproject.com");
-    return isHomologation ? url.origin : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
- * Resolve a origem de navegação pública da Financeira.
- * Preview/local preservam a própria origem; qualquer host de produção,
- * inclusive o endereço antigo, resolve para o domínio oficial.
+ * Resolve somente a origem pública externa da Financeira.
+ * A origem da aplicação (Lovable, preview, localhost ou homologação) não
+ * participa desta decisão e continua sendo governada pela navegação interna.
  */
-export function financeiraPublicOrigin(baseUrl?: string): string {
-  return homologationOrigin(baseUrl ?? runtimeOrigin()) ?? FINANCEIRA_PUBLIC_ORIGIN;
+export function financeiraPublicOrigin(): string {
+  return FINANCEIRA_PUBLIC_ORIGIN;
 }
 
 /** Constrói uma URL pública da Financeira sem alterar o caminho recebido. */
-export function financeiraPublicUrl(path: string, baseUrl?: string): string {
+export function financeiraPublicUrl(path: string): string {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  return `${financeiraPublicOrigin(baseUrl)}${cleanPath}`;
+  return `${financeiraPublicOrigin()}${cleanPath}`;
 }
 
 /**
@@ -139,7 +119,7 @@ export function investorPortalUrl(
   baseUrl?: string,
 ): string {
   if (getBrand(brandKey).key === DEFAULT_BRAND_KEY) {
-    return financeiraPublicUrl(investorPortalPath(executiveSlug, brandKey), baseUrl);
+    return financeiraPublicUrl(investorPortalPath(executiveSlug, brandKey));
   }
 
   // As demais marcas não fazem parte desta troca de domínio e conservam
