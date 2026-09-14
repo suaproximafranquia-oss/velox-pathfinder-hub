@@ -146,3 +146,9 @@
 - [x] Manter o resultado visível e a segunda tentativa manual, sem concluir ou registrar a ação ao copiar.
 - [x] Validar preview, testes focados, tipos e compilação (8 testes e tipos aprovados; build OK; preview abriu normalmente, com a área autenticada indisponível sem sessão ativa).
 
+## Runtime publicado da Financeira /f
+
+- [x] Corrigir a entrada do servidor e ativar o empacotador oficial da Hospedagem Lovable, sem alterar rotas ou regras operacionais.
+- [x] Validar preview, tipos, compilação e testes focados da Ação do Dia (15 testes aprovados).
+- [ ] Confirmar `/`, `/f`, `/f/executivo` e `/_serverFn/*` no domínio oficial após a nova publicação assumir o tráfego. Bloqueio: a conferência única ainda recebeu o pacote anterior (`content_hash` inalterado), com `502` durante a propagação.
+
