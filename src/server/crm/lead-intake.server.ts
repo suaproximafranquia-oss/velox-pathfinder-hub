@@ -26,7 +26,7 @@ import {
   upsertLead,
 } from "@/server/crm/lead-service.server";
 import { ensureWorkspaceCard, refreshWorkspaceCardName } from "@/server/crm/workspace-card.server";
-import { createPendingE0Action } from "@/server/crm/e0-actions.server";
+import { createPendingE0Action, hasInitialE0Operation } from "@/server/crm/e0-actions.server";
 import { resolveExecutiveE0Mode } from "@/server/crm/first-contact-mode.server";
 import {
   backfillCardResponsible,
@@ -211,7 +211,11 @@ export async function intakeLead(
     },
     settings.cadenceActivationDate,
   );
-  const enteredNow = entry.reentry || (outcome.created || context.forceEntry ? Boolean(stage?.isEntry) : outcome.enteredEntryStage);
+  const initialEntryStillPending = Boolean(stage?.isEntry) && eligibility.eligible
+    && !(await hasInitialE0Operation(cardId));
+  const enteredNow = entry.reentry
+    || (outcome.created || context.forceEntry ? Boolean(stage?.isEntry) : outcome.enteredEntryStage)
+    || initialEntryStillPending;
 
   if (enteredNow && !eligibility.eligible) {
     await recordEvent(outcome.lead.id, "e0_ignorada", eligibility.reason);

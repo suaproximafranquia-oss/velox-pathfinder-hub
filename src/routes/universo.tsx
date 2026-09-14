@@ -61,8 +61,10 @@ const positionalEditorial = (key: string, asset: AssetKey) => ({
 });
 
 const panoramaSlot = positionalEditorial("universo-ch2-panorama-mercado", "mercado-distrito-financeiro");
+const operacaoSlot = positionalEditorial("universo-ch2-como-franqueado-atua", "atendimento-consultivo");
 const suporteSlot = positionalEditorial("universo-ch3-suporte-franqueado", "reuniao-colaborativa");
 const universidadeSlot = positionalEditorial("universo-ch3-universidade-corporativa", "reuniao-colaborativa");
+const perfilSlot = positionalEditorial("universo-ch4-perfil-investidor", "decisao-investidor");
 const proximosSlot = positionalEditorial("universo-ch5-proximos-passos", "atendimento-consultivo");
 
 const heroImg = editorial("sede-velox");
@@ -456,10 +458,10 @@ const MANUAL_TOPICS: string[] = [
 
 
 const unidades = (): GalleryItem[] => [
-  { src: portalAssetUrl("universo-ch4-galeria-fachada", assetUrl("unidade-fachada")), slotKey: "universo-ch4-galeria-fachada", alt: "Fachada de unidade Velox", caption: "Unidade da rede · Fachada institucional", span: 2 },
+  { src: portalAssetUrl("universo-ch4-galeria-fachada", assetUrl("unidade-fachada")), slotKey: "universo-ch4-galeria-fachada", alt: "Fachada de unidade Velox", caption: "Unidade da rede", span: 2 },
   { src: portalAssetUrl("universo-ch4-galeria-fachada-alternativa", assetUrl("unidade-fachada-alternativa")), slotKey: "universo-ch4-galeria-fachada-alternativa", alt: "Fachada de unidade Velox — identidade institucional", caption: "Unidade da rede", span: 1 },
-  { src: portalAssetUrl("universo-ch4-galeria-inauguracao", assetUrl("unidade-inauguracao")), slotKey: "universo-ch4-galeria-inauguracao", alt: "Inauguração de unidade Velox", caption: "Inauguração · Rede em expansão", span: 1 },
-  { src: portalAssetUrl("universo-ch4-galeria-executivos", assetUrl("equipe-expansao")), slotKey: "universo-ch4-galeria-executivos", alt: "Executivos de expansão em unidade da rede", caption: "Executivos de Expansão · Velox", span: 2 },
+  { src: portalAssetUrl("universo-ch4-galeria-inauguracao", assetUrl("unidade-inauguracao")), slotKey: "universo-ch4-galeria-inauguracao", alt: "Inauguração de unidade Velox", caption: "Unidade da rede", span: 1 },
+  { src: portalAssetUrl("universo-ch4-galeria-executivos", assetUrl("equipe-expansao")), slotKey: "universo-ch4-galeria-executivos", alt: "Executivos de expansão em unidade da rede", caption: "Unidade da rede", span: 2 },
 ];
 
 function useScrollSpy(ids: string[]) {
@@ -1044,7 +1046,7 @@ function Index() {
           image={panoramaSlot.url}
           assetSlot={panoramaSlot.key}
           imageAlt="Vista do distrito financeiro ao amanhecer"
-          imageCaption="Distrito financeiro · Amanhecer"
+          imageCaption="Panorama do mercado financeiro"
           surface="paper"
         >
           <p>
@@ -1099,13 +1101,9 @@ function Index() {
           <FlowDiagram steps={OPERATION_FLOW} />
           <Reveal delay={200}>
             <div className="mt-14">
-              <MediaSlot
-                kind="video"
-                label="[ESPAÇO PARA VÍDEO EXPLICATIVO — COMO FUNCIONA A OPERAÇÃO]"
-                note="Reservado para o vídeo em que a equipe demonstra, na prática, um atendimento do início ao fim."
-                ratio="16 / 9"
-                tone="light"
-              />
+              <figure className="frame-orange relative overflow-hidden bg-black shadow-[var(--shadow-frame)]" style={{ aspectRatio: "16 / 9" }}>
+                <img src={operacaoSlot.url} data-portal-asset-slot={operacaoSlot.key} alt="Atendimento consultivo representando conexão, diagnóstico, solução e relacionamento" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+              </figure>
             </div>
           </Reveal>
         </EditorialSection>
@@ -1310,8 +1308,8 @@ function Index() {
           eyebrow="Processo de implantação"
           title="Um começo bem estruturado é o primeiro passo de uma operação sólida."
           image={ciroImg.url}
-          imageAlt="Ciro Bottini, embaixador da Velox Soluções Financeiras"
-          imageCaption="Ciro Bottini · Embaixador Velox"
+          imageAlt="Processo de implantação de uma unidade Velox"
+          imageCaption="Processo de implantação · Velox"
           surface="paper"
         >
           <p>
@@ -1404,7 +1402,7 @@ function Index() {
           image={universidadeSlot.url}
           assetSlot={universidadeSlot.key}
           imageAlt="Sala de formação corporativa com equipe em treinamento"
-          imageCaption="Universidade Corporativa Velox"
+          imageCaption="Universidade Corporativa"
           imageRatio="4 / 3"
           surface="ink"
         >
@@ -1769,12 +1767,9 @@ function Index() {
           </div>
           <Reveal delay={200}>
             <div className="mt-14">
-              <MediaSlot
-                kind="video"
-                label="[ESPAÇO PARA DEPOIMENTOS DE FRANQUEADOS]"
-                note="Reservado para depoimentos reais gravados com franqueados da rede. Nenhum depoimento será publicado sem origem verificada."
-                ratio="16 / 9"
-              />
+              <figure className="frame-orange relative overflow-hidden bg-black shadow-[var(--shadow-frame)]" style={{ aspectRatio: "16 / 9" }}>
+                <img src={perfilSlot.url} data-portal-asset-slot={perfilSlot.key} alt="Investidor avaliando perfil, aprendizado, visão de longo prazo e formato da operação" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+              </figure>
             </div>
           </Reveal>
         </EditorialSection>

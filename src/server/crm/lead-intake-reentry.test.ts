@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const fake = vi.hoisted(() => ({
-  last: "2026-08-01T12:00:00Z", reentry: vi.fn(async () => true), pending: vi.fn(), refresh: vi.fn(), upsert: vi.fn(),
+  last: "2026-08-01T12:00:00Z", operationalized: true, reentry: vi.fn(async () => true), pending: vi.fn(), refresh: vi.fn(), upsert: vi.fn(),
 }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {} }));
 vi.mock("./lead-service.server", async (original) => ({
@@ -16,7 +16,7 @@ vi.mock("./ownership.server", () => ({ applyOriginResponsibleChange: async () =>
 vi.mock("./first-contact-mode.server", () => ({ resolveExecutiveE0Mode: async () => ({ mode: "manual" }) }));
 vi.mock("./first-contact-queue.server", () => ({ deferFirstContact: vi.fn() }));
 vi.mock("./automation.server", () => ({ loadSettings: vi.fn() }));
-vi.mock("./e0-actions.server", () => ({ createPendingE0Action: fake.pending }));
+vi.mock("./e0-actions.server", () => ({ createPendingE0Action: fake.pending, hasInitialE0Operation: async () => fake.operationalized }));
 vi.mock("@/server/relationship/execution-mode.server", () => ({ executionMode: () => ({ simulated: true }) }));
 vi.mock("@/server/relationship/reentry-open.server", () => ({ openCommercialReentry: fake.reentry }));
 import { intakeLead, type IntakeContext } from "./lead-intake.server";
@@ -27,12 +27,27 @@ const context = { pipeline: { pipelineId: "TEST", externalId: "TEST", name: "TES
 ] }, settings: { cadenceActivationDate: "2026-09-01" } } as IntakeContext;
 beforeEach(() => {
   fake.last = "2026-08-01T12:00:00Z";
+  fake.operationalized = true;
   vi.clearAllMocks();
   fake.upsert.mockImplementation(async (input) => {
     if (isNewCommercialEntry(fake.last, input.lastEntryAt)) fake.last = input.lastEntryAt;
     return { lead: { id: "TEST-crm", name: "Oficial", entered_entry_stage_at: "2026-08-01T12:00:00Z" },
       created: false, changed: true, deduplicated: false, enteredEntryStage: false };
   });
+});
+
+it("lead elegível já espelhado em NOVOS abre uma única E0 enquanto não operacionalizado", async () => {
+  fake.last = "2026-09-09T12:00:00Z";
+  fake.operationalized = false;
+  fake.pending.mockImplementationOnce(async () => {
+    fake.operationalized = true;
+    return { ok: true, created: true };
+  });
+  fake.upsert.mockResolvedValue({ lead: { id: "TEST-crm", name: "Oficial", entered_entry_stage_at: "2026-09-09T12:00:00Z" }, created: false, changed: false, deduplicated: false, enteredEntryStage: false });
+  const raw = { id: "TEST", name: "Oficial", created_at: "2026-09-09T12:00:00Z", last_register_at: "2026-09-09T12:00:00Z", tags: [{ id: 26 }] };
+  await intakeLead(raw, context);
+  await intakeLead(raw, context);
+  expect(fake.pending).toHaveBeenCalledTimes(1);
 });
 it("nova data comercial com FRIOS antigo abre RE0, sem E0, mesmo com entrada na etapa anterior ao corte", async () => {
   const raw = { id: "TEST", name: "Oficial", last_register_at: "2026-09-09T12:00:00Z", tags: [{ id: 26 }, { id: 59 }] };

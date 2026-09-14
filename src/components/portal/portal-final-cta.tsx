@@ -12,7 +12,8 @@
  */
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
-import { getResponsibleExecutive, getCommercialTitle } from "@/lib/responsible-executive";
+import { getCommercialTitle } from "@/lib/responsible-executive";
+import { getSessionResponsibleExecutive } from "@/lib/portal/session-responsible";
 import { ExecutiveContactDialog } from "@/components/shared/executive-contact-dialog";
 
 export function PortalFinalCta({
@@ -23,7 +24,7 @@ export function PortalFinalCta({
   context: string;
   whatsappMessage?: string;
 }) {
-  const { executive, personalized } = getResponsibleExecutive();
+  const { executive, personalized } = getSessionResponsibleExecutive();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   if (personalized && executive) {

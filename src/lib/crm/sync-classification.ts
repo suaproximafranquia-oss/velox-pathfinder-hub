@@ -34,6 +34,8 @@ export type ClassificationInput = {
   since: Date;
   /** A coluna resolvida na origem é a etapa de ENTRADA (NOVOS). */
   resolvedIsEntry?: boolean;
+  /** A entrada inicial já possui ação/régua/mensagem E0 oficial. */
+  entryOperationalized?: boolean;
   /**
    * Corte operacional (data de ativação da cadência, AAAA-MM-DD).
    * Entrada real anterior ao corte é sempre histórico.
@@ -46,6 +48,12 @@ export function classifyScannedLead(input: ClassificationInput): ScanLeadClass {
     // Sem etiqueta de coluna resolvida NÃO há evidência de mudança —
     // jamais rebaixamos um lead por ausência de informação.
     if (input.resolvedStage && input.resolvedStage !== input.mirrorStage) return "C";
+    if (
+      input.resolvedIsEntry &&
+      input.entryOperationalized === false &&
+      input.cutoverDate &&
+      !isHistoricalLead({ lastEntryAt: input.entryAt ?? null }, input.cutoverDate)
+    ) return "A";
     return "D";
   }
   /**

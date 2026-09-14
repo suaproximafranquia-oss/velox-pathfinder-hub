@@ -6,7 +6,8 @@ import { CheckCircle2, ArrowRight } from "lucide-react";
 import { getChapter } from "@/lib/journey-data";
 import { getExecutiveBySlug, type ExecutiveUser } from "@/lib/executive-auth";
 import { setResponsibleExecutiveSlug } from "@/lib/responsible-executive";
-import { getResponsibleExecutive } from "@/lib/responsible-executive";
+import { getCommercialTitle } from "@/lib/responsible-executive";
+import { getSessionResponsibleExecutive } from "@/lib/portal/session-responsible";
 import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/manual/$chapter")({
@@ -86,7 +87,7 @@ function FinalClosing() {
     personalized: boolean;
   }>({ executive: null, personalized: false });
   useEffect(() => {
-    setResponsible(getResponsibleExecutive());
+    setResponsible(getSessionResponsibleExecutive());
   }, []);
   return (
     <div className="mt-10 space-y-10">
@@ -162,14 +163,12 @@ function PersonalizedCta({ executive }: { executive: ExecutiveUser }) {
         Seu especialista
       </p>
       <h3 className="font-display text-2xl mb-1">{executive.name}</h3>
-      {executive.title && (
-        <p className="text-sm text-[color:var(--muted-foreground)] mb-5">
-          {executive.title}
-        </p>
-      )}
+      <p className="text-sm text-[color:var(--muted-foreground)] mb-5">
+        {getCommercialTitle(executive)}
+      </p>
       <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed mb-6">
-        Você já está acompanhado por {firstName}. Ao clicar abaixo, a conversa
-        continua diretamente no WhatsApp dele(a).
+        Sua jornada até aqui já foi acompanhada por {firstName}. Sempre que fizer sentido para
+        você, é uma satisfação retomar essa conversa e avançar no seu ritmo.
       </p>
       <a
         href={url}

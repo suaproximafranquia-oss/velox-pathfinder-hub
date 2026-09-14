@@ -249,10 +249,14 @@ async function runLeadSyncInner(
   const inWindow = new Set(leads.map((l) => String(l.id)));
   const { data: mirror } = await supabaseAdmin
     .from("crm_leads")
-    .select("external_id,stage_key,last_entry_at")
+    .select("id,external_id,stage_key,last_entry_at")
     .eq("external_source", "greensales");
   const storedStage = new Map((mirror ?? []).map((r) => [r.external_id, r.stage_key]));
   const storedEntry = new Map((mirror ?? []).map((r) => [r.external_id, r.last_entry_at]));
+  const { getInitialE0OperationalizedCardIds } = await import("@/server/crm/e0-actions.server");
+  const operationalizedCards = await getInitialE0OperationalizedCardIds(
+    (mirror ?? []).map((row) => `gs_${row.external_id}`),
+  );
 
   type ScannedLead = (typeof scanned)[number];
   const entryAtOf = (lead: ScannedLead): string | null =>
@@ -330,7 +334,8 @@ async function runLeadSyncInner(
       toProcess.push({ listed, cls: "A" });
       continue;
     }
-    const resolved = stageKeyOf(listed);
+    const stage = stageOf(listed);
+    const resolved = stage?.key ?? null;
     if (!resolved) {
       needsDetailCheck.push(listed);
       continue;
@@ -338,7 +343,20 @@ async function runLeadSyncInner(
     if (resolved !== storedStage.get(externalId)) {
       divergentCount += 1;
       toProcess.push({ listed, cls: "C" });
+      continue;
     }
+    const cls = classifyScannedLead({
+      inWindow: false,
+      inMirror: true,
+      mirrorStage: storedStage.get(externalId) ?? null,
+      resolvedStage: resolved,
+      resolvedIsEntry: Boolean(stage?.isEntry),
+      entryOperationalized: operationalizedCards.has(`gs_${externalId}`),
+      cutoverDate: settings.cadenceActivationDate ?? null,
+      entryAt: entryAtOf(listed),
+      since,
+    });
+    if (cls === "A") toProcess.push({ listed, cls });
   }
 
   const DETAIL_CHECK_LIMIT = 80;
@@ -353,10 +371,21 @@ async function runLeadSyncInner(
       const resolved = stageKeyOf(merged);
       // Sem etiqueta de coluna resolvida NÃO há evidência de mudança —
       // jamais rebaixamos um lead por ausência de informação.
-      if (isNewCommercialEntry(storedEntry.get(externalId) ?? null, entryAtOf(merged)) ||
-          (resolved && resolved !== storedStage.get(externalId))) {
+      const stage = stageOf(merged);
+      const cls = classifyScannedLead({
+        inWindow: false,
+        inMirror: true,
+        mirrorStage: storedStage.get(externalId) ?? null,
+        resolvedStage: resolved,
+        resolvedIsEntry: Boolean(stage?.isEntry),
+        entryOperationalized: operationalizedCards.has(`gs_${externalId}`),
+        cutoverDate: settings.cadenceActivationDate ?? null,
+        entryAt: entryAtOf(merged),
+        since,
+      });
+      if (isNewCommercialEntry(storedEntry.get(externalId) ?? null, entryAtOf(merged)) || cls !== "D") {
         divergentCount += 1;
-        toProcess.push({ listed: merged, cls: "C" });
+        toProcess.push({ listed: merged, cls: cls === "A" ? "A" : "C" });
       }
     } catch (error) {
       // Um lead problemático nunca derruba a execução (§5).

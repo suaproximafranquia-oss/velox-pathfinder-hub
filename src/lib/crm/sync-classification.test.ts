@@ -162,5 +162,31 @@ describe("classificação explícita da entrada (A/B/C/D)", () => {
         }),
       ).toBe("B");
     });
+    it("A — espelho em NOVOS sem marcador E0 oficial ainda precisa ser operacionalizado", () => {
+      expect(classifyScannedLead({
+        inWindow: false,
+        inMirror: true,
+        mirrorStage: "novos",
+        resolvedStage: "novos",
+        resolvedIsEntry: true,
+        entryOperationalized: false,
+        cutoverDate,
+        entryAt: "2026-09-05T00:22:39Z",
+        since: new Date("2026-09-08T10:37:00Z"),
+      })).toBe("A");
+    });
+    it("D — espelho em NOVOS com marcador E0 oficial permanece idempotente", () => {
+      expect(classifyScannedLead({
+        inWindow: false,
+        inMirror: true,
+        mirrorStage: "novos",
+        resolvedStage: "novos",
+        resolvedIsEntry: true,
+        entryOperationalized: true,
+        cutoverDate,
+        entryAt: "2026-09-05T00:22:39Z",
+        since: new Date("2026-09-08T10:37:00Z"),
+      })).toBe("D");
+    });
   });
 });
