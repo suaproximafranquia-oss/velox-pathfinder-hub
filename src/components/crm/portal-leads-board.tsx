@@ -109,7 +109,7 @@ function LeadCard({
           {formatDate(lead.externalCreatedAt ?? lead.ingestedAt)}
         </span>
         {showWelcome && lead.welcomeStatus !== "NOT_APPLICABLE" && (
-          <StatusPill status={lead.welcomeStatus} />
+          {lead.hasOperationalCard && <StatusPill status={lead.welcomeStatus} />}
         )}
       </div>
     </button>
@@ -186,7 +186,7 @@ function LeadDialog({
         </div>
 
 
-        {canMove && (
+        {canMove && lead.hasOperationalCard && (
         <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
           <p className="text-[11px] font-medium text-amber-300">Mover para (contingência local)</p>
           <p className="mt-1 text-[10px] leading-relaxed text-white/50">
@@ -710,7 +710,7 @@ export function PortalLeadsBoard({ standalone = false }: { standalone?: boolean 
           stages={stages}
           onClose={() => setSelectedId(null)}
           onMove={handleMove}
-          canMove={canManageMirror}
+          canMove={canManageMirror && selected.hasOperationalCard}
         />
       )}
 

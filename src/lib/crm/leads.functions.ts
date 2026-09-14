@@ -29,6 +29,8 @@ export type CrmLeadView = {
   welcomeLink: string | null;
   /** Executivo responsável pelo card operacional (fonte: portal_leads). */
   responsibleExecutiveId: string | null;
+  /** Distingue o universo espelhado do card que já entrou em operação. */
+  hasOperationalCard: boolean;
 };
 
 export type CrmLeadEventView = {
@@ -95,6 +97,7 @@ function toView(row: LeadRow): CrmLeadView {
     welcomeError: row.welcome_error,
     welcomeLink: row.welcome_link,
     responsibleExecutiveId: null,
+    hasOperationalCard: false,
   };
 }
 
@@ -106,11 +109,15 @@ function toView(row: LeadRow): CrmLeadView {
  * Esta leitura apenas ANEXA esse dado e, quando pedido, recorta a lista
  * por executivo. Nenhuma titularidade é criada ou alterada aqui.
  */
-async function responsibleByExternalId(
+type OperationalCardState = {
+  responsibleExecutiveId: string | null;
+};
+
+async function operationalCardsByExternalId(
   context: { supabase: never },
   externalIds: string[],
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
+): Promise<Map<string, OperationalCardState>> {
+  const out = new Map<string, OperationalCardState>();
   if (externalIds.length === 0) return out;
   const supabase = context.supabase as unknown as {
     from: (t: string) => {
@@ -124,14 +131,17 @@ async function responsibleByExternalId(
       };
     };
   };
-  const { data } = await supabase
-    .from("portal_leads")
-    .select("external_id,responsible_executive_id")
-    .in("external_id", externalIds);
-  for (const row of data ?? []) {
-    const key = (row.external_id ?? "").trim();
-    const value = (row.responsible_executive_id ?? "").trim();
-    if (key && value) out.set(key, value);
+  for (let offset = 0; offset < externalIds.length; offset += 500) {
+    const { data } = await supabase
+      .from("portal_leads")
+      .select("external_id,responsible_executive_id")
+      .in("external_id", externalIds.slice(offset, offset + 500));
+    for (const row of data ?? []) {
+      const key = (row.external_id ?? "").trim();
+      if (!key) continue;
+      const responsibleExecutiveId = (row.responsible_executive_id ?? "").trim() || null;
+      out.set(key, { responsibleExecutiveId });
+    }
   }
   return out;
 }
@@ -197,31 +207,6 @@ async function ownExternalIds(
     .filter((value) => value.length > 0);
 }
 
-/**
- * MARCO ZERO /f — o Portal dos Leads é a base operacional oficial.
- *
- * `crm_leads` continua sendo o espelho técnico completo necessário para
- * reconhecer sincronizações e reentradas, porém o CRM interno só apresenta
- * IDs que possuem card oficial em `portal_leads`. Assim Workspace, Portal e
- * CRM contam exatamente a mesma carteira, sem criar uma fonte paralela.
- */
-async function officialExternalIds(context: { supabase: never }): Promise<string[]> {
-  const supabase = context.supabase as unknown as {
-    from: (t: string) => {
-      select: (c: string) => Promise<{ data: { external_id: string | null }[] | null; error: { message: string } | null }>;
-    };
-  };
-  const { data, error } = await supabase.from("portal_leads").select("external_id");
-  if (error) throw new Error(error.message);
-  return Array.from(
-    new Set(
-      (data ?? [])
-        .map((row) => (row.external_id ?? "").trim())
-        .filter((value) => value.length > 0),
-    ),
-  );
-}
-
 /** Lista os leads do nosso CRM, com filtros de operação. */
 export const listCrmLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -239,34 +224,45 @@ export const listCrmLeads = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<CrmLeadView[]> => {
     const identity = await assertManager(context as never);
     const scoped = await ownExternalIds(context as never, identity);
-    const official = await officialExternalIds(context as never);
-    if (official.length === 0 || (scoped && scoped.length === 0)) return [];
-    const visibleExternalIds = scoped
-      ? official.filter((externalId) => scoped.includes(externalId))
-      : official;
-    if (visibleExternalIds.length === 0) return [];
-    let query = context.supabase
-      .from("crm_leads")
-      .select(LEAD_FIELDS)
-      .order("external_created_at", { ascending: false })
-      .limit(500);
-    query = query.in("external_id", visibleExternalIds);
-    if (data.stageKey) query = query.eq("stage_key", data.stageKey);
-    if (data.welcomeStatus) query = query.eq("welcome_status", data.welcomeStatus);
-    if (data.search?.trim()) {
-      const term = `%${data.search.trim()}%`;
-      query = query.or(`name.ilike.${term},email.ilike.${term},phone.ilike.${term}`);
-    }
-    const { data: rows, error } = await query;
-    if (error) throw new Error(error.message);
-    const views = (rows as unknown as LeadRow[]).map(toView);
+    if (scoped && scoped.length === 0) return [];
 
-    const responsible = await responsibleByExternalId(
+    /**
+     * UNIVERSO DO PORTAL /f — leitura paginada do cânon GreenSales.
+     * Esta função é estritamente de leitura: existir no espelho não cria
+     * card, E0, cadência, fila nem qualquer obrigação operacional.
+     */
+    const rows: LeadRow[] = [];
+    const pageSize = 500;
+    for (let from = 0; ; from += pageSize) {
+      let query = context.supabase
+        .from("crm_leads")
+        .select(LEAD_FIELDS)
+        .eq("external_source", "greensales")
+        .order("external_created_at", { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (scoped) query = query.in("external_id", scoped);
+      if (data.stageKey) query = query.eq("stage_key", data.stageKey);
+      if (data.welcomeStatus) query = query.eq("welcome_status", data.welcomeStatus);
+      if (data.search?.trim()) {
+        const term = `%${data.search.trim()}%`;
+        query = query.or(`name.ilike.${term},email.ilike.${term},phone.ilike.${term}`);
+      }
+      const result = await query;
+      if (result.error) throw new Error(result.error.message);
+      const page = (result.data ?? []) as unknown as LeadRow[];
+      rows.push(...page);
+      if (page.length < pageSize) break;
+    }
+    const views = rows.map(toView);
+
+    const operationalCards = await operationalCardsByExternalId(
       context as never,
       views.map((v) => v.externalId).filter(Boolean),
     );
     for (const view of views) {
-      view.responsibleExecutiveId = responsible.get(view.externalId) ?? null;
+      const card = operationalCards.get(view.externalId);
+      view.responsibleExecutiveId = card?.responsibleExecutiveId ?? null;
+      view.hasOperationalCard = Boolean(card);
     }
 
     // Recorte por executivo: só faz sentido para quem enxerga a equipe.
