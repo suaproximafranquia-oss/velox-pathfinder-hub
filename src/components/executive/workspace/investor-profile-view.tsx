@@ -17,6 +17,7 @@ import { STATUS_LABEL, formatRelative } from "@/lib/executive-data";
 import { PORTAL_ACCESS_POLL_MS } from "@/lib/portal-access";
 import {
   getInvestorJourneyState,
+  releasePortalAccess,
   type InvestorJourneyState,
 } from "@/lib/portal-access.functions";
 import { loadUsers, type ExecutiveSession } from "@/lib/executive-auth";
@@ -316,10 +317,25 @@ function TabGeral({
   const [ficha, setFicha] = useState<LeadFicha | null>(null);
   const [saved, setSaved] = useState(false);
   const [state, setState] = useState<LeadState>(() => resolveLeadState(investor));
+  const [materialAccess, setMaterialAccess] = useState<{ completed: boolean; released: boolean } | null>(null);
+  const [releasingMaterial, setReleasingMaterial] = useState(false);
 
   useEffect(() => {
     setFicha(readLeadFicha(investor.id));
     setState(resolveLeadState(investor));
+  }, [investor.id]);
+
+  useEffect(() => {
+    let alive = true;
+    void getInvestorJourneyState({ data: { investorId: investor.id } })
+      .then((journey) => {
+        if (alive) setMaterialAccess({
+          completed: journey?.manual.status === "concluido",
+          released: Boolean(journey?.manual.status === "concluido"),
+        });
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
   }, [investor.id]);
 
   if (!ficha) {
@@ -411,7 +427,41 @@ function TabGeral({
       </div>
 
       <ReadOnly label="Diagnóstico" value={investor.diagnostic} />
-      <ReadOnly label="Interações com IA" value={String(investor.aiInteractions)} />
+      <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/40 px-5 py-4">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+          Material Institucional
+        </p>
+        <p className="mt-2 text-sm">
+          {materialAccess?.completed || materialAccess?.released
+            ? "Liberado"
+            : "Bloqueado — conclua o Manual para liberar."}
+        </p>
+        {!materialAccess?.completed && !materialAccess?.released && (session.activeRole === "super_admin" || session.activeRole === "diretora") && (
+          <button
+            type="button"
+            disabled={releasingMaterial}
+            onClick={() => {
+              setReleasingMaterial(true);
+              void releasePortalAccess({
+                data: {
+                  investorId: investor.id,
+                  actorName: session.name,
+                  reason: "Material Institucional liberado pelo Workspace",
+                },
+              })
+                .then(() => {
+                  setMaterialAccess({ completed: false, released: true });
+                  toast.success("Material Institucional liberado.");
+                })
+                .catch(() => toast.error("Não foi possível liberar o Material Institucional."))
+                .finally(() => setReleasingMaterial(false));
+            }}
+            className="mt-3 inline-flex items-center rounded-full border border-[color:var(--gold)]/60 bg-[color:var(--accent)] px-4 py-2 text-xs uppercase tracking-[0.12em] transition hover:border-[color:var(--gold)] disabled:opacity-50"
+          >
+            Liberar Material Institucional
+          </button>
+        )}
+      </div>
 
       <div className="md:col-span-2 flex items-center gap-3">
         <button
