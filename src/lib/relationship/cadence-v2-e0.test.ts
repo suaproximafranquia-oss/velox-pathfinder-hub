@@ -89,6 +89,16 @@ describe("E0 na régua V2", () => {
     expect(released?.action).toMatchObject({ order: 3, kind: "message" });
   });
 
+  it("na segunda, atendimento na primeira ligação usa CONTATO_REALIZADO sem segunda ligação", () => {
+    const released = nextReleasedAction({
+      step: "E0",
+      stepDueAt: "2026-09-14T12:00:00.000Z",
+      operationalDate: "2026-09-14",
+      states: [{ order: 1, status: "DONE", executedAt: "2026-09-14T12:00:00.000Z", result: "SIM" }],
+    });
+    expect(released?.action).toMatchObject({ order: 3, kind: "message" });
+  });
+
 
   it("mensagem concluída encerra o E0 sem recriar ações", () => {
     const released = nextReleasedAction({

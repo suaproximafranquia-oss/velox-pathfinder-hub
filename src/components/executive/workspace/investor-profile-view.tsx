@@ -278,9 +278,6 @@ function LeadStateBadge({
 }) {
   const [state, setState] = useState<LeadState>(() => resolveLeadState(investor));
   useEffect(() => {
-    // Abrir o perfil já caracteriza visualização: verde → amarelo.
-    markLeadViewed(investor.id, actorId);
-    setState(resolveLeadState({ id: investor.id }));
     return onLeadStateChange((id) => {
       if (!id || id === investor.id) setState(resolveLeadState({ id: investor.id }));
     });

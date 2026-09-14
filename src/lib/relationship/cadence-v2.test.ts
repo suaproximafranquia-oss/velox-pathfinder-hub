@@ -18,6 +18,7 @@ import {
   stepActions,
   type CycleContext,
 } from "./cadence-v2";
+import { decideCadenceV2 } from "./cadence-v2-decide";
 
 const SEM_MATERIAL: CycleContext = { materialSent: false };
 
@@ -141,6 +142,19 @@ describe("fluxo R", () => {
     expect(projectedPath("R1", { materialSent: true, materialSentInCycle: true }).map((p) => p.step)).toEqual([
       "R1", "R2", "R3", "R4", "R5",
     ]);
+  });
+  it("a entrada R1 fica para o próximo dia operacional", () => {
+    const decision = decideCadenceV2({
+      nowIso: "2026-09-11T15:00:00.000Z",
+      originDate: "2026-09-11",
+      flow: "R",
+      actions: [],
+      executedSteps: [],
+      cycle: SEM_MATERIAL,
+      stageKey: "frio",
+      awaitingHandoff: false,
+    });
+    expect(decision).toMatchObject({ step: "R1", dueAt: "2026-09-14T12:00:00.000Z" });
   });
 });
 
