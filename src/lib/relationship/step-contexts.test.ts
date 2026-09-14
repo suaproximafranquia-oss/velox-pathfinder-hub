@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { resolveStepContext } from "./cadence-v2";
-import { requiresStepContext, stepCombinations } from "./operational-steps";
+import { requiresStepContext, STEP_CONTEXT_LABELS, stepCombinations } from "./operational-steps";
 
 describe("contextos das etapas", () => {
+  it("expõe exatamente os dois contextos editoriais da E0", () => {
+    expect(stepCombinations("E0")).toEqual(["SEM_CONTATO", "CONTATO_REALIZADO"]);
+    expect(STEP_CONTEXT_LABELS.SEM_CONTATO).toBe("Investidor sem contato");
+    expect(STEP_CONTEXT_LABELS.CONTATO_REALIZADO).toBe("Investidor com contato realizado");
+  });
   it("E2/E3 usam o caminho V somente quando o motor o abriu; E1 é sempre normal", () => {
     const base = { materialSent: false, visualPath: false };
     expect(resolveStepContext(base, "E1")).toBeNull();

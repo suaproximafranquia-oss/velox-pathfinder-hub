@@ -485,8 +485,9 @@ export function waitMinutesOf(action: StepActionPlan): number {
  * AÇÕES INTERNAS DA ETAPA. Continuam sendo UMA etapa: nunca E1.1/E2.1.
  * A ligação sempre vem antes da mensagem.
  *
- * E0 é etapa real da régua: ligação 1 → 10 minutos → ligação 2 →
- * mensagem (somente se as duas ligações não forem atendidas).
+ * E0 é etapa real da régua: na segunda, ligação única → mensagem; de
+ * terça a sexta, ligação 1 → 10 minutos → ligação 2 → mensagem. Contato
+ * realizado na primeira ligação pula apenas a segunda ligação.
  */
 export function isOperationalMonday(isoDate: string | null | undefined): boolean {
   if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return false;

@@ -2,7 +2,8 @@
 
 - [x] /f: E0 de segunda-feira com uma ligação e mensagem contextual; terça a sexta preserva duas ligações e 10 minutos.
 - [x] /f: E0 atendida usa CONTATO_REALIZADO, sem contato usa SEM_CONTATO, com cópia sem envio ou conclusão automática.
-- [ ] /f: reconciliar filas E0 abertas desta segunda-feira, validar ausência de duplicatas, testes, tipos, build e preview.
+- [x] /f: reconciliar filas E0 abertas desta segunda-feira sem alterar histórico concluído nem criar duplicatas.
+- [ ] /f: validar testes focados, tipos, build e preview da Ação do Dia.
 
 - [x] /f marco zero: preservar os 40 leads oficiais, 10 compromissos válidos e as referências de reentrada gs_56503/gs_57906.
 - [x] /f marco zero: remover ações, pendências, filas, ciclos e resíduos internos anteriores, sem tocar no GreenSales externo.

@@ -172,13 +172,17 @@ export function DailyActionCard({
   const primedRef = useRef<{ actionKey: string; key: string } | null>(null);
   useEffect(() => {
     if (!isCallAction(item) || locked) return;
-    const key = stepMessageKey(item.leadId, item.stepLabel);
+    const baseKey = stepMessageKey(item.leadId, item.stepLabel);
+    const key =
+      callPending?.outcome === "SIM" && item.e0AttendedChoice && baseKey
+        ? `${baseKey}::CONTATO_REALIZADO`
+        : baseKey;
     if (callPending?.outcome === "NAO" || (callPending?.outcome === "SIM" && item.e0AttendedChoice)) {
       if (!key) return;
       adapter.prewarmOutcome?.();
       primeStepMessage(key, () => adapter.loadMessage(
         item,
-        callPending.outcome === "SIM" ? "CONTATO_REALIZADO" : "SEM_CONTATO",
+        callPending.outcome === "SIM" ? "CONTATO_REALIZADO" : undefined,
       ).catch(() => null));
       primedRef.current = { actionKey: item.actionKey, key };
       return;
@@ -346,8 +350,9 @@ export function DailyActionCard({
        */
       let view: StepMessageView | null = null;
       try {
+        const baseKey = stepMessageKey(item.leadId, item.messageRef?.step ?? item.stepLabel);
         const prepared = takeStepMessage(
-          stepMessageKey(item.leadId, item.messageRef?.step ?? item.stepLabel),
+          context && baseKey ? `${baseKey}::${context}` : baseKey,
         );
         const state = await loadMessageForModal(
           async () => (await (prepared ?? adapter.loadMessage(item, context))) ?? null,

@@ -155,6 +155,7 @@ describe("Ação do Dia — posição 1 protegida", () => {
       item({ actionKey: "queue:gs_c:E-E0-2:c", leadId: "gs_c", name: "William", queueActionOrder: 2 }),
     ]);
     expect(list.map((a) => a.name)).toEqual(["Paulo", "Eduardo", "William"]);
-    expect(actionRank(list[0]!)).toBe(0);
+    // O item reivindicado usa a faixa reservada, anterior à prioridade 0.
+    expect(actionRank(list[0]!)).toBe(-1);
   });
 });
