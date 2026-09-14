@@ -27,7 +27,6 @@ import { listPendingE0Actions } from "@/server/crm/e0-actions.server";
 import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
-import { isOperationalMonday } from "@/lib/relationship/cadence-v2";
 import { reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */

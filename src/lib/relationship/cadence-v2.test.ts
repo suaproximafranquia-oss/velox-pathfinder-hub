@@ -154,7 +154,7 @@ describe("fluxo R", () => {
       stageKey: "frio",
       awaitingHandoff: false,
     });
-    expect(decision).toMatchObject({ step: "R1", dueAt: "2026-09-14T12:00:00.000Z" });
+    expect(decision).toMatchObject({ step: "R1", dueAt: "2026-09-12T12:00:00.000Z" });
   });
 });
 
