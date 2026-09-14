@@ -246,9 +246,10 @@ export const saveInvestorProfile = createServerFn({ method: "POST" })
 
     const journey = lead.journey && typeof lead.journey === "object" && !Array.isArray(lead.journey)
       ? (lead.journey as Record<string, unknown>) : {};
+    const profilePatch = data.patch as Pick<PersistedInvestorProfile, "commercial" | "selfAssessment">;
     const { error } = await supabaseAdmin
       .from("portal_leads")
-      .update({ journey: mergeInvestorProfileJourney(journey, data.patch) as never })
+      .update({ journey: mergeInvestorProfileJourney(journey, profilePatch) as never })
       .eq("id", data.investorId);
     if (error) throw new Error(error.message);
     return { ok: true as const };
