@@ -1,0 +1,1 @@
+var e={velox:{id:`velox`,workspaceName:`Velox Soluções Financeiras`,workspaceTagline:`Corporate Workspace`,platformName:`Atlas Platform`,platformTagline:`Corporate Workspace`,poweredBy:`Powered by Atlas Platform`,defaultExecutiveId:void 0}},t=`velox`,n=e[t];export{n,t};

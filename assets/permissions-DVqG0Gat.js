@@ -1,0 +1,1 @@
+function e(e){return e===`super_admin`}function t(e){return e===`diretora`}function n(n,r){return r===n.userId||e(n.role)?`completo`:t(n.role)?`supervisao`:`bloqueado`}function r(e){return e===`completo`}export{t as i,r as n,e as r,n as t};

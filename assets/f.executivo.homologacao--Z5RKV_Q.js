@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-D-uI9-NZ.js";import{V as t}from"./index-D_Jfcnlm.js";import{t as n}from"./workspace-resource-guard-BGT62D4M.js";var r=e(),i=()=>(0,r.jsx)(n,{resource:`homologacao`,children:(0,r.jsx)(t,{})});export{i as component};

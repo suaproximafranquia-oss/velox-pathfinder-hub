@@ -1,0 +1,1 @@
+function e(e){return e.personalized&&e.responsibleExecutiveId?`green_sales`:`portal`}export{e as t};

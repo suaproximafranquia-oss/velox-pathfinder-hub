@@ -1,1 +1,0 @@
-ALTER TABLE public.creative_official_model ADD COLUMN IF NOT EXISTS layout jsonb NOT NULL DEFAULT '{}'::jsonb;

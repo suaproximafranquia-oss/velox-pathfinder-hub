@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-D-uI9-NZ.js";import{f as t}from"./index-D_Jfcnlm.js";import{t as n}from"./brand-page-DCdz47kN.js";var r=e();function i(){return(0,r.jsx)(n,{brand:t})}export{i as component};

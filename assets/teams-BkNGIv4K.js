@@ -1,0 +1,1 @@
+import{p as e}from"./executive-auth-CGqPXQWm.js";var t=[`usr_thiago`,`usr_marton`,`usr_paulo`,`usr_milton`,`usr_carlos`,`usr_talita`];function n(n){let r=e().filter(e=>e.status===`ativo`),i=n.activeRole;return i===`super_admin`||i===`diretora`?t.map(e=>r.find(t=>t.id===e)).filter(e=>!!e):r.filter(e=>e.id===n.userId)}export{n as t};

@@ -1,0 +1,1 @@
+import{i as e}from"./rolldown-runtime-8BhlS34s.js";import{t}from"./react-Bd-bg759.js";import{t as n}from"./useNavigate-Cdbab0zo.js";var r=e(t());function i(){let e=n();return(0,r.useEffect)(()=>{e({to:`/f/executivo/brain`,replace:!0})},[e]),null}export{i as component};

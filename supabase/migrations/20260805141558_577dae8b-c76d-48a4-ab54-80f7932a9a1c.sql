@@ -1,1 +1,0 @@
-ALTER TABLE public.creative_templates ADD COLUMN IF NOT EXISTS config jsonb NOT NULL DEFAULT '{}'::jsonb;

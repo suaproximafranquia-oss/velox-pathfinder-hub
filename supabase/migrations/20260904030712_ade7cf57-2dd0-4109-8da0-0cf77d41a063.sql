@@ -1,2 +1,0 @@
-ALTER TABLE public.group_unit_leads DROP CONSTRAINT IF EXISTS group_unit_leads_unit_check;
-ALTER TABLE public.group_unit_leads ADD CONSTRAINT group_unit_leads_unit_check CHECK (unit = ANY (ARRAY['financeira'::text, 'solar'::text, 'seguros'::text]));
