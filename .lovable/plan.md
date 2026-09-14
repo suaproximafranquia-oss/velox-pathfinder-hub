@@ -1,43 +1,18 @@
-# Diagnóstico ponta a ponta — Ação do Dia da Financeira `/f`
+# Diagnóstico do universo de leads da Financeira `/f`
 
 ## Objetivo
-Entregar uma verificação somente leitura, sem alterar código, dados ou configurações, cobrindo toda a conexão entre origem comercial, motor de cadência e Ação do Dia.
+Explicar, sem qualquer alteração, por que existem 43 registros em `portal_leads` enquanto o espelho GreenSales contém centenas de leads.
 
-## Verificações
-1. **Jornada E**
-   - Rastrear E0–E8 desde a criação do ciclo, decisão da próxima etapa, gravação na fila, exibição no card e conclusão.
-   - Confirmar os ramos condicionais do fluxo E e identificar qualquer etapa que possa não nascer ou ficar órfã.
-
-2. **Agendamentos**
-   - Rastrear GreenSales → espelho de compromisso → Ação do Dia.
-   - Confirmar congelamento da cadência E, tratamento de reagendamentos, encerramento e ausência de ações conflitantes.
-
-3. **FRIOS e jornada R**
-   - Verificar a transição estruturada de agendamento/vídeo para FRIOS.
-   - Confirmar criação e progressão de R1–R5, inclusive a condição vigente para R4.
-
-4. **Reentrada e jornada RE**
-   - Verificar detecção de nova entrada comercial, identidade canônica e abertura idempotente de RE0.
-   - Confirmar RE0–RE5, cancelamento das obrigações anteriores, não reinício de E0 e proteção contra duplicidade.
-
-5. **Fila, prioridade e execução**
-   - Comparar a ordem efetivamente codificada com: PROCESSING → agendamento/emergência → alerta do Portal → E0/novos → atrasados → ações do dia → futuros.
-   - Confirmar que lista, card principal, trava de posição, conclusão e recálculo usam as mesmas funções oficiais.
-
-6. **Sincronização visível**
-   - Verificar como mudanças do GreenSales/Portal chegam ao Workspace e à Ação do Dia, incluindo atualização sem recarregar a página.
-
-7. **Estado atual dos dados e proteções**
-   - Conferir ciclos ativos, itens pendentes, múltiplos fluxos simultâneos, itens sem ciclo/card e índices de unicidade.
-   - Separar garantia estrutural de evidência operacional atual, especialmente porque o marco zero deixou as filas sem casos ativos para observação.
+## Verificação
+1. Rastrear a consulta completa e incremental ao GreenSales, incluindo conta utilizada, status aceitos, paginação, limites e janelas temporais.
+2. Identificar a classificação A/B/C/D e os critérios de data, etapa e existência prévia.
+3. Separar os três níveis atuais:
+   - lead espelhado em `crm_leads`;
+   - card operacional em `portal_leads`;
+   - obrigação na fila/Ação do Dia.
+4. Comparar `runLeadSync`, backfill e importação histórica para determinar quais caminhos criam apenas espelho e quais também criam card.
+5. Conferir as contagens atuais por etapa, data e status, inclusive os leads sem card.
+6. Verificar o efeito comprovável do marco zero e o comportamento futuro de um lead ausente movido para AGENDAMENTOS ou VÍDEO.
 
 ## Entrega
-Relatório objetivo com:
-- conexões corretas;
-- conexões incompletas ou quebradas;
-- bifurcações problemáticas;
-- risco de ações órfãs ou duplicadas;
-- prioridade real aplicada;
-- arquivo, função e linha de cada constatação.
-
-Nenhuma alteração ou proposta de refatoração será incluída.
+Relatório objetivo com regra atual, funções e arquivos, filtros, escopo afetado, causa dos 43 registros e conclusão SIM/NÃO sobre a regra desejada. Nenhuma correção ou refatoração será proposta.
