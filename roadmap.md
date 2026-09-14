@@ -1,8 +1,8 @@
 # Roadmap
 
-- [ ] /f: remover segundas ligações automáticas de E1/E2 e toda compensação E1→E2, mantendo ligação e mensagem em cards separados.
-- [ ] /f: reconciliar somente segundas ligações antigas abertas de E1/E2, preservando E0 e todo histórico executado/concluído.
-- [ ] /f: validar E0 intacta, E1/E2 com uma ligação, E3+ sem regressão, testes focados, tipos, build e Ação do Dia.
+- [x] /f: remover segundas ligações automáticas de E1/E2 e toda compensação E1→E2, mantendo ligação e mensagem em cards separados.
+- [x] /f: reconciliar somente segundas ligações antigas abertas de E1/E2, preservando E0 e todo histórico executado/concluído.
+- [x] /f: validar E0 intacta, E1/E2 com uma ligação, E3+ sem regressão, testes focados, tipos, build e acesso normal à Ação do Dia (49 testes e tipos aprovados; build OK; preview chegou ao login corporativo sem erro, sem sessão disponível para inspecionar os cards autenticados).
 
 - [x] /f: E0 de segunda-feira com uma ligação e mensagem contextual; terça a sexta preserva duas ligações e 10 minutos.
 - [x] /f: E0 atendida usa CONTATO_REALIZADO, sem contato usa SEM_CONTATO, com cópia sem envio ou conclusão automática.

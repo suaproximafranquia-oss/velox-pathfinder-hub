@@ -18,7 +18,6 @@ import {
   flowOfStep,
   isCadenceFrozen,
   localDateOf,
-  cadenceWindow,
   nextReleasedAction,
   nextTransition,
   planDue,
@@ -58,37 +57,6 @@ export type V2QueueAction = {
   result: string | null;
   cancelReason?: string | null;
 };
-
-export const ADDITIONAL_CALL_EXPIRED = "additional_call_day_expired";
-
-/** Mesmo calendário da V2; nunca desloca uma tentativa adicional para amanhã. */
-export function additionalCallDeadline(firstExecutedAt: string): string {
-  const date = localDateOf(firstExecutedAt);
-  const end = cadenceWindow(date)?.end ?? 0;
-  return new Date(Date.parse(`${date}T00:00:00-03:00`) + end * 3_600_000).toISOString();
-}
-
-export function compensatesE1(actions: V2QueueAction[]): boolean {
-  return actions.some((a) => a.step === "E1" && a.actionKind === "call" && a.actionOrder === 2 &&
-    a.status === "CANCELLED" && a.cancelReason === ADDITIONAL_CALL_EXPIRED);
-}
-
-/** Obrigações adicionais do MESMO plano; persistidas pelo motor/fila existentes. */
-export function additionalCalls(input: V2DecisionInput): Array<{ step: "E1" | "E2"; order: number; dueAt: string; expiresAt: string }> {
-  if (input.flow !== "E" || input.closed || isCadenceFrozen({ stageKey: input.stageKey, hasCommitment: input.hasCommitment })) return [];
-  const result: Array<{ step: "E1" | "E2"; order: number; dueAt: string; expiresAt: string }> = [];
-  for (const step of ["E1", "E2"] as const) {
-    if (step === "E2" && !compensatesE1(input.actions)) continue;
-    const rows = input.actions.filter((a) => a.step === step);
-    if (rows.some((a) => a.status === "EXECUTED" && a.actionKind === "call" && a.result === "SIM")) continue;
-    const first = rows.find((a) => a.actionOrder === 1 && a.actionKind === "call" && a.status === "EXECUTED");
-    const order = step === "E1" ? 2 : 3;
-    const second = rows.find((a) => a.actionOrder === order);
-    if (!first?.executedAt || first.result !== "NAO" || (second && !["PENDING", "PROCESSING"].includes(second.status))) continue;
-    result.push({ step, order, dueAt: new Date(Date.parse(first.executedAt) + 2 * 3_600_000).toISOString(), expiresAt: additionalCallDeadline(first.executedAt) });
-  }
-  return result;
-}
 
 export type V2DecisionInput = {
   nowIso: string;
@@ -210,10 +178,9 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
      * A etapa já aconteceu — seja pela fila, seja pelo histórico do
      * ciclo (a E0 nasce na entrada do lead, não nesta fila).
      */
-    const compensateE2 = step === "E2" && compensatesE1(input.actions);
     const operationalDate = localDateOf(input.nowIso);
     const done =
-      stepFinished(step, rows, compensateE2, operationalDate) ||
+      stepFinished(step, rows, false, operationalDate) ||
       (rows.length === 0 && executedElsewhere.has(step));
     if (done) {
       const executedAt = lastExecution(rows);
@@ -263,7 +230,6 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
       step,
       stepDueAt,
       states: toActionState(rows),
-      compensateE2,
       operationalDate,
     });
     if (!released) {

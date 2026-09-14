@@ -303,12 +303,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         .update(update as any)
         .eq("id", id)
         .eq("scope", scope);
-      // Expiração nunca sobrescreve execução concorrente nem outro desfecho.
-      if (patch.cancelReason === "additional_call_day_expired") {
-        await query.in("status", ["PENDING", "PROCESSING"]);
-      } else {
-        await query;
-      }
+      await query;
     },
 
     /** Resposta, agendamento e encerramento sempre vencem o timer. */
