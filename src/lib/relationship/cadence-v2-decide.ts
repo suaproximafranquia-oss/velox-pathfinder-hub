@@ -19,6 +19,7 @@ import {
   isCadenceFrozen,
   localDateOf,
   cadenceWindow,
+  effectiveStepActions,
   nextReleasedAction,
   nextTransition,
   planDue,
@@ -135,12 +136,13 @@ function toActionState(rows: V2QueueAction[]): ActionState[] {
           ? "CANCELLED"
           : "PENDING",
     executedAt: row.executedAt ?? null,
+    result: row.result ?? null,
   }));
 }
 
 /** A etapa terminou (todas as ações concluídas ou canceladas)? */
 function stepFinished(step: CadenceV2Step, rows: V2QueueAction[], compensateE2 = false): boolean {
-  const plan = stepActions(step, compensateE2);
+  const plan = effectiveStepActions(step, toActionState(rows), compensateE2);
   if (rows.length === 0) return false;
   const byOrder = new Map(rows.map((r) => [r.actionOrder, r]));
   // Ligação atendida encerra a etapa: as ações restantes perderam finalidade.
