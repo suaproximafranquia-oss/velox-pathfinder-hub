@@ -1,0 +1,93 @@
+name: "Build e Deploy para stable-website"
+
+on:
+  # Aciona o workflow em pushes para a branch 'main'
+  push:
+    branches:
+      - main
+  # Permite que você rode este workflow manualmente pela aba Actions
+  workflow_dispatch:
+
+# Define permissoes para o GITHUB_TOKEN
+# A permissao 'write' e necessaria para fazer push para a branch
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Faz o checkout do codigo do seu repositorio
+      - name: "Checkout do Repositorio"
+        uses: actions/checkout@v4
+      
+      # 2. Configura o ambiente Node.js
+      # (Esta e a forma moderna de usar "npm" no GitHub Actions)
+      - name: "Configurar Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      # 3. Instala as dependencias
+      # (Usa 'npm install' para suportar repos sem package-lock.json)
+      - name: "Instalar Dependencias"
+        run: npm install
+      
+      # 4. Roda o script de build (que deve gerar a pasta 'dist')
+      - name: "Rodar Build"
+        run: npm run build
+
+      # 5. Localiza o shell SPA do TanStack Start (pode variar entre dist/ e dist/client/)
+      - name: "Localizar shell do TanStack Start (SPA mode)"
+        id: locate-shell
+        run: |
+          if [ -f dist/client/_shell.html ]; then
+            echo "deploy_dir=dist/client" >> "$GITHUB_OUTPUT"
+          elif [ -f dist/_shell.html ]; then
+            echo "deploy_dir=dist" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::_shell.html nao encontrado em dist/ ou dist/client/. Verifique se SPA mode esta habilitado em vite.config.ts: tanstackStart({ spa: { enabled: true } })"
+            exit 1
+          fi
+
+      # 5.1. Gera .htaccess para hospedagens Apache (DirectoryIndex + SPA fallback)
+      - name: "Gerar .htaccess para Apache"
+        run: |
+          cat > "${{ steps.locate-shell.outputs.deploy_dir }}/.htaccess" <<'HTACCESS'
+          # TanStack Start SPA hospedado em Apache
+          DirectoryIndex _shell.html
+
+          RewriteEngine On
+
+          # SPA fallback: rotas inexistentes caem no _shell.html
+          RewriteCond %{REQUEST_FILENAME} !-f
+          RewriteCond %{REQUEST_FILENAME} !-d
+          RewriteRule ^ _shell.html [L]
+
+          <IfModule mod_headers.c>
+            <FilesMatch "_shell\.html$">
+              Header set Cache-Control "no-cache, no-store, must-revalidate"
+            </FilesMatch>
+            <FilesMatch "\.(?:js|css|woff2|woff|svg|png|jpg|jpeg|webp|gif|ico)$">
+              Header set Cache-Control "public, max-age=31536000, immutable"
+            </FilesMatch>
+          </IfModule>
+
+          <IfModule mod_deflate.c>
+            AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+          </IfModule>
+          HTACCESS
+
+      # 6. Faz o deploy do output estatico para a branch 'stable-website'
+      - name: "Deploy para a Branch stable-website"
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          # O token e injetado automaticamente pelo GitHub
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # A branch para onde o deploy sera feito
+          branch: stable-website
+          # O diretorio que sera enviado para a branch (resolvido no step anterior)
+          folder: ${{ steps.locate-shell.outputs.deploy_dir }}
+          # Opcao para limpar arquivos antigos da branch 'stable-website'
+          clean: true
