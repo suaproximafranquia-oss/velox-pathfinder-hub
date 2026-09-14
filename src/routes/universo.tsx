@@ -936,6 +936,7 @@ function Index() {
           imageAlt="Treinamento da rede Velox por videoconferência"
           imageCaption="Treinamento da rede · Velox"
           imageRatio="1 / 1"
+          expandImageRight
           reverse
           surface="graphite"
         >
