@@ -138,4 +138,4 @@
 - [x] Separar a origem corrente da aplicação da origem pública externa da Financeira, sem redirecionar editor, preview ou navegação interna.
 - [x] Manter Portal personalizado, Manual, Material, Simulador, CTAs e convite E5 em `https://portalvelox.com.br`, preservando caminhos e tokens.
 - [x] Formatar somente a exibição do telefone no card da Ação do Dia, sem alterar banco, `tel:`, `wa.me`, validações ou lógica E0.
-- [ ] Validar testes focados, preview Lovable, navegação interna, tipos e compilação.
+- [x] Validar testes focados, preview Lovable, navegação interna, tipos e compilação (8 testes e tipos aprovados; preview permaneceu em sua própria origem, sem erros; build automático OK).
