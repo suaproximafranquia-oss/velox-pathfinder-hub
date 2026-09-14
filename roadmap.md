@@ -1,5 +1,15 @@
 # Roadmap
 
+## Lapidações finais — Financeira /f
+
+- [ ] Resolver o NOVO de atividade do Portal ao concluir seu alerta, sem afetar NOVO de entrada e sem exigir recarga.
+- [ ] Adiar somente a disponibilidade inicial da R1 para o próximo dia operacional após AGENDAMENTOS → FRIOS.
+- [ ] Tornar o Material Institucional a única área condicionada à conclusão do Manual, com liberação manual permanente já autorizada.
+- [ ] Fazer o link personalizado abrir diretamente o Manual, preservando identidade, responsável, sessão e parâmetros.
+- [ ] Fixar o contexto da mensagem E0 pelo resultado da primeira ligação, preservando integralmente a régua vigente.
+- [ ] Remover o cache negativo permanente da Central dos Nomes.
+- [ ] Validar os cenários focados, tipos, compilação e preview sem alterar módulos fora do escopo.
+
 - [x] /f: remover segundas ligações automáticas de E1/E2 e toda compensação E1→E2, mantendo ligação e mensagem em cards separados.
 - [x] /f: reconciliar somente segundas ligações antigas abertas de E1/E2, preservando E0 e todo histórico executado/concluído.
 - [x] /f: validar E0 intacta, E1/E2 com uma ligação, E3+ sem regressão, testes focados, tipos, build e acesso normal à Ação do Dia (49 testes e tipos aprovados; build OK; preview chegou ao login corporativo sem erro, sem sessão disponível para inspecionar os cards autenticados).
