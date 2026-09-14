@@ -107,3 +107,7 @@
 - [x] Impedir a montagem parcial da Home Financeira enquanto os dados essenciais carregam.
 - [x] Substituir somente a resposta sobre exclusividade de território.
 - [x] Validar os três pontos com testes direcionados, tipos e compilação (2 testes passaram; tipos e build automático OK).
+
+- [ ] /f Portal Leads: listar todo o universo oficial de `crm_leads` GreenSales, mesclando apenas o estado dos cards existentes.
+- [ ] /f Portal Leads: manter leads sem card sem ações operacionais, E0, cadência, fila ou criação de `portal_leads`.
+- [ ] Validar contagem do universo, 43 cards preservados, zero duplicidade/novas obrigações e compilação/testes.
