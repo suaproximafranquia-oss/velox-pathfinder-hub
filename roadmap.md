@@ -114,8 +114,8 @@
 
 ## Correção cirúrgica E0 e Material Institucional — Financeira /f
 
-- [ ] Corrigir `enteredNow` com marcador operacional existente, preservando idempotência, históricos e reentrada.
-- [ ] Recuperar pelo fluxo oficial os leads NOVOS elegíveis sem E0 e confirmar ausência de duplicidades.
-- [ ] Trocar os dois placeholders por imagens editoriais editáveis e ajustar somente as legendas indicadas.
-- [ ] Fazer o CTA final usar o responsável da sessão reconhecida, mantendo o cadastro como fallback.
-- [ ] Validar testes focados, sessão, slots, tipos e compilação sem alterar as áreas protegidas.
+- [x] Corrigir `enteredNow` com marcador operacional existente, preservando idempotência, históricos e reentrada.
+- [x] Recuperar pelo fluxo oficial os leads NOVOS elegíveis sem E0 e confirmar ausência de duplicidades (28/28 com obrigação inicial única).
+- [x] Trocar os dois placeholders por imagens editoriais editáveis e ajustar somente as legendas indicadas.
+- [x] Fazer o CTA final usar o responsável da sessão reconhecida, mantendo o cadastro como fallback.
+- [x] Validar testes focados, sessão, slots, tipos e compilação sem alterar as áreas protegidas (21 testes e build aprovados).
