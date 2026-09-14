@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-D-uI9-NZ.js";import{t}from"./investor-portal-home-sDshlxG9.js";var n=e(),r=()=>(0,n.jsx)(t,{brandKey:`solar`,homePath:`/s/portal`});export{r as component};

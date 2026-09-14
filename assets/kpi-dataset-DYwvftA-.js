@@ -1,1 +1,0 @@
-import{u as e,y as t}from"./kpi-data.functions-qGbsr4ea.js";t();function n(t,n,r){let i={};for(let t of e)i[t.id]={};for(let e of r.cells){let t=i[e.indicatorId]??(i[e.indicatorId]={});t[e.day]=e.value}return{userId:t,monthKey:n,matrix:i,updatedAt:r.updatedAt}}export{n as t};
