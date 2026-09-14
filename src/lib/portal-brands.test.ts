@@ -4,6 +4,7 @@ import {
   financeiraPublicOrigin,
   financeiraPublicUrl,
   investorPortalUrl,
+  normalizeFinanceiraPublicUrl,
 } from "./portal-brands";
 
 describe("domínio público oficial da Financeira", () => {
@@ -43,5 +44,16 @@ describe("domínio público oficial da Financeira", () => {
     expect(
       financeiraPublicUrl("/portal/convite/codigo-sem-alteracao", "http://localhost:8080"),
     ).toBe("http://localhost:8080/portal/convite/codigo-sem-alteracao");
+  });
+
+  it("troca apenas a origem de links públicos antigos já persistidos", () => {
+    expect(
+      normalizeFinanceiraPublicUrl(
+        "https://velox-pathfinder-hub.lovable.app/portal/convite/token-original?origem=e5",
+      ),
+    ).toBe("https://portalvelox.com.br/portal/convite/token-original?origem=e5");
+    expect(
+      normalizeFinanceiraPublicUrl("https://cdn.exemplo.com/assets/manual-capa.jpg"),
+    ).toBe("https://cdn.exemplo.com/assets/manual-capa.jpg");
   });
 });

@@ -15,7 +15,7 @@ import { composeMessageBody } from "@/lib/relationship/messages";
  *  - OPORTUNIDADE é terminal: nada é emitido depois dela.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { financeiraPublicUrl } from "@/lib/portal-brands";
+import { financeiraPublicUrl, normalizeFinanceiraPublicUrl } from "@/lib/portal-brands";
 import { addDays, nextBusinessDay, operationalDate } from "@/lib/relationship/calendar";
 import { openInstance } from "./instances.server";
 import {
@@ -73,7 +73,7 @@ function toOccurrence(row: Record<string, any>): E20Occurrence {
     leadId: row["lead_id"],
     instanceSeq: row["instance_seq"] ?? 1,
     token: row["token"],
-    linkUrl: row["link_url"],
+    linkUrl: normalizeFinanceiraPublicUrl(row["link_url"]),
     status: row["status"],
     generatedAt: row["generated_at"],
     expiresAt: row["expires_at"],

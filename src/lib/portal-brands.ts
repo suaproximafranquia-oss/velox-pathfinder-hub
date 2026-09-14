@@ -92,6 +92,20 @@ export function financeiraPublicUrl(path: string, baseUrl?: string): string {
   return `${financeiraPublicOrigin(baseUrl)}${cleanPath}`;
 }
 
+/**
+ * Migra somente uma URL pública de navegação já persistida no host antigo.
+ * URLs de assets e qualquer outro host permanecem intocadas pelos chamadores.
+ */
+export function normalizeFinanceiraPublicUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.origin !== "https://velox-pathfinder-hub.lovable.app") return url;
+    return `${FINANCEIRA_PUBLIC_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return url;
+  }
+}
+
 export function getBrand(key?: string | null): PortalBrand {
   return (
     PORTAL_BRANDS.find((b) => b.key === (key ?? "").trim().toLowerCase()) ??
