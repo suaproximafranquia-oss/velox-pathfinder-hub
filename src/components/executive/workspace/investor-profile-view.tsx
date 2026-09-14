@@ -17,6 +17,7 @@ import { STATUS_LABEL, formatRelative } from "@/lib/executive-data";
 import { PORTAL_ACCESS_POLL_MS } from "@/lib/portal-access";
 import {
   getInvestorJourneyState,
+  getMaterialAccessState,
   releasePortalAccess,
   type InvestorJourneyState,
 } from "@/lib/portal-access.functions";
@@ -327,13 +328,8 @@ function TabGeral({
 
   useEffect(() => {
     let alive = true;
-    void getInvestorJourneyState({ data: { investorId: investor.id } })
-      .then((journey) => {
-        if (alive) setMaterialAccess({
-          completed: journey?.manual.status === "concluido",
-          released: Boolean(journey?.manual.status === "concluido"),
-        });
-      })
+    void getMaterialAccessState({ data: { investorId: investor.id } })
+      .then((access) => { if (alive) setMaterialAccess(access); })
       .catch(() => undefined);
     return () => { alive = false; };
   }, [investor.id]);

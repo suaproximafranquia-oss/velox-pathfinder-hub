@@ -108,7 +108,6 @@ import {
   getPortalSession,
   promotePortalSession,
 } from "@/lib/portal-session";
-import { isPortalUnlocked } from "@/lib/portal-verification";
 import { loadLeads } from "@/lib/leads";
 import { getDigitalJourney } from "@/lib/portal-journey";
 
