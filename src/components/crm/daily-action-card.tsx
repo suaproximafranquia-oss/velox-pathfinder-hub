@@ -9,6 +9,7 @@
  * Ação do Dia e do servidor.
  */
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   Check,
   ExternalLink,
@@ -132,7 +133,7 @@ export function DailyActionCard({
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageNote, setMessageNote] = useState("");
   const [manualNote, setManualNote] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied" | "failed">("idle");
 
   /** Trocar de ação limpa os rascunhos da ação anterior. */
   useEffect(() => {
@@ -149,7 +150,7 @@ export function DailyActionCard({
     setMessage(null);
     setMessageOpen(false);
     setMessageNote("");
-    setCopied(false);
+    setCopyStatus("idle");
     setFeedback(null);
   }, [item.actionKey]);
 
@@ -346,12 +347,17 @@ export function DailyActionCard({
         );
         const state = await loadMessageForModal(
           async () => (await (prepared ?? adapter.loadMessage(item))) ?? null,
+          (loadedMessage) => {
+            flushSync(() => {
+              setMessage(loadedMessage);
+              setCopyStatus("copying");
+              setMessageOpen(true);
+            });
+          },
           copyMessageBody,
         );
         view = state.message;
-        setMessage(view);
-        setCopied(state.copied);
-        setMessageOpen(state.open);
+        setCopyStatus(state.copied ? "copied" : "failed");
       } catch (error) {
         setFeedback(
           error instanceof Error
@@ -372,11 +378,11 @@ export function DailyActionCard({
   async function copyMessageBody(raw: string | null | undefined) {
     const body = (raw ?? "").trim();
     if (!body) {
-      setCopied(false);
+      setCopyStatus("failed");
       return false;
     }
     const ok = await copyToClipboard(body);
-    setCopied(ok);
+    setCopyStatus(ok ? "copied" : "failed");
     setFeedback(
       ok
         ? "Mensagem copiada da Biblioteca."
@@ -389,7 +395,7 @@ export function DailyActionCard({
     if (locked) return;
     const observation = messageNote.trim();
     setMessageNote("");
-    setCopied(false);
+    setCopyStatus("idle");
     setMessageOpen(false);
     resolveNow(
       () => adapter.registerMessage(item, observation),
@@ -849,10 +855,12 @@ export function DailyActionCard({
               </p>
             </div>
             <div className="space-y-2 border-t border-white/10 px-4 py-3">
-              <p className={`text-[11px] ${copied ? "text-emerald-200/80" : "text-amber-200/80"}`}>
-                {copied
+              <p className={`text-[11px] ${copyStatus === "copied" ? "text-emerald-200/80" : "text-amber-200/80"}`}>
+                {copyStatus === "copied"
                   ? "Mensagem copiada. Copiar não conclui a ação."
-                  : "A cópia automática falhou. Selecione o texto acima ou tente copiar novamente."}
+                  : copyStatus === "copying"
+                    ? "Copiando mensagem…"
+                    : "A cópia automática falhou. Selecione o texto acima ou tente copiar novamente."}
               </p>
               <input
                 value={messageNote}
@@ -867,7 +875,7 @@ export function DailyActionCard({
                   disabled={!message?.body}
                   className="flex-1 rounded-lg border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-3 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
                 >
-                  {copied ? "Copiar novamente" : "Copiar mensagem"}
+                  {copyStatus === "copied" ? "Copiar novamente" : "Copiar mensagem"}
                 </button>
                 {item.leadId && onOpenLead && (
                   <button

@@ -6,10 +6,12 @@ import type { StepMessageView } from "./daily-actions.adapter";
  */
 export async function loadMessageForModal(
   load: () => Promise<StepMessageView | null>,
+  open: (message: StepMessageView) => void,
   copy: (body: string | null | undefined) => Promise<boolean>,
 ): Promise<{ message: StepMessageView | null; open: boolean; copied: boolean }> {
   const message = await load();
   if (!message) return { message: null, open: false, copied: false };
+  open(message);
   const copied = await copy(message.body);
   return { message, open: true, copied };
 }

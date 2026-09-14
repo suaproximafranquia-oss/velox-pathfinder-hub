@@ -16,14 +16,44 @@ const official = {
 describe("modal compartilhado de mensagem", () => {
   it("abre com a versão carregada mesmo quando o clipboard falha", async () => {
     const load = vi.fn(async () => official);
+    const open = vi.fn();
     const copy = vi.fn(async () => false);
-    await expect(loadMessageForModal(load, copy)).resolves.toEqual({
+    await expect(loadMessageForModal(load, open, copy)).resolves.toEqual({
       message: official,
       open: true,
       copied: false,
     });
     expect(load).toHaveBeenCalledOnce();
+    expect(open).toHaveBeenCalledWith(official);
     expect(copy).toHaveBeenCalledWith("Mensagem oficial");
+    expect(open.mock.invocationCallOrder[0]).toBeLessThan(copy.mock.invocationCallOrder[0]);
+  });
+
+  it("abre antes da única cópia automática bem-sucedida", async () => {
+    const order: string[] = [];
+    const open = vi.fn(() => order.push("open"));
+    const copy = vi.fn(async () => {
+      order.push("copy");
+      return true;
+    });
+
+    await expect(loadMessageForModal(async () => official, open, copy)).resolves.toMatchObject({
+      open: true,
+      copied: true,
+    });
+    expect(order).toEqual(["open", "copy"]);
+    expect(copy).toHaveBeenCalledOnce();
+  });
+
+  it("permite uma segunda tentativa manual sem concluir a ação", async () => {
+    const copy = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const conclude = vi.fn();
+
+    const state = await loadMessageForModal(async () => official, vi.fn(), copy);
+    expect(state.copied).toBe(false);
+    await expect(copy(state.message?.body)).resolves.toBe(true);
+    expect(copy).toHaveBeenCalledTimes(2);
+    expect(conclude).not.toHaveBeenCalled();
   });
 
   it("não congela a versão: cada abertura consulta novamente a fonte", async () => {
@@ -31,9 +61,10 @@ describe("modal compartilhado de mensagem", () => {
       .fn()
       .mockResolvedValueOnce(official)
       .mockResolvedValueOnce({ ...official, body: "Mensagem atualizada", libraryVersion: 8 });
+    const open = vi.fn();
     const copy = vi.fn(async () => true);
-    expect((await loadMessageForModal(load, copy)).message?.libraryVersion).toBe(7);
-    expect((await loadMessageForModal(load, copy)).message?.libraryVersion).toBe(8);
+    expect((await loadMessageForModal(load, open, copy)).message?.libraryVersion).toBe(7);
+    expect((await loadMessageForModal(load, open, copy)).message?.libraryVersion).toBe(8);
     expect(load).toHaveBeenCalledTimes(2);
   });
 
