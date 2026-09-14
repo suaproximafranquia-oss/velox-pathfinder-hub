@@ -1,22 +1,43 @@
-# Correções finais e reset controlado da Financeira `/f`
+# Diagnóstico ponta a ponta — Ação do Dia da Financeira `/f`
 
-## Correções
+## Objetivo
+Entregar uma verificação somente leitura, sem alterar código, dados ou configurações, cobrindo toda a conexão entre origem comercial, motor de cadência e Ação do Dia.
 
-- Após concluir um alerta do Portal, propagar a atualização específica do lead ao Workspace e remover somente o NOVO correspondente, preservando atividades posteriores.
-- Recalcular a seleção principal da Ação do Dia sempre que a fila oficial for recomposta, inclusive pelo botão interno de atualizar, sem alterar prioridades.
-- Garantir que uma nova entrada comercial abra RE0 na fila existente, pelo ID canônico do lead e sem depender de coluna, duplicar lead ou reiniciar E0.
-- Remover o espaço de vídeo do Capítulo I e ampliar apenas a imagem de “Nossa forma de construir parcerias” no Material Institucional; substituir exclusivamente as respostas indicadas no Capítulo 12 do Manual do Investidor da Financeira `/f`, sem alterar qualquer outro Capítulo 12, pergunta, resposta ou texto do Material Institucional.
-- Preservar integralmente calendário, exceção temporária já datada, ON/OFF, demais jornadas, integrações e ambientes.
+## Verificações
+1. **Jornada E**
+   - Rastrear E0–E8 desde a criação do ciclo, decisão da próxima etapa, gravação na fila, exibição no card e conclusão.
+   - Confirmar os ramos condicionais do fluxo E e identificar qualquer etapa que possa não nascer ou ficar órfã.
 
-## Reset controlado
+2. **Agendamentos**
+   - Rastrear GreenSales → espelho de compromisso → Ação do Dia.
+   - Confirmar congelamento da cadência E, tratamento de reagendamentos, encerramento e ausência de ações conflitantes.
 
-- Materializar, dentro de uma única transação, os IDs de todos os leads atuais, compromissos reais válidos, leads desses compromissos e os IDs `gs_57906` e `gs_56503`.
-- Classificar como removíveis apenas dados operacionais inequivocamente de teste/legado e sem vínculo necessário com o conjunto preservado.
-- Não alterar o GreenSales, não excluir por nome e não remover histórico comercial necessário à reentrada ou aos compromissos.
-- Manter qualquer registro ambíguo e contabilizá-lo como não classificado.
+3. **FRIOS e jornada R**
+   - Verificar a transição estruturada de agendamento/vídeo para FRIOS.
+   - Confirmar criação e progressão de R1–R5, inclusive a condição vigente para R4.
 
-## Validação
+4. **Reentrada e jornada RE**
+   - Verificar detecção de nova entrada comercial, identidade canônica e abertura idempotente de RE0.
+   - Confirmar RE0–RE5, cancelamento das obrigações anteriores, não reinício de E0 e proteção contra duplicidade.
 
-- Cobrir NOVO, sincronismo do card principal, RE0 por nova entrada, ausência de duplicação/E0 e prioridades com testes direcionados.
-- Conferir os microajustes editoriais, tipos e compilação.
-- Informar contagens exatas do reset, principais IDs preservados, removidos por categoria e registros não classificados.
+5. **Fila, prioridade e execução**
+   - Comparar a ordem efetivamente codificada com: PROCESSING → agendamento/emergência → alerta do Portal → E0/novos → atrasados → ações do dia → futuros.
+   - Confirmar que lista, card principal, trava de posição, conclusão e recálculo usam as mesmas funções oficiais.
+
+6. **Sincronização visível**
+   - Verificar como mudanças do GreenSales/Portal chegam ao Workspace e à Ação do Dia, incluindo atualização sem recarregar a página.
+
+7. **Estado atual dos dados e proteções**
+   - Conferir ciclos ativos, itens pendentes, múltiplos fluxos simultâneos, itens sem ciclo/card e índices de unicidade.
+   - Separar garantia estrutural de evidência operacional atual, especialmente porque o marco zero deixou as filas sem casos ativos para observação.
+
+## Entrega
+Relatório objetivo com:
+- conexões corretas;
+- conexões incompletas ou quebradas;
+- bifurcações problemáticas;
+- risco de ações órfãs ou duplicadas;
+- prioridade real aplicada;
+- arquivo, função e linha de cada constatação.
+
+Nenhuma alteração ou proposta de refatoração será incluída.
