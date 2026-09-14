@@ -179,3 +179,5 @@
 - [x] Centralizar links normais do investidor no Manual; preservar convite exclusivo.
 - [x] Tornar substituição de override transacional e segura.
 - [x] Validar testes focados, tipos, build e preview (30 testes focados e build automático aprovados; `/f/executivo` abriu sem erro de página/console e apresentou o login corporativo, pois a sessão injetada não foi reconhecida pela aplicação).
+
+- [ ] Corrigir E0 SIM para encerrar sem SEM_CONTATO; preservar NAO e demais fluxos; validar testes/typecheck/build/preview.
