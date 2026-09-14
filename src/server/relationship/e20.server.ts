@@ -123,7 +123,7 @@ export type IssueE20Result =
       issued: true;
       occurrence: E20Occurrence;
       replaced: E20Occurrence | null;
-      /** Texto oficial da E20 (versão ativa da Biblioteca) já renderizado. */
+      /** Texto oficial da E5 (versão ativa da Biblioteca) já renderizado. */
       message: { body: string; version: number | null } | null;
       /** Motivo legível quando a Biblioteca ainda não tem texto ativo. */
       messageBlockedReason: string | null;
@@ -161,7 +161,7 @@ export async function issueE20(params: {
   const replaced = (previousRows ?? []).map(toOccurrence)[0] ?? null;
 
   /**
-   * IDENTIDADE REAL NA E20 (COMANDO 2A §5): quem assina o convite é o
+   * IDENTIDADE REAL NA APRESENTAÇÃO E5: quem assina o convite é o
    * EXECUTIVO RESPONSÁVEL pelo lead. O usuário que clicou permanece
    * registrado como emissor, mas nunca substitui a assinatura.
    */

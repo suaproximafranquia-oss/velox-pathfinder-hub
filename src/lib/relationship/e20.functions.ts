@@ -1,5 +1,5 @@
 /**
- * Ponte cliente ↔ servidor da E20 e do contato do executivo.
+ * Ponte cliente ↔ servidor da apresentação E5 e do contato do executivo.
  * Toda regra vive no servidor; aqui só existe a chamada tipada.
  */
 import { createServerFn } from "@tanstack/react-start";

@@ -173,9 +173,9 @@
 
 
 ## Lapidação final — E5, material pós-contato, links e asset override
-- [ ] Consolidar identidade operacional E5 sem alterar históricos E20.
-- [ ] Corrigir placeholders permitidos da apresentação mantendo bloqueio de desconhecidos.
-- [ ] Adicionar finalidade versionada e ação manual universal de envio de material.
-- [ ] Centralizar links normais do investidor no Manual; preservar convite exclusivo.
-- [ ] Tornar substituição de override transacional e segura.
-- [ ] Validar testes focados, tipos, build e preview.
+- [x] Consolidar identidade operacional E5 sem alterar históricos E20.
+- [x] Corrigir placeholders permitidos da apresentação mantendo bloqueio de desconhecidos.
+- [x] Adicionar finalidade versionada e ação manual universal de envio de material.
+- [x] Centralizar links normais do investidor no Manual; preservar convite exclusivo.
+- [x] Tornar substituição de override transacional e segura.
+- [x] Validar testes focados, tipos, build e preview (30 testes focados e build automático aprovados; `/f/executivo` abriu sem erro de página/console e apresentou o login corporativo, pois a sessão injetada não foi reconhecida pela aplicação).
