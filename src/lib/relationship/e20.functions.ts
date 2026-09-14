@@ -181,6 +181,23 @@ export const mensagemDaE20 = createServerFn({ method: "POST" })
   });
 
 /**
+ * Prepara a finalidade manual universal com os dados atuais do servidor.
+ * Não registra cópia/envio nem produz qualquer efeito na jornada.
+ */
+export const mensagemEnvioMaterialPosContato = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { leadId: string }) => {
+    if (!input?.leadId) throw new Error("Lead obrigatório.");
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const { prepareMaterialAfterContactMessage } = await import(
+      "@/server/relationship/material-after-contact.server"
+    );
+    return prepareMaterialAfterContactMessage(data.leadId);
+  });
+
+/**
  * ENVIO CONFIRMADO: declaração humana e explícita. O sistema jamais
  * presume envio a partir de um clique em "copiar".
  */
