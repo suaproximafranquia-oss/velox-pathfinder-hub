@@ -27,6 +27,12 @@ import {
   saveInterestsProfile,
   type AudienceProfile,
 } from "@/lib/interests-profile";
+import {
+  PROFILE_TEXT,
+  SELF_ASSESSMENT_QUESTIONS,
+  scoreSelfAssessment,
+} from "@/lib/investor-profile-deterministic";
+import { persistInvestorProfile } from "@/lib/investor-profile-persistence";
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
@@ -782,71 +788,7 @@ function FaqBody() {
 }
 
 // --- 12. Autoavaliação
-const QUIZ = [
-  {
-    tag: "objetivos",
-    q: "O que mais te aproxima da ideia de empreender com a Velox neste momento?",
-    opts: [
-      "Construir um negócio próprio com propósito de longo prazo",
-      "Diversificar minha atuação profissional",
-      "Ainda estou explorando possibilidades",
-    ],
-  },
-  {
-    tag: "implantacao",
-    q: "Como você enxerga a fase inicial de implantação e treinamento?",
-    opts: [
-      "Encaro como parte essencial da construção do negócio",
-      "Consigo me organizar para dedicar esse período",
-      "Precisaria conversar com um consultor para planejar melhor",
-    ],
-  },
-  {
-    tag: "consultivo",
-    q: "Qual é a sua afinidade com um modelo de trabalho consultivo?",
-    opts: [
-      "Tenho boa afinidade com atendimento e relacionamento",
-      "Não tenho experiência, mas gostaria de desenvolver",
-      "Prefiro entender melhor antes de me posicionar",
-    ],
-  },
-  {
-    tag: "metodologia",
-    q: "Como você se sente em seguir uma metodologia já estruturada?",
-    opts: [
-      "Faz total sentido para reduzir erros e ganhar tempo",
-      "Gosto de seguir método, adaptando ao meu estilo",
-      "Prefiro construir minha própria forma de trabalhar",
-    ],
-  },
-  {
-    tag: "patrimonio",
-    q: "Qual é a sua visão sobre construir patrimônio por meio de um negócio próprio?",
-    opts: [
-      "Vejo como um dos caminhos mais consistentes",
-      "É uma possibilidade que estou avaliando com calma",
-      "Ainda estou formando minha visão sobre isso",
-    ],
-  },
-  {
-    tag: "momento",
-    q: "Como você descreveria o seu momento atual para iniciar um investimento?",
-    opts: [
-      "Já é um momento adequado para dar um próximo passo",
-      "Preciso planejar alguns detalhes antes",
-      "Estou em fase de estudo e ainda sem definição",
-    ],
-  },
-  {
-    tag: "conversa",
-    q: "Após esta leitura, qual é o seu interesse em continuar a conversa?",
-    opts: [
-      "Gostaria de conversar com um especialista Velox",
-      "Gostaria de aprofundar mais alguns pontos antes",
-      "Ainda estou apenas conhecendo o modelo",
-    ],
-  },
-] as const;
+const QUIZ = SELF_ASSESSMENT_QUESTIONS;
 
 function AutoavaliacaoBody() {
   const [answers, setAnswers] = useState<(number | null)[]>(() => QUIZ.map(() => null));
@@ -854,55 +796,19 @@ function AutoavaliacaoBody() {
   const answeredCount = answers.filter((a) => a !== null).length;
   const completed = answeredCount === QUIZ.length;
 
-  const reading = useMemo(() => {
-    if (!completed) return null;
-    const tendencies: string[] = [];
-    const byTag = (tag: string) => {
-      const idx = QUIZ.findIndex((q) => q.tag === tag);
-      return answers[idx];
-    };
-    if (byTag("objetivos") === 0)
-      tendencies.push("uma visão de longo prazo sobre empreender");
-    else if (byTag("objetivos") === 1)
-      tendencies.push("o desejo de diversificar sua atuação profissional");
-    else tendencies.push("um momento saudável de exploração");
-    if (byTag("implantacao") !== 2)
-      tendencies.push("abertura para dedicar-se à fase inicial de preparação");
-    if (byTag("consultivo") === 0)
-      tendencies.push("afinidade natural com um modelo consultivo");
-    else if (byTag("consultivo") === 1)
-      tendencies.push("disposição para desenvolver o lado consultivo do negócio");
-    if (byTag("metodologia") !== 2)
-      tendencies.push("valorização por uma metodologia estruturada");
-    if (byTag("patrimonio") === 0)
-      tendencies.push("uma visão clara sobre construção de patrimônio");
-    if (byTag("momento") === 0)
-      tendencies.push("um momento que parece favorável para um próximo passo");
-    else if (byTag("momento") === 1)
-      tendencies.push("um momento que pede planejamento antes de decidir");
+  const result = useMemo(() => completed ? scoreSelfAssessment(answers as number[]) : null, [answers, completed]);
 
-    const opener =
-      "Sua leitura indica " +
-      (tendencies.length > 1
-        ? tendencies.slice(0, -1).join(", ") + " e " + tendencies[tendencies.length - 1]
-        : tendencies[0]) +
-      ".";
-
-    const closer =
-      byTag("conversa") === 0
-        ? "Como você já sinalizou interesse em conversar, um especialista Velox pode aprofundar exatamente os pontos que ainda merecem clareza."
-        : byTag("conversa") === 1
-          ? "Faz sentido aprofundar mais alguns pontos antes de decidir. Uma conversa consultiva pode ajudar exatamente nesse esclarecimento — sem qualquer compromisso."
-          : "Conhecer com calma faz parte do processo. Quando fizer sentido, uma conversa breve pode ajudar a organizar as próximas reflexões.";
-
-    return `${opener} Cada pessoa vive um momento diferente, e o objetivo aqui é apenas ajudar você a tomar uma decisão consciente. ${closer}`;
-  }, [answers, completed]);
+  useEffect(() => {
+    if (!result) return;
+    void persistInvestorProfile({
+      selfAssessment: { ...result, capturedAt: new Date().toISOString() },
+    });
+  }, [result]);
 
   return (
     <>
       <p className="text-sm text-[color:var(--muted-foreground)] leading-relaxed">
-        Nenhuma resposta é enviada. O objetivo é apenas oferecer uma leitura
-        pessoal antes de qualquer conversa.
+        Suas respostas são registradas para compor uma leitura objetiva antes de qualquer conversa.
       </p>
 
       <div className="space-y-6">
@@ -914,9 +820,9 @@ function AutoavaliacaoBody() {
             <legend className="px-2 text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)]">
               Pergunta {qi + 1}
             </legend>
-            <p className="font-medium mb-4">{item.q}</p>
+            <p className="font-medium mb-4">{item.question}</p>
             <div className="grid gap-2">
-              {item.opts.map((opt, oi) => {
+              {item.options.map((opt, oi) => {
                 const active = answers[qi] === oi;
                 return (
                   <button
@@ -951,7 +857,7 @@ function AutoavaliacaoBody() {
             <p className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--gold)] mb-2">
               Sua leitura personalizada
             </p>
-            <p className="text-base leading-relaxed">{reading}</p>
+            <p className="text-base leading-relaxed">{result ? PROFILE_TEXT[result.profileKey] : null}</p>
             <div className="mt-5">
               <Link
                 to="/manual/$chapter"
@@ -1081,8 +987,11 @@ function PersonalizandoJornadaBody() {
     setSaved(false);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     saveInterestsProfile({ audience, interests });
+    await persistInvestorProfile({
+      commercial: { audience, interests, capturedAt: new Date().toISOString() },
+    });
     setSaved(true);
     navigate({ to: "/manual/$chapter", params: { chapter: "operacao" } });
   };
@@ -1210,7 +1119,7 @@ function PersonalizandoJornadaBody() {
         </Link>
         <button
           type="button"
-          onClick={handleContinue}
+          onClick={() => void handleContinue()}
           className="group inline-flex items-center justify-center gap-3 rounded-full border border-[color:var(--gold)] bg-[color:var(--gold)]/5 px-7 py-3.5 text-sm font-medium text-[color:var(--gold)] hover:bg-[color:var(--gold)] hover:text-[color:var(--gold-foreground)] transition-all duration-300 hover:shadow-[0_10px_40px_-10px_var(--gold)]"
         >
           {audience || interests.length > 0 ? "Salvar e continuar" : "Pular e continuar"}
