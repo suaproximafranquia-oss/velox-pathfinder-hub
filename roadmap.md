@@ -144,4 +144,4 @@
 
 - [x] Abrir a janela com a mensagem oficial antes da única tentativa automática de cópia.
 - [x] Manter o resultado visível e a segunda tentativa manual, sem concluir ou registrar a ação ao copiar.
-- [ ] Validar preview, testes focados, tipos e compilação.
+- [x] Validar preview, testes focados, tipos e compilação (8 testes e tipos aprovados; build OK; preview abriu normalmente, com a área autenticada indisponível sem sessão ativa).
