@@ -15,7 +15,7 @@ import { foldName } from "@/lib/relationship/name-base";
 import { normalizeName } from "@/lib/relationship/names";
 
 /** Cache curto por processo — a Central é imutável durante o tick. */
-const cache = new Map<string, string | null>();
+const cache = new Map<string, string>();
 
 /** Primeiro token utilizável do valor bruto (sem acento, minúsculo). */
 export function firstNameKey(raw: string | null | undefined): string {
@@ -48,6 +48,6 @@ export async function resolveCentralFirstName(
   const resolved = row
     ? normalizeName(row.name ?? key).split(" ").filter(Boolean)[0] ?? null
     : null;
-  cache.set(key, resolved);
+  if (resolved) cache.set(key, resolved);
   return resolved;
 }

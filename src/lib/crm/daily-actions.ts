@@ -101,7 +101,7 @@ export type DailyAction = {
   queueItemId?: string;
   /** Ordem da ação interna dentro da etapa (1 = ligação 1, 2 = 2ª ligação, 3 = mensagem). */
   queueActionOrder?: number;
-  /** Primeira ligação E0 em dia de duas tentativas: atendimento exige decisão explícita. */
+  /** Primeira ligação E0: atendimento exige decisão explícita, inclusive na segunda-feira. */
   e0AttendedChoice?: boolean;
   /** Limite da tentativa adicional E1/E2, calculado pelo calendário vigente. */
   expiresAt?: string;

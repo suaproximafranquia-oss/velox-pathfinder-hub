@@ -398,7 +398,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       queueItemId: String(item.id),
       queueActionOrder: order,
       e0AttendedChoice:
-        step === "E0" && order === 1 && isCall && !isOperationalMonday(today),
+        step === "E0" && order === 1 && isCall,
       ...(isCall || isManual
         ? {}
         : {

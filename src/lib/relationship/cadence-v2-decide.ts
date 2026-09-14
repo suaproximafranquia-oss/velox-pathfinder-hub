@@ -28,6 +28,7 @@ import {
   type CycleContext,
   type StepActionKind,
 } from "./cadence-v2";
+import { nextBusinessDay } from "./calendar";
 
 /** Primeira etapa de cada fluxo. E0 nasce na entrada, não aqui. */
 export const V2_FLOW_ENTRY: Record<CadenceV2Flow, CadenceV2Step> = {
@@ -216,7 +217,7 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
     // Vencimento da etapa: estável quando já existe fila; calculado quando não.
     const existingDue = rows.length ? rows.map((r) => r.dueAt).sort()[0]! : null;
     const plan = planDue({
-      originDate: anchorDate,
+      originDate: isEntry && input.flow === "R" ? nextBusinessDay(anchorDate) : anchorDate,
       theoreticalOffset: offset,
       previousExecutionIso: previousExecution,
       usedDates: used,

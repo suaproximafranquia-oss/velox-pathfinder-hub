@@ -700,7 +700,7 @@ export function DailyActionCard({
             {callPending.outcome === "NAO" ? (callPending.rang ? " · chamou" : " · não chamou") : ""}
           </p>
           {callPending.outcome === "SIM" && item.e0AttendedChoice && (
-            <p className="text-sm text-white/80">Deseja copiar a mensagem desta etapa?</p>
+            <p className="text-sm text-white/80">Deseja copiar a mensagem da etapa E0?</p>
           )}
           <input
             value={callNote}

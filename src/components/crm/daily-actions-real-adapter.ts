@@ -29,8 +29,9 @@ import {
 } from "@/lib/crm/daily-actions.functions";
 import type { DailyAction } from "@/lib/crm/daily-actions";
 import type { DailyActionsAdapter } from "@/lib/crm/daily-actions.adapter";
-import { patchCachedLead } from "@/lib/leads";
+import { loadLeads, patchCachedLead } from "@/lib/leads";
 import { notifySync } from "@/lib/sync-bus";
+import { emitEvent } from "@/lib/events/bus";
 
 /** Identificação mínima da ação enviada ao histórico oficial. */
 function actionRef(item: DailyAction, reason: string, pendingRecovery = false) {
@@ -331,7 +332,16 @@ export function useRealDailyActionsAdapter(
             data: { actionKey: item.actionKey, leadId: item.leadId },
           })) as { queue?: DailyAction[]; viewedAt?: string; leadId?: string | null };
           if (result.viewedAt && result.leadId) {
+            const previousViewedAt = loadLeads().find((lead) => lead.id === result.leadId)?.viewedAt ?? null;
             patchCachedLead(result.leadId, { viewedAt: result.viewedAt });
+            if (!previousViewedAt || result.viewedAt > previousViewedAt) {
+              emitEvent({
+                type: "lead.status.changed",
+                investorId: result.leadId,
+                at: result.viewedAt,
+                dedupeKey: `lead.status.changed:${result.leadId}:${result.viewedAt}`,
+              });
+            }
             notifySync("status");
           }
           return {
