@@ -1,46 +1,41 @@
-# Lapidações finais da Financeira `/f`
+# Lapidação final cirúrgica — E5, material e imagens
 
 ## Objetivo
-Aplicar somente os ajustes pontuais solicitados, preservando o motor, os fluxos já fechados e todos os módulos fora do escopo.
+Consolidar E5 como identidade atual da apresentação, adicionar a preparação manual e universal de material e tornar links e substituições de imagens seguros, sem alterar cadência, históricos ou ambientes protegidos.
 
 ## Implementação
 
-1. **NOVO de atividade do Portal**
-   - Manter o alerta e o `viewed_at` inalterados ao abrir ficha/card.
-   - Resolver a atividade apenas no clique em **Concluído**, usando a conclusão server-side já existente.
-   - Propagar o estado retornado pelo servidor pelo evento oficial de status, para remover o selo NOVO imediatamente na mesma aba e nas demais, sem F5.
-   - Não alterar o NOVO originado pela entrada de um lead novo.
+1. **Identidade E5 e apresentação existente**
+   - Exibir a apresentação atual como **E5 — Apresentação digital / entrega do material** no painel e nos rótulos operacionais.
+   - Fazer a geração consultar a mensagem ativa de E5, mantendo `relationship_e20_*`, tokens, snapshots, validade de sete dias e registros antigos como compatibilidade física/histórica.
+   - Preservar E6 exclusivamente como acompanhamento pós-apresentação e manter E20 fora da identidade operacional atual.
 
-2. **Primeira R1 após AGENDAMENTOS/VÍDEO → FRIOS**
-   - Alterar apenas a primeira decisão do fluxo R para usar o próximo dia operacional como data mínima.
-   - Reutilizar o calendário operacional existente, mantendo a fila, a instância, os eventos e as proteções contra duplicidade.
-   - Não mudar R2–R5 nem recalcular histórico executado.
+2. **Variáveis da apresentação**
+   - Reutilizar o renderizador oficial e resolver, no servidor, nome/tratamento, responsável e links permitidos pelo conteúdo ativo de E5.
+   - Aceitar os nomes técnicos oficiais de link já usados pela Biblioteca, apontando links normais para o Manual.
+   - Manter o bloqueio integral para qualquer `{{variável}}` desconhecida ou sem valor.
 
-3. **Acesso aos módulos do Portal**
-   - Deixar **Manual** e **Simulador** sempre acessíveis após a sessão oficial reconhecida.
-   - Condicionar somente **Material Institucional** à conclusão oficial persistida do Manual.
-   - Reutilizar `portal_released_at/by/reason` para a liberação manual permanente do Material, com controle administrativo na ficha e estado refletido em qualquer navegador.
-   - Exibir no Material bloqueado um aviso específico orientando a conclusão do Manual; os demais módulos não herdarão esse bloqueio.
+3. **Envio de material após contato**
+   - Criar a finalidade estável `envio_material_pos_contato`, versionada na Biblioteca e separada das etapas da cadência.
+   - Inserir somente a versão inicial informada, sem tocar versões ou textos de R/RE.
+   - Na ficha do lead, adicionar a operação independente ao lado da apresentação; no clique, reler o lead e o responsável no servidor, recalcular o tratamento, buscar a versão ativa e abrir revisão/cópia.
+   - Copiar não enviará, não gravará snapshot de envio, não concluirá ação, não mudará etapa/status/vencimento e não criará apresentação ou cadência.
 
-4. **Link personalizado**
-   - Manter a rota personalizada da Financeira direcionando para a Home com intenção de abrir o Manual.
-   - Garantir que a abertura automática preserve os parâmetros existentes, a identidade, o responsável e a sessão reconhecida, sem trocar domínio ou fluxo de autenticação.
+4. **Fonte única dos links normais do investidor**
+   - Centralizar em uma função semântica da Financeira a URL `https://portalvelox.com.br/f/{slug}` com abertura direta do Manual pelo mecanismo oficial.
+   - Fazer E0 `CONTATO_REALIZADO`, a nova finalidade e demais geradores normais da Financeira usarem essa função.
+   - Preservar como exceção o convite exclusivo da apresentação, com token e validade próprios; não alterar Solar, Seguros, preview ou navegação interna.
 
-5. **Contexto E0**
-   - Fixar o contexto pelo resultado da primeira ligação: `SIM → CONTATO_REALIZADO` e `NAO → SEM_CONTATO`.
-   - Permitir a oferta de cópia após `SIM` na primeira ligação também na segunda-feira.
-   - Nunca oferecer confirmação de cópia na segunda ligação; preservar integralmente a régua vigente, suas esperas, filas, histórico e idempotência.
-
-6. **Central dos Nomes**
-   - Não armazenar resultados negativos no cache em memória.
-   - Manter o cache positivo atual, permitindo que um nome importado depois de uma consulta ausente seja encontrado na tentativa seguinte.
+5. **Substituição segura de imagens**
+   - Fazer upload do novo arquivo, persistir e confirmar o novo override antes de remover somente o arquivo do override anterior.
+   - Em falha, manter o override anterior e limpar apenas o novo upload órfão quando seguro.
+   - Atualizar a imagem salva diretamente para a nova referência, sem piscar para o asset original, e nunca remover o asset de fábrica.
 
 ## Validação
-- Adicionar/ajustar testes focados para atualização imediata do NOVO, primeiro R1 no próximo dia operacional, bloqueio/liberação permanente do Material, link personalizado, contextos da E0 e cache de nomes.
-- Executar testes focados, verificação de tipos e build pelo fluxo automático do projeto.
-- Validar em preview `/f`, link personalizado, Manual, Simulador, Material e Ação do Dia, sem exigir recarga.
+- Criar testes focados para identidade E5/E6/E20, placeholders conhecidos e desconhecidos, versão ativa/nome/tratamento/responsável da ação universal, URL central do Manual, exceção do convite, ausência de efeitos operacionais e troca segura de override.
+- Confirmar que a ação Pós-apresentação e os textos/bindings R1–R5 e RE0–RE5 permanecem intactos.
+- Executar testes focados, verificação de tipos, build automático e preview em `/f`.
 
-## Limites técnicos
-- Sem refatoração do motor e sem arquitetura paralela.
-- Sem alterações em E2, E3+, R2–R5, RE, GreenSales, Portal Leads, autenticação, domínio, hospedagem ou segurança.
-- Sem reescrever histórico executado ou criar duplicatas/carryover.
+## Limites
+- Sem mudanças em `/s`, `/s/portal`, `/seg`, GreenSales, Portal Leads, autenticação, domínio, hospedagem, segurança, cadência E0–E8, R/RE ou históricos gravados.
+- Sem publicação/deploy neste patch.

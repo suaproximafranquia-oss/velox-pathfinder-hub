@@ -171,3 +171,11 @@
 - [x] Validar preview, tipos, compilação e testes focados da Ação do Dia (15 testes aprovados).
 - [ ] Confirmar `/`, `/f`, `/f/executivo` e `/_serverFn/*` no domínio oficial após a nova publicação assumir o tráfego. Bloqueio: a conferência única ainda recebeu o pacote anterior (`content_hash` inalterado), com `502` durante a propagação.
 
+
+## Lapidação final — E5, material pós-contato, links e asset override
+- [ ] Consolidar identidade operacional E5 sem alterar históricos E20.
+- [ ] Corrigir placeholders permitidos da apresentação mantendo bloqueio de desconhecidos.
+- [ ] Adicionar finalidade versionada e ação manual universal de envio de material.
+- [ ] Centralizar links normais do investidor no Manual; preservar convite exclusivo.
+- [ ] Tornar substituição de override transacional e segura.
+- [ ] Validar testes focados, tipos, build e preview.
