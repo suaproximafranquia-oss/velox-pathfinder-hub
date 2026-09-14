@@ -5,7 +5,7 @@
 - [ ] Resolver o NOVO de atividade do Portal ao concluir seu alerta, sem afetar NOVO de entrada e sem exigir recarga.
 - [ ] Adiar somente a disponibilidade inicial da R1 para o próximo dia operacional após AGENDAMENTOS → FRIOS.
 - [ ] Tornar o Material Institucional a única área condicionada à conclusão do Manual, com liberação manual permanente já autorizada.
-- [ ] Fazer o link personalizado abrir diretamente o Manual, preservando identidade, responsável, sessão e parâmetros.
+- [ ] Fazer o link personalizado abrir com o Manual já aberto, preservando token, identidade, responsável, sessão e parâmetros.
 - [ ] Fixar o contexto da mensagem E0 pelo resultado da primeira ligação, preservando integralmente a régua vigente.
 - [ ] Remover o cache negativo permanente da Central dos Nomes.
 - [ ] Validar os cenários focados, tipos, compilação e preview sem alterar módulos fora do escopo.
