@@ -139,3 +139,9 @@
 - [x] Manter Portal personalizado, Manual, Material, Simulador, CTAs e convite E5 em `https://portalvelox.com.br`, preservando caminhos e tokens.
 - [x] Formatar somente a exibição do telefone no card da Ação do Dia, sem alterar banco, `tel:`, `wa.me`, validações ou lógica E0.
 - [x] Validar testes focados, preview Lovable, navegação interna, tipos e compilação (8 testes e tipos aprovados; preview permaneceu em sua própria origem, sem erros; build automático OK).
+
+## Cópia de mensagem na Ação do Dia — Financeira /f
+
+- [x] Abrir a janela com a mensagem oficial antes da única tentativa automática de cópia.
+- [x] Manter o resultado visível e a segunda tentativa manual, sem concluir ou registrar a ação ao copiar.
+- [ ] Validar preview, testes focados, tipos e compilação.
