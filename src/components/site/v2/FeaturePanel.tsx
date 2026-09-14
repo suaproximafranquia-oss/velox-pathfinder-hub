@@ -15,6 +15,7 @@ export function FeaturePanel({
   imageAlt,
   imageCaption,
   imageRatio = "4 / 5",
+  expandImageRight = false,
   reverse = false,
   surface = "paper",
   children,
@@ -27,6 +28,7 @@ export function FeaturePanel({
   imageAlt: string;
   imageCaption?: string;
   imageRatio?: string;
+  expandImageRight?: boolean;
   reverse?: boolean;
   surface?: "paper" | "graphite" | "ink" | "blue";
   children: ReactNode;
@@ -36,7 +38,11 @@ export function FeaturePanel({
     <SectionShell id={id} labelledBy={id ? `${id}-title` : undefined} surface={surface} className="py-28 md:py-40" watermark={dark}>
       <div className="relative mx-auto grid max-w-6xl gap-14 px-6 md:grid-cols-12 md:gap-20 md:px-10">
         <Reveal className={`md:col-span-6 ${reverse ? "md:order-2" : ""}`}>
-          <figure className="relative">
+          <figure
+            className={`relative ${
+              expandImageRight ? "md:w-[calc(100%+8rem)] xl:w-[calc(100%+10rem)]" : ""
+            }`}
+          >
             <div
               className="frame-orange relative overflow-hidden bg-black shadow-[var(--shadow-frame)]"
               style={{ aspectRatio: imageRatio }}
