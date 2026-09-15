@@ -1,7 +1,6 @@
-import { DEFAULT_BRAND_KEY, investorPortalUrl } from "@/lib/portal-brands";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, Share2, Link2, Check } from "lucide-react";
+import { Search, Share2 } from "lucide-react";
 import { ExecutiveShell } from "@/components/executive/executive-shell";
 import {
   getSession,
@@ -34,6 +33,8 @@ import {
   type RedistributionPlan,
 } from "@/lib/crm/redistribution";
 import { EngagementPanel } from "@/components/executive/workspace/engagement-panel";
+import { ExecutivePortalLinkCard } from "@/components/executive/executive-portal-link-card";
+import { getMyExecutivePortalLink } from "@/lib/executive-portal-link.functions";
 
 /**
  * Abas do Workspace. "Engajamento" é aba INDEPENDENTE e "Sol + Seg" é um
@@ -286,10 +287,6 @@ function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, tick]);
 
-  const personalLink = useMemo(
-    () => (session ? buildPersonalLink(session) : ""),
-    [session],
-  );
   // Reaproveita a carteira já calculada: evita varrer a base inteira
   // novamente a cada re-renderização ao abrir um perfil.
   const activeInvestor = useMemo(() => {
@@ -419,7 +416,6 @@ function WorkspacePage() {
           <WorkspaceHeader
             query={query}
             onQuery={setQuery}
-            personalLink={personalLink}
           />
 
           {unreadCards.length > 0 && (
@@ -444,7 +440,7 @@ function WorkspacePage() {
           )}
 
           {cards.length === 0 ? (
-            <EmptyState query={query} personalLink={personalLink} />
+            <EmptyState query={query} />
           ) : (
             <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {cards.map((c) => (
@@ -471,11 +467,9 @@ function WorkspacePage() {
 function WorkspaceHeader({
   query,
   onQuery,
-  personalLink,
 }: {
   query: string;
   onQuery: (v: string) => void;
-  personalLink: string;
 }) {
   return (
     <div className="mb-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
@@ -490,7 +484,7 @@ function WorkspaceHeader({
           aria-label="Pesquisar na carteira"
         />
       </div>
-      <CopyLinkButton link={personalLink} />
+      <ExecutivePortalLinkCard compact />
     </div>
   );
 }
@@ -558,30 +552,7 @@ function ScopeTabs({
   );
 }
 
-function CopyLinkButton({ link }: { link: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(link);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1600);
-        } catch {
-          /* noop */
-        }
-      }}
-      title={link}
-      className="inline-flex items-center gap-2 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/50 px-4 py-3 text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--gold)]/40 transition"
-    >
-      {copied ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
-      {copied ? "Link copiado" : "Meu link personalizado"}
-    </button>
-  );
-}
-
-function EmptyState({ query, personalLink }: { query: string; personalLink: string }) {
+function EmptyState({ query }: { query: string }) {
   const isSearch = query.trim().length > 0;
   return (
     <div className="rounded-3xl border border-dashed border-[color:var(--border)] bg-[color:var(--card)]/30 p-12 text-center">
@@ -598,7 +569,8 @@ function EmptyState({ query, personalLink }: { query: string; personalLink: stri
           type="button"
           onClick={async () => {
             try {
-              await navigator.clipboard.writeText(personalLink);
+              const { url } = await getMyExecutivePortalLink();
+              if (url) await navigator.clipboard.writeText(url);
             } catch {
               /* noop */
             }
@@ -610,13 +582,4 @@ function EmptyState({ query, personalLink }: { query: string; personalLink: stri
       ) : null}
     </div>
   );
-}
-
-function buildPersonalLink(session: ExecutiveSession): string {
-  // Utiliza o identificador técnico permanente (`user.slug`) definido no
-  // cadastro do colaborador. Nunca deriva do nome exibido — renomear o
-  // usuário não pode quebrar o link personalizado.
-  const user = loadUsers().find((u) => u.id === session.userId);
-  const slug = user?.slug ?? session.userId;
-  return investorPortalUrl(slug, DEFAULT_BRAND_KEY);
 }
