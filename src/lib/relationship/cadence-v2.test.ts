@@ -181,7 +181,7 @@ describe("ações internas da etapa", () => {
 
   it("materializa o mapa definitivo sem transformar contextos V em etapas", () => {
     const expected = {
-      E0: ["call", "call", "message"], E1: ["call", "message"],
+      E0: ["call", "message"], E1: ["call", "message"],
       E2: ["call", "message"], E3: ["call", "message"], E4: ["call", "message"],
       E5: ["manual"], E6: ["message"], E7: ["call", "message"], E8: ["message"],
       R1: ["call", "message"], R2: ["call", "message"], R3: ["message"], R4: ["message"], R5: ["message"],
@@ -235,15 +235,15 @@ describe("ações internas da etapa", () => {
 });
 
 describe("agendamento", () => {
-  it("congela apenas com compromisso real (AGENDAMENTOS/VÍDEO + follow_up)", () => {
+  it("congela pelo estágio comercial, sem depender de follow_up", () => {
     expect(isCadenceFrozen({ stageKey: "agendamentos", hasCommitment: true })).toBe(true);
     expect(isCadenceFrozen({ stageKey: "video", hasCommitment: true })).toBe(true);
-    expect(isCadenceFrozen({ stageKey: "video", hasCommitment: false })).toBe(false);
-    expect(isCadenceFrozen({ stageKey: "agendamentos", hasCommitment: false })).toBe(false);
+    expect(isCadenceFrozen({ stageKey: "video", hasCommitment: false })).toBe(true);
+    expect(isCadenceFrozen({ stageKey: "agendamentos", hasCommitment: false })).toBe(true);
     expect(isCadenceFrozen({ stageKey: "frio", hasCommitment: true })).toBe(false);
     // Leitura antiga (sem o fato): AGENDAMENTOS mantém o comportamento histórico.
     expect(isCadenceFrozen({ stageKey: "agendamentos" })).toBe(true);
-    expect(isCadenceFrozen({ stageKey: "video" })).toBe(false);
+    expect(isCadenceFrozen({ stageKey: "video" })).toBe(true);
   });
 
   it("R só é liberado pela movimentação humana AGENDAMENTOS → FRIOS", () => {

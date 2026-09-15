@@ -1,7 +1,7 @@
 /**
  * E0 MANUAL NA RÉGUA V2 — Financeira /f.
  *
- * Garante a sequência ligação 1 → 10 min → ligação 2 → mensagem para
+ * Garante a sequência ligação única → mensagem para
  * copiar, a abertura da cadência sem envio, a decisão em NOVOS e a
  * proteção da posição 1 na Ação do Dia.
  */
@@ -83,17 +83,17 @@ describe("E0 manual — decisão em NOVOS", () => {
     }
   });
 
-  it("após ligação 1 não atendida, a 2ª ligação só libera 10 minutos depois", () => {
+  it("após a ligação não atendida, libera a mensagem imediatamente", () => {
     const released = nextReleasedAction({
       step: "E0",
       stepDueAt: NOW,
       states: [{ order: 1, status: "DONE", executedAt: NOW, result: "NAO" }] as never,
     });
-    expect(released?.action.order).toBe(2);
-    expect(released?.releaseAt).toBe("2026-09-08T12:40:00.000Z");
+    expect(released?.action.order).toBe(3);
+    expect(released?.releaseAt).toBe(NOW);
   });
 
-  it("após duas ligações não atendidas, libera a mensagem E0 (para copiar)", () => {
+  it("ignora segunda ligação histórica e mantém a mensagem E0", () => {
     const released = nextReleasedAction({
       step: "E0",
       stepDueAt: NOW,

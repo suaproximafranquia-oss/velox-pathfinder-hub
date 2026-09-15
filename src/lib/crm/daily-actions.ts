@@ -103,6 +103,8 @@ export type DailyAction = {
   queueItemId?: string;
   /** Ordem histórica da ação interna dentro da etapa. */
   queueActionOrder?: number;
+  /** Compatibilidade histórica: novas obrigações não recebem expiração. */
+  expiresAt?: string;
   /** Primeira ligação E0: atendimento exige decisão explícita, inclusive na segunda-feira. */
   e0AttendedChoice?: boolean;
   /** Ação reivindicada pelo executivo (PROCESSING) — posição 1 protegida. */

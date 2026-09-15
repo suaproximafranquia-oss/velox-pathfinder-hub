@@ -19,6 +19,12 @@ describe("Agenda lateral da Ação do Dia", () => {
     expect(buildAgendaSlots([], "2026-09-15").map((slot) => slot.label)).not.toContain("12:00 – 13:00");
   });
 
+  it("marca horário passado sem compromisso como indisponível", () => {
+    const slots = buildAgendaSlots([], "2026-09-15", new Date("2026-09-15T17:30:00.000Z"));
+    expect(slots.find((slot) => slot.label.startsWith("09:00"))?.status).toBe("INDISPONIVEL");
+    expect(slots.find((slot) => slot.label.startsWith("15:00"))?.status).toBe("LIVRE");
+  });
+
   it("marca compromisso existente como ocupado e mantém os demais livres", () => {
     const slots = buildAgendaSlots([meeting], "2026-09-15");
     expect(slots.find((slot) => slot.label === "14:00 – 15:00")).toMatchObject({ occupied: true, title: "Reunião com João" });
