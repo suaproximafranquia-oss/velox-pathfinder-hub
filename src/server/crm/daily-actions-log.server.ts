@@ -437,6 +437,7 @@ async function recordManualMessageSnapshot(params: {
   queueItemId: string;
   actorId: string;
   nowIso: string;
+  callOutcome?: "SIM" | "NAO" | null;
 }): Promise<ManualMessageSnapshot | null> {
   try {
     const [{ prepareStepMessage }, { recordMessageSnapshot }, { isSimulatedExecution }] =
@@ -449,6 +450,7 @@ async function recordManualMessageSnapshot(params: {
     const prepared = await prepareStepMessage({
       leadId: params.leadId,
       step: params.step,
+      context: params.callOutcome === "SIM" ? "CONTATO_REALIZADO" : undefined,
     });
     // Sem texto oficial não há o que congelar: o motivo já ficou no ledger.
     if (!prepared.body) return null;
@@ -570,6 +572,7 @@ export async function completeCallAndMessage(input: DailyActionLogInput & {
     ...input,
     actionKey: `queue:${input.leadId}:${input.step}:${message.id}`,
     kind: "mensagem",
+    outcome: input.callOutcome,
     nowIso,
   });
 }
@@ -785,6 +788,7 @@ export async function resolveMeetingOutcome(input: {
       executiveId: input.executiveId,
       outcome: input.attended ? "compareceu" : "nao_compareceu",
       nowIso,
+      callOutcome: input.outcome === "SIM" || input.outcome === "NAO" ? input.outcome : null,
     },
     { meetingId: input.meetingId },
   );

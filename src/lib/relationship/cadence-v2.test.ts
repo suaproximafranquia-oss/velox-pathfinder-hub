@@ -174,7 +174,7 @@ describe("ações internas da etapa", () => {
   });
 
   it("etapas compostas são ligação seguida de mensagem", () => {
-    for (const step of ["E2", "E3", "E4", "E7", "R1", "R2", "RE1"] as const) {
+    for (const step of ["E2", "E3", "E4", "E7", "R1", "R2", "RE0", "RE1", "RE3"] as const) {
       expect(stepActions(step).map((a) => a.kind)).toEqual(["call", "message"]);
     }
   });
@@ -185,7 +185,7 @@ describe("ações internas da etapa", () => {
       E2: ["call", "message"], E3: ["call", "message"], E4: ["call", "message"],
       E5: ["manual"], E6: ["message"], E7: ["call", "message"], E8: ["message"],
       R1: ["call", "message"], R2: ["call", "message"], R3: ["message"], R4: ["message"], R5: ["message"],
-      RE0: ["call"], RE1: ["call", "message"], RE2: ["message"], RE3: ["manual"], RE4: ["message"], RE5: ["message"],
+      RE0: ["call", "message"], RE1: ["call", "message"], RE2: ["message"], RE3: ["call", "message"], RE4: ["message"], RE5: ["message"],
     } as const;
     for (const [step, kinds] of Object.entries(expected)) {
       expect(stepActions(step as Parameters<typeof stepActions>[0]).map((action) => action.kind)).toEqual(kinds);
@@ -205,7 +205,7 @@ describe("ações internas da etapa", () => {
   });
 
   it("a mensagem não é liberada antes da ligação da mesma etapa", () => {
-    for (const step of ["E0", "E1", "E2", "E3", "E4", "E7", "R1", "R2", "RE1"] as const) {
+    for (const step of ["E0", "E1", "E2", "E3", "E4", "E7", "R1", "R2", "RE0", "RE1", "RE3"] as const) {
       const released = nextReleasedAction({ step, stepDueAt: "2026-08-03T12:00:00.000Z", states: [] });
       expect(released?.action.kind).toBe("call");
     }

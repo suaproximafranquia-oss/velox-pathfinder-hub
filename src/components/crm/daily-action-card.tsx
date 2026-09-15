@@ -174,7 +174,7 @@ export function DailyActionCard({
     if (!isCallAction(item) || locked) return;
     const baseKey = stepMessageKey(item.leadId, item.stepLabel);
     const key =
-      callPending?.outcome === "SIM" && item.e0AttendedChoice && baseKey
+      callPending?.outcome === "SIM" && baseKey
         ? `${baseKey}::CONTATO_REALIZADO`
         : baseKey;
     if (callPending) {
@@ -713,7 +713,7 @@ export function DailyActionCard({
             <button
               type="button"
               onClick={() => void handleOpenMessage(
-                callPending.outcome === "SIM" && item.e0AttendedChoice
+                callPending.outcome === "SIM"
                   ? "CONTATO_REALIZADO"
                   : undefined,
               )}
