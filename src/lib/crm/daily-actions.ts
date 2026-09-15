@@ -304,7 +304,9 @@ export function sortDailyActions(
 /** Reclassificação somente visual; não consulta, cria ou executa obrigações. */
 export function reclassifyDailyActions(actions: DailyAction[], nowIso: string, continuityLeadId?: string | null): DailyAction[] {
   const flatten = (rows: DailyAction[]): DailyAction[] => rows.flatMap((a) => [{ ...a, secondary: undefined }, ...flatten(a.secondary ?? [])]);
-  const rows = flatten(actions).map((a) => {
+  const rows = flatten(actions)
+    .filter((a) => !a.expiresAt || Date.parse(a.expiresAt) > Date.parse(nowIso))
+    .map((a) => {
     const bucket = a.source === "queue" || a.source === "closure"
       ? (isOverdueByBusinessDays(availabilityFromDate(a.dueDate), nowIso) ? "atrasada" : a.dueDate > operationalDate(nowIso) ? "futura" : "hoje")
       : a.startsAt ? resolveBucket({ dueDate: a.dueDate, startsAt: a.startsAt, nowIso }) : a.bucket;
