@@ -21,6 +21,7 @@ import { resolveLeadExecutive } from "./executive-identity.server";
 import { investorPortalUrl } from "@/lib/portal-brands";
 import { resolveStepContextForLead } from "./cadence-v2-state.server";
 import { isContextualStep } from "@/lib/relationship/operational-steps";
+import { resolvePostCallLibraryStep } from "@/lib/relationship/post-call-message";
 
 export type PreparedStepMessage = {
   step: string;
@@ -45,7 +46,7 @@ export type PreparedStepMessage = {
 export async function prepareStepMessage(params: {
   leadId: string;
   step: string;
-  /** Somente a prévia explícita da E0 atendida, antes da conclusão da ligação. */
+  /** Desfecho positivo explícito da ligação, antes da conclusão composta. */
   context?: "CONTATO_REALIZADO";
 }): Promise<PreparedStepMessage> {
   const executive = await resolveLeadExecutive(params.leadId);
@@ -85,11 +86,17 @@ export async function prepareStepMessage(params: {
    * congelado pelo motor, passagem histórica por E4 — nunca o título, o
    * texto ou a interpretação de uma conversa.
    */
-  const stepContext = params.context ?? (isContextualStep(params.step)
+  const libraryStep = resolvePostCallLibraryStep(
+    params.step,
+    params.context === "CONTATO_REALIZADO" ? "SIM" : null,
+  );
+  const stepContext = libraryStep !== params.step
+    ? null
+    : params.context ?? (isContextualStep(params.step)
     ? await resolveStepContextForLead(params.leadId, params.step)
     : null);
   const { result, message } = await renderFromLibrary(
-    params.step,
+    libraryStep,
     {
       executiveName: executive.name,
       portalLink,
@@ -116,7 +123,7 @@ export async function prepareStepMessage(params: {
 
   const body = composeMessageBody(result.body, result.button);
   return {
-    step: params.step,
+    step: libraryStep,
     body,
     blockedReason: null,
     libraryVersion: message?.version ?? null,

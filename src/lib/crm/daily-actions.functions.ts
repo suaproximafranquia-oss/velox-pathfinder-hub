@@ -150,7 +150,7 @@ export const getDailyActionMessageFn = createServerFn({ method: "POST" })
       leadId: data.leadId,
       allowPendingRecovery: data.pendingRecovery === true,
     });
-    if (data.context && (data.step !== "E0" || data.context !== "CONTATO_REALIZADO")) {
+    if (data.context && data.context !== "CONTATO_REALIZADO") {
       throw new Error("Contexto de mensagem não permitido para esta ação.");
     }
     const { prepareStepMessage } = await import("@/server/relationship/step-message.server");

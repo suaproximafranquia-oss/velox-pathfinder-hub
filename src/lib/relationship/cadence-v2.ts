@@ -543,14 +543,14 @@ export function stepActions(
     case "R1":
     case "R2":
     case "RE1":
+    case "RE0":
+    case "RE3":
       return [
         { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" },
         { order: 2, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
       ];
     case "E5":
       return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Apresentação / envio de material" }];
-    case "RE0":
-      return [{ order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" }];
     case "E6":
     case "E8":
     case "R3":
@@ -560,8 +560,6 @@ export function stepActions(
     case "RE4":
     case "RE5":
       return [{ order: 1, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" }];
-    case "RE3":
-      return [{ order: 1, kind: "manual", waitHoursAfterPrevious: 0, label: "Apresentação / envio de material" }];
     default:
       return [{ order: 1, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" }];
   }

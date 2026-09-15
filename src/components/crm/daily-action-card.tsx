@@ -163,7 +163,8 @@ export function DailyActionCard({
    * o Executivo não clica em "Concluído", a mensagem dessa etapa já é
    * lida em segundo plano e o caminho do servidor é aquecido.
    *
-   * A E0 atendida prepara o contexto CONTATO_REALIZADO.
+     * Toda ligação atendida prepara o contexto CONTATO_REALIZADO; o servidor
+     * resolve esse contexto para a finalidade editorial oficial.
    *
    * Nada aqui efetiva, cria fila, avança o motor, grava histórico ou
    * marca execução. Trocar a decisão ou abandonar o card descarta o
@@ -174,7 +175,7 @@ export function DailyActionCard({
     if (!isCallAction(item) || locked) return;
     const baseKey = stepMessageKey(item.leadId, item.stepLabel);
     const key =
-      callPending?.outcome === "SIM" && item.e0AttendedChoice && baseKey
+      callPending?.outcome === "SIM" && baseKey
         ? `${baseKey}::CONTATO_REALIZADO`
         : baseKey;
     if (callPending) {
@@ -713,7 +714,7 @@ export function DailyActionCard({
             <button
               type="button"
               onClick={() => void handleOpenMessage(
-                callPending.outcome === "SIM" && item.e0AttendedChoice
+                callPending.outcome === "SIM"
                   ? "CONTATO_REALIZADO"
                   : undefined,
               )}
