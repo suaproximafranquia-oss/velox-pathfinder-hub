@@ -55,6 +55,8 @@ export async function registerQueueCallOutcome(input: {
   engine?: Engine;
   /** Rodada isolada; ausente preserva a consulta produtiva original. */
   runId?: string | null;
+  /** A conclusão composta materializa a mensagem depois, no mesmo comando. */
+  deferTick?: boolean;
 }): Promise<{ concluded: boolean; awaitingHandoff: boolean }> {
   const nowIso = input.nowIso ?? new Date().toISOString();
 
@@ -112,7 +114,7 @@ export async function registerQueueCallOutcome(input: {
 
   if (input.outcome !== "SIM") {
     /** A mensagem da MESMA etapa é materializada imediatamente. */
-    await tickLead(row.lead_id, input.engine);
+    if (!input.deferTick) await tickLead(row.lead_id, input.engine);
     return { concluded: true, awaitingHandoff: false };
   }
 
@@ -151,7 +153,7 @@ export async function registerQueueCallOutcome(input: {
    */
   // A E0 atendida só materializa CONTATO_REALIZADO após esta limpeza.
   // Assim nenhum SEM_CONTATO aberto sobrevive nem volta no recálculo.
-  await tickLead(row.lead_id, input.engine);
+  if (!input.deferTick) await tickLead(row.lead_id, input.engine);
 
   return { concluded: true, awaitingHandoff: false };
 }

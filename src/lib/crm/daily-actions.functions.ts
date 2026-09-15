@@ -208,6 +208,32 @@ export const registerDailyActionMessageFn = createServerFn({ method: "POST" })
     return { ok: true as const, ...outcome, queue: await queueAfterOutcome(executiveId) };
   });
 
+/** Conclusão única da etapa composta: ligação + mensagem no mesmo card. */
+export const completeCallAndMessageFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: ActionRefInput & {
+    queueItemId: string;
+    callOutcome: "SIM" | "NAO";
+    rang?: boolean | null;
+  }) => data)
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
+    const { completeCallAndMessage } = await import("@/server/crm/daily-actions-log.server");
+    const outcome = await completeCallAndMessage({
+      ...data,
+      userId: context.userId,
+      executiveId,
+    });
+    return { ok: true as const, ...outcome, queue: await queueAfterOutcome(executiveId) };
+  });
+
 /** Conclusão de apresentação/material manual na mesma fila oficial. */
 export const completeDailyActionManualFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

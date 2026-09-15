@@ -532,6 +532,48 @@ async function concludeQueueStep(params: {
   return { concluded: decision.outcome === "sent", reason: decision.reason ?? null };
 }
 
+/** Conclui ligação e mensagem da mesma etapa como uma unidade operacional. */
+export async function completeCallAndMessage(input: DailyActionLogInput & {
+  queueItemId: string;
+  callOutcome: "SIM" | "NAO";
+  rang?: boolean | null;
+}): Promise<{ concluded: boolean; reason: string | null }> {
+  if (!input.leadId || !input.step) return { concluded: false, reason: "Ação sem investidor ou etapa." };
+  const nowIso = input.nowIso ?? new Date().toISOString();
+  const { registerQueueCallOutcome } = await import("@/server/relationship/call-outcome.server");
+  const call = await registerQueueCallOutcome({
+    queueItemId: input.queueItemId,
+    outcome: input.callOutcome,
+    rang: input.rang,
+    actorId: input.executiveId ?? input.userId,
+    nowIso,
+    deferTick: true,
+  });
+  if (!call.concluded) return { concluded: false, reason: "Ligação já resolvida." };
+
+  const { productionEngine } = await import("@/server/relationship/engine.server");
+  await productionEngine().tick(input.leadId);
+  const { data: message } = await supabaseAdmin
+    .from("relationship_queue")
+    .select("id")
+    .eq("scope", "production")
+    .is("run_id", null)
+    .eq("lead_id", input.leadId)
+    .eq("step", input.step)
+    .eq("action_kind", "message")
+    .in("status", ["PENDING", "PROCESSING"])
+    .order("action_order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!message?.id) return { concluded: false, reason: "Mensagem da etapa não foi materializada." };
+  return registerDailyActionMessage({
+    ...input,
+    actionKey: `queue:${input.leadId}:${input.step}:${message.id}`,
+    kind: "mensagem",
+    nowIso,
+  });
+}
+
 /**
  * AÇÕES PULADAS HOJE. A supressão vale apenas para a data operacional
  * corrente: nada é apagado e a obrigação volta a aparecer amanhã se a

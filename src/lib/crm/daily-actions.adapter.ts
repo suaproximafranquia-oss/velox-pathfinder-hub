@@ -54,6 +54,12 @@ export type DailyActionsAdapter = {
     outcome: "SIM" | "NAO",
     rang?: boolean | null,
   ) => Promise<AdapterResult>;
+  completeCallAndMessage?: (
+    item: DailyAction,
+    outcome: "SIM" | "NAO",
+    rang: boolean | null | undefined,
+    note: string,
+  ) => Promise<AdapterResult>;
   /** Desfaz o último resultado de ligação da régua V2 (quando ainda reversível). */
   undoCallOutcome?: (item: DailyAction) => Promise<AdapterResult>;
   openWhatsapp: (item: DailyAction) => Promise<AdapterResult>;

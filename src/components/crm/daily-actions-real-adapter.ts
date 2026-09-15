@@ -16,6 +16,7 @@ import {
   recordDailyActionHistoryFn,
   registerDailyActionMessageFn,
   completeDailyActionManualFn,
+  completeCallAndMessageFn,
   registerQueueCallOutcomeFn,
   prewarmOutcomeFn,
   undoQueueCallOutcomeFn,
@@ -64,6 +65,7 @@ export function useRealDailyActionsAdapter(
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
   const registerMessage = useServerFn(registerDailyActionMessageFn);
   const completeManual = useServerFn(completeDailyActionManualFn);
+  const completeCallAndMessage = useServerFn(completeCallAndMessageFn);
   const registerQueueCall = useServerFn(registerQueueCallOutcomeFn);
   const prewarmOutcome = useServerFn(prewarmOutcomeFn);
   const undoQueueCall = useServerFn(undoQueueCallOutcomeFn);
@@ -163,6 +165,25 @@ export function useRealDailyActionsAdapter(
           },
         }).catch(() => undefined);
         return { ok: true, message: "Tentativa registrada." };
+      },
+      completeCallAndMessage: async (item, outcome, rang, note) => {
+        const queueItemId = item.queueItemId ?? item.actionKey.split(":").pop() ?? "";
+        if (!queueItemId) return { ok: false, message: "Ligação sem origem oficial." };
+        const result = await completeCallAndMessage({
+          data: {
+            ...actionRef(item, note, pendingRecovery),
+            queueItemId,
+            callOutcome: outcome,
+            rang: outcome === "NAO" ? (rang ?? null) : null,
+          },
+        });
+        return {
+          ok: Boolean(result?.concluded),
+          queue: result?.queue,
+          message: result?.concluded
+            ? "Etapa concluída — ligação e mensagem registradas."
+            : result?.reason ?? "Não foi possível concluir a etapa.",
+        };
       },
       undoCallOutcome: async (item) => {
         const queueItemId = item.queueItemId ?? item.actionKey.split(":").pop() ?? "";
@@ -362,6 +383,7 @@ export function useRealDailyActionsAdapter(
       resumePendingFn,
       concludeAlertFn,
       completeTask,
+      completeCallAndMessage,
       registerWhatsapp,
       skipAction,
       noteAction,

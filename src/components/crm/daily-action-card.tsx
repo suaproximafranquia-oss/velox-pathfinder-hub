@@ -245,6 +245,9 @@ export function DailyActionCard({
     setCopyStatus("idle");
     onUndoableChange?.(item.source === "queue" && adapter.undoCallOutcome ? item : null);
     resolveNow(async () => {
+      if (adapter.completeCallAndMessage) {
+        return adapter.completeCallAndMessage(item, outcome, rang, observation);
+      }
       if (observation.length >= 3) await adapter.addNote(item, observation).catch(() => undefined);
       const callResult = await adapter.completeCall(item, outcome, rang);
       if (!callResult.ok) return callResult;
