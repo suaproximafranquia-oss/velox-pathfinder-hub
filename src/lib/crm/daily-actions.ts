@@ -237,9 +237,9 @@ export function actionRank(action: DailyAction): number {
    * compete com E0/E1/E2 — prioridade máxima só vale no dia ou em atraso.
    */
   if (action.bucket === "futura") return 6;
-  // LEAD NOVO — E0 legada ou E0 da régua V2 (ligação/mensagem).
+  // ABERTURA — E0 e RE0 compartilham somente a classe de prioridade visual.
   if (action.source === "first_contact") return 2;
-  if (action.source === "queue" && action.stepLabel === "E0") return 2;
+  if (action.source === "queue" && (action.stepLabel === "E0" || action.stepLabel === "RE0")) return 2;
   if (action.priorityMax) {
     if (action.bucket === "agora" || action.bucket === "atrasada") return 0;
     return 1;

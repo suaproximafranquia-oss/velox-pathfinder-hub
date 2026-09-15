@@ -38,16 +38,32 @@ describe("E0 na régua V2", () => {
     expect(stepActions("E0", false, "2026-09-14").map((action) => action.kind)).toEqual(["call", "message"]);
     expect(e0StructureDate("2026-09-15", "2026-09-16T15:00:00.000Z", [])).toBe("2026-09-15");
     expect(stepActions("E0", false, "2026-09-15").map((action) => action.kind)).toEqual(["call", "call", "message"]);
-    expect(e0StructureDate("2026-09-18", "2026-09-21T15:00:00.000Z", [])).toBe("2026-09-21");
-    expect(stepActions("E0", false, "2026-09-21").map((action) => action.kind)).toEqual(["call", "message"]);
+    expect(e0StructureDate("2026-09-18", "2026-09-21T15:00:00.000Z", [])).toBe("2026-09-18");
+    expect(stepActions("E0", false, "2026-09-18").map((action) => action.kind)).toEqual(["call", "call", "message"]);
   });
 
   it("I–J) entrada do fim de semana usa segunda e não muda depois de iniciada", () => {
     const monday = e0OperationalDate("2026-09-19T12:00:00.000Z");
     expect(stepActions("E0", false, monday).map((action) => action.kind)).toEqual(["call", "message"]);
-    expect(e0StructureDate("2026-09-18", "2026-09-21T15:00:00.000Z", [
+    expect(e0StructureDate("2026-09-21", "2026-09-22T15:00:00.000Z", [
       { order: 1, status: "DONE", executedAt: "2026-09-19T12:00:00.000Z", result: "NAO" },
-    ])).toBe("2026-09-18");
+    ])).toBe("2026-09-21");
+  });
+
+  it("separa sexta antes do corte das entradas acumuladas para segunda", () => {
+    const fridayBeforeCutoff = e0OperationalDate("2026-09-18T19:59:59.000Z");
+    const fridayAtCutoff = e0OperationalDate("2026-09-18T21:00:00.000Z");
+    const saturday = e0OperationalDate("2026-09-19T15:00:00.000Z");
+    const sunday = e0OperationalDate("2026-09-20T15:00:00.000Z");
+    expect(fridayBeforeCutoff).toBe("2026-09-18");
+    expect(stepActions("E0", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call", "call", "message"]);
+    for (const accumulated of [fridayAtCutoff, saturday, sunday]) {
+      expect(accumulated).toBe("2026-09-21");
+      expect(stepActions("E0", false, accumulated).map((action) => action.kind)).toEqual(["call", "message"]);
+    }
+    expect(stepActions("E1", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call", "message"]);
+    expect(stepActions("E2", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call", "message"]);
+    expect(stepActions("RE0", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call"]);
   });
   it("tem ligação, ligação e mensagem, com 10 minutos entre as ligações", () => {
     const plan = stepActions("E0");

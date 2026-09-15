@@ -1,3 +1,5 @@
+import { normalizeWhatsappNumber } from "@/lib/whatsapp-number";
+
 /**
  * Normalização dos dados brutos do GreenSales.
  *
@@ -47,9 +49,8 @@ function matches(key: string, hints: string[]): boolean {
 
 /** Número plausível: 10 a 13 dígitos (fixo/celular, com ou sem DDI 55). */
 export function normalizePhone(value: string | null | undefined): string {
-  const digits = String(value ?? "").replace(/\D+/g, "");
-  if (digits.length < 10 || digits.length > 13) return "";
-  return digits.startsWith("55") && digits.length >= 12 ? `+${digits}` : digits;
+  const normalized = normalizeWhatsappNumber(value);
+  return normalized.valid ? `+${normalized.digits}` : "";
 }
 
 function isEmail(value: string): boolean {

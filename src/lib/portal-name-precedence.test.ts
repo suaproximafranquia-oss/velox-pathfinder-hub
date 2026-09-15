@@ -8,6 +8,7 @@ vi.mock("@tanstack/react-start", () => ({ createServerFn: () => {
 vi.mock("@/integrations/supabase/auth-middleware", () => ({ requireSupabaseAuth: {} }));
 vi.mock("@/server/crm/manager-guard.server", () => ({ isManagementExecutive: async () => false }));
 vi.mock("@/server/crm/portal-first-contact.server", () => ({ kickoffPortalFirstContact: vi.fn() }));
+vi.mock("@/lib/portal-greensales-recognition", () => ({ recognizeGreenSalesPortalIdentity: async () => null }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from(table: string) {
   let mode = "select"; let payload: Record<string, any> = {}; let single = false;
   const filters: Array<(row: Record<string, any>) => boolean> = [];

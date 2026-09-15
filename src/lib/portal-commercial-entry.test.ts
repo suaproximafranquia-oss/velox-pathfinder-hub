@@ -11,6 +11,7 @@ vi.mock("@tanstack/react-start", () => ({ createServerFn: () => {
 vi.mock("@/integrations/supabase/auth-middleware", () => ({ requireSupabaseAuth: {} }));
 vi.mock("@/server/crm/portal-first-contact.server", () => ({ kickoffPortalFirstContact: fake.first }));
 vi.mock("@/server/relationship/reentry-open.server", () => ({ openCommercialReentry: fake.reentry }));
+vi.mock("@/lib/portal-greensales-recognition", () => ({ recognizeGreenSalesPortalIdentity: async () => null }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   rpc: async () => ({ data: { ok: true, investorId: "TEST-identity", recognized: !fake.created }, error: null }),
    from: (table: string) => {

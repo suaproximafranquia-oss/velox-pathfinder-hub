@@ -317,22 +317,12 @@ export function e0OperationalDate(entryIso: string): string {
   return shiftTheoreticalDate(addDays(entryDate, 1));
 }
 
-/**
- * A E0 de sexta que atravessou o fim de semana sem nenhuma execução assume
- * a estrutura operacional de segunda. Nos demais atrasos, a origem não muda.
- */
+/** A estrutura da E0 permanece congelada na data operacional da entrada. */
 export function e0StructureDate(
   originDate: string,
-  nowIso: string,
-  states: ActionState[],
+  _nowIso: string,
+  _states: ActionState[],
 ): string {
-  if (
-    weekdayOf(originDate) === 5 &&
-    weekdayOf(localDateOf(nowIso)) === 1 &&
-    states.every((state) => state.status !== "DONE")
-  ) {
-    return localDateOf(nowIso);
-  }
   return originDate;
 }
 

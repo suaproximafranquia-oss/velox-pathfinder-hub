@@ -39,6 +39,26 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     const digits = (data.whatsapp ?? "").replace(/\D+/g, "");
     const phoneKey = digits.length > 11 ? digits.slice(-11) : digits;
 
+    if (financial) {
+      const { recognizeGreenSalesPortalIdentity } = await import(
+        "@/lib/portal-greensales-recognition"
+      );
+      const recognizedGreenSales = await recognizeGreenSalesPortalIdentity({
+        externalId: data.id,
+        name: data.name,
+        phone: data.whatsapp,
+        email,
+      });
+      if (recognizedGreenSales) {
+        return {
+          ok: true as const,
+          scope: "green_sales" as const,
+          leadId: recognizedGreenSales.cardId,
+          deduped: true as const,
+        };
+      }
+    }
+
     /**
      * BLOCO 2 §6 — CORREÇÃO MANUAL TEM PRECEDÊNCIA.
      *
