@@ -168,7 +168,7 @@ async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdenti
 /** Título oficial do item da fila da régua V2 — vocabulário E0–E8/R/RE. */
 function queueActionTitle(step: string, actionKind: string, order: number): string {
   const isCall = actionKind === "call";
-  if (isCall) return order > 1 ? `Segunda ligação — Etapa ${step}` : `Ligação — Etapa ${step}`;
+  if (isCall) return `Ligação — Etapa ${step}`;
   if (actionKind === "manual") {
     return step === "RE3"
       ? "Apresentar/enviar material — Etapa RE3"
