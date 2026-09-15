@@ -204,3 +204,11 @@
 - [x] Reancorar E1–E4 exclusivamente na execução real anterior, contando o intervalo a partir do dia seguinte, e ajustar pendências futuras existentes sem duplicação.
 - [x] Corrigir somente o status visual da Agenda para LIVRE, OCUPADO ou INDISPONÍVEL.
 - [x] Validar testes focados e relacionados, tipos, build e Preview de /f e /f/executivo, sem publicar nem alterar áreas protegidas (114 testes, tipos, build e Preview aprovados; /s, /s/portal e /seg intactos; sem publicação).
+
+## Correção universal da mensagem após ligação positiva — Financeira /f
+
+- [ ] Resolver SIM/ATENDEU em E0, E1, E2/V2, E3/V3, E4, E7, RE0, RE1 e RE3 pela finalidade existente `ENVIO_MATERIAL_POS_CONTATO`.
+- [ ] Preservar a mensagem específica da etapa/contexto para NÃO ATENDEU, sem alterar versões publicadas ou histórico.
+- [ ] Tornar RE0 e RE3 ligação + mensagem no mesmo card, sem nova etapa, prazo ou relógio de cadência.
+- [ ] Garantir que modal, conclusão e snapshot usem a mesma mensagem resolvida automaticamente.
+- [ ] Validar cenários positivos e negativos, tipos e build, sem publicar nem tocar áreas protegidas.
