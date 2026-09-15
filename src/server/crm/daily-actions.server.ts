@@ -14,6 +14,7 @@ import {
   normalizeDailyActions,
   operationalDate,
   resolveBucket,
+  shouldNeutralizeQueueDuty,
   type DailyAction,
 } from "@/lib/crm/daily-actions";
 import {
@@ -111,9 +112,12 @@ export async function reconcileInvalidQueueDuties(nowIso: string): Promise<numbe
   const contacted = new Set((executedE0 ?? []).map((row) => String(row.lead_id)));
   const ids = candidates
     .filter((row) => {
-      const stage = stageByLead.get(row.lead_id) ?? "";
-      const frozen = stage === "oportunidade" || committed.has(row.lead_id);
-      return frozen && (row.step !== "E0" || contacted.has(row.lead_id));
+      return shouldNeutralizeQueueDuty({
+        step: row.step,
+        stageKey: stageByLead.get(row.lead_id) ?? null,
+        hasCommitment: committed.has(row.lead_id),
+        firstContactExecuted: contacted.has(row.lead_id),
+      });
     })
     .map((row) => row.id);
   if (ids.length === 0) return 0;

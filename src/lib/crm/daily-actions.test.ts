@@ -8,6 +8,7 @@ import {
   operationalDate,
   resolveBucket,
   summarizeDailyActions,
+  shouldNeutralizeQueueDuty,
   reclassifyDailyActions,
   type DailyAction,
 } from "@/lib/crm/daily-actions";
@@ -55,6 +56,26 @@ describe("Ações do Dia — regras puras", () => {
     const row = action({ actionKey: "queue:TEST-0001:E0", stepLabel: "E0", dueDate: "2026-02-13" });
     expect(reclassifyDailyActions([row], "2026-02-14T15:00:00.000Z")[0]?.bucket).toBe("hoje");
     expect(reclassifyDailyActions([row], "2026-02-18T15:00:00.000Z")[0]?.bucket).toBe("atrasada");
+  });
+
+  it("J) saldo do fim de semana chega à segunda sem atraso de sábado", () => {
+    const row = action({ actionKey: "queue:weekend:E0", stepLabel: "E0", dueDate: "2026-09-21" });
+    expect(reclassifyDailyActions([row], "2026-09-19T15:00:00.000Z")[0]?.bucket).toBe("futura");
+    expect(reclassifyDailyActions([row], "2026-09-21T12:00:00.000Z")[0]?.bucket).toBe("hoje");
+  });
+
+  it("N–P) neutraliza estágio congelador, preserva E0 sem contato e é estável", () => {
+    const frozen = {
+      step: "E1",
+      stageKey: "agendamentos",
+      hasCommitment: true,
+      firstContactExecuted: true,
+    };
+    expect(shouldNeutralizeQueueDuty(frozen)).toBe(true);
+    expect(shouldNeutralizeQueueDuty({ ...frozen, stageKey: "video" })).toBe(true);
+    expect(shouldNeutralizeQueueDuty({ ...frozen, stageKey: "oportunidade", hasCommitment: false })).toBe(true);
+    expect(shouldNeutralizeQueueDuty({ ...frozen, step: "E0", firstContactExecuted: false })).toBe(false);
+    expect(shouldNeutralizeQueueDuty(frozen)).toBe(shouldNeutralizeQueueDuty(frozen));
   });
 
   it("tentativa adicional expirada sai da lista sem virar atraso", () => {

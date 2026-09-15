@@ -156,6 +156,21 @@ export function operationalTime(value: string | number | Date): string {
   });
 }
 
+/** Decisão pura da neutralização comercial; a escrita continua no servidor. */
+export function shouldNeutralizeQueueDuty(input: {
+  step: string;
+  stageKey: string | null;
+  hasCommitment: boolean;
+  firstContactExecuted: boolean;
+}): boolean {
+  const stage = String(input.stageKey ?? "").toLowerCase();
+  const frozen = stage === "oportunidade" || (
+    (stage === "agendamentos" || stage === "video") && input.hasCommitment
+  );
+  if (!frozen) return false;
+  return input.step !== "E0" || input.firstContactExecuted;
+}
+
 /** "1ª tentativa", "2ª tentativa"… — apenas apresentação do que já existe. */
 export function attemptLabel(step: number): string {
   return `${step}ª tentativa`;
