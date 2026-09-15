@@ -1,29 +1,27 @@
 /** Reconciliador estrito da E0 para a segunda-feira operacional atual. */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { addDays, weekdayOf } from "@/lib/relationship/calendar";
-import { localDateOf } from "@/lib/relationship/cadence-v2";
+import { weekdayOf } from "@/lib/relationship/calendar";
+import { e0StructureDate, localDateOf } from "@/lib/relationship/cadence-v2";
 
 export async function reconcileMondayE0(nowIso: string = new Date().toISOString()): Promise<number> {
   const date = localDateOf(nowIso);
   if (weekdayOf(date) !== 1) return 0;
-  const from = `${date}T03:00:00.000Z`;
-  const to = `${addDays(date, 1)}T03:00:00.000Z`;
-
   const { data: pending, error: pendingError } = await supabaseAdmin
     .from("relationship_queue")
-    .select("id,lead_id")
+    .select("id,lead_id,origin_date")
     .eq("scope", "production")
     .is("run_id", null)
     .eq("step", "E0")
     .eq("action_order", 2)
     .eq("action_kind", "call")
-    .in("status", ["PENDING", "PROCESSING"])
-    .gte("due_at", from)
-    .lt("due_at", to);
+    .eq("status", "PENDING");
   if (pendingError) throw new Error(pendingError.message);
   if (!pending?.length) return 0;
 
-  const ids = pending.map((row) => row.id);
+  const ids = pending
+    .filter((row) => e0StructureDate(row.origin_date ?? date, nowIso, []) === date)
+    .map((row) => row.id);
+  if (ids.length === 0) return 0;
   const { data: cancelled, error: cancelError } = await supabaseAdmin
     .from("relationship_queue")
     .update({
@@ -33,7 +31,7 @@ export async function reconcileMondayE0(nowIso: string = new Date().toISOString(
       updated_at: nowIso,
     } as never)
     .in("id", ids)
-    .in("status", ["PENDING", "PROCESSING"])
+    .eq("status", "PENDING")
     .select("lead_id");
   if (cancelError) throw new Error(cancelError.message);
 

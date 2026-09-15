@@ -83,6 +83,8 @@ export function reconcileSelectedActionKey(
   rows: DailyAction[],
   current: string | null,
 ): string | null {
+  const processing = rows.find((item) => item.claimed)?.actionKey ?? null;
+  if (processing) return processing;
   const held = rows.some(
     (item) => item.actionKey === current && (item.bucket === "pendente" || item.bucket === "alerta"),
   );
@@ -288,6 +290,15 @@ export function DailyActionsOverlay({
     void load();
     void loadPendings();
   }, [open, load, loadPendings]);
+
+  /** Releitura viva da mesma fonte oficial, sem recarregar ou trocar ação em curso. */
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setInterval(() => {
+      if (!transitioningRef.current) void load(true);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [open, load]);
 
   useEffect(() => {
     if (!open) return;

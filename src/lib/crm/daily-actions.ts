@@ -88,6 +88,8 @@ export type DailyAction = {
   dueDate: string;
   /** Instante do compromisso, quando existir. */
   startsAt: string | null;
+  /** Instante real usado somente como desempate cronológico da fila. */
+  sortAt?: string | null;
   endsAt: string | null;
   overdue: boolean;
   priorityMax: boolean;
@@ -152,6 +154,21 @@ export function operationalTime(value: string | number | Date): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** Decisão pura da neutralização comercial; a escrita continua no servidor. */
+export function shouldNeutralizeQueueDuty(input: {
+  step: string;
+  stageKey: string | null;
+  hasCommitment: boolean;
+  firstContactExecuted: boolean;
+}): boolean {
+  const stage = String(input.stageKey ?? "").toLowerCase();
+  const frozen = stage === "oportunidade" || (
+    (stage === "agendamentos" || stage === "video") && input.hasCommitment
+  );
+  if (!frozen) return false;
+  return input.step !== "E0" || input.firstContactExecuted;
 }
 
 /** "1ª tentativa", "2ª tentativa"… — apenas apresentação do que já existe. */
@@ -276,8 +293,8 @@ export function sortDailyActions(
     }
     const rank = actionRank(a) - actionRank(b);
     if (rank !== 0) return rank;
-    const aKey = a.startsAt ?? `${a.dueDate}T23:59:59.999Z`;
-    const bKey = b.startsAt ?? `${b.dueDate}T23:59:59.999Z`;
+    const aKey = a.startsAt ?? a.sortAt ?? `${a.dueDate}T23:59:59.999Z`;
+    const bKey = b.startsAt ?? b.sortAt ?? `${b.dueDate}T23:59:59.999Z`;
     if (aKey !== bKey) return aKey < bKey ? -1 : 1;
     return a.actionKey < b.actionKey ? -1 : a.actionKey > b.actionKey ? 1 : 0;
   });

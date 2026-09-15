@@ -155,7 +155,10 @@ export async function createPendingE0Action(input: {
   if (ownershipSeq === 0) {
     try {
       const { openManualE0Cadence } = await import("@/server/relationship/e0-manual.server");
-      await openManualE0Cadence(input.cardId, 0, { reentry: Boolean(input.reentry) });
+      await openManualE0Cadence(input.cardId, 0, {
+        reentry: Boolean(input.reentry),
+        entryAt: input.entryAt,
+      });
     } catch {
       /* reconciliado no próximo ciclo/abertura da Ação do Dia */
     }
