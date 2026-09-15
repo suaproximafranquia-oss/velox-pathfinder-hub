@@ -45,7 +45,7 @@ export function DailyActionsAgenda() {
   });
 
   return (
-    <aside aria-label="Agenda" className="flex min-h-0 flex-col border-b border-border bg-card/20 xl:border-b-0 xl:border-r">
+    <aside aria-label="Agenda" className="flex h-full min-h-0 flex-col border-b border-border bg-card/20 xl:border-b-0 xl:border-r">
       <div className="border-b border-border px-3 py-3">
         <div className="flex items-center gap-2 text-primary">
           <CalendarDays className="h-4 w-4" />
