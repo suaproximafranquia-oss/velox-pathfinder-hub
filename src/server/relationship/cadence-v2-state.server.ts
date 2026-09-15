@@ -275,6 +275,12 @@ export async function resolveStepContextForLead(
   const key = String(step ?? "").trim().toUpperCase();
 
   if (key === "E0") {
+    /**
+     * O contexto pertence ao DESFECHO da E0, não ao número da tentativa.
+     * Uma ligação E0 atendida em qualquer ordem torna a mensagem
+     * CONTATO_REALIZADO. Restringir à primeira ligação fazia um SIM na
+     * segunda tentativa voltar como SEM_CONTATO após o recálculo da fila.
+     */
     const { data } = await supabaseAdmin
       .from("relationship_queue")
       .select("result")
@@ -282,7 +288,6 @@ export async function resolveStepContextForLead(
       .eq("lead_id", leadId)
       .eq("step", "E0")
       .eq("action_kind", "call")
-      .eq("action_order", 1)
       .eq("status", "EXECUTED")
       .eq("result", "SIM")
       .limit(1);

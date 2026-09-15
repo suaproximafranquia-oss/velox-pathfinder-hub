@@ -114,6 +114,51 @@ describe("E0 na régua V2", () => {
     expect(released).toBeNull();
   });
 
+  it("C) SIM com CONTATO_REALIZADO concluído encerra E0 sem SEM_CONTATO", () => {
+    const states = [
+      { order: 1, status: "DONE" as const, executedAt: "2026-09-15T12:00:00.000Z", result: "SIM" },
+      { order: 2, status: "CANCELLED" as const },
+      { order: 3, status: "DONE" as const, executedAt: "2026-09-15T12:01:00.000Z" },
+    ];
+    expect(nextReleasedAction({
+      step: "E0",
+      stepDueAt: "2026-09-15T12:00:00.000Z",
+      operationalDate: "2026-09-15",
+      states,
+    })).toBeNull();
+  });
+
+  it("E) NAO libera a mensagem E0 correta após as tentativas aplicáveis", () => {
+    const released = nextReleasedAction({
+      step: "E0",
+      stepDueAt: "2026-09-15T12:00:00.000Z",
+      operationalDate: "2026-09-15",
+      states: [
+        { order: 1, status: "DONE", executedAt: "2026-09-15T12:00:00.000Z", result: "NAO" },
+        { order: 2, status: "DONE", executedAt: "2026-09-15T12:10:00.000Z", result: "NAO" },
+      ],
+    });
+    expect(released?.action).toMatchObject({ order: 3, kind: "message" });
+  });
+
+  it("G) reprocessar E0 concluída não recria mensagem", () => {
+    const input = {
+      ...base,
+      actions: [
+        { step: "E0", actionOrder: 1, actionKind: "call", status: "EXECUTED", dueAt: base.nowIso, executedAt: base.nowIso, result: "SIM" },
+        { step: "E0", actionOrder: 2, actionKind: "call", status: "CANCELLED", dueAt: base.nowIso, executedAt: null, result: null },
+        { step: "E0", actionOrder: 3, actionKind: "message", status: "EXECUTED", dueAt: base.nowIso, executedAt: base.nowIso, result: "enviado_manual" },
+      ],
+    };
+    const decision = decideCadenceV2(input as never);
+    if (decision.kind === "obligation") expect(decision.step).not.toBe("E0");
+  });
+
+  it("H) E1 continua sendo a próxima etapa normal após E0 concluída", () => {
+    const decision = decideCadenceV2({ ...base, executedSteps: ["E0"] } as never);
+    if (decision.kind === "obligation") expect(decision.step).toBe("E1");
+  });
+
   it("não recria E0 quando o primeiro contato já foi executado", () => {
     const decision = decideCadenceV2({ ...base, executedSteps: ["E0"] } as never);
     if (decision.kind === "obligation") expect(decision.step).not.toBe("E0");
