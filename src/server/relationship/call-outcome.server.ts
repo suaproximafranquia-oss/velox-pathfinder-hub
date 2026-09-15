@@ -19,6 +19,33 @@ import type { Engine } from "@/lib/relationship/engine";
 
 export type QueueCallOutcome = "SIM" | "NAO";
 
+/**
+ * E0 ATENDIDA — neutraliza somente mensagens SEM_CONTATO já abertas.
+ * O histórico executado e a mensagem CONTATO_REALIZADO permanecem intactos.
+ */
+async function cancelPendingE0NoContactMessage(input: {
+  leadId: string;
+  scope: string;
+  runId?: string | null;
+  nowIso: string;
+}): Promise<void> {
+  let query = supabaseAdmin
+    .from("relationship_queue")
+    .update({
+      status: "CANCELLED",
+      cancel_reason: "e0_contact_attended",
+      reason: "E0 atendida — mensagem SEM_CONTATO sem finalidade.",
+      updated_at: input.nowIso,
+    } as never)
+    .eq("scope", input.scope)
+    .eq("lead_id", input.leadId)
+    .eq("step", "E0")
+    .eq("action_kind", "message")
+    .in("status", ["PENDING", "PROCESSING"]);
+  query = input.runId ? query.eq("run_id", input.runId) : query.is("run_id", null);
+  await query;
+}
+
 export async function registerQueueCallOutcome(input: {
   queueItemId: string;
   outcome: QueueCallOutcome;
@@ -96,6 +123,15 @@ export async function registerQueueCallOutcome(input: {
     return { concluded: true, awaitingHandoff: false };
   }
 
+  if (row.step === "E0") {
+    await cancelPendingE0NoContactMessage({
+      leadId: row.lead_id,
+      scope: row.scope,
+      runId: input.runId,
+      nowIso,
+    });
+  }
+
   // Atendeu: as ligações seguintes DA MESMA ETAPA perdem a finalidade.
   // Na E0, a mensagem CONTATO_REALIZADO permanece e será liberada pelo motor.
   let cancelQuery = supabaseAdmin
@@ -120,6 +156,8 @@ export async function registerQueueCallOutcome(input: {
    * Por isso nada é gravado em `awaiting_handoff` aqui — o campo fica
    * apenas como histórico dos ciclos anteriores.
    */
+  // A E0 atendida só materializa CONTATO_REALIZADO após esta limpeza.
+  // Assim nenhum SEM_CONTATO aberto sobrevive nem volta no recálculo.
   await tickLead(row.lead_id, input.engine);
 
   return { concluded: true, awaitingHandoff: false };

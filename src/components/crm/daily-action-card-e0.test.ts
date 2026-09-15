@@ -18,4 +18,18 @@ describe("Ação do Dia — primeira ligação E0 atendida", () => {
     expect(copyHandler).not.toContain("completeCall(");
     expect(source).toContain('completeCall("SIM", true)');
   });
+
+  it("B) a cópia de CONTATO_REALIZADO permanece separada da conclusão", () => {
+    const copyHandler = source.slice(
+      source.indexOf("async function copyMessageBody"),
+      source.indexOf("function handleRegisterMessage"),
+    );
+    expect(copyHandler).toContain("copyToClipboard");
+    expect(copyHandler).not.toContain('completeCall("SIM"');
+  });
+
+  it("I) CONTATO_REALIZADO continua carregado pela fonte oficial existente", () => {
+    expect(source).toContain('adapter.loadMessage(item, context)');
+    expect(source).toContain('handleOpenMessage("CONTATO_REALIZADO")');
+  });
 });
