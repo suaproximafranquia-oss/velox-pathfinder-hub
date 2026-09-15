@@ -519,7 +519,7 @@ export function DailyActionsOverlay({
         role="dialog"
         aria-modal="true"
         aria-label="Ações do Dia"
-        className="relative flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[color:var(--navy-deep)] text-white/85 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
+        className="relative flex h-[86vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[color:var(--navy-deep)] text-white/85 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
       >
         <header inert={transition !== "idle"} className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
           <div className="flex items-center gap-3">
