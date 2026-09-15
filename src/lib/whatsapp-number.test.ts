@@ -5,6 +5,8 @@ import {
   WHATSAPP_MISSING_REASON,
 } from "./whatsapp-number";
 import { resolveExecutionMode } from "./relationship/execution-mode";
+import { normalizePhone } from "./greensales/normalize";
+import { phoneIdentityKey } from "./crm/identity";
 
 describe("normalizeWhatsappNumber", () => {
   it("aceita número nacional com máscara e acrescenta o DDI do Brasil", () => {
@@ -39,6 +41,13 @@ describe("normalizeWhatsappNumber", () => {
     expect(whatsappLinkWithText("17997727337", "Olá Velox")).toBe(
       "https://wa.me/5517997727337?text=Ol%C3%A1%20Velox",
     );
+  });
+
+  it("normaliza a origem brasileira sem duplicar o DDI e preserva a identidade", () => {
+    expect(normalizePhone("11948949027")).toBe("+5511948949027");
+    expect(normalizePhone("+5511948949027")).toBe("+5511948949027");
+    expect(normalizePhone("(11) 94894-9027")).toBe("+5511948949027");
+    expect(phoneIdentityKey("11948949027")).toBe(phoneIdentityKey("+5511948949027"));
   });
 });
 

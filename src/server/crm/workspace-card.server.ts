@@ -134,7 +134,6 @@ export async function recognizeGreenSalesPortalIdentity(input: {
   try {
     await supabaseAdmin.from("relationship_engine_log").insert({
       scope: "production",
-      lead_id: card.cardId,
       action: "portal_reconheceu_identidade_greensales",
       details: { crmLeadId: lead.id, externalId: lead.external_id, matchedBy } as never,
     } as never);

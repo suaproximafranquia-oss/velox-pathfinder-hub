@@ -111,6 +111,50 @@ export const resolvePortalIdentity = createServerFn({ method: "POST" })
     if (!phoneKey && !emailKey) return { ok: false, reason: "identity_invalid" };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.unit === "f") {
+      const { recognizeGreenSalesPortalIdentity } = await import(
+        "@/server/crm/workspace-card.server"
+      );
+      const recognizedGreenSales = await recognizeGreenSalesPortalIdentity({
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+      });
+      if (recognizedGreenSales) {
+        const { data: official } = await supabaseAdmin
+          .from("portal_leads")
+          .select("id,name,email,whatsapp,origin,personalized,responsible_executive_id,responsible_executive_slug")
+          .eq("id", recognizedGreenSales.cardId)
+          .maybeSingle();
+        let token: string | null = null;
+        if (official) {
+          try {
+            const { issueToken } = await import("@/server/portal-token.server");
+            token = await issueToken(official.id);
+          } catch {
+            token = null;
+          }
+        }
+        return {
+          ok: true,
+          investorId: recognizedGreenSales.cardId,
+          recognized: true,
+          ...(official
+            ? {
+                session: {
+                  name: official.name,
+                  email: official.email ?? "",
+                  responsibleExecutiveId: official.responsible_executive_id ?? null,
+                  responsibleExecutiveSlug: official.responsible_executive_slug ?? null,
+                  origin: official.origin ?? "GreenSales",
+                  personalized: Boolean(official.personalized),
+                  token,
+                },
+              }
+            : {}),
+        };
+      }
+    }
     const { data: result, error } = await supabaseAdmin.rpc("resolve_portal_identity", {
       _name: (data.name ?? "").trim(),
       _email: emailKey ?? "",
