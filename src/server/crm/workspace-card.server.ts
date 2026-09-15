@@ -14,7 +14,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isManagementExecutive } from "@/server/crm/manager-guard.server";
 import { sanitizeRawPayload } from "@/server/crm/lead-service.server";
-import { emailIdentityKey, namesCompatible, phoneIdentityKey } from "@/lib/crm/identity";
+import { emailIdentityKey, phoneIdentityKey } from "@/lib/crm/identity";
 import { greenSalesVendorId, resolveResponsibleByVendorId } from "@/server/crm/responsible.server";
 
 export type WorkspaceCardInput = {
@@ -73,6 +73,7 @@ export async function recognizeGreenSalesPortalIdentity(input: {
   phone?: string | null;
   email?: string | null;
 }): Promise<GreenSalesPortalRecognition | null> {
+  try {
   const columns = "id,external_id,name,phone,email,external_created_at,last_entry_at,raw_payload,canonical_investor_id";
   let matchedBy: GreenSalesPortalRecognition["matchedBy"] | null = null;
   let candidates: GreenSalesIdentityRow[] = [];
@@ -108,7 +109,7 @@ export async function recognizeGreenSalesPortalIdentity(input: {
   }
 
   const lead = matchedBy ? candidates[0] : null;
-  if (!lead || !namesCompatible(lead.name, input.name)) return null;
+  if (!lead) return null;
   const rawPayload = lead.raw_payload ?? {};
   const responsible = await resolveResponsibleByVendorId(greenSalesVendorId(rawPayload));
   const card = await ensureWorkspaceCard({
@@ -140,7 +141,11 @@ export async function recognizeGreenSalesPortalIdentity(input: {
   } catch {
     /* auditoria acessória nunca bloqueia o acesso */
   }
-  return { cardId: card.cardId, crmLeadId: lead.id, externalId: lead.external_id, matchedBy };
+  return { cardId: card.cardId, crmLeadId: lead.id, externalId: lead.external_id, matchedBy: matchedBy! };
+  } catch {
+    // Falha de leitura não impede o fluxo Portal oficial existente.
+    return null;
+  }
 }
 
 /** Origem GreenSales: atualiza SOMENTE o nome de um card já existente. */

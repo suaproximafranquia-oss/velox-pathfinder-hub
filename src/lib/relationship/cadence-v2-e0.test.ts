@@ -63,7 +63,7 @@ describe("E0 na régua V2", () => {
     }
     expect(stepActions("E1", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call", "message"]);
     expect(stepActions("E2", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call", "message"]);
-    expect(stepActions("RE0", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["message"]);
+    expect(stepActions("RE0", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call"]);
   });
   it("tem ligação, ligação e mensagem, com 10 minutos entre as ligações", () => {
     const plan = stepActions("E0");

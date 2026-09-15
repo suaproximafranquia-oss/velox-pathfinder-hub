@@ -44,6 +44,7 @@ export const syncPortalLead = createServerFn({ method: "POST" })
         "@/server/crm/workspace-card.server"
       );
       const recognizedGreenSales = await recognizeGreenSalesPortalIdentity({
+        externalId: data.id,
         name: data.name,
         phone: data.whatsapp,
         email,
