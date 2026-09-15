@@ -1,7 +1,6 @@
 /**
  * E0 COMO ETAPA REAL DA RÉGUA V2.
- * Ligação 1 → 10 minutos → ligação 2 → mensagem (somente se as duas
- * ligações não forem atendidas). Uma ação liberada por vez.
+ * Ligação única → mensagem. Uma ação liberada por vez.
  */
 import { describe, expect, it } from "vitest";
 import { decideCadenceV2 } from "./cadence-v2-decide";
@@ -20,7 +19,7 @@ const base = {
   actions: [] as Array<Record<string, unknown>>,
   executedSteps: [] as string[],
   cycle: { materialSent: false },
-  stageKey: "em_andamento",
+  stageKey: "zero_contato",
   awaitingHandoff: false,
 };
 
@@ -37,9 +36,9 @@ describe("E0 na régua V2", () => {
     expect(e0StructureDate("2026-09-14", "2026-09-15T15:00:00.000Z", [])).toBe("2026-09-14");
     expect(stepActions("E0", false, "2026-09-14").map((action) => action.kind)).toEqual(["call", "message"]);
     expect(e0StructureDate("2026-09-15", "2026-09-16T15:00:00.000Z", [])).toBe("2026-09-15");
-    expect(stepActions("E0", false, "2026-09-15").map((action) => action.kind)).toEqual(["call", "call", "message"]);
+    expect(stepActions("E0", false, "2026-09-15").map((action) => action.kind)).toEqual(["call", "message"]);
     expect(e0StructureDate("2026-09-18", "2026-09-21T15:00:00.000Z", [])).toBe("2026-09-18");
-    expect(stepActions("E0", false, "2026-09-18").map((action) => action.kind)).toEqual(["call", "call", "message"]);
+    expect(stepActions("E0", false, "2026-09-18").map((action) => action.kind)).toEqual(["call", "message"]);
   });
 
   it("I–J) entrada do fim de semana usa segunda e não muda depois de iniciada", () => {
@@ -56,7 +55,7 @@ describe("E0 na régua V2", () => {
     const saturday = e0OperationalDate("2026-09-19T15:00:00.000Z");
     const sunday = e0OperationalDate("2026-09-20T15:00:00.000Z");
     expect(fridayBeforeCutoff).toBe("2026-09-18");
-    expect(stepActions("E0", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call", "call", "message"]);
+    expect(stepActions("E0", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call", "message"]);
     for (const accumulated of [fridayAtCutoff, saturday, sunday]) {
       expect(accumulated).toBe("2026-09-21");
       expect(stepActions("E0", false, accumulated).map((action) => action.kind)).toEqual(["call", "message"]);
@@ -65,10 +64,10 @@ describe("E0 na régua V2", () => {
     expect(stepActions("E2", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call", "message"]);
     expect(stepActions("RE0", false, fridayBeforeCutoff).map((action) => action.kind)).toEqual(["call"]);
   });
-  it("tem ligação, ligação e mensagem, com 10 minutos entre as ligações", () => {
+  it("tem uma ligação e uma mensagem sem espera", () => {
     const plan = stepActions("E0");
-    expect(plan.map((a) => a.kind)).toEqual(["call", "call", "message"]);
-    expect(waitMinutesOf(plan[1]!)).toBe(10);
+    expect(plan.map((a) => a.kind)).toEqual(["call", "message"]);
+    expect(waitMinutesOf(plan[1]!)).toBe(0);
   });
 
   it("na segunda-feira tem somente uma ligação seguida da mensagem", () => {
@@ -107,29 +106,27 @@ describe("E0 na régua V2", () => {
     expect(released?.action.order).toBe(1);
   });
 
-  it("a segunda ligação só existe 10 minutos depois da primeira", () => {
+  it("a mensagem existe imediatamente depois da ligação", () => {
     const released = nextReleasedAction({
       step: "E0",
       stepDueAt: "2026-03-03T12:00:00.000Z",
       states: [
         { order: 1, status: "DONE", executedAt: "2026-03-03T12:00:00.000Z", result: "NAO" },
-        { order: 2, status: "PENDING" },
+        { order: 3, status: "PENDING" },
       ],
     });
-    expect(released?.action.order).toBe(2);
-    expect(new Date(released!.releaseAt).getTime()).toBeGreaterThanOrEqual(
-      Date.parse("2026-03-03T12:10:00.000Z"),
-    );
+    expect(released?.action.order).toBe(3);
+    expect(released?.releaseAt).toBe("2026-03-03T12:00:00.000Z");
   });
 
-  it("K–M) ligação 2 e mensagem seguem a mesma E0", () => {
+  it("K–M) ligação e mensagem seguem a mesma E0", () => {
     const second = nextReleasedAction({
       step: "E0",
       stepDueAt: "2026-09-15T12:00:00.000Z",
       operationalDate: "2026-09-15",
       states: [{ order: 1, status: "DONE", executedAt: "2026-09-15T12:00:00.000Z", result: "NAO" }],
     });
-    expect(second).toMatchObject({ action: { order: 2, kind: "call" }, releaseAt: "2026-09-15T12:10:00.000Z" });
+    expect(second).toMatchObject({ action: { order: 3, kind: "message" }, releaseAt: "2026-09-15T12:00:00.000Z" });
     const message = nextReleasedAction({
       step: "E0",
       stepDueAt: "2026-09-15T12:00:00.000Z",
@@ -139,7 +136,7 @@ describe("E0 na régua V2", () => {
         { order: 2, status: "DONE", executedAt: "2026-09-15T12:10:00.000Z", result: "NAO" },
       ],
     });
-    expect(message).toMatchObject({ action: { order: 3, kind: "message" }, releaseAt: "2026-09-15T12:10:00.000Z" });
+    expect(message).toMatchObject({ action: { order: 3, kind: "message" }, releaseAt: "2026-09-15T12:00:00.000Z" });
   });
 
   it("de terça a sexta, atendimento na primeira ligação pula a segunda e libera a mensagem", () => {

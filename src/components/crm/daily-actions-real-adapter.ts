@@ -16,6 +16,7 @@ import {
   recordDailyActionHistoryFn,
   registerDailyActionMessageFn,
   completeDailyActionManualFn,
+  completeCallAndMessageFn,
   registerQueueCallOutcomeFn,
   prewarmOutcomeFn,
   undoQueueCallOutcomeFn,
@@ -64,6 +65,7 @@ export function useRealDailyActionsAdapter(
   const loadStepMessage = useServerFn(getDailyActionMessageFn);
   const registerMessage = useServerFn(registerDailyActionMessageFn);
   const completeManual = useServerFn(completeDailyActionManualFn);
+  const completeCallAndMessage = useServerFn(completeCallAndMessageFn);
   const registerQueueCall = useServerFn(registerQueueCallOutcomeFn);
   const prewarmOutcome = useServerFn(prewarmOutcomeFn);
   const undoQueueCall = useServerFn(undoQueueCallOutcomeFn);
@@ -80,21 +82,19 @@ export function useRealDailyActionsAdapter(
       load: () => fetchActions(),
       /**
        * PRIMEIRO CONTATO LEGADO — DESATIVADO. A E0 é etapa da régua V2
-       * (ligação 1 → 10 min → ligação 2 → mensagem para copiar). Nenhum
+       * (ligação única → mensagem para copiar). Nenhum
        * caminho desta tela envia a mensagem E0.
        */
       executeFirstContact: async () => ({
         ok: false,
         message:
-          "A E0 é executada pela régua: ligação 1, 10 minutos, ligação 2 e depois a mensagem para copiar.",
+          "A E0 é executada pela régua: ligação e depois a mensagem para copiar.",
       }),
 
       completeCall: async (item, outcome, rang) => {
         /**
          * LIGAÇÃO DA RÉGUA V2 — a ação interna vive na fila do motor.
-         * Atendeu ⇒ as ações restantes da etapa são canceladas e a régua
-         * segue para a próxima etapa; não atendeu ⇒ a régua segue
-         * (2ª ligação em 10 min; depois a mensagem para copiar).
+         * Qualquer resultado libera a mensagem correta da mesma etapa.
          * Nenhuma mensagem é enviada por aqui.
          */
         if (!item.cadence && item.actionKey.startsWith("queue:")) {
@@ -165,6 +165,25 @@ export function useRealDailyActionsAdapter(
           },
         }).catch(() => undefined);
         return { ok: true, message: "Tentativa registrada." };
+      },
+      completeCallAndMessage: async (item, outcome, rang, note) => {
+        const queueItemId = item.queueItemId ?? item.actionKey.split(":").pop() ?? "";
+        if (!queueItemId) return { ok: false, message: "Ligação sem origem oficial." };
+        const result = await completeCallAndMessage({
+          data: {
+            ...actionRef(item, note, pendingRecovery),
+            queueItemId,
+            callOutcome: outcome,
+            rang: outcome === "NAO" ? (rang ?? null) : null,
+          },
+        });
+        return {
+          ok: Boolean(result?.concluded),
+          queue: result?.queue,
+          message: result?.concluded
+            ? "Etapa concluída — ligação e mensagem registradas."
+            : result?.reason ?? "Não foi possível concluir a etapa.",
+        };
       },
       undoCallOutcome: async (item) => {
         const queueItemId = item.queueItemId ?? item.actionKey.split(":").pop() ?? "";
@@ -364,6 +383,7 @@ export function useRealDailyActionsAdapter(
       resumePendingFn,
       concludeAlertFn,
       completeTask,
+      completeCallAndMessage,
       registerWhatsapp,
       skipAction,
       noteAction,

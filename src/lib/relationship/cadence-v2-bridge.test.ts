@@ -40,7 +40,7 @@ const v2 = {
   ],
   executedSteps: ["E0"],
   cycle: { materialSent: false },
-  stageKey: "em_andamento",
+  stageKey: "zero_contato",
   awaitingHandoff: false,
 };
 
@@ -61,7 +61,7 @@ describe("ponte cadence-v2 → decide", () => {
     }
   });
 
-  it("não cria obrigação com compromisso real em AGENDAMENTOS", () => {
+  it("não cria obrigação em AGENDAMENTOS", () => {
     const action = decideNextAction(record, {
       nowIso: v2.nowIso,
       enabled: true,
@@ -70,7 +70,7 @@ describe("ponte cadence-v2 → decide", () => {
     expect(action.kind).toBe("none");
   });
 
-  it("não cria obrigação com compromisso real em VÍDEO", () => {
+  it("não cria obrigação em VÍDEO", () => {
     const action = decideNextAction(record, {
       nowIso: v2.nowIso,
       enabled: true,
@@ -79,13 +79,13 @@ describe("ponte cadence-v2 → decide", () => {
     expect(action.kind).toBe("none");
   });
 
-  it("VÍDEO sem follow_up não congela a cadência", () => {
+  it("VÍDEO sem follow_up também congela a cadência", () => {
     const action = decideNextAction(record, {
       nowIso: v2.nowIso,
       enabled: true,
       v2: { ...v2, stageKey: "video", hasCommitment: false },
     } as never);
-    expect(action.kind).toBe("schedule_step");
+    expect(action.kind).toBe("none");
   });
 
   it("ligação atendida (awaiting_handoff histórico) NÃO congela mais a régua", () => {

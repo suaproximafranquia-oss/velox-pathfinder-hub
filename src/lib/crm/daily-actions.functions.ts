@@ -60,8 +60,7 @@ export const getDailyActionsSummary = createServerFn({ method: "POST" })
 async function queueAfterOutcome(executiveId: string | null): Promise<DailyAction[]> {
   try {
     const { currentDailyAction } = await import("@/server/crm/daily-actions-gate.server");
-    // A reconciliação de E0 já foi feita pela leitura que autorizou a ação.
-    return (await currentDailyAction(executiveId, { skipReconcile: true })).list;
+    return (await currentDailyAction(executiveId)).list;
   } catch {
     return [];
   }
@@ -202,6 +201,32 @@ export const registerDailyActionMessageFn = createServerFn({ method: "POST" })
     );
 
     const outcome = await registerDailyActionMessage({
+      ...data,
+      userId: context.userId,
+      executiveId,
+    });
+    return { ok: true as const, ...outcome, queue: await queueAfterOutcome(executiveId) };
+  });
+
+/** Conclusão única da etapa composta: ligação + mensagem no mesmo card. */
+export const completeCallAndMessageFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: ActionRefInput & {
+    queueItemId: string;
+    callOutcome: "SIM" | "NAO";
+    rang?: boolean | null;
+  }) => data)
+  .handler(async ({ data, context }) => {
+    await assertManager(context as never);
+    const executiveId = await currentExecutiveId(context as never);
+    const { assertCurrentAction } = await import("@/server/crm/daily-actions-gate.server");
+    await assertCurrentAction({
+      executiveId,
+      actionKey: data.actionKey,
+      allowPendingRecovery: data.pendingRecovery === true,
+    });
+    const { completeCallAndMessage } = await import("@/server/crm/daily-actions-log.server");
+    const outcome = await completeCallAndMessage({
       ...data,
       userId: context.userId,
       executiveId,

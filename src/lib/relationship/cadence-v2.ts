@@ -12,8 +12,8 @@
  *
  * REGRAS FIXAS (arquitetura aprovada):
  * - Etapas oficiais: E0–E8, R1–R5, RE0–RE5. Nada além disso.
- * - Âncora: data teórica a partir da ORIGEM DO CICLO, tendo a execução
- *   anterior como PISO. Atraso desloca; nunca comprime nem empilha.
+ * - Âncora: execução REAL da etapa anterior. Atraso desloca; nunca
+ *   comprime, compensa ou empilha etapas no mesmo dia.
  * - Calendário: dias corridos, com sábado → segunda, domingo → terça e
  *   feriado → próximo dia operacional.
  * - Janela da cadência: seg–sex 09:00–17:30, sábado 08:00–16:00,
@@ -490,8 +490,8 @@ export type StepActionPlan = {
   waitHoursAfterPrevious: number;
   /**
    * Espera em MINUTOS após a ação anterior da mesma etapa. Quando
-   * presente, prevalece sobre `waitHoursAfterPrevious` (a E0 usa 10
-   * minutos entre a primeira e a segunda ligação).
+   * presente, prevalece sobre `waitHoursAfterPrevious` para preservar
+   * compatibilidade com esperas históricas.
    */
   waitMinutesAfterPrevious?: number;
   /** Rótulo operacional exibido ao executivo. */
@@ -507,9 +507,8 @@ export function waitMinutesOf(action: StepActionPlan): number {
  * AÇÕES INTERNAS DA ETAPA. Continuam sendo UMA etapa: nunca E1.1/E2.1.
  * A ligação sempre vem antes da mensagem.
  *
- * E0 é etapa real da régua: na segunda, ligação única → mensagem; de
- * terça a sexta, ligação 1 → 10 minutos → ligação 2 → mensagem. Contato
- * realizado na primeira ligação pula apenas a segunda ligação.
+ * Toda etapa composta é uma unidade operacional: uma ligação seguida da
+ * mensagem oficial. As ordens históricas das mensagens são preservadas.
  */
 export function isOperationalMonday(isoDate: string | null | undefined): boolean {
   if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return false;
@@ -523,21 +522,8 @@ export function stepActions(
 ): StepActionPlan[] {
   switch (step) {
     case "E0":
-      if (isOperationalMonday(operationalDate)) {
-        return [
-          { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" },
-          { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
-        ];
-      }
       return [
-        { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação 1" },
-        {
-          order: 2,
-          kind: "call",
-          waitHoursAfterPrevious: 0,
-          waitMinutesAfterPrevious: 10,
-          label: "Ligação 2",
-        },
+        { order: 1, kind: "call", waitHoursAfterPrevious: 0, label: "Ligação" },
         { order: 3, kind: "message", waitHoursAfterPrevious: 0, label: "Mensagem" },
       ];
     case "E1":
@@ -620,8 +606,8 @@ export function nextReleasedAction(input: {
     if (state?.status === "DONE") continue;
     if (state?.status === "CANCELLED") continue;
 
-    // E1/E2: a mensagem depende da única ligação da etapa.
-    const firstCallDependent = (input.step === "E1" || input.step === "E2") && action.order !== 1;
+    // Toda mensagem de etapa composta depende da única ligação da etapa.
+    const firstCallDependent = plan[0]?.kind === "call" && action.kind === "message";
     const previous = firstCallDependent ? plan.find((p) => p.order === 1) : plan[index - 1];
     const previousState = previous ? byOrder.get(previous.order) : undefined;
     // Ordem obrigatória: a ação só existe depois da anterior concluída.
@@ -677,16 +663,23 @@ export function actionSortWeight(kind: StepActionKind, order: number): number {
 // ------------------------------------------------------------ congelamento
 
 /**
- * COMPROMISSO REAL congela a cadência — e só ele. Atender uma ligação
- * não congela nada. Compromisso é sempre o estágio ESTRUTURADO
- * (AGENDAMENTOS ou VÍDEO) com `follow_up` presente; nenhuma tag,
- * texto ou horário participa desta decisão.
- *
- * `hasCommitment` é o fato do `follow_up`. Quando o chamador não o
- * conhece (leitura antiga), AGENDAMENTOS mantém o comportamento
- * histórico de congelar pelo estágio; VÍDEO exige o fato.
+ * A cadência normal existe somente no corredor ZERO_CONTATO/FRIO.
+ * Estágios comerciais posteriores congelam pela própria etapa atual,
+ * sem depender da existência de follow_up.
  */
 export const COMMITMENT_STAGE_KEYS = ["agendamentos", "video"] as const;
+export const FROZEN_CADENCE_STAGE_KEYS = [
+  "agendamentos",
+  "video",
+  "oportunidade",
+  "cof/contrato",
+  "cof_contrato",
+  "contrato",
+  "pagamento",
+  "remarketing",
+  "vencemos",
+  "finalizado",
+] as const;
 
 export function isCommitmentStage(stageKey: string | null): boolean {
   return (COMMITMENT_STAGE_KEYS as readonly string[]).includes((stageKey ?? "").toLowerCase());
@@ -697,8 +690,7 @@ export function isCadenceFrozen(input: {
   hasCommitment?: boolean;
 }): boolean {
   const stage = (input.stageKey ?? "").toLowerCase();
-  if (!isCommitmentStage(stage)) return false;
-  return input.hasCommitment ?? stage === "agendamentos";
+  return (FROZEN_CADENCE_STAGE_KEYS as readonly string[]).includes(stage);
 }
 
 /**

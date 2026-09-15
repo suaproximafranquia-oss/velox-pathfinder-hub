@@ -158,13 +158,12 @@ export function DailyActionCard({
   /**
    * PRÉ-GATILHO — SOMENTE ANTECIPAÇÃO DE PROCESSAMENTO.
    *
-   * "Não atendeu" tem consequência determinística: a régua segue dentro
-   * da MESMA etapa (2ª ligação e, depois, a mensagem oficial). Enquanto
+   * O resultado tem consequência determinística: a régua segue dentro
+   * da MESMA etapa para a mensagem oficial. Enquanto
    * o Executivo não clica em "Concluído", a mensagem dessa etapa já é
    * lida em segundo plano e o caminho do servidor é aquecido.
    *
-   * A primeira ligação E0 atendida em dia de duas tentativas prepara o
-   * contexto CONTATO_REALIZADO para a decisão explícita do Executivo.
+   * A E0 atendida prepara o contexto CONTATO_REALIZADO.
    *
    * Nada aqui efetiva, cria fila, avança o motor, grava histórico ou
    * marca execução. Trocar a decisão ou abandonar o card descarta o
@@ -178,7 +177,7 @@ export function DailyActionCard({
       callPending?.outcome === "SIM" && item.e0AttendedChoice && baseKey
         ? `${baseKey}::CONTATO_REALIZADO`
         : baseKey;
-    if (callPending?.outcome === "NAO" || (callPending?.outcome === "SIM" && item.e0AttendedChoice)) {
+    if (callPending) {
       if (!key) return;
       adapter.prewarmOutcome?.();
       primeStepMessage(key, () => adapter.loadMessage(
@@ -234,26 +233,36 @@ export function DailyActionCard({
     })();
   }
 
-  /**
-   * LIGAÇÃO. "Atendeu?" é apenas o RESULTADO da tentativa; só o botão
-   * "Concluído" encerra a ação.
-   */
-  function completeCall(outcome: "SIM" | "NAO", rang?: boolean | null) {
+  /** Conclui ligação e mensagem, em sequência, no único card aberto. */
+  function completeCallAndMessage(outcome: "SIM" | "NAO", rang?: boolean | null) {
     if (!isCallAction(item) || locked) return;
-    // Atendeu: a mensagem da etapa perde a finalidade — preparo descartado.
-    if (outcome === "SIM" && !item.e0AttendedChoice) {
-      clearStepMessagePrefetch();
-      primedRef.current = null;
-    }
-    const observation = callNote.trim();
+    const observation = [callNote.trim(), messageNote.trim()].filter(Boolean).join(" · ");
     setCallAwaitingRing(false);
     setCallPending(null);
     setCallNote("");
+    setMessageNote("");
+    setMessageOpen(false);
+    setCopyStatus("idle");
     onUndoableChange?.(item.source === "queue" && adapter.undoCallOutcome ? item : null);
     resolveNow(async () => {
-      // A observação é histórico: nunca atrasa a troca do card.
+      if (adapter.completeCallAndMessage) {
+        return adapter.completeCallAndMessage(item, outcome, rang, observation);
+      }
       if (observation.length >= 3) await adapter.addNote(item, observation).catch(() => undefined);
-      return adapter.completeCall(item, outcome, rang);
+      const callResult = await adapter.completeCall(item, outcome, rang);
+      if (!callResult.ok) return callResult;
+      const messageItem = callResult.queue?.find((candidate) =>
+        candidate.leadId === item.leadId &&
+        candidate.stepLabel === item.stepLabel &&
+        candidate.kind === "mensagem",
+      );
+      if (!messageItem) {
+        return {
+          ...callResult,
+          message: "Ligação registrada; a mensagem permaneceu pendente para reconciliação.",
+        };
+      }
+      return adapter.registerMessage(messageItem, observation);
     }, "Não foi possível registrar a ligação.");
   }
 
@@ -411,12 +420,6 @@ export function DailyActionCard({
       () => adapter.registerMessage(item, observation),
       "Não foi possível registrar a mensagem.",
     );
-  }
-
-  function handleAttendedE0Conclusion() {
-    setMessageOpen(false);
-    setCopyStatus("idle");
-    completeCall("SIM", true);
   }
 
   function handleCompleteManual() {
@@ -700,9 +703,6 @@ export function DailyActionCard({
             Resultado: {callPending.outcome === "SIM" ? "Atendeu" : "Não atendeu"}
             {callPending.outcome === "NAO" ? (callPending.rang ? " · chamou" : " · não chamou") : ""}
           </p>
-          {callPending.outcome === "SIM" && item.e0AttendedChoice && (
-            <p className="text-sm text-white/80">Deseja copiar a mensagem da etapa E0?</p>
-          )}
           <input
             value={callNote}
             onChange={(e) => setCallNote(e.target.value)}
@@ -710,23 +710,17 @@ export function DailyActionCard({
             className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
           />
           <div className="flex flex-wrap items-center gap-2">
-            {callPending.outcome === "SIM" && item.e0AttendedChoice && (
-              <button
-                type="button"
-                onClick={() => void handleOpenMessage("CONTATO_REALIZADO")}
-                disabled={busy || locked}
-                className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
-              >
-                <MessageSquare className="h-4 w-4" /> Copiar mensagem
-              </button>
-            )}
             <button
               type="button"
-              onClick={() => void completeCall(callPending.outcome, callPending.rang)}
+              onClick={() => void handleOpenMessage(
+                callPending.outcome === "SIM" && item.e0AttendedChoice
+                  ? "CONTATO_REALIZADO"
+                  : undefined,
+              )}
               disabled={busy || locked}
               className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-4 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-40"
             >
-              <Check className="h-4 w-4" /> Concluído
+              <MessageSquare className="h-4 w-4" /> Copiar mensagem
             </button>
             <button
               type="button"
@@ -920,9 +914,9 @@ export function DailyActionCard({
                   a ação, grava histórico, snapshot e a observação. */}
               <button
                 type="button"
-                 onClick={() => void (callPending?.outcome === "SIM" && item.e0AttendedChoice
-                   ? handleAttendedE0Conclusion()
-                   : handleRegisterMessage())}
+                  onClick={() => void (callPending
+                    ? completeCallAndMessage(callPending.outcome, callPending.rang)
+                    : handleRegisterMessage())}
                 disabled={busy || !message?.body}
                 className={`w-full rounded-lg border px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   "border-emerald-400/50 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20"

@@ -5,7 +5,7 @@ import { nextTransition, stepActions } from "./cadence-v2";
 const firstAt = "2026-09-09T13:00:00.000Z";
 const first: V2QueueAction = { step: "E1", actionOrder: 1, actionKind: "call", status: "EXECUTED", dueAt: firstAt, executedAt: firstAt, result: "NAO" };
 const message: V2QueueAction = { ...first, actionOrder: 3, actionKind: "message", executedAt: "2026-09-09T13:01:00.000Z", result: "enviado_manual" };
-const input = (actions: V2QueueAction[]): V2DecisionInput => ({ nowIso: firstAt, originDate: "2026-09-08", flow: "E", actions, executedSteps: ["E0"], cycle: { materialSent: false }, stageKey: "em_andamento", awaitingHandoff: false });
+const input = (actions: V2QueueAction[]): V2DecisionInput => ({ nowIso: firstAt, originDate: "2026-09-08", flow: "E", actions, executedSteps: ["E0"], cycle: { materialSent: false }, stageKey: "zero_contato", awaitingHandoff: false });
 
 describe("E1/E2 — uma ligação e uma mensagem", () => {
   it("E1 libera a mensagem após a única ligação e nunca planeja outra ligação", () => {

@@ -101,12 +101,12 @@ export type DailyAction = {
   firstContactActionId?: string;
   /** Item da fila da régua V2 (`relationship_queue.id`), quando for da fila. */
   queueItemId?: string;
-  /** Ordem da ação interna dentro da etapa (1 = ligação 1, 2 = 2ª ligação, 3 = mensagem). */
+  /** Ordem histórica da ação interna dentro da etapa. */
   queueActionOrder?: number;
+  /** Compatibilidade histórica: novas obrigações não recebem expiração. */
+  expiresAt?: string;
   /** Primeira ligação E0: atendimento exige decisão explícita, inclusive na segunda-feira. */
   e0AttendedChoice?: boolean;
-  /** Limite da tentativa adicional E1/E2, calculado pelo calendário vigente. */
-  expiresAt?: string;
   /** Ação reivindicada pelo executivo (PROCESSING) — posição 1 protegida. */
   claimed?: boolean;
   /** Reunião de origem (`portal_meetings.id`), quando for uma reunião. */
@@ -164,9 +164,10 @@ export function shouldNeutralizeQueueDuty(input: {
   firstContactExecuted: boolean;
 }): boolean {
   const stage = String(input.stageKey ?? "").toLowerCase();
-  const frozen = stage === "oportunidade" || (
-    (stage === "agendamentos" || stage === "video") && input.hasCommitment
-  );
+  const frozen = new Set([
+    "agendamentos", "video", "oportunidade", "cof/contrato", "cof_contrato",
+    "contrato", "pagamento", "remarketing", "vencemos", "finalizado",
+  ]).has(stage);
   if (!frozen) return false;
   return input.step !== "E0" || input.firstContactExecuted;
 }
@@ -303,7 +304,9 @@ export function sortDailyActions(
 /** Reclassificação somente visual; não consulta, cria ou executa obrigações. */
 export function reclassifyDailyActions(actions: DailyAction[], nowIso: string, continuityLeadId?: string | null): DailyAction[] {
   const flatten = (rows: DailyAction[]): DailyAction[] => rows.flatMap((a) => [{ ...a, secondary: undefined }, ...flatten(a.secondary ?? [])]);
-  const rows = flatten(actions).filter((a) => !a.expiresAt || Date.parse(a.expiresAt) > Date.parse(nowIso)).map((a) => {
+  const rows = flatten(actions)
+    .filter((a) => !a.expiresAt || Date.parse(a.expiresAt) > Date.parse(nowIso))
+    .map((a) => {
     const bucket = a.source === "queue" || a.source === "closure"
       ? (isOverdueByBusinessDays(availabilityFromDate(a.dueDate), nowIso) ? "atrasada" : a.dueDate > operationalDate(nowIso) ? "futura" : "hoje")
       : a.startsAt ? resolveBucket({ dueDate: a.dueDate, startsAt: a.startsAt, nowIso }) : a.bucket;
