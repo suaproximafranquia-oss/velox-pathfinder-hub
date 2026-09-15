@@ -194,3 +194,12 @@
 - [x] Implementar navegação visual por dia e os oito slots operacionais, sem alterar fila, cadência, lead ou compromissos.
 - [x] Expor e copiar o link curto do executivo autenticado a partir do slug oficial, preservando o Portal e links existentes.
 - [x] Validar testes focados, tipos, build, preview e console, sem publicar nem alterar áreas protegidas (19 testes focados e tipos aprovados; Preview validado sem erro após iniciar o servidor; build automático aprovado).
+
+## Comando D — simplificação do núcleo da Ação do Dia (/f)
+
+- [ ] Unificar E0–E4 e equivalentes existentes em uma ligação seguida da mensagem oficial, preservando histórico e neutralizando apenas segundas ligações abertas.
+- [ ] Manter ligação e mensagem como uma única experiência no card atual, com contexto automático e conclusão somente no botão Concluído.
+- [ ] Restringir a cadência normal a ZERO_CONTATO/FRIO, preservar a exceção inicial da E0 e reconciliar toda a fila a cada leitura oficial.
+- [ ] Reancorar E1–E4 na execução real anterior e ajustar pendências futuras existentes sem duplicação.
+- [ ] Corrigir somente o status visual da Agenda para LIVRE, OCUPADO ou INDISPONÍVEL.
+- [ ] Validar testes focados e relacionados, tipos, build e Preview de /f e /f/executivo, sem publicar nem alterar áreas protegidas.
