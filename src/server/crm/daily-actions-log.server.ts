@@ -272,6 +272,7 @@ export async function registerDailyActionMessage(
       queueItemId: queueItemId!,
       actorId: input.executiveId ?? input.userId,
       nowIso,
+      callOutcome: input.outcome === "SIM" || input.outcome === "NAO" ? input.outcome : null,
     });
   }
 
@@ -788,7 +789,6 @@ export async function resolveMeetingOutcome(input: {
       executiveId: input.executiveId,
       outcome: input.attended ? "compareceu" : "nao_compareceu",
       nowIso,
-      callOutcome: input.outcome === "SIM" || input.outcome === "NAO" ? input.outcome : null,
     },
     { meetingId: input.meetingId },
   );

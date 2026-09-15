@@ -3,10 +3,10 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("./daily-action-card.tsx", import.meta.url), "utf8");
 
-describe("Ação do Dia — primeira ligação E0 atendida", () => {
-  it("exibe a decisão explícita e carrega CONTATO_REALIZADO", () => {
-    expect(source).toContain("Deseja copiar a mensagem da etapa E0?");
-    expect(source).toContain('handleOpenMessage("CONTATO_REALIZADO")');
+describe("Ação do Dia — mensagem após ligação", () => {
+  it("carrega CONTATO_REALIZADO para todo resultado positivo", () => {
+    expect(source).toContain('callPending.outcome === "SIM"');
+    expect(source).toContain('? "CONTATO_REALIZADO"');
   });
 
   it("copiar não registra nem conclui; Concluído conclui a ligação", () => {
@@ -16,7 +16,7 @@ describe("Ação do Dia — primeira ligação E0 atendida", () => {
     );
     expect(copyHandler).not.toContain("registerMessage(");
     expect(copyHandler).not.toContain("completeCall(");
-    expect(source).toContain('completeCall("SIM", true)');
+    expect(source).toContain("completeCallAndMessage(item, outcome, rang, observation)");
   });
 
   it("B) a cópia de CONTATO_REALIZADO permanece separada da conclusão", () => {
@@ -30,6 +30,6 @@ describe("Ação do Dia — primeira ligação E0 atendida", () => {
 
   it("I) CONTATO_REALIZADO continua carregado pela fonte oficial existente", () => {
     expect(source).toContain('adapter.loadMessage(item, context)');
-    expect(source).toContain('handleOpenMessage("CONTATO_REALIZADO")');
+    expect(source).toContain('? "CONTATO_REALIZADO"');
   });
 });

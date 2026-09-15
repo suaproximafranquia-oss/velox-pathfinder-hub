@@ -163,7 +163,8 @@ export function DailyActionCard({
    * o Executivo não clica em "Concluído", a mensagem dessa etapa já é
    * lida em segundo plano e o caminho do servidor é aquecido.
    *
-   * A E0 atendida prepara o contexto CONTATO_REALIZADO.
+     * Toda ligação atendida prepara o contexto CONTATO_REALIZADO; o servidor
+     * resolve esse contexto para a finalidade editorial oficial.
    *
    * Nada aqui efetiva, cria fila, avança o motor, grava histórico ou
    * marca execução. Trocar a decisão ou abandonar o card descarta o
