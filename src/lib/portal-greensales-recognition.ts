@@ -1,7 +1,4 @@
 import { emailIdentityKey, phoneIdentityKey } from "@/lib/crm/identity";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { ensureWorkspaceCard } from "@/server/crm/workspace-card.server";
-import { greenSalesVendorId, resolveResponsibleByVendorId } from "@/server/crm/responsible.server";
 
 type GreenSalesIdentityRow = {
   id: string; external_id: string; name: string; phone: string | null; email: string | null;
@@ -19,6 +16,7 @@ export async function recognizeGreenSalesPortalIdentity(input: {
   externalId?: string | null; name?: string | null; phone?: string | null; email?: string | null;
 }): Promise<GreenSalesPortalRecognition | null> {
   try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const columns = "id,external_id,name,phone,email,external_created_at,last_entry_at,raw_payload,canonical_investor_id";
     let matchedBy: GreenSalesPortalRecognition["matchedBy"] | null = null;
     let candidates: GreenSalesIdentityRow[] = [];
@@ -46,6 +44,10 @@ export async function recognizeGreenSalesPortalIdentity(input: {
     const lead = matchedBy ? candidates[0] : null;
     if (!lead) return null;
     const rawPayload = lead.raw_payload ?? {};
+    const { greenSalesVendorId, resolveResponsibleByVendorId } = await import(
+      "@/server/crm/responsible.server"
+    );
+    const { ensureWorkspaceCard } = await import("@/server/crm/workspace-card.server");
     const responsible = await resolveResponsibleByVendorId(greenSalesVendorId(rawPayload));
     const card = await ensureWorkspaceCard({
       externalId: lead.external_id, name: lead.name, email: lead.email ?? "", whatsapp: lead.phone ?? "",
