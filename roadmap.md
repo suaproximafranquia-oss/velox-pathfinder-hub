@@ -183,7 +183,7 @@
 - [x] Corrigir E0 SIM para encerrar sem SEM_CONTATO; preservar NAO e demais fluxos; validar testes/typecheck/build/preview (35 testes focados, tipos e build aprovados; preview sem erro de página/console, com área protegida aguardando sessão).
 
 ## Correção cirúrgica — data operacional e reconciliação viva da Ação do Dia
-- [ ] Fixar a data operacional e a estrutura da E0 pela entrada real, incluindo corte das 18:00 e fim de semana.
-- [ ] Preservar continuidade, ordenação cronológica por entrada e ação PROCESSING durante a releitura silenciosa.
-- [ ] Neutralizar pendências incompatíveis de forma seletiva, auditável e idempotente, preservando E0 sem primeiro contato.
-- [ ] Validar cenários A–R, tipos, build e preview de /f, sem deploy ou alterações nas áreas protegidas.
+- [x] Fixar a data operacional e a estrutura da E0 pela entrada real, incluindo corte das 18:00 e fim de semana.
+- [x] Preservar continuidade, ordenação cronológica por entrada e ação PROCESSING durante a releitura silenciosa.
+- [x] Neutralizar pendências incompatíveis de forma seletiva, auditável e idempotente, preservando E0 sem primeiro contato.
+- [x] Validar cenários A–R, tipos, build e preview de /f, sem deploy ou alterações nas áreas protegidas (94 testes focados, tipos e build aprovados; preview sem erro de página/console, com área protegida no login corporativo).
