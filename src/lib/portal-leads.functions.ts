@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { recognizeGreenSalesPortalIdentity } from "@/lib/portal-greensales-recognition";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type PortalLeadPayload = {
@@ -40,9 +41,6 @@ export const syncPortalLead = createServerFn({ method: "POST" })
     const phoneKey = digits.length > 11 ? digits.slice(-11) : digits;
 
     if (financial) {
-      const { recognizeGreenSalesPortalIdentity } = await import(
-        "@/lib/portal-greensales-recognition"
-      );
       const recognizedGreenSales = await recognizeGreenSalesPortalIdentity({
         externalId: data.id,
         name: data.name,

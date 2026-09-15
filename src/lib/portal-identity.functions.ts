@@ -16,6 +16,7 @@
  * histórico, mensagens e jornada NUNCA são devolvidos ao visitante.
  */
 import { createServerFn } from "@tanstack/react-start";
+import { recognizeGreenSalesPortalIdentity } from "@/lib/portal-greensales-recognition";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type IdentityInput = {
@@ -112,9 +113,6 @@ export const resolvePortalIdentity = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (data.unit === "f") {
-      const { recognizeGreenSalesPortalIdentity } = await import(
-        "@/lib/portal-greensales-recognition"
-      );
       const recognizedGreenSales = await recognizeGreenSalesPortalIdentity({
         name: data.name,
         phone: data.phone,
