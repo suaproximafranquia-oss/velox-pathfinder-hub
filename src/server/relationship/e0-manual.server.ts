@@ -5,7 +5,7 @@
  * desligado), a E0 NÃO é disparada pelo sistema. Ela é uma etapa REAL
  * da régua V2, cobrada pela Ação do Dia na sequência:
  *
- *   ligação 1 → 10 minutos → ligação 2 → mensagem E0 para COPIAR
+ *   ligação única → mensagem E0 para COPIAR
  *
  * Este módulo só faz uma coisa: abrir a cadência V2 em E0 para os cards
  * manuais que ainda não têm ciclo, através do MESMO motor e da MESMA

@@ -197,10 +197,10 @@
 
 ## Comando D — simplificação do núcleo da Ação do Dia (/f)
 
-- [ ] Fixar a prioridade oficial: agendamentos/compromissos prioritários → alertas → E0/RE0 → atrasadas → normais, incluindo entradas após 18h e preservando claimed/PROCESSING.
-- [ ] Unificar E0–E4 e equivalentes existentes em uma ligação seguida da mensagem oficial, preservando histórico e neutralizando apenas segundas ligações abertas.
-- [ ] Manter ligação e mensagem como uma única experiência no card atual, com contexto automático e conclusão somente no botão Concluído.
-- [ ] Restringir a cadência normal a ZERO_CONTATO/FRIO, preservar a exceção inicial da E0 e reconciliar toda a fila a cada leitura oficial.
-- [ ] Reancorar E1–E4 exclusivamente na execução real anterior, contando o intervalo a partir do dia seguinte, e ajustar pendências futuras existentes sem duplicação.
-- [ ] Corrigir somente o status visual da Agenda para LIVRE, OCUPADO ou INDISPONÍVEL.
+- [x] Fixar a prioridade oficial: agendamentos/compromissos prioritários → alertas → E0/RE0 → atrasadas → normais, incluindo entradas após 18h e preservando claimed/PROCESSING.
+- [x] Unificar E0–E4 e equivalentes existentes em uma ligação seguida da mensagem oficial, preservando histórico e neutralizando apenas segundas ligações abertas.
+- [x] Manter ligação e mensagem como uma única experiência no card atual, com contexto automático e conclusão somente no botão Concluído.
+- [x] Restringir a cadência normal a ZERO_CONTATO/FRIO, preservar a exceção inicial da E0 e reconciliar toda a fila a cada leitura oficial.
+- [x] Reancorar E1–E4 exclusivamente na execução real anterior, contando o intervalo a partir do dia seguinte, e ajustar pendências futuras existentes sem duplicação.
+- [x] Corrigir somente o status visual da Agenda para LIVRE, OCUPADO ou INDISPONÍVEL.
 - [ ] Validar testes focados e relacionados, tipos, build e Preview de /f e /f/executivo, sem publicar nem alterar áreas protegidas.

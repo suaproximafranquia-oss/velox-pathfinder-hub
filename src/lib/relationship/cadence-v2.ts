@@ -490,8 +490,8 @@ export type StepActionPlan = {
   waitHoursAfterPrevious: number;
   /**
    * Espera em MINUTOS após a ação anterior da mesma etapa. Quando
-   * presente, prevalece sobre `waitHoursAfterPrevious` (a E0 usa 10
-   * minutos entre a primeira e a segunda ligação).
+   * presente, prevalece sobre `waitHoursAfterPrevious` para preservar
+   * compatibilidade com esperas históricas.
    */
   waitMinutesAfterPrevious?: number;
   /** Rótulo operacional exibido ao executivo. */
