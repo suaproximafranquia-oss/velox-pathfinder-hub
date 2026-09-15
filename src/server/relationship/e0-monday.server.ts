@@ -1,6 +1,6 @@
 /** Reconciliador estrito da E0 para a segunda-feira operacional atual. */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { addDays, weekdayOf } from "@/lib/relationship/calendar";
+import { weekdayOf } from "@/lib/relationship/calendar";
 import { e0StructureDate, localDateOf } from "@/lib/relationship/cadence-v2";
 
 export async function reconcileMondayE0(nowIso: string = new Date().toISOString()): Promise<number> {

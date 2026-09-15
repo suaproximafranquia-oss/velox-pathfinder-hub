@@ -5,7 +5,13 @@
  */
 import { describe, expect, it } from "vitest";
 import { decideCadenceV2 } from "./cadence-v2-decide";
-import { nextReleasedAction, stepActions, waitMinutesOf } from "./cadence-v2";
+import {
+  e0OperationalDate,
+  e0StructureDate,
+  nextReleasedAction,
+  stepActions,
+  waitMinutesOf,
+} from "./cadence-v2";
 
 const base = {
   nowIso: "2026-03-03T13:00:00.000Z",
@@ -19,6 +25,30 @@ const base = {
 };
 
 describe("E0 na régua V2", () => {
+  it("A–E) congela a data operacional pela entrada real", () => {
+    expect(e0OperationalDate("2026-09-14T13:00:00.000Z")).toBe("2026-09-14");
+    expect(e0OperationalDate("2026-09-14T21:00:00.000Z")).toBe("2026-09-15");
+    expect(e0OperationalDate("2026-09-18T21:00:00.000Z")).toBe("2026-09-21");
+    expect(e0OperationalDate("2026-09-19T05:00:00.000Z")).toBe("2026-09-21");
+    expect(e0OperationalDate("2026-09-20T18:00:00.000Z")).toBe("2026-09-21");
+  });
+
+  it("F–H) atraso não muda a estrutura original da E0", () => {
+    expect(e0StructureDate("2026-09-14", "2026-09-15T15:00:00.000Z", [])).toBe("2026-09-14");
+    expect(stepActions("E0", false, "2026-09-14").map((action) => action.kind)).toEqual(["call", "message"]);
+    expect(e0StructureDate("2026-09-15", "2026-09-16T15:00:00.000Z", [])).toBe("2026-09-15");
+    expect(stepActions("E0", false, "2026-09-15").map((action) => action.kind)).toEqual(["call", "call", "message"]);
+    expect(e0StructureDate("2026-09-18", "2026-09-21T15:00:00.000Z", [])).toBe("2026-09-21");
+    expect(stepActions("E0", false, "2026-09-21").map((action) => action.kind)).toEqual(["call", "message"]);
+  });
+
+  it("I–J) entrada do fim de semana usa segunda e não muda depois de iniciada", () => {
+    const monday = e0OperationalDate("2026-09-19T12:00:00.000Z");
+    expect(stepActions("E0", false, monday).map((action) => action.kind)).toEqual(["call", "message"]);
+    expect(e0StructureDate("2026-09-18", "2026-09-21T15:00:00.000Z", [
+      { order: 1, status: "DONE", executedAt: "2026-09-19T12:00:00.000Z", result: "NAO" },
+    ])).toBe("2026-09-18");
+  });
   it("tem ligação, ligação e mensagem, com 10 minutos entre as ligações", () => {
     const plan = stepActions("E0");
     expect(plan.map((a) => a.kind)).toEqual(["call", "call", "message"]);
@@ -74,6 +104,26 @@ describe("E0 na régua V2", () => {
     expect(new Date(released!.releaseAt).getTime()).toBeGreaterThanOrEqual(
       Date.parse("2026-03-03T12:10:00.000Z"),
     );
+  });
+
+  it("K–M) ligação 2 e mensagem seguem a mesma E0", () => {
+    const second = nextReleasedAction({
+      step: "E0",
+      stepDueAt: "2026-09-15T12:00:00.000Z",
+      operationalDate: "2026-09-15",
+      states: [{ order: 1, status: "DONE", executedAt: "2026-09-15T12:00:00.000Z", result: "NAO" }],
+    });
+    expect(second).toMatchObject({ action: { order: 2, kind: "call" }, releaseAt: "2026-09-15T12:10:00.000Z" });
+    const message = nextReleasedAction({
+      step: "E0",
+      stepDueAt: "2026-09-15T12:00:00.000Z",
+      operationalDate: "2026-09-15",
+      states: [
+        { order: 1, status: "DONE", executedAt: "2026-09-15T12:00:00.000Z", result: "NAO" },
+        { order: 2, status: "DONE", executedAt: "2026-09-15T12:10:00.000Z", result: "NAO" },
+      ],
+    });
+    expect(message).toMatchObject({ action: { order: 3, kind: "message" }, releaseAt: "2026-09-15T12:10:00.000Z" });
   });
 
   it("de terça a sexta, atendimento na primeira ligação pula a segunda e libera a mensagem", () => {

@@ -346,6 +346,21 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
     expect(normalizeDailyActions([meeting, claimed])[0]?.actionKey).toBe(claimed.actionKey);
   });
 
+  it("Q) PROCESSING permanece protegido durante a reconciliação", () => {
+    const current = action({ actionKey: "processing", leadId: "current", claimed: true, sortAt: "2026-09-20T17:00:00.000Z" });
+    const older = action({ actionKey: "older", leadId: "older", stepLabel: "E0", sortAt: "2026-09-18T22:00:00.000Z" });
+    expect(normalizeDailyActions([older, current])[0]?.actionKey).toBe("processing");
+  });
+
+  it("R) ordena o acumulado sexta, sábado e domingo pela entrada real", () => {
+    const rows = normalizeDailyActions([
+      action({ actionKey: "ana", leadId: "ana", stepLabel: "E0", dueDate: "2026-09-21", sortAt: "2026-09-20T17:00:00.000Z" }),
+      action({ actionKey: "joao", leadId: "joao", stepLabel: "E0", dueDate: "2026-09-21", sortAt: "2026-09-18T22:00:00.000Z" }),
+      action({ actionKey: "carlos", leadId: "carlos", stepLabel: "E0", dueDate: "2026-09-21", sortAt: "2026-09-19T05:00:00.000Z" }),
+    ]);
+    expect(rows.map((row) => row.actionKey)).toEqual(["joao", "carlos", "ana"]);
+  });
+
   it("preserva claim, emergência, alerta, E0, atrasada e ação normal nesta ordem", () => {
     const rows = normalizeDailyActions([
       action({ actionKey: "normal", leadId: "normal" }),
