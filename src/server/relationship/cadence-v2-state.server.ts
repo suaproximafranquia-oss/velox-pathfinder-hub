@@ -8,7 +8,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { v2FlowOf, type V2DecisionInput, type V2QueueAction } from "@/lib/relationship/cadence-v2-decide";
 import type { CadenceRecord } from "@/lib/relationship/types";
-import { localDateOf } from "@/lib/relationship/cadence-v2";
+import { e0OperationalDate, localDateOf } from "@/lib/relationship/cadence-v2";
 import { belongsToReentryCycle, reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
 
 /** Estágios que congelam a cadência / liberam o fluxo R. */
@@ -123,6 +123,20 @@ async function loadE0Executed(leadId: string): Promise<boolean> {
   return ((data ?? []) as Row[]).length > 0;
 }
 
+async function loadE0EntryAt(leadId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("workspace_e0_actions")
+    .select("entry_at,created_at")
+    .eq("card_id", leadId)
+    .eq("ownership_seq", 0)
+    .is("voided_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const row = data as { entry_at?: string | null; created_at?: string | null } | null;
+  return row?.entry_at ?? row?.created_at ?? null;
+}
+
 /** Cancelamentos que NÃO representam decisão da régua (desfazer de resultado). */
 const NEUTRALIZED_CANCEL_REASONS = new Set(["undo_call_outcome"]);
 
@@ -147,7 +161,7 @@ export async function loadCadenceV2State(
   const scopedQueue = options.runId ? queueQuery.eq("run_id", options.runId) : queueQuery.is("run_id", null);
   const scopedCycle = options.runId ? cycleQuery.eq("run_id", options.runId) : cycleQuery.is("run_id", null);
   const homologation = record.scope === "homologation";
-  const [{ data: queueRows }, { data: cycleRow }, stageKey, hasCommitment, material, e0Executed] =
+  const [{ data: queueRows }, { data: cycleRow }, stageKey, hasCommitment, material, e0Executed, e0EntryAt] =
     await Promise.all([
       scopedQueue.order("due_at", { ascending: true }),
       scopedCycle.order("instance_seq", { ascending: false }).limit(1).maybeSingle(),
@@ -155,6 +169,7 @@ export async function loadCadenceV2State(
       homologation ? Promise.resolve(false) : loadHasCommitment(record.leadId),
       homologation ? Promise.resolve({ materialSent: false, materialRequested: false, materialRequestedAt: null, materialSentAt: null, lastMaterialSentAt: null, lastMaterialRequestedAt: null }) : loadMaterialState(record.leadId),
       homologation ? Promise.resolve(false) : loadE0Executed(record.leadId),
+      homologation ? Promise.resolve(null) : loadE0EntryAt(record.leadId),
     ]);
 
 
@@ -231,7 +246,10 @@ export async function loadCadenceV2State(
   return {
     nowIso: options.nowIso ?? new Date().toISOString(),
     flow,
-    originDate: localDateOf(originIso ?? options.nowIso ?? new Date().toISOString()),
+    originDate:
+      flow === "E" && e0EntryAt
+        ? e0OperationalDate(e0EntryAt)
+        : localDateOf(originIso ?? options.nowIso ?? new Date().toISOString()),
     actions,
     executedSteps: [
       ...(record.executedSteps ?? []).map(String),

@@ -289,6 +289,15 @@ export function DailyActionsOverlay({
     void loadPendings();
   }, [open, load, loadPendings]);
 
+  /** Releitura viva da mesma fonte oficial, sem recarregar ou trocar ação em curso. */
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setInterval(() => {
+      if (!transitioningRef.current) void load(true);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [open, load]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

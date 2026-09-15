@@ -16,6 +16,7 @@
  */
 import {
   flowOfStep,
+  e0StructureDate,
   isCadenceFrozen,
   localDateOf,
   nextReleasedAction,
@@ -180,7 +181,10 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
      * A etapa já aconteceu — seja pela fila, seja pelo histórico do
      * ciclo (a E0 nasce na entrada do lead, não nesta fila).
      */
-    const operationalDate = localDateOf(input.nowIso);
+    const operationalDate =
+      step === "E0"
+        ? e0StructureDate(input.originDate, input.nowIso, toActionState(rows))
+        : localDateOf(input.nowIso);
     const done =
       stepFinished(step, rows, false, operationalDate) ||
       (rows.length === 0 && executedElsewhere.has(step));
@@ -226,7 +230,9 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
         ? (input.materialRequestedAt ?? previousExecution)
         : null,
     });
-    const stepDueAt = existingDue ?? plan.dueAt;
+    // E0 sempre reconcilia o vencimento com a origem operacional real.
+    // As demais etapas preservam integralmente o vencimento já persistido.
+    const stepDueAt = step === "E0" ? plan.dueAt : (existingDue ?? plan.dueAt);
 
     const released = nextReleasedAction({
       step,

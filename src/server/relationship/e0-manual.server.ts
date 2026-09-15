@@ -24,6 +24,7 @@ type PendingRow = {
   ownership_seq: number | null;
   voided_at: string | null;
   responsible_executive_id: string | null;
+  entry_at: string | null;
 };
 
 export function manualE0EventKey(cardId: string, ownershipSeq = 0): string {
@@ -55,7 +56,7 @@ export async function governedByV2(cardIds: string[]): Promise<Set<string>> {
 export async function openManualE0Cadence(
   cardId: string,
   ownershipSeq = 0,
-  options?: { reentry?: boolean },
+  options?: { reentry?: boolean; entryAt?: string | null },
 ): Promise<boolean> {
   if (!cardId) return false;
   // Redistribuição real (seq > 0) fica no caminho legado por ora: um
@@ -96,7 +97,7 @@ export async function openManualE0Cadence(
     scope: "production",
     leadId: cardId,
     type: "LEAD_CREATED",
-    at: new Date().toISOString(),
+    at: options?.entryAt ?? new Date().toISOString(),
     data: {
       manualE0: true,
       origin: "acao_do_dia",
@@ -116,7 +117,7 @@ export async function openManualE0Cadence(
 export async function ensureManualE0Cadences(): Promise<Set<string>> {
   const { data } = await supabaseAdmin
     .from("workspace_e0_actions")
-    .select("card_id,state,ownership_seq,voided_at,responsible_executive_id")
+    .select("card_id,state,ownership_seq,voided_at,responsible_executive_id,entry_at")
     .or("and(state.eq.PENDENTE,voided_at.is.null),and(state.eq.EXECUTADA,voided_at.not.is.null)")
     .order("created_at", { ascending: true })
     .limit(500);
@@ -127,7 +128,9 @@ export async function ensureManualE0Cadences(): Promise<Set<string>> {
   for (const row of rows) {
     if (governed.has(row.card_id)) continue;
     try {
-      const ok = await openManualE0Cadence(row.card_id, row.ownership_seq ?? 0);
+      const ok = await openManualE0Cadence(row.card_id, row.ownership_seq ?? 0, {
+        entryAt: row.entry_at,
+      });
       if (ok) governed.add(row.card_id);
     } catch {
       // Um card com problema não impede os demais; ele volta no próximo ciclo.

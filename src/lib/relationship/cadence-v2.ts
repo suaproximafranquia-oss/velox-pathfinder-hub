@@ -304,6 +304,38 @@ export function localMinutesOf(iso: string): number {
   return (get("hour") % 24) * 60 + get("minute");
 }
 
+/**
+ * Data operacional congelada da E0, derivada uma única vez da entrada real.
+ * O corte é 18:00; sexta à noite e todo o fim de semana acumulam para segunda.
+ */
+export function e0OperationalDate(entryIso: string): string {
+  const entryDate = localDateOf(entryIso);
+  const weekday = weekdayOf(entryDate);
+  if (weekday === 6) return shiftTheoreticalDate(entryDate);
+  if (weekday === 0) return shiftTheoreticalDate(addDays(entryDate, 1));
+  if (localMinutesOf(entryIso) < 18 * 60) return entryDate;
+  return shiftTheoreticalDate(addDays(entryDate, 1));
+}
+
+/**
+ * A E0 de sexta que atravessou o fim de semana sem nenhuma execução assume
+ * a estrutura operacional de segunda. Nos demais atrasos, a origem não muda.
+ */
+export function e0StructureDate(
+  originDate: string,
+  nowIso: string,
+  states: ActionState[],
+): string {
+  if (
+    weekdayOf(originDate) === 5 &&
+    weekdayOf(localDateOf(nowIso)) === 1 &&
+    states.every((state) => state.status !== "DONE")
+  ) {
+    return localDateOf(nowIso);
+  }
+  return originDate;
+}
+
 /** O instante está dentro da janela da cadência? */
 export function isWithinCadenceWindow(iso: string): boolean {
   const window = cadenceWindow(localDateOf(iso));
