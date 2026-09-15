@@ -27,6 +27,7 @@ describe("link curto individual do executivo", () => {
     const source = readFileSync(new URL("./executive-portal-link.functions.ts", import.meta.url), "utf8");
     expect(source).toContain("requireSupabaseAuth");
     expect(source).toContain("resolveServerIdentity(context.userId)");
-    expect(source).not.toContain("data.slug").toBe(false);
+    const myLinkHandler = source.slice(0, source.indexOf("resolveExecutivePortalAlias"));
+    expect(myLinkHandler).not.toContain("data.slug");
   });
 });
