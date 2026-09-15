@@ -28,6 +28,7 @@ import { listSkippedActionKeys } from "@/server/crm/daily-actions-log.server";
 import { listHistoricalCycleLeadIds } from "@/server/relationship/cycle.server";
 import { FOLLOW_UP_STATES } from "@/lib/crm/greensales-followup";
 import { reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
+import { addDays, weekdayOf } from "@/lib/relationship/calendar";
 
 /** Situações que já encerraram a reunião — não são ação pendente. */
 const CLOSED_MEETING_STATUS = new Set([
@@ -48,6 +49,88 @@ type LeadIdentity = {
   /** Executivo responsável pelo card (titularidade vigente). */
   responsibleExecutiveId: string | null;
 };
+
+const FROZEN_COMMERCIAL_STAGES = new Set(["agendamentos", "video", "oportunidade"]);
+const INACTIVE_FOLLOW_UP_STATES = new Set([
+  "CANCELADO_ORIGEM",
+  "CANCELADO_SAIDA_AGENDAMENTOS",
+  "ENCERRADO",
+  "RETOMAR_EM_FRIOS",
+]);
+
+/**
+ * Retira somente obrigações ainda PENDENTES que perderam validade pelo
+ * estágio comercial. PROCESSING nunca é tocada. Uma E0 sem evidência de
+ * primeiro contato também permanece, mesmo após movimentação externa.
+ */
+export async function reconcileInvalidQueueDuties(nowIso: string): Promise<number> {
+  const { data: pending } = await supabaseAdmin
+    .from("relationship_queue")
+    .select("id,lead_id,step")
+    .eq("scope", "production")
+    .is("run_id", null)
+    .eq("status", "PENDING")
+    .limit(1000);
+  const rows = (pending ?? []) as Array<{ id: string; lead_id: string; step: string }>;
+  if (rows.length === 0) return 0;
+
+  const externalIds = [...new Set(rows.map((row) => row.lead_id).filter((id) => id.startsWith("gs_")).map((id) => id.slice(3)))];
+  if (externalIds.length === 0) return 0;
+  const { data: leads } = await supabaseAdmin
+    .from("crm_leads")
+    .select("external_id,stage_key")
+    .eq("external_source", "greensales")
+    .in("external_id", externalIds);
+  const stageByLead = new Map(
+    (leads ?? []).map((lead) => [`gs_${lead.external_id}`, String(lead.stage_key ?? "").toLowerCase()]),
+  );
+  const candidates = rows.filter((row) => FROZEN_COMMERCIAL_STAGES.has(stageByLead.get(row.lead_id) ?? ""));
+  if (candidates.length === 0) return 0;
+
+  const candidateLeadIds = [...new Set(candidates.map((row) => row.lead_id))];
+  const [{ data: meetings }, { data: executedE0 }] = await Promise.all([
+    supabaseAdmin
+      .from("portal_meetings")
+      .select("investor_id,follow_up_state,external_follow_up")
+      .in("investor_id", candidateLeadIds),
+    supabaseAdmin
+      .from("relationship_queue")
+      .select("lead_id")
+      .eq("scope", "production")
+      .is("run_id", null)
+      .eq("step", "E0")
+      .eq("action_kind", "call")
+      .eq("status", "EXECUTED")
+      .in("lead_id", candidateLeadIds),
+  ]);
+  const committed = new Set(
+    (meetings ?? [])
+      .filter((row) => Boolean(row.external_follow_up) && !INACTIVE_FOLLOW_UP_STATES.has(String(row.follow_up_state ?? "")))
+      .map((row) => String(row.investor_id)),
+  );
+  const contacted = new Set((executedE0 ?? []).map((row) => String(row.lead_id)));
+  const ids = candidates
+    .filter((row) => {
+      const stage = stageByLead.get(row.lead_id) ?? "";
+      const frozen = stage === "oportunidade" || committed.has(row.lead_id);
+      return frozen && (row.step !== "E0" || contacted.has(row.lead_id));
+    })
+    .map((row) => row.id);
+  if (ids.length === 0) return 0;
+
+  const { data: cancelled } = await supabaseAdmin
+    .from("relationship_queue")
+    .update({
+      status: "CANCELLED",
+      cancel_reason: "commercial_stage_frozen",
+      reason: "Estágio comercial atual congela a cadência; obrigação operacional neutralizada.",
+      updated_at: nowIso,
+    } as never)
+    .in("id", ids)
+    .eq("status", "PENDING")
+    .select("id");
+  return (cancelled ?? []).length;
+}
 
 async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdentity>> {
   const map = new Map<string, LeadIdentity>();
@@ -115,6 +198,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       .catch(() => new Set<string>());
     await import("@/server/relationship/e0-monday.server")
       .then((m) => m.reconcileMondayE0(nowIso));
+    await reconcileInvalidQueueDuties(nowIso).catch(() => 0);
   }
 
 
@@ -138,9 +222,11 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       .limit(500),
     supabaseAdmin
       .from("relationship_queue")
-      .select("id,lead_id,flow,step,due_at,priority,status,scope,action_order,action_kind,claimed_by")
+      .select("id,lead_id,flow,step,due_at,origin_date,priority,status,scope,action_order,action_kind,claimed_by")
       // PROCESSING = ação reivindicada pelo executivo (posição 1 protegida).
       .in("status", ["PENDING", "PROCESSING"])
+      .eq("scope", "production")
+      .is("run_id", null)
       .lt("due_at", horizonEnd)
       .limit(1000),
     /**
@@ -209,6 +295,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   ]);
 
   const actions: DailyAction[] = [];
+  const entryAtByLead = new Map(
+    firstContacts.map((row) => [row.card_id, row.entry_at ?? row.created_at]),
+  );
 
   /**
    * PRIMEIRO CONTATO (E0) — CAMINHO LEGADO ENCERRADO.
@@ -345,8 +434,12 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     if (historicalLeadIds.has(leadId)) continue;
     const identity = identities.get(leadId);
     const dueDate = operationalDate(item.due_at);
-    if (dueDate > today) continue;
     const step = String(item.step ?? "");
+    const optionalSaturdayE0 =
+      step === "E0" &&
+      weekdayOf(today) === 6 &&
+      String((item as { origin_date?: string | null }).origin_date ?? "") === addDays(today, 2);
+    if (dueDate > today && !optionalSaturdayE0) continue;
     const actionKind = (item as { action_kind?: string | null }).action_kind ?? "message";
     const isCall = actionKind === "call";
     const isManual = actionKind === "manual";
@@ -373,7 +466,9 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     }
     // E0 usa a mesma classificação operacional de atraso das demais etapas.
     const isE0 = step === "E0";
-    const overdue = isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso);
+    const overdue = optionalSaturdayE0
+      ? false
+      : isOverdueByBusinessDays(availabilityFromDate(dueDate), nowIso);
     actions.push({
       actionKey: `queue:${leadId}:${item.flow}-${step}-${order}:${item.id}`,
       source: "queue",
@@ -385,6 +480,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
       stepLabel: step,
       dueDate,
       startsAt: null,
+      sortAt: isE0 ? (entryAtByLead.get(leadId) ?? null) : null,
       endsAt: null,
       overdue,
       priorityMax: isE0,

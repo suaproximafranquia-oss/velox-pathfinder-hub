@@ -83,6 +83,8 @@ export function reconcileSelectedActionKey(
   rows: DailyAction[],
   current: string | null,
 ): string | null {
+  const processing = rows.find((item) => item.claimed)?.actionKey ?? null;
+  if (processing) return processing;
   const held = rows.some(
     (item) => item.actionKey === current && (item.bucket === "pendente" || item.bucket === "alerta"),
   );
