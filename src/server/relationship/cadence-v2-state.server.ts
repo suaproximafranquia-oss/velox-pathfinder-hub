@@ -247,8 +247,8 @@ export async function loadCadenceV2State(
     nowIso: options.nowIso ?? new Date().toISOString(),
     flow,
     originDate:
-      flow === "E" && e0EntryAt
-        ? e0OperationalDate(e0EntryAt)
+      flow === "E"
+        ? e0OperationalDate(e0EntryAt ?? originIso ?? options.nowIso ?? new Date().toISOString())
         : localDateOf(originIso ?? options.nowIso ?? new Date().toISOString()),
     actions,
     executedSteps: [

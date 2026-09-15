@@ -18,6 +18,7 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
+import { normalizeWhatsappNumber } from "@/lib/whatsapp-number";
 import type {
   AdapterResult,
   DailyActionsAdapter,
@@ -65,18 +66,18 @@ export function formatFullDay(iso: string): string {
   return date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
-/** Formatação exclusivamente visual; nunca completa ou altera os dígitos. */
+/** Formatação exclusivamente visual; o valor persistido nunca é alterado. */
 export function formatDailyActionPhone(phone: string): string {
   const raw = phone.trim();
-  const digits = raw.replace(/\D/g, "");
-  if (!digits.startsWith("55")) return raw;
+  const normalized = normalizeWhatsappNumber(raw);
+  if (!normalized.valid || !normalized.digits.startsWith("55")) return raw;
 
-  const national = digits.slice(2);
+  const national = normalized.digits.slice(2);
   if (national.length === 11) {
-    return `+55 ${national.slice(0, 2)} ${national.slice(2, 7)} ${national.slice(7)}`;
+    return `+55 (${national.slice(0, 2)}) ${national.slice(2, 7)}-${national.slice(7)}`;
   }
   if (national.length === 10) {
-    return `+55 ${national.slice(0, 2)} ${national.slice(2, 6)} ${national.slice(6)}`;
+    return `+55 (${national.slice(0, 2)}) ${national.slice(2, 6)}-${national.slice(6)}`;
   }
   return raw;
 }
