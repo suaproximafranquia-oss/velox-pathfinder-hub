@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getBrandByPrefix } from "@/lib/portal-brands";
+import { resolveExecutivePortalAlias } from "@/lib/executive-portal-link.functions";
 
 /**
  * Link público do Portal do Investidor — MARCA + EXECUTIVO.
@@ -9,12 +10,16 @@ import { getBrandByPrefix } from "@/lib/portal-brands";
  * contexto de sempre (`e`, `m`, `o`, `b`).
  */
 export const Route = createFileRoute("/f/$slug")({
-  beforeLoad: ({ params }) => {
-    const brand = getBrandByPrefix("f")!;
+  beforeLoad: async ({ params }) => {
+    const brand = getBrandByPrefix("f");
+    const executive = await resolveExecutivePortalAlias({ data: { slug: params.slug } });
+    if (!brand || !executive) {
+      throw redirect({ to: "/f", replace: true, search: {} });
+    }
     throw redirect({
       to: "/f",
       replace: true,
-      search: { e: params.slug, m: "manual", o: brand.origin, b: brand.key },
+      search: { e: executive.slug, m: "manual", o: brand.origin, b: brand.key },
     });
   },
   component: () => null,

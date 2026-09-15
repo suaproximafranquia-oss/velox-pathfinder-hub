@@ -49,6 +49,17 @@ it("usa a mesma leitura silenciosa em intervalo aproximado de um minuto", () => 
   expect(source).toContain("void load(true)");
 });
 
+it("mantém a Agenda independente da fila e em atualização de três minutos", () => {
+  const overlay = readFileSync(new URL("./daily-actions-overlay.tsx", import.meta.url), "utf8");
+  const agenda = readFileSync(new URL("../agenda/daily-actions-agenda.tsx", import.meta.url), "utf8");
+  expect(overlay).toContain("<DailyActionsAgenda />");
+  expect(agenda).toContain("180_000");
+  expect(agenda).toContain("listAgenda");
+  expect(agenda).not.toContain("createAgendaEvent");
+  expect(agenda).not.toContain("deleteAgendaEvent");
+  expect(agenda).not.toContain("adapter.load");
+});
+
 it("formata visualmente celulares brasileiros sem alterar dígitos", () => {
   expect(formatDailyActionPhone("11948949027")).toBe("+55 (11) 94894-9027");
   expect(formatDailyActionPhone("+5511948949027")).toBe("+55 (11) 94894-9027");

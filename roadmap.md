@@ -190,7 +190,7 @@
 
 ## Comando C — Agenda + link curto individual (/f)
 
-- [ ] Adicionar Agenda lateral compacta e somente leitura à Ação do Dia, usando compromissos existentes e atualização silenciosa de 3 minutos.
-- [ ] Implementar navegação visual por dia e os oito slots operacionais, sem alterar fila, cadência, lead ou compromissos.
-- [ ] Expor e copiar o link curto do executivo autenticado a partir do slug oficial, preservando o Portal e links existentes.
-- [ ] Validar testes focados, tipos, build, preview e console, sem publicar nem alterar áreas protegidas.
+- [x] Adicionar Agenda lateral compacta e somente leitura à Ação do Dia, usando compromissos existentes e atualização silenciosa de 3 minutos.
+- [x] Implementar navegação visual por dia e os oito slots operacionais, sem alterar fila, cadência, lead ou compromissos.
+- [x] Expor e copiar o link curto do executivo autenticado a partir do slug oficial, preservando o Portal e links existentes.
+- [x] Validar testes focados, tipos, build, preview e console, sem publicar nem alterar áreas protegidas (19 testes focados e tipos aprovados; Preview validado sem erro após iniciar o servidor; build automático aprovado).

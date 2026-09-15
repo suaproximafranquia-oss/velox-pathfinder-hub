@@ -18,6 +18,7 @@ import { ExecutiveWhatsappCard } from "@/components/executive/executive-whatsapp
 import { GreenSalesConnectionSection } from "@/components/crm/greensales-connection-section";
 import { CrmThemePicker } from "@/components/executive/crm-theme-picker";
 import { ExecutivePhotoCard } from "@/components/executive/executive-photo-card";
+import { ExecutivePortalLinkCard } from "@/components/executive/executive-portal-link-card";
 import {
   getSession,
   loadUsers,
@@ -93,6 +94,7 @@ function PerfilPage() {
         />
         {/* Dados individuais do próprio executivo — sempre visíveis. */}
         <ExecutiveWhatsappCard />
+        <ExecutivePortalLinkCard />
         <div className="mt-6">
           <GreenSalesConnectionSection />
         </div>

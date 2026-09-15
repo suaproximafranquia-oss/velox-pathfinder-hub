@@ -26,6 +26,7 @@ import type { AdapterResult, DailyActionsAdapter, SkippedPendingView } from "@/l
 import { Button } from "@/components/ui/button";
 import { DailyActionCard } from "@/components/crm/daily-action-card";
 import { NextCommitmentAlert } from "@/components/crm/next-commitment-alert";
+import { DailyActionsAgenda } from "@/components/agenda/daily-actions-agenda";
 import {
   resolveOperationalWindow,
   type OperationalWindow,
@@ -518,7 +519,7 @@ export function DailyActionsOverlay({
         role="dialog"
         aria-modal="true"
         aria-label="Ações do Dia"
-        className="relative flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[color:var(--navy-deep)] text-white/85 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
+        className="relative flex h-[86vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[color:var(--navy-deep)] text-white/85 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
       >
         <header inert={transition !== "idle"} className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
           <div className="flex items-center gap-3">
@@ -578,8 +579,8 @@ export function DailyActionsOverlay({
             )}
           </div>
         )}
-        <div inert={transition !== "idle"} aria-busy={transition !== "idle"} className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_340px]">
-          <section className="flex min-h-0 flex-col justify-center gap-5 overflow-y-auto border-b border-white/10 p-6 md:border-b-0 md:border-r">
+        <div inert={transition !== "idle"} aria-busy={transition !== "idle"} className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto xl:grid-cols-[220px_minmax(0,1fr)_340px] xl:overflow-hidden">
+          <section className="order-1 flex min-h-0 flex-col justify-center gap-5 overflow-y-auto border-b border-white/10 p-6 xl:order-2 xl:border-b-0 xl:border-r">
             {/* Aviso informativo — não cria ação nem altera a fila. */}
             <NextCommitmentAlert refreshKey={commitmentRefresh} />
             {locked && (
@@ -638,7 +639,11 @@ export function DailyActionsOverlay({
             )}
           </section>
 
-          <aside className="flex min-h-0 flex-col">
+          <div className="order-2 max-h-80 xl:order-1 xl:max-h-none">
+            <DailyActionsAgenda />
+          </div>
+
+          <aside className="order-3 flex min-h-0 flex-col">
             <p className="border-b border-white/10 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-white/40">
               Ordem do dia
             </p>
