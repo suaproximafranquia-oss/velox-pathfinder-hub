@@ -85,8 +85,8 @@ export function DailyActionsAgenda() {
               <li key={slot.key} className="rounded-md border border-border bg-background/30 px-2.5 py-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] tabular-nums text-foreground">{slot.label}</span>
-                  <span className={slot.occupied ? "text-[9px] font-semibold uppercase text-destructive" : "text-[9px] font-semibold uppercase text-emerald-400"}>
-                    {slot.occupied ? "Ocupado" : "Livre"}
+                  <span className={slot.status === "OCUPADO" ? "text-[9px] font-semibold uppercase text-destructive" : slot.status === "INDISPONIVEL" ? "text-[9px] font-semibold uppercase text-muted-foreground" : "text-[9px] font-semibold uppercase text-emerald-400"}>
+                    {slot.status === "INDISPONIVEL" ? "Indisponível" : slot.status === "OCUPADO" ? "Ocupado" : "Livre"}
                   </span>
                 </div>
                 {slot.title ? <p className="mt-1 truncate text-[11px] text-muted-foreground" title={slot.title}>{slot.title}</p> : null}

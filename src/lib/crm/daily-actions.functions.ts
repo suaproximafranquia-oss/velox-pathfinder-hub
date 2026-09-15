@@ -60,8 +60,7 @@ export const getDailyActionsSummary = createServerFn({ method: "POST" })
 async function queueAfterOutcome(executiveId: string | null): Promise<DailyAction[]> {
   try {
     const { currentDailyAction } = await import("@/server/crm/daily-actions-gate.server");
-    // A reconciliação de E0 já foi feita pela leitura que autorizou a ação.
-    return (await currentDailyAction(executiveId, { skipReconcile: true })).list;
+    return (await currentDailyAction(executiveId)).list;
   } catch {
     return [];
   }

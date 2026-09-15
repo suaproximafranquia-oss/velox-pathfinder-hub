@@ -51,12 +51,9 @@ type LeadIdentity = {
   responsibleExecutiveId: string | null;
 };
 
-const FROZEN_COMMERCIAL_STAGES = new Set(["agendamentos", "video", "oportunidade"]);
-const INACTIVE_FOLLOW_UP_STATES = new Set([
-  "CANCELADO_ORIGEM",
-  "CANCELADO_SAIDA_AGENDAMENTOS",
-  "ENCERRADO",
-  "RETOMAR_EM_FRIOS",
+const FROZEN_COMMERCIAL_STAGES = new Set([
+  "agendamentos", "video", "oportunidade", "cof/contrato", "cof_contrato",
+  "contrato", "pagamento", "remarketing", "vencemos", "finalizado",
 ]);
 
 /**
@@ -89,11 +86,7 @@ export async function reconcileInvalidQueueDuties(nowIso: string): Promise<numbe
   if (candidates.length === 0) return 0;
 
   const candidateLeadIds = [...new Set(candidates.map((row) => row.lead_id))];
-  const [{ data: meetings }, { data: executedE0 }] = await Promise.all([
-    supabaseAdmin
-      .from("portal_meetings")
-      .select("investor_id,follow_up_state,external_follow_up")
-      .in("investor_id", candidateLeadIds),
+  const [{ data: executedE0 }] = await Promise.all([
     supabaseAdmin
       .from("relationship_queue")
       .select("lead_id")
@@ -104,18 +97,13 @@ export async function reconcileInvalidQueueDuties(nowIso: string): Promise<numbe
       .eq("status", "EXECUTED")
       .in("lead_id", candidateLeadIds),
   ]);
-  const committed = new Set(
-    (meetings ?? [])
-      .filter((row) => Boolean(row.external_follow_up) && !INACTIVE_FOLLOW_UP_STATES.has(String(row.follow_up_state ?? "")))
-      .map((row) => String(row.investor_id)),
-  );
   const contacted = new Set((executedE0 ?? []).map((row) => String(row.lead_id)));
   const ids = candidates
     .filter((row) => {
       return shouldNeutralizeQueueDuty({
         step: row.step,
         stageKey: stageByLead.get(row.lead_id) ?? null,
-        hasCommitment: committed.has(row.lead_id),
+        hasCommitment: false,
         firstContactExecuted: contacted.has(row.lead_id),
       });
     })
@@ -134,6 +122,26 @@ export async function reconcileInvalidQueueDuties(nowIso: string): Promise<numbe
     .eq("status", "PENDING")
     .select("id");
   return (cancelled ?? []).length;
+}
+
+/** Neutraliza apenas segundas ligações legadas ainda abertas. */
+export async function reconcileSingleCallRule(nowIso: string): Promise<number> {
+  const { data, error } = await supabaseAdmin
+    .from("relationship_queue")
+    .update({
+      status: "CANCELLED",
+      cancel_reason: "single_call_rule",
+      reason: "Regra vigente: uma única ligação por etapa.",
+      updated_at: nowIso,
+    } as never)
+    .eq("scope", "production")
+    .is("run_id", null)
+    .eq("status", "PENDING")
+    .eq("action_kind", "call")
+    .gt("action_order", 1)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length;
 }
 
 async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdentity>> {
@@ -200,8 +208,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
     await import("@/server/relationship/e0-manual.server")
       .then((m) => m.ensureManualE0Cadences())
       .catch(() => new Set<string>());
-    await import("@/server/relationship/e0-monday.server")
-      .then((m) => m.reconcileMondayE0(nowIso));
+    await reconcileSingleCallRule(nowIso).catch(() => 0);
     await reconcileInvalidQueueDuties(nowIso).catch(() => 0);
   }
 

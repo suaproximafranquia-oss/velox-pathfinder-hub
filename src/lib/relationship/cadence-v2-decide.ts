@@ -146,10 +146,19 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
   if (input.closed) {
     return { kind: "none", reason: "Ciclo encerrado — nenhuma obrigação nova é criada." };
   }
-  if (isCadenceFrozen({ stageKey: input.stageKey, hasCommitment: input.hasCommitment })) {
+  const e0AlreadyExecuted = input.executedSteps.includes("E0") || input.actions.some(
+    (action) => action.step === "E0" && action.status === "EXECUTED",
+  );
+  const stage = (input.stageKey ?? "").toLowerCase();
+  const outsideNormalCorridor = Boolean(stage) && stage !== "zero_contato" && stage !== "frio";
+  const initialE0InNew = input.flow === "E" && stage === "novos" && !e0AlreadyExecuted;
+  if (
+    isCadenceFrozen({ stageKey: input.stageKey, hasCommitment: input.hasCommitment }) ||
+    (outsideNormalCorridor && !initialE0InNew)
+  ) {
     return {
       kind: "none",
-      reason: "Compromisso real (AGENDAMENTOS/VÍDEO com follow_up) — a cadência fica congelada até a decisão humana.",
+      reason: "Estágio comercial fora de ZERO_CONTATO/FRIO — a cadência permanece congelada.",
     };
   }
   /**
@@ -204,7 +213,12 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
         );
         offset = 0;
       } else {
-        offset += transition.days;
+        if (executedAt) {
+          anchorDate = localDateOf(executedAt);
+          offset = transition.days;
+        } else {
+          offset += transition.days;
+        }
       }
       step = transition.to;
       continue;
@@ -230,9 +244,11 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
         ? (input.materialRequestedAt ?? previousExecution)
         : null,
     });
-    // E0 sempre reconcilia o vencimento com a origem operacional real.
-    // As demais etapas preservam integralmente o vencimento já persistido.
-    const stepDueAt = step === "E0" ? plan.dueAt : (existingDue ?? plan.dueAt);
+    // Nunca antecipa uma obrigação persistida, mas atraso real desloca a
+    // pendência futura para a nova âncora determinística.
+    const stepDueAt = step === "E0" || !existingDue || plan.dueAt > existingDue
+      ? plan.dueAt
+      : existingDue;
 
     const released = nextReleasedAction({
       step,

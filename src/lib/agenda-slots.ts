@@ -6,6 +6,7 @@ export type AgendaSlot = {
   key: string;
   label: string;
   occupied: boolean;
+  status: "LIVRE" | "OCUPADO" | "INDISPONIVEL";
   title: string | null;
 };
 
@@ -38,11 +39,13 @@ function localMinutes(iso: string): number {
   return hour * 60 + minute;
 }
 
-export function buildAgendaSlots(items: AgendaItem[], dateISO: string): AgendaSlot[] {
+export function buildAgendaSlots(items: AgendaItem[], dateISO: string, now = new Date()): AgendaSlot[] {
   const commitments = items.filter(
     (item) => item.dateISO === dateISO && item.startsAt !== null && item.kind !== "acao",
   );
 
+  const today = saoPauloDateISO(now);
+  const currentMinutes = localMinutes(now.toISOString());
   return AGENDA_SLOT_HOURS.map((hour) => {
     const slotStart = hour * 60;
     const slotEnd = slotStart + 60;
@@ -52,10 +55,13 @@ export function buildAgendaSlots(items: AgendaItem[], dateISO: string): AgendaSl
       const endsAt = candidate.endsAt ? localMinutes(candidate.endsAt) : startsAt + 30;
       return startsAt < slotEnd && endsAt > slotStart;
     });
+    const occupied = Boolean(item);
+    const ended = dateISO < today || (dateISO === today && slotEnd <= currentMinutes);
     return {
       key: `${dateISO}:${hour}`,
       label: `${String(hour).padStart(2, "0")}:00 – ${String(hour + 1).padStart(2, "0")}:00`,
-      occupied: Boolean(item),
+      occupied,
+      status: occupied ? "OCUPADO" : ended ? "INDISPONIVEL" : "LIVRE",
       title: item?.title ?? null,
     };
   });

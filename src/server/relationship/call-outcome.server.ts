@@ -5,10 +5,8 @@
  * Aqui apenas registramos o desfecho e aplicamos a regra fechada com a
  * gestão:
  *
- *   ATENDEU = SIM → as ações restantes DAQUELA ETAPA perdem a finalidade
- *   e são CANCELADAS (inclusive a mensagem da tentativa). A cadência
- *   CONTINUA: a próxima etapa da régua é gerada normalmente. Atender não
- *   é compromisso — só AGENDAMENTOS/VÍDEO com `follow_up` congela.
+ *   ATENDEU = SIM → a mensagem oficial da etapa continua, com o contexto
+ *   estruturado correto. Não existe segunda ligação.
  *
  *   ATENDEU = NÃO → a ação é concluída e o motor segue a régua normalmente.
  *
@@ -113,12 +111,7 @@ export async function registerQueueCallOutcome(input: {
   }
 
   if (input.outcome !== "SIM") {
-    /**
-     * Não atendeu: a próxima ação da MESMA etapa (2ª ligação em +10 min,
-     * depois a mensagem para copiar) é programada pelo motor AGORA, para
-     * não depender do próximo ciclo do agendador. Falha aqui não desfaz
-     * o desfecho — o tique regular reprograma.
-     */
+    /** A mensagem da MESMA etapa é materializada imediatamente. */
     await tickLead(row.lead_id, input.engine);
     return { concluded: true, awaitingHandoff: false };
   }
@@ -132,8 +125,8 @@ export async function registerQueueCallOutcome(input: {
     });
   }
 
-  // Atendeu: as ligações seguintes DA MESMA ETAPA perdem a finalidade.
-  // Na E0, a mensagem CONTATO_REALIZADO permanece e será liberada pelo motor.
+  // Atendeu: somente ligações adicionais legadas perdem a finalidade.
+  // A mensagem oficial da mesma etapa permanece e é liberada pelo motor.
   let cancelQuery = supabaseAdmin
     .from("relationship_queue")
     .update({
@@ -146,7 +139,7 @@ export async function registerQueueCallOutcome(input: {
     .eq("lead_id", row.lead_id)
     .eq("step", row.step);
   cancelQuery = input.runId ? cancelQuery.eq("run_id", input.runId) : cancelQuery.is("run_id", null);
-  if (row.step === "E0") cancelQuery = cancelQuery.eq("action_kind", "call");
+  cancelQuery = cancelQuery.eq("action_kind", "call");
   await cancelQuery.in("status", ["PENDING", "PROCESSING"]);
 
 
