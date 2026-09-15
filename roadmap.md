@@ -187,3 +187,10 @@
 - [x] Preservar continuidade, ordenação cronológica por entrada e ação PROCESSING durante a releitura silenciosa.
 - [x] Neutralizar pendências incompatíveis de forma seletiva, auditável e idempotente, preservando E0 sem primeiro contato.
 - [x] Validar cenários A–R, tipos, build e preview de /f, sem deploy ou alterações nas áreas protegidas (94 testes focados, tipos e build aprovados; preview sem erro de página/console, com área protegida no login corporativo).
+
+## Comando C — Agenda + link curto individual (/f)
+
+- [ ] Adicionar Agenda lateral compacta e somente leitura à Ação do Dia, usando compromissos existentes e atualização silenciosa de 3 minutos.
+- [ ] Implementar navegação visual por dia e os oito slots operacionais, sem alterar fila, cadência, lead ou compromissos.
+- [ ] Expor e copiar o link curto do executivo autenticado a partir do slug oficial, preservando o Portal e links existentes.
+- [ ] Validar testes focados, tipos, build, preview e console, sem publicar nem alterar áreas protegidas.
