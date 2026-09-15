@@ -203,4 +203,4 @@
 - [x] Restringir a cadência normal a ZERO_CONTATO/FRIO, preservar a exceção inicial da E0 e reconciliar toda a fila a cada leitura oficial.
 - [x] Reancorar E1–E4 exclusivamente na execução real anterior, contando o intervalo a partir do dia seguinte, e ajustar pendências futuras existentes sem duplicação.
 - [x] Corrigir somente o status visual da Agenda para LIVRE, OCUPADO ou INDISPONÍVEL.
-- [ ] Validar testes focados e relacionados, tipos, build e Preview de /f e /f/executivo, sem publicar nem alterar áreas protegidas.
+- [x] Validar testes focados e relacionados, tipos, build e Preview de /f e /f/executivo, sem publicar nem alterar áreas protegidas (114 testes, tipos, build e Preview aprovados; /s, /s/portal e /seg intactos; sem publicação).
