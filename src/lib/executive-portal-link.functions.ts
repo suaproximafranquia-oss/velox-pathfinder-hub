@@ -19,7 +19,7 @@ export const getMyExecutivePortalLink = createServerFn({ method: "POST" })
   });
 
 export const resolveExecutivePortalAlias = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => z.object({ slug: z.string().max(120) }).parse(data))
+  .validator((data: unknown) => z.object({ slug: z.string().max(120) }).parse(data))
   .handler(async ({ data }): Promise<{ slug: string } | null> => {
     const checked = validateExecutiveSlug(data.slug);
     if (!checked.ok) return null;
