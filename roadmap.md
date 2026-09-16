@@ -218,3 +218,10 @@
 - [x] Impedir que tick/reconciliação rebaixe `PROCESSING` ou `EXECUTED` para `PENDING` ao materializar a mesma chave oficial, preservando reativação legítima de item neutralizado.
 - [x] Permitir que retry da conclusão composta retome somente a mesma ligação já executada com o mesmo resultado e encerre a mensagem da mesma execução.
 - [x] Validar E0 SIM/NAO, reconciliações repetidas, reload, duplicidade, múltiplos leads, caso Thyana somente leitura, testes focados, tipos, build e Preview, sem publicar (139 testes aprovados; tipos, build e Preview OK; Thyana permanece com uma ligação e uma mensagem E0 `EXECUTED`, sem nova pendência; área executiva aguardou sessão corporativa).
+
+## Correção da Apresentação Digital interna e na Workspace
+
+- [ ] Fazer menu interno e cartão da Workspace abrirem a mesma experiência da Apresentação Digital, sem redirecionamento ao Manual.
+- [ ] Tornar a ausência de `videoUrl` um estado válido com título, legenda e placeholder, sem iframe social.
+- [ ] Preservar a rota pública de convite, Biblioteca, cadência, CRM, Agenda e banco.
+- [ ] Validar testes focados, tipos, build e Preview sem publicar.
