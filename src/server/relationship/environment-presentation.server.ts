@@ -11,7 +11,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 export type EnvironmentPresentation = {
   environment: string;
   introText: string | null;
-  videoUrl: string | null;
+  muxPlaybackId: string | null;
   isPublished: boolean;
   publishedAt: string | null;
   updatedAt: string | null;
@@ -21,6 +21,7 @@ type Row = {
   environment: string;
   intro_text: string | null;
   video_url: string | null;
+  mux_playback_id: string | null;
   is_published: boolean | null;
   published_at: string | null;
   updated_at: string | null;
@@ -30,7 +31,7 @@ function toRecord(row: Row): EnvironmentPresentation {
   return {
     environment: row.environment,
     introText: row.intro_text,
-    videoUrl: row.video_url,
+    muxPlaybackId: row.mux_playback_id,
     isPublished: row.is_published === true,
     publishedAt: row.published_at,
     updatedAt: row.updated_at,
@@ -40,7 +41,7 @@ function toRecord(row: Row): EnvironmentPresentation {
 export async function listEnvironmentPresentations(): Promise<EnvironmentPresentation[]> {
   const { data, error } = await supabaseAdmin
     .from("environment_presentations")
-    .select("environment,intro_text,video_url,is_published,published_at,updated_at");
+    .select("environment,intro_text,video_url,mux_playback_id,is_published,published_at,updated_at");
   if (error) throw new Error(error.message);
   return ((data ?? []) as Row[]).map(toRecord);
 }
@@ -56,7 +57,7 @@ export async function listEnvironmentPresentations(): Promise<EnvironmentPresent
 export async function saveEnvironmentPresentation(params: {
   environment: string;
   introText: string;
-  videoUrl: string;
+  muxPlaybackId: string;
   isPublished: boolean;
   actorId: string | null;
 }): Promise<EnvironmentPresentation> {
@@ -64,7 +65,7 @@ export async function saveEnvironmentPresentation(params: {
 
   const { data: previousData, error: previousError } = await supabaseAdmin
     .from("environment_presentations")
-    .select("environment,intro_text,video_url,is_published,published_at,updated_by,updated_by_name")
+    .select("environment,intro_text,video_url,mux_playback_id,is_published,published_at,updated_by,updated_by_name")
     .eq("environment", params.environment)
     .maybeSingle();
   if (previousError) throw new Error(previousError.message);
@@ -78,7 +79,7 @@ export async function saveEnvironmentPresentation(params: {
       {
         environment: params.environment,
         intro_text: params.introText || null,
-        video_url: params.videoUrl || null,
+        mux_playback_id: params.muxPlaybackId || null,
         is_published: params.isPublished,
         published_at: params.isPublished ? nowIso : null,
         published_by: params.isPublished ? params.actorId : null,
@@ -86,7 +87,7 @@ export async function saveEnvironmentPresentation(params: {
       } as never,
       { onConflict: "environment" },
     )
-    .select("environment,intro_text,video_url,is_published,published_at,updated_at")
+    .select("environment,intro_text,video_url,mux_playback_id,is_published,published_at,updated_at")
     .single();
   if (error) throw new Error(error.message);
 
@@ -97,6 +98,7 @@ export async function saveEnvironmentPresentation(params: {
         environment: previous.environment,
         intro_text: previous.intro_text,
         video_url: previous.video_url,
+        mux_playback_id: previous.mux_playback_id,
         is_published: previous.is_published ?? false,
         published_at: previous.published_at,
         updated_by: previous.updated_by,
@@ -110,6 +112,7 @@ export async function saveEnvironmentPresentation(params: {
         .update({
           intro_text: previous.intro_text,
           video_url: previous.video_url,
+          mux_playback_id: previous.mux_playback_id,
           is_published: previous.is_published ?? false,
           published_at: previous.published_at,
           updated_at: nowIso,
@@ -122,5 +125,16 @@ export async function saveEnvironmentPresentation(params: {
   }
 
   return toRecord(data as Row);
+}
+
+export async function getPublishedFinancePresentation(): Promise<EnvironmentPresentation | null> {
+  const { data, error } = await supabaseAdmin
+    .from("environment_presentations")
+    .select("environment,intro_text,video_url,mux_playback_id,is_published,published_at,updated_at")
+    .eq("environment", "financeira")
+    .eq("is_published", true)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toRecord(data as Row) : null;
 }
 

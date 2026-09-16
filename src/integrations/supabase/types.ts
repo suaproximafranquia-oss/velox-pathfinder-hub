@@ -827,6 +827,7 @@ export type Database = {
           id: string
           intro_text: string
           is_published: boolean
+          mux_playback_id: string | null
           published_at: string | null
           updated_at: string
           updated_by: string | null
@@ -839,6 +840,7 @@ export type Database = {
           id?: string
           intro_text?: string
           is_published?: boolean
+          mux_playback_id?: string | null
           published_at?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -851,6 +853,7 @@ export type Database = {
           id?: string
           intro_text?: string
           is_published?: boolean
+          mux_playback_id?: string | null
           published_at?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -867,6 +870,7 @@ export type Database = {
           id: string
           intro_text: string | null
           is_published: boolean
+          mux_playback_id: string | null
           published_at: string | null
           updated_by: string | null
           updated_by_name: string | null
@@ -879,6 +883,7 @@ export type Database = {
           id?: string
           intro_text?: string | null
           is_published?: boolean
+          mux_playback_id?: string | null
           published_at?: string | null
           updated_by?: string | null
           updated_by_name?: string | null
@@ -891,6 +896,7 @@ export type Database = {
           id?: string
           intro_text?: string | null
           is_published?: boolean
+          mux_playback_id?: string | null
           published_at?: string | null
           updated_by?: string | null
           updated_by_name?: string | null

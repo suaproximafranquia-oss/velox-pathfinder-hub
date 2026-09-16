@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Eye, Save, Video } from "lucide-react";
+import { Eye, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -10,71 +11,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  ENVIRONMENT_PRESENTATION_KEYS,
   listarApresentacoesAmbiente,
   salvarApresentacaoAmbiente,
 } from "@/lib/relationship/presentation.functions";
-
-const ENVIRONMENT_LABEL: Record<string, string> = {
-  financeira: "Financeira",
-  solar: "Solar",
-  seguradora: "Seguradora",
-};
+import { conviteVigenteParaPrevisualizacao } from "@/lib/relationship/e20.functions";
 
 type PresentationItem = {
   environment: string;
   introText: string | null;
-  videoUrl: string | null;
+  muxPlaybackId: string | null;
   isPublished: boolean;
-  publishedAt?: string | null;
 };
 
 type PresentationDraft = {
-  videoUrl: string;
-  description: string;
+  muxPlaybackId: string;
+  introText: string;
   isPublished: boolean;
 };
 
 const EMPTY_DRAFT: PresentationDraft = {
-  videoUrl: "",
-  description: "",
+  muxPlaybackId: "",
+  introText: "",
   isPublished: false,
 };
-
-export function presentationVideoSource(videoUrl?: string | null): string | null {
-  const source = videoUrl?.trim();
-  return source || null;
-}
-
-export function PresentationVideo({ videoUrl, title }: { videoUrl?: string | null; title: string }) {
-  const source = presentationVideoSource(videoUrl);
-
-  if (!source) {
-    return (
-      <div
-        data-testid="digital-presentation-placeholder"
-        className="flex aspect-video flex-col items-center justify-center rounded-lg border border-dashed border-[color:var(--border)] bg-[color:var(--muted)]/20 px-6 text-center"
-      >
-        <Video className="h-8 w-8 text-[color:var(--muted-foreground)]" aria-hidden />
-        <p className="mt-3 text-sm font-medium text-[color:var(--foreground)]">
-          Vídeo da apresentação
-        </p>
-        <p className="mt-1 max-w-md text-xs leading-relaxed text-[color:var(--muted-foreground)]">
-          Espaço reservado para o arquivo que será hospedado no storage/CDN da Velox.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="aspect-video overflow-hidden rounded-lg bg-[color:var(--muted)]">
-      <video src={source} controls preload="metadata" className="h-full w-full" aria-label={title}>
-        <track kind="captions" />
-      </video>
-    </div>
-  );
-}
 
 export function DigitalPresentationDialog({
   open,
@@ -85,17 +48,25 @@ export function DigitalPresentationDialog({
 }) {
   const list = useServerFn(listarApresentacoesAmbiente);
   const save = useServerFn(salvarApresentacaoAmbiente);
-  const [environment, setEnvironment] = useState<string>(ENVIRONMENT_PRESENTATION_KEYS[0]);
-  const [items, setItems] = useState<PresentationItem[]>([]);
   const [draft, setDraft] = useState<PresentationDraft>({ ...EMPTY_DRAFT });
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [investorView, setInvestorView] = useState(false);
+  const preview = useServerFn(conviteVigenteParaPrevisualizacao);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setItems((await list({})) as PresentationItem[]);
+      const rows = (await list({})) as PresentationItem[];
+      const finance = rows.find((item) => item.environment === "financeira") ?? null;
+      setDraft(
+        finance
+          ? {
+              muxPlaybackId: finance.muxPlaybackId ?? "",
+              introText: finance.introText ?? "",
+              isPublished: finance.isPublished,
+            }
+          : { ...EMPTY_DRAFT },
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao carregar a apresentação.");
     } finally {
@@ -107,32 +78,19 @@ export function DigitalPresentationDialog({
     if (open) void load();
   }, [open, load]);
 
-  useEffect(() => {
-    const found = items.find((item) => item.environment === environment);
-    setDraft(
-      found
-        ? {
-            videoUrl: found.videoUrl ?? "",
-            description: found.introText ?? "",
-            isPublished: found.isPublished,
-          }
-        : { ...EMPTY_DRAFT },
-    );
-  }, [environment, items]);
-
   async function submit() {
     setBusy(true);
     try {
       await save({
         data: {
-          environment,
-          introText: draft.description,
-          videoUrl: draft.videoUrl,
+          environment: "financeira",
+          introText: draft.introText,
+          muxPlaybackId: draft.muxPlaybackId,
           isPublished: draft.isPublished,
         },
       });
-      setItems((await list({})) as PresentationItem[]);
-      toast.success(`Apresentação da ${ENVIRONMENT_LABEL[environment]} salva.`);
+      await load();
+      toast.success("Apresentação da Financeira salva.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao salvar.");
     } finally {
@@ -140,100 +98,82 @@ export function DigitalPresentationDialog({
     }
   }
 
-  const published = items.find((item) => item.environment === environment && item.isPublished);
-  const visibleVideoUrl = investorView ? published?.videoUrl : draft.videoUrl;
-  const visibleDescription = investorView ? published?.introText : draft.description;
+  async function openInvestorView() {
+    try {
+      const result = await preview({});
+      if (!result.linkUrl) {
+        toast.info("Não há convite vigente emitido por você para visualizar.");
+        return;
+      }
+      window.open(result.linkUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao abrir a experiência pública.");
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Apresentação Digital</DialogTitle>
-          <DialogDescription>
-            Vídeo e texto de contexto da apresentação vigente por ambiente.
-          </DialogDescription>
+          <DialogDescription>Configuração da experiência pública da Financeira.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex rounded-md border border-[color:var(--border)] p-1">
-            {ENVIRONMENT_PRESENTATION_KEYS.map((key) => (
-              <Button
-                key={key}
-                type="button"
-                size="sm"
-                variant={environment === key ? "default" : "ghost"}
-                onClick={() => {
-                  setEnvironment(key);
-                  setInvestorView(false);
-                }}
-              >
-                {ENVIRONMENT_LABEL[key]}
-              </Button>
-            ))}
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setInvestorView((value) => !value)}
-          >
-            <Eye aria-hidden />
-            {investorView ? "Voltar à edição" : "Ver como o investidor"}
-          </Button>
+        <div className="space-y-5">
+            <div className="rounded-md border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs text-muted-foreground">Ambiente</p>
+              <p className="mt-1 text-sm font-medium">Financeira</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mux-playback-id">Playback ID do vídeo Mux</Label>
+              <Input
+                id="mux-playback-id"
+                value={draft.muxPlaybackId}
+                onChange={(event) => setDraft({ ...draft, muxPlaybackId: event.target.value })}
+                placeholder="Playback ID"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="presentation-context">Texto de contexto da apresentação</Label>
+              <Textarea
+                id="presentation-context"
+                rows={5}
+                value={draft.introText}
+                onChange={(event) => setDraft({ ...draft, introText: event.target.value })}
+                placeholder="Texto exibido abaixo do vídeo na experiência pública."
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="presentation-published"
+                checked={draft.isPublished}
+                onCheckedChange={(checked) =>
+                  setDraft({ ...draft, isPublished: checked === true })
+                }
+              />
+              <Label htmlFor="presentation-published">Publicada</Label>
+            </div>
         </div>
 
-        {loading ? (
-          <div className="flex aspect-video items-center justify-center rounded-lg border border-[color:var(--border)] text-sm text-[color:var(--muted-foreground)]">
-            Carregando apresentação…
-          </div>
-        ) : (
-          <PresentationVideo
-            videoUrl={visibleVideoUrl}
-            title={`Apresentação — ${ENVIRONMENT_LABEL[environment]}`}
-          />
-        )}
-
-        {investorView ? (
-          <p className="min-h-10 whitespace-pre-line text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-            {visibleDescription || "A legenda da apresentação será exibida aqui."}
-          </p>
-        ) : (
-          <div className="space-y-4">
-            <label className="block text-xs text-[color:var(--muted-foreground)]">
-              URL do vídeo no storage/CDN
-              <input
-                value={draft.videoUrl}
-                onChange={(event) => setDraft({ ...draft, videoUrl: event.target.value })}
-                placeholder="https://"
-                className="mt-1 w-full rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--foreground)]"
-              />
-            </label>
-            <label className="block text-xs text-[color:var(--muted-foreground)]">
-              Legenda e texto de contexto
-              <textarea
-                rows={5}
-                value={draft.description}
-                onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-                placeholder="A legenda da apresentação será exibida aqui."
-                className="mt-1 w-full resize-y rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--foreground)]"
-              />
-            </label>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-xs text-[color:var(--muted-foreground)]">
-                <input
-                  type="checkbox"
-                  checked={draft.isPublished}
-                  onChange={(event) => setDraft({ ...draft, isPublished: event.target.checked })}
-                />
-                Publicada
-              </label>
-              <Button type="button" size="sm" disabled={busy || loading} onClick={() => void submit()}>
-                <Save aria-hidden />
-                Salvar
-              </Button>
-            </div>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading}
+            onClick={() => void openInvestorView()}
+          >
+            <Eye aria-hidden />
+            Ver como o investidor
+          </Button>
+          <Button type="button" disabled={busy || loading} onClick={() => void submit()}>
+            <Save aria-hidden />
+            Salvar
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

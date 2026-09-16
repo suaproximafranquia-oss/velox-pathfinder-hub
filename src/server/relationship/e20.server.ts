@@ -421,6 +421,10 @@ export type E20Redemption =
       occurrenceId: string;
       /** Roteiro CONGELADO na emissão — nunca o roteiro atual. */
       script: import("./presentation.server").PresentationScript | null;
+      presentation: {
+        muxPlaybackId: string | null;
+        introText: string | null;
+      };
       expiresAt: string;
     };
 
@@ -520,12 +524,18 @@ export async function redeemE20(token: string, userAgent?: string | null): Promi
 
   const { scriptFromSnapshot } = await import("./presentation.server");
   const script = scriptFromSnapshot(row["snapshot"]);
+  const { getPublishedFinancePresentation } = await import("./environment-presentation.server");
+  const presentation = await getPublishedFinancePresentation();
 
   return {
     valid: true,
     leadId: String(row["lead_id"]),
     occurrenceId: String(row["id"]),
     script,
+    presentation: {
+      muxPlaybackId: presentation?.muxPlaybackId ?? null,
+      introText: presentation?.introText ?? null,
+    },
     expiresAt: String(row["expires_at"]),
   };
 }

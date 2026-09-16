@@ -132,7 +132,7 @@ export const roteiroVigente = createServerFn({ method: "POST" })
  * capítulos versionados já usados pela Financeira — é uma camada
  * separada, e cada ambiente continua isolado.
  */
-export const ENVIRONMENT_PRESENTATION_KEYS = ["financeira", "solar", "seguradora"] as const;
+export const ENVIRONMENT_PRESENTATION_KEYS = ["financeira"] as const;
 export type EnvironmentPresentationKey = (typeof ENVIRONMENT_PRESENTATION_KEYS)[number];
 
 export const listarApresentacoesAmbiente = createServerFn({ method: "POST" })
@@ -152,7 +152,7 @@ export const salvarApresentacaoAmbiente = createServerFn({ method: "POST" })
     (input: {
       environment: string;
       introText: string;
-      videoUrl: string;
+      muxPlaybackId: string;
       isPublished: boolean;
     }) => {
       const environment = String(input.environment ?? "").trim();
@@ -162,7 +162,7 @@ export const salvarApresentacaoAmbiente = createServerFn({ method: "POST" })
       return {
         environment,
         introText: String(input.introText ?? "").trim(),
-        videoUrl: String(input.videoUrl ?? "").trim(),
+        muxPlaybackId: String(input.muxPlaybackId ?? "").trim(),
         isPublished: Boolean(input.isPublished),
       };
     },
