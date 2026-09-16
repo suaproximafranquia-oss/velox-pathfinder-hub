@@ -29,6 +29,17 @@ describe("Apresentação Digital com Mux", () => {
     expect(html).not.toContain("iframe");
   });
 
+  it("trata Playback ID com somente espaços como vídeo ausente e mantém a legenda", () => {
+    const html = renderToStaticMarkup(
+      <PublicDigitalPresentation
+        presentation={{ muxPlaybackId: "   ", introText: "Linha 1\nLinha 2" }}
+      />,
+    );
+    expect(html).toContain("digital-presentation-placeholder");
+    expect(html).toContain("Linha 1\nLinha 2");
+    expect(html).not.toContain("mux-player");
+  });
+
   it("renderiza o player Mux com o Playback ID de teste", () => {
     const html = renderToStaticMarkup(
       <PublicDigitalPresentation
@@ -38,6 +49,16 @@ describe("Apresentação Digital com Mux", () => {
     expect(html).toContain("mux-player");
     expect(html).not.toContain("iframe");
     expect(normalizeMuxPlaybackId(TEST_PLAYBACK_ID)).toBe(TEST_PLAYBACK_ID);
+  });
+
+  it("não renderiza bloco de legenda quando o texto está ausente", () => {
+    const html = renderToStaticMarkup(
+      <PublicDigitalPresentation presentation={{ muxPlaybackId: TEST_PLAYBACK_ID, introText: null }} />,
+    );
+    expect(html).toContain("mux-player");
+    expect(html).not.toContain("whitespace-pre-line");
+    expect(html).not.toContain("undefined");
+    expect(html).not.toContain("null");
   });
 
   it("mantém a Home apontando para a rota administrativa única", () => {
@@ -60,6 +81,8 @@ describe("Apresentação Digital com Mux", () => {
   it("mantém a configuração administrativa sem player", () => {
     const dialog = readFileSync("src/components/executive/digital-presentation-dialog.tsx", "utf8");
     expect(dialog).toContain("Playback ID do vídeo Mux");
+    expect(dialog).toContain("Legenda da apresentação");
+    expect(dialog).not.toContain("Texto de contexto da apresentação");
     expect(dialog).toContain("Ambiente");
     expect(dialog).toContain("Financeira");
     expect(dialog).not.toContain("Solar");

@@ -137,7 +137,7 @@ export function DigitalPresentationDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="presentation-context">Texto de contexto da apresentação</Label>
+              <Label htmlFor="presentation-context">Legenda da apresentação</Label>
               <Textarea
                 id="presentation-context"
                 rows={5}
