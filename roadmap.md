@@ -241,7 +241,7 @@
 - [x] Validar testes focados, tipos, build e Preview desktop/mobile, sem publicar (12 testes e tipos aprovados; build OK; fundo, legenda e destino confirmados sem overflow; o Chromium automatizado manteve o erro de codec conhecido do arquivo Mux, sem alteração no player).
 
 ## Integração Encerrar/Reabrir — Portal, TikTok e Meta
-- [ ] Integrar `closed_at` ao motor V2 apenas para Portal/TikTok/Meta e neutralizar obrigações abertas sem convertê-las em execução.
-- [ ] Reabrir a mesma instância pela execução real, materializando somente a obrigação correta e idempotente.
-- [ ] Preservar Pular, histórico, snapshots, GreenSales e todos os módulos fora do escopo.
-- [ ] Validar cenários A–M, tipos, build e Preview sem publicação ou alteração de dados reais.
+- [x] Integrar `closed_at` ao motor V2 apenas para Portal/TikTok/Meta e neutralizar obrigações abertas sem convertê-las em execução.
+- [x] Reabrir a mesma instância pela execução real, materializando somente a obrigação correta e idempotente.
+- [x] Preservar Pular, histórico, snapshots, GreenSales e todos os módulos fora do escopo.
+- [x] Validar cenários A–M, tipos, build e Preview sem publicação ou alteração de dados reais (91 testes focados, tipos e build aprovados; `/f` abriu sem erro de página/console; nenhum dado real foi alterado).

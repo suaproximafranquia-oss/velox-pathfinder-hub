@@ -29,6 +29,16 @@ export const updateWorkspaceOperational = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: WorkspaceOperationalPatch) => data)
   .handler(async ({ data, context }) => {
+    let previousClosedAt: string | null = null;
+    if (data.closedAt !== undefined) {
+      const { data: currentLead, error: currentLeadError } = await context.supabase
+        .from("portal_leads")
+        .select("closed_at")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (currentLeadError) throw new Error(currentLeadError.message);
+      previousClosedAt = currentLead?.closed_at ?? null;
+    }
     if (data.responsibleExecutiveId) {
       const { assertAssignableExecutive } = await import("@/server/crm/manager-guard.server");
       await assertAssignableExecutive(data.responsibleExecutiveId);
@@ -98,6 +108,32 @@ export const updateWorkspaceOperational = createServerFn({ method: "POST" })
       updated = Number(affected ?? 0);
       if (updated === 0) {
         throw new Error("Lead não encontrado ou sem permissão para esta operação.");
+      }
+      if (data.closedAt !== undefined) {
+        try {
+          const { syncWorkspaceLeadCadenceState } = await import(
+            "@/server/relationship/lead-cadence-control.server"
+          );
+          await syncWorkspaceLeadCadenceState({
+            leadId: data.id,
+            closedAt: data.closedAt,
+            previousClosedAt,
+            actorId: context.userId,
+          });
+        } catch (cadenceError) {
+          // O controle visual e o motor formam uma única operação percebida:
+          // se a cadência falhar, restaura `closed_at` antes de informar erro.
+          await context.supabase.rpc("set_lead_operational", {
+            _id: data.id,
+            _viewed_at: null,
+            _closed_at: previousClosedAt,
+            _notes: null,
+            _set_viewed: false,
+            _set_closed: true,
+            _set_notes: false,
+          } as never);
+          throw cadenceError;
+        }
       }
     }
 

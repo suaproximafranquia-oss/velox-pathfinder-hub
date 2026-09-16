@@ -31,7 +31,11 @@ export type EngineRepository = {
    */
   claimQueueItem: (id: string) => Promise<boolean>;
   updateQueueItem: (id: string, patch: Partial<QueueItem>) => Promise<void>;
-  cancelPendingItems: (leadId: string, reason: string) => Promise<number>;
+  cancelPendingItems: (
+    leadId: string,
+    reason: string,
+    options?: { preserveProcessing?: boolean },
+  ) => Promise<number>;
   recordDecision: (decision: EngineDecision) => Promise<void>;
   loadTemplates: () => Promise<TemplateResolver>;
 };

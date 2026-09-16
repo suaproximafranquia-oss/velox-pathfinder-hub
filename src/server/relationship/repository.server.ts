@@ -20,6 +20,7 @@ import type {
   EngineScope,
   QueueItem,
 } from "@/lib/relationship/types";
+import { shouldNeutralizeOnNegotiationClose } from "@/lib/relationship/lead-cadence-closure";
 
 type Row = Record<string, any>;
 
@@ -355,7 +356,10 @@ export function createRepository(scope: EngineScope, runId: string | null = null
     },
 
     /** Resposta, agendamento e encerramento sempre vencem o timer. */
-    async cancelPendingItems(leadId, reason) {
+    async cancelPendingItems(leadId, reason, options) {
+      const statuses = options?.preserveProcessing
+        ? ["PENDING", "PROCESSING"].filter(shouldNeutralizeOnNegotiationClose)
+        : ["PENDING", "PROCESSING"];
       const { data } = await scoped(
         supabaseAdmin
           .from("relationship_queue")
@@ -365,7 +369,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
             cancel_reason: reason,
             updated_at: new Date().toISOString(),
           } as any)
-          .in("status", ["PENDING", "PROCESSING"])
+          .in("status", statuses)
           .select("id") as any,
       ).eq("lead_id", leadId);
       return (data ?? []).length;
