@@ -212,3 +212,9 @@
 - [x] Tornar RE0 e RE3 ligação + mensagem e preservar R1/R2 como ligação + mensagem no mesmo card, sem nova etapa, prazo ou relógio de cadência.
 - [x] Garantir que modal, conclusão e snapshot usem a mesma mensagem resolvida automaticamente.
 - [x] Validar cenários positivos e negativos, tipos e build, sem publicar nem tocar áreas protegidas (93 testes focados, tipos e build aprovados; `/s`, `/s/portal` e `/seg` intactos).
+
+## Correção do reaparecimento da mensagem no mesmo card — Financeira /f
+
+- [x] Impedir que tick/reconciliação rebaixe `PROCESSING`, `EXECUTED` ou `CANCELLED` para `PENDING` ao materializar a mesma chave oficial da fila.
+- [x] Permitir que retry da conclusão composta retome somente a mesma ligação já executada com o mesmo resultado e encerre a mensagem da mesma execução.
+- [ ] Validar E0 SIM/NAO, reconciliações repetidas, reload, duplicidade, múltiplos leads, caso Thyana somente leitura, testes focados, tipos, build e Preview, sem publicar.

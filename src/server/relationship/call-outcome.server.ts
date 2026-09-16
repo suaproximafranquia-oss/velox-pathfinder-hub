@@ -62,7 +62,7 @@ export async function registerQueueCallOutcome(input: {
 
   const { data: item } = await supabaseAdmin
     .from("relationship_queue")
-    .select("id,lead_id,step,scope,status,action_kind")
+    .select("id,lead_id,step,scope,status,action_kind,result")
     .eq("id", input.queueItemId)
     .maybeSingle();
   if (!item) return { concluded: false, awaitingHandoff: false };
