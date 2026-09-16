@@ -28,8 +28,8 @@ async function currentExecutiveId(context: { supabase: never }): Promise<string 
 
 /**
  * Lista única do dia — recalculada a cada leitura a partir das fontes.
- * A leitura passa pela MESMA trava do servidor: a primeira ação é
- * reivindicada (PROCESSING) e mantém a posição enquanto é trabalhada.
+ * A leitura passa pela MESMA trava do servidor: a interface informa o
+ * único card ativo e a primeira ação elegível continua sendo reivindicada.
  */
 export const listDailyActions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

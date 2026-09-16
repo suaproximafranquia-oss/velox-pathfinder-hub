@@ -49,6 +49,12 @@ it("não troca o card ativo por outro PROCESSING persistido", () => {
   expect(reconcileSelectedActionKey([active, stale], "active")).toBe("active");
 });
 
+it("reload sem card ativo segue a primeira posição elegível, não o PROCESSING antigo", () => {
+  const e0 = { ...action("e0", "hoje"), stepLabel: "E0" };
+  const stale = { ...action("stale", "hoje"), claimed: true };
+  expect(reconcileSelectedActionKey([e0, stale], null)).toBe("e0");
+});
+
 it("usa a mesma leitura silenciosa em intervalo aproximado de um minuto", () => {
   const source = readFileSync(new URL("./daily-actions-overlay.tsx", import.meta.url), "utf8");
   expect(source).toContain("}, 60_000)");

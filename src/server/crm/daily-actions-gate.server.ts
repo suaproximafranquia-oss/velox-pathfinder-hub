@@ -12,11 +12,9 @@
  *   • duas abas abertas veem a mesma verdade: quem chega depois recebe
  *     a lista já recalculada e não consegue furar a ordem.
  *
- * POSIÇÃO 1 PROTEGIDA: quando a ação corrente é um item da fila da
- * régua V2, ela é REIVINDICADA no banco (`relationship_queue.status =
- * PROCESSING`, `claimed_by`). Novas liberações (ex.: 2ª ligação E0 de
- * outro investidor) entram DEPOIS dela — a ação em atendimento não
- * perde a posição. Não existe outra fila: é a mesma tabela do motor.
+ * POSIÇÃO 1 PROTEGIDA: a interface informa a `actionKey` do único card
+ * efetivamente aberto. O estado PROCESSING continua preservado no banco,
+ * mas não transforma sozinho registros antigos em atendimentos ativos.
  *
  * Dentro do MESMO investidor a sequência também é do servidor: a
  * ligação vem antes da mensagem (precedência de fonte) e, ao pular a
