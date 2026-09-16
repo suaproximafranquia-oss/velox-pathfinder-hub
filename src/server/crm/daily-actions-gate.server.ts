@@ -12,11 +12,9 @@
  *   • duas abas abertas veem a mesma verdade: quem chega depois recebe
  *     a lista já recalculada e não consegue furar a ordem.
  *
- * POSIÇÃO 1 PROTEGIDA: quando a ação corrente é um item da fila da
- * régua V2, ela é REIVINDICADA no banco (`relationship_queue.status =
- * PROCESSING`, `claimed_by`). Novas liberações (ex.: 2ª ligação E0 de
- * outro investidor) entram DEPOIS dela — a ação em atendimento não
- * perde a posição. Não existe outra fila: é a mesma tabela do motor.
+ * POSIÇÃO 1 PROTEGIDA: a interface informa a `actionKey` do único card
+ * efetivamente aberto. O estado PROCESSING continua preservado no banco,
+ * mas não transforma sozinho registros antigos em atendimentos ativos.
  *
  * Dentro do MESMO investidor a sequência também é do servidor: a
  * ligação vem antes da mensagem (precedência de fonte) e, ao pular a
@@ -104,11 +102,17 @@ async function recentContinuityLead(executiveId: string | null): Promise<string 
 
 export async function currentDailyAction(
   executiveId: string | null,
-  options: { skipReconcile?: boolean } = {},
+  options: { skipReconcile?: boolean; activeActionKey?: string | null } = {},
 ): Promise<CurrentAction> {
   const continuityLeadId = await recentContinuityLead(executiveId);
+  const source = await buildDailyActions({ executiveId, skipReconcile: options.skipReconcile === true });
+  const requestedActive = options.activeActionKey
+    ? source.find(
+        (item) => item.actionKey === options.activeActionKey && isAutomaticDailyAction(item),
+      )?.actionKey ?? null
+    : null;
   let list = normalizeDailyActions(
-    await buildDailyActions({ executiveId, skipReconcile: options.skipReconcile === true }),
+    source.map((item) => ({ ...item, active: item.actionKey === requestedActive })),
     continuityLeadId,
   );
   const first = list.find(isAutomaticDailyAction) ?? null;
@@ -134,10 +138,18 @@ export async function currentDailyAction(
       .select("id");
     if (data && data.length > 0) {
       list = normalizeDailyActions(
-        list.map((item) => (item.actionKey === first.actionKey ? { ...item, claimed: true } : item)),
+        list.map((item) =>
+          item.actionKey === first.actionKey ? { ...item, claimed: true, active: true } : item,
+        ),
         continuityLeadId,
       );
     }
+  }
+  if (first && !first.active) {
+    list = normalizeDailyActions(
+      list.map((item) => ({ ...item, active: item.actionKey === first.actionKey })),
+      continuityLeadId,
+    );
   }
   return { current: list.find(isAutomaticDailyAction) ?? null, list };
 }
@@ -182,7 +194,9 @@ export async function assertCurrentAction(input: {
   /** Resolução de pendência pulada, aberta pela Central de Operações. */
   allowPendingRecovery?: boolean;
 }): Promise<DailyAction> {
-  const { current } = await currentDailyAction(input.executiveId);
+  const { current } = await currentDailyAction(input.executiveId, {
+    activeActionKey: input.actionKey,
+  });
   if (current && current.actionKey === input.actionKey) return current;
   if (input.allowPendingRecovery) {
     const pending = await findPendingRecoveryAction({
@@ -207,9 +221,12 @@ export async function assertCurrentAction(input: {
 export async function assertCurrentLead(input: {
   executiveId: string | null;
   leadId: string | null;
+  activeActionKey?: string | null;
   allowPendingRecovery?: boolean;
 }): Promise<DailyAction> {
-  const { current } = await currentDailyAction(input.executiveId);
+  const { current } = await currentDailyAction(input.executiveId, {
+    activeActionKey: input.activeActionKey,
+  });
   if (current && input.leadId && current.leadId === input.leadId) return current;
   if (input.allowPendingRecovery && input.leadId) {
     const pending = await findPendingRecoveryAction({
@@ -232,9 +249,12 @@ export async function assertCurrentLead(input: {
 export async function assertCurrentQueueItem(input: {
   executiveId: string | null;
   queueItemId: string;
+  actionKey: string;
   allowPendingRecovery?: boolean;
 }): Promise<{ current: DailyAction; queueItemId: string }> {
-  const { current } = await currentDailyAction(input.executiveId);
+  const { current } = await currentDailyAction(input.executiveId, {
+    activeActionKey: input.actionKey,
+  });
   const officialId = queueItemIdOf(current);
   if (current && officialId && officialId === input.queueItemId) {
     return { current, queueItemId: officialId };

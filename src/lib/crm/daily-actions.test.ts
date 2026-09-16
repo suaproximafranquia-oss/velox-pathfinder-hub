@@ -347,6 +347,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
       stepLabel: "E0",
       name: "Kelly",
       claimed: true,
+      active: true,
     });
     const rows = normalizeDailyActions([kellyEmAtendimento, ronaldoMsg], "ronaldo");
     expect(rows[0]?.leadId).toBe("kelly");
@@ -354,7 +355,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
   });
 
   it("ação claimed vence compromisso de prioridade máxima no empate", () => {
-    const claimed = action({ actionKey: "queue:claimed:E1:1", leadId: "claimed", claimed: true });
+    const claimed = action({ actionKey: "queue:claimed:E1:1", leadId: "claimed", claimed: true, active: true });
     const meeting = action({
       actionKey: "meeting:priority",
       source: "meeting",
@@ -368,7 +369,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
   });
 
   it("Q) PROCESSING permanece protegido durante a reconciliação", () => {
-    const current = action({ actionKey: "processing", leadId: "current", claimed: true, sortAt: "2026-09-20T17:00:00.000Z" });
+    const current = action({ actionKey: "processing", leadId: "current", claimed: true, active: true, sortAt: "2026-09-20T17:00:00.000Z" });
     const older = action({ actionKey: "older", leadId: "older", stepLabel: "E0", sortAt: "2026-09-18T22:00:00.000Z" });
     expect(normalizeDailyActions([older, current])[0]?.actionKey).toBe("processing");
   });
@@ -389,7 +390,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
       action({ actionKey: "e0", leadId: "e0", stepLabel: "E0" }),
       action({ actionKey: "alert", leadId: "alert", source: "portal_alert", kind: "alerta_portal", bucket: "alerta" }),
       action({ actionKey: "urgent", leadId: "urgent", source: "meeting", kind: "reuniao", bucket: "agora", priorityMax: true }),
-      action({ actionKey: "claimed", leadId: "claimed", claimed: true }),
+      action({ actionKey: "claimed", leadId: "claimed", claimed: true, active: true }),
     ]);
     expect(rows.map((row) => row.actionKey)).toEqual([
       "claimed", "urgent", "alert", "e0", "late", "normal",
@@ -410,7 +411,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
   });
 
   it("RE0 não desloca PROCESSING e preserva a continuidade", () => {
-    const claimed = action({ actionKey: "claimed", leadId: "claimed", claimed: true });
+    const claimed = action({ actionKey: "claimed", leadId: "claimed", claimed: true, active: true });
     const re0 = action({ actionKey: "re0", leadId: "re0", stepLabel: "RE0" });
     const continuation = action({ actionKey: "continuation", leadId: "same", stepLabel: "E1" });
     expect(normalizeDailyActions([re0, claimed])[0]?.actionKey).toBe("claimed");
@@ -419,11 +420,85 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
 
   it("mantém agendamento urgente do mesmo lead logo após a ação claimada", () => {
     const rows = normalizeDailyActions([
-      action({ actionKey: "claimed", leadId: "same", claimed: true }),
+      action({ actionKey: "claimed", leadId: "same", claimed: true, active: true }),
       action({ actionKey: "meeting", leadId: "same", source: "meeting", kind: "reuniao", bucket: "agora", priorityMax: true }),
       action({ actionKey: "duplicate", leadId: "same", source: "queue" }),
     ]);
     expect(rows.slice(0, 2).map((row) => row.actionKey)).toEqual(["claimed", "meeting"]);
     expect(rows).toHaveLength(2);
+  });
+
+  describe("blindagem única do card efetivamente ativo", () => {
+    const active = action({
+      actionKey: "active-e1",
+      leadId: "active",
+      stepLabel: "E1",
+      claimed: true,
+      active: true,
+    });
+    const staleProcessing = action({
+      actionKey: "stale-e1",
+      leadId: "stale",
+      stepLabel: "E1",
+      claimed: true,
+    });
+    const e0 = action({ actionKey: "new-e0", leadId: "new", stepLabel: "E0" });
+    const meeting = action({
+      actionKey: "new-meeting",
+      source: "meeting",
+      kind: "reuniao",
+      leadId: "meeting",
+      bucket: "agora",
+      priorityMax: true,
+      startsAt: "2026-02-10T13:59:00.000Z",
+    });
+    const alert = action({
+      actionKey: "new-alert",
+      source: "portal_alert",
+      kind: "alerta_portal",
+      leadId: "alert",
+      bucket: "alerta",
+    });
+
+    it("A–B) protege só o atendimento ativo entre vários PROCESSING", () => {
+      const rows = normalizeDailyActions([staleProcessing, active]);
+      expect(rows.map((row) => row.actionKey)).toEqual(["active-e1", "stale-e1"]);
+      expect(rows.filter((row) => row.active)).toHaveLength(1);
+      expect(rows.every((row) => row.claimed)).toBe(true);
+    });
+
+    it("C) posiciona E0 imediatamente depois do atendimento ativo", () => {
+      expect(normalizeDailyActions([staleProcessing, e0, active]).map((row) => row.actionKey)).toEqual([
+        "active-e1", "new-e0", "stale-e1",
+      ]);
+    });
+
+    it("D) posiciona E0 primeiro quando não existe atendimento ativo", () => {
+      expect(normalizeDailyActions([staleProcessing, e0])[0]?.actionKey).toBe("new-e0");
+    });
+
+    it("E–F) mantém agendamento e aviso abaixo do ativo e acima do E0", () => {
+      expect(normalizeDailyActions([staleProcessing, e0, alert, meeting, active]).map((row) => row.actionKey)).toEqual([
+        "active-e1", "new-meeting", "new-alert", "new-e0", "stale-e1",
+      ]);
+    });
+
+    it("G–H) releitura e reload recalculam a mesma hierarquia", () => {
+      const nowIso = "2026-02-10T14:00:00.000Z";
+      const reread = reclassifyDailyActions([staleProcessing, e0, active], nowIso);
+      const reload = reclassifyDailyActions([staleProcessing, e0], nowIso);
+      expect(reread.map((row) => row.actionKey)).toEqual(["active-e1", "new-e0", "stale-e1"]);
+      expect(reload.map((row) => row.actionKey)).toEqual(["new-e0", "stale-e1"]);
+    });
+
+    it("I–J) ordenação não apaga nem converte estados persistidos", () => {
+      const source = [staleProcessing, e0, active];
+      const rows = normalizeDailyActions(source);
+      expect(rows).toHaveLength(source.length);
+      expect(rows.filter((row) => row.claimed).map((row) => row.actionKey).sort()).toEqual([
+        "active-e1", "stale-e1",
+      ]);
+      expect(rows.find((row) => row.actionKey === "stale-e1")?.active).not.toBe(true);
+    });
   });
 });

@@ -79,7 +79,7 @@ export function useRealDailyActionsAdapter(
 
   return useMemo<DailyActionsAdapter>(
     () => ({
-      load: () => fetchActions(),
+      load: (activeActionKey) => fetchActions({ data: { activeActionKey: activeActionKey ?? null } }),
       /**
        * PRIMEIRO CONTATO LEGADO — DESATIVADO. A E0 é etapa da régua V2
        * (ligação única → mensagem para copiar). Nenhum
@@ -238,7 +238,7 @@ export function useRealDailyActionsAdapter(
         const step = item.messageRef?.step ?? item.stepLabel;
         if (!item.leadId || !step) return null;
         return loadStepMessage({
-          data: { leadId: item.leadId, step, context, pendingRecovery },
+          data: { leadId: item.leadId, step, actionKey: item.actionKey, context, pendingRecovery },
         });
       },
       registerMessage: async (item, note) => {

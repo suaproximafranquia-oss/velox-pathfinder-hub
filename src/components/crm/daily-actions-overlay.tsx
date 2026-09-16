@@ -84,11 +84,7 @@ export function reconcileSelectedActionKey(
   rows: DailyAction[],
   current: string | null,
 ): string | null {
-  const processing = rows.find((item) => item.claimed)?.actionKey ?? null;
-  if (processing) return processing;
-  const held = rows.some(
-    (item) => item.actionKey === current && (item.bucket === "pendente" || item.bucket === "alerta"),
-  );
+  const held = rows.some((item) => item.actionKey === current);
   return held ? current : firstExecutableKey(rows);
 }
 
@@ -149,6 +145,8 @@ export function DailyActionsOverlay({
    * dele termina — nunca vira prioridade permanente.
    */
   const continuityLeadRef = useRef<string | null>(null);
+  /** Único card aberto nesta interface; não é inferido de PROCESSING antigo. */
+  const activeActionKeyRef = useRef<string | null>(null);
   /** Ordem das respostas: uma leitura antiga nunca sobrescreve uma mais nova. */
   const queueVersionRef = useRef(0);
   const settleTimersRef = useRef<number[]>([]);
@@ -180,9 +178,16 @@ export function DailyActionsOverlay({
     if (lead && !filtered.some((row) => row.leadId === lead && isAutomaticDailyAction(row))) {
       continuityLeadRef.current = null;
     }
-    const official = reclassifyDailyActions(filtered, new Date().toISOString(), continuityLeadRef.current);
+    const activeKey = activeActionKeyRef.current;
+    const official = reclassifyDailyActions(
+      filtered.map((row) => ({ ...row, active: row.actionKey === activeKey })),
+      new Date().toISOString(),
+      continuityLeadRef.current,
+    );
+    const nextKey = reconcileSelectedActionKey(official, activeKey);
+    activeActionKeyRef.current = nextKey;
     setActions(official);
-    setSelectedKey((current) => reconcileSelectedActionKey(official, current));
+    setSelectedKey(nextKey);
     setCommitmentRefresh((value) => value + 1);
   }, []);
 
@@ -198,7 +203,7 @@ export function DailyActionsOverlay({
       if (!silent) setLoading(true);
       const version = ++queueVersionRef.current;
       try {
-        commitQueue(await adapter.load(), version);
+        commitQueue(await adapter.load(activeActionKeyRef.current), version);
          return version === queueVersionRef.current;
       } catch {
         /* uma leitura falha nunca derruba a fila que já está na tela */
@@ -319,9 +324,15 @@ export function DailyActionsOverlay({
       setOperationalWindow(resolveOperationalWindow());
        if (transitioningRef.current) return;
       setActions((previous) => {
-        const next = reclassifyDailyActions(previous, new Date().toISOString(), continuityLeadRef.current);
+        const next = reclassifyDailyActions(
+          previous.map((row) => ({ ...row, active: row.actionKey === activeActionKeyRef.current })),
+          new Date().toISOString(),
+          continuityLeadRef.current,
+        );
         // Consulta aberta (pendência ou aviso do Portal) não é trocada sozinha.
-        setSelectedKey((key) => reconcileSelectedActionKey(next, key));
+        const nextKey = reconcileSelectedActionKey(next, activeActionKeyRef.current);
+        activeActionKeyRef.current = nextKey;
+        setSelectedKey(nextKey);
         return next;
       });
     }, 30000);
@@ -367,7 +378,9 @@ export function DailyActionsOverlay({
         prev.filter((r) => r.actionKey !== key),
         continuityLeadRef.current,
       );
-      setSelectedKey(firstExecutableKey(rest));
+      const nextKey = firstExecutableKey(rest);
+      activeActionKeyRef.current = nextKey;
+      setSelectedKey(nextKey);
       return rest;
     });
   }
@@ -383,7 +396,9 @@ export function DailyActionsOverlay({
       if (index < 0) return prev;
       const item = prev[index];
       const rest = prev.filter((r) => r.actionKey !== key);
-      setSelectedKey(rest[0]?.actionKey ?? item.actionKey);
+      const nextKey = rest[0]?.actionKey ?? item.actionKey;
+      activeActionKeyRef.current = nextKey;
+      setSelectedKey(nextKey);
       return [...rest, item];
     });
   }
@@ -665,7 +680,7 @@ export function DailyActionsOverlay({
                           item={item}
                           selected={item.actionKey === selectedKey}
                           locked={item.actionKey !== selectedKey && item.bucket !== "pendente" && item.bucket !== "alerta" && !(consultable(selected) && item.actionKey === firstExecutableKey(actions))}
-                          onOpen={item.bucket === "pendente" || item.bucket === "alerta" || (consultable(selected) && item.actionKey === firstExecutableKey(actions)) ? () => { if (!transitioningRef.current && !busy) setSelectedKey(item.actionKey); } : undefined}
+                          onOpen={item.bucket === "pendente" || item.bucket === "alerta" || (consultable(selected) && item.actionKey === firstExecutableKey(actions)) ? () => { if (!transitioningRef.current && !busy) { activeActionKeyRef.current = item.actionKey; setSelectedKey(item.actionKey); } } : undefined}
                         />
                       ))}
                     </ul>

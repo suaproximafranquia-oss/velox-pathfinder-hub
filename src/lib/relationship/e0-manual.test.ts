@@ -151,7 +151,7 @@ describe("Ação do Dia — posição 1 protegida", () => {
   it("a ação reivindicada fica antes de novas liberações E0", () => {
     const list = normalizeDailyActions([
       item({ actionKey: "queue:gs_b:E-E0-2:b", leadId: "gs_b", name: "Eduardo", queueActionOrder: 2 }),
-      item({ actionKey: "queue:gs_a:E-E1-1:a", leadId: "gs_a", name: "Paulo", stepLabel: "E1", priorityMax: false, claimed: true }),
+      item({ actionKey: "queue:gs_a:E-E1-1:a", leadId: "gs_a", name: "Paulo", stepLabel: "E1", priorityMax: false, claimed: true, active: true }),
       item({ actionKey: "queue:gs_c:E-E0-2:c", leadId: "gs_c", name: "William", queueActionOrder: 2 }),
     ]);
     expect(list.map((a) => a.name)).toEqual(["Paulo", "Eduardo", "William"]);

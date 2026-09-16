@@ -37,10 +37,22 @@ it("preserva apenas uma consulta de alerta ainda presente", () => {
   expect(reconcileSelectedActionKey([action("principal", "agora")], "aviso")).toBe("principal");
 });
 
-it("preserva a ação PROCESSING durante a releitura silenciosa", () => {
-  const processing = { ...action("processing", "hoje"), claimed: true };
+it("preserva somente a ação efetivamente ativa durante a releitura silenciosa", () => {
+  const processing = { ...action("processing", "hoje"), claimed: true, active: true };
   const incoming = action("incoming", "hoje");
-  expect(reconcileSelectedActionKey([incoming, processing], "incoming")).toBe("processing");
+  expect(reconcileSelectedActionKey([processing, incoming], "processing")).toBe("processing");
+});
+
+it("não troca o card ativo por outro PROCESSING persistido", () => {
+  const active = { ...action("active", "hoje"), claimed: true, active: true };
+  const stale = { ...action("stale", "hoje"), claimed: true };
+  expect(reconcileSelectedActionKey([active, stale], "active")).toBe("active");
+});
+
+it("reload sem card ativo segue a primeira posição elegível, não o PROCESSING antigo", () => {
+  const e0 = { ...action("e0", "hoje"), stepLabel: "E0" };
+  const stale = { ...action("stale", "hoje"), claimed: true };
+  expect(reconcileSelectedActionKey([e0, stale], null)).toBe("e0");
 });
 
 it("usa a mesma leitura silenciosa em intervalo aproximado de um minuto", () => {
