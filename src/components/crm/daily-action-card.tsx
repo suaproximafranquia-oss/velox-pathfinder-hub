@@ -13,6 +13,7 @@ import { flushSync } from "react-dom";
 import {
   Check,
   ExternalLink,
+  MessageCircle,
   MessageSquare,
   SkipForward,
   StickyNote,
@@ -82,6 +83,24 @@ export function formatDailyActionPhone(phone: string): string {
   return raw;
 }
 
+/** URL de abertura manual do contato, sem texto e sem qualquer efeito operacional. */
+export function dailyActionWhatsappUrl(phone: string | null | undefined): string | null {
+  const normalized = normalizeWhatsappNumber(phone);
+  return normalized.valid
+    ? `https://api.whatsapp.com/send?phone=${normalized.digits}`
+    : null;
+}
+
+export function openDailyActionWhatsapp(
+  phone: string | null | undefined,
+  openWindow: (url: string, target: string, features: string) => unknown = window.open,
+): boolean {
+  const url = dailyActionWhatsappUrl(phone);
+  if (!url) return false;
+  openWindow(url, "_blank", "noopener,noreferrer");
+  return true;
+}
+
 export function DailyActionCard({
   item,
   adapter,
@@ -135,6 +154,7 @@ export function DailyActionCard({
   const [messageNote, setMessageNote] = useState("");
   const [manualNote, setManualNote] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied" | "failed">("idle");
+  const [whatsappFeedback, setWhatsappFeedback] = useState<string | null>(null);
 
   /** Trocar de ação limpa os rascunhos da ação anterior. */
   useEffect(() => {
@@ -152,6 +172,7 @@ export function DailyActionCard({
     setMessageOpen(false);
     setMessageNote("");
     setCopyStatus("idle");
+    setWhatsappFeedback(null);
     setFeedback(null);
   }, [item.actionKey]);
 
@@ -409,6 +430,13 @@ export function DailyActionCard({
         : "A cópia não foi realizada — selecione o texto na janela e copie manualmente.",
     );
     return ok;
+  }
+
+  function handleOpenWhatsapp() {
+    const opened = openDailyActionWhatsapp(item.phone);
+    setWhatsappFeedback(
+      opened ? null : "Telefone não disponível para abrir o WhatsApp.",
+    );
   }
 
   function handleRegisterMessage() {
@@ -892,6 +920,11 @@ export function DailyActionCard({
                 placeholder="Observação operacional (opcional)"
                 className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white/80 placeholder:text-white/30"
               />
+              {whatsappFeedback && (
+                <p role="status" className="text-[11px] text-amber-200/80">
+                  {whatsappFeedback}
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -901,15 +934,13 @@ export function DailyActionCard({
                 >
                   {copyStatus === "copied" ? "Copiar novamente" : "Copiar mensagem"}
                 </button>
-                {item.leadId && onOpenLead && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenLead(item.leadId as string, item.scope ?? null)}
-                    className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
-                  >
-                    Ver ficha completa
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleOpenWhatsapp}
+                  className="flex-1 rounded-lg border border-white/20 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                >
+                  <MessageCircle className="mr-1 inline h-4 w-4" /> WhatsApp
+                </button>
               </div>
               {/* Nada é enviado pelo sistema: somente Concluído encerra
                   a ação, grava histórico, snapshot e a observação. */}

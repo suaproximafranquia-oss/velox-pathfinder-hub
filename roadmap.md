@@ -251,3 +251,9 @@
 - [x] Separar o card efetivamente ativo dos registros apenas persistidos como `PROCESSING`.
 - [x] Preservar somente uma ação ativa nas releituras e ordenar as demais pela hierarquia oficial.
 - [x] Validar cenários A–J, tipos, build e Preview sem publicação ou alteração de dados reais (69 testes focados, tipos e build aprovados; `/f` respondeu 200 sem erro recente no servidor; a sessão autenticada não estava disponível para abrir os cards).
+
+## WhatsApp no modal de mensagem da Ação do Dia
+
+- [x] Substituir somente o “Ver ficha completa” do modal de mensagem por abertura manual do contato no WhatsApp.
+- [x] Reutilizar o telefone da ação e a normalização central, sem texto preenchido, envio ou transição operacional.
+- [ ] Validar testes focados, tipos, build e Preview autenticado, sem publicar.
