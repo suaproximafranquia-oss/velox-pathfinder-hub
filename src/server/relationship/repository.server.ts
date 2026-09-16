@@ -236,6 +236,9 @@ export function createRepository(scope: EngineScope, runId: string | null = null
           .eq("lead_id", item.leadId).eq("active", true).maybeSingle();
         if (active?.id !== loaded.id) throw new Error("Ciclo substituído por nova entrada comercial.");
       }
+      const actionOrder = sequence === null
+        ? (item.actionOrder ?? 1)
+        : reentryQueueOrder(sequence, item.actionOrder ?? 1);
       const payload = {
         scope,
         run_id: runId,
@@ -252,7 +255,7 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         // Versão herdada do ciclo: a ação pendente continua explicável.
         flow_version_id: item.flowVersionId ?? null,
         // RÉGUA V2: ação interna, data teórica e origem do ciclo.
-        action_order: sequence === null ? (item.actionOrder ?? 1) : reentryQueueOrder(sequence, item.actionOrder ?? 1),
+        action_order: actionOrder,
         action_kind: item.actionKind ?? null,
         theoretical_date: item.theoreticalDate ?? null,
         origin_date: item.originDate ?? null,
@@ -260,18 +263,58 @@ export function createRepository(scope: EngineScope, runId: string | null = null
         cancel_reason: item.cancelReason ?? null,
         updated_at: new Date().toISOString(),
       };
-      const { data, error } = await supabaseAdmin
+      /**
+       * MATERIALIZAÇÃO MONÓTONA.
+       *
+       * Um `upsert` irrestrito podia executar esta corrida:
+       *   conclusão → EXECUTED
+       *   tick atrasado → upsert do mesmo plano com status PENDING
+       * e, assim, ressuscitar a mensagem já concluída. A chave oficial
+       * continua a mesma; apenas impedimos que o materializador rebaixe
+       * um estado que já saiu de PENDING.
+       */
+      const exact = () => scoped(
+        supabaseAdmin.from("relationship_queue").select("*") as any,
+      )
+        .eq("lead_id", item.leadId)
+        .eq("step", item.step)
+        .eq("action_order", actionOrder)
+        .maybeSingle();
+
+      const { data: existing, error: readError } = await exact();
+      if (readError) throw new Error(readError.message);
+      if (existing) {
+        if (existing.status !== "PENDING") return toQueueItem(existing as Row);
+        const { data: updated, error: updateError } = await supabaseAdmin
+          .from("relationship_queue")
+          .update(payload as any)
+          .eq("id", existing.id)
+          .eq("status", "PENDING")
+          .select("*")
+          .maybeSingle();
+        if (updateError) throw new Error(updateError.message);
+        if (updated) return toQueueItem(updated as Row);
+        // A tarefa foi claimed/concluída entre a leitura e o UPDATE.
+        const { data: raced, error: raceError } = await exact();
+        if (raceError) throw new Error(raceError.message);
+        if (raced) return toQueueItem(raced as Row);
+        throw new Error("Obrigação não encontrada após concorrência de gravação.");
+      }
+
+      const { data: inserted, error: insertError } = await supabaseAdmin
         .from("relationship_queue")
-        .upsert(payload as any, { onConflict: "scope,run_id,lead_id,step,action_order" })
+        .insert(payload as any)
         .select("*")
         .maybeSingle();
-      if (error) throw new Error(error.message);
-      if (!data) {
-        const existing = (await this.loadQueue(item.leadId)).find((q) => q.step === item.step && q.actionOrder === item.actionOrder);
-        if (existing) return existing;
-        throw new Error("Obrigação não encontrada após gravação.");
+      if (!insertError && inserted) return toQueueItem(inserted as Row);
+      if (insertError?.code !== "23505") {
+        throw new Error(insertError?.message ?? "Obrigação não encontrada após gravação.");
       }
-      return toQueueItem(data as Row);
+      // Dois ticks tentaram criar a mesma chave: a linha vencedora governa.
+      const { data: concurrent, error: concurrentError } = await exact();
+      if (concurrentError) throw new Error(concurrentError.message);
+      if (concurrent) return toQueueItem(concurrent as Row);
+      throw new Error("Obrigação concorrente não encontrada após gravação.");
     },
 
     /**

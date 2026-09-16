@@ -57,7 +57,7 @@ export async function registerQueueCallOutcome(input: {
   runId?: string | null;
   /** A conclusão composta materializa a mensagem depois, no mesmo comando. */
   deferTick?: boolean;
-}): Promise<{ concluded: boolean; awaitingHandoff: boolean }> {
+}): Promise<{ concluded: boolean; awaitingHandoff: boolean; alreadyExecuted?: boolean }> {
   const nowIso = input.nowIso ?? new Date().toISOString();
 
   const { data: item } = await supabaseAdmin
@@ -68,7 +68,16 @@ export async function registerQueueCallOutcome(input: {
   if (!item) return { concluded: false, awaitingHandoff: false };
 
   const row = item as Record<string, any>;
-  if (row.status === "EXECUTED" || row.status === "CANCELLED") {
+  if (row.status === "EXECUTED") {
+    return {
+      concluded: false,
+      awaitingHandoff: false,
+      // A conclusão composta pode retomar com segurança depois de uma
+      // resposta perdida: só a MESMA ligação e o MESMO resultado valem.
+      alreadyExecuted: row.action_kind === "call" && row.result === input.outcome,
+    };
+  }
+  if (row.status === "CANCELLED") {
     return { concluded: false, awaitingHandoff: false };
   }
 
