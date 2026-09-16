@@ -82,6 +82,29 @@ describe("Ação do Dia — mensagem após ligação", () => {
     expect(whatsappHandler).not.toContain("setMessageOpen(false)");
   });
 
+  it("exibe um ícone clicável antes do telefone usando o mesmo handler do modal", () => {
+    const phoneRow = source.slice(
+      source.indexOf('<div className="mt-2 flex items-center gap-1.5">'),
+      source.indexOf('{item.phone ? formatDailyActionPhone(item.phone) : "Sem telefone"}'),
+    );
+
+    expect(phoneRow).toContain('aria-label="Abrir WhatsApp deste contato"');
+    expect(phoneRow).toContain("<MessageCircle");
+    expect(phoneRow).toContain("onClick={handleOpenWhatsapp}");
+    expect(phoneRow).not.toContain("completeCallAndMessage(");
+    expect(phoneRow).not.toContain("registerMessage(");
+    expect(phoneRow).not.toContain("setMessageOpen(");
+
+    const usages = source.match(/onClick=\{handleOpenWhatsapp\}/g) ?? [];
+    expect(usages).toHaveLength(2);
+  });
+
+  it("mantém no card o mesmo aviso local quando o telefone não pode ser aberto", () => {
+    expect(source).toContain("!messageOpen && whatsappFeedback");
+    expect(source).toContain("{whatsappFeedback}");
+    expect(source).toContain("Telefone não disponível para abrir o WhatsApp.");
+  });
+
   it("preserva copiar, concluir, fechar e a ficha completa do card principal", () => {
     expect(source).toContain('aria-label="Fechar mensagem"');
     expect(source).toContain("copyMessageBody(message?.body)");
