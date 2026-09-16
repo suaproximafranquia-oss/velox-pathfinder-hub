@@ -215,6 +215,6 @@
 
 ## Correção do reaparecimento da mensagem no mesmo card — Financeira /f
 
-- [x] Impedir que tick/reconciliação rebaixe `PROCESSING`, `EXECUTED` ou `CANCELLED` para `PENDING` ao materializar a mesma chave oficial da fila.
+- [x] Impedir que tick/reconciliação rebaixe `PROCESSING` ou `EXECUTED` para `PENDING` ao materializar a mesma chave oficial, preservando reativação legítima de item neutralizado.
 - [x] Permitir que retry da conclusão composta retome somente a mesma ligação já executada com o mesmo resultado e encerre a mensagem da mesma execução.
 - [ ] Validar E0 SIM/NAO, reconciliações repetidas, reload, duplicidade, múltiplos leads, caso Thyana somente leitura, testes focados, tipos, build e Preview, sem publicar.

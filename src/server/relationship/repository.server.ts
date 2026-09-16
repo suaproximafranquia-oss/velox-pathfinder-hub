@@ -23,9 +23,9 @@ import type {
 
 type Row = Record<string, any>;
 
-/** O materializador só pode atualizar uma obrigação ainda não iniciada. */
+/** O materializador nunca rebaixa uma obrigação claimed ou concluída. */
 export function canRematerializeQueueStatus(status: string): boolean {
-  return status === "PENDING";
+  return status === "PENDING" || status === "CANCELLED";
 }
 
 function toRecord(row: Row): CadenceRecord {
@@ -290,11 +290,12 @@ export function createRepository(scope: EngineScope, runId: string | null = null
       if (readError) throw new Error(readError.message);
       if (existing) {
         if (!canRematerializeQueueStatus(existing.status)) return toQueueItem(existing as Row);
+        const previousStatus = existing.status;
         const { data: updated, error: updateError } = await supabaseAdmin
           .from("relationship_queue")
           .update(payload as any)
           .eq("id", existing.id)
-          .eq("status", "PENDING")
+          .eq("status", previousStatus)
           .select("*")
           .maybeSingle();
         if (updateError) throw new Error(updateError.message);

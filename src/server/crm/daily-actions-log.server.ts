@@ -17,6 +17,8 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { operationalDate } from "@/lib/crm/daily-actions";
+import { stepActions, type CadenceV2Step } from "@/lib/relationship/cadence-v2";
+import { REENTRY_ORDER_SPAN } from "@/lib/relationship/reentry-cycle";
 import {
   formatOperationalMoment,
   historyHeadline,
@@ -558,6 +560,15 @@ export async function completeCallAndMessage(input: DailyActionLogInput & {
 
   const { productionEngine } = await import("@/server/relationship/engine.server");
   await productionEngine().tick(input.leadId);
+  const internalMessageOrder = stepActions(input.step as CadenceV2Step)
+    .find((action) => action.kind === "message")?.order;
+  if (internalMessageOrder == null) {
+    return { concluded: false, reason: "Etapa sem mensagem vinculada à ligação." };
+  }
+  const cycleOffset = (call.actionOrder ?? 0) >= REENTRY_ORDER_SPAN
+    ? Math.floor((call.actionOrder ?? 0) / REENTRY_ORDER_SPAN) * REENTRY_ORDER_SPAN
+    : 0;
+  const messageOrder = cycleOffset + internalMessageOrder;
   const { data: message } = await supabaseAdmin
     .from("relationship_queue")
     .select("id,status")
@@ -566,6 +577,7 @@ export async function completeCallAndMessage(input: DailyActionLogInput & {
     .eq("lead_id", input.leadId)
     .eq("step", input.step)
     .eq("action_kind", "message")
+    .eq("action_order", messageOrder)
     .in("status", ["PENDING", "PROCESSING", "EXECUTED"])
     .order("action_order", { ascending: true })
     .limit(1)
