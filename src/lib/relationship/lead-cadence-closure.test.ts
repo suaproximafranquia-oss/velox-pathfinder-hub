@@ -121,4 +121,12 @@ describe("Encerrar/Reabrir integrado à régua V2", () => {
     expect(supportsWorkspaceCadenceControl("green_sales")).toBe(false);
     expect(supportsWorkspaceCadenceControl("redistribuicao")).toBe(false);
   });
+
+  it("preserva PROCESSING como claim protegido durante o encerramento", () => {
+    const pending = action("E1", "PENDING", 1, "call");
+    const processing = action("E1", "PROCESSING", 1, "call");
+    expect(pending.status).toBe("PENDING");
+    expect(processing.status).toBe("PROCESSING");
+    expect(isNeutralizedCadenceCancellation(processing.status, processing.cancelReason)).toBe(false);
+  });
 });

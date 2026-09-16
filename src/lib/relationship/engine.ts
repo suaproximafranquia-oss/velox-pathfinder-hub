@@ -544,7 +544,9 @@ export function createEngine(options: EngineOptions): Engine {
           ? explicitCancelReason
           : CANCELLING_EVENTS[event.type];
       if (cancelReason) {
-        await repository.cancelPendingItems(event.leadId, cancelReason);
+        await repository.cancelPendingItems(event.leadId, cancelReason, {
+          preserveProcessing: event.data?.["preserveProcessing"] === true,
+        });
       }
 
       if (event.historical) {

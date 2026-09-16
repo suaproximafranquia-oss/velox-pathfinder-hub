@@ -36,6 +36,7 @@ export async function syncWorkspaceLeadCadenceState(input: {
       ? {
           actorId: input.actorId,
           cancelReason: NEGOTIATION_CLOSED_CANCEL_REASON,
+          preserveProcessing: true,
           source: "workspace_closed_at",
         }
       : {
