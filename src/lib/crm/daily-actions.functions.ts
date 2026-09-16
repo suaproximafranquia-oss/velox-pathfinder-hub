@@ -33,11 +33,14 @@ async function currentExecutiveId(context: { supabase: never }): Promise<string 
  */
 export const listDailyActions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<DailyAction[]> => {
+  .inputValidator((data: { activeActionKey?: string | null } | undefined) =>
+    z.object({ activeActionKey: z.string().min(1).nullable().optional() }).optional().parse(data),
+  )
+  .handler(async ({ data, context }): Promise<DailyAction[]> => {
     await assertManager(context as never);
     const executiveId = await currentExecutiveId(context as never);
     const { currentDailyAction } = await import("@/server/crm/daily-actions-gate.server");
-    return (await currentDailyAction(executiveId)).list;
+    return (await currentDailyAction(executiveId, { activeActionKey: data?.activeActionKey })).list;
   });
 
 /** Contador discreto do botão: atrasadas x hoje x reuniões. */
@@ -137,6 +140,7 @@ export const getDailyActionMessageFn = createServerFn({ method: "POST" })
     (data: {
       leadId: string;
       step: string;
+      actionKey: string;
       context?: "SEM_CONTATO" | "CONTATO_REALIZADO";
       pendingRecovery?: boolean;
     }) => data,
@@ -148,6 +152,7 @@ export const getDailyActionMessageFn = createServerFn({ method: "POST" })
     await assertCurrentLead({
       executiveId,
       leadId: data.leadId,
+      activeActionKey: data.actionKey,
       allowPendingRecovery: data.pendingRecovery === true,
     });
     if (data.context && data.context !== "CONTATO_REALIZADO") {
@@ -435,6 +440,7 @@ export const registerQueueCallOutcomeFn = createServerFn({ method: "POST" })
     const { current, queueItemId } = await assertCurrentQueueItem({
       executiveId,
       queueItemId: data.queueItemId,
+      actionKey: data.actionKey,
       allowPendingRecovery: data.pendingRecovery === true,
     });
     const { registerQueueCallOutcome } = await import(

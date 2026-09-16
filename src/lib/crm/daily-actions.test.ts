@@ -347,6 +347,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
       stepLabel: "E0",
       name: "Kelly",
       claimed: true,
+      active: true,
     });
     const rows = normalizeDailyActions([kellyEmAtendimento, ronaldoMsg], "ronaldo");
     expect(rows[0]?.leadId).toBe("kelly");
@@ -354,7 +355,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
   });
 
   it("ação claimed vence compromisso de prioridade máxima no empate", () => {
-    const claimed = action({ actionKey: "queue:claimed:E1:1", leadId: "claimed", claimed: true });
+    const claimed = action({ actionKey: "queue:claimed:E1:1", leadId: "claimed", claimed: true, active: true });
     const meeting = action({
       actionKey: "meeting:priority",
       source: "meeting",
@@ -368,7 +369,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
   });
 
   it("Q) PROCESSING permanece protegido durante a reconciliação", () => {
-    const current = action({ actionKey: "processing", leadId: "current", claimed: true, sortAt: "2026-09-20T17:00:00.000Z" });
+    const current = action({ actionKey: "processing", leadId: "current", claimed: true, active: true, sortAt: "2026-09-20T17:00:00.000Z" });
     const older = action({ actionKey: "older", leadId: "older", stepLabel: "E0", sortAt: "2026-09-18T22:00:00.000Z" });
     expect(normalizeDailyActions([older, current])[0]?.actionKey).toBe("processing");
   });
@@ -389,7 +390,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
       action({ actionKey: "e0", leadId: "e0", stepLabel: "E0" }),
       action({ actionKey: "alert", leadId: "alert", source: "portal_alert", kind: "alerta_portal", bucket: "alerta" }),
       action({ actionKey: "urgent", leadId: "urgent", source: "meeting", kind: "reuniao", bucket: "agora", priorityMax: true }),
-      action({ actionKey: "claimed", leadId: "claimed", claimed: true }),
+      action({ actionKey: "claimed", leadId: "claimed", claimed: true, active: true }),
     ]);
     expect(rows.map((row) => row.actionKey)).toEqual([
       "claimed", "urgent", "alert", "e0", "late", "normal",
@@ -410,7 +411,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
   });
 
   it("RE0 não desloca PROCESSING e preserva a continuidade", () => {
-    const claimed = action({ actionKey: "claimed", leadId: "claimed", claimed: true });
+    const claimed = action({ actionKey: "claimed", leadId: "claimed", claimed: true, active: true });
     const re0 = action({ actionKey: "re0", leadId: "re0", stepLabel: "RE0" });
     const continuation = action({ actionKey: "continuation", leadId: "same", stepLabel: "E1" });
     expect(normalizeDailyActions([re0, claimed])[0]?.actionKey).toBe("claimed");
@@ -419,7 +420,7 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
 
   it("mantém agendamento urgente do mesmo lead logo após a ação claimada", () => {
     const rows = normalizeDailyActions([
-      action({ actionKey: "claimed", leadId: "same", claimed: true }),
+      action({ actionKey: "claimed", leadId: "same", claimed: true, active: true }),
       action({ actionKey: "meeting", leadId: "same", source: "meeting", kind: "reuniao", bucket: "agora", priorityMax: true }),
       action({ actionKey: "duplicate", leadId: "same", source: "queue" }),
     ]);

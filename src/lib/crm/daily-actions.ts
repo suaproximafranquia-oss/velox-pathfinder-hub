@@ -107,8 +107,10 @@ export type DailyAction = {
   expiresAt?: string;
   /** Primeira ligação E0: atendimento exige decisão explícita, inclusive na segunda-feira. */
   e0AttendedChoice?: boolean;
-  /** Ação reivindicada pelo executivo (PROCESSING) — posição 1 protegida. */
+  /** Estado persistido da fila (`PROCESSING`); não implica blindagem visual. */
   claimed?: boolean;
+  /** Único card efetivamente ativo nesta leitura da Ação do Dia. */
+  active?: boolean;
   /** Reunião de origem (`portal_meetings.id`), quando for uma reunião. */
   meetingId?: string;
   /**
@@ -222,10 +224,11 @@ export function resolveBucket(input: {
  */
 export function actionRank(action: DailyAction): number {
   /**
-   * POSIÇÃO 1 PROTEGIDA: a ação já reivindicada pelo executivo (em
-   * atendimento) não é deslocada por novas liberações da régua.
+   * POSIÇÃO 1 PROTEGIDA: somente o card efetivamente ativo na interface
+   * não é deslocado por novas liberações da régua. `PROCESSING` sozinho
+   * continua preservado no dado, mas não recebe prioridade máxima.
    */
-  if (action.claimed) return -1;
+  if (action.active) return -1;
   /**
    * AVISO DO PORTAL: entra depois das emergências em foco e antes dos
    * leads novos. Continua sendo apenas sinal informativo.
@@ -279,9 +282,9 @@ export function sortDailyActions(
   continuityLeadId?: string | null,
 ): DailyAction[] {
   return [...actions].sort((a, b) => {
-    /** Um atendimento já reivindicado nunca é interrompido. */
-    const claimed = Number(Boolean(b.claimed)) - Number(Boolean(a.claimed));
-    if (claimed !== 0) return claimed;
+    /** Somente o card efetivamente ativo nunca é interrompido. */
+    const active = Number(Boolean(b.active)) - Number(Boolean(a.active));
+    if (active !== 0) return active;
     /**
      * A continuação do trabalho da MESMA lead não é uma ação nova
      * disputando a vez. Ela permanece na posição 1 depois que a ação
@@ -383,16 +386,16 @@ export function collapseByLead(actions: DailyAction[]): DailyAction[] {
     }
     /**
      * Exceção operacional estreita: um agendamento urgente do mesmo lead
-     * não pode desaparecer atrás da ação já em atendimento. Ambos seguem
+     * não pode desaparecer atrás da ação ativa. Ambos seguem
      * visíveis; nenhuma outra combinação deixa de ser colapsada.
      */
-    const claimedAndUrgentMeeting =
-      (current.claimed && action.source === "meeting" && action.bucket === "agora") ||
-      (action.claimed && current.source === "meeting" && current.bucket === "agora");
-    if (claimedAndUrgentMeeting) {
-      const claimedAction = action.claimed ? action : current;
-      const meetingAction = action.claimed ? current : action;
-      byLead.set(action.leadId, claimedAction);
+    const activeAndUrgentMeeting =
+      (current.active && action.source === "meeting" && action.bucket === "agora") ||
+      (action.active && current.source === "meeting" && current.bucket === "agora");
+    if (activeAndUrgentMeeting) {
+      const activeAction = action.active ? action : current;
+      const meetingAction = action.active ? current : action;
+      byLead.set(action.leadId, activeAction);
       loose.push(meetingAction);
       continue;
     }

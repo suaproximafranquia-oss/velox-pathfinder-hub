@@ -104,11 +104,17 @@ async function recentContinuityLead(executiveId: string | null): Promise<string 
 
 export async function currentDailyAction(
   executiveId: string | null,
-  options: { skipReconcile?: boolean } = {},
+  options: { skipReconcile?: boolean; activeActionKey?: string | null } = {},
 ): Promise<CurrentAction> {
   const continuityLeadId = await recentContinuityLead(executiveId);
+  const source = await buildDailyActions({ executiveId, skipReconcile: options.skipReconcile === true });
+  const requestedActive = options.activeActionKey
+    ? source.find(
+        (item) => item.actionKey === options.activeActionKey && isAutomaticDailyAction(item),
+      )?.actionKey ?? null
+    : null;
   let list = normalizeDailyActions(
-    await buildDailyActions({ executiveId, skipReconcile: options.skipReconcile === true }),
+    source.map((item) => ({ ...item, active: item.actionKey === requestedActive })),
     continuityLeadId,
   );
   const first = list.find(isAutomaticDailyAction) ?? null;
@@ -134,10 +140,18 @@ export async function currentDailyAction(
       .select("id");
     if (data && data.length > 0) {
       list = normalizeDailyActions(
-        list.map((item) => (item.actionKey === first.actionKey ? { ...item, claimed: true } : item)),
+        list.map((item) =>
+          item.actionKey === first.actionKey ? { ...item, claimed: true, active: true } : item,
+        ),
         continuityLeadId,
       );
     }
+  }
+  if (first && !first.active) {
+    list = normalizeDailyActions(
+      list.map((item) => ({ ...item, active: item.actionKey === first.actionKey })),
+      continuityLeadId,
+    );
   }
   return { current: list.find(isAutomaticDailyAction) ?? null, list };
 }
@@ -182,7 +196,9 @@ export async function assertCurrentAction(input: {
   /** Resolução de pendência pulada, aberta pela Central de Operações. */
   allowPendingRecovery?: boolean;
 }): Promise<DailyAction> {
-  const { current } = await currentDailyAction(input.executiveId);
+  const { current } = await currentDailyAction(input.executiveId, {
+    activeActionKey: input.actionKey,
+  });
   if (current && current.actionKey === input.actionKey) return current;
   if (input.allowPendingRecovery) {
     const pending = await findPendingRecoveryAction({
@@ -207,9 +223,12 @@ export async function assertCurrentAction(input: {
 export async function assertCurrentLead(input: {
   executiveId: string | null;
   leadId: string | null;
+  activeActionKey?: string | null;
   allowPendingRecovery?: boolean;
 }): Promise<DailyAction> {
-  const { current } = await currentDailyAction(input.executiveId);
+  const { current } = await currentDailyAction(input.executiveId, {
+    activeActionKey: input.activeActionKey,
+  });
   if (current && input.leadId && current.leadId === input.leadId) return current;
   if (input.allowPendingRecovery && input.leadId) {
     const pending = await findPendingRecoveryAction({
@@ -232,9 +251,12 @@ export async function assertCurrentLead(input: {
 export async function assertCurrentQueueItem(input: {
   executiveId: string | null;
   queueItemId: string;
+  actionKey: string;
   allowPendingRecovery?: boolean;
 }): Promise<{ current: DailyAction; queueItemId: string }> {
-  const { current } = await currentDailyAction(input.executiveId);
+  const { current } = await currentDailyAction(input.executiveId, {
+    activeActionKey: input.actionKey,
+  });
   const officialId = queueItemIdOf(current);
   if (current && officialId && officialId === input.queueItemId) {
     return { current, queueItemId: officialId };

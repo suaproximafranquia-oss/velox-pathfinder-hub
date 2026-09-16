@@ -46,7 +46,8 @@ export type StepMessageView = {
 export type DailyActionsAdapter = {
   /** Rótulo de ambiente; presente somente fora do modo real. */
   demoLabel?: string;
-  load: () => Promise<DailyAction[]>;
+  /** A chave ativa preserva somente o card que está aberto nesta interface. */
+  load: (activeActionKey?: string | null) => Promise<DailyAction[]>;
   executeFirstContact: (item: DailyAction) => Promise<AdapterResult>;
   /** `rang` só é informado quando o investidor NÃO atendeu. */
   completeCall: (

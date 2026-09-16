@@ -245,3 +245,9 @@
 - [x] Reabrir a mesma instância pela execução real, materializando somente a obrigação correta e idempotente.
 - [x] Preservar Pular, histórico, snapshots, GreenSales e todos os módulos fora do escopo.
 - [x] Validar cenários A–M, tipos, build e Preview sem publicação ou alteração de dados reais (91 testes focados, tipos e build aprovados; `/f` abriu sem erro de página/console; nenhum dado real foi alterado).
+
+## Blindagem única da Ação do Dia
+
+- [x] Separar o card efetivamente ativo dos registros apenas persistidos como `PROCESSING`.
+- [x] Preservar somente uma ação ativa nas releituras e ordenar as demais pela hierarquia oficial.
+- [ ] Validar cenários A–J, tipos, build e Preview autenticado, sem publicação ou alteração de dados reais.
