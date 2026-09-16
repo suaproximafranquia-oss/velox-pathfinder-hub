@@ -82,7 +82,7 @@ export async function saveEnvironmentPresentation(params: {
         mux_playback_id: params.muxPlaybackId || null,
         is_published: params.isPublished,
         published_at: params.isPublished ? nowIso : null,
-        published_by: params.isPublished ? params.actorId : null,
+        updated_by: params.isPublished ? params.actorId : null,
         updated_at: nowIso,
       } as never,
       { onConflict: "environment" },
