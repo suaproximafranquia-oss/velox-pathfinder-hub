@@ -262,4 +262,4 @@
 
 - [x] Acrescentar os blocos 12h–13h e 18h–19h à Agenda, preservando a ocupação por sobreposição.
 - [x] Manter todas as etapas compostas ativas após SIM/ATENDEU até a mensagem da mesma etapa ser concluída.
-- [ ] Validar testes focados, tipos, build e Preview sem publicação.
+- [x] Validar testes focados, tipos, build e Preview sem publicação (112 testes e tipos aprovados; build automático OK; `/f` abriu sem erro de página, mas a sessão disponível permaneceu na página pública e não expôs a Agenda autenticada).
