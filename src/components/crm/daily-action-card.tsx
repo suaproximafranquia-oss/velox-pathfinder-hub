@@ -93,7 +93,8 @@ export function dailyActionWhatsappUrl(phone: string | null | undefined): string
 
 export function openDailyActionWhatsapp(
   phone: string | null | undefined,
-  openWindow: (url: string, target: string, features: string) => unknown = window.open,
+  openWindow: (url: string, target: string, features: string) => unknown = (url, target, features) =>
+    window.open(url, target, features),
 ): boolean {
   const url = dailyActionWhatsappUrl(phone);
   if (!url) return false;
@@ -371,6 +372,7 @@ export function DailyActionCard({
   async function handleOpenMessage(context?: "CONTATO_REALIZADO") {
     setBusy(true);
     setMessage(null);
+    setWhatsappFeedback(null);
     try {
       /**
        * Se o pré-gatilho da ligação anterior já leu esta mesma mensagem

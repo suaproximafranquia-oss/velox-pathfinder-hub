@@ -87,7 +87,10 @@ describe("Ação do Dia — mensagem após ligação", () => {
     expect(source).toContain("copyMessageBody(message?.body)");
     expect(source).toContain("completeCallAndMessage(callPending.outcome, callPending.rang)");
     expect(source).toContain("<ExternalLink className=\"h-4 w-4\" /> Ver ficha completa");
-    expect(source.match(/Ver ficha completa/g)).toHaveLength(2);
+    const messageModal = source.slice(source.indexOf("{messageOpen && ("));
+    expect(messageModal).not.toContain("Ver ficha completa");
+    expect(messageModal).toContain("<MessageCircle");
+    expect(messageModal).toContain("WhatsApp");
     expect(source).toContain("Telefone não disponível para abrir o WhatsApp.");
   });
 });
