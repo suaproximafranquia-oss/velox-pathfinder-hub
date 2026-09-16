@@ -23,3 +23,8 @@ export function isNeutralizedCadenceCancellation(
       cancelReason === NEGOTIATION_CLOSED_CANCEL_REASON)
   );
 }
+
+/** Encerramento não toma uma ação já reivindicada nem reescreve histórico. */
+export function shouldNeutralizeOnNegotiationClose(status: string): boolean {
+  return status === "PENDING";
+}

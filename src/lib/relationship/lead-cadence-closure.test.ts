@@ -3,6 +3,7 @@ import { decideCadenceV2, type V2DecisionInput, type V2QueueAction } from "./cad
 import {
   isNeutralizedCadenceCancellation,
   NEGOTIATION_CLOSED_CANCEL_REASON,
+  shouldNeutralizeOnNegotiationClose,
   supportsWorkspaceCadenceControl,
 } from "./lead-cadence-closure";
 
@@ -128,5 +129,8 @@ describe("Encerrar/Reabrir integrado à régua V2", () => {
     expect(pending.status).toBe("PENDING");
     expect(processing.status).toBe("PROCESSING");
     expect(isNeutralizedCadenceCancellation(processing.status, processing.cancelReason)).toBe(false);
+    expect(shouldNeutralizeOnNegotiationClose("PENDING")).toBe(true);
+    expect(shouldNeutralizeOnNegotiationClose("PROCESSING")).toBe(false);
+    expect(shouldNeutralizeOnNegotiationClose("EXECUTED")).toBe(false);
   });
 });

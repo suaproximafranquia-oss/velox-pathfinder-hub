@@ -110,15 +110,30 @@ export const updateWorkspaceOperational = createServerFn({ method: "POST" })
         throw new Error("Lead não encontrado ou sem permissão para esta operação.");
       }
       if (data.closedAt !== undefined) {
-        const { syncWorkspaceLeadCadenceState } = await import(
-          "@/server/relationship/lead-cadence-control.server"
-        );
-        await syncWorkspaceLeadCadenceState({
-          leadId: data.id,
-          closedAt: data.closedAt,
-          previousClosedAt,
-          actorId: context.userId,
-        });
+        try {
+          const { syncWorkspaceLeadCadenceState } = await import(
+            "@/server/relationship/lead-cadence-control.server"
+          );
+          await syncWorkspaceLeadCadenceState({
+            leadId: data.id,
+            closedAt: data.closedAt,
+            previousClosedAt,
+            actorId: context.userId,
+          });
+        } catch (cadenceError) {
+          // O controle visual e o motor formam uma única operação percebida:
+          // se a cadência falhar, restaura `closed_at` antes de informar erro.
+          await context.supabase.rpc("set_lead_operational", {
+            _id: data.id,
+            _viewed_at: null,
+            _closed_at: previousClosedAt,
+            _notes: null,
+            _set_viewed: false,
+            _set_closed: true,
+            _set_notes: false,
+          } as never);
+          throw cadenceError;
+        }
       }
     }
 
