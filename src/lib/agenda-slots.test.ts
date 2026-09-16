@@ -14,9 +14,20 @@ const meeting: AgendaItem = {
 };
 
 describe("Agenda lateral da Ação do Dia", () => {
-  it("monta somente os oito horários operacionais, sem almoço", () => {
-    expect(AGENDA_SLOT_HOURS).toEqual([9, 10, 11, 13, 14, 15, 16, 17]);
-    expect(buildAgendaSlots([], "2026-09-15").map((slot) => slot.label)).not.toContain("12:00 – 13:00");
+  it("monta os dez horários operacionais em ordem cronológica", () => {
+    expect(AGENDA_SLOT_HOURS).toEqual([9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+    expect(buildAgendaSlots([], "2026-09-15").map((slot) => slot.label)).toEqual([
+      "09:00 – 10:00",
+      "10:00 – 11:00",
+      "11:00 – 12:00",
+      "12:00 – 13:00",
+      "13:00 – 14:00",
+      "14:00 – 15:00",
+      "15:00 – 16:00",
+      "16:00 – 17:00",
+      "17:00 – 18:00",
+      "18:00 – 19:00",
+    ]);
   });
 
   it("marca horário passado sem compromisso como indisponível", () => {

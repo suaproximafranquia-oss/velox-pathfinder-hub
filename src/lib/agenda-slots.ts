@@ -1,6 +1,6 @@
 import type { AgendaItem } from "@/lib/agenda-types";
 
-export const AGENDA_SLOT_HOURS = [9, 10, 11, 13, 14, 15, 16, 17] as const;
+export const AGENDA_SLOT_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18] as const;
 
 export type AgendaSlot = {
   key: string;
