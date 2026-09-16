@@ -47,7 +47,7 @@ export function presentationVideoSource(videoUrl?: string | null): string | null
   return source || null;
 }
 
-function PresentationVideo({ videoUrl, title }: { videoUrl?: string | null; title: string }) {
+export function PresentationVideo({ videoUrl, title }: { videoUrl?: string | null; title: string }) {
   const source = presentationVideoSource(videoUrl);
 
   if (!source) {
