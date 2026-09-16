@@ -25,6 +25,7 @@ describe("Apresentação Digital com Mux", () => {
     );
     expect(html).toContain("digital-presentation-placeholder");
     expect(html).toContain("Contexto");
+    expect(html).toContain("Legenda");
     expect(html).not.toContain("mux-player");
     expect(html).not.toContain("iframe");
   });
@@ -57,8 +58,22 @@ describe("Apresentação Digital com Mux", () => {
     );
     expect(html).toContain("mux-player");
     expect(html).not.toContain("whitespace-pre-line");
+    expect(html).not.toContain(">Legenda<");
     expect(html).not.toContain("undefined");
     expect(html).not.toContain("null");
+  });
+
+  it("usa a sede como fundo e oferece continuação direta para o Portal", () => {
+    const html = renderToStaticMarkup(
+      <PublicDigitalPresentation
+        presentation={{ muxPlaybackId: TEST_PLAYBACK_ID, introText: "Linha extensa da legenda" }}
+      />,
+    );
+    expect(html).toContain("velox-financeira-sede.png");
+    expect(html).toContain('href="https://portalvelox.com.br/f"');
+    expect(html).toContain("Continuar no Portal do Investidor");
+    expect(html).toContain("whitespace-pre-wrap");
+    expect(html).toContain("break-words");
   });
 
   it("mantém a Home apontando para a rota administrativa única", () => {
