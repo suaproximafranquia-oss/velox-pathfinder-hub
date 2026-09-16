@@ -232,3 +232,10 @@
 - [x] Tornar a ausência de `videoUrl` um estado válido com título, legenda e placeholder, sem iframe social.
 - [x] Preservar a rota pública de convite, Biblioteca, cadência, CRM, Agenda e banco.
 - [x] Validar testes focados, tipos e build; Preview público sem erros e validação autenticada bloqueada pelo login corporativo local (5 testes, tipos e build aprovados; nada publicado).
+
+## Finalização visual da Apresentação Digital — Financeira
+
+- [x] Usar a fotografia institucional anexada como fundo em cover, com tratamento azul-marinho e contraste para o conteúdo.
+- [x] Refinar título, vídeo e legenda da experiência pública, preservando integralmente Mux, convite e dados.
+- [x] Adicionar continuação direta para `https://portalvelox.com.br/f`, sem depender do histórico do navegador.
+- [x] Validar testes focados, tipos, build e Preview desktop/mobile, sem publicar (12 testes e tipos aprovados; build OK; fundo, legenda e destino confirmados sem overflow; o Chromium automatizado manteve o erro de codec conhecido do arquivo Mux, sem alteração no player).
