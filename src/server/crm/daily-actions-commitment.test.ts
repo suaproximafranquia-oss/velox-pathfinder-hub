@@ -40,3 +40,27 @@ it("exceção não autoriza outra reunião ou ação de cadência", async () => 
   await expect(assertCommitmentAction({ executiveId: "TEST-exec", actionKey: past.actionKey, meetingId: past.meetingId })).rejects.toThrow();
   expect(fake.updates).not.toHaveBeenCalled();
 });
+
+it("reload não promove vários PROCESSING antigos acima de um E0", async () => {
+  fake.rows = [
+    { actionKey: "stale-b", source: "queue", leadId: "stale-b", bucket: "hoje", dueDate: "2026-09-16", stepLabel: "E1", claimed: true },
+    { actionKey: "new-e0", source: "queue", leadId: "new", bucket: "hoje", dueDate: "2026-09-16", stepLabel: "E0" },
+    { actionKey: "stale-a", source: "queue", leadId: "stale-a", bucket: "hoje", dueDate: "2026-09-16", stepLabel: "E1", claimed: true },
+  ];
+  const result = await currentDailyAction("TEST-exec");
+  expect(result.current?.actionKey).toBe("new-e0");
+  expect(result.list.map((item) => item.actionKey)).toEqual(["new-e0", "stale-a", "stale-b"]);
+  expect(result.list.filter((item) => item.active)).toHaveLength(1);
+  expect(result.list.filter((item) => item.claimed)).toHaveLength(2);
+});
+
+it("releitura mantém somente a actionKey ativa acima de uma nova E0", async () => {
+  fake.rows = [
+    { actionKey: "active-e1", source: "queue", leadId: "active", bucket: "hoje", dueDate: "2026-09-16", stepLabel: "E1", claimed: true },
+    { actionKey: "new-e0", source: "queue", leadId: "new", bucket: "hoje", dueDate: "2026-09-16", stepLabel: "E0" },
+    { actionKey: "stale-e1", source: "queue", leadId: "stale", bucket: "hoje", dueDate: "2026-09-16", stepLabel: "E1", claimed: true },
+  ];
+  const result = await currentDailyAction("TEST-exec", { activeActionKey: "active-e1" });
+  expect(result.list.map((item) => item.actionKey)).toEqual(["active-e1", "new-e0", "stale-e1"]);
+  expect(result.list.filter((item) => item.active).map((item) => item.actionKey)).toEqual(["active-e1"]);
+});
