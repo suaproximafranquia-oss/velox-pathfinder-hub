@@ -93,6 +93,27 @@ export const resgatarConviteE20 = createServerFn({ method: "POST" })
     return redeemE20(data.token, data.userAgent ?? null);
   });
 
+/** Abre a mesma rota pública usando o convite vigente mais recente emitido pelo administrador. */
+export const conviteVigenteParaPrevisualizacao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertAdministrativeAccess } = await import("@/server/authorization.server");
+    await assertAdministrativeAccess(context as any);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const now = new Date().toISOString();
+    const { data, error } = await supabaseAdmin
+      .from("relationship_e20_occurrences")
+      .select("link_url")
+      .eq("generated_by", context.userId)
+      .is("closed_at", null)
+      .gt("expires_at", now)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { linkUrl: (data as { link_url?: string } | null)?.link_url ?? null };
+  });
+
 /**
  * ESTADOS INDEPENDENTES (§10): copiar NUNCA significa enviar. Cada clique
  * registra apenas o fato ocorrido.

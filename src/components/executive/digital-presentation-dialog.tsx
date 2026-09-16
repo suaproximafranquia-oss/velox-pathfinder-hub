@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Eye, Save } from "lucide-react";
 import { toast } from "sonner";
-import { PublicDigitalPresentation } from "@/components/portal/public-digital-presentation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -19,6 +18,7 @@ import {
   listarApresentacoesAmbiente,
   salvarApresentacaoAmbiente,
 } from "@/lib/relationship/presentation.functions";
+import { conviteVigenteParaPrevisualizacao } from "@/lib/relationship/e20.functions";
 
 type PresentationItem = {
   environment: string;
@@ -49,17 +49,15 @@ export function DigitalPresentationDialog({
   const list = useServerFn(listarApresentacoesAmbiente);
   const save = useServerFn(salvarApresentacaoAmbiente);
   const [draft, setDraft] = useState<PresentationDraft>({ ...EMPTY_DRAFT });
-  const [published, setPublished] = useState<PresentationItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [investorView, setInvestorView] = useState(false);
+  const preview = useServerFn(conviteVigenteParaPrevisualizacao);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const rows = (await list({})) as PresentationItem[];
       const finance = rows.find((item) => item.environment === "financeira") ?? null;
-      setPublished(finance?.isPublished ? finance : null);
       setDraft(
         finance
           ? {
@@ -100,6 +98,19 @@ export function DigitalPresentationDialog({
     }
   }
 
+  async function openInvestorView() {
+    try {
+      const result = await preview({});
+      if (!result.linkUrl) {
+        toast.info("Não há convite vigente emitido por você para visualizar.");
+        return;
+      }
+      window.open(result.linkUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao abrir a experiência pública.");
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
@@ -108,17 +119,7 @@ export function DigitalPresentationDialog({
           <DialogDescription>Configuração da experiência pública da Financeira.</DialogDescription>
         </DialogHeader>
 
-        {investorView ? (
-          <div className="overflow-hidden rounded-lg border border-border">
-            <PublicDigitalPresentation
-              presentation={{
-                muxPlaybackId: published?.muxPlaybackId ?? null,
-                introText: published?.introText ?? null,
-              }}
-            />
-          </div>
-        ) : (
-          <div className="space-y-5">
+        <div className="space-y-5">
             <div className="rounded-md border border-border bg-muted/30 px-4 py-3">
               <p className="text-xs text-muted-foreground">Ambiente</p>
               <p className="mt-1 text-sm font-medium">Financeira</p>
@@ -156,25 +157,22 @@ export function DigitalPresentationDialog({
               />
               <Label htmlFor="presentation-published">Publicada</Label>
             </div>
-          </div>
-        )}
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <Button
             type="button"
             variant="outline"
             disabled={loading}
-            onClick={() => setInvestorView((value) => !value)}
+            onClick={() => void openInvestorView()}
           >
             <Eye aria-hidden />
-            {investorView ? "Voltar à configuração" : "Ver como o investidor"}
+            Ver como o investidor
           </Button>
-          {!investorView ? (
-            <Button type="button" disabled={busy || loading} onClick={() => void submit()}>
-              <Save aria-hidden />
-              Salvar
-            </Button>
-          ) : null}
+          <Button type="button" disabled={busy || loading} onClick={() => void submit()}>
+            <Save aria-hidden />
+            Salvar
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

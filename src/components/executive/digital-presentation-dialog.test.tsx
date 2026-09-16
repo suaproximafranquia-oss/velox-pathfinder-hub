@@ -65,5 +65,7 @@ describe("Apresentação Digital com Mux", () => {
     expect(dialog).not.toContain("Solar");
     expect(dialog).not.toContain("Seguradora");
     expect(dialog).not.toContain("<MuxPlayer");
+    expect(dialog).toContain("conviteVigenteParaPrevisualizacao");
+    expect(dialog).toContain("window.open(result.linkUrl");
   });
 });
