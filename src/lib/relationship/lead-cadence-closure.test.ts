@@ -26,7 +26,11 @@ function action(
   };
 }
 
-function input(actions: V2QueueAction[], closed = false): V2DecisionInput {
+function input(
+  actions: V2QueueAction[],
+  closed = false,
+  executedSteps: string[] = [],
+): V2DecisionInput {
   return {
     nowIso: NOW,
     flow: "E",
@@ -34,7 +38,7 @@ function input(actions: V2QueueAction[], closed = false): V2DecisionInput {
     actions: actions.filter(
       (row) => !isNeutralizedCadenceCancellation(row.status, row.cancelReason),
     ),
-    executedSteps: [],
+    executedSteps,
     cycle: {
       materialSent: false,
       materialRequested: false,
@@ -51,8 +55,8 @@ function input(actions: V2QueueAction[], closed = false): V2DecisionInput {
   };
 }
 
-function nextStep(actions: V2QueueAction[]): string | null {
-  const decision = decideCadenceV2(input(actions));
+function nextStep(actions: V2QueueAction[], executedSteps: string[] = []): string | null {
+  const decision = decideCadenceV2(input(actions, false, executedSteps));
   return decision.kind === "obligation" ? decision.step : null;
 }
 
@@ -62,46 +66,35 @@ describe("Encerrar/Reabrir integrado à régua V2", () => {
   });
 
   it("B — Portal com E0 executada retoma E1", () => {
-    expect(nextStep([action("E0", "EXECUTED", 1, "call")])).toBe("E1");
+    expect(nextStep([], ["E0"])).toBe("E1");
   });
 
   it("C — TikTok com E1 não executada retoma E1", () => {
     expect(nextStep([
-      action("E0", "EXECUTED", 1, "call"),
       action("E1", "CANCELLED", 1, "call"),
-    ])).toBe("E1");
+    ], ["E0"])).toBe("E1");
   });
 
   it("D — Meta com E1 executada retoma E2", () => {
     expect(nextStep([
-      action("E0", "EXECUTED", 1, "call"),
-      action("E1", "EXECUTED", 1, "call"),
-    ])).toBe("E2");
+    ], ["E0", "E1"])).toBe("E2");
   });
 
   it("E — E2 executada e E3 não executada retoma E3", () => {
     expect(nextStep([
-      action("E0", "EXECUTED", 1, "call"),
-      action("E1", "EXECUTED", 1, "call"),
-      action("E2", "EXECUTED", 1, "call"),
       action("E3", "CANCELLED", 1, "call"),
-    ])).toBe("E3");
+    ], ["E0", "E1", "E2"])).toBe("E3");
   });
 
   it("F — E3 executada retoma E4", () => {
     expect(nextStep([
-      action("E0", "EXECUTED", 1, "call"),
-      action("E1", "EXECUTED", 1, "call"),
-      action("E2", "EXECUTED", 1, "call"),
-      action("E3", "EXECUTED", 1, "call"),
-    ])).toBe("E4");
+    ], ["E0", "E1", "E2", "E3"])).toBe("E4");
   });
 
   it("G — ação pulada permanece pendente e não avança", () => {
     expect(nextStep([
-      action("E0", "EXECUTED", 1, "call"),
       action("E1", "PENDING", 1, "call"),
-    ])).toBe("E1");
+    ], ["E0"])).toBe("E1");
   });
 
   it("H/I — encerramento impede obrigação em reconciliação ou reload", () => {
@@ -110,16 +103,15 @@ describe("Encerrar/Reabrir integrado à régua V2", () => {
   });
 
   it("J/K — reabertura repetida decide uma única chave coerente", () => {
-    const actions = [action("E0", "EXECUTED", 1, "call")];
-    const first = decideCadenceV2(input(actions));
-    const repeated = decideCadenceV2(input(actions));
+    const first = decideCadenceV2(input([], false, ["E0"]));
+    const repeated = decideCadenceV2(input([], false, ["E0"]));
     expect(first).toMatchObject({ kind: "obligation", step: "E1", actionOrder: 1 });
     expect(repeated).toEqual(first);
   });
 
   it("L — EXECUTED permanece decisivo e nunca é neutralizado", () => {
     expect(isNeutralizedCadenceCancellation("EXECUTED", NEGOTIATION_CLOSED_CANCEL_REASON)).toBe(false);
-    expect(nextStep([action("E0", "EXECUTED", 1, "call")])).toBe("E1");
+    expect(nextStep([], ["E0"])).toBe("E1");
   });
 
   it("M — somente Portal, TikTok e Meta recebem o novo controle", () => {
