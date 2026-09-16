@@ -256,4 +256,4 @@
 
 - [x] Substituir somente o “Ver ficha completa” do modal de mensagem por abertura manual do contato no WhatsApp.
 - [x] Reutilizar o telefone da ação e a normalização central, sem texto preenchido, envio ou transição operacional.
-- [ ] Validar testes focados, tipos, build e Preview autenticado, sem publicar.
+- [x] Validar testes focados, tipos e build sem publicar (37 testes aprovados; Preview autenticado chegou à entrada operacional, mas o usuário injetado não tinha acesso aos cards para inspeção do segundo modal).
