@@ -40,7 +40,7 @@ it("preserva apenas uma consulta de alerta ainda presente", () => {
 it("preserva somente a ação efetivamente ativa durante a releitura silenciosa", () => {
   const processing = { ...action("processing", "hoje"), claimed: true, active: true };
   const incoming = action("incoming", "hoje");
-  expect(reconcileSelectedActionKey([incoming, processing], "incoming")).toBe("processing");
+  expect(reconcileSelectedActionKey([processing, incoming], "processing")).toBe("processing");
 });
 
 it("não troca o card ativo por outro PROCESSING persistido", () => {

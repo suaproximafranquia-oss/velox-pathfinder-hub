@@ -484,8 +484,9 @@ describe("Ações do Dia — continuidade da mesma lead", () => {
     });
 
     it("G–H) releitura e reload recalculam a mesma hierarquia", () => {
-      const reread = reclassifyDailyActions([staleProcessing, e0, active], now);
-      const reload = reclassifyDailyActions([staleProcessing, e0], now);
+      const nowIso = "2026-02-10T14:00:00.000Z";
+      const reread = reclassifyDailyActions([staleProcessing, e0, active], nowIso);
+      const reload = reclassifyDailyActions([staleProcessing, e0], nowIso);
       expect(reread.map((row) => row.actionKey)).toEqual(["active-e1", "new-e0", "stale-e1"]);
       expect(reload.map((row) => row.actionKey)).toEqual(["new-e0", "stale-e1"]);
     });
