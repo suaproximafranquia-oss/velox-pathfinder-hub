@@ -10,6 +10,8 @@ import {
 import { PLATFORM_MODULES, type PlatformModule } from "@/config/modules";
 import { WORKSPACE } from "@/config/workspace";
 import { useWorkspaceAuthorization } from "@/hooks/use-workspace-authorization";
+import { Button } from "@/components/ui/button";
+import { DigitalPresentationDialog } from "@/components/executive/digital-presentation-dialog";
 
 
 export const Route = createFileRoute("/f/executivo/home")({
@@ -26,6 +28,7 @@ function HomePage() {
   const navigate = useNavigate();
   const auth = useWorkspaceAuthorization();
   const [session, setSession] = useState<ExecutiveSession | null>(null);
+  const [presentationOpen, setPresentationOpen] = useState(false);
 
 
   useEffect(() => {
@@ -56,10 +59,15 @@ function HomePage() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visibleModules.map((mod) => (
-            <ModuleCard key={mod.id} module={mod} />
+            <ModuleCard
+              key={mod.id}
+              module={mod}
+              onOpen={mod.id === "apresentacao-digital" ? () => setPresentationOpen(true) : undefined}
+            />
           ))}
         </div>
       </section>
+      <DigitalPresentationDialog open={presentationOpen} onOpenChange={setPresentationOpen} />
     </ExecutiveShell>
   );
 }
@@ -91,12 +99,12 @@ function WorkspaceHero({ session }: { session: ExecutiveSession }) {
   );
 }
 
-function ModuleCard({ module: mod }: { module: PlatformModule }) {
-  return <ModuleCardBody module={mod} />;
+function ModuleCard({ module: mod, onOpen }: { module: PlatformModule; onOpen?: () => void }) {
+  return <ModuleCardBody module={mod} onOpen={onOpen} />;
 }
 
 
-function ModuleCardBody({ module: mod }: { module: PlatformModule }) {
+function ModuleCardBody({ module: mod, onOpen }: { module: PlatformModule; onOpen?: () => void }) {
   const Icon = mod.icon;
   const isActive = mod.status === "ativo";
 
@@ -140,6 +148,18 @@ function ModuleCardBody({ module: mod }: { module: PlatformModule }) {
     </div>
   );
 
+  if (isActive && onOpen) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onOpen}
+        className="block h-auto w-full whitespace-normal p-0 text-left font-normal"
+      >
+        {body}
+      </Button>
+    );
+  }
   if (isActive && mod.href) {
     const isExternal = mod.external === true;
     return (
