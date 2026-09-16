@@ -14,7 +14,6 @@ import { Route as SolarSegurosRouteImport } from './routes/solar-seguros'
 import { Route as SolarRouteImport } from './routes/solar'
 import { Route as SeguradoraRouteImport } from './routes/seguradora'
 import { Route as RemarketingRouteImport } from './routes/remarketing'
-import { Route as PresentationVisualCheckRouteImport } from './routes/presentation-visual-check'
 import { Route as PortalLeadsRouteImport } from './routes/portal-leads'
 import { Route as FinanceiraRouteImport } from './routes/financeira'
 import { Route as FRouteImport } from './routes/f'
@@ -141,11 +140,6 @@ const SeguradoraRoute = SeguradoraRouteImport.update({
 const RemarketingRoute = RemarketingRouteImport.update({
   id: '/remarketing',
   path: '/remarketing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PresentationVisualCheckRoute = PresentationVisualCheckRouteImport.update({
-  id: '/presentation-visual-check',
-  path: '/presentation-visual-check',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortalLeadsRoute = PortalLeadsRouteImport.update({
@@ -674,7 +668,6 @@ export interface FileRoutesByFullPath {
   '/f': typeof FRouteWithChildren
   '/financeira': typeof FinanceiraRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/presentation-visual-check': typeof PresentationVisualCheckRoute
   '/remarketing': typeof RemarketingRoute
   '/seguradora': typeof SeguradoraRoute
   '/solar': typeof SolarRoute
@@ -783,7 +776,6 @@ export interface FileRoutesByTo {
   '/entrar': typeof EntrarRoute
   '/financeira': typeof FinanceiraRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/presentation-visual-check': typeof PresentationVisualCheckRoute
   '/remarketing': typeof RemarketingRoute
   '/seguradora': typeof SeguradoraRoute
   '/solar': typeof SolarRoute
@@ -890,7 +882,6 @@ export interface FileRoutesById {
   '/f': typeof FRouteWithChildren
   '/financeira': typeof FinanceiraRoute
   '/portal-leads': typeof PortalLeadsRoute
-  '/presentation-visual-check': typeof PresentationVisualCheckRoute
   '/remarketing': typeof RemarketingRoute
   '/seguradora': typeof SeguradoraRoute
   '/solar': typeof SolarRoute
@@ -1002,7 +993,6 @@ export interface FileRouteTypes {
     | '/f'
     | '/financeira'
     | '/portal-leads'
-    | '/presentation-visual-check'
     | '/remarketing'
     | '/seguradora'
     | '/solar'
@@ -1111,7 +1101,6 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/financeira'
     | '/portal-leads'
-    | '/presentation-visual-check'
     | '/remarketing'
     | '/seguradora'
     | '/solar'
@@ -1217,7 +1206,6 @@ export interface FileRouteTypes {
     | '/f'
     | '/financeira'
     | '/portal-leads'
-    | '/presentation-visual-check'
     | '/remarketing'
     | '/seguradora'
     | '/solar'
@@ -1328,7 +1316,6 @@ export interface RootRouteChildren {
   FRoute: typeof FRouteWithChildren
   FinanceiraRoute: typeof FinanceiraRoute
   PortalLeadsRoute: typeof PortalLeadsRoute
-  PresentationVisualCheckRoute: typeof PresentationVisualCheckRoute
   RemarketingRoute: typeof RemarketingRoute
   SeguradoraRoute: typeof SeguradoraRoute
   SolarRoute: typeof SolarRoute
@@ -1420,13 +1407,6 @@ declare module '@tanstack/react-router' {
       path: '/remarketing'
       fullPath: '/remarketing'
       preLoaderRoute: typeof RemarketingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/presentation-visual-check': {
-      id: '/presentation-visual-check'
-      path: '/presentation-visual-check'
-      fullPath: '/presentation-visual-check'
-      preLoaderRoute: typeof PresentationVisualCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portal-leads': {
@@ -2306,7 +2286,6 @@ const rootRouteChildren: RootRouteChildren = {
   FRoute: FRouteWithChildren,
   FinanceiraRoute: FinanceiraRoute,
   PortalLeadsRoute: PortalLeadsRoute,
-  PresentationVisualCheckRoute: PresentationVisualCheckRoute,
   RemarketingRoute: RemarketingRoute,
   SeguradoraRoute: SeguradoraRoute,
   SolarRoute: SolarRoute,
