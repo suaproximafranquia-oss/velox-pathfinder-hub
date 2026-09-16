@@ -57,18 +57,33 @@ export async function registerQueueCallOutcome(input: {
   runId?: string | null;
   /** A conclusão composta materializa a mensagem depois, no mesmo comando. */
   deferTick?: boolean;
-}): Promise<{ concluded: boolean; awaitingHandoff: boolean }> {
+}): Promise<{
+  concluded: boolean;
+  awaitingHandoff: boolean;
+  alreadyExecuted?: boolean;
+  actionOrder?: number | null;
+}> {
   const nowIso = input.nowIso ?? new Date().toISOString();
 
   const { data: item } = await supabaseAdmin
     .from("relationship_queue")
-    .select("id,lead_id,step,scope,status,action_kind")
+    .select("id,lead_id,step,scope,status,action_kind,action_order,result")
     .eq("id", input.queueItemId)
     .maybeSingle();
   if (!item) return { concluded: false, awaitingHandoff: false };
 
   const row = item as Record<string, any>;
-  if (row.status === "EXECUTED" || row.status === "CANCELLED") {
+  if (row.status === "EXECUTED") {
+    return {
+      concluded: false,
+      awaitingHandoff: false,
+      // A conclusão composta pode retomar com segurança depois de uma
+      // resposta perdida: só a MESMA ligação e o MESMO resultado valem.
+      alreadyExecuted: row.action_kind === "call" && row.result === input.outcome,
+      actionOrder: row.action_order ?? null,
+    };
+  }
+  if (row.status === "CANCELLED") {
     return { concluded: false, awaitingHandoff: false };
   }
 
@@ -115,7 +130,7 @@ export async function registerQueueCallOutcome(input: {
   if (input.outcome !== "SIM") {
     /** A mensagem da MESMA etapa é materializada imediatamente. */
     if (!input.deferTick) await tickLead(row.lead_id, input.engine);
-    return { concluded: true, awaitingHandoff: false };
+    return { concluded: true, awaitingHandoff: false, actionOrder: row.action_order ?? null };
   }
 
   if (row.step === "E0") {
@@ -155,7 +170,7 @@ export async function registerQueueCallOutcome(input: {
   // Assim nenhum SEM_CONTATO aberto sobrevive nem volta no recálculo.
   if (!input.deferTick) await tickLead(row.lead_id, input.engine);
 
-  return { concluded: true, awaitingHandoff: false };
+  return { concluded: true, awaitingHandoff: false, actionOrder: row.action_order ?? null };
 }
 
 async function tickLead(leadId: string, supplied?: Engine): Promise<void> {

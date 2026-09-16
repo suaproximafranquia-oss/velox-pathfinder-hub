@@ -17,6 +17,8 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { operationalDate } from "@/lib/crm/daily-actions";
+import { stepActions, type CadenceV2Step } from "@/lib/relationship/cadence-v2";
+import { REENTRY_ORDER_SPAN } from "@/lib/relationship/reentry-cycle";
 import {
   formatOperationalMoment,
   historyHeadline,
@@ -552,23 +554,38 @@ export async function completeCallAndMessage(input: DailyActionLogInput & {
     nowIso,
     deferTick: true,
   });
-  if (!call.concluded) return { concluded: false, reason: "Ligação já resolvida." };
+  if (!call.concluded && !call.alreadyExecuted) {
+    return { concluded: false, reason: "Ligação já resolvida." };
+  }
 
   const { productionEngine } = await import("@/server/relationship/engine.server");
   await productionEngine().tick(input.leadId);
+  const internalMessageOrder = stepActions(input.step as CadenceV2Step)
+    .find((action) => action.kind === "message")?.order;
+  if (internalMessageOrder == null) {
+    return { concluded: false, reason: "Etapa sem mensagem vinculada à ligação." };
+  }
+  const cycleOffset = (call.actionOrder ?? 0) >= REENTRY_ORDER_SPAN
+    ? Math.floor((call.actionOrder ?? 0) / REENTRY_ORDER_SPAN) * REENTRY_ORDER_SPAN
+    : 0;
+  const messageOrder = cycleOffset + internalMessageOrder;
   const { data: message } = await supabaseAdmin
     .from("relationship_queue")
-    .select("id")
+    .select("id,status")
     .eq("scope", "production")
     .is("run_id", null)
     .eq("lead_id", input.leadId)
     .eq("step", input.step)
     .eq("action_kind", "message")
-    .in("status", ["PENDING", "PROCESSING"])
+    .eq("action_order", messageOrder)
+    .in("status", ["PENDING", "PROCESSING", "EXECUTED"])
     .order("action_order", { ascending: true })
     .limit(1)
     .maybeSingle();
   if (!message?.id) return { concluded: false, reason: "Mensagem da etapa não foi materializada." };
+  if (message.status === "EXECUTED") {
+    return { concluded: true, reason: "Ligação e mensagem já estavam concluídas." };
+  }
   return registerDailyActionMessage({
     ...input,
     actionKey: `queue:${input.leadId}:${input.step}:${message.id}`,
