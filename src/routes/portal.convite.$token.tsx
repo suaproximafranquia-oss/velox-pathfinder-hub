@@ -42,19 +42,10 @@ function ConvitePage() {
   const { token } = Route.useParams();
   const redeem = useServerFn(resgatarConviteE20);
   const [message, setMessage] = useState<string | null>(null);
-  const [presentation, setPresentation] = useState<PublicDigitalPresentationData | null>(
-    token === "visual-check"
-      ? {
-          muxPlaybackId: "T8aSLNEb9jVG00jFtxp7kDFmbB5g01tBI7s1ZH99FBRIU",
-          introText:
-            "A Velox Financeira nasceu com um propósito claro: transformar oportunidades em crescimento.\n\nEsta apresentação reúne nossa visão institucional e os próximos passos para o investidor.\n\nhttps://portalvelox.com.br/uma-url-muito-longa-para-validar-quebra-sem-overflow-horizontal",
-        }
-      : null,
-  );
+  const [presentation, setPresentation] = useState<PublicDigitalPresentationData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    if (token === "visual-check") return () => undefined;
     void (async () => {
       try {
         // O dispositivo do acesso é registrado como fato da auditoria
