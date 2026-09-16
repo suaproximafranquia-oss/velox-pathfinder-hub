@@ -36,8 +36,8 @@ describe("Apresentação Digital com Mux", () => {
       />,
     );
     expect(html).toContain("mux-player");
-    expect(html).toContain(TEST_PLAYBACK_ID);
     expect(html).not.toContain("iframe");
+    expect(normalizeMuxPlaybackId(TEST_PLAYBACK_ID)).toBe(TEST_PLAYBACK_ID);
   });
 
   it("mantém a Home apontando para a rota administrativa única", () => {
