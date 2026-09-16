@@ -221,7 +221,7 @@
 
 ## Correção da Apresentação Digital interna e na Workspace
 
-- [ ] Fazer menu interno e cartão da Workspace abrirem a mesma experiência da Apresentação Digital, sem redirecionamento ao Manual.
-- [ ] Tornar a ausência de `videoUrl` um estado válido com título, legenda e placeholder, sem iframe social.
-- [ ] Preservar a rota pública de convite, Biblioteca, cadência, CRM, Agenda e banco.
-- [ ] Validar testes focados, tipos, build e Preview sem publicar.
+- [x] Fazer menu interno e cartão da Workspace abrirem a mesma experiência da Apresentação Digital, sem redirecionamento ao Manual.
+- [x] Tornar a ausência de `videoUrl` um estado válido com título, legenda e placeholder, sem iframe social.
+- [x] Preservar a rota pública de convite, Biblioteca, cadência, CRM, Agenda e banco.
+- [x] Validar testes focados, tipos e build; Preview público sem erros e validação autenticada bloqueada pelo login corporativo local (5 testes, tipos e build aprovados; nada publicado).

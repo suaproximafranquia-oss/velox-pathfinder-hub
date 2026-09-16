@@ -27,6 +27,7 @@ import {
   LibraryBig,
   Activity,
   SpellCheck,
+  Video,
 } from "lucide-react";
 import {
   createContext,
@@ -281,6 +282,9 @@ export function ExecutiveShellFrame({
   ];
 
   const relationship = [
+    ...(allow("apresentacao_digital")
+      ? [{ to: unitPath("/executivo/apresentacao-digital"), label: "Apresentação Digital", icon: Video }]
+      : []),
     ...(allow("biblioteca")
       ? [{ to: unitPath("/executivo/biblioteca"), label: "Biblioteca de Conteúdos", icon: LibraryBig }]
       : []),
