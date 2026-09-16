@@ -529,12 +529,30 @@ export function DailyActionCard({
           {item.name || "Sem nome"}
         </h3>
         {item.kind !== "compromisso" && (
-          <a
-            href={`tel:${item.phone.replace(/[^\d+]/g, "")}`}
-            className="mt-2 inline-block text-xl text-[color:var(--gold)]"
-          >
-            {item.phone ? formatDailyActionPhone(item.phone) : "Sem telefone"}
-          </a>
+          <div className="mt-2 flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleOpenWhatsapp}
+              aria-label="Abrir WhatsApp deste contato"
+              title="Abrir WhatsApp"
+              className="h-7 w-7 shrink-0 text-[color:var(--gold)] hover:bg-white/10 hover:text-[color:var(--gold)]"
+            >
+              <MessageCircle className="h-4 w-4" />
+            </Button>
+            <a
+              href={`tel:${item.phone.replace(/[^\d+]/g, "")}`}
+              className="text-xl text-[color:var(--gold)]"
+            >
+              {item.phone ? formatDailyActionPhone(item.phone) : "Sem telefone"}
+            </a>
+          </div>
+        )}
+        {!messageOpen && whatsappFeedback && (
+          <p role="status" className="mt-1 text-[11px] text-amber-200/80">
+            {whatsappFeedback}
+          </p>
         )}
         <p className="mt-2 text-sm text-white/55">{item.source === "queue" && item.kind === "ligacao" ? `Ligação ${(item.queueActionOrder ?? 1) > 1 ? "02" : "01"}` : item.title}</p>
         {item.attempts.length > 0 && (
