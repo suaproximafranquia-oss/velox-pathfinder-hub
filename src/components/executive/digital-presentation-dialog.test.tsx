@@ -25,7 +25,7 @@ describe("Apresentação Digital com Mux", () => {
     );
     expect(html).toContain("digital-presentation-placeholder");
     expect(html).toContain("Contexto");
-    expect(html).toContain("Legenda");
+    expect(html).not.toContain(">Legenda<");
     expect(html).not.toContain("mux-player");
     expect(html).not.toContain("iframe");
   });
@@ -74,6 +74,10 @@ describe("Apresentação Digital com Mux", () => {
     expect(html).toContain("Continuar no Portal do Investidor");
     expect(html).toContain("whitespace-pre-wrap");
     expect(html).toContain("break-words");
+    expect(html).toContain("overflow-wrap:anywhere");
+    expect(html).not.toContain(">Legenda<");
+    expect(html).not.toContain("bg-navy/80");
+    expect(html).not.toContain("backdrop-blur-md");
   });
 
   it("mantém a Home apontando para a rota administrativa única", () => {
