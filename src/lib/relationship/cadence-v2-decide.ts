@@ -120,11 +120,6 @@ function stepFinished(
   const plan = stepActions(step, compensateE2, operationalDate);
   if (rows.length === 0) return false;
   const byOrder = new Map(rows.map((r) => [r.actionOrder, r]));
-  // Ligação atendida encerra a etapa: as ações restantes perderam finalidade.
-  const attended = rows.some(
-    (r) => r.actionKind === "call" && r.status === "EXECUTED" && r.result === "SIM",
-  );
-  if (attended && step !== "E0") return true;
   return plan.every((a) => {
     const row = byOrder.get(a.order);
     return row?.status === "EXECUTED" || row?.status === "CANCELLED";

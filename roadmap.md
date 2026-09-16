@@ -257,3 +257,9 @@
 - [x] Substituir somente o “Ver ficha completa” do modal de mensagem por abertura manual do contato no WhatsApp.
 - [x] Reutilizar o telefone da ação e a normalização central, sem texto preenchido, envio ou transição operacional.
 - [x] Validar testes focados, tipos e build sem publicar (37 testes aprovados; Preview autenticado chegou à entrada operacional, mas o usuário injetado não tinha acesso aos cards para inspeção do segundo modal).
+
+## Agenda e ligação/mensagem na mesma etapa
+
+- [x] Acrescentar os blocos 12h–13h e 18h–19h à Agenda, preservando a ocupação por sobreposição.
+- [x] Manter todas as etapas compostas ativas após SIM/ATENDEU até a mensagem da mesma etapa ser concluída.
+- [ ] Validar testes focados, tipos, build e Preview sem publicação.
