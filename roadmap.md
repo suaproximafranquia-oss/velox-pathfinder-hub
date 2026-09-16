@@ -239,3 +239,9 @@
 - [x] Refinar título, vídeo e legenda da experiência pública, preservando integralmente Mux, convite e dados.
 - [x] Adicionar continuação direta para `https://portalvelox.com.br/f`, sem depender do histórico do navegador.
 - [x] Validar testes focados, tipos, build e Preview desktop/mobile, sem publicar (12 testes e tipos aprovados; build OK; fundo, legenda e destino confirmados sem overflow; o Chromium automatizado manteve o erro de codec conhecido do arquivo Mux, sem alteração no player).
+
+## Integração Encerrar/Reabrir — Portal, TikTok e Meta
+- [ ] Integrar `closed_at` ao motor V2 apenas para Portal/TikTok/Meta e neutralizar obrigações abertas sem convertê-las em execução.
+- [ ] Reabrir a mesma instância pela execução real, materializando somente a obrigação correta e idempotente.
+- [ ] Preservar Pular, histórico, snapshots, GreenSales e todos os módulos fora do escopo.
+- [ ] Validar cenários A–M, tipos, build e Preview sem publicação ou alteração de dados reais.
