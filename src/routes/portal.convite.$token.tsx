@@ -14,7 +14,6 @@ import {
   PublicDigitalPresentation,
   type PublicDigitalPresentationData,
 } from "@/components/portal/public-digital-presentation";
-import { EditorialShell } from "@/components/editorial/editorial-shell";
 
 export const Route = createFileRoute("/portal/convite/$token")({
   ssr: false,
@@ -69,22 +68,14 @@ function ConvitePage() {
     };
   }, [token, redeem]);
 
-  if (presentation) {
-    return (
-      <EditorialShell variant="portal">
-        <PublicDigitalPresentation presentation={presentation} />
-      </EditorialShell>
-    );
-  }
+  if (presentation) return <PublicDigitalPresentation presentation={presentation} />;
 
   return (
-    <EditorialShell variant="portal">
-      <main className="flex min-h-screen items-center justify-center bg-navy-deep px-6 text-center text-navy-foreground">
-        <div className="max-w-md space-y-3">
-          <h1 className="text-xl font-semibold">Apresentação Digital</h1>
-          <p className="text-sm text-muted-foreground">{message ?? "Validando seu convite…"}</p>
-        </div>
-      </main>
-    </EditorialShell>
+    <main className="flex min-h-screen items-center justify-center bg-navy-deep px-6 text-center text-navy-foreground">
+      <div className="max-w-md space-y-3">
+        <h1 className="text-xl font-semibold">Apresentação Digital</h1>
+        <p className="text-sm text-muted-foreground">{message ?? "Validando seu convite…"}</p>
+      </div>
+    </main>
   );
 }

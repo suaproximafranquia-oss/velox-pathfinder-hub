@@ -141,6 +141,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function resolveShell(pathname: string): EditorialVariant | "executive" | "group" {
+  if (pathname.startsWith("/portal/convite/")) return "portal";
   if (pathname.startsWith("/f/executivo")) return "executive";
   // O CRM é um ambiente operacional próprio — não herda o tema editorial.
   if (pathname.startsWith("/f/crm")) return "executive";
@@ -204,6 +205,7 @@ function RootRoutes() {
     pathname === "/seg";
   const isUniverso = pathname.startsWith("/universo");
   const isGateway = pathname === "/entrar";
+  const isPublicDigitalPresentation = pathname.startsWith("/portal/convite/");
   // Agenda Operacional Global: disponível em todo ambiente interno da
   // unidade de negócio (/f/executivo, /f/crm, /f/remarketing, /f/portal-leads).
   const showAgenda = isOperationalPath(pathname);
@@ -217,7 +219,15 @@ function RootRoutes() {
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (isExecutive || isCrm || isLeadsPortal || isRemarketing || isPortal || isGroup) return;
+    if (
+      isExecutive ||
+      isCrm ||
+      isLeadsPortal ||
+      isRemarketing ||
+      isPortal ||
+      isGroup ||
+      isPublicDigitalPresentation
+    ) return;
     const insideOverlay = window.self !== window.top;
     const mod = moduleForPath(pathname);
     if (!mod) return;
@@ -231,7 +241,17 @@ function RootRoutes() {
       return;
     }
     navigate({ to: "/f", search: { m: mod.key }, replace: true });
-  }, [isCrm, isExecutive, isGroup, isLeadsPortal, isRemarketing, isPortal, navigate, pathname]);
+  }, [
+    isCrm,
+    isExecutive,
+    isGroup,
+    isLeadsPortal,
+    isPublicDigitalPresentation,
+    isRemarketing,
+    isPortal,
+    navigate,
+    pathname,
+  ]);
 
   // Área Executiva permanece isolada do Design System editorial.
   if (isExecutive) {
@@ -253,6 +273,19 @@ function RootRoutes() {
       <QueryClientProvider client={queryClient}>
         <Outlet />
         {showAgenda ? <AgendaDock /> : null}
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
+  // O convite E20 validado abre uma experiência pública autônoma.
+  // Não herda capítulos, índice, jornada ou atalhos do Manual.
+  if (isPublicDigitalPresentation) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <EditorialShell variant="portal">
+          <Outlet />
+        </EditorialShell>
         <Toaster />
       </QueryClientProvider>
     );
