@@ -219,6 +219,13 @@
 - [x] Permitir que retry da conclusão composta retome somente a mesma ligação já executada com o mesmo resultado e encerre a mensagem da mesma execução.
 - [x] Validar E0 SIM/NAO, reconciliações repetidas, reload, duplicidade, múltiplos leads, caso Thyana somente leitura, testes focados, tipos, build e Preview, sem publicar (139 testes aprovados; tipos, build e Preview OK; Thyana permanece com uma ligação e uma mensagem E0 `EXECUTED`, sem nova pendência; área executiva aguardou sessão corporativa).
 
+## Consolidação da Apresentação Digital com Mux
+
+- [x] Separar a configuração administrativa da experiência pública, mantendo somente a Financeira e uma única rota de configuração.
+- [x] Persistir o Playback ID do Mux na apresentação vigente e no histórico, preservando o campo antigo apenas como histórico inativo.
+- [x] Renderizar a apresentação pública pelo convite validado, sem Manual, capítulos, `m=manual` ou redirecionamento automático para `/f`.
+- [ ] Validar testes focados, tipos, build e Preview com convite válido, inválido e expirado, sem publicar.
+
 ## Correção da Apresentação Digital interna e na Workspace
 
 - [x] Fazer menu interno e cartão da Workspace abrirem a mesma experiência da Apresentação Digital, sem redirecionamento ao Manual.
