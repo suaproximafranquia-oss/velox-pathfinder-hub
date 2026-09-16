@@ -47,6 +47,8 @@ type LeadIdentity = {
   scope: string | null;
   /** Card fora da operação atual (arquivado no ponto zero). */
   archived: boolean;
+  /** Encerramento manual integrado à cadência (somente Portal/TikTok/Meta). */
+  cadenceClosed: boolean;
   /** Executivo responsável pelo card (titularidade vigente). */
   responsibleExecutiveId: string | null;
 };
@@ -150,7 +152,7 @@ async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdenti
   if (unique.length === 0) return map;
   const { data } = await supabaseAdmin
     .from("portal_leads")
-    .select("id,name,whatsapp,scope,archived_at,responsible_executive_id")
+    .select("id,name,whatsapp,scope,archived_at,closed_at,responsible_executive_id")
     .in("id", unique);
   for (const row of data ?? []) {
     map.set(row.id, {
@@ -158,6 +160,9 @@ async function loadLeadIdentities(ids: string[]): Promise<Map<string, LeadIdenti
       phone: row.whatsapp ?? "",
       scope: row.scope ?? null,
       archived: Boolean((row as { archived_at?: string | null }).archived_at),
+      cadenceClosed:
+        ["portal", "tiktok", "meta"].includes(String(row.scope ?? "").toLowerCase()) &&
+        Boolean((row as { closed_at?: string | null }).closed_at),
       responsibleExecutiveId:
         ((row as { responsible_executive_id?: string | null }).responsible_executive_id ?? null),
     });
@@ -615,7 +620,7 @@ export async function buildDailyActions(input: DailyActionsInput): Promise<Daily
   const operational = visible.filter((a) => {
     if (!a.leadId) return true;
     const identity = identities.get(a.leadId);
-    return Boolean(identity) && !identity!.archived;
+    return Boolean(identity) && !identity?.archived && !identity?.cadenceClosed;
   });
 
   return normalizeDailyActions(operational);

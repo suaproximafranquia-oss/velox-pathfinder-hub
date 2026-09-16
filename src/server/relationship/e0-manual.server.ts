@@ -65,6 +65,20 @@ export async function openManualE0Cadence(
   // Abertura de RE exige a submissão estável; não passa pelo reconciliador de E0.
   if (options?.reentry) return false;
 
+  // Portal/TikTok/Meta encerrados continuam registrados, mas não recebem
+  // ciclo ou obrigação até uma reabertura explícita no Workspace.
+  const { data: operationalLead } = await supabaseAdmin
+    .from("portal_leads")
+    .select("scope,closed_at")
+    .eq("id", cardId)
+    .maybeSingle();
+  if (
+    ["portal", "tiktok", "meta"].includes(String(operationalLead?.scope ?? "").toLowerCase()) &&
+    operationalLead?.closed_at
+  ) {
+    return false;
+  }
+
   const already = await governedByV2([cardId]);
   if (already.has(cardId)) return true;
 

@@ -29,6 +29,16 @@ export const updateWorkspaceOperational = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: WorkspaceOperationalPatch) => data)
   .handler(async ({ data, context }) => {
+    let previousClosedAt: string | null = null;
+    if (data.closedAt !== undefined) {
+      const { data: currentLead, error: currentLeadError } = await context.supabase
+        .from("portal_leads")
+        .select("closed_at")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (currentLeadError) throw new Error(currentLeadError.message);
+      previousClosedAt = currentLead?.closed_at ?? null;
+    }
     if (data.responsibleExecutiveId) {
       const { assertAssignableExecutive } = await import("@/server/crm/manager-guard.server");
       await assertAssignableExecutive(data.responsibleExecutiveId);
@@ -98,6 +108,17 @@ export const updateWorkspaceOperational = createServerFn({ method: "POST" })
       updated = Number(affected ?? 0);
       if (updated === 0) {
         throw new Error("Lead não encontrado ou sem permissão para esta operação.");
+      }
+      if (data.closedAt !== undefined) {
+        const { syncWorkspaceLeadCadenceState } = await import(
+          "@/server/relationship/lead-cadence-control.server"
+        );
+        await syncWorkspaceLeadCadenceState({
+          leadId: data.id,
+          closedAt: data.closedAt,
+          previousClosedAt,
+          actorId: context.userId,
+        });
       }
     }
 

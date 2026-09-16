@@ -537,7 +537,12 @@ export function createEngine(options: EngineOptions): Engine {
       const transition = applyEvent(record, { ...event, at }, config);
       await repository.saveRecord(transition.record);
 
-      const cancelReason = event.historical ? null : CANCELLING_EVENTS[event.type];
+      const explicitCancelReason = event.data?.["cancelReason"];
+      const cancelReason = event.historical
+        ? null
+        : typeof explicitCancelReason === "string" && explicitCancelReason.length > 0
+          ? explicitCancelReason
+          : CANCELLING_EVENTS[event.type];
       if (cancelReason) {
         await repository.cancelPendingItems(event.leadId, cancelReason);
       }

@@ -10,6 +10,10 @@ import { v2FlowOf, type V2DecisionInput, type V2QueueAction } from "@/lib/relati
 import type { CadenceRecord } from "@/lib/relationship/types";
 import { e0OperationalDate, localDateOf } from "@/lib/relationship/cadence-v2";
 import { belongsToReentryCycle, reentryInternalOrder } from "@/lib/relationship/reentry-cycle";
+import {
+  isNeutralizedCadenceCancellation,
+  supportsWorkspaceCadenceControl,
+} from "@/lib/relationship/lead-cadence-closure";
 
 /** Estágios que congelam a cadência / liberam o fluxo R. */
 type Row = Record<string, any>;
@@ -137,9 +141,6 @@ async function loadE0EntryAt(leadId: string): Promise<string | null> {
   return row?.entry_at ?? row?.created_at ?? null;
 }
 
-/** Cancelamentos que NÃO representam decisão da régua (desfazer de resultado). */
-const NEUTRALIZED_CANCEL_REASONS = new Set(["undo_call_outcome"]);
-
 export async function loadCadenceV2State(
   record: CadenceRecord,
   options: { nowIso?: string; runId?: string | null } = {},
@@ -158,13 +159,18 @@ export async function loadCadenceV2State(
     .eq("scope", record.scope)
     .eq("lead_id", record.leadId)
     .eq("active", true);
+  const leadQuery = supabaseAdmin
+    .from("portal_leads")
+    .select("scope,closed_at")
+    .eq("id", record.leadId);
   const scopedQueue = options.runId ? queueQuery.eq("run_id", options.runId) : queueQuery.is("run_id", null);
   const scopedCycle = options.runId ? cycleQuery.eq("run_id", options.runId) : cycleQuery.is("run_id", null);
   const homologation = record.scope === "homologation";
-  const [{ data: queueRows }, { data: cycleRow }, stageKey, hasCommitment, material, e0Executed, e0EntryAt] =
+  const [{ data: queueRows }, { data: cycleRow }, { data: leadRow }, stageKey, hasCommitment, material, e0Executed, e0EntryAt] =
     await Promise.all([
       scopedQueue.order("due_at", { ascending: true }),
       scopedCycle.order("instance_seq", { ascending: false }).limit(1).maybeSingle(),
+      leadQuery.maybeSingle(),
       loadStageKey(record.leadId),
       homologation ? Promise.resolve(false) : loadHasCommitment(record.leadId),
       homologation ? Promise.resolve({ materialSent: false, materialRequested: false, materialRequestedAt: null, materialSentAt: null, lastMaterialSentAt: null, lastMaterialRequestedAt: null }) : loadMaterialState(record.leadId),
@@ -178,7 +184,7 @@ export async function loadCadenceV2State(
     // Linha neutralizada por "desfazer resultado" não é decisão da régua.
     .filter(
       (row) =>
-        !(row.status === "CANCELLED" && NEUTRALIZED_CANCEL_REASONS.has(row.cancel_reason ?? "")),
+        !isNeutralizedCadenceCancellation(row.status, row.cancel_reason),
     )
     .map((row) => ({
       step: row.step,
@@ -270,7 +276,10 @@ export async function loadCadenceV2State(
     hasCommitment,
     // Histórico apenas: não congela mais a régua.
     awaitingHandoff: Boolean((cycleRow as Row | null)?.awaiting_handoff),
-    closed: ["COMPLETED", "CLOSED", "INTERRUPTED"].includes(record.state),
+    closed:
+      ["COMPLETED", "CLOSED", "INTERRUPTED"].includes(record.state) ||
+      (supportsWorkspaceCadenceControl((leadRow as Row | null)?.scope) &&
+        Boolean((leadRow as Row | null)?.closed_at)),
     materialRequestedAt: material.materialRequestedAt,
   };
 }
