@@ -228,8 +228,9 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
     void isEntry;
 
 
-    // Vencimento da etapa: estável quando já existe fila; calculado quando não.
-    const existingDue = rows.length ? rows.map((r) => r.dueAt).sort()[0]! : null;
+    // O plano vigente é a única autoridade temporal. Uma linha PENDING
+    // materializada com a antiga leitura N+1 deve convergir para data + N;
+    // estados PROCESSING/EXECUTED seguem protegidos no repositório.
     const plan = planDue({
       originDate: isEntry && input.flow === "R" ? nextOpenDay(addDays(anchorDate, 1)) : anchorDate,
       theoreticalOffset: offset,
@@ -239,11 +240,7 @@ export function decideCadenceV2(input: V2DecisionInput): V2Decision {
         ? (input.materialRequestedAt ?? previousExecution)
         : null,
     });
-    // Nunca antecipa uma obrigação persistida, mas atraso real desloca a
-    // pendência futura para a nova âncora determinística.
-    const stepDueAt = step === "E0" || !existingDue || plan.dueAt > existingDue
-      ? plan.dueAt
-      : existingDue;
+    const stepDueAt = plan.dueAt;
 
     const released = nextReleasedAction({
       step,
