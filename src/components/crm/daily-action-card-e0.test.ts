@@ -20,7 +20,19 @@ describe("Ação do Dia — mensagem após ligação", () => {
     );
     expect(copyHandler).not.toContain("registerMessage(");
     expect(copyHandler).not.toContain("completeCall(");
+    expect(copyHandler).not.toContain("setFeedback(");
+    expect(copyHandler).not.toContain("Mensagem copiada da Biblioteca");
     expect(source).toContain("completeCallAndMessage(item, outcome, rang, observation)");
+  });
+
+  it("mantém somente o aviso exato quando a cópia falha", () => {
+    const messageModal = source.slice(source.indexOf("{messageOpen && ("));
+    expect(messageModal).toContain('copyStatus === "failed"');
+    expect(messageModal).toContain("Mensagem não foi copiada.");
+    expect(messageModal).not.toContain("Mensagem copiada.");
+    expect(messageModal).not.toContain("A cópia automática falhou");
+    expect(messageModal).toContain("Copiar mensagem");
+    expect(messageModal).not.toContain("Copiar novamente");
   });
 
   it("B) a cópia de CONTATO_REALIZADO permanece separada da conclusão", () => {
