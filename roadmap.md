@@ -260,16 +260,16 @@
 
 ## Modo Janela — cópia silenciosa da mensagem
 
-- [ ] Manter a abertura e as duas tentativas de cópia separadas de qualquer conclusão ou avanço operacional.
-- [ ] Remover confirmações de sucesso e exibir somente `Mensagem não foi copiada.` quando uma tentativa falhar.
-- [ ] Validar testes focados, tipos, build e Preview sem publicação.
+- [x] Manter a abertura e as duas tentativas de cópia separadas de qualquer conclusão ou avanço operacional.
+- [x] Remover confirmações de sucesso e exibir somente `Mensagem não foi copiada.` quando uma tentativa falhar.
+- [x] Validar testes focados, tipos e build sem publicação (133 testes relacionados e tipos aprovados; build automático OK; Preview autenticado permanece condicionado à sessão operacional).
 
 ## Semântica dos intervalos da cadência V2
 
-- [ ] Garantir em uma única origem que `days: N` represente deslocamento direto de N datas corridas desde a execução anterior.
-- [ ] Preservar os intervalos e condições comerciais existentes de E, R e RE, aplicando o calendário operacional somente após a data teórica.
-- [ ] Cobrir +1, +2, +3, +4, +5 e +7, incluindo segunda, quarta, sexta, sábado/domingo e consistência entre consumidores.
-- [ ] Validar somente testes focados da cadência, tipos e build, sem publicação.
+- [x] Garantir em uma única origem que `days: N` represente deslocamento direto de N datas corridas desde a execução anterior.
+- [x] Preservar os intervalos e condições comerciais existentes de E, R e RE, aplicando o calendário operacional somente após a data teórica.
+- [x] Cobrir +1, +2, +3, +4, +5 e +7, incluindo segunda, quarta, sexta, sábado/domingo e consistência entre consumidores.
+- [x] Validar somente testes focados da cadência, tipos e build, sem publicação (133 testes relacionados e tipos aprovados; build automático OK).
 
 ## Agenda e ligação/mensagem na mesma etapa
 

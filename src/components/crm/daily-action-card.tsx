@@ -371,6 +371,7 @@ export function DailyActionCard({
    */
   async function handleOpenMessage(context?: "CONTATO_REALIZADO") {
     setBusy(true);
+    setFeedback(null);
     setMessage(null);
     setWhatsappFeedback(null);
     try {
