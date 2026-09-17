@@ -371,6 +371,7 @@ export function DailyActionCard({
    */
   async function handleOpenMessage(context?: "CONTATO_REALIZADO") {
     setBusy(true);
+    setFeedback(null);
     setMessage(null);
     setWhatsappFeedback(null);
     try {
@@ -426,11 +427,6 @@ export function DailyActionCard({
     }
     const ok = await copyToClipboard(body);
     setCopyStatus(ok ? "copied" : "failed");
-    setFeedback(
-      ok
-        ? "Mensagem copiada da Biblioteca."
-        : "A cópia não foi realizada — selecione o texto na janela e copie manualmente.",
-    );
     return ok;
   }
 
@@ -927,13 +923,11 @@ export function DailyActionCard({
               </p>
             </div>
             <div className="space-y-2 border-t border-white/10 px-4 py-3">
-              <p className={`text-[11px] ${copyStatus === "copied" ? "text-emerald-200/80" : "text-amber-200/80"}`}>
-                {copyStatus === "copied"
-                  ? "Mensagem copiada. Copiar não conclui a ação."
-                  : copyStatus === "copying"
-                    ? "Copiando mensagem…"
-                    : "A cópia automática falhou. Selecione o texto acima ou tente copiar novamente."}
-              </p>
+              {copyStatus === "failed" && (
+                <p role="status" className="text-[11px] text-amber-200/80">
+                  Mensagem não foi copiada.
+                </p>
+              )}
               <input
                 value={messageNote}
                 onChange={(e) => setMessageNote(e.target.value)}
@@ -952,7 +946,7 @@ export function DailyActionCard({
                   disabled={!message?.body}
                   className="flex-1 rounded-lg border border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 px-3 py-2 text-sm text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-50"
                 >
-                  {copyStatus === "copied" ? "Copiar novamente" : "Copiar mensagem"}
+                  Copiar mensagem
                 </button>
                 <button
                   type="button"

@@ -377,6 +377,15 @@ export type DuePlan = {
 };
 
 /**
+ * Semântica única dos intervalos comerciais: `days` é a distância direta
+ * entre as duas datas. A data da execução anterior é D0; não existe um dia
+ * de espera adicional antes da soma.
+ */
+export function theoreticalDateAfterInterval(originDate: string, days: number): string {
+  return addDays(originDate, days);
+}
+
+/**
  * Calcula o vencimento de uma etapa segundo a âncora aprovada:
  * data teórica na origem do ciclo + execução anterior como piso, sem
  * duas etapas do mesmo lead no mesmo dia.
@@ -386,7 +395,7 @@ export function planDue(input: DuePlanInput): DuePlan {
 
   const theoreticalDate = input.immediateFromIso
     ? localDateOf(input.immediateFromIso)
-    : addDays(input.originDate, input.theoreticalOffset);
+    : theoreticalDateAfterInterval(input.originDate, input.theoreticalOffset);
 
   let operational = shiftTheoreticalDate(theoreticalDate);
   if (operational !== theoreticalDate) shiftedBy.push("weekend_or_holiday");
